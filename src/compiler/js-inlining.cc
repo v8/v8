@@ -290,40 +290,35 @@ namespace {
 // function, which either returns the map set from the CheckMaps or
 // a singleton set from a StoreField.
 bool NeedsConvertReceiver(Node* receiver, Node* effect) {
-  for (Node* dominator = effect;;) {
-    if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
-      // Check if all maps have the given {instance_type}.
-      ZoneHandleSet<Map> const& maps =
-          CheckMapsParametersOf(dominator->op()).maps();
-      for (size_t i = 0; i < maps.size(); ++i) {
-        if (!maps[i]->IsJSReceiverMap()) return true;
-      }
+  // Check if the {receiver} is already a JSReceiver.
+  switch (receiver->opcode()) {
+    case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructWithSpread:
+    case IrOpcode::kJSCreate:
+    case IrOpcode::kJSCreateArguments:
+    case IrOpcode::kJSCreateArray:
+    case IrOpcode::kJSCreateClosure:
+    case IrOpcode::kJSCreateIterResultObject:
+    case IrOpcode::kJSCreateKeyValueArray:
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateLiteralRegExp:
+    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSGetSuperConstructor:
+    case IrOpcode::kJSToObject: {
       return false;
     }
-    switch (dominator->opcode()) {
-      case IrOpcode::kStoreField: {
-        FieldAccess const& access = FieldAccessOf(dominator->op());
-        if (access.base_is_tagged == kTaggedBase &&
-            access.offset == HeapObject::kMapOffset) {
-          return true;
+    default: {
+      ZoneHandleSet<Map> maps;
+      if (NodeProperties::InferReceiverMaps(receiver, effect, &maps)) {
+        // Check if all {maps} are actually JSReceiver maps.
+        for (size_t i = 0; i < maps.size(); ++i) {
+          if (!maps[i]->IsJSReceiverMap()) return true;
         }
-        break;
+        return false;
       }
-      case IrOpcode::kStoreElement:
-      case IrOpcode::kStoreTypedElement:
-        break;
-      default: {
-        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
-        if (dominator->op()->EffectInputCount() != 1 ||
-            !dominator->op()->HasProperty(Operator::kNoWrite)) {
-          // Didn't find any appropriate CheckMaps node.
-          return true;
-        }
-        break;
-      }
+      return true;
     }
-    dominator = NodeProperties::GetEffectInput(dominator);
   }
 }
 
@@ -518,35 +513,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
   }
 
-  // Find the IfException node, if any.
+  // Calls surrounded by a local try-block are only inlined if the appropriate
+  // flag is active. We also discover the {IfException} projection this way.
   Node* exception_target = nullptr;
-  for (Edge edge : node->use_edges()) {
-    if (NodeProperties::IsControlEdge(edge) &&
-        edge.from()->opcode() == IrOpcode::kIfException) {
-      DCHECK_NULL(exception_target);
-      exception_target = edge.from();
-    }
-  }
-
-  NodeVector uncaught_subcalls(local_zone_);
-
-  if (exception_target != nullptr) {
-    if (!FLAG_inline_into_try) {
-      TRACE(
-          "Try block surrounds #%d:%s and --no-inline-into-try active, so not "
-          "inlining %s into %s.\n",
-          exception_target->id(), exception_target->op()->mnemonic(),
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-      return NoChange();
-    } else {
-      TRACE(
-          "Inlining %s into %s regardless of surrounding try-block to catcher "
-          "#%d:%s\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get(),
-          exception_target->id(), exception_target->op()->mnemonic());
-    }
+  if (NodeProperties::IsExceptionalCall(node, &exception_target) &&
+      !FLAG_inline_into_try) {
+    TRACE(
+        "Try block surrounds #%d:%s and --no-inline-into-try active, so not "
+        "inlining %s into %s.\n",
+        exception_target->id(), exception_target->op()->mnemonic(),
+        shared_info->DebugName()->ToCString().get(),
+        info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
   }
 
   ParseInfo parse_info(shared_info);
@@ -575,9 +553,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.
 
-  TRACE("Inlining %s into %s\n",
-        shared_info->DebugName()->ToCString().get(),
-        info_->shared_info()->DebugName()->ToCString().get());
+  TRACE("Inlining %s into %s%s\n", shared_info->DebugName()->ToCString().get(),
+        info_->shared_info()->DebugName()->ToCString().get(),
+        (exception_target != nullptr) ? " (inside try-block)" : "");
 
   // Determine the targets feedback vector and its context.
   Node* context;
@@ -600,6 +578,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     end = graph()->end();
   }
 
+  NodeVector uncaught_subcalls(local_zone_);
   if (exception_target != nullptr) {
     // Find all uncaught 'calls' in the inlinee.
     AllNodes inlined_nodes(local_zone_, end, graph());

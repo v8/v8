@@ -53,22 +53,27 @@ class SloppyBlockFunctionMap : public ZoneHashMap {
  public:
   class Delegate : public ZoneObject {
    public:
-    explicit Delegate(Scope* scope,
-                      SloppyBlockFunctionStatement* statement = nullptr)
-        : scope_(scope), statement_(statement), next_(nullptr) {}
+    Delegate(Scope* scope, SloppyBlockFunctionStatement* statement, int index)
+        : scope_(scope), statement_(statement), next_(nullptr), index_(index) {}
     void set_statement(Statement* statement);
     void set_next(Delegate* next) { next_ = next; }
     Delegate* next() const { return next_; }
     Scope* scope() const { return scope_; }
+    int index() const { return index_; }
 
    private:
     Scope* scope_;
     SloppyBlockFunctionStatement* statement_;
     Delegate* next_;
+    int index_;
   };
 
   explicit SloppyBlockFunctionMap(Zone* zone);
-  void Declare(Zone* zone, const AstRawString* name, Delegate* delegate);
+  void Declare(Zone* zone, const AstRawString* name, Scope* scope,
+               SloppyBlockFunctionStatement* statement);
+
+ private:
+  int count_;
 };
 
 enum class AnalyzeMode { kRegular, kDebugger };
@@ -112,6 +117,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   class Snapshot final BASE_EMBEDDED {
    public:
     explicit Snapshot(Scope* scope);
+    ~Snapshot();
 
     void Reparent(DeclarationScope* new_parent) const;
 
@@ -121,6 +127,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     VariableProxy* top_unresolved_;
     ThreadedList<Variable>::Iterator top_local_;
     ThreadedList<Declaration>::Iterator top_decl_;
+    const bool outer_scope_calls_eval_;
   };
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
@@ -149,10 +156,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Discards this scope for it will not be used (e.g., it corresponds to
   // a function signature that was not followed by the function's body).
   void DiscardScope();
-
-  // Propagates any eagerly-gathered scope usage flags (such as calls_eval())
-  // to the passed-in scope.
-  void PropagateUsageFlagsToScope(Scope* other);
 
   Zone* zone() const { return zone_; }
 
@@ -368,10 +371,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // The scope immediately surrounding this scope, or NULL.
   Scope* outer_scope() const { return outer_scope_; }
 
-  const AstRawString* catch_variable_name() const {
+  Variable* catch_variable() const {
     DCHECK(is_catch_scope());
     DCHECK_EQ(1, num_var());
-    return static_cast<AstRawString*>(variables_.Start()->key);
+    return static_cast<Variable*>(variables_.Start()->value);
   }
 
   // ---------------------------------------------------------------------------
@@ -496,6 +499,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // should also be invoked after resolution.
   bool NeedsScopeInfo() const;
 
+  Variable* NewTemporary(const AstRawString* name,
+                         MaybeAssignedFlag maybe_assigned);
   Zone* zone_;
 
   // Scope tree.
@@ -559,6 +564,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Temporary workaround that allows masking of 'this' in debug-evalute scopes.
   bool is_debug_evaluate_scope_ : 1;
 
+  // True if one of the inner scopes or the scope itself calls eval.
   bool inner_scope_calls_eval_ : 1;
   bool force_context_allocation_ : 1;
 
@@ -603,14 +609,12 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void AllocateDebuggerScopeInfos(Isolate* isolate,
                                   MaybeHandle<ScopeInfo> outer_scope);
 
-  void CollectVariableData(PreParsedScopeData* data);
-
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
   Scope(Zone* zone, const AstRawString* catch_variable_name,
-        Handle<ScopeInfo> scope_info);
+        MaybeAssignedFlag maybe_assigned, Handle<ScopeInfo> scope_info);
 
   void AddInnerScope(Scope* inner_scope) {
     inner_scope->sibling_ = inner_scope_;
@@ -818,7 +822,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void HoistSloppyBlockFunctions(AstNodeFactory* factory);
 
   SloppyBlockFunctionMap* sloppy_block_function_map() {
-    return &sloppy_block_function_map_;
+    return sloppy_block_function_map_;
   }
 
   // Compute top scope and allocate variables. For lazy compilation the top
@@ -901,7 +905,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Parameter list in source order.
   ZoneList<Variable*> params_;
   // Map of function names to lists of functions defined in sloppy blocks
-  SloppyBlockFunctionMap sloppy_block_function_map_;
+  SloppyBlockFunctionMap* sloppy_block_function_map_;
   // Convenience variable.
   Variable* receiver_;
   // Function variable, if any; function scopes only.

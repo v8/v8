@@ -8,6 +8,7 @@
 
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
+#include "src/x64/assembler-x64-inl.h"
 
 namespace v8 {
 namespace internal {

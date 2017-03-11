@@ -1100,8 +1100,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ li(kConstantPoolRegister, Operand::Zero());
     __ push(kConstantPoolRegister);
   }
-  int marker = type();
-  __ LoadSmiLiteral(r0, Smi::FromInt(marker));
+  StackFrame::Type marker = type();
+  __ mov(r0, Operand(StackFrame::TypeToMarker(marker)));
   __ push(r0);
   __ push(r0);
   // Save copies of the top frame descriptor on the stack.
@@ -1120,11 +1120,11 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ cmpi(r9, Operand::Zero());
   __ bne(&non_outermost_js);
   __ StoreP(fp, MemOperand(r8));
-  __ LoadSmiLiteral(ip, Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ mov(ip, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   Label cont;
   __ b(&cont);
   __ bind(&non_outermost_js);
-  __ LoadSmiLiteral(ip, Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME));
+  __ mov(ip, Operand(StackFrame::INNER_JSENTRY_FRAME));
   __ bind(&cont);
   __ push(ip);  // frame-type
 
@@ -1187,7 +1187,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
   __ pop(r8);
-  __ CmpSmiLiteral(r8, Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME), r0);
+  __ cmpi(r8, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ bne(&non_outermost_js_2);
   __ mov(r9, Operand::Zero());
   __ mov(r8, Operand(ExternalReference(js_entry_sp)));

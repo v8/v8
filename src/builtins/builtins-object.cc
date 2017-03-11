@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-object.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
+#include "src/keys.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
 #include "src/property-descriptor.h"
 
 namespace v8 {
@@ -14,25 +17,41 @@ namespace internal {
 
 typedef compiler::Node Node;
 
-std::tuple<Node*, Node*, Node*> ObjectBuiltinsAssembler::EmitForInPrepare(
-    Node* object, Node* context, Label* call_runtime,
-    Label* nothing_to_iterate) {
-  Label use_cache(this);
-  CSA_ASSERT(this, IsJSReceiver(object));
+class ObjectBuiltinsAssembler : public CodeStubAssembler {
+ public:
+  explicit ObjectBuiltinsAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
 
-  CheckEnumCache(object, &use_cache, call_runtime);
-  Bind(&use_cache);
-  Node* map = LoadMap(object);
-  Node* enum_length = EnumLength(map);
-  GotoIf(WordEqual(enum_length, SmiConstant(0)), nothing_to_iterate);
-  Node* descriptors = LoadMapDescriptors(map);
-  Node* cache_offset =
-      LoadObjectField(descriptors, DescriptorArray::kEnumCacheOffset);
-  Node* enum_cache = LoadObjectField(
-      cache_offset, DescriptorArray::kEnumCacheBridgeCacheOffset);
+ protected:
+  void IsString(Node* object, Label* if_string, Label* if_notstring);
+  void ReturnToStringFormat(Node* context, Node* string);
+};
 
-  return std::make_tuple(map, enum_cache, enum_length);
+void ObjectBuiltinsAssembler::IsString(Node* object, Label* if_string,
+                                       Label* if_notstring) {
+  Label if_notsmi(this);
+  Branch(TaggedIsSmi(object), if_notstring, &if_notsmi);
+
+  Bind(&if_notsmi);
+  {
+    Node* instance_type = LoadInstanceType(object);
+
+    Branch(IsStringInstanceType(instance_type), if_string, if_notstring);
+  }
 }
+
+void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
+                                                   Node* string) {
+  Node* lhs = HeapConstant(factory()->NewStringFromStaticChars("[object "));
+  Node* rhs = HeapConstant(factory()->NewStringFromStaticChars("]"));
+
+  Callable callable =
+      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+
+  Return(CallStub(callable, context, CallStub(callable, context, lhs, string),
+                  rhs));
+}
+
 // -----------------------------------------------------------------------------
 // ES6 section 19.1 Object Objects
 
@@ -116,31 +135,6 @@ BUILTIN(ObjectPrototypePropertyIsEnumerable) {
   if (!maybe.IsJust()) return isolate->heap()->exception();
   if (maybe.FromJust() == ABSENT) return isolate->heap()->false_value();
   return isolate->heap()->ToBoolean((maybe.FromJust() & DONT_ENUM) == 0);
-}
-
-void ObjectBuiltinsAssembler::IsString(Node* object, Label* if_string,
-                                       Label* if_notstring) {
-  Label if_notsmi(this);
-  Branch(TaggedIsSmi(object), if_notstring, &if_notsmi);
-
-  Bind(&if_notsmi);
-  {
-    Node* instance_type = LoadInstanceType(object);
-
-    Branch(IsStringInstanceType(instance_type), if_string, if_notstring);
-  }
-}
-
-void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
-                                                   Node* string) {
-  Node* lhs = HeapConstant(factory()->NewStringFromStaticChars("[object "));
-  Node* rhs = HeapConstant(factory()->NewStringFromStaticChars("]"));
-
-  Callable callable =
-      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-
-  Return(CallStub(callable, context, CallStub(callable, context, lhs, string),
-                  rhs));
 }
 
 // ES6 section 19.1.3.6 Object.prototype.toString
@@ -306,6 +300,17 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
   }
 }
 
+// ES6 19.3.7 Object.prototype.valueOf
+TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
+  Node* receiver = Parameter(0);
+  Node* context = Parameter(3);
+
+  Callable to_object = CodeFactory::ToObject(isolate());
+  receiver = CallStub(to_object, context, receiver);
+
+  Return(receiver);
+}
+
 TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   Node* prototype = Parameter(1);
   Node* properties = Parameter(2);
@@ -329,9 +334,9 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     Node* properties_map = LoadMap(properties);
     GotoIf(IsSpecialReceiverMap(properties_map), &call_runtime);
     // Stay on the fast path only if there are no elements.
-    GotoUnless(WordEqual(LoadElements(properties),
-                         LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
-               &call_runtime);
+    GotoIfNot(WordEqual(LoadElements(properties),
+                        LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
+              &call_runtime);
     // Handle dictionary objects or fast objects with properties in runtime.
     Node* bit_field3 = LoadMapBitField3(properties_map);
     GotoIf(IsSetWord32<Map::DictionaryMap>(bit_field3), &call_runtime);
@@ -910,59 +915,6 @@ TF_BUILTIN(HasProperty, ObjectBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   Return(HasProperty(object, key, context, Runtime::kHasProperty));
-}
-
-TF_BUILTIN(ForInFilter, ObjectBuiltinsAssembler) {
-  typedef ForInFilterDescriptor Descriptor;
-
-  Node* key = Parameter(Descriptor::kKey);
-  Node* object = Parameter(Descriptor::kObject);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Return(ForInFilter(key, object, context));
-}
-
-TF_BUILTIN(ForInNext, ObjectBuiltinsAssembler) {
-  typedef ForInNextDescriptor Descriptor;
-
-  Label filter(this);
-  Node* object = Parameter(Descriptor::kObject);
-  Node* cache_array = Parameter(Descriptor::kCacheArray);
-  Node* cache_type = Parameter(Descriptor::kCacheType);
-  Node* index = Parameter(Descriptor::kIndex);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Node* key = LoadFixedArrayElement(cache_array, SmiUntag(index));
-  Node* map = LoadMap(object);
-  GotoUnless(WordEqual(map, cache_type), &filter);
-  Return(key);
-  Bind(&filter);
-  Return(ForInFilter(key, object, context));
-}
-
-TF_BUILTIN(ForInPrepare, ObjectBuiltinsAssembler) {
-  typedef ForInPrepareDescriptor Descriptor;
-
-  Label call_runtime(this), nothing_to_iterate(this);
-  Node* object = Parameter(Descriptor::kObject);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Node* cache_type;
-  Node* cache_array;
-  Node* cache_length;
-  std::tie(cache_type, cache_array, cache_length) =
-      EmitForInPrepare(object, context, &call_runtime, &nothing_to_iterate);
-
-  Return(cache_type, cache_array, cache_length);
-
-  Bind(&call_runtime);
-  TailCallRuntime(Runtime::kForInPrepare, context, object);
-
-  Bind(&nothing_to_iterate);
-  {
-    Node* zero = SmiConstant(0);
-    Return(zero, zero, zero);
-  }
 }
 
 TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {

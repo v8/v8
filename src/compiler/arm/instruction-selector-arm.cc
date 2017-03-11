@@ -84,7 +84,6 @@ void VisitRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
                  g.UseRegister(node->InputAt(0)));
 }
 
-
 void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
@@ -94,8 +93,10 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
 
 void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
+  // Use DefineSameAsFirst for ternary ops that clobber their first input,
+  // e.g. the NEON vbsl instruction.
   selector->Emit(
-      opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+      opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
 }
 
@@ -427,6 +428,9 @@ void InstructionSelector::VisitLoad(Node* node) {
       break;
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -512,6 +516,9 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kWord64:   // Fall through.
       case MachineRepresentation::kSimd128:  // Fall through.
+      case MachineRepresentation::kSimd1x4:  // Fall through.
+      case MachineRepresentation::kSimd1x8:  // Fall through.
+      case MachineRepresentation::kSimd1x16:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -675,6 +682,9 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -719,6 +729,9 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -2168,6 +2181,42 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   Emit(code, 0, nullptr, input_count, inputs);
 }
 
+void InstructionSelector::VisitAtomicExchange(Node* node) {
+  ArmOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  ArchOpcode opcode = kArchNop;
+  MachineType type = AtomicExchangeRepresentationOf(node->op());
+  if (type == MachineType::Int8()) {
+    opcode = kAtomicExchangeInt8;
+  } else if (type == MachineType::Uint8()) {
+    opcode = kAtomicExchangeUint8;
+  } else if (type == MachineType::Int16()) {
+    opcode = kAtomicExchangeInt16;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kAtomicExchangeUint16;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = kAtomicExchangeWord32;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+
+  AddressingMode addressing_mode = kMode_Offset_RR;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionOperand outputs[1];
+  outputs[0] = g.UseUniqueRegister(node);
+  InstructionOperand temp[1];
+  temp[0] = g.TempRegister();
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs, 1, temp);
+}
+
 #define SIMD_TYPE_LIST(V) \
   V(Float32x4)            \
   V(Int32x4)              \
@@ -2179,73 +2228,106 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(16x8)                   \
   V(8x16)
 
-#define SIMD_UNOP_LIST(V)  \
-  V(Float32x4FromInt32x4)  \
-  V(Float32x4FromUint32x4) \
-  V(Float32x4Abs)          \
-  V(Float32x4Neg)          \
-  V(Int32x4FromFloat32x4)  \
-  V(Uint32x4FromFloat32x4) \
-  V(Int32x4Neg)            \
-  V(Int16x8Neg)            \
-  V(Int8x16Neg)            \
-  V(Simd128Not)
+#define SIMD_ZERO_OP_LIST(V) \
+  V(Simd128Zero)             \
+  V(Simd1x4Zero)             \
+  V(Simd1x8Zero)             \
+  V(Simd1x16Zero)
 
-#define SIMD_BINOP_LIST(V)      \
-  V(Float32x4Add)               \
-  V(Float32x4Sub)               \
-  V(Float32x4Equal)             \
-  V(Float32x4NotEqual)          \
-  V(Int32x4Add)                 \
-  V(Int32x4Sub)                 \
-  V(Int32x4Mul)                 \
-  V(Int32x4Min)                 \
-  V(Int32x4Max)                 \
-  V(Int32x4Equal)               \
-  V(Int32x4NotEqual)            \
-  V(Int32x4GreaterThan)         \
-  V(Int32x4GreaterThanOrEqual)  \
-  V(Uint32x4Min)                \
-  V(Uint32x4Max)                \
-  V(Uint32x4GreaterThan)        \
-  V(Uint32x4GreaterThanOrEqual) \
-  V(Int16x8Add)                 \
-  V(Int16x8AddSaturate)         \
-  V(Int16x8Sub)                 \
-  V(Int16x8SubSaturate)         \
-  V(Int16x8Mul)                 \
-  V(Int16x8Min)                 \
-  V(Int16x8Max)                 \
-  V(Int16x8Equal)               \
-  V(Int16x8NotEqual)            \
-  V(Int16x8GreaterThan)         \
-  V(Int16x8GreaterThanOrEqual)  \
-  V(Uint16x8AddSaturate)        \
-  V(Uint16x8SubSaturate)        \
-  V(Uint16x8Min)                \
-  V(Uint16x8Max)                \
-  V(Uint16x8GreaterThan)        \
-  V(Uint16x8GreaterThanOrEqual) \
-  V(Int8x16Add)                 \
-  V(Int8x16AddSaturate)         \
-  V(Int8x16Sub)                 \
-  V(Int8x16SubSaturate)         \
-  V(Int8x16Mul)                 \
-  V(Int8x16Min)                 \
-  V(Int8x16Max)                 \
-  V(Int8x16Equal)               \
-  V(Int8x16NotEqual)            \
-  V(Int8x16GreaterThan)         \
-  V(Int8x16GreaterThanOrEqual)  \
-  V(Uint8x16AddSaturate)        \
-  V(Uint8x16SubSaturate)        \
-  V(Uint8x16Min)                \
-  V(Uint8x16Max)                \
-  V(Uint8x16GreaterThan)        \
-  V(Uint8x16GreaterThanOrEqual) \
-  V(Simd128And)                 \
-  V(Simd128Or)                  \
-  V(Simd128Xor)
+#define SIMD_UNOP_LIST(V)                                   \
+  V(Float32x4FromInt32x4, kArmFloat32x4FromInt32x4)         \
+  V(Float32x4FromUint32x4, kArmFloat32x4FromUint32x4)       \
+  V(Float32x4Abs, kArmFloat32x4Abs)                         \
+  V(Float32x4Neg, kArmFloat32x4Neg)                         \
+  V(Float32x4RecipApprox, kArmFloat32x4RecipApprox)         \
+  V(Float32x4RecipSqrtApprox, kArmFloat32x4RecipSqrtApprox) \
+  V(Int32x4FromFloat32x4, kArmInt32x4FromFloat32x4)         \
+  V(Uint32x4FromFloat32x4, kArmUint32x4FromFloat32x4)       \
+  V(Int32x4Neg, kArmInt32x4Neg)                             \
+  V(Int16x8Neg, kArmInt16x8Neg)                             \
+  V(Int8x16Neg, kArmInt8x16Neg)                             \
+  V(Simd128Not, kArmSimd128Not)                             \
+  V(Simd1x4Not, kArmSimd128Not)                             \
+  V(Simd1x4AnyTrue, kArmSimd1x4AnyTrue)                     \
+  V(Simd1x4AllTrue, kArmSimd1x4AllTrue)                     \
+  V(Simd1x8Not, kArmSimd128Not)                             \
+  V(Simd1x8AnyTrue, kArmSimd1x8AnyTrue)                     \
+  V(Simd1x8AllTrue, kArmSimd1x8AllTrue)                     \
+  V(Simd1x16Not, kArmSimd128Not)                            \
+  V(Simd1x16AnyTrue, kArmSimd1x16AnyTrue)                   \
+  V(Simd1x16AllTrue, kArmSimd1x16AllTrue)
+
+#define SIMD_BINOP_LIST(V)                                  \
+  V(Float32x4Add, kArmFloat32x4Add)                         \
+  V(Float32x4Sub, kArmFloat32x4Sub)                         \
+  V(Float32x4Mul, kArmFloat32x4Mul)                         \
+  V(Float32x4Min, kArmFloat32x4Min)                         \
+  V(Float32x4Max, kArmFloat32x4Max)                         \
+  V(Float32x4RecipRefine, kArmFloat32x4RecipRefine)         \
+  V(Float32x4RecipSqrtRefine, kArmFloat32x4RecipSqrtRefine) \
+  V(Float32x4Equal, kArmFloat32x4Equal)                     \
+  V(Float32x4NotEqual, kArmFloat32x4NotEqual)               \
+  V(Float32x4LessThan, kArmFloat32x4LessThan)               \
+  V(Float32x4LessThanOrEqual, kArmFloat32x4LessThanOrEqual) \
+  V(Int32x4Add, kArmInt32x4Add)                             \
+  V(Int32x4Sub, kArmInt32x4Sub)                             \
+  V(Int32x4Mul, kArmInt32x4Mul)                             \
+  V(Int32x4Min, kArmInt32x4Min)                             \
+  V(Int32x4Max, kArmInt32x4Max)                             \
+  V(Int32x4Equal, kArmInt32x4Equal)                         \
+  V(Int32x4NotEqual, kArmInt32x4NotEqual)                   \
+  V(Int32x4LessThan, kArmInt32x4LessThan)                   \
+  V(Int32x4LessThanOrEqual, kArmInt32x4LessThanOrEqual)     \
+  V(Uint32x4Min, kArmUint32x4Min)                           \
+  V(Uint32x4Max, kArmUint32x4Max)                           \
+  V(Uint32x4LessThan, kArmUint32x4LessThan)                 \
+  V(Uint32x4LessThanOrEqual, kArmUint32x4LessThanOrEqual)   \
+  V(Int16x8Add, kArmInt16x8Add)                             \
+  V(Int16x8AddSaturate, kArmInt16x8AddSaturate)             \
+  V(Int16x8Sub, kArmInt16x8Sub)                             \
+  V(Int16x8SubSaturate, kArmInt16x8SubSaturate)             \
+  V(Int16x8Mul, kArmInt16x8Mul)                             \
+  V(Int16x8Min, kArmInt16x8Min)                             \
+  V(Int16x8Max, kArmInt16x8Max)                             \
+  V(Int16x8Equal, kArmInt16x8Equal)                         \
+  V(Int16x8NotEqual, kArmInt16x8NotEqual)                   \
+  V(Int16x8LessThan, kArmInt16x8LessThan)                   \
+  V(Int16x8LessThanOrEqual, kArmInt16x8LessThanOrEqual)     \
+  V(Uint16x8AddSaturate, kArmUint16x8AddSaturate)           \
+  V(Uint16x8SubSaturate, kArmUint16x8SubSaturate)           \
+  V(Uint16x8Min, kArmUint16x8Min)                           \
+  V(Uint16x8Max, kArmUint16x8Max)                           \
+  V(Uint16x8LessThan, kArmUint16x8LessThan)                 \
+  V(Uint16x8LessThanOrEqual, kArmUint16x8LessThanOrEqual)   \
+  V(Int8x16Add, kArmInt8x16Add)                             \
+  V(Int8x16AddSaturate, kArmInt8x16AddSaturate)             \
+  V(Int8x16Sub, kArmInt8x16Sub)                             \
+  V(Int8x16SubSaturate, kArmInt8x16SubSaturate)             \
+  V(Int8x16Mul, kArmInt8x16Mul)                             \
+  V(Int8x16Min, kArmInt8x16Min)                             \
+  V(Int8x16Max, kArmInt8x16Max)                             \
+  V(Int8x16Equal, kArmInt8x16Equal)                         \
+  V(Int8x16NotEqual, kArmInt8x16NotEqual)                   \
+  V(Int8x16LessThan, kArmInt8x16LessThan)                   \
+  V(Int8x16LessThanOrEqual, kArmInt8x16LessThanOrEqual)     \
+  V(Uint8x16AddSaturate, kArmUint8x16AddSaturate)           \
+  V(Uint8x16SubSaturate, kArmUint8x16SubSaturate)           \
+  V(Uint8x16Min, kArmUint8x16Min)                           \
+  V(Uint8x16Max, kArmUint8x16Max)                           \
+  V(Uint8x16LessThan, kArmUint8x16LessThan)                 \
+  V(Uint8x16LessThanOrEqual, kArmUint8x16LessThanOrEqual)   \
+  V(Simd128And, kArmSimd128And)                             \
+  V(Simd128Or, kArmSimd128Or)                               \
+  V(Simd128Xor, kArmSimd128Xor)                             \
+  V(Simd1x4And, kArmSimd128And)                             \
+  V(Simd1x4Or, kArmSimd128Or)                               \
+  V(Simd1x4Xor, kArmSimd128Xor)                             \
+  V(Simd1x8And, kArmSimd128And)                             \
+  V(Simd1x8Or, kArmSimd128Or)                               \
+  V(Simd1x8Xor, kArmSimd128Xor)                             \
+  V(Simd1x16And, kArmSimd128And)                            \
+  V(Simd1x16Or, kArmSimd128Or)                              \
+  V(Simd1x16Xor, kArmSimd128Xor)
 
 #define SIMD_SHIFT_OP_LIST(V)   \
   V(Int32x4ShiftLeftByScalar)   \
@@ -2258,9 +2340,9 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Int8x16ShiftRightByScalar)  \
   V(Uint8x16ShiftRightByScalar)
 
-#define SIMD_VISIT_SPLAT(Type)                              \
-  void InstructionSelector::VisitCreate##Type(Node* node) { \
-    VisitRR(this, kArm##Type##Splat, node);                 \
+#define SIMD_VISIT_SPLAT(Type)                               \
+  void InstructionSelector::Visit##Type##Splat(Node* node) { \
+    VisitRR(this, kArm##Type##Splat, node);                  \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_SPLAT)
 #undef SIMD_VISIT_SPLAT
@@ -2279,16 +2361,24 @@ SIMD_TYPE_LIST(SIMD_VISIT_EXTRACT_LANE)
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
 
-#define SIMD_VISIT_UNOP(Name)                         \
+#define SIMD_VISIT_ZERO_OP(Name)                                               \
+  void InstructionSelector::Visit##Name(Node* node) {                          \
+    ArmOperandGenerator g(this);                                               \
+    Emit(kArmSimd128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node)); \
+  }
+SIMD_ZERO_OP_LIST(SIMD_VISIT_ZERO_OP)
+#undef SIMD_VISIT_ZERO_OP
+
+#define SIMD_VISIT_UNOP(Name, instruction)            \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRR(this, kArm##Name, node);                  \
+    VisitRR(this, instruction, node);                 \
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 
-#define SIMD_VISIT_BINOP(Name)                        \
+#define SIMD_VISIT_BINOP(Name, instruction)           \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRRR(this, kArm##Name, node);                 \
+    VisitRRR(this, instruction, node);                \
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
@@ -2302,7 +2392,7 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 
 #define SIMD_VISIT_SELECT_OP(format)                                \
   void InstructionSelector::VisitSimd##format##Select(Node* node) { \
-    VisitRRRR(this, kArmSimd##format##Select, node);                \
+    VisitRRRR(this, kArmSimd128Select, node);                       \
   }
 SIMD_FORMAT_LIST(SIMD_VISIT_SELECT_OP)
 #undef SIMD_VISIT_SELECT_OP

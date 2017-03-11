@@ -28,12 +28,13 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
-
+#include "src/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -1039,6 +1040,12 @@ TEST(Neon) {
               "f3142670       vmin.u16 q1, q2, q8");
       COMPARE(vmax(NeonS32, q15, q0, q8),
               "f260e660       vmax.s32 q15, q0, q8");
+      COMPARE(vpmax(NeonS8, d0, d1, d2),
+              "f2010a02       vpmax.s8 d0, d1, d2");
+      COMPARE(vpmin(NeonU16, d1, d2, d8),
+              "f3121a18       vpmin.u16 d1, d2, d8");
+      COMPARE(vpmax(NeonS32, d15, d0, d8),
+              "f220fa08       vpmax.s32 d15, d0, d8");
       COMPARE(vadd(q15, q0, q8),
               "f240ed60       vadd.f32 q15, q0, q8");
       COMPARE(vadd(Neon8, q0, q1, q2),

@@ -78,6 +78,10 @@ class Interpreter {
 
   typedef void (Interpreter::*BytecodeGeneratorFunc)(InterpreterAssembler*);
 
+  // In the case of bytecodes that share handler implementations, copy the code
+  // into the bytecode's dispatcher table entry and return true.
+  bool ReuseExistingHandler(Bytecode bytecode, OperandScale operand_scale);
+
   // Generates handler for given |bytecode| and |operand_scale| using
   // |generator| and installs it into the dispatch table.
   void InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
@@ -124,6 +128,10 @@ class Interpreter {
   // Generates code to perform a JS call that collects type feedback.
   void DoJSCall(InterpreterAssembler* assembler, TailCallMode tail_call_mode);
 
+  // Generates code to perform a JS call with a known number of arguments that
+  // collects type feedback.
+  void DoJSCallN(InterpreterAssembler* assembler, int n);
+
   // Generates code to perform delete via function_id.
   void DoDelete(Runtime::FunctionId function_id,
                 InterpreterAssembler* assembler);
@@ -147,11 +155,14 @@ class Interpreter {
   void DoStaLookupSlot(LanguageMode language_mode,
                        InterpreterAssembler* assembler);
 
-  // Generates code to load a global.
-  compiler::Node* BuildLoadGlobal(Callable ic, compiler::Node* context,
-                                  compiler::Node* name_index,
-                                  compiler::Node* feedback_slot,
-                                  InterpreterAssembler* assembler);
+  // Generates code to load a global property.
+  void BuildLoadGlobalIC(int slot_operand_index, int name_operand_index,
+                         TypeofMode typeof_mode,
+                         InterpreterAssembler* assembler);
+
+  // Generates code to load a property.
+  void BuildLoadIC(int recv_operand_index, int slot_operand_index,
+                   int name_operand_index, InterpreterAssembler* assembler);
 
   // Generates code to prepare the result for ForInPrepare. Cache data
   // are placed into the consecutive series of registers starting at

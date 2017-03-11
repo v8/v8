@@ -20,6 +20,10 @@
             Number.isInteger(args[0]) &&
             args[0] > 1048576) {
           args[0] = 1048576
+        } else if (args.length > 2 &&
+                   Number.isInteger(args[2]) &&
+                   args[2] > 1048576) {
+          args[2] = 1048576
         }
         return new (
             Function.prototype.bind.apply(arrayType, [null].concat(args)));

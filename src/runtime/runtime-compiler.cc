@@ -213,14 +213,9 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
 
   if (!activations_finder.has_code_activations_) {
-    if (function->code() == *optimized_code) {
-      if (FLAG_trace_deopt) {
-        PrintF("[removing optimized code for: ");
-        function->PrintName();
-        PrintF("]\n");
-      }
-      function->ReplaceCode(function->shared()->code());
-    }
+    Deoptimizer::UnlinkOptimizedCode(*optimized_code,
+                                     function->context()->native_context());
+
     // Evict optimized code for this function from the cache so that it
     // doesn't get used for new closures.
     function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
@@ -446,9 +441,10 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
   Handle<JSFunction> compiled;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, compiled, Compiler::GetFunctionFromEval(
-                             source, outer_info, context, language_mode,
-                             restriction, eval_scope_position, eval_position),
+      isolate, compiled,
+      Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
+                                    restriction, kNoSourcePosition,
+                                    eval_scope_position, eval_position),
       isolate->heap()->exception());
   return *compiled;
 }

@@ -7,6 +7,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -34,9 +35,9 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   Label if_receiverisincompatible(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(receiver), &if_receiverisincompatible);
   Node* receiver_instance_type = LoadInstanceType(receiver);
-  GotoUnless(Word32Equal(receiver_instance_type,
-                         Int32Constant(JS_GENERATOR_OBJECT_TYPE)),
-             &if_receiverisincompatible);
+  GotoIfNot(Word32Equal(receiver_instance_type,
+                        Int32Constant(JS_GENERATOR_OBJECT_TYPE)),
+            &if_receiverisincompatible);
 
   // Check if the {receiver} is running or already closed.
   Node* receiver_continuation =
@@ -56,12 +57,11 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   Bind(&if_receiverisincompatible);
   {
     // The {receiver} is not a valid JSGeneratorObject.
-    Node* result =
-        CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                    HeapConstant(factory()->NewStringFromAsciiChecked(
-                        method_name, TENURED)),
-                    receiver);
-    Return(result);  // Never reached.
+    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
+                HeapConstant(
+                    factory()->NewStringFromAsciiChecked(method_name, TENURED)),
+                receiver);
+    Unreachable();
   }
 
   Bind(&if_receiverisclosed);
@@ -89,8 +89,8 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
 
   Bind(&if_receiverisrunning);
   {
-    Node* result = CallRuntime(Runtime::kThrowGeneratorRunning, context);
-    Return(result);  // Never reached.
+    CallRuntime(Runtime::kThrowGeneratorRunning, context);
+    Unreachable();
   }
 }
 

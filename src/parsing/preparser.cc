@@ -104,10 +104,11 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   ResetFunctionLiteralId();
 
   // The caller passes the function_scope which is not yet inserted into the
-  // scope_state_. All scopes above the function_scope are ignored by the
+  // scope stack. All scopes above the function_scope are ignored by the
   // PreParser.
-  DCHECK_NULL(scope_state_);
-  FunctionState function_state(&function_state_, &scope_state_, function_scope);
+  DCHECK_NULL(function_state_);
+  DCHECK_NULL(scope_);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
   // This indirection is needed so that we can use the CHECK_OK macros.
   bool ok_holder = true;
   bool* ok = &ok_holder;
@@ -162,20 +163,26 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   }
 
   {
-    BlockState block_state(&scope_state_, inner_scope);
+    BlockState block_state(&scope_, inner_scope);
     result = ParseStatementListAndLogFunction(
         &formals, has_duplicate_parameters, may_abort, ok);
     DCHECK_NE(result, kLazyParsingSignature);
   }
 
-  if (is_sloppy(inner_scope->language_mode())) {
-    inner_scope->HoistSloppyBlockFunctions(nullptr);
-  }
-
   if (!formals.is_simple) {
+    BuildParameterInitializationBlock(formals, ok);
+
+    if (is_sloppy(inner_scope->language_mode())) {
+      inner_scope->HoistSloppyBlockFunctions(nullptr);
+    }
+
     SetLanguageMode(function_scope, inner_scope->language_mode());
     inner_scope->set_end_position(scanner()->peek_location().end_pos);
     inner_scope->FinalizeBlockScope();
+  } else {
+    if (is_sloppy(function_scope->language_mode())) {
+      function_scope->HoistSloppyBlockFunctions(nullptr);
+    }
   }
 
   if (!IsArrowFunction(kind) && track_unresolved_variables_) {
@@ -250,7 +257,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
   if (is_typed) function_scope->SetTyped();
-  FunctionState function_state(&function_state_, &scope_state_, function_scope);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
   DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
   GetNextFunctionLiteralId();
@@ -339,10 +346,10 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
   DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
-  log_.LogFunction(
-      body_end, formals->num_parameters(), formals->function_length,
-      has_duplicate_parameters, function_state_->materialized_literal_count(),
-      function_state_->expected_property_count(), GetLastFunctionLiteralId());
+  log_.LogFunction(body_end, formals->num_parameters(),
+                   formals->function_length, has_duplicate_parameters,
+                   function_state_->expected_property_count(),
+                   GetLastFunctionLiteralId());
   return kLazyParsingComplete;
 }
 

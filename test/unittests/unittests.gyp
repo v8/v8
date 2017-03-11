@@ -8,8 +8,10 @@
   'variables': {
     'v8_code': 1,
     'unittests_sources': [  ### gcmole(all) ###
+      'api/access-check-unittest.cc',
       'api/exception-unittest.cc',
       'api/isolate-unittest.cc',
+      'api/remote-object-unittest.cc',
       'api/v8-object-unittest.cc',
       'base/atomic-utils-unittest.cc',
       'base/bits-unittest.cc',
@@ -252,18 +254,6 @@
             '<(icu_gyp_path):icui18n',
             '<(icu_gyp_path):icuuc',
           ],
-        }],
-        ['os_posix == 1', {
-          # TODO(svenpanne): This is a temporary work-around to fix the warnings
-          # that show up because we use -std=gnu++0x instead of -std=c++11.
-          'cflags!': [
-            '-pedantic',
-          ],
-          'direct_dependent_settings': {
-            'cflags!': [
-              '-pedantic',
-            ],
-          },
         }],
       ],
     },

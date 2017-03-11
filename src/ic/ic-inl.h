@@ -7,6 +7,7 @@
 
 #include "src/ic/ic.h"
 
+#include "src/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/macro-assembler.h"
 #include "src/prototype.h"
@@ -120,14 +121,6 @@ Handle<Map> IC::GetICCacheHolder(Handle<Map> map, Isolate* isolate,
   }
   *flag = kCacheOnReceiver;
   return map;
-}
-
-
-Code* IC::get_host() {
-  return isolate()
-      ->inner_pointer_to_code_cache()
-      ->GetCacheEntry(address())
-      ->code;
 }
 
 

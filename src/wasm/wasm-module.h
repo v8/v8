@@ -11,9 +11,9 @@
 #include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/handles.h"
+#include "src/managed.h"
 #include "src/parsing/preparse-data.h"
 
-#include "src/wasm/managed.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -28,45 +28,10 @@ class WasmMemoryObject;
 
 namespace compiler {
 class CallDescriptor;
-class WasmCompilationUnit;
 }
 
 namespace wasm {
 class ErrorThrower;
-
-const uint32_t kWasmMagic = 0x6d736100;
-const uint32_t kWasmVersion = 0x01;
-// Legacy version supported for short transitionary period.
-const uint32_t kWasmLegacyVersion = 0x0d;
-
-const uint8_t kWasmFunctionTypeForm = 0x60;
-const uint8_t kWasmAnyFunctionTypeForm = 0x70;
-
-enum WasmSectionCode {
-  kUnknownSectionCode = 0,   // code for unknown sections
-  kTypeSectionCode = 1,      // Function signature declarations
-  kImportSectionCode = 2,    // Import declarations
-  kFunctionSectionCode = 3,  // Function declarations
-  kTableSectionCode = 4,     // Indirect function table and other tables
-  kMemorySectionCode = 5,    // Memory attributes
-  kGlobalSectionCode = 6,    // Global declarations
-  kExportSectionCode = 7,    // Exports
-  kStartSectionCode = 8,     // Start function declaration
-  kElementSectionCode = 9,   // Elements section
-  kCodeSectionCode = 10,     // Function code
-  kDataSectionCode = 11,     // Data segments
-  kNameSectionCode = 12,     // Name section (encoded as a string)
-};
-
-inline bool IsValidSectionCode(uint8_t byte) {
-  return kTypeSectionCode <= byte && byte <= kDataSectionCode;
-}
-
-const char* SectionName(WasmSectionCode code);
-
-// Constants for fixed-size elements within a module.
-static const uint8_t kResizableMaximumFlag = 1;
-static const int32_t kInvalidFunctionIndex = -1;
 
 enum WasmExternalKind {
   kExternalFunction = 0,
@@ -217,18 +182,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   ~WasmModule() {
     if (owned_zone) delete owned_zone;
   }
-
-  // Creates a new instantiation of the module in the given isolate.
-  static MaybeHandle<WasmInstanceObject> Instantiate(
-      Isolate* isolate, ErrorThrower* thrower,
-      Handle<WasmModuleObject> wasm_module, Handle<JSReceiver> ffi,
-      Handle<JSArrayBuffer> memory = Handle<JSArrayBuffer>::null());
-
-  MaybeHandle<WasmCompiledModule> CompileFunctions(
-      Isolate* isolate, Handle<Managed<WasmModule>> module_wrapper,
-      ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
-      Handle<Script> asm_js_script,
-      Vector<const byte> asm_js_offset_table_bytes) const;
 };
 
 typedef Managed<WasmModule> WasmModuleWrapper;
@@ -359,6 +312,7 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
     return instance->function_code[index];
   }
 
+  // TODO(titzer): move these into src/compiler/wasm-compiler.cc
   static compiler::CallDescriptor* GetWasmCallDescriptor(Zone* zone,
                                                          FunctionSig* sig);
   static compiler::CallDescriptor* GetI32WasmCallDescriptor(
@@ -425,11 +379,6 @@ V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
     Isolate* isolate, Handle<WasmModuleObject> module, Handle<String> name,
     ErrorThrower* thrower);
 
-V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
-                                           const byte* end,
-                                           ErrorThrower* thrower,
-                                           ModuleOrigin origin);
-
 // Get the offset of the code of a function within a module.
 int GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
                           int func_index);
@@ -464,15 +413,43 @@ void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
 void GrowDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                         uint32_t old_size, uint32_t count);
 
-namespace testing {
+//============================================================================
+//== Compilation and instantiation ===========================================
+//============================================================================
+V8_EXPORT_PRIVATE bool SyncValidate(Isolate* isolate, ErrorThrower* thrower,
+                                    const ModuleWireBytes& bytes);
 
+V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
+    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
+    Handle<Script> asm_js_script, Vector<const byte> asm_js_offset_table_bytes);
+
+V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompile(
+    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes);
+
+V8_EXPORT_PRIVATE MaybeHandle<WasmInstanceObject> SyncInstantiate(
+    Isolate* isolate, ErrorThrower* thrower,
+    Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
+    MaybeHandle<JSArrayBuffer> memory);
+
+V8_EXPORT_PRIVATE void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
+                                    const ModuleWireBytes& bytes);
+
+V8_EXPORT_PRIVATE void AsyncInstantiate(Isolate* isolate,
+                                        Handle<JSPromise> promise,
+                                        Handle<WasmModuleObject> module_object,
+                                        MaybeHandle<JSReceiver> imports);
+
+V8_EXPORT_PRIVATE void AsyncCompileAndInstantiate(
+    Isolate* isolate, Handle<JSPromise> promise, const ModuleWireBytes& bytes,
+    MaybeHandle<JSReceiver> imports);
+
+namespace testing {
 void ValidateInstancesChain(Isolate* isolate,
                             Handle<WasmModuleObject> module_obj,
                             int instance_count);
 void ValidateModuleState(Isolate* isolate, Handle<WasmModuleObject> module_obj);
 void ValidateOrphanedInstance(Isolate* isolate,
                               Handle<WasmInstanceObject> instance);
-
 }  // namespace testing
 }  // namespace wasm
 }  // namespace internal

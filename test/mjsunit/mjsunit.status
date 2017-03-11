@@ -53,6 +53,9 @@
   # Issue 3784: setters-on-elements is flaky
   'setters-on-elements': [PASS, FAIL],
 
+  # Issue 5495: enable the test when the constant field tracking in enabled.
+  'const-field-tracking': [SKIP],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],
@@ -153,6 +156,7 @@
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
   'es6/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
   'regress/regress-5036': [PASS, ['no_i18n == True', FAIL]],
+  'es7/regexp-ui-word': [PASS, ['no_i18n == True', FAIL]],
   # desugaring regexp property class relies on ICU.
   'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
 
@@ -173,8 +177,10 @@
   # BUG(v8:5807): Flaky data race.
   'wasm/embenchen/fannkuch': [PASS, ['tsan', SKIP]],
 
-  # BUG(v8:5906).
-  'regress/regress-crbug-514081': [PASS, ['system == linux', SKIP]],
+  # BUG(v8:5778): These fail with --future, which we are about to turn on.
+  # Investigate.
+  'regress/regress-105': [SKIP],
+
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -419,6 +425,13 @@
 }],  # 'arch == mipsel or arch == mips or arch == mips64el or arch == mips64'
 
 ##############################################################################
+['arch == mipsel or arch == mips or arch == mips64el or arch == mips64', {
+  # These tests fail because qNaN and sNaN values are encoded differently on
+  # MIPS and ARM/x86 architectures
+  'wasm/float-constant-folding': [SKIP],
+}],
+
+##############################################################################
 ['arch == mipsel or arch == mips', {
 
   # Slow tests which times out in debug mode.
@@ -543,8 +556,6 @@
   'es6/tail-call-megatest*': [SKIP],
 
   # Forced optimisation path tests.
-  'shared-function-tier-up-default': [SKIP],
-  'shared-function-tier-up-ignition': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
   # Fails deopt_fuzzer due to --deopt_every_n_times or
@@ -587,6 +598,7 @@
 ['variant == stress', {
   'es6/array-iterator-turbo': [SKIP],
 
+  'array-natives-elements': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 }],  # variant == stress

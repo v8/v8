@@ -43,6 +43,8 @@ namespace internal {
 
 UNINITIALIZED_TEST(PagePromotion_NewToOld) {
   if (!i::FLAG_incremental_marking) return;
+  if (!i::FLAG_page_promotion) return;
+
   v8::Isolate* isolate = NewIsolateForPagePromotion();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {
@@ -76,6 +78,8 @@ UNINITIALIZED_TEST(PagePromotion_NewToOld) {
 }
 
 UNINITIALIZED_TEST(PagePromotion_NewToNew) {
+  if (!i::FLAG_page_promotion) return;
+
   v8::Isolate* isolate = NewIsolateForPagePromotion();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   {
@@ -100,6 +104,8 @@ UNINITIALIZED_TEST(PagePromotion_NewToNew) {
 }
 
 UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
+  if (!i::FLAG_page_promotion) return;
+
   // Test makes sure JSArrayBuffer backing stores are still tracked after
   // new-to-new promotion.
   v8::Isolate* isolate = NewIsolateForPagePromotion();
@@ -138,6 +144,8 @@ UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
 }
 
 UNINITIALIZED_HEAP_TEST(Regress658718) {
+  if (!i::FLAG_page_promotion) return;
+
   v8::Isolate* isolate = NewIsolateForPagePromotion(4, 8);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   {

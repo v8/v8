@@ -30,6 +30,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
 #include "src/basic-block-profiler.h"
+#include "src/debug/debug-interface.h"
 #include "src/interpreter/interpreter.h"
 #include "src/list-inl.h"
 #include "src/msan.h"
@@ -65,6 +66,7 @@ namespace {
 
 const int MB = 1024 * 1024;
 const int kMaxWorkers = 50;
+const int kMaxSerializerMemoryUsage = 1 * MB;  // Arbitrary maximum for testing.
 
 #define USE_VM 1
 #define VM_THRESHOLD 65536
@@ -98,7 +100,13 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 #if USE_VM
     if (RoundToPageSize(&length)) return VirtualMemoryAllocate(length);
 #endif
+// Work around for GCC bug on AIX
+// See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
+#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
+    return __linux_malloc(length);
+#else
     return malloc(length);
+#endif
   }
   virtual void Free(void* data, size_t length) {
 #if USE_VM
@@ -855,35 +863,46 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 MaybeLocal<Context> Shell::CreateRealm(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const v8::FunctionCallbackInfo<v8::Value>& args, int index,
+    v8::MaybeLocal<Value> global_object) {
   Isolate* isolate = args.GetIsolate();
   TryCatch try_catch(isolate);
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  Global<Context>* old_realms = data->realms_;
-  int index = data->realm_count_;
-  data->realms_ = new Global<Context>[++data->realm_count_];
-  for (int i = 0; i < index; ++i) {
-    data->realms_[i].Reset(isolate, old_realms[i]);
-    old_realms[i].Reset();
+  if (index < 0) {
+    Global<Context>* old_realms = data->realms_;
+    index = data->realm_count_;
+    data->realms_ = new Global<Context>[++data->realm_count_];
+    for (int i = 0; i < index; ++i) {
+      data->realms_[i].Reset(isolate, old_realms[i]);
+      old_realms[i].Reset();
+    }
+    delete[] old_realms;
   }
-  delete[] old_realms;
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  Local<Context> context = Context::New(isolate, NULL, global_template);
-  if (context.IsEmpty()) {
-    DCHECK(try_catch.HasCaught());
-    try_catch.ReThrow();
-    return MaybeLocal<Context>();
-  }
+  Local<Context> context =
+      Context::New(isolate, NULL, global_template, global_object);
+  DCHECK(!try_catch.HasCaught());
+  if (context.IsEmpty()) return MaybeLocal<Context>();
   InitializeModuleEmbedderData(context);
   data->realms_[index].Reset(isolate, context);
   args.GetReturnValue().Set(index);
   return context;
 }
 
+void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
+                         int index) {
+  Isolate* isolate = args.GetIsolate();
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  DisposeModuleEmbedderData(data->realms_[index].Get(isolate));
+  data->realms_[index].Reset();
+  isolate->ContextDisposedNotification();
+  isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
+}
+
 // Realm.create() creates a new realm with a distinct security token
 // and returns its index.
 void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CreateRealm(args);
+  CreateRealm(args, -1, v8::MaybeLocal<Value>());
 }
 
 // Realm.createAllowCrossRealmAccess() creates a new realm with the same
@@ -891,10 +910,24 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::RealmCreateAllowCrossRealmAccess(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context;
-  if (CreateRealm(args).ToLocal(&context)) {
+  if (CreateRealm(args, -1, v8::MaybeLocal<Value>()).ToLocal(&context)) {
     context->SetSecurityToken(
         args.GetIsolate()->GetEnteredContext()->GetSecurityToken());
   }
+}
+
+// Realm.navigate(i) creates a new realm with a distinct security token
+// in place of realm i.
+void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  int index = data->RealmIndexOrThrow(args, 0);
+  if (index == -1) return;
+
+  Local<Context> context = Local<Context>::New(isolate, data->realms_[index]);
+  v8::MaybeLocal<Value> global_object = context->Global();
+  DisposeRealm(args, index);
+  CreateRealm(args, index, global_object);
 }
 
 // Realm.dispose(i) disposes the reference to the realm i.
@@ -908,10 +941,7 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
-  DisposeModuleEmbedderData(data->realms_[index].Get(isolate));
-  data->realms_[index].Reset();
-  isolate->ContextDisposedNotification();
-  isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
+  DisposeRealm(args, index);
 }
 
 
@@ -1198,6 +1228,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
                       .FromMaybe(0);
   CleanupWorkers();
+  args->GetIsolate()->Exit();
   OnExit(args->GetIsolate());
   Exit(exit_code);
 }
@@ -1478,6 +1509,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, RealmCreateAllowCrossRealmAccess));
   realm_template->Set(
+      String::NewFromUtf8(isolate, "navigate", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, RealmNavigate));
+  realm_template->Set(
       String::NewFromUtf8(isolate, "dispose", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, RealmDispose));
@@ -1654,8 +1689,72 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
       JSON::Stringify(context, dispatch_counters).ToLocalChecked());
 }
 
+// Write coverage data in LCOV format. See man page for geninfo(1).
+void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
+  if (!file) return;
+  HandleScope handle_scope(isolate);
+  debug::Coverage coverage = debug::Coverage::Collect(isolate, false);
+  std::ofstream sink(file, std::ofstream::app);
+  for (size_t i = 0; i < coverage.ScriptCount(); i++) {
+    debug::Coverage::ScriptData script_data = coverage.GetScriptData(i);
+    Local<debug::Script> script = script_data.GetScript();
+    // Skip unnamed scripts.
+    Local<String> name;
+    if (!script->Name().ToLocal(&name)) continue;
+    std::string file_name = ToSTLString(name);
+    // Skip scripts not backed by a file.
+    if (!std::ifstream(file_name).good()) continue;
+    sink << "SF:";
+    sink << NormalizePath(file_name, GetWorkingDirectory()) << std::endl;
+    std::vector<uint32_t> lines;
+    for (size_t j = 0; j < script_data.FunctionCount(); j++) {
+      debug::Coverage::FunctionData function_data =
+          script_data.GetFunctionData(j);
+      debug::Location start =
+          script->GetSourceLocation(function_data.StartOffset());
+      debug::Location end =
+          script->GetSourceLocation(function_data.EndOffset());
+      int start_line = start.GetLineNumber();
+      int end_line = end.GetLineNumber();
+      uint32_t count = function_data.Count();
+      // Ensure space in the array.
+      lines.resize(std::max(static_cast<size_t>(end_line + 1), lines.size()),
+                   0);
+      // Boundary lines could be shared between two functions with different
+      // invocation counts. Take the maximum.
+      lines[start_line] = std::max(lines[start_line], count);
+      lines[end_line] = std::max(lines[end_line], count);
+      // Invocation counts for non-boundary lines are overwritten.
+      for (int k = start_line + 1; k < end_line; k++) lines[k] = count;
+      // Write function stats.
+      Local<String> name;
+      std::stringstream name_stream;
+      if (function_data.Name().ToLocal(&name)) {
+        name_stream << ToSTLString(name);
+      } else {
+        name_stream << "<" << start_line + 1 << "-";
+        name_stream << start.GetColumnNumber() << ">";
+      }
+      sink << "FN:" << start_line + 1 << "," << name_stream.str() << std::endl;
+      sink << "FNDA:" << count << "," << name_stream.str() << std::endl;
+    }
+    // Write per-line coverage. LCOV uses 1-based line numbers.
+    for (size_t i = 0; i < lines.size(); i++) {
+      sink << "DA:" << (i + 1) << "," << lines[i] << std::endl;
+    }
+    sink << "end_of_record" << std::endl;
+  }
+}
 
 void Shell::OnExit(v8::Isolate* isolate) {
+  // Dump basic block profiling data.
+  if (i::BasicBlockProfiler* profiler =
+          reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
+    i::OFStream os(stdout);
+    os << *profiler;
+  }
+  isolate->Dispose();
+
   if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
     int number_of_counters = 0;
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
@@ -1712,7 +1811,6 @@ void Shell::OnExit(v8::Isolate* isolate) {
   delete counters_file_;
   delete counter_map_;
 }
-
 
 
 static FILE* FOpen(const char* path, const char* mode) {
@@ -1931,6 +2029,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         String::NewFromUtf8(isolate_, "send", NewStringType::kNormal)
             .ToLocalChecked();
     CHECK(context->Global()->Set(context, function_name, function).FromJust());
+
+    v8::debug::SetLiveEditEnabled(isolate_, true);
 
     context_.Reset(isolate_, context);
   }
@@ -2396,6 +2496,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--enable-inspector") == 0) {
       options.enable_inspector = true;
       argv[i] = NULL;
+    } else if (strncmp(argv[i], "--lcov=", 7) == 0) {
+      options.lcov_file = argv[i] + 7;
+      argv[i] = NULL;
     }
   }
 
@@ -2437,6 +2540,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     options.isolate_sources[i].StartExecuteInThread();
   }
   {
+    if (options.lcov_file) debug::Coverage::TogglePrecise(isolate, true);
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
     if (last_run && options.use_interactive_shell()) {
@@ -2450,6 +2554,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       options.isolate_sources[0].Execute(isolate);
     }
     DisposeModuleEmbedderData(context);
+    WriteLcovData(isolate, options.lcov_file);
   }
   CollectGarbage(isolate);
   for (int i = 1; i < options.num_isolates; ++i) {
@@ -2491,7 +2596,9 @@ void Shell::EmptyMessageQueues(Isolate* isolate) {
 class Serializer : public ValueSerializer::Delegate {
  public:
   explicit Serializer(Isolate* isolate)
-      : isolate_(isolate), serializer_(isolate, this) {}
+      : isolate_(isolate),
+        serializer_(isolate, this),
+        current_memory_usage_(0) {}
 
   Maybe<bool> WriteValue(Local<Context> context, Local<Value> value,
                          Local<Value> transfer) {
@@ -2542,6 +2649,11 @@ class Serializer : public ValueSerializer::Delegate {
 
   void* ReallocateBufferMemory(void* old_buffer, size_t size,
                                size_t* actual_size) override {
+    // Not accurate, because we don't take into account reallocated buffers,
+    // but this is fine for testing.
+    current_memory_usage_ += size;
+    if (current_memory_usage_ > kMaxSerializerMemoryUsage) return nullptr;
+
     void* result = realloc(old_buffer, size);
     *actual_size = result ? size : 0;
     return result;
@@ -2619,6 +2731,7 @@ class Serializer : public ValueSerializer::Delegate {
   std::unique_ptr<SerializationData> data_;
   std::vector<Global<ArrayBuffer>> array_buffers_;
   std::vector<Global<SharedArrayBuffer>> shared_array_buffers_;
+  size_t current_memory_usage_;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
@@ -2788,7 +2901,8 @@ int Shell::Main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
   g_platform = i::FLAG_verify_predictable
                    ? new PredictablePlatform()
-                   : v8::platform::CreateDefaultPlatform();
+                   : v8::platform::CreateDefaultPlatform(
+                         0, v8::platform::IdleTaskSupport::kEnabled);
 
   platform::tracing::TracingController* tracing_controller;
   if (options.trace_enabled) {
@@ -2910,13 +3024,6 @@ int Shell::Main(int argc, char* argv[]) {
     CollectGarbage(isolate);
   }
   OnExit(isolate);
-  // Dump basic block profiling data.
-  if (i::BasicBlockProfiler* profiler =
-          reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
-    i::OFStream os(stdout);
-    os << *profiler;
-  }
-  isolate->Dispose();
   V8::Dispose();
   V8::ShutdownPlatform();
   delete g_platform;

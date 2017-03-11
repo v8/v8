@@ -127,6 +127,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask);
   FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask);
   FRIEND_TEST(CompilerDispatcherTest, FinishNowDuringAbortAll);
+  FRIEND_TEST(CompilerDispatcherTest, CompileMultipleOnBackgroundThread);
 
   typedef std::multimap<std::pair<int, int>,
                         std::unique_ptr<CompilerDispatcherJob>>
@@ -173,8 +174,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
   bool idle_task_scheduled_;
 
-  // Number of currently scheduled BackgroundTask objects.
-  size_t num_scheduled_background_tasks_;
+  // Number of scheduled or running BackgroundTask objects.
+  size_t num_background_tasks_;
 
   // The set of CompilerDispatcherJobs that can be advanced on any thread.
   std::unordered_set<CompilerDispatcherJob*> pending_background_jobs_;

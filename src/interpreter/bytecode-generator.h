@@ -44,6 +44,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ControlScopeForTopLevel;
   class ControlScopeForTryCatch;
   class ControlScopeForTryFinally;
+  class CurrentScope;
   class ExpressionResultScope;
   class EffectResultScope;
   class GlobalDeclarationsBuilder;
@@ -121,7 +122,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalActivationContext();
   void BuildLocalActivationContextInitialization();
   void BuildNewLocalBlockContext(Scope* scope);
-  void BuildNewLocalCatchContext(Variable* variable, Scope* scope);
+  void BuildNewLocalCatchContext(Scope* scope);
   void BuildNewLocalWithContext(Scope* scope);
 
   void VisitGeneratorPrologue();
@@ -172,8 +173,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   inline BytecodeArrayBuilder* builder() const { return builder_; }
   inline Zone* zone() const { return zone_; }
-  inline DeclarationScope* scope() const { return scope_; }
+  inline DeclarationScope* closure_scope() const { return closure_scope_; }
   inline CompilationInfo* info() const { return info_; }
+
+  inline Scope* current_scope() const { return current_scope_; }
+  inline void set_current_scope(Scope* scope) { current_scope_ = scope; }
 
   inline ControlScope* execution_control() const { return execution_control_; }
   inline void set_execution_control(ControlScope* scope) {
@@ -204,7 +208,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
   CompilationInfo* info_;
-  DeclarationScope* scope_;
+  DeclarationScope* closure_scope_;
+  Scope* current_scope_;
 
   GlobalDeclarationsBuilder* globals_builder_;
   ZoneVector<GlobalDeclarationsBuilder*> global_declarations_;

@@ -1270,7 +1270,14 @@ function ArrayReduceRight(callback, current) {
 }
 
 
-function InnerArrayCopyWithin(target, start, end, array, length) {
+// ES#sec-array.prototype.copywithin
+// (Array.prototype.copyWithin ( target, start [ , end ] )
+function ArrayCopyWithin(target, start, end) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
+
+  var array = TO_OBJECT(this);
+  var length = TO_LENGTH(array.length);
+
   target = TO_INTEGER(target);
   var to;
   if (target < 0) {
@@ -1315,17 +1322,6 @@ function InnerArrayCopyWithin(target, start, end, array, length) {
   }
 
   return array;
-}
-
-
-// ES6 draft 03-17-15, section 22.1.3.3
-function ArrayCopyWithin(target, start, end) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
-
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-
-  return InnerArrayCopyWithin(target, start, end, array, length);
 }
 
 
@@ -1625,7 +1621,6 @@ utils.Export(function(to) {
   to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
   to.ArrayValues = IteratorFunctions.values,
-  to.InnerArrayCopyWithin = InnerArrayCopyWithin;
   to.InnerArrayEvery = InnerArrayEvery;
   to.InnerArrayFill = InnerArrayFill;
   to.InnerArrayFilter = InnerArrayFilter;

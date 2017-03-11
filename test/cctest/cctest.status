@@ -140,6 +140,7 @@
 
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
+  'test-api/Threading*': [PASS, SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -244,10 +245,6 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-  'test-run-wasm-simd/RunWasmCompiled_F32x4Add': [SKIP],
-  'test-run-wasm-simd/RunWasmCompiled_F32x4Sub': [SKIP],
-  'test-run-wasm-simd/RunWasmInterpreted_F32x4Add': [SKIP],
-  'test-run-wasm-simd/RunWasmInterpreted_F32x4Sub': [SKIP],
 
   ############################################################################
   # Slow tests.

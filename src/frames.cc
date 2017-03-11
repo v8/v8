@@ -437,7 +437,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
       kPointerSize);
-  Object* marker = Memory::Object_at(
+  intptr_t marker = Memory::intptr_at(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
   if (!iterator->can_access_heap_objects_) {
     // TODO(titzer): "can_access_heap_objects" is kind of bogus. It really
@@ -449,7 +449,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         state->fp + StandardFrameConstants::kFunctionOffset, kPointerSize);
     Object* maybe_function =
         Memory::Object_at(state->fp + StandardFrameConstants::kFunctionOffset);
-    if (!marker->IsSmi()) {
+    if (!StackFrame::IsTypeMarker(marker)) {
       if (maybe_function->IsSmi()) {
         return NONE;
       } else if (IsInterpreterFramePc(iterator->isolate(),
@@ -466,7 +466,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     if (code_obj != nullptr) {
       switch (code_obj->kind()) {
         case Code::BUILTIN:
-          if (marker->IsSmi()) break;
+          if (StackFrame::IsTypeMarker(marker)) break;
           if (code_obj->is_interpreter_trampoline_builtin()) {
             return INTERPRETED;
           }
@@ -499,9 +499,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     }
   }
 
-  DCHECK(marker->IsSmi());
-  StackFrame::Type candidate =
-      static_cast<StackFrame::Type>(Smi::cast(marker)->value());
+  DCHECK(StackFrame::IsTypeMarker(marker));
+  StackFrame::Type candidate = StackFrame::MarkerToType(marker);
   switch (candidate) {
     case ENTRY:
     case ENTRY_CONSTRUCT:
@@ -636,8 +635,9 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
     return EXIT;
   }
 
-  StackFrame::Type frame_type =
-      static_cast<StackFrame::Type>(Smi::cast(marker)->value());
+  intptr_t marker_int = bit_cast<intptr_t>(marker);
+
+  StackFrame::Type frame_type = static_cast<StackFrame::Type>(marker_int >> 1);
   if (frame_type == EXIT || frame_type == BUILTIN_EXIT) {
     return frame_type;
   }
@@ -797,11 +797,10 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
 
   // Determine the fixed header and spill slot area size.
   int frame_header_size = StandardFrameConstants::kFixedFrameSizeFromFp;
-  Object* marker =
-      Memory::Object_at(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
-  if (marker->IsSmi()) {
-    StackFrame::Type candidate =
-        static_cast<StackFrame::Type>(Smi::cast(marker)->value());
+  intptr_t marker =
+      Memory::intptr_at(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
+  if (StackFrame::IsTypeMarker(marker)) {
+    StackFrame::Type candidate = StackFrame::MarkerToType(marker);
     switch (candidate) {
       case ENTRY:
       case ENTRY_CONSTRUCT:

@@ -524,21 +524,22 @@ class SamplingThread : public base::Thread {
  public:
   static const int kSamplingThreadStackSize = 64 * KB;
 
-  SamplingThread(sampler::Sampler* sampler, int interval)
-      : base::Thread(base::Thread::Options("SamplingThread",
-                                           kSamplingThreadStackSize)),
+  SamplingThread(sampler::Sampler* sampler, int interval_microseconds)
+      : base::Thread(
+            base::Thread::Options("SamplingThread", kSamplingThreadStackSize)),
         sampler_(sampler),
-        interval_(interval) {}
+        interval_microseconds_(interval_microseconds) {}
   void Run() override {
     while (sampler_->IsProfiling()) {
       sampler_->DoSample();
-      base::OS::Sleep(base::TimeDelta::FromMilliseconds(interval_));
+      base::OS::Sleep(
+          base::TimeDelta::FromMicroseconds(interval_microseconds_));
     }
   }
 
  private:
   sampler::Sampler* sampler_;
-  const int interval_;
+  const int interval_microseconds_;
 };
 
 
@@ -616,10 +617,10 @@ class Profiler: public base::Thread {
 //
 class Ticker: public sampler::Sampler {
  public:
-  Ticker(Isolate* isolate, int interval)
+  Ticker(Isolate* isolate, int interval_microseconds)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
         profiler_(nullptr),
-        sampling_thread_(new SamplingThread(this, interval)) {}
+        sampling_thread_(new SamplingThread(this, interval_microseconds)) {}
 
   ~Ticker() {
     if (IsActive()) Stop();
@@ -760,7 +761,7 @@ void Logger::removeCodeEventListener(CodeEventListener* listener) {
 void Logger::ProfilerBeginEvent() {
   if (!log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
-  msg.Append("profiler,\"begin\",%d", kSamplingIntervalMs);
+  msg.Append("profiler,\"begin\",%d", FLAG_prof_sampling_interval);
   msg.WriteToLogFile();
 }
 
@@ -1290,6 +1291,93 @@ void Logger::TickEvent(v8::TickSample* sample, bool overflow) {
   msg.WriteToLogFile();
 }
 
+void Logger::ICEvent(const char* type, bool keyed, const Address pc, int line,
+                     int column, Map* map, Object* key, char old_state,
+                     char new_state, const char* modifier,
+                     const char* slow_stub_reason) {
+  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  Log::MessageBuilder msg(log_);
+  if (keyed) msg.Append("Keyed");
+  msg.Append("%s,", type);
+  msg.AppendAddress(pc);
+  msg.Append(",%d,%d,", line, column);
+  msg.Append(old_state);
+  msg.Append(",");
+  msg.Append(new_state);
+  msg.Append(",");
+  msg.AppendAddress(reinterpret_cast<Address>(map));
+  msg.Append(",");
+  if (key->IsSmi()) {
+    msg.Append("%d", Smi::cast(key)->value());
+  } else if (key->IsNumber()) {
+    msg.Append("%lf", key->Number());
+  } else if (key->IsString()) {
+    msg.AppendDetailed(String::cast(key), false);
+  } else if (key->IsSymbol()) {
+    msg.AppendSymbolName(Symbol::cast(key));
+  }
+  msg.Append(",%s,", modifier);
+  if (slow_stub_reason != nullptr) {
+    msg.AppendDoubleQuotedString(slow_stub_reason);
+  }
+  msg.WriteToLogFile();
+}
+
+void Logger::CompareIC(const Address pc, int line, int column, Code* stub,
+                       const char* op, const char* old_left,
+                       const char* old_right, const char* old_state,
+                       const char* new_left, const char* new_right,
+                       const char* new_state) {
+  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("CompareIC,");
+  msg.AppendAddress(pc);
+  msg.Append(",%d,%d,", line, column);
+  msg.AppendAddress(reinterpret_cast<Address>(stub));
+  msg.Append(",%s,%s,%s,%s,%s,%s,%s", op, old_left, old_right, old_state,
+             new_left, new_right, new_state);
+  msg.WriteToLogFile();
+}
+
+void Logger::BinaryOpIC(const Address pc, int line, int column, Code* stub,
+                        const char* old_state, const char* new_state,
+                        AllocationSite* allocation_site) {
+  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("BinaryOpIC,");
+  msg.AppendAddress(pc);
+  msg.Append(",%d,%d,", line, column);
+  msg.AppendAddress(reinterpret_cast<Address>(stub));
+  msg.Append(",%s,%s,", old_state, new_state);
+  if (allocation_site != nullptr) {
+    msg.AppendAddress(reinterpret_cast<Address>(allocation_site));
+  }
+  msg.WriteToLogFile();
+}
+
+void Logger::ToBooleanIC(const Address pc, int line, int column, Code* stub,
+                         const char* old_state, const char* new_state) {
+  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("ToBooleanIC,");
+  msg.AppendAddress(pc);
+  msg.Append(",%d,%d,", line, column);
+  msg.AppendAddress(reinterpret_cast<Address>(stub));
+  msg.Append(",%s,%s,", old_state, new_state);
+  msg.WriteToLogFile();
+}
+
+void Logger::PatchIC(const Address pc, const Address test, int delta) {
+  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("PatchIC,");
+  msg.AppendAddress(pc);
+  msg.Append(",");
+  msg.AppendAddress(test);
+  msg.Append(",");
+  msg.Append("%d,", delta);
+  msg.WriteToLogFile();
+}
 
 void Logger::StopProfiler() {
   if (!log_->IsEnabled()) return;
@@ -1325,9 +1413,6 @@ class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
                                      Handle<AbstractCode>* code_objects,
                                      int* count)
       : sfis_(sfis), code_objects_(code_objects), count_(count) {}
-
-  virtual void EnterContext(Context* context) {}
-  virtual void LeaveContext(Context* context) {}
 
   virtual void VisitFunction(JSFunction* function) {
     SharedFunctionInfo* sfi = SharedFunctionInfo::cast(function->shared());
@@ -1670,7 +1755,7 @@ bool Logger::SetUp(Isolate* isolate) {
     addCodeEventListener(ll_logger_);
   }
 
-  ticker_ = new Ticker(isolate, kSamplingIntervalMs);
+  ticker_ = new Ticker(isolate, FLAG_prof_sampling_interval);
 
   if (Log::InitLogAtStart()) {
     is_logging_ = true;

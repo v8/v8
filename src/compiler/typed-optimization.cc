@@ -195,7 +195,8 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
     return Replace(input);
   }
   if (input_type->Is(Type::PlainNumber()) &&
-      input->opcode() == IrOpcode::kNumberDivide) {
+      (input->opcode() == IrOpcode::kNumberDivide ||
+       input->opcode() == IrOpcode::kSpeculativeNumberDivide)) {
     Node* const lhs = NodeProperties::GetValueInput(input, 0);
     Type* const lhs_type = NodeProperties::GetType(lhs);
     Node* const rhs = NodeProperties::GetValueInput(input, 1);

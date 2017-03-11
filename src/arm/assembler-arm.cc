@@ -39,9 +39,11 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/assembler-arm-inl.h"
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1523,6 +1525,10 @@ void Assembler::sub(Register dst, Register src1, const Operand& src2,
   addrmod1(cond | SUB | s, src1, dst, src2);
 }
 
+void Assembler::sub(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  sub(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::rsb(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
@@ -1535,6 +1541,10 @@ void Assembler::add(Register dst, Register src1, const Operand& src2,
   addrmod1(cond | ADD | s, src1, dst, src2);
 }
 
+void Assembler::add(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  add(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::adc(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
@@ -1558,6 +1568,9 @@ void Assembler::tst(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | TST | S, src1, r0, src2);
 }
 
+void Assembler::tst(Register src1, Register src2, Condition cond) {
+  tst(src1, Operand(src2), cond);
+}
 
 void Assembler::teq(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | TEQ | S, src1, r0, src2);
@@ -1568,6 +1581,9 @@ void Assembler::cmp(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | CMP | S, src1, r0, src2);
 }
 
+void Assembler::cmp(Register src1, Register src2, Condition cond) {
+  cmp(src1, Operand(src2), cond);
+}
 
 void Assembler::cmp_raw_immediate(
     Register src, int raw_immediate, Condition cond) {
@@ -1586,6 +1602,10 @@ void Assembler::orr(Register dst, Register src1, const Operand& src2,
   addrmod1(cond | ORR | s, src1, dst, src2);
 }
 
+void Assembler::orr(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  orr(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   // Don't allow nop instructions in the form mov rn, rn to be generated using
@@ -1595,6 +1615,9 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   addrmod1(cond | MOV | s, r0, dst, src);
 }
 
+void Assembler::mov(Register dst, Register src, SBit s, Condition cond) {
+  mov(dst, Operand(src), s, cond);
+}
 
 void Assembler::mov_label_offset(Register dst, Label* label) {
   if (label->is_bound()) {
@@ -1657,6 +1680,32 @@ void Assembler::mvn(Register dst, const Operand& src, SBit s, Condition cond) {
   addrmod1(cond | MVN | s, r0, dst, src);
 }
 
+void Assembler::asr(Register dst, Register src1, const Operand& src2, SBit s,
+                    Condition cond) {
+  if (src2.is_reg()) {
+    mov(dst, Operand(src1, ASR, src2.rm()), s, cond);
+  } else {
+    mov(dst, Operand(src1, ASR, src2.immediate()), s, cond);
+  }
+}
+
+void Assembler::lsl(Register dst, Register src1, const Operand& src2, SBit s,
+                    Condition cond) {
+  if (src2.is_reg()) {
+    mov(dst, Operand(src1, LSL, src2.rm()), s, cond);
+  } else {
+    mov(dst, Operand(src1, LSL, src2.immediate()), s, cond);
+  }
+}
+
+void Assembler::lsr(Register dst, Register src1, const Operand& src2, SBit s,
+                    Condition cond) {
+  if (src2.is_reg()) {
+    mov(dst, Operand(src1, LSR, src2.rm()), s, cond);
+  } else {
+    mov(dst, Operand(src1, LSR, src2.immediate()), s, cond);
+  }
+}
 
 // Multiply instructions.
 void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
@@ -2233,19 +2282,12 @@ void Assembler::stop(const char* msg, Condition cond, int32_t code) {
 #ifndef __arm__
   DCHECK(code >= kDefaultStopCode);
   {
-    // The Simulator will handle the stop instruction and get the message
-    // address. It expects to find the address just after the svc instruction.
     BlockConstPoolScope block_const_pool(this);
     if (code >= 0) {
       svc(kStopCode + code, cond);
     } else {
       svc(kStopCode + kMaxStopCode, cond);
     }
-    // Do not embed the message string address! We used to do this, but that
-    // made snapshots created from position-independent executable builds
-    // non-deterministic.
-    // TODO(yangguo): remove this field entirely.
-    nop();
   }
 #else  // def __arm__
   if (cond != al) {
@@ -4074,25 +4116,43 @@ void Assembler::vcvt_u32_f32(const QwNeonRegister dst,
   emit(EncodeNeonVCVT(U32, dst, F32, src));
 }
 
-// op is instr->Bits(11, 7).
-static Instr EncodeNeonUnaryOp(int op, bool is_float, NeonSize size,
-                               const QwNeonRegister dst,
-                               const QwNeonRegister src) {
-  DCHECK_IMPLIES(is_float, size == Neon32);
+enum UnaryOp { VABS, VABSF, VNEG, VNEGF };
+
+static Instr EncodeNeonUnaryOp(UnaryOp op, NeonSize size, QwNeonRegister dst,
+                               QwNeonRegister src) {
+  int op_encoding = 0;
+  switch (op) {
+    case VABS:
+      op_encoding = 0x6 * B7;
+      break;
+    case VABSF:
+      DCHECK_EQ(Neon32, size);
+      op_encoding = 0x6 * B7 | B10;
+      break;
+    case VNEG:
+      op_encoding = 0x7 * B7;
+      break;
+    case VNEGF:
+      DCHECK_EQ(Neon32, size);
+      op_encoding = 0x7 * B7 | B10;
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
   int vd, d;
   dst.split_code(&vd, &d);
   int vm, m;
   src.split_code(&vm, &m);
-  int F = is_float ? 1 : 0;
-  return 0x1E7U * B23 | d * B22 | 0x3 * B20 | size * B18 | B16 | vd * B12 |
-         F * B10 | B8 | op * B7 | B6 | m * B5 | vm;
+  return 0x1E7U * B23 | d * B22 | 0x3 * B20 | size * B18 | B16 | vd * B12 | B6 |
+         m * B5 | vm | op_encoding;
 }
 
 void Assembler::vabs(const QwNeonRegister dst, const QwNeonRegister src) {
   // Qd = vabs.f<size>(Qn, Qm) SIMD floating point absolute value.
   // Instruction details available in ARM DDI 0406C.b, A8.8.824.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonUnaryOp(0x6, true, Neon32, dst, src));
+  emit(EncodeNeonUnaryOp(VABSF, Neon32, dst, src));
 }
 
 void Assembler::vabs(NeonSize size, const QwNeonRegister dst,
@@ -4100,14 +4160,14 @@ void Assembler::vabs(NeonSize size, const QwNeonRegister dst,
   // Qd = vabs.s<size>(Qn, Qm) SIMD integer absolute value.
   // Instruction details available in ARM DDI 0406C.b, A8.8.824.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonUnaryOp(0x6, false, size, dst, src));
+  emit(EncodeNeonUnaryOp(VABS, size, dst, src));
 }
 
 void Assembler::vneg(const QwNeonRegister dst, const QwNeonRegister src) {
   // Qd = vabs.f<size>(Qn, Qm) SIMD floating point negate.
   // Instruction details available in ARM DDI 0406C.b, A8.8.968.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonUnaryOp(0x7, true, Neon32, dst, src));
+  emit(EncodeNeonUnaryOp(VNEGF, Neon32, dst, src));
 }
 
 void Assembler::vneg(NeonSize size, const QwNeonRegister dst,
@@ -4115,7 +4175,7 @@ void Assembler::vneg(NeonSize size, const QwNeonRegister dst,
   // Qd = vabs.s<size>(Qn, Qm) SIMD integer negate.
   // Instruction details available in ARM DDI 0406C.b, A8.8.968.
   DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonUnaryOp(0x7, false, size, dst, src));
+  emit(EncodeNeonUnaryOp(VNEG, size, dst, src));
 }
 
 void Assembler::veor(DwVfpRegister dst, DwVfpRegister src1,
@@ -4135,10 +4195,9 @@ void Assembler::veor(DwVfpRegister dst, DwVfpRegister src1,
 
 enum BinaryBitwiseOp { VAND, VBIC, VBIF, VBIT, VBSL, VEOR, VORR, VORN };
 
-static Instr EncodeNeonBinaryBitwiseOp(BinaryBitwiseOp op,
-                                       const QwNeonRegister dst,
-                                       const QwNeonRegister src1,
-                                       const QwNeonRegister src2) {
+static Instr EncodeNeonBinaryBitwiseOp(BinaryBitwiseOp op, QwNeonRegister dst,
+                                       QwNeonRegister src1,
+                                       QwNeonRegister src2) {
   int op_encoding = 0;
   switch (op) {
     case VBIC:
@@ -4287,9 +4346,8 @@ enum IntegerBinOp {
 };
 
 static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
-                             const QwNeonRegister dst,
-                             const QwNeonRegister src1,
-                             const QwNeonRegister src2) {
+                             QwNeonRegister dst, QwNeonRegister src1,
+                             QwNeonRegister src2) {
   int op_encoding = 0;
   switch (op) {
     case VADD:
@@ -4341,10 +4399,8 @@ static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
          n * B7 | B6 | m * B5 | vm | op_encoding;
 }
 
-static Instr EncodeNeonBinOp(IntegerBinOp op, NeonSize size,
-                             const QwNeonRegister dst,
-                             const QwNeonRegister src1,
-                             const QwNeonRegister src2) {
+static Instr EncodeNeonBinOp(IntegerBinOp op, NeonSize size, QwNeonRegister dst,
+                             QwNeonRegister src1, QwNeonRegister src2) {
   // Map NeonSize values to the signed values in NeonDataType, so the U bit
   // will be 0.
   return EncodeNeonBinOp(op, static_cast<NeonDataType>(size), dst, src1, src2);
@@ -4529,6 +4585,51 @@ void Assembler::vrsqrts(QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VRSQRTS, dst, src1, src2));
 }
 
+enum PairwiseOp { VPMIN, VPMAX };
+
+static Instr EncodeNeonPairwiseOp(PairwiseOp op, NeonDataType dt,
+                                  DwVfpRegister dst, DwVfpRegister src1,
+                                  DwVfpRegister src2) {
+  int op_encoding = 0;
+  switch (op) {
+    case VPMIN:
+      op_encoding = 0xA * B8 | B4;
+      break;
+    case VPMAX:
+      op_encoding = 0xA * B8;
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int size = NeonSz(dt);
+  int u = NeonU(dt);
+  return 0x1E4U * B23 | u * B24 | d * B22 | size * B20 | vn * B16 | vd * B12 |
+         n * B7 | m * B5 | vm | op_encoding;
+}
+
+void Assembler::vpmin(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vpmin(Dn, Dm) SIMD integer pairwise MIN.
+  // Instruction details available in ARM DDI 0406C.b, A8-986.
+  emit(EncodeNeonPairwiseOp(VPMIN, dt, dst, src1, src2));
+}
+
+void Assembler::vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vpmax(Dn, Dm) SIMD integer pairwise MAX.
+  // Instruction details available in ARM DDI 0406C.b, A8-986.
+  emit(EncodeNeonPairwiseOp(VPMAX, dt, dst, src1, src2));
+}
+
 void Assembler::vtst(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
                      QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
@@ -4690,6 +4791,7 @@ void Assembler::nop(int type) {
   emit(al | 13*B21 | type*B12 | type);
 }
 
+void Assembler::pop() { add(sp, sp, Operand(kPointerSize)); }
 
 bool Assembler::IsMovT(Instr instr) {
   instr &= ~(((kNumberOfConditions - 1) << 28) |  // Mask off conditions

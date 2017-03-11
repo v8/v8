@@ -2601,7 +2601,7 @@ void MacroAssembler::StubPrologue(StackFrame::Type type, int frame_slots) {
   UseScratchRegisterScope temps(this);
   frame_slots -= TypedFrameConstants::kFixedSlotCountAboveFp;
   Register temp = temps.AcquireX();
-  Mov(temp, Smi::FromInt(type));
+  Mov(temp, StackFrame::TypeToMarker(type));
   Push(lr, fp);
   Mov(fp, StackPointer());
   Claim(frame_slots);
@@ -2638,7 +2638,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
   if (type == StackFrame::INTERNAL) {
     DCHECK(jssp.Is(StackPointer()));
-    Mov(type_reg, Smi::FromInt(type));
+    Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);
     Push(type_reg);
     Mov(code_reg, Operand(CodeObject()));
@@ -2650,7 +2650,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
     // jssp[0] : [code object]
   } else if (type == StackFrame::WASM_COMPILED) {
     DCHECK(csp.Is(StackPointer()));
-    Mov(type_reg, Smi::FromInt(type));
+    Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);
     Mov(fp, csp);
     Push(type_reg, xzr);
@@ -2660,7 +2660,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
     // csp[0] : for alignment
   } else {
     DCHECK(jssp.Is(StackPointer()));
-    Mov(type_reg, Smi::FromInt(type));
+    Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);
     Push(type_reg);
     Add(fp, jssp, TypedFrameConstants::kFixedFrameSizeFromFp);
@@ -2731,7 +2731,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   // Set up the new stack frame.
   Push(lr, fp);
   Mov(fp, StackPointer());
-  Mov(scratch, Smi::FromInt(frame_type));
+  Mov(scratch, StackFrame::TypeToMarker(frame_type));
   Push(scratch);
   Push(xzr);
   Mov(scratch, Operand(CodeObject()));
@@ -2876,15 +2876,6 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     // cannot be allowed to destroy the context in cp).
     Mov(dst, cp);
   }
-}
-
-
-void MacroAssembler::DebugBreak() {
-  Mov(x0, 0);
-  Mov(x1, ExternalReference(Runtime::kHandleDebuggerStatement, isolate()));
-  CEntryStub ces(isolate(), 1);
-  DCHECK(AllowThisStubCall(&ces));
-  Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
 void MacroAssembler::MaybeDropFrames() {
@@ -4619,9 +4610,8 @@ void InlineSmiCheckInfo::Emit(MacroAssembler* masm, const Register& reg,
   }
 }
 
-
 InlineSmiCheckInfo::InlineSmiCheckInfo(Address info)
-    : reg_(NoReg), smi_check_(NULL) {
+    : reg_(NoReg), smi_check_delta_(0), smi_check_(NULL) {
   InstructionSequence* inline_data = InstructionSequence::At(info);
   DCHECK(inline_data->IsInlineData());
   if (inline_data->IsInlineData()) {
@@ -4633,9 +4623,9 @@ InlineSmiCheckInfo::InlineSmiCheckInfo(Address info)
       uint32_t payload32 = static_cast<uint32_t>(payload);
       int reg_code = RegisterBits::decode(payload32);
       reg_ = Register::XRegFromCode(reg_code);
-      int smi_check_delta = DeltaBits::decode(payload32);
-      DCHECK(smi_check_delta != 0);
-      smi_check_ = inline_data->preceding(smi_check_delta);
+      smi_check_delta_ = DeltaBits::decode(payload32);
+      DCHECK_NE(0, smi_check_delta_);
+      smi_check_ = inline_data->preceding(smi_check_delta_);
     }
   }
 }

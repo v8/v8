@@ -135,6 +135,10 @@ namespace compiler {
   V(S390_LoadWordU16)              \
   V(S390_LoadWordS32)              \
   V(S390_LoadWordU32)              \
+  V(S390_LoadAndTestWord32)        \
+  V(S390_LoadAndTestWord64)        \
+  V(S390_LoadAndTestFloat32)       \
+  V(S390_LoadAndTestFloat64)       \
   V(S390_LoadReverse16RR)          \
   V(S390_LoadReverse32RR)          \
   V(S390_LoadReverse64RR)          \

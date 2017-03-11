@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
@@ -13,6 +14,7 @@
 #include "src/disasm.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/string-stream.h"
 

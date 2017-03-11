@@ -110,7 +110,7 @@ class TestingModule : public ModuleEnv {
     CHECK_EQ(0, instance->mem_size);
     module_.has_memory = true;
     instance->mem_start = reinterpret_cast<byte*>(malloc(size));
-    CHECK(instance->mem_start);
+    CHECK(size == 0 || instance->mem_start);
     memset(instance->mem_start, 0, size);
     instance->mem_size = size;
     return raw_mem_start<byte>();
@@ -205,7 +205,7 @@ class TestingModule : public ModuleEnv {
     if (interpreter_) {
       const WasmFunction* function = &module->functions.back();
       int interpreter_index = interpreter_->AddFunctionForTesting(function);
-      CHECK_EQ(index, static_cast<uint32_t>(interpreter_index));
+      CHECK_EQ(index, interpreter_index);
     }
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
@@ -331,8 +331,10 @@ class TestingModule : public ModuleEnv {
   Handle<WasmInstanceObject> InitInstanceObject() {
     Handle<SeqOneByteString> empty_string = Handle<SeqOneByteString>::cast(
         isolate_->factory()->NewStringFromOneByte({}).ToHandleChecked());
-    Handle<Managed<wasm::WasmModule>> module_wrapper =
-        Managed<wasm::WasmModule>::New(isolate_, &module_, false);
+    // The lifetime of the wasm module is tied to this object's, and we cannot
+    // rely on the mechanics of Managed<T>.
+    Handle<Foreign> module_wrapper =
+        isolate_->factory()->NewForeign(reinterpret_cast<Address>(&module));
     Handle<Script> script =
         isolate_->factory()->NewScript(isolate_->factory()->empty_string());
     script->set_type(Script::TYPE_WASM);
@@ -562,8 +564,16 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     Handle<WasmCompiledModule> compiled_module(
         testing_module_->instance_object()->compiled_module(), isolate());
     Handle<FixedArray> code_table = compiled_module->code_table();
-    code_table = FixedArray::SetAndGrow(code_table, function_index(), code);
-    compiled_module->set_code_table(code_table);
+    if (static_cast<int>(function_index()) >= code_table->length()) {
+      Handle<FixedArray> new_arr = isolate()->factory()->NewFixedArray(
+          static_cast<int>(function_index()) + 1);
+      code_table->CopyTo(0, *new_arr, 0, code_table->length());
+      code_table = new_arr;
+      compiled_module->set_code_table(code_table);
+    }
+    DCHECK(code_table->get(static_cast<int>(function_index()))
+               ->IsUndefined(isolate()));
+    code_table->set(static_cast<int>(function_index()), *code);
   }
 
   byte AllocateLocal(ValueType type) {
@@ -599,7 +609,10 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     if (kPointerSize == 4) {
       desc = testing_module_->GetI32WasmCallDescriptor(this->zone(), desc);
     }
-    CompilationInfo info(CStrVector("wasm"), this->isolate(), this->zone(),
+    EmbeddedVector<char, 16> comp_name;
+    int comp_name_len = SNPrintF(comp_name, "wasm#%u", this->function_index());
+    comp_name.Truncate(comp_name_len);
+    CompilationInfo info(comp_name, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
     std::unique_ptr<CompilationJob> job(Pipeline::NewWasmCompilationJob(
         &info, &jsgraph, desc, &source_position_table_, nullptr, false));
@@ -618,7 +631,6 @@ class WasmFunctionCompiler : private GraphAndBuilders {
         isolate()->factory()->NewWeakCell(testing_module_->instance_object());
     deopt_data->set(0, *weak_instance);
     deopt_data->set(1, Smi::FromInt(static_cast<int>(function_index())));
-    deopt_data->set_length(2);
     code->set_deoptimization_data(*deopt_data);
 
 #ifdef ENABLE_DISASSEMBLER

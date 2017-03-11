@@ -9,6 +9,7 @@
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
 
+#include "src/assembler-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/context-slot-cache.h"
 #include "src/base/hashmap.h"
@@ -1350,6 +1351,9 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
           if (code->GetCode()->is_exception_caught()) {
             return HandlerTable::CAUGHT;
           }
+
+          // The built-in must be marked with an exception prediction.
+          UNREACHABLE();
         }
 
         if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
@@ -2030,6 +2034,47 @@ Isolate::ThreadDataTable::~ThreadDataTable() {
   // DCHECK_NULL(list_);
 }
 
+void Isolate::ReleaseManagedObjects() {
+  Isolate::ManagedObjectFinalizer* current =
+      managed_object_finalizers_list_.next_;
+  while (current != nullptr) {
+    Isolate::ManagedObjectFinalizer* next = current->next_;
+    current->Dispose();
+    delete current;
+    current = next;
+  }
+}
+
+Isolate::ManagedObjectFinalizer* Isolate::RegisterForReleaseAtTeardown(
+    void* value, Isolate::ManagedObjectFinalizer::Deleter deleter) {
+  DCHECK_NOT_NULL(value);
+  DCHECK_NOT_NULL(deleter);
+
+  Isolate::ManagedObjectFinalizer* ret = new Isolate::ManagedObjectFinalizer();
+  ret->value_ = value;
+  ret->deleter_ = deleter;
+  // Insert at head. We keep the head alive for the lifetime of the Isolate
+  // because otherwise we can't reset the head, should we delete it before
+  // the isolate expires
+  Isolate::ManagedObjectFinalizer* next = managed_object_finalizers_list_.next_;
+  managed_object_finalizers_list_.next_ = ret;
+  ret->prev_ = &managed_object_finalizers_list_;
+  ret->next_ = next;
+  if (next != nullptr) next->prev_ = ret;
+  return ret;
+}
+
+void Isolate::UnregisterFromReleaseAtTeardown(
+    Isolate::ManagedObjectFinalizer** finalizer_ptr) {
+  DCHECK_NOT_NULL(finalizer_ptr);
+  Isolate::ManagedObjectFinalizer* finalizer = *finalizer_ptr;
+  DCHECK_NOT_NULL(finalizer->prev_);
+
+  finalizer->prev_->next_ = finalizer->next_;
+  if (finalizer->next_ != nullptr) finalizer->next_->prev_ = finalizer->prev_;
+  delete finalizer;
+  *finalizer_ptr = nullptr;
+}
 
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
 #if defined(USE_SIMULATOR)
@@ -2345,7 +2390,7 @@ void Isolate::Deinit() {
 
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
 
-  DumpAndResetCompilationStats();
+  DumpAndResetStats();
 
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
@@ -2399,6 +2444,7 @@ void Isolate::Deinit() {
   root_index_map_ = NULL;
 
   ClearSerializerData();
+  ReleaseManagedObjects();
 }
 
 
@@ -2841,8 +2887,7 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
   }
 }
 
-
-void Isolate::DumpAndResetCompilationStats() {
+void Isolate::DumpAndResetStats() {
   if (turbo_statistics() != nullptr) {
     DCHECK(FLAG_turbo_stats || FLAG_turbo_stats_nvp);
 

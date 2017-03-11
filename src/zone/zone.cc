@@ -114,9 +114,9 @@ void Zone::DeleteAll() {
 // of the segment chain. Returns the new segment.
 Segment* Zone::NewSegment(size_t requested_size) {
   Segment* result = allocator_->GetSegment(requested_size);
-  DCHECK_GE(result->size(), requested_size);
-  segment_bytes_allocated_ += result->size();
   if (result != nullptr) {
+    DCHECK_GE(result->size(), requested_size);
+    segment_bytes_allocated_ += result->size();
     result->set_zone(this);
     result->set_next(segment_head_);
     segment_head_ = result;

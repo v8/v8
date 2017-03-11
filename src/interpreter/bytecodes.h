@@ -97,6 +97,8 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kIdx)                                      \
   V(StaNamedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,          \
     OperandType::kIdx, OperandType::kIdx)                                      \
+  V(StaNamedOwnProperty, AccumulatorUse::kRead, OperandType::kReg,             \
+    OperandType::kIdx, OperandType::kIdx)                                      \
   V(StaKeyedPropertySloppy, AccumulatorUse::kRead, OperandType::kReg,          \
     OperandType::kReg, OperandType::kIdx)                                      \
   V(StaKeyedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,          \
@@ -152,8 +154,21 @@ namespace interpreter {
   /* Call operations */                                                        \
   V(Call, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kRegList,    \
     OperandType::kRegCount, OperandType::kIdx)                                 \
+  V(Call0, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,       \
+    OperandType::kIdx)                                                         \
+  V(Call1, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,       \
+    OperandType::kReg, OperandType::kIdx)                                      \
+  V(Call2, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,       \
+    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
   V(CallProperty, AccumulatorUse::kWrite, OperandType::kReg,                   \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
+  V(CallProperty0, AccumulatorUse::kWrite, OperandType::kReg,                  \
+    OperandType::kReg, OperandType::kIdx)                                      \
+  V(CallProperty1, AccumulatorUse::kWrite, OperandType::kReg,                  \
+    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
+  V(CallProperty2, AccumulatorUse::kWrite, OperandType::kReg,                  \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
+    OperandType::kIdx)                                                         \
   V(CallWithSpread, AccumulatorUse::kWrite, OperandType::kReg,                 \
     OperandType::kRegList, OperandType::kRegCount)                             \
   V(TailCall, AccumulatorUse::kWrite, OperandType::kReg,                       \
@@ -177,8 +192,6 @@ namespace interpreter {
                                                                                \
   /* Test Operators */                                                         \
   V(TestEqual, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
-    OperandType::kIdx)                                                         \
-  V(TestNotEqual, AccumulatorUse::kReadWrite, OperandType::kReg,               \
     OperandType::kIdx)                                                         \
   V(TestEqualStrict, AccumulatorUse::kReadWrite, OperandType::kReg,            \
     OperandType::kIdx)                                                         \
@@ -405,7 +418,7 @@ enum class Bytecode : uint8_t {
 class V8_EXPORT_PRIVATE Bytecodes final {
  public:
   //  The maximum number of operands a bytecode may have.
-  static const int kMaxOperands = 4;
+  static const int kMaxOperands = 5;
 
   // Returns string representation of |bytecode|.
   static const char* ToString(Bytecode bytecode);
@@ -485,7 +498,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
       case Bytecode::kToBooleanLogicalNot:
       case Bytecode::kLogicalNot:
       case Bytecode::kTestEqual:
-      case Bytecode::kTestNotEqual:
       case Bytecode::kTestEqualStrict:
       case Bytecode::kTestLessThan:
       case Bytecode::kTestLessThanOrEqual:
@@ -619,7 +631,18 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   // Returns true if the bytecode is a call or a constructor call.
   static constexpr bool IsCallOrConstruct(Bytecode bytecode) {
     return bytecode == Bytecode::kCall || bytecode == Bytecode::kCallProperty ||
-           bytecode == Bytecode::kTailCall || bytecode == Bytecode::kConstruct;
+           bytecode == Bytecode::kCall0 ||
+           bytecode == Bytecode::kCallProperty0 ||
+           bytecode == Bytecode::kCall1 ||
+           bytecode == Bytecode::kCallProperty1 ||
+           bytecode == Bytecode::kCall2 ||
+           bytecode == Bytecode::kCallProperty2 ||
+           bytecode == Bytecode::kTailCall ||
+           bytecode == Bytecode::kConstruct ||
+           bytecode == Bytecode::kCallWithSpread ||
+           bytecode == Bytecode::kConstructWithSpread ||
+           bytecode == Bytecode::kInvokeIntrinsic ||
+           bytecode == Bytecode::kCallJSRuntime;
   }
 
   // Returns true if the bytecode is a call to the runtime.
@@ -723,6 +746,10 @@ class V8_EXPORT_PRIVATE Bytecodes final {
 
   // Returns the equivalent jump bytecode without the accumulator coercion.
   static Bytecode GetJumpWithoutToBoolean(Bytecode bytecode);
+
+  // Returns true if there is a call in the most-frequently executed path
+  // through the bytecode's handler.
+  static bool MakesCallAlongCriticalPath(Bytecode bytecode);
 
   // Returns true if the bytecode is a debug break.
   static bool IsDebugBreak(Bytecode bytecode);

@@ -130,8 +130,9 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void registerAsyncTaskIfNeeded(void* task);
 
   // v8::debug::DebugEventListener implementation.
-  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            int parentId) override;
+  void PromiseEventOccurred(v8::Local<v8::Context> context,
+                            v8::debug::PromiseDebugActionType type, int id,
+                            int parentId, bool createdByUser) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
@@ -144,6 +145,12 @@ class V8Debugger : public v8::debug::DebugDelegate {
   bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                             const v8::debug::Location& start,
                             const v8::debug::Location& end) override;
+
+  int currentContextGroupId();
+  void handleAsyncTaskStepping(v8::Local<v8::Context> context,
+                               v8::debug::PromiseDebugActionType type,
+                               void* task, void* parentTask,
+                               bool createdByUser);
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
@@ -171,6 +178,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
   std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   protocol::HashMap<void*, void*> m_parentTask;
+  protocol::HashMap<void*, void*> m_firstNextTask;
+  void* m_taskWithScheduledBreak = nullptr;
 
   v8::debug::ExceptionBreakState m_pauseOnExceptionsState;
 

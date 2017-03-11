@@ -36,7 +36,8 @@ class InvokeScope {
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> data,
                                         Handle<JSReceiver> new_target,
-                                        bool is_hidden_prototype);
+                                        bool is_hidden_prototype,
+                                        bool is_prototype);
 
 MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                             Handle<FunctionTemplateInfo> data,
@@ -49,7 +50,7 @@ MaybeHandle<Object> Instantiate(Isolate* isolate, Handle<Object> data,
                                Handle<FunctionTemplateInfo>::cast(data), name);
   } else if (data->IsObjectTemplateInfo()) {
     return InstantiateObject(isolate, Handle<ObjectTemplateInfo>::cast(data),
-                             Handle<JSReceiver>(), false);
+                             Handle<JSReceiver>(), false, false);
   } else {
     return data;
   }
@@ -338,7 +339,8 @@ bool IsSimpleInstantiation(Isolate* isolate, ObjectTemplateInfo* info,
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> info,
                                         Handle<JSReceiver> new_target,
-                                        bool is_hidden_prototype) {
+                                        bool is_hidden_prototype,
+                                        bool is_prototype) {
   Handle<JSFunction> constructor;
   int serial_number = Smi::cast(info->serial_number())->value();
   if (!new_target.is_null()) {
@@ -379,19 +381,26 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   Handle<JSObject> object;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, object,
                              JSObject::New(constructor, new_target), JSObject);
+
+  if (is_prototype) JSObject::OptimizeAsPrototype(object, FAST_PROTOTYPE);
+
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
       ConfigureInstance(isolate, object, info, is_hidden_prototype), JSObject);
   if (info->immutable_proto()) {
     JSObject::SetImmutableProto(object);
   }
-  // TODO(dcarney): is this necessary?
-  JSObject::MigrateSlowToFast(result, 0, "ApiNatives::InstantiateObject");
-
-  if (serial_number) {
-    CacheTemplateInstantiation(isolate, serial_number, result);
-    result = isolate->factory()->CopyJSObject(result);
+  if (!is_prototype) {
+    // Keep prototypes in slow-mode. Let them be lazily turned fast later on.
+    // TODO(dcarney): is this necessary?
+    JSObject::MigrateSlowToFast(result, 0, "ApiNatives::InstantiateObject");
+    // Don't cache prototypes.
+    if (serial_number) {
+      CacheTemplateInstantiation(isolate, serial_number, result);
+      result = isolate->factory()->CopyJSObject(result);
+    }
   }
+
   return result;
 }
 
@@ -446,7 +455,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
           InstantiateObject(
               isolate,
               handle(ObjectTemplateInfo::cast(prototype_templ), isolate),
-              Handle<JSReceiver>(), data->hidden_prototype()),
+              Handle<JSReceiver>(), data->hidden_prototype(), true),
           JSFunction);
     }
     Object* parent = data->parent_template();
@@ -514,7 +523,8 @@ MaybeHandle<JSObject> ApiNatives::InstantiateObject(
     Handle<ObjectTemplateInfo> data, Handle<JSReceiver> new_target) {
   Isolate* isolate = data->GetIsolate();
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateObject(isolate, data, new_target, false);
+  return ::v8::internal::InstantiateObject(isolate, data, new_target, false,
+                                           false);
 }
 
 MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
@@ -538,8 +548,6 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
   JSFunction::SetInitialMap(object_function, object_map,
                             isolate->factory()->null_value());
   object_map->set_is_access_check_needed(true);
-  object_map->set_is_callable();
-  object_map->set_is_constructor(true);
 
   Handle<JSObject> object = isolate->factory()->NewJSObject(object_function);
   JSObject::ForceSetPrototype(object, isolate->factory()->null_value());

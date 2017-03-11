@@ -46,7 +46,9 @@
 #include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/futex-emulation.h"
-#include "src/objects.h"
+#include "src/heap/incremental-marking.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
 #include "src/parsing/preparse-data.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/unicode-inl.h"
@@ -80,7 +82,6 @@ using ::v8::String;
 using ::v8::Symbol;
 using ::v8::TryCatch;
 using ::v8::Undefined;
-using ::v8::UniqueId;
 using ::v8::V8;
 using ::v8::Value;
 
@@ -13701,9 +13702,6 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   CcTest::CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
   int count = GetGlobalObjectsCount();
-#ifdef DEBUG
-  if (count != expected) CcTest::heap()->TracePathToGlobal();
-#endif
   CHECK_EQ(expected, count);
 }
 
@@ -22122,10 +22120,11 @@ static void CheckInstanceCheckedAccessors(bool expects_callbacks) {
   CheckInstanceCheckedResult(5, 5, expects_callbacks, &try_catch);
 
   // Cleanup so that closures start out fresh in next check.
-  CompileRun("%DeoptimizeFunction(test_get);"
-             "%ClearFunctionTypeFeedback(test_get);"
-             "%DeoptimizeFunction(test_set);"
-             "%ClearFunctionTypeFeedback(test_set);");
+  CompileRun(
+      "%DeoptimizeFunction(test_get);"
+      "%ClearFunctionFeedback(test_get);"
+      "%DeoptimizeFunction(test_set);"
+      "%ClearFunctionFeedback(test_set);");
 }
 
 
@@ -25974,7 +25973,7 @@ TEST(ObjectTemplatePerContextIntrinsics) {
       object->Get(env.local(), v8_str("values")).ToLocalChecked());
   auto fn = i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*values));
   auto ctx = v8::Utils::OpenHandle(*env.local());
-  CHECK_EQ(fn->GetCreationContext(), *ctx);
+  CHECK_EQ(*fn->GetCreationContext(), *ctx);
 
   {
     LocalContext env2;
@@ -25990,7 +25989,7 @@ TEST(ObjectTemplatePerContextIntrinsics) {
         object2->Get(env2.local(), v8_str("values")).ToLocalChecked());
     auto fn2 = i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*values2));
     auto ctx2 = v8::Utils::OpenHandle(*env2.local());
-    CHECK_EQ(fn2->GetCreationContext(), *ctx2);
+    CHECK_EQ(*fn2->GetCreationContext(), *ctx2);
   }
 }
 

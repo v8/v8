@@ -121,123 +121,6 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
-  // ----------- S t a t e -------------
-  //  -- a0                     : number of arguments
-  //  -- a1                     : function
-  //  -- cp                     : context
-  //  -- ra                     : return address
-  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero-based)
-  //  -- sp[argc * 4]           : receiver
-  // -----------------------------------
-  Heap::RootListIndex const root_index =
-      (kind == MathMaxMinKind::kMin) ? Heap::kInfinityValueRootIndex
-                                     : Heap::kMinusInfinityValueRootIndex;
-
-  // Load the accumulator with the default return value (either -Infinity or
-  // +Infinity), with the tagged value in t2 and the double value in f0.
-  __ LoadRoot(t2, root_index);
-  __ ldc1(f0, FieldMemOperand(t2, HeapNumber::kValueOffset));
-
-  Label done_loop, loop, done;
-  __ mov(a3, a0);
-  __ bind(&loop);
-  {
-    // Check if all parameters done.
-    __ Subu(a3, a3, Operand(1));
-    __ Branch(&done_loop, lt, a3, Operand(zero_reg));
-
-    // Load the next parameter tagged value into a2.
-    __ Lsa(at, sp, a3, kPointerSizeLog2);
-    __ lw(a2, MemOperand(at));
-
-    // Load the double value of the parameter into f2, maybe converting the
-    // parameter to a number first using the ToNumber builtin if necessary.
-    Label convert, convert_smi, convert_number, done_convert;
-    __ bind(&convert);
-    __ JumpIfSmi(a2, &convert_smi);
-    __ lw(t0, FieldMemOperand(a2, HeapObject::kMapOffset));
-    __ JumpIfRoot(t0, Heap::kHeapNumberMapRootIndex, &convert_number);
-    {
-      // Parameter is not a Number, use the ToNumber builtin to convert it.
-      FrameScope scope(masm, StackFrame::MANUAL);
-      __ SmiTag(a0);
-      __ SmiTag(a3);
-      __ EnterBuiltinFrame(cp, a1, a0);
-      __ Push(t2, a3);
-      __ mov(a0, a2);
-      __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
-      __ mov(a2, v0);
-      __ Pop(t2, a3);
-      __ LeaveBuiltinFrame(cp, a1, a0);
-      __ SmiUntag(a3);
-      __ SmiUntag(a0);
-      {
-        // Restore the double accumulator value (f0).
-        Label restore_smi, done_restore;
-        __ JumpIfSmi(t2, &restore_smi);
-        __ ldc1(f0, FieldMemOperand(t2, HeapNumber::kValueOffset));
-        __ jmp(&done_restore);
-        __ bind(&restore_smi);
-        __ SmiToDoubleFPURegister(t2, f0, t0);
-        __ bind(&done_restore);
-      }
-    }
-    __ jmp(&convert);
-    __ bind(&convert_number);
-    __ ldc1(f2, FieldMemOperand(a2, HeapNumber::kValueOffset));
-    __ jmp(&done_convert);
-    __ bind(&convert_smi);
-    __ SmiToDoubleFPURegister(a2, f2, t0);
-    __ bind(&done_convert);
-
-    // Perform the actual comparison with using Min/Max macro instructions the
-    // accumulator value on the left hand side (f0) and the next parameter value
-    // on the right hand side (f2).
-    // We need to work out which HeapNumber (or smi) the result came from.
-    Label compare_nan, set_value, ool_min, ool_max;
-    __ BranchF(nullptr, &compare_nan, eq, f0, f2);
-    __ Move(t0, t1, f0);
-    if (kind == MathMaxMinKind::kMin) {
-      __ Float64Min(f0, f0, f2, &ool_min);
-    } else {
-      DCHECK(kind == MathMaxMinKind::kMax);
-      __ Float64Max(f0, f0, f2, &ool_max);
-    }
-    __ jmp(&done);
-
-    __ bind(&ool_min);
-    __ Float64MinOutOfLine(f0, f0, f2);
-    __ jmp(&done);
-
-    __ bind(&ool_max);
-    __ Float64MaxOutOfLine(f0, f0, f2);
-
-    __ bind(&done);
-    __ Move(at, t8, f0);
-    __ Branch(&set_value, ne, t0, Operand(at));
-    __ Branch(&set_value, ne, t1, Operand(t8));
-    __ jmp(&loop);
-    __ bind(&set_value);
-    __ mov(t2, a2);
-    __ jmp(&loop);
-
-    // At least one side is NaN, which means that the result will be NaN too.
-    __ bind(&compare_nan);
-    __ LoadRoot(t2, Heap::kNanValueRootIndex);
-    __ ldc1(f0, FieldMemOperand(t2, HeapNumber::kValueOffset));
-    __ jmp(&loop);
-  }
-
-  __ bind(&done_loop);
-  // Drop all slots, including the receiver.
-  __ Addu(a0, a0, Operand(1));
-  __ Lsa(sp, sp, a0, kPointerSizeLog2);
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, t2);  // In delay slot.
-}
-
-// static
 void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0                     : number of arguments
@@ -2133,7 +2016,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ sll(a0, a0, kSmiTagSize);
-  __ li(t0, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ li(t0, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ MultiPush(a0.bit() | a1.bit() | t0.bit() | fp.bit() | ra.bit());
   __ Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
                           kPointerSize));
@@ -2310,7 +2193,7 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   __ lw(a3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ lw(a0, MemOperand(a3, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Branch(&arguments_adaptor, eq, a0,
-            Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   {
     __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     __ lw(a0, FieldMemOperand(a0, JSFunction::kSharedFunctionInfoOffset));
@@ -2411,7 +2294,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
     __ lw(scratch3,
           MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
     __ Branch(&no_interpreter_frame, ne, scratch3,
-              Operand(Smi::FromInt(StackFrame::STUB)));
+              Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
     __ lw(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ bind(&no_interpreter_frame);
   }
@@ -2423,7 +2306,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ lw(scratch3,
         MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Branch(&no_arguments_adaptor, ne, scratch3,
-            Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Drop current frame and load arguments count from arguments adaptor frame.
   __ mov(fp, scratch2);
@@ -2834,11 +2717,14 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   // Put the evaluated spread onto the stack as additional arguments.
   {
     __ mov(scratch, zero_reg);
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ Branch(&done, eq, scratch, Operand(spread_len));
     __ Lsa(scratch2, spread, scratch, kPointerSizeLog2);
     __ lw(scratch2, FieldMemOperand(scratch2, FixedArray::kHeaderSize));
+    __ JumpIfNotRoot(scratch2, Heap::kTheHoleValueRootIndex, &push);
+    __ LoadRoot(scratch2, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
     __ Push(scratch2);
     __ Addu(scratch, scratch, Operand(1));
     __ Branch(&loop);

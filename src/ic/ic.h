@@ -5,6 +5,8 @@
 #ifndef V8_IC_H_
 #define V8_IC_H_
 
+#include "src/factory.h"
+#include "src/feedback-vector.h"
 #include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"
 #include "src/messages.h"
@@ -23,6 +25,10 @@ class IC {
   // The IC code is either invoked with no extra frames on the stack
   // or with a single extra frame for supporting calls.
   enum FrameDepth { NO_EXTRA_FRAME = 0, EXTRA_CALL_FRAME = 1 };
+
+  // A polymorphic IC can handle at most 4 distinct maps before transitioning
+  // to megamorphic state.
+  static constexpr int kMaxPolymorphicMapCount = 4;
 
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
@@ -48,7 +54,9 @@ class IC {
   bool IsAnyLoad() const {
     return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
-  bool IsAnyStore() const { return IsStoreIC() || IsKeyedStoreIC(); }
+  bool IsAnyStore() const {
+    return IsStoreIC() || IsStoreOwnIC() || IsKeyedStoreIC();
+  }
 
   static inline Handle<Map> GetHandlerCacheHolder(Handle<Map> receiver_map,
                                                   bool receiver_is_holder,
@@ -58,11 +66,6 @@ class IC {
                                              Isolate* isolate,
                                              CacheHolderFlag* flag);
 
-  static bool IsCleared(FeedbackNexus* nexus) {
-    InlineCacheState state = nexus->StateFromFeedback();
-    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
-  }
-
   static bool ICUseVector(Code::Kind kind) {
     return kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
            kind == Code::KEYED_LOAD_IC || kind == Code::STORE_IC ||
@@ -71,7 +74,7 @@ class IC {
   static bool ICUseVector(FeedbackSlotKind kind) {
     return IsLoadICKind(kind) || IsLoadGlobalICKind(kind) ||
            IsKeyedLoadICKind(kind) || IsStoreICKind(kind) ||
-           IsKeyedStoreICKind(kind);
+           IsStoreOwnICKind(kind) || IsKeyedStoreICKind(kind);
   }
 
   // The ICs that don't pass slot and vector through the stack have to
@@ -82,15 +85,20 @@ class IC {
 
   static inline bool IsHandler(Object* object);
 
+  // Nofity the IC system that a feedback has changed.
+  static void OnFeedbackChanged(Isolate* isolate, JSFunction* host_function);
+
  protected:
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
+
+  void set_slow_stub_reason(const char* reason) { slow_stub_reason_ = reason; }
+
+  Address GetAbstractPC(int* line, int* column) const;
   Isolate* isolate() const { return isolate_; }
 
-  // Get the shared function info of the caller.
-  SharedFunctionInfo* GetSharedFunctionInfo() const;
-  // Get the code object of the caller.
-  Code* GetCode() const;
+  // Get the caller function object.
+  JSFunction* GetHostFunction() const;
 
   inline bool AddressIsDeoptimizedCode() const;
   inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
@@ -135,8 +143,6 @@ class IC {
                                          Address constant_pool);
   static inline void SetTargetAtAddress(Address address, Code* target,
                                         Address constant_pool);
-  // As a vector-based IC, type feedback must be updated differently.
-  static void OnTypeFeedbackChanged(Isolate* isolate, Code* host);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
@@ -169,6 +175,7 @@ class IC {
   bool IsLoadGlobalIC() const { return IsLoadGlobalICKind(kind_); }
   bool IsKeyedLoadIC() const { return IsKeyedLoadICKind(kind_); }
   bool IsStoreIC() const { return IsStoreICKind(kind_); }
+  bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
   bool is_keyed() const { return IsKeyedLoadIC() || IsKeyedStoreIC(); }
   Code::Kind handler_kind() const {
@@ -213,7 +220,6 @@ class IC {
   }
   FeedbackNexus* nexus() const { return nexus_; }
 
-  inline Code* get_host();
   inline Code* target() const;
 
  private:
@@ -253,6 +259,8 @@ class IC {
   MapHandleList target_maps_;
   bool target_maps_set_;
 
+  const char* slow_stub_reason_;
+
   FeedbackNexus* nexus_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
@@ -265,8 +273,6 @@ class CallIC : public IC {
       : IC(EXTRA_CALL_FRAME, isolate, nexus) {
     DCHECK(nexus != NULL);
   }
-
-  static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
 };
 
 
@@ -288,8 +294,6 @@ class LoadIC : public IC {
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
-
-  static void Clear(Isolate* isolate, Code* host, LoadICNexus* nexus);
 
  protected:
   virtual Handle<Code> slow_stub() const {
@@ -330,8 +334,6 @@ class LoadGlobalIC : public LoadIC {
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Name> name);
 
-  static void Clear(Isolate* isolate, Code* host, LoadGlobalICNexus* nexus);
-
  protected:
   Handle<Code> slow_stub() const override {
     return isolate()->builtins()->LoadGlobalIC_Slow();
@@ -347,8 +349,6 @@ class KeyedLoadIC : public LoadIC {
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Object> key);
-
-  static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
 
  protected:
   // receiver is HeapObject because it could be a String or a JSObject
@@ -377,8 +377,6 @@ class StoreIC : public IC {
 
   bool LookupForWrite(LookupIterator* it, Handle<Object> value,
                       JSReceiver::StoreFromKeyed store_mode);
-
-  static void Clear(Isolate* isolate, Code* host, StoreICNexus* nexus);
 
  protected:
   // Stub accessors.
@@ -423,8 +421,6 @@ class KeyedStoreIC : public StoreIC {
                                             Handle<Object> name,
                                             Handle<Object> value);
 
-  static void Clear(Isolate* isolate, Code* host, KeyedStoreICNexus* nexus);
-
  protected:
   void UpdateStoreElement(Handle<Map> receiver_map,
                           KeyedAccessStoreMode store_mode);
@@ -432,6 +428,14 @@ class KeyedStoreIC : public StoreIC {
  private:
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
+
+  Handle<Object> StoreElementHandler(Handle<Map> receiver_map,
+                                     KeyedAccessStoreMode store_mode);
+
+  void StoreElementPolymorphicHandlers(MapHandleList* receiver_maps,
+                                       MapHandleList* transitioned_maps,
+                                       List<Handle<Object>>* handlers,
+                                       KeyedAccessStoreMode store_mode);
 
   friend class IC;
 };

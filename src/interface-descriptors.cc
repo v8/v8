@@ -377,14 +377,16 @@ void GrowArrayElementsDescriptor::InitializePlatformSpecific(
 
 void NewArgumentsElementsDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  MachineType const kMachineTypes[] = {MachineType::IntPtr()};
+  // kFrame, kLength
+  MachineType const kMachineTypes[] = {MachineType::Pointer(),
+                                       MachineType::TaggedSigned()};
   data->InitializePlatformIndependent(arraysize(kMachineTypes), 0,
                                       kMachineTypes);
 }
 
 void NewArgumentsElementsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, 1);
+  DefaultInitializePlatformSpecific(data, 2);
 }
 
 void VarArgFunctionDescriptor::InitializePlatformIndependent(
@@ -582,7 +584,7 @@ void InterpreterDispatchDescriptor::InitializePlatformIndependent(
   // kAccumulator, kBytecodeOffset, kBytecodeArray, kDispatchTable
   MachineType machine_types[] = {
       MachineType::AnyTagged(), MachineType::IntPtr(), MachineType::AnyTagged(),
-      MachineType::AnyTagged()};
+      MachineType::IntPtr()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }

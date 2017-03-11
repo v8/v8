@@ -38,7 +38,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
 
   // Initial states for ICs.
   static Callable LoadIC(Isolate* isolate);
+  static Callable LoadIC_Uninitialized(Isolate* isolate);
   static Callable LoadICInOptimizedCode(Isolate* isolate);
+  static Callable LoadICInOptimizedCode_Noninlined(Isolate* isolate);
   static Callable LoadICProtoArray(Isolate* isolate, bool throw_if_nonexistent);
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
@@ -54,6 +56,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
   static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode);
+  static Callable StoreOwnIC(Isolate* isolate);
+  static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
   static Callable KeyedStoreIC(Isolate* isolate, LanguageMode mode);
   static Callable KeyedStoreICInOptimizedCode(Isolate* isolate,
                                               LanguageMode mode);
@@ -114,9 +118,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable GreaterThan(Isolate* isolate);
   static Callable GreaterThanOrEqual(Isolate* isolate);
   static Callable Equal(Isolate* isolate);
-  static Callable NotEqual(Isolate* isolate);
   static Callable StrictEqual(Isolate* isolate);
-  static Callable StrictNotEqual(Isolate* isolate);
 
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
@@ -124,7 +126,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable StringCharCodeAt(Isolate* isolate);
   static Callable StringCompare(Isolate* isolate, Token::Value token);
   static Callable StringEqual(Isolate* isolate);
-  static Callable StringNotEqual(Isolate* isolate);
   static Callable StringLessThan(Isolate* isolate);
   static Callable StringLessThanOrEqual(Isolate* isolate);
   static Callable StringGreaterThan(Isolate* isolate);
@@ -160,7 +161,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable GrowFastSmiOrObjectElements(Isolate* isolate);
 
   static Callable NewUnmappedArgumentsElements(Isolate* isolate);
-  static Callable NewRestParameterElements(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
 

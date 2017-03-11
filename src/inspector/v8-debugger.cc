@@ -194,6 +194,7 @@ void V8Debugger::disable() {
   m_debuggerScript.Reset();
   m_debuggerContext.Reset();
   allAsyncTasksCanceled();
+  m_taskWithScheduledBreak = nullptr;
   m_wasmTranslation.Clear();
   v8::debug::SetDebugDelegate(m_isolate, nullptr);
   v8::debug::SetOutOfMemoryCallback(m_isolate, nullptr, nullptr);
@@ -337,7 +338,7 @@ void V8Debugger::setPauseOnNextStatement(bool pause) {
 
 bool V8Debugger::canBreakProgram() {
   if (!m_breakpointsActivated) return false;
-  return v8::debug::HasNonBlackboxedFrameOnStack(m_isolate);
+  return !v8::debug::AllFramesOnStackAreBlackboxed(m_isolate);
 }
 
 void V8Debugger::breakProgram() {
@@ -625,17 +626,21 @@ bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                                      end);
 }
 
-void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
-                                      int id, int parentId) {
-  if (!m_maxAsyncCallStackDepth) return;
+void V8Debugger::PromiseEventOccurred(v8::Local<v8::Context> context,
+                                      v8::debug::PromiseDebugActionType type,
+                                      int id, int parentId,
+                                      bool createdByUser) {
   // Async task events from Promises are given misaligned pointers to prevent
   // from overlapping with other Blink task identifiers. There is a single
   // namespace of such ids, managed by src/js/promise.js.
   void* ptr = reinterpret_cast<void*>(id * 2 + 1);
+  void* parentPtr =
+      parentId ? reinterpret_cast<void*>(parentId * 2 + 1) : nullptr;
+  handleAsyncTaskStepping(context, type, ptr, parentPtr, createdByUser);
+  if (!m_maxAsyncCallStackDepth) return;
   switch (type) {
     case v8::debug::kDebugPromiseCreated:
-      asyncTaskCreated(
-          ptr, parentId ? reinterpret_cast<void*>(parentId * 2 + 1) : nullptr);
+      asyncTaskCreated(ptr, parentPtr);
       break;
     case v8::debug::kDebugEnqueueAsyncFunction:
       asyncTaskScheduled("async function", ptr, true);
@@ -656,6 +661,45 @@ void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
       asyncTaskFinished(ptr);
       break;
   }
+}
+
+void V8Debugger::handleAsyncTaskStepping(v8::Local<v8::Context> context,
+                                         v8::debug::PromiseDebugActionType type,
+                                         void* task, void* parentTask,
+                                         bool createdByUser) {
+  if (type == v8::debug::kDebugEnqueueAsyncFunction ||
+      type == v8::debug::kDebugEnqueuePromiseResolve ||
+      type == v8::debug::kDebugEnqueuePromiseReject) {
+    return;
+  }
+
+  bool isScheduledTask = task == m_taskWithScheduledBreak;
+  if (type == v8::debug::kDebugPromiseCollected) {
+    if (isScheduledTask) m_taskWithScheduledBreak = nullptr;
+    return;
+  }
+  if (type == v8::debug::kDebugPromiseCreated && !parentTask) return;
+
+  DCHECK(!context.IsEmpty());
+  int contextGroupId = m_inspector->contextGroupId(context);
+  V8DebuggerAgentImpl* agent =
+      m_inspector->enabledDebuggerAgentForGroup(contextGroupId);
+  if (!agent) return;
+  if (createdByUser && type == v8::debug::kDebugPromiseCreated) {
+    if (agent->shouldBreakInScheduledAsyncTask()) {
+      m_taskWithScheduledBreak = task;
+    }
+    return;
+  }
+  if (!isScheduledTask) return;
+  if (type == v8::debug::kDebugWillHandle) {
+    agent->schedulePauseOnNextStatement(
+        protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
+    return;
+  }
+  DCHECK(type == v8::debug::kDebugDidHandle);
+  agent->cancelPauseOnNextStatement();
+  m_taskWithScheduledBreak = nullptr;
 }
 
 V8StackTraceImpl* V8Debugger::currentAsyncCallChain() {
@@ -802,11 +846,7 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
 
 std::unique_ptr<V8StackTraceImpl> V8Debugger::createStackTrace(
     v8::Local<v8::StackTrace> stackTrace) {
-  int contextGroupId =
-      m_isolate->InContext()
-          ? m_inspector->contextGroupId(m_isolate->GetCurrentContext())
-          : 0;
-  return V8StackTraceImpl::create(this, contextGroupId, stackTrace,
+  return V8StackTraceImpl::create(this, currentContextGroupId(), stackTrace,
                                   V8StackTraceImpl::maxCallStackSizeToCapture);
 }
 
@@ -843,7 +883,7 @@ void V8Debugger::asyncTaskCreated(void* task, void* parentTask) {
   if (!m_maxAsyncCallStackDepth) return;
   if (parentTask) m_parentTask[task] = parentTask;
   v8::HandleScope scope(m_isolate);
-  // We don't need to pass context group id here because we gets this callback
+  // We don't need to pass context group id here because we get this callback
   // from V8 for promise events only.
   // Passing one as maxStackSize forces no async chain for the new stack and
   // allows us to not grow exponentially.
@@ -865,13 +905,9 @@ void V8Debugger::asyncTaskScheduled(const String16& taskName, void* task,
                                     bool recurring) {
   if (!m_maxAsyncCallStackDepth) return;
   v8::HandleScope scope(m_isolate);
-  int contextGroupId =
-      m_isolate->InContext()
-          ? m_inspector->contextGroupId(m_isolate->GetCurrentContext())
-          : 0;
   std::unique_ptr<V8StackTraceImpl> chain = V8StackTraceImpl::capture(
-      this, contextGroupId, V8StackTraceImpl::maxCallStackSizeToCapture,
-      taskName);
+      this, currentContextGroupId(),
+      V8StackTraceImpl::maxCallStackSizeToCapture, taskName);
   if (chain) {
     m_asyncTaskStacks[task] = std::move(chain);
     if (recurring) m_recurringTasks.insert(task);
@@ -954,8 +990,7 @@ std::unique_ptr<V8StackTraceImpl> V8Debugger::captureStackTrace(
   if (!m_isolate->InContext()) return nullptr;
 
   v8::HandleScope handles(m_isolate);
-  int contextGroupId =
-      m_inspector->contextGroupId(m_isolate->GetCurrentContext());
+  int contextGroupId = currentContextGroupId();
   if (!contextGroupId) return nullptr;
 
   size_t stackSize =
@@ -964,6 +999,11 @@ std::unique_ptr<V8StackTraceImpl> V8Debugger::captureStackTrace(
     stackSize = V8StackTraceImpl::maxCallStackSizeToCapture;
 
   return V8StackTraceImpl::capture(this, contextGroupId, stackSize);
+}
+
+int V8Debugger::currentContextGroupId() {
+  if (!m_isolate->InContext()) return 0;
+  return m_inspector->contextGroupId(m_isolate->GetCurrentContext());
 }
 
 }  // namespace v8_inspector

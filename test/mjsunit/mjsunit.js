@@ -140,9 +140,6 @@ var isAlwaysOptimize;
 // Returns true if given function in interpreted.
 var isInterpreted;
 
-// Returns true if given function is compiled by a base-line compiler.
-var isBaselined;
-
 // Returns true if given function is optimized.
 var isOptimized;
 
@@ -542,16 +539,6 @@ var isTurboFanned;
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
            (opt_status & V8OptimizationStatus.kInterpreted) !== 0;
-  }
-
-  // NOTE: This predicate also returns true for functions that have never
-  // been compiled (i.e. that have LazyCompile stub as a code).
-  isBaselined = function isBaselined(fun) {
-    var opt_status = OptimizationStatus(fun, "");
-    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
-               "not a function");
-    return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
-           (opt_status & V8OptimizationStatus.kInterpreted) === 0;
   }
 
   isOptimized = function isOptimized(fun) {

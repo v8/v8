@@ -28,7 +28,6 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#define ARM64_DEFINE_REG_STATICS
 #include "src/arm64/assembler-arm64.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
@@ -207,6 +206,7 @@ void RelocInfo::unchecked_update_wasm_memory_reference(
 void RelocInfo::unchecked_update_wasm_size(uint32_t size,
                                            ICacheFlushMode flush_mode) {
   Memory::uint32_at(Assembler::target_pointer_address_at(pc_)) = size;
+  // No icache flushing needed, see comment in set_target_address_at.
 }
 
 Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,

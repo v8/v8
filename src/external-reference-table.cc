@@ -10,6 +10,7 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION
@@ -45,6 +46,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   AddAccessors(isolate);
   AddStubCache(isolate);
   AddDeoptEntries(isolate);
+  // API references must be added last.
   AddApiReferences(isolate);
 }
 
@@ -232,6 +234,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "wasm::call_trap_callback_for_testing");
   Add(ExternalReference::libc_memchr_function(isolate).address(),
       "libc_memchr");
+  Add(ExternalReference::libc_memset_function(isolate).address(),
+      "libc_memset");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),
@@ -443,6 +447,7 @@ void ExternalReferenceTable::AddDeoptEntries(Isolate* isolate) {
 void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {
   // Add external references provided by the embedder (a null-terminated
   // array).
+  api_refs_start_ = size();
   intptr_t* api_external_references = isolate->api_external_references();
   if (api_external_references != nullptr) {
     while (*api_external_references != 0) {

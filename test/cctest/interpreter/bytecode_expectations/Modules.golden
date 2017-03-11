@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 131
+bytecode array length: 145
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -70,7 +70,13 @@ bytecodes: [
   /*   13 S> */ B(Return),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
-                B(LdaUndefined),
+                B(Ldar), R(5),
+                B(StaCurrentContextSlot), U8(6),
+                B(LdaCurrentContextSlot), U8(6),
+                B(Star), R(3),
+                B(LdaTrue),
+                B(Star), R(4),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(3), U8(2),
   /*   13 S> */ B(Return),
 ]
 constant pool: [
@@ -85,7 +91,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 131
+bytecode array length: 145
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -142,7 +148,13 @@ bytecodes: [
   /*   24 S> */ B(Return),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
-                B(LdaUndefined),
+                B(Ldar), R(5),
+                B(StaCurrentContextSlot), U8(6),
+                B(LdaCurrentContextSlot), U8(6),
+                B(Star), R(3),
+                B(LdaTrue),
+                B(Star), R(4),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(3), U8(2),
   /*   24 S> */ B(Return),
 ]
 constant pool: [
@@ -159,7 +171,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 201
+bytecode array length: 215
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -226,7 +238,7 @@ bytecodes: [
                 B(Star), R(4),
                 B(LdaSmi), I8(42),
                 B(Star), R(6),
-  /*   32 E> */ B(Call), R(4), R(5), U8(2), U8(2),
+  /*   32 E> */ B(Call1), R(4), R(5), R(6), U8(2),
                 B(Ldar), R(closure),
                 B(CreateBlockContext), U8(2),
                 B(PushContext), R(1),
@@ -244,9 +256,14 @@ bytecodes: [
                 B(Star), R(4),
                 B(LdaSmi), I8(42),
                 B(Star), R(6),
-  /*   52 E> */ B(Call), R(4), R(5), U8(2), U8(4),
+  /*   52 E> */ B(Call1), R(4), R(5), R(6), U8(4),
+                B(StaContextSlot), R(1), U8(6), U8(0),
                 B(PopContext), R(1),
-                B(LdaUndefined),
+                B(LdaCurrentContextSlot), U8(6),
+                B(Star), R(4),
+                B(LdaTrue),
+                B(Star), R(5),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(4), U8(2),
   /*   64 S> */ B(Return),
 ]
 constant pool: [
@@ -265,7 +282,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 166
+bytecode array length: 186
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -335,10 +352,18 @@ bytecodes: [
   /*   34 S> */ B(LdaUndefined),
   /*   34 E> */ B(StaCurrentContextSlot), U8(4),
   /*   39 S> */ B(LdaModuleVariable), I8(1), U8(1),
+                B(ToNumber), R(4),
+                B(Ldar), R(4),
                 B(Inc), U8(3),
   /*   42 E> */ B(StaModuleVariable), I8(1), U8(1),
+                B(Ldar), R(4),
+                B(StaContextSlot), R(1), U8(6), U8(0),
                 B(PopContext), R(1),
-                B(LdaUndefined),
+                B(LdaCurrentContextSlot), U8(6),
+                B(Star), R(4),
+                B(LdaTrue),
+                B(Star), R(5),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(4), U8(2),
   /*   49 S> */ B(Return),
 ]
 constant pool: [
@@ -356,7 +381,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 170
+bytecode array length: 190
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -428,10 +453,18 @@ bytecodes: [
   /*   34 S> */ B(LdaUndefined),
   /*   34 E> */ B(StaCurrentContextSlot), U8(4),
   /*   39 S> */ B(LdaModuleVariable), I8(1), U8(1),
+                B(ToNumber), R(4),
+                B(Ldar), R(4),
                 B(Inc), U8(3),
   /*   42 E> */ B(StaModuleVariable), I8(1), U8(1),
+                B(Ldar), R(4),
+                B(StaContextSlot), R(1), U8(6), U8(0),
                 B(PopContext), R(1),
-                B(LdaUndefined),
+                B(LdaCurrentContextSlot), U8(6),
+                B(Star), R(4),
+                B(LdaTrue),
+                B(Star), R(5),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(4), U8(2),
   /*   49 S> */ B(Return),
 ]
 constant pool: [
@@ -449,7 +482,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 174
+bytecode array length: 194
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -521,10 +554,18 @@ bytecodes: [
   /*   36 S> */ B(LdaUndefined),
   /*   36 E> */ B(StaCurrentContextSlot), U8(4),
   /*   41 S> */ B(LdaModuleVariable), I8(1), U8(1),
+                B(ToNumber), R(4),
+                B(Ldar), R(4),
                 B(Inc), U8(3),
   /*   44 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
+                B(Ldar), R(4),
+                B(StaContextSlot), R(1), U8(6), U8(0),
                 B(PopContext), R(1),
-                B(LdaUndefined),
+                B(LdaCurrentContextSlot), U8(6),
+                B(Star), R(4),
+                B(LdaTrue),
+                B(Star), R(5),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(4), U8(2),
   /*   51 S> */ B(Return),
 ]
 constant pool: [
@@ -540,7 +581,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 156
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -599,9 +640,15 @@ bytecodes: [
   /*   32 S> */ B(Return),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(Ldar), R(5),
+                B(StaCurrentContextSlot), U8(6),
                 B(CreateClosure), U8(1), U8(2), U8(0),
                 B(StaModuleVariable), I8(1), U8(0),
-                B(LdaUndefined),
+                B(LdaCurrentContextSlot), U8(6),
+                B(Star), R(3),
+                B(LdaTrue),
+                B(Star), R(4),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(3), U8(2),
   /*   32 S> */ B(Return),
 ]
 constant pool: [
@@ -617,7 +664,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 179
+bytecode array length: 193
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -676,6 +723,8 @@ bytecodes: [
   /*   26 S> */ B(Return),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(Ldar), R(5),
+                B(StaCurrentContextSlot), U8(7),
   /*   16 S> */ B(CreateClosure), U8(1), U8(2), U8(0),
                 B(Star), R(3),
                 B(LdaTheHole),
@@ -692,7 +741,11 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(6),
                 B(LdaCurrentContextSlot), U8(6),
   /*   16 E> */ B(StaModuleVariable), I8(1), U8(0),
-                B(LdaUndefined),
+                B(LdaCurrentContextSlot), U8(7),
+                B(Star), R(3),
+                B(LdaTrue),
+                B(Star), R(4),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(3), U8(2),
   /*   26 S> */ B(Return),
 ]
 constant pool: [
@@ -708,7 +761,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 131
+bytecode array length: 145
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -765,7 +818,13 @@ bytecodes: [
   /*   30 S> */ B(Return),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
-                B(LdaUndefined),
+                B(Ldar), R(5),
+                B(StaCurrentContextSlot), U8(6),
+                B(LdaCurrentContextSlot), U8(6),
+                B(Star), R(3),
+                B(LdaTrue),
+                B(Star), R(4),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(3), U8(2),
   /*   30 S> */ B(Return),
 ]
 constant pool: [
@@ -780,7 +839,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 131
+bytecode array length: 145
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -837,7 +896,13 @@ bytecodes: [
   /*   19 S> */ B(Return),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
-                B(LdaUndefined),
+                B(Ldar), R(5),
+                B(StaCurrentContextSlot), U8(6),
+                B(LdaCurrentContextSlot), U8(6),
+                B(Star), R(3),
+                B(LdaTrue),
+                B(Star), R(4),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(3), U8(2),
   /*   19 S> */ B(Return),
 ]
 constant pool: [
@@ -853,7 +918,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 170
+bytecode array length: 183
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -924,8 +989,13 @@ bytecodes: [
                 B(Star), R(6),
   /*   41 E> */ B(LdaNamedProperty), R(6), U8(2), U8(6),
                 B(Star), R(6),
-  /*   31 E> */ B(CallProperty), R(3), R(4), U8(3), U8(2),
-                B(LdaUndefined),
+  /*   31 E> */ B(CallProperty2), R(3), R(4), R(5), R(6), U8(2),
+                B(StaCurrentContextSlot), U8(7),
+                B(LdaCurrentContextSlot), U8(7),
+                B(Star), R(3),
+                B(LdaTrue),
+                B(Star), R(4),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(3), U8(2),
   /*   45 S> */ B(Return),
 ]
 constant pool: [

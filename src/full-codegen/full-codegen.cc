@@ -215,7 +215,8 @@ void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {
   RestoreContext();
 }
 
-void FullCodeGenerator::CallStoreIC(FeedbackSlot slot, Handle<Object> name) {
+void FullCodeGenerator::CallStoreIC(FeedbackSlot slot, Handle<Object> name,
+                                    bool store_own_property) {
   DCHECK(name->IsName());
   __ Move(StoreDescriptor::NameRegister(), name);
 
@@ -228,10 +229,18 @@ void FullCodeGenerator::CallStoreIC(FeedbackSlot slot, Handle<Object> name) {
     EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
   }
 
-  // Ensure that language mode is in sync with the IC slot kind.
-  DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
-            language_mode());
-  Handle<Code> code = CodeFactory::StoreIC(isolate(), language_mode()).code();
+  Handle<Code> code;
+  if (store_own_property) {
+    DCHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
+              feedback_vector_spec()->GetKind(slot));
+    code = CodeFactory::StoreOwnIC(isolate()).code();
+  } else {
+    // Ensure that language mode is in sync with the IC slot kind.
+    DCHECK_EQ(
+        GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
+        language_mode());
+    code = CodeFactory::StoreIC(isolate(), language_mode()).code();
+  }
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
@@ -1214,13 +1223,8 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  Comment cmnt(masm_, "[ DebuggerStatement");
-  SetStatementPosition(stmt);
-
-  __ DebugBreak();
-  __ MaybeDropFrames();
-
-  PrepareForBailoutForId(stmt->DebugBreakId(), BailoutState::NO_REGISTERS);
+  // Debugger statement is not supported.
+  UNREACHABLE();
 }
 
 

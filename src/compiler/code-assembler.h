@@ -85,6 +85,8 @@ typedef std::function<void()> CodeAssemblerCallback;
   V(Float64Mod)                            \
   V(Float64Atan2)                          \
   V(Float64Pow)                            \
+  V(Float64Max)                            \
+  V(Float64Min)                            \
   V(Float64InsertLowWord32)                \
   V(Float64InsertHighWord32)               \
   V(IntPtrAddWithOverflow)                 \
@@ -216,6 +218,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* SmiConstant(Smi* value);
   Node* SmiConstant(int value);
   Node* HeapConstant(Handle<HeapObject> object);
+  Node* CStringConstant(const char* str);
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);
@@ -234,12 +237,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void PopAndReturn(Node* pop, Node* value);
 
   void DebugBreak();
+  void Unreachable();
   void Comment(const char* format, ...);
 
   void Bind(Label* label);
   void Goto(Label* label);
   void GotoIf(Node* condition, Label* true_label);
-  void GotoUnless(Node* condition, Label* false_label);
+  void GotoIfNot(Node* condition, Label* false_label);
   void Branch(Node* condition, Label* true_label, Label* false_label);
 
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
@@ -269,6 +273,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                             Node* value);
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
                     Node* value);
+
+  // Exchange value at raw memory location
+  Node* AtomicExchange(MachineType type, Node* base, Node* offset, Node* value);
 
   // Store a value to the root array.
   Node* StoreRoot(Heap::RootListIndex root_index, Node* value);

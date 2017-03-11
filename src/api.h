@@ -110,7 +110,8 @@ class RegisteredExtension {
   V(Proxy, JSProxy)                            \
   V(NativeWeakMap, JSWeakMap)                  \
   V(debug::GeneratorObject, JSGeneratorObject) \
-  V(debug::Script, Script)
+  V(debug::Script, Script)                     \
+  V(Promise, JSPromise)
 
 class Utils {
  public:

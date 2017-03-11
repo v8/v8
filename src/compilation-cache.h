@@ -116,12 +116,11 @@ class CompilationCacheEval: public CompilationSubCache {
   InfoVectorPair Lookup(Handle<String> source,
                         Handle<SharedFunctionInfo> outer_info,
                         Handle<Context> native_context,
-                        LanguageMode language_mode, int scope_position);
+                        LanguageMode language_mode, int position);
 
   void Put(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
            Handle<SharedFunctionInfo> function_info,
-           Handle<Context> native_context, Handle<Cell> literals,
-           int scope_position);
+           Handle<Context> native_context, Handle<Cell> literals, int position);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
@@ -164,7 +163,7 @@ class CompilationCache {
   InfoVectorPair LookupEval(Handle<String> source,
                             Handle<SharedFunctionInfo> outer_info,
                             Handle<Context> context, LanguageMode language_mode,
-                            int scope_position);
+                            int position);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
@@ -183,7 +182,7 @@ class CompilationCache {
   void PutEval(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
                Handle<Context> context,
                Handle<SharedFunctionInfo> function_info, Handle<Cell> literals,
-               int scope_position);
+               int position);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.

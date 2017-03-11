@@ -8,6 +8,7 @@
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -142,7 +143,7 @@ TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
 
   Variable var_result(this, MachineRepresentation::kTagged, proto_or_map);
   Label done(this, &var_result);
-  GotoUnless(IsMap(proto_or_map), &done);
+  GotoIfNot(IsMap(proto_or_map), &done);
 
   var_result.Bind(LoadMapPrototype(proto_or_map));
   Goto(&done);
@@ -166,36 +167,6 @@ TF_BUILTIN(LoadIC_Miss, CodeStubAssembler) {
   TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name, slot, vector);
 }
 
-TF_BUILTIN(LoadIC_Normal, CodeStubAssembler) {
-  typedef LoadWithVectorDescriptor Descriptor;
-
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Label slow(this);
-  {
-    Node* properties = LoadProperties(receiver);
-    Variable var_name_index(this, MachineType::PointerRepresentation());
-    Label found(this, &var_name_index);
-    NameDictionaryLookup<NameDictionary>(properties, name, &found,
-                                         &var_name_index, &slow);
-    Bind(&found);
-    {
-      Variable var_details(this, MachineRepresentation::kWord32);
-      Variable var_value(this, MachineRepresentation::kTagged);
-      LoadPropertyFromNameDictionary(properties, var_name_index.value(),
-                                     &var_details, &var_value);
-      Node* value = CallGetterIfAccessor(var_value.value(), var_details.value(),
-                                         context, receiver, &slow);
-      Return(value);
-    }
-  }
-
-  Bind(&slow);
-  TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
-}
-
 TF_BUILTIN(LoadIC_Slow, CodeStubAssembler) {
   typedef LoadWithVectorDescriptor Descriptor;
 
@@ -216,43 +187,6 @@ TF_BUILTIN(StoreIC_Miss, CodeStubAssembler) {
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
-                  receiver, name);
-}
-
-TF_BUILTIN(StoreIC_Normal, CodeStubAssembler) {
-  typedef StoreWithVectorDescriptor Descriptor;
-
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Label slow(this);
-  {
-    Node* properties = LoadProperties(receiver);
-    Variable var_name_index(this, MachineType::PointerRepresentation());
-    Label found(this, &var_name_index);
-    NameDictionaryLookup<NameDictionary>(properties, name, &found,
-                                         &var_name_index, &slow);
-    Bind(&found);
-    {
-      Node* details = LoadDetailsByKeyIndex<NameDictionary>(
-          properties, var_name_index.value());
-      // Check that the property is a writable data property (no accessor).
-      const int kTypeAndReadOnlyMask = PropertyDetails::KindField::kMask |
-                                       PropertyDetails::kAttributesReadOnlyMask;
-      STATIC_ASSERT(kData == 0);
-      GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), &slow);
-      StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
-                                           value);
-      Return(value);
-    }
-  }
-
-  Bind(&slow);
   TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
                   receiver, name);
 }

@@ -6,6 +6,8 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +23,8 @@ class MathBuiltinsAssembler : public CodeStubAssembler {
  protected:
   void MathRoundingOperation(Node* (CodeStubAssembler::*float64op)(Node*));
   void MathUnaryOperation(Node* (CodeStubAssembler::*float64op)(Node*));
+  void MathMaxMin(Node* (CodeStubAssembler::*float64op)(Node*, Node*),
+                  double default_val);
 };
 
 // ES6 section - 20.2.2.1 Math.abs ( x )
@@ -159,6 +163,26 @@ void MathBuiltinsAssembler::MathUnaryOperation(
   Node* value = (this->*float64op)(x_value);
   Node* result = AllocateHeapNumberWithValue(value);
   Return(result);
+}
+
+void MathBuiltinsAssembler::MathMaxMin(
+    Node* (CodeStubAssembler::*float64op)(Node*, Node*), double default_val) {
+  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
+  argc = arguments.GetLength();
+
+  Variable result(this, MachineRepresentation::kFloat64);
+  result.Bind(Float64Constant(default_val));
+
+  CodeStubAssembler::VariableList vars({&result}, zone());
+  arguments.ForEach(vars, [this, float64op, context, &result](Node* arg) {
+    Node* float_value = TruncateTaggedToFloat64(context, arg);
+    result.Bind((this->*float64op)(result.value(), float_value));
+  });
+
+  arguments.PopAndReturn(ChangeFloat64ToTagged(result.value()));
 }
 
 // ES6 section 20.2.2.2 Math.acos ( x )
@@ -492,12 +516,14 @@ TF_BUILTIN(MathTrunc, MathBuiltinsAssembler) {
   MathRoundingOperation(&CodeStubAssembler::Float64Trunc);
 }
 
-void Builtins::Generate_MathMax(MacroAssembler* masm) {
-  Generate_MathMaxMin(masm, MathMaxMinKind::kMax);
+// ES6 section 20.2.2.24 Math.max ( value1, value2 , ...values )
+TF_BUILTIN(MathMax, MathBuiltinsAssembler) {
+  MathMaxMin(&CodeStubAssembler::Float64Max, -1.0 * V8_INFINITY);
 }
 
-void Builtins::Generate_MathMin(MacroAssembler* masm) {
-  Generate_MathMaxMin(masm, MathMaxMinKind::kMin);
+// ES6 section 20.2.2.25 Math.min ( value1, value2 , ...values )
+TF_BUILTIN(MathMin, MathBuiltinsAssembler) {
+  MathMaxMin(&CodeStubAssembler::Float64Min, V8_INFINITY);
 }
 
 }  // namespace internal

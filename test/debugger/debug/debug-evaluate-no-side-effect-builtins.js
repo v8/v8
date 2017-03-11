@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition
+// Flags: --ignition --turbo
 
 Debug = debug.Debug
 
@@ -20,11 +20,35 @@ function listener(event, exec_state, event_data, data) {
                    EvalError);
     }
 
+    // Test Array functions.
+    var function_param = [
+      "forEach", "every", "some", "reduce", "reduceRight", "find", "filter",
+      "map", "findIndex"
+    ];
+    var fails = ["toString", "join", "toLocaleString", "pop", "push",
+      "reverse", "shift", "unshift", "slice", "splice", "sort", "filter",
+      "map", "copyWithin", "fill", "concat"];
+    for (f of Object.getOwnPropertyNames(Array.prototype)) {
+      if (typeof Array.prototype[f] === "function") {
+        if (fails.includes(f)) {
+          if (function_param.includes(f)) {
+            fail(`[1, 2, 3].${f}(()=>{});`);
+          } else {
+            fail(`[1, 2, 3].${f}();`);
+          }
+        } else if (function_param.includes(f)) {
+          exec_state.frame(0).evaluate(`[1, 2, 3].${f}(()=>{});`, true);
+        } else {
+          exec_state.frame(0).evaluate(`[1, 2, 3].${f}();`, true);
+        }
+      }
+    }
+
     // Test Math functions.
     for (f of Object.getOwnPropertyNames(Math)) {
       if (typeof Math[f] === "function") {
         var result = exec_state.frame(0).evaluate(
-                         `Math.${f}(0.5, -0.5);`).value();
+                         `Math.${f}(0.5, -0.5);`, true).value();
         if (f != "random") assertEquals(Math[f](0.5, -0.5), result);
       }
     }

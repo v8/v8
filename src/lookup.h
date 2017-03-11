@@ -211,8 +211,9 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   bool IsCacheableTransition() {
     DCHECK_EQ(TRANSITION, state_);
     return transition_->IsPropertyCell() ||
-           (!transition_map()->is_dictionary_map() &&
-            transition_map()->GetBackPointer()->IsMap());
+           (transition_map()->is_dictionary_map() &&
+            !GetStoreTarget()->HasFastProperties()) ||
+           transition_map()->GetBackPointer()->IsMap();
   }
   void ApplyTransitionToDataProperty(Handle<JSObject> receiver);
   void ReconfigureDataProperty(Handle<Object> value,
@@ -236,7 +237,9 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   Representation representation() const {
     return property_details().representation();
   }
+  PropertyLocation location() const { return property_details().location(); }
   PropertyConstness constness() const { return property_details().constness(); }
+  Handle<Map> GetFieldOwnerMap() const;
   FieldIndex GetFieldIndex() const;
   Handle<FieldType> GetFieldType() const;
   int GetFieldDescriptorIndex() const;

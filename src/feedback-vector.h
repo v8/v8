@@ -27,8 +27,9 @@ enum class FeedbackSlotKind {
   kLoadGlobalNotInsideTypeof,
   kLoadGlobalInsideTypeof,
   kLoadKeyed,
-  kStorePropertySloppy,
-  kStorePropertyStrict,
+  kStoreNamedSloppy,
+  kStoreNamedStrict,
+  kStoreOwnNamed,
   kStoreKeyedSloppy,
   kStoreKeyedStrict,
   kBinaryOp,
@@ -61,8 +62,12 @@ inline bool IsKeyedLoadICKind(FeedbackSlotKind kind) {
 }
 
 inline bool IsStoreICKind(FeedbackSlotKind kind) {
-  return kind == FeedbackSlotKind::kStorePropertySloppy ||
-         kind == FeedbackSlotKind::kStorePropertyStrict;
+  return kind == FeedbackSlotKind::kStoreNamedSloppy ||
+         kind == FeedbackSlotKind::kStoreNamedStrict;
+}
+
+inline bool IsStoreOwnICKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kStoreOwnNamed;
 }
 
 inline bool IsKeyedStoreICKind(FeedbackSlotKind kind) {
@@ -78,8 +83,9 @@ inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
 }
 
 inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
-  DCHECK(IsStoreICKind(kind) || IsKeyedStoreICKind(kind));
-  return (kind == FeedbackSlotKind::kStorePropertySloppy ||
+  DCHECK(IsStoreICKind(kind) || IsStoreOwnICKind(kind) ||
+         IsKeyedStoreICKind(kind));
+  return (kind == FeedbackSlotKind::kStoreNamedSloppy ||
           kind == FeedbackSlotKind::kStoreKeyedSloppy)
              ? SLOPPY
              : STRICT;
@@ -113,8 +119,12 @@ class FeedbackVectorSpecBase {
   FeedbackSlot AddStoreICSlot(LanguageMode language_mode) {
     STATIC_ASSERT(LANGUAGE_END == 2);
     return AddSlot(is_strict(language_mode)
-                       ? FeedbackSlotKind::kStorePropertyStrict
-                       : FeedbackSlotKind::kStorePropertySloppy);
+                       ? FeedbackSlotKind::kStoreNamedStrict
+                       : FeedbackSlotKind::kStoreNamedSloppy);
+  }
+
+  FeedbackSlot AddStoreOwnICSlot() {
+    return AddSlot(FeedbackSlotKind::kStoreOwnNamed);
   }
 
   FeedbackSlot AddKeyedStoreICSlot(LanguageMode language_mode) {
@@ -311,6 +321,7 @@ class FeedbackVector : public FixedArray {
   DEFINE_SLOT_KIND_PREDICATE(IsLoadGlobalIC)
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedLoadIC)
   DEFINE_SLOT_KIND_PREDICATE(IsStoreIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsStoreOwnIC)
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedStoreIC)
 #undef DEFINE_SLOT_KIND_PREDICATE
 
@@ -332,11 +343,7 @@ class FeedbackVector : public FixedArray {
   DECLARE_PRINTER(FeedbackVector)
 
   // Clears the vector slots.
-  void ClearSlots(SharedFunctionInfo* shared) { ClearSlotsImpl(shared, true); }
-
-  void ClearSlotsAtGCTime(SharedFunctionInfo* shared) {
-    ClearSlotsImpl(shared, false);
-  }
+  void ClearSlots(JSFunction* host_function);
 
   // The object that indicates an uninitialized cache.
   static inline Handle<Symbol> UninitializedSentinel(Isolate* isolate);
@@ -352,7 +359,6 @@ class FeedbackVector : public FixedArray {
   static inline Symbol* RawUninitializedSentinel(Isolate* isolate);
 
  private:
-  void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
   static void AddToCodeCoverageList(Isolate* isolate,
                                     Handle<FeedbackVector> vector);
 
@@ -453,6 +459,12 @@ class FeedbackNexus {
                             int length = -1) const;
   virtual Name* FindFirstName() const { return NULL; }
 
+  bool IsCleared() {
+    InlineCacheState state = StateFromFeedback();
+    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
+  }
+
+  virtual void Clear() { ConfigureUninitialized(); }
   virtual void ConfigureUninitialized();
   virtual void ConfigurePremonomorphic();
   virtual void ConfigureMegamorphic();
@@ -494,8 +506,6 @@ class CallICNexus final : public FeedbackNexus {
     DCHECK(vector->IsCallIC(slot));
   }
 
-  void Clear(Code* host);
-
   void ConfigureUninitialized() override;
   void ConfigureMonomorphicArray();
   void ConfigureMonomorphic(Handle<JSFunction> function);
@@ -534,7 +544,7 @@ class LoadICNexus : public FeedbackNexus {
     DCHECK(vector->IsLoadIC(slot));
   }
 
-  void Clear(Code* host);
+  void Clear() override { ConfigurePremonomorphic(); }
 
   void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Object> handler);
 
@@ -568,7 +578,6 @@ class LoadGlobalICNexus : public FeedbackNexus {
   }
 
   void ConfigureMegamorphic() override { UNREACHABLE(); }
-  void Clear(Code* host);
 
   void ConfigureUninitialized() override;
   void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
@@ -588,7 +597,7 @@ class KeyedLoadICNexus : public FeedbackNexus {
     DCHECK(vector->IsKeyedLoadIC(slot));
   }
 
-  void Clear(Code* host);
+  void Clear() override { ConfigurePremonomorphic(); }
 
   // name can be a null handle for element loads.
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
@@ -608,14 +617,14 @@ class StoreICNexus : public FeedbackNexus {
  public:
   StoreICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot));
+    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
   }
   StoreICNexus(FeedbackVector* vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot));
+    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
   }
 
-  void Clear(Code* host);
+  void Clear() override { ConfigurePremonomorphic(); }
 
   void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Object> handler);
 
@@ -624,6 +633,10 @@ class StoreICNexus : public FeedbackNexus {
 
   InlineCacheState StateFromFeedback() const override;
 };
+
+// TODO(ishell): Currently we use StoreOwnIC only for storing properties that
+// already exist in the boilerplate therefore we can use StoreIC.
+typedef StoreICNexus StoreOwnICNexus;
 
 class KeyedStoreICNexus : public FeedbackNexus {
  public:
@@ -636,7 +649,7 @@ class KeyedStoreICNexus : public FeedbackNexus {
     DCHECK(vector->IsKeyedStoreIC(slot));
   }
 
-  void Clear(Code* host);
+  void Clear() override { ConfigurePremonomorphic(); }
 
   // name can be a null handle for element loads.
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
@@ -667,8 +680,6 @@ class BinaryOpICNexus final : public FeedbackNexus {
     DCHECK_EQ(FeedbackSlotKind::kBinaryOp, vector->GetKind(slot));
   }
 
-  void Clear(Code* host);
-
   InlineCacheState StateFromFeedback() const final;
   BinaryOperationHint GetBinaryOperationFeedback() const;
 
@@ -695,8 +706,6 @@ class CompareICNexus final : public FeedbackNexus {
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackSlotKind::kCompareOp, vector->GetKind(slot));
   }
-
-  void Clear(Code* host);
 
   InlineCacheState StateFromFeedback() const final;
   CompareOperationHint GetCompareOperationFeedback() const;
@@ -727,8 +736,6 @@ class StoreDataPropertyInLiteralICNexus : public FeedbackNexus {
     DCHECK_EQ(FeedbackSlotKind::kStoreDataPropertyInLiteral,
               vector->GetKind(slot));
   }
-
-  void Clear(Code* host) { ConfigureUninitialized(); }
 
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map);
 

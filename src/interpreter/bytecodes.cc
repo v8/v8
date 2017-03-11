@@ -166,6 +166,19 @@ bool Bytecodes::IsRegisterOperandType(OperandType operand_type) {
   return false;
 }
 
+bool Bytecodes::MakesCallAlongCriticalPath(Bytecode bytecode) {
+  if (IsCallOrConstruct(bytecode) || IsCallRuntime(bytecode)) return true;
+  switch (bytecode) {
+    case Bytecode::kCreateWithContext:
+    case Bytecode::kCreateBlockContext:
+    case Bytecode::kCreateCatchContext:
+    case Bytecode::kCreateRegExpLiteral:
+      return true;
+    default:
+      return false;
+  }
+}
+
 // static
 bool Bytecodes::IsRegisterInputOperandType(OperandType operand_type) {
   switch (operand_type) {

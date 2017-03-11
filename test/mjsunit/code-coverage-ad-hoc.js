@@ -8,31 +8,18 @@
 
 function GetCoverage(source) {
   for (var script of %DebugCollectCoverage()) {
-    if (script.script.source == source) return script.toplevel;
+    if (script.script.source == source) return script;
   }
   return undefined;
 }
 
-function ApplyCoverageToSource(source, range) {
-  var content = "";
-  var cursor = range.start;
-  if (range.inner) for (var inner of range.inner) {
-    content += source.substring(cursor, inner.start);
-    content += ApplyCoverageToSource(source, inner);
-    cursor = inner.end;
-  }
-  content += source.substring(cursor, range.end);
-  return `[${content}](${range.name}:${range.count})`;
-}
-
 function TestCoverage(name, source, expectation) {
   source = source.trim();
-  expectation = expectation.trim();
   eval(source);
   var coverage = GetCoverage(source);
-  var result = ApplyCoverageToSource(source, coverage);
+  var result = JSON.stringify(coverage);
   print(result);
-  assertEquals(expectation, result, name + " failed");
+  assertEquals(JSON.stringify(expectation), result, name + " failed");
 }
 
 TestCoverage(
@@ -42,11 +29,8 @@ function f() {}
 f();
 f();
 `,
-`
-[[function f() {}](f:2)
-f();
-f();](anonymous:1)
-`
+[{"start":0,"end":25,"count":1},
+ {"start":0,"end":15,"count":2}]
 );
 
 TestCoverage(
@@ -56,11 +40,8 @@ var f = () => 1;
 f();
 f();
 `,
-`
-[var f = [() => 1](f:2);
-f();
-f();](anonymous:1)
-`
+[{"start":0,"end":26,"count":1},
+ {"start":8,"end":15,"count":2}]
 );
 
 TestCoverage(
@@ -74,16 +55,9 @@ function f() {
 f();
 f();
 `,
-`
-[[function f() {
-  [function g() {}](g:4)
-  g();
-  g();
-}](f:2)
-f();
-f();](anonymous:1)
-
-`
+[{"start":0,"end":58,"count":1},
+ {"start":0,"end":48,"count":2},
+ {"start":17,"end":32,"count":4}]
 );
 
 TestCoverage(
@@ -95,11 +69,6 @@ function fib(x) {
 }
 fib(5);
 `,
-`
-[[function fib(x) {
-  if (x < 2) return 1;
-  return fib(x-1) + fib(x-2);
-}](fib:15)
-fib(5);](anonymous:1)
-`
+[{"start":0,"end":80,"count":1},
+ {"start":0,"end":72,"count":15}]
 );

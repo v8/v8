@@ -9,6 +9,7 @@
 #include "src/conversions.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -120,14 +121,6 @@ void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj) {
   heap_->mark_compact_collector()->marking_deque()->Push(obj);
 }
 
-
-static void MarkObjectGreyDoNotEnqueue(Object* obj) {
-  if (obj->IsHeapObject()) {
-    HeapObject* heap_obj = HeapObject::cast(obj);
-    ObjectMarking::AnyToGrey(heap_obj);
-  }
-}
-
 void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
                                       HeapObject* to) {
   DCHECK(MemoryChunk::FromAddress(from->address())->SweepingDone());
@@ -145,25 +138,13 @@ void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
   MarkBit new_mark_bit = ObjectMarking::MarkBitFrom(to);
   MarkBit old_mark_bit = ObjectMarking::MarkBitFrom(from);
 
-#ifdef DEBUG
-  Marking::ObjectColor old_color = Marking::Color(old_mark_bit);
-#endif
-
   if (Marking::IsBlack(old_mark_bit)) {
-    Marking::BlackToWhite(old_mark_bit);
-    Marking::WhiteToBlack(new_mark_bit);
-    return;
+    Marking::MarkBlack(new_mark_bit);
   } else if (Marking::IsGrey(old_mark_bit)) {
-    Marking::GreyToWhite(old_mark_bit);
     Marking::WhiteToGrey(new_mark_bit);
     heap->mark_compact_collector()->marking_deque()->Push(to);
     heap->incremental_marking()->RestartIfNotMarking();
   }
-
-#ifdef DEBUG
-  Marking::ObjectColor new_color = Marking::Color(new_mark_bit);
-  DCHECK(new_color == old_color);
-#endif
 }
 
 class IncrementalMarkingMarkingVisitor
@@ -226,7 +207,14 @@ class IncrementalMarkingMarkingVisitor
     // so the cache can be undefined.
     Object* cache = context->get(Context::NORMALIZED_MAP_CACHE_INDEX);
     if (!cache->IsUndefined(map->GetIsolate())) {
-      MarkObjectGreyDoNotEnqueue(cache);
+      if (cache->IsHeapObject()) {
+        HeapObject* heap_obj = HeapObject::cast(cache);
+        // Mark the object grey if it is white, do not enque it into the marking
+        // deque.
+        if (ObjectMarking::IsWhite(heap_obj)) {
+          ObjectMarking::WhiteToGrey(heap_obj);
+        }
+      }
     }
     VisitNativeContext(map, context);
   }
@@ -590,24 +578,6 @@ void IncrementalMarking::MarkRoots() {
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 }
 
-
-void IncrementalMarking::MarkObjectGroups() {
-  TRACE_GC(heap_->tracer(),
-           GCTracer::Scope::MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING);
-
-  DCHECK(!heap_->local_embedder_heap_tracer()->InUse());
-  DCHECK(!finalize_marking_completed_);
-  DCHECK(IsMarking());
-
-  IncrementalMarkingRootMarkingVisitor visitor(this);
-  heap_->mark_compact_collector()->MarkImplicitRefGroups(&MarkGrey);
-  heap_->isolate()->global_handles()->IterateObjectGroups(
-      &visitor, &MarkCompactCollector::IsUnmarkedHeapObjectWithHeap);
-  heap_->isolate()->global_handles()->RemoveImplicitRefGroups();
-  heap_->isolate()->global_handles()->RemoveObjectGroups();
-}
-
-
 void IncrementalMarking::ProcessWeakCells() {
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
@@ -720,14 +690,11 @@ void IncrementalMarking::FinalizeIncrementally() {
   // After finishing incremental marking, we try to discover all unmarked
   // objects to reduce the marking load in the final pause.
   // 1) We scan and mark the roots again to find all changes to the root set.
-  // 2) We mark the object groups.
-  // 3) Age and retain maps embedded in optimized code.
-  // 4) Remove weak cell with live values from the list of weak cells, they
+  // 2) Age and retain maps embedded in optimized code.
+  // 3) Remove weak cell with live values from the list of weak cells, they
   // do not need processing during GC.
   MarkRoots();
-  if (!heap_->local_embedder_heap_tracer()->InUse()) {
-    MarkObjectGroups();
-  }
+
   if (incremental_marking_finalization_rounds_ == 0) {
     // Map retaining is needed for perfromance, not correctness,
     // so we can do it only once at the beginning of the finalization.
@@ -856,10 +823,10 @@ intptr_t IncrementalMarking::ProcessMarkingDeque(
                                        completion == FORCE_COMPLETION)) {
     HeapObject* obj = marking_deque->Pop();
 
-    // Left trimming may result in white filler objects on the marking deque.
-    // Ignore these objects.
+    // Left trimming may result in white, grey, or black filler objects on the
+    // marking deque. Ignore these objects.
     if (obj->IsFiller()) {
-      DCHECK(ObjectMarking::IsImpossible(obj) || ObjectMarking::IsWhite(obj));
+      DCHECK(!ObjectMarking::IsImpossible(obj));
       continue;
     }
 

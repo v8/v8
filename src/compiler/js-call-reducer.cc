@@ -136,20 +136,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     // the outermost function.
     Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
     if (outer_state->opcode() != IrOpcode::kFrameState) {
-      // TODO(jarin,bmeurer): Support the NewUnmappedArgumentsElement and
-      // NewRestParameterElements in the EscapeAnalysis and Deoptimizer
-      // instead, then we don't need this hack.
-      // Only works with zero formal parameters because of lacking deoptimizer
-      // support.
-      if (type != CreateArgumentsType::kRestParameter &&
-          formal_parameter_count == 0) {
-        // There are no other uses of the {arg_array} except in StateValues,
-        // so we just replace {arg_array} with a marker for the Deoptimizer
-        // that this refers to the arguments object.
-        Node* arguments = graph()->NewNode(common()->ArgumentsObjectState());
-        ReplaceWithValue(arg_array, arguments);
-      }
-
       // Reduce {node} to a JSCallForwardVarargs operation, which just
       // re-pushes the incoming arguments and calls the {target}.
       node->RemoveInput(0);  // Function.prototype.apply
@@ -264,30 +250,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeHasInstance(Node* node) {
 
 namespace {
 
-// TODO(turbofan): Share with similar functionality in JSInliningHeuristic
-// and JSNativeContextSpecialization, i.e. move to NodeProperties helper?!
-MaybeHandle<Map> InferReceiverMap(Node* node) {
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  // Check if the {node} is dominated by a CheckMaps with a single map
-  // for the {receiver}, and if so use that map for the lowering below.
-  for (Node* dominator = effect;;) {
-    if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
-      if (dominator->op()->ValueInputCount() == 2) {
-        HeapObjectMatcher m(dominator->InputAt(1));
-        if (m.HasValue()) return Handle<Map>::cast(m.Value());
-      }
-      return MaybeHandle<Map>();
-    }
-    if (dominator->op()->EffectInputCount() != 1) {
-      // Didn't find any appropriate CheckMaps node.
-      return MaybeHandle<Map>();
-    }
-    dominator = NodeProperties::GetEffectInput(dominator);
-  }
-}
-
 bool CanInlineApiCall(Isolate* isolate, Node* node,
                       Handle<FunctionTemplateInfo> function_template_info) {
   DCHECK(node->opcode() == IrOpcode::kJSCall);
@@ -344,19 +306,30 @@ JSCallReducer::HolderLookup JSCallReducer::LookupHolder(
 // ES6 section B.2.2.1.1 get Object.prototype.__proto__
 Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
 
   // Try to determine the {receiver} map.
-  Handle<Map> receiver_map;
-  if (InferReceiverMap(node).ToHandle(&receiver_map)) {
-    // Check if we can constant-fold the {receiver} map.
-    if (!receiver_map->IsJSProxyMap() &&
-        !receiver_map->has_hidden_prototype() &&
-        !receiver_map->is_access_check_needed()) {
-      Handle<Object> receiver_prototype(receiver_map->prototype(), isolate());
-      Node* value = jsgraph()->Constant(receiver_prototype);
-      ReplaceWithValue(node, value);
-      return Replace(value);
+  ZoneHandleSet<Map> receiver_maps;
+  if (NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps)) {
+    Handle<Map> candidate_map(
+        receiver_maps[0]->GetPrototypeChainRootMap(isolate()));
+    Handle<Object> candidate_prototype(candidate_map->prototype(), isolate());
+
+    // Check if we can constant-fold the {candidate_prototype}.
+    for (size_t i = 0; i < receiver_maps.size(); ++i) {
+      Handle<Map> const receiver_map(
+          receiver_maps[i]->GetPrototypeChainRootMap(isolate()));
+      if (receiver_map->IsJSProxyMap() ||
+          receiver_map->has_hidden_prototype() ||
+          receiver_map->is_access_check_needed() ||
+          receiver_map->prototype() != *candidate_prototype) {
+        return NoChange();
+      }
     }
+    Node* value = jsgraph()->Constant(candidate_prototype);
+    ReplaceWithValue(node, value);
+    return Replace(value);
   }
 
   return NoChange();
@@ -498,6 +471,32 @@ Reduction JSCallReducer::ReduceSpreadCall(Node* node, int arity) {
   return Changed(node);
 }
 
+namespace {
+
+bool ShouldUseCallICFeedback(Node* node) {
+  HeapObjectMatcher m(node);
+  if (m.HasValue() || m.IsJSCreateClosure()) {
+    // Don't use CallIC feedback when we know the function
+    // being called, i.e. either know the closure itself or
+    // at least the SharedFunctionInfo.
+    return false;
+  } else if (m.IsPhi()) {
+    // Protect against endless loops here.
+    Node* control = NodeProperties::GetControlInput(node);
+    if (control->opcode() == IrOpcode::kLoop) return false;
+    // Check if {node} is a Phi of nodes which shouldn't
+    // use CallIC feedback (not looking through loops).
+    int const value_input_count = m.node()->op()->ValueInputCount();
+    for (int n = 0; n < value_input_count; ++n) {
+      if (ShouldUseCallICFeedback(node->InputAt(n))) return true;
+    }
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 Reduction JSCallReducer::ReduceJSCall(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -637,6 +636,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     NodeProperties::ReplaceEffectInput(node, effect);
     return ReduceArrayConstructor(node);
   } else if (feedback->IsWeakCell()) {
+    // Check if we want to use CallIC feedback here.
+    if (!ShouldUseCallICFeedback(target)) return NoChange();
+
     Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
     if (cell->value()->IsJSFunction()) {
       Node* target_function =
@@ -662,7 +664,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
 Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallWithSpread, node->opcode());
-  CallWithSpreadParameters const& p = CallWithSpreadParametersOf(node->op());
+  SpreadWithArityParameter const& p = SpreadWithArityParameterOf(node->op());
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 1);
 
@@ -757,6 +759,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
     return Changed(node);
   } else if (feedback->IsWeakCell()) {
+    // Check if we want to use CallIC feedback here.
+    if (!ShouldUseCallICFeedback(target)) return NoChange();
+
     Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
     if (cell->value()->IsJSFunction()) {
       Node* target_function =
@@ -786,8 +791,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
 Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstructWithSpread, node->opcode());
-  ConstructWithSpreadParameters const& p =
-      ConstructWithSpreadParametersOf(node->op());
+  SpreadWithArityParameter const& p = SpreadWithArityParameterOf(node->op());
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 2);
 

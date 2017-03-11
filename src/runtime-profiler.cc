@@ -216,7 +216,14 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
   SharedFunctionInfo* shared = function->shared();
   Code* shared_code = shared->code();
   if (shared_code->kind() != Code::FUNCTION) return;
-  if (function->IsInOptimizationQueue()) return;
+  if (function->IsInOptimizationQueue()) {
+    if (FLAG_trace_opt_verbose) {
+      PrintF("[function ");
+      function->PrintName();
+      PrintF(" is already in optimization queue]\n");
+    }
+    return;
+  }
 
   if (FLAG_always_osr) {
     AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);
@@ -308,7 +315,14 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
 
 void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function,
                                             JavaScriptFrame* frame) {
-  if (function->IsInOptimizationQueue()) return;
+  if (function->IsInOptimizationQueue()) {
+    if (FLAG_trace_opt_verbose) {
+      PrintF("[function ");
+      function->PrintName();
+      PrintF(" is already in optimization queue]\n");
+    }
+    return;
+  }
 
   if (FLAG_always_osr) {
     AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);
@@ -334,7 +348,14 @@ void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function,
 
 void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
                                             JavaScriptFrame* frame) {
-  if (function->IsInOptimizationQueue()) return;
+  if (function->IsInOptimizationQueue()) {
+    if (FLAG_trace_opt_verbose) {
+      PrintF("[function ");
+      function->PrintName();
+      PrintF(" is already in optimization queue]\n");
+    }
+    return;
+  }
 
   if (FLAG_always_osr) {
     AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);

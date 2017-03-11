@@ -208,8 +208,9 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
 }
 
 Page* Page::ConvertNewToOld(Page* old_page) {
-  OldSpace* old_space = old_page->heap()->old_space();
+  DCHECK(!old_page->is_anchor());
   DCHECK(old_page->InNewSpace());
+  OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
   old_page->SetFlags(0, ~0);
   old_space->AccountCommitted(old_page->size());
@@ -225,27 +226,52 @@ void Page::InitializeFreeListCategories() {
   }
 }
 
+template <MarkingMode mode>
 void MemoryChunk::IncrementLiveBytes(HeapObject* object, int by) {
-  MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
+  MemoryChunk::FromAddress(object->address())->IncrementLiveBytes<mode>(by);
 }
 
+template <MarkingMode mode>
+void MemoryChunk::TraceLiveBytes(intptr_t old_value, intptr_t new_value) {
+  if (!FLAG_trace_live_bytes) return;
+  PrintIsolate(heap()->isolate(),
+               "live-bytes[%p:%s]: %" V8PRIdPTR "-> %" V8PRIdPTR "\n",
+               static_cast<void*>(this),
+               mode == MarkingMode::FULL ? "internal" : "external", old_value,
+               new_value);
+}
+
+template <MarkingMode mode>
 void MemoryChunk::ResetLiveBytes() {
-  if (FLAG_trace_live_bytes) {
-    PrintIsolate(heap()->isolate(), "live-bytes: reset page=%p %d->0\n",
-                 static_cast<void*>(this), live_byte_count_);
+  switch (mode) {
+    case MarkingMode::FULL:
+      TraceLiveBytes(live_byte_count_, 0);
+      live_byte_count_ = 0;
+      break;
+    case MarkingMode::YOUNG_GENERATION:
+      TraceLiveBytes(young_generation_live_byte_count_, 0);
+      young_generation_live_byte_count_ = 0;
+      break;
   }
-  live_byte_count_ = 0;
 }
 
+template <MarkingMode mode>
 void MemoryChunk::IncrementLiveBytes(int by) {
-  if (FLAG_trace_live_bytes) {
-    PrintIsolate(
-        heap()->isolate(), "live-bytes: update page=%p delta=%d %d->%d\n",
-        static_cast<void*>(this), by, live_byte_count_, live_byte_count_ + by);
+  switch (mode) {
+    case MarkingMode::FULL:
+      TraceLiveBytes(live_byte_count_, live_byte_count_ + by);
+      live_byte_count_ += by;
+      DCHECK_GE(live_byte_count_, 0);
+      DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
+      break;
+    case MarkingMode::YOUNG_GENERATION:
+      TraceLiveBytes(young_generation_live_byte_count_,
+                     young_generation_live_byte_count_ + by);
+      young_generation_live_byte_count_ += by;
+      DCHECK_GE(young_generation_live_byte_count_, 0);
+      DCHECK_LE(static_cast<size_t>(young_generation_live_byte_count_), size_);
+      break;
   }
-  live_byte_count_ += by;
-  DCHECK_GE(live_byte_count_, 0);
-  DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
 }
 
 bool PagedSpace::Contains(Address addr) {

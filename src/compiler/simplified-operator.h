@@ -242,7 +242,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, NumberOperationHint);
 NumberOperationHint NumberOperationHintOf(const Operator* op)
     WARN_UNUSED_RESULT;
 
-int ParameterCountOf(const Operator* op) WARN_UNUSED_RESULT;
+int FormalParameterCountOf(const Operator* op) WARN_UNUSED_RESULT;
+bool IsRestLengthOf(const Operator* op) WARN_UNUSED_RESULT;
 
 PretenureFlag PretenureFlagOf(const Operator* op) WARN_UNUSED_RESULT;
 
@@ -377,6 +378,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* TruncateTaggedToWord32();
   const Operator* TruncateTaggedToFloat64();
   const Operator* TruncateTaggedToBit();
+  const Operator* TruncateTaggedPointerToBit();
 
   const Operator* CheckIf();
   const Operator* CheckBounds();
@@ -411,7 +413,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckTaggedHole();
   const Operator* ConvertTaggedHoleToUndefined();
 
-  const Operator* ObjectIsCallable();
+  const Operator* ObjectIsDetectableCallable();
+  const Operator* ObjectIsNaN();
   const Operator* ObjectIsNonCallable();
   const Operator* ObjectIsNumber();
   const Operator* ObjectIsReceiver();
@@ -419,11 +422,12 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ObjectIsString();
   const Operator* ObjectIsUndetectable();
 
-  // new-rest-parameter-elements
-  const Operator* NewRestParameterElements(int parameter_count);
+  const Operator* ArgumentsFrame();
+  const Operator* ArgumentsLength(int formal_parameter_count,
+                                  bool is_rest_length);
 
   // new-unmapped-arguments-elements
-  const Operator* NewUnmappedArgumentsElements(int parameter_count);
+  const Operator* NewUnmappedArgumentsElements();
 
   // array-buffer-was-neutered buffer
   const Operator* ArrayBufferWasNeutered();

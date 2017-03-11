@@ -786,7 +786,7 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
   // Check if current frame is an arguments adaptor frame.
   __ cmp(Operand(ebp, StandardFrameConstants::kContextOffset),
-         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+         Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &done, Label::kNear);
 
   __ push(scratch1);
@@ -1614,10 +1614,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kSSEFloat64InsertLowWord32:
-      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 0);
+      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 0, true);
       break;
     case kSSEFloat64InsertHighWord32:
-      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1);
+      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1, true);
       break;
     case kSSEFloat64LoadLowWord32:
       __ movd(i.OutputDoubleRegister(), i.InputOperand(0));
@@ -1888,22 +1888,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kIA32Xchgb: {
-      size_t index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ xchg_b(i.InputRegister(index), operand);
+    case kIA32Int32x4Splat: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ movd(dst, i.InputOperand(0));
+      __ pshufd(dst, dst, 0x0);
       break;
     }
-    case kIA32Xchgw: {
-      size_t index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ xchg_w(i.InputRegister(index), operand);
+    case kIA32Int32x4ExtractLane: {
+      __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
-    case kIA32Xchgl: {
-      size_t index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ xchg(i.InputRegister(index), operand);
+    case kIA32Int32x4ReplaceLane: {
+      __ Pinsrd(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+      break;
+    }
+    case kSSEInt32x4Add: {
+      __ paddd(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kSSEInt32x4Sub: {
+      __ psubd(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXInt32x4Add: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vpaddd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXInt32x4Sub: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vpsubd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
       break;
     }
     case kCheckedLoadInt8:
@@ -1952,6 +1968,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kCheckedStoreWord64:
       UNREACHABLE();  // currently unsupported checked int64 load/store.
       break;
+    case kAtomicExchangeInt8: {
+      __ xchg_b(i.InputRegister(0), i.MemoryOperand(1));
+      __ movsx_b(i.InputRegister(0), i.InputRegister(0));
+      break;
+    }
+    case kAtomicExchangeUint8: {
+      __ xchg_b(i.InputRegister(0), i.MemoryOperand(1));
+      __ movzx_b(i.InputRegister(0), i.InputRegister(0));
+      break;
+    }
+    case kAtomicExchangeInt16: {
+      __ xchg_w(i.InputRegister(0), i.MemoryOperand(1));
+      __ movsx_w(i.InputRegister(0), i.InputRegister(0));
+      break;
+    }
+    case kAtomicExchangeUint16: {
+      __ xchg_w(i.InputRegister(0), i.MemoryOperand(1));
+      __ movzx_w(i.InputRegister(0), i.InputRegister(0));
+      break;
+    }
+    case kAtomicExchangeWord32: {
+      __ xchg(i.InputRegister(0), i.MemoryOperand(1));
+      break;
+    }
     case kAtomicLoadInt8:
     case kAtomicLoadUint8:
     case kAtomicLoadInt16:
@@ -2048,8 +2088,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     void Generate() final {
       IA32OperandConverter i(gen_, instr_);
 
-      Runtime::FunctionId trap_id = static_cast<Runtime::FunctionId>(
-          i.InputInt32(instr_->InputCount() - 1));
+      Builtins::Name trap_id =
+          static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
       bool old_has_frame = __ has_frame();
       if (frame_elided_) {
         __ set_has_frame(true);
@@ -2062,8 +2102,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     }
 
    private:
-    void GenerateCallToTrap(Runtime::FunctionId trap_id) {
-      if (trap_id == Runtime::kNumFunctions) {
+    void GenerateCallToTrap(Builtins::Name trap_id) {
+      if (trap_id == Builtins::builtin_count) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
         __ PrepareCallCFunction(0, esi);
@@ -2073,9 +2113,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ LeaveFrame(StackFrame::WASM_COMPILED);
         __ Ret();
       } else {
-        __ Move(esi, Smi::kZero);
         gen_->AssembleSourcePosition(instr_);
-        __ CallRuntime(trap_id);
+        __ Call(handle(isolate()->builtins()->builtin(trap_id), isolate()),
+                RelocInfo::CODE_TARGET);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,

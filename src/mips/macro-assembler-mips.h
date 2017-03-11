@@ -13,20 +13,20 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {Register::kCode_v0};
-const Register kReturnRegister1 = {Register::kCode_v1};
-const Register kReturnRegister2 = {Register::kCode_a0};
-const Register kJSFunctionRegister = {Register::kCode_a1};
-const Register kContextRegister = {Register::kCpRegister};
-const Register kAllocateSizeRegister = {Register::kCode_a0};
-const Register kInterpreterAccumulatorRegister = {Register::kCode_v0};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_t4};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_t5};
-const Register kInterpreterDispatchTableRegister = {Register::kCode_t6};
-const Register kJavaScriptCallArgCountRegister = {Register::kCode_a0};
-const Register kJavaScriptCallNewTargetRegister = {Register::kCode_a3};
-const Register kRuntimeCallFunctionRegister = {Register::kCode_a1};
-const Register kRuntimeCallArgCountRegister = {Register::kCode_a0};
+constexpr Register kReturnRegister0 = {Register::kCode_v0};
+constexpr Register kReturnRegister1 = {Register::kCode_v1};
+constexpr Register kReturnRegister2 = {Register::kCode_a0};
+constexpr Register kJSFunctionRegister = {Register::kCode_a1};
+constexpr Register kContextRegister = {Register::kCpRegister};
+constexpr Register kAllocateSizeRegister = {Register::kCode_a0};
+constexpr Register kInterpreterAccumulatorRegister = {Register::kCode_v0};
+constexpr Register kInterpreterBytecodeOffsetRegister = {Register::kCode_t4};
+constexpr Register kInterpreterBytecodeArrayRegister = {Register::kCode_t5};
+constexpr Register kInterpreterDispatchTableRegister = {Register::kCode_t6};
+constexpr Register kJavaScriptCallArgCountRegister = {Register::kCode_a0};
+constexpr Register kJavaScriptCallNewTargetRegister = {Register::kCode_a3};
+constexpr Register kRuntimeCallFunctionRegister = {Register::kCode_a1};
+constexpr Register kRuntimeCallArgCountRegister = {Register::kCode_a0};
 
 // Forward declaration.
 class JumpTarget;
@@ -210,9 +210,9 @@ class MacroAssembler: public Assembler {
 
 // Number of instructions needed for calculation of switch table entry address
 #ifdef _MIPS_ARCH_MIPS32R6
-  static const int kSwitchTablePrologueSize = 5;
+  static constexpr int kSwitchTablePrologueSize = 5;
 #else
-  static const int kSwitchTablePrologueSize = 10;
+  static constexpr int kSwitchTablePrologueSize = 10;
 #endif
   // GetLabelFunction must be lambda '[](size_t index) -> Label*' or a
   // functor/function with 'Label *func(size_t index)' declaration.
@@ -1080,13 +1080,9 @@ class MacroAssembler: public Assembler {
                         Register scratch,
                         Label* fail);
 
-  // -------------------------------------------------------------------------
-  // Debugger Support.
-
-  void DebugBreak();
+  // Frame restart support.
   void MaybeDropFrames();
 
-  // -------------------------------------------------------------------------
   // Exception handling.
 
   // Push a new stack handler and link into stack handler chain.
@@ -1636,8 +1632,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   template<typename Field>
   void DecodeFieldToSmi(Register dst, Register src) {
-    static const int shift = Field::kShift;
-    static const int mask = Field::kMask >> shift << kSmiTagSize;
+    constexpr int shift = Field::kShift;
+    constexpr int mask = Field::kMask >> shift << kSmiTagSize;
     STATIC_ASSERT((mask & (0x80000000u >> (kSmiTagSize - 1))) == 0);
     STATIC_ASSERT(kSmiTag == 0);
     if (shift < kSmiTagSize) {

@@ -12,10 +12,12 @@
 #include "src/bailout-reason.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/hydrogen-instructions.h"
 #include "src/globals.h"
 #include "src/parsing/parse-info.h"
+#include "src/string-stream.h"
 #include "src/transitions.h"
 #include "src/zone/zone.h"
 
@@ -2523,6 +2525,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
     bool IsFound() const { return lookup_type_ != NOT_FOUND; }
     bool IsProperty() const { return IsFound() && !IsTransition(); }
     bool IsTransition() const { return lookup_type_ == TRANSITION_TYPE; }
+    // TODO(ishell): rename to IsDataConstant() once constant field tracking
+    // is done.
+    bool IsDataConstantField() const {
+      return lookup_type_ == DESCRIPTOR_TYPE && details_.kind() == kData &&
+             details_.location() == kField && details_.constness() == kConst;
+    }
     bool IsData() const {
       return lookup_type_ == DESCRIPTOR_TYPE && details_.kind() == kData &&
              details_.location() == kField;
@@ -2729,9 +2737,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
 
   HInstruction* BuildLoadNamedField(PropertyAccessInfo* info,
                                     HValue* checked_object);
-  HInstruction* BuildStoreNamedField(PropertyAccessInfo* info,
-                                     HValue* checked_object,
-                                     HValue* value);
+  HValue* BuildStoreNamedField(PropertyAccessInfo* info, HValue* checked_object,
+                               HValue* value);
 
   HValue* BuildContextChainWalk(Variable* var);
 

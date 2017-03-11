@@ -16,6 +16,7 @@
 #include "src/deoptimizer.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {
@@ -512,7 +513,8 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
               TypeFeedbackId id = TypeFeedbackId::None());
 
   void CallLoadIC(FeedbackSlot slot, Handle<Object> name);
-  void CallStoreIC(FeedbackSlot slot, Handle<Object> name);
+  void CallStoreIC(FeedbackSlot slot, Handle<Object> name,
+                   bool store_own_property = false);
   void CallKeyedStoreIC(FeedbackSlot slot);
 
   void SetFunctionPosition(FunctionLiteral* fun);

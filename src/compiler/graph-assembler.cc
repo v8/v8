@@ -6,6 +6,7 @@
 
 #include "src/code-factory.h"
 #include "src/compiler/linkage.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -53,6 +54,10 @@ Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
 
 Node* GraphAssembler::CEntryStubConstant(int result_size) {
   return jsgraph()->CEntryStubConstant(result_size);
+}
+
+Node* GraphAssembler::LoadFramePointer() {
+  return graph()->NewNode(machine()->LoadFramePointer());
 }
 
 #define SINGLETON_CONST_DEF(Name) \

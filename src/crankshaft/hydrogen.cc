@@ -5529,6 +5529,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                 store = BuildMonomorphicAccess(
                     &info, literal, checked_literal, value,
                     BailoutId::None(), BailoutId::None());
+                DCHECK_NOT_NULL(store);
               } else {
                 CHECK_ALIVE(store = BuildNamedGeneric(STORE, NULL, slot,
                                                       literal, name, value));
@@ -5679,7 +5680,7 @@ HCheckMaps* HOptimizedGraphBuilder::AddCheckMap(HValue* object,
 HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     PropertyAccessInfo* info,
     HValue* checked_object) {
-  // See if this is a load for an immutable property
+  // Check if this is a load of an immutable or constant property.
   if (checked_object->ActualValue()->IsConstant()) {
     Handle<Object> object(
         HConstant::cast(checked_object->ActualValue())->handle(isolate()));
@@ -5687,9 +5688,20 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     if (object->IsJSObject()) {
       LookupIterator it(object, info->name(),
                         LookupIterator::OWN_SKIP_INTERCEPTOR);
-      Handle<Object> value = JSReceiver::GetDataProperty(&it);
-      if (it.IsFound() && it.IsReadOnly() && !it.IsConfigurable()) {
-        return New<HConstant>(value);
+      if (it.IsFound()) {
+        bool is_reaonly_non_configurable =
+            it.IsReadOnly() && !it.IsConfigurable();
+        if (is_reaonly_non_configurable ||
+            (FLAG_track_constant_fields && info->IsDataConstantField())) {
+          Handle<Object> value = JSReceiver::GetDataProperty(&it);
+          if (!is_reaonly_non_configurable) {
+            DCHECK(!it.is_dictionary_holder());
+            // Add dependency on the map that introduced the field.
+            Handle<Map> field_owner_map = it.GetFieldOwnerMap();
+            top_info()->dependencies()->AssumeFieldOwner(field_owner_map);
+          }
+          return New<HConstant>(value);
+        }
       }
     }
   }
@@ -5718,14 +5730,16 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
       checked_object, checked_object, access, maps, info->field_type());
 }
 
-
-HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
-    PropertyAccessInfo* info,
-    HValue* checked_object,
-    HValue* value) {
+HValue* HOptimizedGraphBuilder::BuildStoreNamedField(PropertyAccessInfo* info,
+                                                     HValue* checked_object,
+                                                     HValue* value) {
   bool transition_to_field = info->IsTransition();
   // TODO(verwaest): Move this logic into PropertyAccessInfo.
   HObjectAccess field_access = info->access();
+
+  bool store_to_constant_field = FLAG_track_constant_fields &&
+                                 info->StoreMode() != INITIALIZING_STORE &&
+                                 info->IsDataConstantField();
 
   HStoreNamedField *instr;
   if (field_access.representation().IsDouble() &&
@@ -5752,23 +5766,57 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       // Already holds a HeapNumber; load the box and write its value field.
       HInstruction* heap_number =
           Add<HLoadNamedField>(checked_object, nullptr, heap_number_access);
-      instr = New<HStoreNamedField>(heap_number,
-                                    HObjectAccess::ForHeapNumberValue(),
-                                    value, STORE_TO_INITIALIZED_ENTRY);
+
+      if (store_to_constant_field) {
+        // If the field is constant check that the value we are going to store
+        // matches current value.
+        HInstruction* current_value = Add<HLoadNamedField>(
+            heap_number, nullptr, HObjectAccess::ForHeapNumberValue());
+        IfBuilder value_checker(this);
+        value_checker.IfNot<HCompareNumericAndBranch>(current_value, value,
+                                                      Token::EQ);
+        value_checker.ThenDeopt(DeoptimizeReason::kValueMismatch);
+        value_checker.End();
+        return nullptr;
+
+      } else {
+        instr = New<HStoreNamedField>(heap_number,
+                                      HObjectAccess::ForHeapNumberValue(),
+                                      value, STORE_TO_INITIALIZED_ENTRY);
+      }
     }
   } else {
-    if (field_access.representation().IsHeapObject()) {
-      BuildCheckHeapObject(value);
-    }
+    if (store_to_constant_field) {
+      // If the field is constant check that the value we are going to store
+      // matches current value.
+      HInstruction* current_value = Add<HLoadNamedField>(
+          checked_object->ActualValue(), checked_object, field_access);
 
-    if (!info->field_maps()->is_empty()) {
-      DCHECK(field_access.representation().IsHeapObject());
-      value = Add<HCheckMaps>(value, info->field_maps());
-    }
+      IfBuilder value_checker(this);
+      if (field_access.representation().IsDouble()) {
+        value_checker.IfNot<HCompareNumericAndBranch>(current_value, value,
+                                                      Token::EQ);
+      } else {
+        value_checker.IfNot<HCompareObjectEqAndBranch>(current_value, value);
+      }
+      value_checker.ThenDeopt(DeoptimizeReason::kValueMismatch);
+      value_checker.End();
+      return nullptr;
 
-    // This is a normal store.
-    instr = New<HStoreNamedField>(checked_object->ActualValue(), field_access,
-                                  value, info->StoreMode());
+    } else {
+      if (field_access.representation().IsHeapObject()) {
+        BuildCheckHeapObject(value);
+      }
+
+      if (!info->field_maps()->is_empty()) {
+        DCHECK(field_access.representation().IsHeapObject());
+        value = Add<HCheckMaps>(value, info->field_maps());
+      }
+
+      // This is a normal store.
+      instr = New<HStoreNamedField>(checked_object->ActualValue(), field_access,
+                                    value, info->StoreMode());
+    }
   }
 
   if (transition_to_field) {
@@ -6858,13 +6906,13 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     return result;
 
   } else {
-    DCHECK_EQ(vector->GetLanguageMode(slot), function_language_mode());
     HValue* values[] = {object, key, value, slot_value, vector_value};
     if (vector->IsKeyedStoreIC(slot)) {
       // It's possible that a keyed store of a constant string was converted
       // to a named store. Here, at the last minute, we need to make sure to
       // use a generic Keyed Store if we are using the type vector, because
       // it has to share information with full code.
+      DCHECK_EQ(vector->GetLanguageMode(slot), function_language_mode());
       Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
           isolate(), function_language_mode());
       HValue* stub = Add<HConstant>(callable.code());
@@ -6873,12 +6921,21 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
                                    callable.descriptor(), ArrayVector(values));
       return result;
     }
-    DCHECK(vector->IsStoreIC(slot));
-    Callable callable = CodeFactory::StoreICInOptimizedCode(
-        isolate(), function_language_mode());
-    HValue* stub = Add<HConstant>(callable.code());
-    HCallWithDescriptor* result = New<HCallWithDescriptor>(
-        Code::STORE_IC, stub, 0, callable.descriptor(), ArrayVector(values));
+    HCallWithDescriptor* result;
+    if (vector->IsStoreOwnIC(slot)) {
+      Callable callable = CodeFactory::StoreOwnICInOptimizedCode(isolate());
+      HValue* stub = Add<HConstant>(callable.code());
+      result = New<HCallWithDescriptor>(
+          Code::STORE_IC, stub, 0, callable.descriptor(), ArrayVector(values));
+    } else {
+      DCHECK(vector->IsStoreIC(slot));
+      DCHECK_EQ(vector->GetLanguageMode(slot), function_language_mode());
+      Callable callable = CodeFactory::StoreICInOptimizedCode(
+          isolate(), function_language_mode());
+      HValue* stub = Add<HConstant>(callable.code());
+      result = New<HCallWithDescriptor>(
+          Code::STORE_IC, stub, 0, callable.descriptor(), ArrayVector(values));
+    }
     return result;
   }
 }
@@ -9687,6 +9744,7 @@ bool HOptimizedGraphBuilder::TryInlineArrayCall(Expression* expression,
 static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
   return constructor->has_initial_map() &&
          !IsDerivedConstructor(constructor->shared()->kind()) &&
+         !constructor->initial_map()->is_dictionary_map() &&
          constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
          constructor->initial_map()->instance_size() <
              HAllocate::kMaxInlineSize;

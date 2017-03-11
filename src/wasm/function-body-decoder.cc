@@ -89,9 +89,9 @@ struct MergeValues {
     Value first;
   } vals;  // Either multiple values or a single value.
 
-  Value& first() {
-    DCHECK_GT(arity, 0);
-    return arity == 1 ? vals.first : vals.array[0];
+  Value& operator[](size_t i) {
+    DCHECK_GT(arity, i);
+    return arity == 1 ? vals.first : vals.array[i];
   }
 };
 
@@ -214,6 +214,15 @@ class WasmDecoder : public Decoder {
           break;
         case kLocalS128:
           type = kWasmS128;
+          break;
+        case kLocalS1x4:
+          type = kWasmS1x4;
+          break;
+        case kLocalS1x8:
+          type = kWasmS1x8;
+          break;
+        case kLocalS1x16:
+          type = kWasmS1x16;
           break;
         default:
           decoder->error(decoder->pc() - 1, "invalid local type");
@@ -651,7 +660,13 @@ class WasmFullDecoder : public WasmDecoder {
       case kWasmF64:
         return builder_->Float64Constant(0);
       case kWasmS128:
-        return builder_->CreateS128Value(0);
+        return builder_->Simd128Zero();
+      case kWasmS1x4:
+        return builder_->Simd1x4Zero();
+      case kWasmS1x8:
+        return builder_->Simd1x8Zero();
+      case kWasmS1x16:
+        return builder_->Simd1x16Zero();
       default:
         UNREACHABLE();
         return nullptr;
@@ -960,6 +975,7 @@ class WasmFullDecoder : public WasmDecoder {
 
                 SsaEnv* copy = Steal(break_env);
                 ssa_env_ = copy;
+                MergeValues* merge = nullptr;
                 while (ok() && iterator.has_next()) {
                   uint32_t i = iterator.cur_index();
                   const byte* pos = iterator.pc();
@@ -973,6 +989,26 @@ class WasmFullDecoder : public WasmDecoder {
                                           ? BUILD(IfDefault, sw)
                                           : BUILD(IfValue, i, sw);
                   BreakTo(target);
+
+                  // Check that label types match up.
+                  Control* c = &control_[control_.size() - target - 1];
+                  if (i == 0) {
+                    merge = &c->merge;
+                  } else if (merge->arity != c->merge.arity) {
+                    error(pos, pos, "inconsistent arity in br_table target %d"
+                          " (previous was %u, this one %u)",
+                          i, merge->arity, c->merge.arity);
+                  } else if (control_.back().unreachable) {
+                    for (uint32_t j = 0; ok() && j < merge->arity; ++j) {
+                      if ((*merge)[j].type != c->merge[j].type) {
+                        error(pos, pos,
+                              "type error in br_table target %d operand %d"
+                              " (previous expected %s, this one %s)", i, j,
+                              WasmOpcodes::TypeName((*merge)[j].type),
+                              WasmOpcodes::TypeName(c->merge[j].type));
+                      }
+                    }
+                  }
                 }
                 if (failed()) break;
               } else {
@@ -1507,6 +1543,7 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   void PushEndValues(Control* c) {
+    DCHECK_EQ(c, &control_.back());
     stack_.resize(c->stack_depth);
     if (c->merge.arity == 1) {
       stack_.push_back(c->merge.vals.first);
@@ -1568,8 +1605,8 @@ class WasmFullDecoder : public WasmDecoder {
       Goto(ssa_env_, c->end_env);
     } else {
       // Merge the value(s) into the end of the block.
-      size_t expected = c->stack_depth + c->merge.arity;
-      if (!c->unreachable && stack_.size() < expected) {
+      size_t expected = control_.back().stack_depth + c->merge.arity;
+      if (stack_.size() < expected && !control_.back().unreachable) {
         error(
             pc_, pc_,
             "expected at least %u values on the stack for br to @%d, found %d",
@@ -1582,10 +1619,11 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   void FallThruTo(Control* c) {
+    DCHECK_EQ(c, &control_.back());
     // Merge the value(s) into the end of the block.
     size_t expected = c->stack_depth + c->merge.arity;
     if (stack_.size() == expected ||
-        (c->unreachable && stack_.size() < expected)) {
+        (stack_.size() < expected && c->unreachable)) {
       MergeValuesInto(c);
       c->unreachable = false;
       return;
@@ -1599,10 +1637,11 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   void TypeCheckFallThru(Control* c) {
+    DCHECK_EQ(c, &control_.back());
     // Fallthru must match arity exactly.
     int arity = static_cast<int>(c->merge.arity);
     if (c->stack_depth + arity < stack_.size() ||
-        (!c->unreachable && c->stack_depth + arity != stack_.size())) {
+        (c->stack_depth + arity != stack_.size() && !c->unreachable)) {
       error(pc_, pc_, "expected %d elements on the stack for fallthru to @%d",
             arity, startrel(c->pc));
       return;
@@ -1612,8 +1651,7 @@ class WasmFullDecoder : public WasmDecoder {
     for (size_t i = avail >= c->merge.arity ? 0 : c->merge.arity - avail;
          i < c->merge.arity; i++) {
       Value& val = GetMergeValueFromStack(c, i);
-      Value& old =
-          c->merge.arity == 1 ? c->merge.vals.first : c->merge.vals.array[i];
+      Value& old = c->merge[i];
       if (val.type != old.type) {
         error(pc_, pc_, "type error in merge[%zu] (expected %s, got %s)", i,
               WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));
@@ -1628,12 +1666,11 @@ class WasmFullDecoder : public WasmDecoder {
     bool reachable = ssa_env_->go();
     Goto(ssa_env_, target);
 
-    size_t avail = stack_.size() - c->stack_depth;
+    size_t avail = stack_.size() - control_.back().stack_depth;
     for (size_t i = avail >= c->merge.arity ? 0 : c->merge.arity - avail;
          i < c->merge.arity; i++) {
       Value& val = GetMergeValueFromStack(c, i);
-      Value& old =
-          c->merge.arity == 1 ? c->merge.vals.first : c->merge.vals.array[i];
+      Value& old = c->merge[i];
       if (val.type != old.type && val.type != kWasmVar) {
         error(pc_, pc_, "type error in merge[%zu] (expected %s, got %s)", i,
               WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));

@@ -11,7 +11,7 @@
 #include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "test/cctest/test-feedback-vector.h"
 
 using namespace v8::internal;
@@ -166,9 +166,11 @@ TEST(VectorSlotClearing) {
   Factory* factory = isolate->factory();
   Zone zone(isolate->allocator(), ZONE_NAME);
 
-  // We only test clearing FeedbackSlots, not FeedbackSlots.
-  // The reason is that FeedbackSlots need a full code environment
-  // to fully test (See VectorICProfilerStatistics test below).
+  CompileRun("function f() {};");
+  Handle<JSFunction> f = GetFunction("f");
+
+  // We only test clearing of a FeedbackSlotKind::kGeneral slots because all
+  // the other slot kinds require a host function for clearing.
   FeedbackVectorSpec spec(&zone);
   for (int i = 0; i < 5; i++) {
     spec.AddGeneralSlot();
@@ -183,12 +185,7 @@ TEST(VectorSlotClearing) {
   Handle<AllocationSite> site = factory->NewAllocationSite();
   vector->Set(helper.slot(2), *site);
 
-  // GC time clearing leaves slots alone.
-  vector->ClearSlotsAtGCTime(NULL);
-  Object* obj = vector->Get(helper.slot(1));
-  CHECK(obj->IsWeakCell() && !WeakCell::cast(obj)->cleared());
-
-  vector->ClearSlots(NULL);
+  vector->ClearSlots(*f);
 
   // The feedback vector slots are cleared. AllocationSites are still granted
   // an exemption from clearing, as are smis.
@@ -484,9 +481,9 @@ TEST(ReferenceContextAllocatesNoSlots) {
         handle(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(4, helper.slot_count());
-    CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kStorePropertySloppy);
+    CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kStoreNamedSloppy);
     CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kStorePropertySloppy);
+    CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kStoreNamedSloppy);
     CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
   }
 
@@ -505,7 +502,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(2, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStorePropertyStrict);
+    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreNamedStrict);
   }
 
   {
@@ -526,7 +523,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     CHECK_EQ(5, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kCall);
     CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kStorePropertySloppy);
+    CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kStoreNamedSloppy);
     CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kCall);
     CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kLoadProperty);
   }
@@ -589,9 +586,9 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(7, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStorePropertyStrict);
-    CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kStorePropertyStrict);
-    CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kStorePropertyStrict);
+    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreNamedStrict);
+    CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kStoreNamedStrict);
+    CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kStoreNamedStrict);
     CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kLoadProperty);
     CHECK_SLOT_KIND(helper, 5, FeedbackSlotKind::kLoadProperty);
     CHECK_SLOT_KIND(helper, 6, FeedbackSlotKind::kBinaryOp);
@@ -621,6 +618,31 @@ TEST(VectorStoreICBasic) {
   CHECK_EQ(1, helper.slot_count());
   FeedbackSlot slot(0);
   StoreICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+}
+
+TEST(StoreOwnIC) {
+  if (i::FLAG_always_opt) return;
+
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  CompileRun(
+      "function f(v) {"
+      "  return {a: 0, b: v, c: 0};"
+      "}"
+      "f(1);"
+      "f(2);"
+      "f(3);");
+  Handle<JSFunction> f = GetFunction("f");
+  // There should be one IC slot.
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
+  FeedbackVectorHelper helper(feedback_vector);
+  CHECK_EQ(2, helper.slot_count());
+  CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLiteral);
+  CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreOwnNamed);
+  StoreOwnICNexus nexus(feedback_vector, helper.slot(1));
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
 

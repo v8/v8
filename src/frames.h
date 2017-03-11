@@ -437,10 +437,16 @@ class StackFrame BASE_EMBEDDED {
   };
 
   // Used to mark the outermost JS entry frame.
+  //
+  // The mark is an opaque value that should be pushed onto the stack directly,
+  // carefully crafted to not be interpreted as a tagged pointer.
   enum JsFrameMarker {
-    INNER_JSENTRY_FRAME = 0,
-    OUTERMOST_JSENTRY_FRAME = 1
+    INNER_JSENTRY_FRAME = (0 << kSmiTagSize) | kSmiTag,
+    OUTERMOST_JSENTRY_FRAME = (1 << kSmiTagSize) | kSmiTag
   };
+  STATIC_ASSERT((INNER_JSENTRY_FRAME & kHeapObjectTagMask) != kHeapObjectTag);
+  STATIC_ASSERT((OUTERMOST_JSENTRY_FRAME & kHeapObjectTagMask) !=
+                kHeapObjectTag);
 
   struct State {
     Address sp = nullptr;
@@ -449,6 +455,40 @@ class StackFrame BASE_EMBEDDED {
     Address* callee_pc_address = nullptr;
     Address* constant_pool_address = nullptr;
   };
+
+  // Convert a stack frame type to a marker that can be stored on the stack.
+  //
+  // The marker is an opaque value, not intended to be interpreted in any way
+  // except being checked by IsTypeMarker or converted by MarkerToType.
+  // It has the same tagging as Smis, so any marker value that does not pass
+  // IsTypeMarker can instead be interpreted as a tagged pointer.
+  //
+  // Note that the marker is not a Smi: Smis on 64-bit architectures are stored
+  // in the top 32 bits of a 64-bit value, which in turn makes them expensive
+  // (in terms of code/instruction size) to push as immediates onto the stack.
+  static int32_t TypeToMarker(Type type) {
+    DCHECK_GE(type, 0);
+    return (type << kSmiTagSize) | kSmiTag;
+  }
+
+  // Convert a marker back to a stack frame type.
+  //
+  // Unlike the return value of TypeToMarker, this takes an intptr_t, as that is
+  // the type of the value on the stack.
+  static Type MarkerToType(intptr_t marker) {
+    DCHECK(IsTypeMarker(marker));
+    return static_cast<Type>(marker >> kSmiTagSize);
+  }
+
+  // Check if a marker is a stack frame type marker or a tagged pointer.
+  //
+  // Returns true if the given marker is tagged as a stack frame type marker,
+  // and should be converted back to a stack frame type using MarkerToType.
+  // Otherwise, the value is a tagged function pointer.
+  static bool IsTypeMarker(intptr_t function_or_marker) {
+    bool is_marker = ((function_or_marker & kSmiTagMask) == kSmiTag);
+    return is_marker;
+  }
 
   // Copy constructor; it breaks the connection to host iterator
   // (as an iterator usually lives on stack).
@@ -1234,7 +1274,7 @@ class BuiltinFrame final : public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmCompiledFrame : public StandardFrame {
+class WasmCompiledFrame final : public StandardFrame {
  public:
   Type type() const override { return WASM_COMPILED; }
 
@@ -1276,7 +1316,7 @@ class WasmCompiledFrame : public StandardFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmInterpreterEntryFrame : public StandardFrame {
+class WasmInterpreterEntryFrame final : public StandardFrame {
  public:
   Type type() const override { return WASM_INTERPRETER_ENTRY; }
 

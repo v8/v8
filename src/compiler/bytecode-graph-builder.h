@@ -104,11 +104,16 @@ class BytecodeGraphBuilder {
 
   // The main node creation chokepoint. Adds context, frame state, effect,
   // and control dependencies depending on the operator.
-  Node* MakeNode(const Operator* op, int value_input_count, Node** value_inputs,
-                 bool incomplete);
+  Node* MakeNode(const Operator* op, int value_input_count,
+                 Node* const* value_inputs, bool incomplete);
 
   Node** EnsureInputBufferSize(int size);
 
+  Node* const* GetCallArgumentsFromRegister(Node* callee,
+                                            interpreter::Register first_arg,
+                                            size_t arity);
+  Node* ProcessCallArguments(const Operator* call_op, Node* const* args,
+                             size_t arg_count);
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
                              interpreter::Register receiver, size_t arity);
   Node* ProcessConstructArguments(const Operator* call_new_op, Node* callee,
@@ -137,23 +142,45 @@ class BytecodeGraphBuilder {
   Node* BuildLoadGlobal(Handle<Name> name, uint32_t feedback_slot_index,
                         TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
-  void BuildNamedStore(LanguageMode language_mode);
+
+  enum class StoreMode {
+    // Check the prototype chain before storing.
+    kNormal,
+    // Store value to the receiver without checking the prototype chain.
+    kOwn,
+  };
+  void BuildNamedStore(LanguageMode language_mode, StoreMode store_mode);
   void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
   void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);
-  void BuildCall(TailCallMode tail_call_mode,
-                 ConvertReceiverMode receiver_hint);
+  void BuildCallVarArgs(TailCallMode tail_call_mode,
+                        ConvertReceiverMode receiver_hint);
+  void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_hint,
+                 Node* const* args, size_t arg_count, int slot_id);
+  void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_hint,
+                 std::initializer_list<Node*> args, int slot_id) {
+    BuildCall(tail_call_mode, receiver_hint, args.begin(), args.size(),
+              slot_id);
+  }
   void BuildThrow();
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
+  void BuildTestingOp(const Operator* op);
   void BuildDelete(LanguageMode language_mode);
   void BuildCastOperator(const Operator* op);
   void BuildForInPrepare();
   void BuildForInNext();
   void BuildInvokeIntrinsic();
+
+  // Optional early lowering to the simplified operator level. Returns the node
+  // representing the lowered operation or {nullptr} if no lowering available.
+  // Note that the result has already been wired into the environment just like
+  // any other invocation of {NewNode} would do.
+  Node* TryBuildSimplifiedBinaryOp(const Operator* op, Node* left, Node* right,
+                                   FeedbackSlot slot);
 
   // Check the context chain for extensions, for lookup fast paths.
   Environment* CheckContextExtensions(uint32_t depth);
@@ -262,6 +289,11 @@ class BytecodeGraphBuilder {
     bytecode_analysis_ = bytecode_analysis;
   }
 
+  bool needs_eager_checkpoint() const { return needs_eager_checkpoint_; }
+  void mark_as_needing_eager_checkpoint(bool value) {
+    needs_eager_checkpoint_ = value;
+  }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
@@ -291,6 +323,11 @@ class BytecodeGraphBuilder {
   // Temporary storage for building node input lists.
   int input_buffer_size_;
   Node** input_buffer_;
+
+  // Optimization to only create checkpoints when the current position in the
+  // control-flow is not effect-dominated by another checkpoint already. All
+  // operations that do not have observable side-effects can be re-evaluated.
+  bool needs_eager_checkpoint_;
 
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_context_;

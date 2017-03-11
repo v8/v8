@@ -798,23 +798,48 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
   Node* const control = NodeProperties::GetControlInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  if (Node* replacement = state->LookupElement(object, index)) {
-    // Make sure we don't resurrect dead {replacement} nodes.
-    if (!replacement->IsDead()) {
-      // We might need to guard the {replacement} if the type of the
-      // {node} is more precise than the type of the {replacement}.
-      Type* const node_type = NodeProperties::GetType(node);
-      if (!NodeProperties::GetType(replacement)->Is(node_type)) {
-        replacement = graph()->NewNode(common()->TypeGuard(node_type),
-                                       replacement, control);
-        NodeProperties::SetType(replacement, node_type);
+
+  // Only handle loads that do not require truncations.
+  ElementAccess const& access = ElementAccessOf(node->op());
+  switch (access.machine_type.representation()) {
+    case MachineRepresentation::kNone:
+    case MachineRepresentation::kSimd1x4:
+    case MachineRepresentation::kSimd1x8:
+    case MachineRepresentation::kSimd1x16:
+    case MachineRepresentation::kBit:
+      UNREACHABLE();
+      break;
+    case MachineRepresentation::kWord8:
+    case MachineRepresentation::kWord16:
+    case MachineRepresentation::kWord32:
+    case MachineRepresentation::kWord64:
+    case MachineRepresentation::kFloat32:
+      // TODO(turbofan): Add support for doing the truncations.
+      break;
+    case MachineRepresentation::kFloat64:
+    case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
+    case MachineRepresentation::kTagged:
+      if (Node* replacement = state->LookupElement(object, index)) {
+        // Make sure we don't resurrect dead {replacement} nodes.
+        if (!replacement->IsDead()) {
+          // We might need to guard the {replacement} if the type of the
+          // {node} is more precise than the type of the {replacement}.
+          Type* const node_type = NodeProperties::GetType(node);
+          if (!NodeProperties::GetType(replacement)->Is(node_type)) {
+            replacement = graph()->NewNode(common()->TypeGuard(node_type),
+                                           replacement, control);
+            NodeProperties::SetType(replacement, node_type);
+          }
+          ReplaceWithValue(node, replacement, effect);
+          return Replace(replacement);
+        }
       }
-      ReplaceWithValue(node, replacement, effect);
-      return Replace(replacement);
-    }
+      state = state->AddElement(object, index, node, zone());
+      return UpdateState(node, state);
   }
-  state = state->AddElement(object, index, node, zone());
-  return UpdateState(node, state);
+  return NoChange();
 }
 
 Reduction LoadElimination::ReduceStoreElement(Node* node) {
@@ -835,6 +860,9 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
   // Only record the new value if the store doesn't have an implicit truncation.
   switch (access.machine_type.representation()) {
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kSimd1x4:
+    case MachineRepresentation::kSimd1x8:
+    case MachineRepresentation::kSimd1x16:
     case MachineRepresentation::kBit:
       UNREACHABLE();
       break;
@@ -1037,6 +1065,9 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kBit:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd1x4:
+    case MachineRepresentation::kSimd1x8:
+    case MachineRepresentation::kSimd1x16:
       UNREACHABLE();
       break;
     case MachineRepresentation::kWord32:

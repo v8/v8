@@ -6,6 +6,7 @@
 
 #include "src/counters.h"
 #include "src/crankshaft/hydrogen-redundant-phi.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

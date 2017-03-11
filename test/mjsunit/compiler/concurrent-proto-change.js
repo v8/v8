@@ -56,4 +56,4 @@ assertUnoptimized(f, "no sync");
 assertUnoptimized(f, "sync");
 assertEquals(2, f(o));
 //Clear type info for stress runs.
-%ClearFunctionTypeFeedback(f);
+%ClearFunctionFeedback(f);

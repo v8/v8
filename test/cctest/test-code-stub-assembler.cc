@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
+#include "src/debug/debug.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -205,16 +208,16 @@ TEST(TryToName) {
                   &if_bailout);
 
       m.Bind(&if_keyisindex);
-      m.GotoUnless(m.WordEqual(expected_result,
-                               m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
-                   &failed);
+      m.GotoIfNot(m.WordEqual(expected_result,
+                              m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
+                  &failed);
       m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()),
                &passed, &failed);
 
       m.Bind(&if_keyisunique);
-      m.GotoUnless(m.WordEqual(expected_result,
-                               m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
-                   &failed);
+      m.GotoIfNot(m.WordEqual(expected_result,
+                              m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
+                  &failed);
       m.Branch(m.WordEqual(expected_arg, var_unique.value()), &passed, &failed);
     }
 
@@ -389,7 +392,7 @@ void TestNameDictionaryLookup() {
     m.NameDictionaryLookup<Dictionary>(dictionary, unique_name, &if_found,
                                        &var_name_index, &if_not_found);
     m.Bind(&if_found);
-    m.GotoUnless(
+    m.GotoIfNot(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
     m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_name_index.value()),
@@ -496,7 +499,7 @@ void TestNumberDictionaryLookup() {
     m.NumberDictionaryLookup<Dictionary>(dictionary, key, &if_found, &var_entry,
                                          &if_not_found);
     m.Bind(&if_found);
-    m.GotoUnless(
+    m.GotoIfNot(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
     m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_entry.value()), &passed,

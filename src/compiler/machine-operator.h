@@ -97,6 +97,8 @@ int StackSlotSizeOf(Operator const* op);
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
 
+MachineType AtomicExchangeRepresentationOf(Operator const* op);
+
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
@@ -425,7 +427,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Float64SilenceNaN();
 
   // SIMD operators.
-  const Operator* CreateFloat32x4();
+  const Operator* Float32x4Splat();
   const Operator* Float32x4ExtractLane(int32_t);
   const Operator* Float32x4ReplaceLane(int32_t);
   const Operator* Float32x4Abs();
@@ -441,16 +443,16 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Float32x4Max();
   const Operator* Float32x4MinNum();
   const Operator* Float32x4MaxNum();
+  const Operator* Float32x4RecipRefine();
+  const Operator* Float32x4RecipSqrtRefine();
   const Operator* Float32x4Equal();
   const Operator* Float32x4NotEqual();
   const Operator* Float32x4LessThan();
   const Operator* Float32x4LessThanOrEqual();
-  const Operator* Float32x4GreaterThan();
-  const Operator* Float32x4GreaterThanOrEqual();
   const Operator* Float32x4FromInt32x4();
   const Operator* Float32x4FromUint32x4();
 
-  const Operator* CreateInt32x4();
+  const Operator* Int32x4Splat();
   const Operator* Int32x4ExtractLane(int32_t);
   const Operator* Int32x4ReplaceLane(int32_t);
   const Operator* Int32x4Neg();
@@ -465,8 +467,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int32x4NotEqual();
   const Operator* Int32x4LessThan();
   const Operator* Int32x4LessThanOrEqual();
-  const Operator* Int32x4GreaterThan();
-  const Operator* Int32x4GreaterThanOrEqual();
   const Operator* Int32x4FromFloat32x4();
 
   const Operator* Uint32x4Min();
@@ -474,25 +474,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint32x4ShiftRightByScalar(int32_t);
   const Operator* Uint32x4LessThan();
   const Operator* Uint32x4LessThanOrEqual();
-  const Operator* Uint32x4GreaterThan();
-  const Operator* Uint32x4GreaterThanOrEqual();
   const Operator* Uint32x4FromFloat32x4();
 
-  const Operator* CreateBool32x4();
-  const Operator* Bool32x4ExtractLane(int32_t);
-  const Operator* Bool32x4ReplaceLane(int32_t);
-  const Operator* Bool32x4And();
-  const Operator* Bool32x4Or();
-  const Operator* Bool32x4Xor();
-  const Operator* Bool32x4Not();
-  const Operator* Bool32x4AnyTrue();
-  const Operator* Bool32x4AllTrue();
-  const Operator* Bool32x4Swizzle();
-  const Operator* Bool32x4Shuffle();
-  const Operator* Bool32x4Equal();
-  const Operator* Bool32x4NotEqual();
-
-  const Operator* CreateInt16x8();
+  const Operator* Int16x8Splat();
   const Operator* Int16x8ExtractLane(int32_t);
   const Operator* Int16x8ReplaceLane(int32_t);
   const Operator* Int16x8Neg();
@@ -509,8 +493,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int16x8NotEqual();
   const Operator* Int16x8LessThan();
   const Operator* Int16x8LessThanOrEqual();
-  const Operator* Int16x8GreaterThan();
-  const Operator* Int16x8GreaterThanOrEqual();
 
   const Operator* Uint16x8AddSaturate();
   const Operator* Uint16x8SubSaturate();
@@ -519,24 +501,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint16x8ShiftRightByScalar(int32_t);
   const Operator* Uint16x8LessThan();
   const Operator* Uint16x8LessThanOrEqual();
-  const Operator* Uint16x8GreaterThan();
-  const Operator* Uint16x8GreaterThanOrEqual();
 
-  const Operator* CreateBool16x8();
-  const Operator* Bool16x8ExtractLane(int32_t);
-  const Operator* Bool16x8ReplaceLane(int32_t);
-  const Operator* Bool16x8And();
-  const Operator* Bool16x8Or();
-  const Operator* Bool16x8Xor();
-  const Operator* Bool16x8Not();
-  const Operator* Bool16x8AnyTrue();
-  const Operator* Bool16x8AllTrue();
-  const Operator* Bool16x8Swizzle();
-  const Operator* Bool16x8Shuffle();
-  const Operator* Bool16x8Equal();
-  const Operator* Bool16x8NotEqual();
-
-  const Operator* CreateInt8x16();
+  const Operator* Int8x16Splat();
   const Operator* Int8x16ExtractLane(int32_t);
   const Operator* Int8x16ReplaceLane(int32_t);
   const Operator* Int8x16Neg();
@@ -553,8 +519,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int8x16NotEqual();
   const Operator* Int8x16LessThan();
   const Operator* Int8x16LessThanOrEqual();
-  const Operator* Int8x16GreaterThan();
-  const Operator* Int8x16GreaterThanOrEqual();
 
   const Operator* Uint8x16AddSaturate();
   const Operator* Uint8x16SubSaturate();
@@ -563,22 +527,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint8x16ShiftRightByScalar(int32_t);
   const Operator* Uint8x16LessThan();
   const Operator* Uint8x16LessThanOrEqual();
-  const Operator* Uint8x16GreaterThan();
-  const Operator* Uint8x16GreaterThanOrEqual();
-
-  const Operator* CreateBool8x16();
-  const Operator* Bool8x16ExtractLane(int32_t);
-  const Operator* Bool8x16ReplaceLane(int32_t);
-  const Operator* Bool8x16And();
-  const Operator* Bool8x16Or();
-  const Operator* Bool8x16Xor();
-  const Operator* Bool8x16Not();
-  const Operator* Bool8x16AnyTrue();
-  const Operator* Bool8x16AllTrue();
-  const Operator* Bool8x16Swizzle();
-  const Operator* Bool8x16Shuffle();
-  const Operator* Bool8x16Equal();
-  const Operator* Bool8x16NotEqual();
 
   const Operator* Simd128Load();
   const Operator* Simd128Load1();
@@ -588,10 +536,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Simd128Store1();
   const Operator* Simd128Store2();
   const Operator* Simd128Store3();
+
+  const Operator* Simd128Zero();
   const Operator* Simd128And();
   const Operator* Simd128Or();
   const Operator* Simd128Xor();
   const Operator* Simd128Not();
+
   const Operator* Simd32x4Select();
   const Operator* Simd32x4Swizzle(uint32_t);
   const Operator* Simd32x4Shuffle();
@@ -601,6 +552,30 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Simd8x16Select();
   const Operator* Simd8x16Swizzle(uint32_t);
   const Operator* Simd8x16Shuffle();
+
+  const Operator* Simd1x4Zero();
+  const Operator* Simd1x4And();
+  const Operator* Simd1x4Or();
+  const Operator* Simd1x4Xor();
+  const Operator* Simd1x4Not();
+  const Operator* Simd1x4AnyTrue();
+  const Operator* Simd1x4AllTrue();
+
+  const Operator* Simd1x8Zero();
+  const Operator* Simd1x8And();
+  const Operator* Simd1x8Or();
+  const Operator* Simd1x8Xor();
+  const Operator* Simd1x8Not();
+  const Operator* Simd1x8AnyTrue();
+  const Operator* Simd1x8AllTrue();
+
+  const Operator* Simd1x16Zero();
+  const Operator* Simd1x16And();
+  const Operator* Simd1x16Or();
+  const Operator* Simd1x16Xor();
+  const Operator* Simd1x16Not();
+  const Operator* Simd1x16AnyTrue();
+  const Operator* Simd1x16AllTrue();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
@@ -633,6 +608,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* AtomicLoad(LoadRepresentation rep);
   // atomic-store [base + index], value
   const Operator* AtomicStore(MachineRepresentation rep);
+  // atomic-exchange [base + index], value
+  const Operator* AtomicExchange(MachineType rep);
 
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == MachineRepresentation::kWord32; }

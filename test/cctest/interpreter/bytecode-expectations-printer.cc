@@ -11,7 +11,9 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 
+#include "src/api.h"
 #include "src/base/logging.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 
 #include "src/interpreter/bytecode-array-iterator.h"

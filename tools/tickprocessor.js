@@ -50,7 +50,7 @@ function readFile(fileName) {
   try {
     return read(fileName);
   } catch (e) {
-    print(fileName + ': ' + (e.message || e));
+    printErr(fileName + ': ' + (e.message || e));
     throw e;
   }
 }
@@ -81,7 +81,9 @@ function TickProcessor(
     timedRange,
     pairwiseTimedRange,
     onlySummary,
-    runtimeTimerFilter) {
+    runtimeTimerFilter,
+    preprocessJson) {
+  this.preprocessJson = preprocessJson;
   LogReader.call(this, {
       'shared-library': { parsers: [null, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary },
@@ -149,10 +151,10 @@ function TickProcessor(
     var op = Profile.Operation;
     switch (operation) {
       case op.MOVE:
-        print('Code move event for unknown code: 0x' + addr.toString(16));
+        printErr('Code move event for unknown code: 0x' + addr.toString(16));
         break;
       case op.DELETE:
-        print('Code delete event for unknown code: 0x' + addr.toString(16));
+        printErr('Code delete event for unknown code: 0x' + addr.toString(16));
         break;
       case op.TICK:
         // Only unknown PCs (the first frame) are reported as unaccounted,
@@ -165,7 +167,11 @@ function TickProcessor(
     }
   };
 
-  this.profile_ = new V8Profile(separateIc);
+  if (preprocessJson) {
+    this.profile_ = new JsonProfile();
+  } else {
+    this.profile_ = new V8Profile(separateIc);
+  }
   this.codeTypes_ = {};
   // Count each tick as a time unit.
   this.viewBuilder_ = new ViewBuilder(1);
@@ -196,7 +202,7 @@ TickProcessor.CodeTypes = {
 // codeTypes_ map because there can be zillions of them.
 
 
-TickProcessor.CALL_PROFILE_CUTOFF_PCT = 2.0;
+TickProcessor.CALL_PROFILE_CUTOFF_PCT = 1.0;
 
 TickProcessor.CALL_GRAPH_SIZE = 5;
 
@@ -204,7 +210,7 @@ TickProcessor.CALL_GRAPH_SIZE = 5;
  * @override
  */
 TickProcessor.prototype.printError = function(str) {
-  print(str);
+  printErr(str);
 };
 
 
@@ -333,7 +339,9 @@ TickProcessor.prototype.processTick = function(pc,
     }
   }
 
-  this.profile_.recordTick(this.processStack(pc, tos_or_external_callback, stack));
+  this.profile_.recordTick(
+      ns_since_start, vmState,
+      this.processStack(pc, tos_or_external_callback, stack));
 };
 
 
@@ -367,6 +375,11 @@ TickProcessor.prototype.processHeapSampleEnd = function(space, state) {
 
 
 TickProcessor.prototype.printStatistics = function() {
+  if (this.preprocessJson) {
+    this.profile_.writeJson();
+    return;
+  }
+
   print('Statistical profiling result from ' + this.lastLogFileName_ +
         ', (' + this.ticks_.total +
         ' ticks, ' + this.ticks_.unaccounted + ' unaccounted, ' +
@@ -676,7 +689,7 @@ UnixCppEntriesProvider.prototype.parseNextLine = function() {
 function MacCppEntriesProvider(nmExec, targetRootFS) {
   UnixCppEntriesProvider.call(this, nmExec, targetRootFS);
   // Note an empty group. It is required, as UnixCppEntriesProvider expects 3 groups.
-  this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ()[iItT] (.*)$/;
+  this.FUNC_RE = /^([0-9a-fA-F]{8,16})() (.*)$/;
 };
 inherits(MacCppEntriesProvider, UnixCppEntriesProvider);
 
@@ -823,7 +836,9 @@ function ArgumentsProcessor(args) {
     '--pairwise-timed-range': ['pairwiseTimedRange', true,
         'Ignore ticks outside pairs of Date.now() calls'],
     '--only-summary': ['onlySummary', true,
-        'Print only tick summary, exclude other information']
+        'Print only tick summary, exclude other information'],
+    '--preprocess': ['preprocessJson', true,
+        'Preprocess for consumption with web interface']
   };
   this.argsDispatch_['--js'] = this.argsDispatch_['-j'];
   this.argsDispatch_['--gc'] = this.argsDispatch_['-g'];
@@ -840,7 +855,8 @@ ArgumentsProcessor.DEFAULTS = {
   stateFilter: null,
   callGraphSize: 5,
   ignoreUnknown: false,
-  separateIc: false,
+  separateIc: true,
+  preprocessJson: null,
   targetRootFS: '',
   nm: 'nm',
   range: 'auto,auto',

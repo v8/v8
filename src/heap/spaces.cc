@@ -9,11 +9,15 @@
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
+#include "src/counters.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap/slot-set.h"
 #include "src/macro-assembler.h"
 #include "src/msan.h"
+#include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
 
@@ -536,6 +540,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->wasted_memory_ = 0;
   chunk->ResetLiveBytes();
   chunk->ClearLiveness();
+  chunk->young_generation_bitmap_ = nullptr;
   chunk->set_next_chunk(nullptr);
   chunk->set_prev_chunk(nullptr);
   chunk->local_tracker_ = nullptr;
@@ -1115,6 +1120,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (typed_old_to_new_slots_.Value() != nullptr) ReleaseTypedOldToNewSlots();
   if (typed_old_to_old_slots_ != nullptr) ReleaseTypedOldToOldSlots();
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
+  if (young_generation_bitmap_ != nullptr) ReleaseExternalBitmap();
 }
 
 static SlotSet* AllocateSlotSet(size_t size, Address page_start) {
@@ -1178,6 +1184,18 @@ void MemoryChunk::ReleaseLocalTracker() {
   DCHECK_NOT_NULL(local_tracker_);
   delete local_tracker_;
   local_tracker_ = nullptr;
+}
+
+void MemoryChunk::AllocateExternalBitmap() {
+  DCHECK_NULL(young_generation_bitmap_);
+  young_generation_bitmap_ = static_cast<Bitmap*>(calloc(1, Bitmap::kSize));
+  young_generation_live_byte_count_ = 0;
+}
+
+void MemoryChunk::ReleaseExternalBitmap() {
+  DCHECK_NOT_NULL(young_generation_bitmap_);
+  free(young_generation_bitmap_);
+  young_generation_bitmap_ = nullptr;
 }
 
 void MemoryChunk::ClearLiveness() {
@@ -1602,6 +1620,9 @@ bool SemiSpace::EnsureCurrentCapacity() {
         // Make sure we don't overtake the actual top pointer.
         CHECK_NE(to_remove, current_page_);
         to_remove->Unlink();
+        // Clear new space flags to avoid this page being treated as a new
+        // space page that is potentially being swept.
+        to_remove->SetFlags(0, Page::kIsInNewSpaceMask);
         heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
             to_remove);
       }
@@ -1625,13 +1646,17 @@ bool SemiSpace::EnsureCurrentCapacity() {
   return true;
 }
 
-void LocalAllocationBuffer::Close() {
+AllocationInfo LocalAllocationBuffer::Close() {
   if (IsValid()) {
     heap_->CreateFillerObjectAt(
         allocation_info_.top(),
         static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
         ClearRecordedSlots::kNo);
+    const AllocationInfo old_info = allocation_info_;
+    allocation_info_ = AllocationInfo(nullptr, nullptr);
+    return old_info;
   }
+  return AllocationInfo(nullptr, nullptr);
 }
 
 
@@ -3007,10 +3032,11 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
                                                             kNoGCCallbackFlags);
   AllocationStep(object->address(), object_size);
 
+  heap()->CreateFillerObjectAt(object->address(), object_size,
+                               ClearRecordedSlots::kNo);
+
   if (heap()->incremental_marking()->black_allocation()) {
-    // We cannot use ObjectMarking here as the object still lacks a size.
-    Marking::WhiteToBlack(ObjectMarking::MarkBitFrom(object));
-    MemoryChunk::IncrementLiveBytes(object, object_size);
+    ObjectMarking::WhiteToBlack(object);
   }
   return object;
 }
@@ -3055,14 +3081,15 @@ LargePage* LargeObjectSpace::FindPage(Address a) {
 
 
 void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
-  LargePage* current = first_page_;
-  while (current != NULL) {
-    HeapObject* object = current->GetObject();
-    DCHECK(ObjectMarking::IsBlack(object));
-    ObjectMarking::ClearMarkBit(object);
-    Page::FromAddress(object->address())->ResetProgressBar();
-    Page::FromAddress(object->address())->ResetLiveBytes();
-    current = current->next_page();
+  LargeObjectIterator it(this);
+  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+    if (ObjectMarking::IsBlackOrGrey(obj)) {
+      Marking::MarkWhite(ObjectMarking::MarkBitFrom(obj));
+      MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
+      chunk->ResetProgressBar();
+      chunk->ResetLiveBytes();
+    }
+    DCHECK(ObjectMarking::IsWhite(obj));
   }
 }
 
@@ -3174,12 +3201,13 @@ void LargeObjectSpace::Verify() {
     // We have only code, sequential strings, external strings
     // (sequential strings that have been morphed into external
     // strings), thin strings (sequential strings that have been
-    // morphed into thin strings), fixed arrays, byte arrays, and
-    // constant pool arrays in the large object space.
+    // morphed into thin strings), fixed arrays, fixed double arrays,
+    // byte arrays, and free space (right after allocation) in the
+    // large object space.
     CHECK(object->IsAbstractCode() || object->IsSeqString() ||
           object->IsExternalString() || object->IsThinString() ||
           object->IsFixedArray() || object->IsFixedDoubleArray() ||
-          object->IsByteArray());
+          object->IsByteArray() || object->IsFreeSpace());
 
     // The object itself should look OK.
     object->ObjectVerify();

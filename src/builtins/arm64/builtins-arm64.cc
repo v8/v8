@@ -118,100 +118,6 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
-  // ----------- S t a t e -------------
-  //  -- x0                     : number of arguments
-  //  -- x1                     : function
-  //  -- cp                     : context
-  //  -- lr                     : return address
-  //  -- sp[(argc - n - 1) * 8] : arg[n] (zero-based)
-  //  -- sp[argc * 8]           : receiver
-  // -----------------------------------
-  ASM_LOCATION("Builtins::Generate_MathMaxMin");
-
-  Heap::RootListIndex const root_index =
-      (kind == MathMaxMinKind::kMin) ? Heap::kInfinityValueRootIndex
-                                     : Heap::kMinusInfinityValueRootIndex;
-
-  // Load the accumulator with the default return value (either -Infinity or
-  // +Infinity), with the tagged value in x5 and the double value in d5.
-  __ LoadRoot(x5, root_index);
-  __ Ldr(d5, FieldMemOperand(x5, HeapNumber::kValueOffset));
-
-  Label done_loop, loop;
-  __ mov(x4, x0);
-  __ Bind(&loop);
-  {
-    // Check if all parameters done.
-    __ Subs(x4, x4, 1);
-    __ B(lt, &done_loop);
-
-    // Load the next parameter tagged value into x2.
-    __ Peek(x2, Operand(x4, LSL, kPointerSizeLog2));
-
-    // Load the double value of the parameter into d2, maybe converting the
-    // parameter to a number first using the ToNumber builtin if necessary.
-    Label convert_smi, convert_number, done_convert;
-    __ JumpIfSmi(x2, &convert_smi);
-    __ JumpIfHeapNumber(x2, &convert_number);
-    {
-      // Parameter is not a Number, use the ToNumber builtin to convert it.
-      FrameScope scope(masm, StackFrame::MANUAL);
-      __ SmiTag(x0);
-      __ SmiTag(x4);
-      __ EnterBuiltinFrame(cp, x1, x0);
-      __ Push(x5, x4);
-      __ Mov(x0, x2);
-      __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
-      __ Mov(x2, x0);
-      __ Pop(x4, x5);
-      __ LeaveBuiltinFrame(cp, x1, x0);
-      __ SmiUntag(x4);
-      __ SmiUntag(x0);
-      {
-        // Restore the double accumulator value (d5).
-        Label done_restore;
-        __ SmiUntagToDouble(d5, x5, kSpeculativeUntag);
-        __ JumpIfSmi(x5, &done_restore);
-        __ Ldr(d5, FieldMemOperand(x5, HeapNumber::kValueOffset));
-        __ Bind(&done_restore);
-      }
-    }
-    __ AssertNumber(x2);
-    __ JumpIfSmi(x2, &convert_smi);
-
-    __ Bind(&convert_number);
-    __ Ldr(d2, FieldMemOperand(x2, HeapNumber::kValueOffset));
-    __ B(&done_convert);
-
-    __ Bind(&convert_smi);
-    __ SmiUntagToDouble(d2, x2);
-    __ Bind(&done_convert);
-
-    // We can use a single fmin/fmax for the operation itself, but we then need
-    // to work out which HeapNumber (or smi) the result came from.
-    __ Fmov(x11, d5);
-    if (kind == MathMaxMinKind::kMin) {
-      __ Fmin(d5, d5, d2);
-    } else {
-      DCHECK(kind == MathMaxMinKind::kMax);
-      __ Fmax(d5, d5, d2);
-    }
-    __ Fmov(x10, d5);
-    __ Cmp(x10, x11);
-    __ Csel(x5, x5, x2, eq);
-    __ B(&loop);
-  }
-
-  __ Bind(&done_loop);
-  // Drop all slots, including the receiver.
-  __ Add(x0, x0, 1);
-  __ Drop(x0);
-  __ Mov(x0, x5);
-  __ Ret();
-}
-
-// static
 void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0                     : number of arguments
@@ -2161,7 +2067,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(x10, x0);
-  __ Mov(x11, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Mov(x11, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
   __ Push(lr, fp);
   __ Push(x11, x1, x10);
   __ Add(fp, jssp,
@@ -2373,7 +2279,7 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   Label arguments_adaptor, arguments_done;
   __ Ldr(x3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ Ldr(x4, MemOperand(x3, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ Cmp(x4, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Cmp(x4, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
   __ B(eq, &arguments_adaptor);
   {
     __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -2475,7 +2381,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
     Label no_interpreter_frame;
     __ Ldr(scratch3,
            MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ Cmp(scratch3, Operand(Smi::FromInt(StackFrame::STUB)));
+    __ Cmp(scratch3, Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
     __ B(ne, &no_interpreter_frame);
     __ Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ bind(&no_interpreter_frame);
@@ -2487,7 +2393,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ Ldr(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ Ldr(scratch3,
          MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ Cmp(scratch3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ Cmp(scratch3,
+         Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ B(ne, &no_arguments_adaptor);
 
   // Drop current frame and load arguments count from arguments adaptor frame.
@@ -2908,12 +2815,15 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   // Put the evaluated spread onto the stack as additional arguments.
   {
     __ Mov(scratch, 0);
-    Label done, loop;
+    Label done, push, loop;
     __ Bind(&loop);
     __ Cmp(scratch, spread_len);
     __ B(eq, &done);
     __ Add(scratch2, spread, Operand(scratch, LSL, kPointerSizeLog2));
     __ Ldr(scratch2, FieldMemOperand(scratch2, FixedArray::kHeaderSize));
+    __ JumpIfNotRoot(scratch2, Heap::kTheHoleValueRootIndex, &push);
+    __ LoadRoot(scratch2, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
     __ Push(scratch2);
     __ Add(scratch, scratch, Operand(1));
     __ B(&loop);

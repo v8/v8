@@ -1142,9 +1142,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   // We build an EntryFrame.
   __ li(t3, Operand(-1));  // Push a bad frame pointer to fail if it is used.
-  int marker = type();
-  __ li(t2, Operand(Smi::FromInt(marker)));
-  __ li(t1, Operand(Smi::FromInt(marker)));
+  StackFrame::Type marker = type();
+  __ li(t2, Operand(StackFrame::TypeToMarker(marker)));
+  __ li(t1, Operand(StackFrame::TypeToMarker(marker)));
   __ li(t0, Operand(ExternalReference(Isolate::kCEntryFPAddress,
                                       isolate)));
   __ lw(t0, MemOperand(t0));
@@ -1175,12 +1175,12 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ lw(t2, MemOperand(t1));
   __ Branch(&non_outermost_js, ne, t2, Operand(zero_reg));
   __ sw(fp, MemOperand(t1));
-  __ li(t0, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  __ li(t0, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   Label cont;
   __ b(&cont);
   __ nop();   // Branch delay slot nop.
   __ bind(&non_outermost_js);
-  __ li(t0, Operand(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
+  __ li(t0, Operand(StackFrame::INNER_JSENTRY_FRAME));
   __ bind(&cont);
   __ push(t0);
 
@@ -1247,10 +1247,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
   __ pop(t1);
-  __ Branch(&non_outermost_js_2,
-            ne,
-            t1,
-            Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  __ Branch(&non_outermost_js_2, ne, t1,
+            Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ li(t1, Operand(ExternalReference(js_entry_sp)));
   __ sw(zero_reg, MemOperand(t1));
   __ bind(&non_outermost_js_2);

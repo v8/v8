@@ -802,7 +802,8 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   Zone set_zone(isolate_->allocator(), ZONE_NAME);
   const int kPresent = 1;
   const int kGone = 0;
-  IdentityMap<int> unchecked_result_keys(isolate_->heap(), &set_zone);
+  IdentityMap<int, ZoneAllocationPolicy> unchecked_result_keys(
+      isolate_->heap(), ZoneAllocationPolicy(&set_zone));
   int unchecked_result_keys_size = 0;
   for (int i = 0; i < trap_result->length(); ++i) {
     DCHECK(trap_result->get(i)->IsUniqueName());

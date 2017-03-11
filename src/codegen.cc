@@ -13,8 +13,10 @@
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-info.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/eh-frame.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

@@ -130,6 +130,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_LoadReverse16RR:
     case kS390_LoadReverse32RR:
     case kS390_LoadReverse64RR:
+    case kS390_LoadAndTestWord32:
+    case kS390_LoadAndTestWord64:
+    case kS390_LoadAndTestFloat32:
+    case kS390_LoadAndTestFloat64:
       return kNoOpcodeFlags;
 
     case kS390_LoadWordS8:

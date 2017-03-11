@@ -37,6 +37,7 @@ function Profile() {
   this.topDownTree_ = new CallTree();
   this.bottomUpTree_ = new CallTree();
   this.c_entries_ = {};
+  this.ticks_ = [];
 };
 
 
@@ -235,7 +236,7 @@ Profile.prototype.findEntry = function(addr) {
  *
  * @param {Array<number>} stack Stack sample.
  */
-Profile.prototype.recordTick = function(stack) {
+Profile.prototype.recordTick = function(time_ns, vmState, stack) {
   var processedStack = this.resolveAndFilterFuncs_(stack);
   this.bottomUpTree_.addPath(processedStack);
   processedStack.reverse();
@@ -831,4 +832,147 @@ CallTree.Node.prototype.descendToChild = function(
     curr = child;
   }
   return curr;
+};
+
+function JsonProfile() {
+  this.codeMap_ = new CodeMap();
+  this.codeEntries_ = [];
+  this.functionEntries_ = [];
+  this.ticks_ = [];
+}
+
+JsonProfile.prototype.addLibrary = function(
+    name, startAddr, endAddr) {
+  var entry = new CodeMap.CodeEntry(
+      endAddr - startAddr, name, 'SHARED_LIB');
+  this.codeMap_.addLibrary(startAddr, entry);
+
+  entry.codeId = this.codeEntries_.length;
+  this.codeEntries_.push({name : entry.name, type : entry.type});
+  return entry;
+};
+
+JsonProfile.prototype.addStaticCode = function(
+    name, startAddr, endAddr) {
+  var entry = new CodeMap.CodeEntry(
+      endAddr - startAddr, name, 'CPP');
+  this.codeMap_.addStaticCode(startAddr, entry);
+
+  entry.codeId = this.codeEntries_.length;
+  this.codeEntries_.push({name : entry.name, type : entry.type});
+  return entry;
+};
+
+JsonProfile.prototype.addCode = function(
+    kind, name, start, size) {
+  var entry = new CodeMap.CodeEntry(size, name, 'CODE');
+  this.codeMap_.addCode(start, entry);
+
+  entry.codeId = this.codeEntries_.length;
+  this.codeEntries_.push({name : entry.name, type : entry.type, kind : kind});
+
+  return entry;
+};
+
+JsonProfile.prototype.addFuncCode = function(
+    kind, name, start, size, funcAddr, state) {
+  // As code and functions are in the same address space,
+  // it is safe to put them in a single code map.
+  var func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
+  if (!func) {
+    var func = new CodeMap.CodeEntry(0, name, 'SFI');
+    this.codeMap_.addCode(funcAddr, func);
+
+    func.funcId = this.functionEntries_.length;
+    this.functionEntries_.push({name : name, codes : []});
+  } else if (func.name !== name) {
+    // Function object has been overwritten with a new one.
+    func.name = name;
+
+    func.funcId = this.functionEntries_.length;
+    this.functionEntries_.push({name : name, codes : []});
+  }
+  // TODO(jarin): Insert the code object into the SFI's code list.
+  var entry = this.codeMap_.findDynamicEntryByStartAddress(start);
+  if (entry) {
+    // TODO(jarin) This does not look correct, we should really
+    // update the code object (remove the old one and insert this one).
+    if (entry.size === size && entry.func === func) {
+      // Entry state has changed.
+      entry.state = state;
+    }
+  } else {
+    var entry = new CodeMap.CodeEntry(size, name, 'JS');
+    this.codeMap_.addCode(start, entry);
+
+    entry.codeId = this.codeEntries_.length;
+
+    this.functionEntries_[func.funcId].codes.push(entry.codeId);
+
+    if (state === 0) {
+      kind = "Builtin";
+    } else if (state === 1) {
+      kind = "Unopt";
+    } else if (state === 2) {
+      kind = "Opt";
+    }
+
+    this.codeEntries_.push({
+        name : entry.name,
+        type : entry.type,
+        kind : kind,
+        func : func.funcId
+    });
+  }
+  return entry;
+};
+
+JsonProfile.prototype.moveCode = function(from, to) {
+  try {
+    this.codeMap_.moveCode(from, to);
+  } catch (e) {
+    printErr("Move: unknown source " + from);
+  }
+};
+
+JsonProfile.prototype.deleteCode = function(start) {
+  try {
+    this.codeMap_.deleteCode(start);
+  } catch (e) {
+    printErr("Delete: unknown address " + start);
+  }
+};
+
+JsonProfile.prototype.moveFunc = function(from, to) {
+  if (this.codeMap_.findDynamicEntryByStartAddress(from)) {
+    this.codeMap_.moveCode(from, to);
+  }
+};
+
+JsonProfile.prototype.findEntry = function(addr) {
+  return this.codeMap_.findEntry(addr);
+};
+
+JsonProfile.prototype.recordTick = function(time_ns, vmState, stack) {
+  // TODO(jarin) Resolve the frame-less case (when top of stack is
+  // known code).
+  var processedStack = [];
+  for (var i = 0; i < stack.length; i++) {
+    var resolved = this.codeMap_.findAddress(stack[i]);
+    if (resolved) {
+      processedStack.push(resolved.entry.codeId, resolved.offset);
+    } else {
+      processedStack.push(-1, stack[i]);
+    }
+  }
+  this.ticks_.push({ tm : time_ns, vm : vmState, s : processedStack });
+};
+
+JsonProfile.prototype.writeJson = function() {
+  var toplevel = {
+    code : this.codeEntries_,
+    functions : this.functionEntries_,
+    ticks : this.ticks_
+  };
+  write(JSON.stringify(toplevel));
 };

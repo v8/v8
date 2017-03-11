@@ -97,7 +97,7 @@ namespace internal {
 // Implementation of Register and FPURegister.
 
 struct Register {
-  static const int kCpRegister = 23;  // cp (s7) is the 23rd register.
+  static constexpr int kCpRegister = 23;  // cp (s7) is the 23rd register.
 
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
@@ -107,24 +107,23 @@ struct Register {
     kCode_no_reg = -1
   };
 
-  static const int kNumRegisters = Code::kAfterLast;
+  static constexpr int kNumRegisters = Code::kAfterLast;
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  static const int kMantissaOffset = 0;
-  static const int kExponentOffset = 4;
+  static constexpr int kMantissaOffset = 0;
+  static constexpr int kExponentOffset = 4;
 #elif defined(V8_TARGET_BIG_ENDIAN)
-  static const int kMantissaOffset = 4;
-  static const int kExponentOffset = 0;
+  static constexpr int kMantissaOffset = 4;
+  static constexpr int kExponentOffset = 0;
 #else
 #error Unknown endianness
 #endif
 
 
   static Register from_code(int code) {
-    DCHECK(code >= 0);
-    DCHECK(code < kNumRegisters);
-    Register r = {code};
-    return r;
+    DCHECK_LE(0, code);
+    DCHECK_GT(kNumRegisters, code);
+    return Register{code};
   }
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
@@ -144,17 +143,17 @@ struct Register {
 // s7: context register
 // s3: lithium scratch
 // s4: lithium scratch2
-#define DECLARE_REGISTER(R) const Register R = {Register::kCode_##R};
+#define DECLARE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
-const Register no_reg = {Register::kCode_no_reg};
-
+constexpr Register no_reg = {Register::kCode_no_reg};
 
 int ToNumber(Register reg);
 
 Register ToRegister(int num);
 
-static const bool kSimpleFPAliasing = true;
+constexpr bool kSimpleFPAliasing = true;
+constexpr bool kSimdMaskRegisters = false;
 
 // Coprocessor register.
 struct FPURegister {
@@ -166,7 +165,7 @@ struct FPURegister {
     kCode_no_reg = -1
   };
 
-  static const int kMaxNumRegisters = Code::kAfterLast;
+  static constexpr int kMaxNumRegisters = Code::kAfterLast;
 
   inline static int NumRegisters();
 
@@ -235,54 +234,51 @@ typedef FPURegister DoubleRegister;
 // TODO(mips) Define SIMD registers.
 typedef FPURegister Simd128Register;
 
-const DoubleRegister no_freg = {-1};
+constexpr DoubleRegister no_freg = {-1};
 
-const DoubleRegister f0 = {0};  // Return value in hard float mode.
-const DoubleRegister f1 = {1};
-const DoubleRegister f2 = {2};
-const DoubleRegister f3 = {3};
-const DoubleRegister f4 = {4};
-const DoubleRegister f5 = {5};
-const DoubleRegister f6 = {6};
-const DoubleRegister f7 = {7};
-const DoubleRegister f8 = {8};
-const DoubleRegister f9 = {9};
-const DoubleRegister f10 = {10};
-const DoubleRegister f11 = {11};
-const DoubleRegister f12 = {12};  // Arg 0 in hard float mode.
-const DoubleRegister f13 = {13};
-const DoubleRegister f14 = {14};  // Arg 1 in hard float mode.
-const DoubleRegister f15 = {15};
-const DoubleRegister f16 = {16};
-const DoubleRegister f17 = {17};
-const DoubleRegister f18 = {18};
-const DoubleRegister f19 = {19};
-const DoubleRegister f20 = {20};
-const DoubleRegister f21 = {21};
-const DoubleRegister f22 = {22};
-const DoubleRegister f23 = {23};
-const DoubleRegister f24 = {24};
-const DoubleRegister f25 = {25};
-const DoubleRegister f26 = {26};
-const DoubleRegister f27 = {27};
-const DoubleRegister f28 = {28};
-const DoubleRegister f29 = {29};
-const DoubleRegister f30 = {30};
-const DoubleRegister f31 = {31};
+constexpr DoubleRegister f0 = {0};  // Return value in hard float mode.
+constexpr DoubleRegister f1 = {1};
+constexpr DoubleRegister f2 = {2};
+constexpr DoubleRegister f3 = {3};
+constexpr DoubleRegister f4 = {4};
+constexpr DoubleRegister f5 = {5};
+constexpr DoubleRegister f6 = {6};
+constexpr DoubleRegister f7 = {7};
+constexpr DoubleRegister f8 = {8};
+constexpr DoubleRegister f9 = {9};
+constexpr DoubleRegister f10 = {10};
+constexpr DoubleRegister f11 = {11};
+constexpr DoubleRegister f12 = {12};  // Arg 0 in hard float mode.
+constexpr DoubleRegister f13 = {13};
+constexpr DoubleRegister f14 = {14};  // Arg 1 in hard float mode.
+constexpr DoubleRegister f15 = {15};
+constexpr DoubleRegister f16 = {16};
+constexpr DoubleRegister f17 = {17};
+constexpr DoubleRegister f18 = {18};
+constexpr DoubleRegister f19 = {19};
+constexpr DoubleRegister f20 = {20};
+constexpr DoubleRegister f21 = {21};
+constexpr DoubleRegister f22 = {22};
+constexpr DoubleRegister f23 = {23};
+constexpr DoubleRegister f24 = {24};
+constexpr DoubleRegister f25 = {25};
+constexpr DoubleRegister f26 = {26};
+constexpr DoubleRegister f27 = {27};
+constexpr DoubleRegister f28 = {28};
+constexpr DoubleRegister f29 = {29};
+constexpr DoubleRegister f30 = {30};
+constexpr DoubleRegister f31 = {31};
 
 // Register aliases.
 // cp is assumed to be a callee saved register.
-// Defined using #define instead of "static const Register&" because Clang
-// complains otherwise when a compilation unit that includes this header
-// doesn't use the variables.
-#define kRootRegister s6
-#define cp s7
-#define kLithiumScratchReg s3
-#define kLithiumScratchReg2 s4
-#define kLithiumScratchDouble f30
-#define kDoubleRegZero f28
+constexpr Register kRootRegister = s6;
+constexpr Register cp = s7;
+constexpr Register kLithiumScratchReg = s3;
+constexpr Register kLithiumScratchReg2 = s4;
+constexpr DoubleRegister kLithiumScratchDouble = f30;
+constexpr DoubleRegister kDoubleRegZero = f28;
 // Used on mips32r6 for compare operations.
-#define kDoubleCompareReg f26
+constexpr DoubleRegister kDoubleCompareReg = f26;
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.
@@ -305,8 +301,8 @@ struct FPUControlRegister {
   int reg_code;
 };
 
-const FPUControlRegister no_fpucreg = { kInvalidFPUControlRegister };
-const FPUControlRegister FCSR = { kFCSRRegister };
+constexpr FPUControlRegister no_fpucreg = {kInvalidFPUControlRegister};
+constexpr FPUControlRegister FCSR = {kFCSRRegister};
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.
@@ -501,10 +497,10 @@ class Assembler : public AssemblerBase {
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Size of an instruction.
-  static const int kInstrSize = sizeof(Instr);
+  static constexpr int kInstrSize = sizeof(Instr);
 
   // Difference between address of current opcode and target address offset.
-  static const int kBranchPCOffset = 4;
+  static constexpr int kBranchPCOffset = 4;
 
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for
@@ -512,48 +508,48 @@ class Assembler : public AssemblerBase {
   // are split across two consecutive instructions and don't exist separately
   // in the code, so the serializer should not step forwards in memory after
   // a target is resolved and written.
-  static const int kSpecialTargetSize = 0;
+  static constexpr int kSpecialTargetSize = 0;
 
   // Number of consecutive instructions used to store 32bit constant. This
   // constant is used in RelocInfo::target_address_address() function to tell
   // serializer address of the instruction that follows LUI/ORI instruction
   // pair.
-  static const int kInstructionsFor32BitConstant = 2;
+  static constexpr int kInstructionsFor32BitConstant = 2;
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
 #ifdef _MIPS_ARCH_MIPS32R6
-  static const int kCallTargetAddressOffset = 3 * kInstrSize;
+  static constexpr int kCallTargetAddressOffset = 3 * kInstrSize;
 #else
-  static const int kCallTargetAddressOffset = 4 * kInstrSize;
+  static constexpr int kCallTargetAddressOffset = 4 * kInstrSize;
 #endif
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
-  static const int kPatchDebugBreakSlotAddressOffset = 4 * kInstrSize;
+  static constexpr int kPatchDebugBreakSlotAddressOffset = 4 * kInstrSize;
 
   // Difference between address of current opcode and value read from pc
   // register.
-  static const int kPcLoadDelta = 4;
+  static constexpr int kPcLoadDelta = 4;
 
 #ifdef _MIPS_ARCH_MIPS32R6
-  static const int kDebugBreakSlotInstructions = 3;
+  static constexpr int kDebugBreakSlotInstructions = 3;
 #else
-  static const int kDebugBreakSlotInstructions = 4;
+  static constexpr int kDebugBreakSlotInstructions = 4;
 #endif
-  static const int kDebugBreakSlotLength =
+  static constexpr int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
 
   // Max offset for instructions with 16-bit offset field
-  static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
+  static constexpr int kMaxBranchOffset = (1 << (18 - 1)) - 1;
 
   // Max offset for compact branch instructions with 26-bit offset field
-  static const int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
+  static constexpr int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
 
 #ifdef _MIPS_ARCH_MIPS32R6
-  static const int kTrampolineSlotsSize = 2 * kInstrSize;
+  static constexpr int kTrampolineSlotsSize = 2 * kInstrSize;
 #else
-  static const int kTrampolineSlotsSize = 4 * kInstrSize;
+  static constexpr int kTrampolineSlotsSize = 4 * kInstrSize;
 #endif
 
   // ---------------------------------------------------------------------------
@@ -1262,21 +1258,21 @@ class Assembler : public AssemblerBase {
 
   // Buffer size and constant pool distance are checked together at regular
   // intervals of kBufferCheckInterval emitted bytes.
-  static const int kBufferCheckInterval = 1*KB/2;
+  static constexpr int kBufferCheckInterval = 1 * KB / 2;
 
   // Code generation.
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
-  static const int kGap = 32;
-
+  static constexpr int kGap = 32;
 
   // Repeated checking whether the trampoline pool should be emitted is rather
   // expensive. By default we only check again once a number of instructions
   // has been generated.
-  static const int kCheckConstIntervalInst = 32;
-  static const int kCheckConstInterval = kCheckConstIntervalInst * kInstrSize;
+  static constexpr int kCheckConstIntervalInst = 32;
+  static constexpr int kCheckConstInterval =
+      kCheckConstIntervalInst * kInstrSize;
 
   int next_buffer_check_;  // pc offset of next buffer check.
 
@@ -1292,7 +1288,7 @@ class Assembler : public AssemblerBase {
 
   // Relocation information generation.
   // Each relocation is encoded as a variable size value.
-  static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
+  static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
 
   // The bound position, before this we cannot do instruction elimination.
@@ -1446,7 +1442,7 @@ class Assembler : public AssemblerBase {
   // branch instruction generation, where we use jump instructions rather
   // than regular branch instructions.
   bool trampoline_emitted_;
-  static const int kInvalidSlotPos = -1;
+  static constexpr int kInvalidSlotPos = -1;
 
   // Internal reference positions, required for unbounded internal reference
   // labels.

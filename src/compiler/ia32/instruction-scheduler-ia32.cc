@@ -97,6 +97,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXFloat32Neg:
     case kIA32BitcastFI:
     case kIA32BitcastIF:
+    case kIA32Int32x4Splat:
+    case kIA32Int32x4ExtractLane:
+    case kIA32Int32x4ReplaceLane:
+    case kSSEInt32x4Add:
+    case kSSEInt32x4Sub:
+    case kAVXInt32x4Add:
+    case kAVXInt32x4Sub:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;
@@ -127,11 +134,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32PushFloat64:
     case kIA32Poke:
       return kHasSideEffect;
-
-    case kIA32Xchgb:
-    case kIA32Xchgw:
-    case kIA32Xchgl:
-      return kIsLoadOperation | kHasSideEffect;
 
 #define CASE(Name) case k##Name:
     COMMON_ARCH_OPCODE_LIST(CASE)

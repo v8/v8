@@ -142,6 +142,8 @@ class Test262TestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     return (testcase.flags + context.mode_flags + self.harness +
+            ([os.path.join(self.root, "harness-agent.js")]
+             if testcase.path.startswith('built-ins/Atomics') else []) +
             self.GetIncludesForTest(testcase) +
             (["--module"] if "module" in self.GetTestRecord(testcase) else []) +
             [self.GetPathForTest(testcase)] +
@@ -201,19 +203,26 @@ class Test262TestSuite(testsuite.TestSuite):
     with open(self.GetPathForTest(testcase)) as f:
       return f.read()
 
-  def _ParseException(self, str):
+  def _ParseException(self, str, testcase):
     # somefile:somelinenumber: someerror[: sometext]
-    match = re.search('^[^: ]*:[0-9]+: ([^ ]+?)($|: )', str, re.MULTILINE)
-    return match.group(1)
+    # somefile might include an optional drive letter on windows e.g. "e:".
+    match = re.search(
+        '^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', str, re.MULTILINE)
+    if match:
+      return match.group(1).strip()
+    else:
+      print "Error parsing exception for %s" % testcase.GetLabel()
+      return None
 
   def IsFailureOutput(self, testcase):
     output = testcase.output
     test_record = self.GetTestRecord(testcase)
     if output.exit_code != 0:
       return True
-    if "negative" in test_record and \
-       "type" in test_record["negative"] and \
-       self._ParseException(output.stdout) != test_record["negative"]["type"]:
+    if ("negative" in test_record and
+        "type" in test_record["negative"] and
+        self._ParseException(output.stdout, testcase) !=
+            test_record["negative"]["type"]):
         return True
     return "FAILED!" in output.stdout
 
@@ -229,7 +238,13 @@ class Test262TestSuite(testsuite.TestSuite):
   def PrepareSources(self):
     # The archive is created only on swarming. Local checkouts have the
     # data folder.
-    if os.path.exists(ARCHIVE) and not os.path.exists(DATA):
+    if (os.path.exists(ARCHIVE) and
+        # Check for a JS file from the archive if we need to unpack. Some other
+        # files from the archive unfortunately exist due to a bug in the
+        # isolate_processor.
+        # TODO(machenbach): Migrate this to GN to avoid using the faulty
+        # isolate_processor: http://crbug.com/669910
+        not os.path.exists(os.path.join(DATA, 'test', 'harness', 'error.js'))):
       print "Extracting archive..."
       tar = tarfile.open(ARCHIVE)
       tar.extractall(path=os.path.dirname(ARCHIVE))

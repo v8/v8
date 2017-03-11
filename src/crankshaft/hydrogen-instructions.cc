@@ -12,6 +12,7 @@
 #include "src/double.h"
 #include "src/elements.h"
 #include "src/factory.h"
+#include "src/objects-inl.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/crankshaft/ia32/lithium-ia32.h"  // NOLINT

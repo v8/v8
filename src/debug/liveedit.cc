@@ -4,6 +4,7 @@
 
 #include "src/debug/liveedit.h"
 
+#include "src/assembler-inl.h"
 #include "src/ast/scopes.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
@@ -14,6 +15,7 @@
 #include "src/global-handles.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects-inl.h"
 #include "src/source-position-table.h"
 #include "src/v8.h"
 #include "src/v8memory.h"
@@ -604,15 +606,16 @@ static int GetArrayLength(Handle<JSArray> array) {
   return Smi::cast(length)->value();
 }
 
-void FunctionInfoWrapper::SetInitialProperties(
-    Handle<String> name, int start_position, int end_position, int param_num,
-    int literal_count, int parent_index, int function_literal_id) {
+void FunctionInfoWrapper::SetInitialProperties(Handle<String> name,
+                                               int start_position,
+                                               int end_position, int param_num,
+                                               int parent_index,
+                                               int function_literal_id) {
   HandleScope scope(isolate());
   this->SetField(kFunctionNameOffset_, name);
   this->SetSmiValueField(kStartPositionOffset_, start_position);
   this->SetSmiValueField(kEndPositionOffset_, end_position);
   this->SetSmiValueField(kParamNumOffset_, param_num);
-  this->SetSmiValueField(kLiteralNumOffset_, literal_count);
   this->SetSmiValueField(kParentIndexOffset_, parent_index);
   this->SetSmiValueField(kFunctionLiteralIdOffset_, function_literal_id);
 }
@@ -751,8 +754,6 @@ class FeedbackVectorFixer {
   static void PatchFeedbackVector(FunctionInfoWrapper* compile_info_wrapper,
                                   Handle<SharedFunctionInfo> shared_info,
                                   Isolate* isolate) {
-    int new_literal_count = compile_info_wrapper->GetLiteralCount();
-
     // When feedback metadata changes, we have to create new array instances.
     // Since we cannot create instances when iterating heap, we should first
     // collect all functions and fix their literal arrays.
@@ -767,8 +768,6 @@ class FeedbackVectorFixer {
       // Only create feedback vectors if we already have the metadata.
       if (shared_info->is_compiled()) JSFunction::EnsureLiterals(fun);
     }
-
-    shared_info->set_num_literals(new_literal_count);
   }
 
  private:
@@ -840,8 +839,6 @@ class DependentFunctionMarker: public OptimizedFunctionVisitor {
   explicit DependentFunctionMarker(SharedFunctionInfo* shared_info)
     : shared_info_(shared_info), found_(false) { }
 
-  virtual void EnterContext(Context* context) { }  // Don't care.
-  virtual void LeaveContext(Context* context)  { }  // Don't care.
   virtual void VisitFunction(JSFunction* function) {
     // It should be guaranteed by the iterator that everything is optimized.
     DCHECK(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
@@ -1601,7 +1598,6 @@ void LiveEditFunctionTracker::FunctionStarted(FunctionLiteral* fun) {
   FunctionInfoWrapper info = FunctionInfoWrapper::Create(isolate_);
   info.SetInitialProperties(fun->name(), fun->start_position(),
                             fun->end_position(), fun->parameter_count(),
-                            fun->materialized_literal_count(),
                             current_parent_index_, fun->function_literal_id());
   current_parent_index_ = len_;
   SetElementSloppy(result_, len_, info.GetJSArray());

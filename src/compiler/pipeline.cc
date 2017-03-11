@@ -545,13 +545,13 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
 
 class PipelineCompilationJob final : public CompilationJob {
  public:
-  PipelineCompilationJob(Isolate* isolate, Handle<JSFunction> function)
+  PipelineCompilationJob(ParseInfo* parse_info, Handle<JSFunction> function)
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
-      : CompilationJob(isolate, &info_, "TurboFan"),
-        parse_info_(handle(function->shared())),
-        zone_stats_(isolate->allocator()),
-        info_(parse_info_.zone(), &parse_info_, function),
+      : CompilationJob(parse_info->isolate(), &info_, "TurboFan"),
+        parse_info_(parse_info),
+        zone_stats_(parse_info->isolate()->allocator()),
+        info_(parse_info_.get()->zone(), parse_info_.get(), function),
         pipeline_statistics_(CreatePipelineStatistics(info(), &zone_stats_)),
         data_(&zone_stats_, info(), pipeline_statistics_.get()),
         pipeline_(&data_),
@@ -563,7 +563,7 @@ class PipelineCompilationJob final : public CompilationJob {
   Status FinalizeJobImpl() final;
 
  private:
-  ParseInfo parse_info_;
+  std::unique_ptr<ParseInfo> parse_info_;
   ZoneStats zone_stats_;
   CompilationInfo info_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
@@ -693,9 +693,9 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
     pipeline_.RunPrintAndVerify("Optimized Machine", true);
   }
@@ -1041,9 +1041,9 @@ struct EarlyOptimizationPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };
@@ -1141,8 +1141,8 @@ struct LoadEliminationPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
     AddReducer(data, &graph_reducer, &load_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };
@@ -1181,11 +1181,11 @@ struct LateOptimizationPhase {
     TailCallOptimization tco(data->common(), data->graph());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &select_lowering);
     AddReducer(data, &graph_reducer, &tco);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };
@@ -1750,8 +1750,16 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
 }
 
 // static
-CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function) {
-  return new PipelineCompilationJob(function->GetIsolate(), function);
+CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function,
+                                            bool has_script) {
+  Handle<SharedFunctionInfo> shared = handle(function->shared());
+  ParseInfo* parse_info;
+  if (!has_script) {
+    parse_info = ParseInfo::AllocateWithoutScript(shared);
+  } else {
+    parse_info = new ParseInfo(shared);
+  }
+  return new PipelineCompilationJob(parse_info, function);
 }
 
 // static

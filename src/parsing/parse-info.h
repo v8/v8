@@ -42,6 +42,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ~ParseInfo();
 
+  static ParseInfo* AllocateWithoutScript(Handle<SharedFunctionInfo> shared);
+
   Zone* zone() const { return zone_.get(); }
 
   std::shared_ptr<Zone> zone_shared() const { return zone_; }
@@ -71,6 +73,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kCallsEval, calls_eval, set_calls_eval)
   FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
   FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
+  FLAG_ACCESSOR(kScopeInfoIsEmpty, scope_info_is_empty, set_scope_info_is_empty)
   FLAG_ACCESSOR(kTyped, is_typed, set_typed)
 
 #undef FLAG_ACCESSOR
@@ -168,6 +171,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int end_position() const { return end_position_; }
   void set_end_position(int end_position) { end_position_ = end_position; }
 
+  int parameters_end_pos() const { return parameters_end_pos_; }
+  void set_parameters_end_pos(int parameters_end_pos) {
+    parameters_end_pos_ = parameters_end_pos;
+  }
+
   int function_literal_id() const { return function_literal_id_; }
   void set_function_literal_id(int function_literal_id) {
     function_literal_id_ = function_literal_id;
@@ -241,9 +249,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kCallsEval = 1 << 9,
     kDebug = 1 << 10,
     kSerializing = 1 << 11,
-    kTyped = 1 << 12,
+    kScopeInfoIsEmpty = 1 << 12,
+    kTyped = 1 << 13,
     // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 13
+    kAstValueFactoryOwned = 1 << 14
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -262,6 +271,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int compiler_hints_;
   int start_position_;
   int end_position_;
+  int parameters_end_pos_;
   int function_literal_id_;
   int max_function_literal_id_;
 

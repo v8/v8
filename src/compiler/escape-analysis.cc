@@ -696,6 +696,7 @@ void EscapeStatusAnalysis::Process(Node* node) {
         }
       } else {
         Node* from = NodeProperties::GetValueInput(node, 0);
+        from = object_analysis_->ResolveReplacement(from);
         if (SetEscaped(from)) {
           TRACE("Setting #%d (%s) to escaped because of unresolved load #%i\n",
                 from->id(), from->op()->mnemonic(), node->id());
@@ -703,7 +704,6 @@ void EscapeStatusAnalysis::Process(Node* node) {
           RevisitUses(from);
         }
       }
-
       RevisitUses(node);
       break;
     }
@@ -839,7 +839,8 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kStringCharAt:
       case IrOpcode::kStringCharCodeAt:
       case IrOpcode::kStringIndexOf:
-      case IrOpcode::kObjectIsCallable:
+      case IrOpcode::kObjectIsDetectableCallable:
+      case IrOpcode::kObjectIsNaN:
       case IrOpcode::kObjectIsNonCallable:
       case IrOpcode::kObjectIsNumber:
       case IrOpcode::kObjectIsReceiver:
@@ -1526,30 +1527,33 @@ void EscapeAnalysis::ProcessCheckMaps(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kCheckMaps);
   ForwardVirtualState(node);
   Node* checked = ResolveReplacement(NodeProperties::GetValueInput(node, 0));
-  VirtualState* state = virtual_states_[node->id()];
-  if (VirtualObject* object = GetVirtualObject(state, checked)) {
-    if (!object->IsTracked()) {
-      if (status_analysis_->SetEscaped(node)) {
-        TRACE(
-            "Setting #%d (%s) to escaped because checked object #%i is not "
-            "tracked\n",
-            node->id(), node->op()->mnemonic(), object->id());
-      }
-      return;
-    }
-    CheckMapsParameters params = CheckMapsParametersOf(node->op());
-
-    Node* value = object->GetField(HeapObject::kMapOffset / kPointerSize);
-    if (value) {
-      value = ResolveReplacement(value);
-      // TODO(tebbi): We want to extend this beyond constant folding with a
-      // CheckMapsValue operator that takes the load-eliminated map value as
-      // input.
-      if (value->opcode() == IrOpcode::kHeapConstant &&
-          params.maps().contains(ZoneHandleSet<Map>(
-              Handle<Map>::cast(OpParameter<Handle<HeapObject>>(value))))) {
-        TRACE("CheckMaps #%i seems to be redundant (until now).\n", node->id());
+  if (FLAG_turbo_experimental) {
+    VirtualState* state = virtual_states_[node->id()];
+    if (VirtualObject* object = GetVirtualObject(state, checked)) {
+      if (!object->IsTracked()) {
+        if (status_analysis_->SetEscaped(node)) {
+          TRACE(
+              "Setting #%d (%s) to escaped because checked object #%i is not "
+              "tracked\n",
+              node->id(), node->op()->mnemonic(), object->id());
+        }
         return;
+      }
+      CheckMapsParameters params = CheckMapsParametersOf(node->op());
+
+      Node* value = object->GetField(HeapObject::kMapOffset / kPointerSize);
+      if (value) {
+        value = ResolveReplacement(value);
+        // TODO(tebbi): We want to extend this beyond constant folding with a
+        // CheckMapsValue operator that takes the load-eliminated map value as
+        // input.
+        if (value->opcode() == IrOpcode::kHeapConstant &&
+            params.maps().contains(ZoneHandleSet<Map>(
+                Handle<Map>::cast(OpParameter<Handle<HeapObject>>(value))))) {
+          TRACE("CheckMaps #%i seems to be redundant (until now).\n",
+                node->id());
+          return;
+        }
       }
     }
   }

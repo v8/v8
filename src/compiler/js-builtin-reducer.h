@@ -55,6 +55,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
                                         IterationKind kind);
   Reduction ReduceTypedArrayIteratorNext(Handle<Map> iterator_map, Node* node,
                                          IterationKind kind);
+  Reduction ReduceArrayIsArray(Node* node);
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
   Reduction ReduceDateNow(Node* node);

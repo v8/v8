@@ -394,6 +394,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(OOMErrorCallback, oom_behavior, nullptr)                                  \
   V(LogEventCallback, event_logger, nullptr)                                  \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
+  V(AllowWasmCompileCallback, allow_wasm_compile_callback, nullptr)           \
+  V(AllowWasmInstantiateCallback, allow_wasm_instantiate_callback, nullptr)   \
   V(ExternalReferenceRedirectorPointer*, external_reference_redirector,       \
     nullptr)                                                                  \
   /* State for Relocatable. */                                                \
@@ -530,6 +532,8 @@ class Isolate {
   // Sets default isolate into "has_been_disposed" state rather then destroying,
   // for legacy API reasons.
   void TearDown();
+
+  void ReleaseManagedObjects();
 
   static void GlobalTearDown();
 
@@ -1061,7 +1065,7 @@ class Isolate {
   HTracer* GetHTracer();
   CodeTracer* GetCodeTracer();
 
-  void DumpAndResetCompilationStats();
+  void DumpAndResetStats();
 
   FunctionEntryHook function_entry_hook() { return function_entry_hook_; }
   void set_function_entry_hook(FunctionEntryHook function_entry_hook) {
@@ -1205,6 +1209,39 @@ class Isolate {
 
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
   bool allow_atomics_wait() { return allow_atomics_wait_; }
+
+  // List of native heap values allocated by the runtime as part of its
+  // implementation that must be freed at isolate deinit.
+  class ManagedObjectFinalizer final {
+   public:
+    typedef void (*Deleter)(void*);
+    void Dispose() { deleter_(value_); }
+
+   private:
+    friend class Isolate;
+
+    ManagedObjectFinalizer() {
+      DCHECK_EQ(reinterpret_cast<void*>(this),
+                reinterpret_cast<void*>(&value_));
+    }
+
+    // value_ must be the first member
+    void* value_ = nullptr;
+    Deleter deleter_ = nullptr;
+    ManagedObjectFinalizer* prev_ = nullptr;
+    ManagedObjectFinalizer* next_ = nullptr;
+  };
+
+  // Register a native value for destruction at isolate teardown.
+  ManagedObjectFinalizer* RegisterForReleaseAtTeardown(
+      void* value, ManagedObjectFinalizer::Deleter deleter);
+
+  // Unregister a previously registered value from release at
+  // isolate teardown, deleting the ManagedObjectFinalizer.
+  // This transfers the responsibility of the previously managed value's
+  // deletion to the caller. Pass by pointer, because *finalizer_ptr gets
+  // reset to nullptr.
+  void UnregisterFromReleaseAtTeardown(ManagedObjectFinalizer** finalizer_ptr);
 
  protected:
   explicit Isolate(bool enable_serializer);
@@ -1486,6 +1523,8 @@ class Isolate {
 #endif
 
   bool allow_atomics_wait_;
+
+  ManagedObjectFinalizer managed_object_finalizers_list_;
 
   size_t total_regexp_code_generated_;
 

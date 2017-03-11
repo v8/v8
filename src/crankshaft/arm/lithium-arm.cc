@@ -9,6 +9,7 @@
 #include "src/crankshaft/arm/lithium-codegen-arm.h"
 #include "src/crankshaft/hydrogen-osr.h"
 #include "src/crankshaft/lithium-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

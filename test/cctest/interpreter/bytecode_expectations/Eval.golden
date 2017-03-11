@@ -39,7 +39,7 @@ bytecodes: [
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(1),
-  /*   41 E> */ B(Call), R(1), R(2), U8(2), U8(2),
+  /*   41 E> */ B(Call1), R(1), R(2), R(3), U8(2),
   /*   53 S> */ B(Return),
 ]
 constant pool: [

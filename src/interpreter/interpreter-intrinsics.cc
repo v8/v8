@@ -5,6 +5,7 @@
 #include "src/interpreter/interpreter-intrinsics.h"
 
 #include "src/code-factory.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -281,7 +282,7 @@ Node* IntrinsicsHelper::Call(Node* args_reg, Node* arg_count, Node* context) {
   if (FLAG_debug_code) {
     InterpreterAssembler::Label arg_count_positive(assembler_);
     Node* comparison = __ Int32LessThan(target_args_count, __ Int32Constant(0));
-    __ GotoUnless(comparison, &arg_count_positive);
+    __ GotoIfNot(comparison, &arg_count_positive);
     __ Abort(kWrongArgumentCountForInvokeIntrinsic);
     __ Goto(&arg_count_positive);
     __ Bind(&arg_count_positive);
@@ -296,6 +297,44 @@ Node* IntrinsicsHelper::ClassOf(Node* args_reg, Node* arg_count,
                                 Node* context) {
   Node* value = __ LoadRegister(args_reg);
   return __ ClassOf(value);
+}
+
+Node* IntrinsicsHelper::CreateAsyncFromSyncIterator(Node* args_reg,
+                                                    Node* arg_count,
+                                                    Node* context) {
+  InterpreterAssembler::Label not_receiver(
+      assembler_, InterpreterAssembler::Label::kDeferred);
+  InterpreterAssembler::Label done(assembler_);
+  InterpreterAssembler::Variable return_value(assembler_,
+                                              MachineRepresentation::kTagged);
+
+  Node* sync_iterator = __ LoadRegister(args_reg);
+
+  __ GotoIf(__ TaggedIsSmi(sync_iterator), &not_receiver);
+  __ GotoIfNot(__ IsJSReceiver(sync_iterator), &not_receiver);
+
+  Node* const native_context = __ LoadNativeContext(context);
+  Node* const map = __ LoadContextElement(
+      native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX);
+  Node* const iterator = __ AllocateJSObjectFromMap(map);
+
+  __ StoreObjectFieldNoWriteBarrier(
+      iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
+
+  return_value.Bind(iterator);
+  __ Goto(&done);
+
+  __ Bind(&not_receiver);
+  {
+    return_value.Bind(
+        __ CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context));
+
+    // Unreachable due to the Throw in runtime call.
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+  return return_value.value();
 }
 
 void IntrinsicsHelper::AbortIfArgCountMismatch(int expected, Node* actual) {

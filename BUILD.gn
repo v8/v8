@@ -20,6 +20,12 @@ declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
 
+  # Sets -DV8_ENABLE_FUTURE.
+  v8_enable_future = false
+
+  # Sets -DV8_DISABLE_TURBO.
+  v8_disable_turbo = false
+
   # Sets -DVERIFY_HEAP.
   v8_enable_verify_heap = ""
 
@@ -196,6 +202,12 @@ config("features") {
 
   if (v8_enable_disassembler) {
     defines += [ "ENABLE_DISASSEMBLER" ]
+  }
+  if (v8_enable_future) {
+    defines += [ "V8_ENABLE_FUTURE" ]
+  }
+  if (v8_disable_turbo) {
+    defines += [ "V8_DISABLE_TURBO" ]
   }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
@@ -407,11 +419,10 @@ config("toolchain") {
       # TODO(hans): Remove once http://crbug.com/428099 is resolved.
       "-Winconsistent-missing-override",
     ]
-
-    if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
-        v8_current_cpu == "mips64el") {
-      cflags += [ "-Wshorten-64-to-32" ]
-    }
+    #if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
+    #    v8_current_cpu == "mips64el") {
+    #  cflags += [ "-Wshorten-64-to-32" ]
+    #}
   }
 }
 
@@ -439,7 +450,6 @@ action("js2c") {
     "src/js/v8natives.js",
     "src/js/array.js",
     "src/js/string.js",
-    "src/js/arraybuffer.js",
     "src/js/typedarray.js",
     "src/js/collection.js",
     "src/js/weak-collection.js",
@@ -498,13 +508,6 @@ action("js2c_experimental") {
   outputs = [
     "$target_gen_dir/experimental-libraries.cc",
   ]
-
-  if (v8_enable_i18n_support) {
-    sources += [
-      "src/js/datetime-format-to-parts.js",
-      "src/js/icu-case-mapping.js",
-    ]
-  }
 
   args = [
            rebase_path("$target_gen_dir/experimental-libraries.cc",
@@ -982,6 +985,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
     "src/builtins/builtins-async-function.cc",
+    "src/builtins/builtins-async-iterator.cc",
     "src/builtins/builtins-async.cc",
     "src/builtins/builtins-async.h",
     "src/builtins/builtins-boolean.cc",
@@ -994,6 +998,8 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-date.cc",
     "src/builtins/builtins-debug.cc",
     "src/builtins/builtins-error.cc",
+    "src/builtins/builtins-forin.cc",
+    "src/builtins/builtins-forin.h",
     "src/builtins/builtins-function.cc",
     "src/builtins/builtins-generator.cc",
     "src/builtins/builtins-global.cc",
@@ -1005,7 +1011,6 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",
     "src/builtins/builtins-object.cc",
-    "src/builtins/builtins-object.h",
     "src/builtins/builtins-promise.cc",
     "src/builtins/builtins-promise.h",
     "src/builtins/builtins-proxy.cc",
@@ -1017,6 +1022,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-symbol.cc",
     "src/builtins/builtins-typedarray.cc",
     "src/builtins/builtins-utils.h",
+    "src/builtins/builtins-wasm.cc",
     "src/builtins/builtins.cc",
     "src/builtins/builtins.h",
     "src/cached-powers.cc",
@@ -1161,6 +1167,8 @@ v8_source_set("v8_base") {
     "src/compiler/js-native-context-specialization.h",
     "src/compiler/js-operator.cc",
     "src/compiler/js-operator.h",
+    "src/compiler/js-type-hint-lowering.cc",
+    "src/compiler/js-type-hint-lowering.h",
     "src/compiler/js-typed-lowering.cc",
     "src/compiler/js-typed-lowering.h",
     "src/compiler/jump-threading.cc",
@@ -1430,6 +1438,8 @@ v8_source_set("v8_base") {
     "src/heap/array-buffer-tracker.h",
     "src/heap/code-stats.cc",
     "src/heap/code-stats.h",
+    "src/heap/concurrent-marking.cc",
+    "src/heap/concurrent-marking.h",
     "src/heap/embedder-tracing.cc",
     "src/heap/embedder-tracing.h",
     "src/heap/gc-idle-time-handler.cc",
@@ -1481,8 +1491,6 @@ v8_source_set("v8_base") {
     "src/ic/handler-compiler.h",
     "src/ic/handler-configuration-inl.h",
     "src/ic/handler-configuration.h",
-    "src/ic/ic-compiler.cc",
-    "src/ic/ic-compiler.h",
     "src/ic/ic-inl.h",
     "src/ic/ic-state.cc",
     "src/ic/ic-state.h",
@@ -1577,6 +1585,7 @@ v8_source_set("v8_base") {
     "src/machine-type.cc",
     "src/machine-type.h",
     "src/macro-assembler.h",
+    "src/managed.h",
     "src/map-updater.cc",
     "src/map-updater.h",
     "src/messages.cc",
@@ -1808,11 +1817,12 @@ v8_source_set("v8_base") {
     "src/wasm/function-body-decoder.cc",
     "src/wasm/function-body-decoder.h",
     "src/wasm/leb-helper.h",
-    "src/wasm/managed.h",
     "src/wasm/module-decoder.cc",
     "src/wasm/module-decoder.h",
     "src/wasm/signature-map.cc",
     "src/wasm/signature-map.h",
+    "src/wasm/wasm-code-specialization.cc",
+    "src/wasm/wasm-code-specialization.h",
     "src/wasm/wasm-debug.cc",
     "src/wasm/wasm-external-refs.cc",
     "src/wasm/wasm-external-refs.h",
@@ -1879,6 +1889,7 @@ v8_source_set("v8_base") {
       "src/ia32/macro-assembler-ia32.h",
       "src/ia32/simulator-ia32.cc",
       "src/ia32/simulator-ia32.h",
+      "src/ia32/sse-instr.h",
       "src/ic/ia32/access-compiler-ia32.cc",
       "src/ic/ia32/handler-compiler-ia32.cc",
       "src/ic/ia32/ic-ia32.cc",
@@ -2264,6 +2275,10 @@ v8_source_set("v8_base") {
   }
 
   if (v8_enable_inspector) {
+    sources += [
+      "include/v8-inspector-protocol.h",
+      "include/v8-inspector.h",
+    ]
     deps += [ "src/inspector:inspector" ]
   }
 }
@@ -2322,6 +2337,7 @@ v8_component("v8_libbase") {
     "src/base/safe_math_impl.h",
     "src/base/sys-info.cc",
     "src/base/sys-info.h",
+    "src/base/timezone-cache.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
   ]
@@ -2337,7 +2353,10 @@ v8_component("v8_libbase") {
   }
 
   if (is_posix) {
-    sources += [ "src/base/platform/platform-posix.cc" ]
+    sources += [
+      "src/base/platform/platform-posix.cc",
+      "src/base/platform/platform-posix.h",
+    ]
   }
 
   if (is_linux) {
@@ -3105,4 +3124,24 @@ v8_source_set("wasm_data_section_fuzzer") {
 }
 
 v8_fuzzer("wasm_data_section_fuzzer") {
+}
+
+v8_source_set("wasm_compile_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-compile.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":wasm_module_runner",
+    ":wasm_test_signatures",
+  ]
+
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
+}
+
+v8_fuzzer("wasm_compile_fuzzer") {
 }

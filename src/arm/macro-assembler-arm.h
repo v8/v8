@@ -5,6 +5,7 @@
 #ifndef V8_ARM_MACRO_ASSEMBLER_ARM_H_
 #define V8_ARM_MACRO_ASSEMBLER_ARM_H_
 
+#include "src/arm/assembler-arm.h"
 #include "src/assembler.h"
 #include "src/bailout-reason.h"
 #include "src/frames.h"
@@ -173,7 +174,7 @@ class MacroAssembler: public Assembler {
   void Pop(Register dst) { pop(dst); }
 
   // Register move. May do nothing if the registers are identical.
-  void Move(Register dst, Smi* smi) { mov(dst, Operand(smi)); }
+  void Move(Register dst, Smi* smi);
   void Move(Register dst, Handle<Object> value);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(Register dst, const Operand& src, SBit sbit = LeaveCC,
@@ -331,7 +332,7 @@ class MacroAssembler: public Assembler {
 
   // Push a handle.
   void Push(Handle<Object> handle);
-  void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
+  void Push(Smi* smi);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
@@ -562,6 +563,7 @@ class MacroAssembler: public Assembler {
   void VmovExtended(const MemOperand& dst, int src_code, Register scratch);
 
   void ExtractLane(Register dst, QwNeonRegister src, NeonDataType dt, int lane);
+  void ExtractLane(Register dst, DwVfpRegister src, NeonDataType dt, int lane);
   void ExtractLane(SwVfpRegister dst, QwNeonRegister src, Register scratch,
                    int lane);
   void ReplaceLane(QwNeonRegister dst, QwNeonRegister src, Register src_lane,
@@ -657,11 +659,7 @@ class MacroAssembler: public Assembler {
                                     Register map,
                                     Register scratch);
 
-  void InitializeRootRegister() {
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(isolate());
-    mov(kRootRegister, Operand(roots_array_start));
-  }
+  void InitializeRootRegister();
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -714,13 +712,9 @@ class MacroAssembler: public Assembler {
                         Register scratch,
                         Label* fail);
 
-  // ---------------------------------------------------------------------------
-  // Debugger Support
-
-  void DebugBreak();
+  // Frame restart support
   void MaybeDropFrames();
 
-  // ---------------------------------------------------------------------------
   // Exception handling
 
   // Push a new stack handler and link into stack handler chain.
@@ -930,16 +924,8 @@ class MacroAssembler: public Assembler {
   // Returns a condition that will be enabled if the object was a string
   // and the passed-in condition passed. If the passed-in condition failed
   // then flags remain unchanged.
-  Condition IsObjectStringType(Register obj,
-                               Register type,
-                               Condition cond = al) {
-    ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset), cond);
-    ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset), cond);
-    tst(type, Operand(kIsNotStringMask), cond);
-    DCHECK_EQ(0u, kStringTag);
-    return eq;
-  }
-
+  Condition IsObjectStringType(Register obj, Register type,
+                               Condition cond = al);
 
   // Get the number of least significant bits from a register
   void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
@@ -1204,12 +1190,8 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Smi utilities
 
-  void SmiTag(Register reg, SBit s = LeaveCC) {
-    add(reg, reg, Operand(reg), s);
-  }
-  void SmiTag(Register dst, Register src, SBit s = LeaveCC) {
-    add(dst, src, Operand(src), s);
-  }
+  void SmiTag(Register reg, SBit s = LeaveCC);
+  void SmiTag(Register dst, Register src, SBit s = LeaveCC);
 
   // Try to convert int32 to smi. If the value is to large, preserve
   // the original value and jump to not_a_smi. Destroys scratch and
@@ -1236,22 +1218,12 @@ class MacroAssembler: public Assembler {
   void UntagAndJumpIfSmi(Register dst, Register src, Label* smi_case);
 
   // Test if the register contains a smi (Z == 0 (eq) if true).
-  inline void SmiTst(Register value) {
-    tst(value, Operand(kSmiTagMask));
-  }
-  inline void NonNegativeSmiTst(Register value) {
-    tst(value, Operand(kSmiTagMask | kSmiSignMask));
-  }
+  void SmiTst(Register value);
+  void NonNegativeSmiTst(Register value);
   // Jump if the register contains a smi.
-  inline void JumpIfSmi(Register value, Label* smi_label) {
-    tst(value, Operand(kSmiTagMask));
-    b(eq, smi_label);
-  }
+  void JumpIfSmi(Register value, Label* smi_label);
   // Jump if either of the registers contain a non-smi.
-  inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
-    tst(value, Operand(kSmiTagMask));
-    b(ne, not_smi_label);
-  }
+  void JumpIfNotSmi(Register value, Label* not_smi_label);
   // Jump if either of the registers contain a non-smi.
   void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
   // Jump if either of the registers contain a smi.
@@ -1355,22 +1327,8 @@ class MacroAssembler: public Assembler {
     DecodeField<Field>(reg, reg);
   }
 
-  template<typename Field>
-  void DecodeFieldToSmi(Register dst, Register src) {
-    static const int shift = Field::kShift;
-    static const int mask = Field::kMask >> shift << kSmiTagSize;
-    STATIC_ASSERT((mask & (0x80000000u >> (kSmiTagSize - 1))) == 0);
-    STATIC_ASSERT(kSmiTag == 0);
-    if (shift < kSmiTagSize) {
-      mov(dst, Operand(src, LSL, kSmiTagSize - shift));
-      and_(dst, dst, Operand(mask));
-    } else if (shift > kSmiTagSize) {
-      mov(dst, Operand(src, LSR, shift - kSmiTagSize));
-      and_(dst, dst, Operand(mask));
-    } else {
-      and_(dst, src, Operand(mask));
-    }
-  }
+  template <typename Field>
+  void DecodeFieldToSmi(Register dst, Register src);
 
   template<typename Field>
   void DecodeFieldToSmi(Register reg) {

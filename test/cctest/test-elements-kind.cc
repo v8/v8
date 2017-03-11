@@ -14,7 +14,7 @@
 #include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/ic/stub-cache.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 
 using namespace v8::internal;
 

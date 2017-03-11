@@ -22,7 +22,9 @@
 #include "src/codegen.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 
 namespace v8 {
@@ -1999,6 +2001,9 @@ AsmWasmBuilder::Result AsmWasmBuilder::Run(Handle<FixedArray>* foreign_args) {
                           info_->parse_info()->ast_value_factory(),
                           info_->script(), info_->literal(), &typer_);
   bool success = impl.Build();
+  if (!success) {
+    return {nullptr, nullptr, success};
+  }
   *foreign_args = impl.GetForeignArgs();
   ZoneBuffer* module_buffer = new (zone) ZoneBuffer(zone);
   impl.builder_->WriteTo(*module_buffer);

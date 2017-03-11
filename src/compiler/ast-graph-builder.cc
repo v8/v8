@@ -1197,9 +1197,8 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void AstGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  Node* node = NewNode(javascript()->Debugger());
-  PrepareFrameState(node, stmt->DebugBreakId());
-  environment()->MarkAllLocalsLive();
+  // Debugger statement is supported only by going through Ignition first.
+  UNREACHABLE();
 }
 
 
@@ -1320,7 +1319,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             Handle<Name> name = key->AsPropertyName();
             VectorSlotPair feedback =
                 CreateVectorSlotPair(property->GetSlot(0));
-            Node* store = BuildNamedStore(literal, name, value, feedback);
+            Node* store = BuildNamedStoreOwn(literal, name, value, feedback);
             PrepareFrameState(store, key->id(),
                               OutputFrameStateCombine::Ignore());
             BuildSetHomeObject(value, literal, property, 1);
@@ -1991,14 +1990,8 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     case Token::EQ:
       op = javascript()->Equal(hint);
       break;
-    case Token::NE:
-      op = javascript()->NotEqual(hint);
-      break;
     case Token::EQ_STRICT:
       op = javascript()->StrictEqual(hint);
-      break;
-    case Token::NE_STRICT:
-      op = javascript()->StrictNotEqual(hint);
       break;
     case Token::LT:
       op = javascript()->LessThan(hint);
@@ -2626,6 +2619,15 @@ Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
   return node;
 }
 
+Node* AstGraphBuilder::BuildNamedStoreOwn(Node* object, Handle<Name> name,
+                                          Node* value,
+                                          const VectorSlotPair& feedback) {
+  DCHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
+            feedback.vector()->GetKind(feedback.slot()));
+  const Operator* op = javascript()->StoreNamedOwn(name, feedback);
+  Node* node = NewNode(op, object, value);
+  return node;
+}
 
 Node* AstGraphBuilder::BuildGlobalLoad(Handle<Name> name,
                                        const VectorSlotPair& feedback,
@@ -2692,7 +2694,7 @@ Node* AstGraphBuilder::BuildThrowError(Node* exception, BailoutId bailout_id) {
   const Operator* op = javascript()->CallRuntime(Runtime::kThrow);
   Node* call = NewNode(op, exception);
   PrepareFrameState(call, bailout_id);
-  Node* control = NewNode(common()->Throw(), call);
+  Node* control = NewNode(common()->Throw());
   UpdateControlDependencyToLeaveFunction(control);
   return call;
 }
@@ -2704,7 +2706,7 @@ Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
   const Operator* op = javascript()->CallRuntime(Runtime::kThrowReferenceError);
   Node* call = NewNode(op, variable_name);
   PrepareFrameState(call, bailout_id);
-  Node* control = NewNode(common()->Throw(), call);
+  Node* control = NewNode(common()->Throw());
   UpdateControlDependencyToLeaveFunction(control);
   return call;
 }
@@ -2715,7 +2717,7 @@ Node* AstGraphBuilder::BuildThrowConstAssignError(BailoutId bailout_id) {
       javascript()->CallRuntime(Runtime::kThrowConstAssignError);
   Node* call = NewNode(op);
   PrepareFrameState(call, bailout_id);
-  Node* control = NewNode(common()->Throw(), call);
+  Node* control = NewNode(common()->Throw());
   UpdateControlDependencyToLeaveFunction(control);
   return call;
 }
@@ -2736,7 +2738,7 @@ Node* AstGraphBuilder::BuildReturn(Node* return_value) {
 
 Node* AstGraphBuilder::BuildThrow(Node* exception_value) {
   NewNode(javascript()->CallRuntime(Runtime::kReThrow), exception_value);
-  Node* control = NewNode(common()->Throw(), exception_value);
+  Node* control = NewNode(common()->Throw());
   UpdateControlDependencyToLeaveFunction(control);
   return control;
 }
@@ -2748,37 +2750,37 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op,
   BinaryOperationHint hint = BinaryOperationHint::kAny;
   switch (op) {
     case Token::BIT_OR:
-      js_op = javascript()->BitwiseOr(hint);
+      js_op = javascript()->BitwiseOr();
       break;
     case Token::BIT_AND:
-      js_op = javascript()->BitwiseAnd(hint);
+      js_op = javascript()->BitwiseAnd();
       break;
     case Token::BIT_XOR:
-      js_op = javascript()->BitwiseXor(hint);
+      js_op = javascript()->BitwiseXor();
       break;
     case Token::SHL:
-      js_op = javascript()->ShiftLeft(hint);
+      js_op = javascript()->ShiftLeft();
       break;
     case Token::SAR:
-      js_op = javascript()->ShiftRight(hint);
+      js_op = javascript()->ShiftRight();
       break;
     case Token::SHR:
-      js_op = javascript()->ShiftRightLogical(hint);
+      js_op = javascript()->ShiftRightLogical();
       break;
     case Token::ADD:
       js_op = javascript()->Add(hint);
       break;
     case Token::SUB:
-      js_op = javascript()->Subtract(hint);
+      js_op = javascript()->Subtract();
       break;
     case Token::MUL:
-      js_op = javascript()->Multiply(hint);
+      js_op = javascript()->Multiply();
       break;
     case Token::DIV:
-      js_op = javascript()->Divide(hint);
+      js_op = javascript()->Divide();
       break;
     case Token::MOD:
-      js_op = javascript()->Modulus(hint);
+      js_op = javascript()->Modulus();
       break;
     default:
       UNREACHABLE();
@@ -2806,9 +2808,7 @@ Node* AstGraphBuilder::TryFastToBoolean(Node* input) {
       return jsgraph_->BooleanConstant(object->BooleanValue());
     }
     case IrOpcode::kJSEqual:
-    case IrOpcode::kJSNotEqual:
     case IrOpcode::kJSStrictEqual:
-    case IrOpcode::kJSStrictNotEqual:
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSGreaterThan:
@@ -2923,7 +2923,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     result = graph()->NewNode(op, input_count_with_deps, buffer, incomplete);
     if (!environment()->IsMarkedAsUnreachable()) {
       // Update the current control dependency for control-producing nodes.
-      if (NodeProperties::IsControl(result)) {
+      if (result->op()->ControlOutputCount() > 0) {
         environment_->UpdateControlDependency(result);
       }
       // Update the current effect dependency for effect-producing nodes.

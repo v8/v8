@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Test that descriptions for arrays, maps, and sets include the correct length or size.")
+InspectorTest.log("Test that descriptions for arrays, maps, and sets include the correct length or size.")
 
 Promise.all([
   testExpression("new Set()"),

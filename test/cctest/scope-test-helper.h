@@ -17,73 +17,46 @@ class ScopeTestHelper {
     return var->scope()->MustAllocateInContext(var);
   }
 
-  // True if the scope is and its entire subscope tree are hidden.
-  static bool ScopeTreeIsHidden(Scope* scope) {
-    if (!scope->is_hidden()) {
-      return false;
-    }
-    for (Scope* inner = scope->inner_scope(); inner != nullptr;
-         inner = inner->sibling()) {
-      if (!ScopeTreeIsHidden(inner)) {
-        return false;
-      }
-    }
-    return true;
+  static void AllocateWithoutVariableResolution(Scope* scope) {
+    scope->AllocateVariablesRecursively();
   }
 
-  static void CompareScopeToData(Scope* scope, const PreParsedScopeData* data,
-                                 size_t& index, bool precise_maybe_assigned) {
-    CHECK_EQ(data->backing_store_[index++], scope->scope_type());
-    CHECK_EQ(data->backing_store_[index++], scope->start_position());
-    CHECK_EQ(data->backing_store_[index++], scope->end_position());
+  static void CompareScopes(Scope* baseline, Scope* scope,
+                            bool precise_maybe_assigned) {
+    if (!scope->is_hidden()) {
+      for (auto baseline_local = baseline->locals()->begin(),
+                scope_local = scope->locals()->begin();
+           baseline_local != baseline->locals()->end();
+           ++baseline_local, ++scope_local) {
+        if (scope_local->mode() == VAR || scope_local->mode() == LET ||
+            scope_local->mode() == CONST) {
+          // Sanity check the variable name. If this fails, the variable order
+          // is not deterministic.
+          CHECK_EQ(scope_local->raw_name()->length(),
+                   baseline_local->raw_name()->length());
+          for (int i = 0; i < scope_local->raw_name()->length(); ++i) {
+            CHECK_EQ(scope_local->raw_name()->raw_data()[i],
+                     baseline_local->raw_name()->raw_data()[i]);
+          }
 
-    int inner_scope_count = 0;
-    for (Scope* inner = scope->inner_scope(); inner != nullptr;
-         inner = inner->sibling()) {
-      // FIXME(marja): This is probably not the right condition for knowing what
-      // scopes are present in the preparse data.
-      if (!ScopeTreeIsHidden(inner)) {
-        ++inner_scope_count;
-      }
-    }
-    CHECK_EQ(data->backing_store_[index++], inner_scope_count);
-
-    int variable_count = 0;
-    for (Variable* local : scope->locals_) {
-      if (local->mode() == VAR || local->mode() == LET ||
-          local->mode() == CONST) {
-        ++variable_count;
-      }
-    }
-
-    CHECK_EQ(data->backing_store_[index++], variable_count);
-
-    for (Variable* local : scope->locals_) {
-      if (local->mode() == VAR || local->mode() == LET ||
-          local->mode() == CONST) {
-#ifdef DEBUG
-        const AstRawString* local_name = local->raw_name();
-        int name_length = data->backing_store_[index++];
-        CHECK_EQ(name_length, local_name->length());
-        for (int i = 0; i < name_length; ++i) {
-          CHECK_EQ(data->backing_store_[index++], local_name->raw_data()[i]);
-        }
-#endif
-        CHECK_EQ(data->backing_store_[index++], local->location());
-        if (precise_maybe_assigned) {
-          CHECK_EQ(data->backing_store_[index++], local->maybe_assigned());
-        } else {
-          STATIC_ASSERT(kMaybeAssigned > kNotAssigned);
-          CHECK_GE(data->backing_store_[index++], local->maybe_assigned());
+          CHECK_EQ(scope_local->location(), baseline_local->location());
+          if (precise_maybe_assigned) {
+            CHECK_EQ(scope_local->maybe_assigned(),
+                     baseline_local->maybe_assigned());
+          } else {
+            STATIC_ASSERT(kMaybeAssigned > kNotAssigned);
+            CHECK_GE(scope_local->maybe_assigned(),
+                     baseline_local->maybe_assigned());
+          }
         }
       }
     }
 
-    for (Scope* inner = scope->inner_scope(); inner != nullptr;
-         inner = inner->sibling()) {
-      if (!ScopeTreeIsHidden(inner)) {
-        CompareScopeToData(inner, data, index, precise_maybe_assigned);
-      }
+    for (Scope *baseline_inner = baseline->inner_scope(),
+               *scope_inner = scope->inner_scope();
+         scope_inner != nullptr; scope_inner = scope_inner->sibling(),
+               baseline_inner = baseline_inner->sibling()) {
+      CompareScopes(baseline_inner, scope_inner, precise_maybe_assigned);
     }
   }
 };

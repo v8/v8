@@ -673,14 +673,6 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
   bind(&done);
 }
 
-void MacroAssembler::DebugBreak() {
-  Move(eax, Immediate(0));
-  mov(ebx, Immediate(ExternalReference(Runtime::kHandleDebuggerStatement,
-                                       isolate())));
-  CEntryStub ces(isolate(), 1);
-  call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
-}
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
@@ -1007,7 +999,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
   push(ebp);  // Caller's frame pointer.
   mov(ebp, esp);
-  push(Immediate(Smi::FromInt(type)));
+  push(Immediate(StackFrame::TypeToMarker(type)));
 }
 
 void MacroAssembler::Prologue(bool code_pre_aging) {
@@ -1043,7 +1035,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, esp);
-  push(Immediate(Smi::FromInt(type)));
+  push(Immediate(StackFrame::TypeToMarker(type)));
   if (type == StackFrame::INTERNAL) {
     push(Immediate(CodeObject()));
   }
@@ -1057,7 +1049,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   if (emit_debug_code()) {
     cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
-        Immediate(Smi::FromInt(type)));
+        Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, kStackFrameTypesMustMatch);
   }
   leave();
@@ -1092,7 +1084,7 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
   mov(ebp, esp);
 
   // Reserve room for entry stack pointer and push the code object.
-  push(Immediate(Smi::FromInt(frame_type)));
+  push(Immediate(StackFrame::TypeToMarker(frame_type)));
   DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
   push(Immediate(0));  // Saved entry sp, patched before call.
   DCHECK_EQ(-3 * kPointerSize, ExitFrameConstants::kCodeOffset);
@@ -2278,32 +2270,41 @@ void MacroAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
     movd(dst, src);
     return;
   }
-  DCHECK_EQ(1, imm8);
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pextrd(dst, src, imm8);
     return;
   }
-  pshufd(xmm0, src, 1);
+  DCHECK_LT(imm8, 4);
+  pshufd(xmm0, src, imm8);
   movd(dst, xmm0);
 }
 
-
-void MacroAssembler::Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8) {
-  DCHECK(imm8 == 0 || imm8 == 1);
+void MacroAssembler::Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8,
+                            bool is_64_bits) {
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pinsrd(dst, src, imm8);
     return;
   }
-  movd(xmm0, src);
-  if (imm8 == 1) {
-    punpckldq(dst, xmm0);
+  if (is_64_bits) {
+    movd(xmm0, src);
+    if (imm8 == 1) {
+      punpckldq(dst, xmm0);
+    } else {
+      DCHECK_EQ(0, imm8);
+      psrlq(dst, 32);
+      punpckldq(xmm0, dst);
+      movaps(dst, xmm0);
+    }
   } else {
-    DCHECK_EQ(0, imm8);
-    psrlq(dst, 32);
-    punpckldq(xmm0, dst);
-    movaps(dst, xmm0);
+    DCHECK_LT(imm8, 4);
+    push(eax);
+    mov(eax, src);
+    pinsrw(dst, eax, imm8 * 2);
+    shr(eax, 16);
+    pinsrw(dst, eax, imm8 * 2 + 1);
+    pop(eax);
   }
 }
 

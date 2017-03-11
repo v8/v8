@@ -318,6 +318,7 @@ using v8::MemoryPressureLevel;
 // Forward declarations.
 class AllocationObserver;
 class ArrayBufferTracker;
+class ConcurrentMarking;
 class GCIdleTimeAction;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
@@ -374,6 +375,17 @@ enum class GarbageCollectionReason {
   kTesting = 21
   // If you add new items here, then update the incremental_marking_reason,
   // mark_compact_reason, and scavenge_reason counters in counters.h.
+  // Also update src/tools/metrics/histograms/histograms.xml in chromium.
+};
+
+enum class YoungGenerationHandling {
+  kRegularScavenge = 0,
+  kFastPromotionDuringScavenge = 1,
+  // Histogram::InspectConstructionArguments in chromium requires us to have at
+  // least three buckets.
+  kUnusedBucket = 2,
+  // If you add new items here, then update the young_generation_handling in
+  // counters.h.
   // Also update src/tools/metrics/histograms/histograms.xml in chromium.
 };
 
@@ -636,6 +648,8 @@ class Heap {
 
   // The minimum size of a HeapObject on the heap.
   static const int kMinObjectSizeInWords = 2;
+
+  static const int kMinPromotedPercentForFastPromotionMode = 90;
 
   STATIC_ASSERT(kUndefinedValueRootIndex ==
                 Internals::kUndefinedValueRootIndex);
@@ -1225,6 +1239,20 @@ class Heap {
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
 
+  // The runtime uses this function to notify potentially unsafe object layout
+  // changes that require special synchronization with the concurrent marker.
+  // A layout change is unsafe if
+  // - it removes a tagged in-object field.
+  // - it replaces a tagged in-objects field with an untagged in-object field.
+  void NotifyObjectLayoutChange(HeapObject* object,
+                                const DisallowHeapAllocation&);
+#ifdef VERIFY_HEAP
+  // This function checks that either
+  // - the map transition is safe,
+  // - or it was communicated to GC using NotifyObjectLayoutChange.
+  void VerifyObjectLayoutChange(HeapObject* object, Map* new_map);
+#endif
+
   // ===========================================================================
   // Embedder heap tracer support. =============================================
   // ===========================================================================
@@ -1487,10 +1515,6 @@ class Heap {
 #ifdef DEBUG
   void set_allocation_timeout(int timeout) { allocation_timeout_ = timeout; }
 
-  void TracePathToObjectFrom(Object* target, Object* root);
-  void TracePathToObject(Object* target);
-  void TracePathToGlobal();
-
   void Print();
   void PrintHandles();
 
@@ -1516,6 +1540,7 @@ class Heap {
 
     inline void IterateAll(ObjectVisitor* v);
     inline void IterateNewSpaceStrings(ObjectVisitor* v);
+    inline void PromoteAllNewSpaceStrings();
 
     // Restores internal invariant and gets rid of collected strings. Must be
     // called after each Iterate*() that modified the strings.
@@ -1750,6 +1775,8 @@ class Heap {
 
   void InvokeOutOfMemoryCallback();
 
+  void ComputeFastPromotionMode(double survival_rate);
+
   // Attempt to over-approximate the weak closure by marking object groups and
   // implicit references from global handles, but don't atomically complete
   // marking. If we continue to mark incrementally, we might have marked
@@ -1793,6 +1820,7 @@ class Heap {
 
   // Performs a minor collection in new generation.
   void Scavenge();
+  void EvacuateYoungGeneration();
 
   Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front);
 
@@ -1873,7 +1901,7 @@ class Heap {
 
   bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
 
-  bool CanExpandOldGeneration(int size) {
+  bool CanExpandOldGeneration(size_t size) {
     if (force_oom_) return false;
     return (OldGenerationCapacity() + size) < MaxOldGenerationSize();
   }
@@ -2263,6 +2291,7 @@ class Heap {
   StoreBuffer* store_buffer_;
 
   IncrementalMarking* incremental_marking_;
+  ConcurrentMarking* concurrent_marking_;
 
   GCIdleTimeHandler* gc_idle_time_handler_;
 
@@ -2336,12 +2365,17 @@ class Heap {
 
   LocalEmbedderHeapTracer* local_embedder_heap_tracer_;
 
+  bool fast_promotion_mode_;
+
   // Used for testing purposes.
   bool force_oom_;
   bool delay_sweeper_tasks_for_testing_;
 
+  HeapObject* pending_layout_change_object_;
+
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
+  friend class ConcurrentMarking;
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapIterator;
@@ -2533,65 +2567,6 @@ class WeakObjectRetainer {
   // should be returned as in some GC situations the object has been moved.
   virtual Object* RetainAs(Object* object) = 0;
 };
-
-
-#ifdef DEBUG
-// Helper class for tracing paths to a search target Object from all roots.
-// The TracePathFrom() method can be used to trace paths from a specific
-// object to the search target object.
-class PathTracer : public ObjectVisitor {
- public:
-  enum WhatToFind {
-    FIND_ALL,   // Will find all matches.
-    FIND_FIRST  // Will stop the search after first match.
-  };
-
-  // Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
-  static const int kMarkTag = 2;
-
-  // For the WhatToFind arg, if FIND_FIRST is specified, tracing will stop
-  // after the first match.  If FIND_ALL is specified, then tracing will be
-  // done for all matches.
-  PathTracer(Object* search_target, WhatToFind what_to_find,
-             VisitMode visit_mode)
-      : search_target_(search_target),
-        found_target_(false),
-        found_target_in_trace_(false),
-        what_to_find_(what_to_find),
-        visit_mode_(visit_mode),
-        object_stack_(20),
-        no_allocation() {}
-
-  void VisitPointers(Object** start, Object** end) override;
-
-  void Reset();
-  void TracePathFrom(Object** root);
-
-  bool found() const { return found_target_; }
-
-  static Object* const kAnyGlobalObject;
-
- protected:
-  class MarkVisitor;
-  class UnmarkVisitor;
-
-  void MarkRecursively(Object** p, MarkVisitor* mark_visitor);
-  void UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor);
-  virtual void ProcessResults();
-
-  Object* search_target_;
-  bool found_target_;
-  bool found_target_in_trace_;
-  WhatToFind what_to_find_;
-  VisitMode visit_mode_;
-  List<Object*> object_stack_;
-
-  DisallowHeapAllocation no_allocation;  // i.e. no gc allowed.
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);
-};
-#endif  // DEBUG
 
 // -----------------------------------------------------------------------------
 // Allows observation of allocations.

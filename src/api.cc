@@ -35,6 +35,7 @@
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
 #include "src/counters.h"
+#include "src/debug/debug-coverage.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
@@ -47,6 +48,7 @@
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
 #include "src/messages.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/pending-compilation-error-handler.h"
@@ -509,8 +511,11 @@ SnapshotCreator::SnapshotCreator(intptr_t* external_references,
   internal_isolate->set_array_buffer_allocator(&data->allocator_);
   internal_isolate->set_api_external_references(external_references);
   isolate->Enter();
-  if (existing_snapshot) {
-    internal_isolate->set_snapshot_blob(existing_snapshot);
+  const StartupData* blob = existing_snapshot
+                                ? existing_snapshot
+                                : i::Snapshot::DefaultSnapshotBlob();
+  if (blob && blob->raw_size > 0) {
+    internal_isolate->set_snapshot_blob(blob);
     i::Snapshot::Initialize(internal_isolate);
   } else {
     internal_isolate->Init(nullptr);
@@ -2178,7 +2183,10 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
 
 MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundScript(
     Isolate* v8_isolate, Source* source, CompileOptions options) {
-  DCHECK(!source->GetResourceOptions().IsModule());
+  Utils::ApiCheck(
+      !source->GetResourceOptions().IsModule(),
+      "v8::ScriptCompiler::CompileUnboundScript",
+      "v8::ScriptCompiler::CompileModule must be used to compile modules");
   return CompileUnboundInternal(v8_isolate, source, options);
 }
 
@@ -2186,7 +2194,10 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundScript(
 Local<UnboundScript> ScriptCompiler::CompileUnbound(Isolate* v8_isolate,
                                                     Source* source,
                                                     CompileOptions options) {
-  DCHECK(!source->GetResourceOptions().IsModule());
+  Utils::ApiCheck(
+      !source->GetResourceOptions().IsModule(),
+      "v8::ScriptCompiler::CompileUnbound",
+      "v8::ScriptCompiler::CompileModule must be used to compile modules");
   RETURN_TO_LOCAL_UNCHECKED(CompileUnboundInternal(v8_isolate, source, options),
                             UnboundScript);
 }
@@ -2195,7 +2206,9 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(Isolate* v8_isolate,
 MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
                                            Source* source,
                                            CompileOptions options) {
-  DCHECK(!source->GetResourceOptions().IsModule());
+  Utils::ApiCheck(
+      !source->GetResourceOptions().IsModule(), "v8::ScriptCompiler::Compile",
+      "v8::ScriptCompiler::CompileModule must be used to compile modules");
   auto isolate = context->GetIsolate();
   auto maybe = CompileUnboundInternal(isolate, source, options);
   Local<UnboundScript> result;
@@ -2217,7 +2230,9 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(Isolate* isolate,
                                                  Source* source) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  DCHECK(source->GetResourceOptions().IsModule());
+  Utils::ApiCheck(source->GetResourceOptions().IsModule(),
+                  "v8::ScriptCompiler::CompileModule",
+                  "Invalid ScriptOrigin: is_module must be true");
   auto maybe = CompileUnboundInternal(isolate, source, kNoCompileOptions);
   Local<UnboundScript> unbound;
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
@@ -2274,9 +2289,14 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
                         Function);
   TRACE_EVENT0("v8", "V8.ScriptCompiler");
   i::Handle<i::String> source_string;
+  int parameters_end_pos = i::kNoSourcePosition;
   auto factory = isolate->factory();
   if (arguments_count) {
-    source_string = factory->NewStringFromStaticChars("(function(");
+    if (i::FLAG_harmony_function_tostring) {
+      source_string = factory->NewStringFromStaticChars("(function anonymous(");
+    } else {
+      source_string = factory->NewStringFromStaticChars("(function(");
+    }
     for (size_t i = 0; i < arguments_count; ++i) {
       IsIdentifierHelper helper;
       if (!helper.Check(*Utils::OpenHandle(*arguments[i]))) {
@@ -2294,12 +2314,24 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
                                       ',')).ToHandle(&source_string);
       RETURN_ON_FAILED_EXECUTION(Function);
     }
-    auto brackets = factory->NewStringFromStaticChars("){");
+    i::Handle<i::String> brackets;
+    if (i::FLAG_harmony_function_tostring) {
+      brackets = factory->NewStringFromStaticChars("\n) {");
+      parameters_end_pos = source_string->length() - 3;
+    } else {
+      brackets = factory->NewStringFromStaticChars("){");
+    }
     has_pending_exception = !factory->NewConsString(source_string, brackets)
                                  .ToHandle(&source_string);
     RETURN_ON_FAILED_EXECUTION(Function);
   } else {
-    source_string = factory->NewStringFromStaticChars("(function(){");
+    if (i::FLAG_harmony_function_tostring) {
+      source_string =
+          factory->NewStringFromStaticChars("(function anonymous(\n) {");
+      parameters_end_pos = source_string->length() - 3;
+    } else {
+      source_string = factory->NewStringFromStaticChars("(function(){");
+    }
   }
 
   int scope_position = source_string->length();
@@ -2349,9 +2381,9 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
   has_pending_exception =
       !i::Compiler::GetFunctionFromEval(
            source_string, outer_info, context, i::SLOPPY,
-           i::ONLY_SINGLE_FUNCTION_LITERAL, eval_scope_position, eval_position,
-           line_offset, column_offset - scope_position, name_obj,
-           source->resource_options)
+           i::ONLY_SINGLE_FUNCTION_LITERAL, parameters_end_pos,
+           eval_scope_position, eval_position, line_offset,
+           column_offset - scope_position, name_obj, source->resource_options)
            .ToHandle(&fun);
   if (has_pending_exception) {
     isolate->ReportPendingMessages();
@@ -3140,6 +3172,10 @@ ValueSerializer::~ValueSerializer() { delete private_; }
 
 void ValueSerializer::WriteHeader() { private_->serializer.WriteHeader(); }
 
+void ValueSerializer::SetTreatArrayBufferViewsAsHostObjects(bool mode) {
+  private_->serializer.SetTreatArrayBufferViewsAsHostObjects(mode);
+}
+
 Maybe<bool> ValueSerializer::WriteValue(Local<Context> context,
                                         Local<Value> value) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, ValueSerializer, WriteValue, bool);
@@ -3240,10 +3276,9 @@ Maybe<bool> ValueDeserializer::ReadHeader(Local<Context> context) {
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   DCHECK(read_header);
 
-  // TODO(jbroman): Today, all wire formats are "legacy". When a more supported
-  // format is added, compare the version of the internal serializer to the
-  // minimum non-legacy version number.
-  if (!private_->supports_legacy_wire_format) {
+  static const uint32_t kMinimumNonLegacyVersion = 13;
+  if (GetWireFormatVersion() < kMinimumNonLegacyVersion &&
+      !private_->supports_legacy_wire_format) {
     isolate->Throw(*isolate->factory()->NewError(
         i::MessageTemplate::kDataCloneDeserializationVersionError));
     has_pending_exception = true;
@@ -4472,12 +4507,11 @@ bool v8::Object::SetPrototype(Local<Value> value) {
   return SetPrototype(context, value).FromMaybe(false);
 }
 
-
 Local<Object> v8::Object::FindInstanceInPrototypeChain(
     v8::Local<FunctionTemplate> tmpl) {
-  auto isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::PrototypeIterator iter(isolate, *Utils::OpenHandle(this),
-                            i::kStartAtReceiver);
+  auto self = Utils::OpenHandle(this);
+  auto isolate = self->GetIsolate();
+  i::PrototypeIterator iter(isolate, *self, i::kStartAtReceiver);
   auto tmpl_info = *Utils::OpenHandle(*tmpl);
   while (!tmpl_info->IsTemplateFor(iter.GetCurrent<i::JSObject>())) {
     iter.Advance();
@@ -4966,8 +5000,7 @@ Local<v8::Object> v8::Object::Clone() {
 
 Local<v8::Context> v8::Object::CreationContext() {
   auto self = Utils::OpenHandle(this);
-  auto context = handle(self->GetCreationContext());
-  return Utils::ToLocal(context);
+  return Utils::ToLocal(self->GetCreationContext());
 }
 
 
@@ -6334,9 +6367,7 @@ Local<Context> NewContext(
       isolate, extensions, global_template, global_object,
       context_snapshot_index, internal_fields_deserializer);
   if (env.is_null()) {
-    if (isolate->has_pending_exception()) {
-      isolate->OptionalRescheduleException(true);
-    }
+    if (isolate->has_pending_exception()) isolate->clear_pending_exception();
     return Local<Context>();
   }
   return Utils::ToLocal(scope.CloseAndEscape(env));
@@ -6387,9 +6418,7 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
                                           global_object, 0,
                                           DeserializeInternalFieldsCallback());
   if (global_proxy.is_null()) {
-    if (isolate->has_pending_exception()) {
-      isolate->OptionalRescheduleException(true);
-    }
+    if (isolate->has_pending_exception()) isolate->clear_pending_exception();
     return MaybeLocal<Object>();
   }
   return Utils::ToLocal(
@@ -6549,10 +6578,13 @@ bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
     return true;
   }
   if (obj->IsJSGlobalProxy()) {
-    // If it's a global proxy object, then test with the global object.
+    // If it's a global proxy, then test with the global object. Note that the
+    // inner global object may not necessarily be a JSGlobalObject.
     i::PrototypeIterator iter(i::JSObject::cast(*obj)->map());
-    if (iter.IsAtEnd()) return false;
-    return self->IsTemplateFor(iter.GetCurrent<i::JSGlobalObject>());
+    // The global proxy should always have a prototype, as it is a bug to call
+    // this on a detached JSGlobalProxy.
+    DCHECK(!iter.IsAtEnd());
+    return self->IsTemplateFor(iter.GetCurrent<i::JSObject>());
   }
   return false;
 }
@@ -7541,11 +7573,8 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
                                                            size_t length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::wasm::ErrorThrower thrower(i_isolate, "WasmCompiledModule::Deserialize()");
-  i::MaybeHandle<i::JSObject> maybe_compiled =
-      i::wasm::CreateModuleObjectFromBytes(
-          i_isolate, start, start + length, &thrower,
-          i::wasm::ModuleOrigin::kWasmOrigin, i::Handle<i::Script>::null(),
-          i::Vector<const uint8_t>::empty());
+  i::MaybeHandle<i::JSObject> maybe_compiled = i::wasm::SyncCompile(
+      i_isolate, &thrower, i::wasm::ModuleWireBytes(start, start + length));
   if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();
   return Local<WasmCompiledModule>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
@@ -7999,6 +8028,18 @@ v8::Local<v8::Context> Isolate::GetEnteredContext() {
   return Utils::ToLocal(i::Handle<i::Context>::cast(last));
 }
 
+v8::Local<v8::Context> Isolate::GetEnteredOrMicrotaskContext() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Handle<i::Object> last;
+  if (isolate->handle_scope_implementer()
+          ->MicrotaskContextIsLastEnteredContext()) {
+    last = isolate->handle_scope_implementer()->MicrotaskContext();
+  } else {
+    last = isolate->handle_scope_implementer()->LastEnteredContext();
+  }
+  if (last.is_null()) return Local<Context>();
+  return Utils::ToLocal(i::Handle<i::Context>::cast(last));
+}
 
 v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8012,31 +8053,6 @@ v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   }
   return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
 }
-
-
-void Isolate::SetObjectGroupId(internal::Object** object, UniqueId id) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
-  internal_isolate->global_handles()->SetObjectGroupId(
-      i::Handle<i::Object>(object).location(), id);
-}
-
-
-void Isolate::SetReferenceFromGroup(UniqueId id, internal::Object** object) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
-  internal_isolate->global_handles()->SetReferenceFromGroup(
-      id, i::Handle<i::Object>(object).location());
-}
-
-
-void Isolate::SetReference(internal::Object** parent,
-                           internal::Object** child) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Object** parent_location = i::Handle<i::Object>(parent).location();
-  internal_isolate->global_handles()->SetReference(
-      reinterpret_cast<i::HeapObject**>(parent_location),
-      i::Handle<i::Object>(child).location());
-}
-
 
 void Isolate::AddGCPrologueCallback(GCCallback callback, GCType gc_type) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8185,6 +8201,10 @@ void Isolate::Dispose() {
   isolate->TearDown();
 }
 
+void Isolate::DumpAndResetStats() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->DumpAndResetStats();
+}
 
 void Isolate::DiscardThreadSpecificMetadata() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8648,6 +8668,16 @@ void Isolate::SetAllowCodeGenerationFromStringsCallback(
   isolate->set_allow_code_gen_callback(callback);
 }
 
+void Isolate::SetAllowWasmCompileCallback(AllowWasmCompileCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->set_allow_wasm_compile_callback(callback);
+}
+
+void Isolate::SetAllowWasmInstantiateCallback(
+    AllowWasmInstantiateCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->set_allow_wasm_instantiate_callback(callback);
+}
 
 bool Isolate::IsDead() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8931,16 +8961,11 @@ bool Debug::SetDebugEventListener(Isolate* isolate, EventCallback that,
   return true;
 }
 
-void Debug::DebugBreak(Isolate* isolate) {
-  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->RequestDebugBreak();
-}
-
+void Debug::DebugBreak(Isolate* isolate) { debug::DebugBreak(isolate); }
 
 void Debug::CancelDebugBreak(Isolate* isolate) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->stack_guard()->ClearDebugBreak();
+  debug::CancelDebugBreak(isolate);
 }
-
 
 bool Debug::CheckDebugBreak(Isolate* isolate) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -8956,28 +8981,14 @@ void Debug::SendCommand(Isolate* isolate, const uint16_t* command, int length,
 MaybeLocal<Value> Debug::Call(Local<Context> context,
                               v8::Local<v8::Function> fun,
                               v8::Local<v8::Value> data) {
-  PREPARE_FOR_EXECUTION(context, Debug, Call, Value);
-  i::Handle<i::Object> data_obj;
-  if (data.IsEmpty()) {
-    data_obj = isolate->factory()->undefined_value();
-  } else {
-    data_obj = Utils::OpenHandle(*data);
-  }
-  Local<Value> result;
-  has_pending_exception =
-      !ToLocal<Value>(isolate->debug()->Call(Utils::OpenHandle(*fun), data_obj),
-                      &result);
-  RETURN_ON_FAILED_EXECUTION(Value);
-  RETURN_ESCAPED(result);
+  return debug::Call(context, fun, data);
 }
-
 
 void Debug::ProcessDebugMessages(Isolate* isolate) {}
 
 Local<Context> Debug::GetDebugContext(Isolate* isolate) {
   return debug::GetDebugContext(isolate);
 }
-
 
 MaybeLocal<Context> Debug::GetDebuggedContext(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -8989,8 +9000,7 @@ MaybeLocal<Context> Debug::GetDebuggedContext(Isolate* isolate) {
 }
 
 void Debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->debug()->set_live_edit_enabled(enable);
+  debug::SetLiveEditEnabled(isolate, enable);
 }
 
 bool Debug::IsTailCallEliminationEnabled(Isolate* isolate) {
@@ -9005,13 +9015,7 @@ void Debug::SetTailCallEliminationEnabled(Isolate* isolate, bool enabled) {
 
 MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,
                                                Local<Value> value) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ENTER_V8(isolate);
-  i::Handle<i::Object> val = Utils::OpenHandle(*value);
-  i::Handle<i::JSArray> result;
-  if (!i::Runtime::GetInternalProperties(isolate, val).ToHandle(&result))
-    return MaybeLocal<Array>();
-  return Utils::ToLocal(result);
+  return debug::GetInternalProperties(v8_isolate, value);
 }
 
 Local<Context> debug::GetDebugContext(Isolate* isolate) {
@@ -9023,22 +9027,43 @@ Local<Context> debug::GetDebugContext(Isolate* isolate) {
 MaybeLocal<Value> debug::Call(Local<Context> context,
                               v8::Local<v8::Function> fun,
                               v8::Local<v8::Value> data) {
-  return Debug::Call(context, fun, data);
+  PREPARE_FOR_EXECUTION(context, Debug, Call, Value);
+  i::Handle<i::Object> data_obj;
+  if (data.IsEmpty()) {
+    data_obj = isolate->factory()->undefined_value();
+  } else {
+    data_obj = Utils::OpenHandle(*data);
+  }
+  Local<Value> result;
+  has_pending_exception = !ToLocal<Value>(
+      isolate->debug()->Call(Utils::OpenHandle(*fun), data_obj), &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
 }
 
 void debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
-  Debug::SetLiveEditEnabled(isolate, enable);
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->debug()->set_live_edit_enabled(enable);
 }
 
-void debug::DebugBreak(Isolate* isolate) { Debug::DebugBreak(isolate); }
+void debug::DebugBreak(Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->RequestDebugBreak();
+}
 
 void debug::CancelDebugBreak(Isolate* isolate) {
-  Debug::CancelDebugBreak(isolate);
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->stack_guard()->ClearDebugBreak();
 }
 
-MaybeLocal<Array> debug::GetInternalProperties(Isolate* isolate,
+MaybeLocal<Array> debug::GetInternalProperties(Isolate* v8_isolate,
                                                Local<Value> value) {
-  return Debug::GetInternalProperties(isolate, value);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  i::Handle<i::Object> val = Utils::OpenHandle(*value);
+  i::Handle<i::JSArray> result;
+  if (!i::Runtime::GetInternalProperties(isolate, val).ToHandle(&result))
+    return MaybeLocal<Array>();
+  return Utils::ToLocal(result);
 }
 
 void debug::ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
@@ -9072,17 +9097,18 @@ void debug::PrepareStep(Isolate* v8_isolate, StepAction action) {
   isolate->debug()->PrepareStep(static_cast<i::StepAction>(action));
 }
 
-bool debug::HasNonBlackboxedFrameOnStack(Isolate* v8_isolate) {
+void debug::ClearStepping(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  for (i::StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
-    if (!it.is_javascript()) continue;
-    if (!isolate->debug()->IsFrameBlackboxed(it.javascript_frame())) {
-      return true;
-    }
-  }
-  return false;
+  CHECK(isolate->debug()->CheckExecutionState());
+  // Clear all current stepping setup.
+  isolate->debug()->ClearStepping();
+}
+
+bool debug::AllFramesOnStackAreBlackboxed(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  return isolate->debug()->AllFramesOnStackAreBlackboxed();
 }
 
 v8::Isolate* debug::Script::GetIsolate() const {
@@ -9184,11 +9210,17 @@ namespace {
 int GetSmiValue(i::Handle<i::FixedArray> array, int index) {
   return i::Smi::cast(array->get(index))->value();
 }
+
+bool CompareBreakLocation(const i::BreakLocation& loc1,
+                          const i::BreakLocation& loc2) {
+  return loc1.position() < loc2.position();
+}
 }  // namespace
 
 bool debug::Script::GetPossibleBreakpoints(
     const debug::Location& start, const debug::Location& end,
-    std::vector<debug::Location>* locations) const {
+    bool restrict_to_function,
+    std::vector<debug::BreakLocation>* locations) const {
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
@@ -9204,24 +9236,23 @@ bool debug::Script::GetPossibleBreakpoints(
       i::Handle<i::FixedArray>::cast(i::handle(script->line_ends(), isolate));
   CHECK(line_ends->length());
 
-  int start_offset = GetSourcePosition(start);
-  int end_offset;
-  if (end.IsEmpty()) {
-    end_offset = GetSmiValue(line_ends, line_ends->length() - 1) + 1;
-  } else {
-    end_offset = GetSourcePosition(end);
-  }
+  int start_offset = GetSourceOffset(start);
+  int end_offset = end.IsEmpty()
+                       ? GetSmiValue(line_ends, line_ends->length() - 1) + 1
+                       : GetSourceOffset(end);
   if (start_offset >= end_offset) return true;
 
-  std::set<int> offsets;
-  if (!isolate->debug()->GetPossibleBreakpoints(script, start_offset,
-                                                end_offset, &offsets)) {
+  std::vector<i::BreakLocation> v8_locations;
+  if (!isolate->debug()->GetPossibleBreakpoints(
+          script, start_offset, end_offset, restrict_to_function,
+          &v8_locations)) {
     return false;
   }
 
+  std::sort(v8_locations.begin(), v8_locations.end(), CompareBreakLocation);
   int current_line_end_index = 0;
-  for (const auto& it : offsets) {
-    int offset = it;
+  for (const auto& v8_location : v8_locations) {
+    int offset = v8_location.position();
     while (offset > GetSmiValue(line_ends, current_line_end_index)) {
       ++current_line_end_index;
       CHECK(current_line_end_index < line_ends->length());
@@ -9231,15 +9262,16 @@ bool debug::Script::GetPossibleBreakpoints(
     if (current_line_end_index > 0) {
       line_offset = GetSmiValue(line_ends, current_line_end_index - 1) + 1;
     }
-    locations->push_back(debug::Location(
+    locations->emplace_back(
         current_line_end_index + script->line_offset(),
         offset - line_offset +
-            (current_line_end_index == 0 ? script->column_offset() : 0)));
+            (current_line_end_index == 0 ? script->column_offset() : 0),
+        v8_location.type());
   }
   return true;
 }
 
-int debug::Script::GetSourcePosition(const debug::Location& location) const {
+int debug::Script::GetSourceOffset(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
     // TODO(clemensh): Return the proper thing for wasm.
@@ -9263,6 +9295,17 @@ int debug::Script::GetSourcePosition(const debug::Location& location) const {
   if (line == 0) return std::min(column, line_offset);
   int prev_line_offset = GetSmiValue(line_ends, line - 1);
   return std::min(prev_line_offset + column + 1, line_offset);
+}
+
+v8::debug::Location debug::Script::GetSourceLocation(int offset) const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  if (script->type() == i::Script::TYPE_WASM) {
+    // TODO(clemensh): Return the proper thing for wasm.
+    return v8::debug::Location();
+  }
+  i::Script::PositionInfo info;
+  i::Script::GetPositionInfo(script, offset, &info, i::Script::WITH_OFFSET);
+  return debug::Location(info.line, info.column);
 }
 
 debug::WasmScript* debug::WasmScript::Cast(debug::Script* script) {
@@ -9499,6 +9542,44 @@ Local<String> CpuProfileNode::GetFunctionName() const {
         name).ToHandleChecked();
     return ToApiHandle<String>(cons);
   }
+}
+
+int debug::Coverage::FunctionData::StartOffset() { return function_->start; }
+int debug::Coverage::FunctionData::EndOffset() { return function_->end; }
+uint32_t debug::Coverage::FunctionData::Count() { return function_->count; }
+
+MaybeLocal<String> debug::Coverage::FunctionData::Name() {
+  return ToApiHandle<String>(function_->name);
+}
+
+Local<debug::Script> debug::Coverage::ScriptData::GetScript() {
+  return ToApiHandle<debug::Script>(script_->script);
+}
+
+size_t debug::Coverage::ScriptData::FunctionCount() {
+  return script_->functions.size();
+}
+
+debug::Coverage::FunctionData debug::Coverage::ScriptData::GetFunctionData(
+    size_t i) {
+  return FunctionData(&script_->functions.at(i));
+}
+
+debug::Coverage::~Coverage() { delete coverage_; }
+
+size_t debug::Coverage::ScriptCount() { return coverage_->size(); }
+
+debug::Coverage::ScriptData debug::Coverage::GetScriptData(size_t i) {
+  return ScriptData(&coverage_->at(i));
+}
+
+debug::Coverage debug::Coverage::Collect(Isolate* isolate, bool reset_count) {
+  return Coverage(i::Coverage::Collect(reinterpret_cast<i::Isolate*>(isolate),
+                                       reset_count));
+}
+
+void debug::Coverage::TogglePrecise(Isolate* isolate, bool enable) {
+  i::Coverage::TogglePrecise(reinterpret_cast<i::Isolate*>(isolate), enable);
 }
 
 const char* CpuProfileNode::GetFunctionNameStr() const {
@@ -9921,13 +10002,6 @@ size_t HeapProfiler::GetProfilerMemorySize() {
   return reinterpret_cast<i::HeapProfiler*>(this)->
       GetMemorySizeUsedByProfiler();
 }
-
-
-void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
-                                         RetainedObjectInfo* info) {
-  reinterpret_cast<i::HeapProfiler*>(this)->SetRetainedObjectInfo(id, info);
-}
-
 
 v8::Testing::StressType internal::Testing::stress_type_ =
     v8::Testing::kStressTypeOpt;

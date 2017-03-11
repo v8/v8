@@ -317,7 +317,6 @@ class RelocInfo {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CODE_TARGET,  // Code target which is not any of the above.
     CODE_TARGET_WITH_ID,
-    DEBUGGER_STATEMENT,  // Code target for the debugger statement.
     EMBEDDED_OBJECT,
     // To relocate pointers into the wasm memory embedded in wasm code
     WASM_MEMORY_REFERENCE,
@@ -366,7 +365,7 @@ class RelocInfo {
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
-    LAST_CODE_ENUM = DEBUGGER_STATEMENT,
+    LAST_CODE_ENUM = CODE_TARGET_WITH_ID,
     LAST_GCED_ENUM = WASM_FUNCTION_TABLE_SIZE_REFERENCE,
     FIRST_SHAREABLE_RELOC_MODE = CELL,
   };
@@ -442,9 +441,6 @@ class RelocInfo {
   static inline bool IsDebugBreakSlotAtTailCall(Mode mode) {
     return mode == DEBUG_BREAK_SLOT_AT_TAIL_CALL;
   }
-  static inline bool IsDebuggerStatement(Mode mode) {
-    return mode == DEBUGGER_STATEMENT;
-  }
   static inline bool IsNone(Mode mode) {
     return mode == NONE32 || mode == NONE64;
   }
@@ -510,7 +506,10 @@ class RelocInfo {
   uint32_t wasm_function_table_size_reference();
   uint32_t wasm_memory_size_reference();
   void update_wasm_memory_reference(
-      Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
+      Address old_base, Address new_base,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void update_wasm_memory_size(
+      uint32_t old_size, uint32_t new_size,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void update_wasm_global_reference(
       Address old_base, Address new_base,
@@ -526,10 +525,10 @@ class RelocInfo {
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
   INLINE(Address target_address());
-  INLINE(Object* target_object());
-  INLINE(Handle<Object> target_object_handle(Assembler* origin));
+  INLINE(HeapObject* target_object());
+  INLINE(Handle<HeapObject> target_object_handle(Assembler* origin));
   INLINE(void set_target_object(
-      Object* target,
+      HeapObject* target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Address target_runtime_entry(Assembler* origin));
@@ -542,7 +541,7 @@ class RelocInfo {
   INLINE(void set_target_cell(
       Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(Handle<Object> code_age_stub_handle(Assembler* origin));
+  INLINE(Handle<Code> code_age_stub_handle(Assembler* origin));
   INLINE(Code* code_age_stub());
   INLINE(void set_code_age_stub(
       Code* stub, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
@@ -982,6 +981,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference ieee754_tanh_function(Isolate* isolate);
 
   static ExternalReference libc_memchr_function(Isolate* isolate);
+  static ExternalReference libc_memset_function(Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 

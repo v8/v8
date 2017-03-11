@@ -53,17 +53,11 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
   if (receiver_obj->IsJSObject()) {
     if (!receiver_obj->IsJSGlobalProxy() &&
         !receiver_obj->IsAccessCheckNeeded() && key_obj->IsName()) {
-      DisallowHeapAllocation no_allocation;
       Handle<JSObject> receiver = Handle<JSObject>::cast(receiver_obj);
       Handle<Name> key = Handle<Name>::cast(key_obj);
-      // Get to a ThinString's referenced internalized string, but don't
-      // otherwise force internalization. We assume that internalization
-      // (which is a dictionary lookup with a non-internalized key) is
-      // about as expensive as doing the property dictionary lookup with
-      // the non-internalized key directly.
-      if (key->IsThinString()) {
-        key = handle(Handle<ThinString>::cast(key)->actual(), isolate);
-      }
+      key_obj = key = isolate->factory()->InternalizeName(key);
+
+      DisallowHeapAllocation no_allocation;
       if (receiver->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
         GlobalDictionary* dictionary = receiver->global_dictionary();
@@ -213,6 +207,23 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   }
 
   return isolate->heap()->false_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
+  HandleScope scope(isolate);
+  Handle<JSObject> receiver = args.at<JSObject>(0);
+  Handle<Name> name = args.at<Name>(1);
+  Handle<Object> value = args.at(2);
+
+  DCHECK(name->IsUniqueName());
+
+  Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
+  int entry;
+  PropertyDetails property_details(kData, NONE, 0, PropertyCellType::kNoCell);
+  dictionary =
+      NameDictionary::Add(dictionary, name, value, property_details, &entry);
+  receiver->set_properties(*dictionary);
+  return *value;
 }
 
 // ES6 section 19.1.2.2 Object.create ( O [ , Properties ] )

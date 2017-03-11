@@ -7,7 +7,9 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
@@ -124,11 +126,14 @@ bool NodeProperties::IsControlEdge(Edge edge) {
 
 
 // static
-bool NodeProperties::IsExceptionalCall(Node* node) {
+bool NodeProperties::IsExceptionalCall(Node* node, Node** out_exception) {
   if (node->op()->HasProperty(Operator::kNoThrow)) return false;
   for (Edge const edge : node->use_edges()) {
     if (!NodeProperties::IsControlEdge(edge)) continue;
-    if (edge.from()->opcode() == IrOpcode::kIfException) return true;
+    if (edge.from()->opcode() == IrOpcode::kIfException) {
+      if (out_exception != nullptr) *out_exception = edge.from();
+      return true;
+    }
   }
   return false;
 }
@@ -324,6 +329,90 @@ bool NodeProperties::IsSame(Node* a, Node* b) {
       continue;
     }
     return a == b;
+  }
+}
+
+// static
+bool NodeProperties::InferReceiverMaps(Node* receiver, Node* effect,
+                                       ZoneHandleSet<Map>* maps_return) {
+  HeapObjectMatcher m(receiver);
+  if (m.HasValue()) {
+    Handle<Map> receiver_map(m.Value()->map());
+    if (receiver_map->is_stable()) {
+      *maps_return = ZoneHandleSet<Map>(receiver_map);
+      return true;
+    }
+  }
+  while (true) {
+    switch (effect->opcode()) {
+      case IrOpcode::kCheckMaps: {
+        Node* const object = GetValueInput(effect, 0);
+        if (IsSame(receiver, object)) {
+          *maps_return = CheckMapsParametersOf(effect->op()).maps();
+          return true;
+        }
+        break;
+      }
+      case IrOpcode::kJSCreate: {
+        if (IsSame(receiver, effect)) {
+          HeapObjectMatcher mtarget(GetValueInput(effect, 0));
+          HeapObjectMatcher mnewtarget(GetValueInput(effect, 1));
+          if (mtarget.HasValue() && mnewtarget.HasValue()) {
+            Handle<JSFunction> original_constructor =
+                Handle<JSFunction>::cast(mnewtarget.Value());
+            if (original_constructor->has_initial_map()) {
+              Handle<Map> initial_map(original_constructor->initial_map());
+              if (initial_map->constructor_or_backpointer() ==
+                  *mtarget.Value()) {
+                *maps_return = ZoneHandleSet<Map>(initial_map);
+                return true;
+              }
+            }
+          }
+          // We reached the allocation of the {receiver}.
+          return false;
+        }
+        break;
+      }
+      case IrOpcode::kStoreField: {
+        // We only care about StoreField of maps.
+        Node* const object = GetValueInput(effect, 0);
+        FieldAccess const& access = FieldAccessOf(effect->op());
+        if (access.base_is_tagged == kTaggedBase &&
+            access.offset == HeapObject::kMapOffset) {
+          if (IsSame(receiver, object)) {
+            Node* const value = GetValueInput(effect, 1);
+            HeapObjectMatcher m(value);
+            if (m.HasValue()) {
+              *maps_return = ZoneHandleSet<Map>(Handle<Map>::cast(m.Value()));
+              return true;
+            }
+          }
+          // Without alias analysis we cannot tell whether this
+          // StoreField[map] affects {receiver} or not.
+          return false;
+        }
+        break;
+      }
+      case IrOpcode::kJSStoreMessage:
+      case IrOpcode::kJSStoreModule:
+      case IrOpcode::kStoreElement:
+      case IrOpcode::kStoreTypedElement: {
+        // These never change the map of objects.
+        break;
+      }
+      default: {
+        DCHECK_EQ(1, effect->op()->EffectOutputCount());
+        if (effect->op()->EffectInputCount() != 1 ||
+            !effect->op()->HasProperty(Operator::kNoWrite)) {
+          // Didn't find any appropriate CheckMaps node.
+          return false;
+        }
+        break;
+      }
+    }
+    DCHECK_EQ(1, effect->op()->EffectInputCount());
+    effect = NodeProperties::GetEffectInput(effect);
   }
 }
 

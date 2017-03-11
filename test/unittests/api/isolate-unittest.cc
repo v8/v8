@@ -44,8 +44,6 @@ class MemoryPressureTask : public v8::Task {
 // Check that triggering a memory pressure notification on the isolate thread
 // doesn't request a GC interrupt.
 TEST_F(IsolateTest, MemoryPressureNotificationForeground) {
-  Isolate::Scope isolate_scope(isolate());
-
   internal::Isolate* i_isolate =
       reinterpret_cast<internal::Isolate*>(isolate());
 
@@ -57,8 +55,6 @@ TEST_F(IsolateTest, MemoryPressureNotificationForeground) {
 // Check that triggering a memory pressure notification on an background thread
 // requests a GC interrupt.
 TEST_F(IsolateTest, MemoryPressureNotificationBackground) {
-  Isolate::Scope isolate_scope(isolate());
-
   internal::Isolate* i_isolate =
       reinterpret_cast<internal::Isolate*>(isolate());
 

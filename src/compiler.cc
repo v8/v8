@@ -9,6 +9,7 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-typer.h"
+#include "src/assembler-inl.h"
 #include "src/ast/ast-numbering.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
@@ -327,10 +328,6 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
 }
 
 bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
-  if (shared->optimization_disabled()) {
-    return false;
-  }
-
   bool must_use_ignition_turbo = shared->must_use_ignition_turbo();
 
   // Check the enabling conditions for Turbofan.
@@ -348,10 +345,8 @@ bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
          passes_turbo_filter;
 }
 
-bool ShouldUseIgnition(CompilationInfo* info) {
-  DCHECK(info->has_shared_info());
-  Handle<SharedFunctionInfo> shared = info->shared_info();
-
+bool ShouldUseIgnition(Handle<SharedFunctionInfo> shared,
+                       bool marked_as_debug) {
   // Code which can't be supported by the old pipeline should use Ignition.
   if (shared->must_use_ignition_turbo()) return true;
 
@@ -370,7 +365,7 @@ bool ShouldUseIgnition(CompilationInfo* info) {
 
   // When requesting debug code as a replacement for existing code, we provide
   // the same kind as the existing code (to prevent implicit tier-change).
-  if (info->is_debug() && shared->is_compiled()) {
+  if (marked_as_debug && shared->is_compiled()) {
     return !shared->HasBaselineCode();
   }
 
@@ -379,6 +374,11 @@ bool ShouldUseIgnition(CompilationInfo* info) {
 
   // Only use Ignition for any other function if FLAG_ignition is true.
   return FLAG_ignition;
+}
+
+bool ShouldUseIgnition(CompilationInfo* info) {
+  DCHECK(info->has_shared_info());
+  return ShouldUseIgnition(info->shared_info(), info->is_debug());
 }
 
 bool UseAsmWasm(DeclarationScope* scope, Handle<SharedFunctionInfo> shared_info,
@@ -846,8 +846,12 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
   bool use_turbofan = UseTurboFan(shared) || ignition_osr;
+  bool has_script = shared->script()->IsScript();
+  // BUG(5946): This DCHECK is necessary to make certain that we won't tolerate
+  // the lack of a script without bytecode.
+  DCHECK_IMPLIES(!has_script, ShouldUseIgnition(shared, false));
   std::unique_ptr<CompilationJob> job(
-      use_turbofan ? compiler::Pipeline::NewCompilationJob(function)
+      use_turbofan ? compiler::Pipeline::NewCompilationJob(function, has_script)
                    : new HCompilationJob(function));
   CompilationInfo* info = job->info();
   ParseInfo* parse_info = info->parse_info();
@@ -857,6 +861,13 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // Do not use Crankshaft/TurboFan if we need to be able to set break points.
   if (info->shared_info()->HasDebugInfo()) {
     info->AbortOptimization(kFunctionBeingDebugged);
+    return MaybeHandle<Code>();
+  }
+
+  // Do not use Crankshaft/TurboFan when %NeverOptimizeFunction was applied.
+  if (shared->optimization_disabled() &&
+      shared->disable_optimization_reason() == kOptimizationDisabledForTest) {
+    info->AbortOptimization(kOptimizationDisabledForTest);
     return MaybeHandle<Code>();
   }
 
@@ -1070,17 +1081,10 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 
     switch (Compiler::NextCompilationTier(*function)) {
       case Compiler::BASELINE: {
-        if (FLAG_trace_opt) {
-          PrintF("[recompiling function ");
-          function->ShortPrint();
-          PrintF(
-              " to baseline eagerly (shared function marked for tier up)]\n");
-        }
-
-        Handle<Code> code;
-        if (GetBaselineCode(function).ToHandle(&code)) {
-          return code;
-        }
+        // We don't try to handle baseline here because GetBaselineCode()
+        // doesn't handle top-level code. We aren't supporting
+        // the hybrid pipeline going forward (where Ignition is a first
+        // tier followed by full-code).
         break;
       }
       case Compiler::OPTIMIZED: {
@@ -1477,17 +1481,35 @@ Compiler::CompilationTier Compiler::NextCompilationTier(JSFunction* function) {
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
     Handle<Context> context, LanguageMode language_mode,
-    ParseRestriction restriction, int eval_scope_position, int eval_position,
-    int line_offset, int column_offset, Handle<Object> script_name,
+    ParseRestriction restriction, int parameters_end_pos,
+    int eval_scope_position, int eval_position, int line_offset,
+    int column_offset, Handle<Object> script_name,
     ScriptOriginOptions options) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
+  // The cache lookup key needs to be aware of the separation between the
+  // parameters and the body to prevent this valid invocation:
+  //   Function("", "function anonymous(\n/**/) {\n}");
+  // from adding an entry that falsely approves this invalid invocation:
+  //   Function("\n/**/) {\nfunction anonymous(", "}");
+  // The actual eval_scope_position for indirect eval and CreateDynamicFunction
+  // is unused (just 0), which means it's an available field to use to indicate
+  // this separation. But to make sure we're not causing other false hits, we
+  // negate the scope position.
+  int position = eval_scope_position;
+  if (FLAG_harmony_function_tostring &&
+      restriction == ONLY_SINGLE_FUNCTION_LITERAL &&
+      parameters_end_pos != kNoSourcePosition) {
+    // use the parameters_end_pos as the eval_scope_position in the eval cache.
+    DCHECK_EQ(eval_scope_position, 0);
+    position = -parameters_end_pos;
+  }
   CompilationCache* compilation_cache = isolate->compilation_cache();
   InfoVectorPair eval_result = compilation_cache->LookupEval(
-      source, outer_info, context, language_mode, eval_scope_position);
+      source, outer_info, context, language_mode, position);
   Handle<SharedFunctionInfo> shared_info;
   if (eval_result.has_shared()) {
     shared_info = Handle<SharedFunctionInfo>(eval_result.shared(), isolate);
@@ -1520,6 +1542,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     parse_info.set_language_mode(language_mode);
     parse_info.set_typed(FLAG_use_types);
     parse_info.set_parse_restriction(restriction);
+    parse_info.set_parameters_end_pos(parameters_end_pos);
     if (!context->IsNativeContext()) {
       parse_info.set_outer_scope_info(handle(context->scope_info()));
     }
@@ -1597,7 +1620,7 @@ bool ContainsAsmModule(Handle<Script> script) {
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
     Handle<Context> context, Handle<String> source,
-    ParseRestriction restriction) {
+    ParseRestriction restriction, int parameters_end_pos) {
   Isolate* const isolate = context->GetIsolate();
   Handle<Context> native_context(context->native_context(), isolate);
 
@@ -1617,8 +1640,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
   int eval_position = kNoSourcePosition;
   Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared());
   return Compiler::GetFunctionFromEval(source, outer_info, native_context,
-                                       SLOPPY, restriction, eval_scope_position,
-                                       eval_position);
+                                       SLOPPY, restriction, parameters_end_pos,
+                                       eval_scope_position, eval_position);
 }
 
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
@@ -1853,7 +1876,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
-      name, fun->shared()->num_literals(), FunctionKind::kNormalFunction, code,
+      name, FunctionKind::kNormalFunction, code,
       Handle<ScopeInfo>(fun->shared()->scope_info()));
   shared->set_outer_scope_info(fun->shared()->outer_scope_info());
   shared->SetConstructStub(*construct_stub);

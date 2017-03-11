@@ -289,9 +289,9 @@ namespace internal {
   F(AllocateSeqOneByteString, 1, 1)                 \
   F(AllocateSeqTwoByteString, 1, 1)                 \
   F(CheckIsBootstrapping, 0, 1)                     \
+  F(CreateAsyncFromSyncIterator, 1, 1)              \
   F(CreateListFromArrayLike, 1, 1)                  \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
-  F(ExportExperimentalFromRuntime, 1, 1)            \
   F(ExportFromRuntime, 1, 1)                        \
   F(IncrementUseCounter, 1, 1)                      \
   F(InstallToContext, 1, 1)                         \
@@ -323,8 +323,10 @@ namespace internal {
   F(ThrowNonObjectInInstanceOfCheck, 0, 1)          \
   F(ThrowNotConstructor, 1, 1)                      \
   F(ThrowNotGeneric, 1, 1)                          \
+  F(ThrowRangeError, -1 /* >= 1 */, 1)              \
   F(ThrowReferenceError, 1, 1)                      \
   F(ThrowStackOverflow, 0, 1)                       \
+  F(ThrowSymbolAsyncIteratorInvalid, 0, 1)          \
   F(ThrowTypeError, -1 /* >= 1 */, 1)               \
   F(ThrowUndefinedOrNullToObject, 1, 1)             \
   F(Typeof, 1, 1)                                   \
@@ -370,11 +372,11 @@ namespace internal {
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \
   F(IsSmi, 1, 1)                       \
-  F(GetRootNaN, 0, 1)                  \
   F(GetHoleNaNUpper, 0, 1)             \
   F(GetHoleNaNLower, 0, 1)
 
 #define FOR_EACH_INTRINSIC_OBJECT(F)                            \
+  F(AddDictionaryProperty, 3, 1)                                \
   F(GetPrototype, 1, 1)                                         \
   F(ObjectHasOwnProperty, 2, 1)                                 \
   F(ObjectCreate, 2, 1)                                         \
@@ -527,8 +529,6 @@ namespace internal {
   F(StringBuilderJoin, 3, 1)              \
   F(SparseJoinWithSeparator, 3, 1)        \
   F(StringToArray, 2, 1)                  \
-  F(StringToLowerCase, 1, 1)              \
-  F(StringToUpperCase, 1, 1)              \
   F(StringLessThan, 2, 1)                 \
   F(StringLessThanOrEqual, 2, 1)          \
   F(StringGreaterThan, 2, 1)              \
@@ -549,6 +549,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_TEST(F)            \
   F(ConstructDouble, 2, 1)                    \
+  F(ConstructConsString, 2, 1)                \
   F(DeoptimizeFunction, 1, 1)                 \
   F(DeoptimizeNow, 0, 1)                      \
   F(RunningInSimulator, 0, 1)                 \
@@ -563,7 +564,7 @@ namespace internal {
   F(GetOptimizationCount, 1, 1)               \
   F(GetUndetectable, 0, 1)                    \
   F(GetCallable, 0, 1)                        \
-  F(ClearFunctionTypeFeedback, 1, 1)          \
+  F(ClearFunctionFeedback, 1, 1)              \
   F(CheckWasmWrapperElision, 2, 1)            \
   F(NotifyContextDisposed, 0, 1)              \
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
@@ -610,11 +611,12 @@ namespace internal {
   F(ValidateWasmInstancesChain, 2, 1)         \
   F(ValidateWasmModuleState, 1, 1)            \
   F(ValidateWasmOrphanedInstance, 1, 1)       \
+  F(SetWasmCompileControls, 2, 1)             \
+  F(SetWasmInstantiateControls, 0, 1)         \
   F(Verify, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \
-  F(ArrayBufferSliceImpl, 4, 1)              \
   F(ArrayBufferNeuter, 1, 1)                 \
   F(TypedArrayInitialize, 6, 1)              \
   F(TypedArrayInitializeFromArrayLike, 4, 1) \
@@ -623,28 +625,23 @@ namespace internal {
   F(TypedArrayGetLength, 1, 1)               \
   F(TypedArrayGetBuffer, 1, 1)               \
   F(TypedArraySetFastCases, 3, 1)            \
+  F(TypedArraySortFast, 1, 1)                \
   F(TypedArrayMaxSizeInHeap, 0, 1)           \
   F(IsTypedArray, 1, 1)                      \
   F(IsSharedTypedArray, 1, 1)                \
   F(IsSharedIntegerTypedArray, 1, 1)         \
   F(IsSharedInteger32TypedArray, 1, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F)           \
-  F(WasmGrowMemory, 1, 1)                    \
-  F(WasmMemorySize, 0, 1)                    \
-  F(ThrowWasmError, 2, 1)                    \
-  F(WasmThrowTypeError, 0, 1)                \
-  F(WasmThrow, 2, 1)                         \
-  F(WasmGetCaughtExceptionValue, 1, 1)       \
-  F(ThrowWasmTrapUnreachable, 0, 1)          \
-  F(ThrowWasmTrapMemOutOfBounds, 0, 1)       \
-  F(ThrowWasmTrapDivByZero, 0, 1)            \
-  F(ThrowWasmTrapDivUnrepresentable, 0, 1)   \
-  F(ThrowWasmTrapRemByZero, 0, 1)            \
-  F(ThrowWasmTrapFloatUnrepresentable, 0, 1) \
-  F(ThrowWasmTrapFuncInvalid, 0, 1)          \
-  F(ThrowWasmTrapFuncSigMismatch, 0, 1)      \
-  F(WasmRunInterpreter, 3, 1)
+#define FOR_EACH_INTRINSIC_WASM(F)     \
+  F(WasmGrowMemory, 1, 1)              \
+  F(WasmMemorySize, 0, 1)              \
+  F(ThrowWasmError, 2, 1)              \
+  F(ThrowWasmErrorFromTrapIf, 1, 1)    \
+  F(WasmThrowTypeError, 0, 1)          \
+  F(WasmThrow, 2, 1)                   \
+  F(WasmGetCaughtExceptionValue, 1, 1) \
+  F(WasmRunInterpreter, 3, 1)          \
+  F(WasmStackGuard, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)

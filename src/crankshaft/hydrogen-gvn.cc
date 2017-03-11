@@ -5,6 +5,7 @@
 #include "src/crankshaft/hydrogen-gvn.h"
 
 #include "src/crankshaft/hydrogen.h"
+#include "src/objects-inl.h"
 #include "src/v8.h"
 
 namespace v8 {

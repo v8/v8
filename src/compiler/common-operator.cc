@@ -354,7 +354,7 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
   V(IfException, Operator::kKontrol, 0, 1, 1, 1, 1, 1)                        \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
-  V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)                              \
+  V(Throw, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                              \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                          \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)                    \
   V(OsrLoopEntry, Operator::kFoldable | Operator::kNoThrow, 0, 1, 1, 0, 1, 1) \
@@ -662,8 +662,8 @@ struct CommonOperatorGlobalCache final {
               1, 1, 1, 0, 0, 1,                          // counts
               trap_id) {}                                // parameter
   };
-#define CACHED_TRAP_IF(Trap)                                      \
-  TrapIfOperator<static_cast<int32_t>(Runtime::kThrowWasm##Trap)> \
+#define CACHED_TRAP_IF(Trap)                                       \
+  TrapIfOperator<static_cast<int32_t>(Builtins::kThrowWasm##Trap)> \
       kTrapIf##Trap##Operator;
   CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
 #undef CACHED_TRAP_IF
@@ -678,8 +678,8 @@ struct CommonOperatorGlobalCache final {
               1, 1, 1, 0, 0, 1,                          // counts
               trap_id) {}                                // parameter
   };
-#define CACHED_TRAP_UNLESS(Trap)                                      \
-  TrapUnlessOperator<static_cast<int32_t>(Runtime::kThrowWasm##Trap)> \
+#define CACHED_TRAP_UNLESS(Trap)                                       \
+  TrapUnlessOperator<static_cast<int32_t>(Builtins::kThrowWasm##Trap)> \
       kTrapUnless##Trap##Operator;
   CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS
@@ -884,8 +884,8 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
 
 const Operator* CommonOperatorBuilder::TrapIf(int32_t trap_id) {
   switch (trap_id) {
-#define CACHED_TRAP_IF(Trap)      \
-  case Runtime::kThrowWasm##Trap: \
+#define CACHED_TRAP_IF(Trap)       \
+  case Builtins::kThrowWasm##Trap: \
     return &cache_.kTrapIf##Trap##Operator;
     CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
 #undef CACHED_TRAP_IF
@@ -903,8 +903,8 @@ const Operator* CommonOperatorBuilder::TrapIf(int32_t trap_id) {
 
 const Operator* CommonOperatorBuilder::TrapUnless(int32_t trap_id) {
   switch (trap_id) {
-#define CACHED_TRAP_UNLESS(Trap)  \
-  case Runtime::kThrowWasm##Trap: \
+#define CACHED_TRAP_UNLESS(Trap)   \
+  case Builtins::kThrowWasm##Trap: \
     return &cache_.kTrapUnless##Trap##Operator;
     CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS
@@ -1232,11 +1232,24 @@ const Operator* CommonOperatorBuilder::TypedStateValues(
       TypedStateValueInfo(types, bitmask));            // parameters
 }
 
-const Operator* CommonOperatorBuilder::ArgumentsObjectState() {
-  return new (zone()) Operator(                          // --
-      IrOpcode::kArgumentsObjectState, Operator::kPure,  // opcode
-      "ArgumentsObjectState",                            // name
-      0, 0, 0, 1, 0, 0);                                 // counts
+const Operator* CommonOperatorBuilder::ArgumentsElementsState(bool is_rest) {
+  return new (zone()) Operator1<bool>(                     // --
+      IrOpcode::kArgumentsElementsState, Operator::kPure,  // opcode
+      "ArgumentsElementsState",                            // name
+      0, 0, 0, 1, 0, 0, is_rest);                          // counts
+}
+
+const Operator* CommonOperatorBuilder::ArgumentsLengthState(bool is_rest) {
+  return new (zone()) Operator1<bool>(                   // --
+      IrOpcode::kArgumentsLengthState, Operator::kPure,  // opcode
+      "ArgumentsLengthState",                            // name
+      0, 0, 0, 1, 0, 0, is_rest);                        // counts
+}
+
+bool IsRestOf(Operator const* op) {
+  DCHECK(op->opcode() == IrOpcode::kArgumentsElementsState ||
+         op->opcode() == IrOpcode::kArgumentsLengthState);
+  return OpParameter<bool>(op);
 }
 
 const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots) {

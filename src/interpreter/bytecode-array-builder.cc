@@ -11,6 +11,7 @@
 #include "src/interpreter/bytecode-peephole-optimizer.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -336,9 +337,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     case Token::Value::EQ:
       OutputTestEqual(reg, feedback_slot);
       break;
-    case Token::Value::NE:
-      OutputTestNotEqual(reg, feedback_slot);
-      break;
     case Token::Value::EQ_STRICT:
       OutputTestEqualStrict(reg, feedback_slot);
       break;
@@ -620,6 +618,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
+    Register object, int feedback_slot) {
+  size_t name_index = AsyncIteratorSymbolConstantPoolEntry();
+  OutputLdaNamedProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreDataPropertyInLiteral(
     Register object, Register name, DataPropertyInLiteralFlags flags,
     int feedback_slot) {
@@ -652,6 +657,21 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
     LanguageMode language_mode) {
   size_t name_index = GetConstantPoolEntry(name);
   return StoreNamedProperty(object, name_index, feedback_slot, language_mode);
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedOwnProperty(
+    Register object, const AstRawString* name, int feedback_slot) {
+  size_t name_index = GetConstantPoolEntry(name);
+  // Ensure that the store operation is in sync with the IC slot kind if
+  // the function literal is available (not a unit test case).
+  // TODO(ishell): check only in debug mode.
+  if (literal_) {
+    FeedbackSlot slot = FeedbackVector::ToSlot(feedback_slot);
+    CHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
+             feedback_vector_spec()->GetKind(slot));
+  }
+  OutputStaNamedOwnProperty(object, name_index, feedback_slot);
+  return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
@@ -983,9 +1003,26 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
   if (tail_call_mode == TailCallMode::kDisallow) {
     if (call_type == Call::NAMED_PROPERTY_CALL ||
         call_type == Call::KEYED_PROPERTY_CALL) {
-      OutputCallProperty(callable, args, args.register_count(), feedback_slot);
+      if (args.register_count() == 1) {
+        OutputCallProperty0(callable, args[0], feedback_slot);
+      } else if (args.register_count() == 2) {
+        OutputCallProperty1(callable, args[0], args[1], feedback_slot);
+      } else if (args.register_count() == 3) {
+        OutputCallProperty2(callable, args[0], args[1], args[2], feedback_slot);
+      } else {
+        OutputCallProperty(callable, args, args.register_count(),
+                           feedback_slot);
+      }
     } else {
-      OutputCall(callable, args, args.register_count(), feedback_slot);
+      if (args.register_count() == 1) {
+        OutputCall0(callable, args[0], feedback_slot);
+      } else if (args.register_count() == 2) {
+        OutputCall1(callable, args[0], args[1], feedback_slot);
+      } else if (args.register_count() == 3) {
+        OutputCall2(callable, args[0], args[1], args[2], feedback_slot);
+      } else {
+        OutputCall(callable, args, args.register_count(), feedback_slot);
+      }
     }
   } else {
     DCHECK(tail_call_mode == TailCallMode::kAllow);

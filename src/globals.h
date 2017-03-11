@@ -370,10 +370,6 @@ const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 const intptr_t kDoubleAlignment = 8;
 const intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
 
-// Desired alignment for 128 bit SIMD values.
-const intptr_t kSimd128Alignment = 16;
-const intptr_t kSimd128AlignmentMask = kSimd128Alignment - 1;
-
 // Desired alignment for generated code is 32 bytes (to improve cache line
 // utilization).
 const int kCodeAlignmentBits = 5;
@@ -516,12 +512,7 @@ enum AllocationSpace {
 const int kSpaceTagSize = 3;
 const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
 
-enum AllocationAlignment {
-  kWordAligned,
-  kDoubleAligned,
-  kDoubleUnaligned,
-  kSimd128Unaligned
-};
+enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
 // Possible outcomes for decisions.
 enum class Decision : uint8_t { kUnknown, kTrue, kFalse };

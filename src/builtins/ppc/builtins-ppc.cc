@@ -117,117 +117,6 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
-  // ----------- S t a t e -------------
-  //  -- r3                     : number of arguments
-  //  -- r4                     : function
-  //  -- cp                     : context
-  //  -- lr                     : return address
-  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
-  //  -- sp[argc * 4]           : receiver
-  // -----------------------------------
-  Condition const cond_done = (kind == MathMaxMinKind::kMin) ? lt : gt;
-  Heap::RootListIndex const root_index =
-      (kind == MathMaxMinKind::kMin) ? Heap::kInfinityValueRootIndex
-                                     : Heap::kMinusInfinityValueRootIndex;
-  DoubleRegister const reg = (kind == MathMaxMinKind::kMin) ? d2 : d1;
-
-  // Load the accumulator with the default return value (either -Infinity or
-  // +Infinity), with the tagged value in r8 and the double value in d1.
-  __ LoadRoot(r8, root_index);
-  __ lfd(d1, FieldMemOperand(r8, HeapNumber::kValueOffset));
-
-  // Setup state for loop
-  // r5: address of arg[0] + kPointerSize
-  // r6: number of slots to drop at exit (arguments + receiver)
-  __ addi(r7, r3, Operand(1));
-
-  Label done_loop, loop;
-  __ mr(r7, r3);
-  __ bind(&loop);
-  {
-    // Check if all parameters done.
-    __ subi(r7, r7, Operand(1));
-    __ cmpi(r7, Operand::Zero());
-    __ blt(&done_loop);
-
-    // Load the next parameter tagged value into r5.
-    __ ShiftLeftImm(r5, r7, Operand(kPointerSizeLog2));
-    __ LoadPX(r5, MemOperand(sp, r5));
-
-    // Load the double value of the parameter into d2, maybe converting the
-    // parameter to a number first using the ToNumber builtin if necessary.
-    Label convert, convert_smi, convert_number, done_convert;
-    __ bind(&convert);
-    __ JumpIfSmi(r5, &convert_smi);
-    __ LoadP(r6, FieldMemOperand(r5, HeapObject::kMapOffset));
-    __ JumpIfRoot(r6, Heap::kHeapNumberMapRootIndex, &convert_number);
-    {
-      // Parameter is not a Number, use the ToNumber builtin to convert it.
-      FrameScope scope(masm, StackFrame::MANUAL);
-      __ SmiTag(r3);
-      __ SmiTag(r7);
-      __ EnterBuiltinFrame(cp, r4, r3);
-      __ Push(r7, r8);
-      __ mr(r3, r5);
-      __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
-      __ mr(r5, r3);
-      __ Pop(r7, r8);
-      __ LeaveBuiltinFrame(cp, r4, r3);
-      __ SmiUntag(r7);
-      __ SmiUntag(r3);
-      {
-        // Restore the double accumulator value (d1).
-        Label done_restore;
-        __ SmiToDouble(d1, r8);
-        __ JumpIfSmi(r8, &done_restore);
-        __ lfd(d1, FieldMemOperand(r8, HeapNumber::kValueOffset));
-        __ bind(&done_restore);
-      }
-    }
-    __ b(&convert);
-    __ bind(&convert_number);
-    __ lfd(d2, FieldMemOperand(r5, HeapNumber::kValueOffset));
-    __ b(&done_convert);
-    __ bind(&convert_smi);
-    __ SmiToDouble(d2, r5);
-    __ bind(&done_convert);
-
-    // Perform the actual comparison with the accumulator value on the left hand
-    // side (d1) and the next parameter value on the right hand side (d2).
-    Label compare_nan, compare_swap;
-    __ fcmpu(d1, d2);
-    __ bunordered(&compare_nan);
-    __ b(cond_done, &loop);
-    __ b(CommuteCondition(cond_done), &compare_swap);
-
-    // Left and right hand side are equal, check for -0 vs. +0.
-    __ TestDoubleIsMinusZero(reg, r9, r0);
-    __ bne(&loop);
-
-    // Update accumulator. Result is on the right hand side.
-    __ bind(&compare_swap);
-    __ fmr(d1, d2);
-    __ mr(r8, r5);
-    __ b(&loop);
-
-    // At least one side is NaN, which means that the result will be NaN too.
-    // We still need to visit the rest of the arguments.
-    __ bind(&compare_nan);
-    __ LoadRoot(r8, Heap::kNanValueRootIndex);
-    __ lfd(d1, FieldMemOperand(r8, HeapNumber::kValueOffset));
-    __ b(&loop);
-  }
-
-  __ bind(&done_loop);
-  // Drop all slots, including the receiver.
-  __ addi(r3, r3, Operand(1));
-  __ Drop(r3);
-  __ mr(r3, r8);
-  __ Ret();
-}
-
-// static
 void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3                     : number of arguments
@@ -640,10 +529,12 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     // r3: number of arguments
     // r4: constructor function
     // r6: new target
-
-    ParameterCount actual(r3);
-    __ InvokeFunction(r4, r6, actual, CALL_FUNCTION,
-                      CheckDebugStepCallWrapper());
+    {
+      ConstantPoolUnavailableScope constant_pool_unavailable(masm);
+      ParameterCount actual(r3);
+      __ InvokeFunction(r4, r6, actual, CALL_FUNCTION,
+                        CheckDebugStepCallWrapper());
+    }
 
     // Store offset of return address for deoptimizer.
     if (create_implicit_receiver && !is_api_function) {
@@ -2157,7 +2048,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(r3);
-  __ LoadSmiLiteral(r7, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ mov(r7, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ mflr(r0);
   __ push(r0);
   if (FLAG_enable_embedded_constant_pool) {
@@ -2345,7 +2236,7 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   Label arguments_adaptor, arguments_done;
   __ LoadP(r6, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(ip, MemOperand(r6, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ CmpSmiLiteral(ip, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ cmpi(ip, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ beq(&arguments_adaptor);
   {
     __ LoadP(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -2451,7 +2342,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
     Label no_interpreter_frame;
     __ LoadP(scratch3,
              MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ CmpSmiLiteral(scratch3, Smi::FromInt(StackFrame::STUB), r0);
+    __ cmpi(scratch3, Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
     __ bne(&no_interpreter_frame);
     __ LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ bind(&no_interpreter_frame);
@@ -2464,7 +2355,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ LoadP(
       scratch3,
       MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ CmpSmiLiteral(scratch3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ cmpi(scratch3,
+          Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ bne(&no_arguments_adaptor);
 
   // Drop current frame and load arguments count from arguments adaptor frame.
@@ -2904,13 +2796,16 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   // Put the evaluated spread onto the stack as additional arguments.
   {
     __ li(scratch, Operand::Zero());
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ cmp(scratch, spread_len);
     __ beq(&done);
     __ ShiftLeftImm(r0, scratch, Operand(kPointerSizeLog2));
     __ add(scratch2, spread, r0);
     __ LoadP(scratch2, FieldMemOperand(scratch2, FixedArray::kHeaderSize));
+    __ JumpIfNotRoot(scratch2, Heap::kTheHoleValueRootIndex, &push);
+    __ LoadRoot(scratch2, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
     __ Push(scratch2);
     __ addi(scratch, scratch, Operand(1));
     __ b(&loop);

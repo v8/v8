@@ -4,6 +4,7 @@
 
 #include "src/crankshaft/arm/lithium-codegen-arm.h"
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
@@ -12,6 +13,7 @@
 #include "src/crankshaft/hydrogen-osr.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -270,7 +272,7 @@ bool LCodeGen::GenerateDeferredCode() {
         DCHECK(!frame_is_built_);
         DCHECK(info()->IsStub());
         frame_is_built_ = true;
-        __ Move(scratch0(), Smi::FromInt(StackFrame::STUB));
+        __ mov(scratch0(), Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
         __ PushCommonFrame(scratch0());
         Comment(";;; Deferred code");
       }
@@ -344,7 +346,7 @@ bool LCodeGen::GenerateJumpTable() {
       // This variant of deopt can only be used with stubs. Since we don't
       // have a function pointer to install in the stack frame that we're
       // building, install a special marker there instead.
-      __ mov(ip, Operand(Smi::FromInt(StackFrame::STUB)));
+      __ mov(ip, Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
       __ push(ip);
       DCHECK(info()->IsStub());
     }
@@ -2935,7 +2937,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     __ ldr(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ ldr(result, MemOperand(scratch,
                               CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ cmp(result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+    __ cmp(result,
+           Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
     // Result is the frame pointer for the frame if not adapted and for the real
     // frame below the adaptor frame if adapted.
@@ -3499,7 +3502,8 @@ void LCodeGen::PrepareForTailCall(const ParameterCount& actual,
   __ ldr(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(scratch3,
          MemOperand(scratch2, StandardFrameConstants::kContextOffset));
-  __ cmp(scratch3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ cmp(scratch3,
+         Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(ne, &no_arguments_adaptor);
 
   // Drop current frame and load arguments count from arguments adaptor frame.

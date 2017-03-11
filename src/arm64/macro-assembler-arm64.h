@@ -1300,13 +1300,9 @@ class MacroAssembler : public Assembler {
     MacroAssembler* masm_;
   };
 
-  // ---------------------------------------------------------------------------
-  // Debugger Support
-
-  void DebugBreak();
+  // Frame restart support
   void MaybeDropFrames();
 
-  // ---------------------------------------------------------------------------
   // Exception handling
 
   // Push a new stack handler and link into stack handler chain.
@@ -2149,6 +2145,8 @@ class InlineSmiCheckInfo {
     return smi_check_;
   }
 
+  int SmiCheckDelta() const { return smi_check_delta_; }
+
   // Use MacroAssembler::InlineData to emit information about patchable inline
   // SMI checks. The caller may specify 'reg' as NoReg and an unbound 'site' to
   // indicate that there is no inline SMI check. Note that 'reg' cannot be csp.
@@ -2166,6 +2164,7 @@ class InlineSmiCheckInfo {
 
  private:
   Register reg_;
+  int smi_check_delta_;
   Instruction* smi_check_;
 
   // Fields in the data encoded by InlineData.

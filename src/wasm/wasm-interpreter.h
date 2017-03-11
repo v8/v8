@@ -148,10 +148,14 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     const InterpretedFrame GetFrame(int index);
     InterpretedFrame GetMutableFrame(int index);
     WasmVal GetReturnValue(int index = 0);
+
     // Returns true if the thread executed an instruction which may produce
     // nondeterministic results, e.g. float div, float sqrt, and float mul,
     // where the sign bit of a NaN is nondeterministic.
     bool PossibleNondeterminism();
+
+    // Returns the number of calls / function frames executed on this thread.
+    uint64_t NumInterpretedCalls();
 
     // Thread-specific breakpoints.
     // TODO(wasm): Implement this once we support multiple threads.

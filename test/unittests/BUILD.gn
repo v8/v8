@@ -10,8 +10,10 @@ v8_executable("unittests") {
   sources = [
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
+    "api/access-check-unittest.cc",
     "api/exception-unittest.cc",
     "api/isolate-unittest.cc",
+    "api/remote-object-unittest.cc",
     "api/v8-object-unittest.cc",
     "base/atomic-utils-unittest.cc",
     "base/bits-unittest.cc",

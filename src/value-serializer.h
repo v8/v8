@@ -84,6 +84,15 @@ class ValueSerializer {
   void WriteRawBytes(const void* source, size_t length);
   void WriteDouble(double value);
 
+  /*
+   * Indicate whether to treat ArrayBufferView objects as host objects,
+   * i.e. pass them to Delegate::WriteHostObject. This should not be
+   * called when no Delegate was passed.
+   *
+   * The default is not to treat ArrayBufferViews as host objects.
+   */
+  void SetTreatArrayBufferViewsAsHostObjects(bool mode);
+
  private:
   // Managing allocations of the internal buffer.
   Maybe<bool> ExpandBuffer(size_t required_capacity);
@@ -138,6 +147,7 @@ class ValueSerializer {
 
   Isolate* const isolate_;
   v8::ValueSerializer::Delegate* const delegate_;
+  bool treat_array_buffer_views_as_host_objects_ = false;
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
@@ -147,11 +157,11 @@ class ValueSerializer {
   // To avoid extra lookups in the identity map, ID+1 is actually stored in the
   // map (checking if the used identity is zero is the fast way of checking if
   // the entry is new).
-  IdentityMap<uint32_t> id_map_;
+  IdentityMap<uint32_t, ZoneAllocationPolicy> id_map_;
   uint32_t next_id_ = 0;
 
   // A similar map, for transferred array buffers.
-  IdentityMap<uint32_t> array_buffer_transfer_map_;
+  IdentityMap<uint32_t, ZoneAllocationPolicy> array_buffer_transfer_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueSerializer);
 };

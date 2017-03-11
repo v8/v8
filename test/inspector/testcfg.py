@@ -13,6 +13,7 @@ from testrunner.objects import testcase
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 PROTOCOL_TEST_JS = "protocol-test.js"
 EXPECTED_SUFFIX = "-expected.txt"
+RESOURCES_FOLDER = "resources"
 
 class InspectorProtocolTestSuite(testsuite.TestSuite):
 
@@ -24,6 +25,8 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
     for dirname, dirs, files in os.walk(os.path.join(self.root), followlinks=True):
       for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
+      if dirname.endswith(os.path.sep + RESOURCES_FOLDER):
+        continue
       dirs.sort()
       files.sort()
       for filename in files:
@@ -71,7 +74,7 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
 
     def ExpIterator():
       for line in expected_lines:
-        if line.startswith("#") or not line.strip(): continue
+        if not line.strip(): continue
         yield line.strip()
 
     def ActIterator(lines):

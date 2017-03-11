@@ -8,6 +8,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/code-stubs.h"  // For CallApiCallbackStub.
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"  // For FAA::LoadInternalField impl.
 
 namespace v8 {
@@ -213,7 +214,7 @@ void FastAccessorAssembler::CheckIsJSObjectOrJump(ValueId value_id,
       &is_jsobject);
 
   // JSApiObject?.
-  assembler_->GotoUnless(
+  assembler_->GotoIfNot(
       assembler_->Word32Equal(instance_type, assembler_->Int32Constant(
                                                  Internals::kJSApiObjectType)),
       FromId(label_id));

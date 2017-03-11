@@ -12,6 +12,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1180,8 +1181,9 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
     if (m.left().IsWord32Shl()) {
       Uint32BinopMatcher mleft(m.left().node());
       if (mleft.right().HasValue() &&
-          mleft.right().Value() >= base::bits::CountTrailingZeros32(mask)) {
-        // (x << L) & (-1 << K) => x << L iff K >= L
+          (mleft.right().Value() & 0x1f) >=
+              base::bits::CountTrailingZeros32(mask)) {
+        // (x << L) & (-1 << K) => x << L iff L >= K
         return Replace(mleft.node());
       }
     } else if (m.left().IsInt32Add()) {

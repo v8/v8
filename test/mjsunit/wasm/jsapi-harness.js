@@ -11,9 +11,12 @@ const known_failures = {
     'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
   "'WebAssembly.Table.prototype.set' method":
     'https://bugs.chromium.org/p/v8/issues/detail?id=5507',
+  "'WebAssembly.Instance' constructor function":
+    'https://bugs.chromium.org/p/v8/issues/detail?id=6017',
 };
 
 let failures = [];
+let unexpected_successes = [];
 
 let last_promise = new Promise((resolve, reject) => { resolve(); });
 
@@ -22,18 +25,34 @@ function test(func, description) {
   try { func(); }
   catch(e) { maybeErr = e; }
   if (typeof maybeErr !== 'undefined') {
-    print(`${description}: FAIL. ${maybeErr}`);
+    var known = "";
+    if (known_failures[description]) {
+      known = " (known)";
+    }
+    print(`${description}: FAIL${known}. ${maybeErr}`);
     failures.push(description);
   } else {
+    if (known_failures[description]) {
+      unexpected_successes.push(description);
+    }
     print(`${description}: PASS.`);
   }
 }
 
 function promise_test(func, description) {
   last_promise = last_promise.then(func)
-  .then(_ => { print(`${description}: PASS.`); })
+  .then(_ => {
+    if (known_failures[description]) {
+      unexpected_successes.push(description);
+    }
+    print(`${description}: PASS.`);
+  })
   .catch(err => {
-    print(`${description}: FAIL. ${err}`);
+    var known = "";
+    if (known_failures[description]) {
+      known = " (known)";
+    }
+    print(`${description}: FAIL${known}. ${err}`);
     failures.push(description);
   });
 }
@@ -70,6 +89,16 @@ last_promise.then(_ => {
         print(`  ${failures[i]}`);
         unexpected = true;
       }
+    }
+    if (unexpected_successes.length > 0) {
+      unexpected = true;
+      print("");
+      print("Unexpected successes:");
+      for(let i in unexpected_successes) {
+        print(`  ${unexpected_successes[i]}`);
+      }
+      print("Some tests SUCCEEDED but were known failures. If you've fixed " +
+            "the bug, please remove the test from the known failures list.")
     }
     if (unexpected) {
       quit(1);

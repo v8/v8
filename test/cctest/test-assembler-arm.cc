@@ -27,15 +27,15 @@
 
 #include <iostream>  // NOLINT(readability/streams)
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/arm/simulator-arm.h"
+#include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/disassembler.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -1227,6 +1227,10 @@ TEST(14) {
   CHECK_EQ(ex, t.field[2]);       \
   CHECK_EQ(ex, t.field[3]);
 
+#define CHECK_EQ_32X2(field, ex0, ex1) \
+  CHECK_EQ(ex0, t.field[0]);           \
+  CHECK_EQ(ex1, t.field[1]);
+
 #define CHECK_EQ_32X4(field, ex0, ex1, ex2, ex3) \
   CHECK_EQ(ex0, t.field[0]);                     \
   CHECK_EQ(ex1, t.field[1]);                     \
@@ -1298,6 +1302,8 @@ TEST(15) {
     float vdupf[4], vaddf[4], vsubf[4], vmulf[4];
     uint32_t vmin_s8[4], vmin_u16[4], vmin_s32[4];
     uint32_t vmax_s8[4], vmax_u16[4], vmax_s32[4];
+    uint32_t vpmin_s8[2], vpmin_u16[2], vpmin_s32[2];
+    uint32_t vpmax_s8[2], vpmax_u16[2], vpmax_s32[2];
     uint32_t vadd8[4], vadd16[4], vadd32[4];
     uint32_t vqadd_s8[4], vqadd_u16[4], vqadd_s32[4];
     uint32_t vsub8[4], vsub16[4], vsub32[4];
@@ -1611,6 +1617,30 @@ TEST(15) {
     __ vmax(NeonS32, q2, q0, q1);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmax_s32))));
     __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    // vpmin/vpmax integer.
+    __ mov(r4, Operand(0x03));
+    __ vdup(Neon16, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vpmin(NeonS8, d4, d0, d2);
+    __ vstr(d4, r0, offsetof(T, vpmin_s8));
+    __ vpmax(NeonS8, d4, d0, d2);
+    __ vstr(d4, r0, offsetof(T, vpmax_s8));
+    __ mov(r4, Operand(0xffff));
+    __ vdup(Neon32, q0, r4);
+    __ vdup(Neon16, q1, r4);
+    __ vpmin(NeonU16, d4, d0, d2);
+    __ vstr(d4, r0, offsetof(T, vpmin_u16));
+    __ vpmax(NeonU16, d4, d0, d2);
+    __ vstr(d4, r0, offsetof(T, vpmax_u16));
+    __ mov(r4, Operand(0xff));
+    __ veor(q0, q0, q0);
+    __ vmov(s0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vpmin(NeonS32, d4, d0, d2);
+    __ vstr(d4, r0, offsetof(T, vpmin_s32));
+    __ vpmax(NeonS32, d4, d0, d2);
+    __ vstr(d4, r0, offsetof(T, vpmax_s32));
 
     // vadd (integer).
     __ mov(r4, Operand(0x81));
@@ -1992,6 +2022,15 @@ TEST(15) {
     // [0x000000ff, 0x000000ff, ...] and [0xffffffff, 0xffffffff, ...]
     CHECK_EQ_SPLAT(vmin_s32, 0xffffffffu);
     CHECK_EQ_SPLAT(vmax_s32, 0xffu);
+    // [0, 3, 0, 3, ...] and [3, 3, 3, 3, ...]
+    CHECK_EQ_32X2(vpmin_s8, 0x00000000u, 0x03030303u);
+    CHECK_EQ_32X2(vpmax_s8, 0x03030303u, 0x03030303u);
+    // [0, ffff, 0, ffff] and [ffff, ffff]
+    CHECK_EQ_32X2(vpmin_u16, 0x00000000u, 0xffffffffu);
+    CHECK_EQ_32X2(vpmax_u16, 0xffffffffu, 0xffffffffu);
+    // [0x000000ff, 0x00000000u] and [0xffffffff, 0xffffffff, ...]
+    CHECK_EQ_32X2(vpmin_s32, 0x00u, 0xffffffffu);
+    CHECK_EQ_32X2(vpmax_s32, 0xffu, 0xffffffffu);
     CHECK_EQ_SPLAT(vadd8, 0x03030303u);
     CHECK_EQ_SPLAT(vadd16, 0x00030003u);
     CHECK_EQ_SPLAT(vadd32, 0x00000003u);

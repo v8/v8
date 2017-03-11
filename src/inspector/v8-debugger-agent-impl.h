@@ -66,9 +66,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       override;
   Response getPossibleBreakpoints(
       std::unique_ptr<protocol::Debugger::Location> start,
-      Maybe<protocol::Debugger::Location> end,
-      std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations)
-      override;
+      Maybe<protocol::Debugger::Location> end, Maybe<bool> restrictToFunction,
+      std::unique_ptr<protocol::Array<protocol::Debugger::BreakLocation>>*
+          locations) override;
   Response setScriptSource(
       const String16& inScriptId, const String16& inScriptSource,
       Maybe<bool> dryRun,
@@ -88,6 +88,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response stepOver() override;
   Response stepInto() override;
   Response stepOut() override;
+  void scheduleStepIntoAsync(
+      std::unique_ptr<ScheduleStepIntoAsyncCallback> callback) override;
   Response setPauseOnExceptions(const String16& pauseState) override;
   Response evaluateOnCallFrame(
       const String16& callFrameId, const String16& expression,
@@ -143,6 +145,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   v8::Isolate* isolate() { return m_isolate; }
 
+  bool shouldBreakInScheduledAsyncTask();
+
  private:
   void enableImpl();
 
@@ -157,7 +161,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void setPauseOnExceptionsImpl(int);
 
   std::unique_ptr<protocol::Debugger::Location> resolveBreakpoint(
-      const String16& breakpointId, const ScriptBreakpoint&, BreakpointSource);
+      const String16& breakpointId, const ScriptBreakpoint&, BreakpointSource,
+      const String16& hint);
   void removeBreakpointImpl(const String16& breakpointId);
   void clearBreakDetails();
 
@@ -210,6 +215,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unique_ptr<V8Regex> m_blackboxPattern;
   protocol::HashMap<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
+
+  std::unique_ptr<ScheduleStepIntoAsyncCallback> m_stepIntoAsyncCallback;
 
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 };

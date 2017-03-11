@@ -88,6 +88,8 @@ class BreakLocation {
 
   inline int position() const { return position_; }
 
+  debug::BreakLocationType type() const;
+
  private:
   BreakLocation(Handle<AbstractCode> abstract_code, DebugBreakType type,
                 int code_offset, int position)
@@ -312,7 +314,8 @@ class Debug {
 
   bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
-                              int end_position, std::set<int>* positions);
+                              int end_position, bool restrict_to_function,
+                              std::vector<BreakLocation>* locations);
 
   void RecordGenerator(Handle<JSGeneratorObject> generator_object);
 
@@ -350,7 +353,7 @@ class Debug {
   // Support for LiveEdit
   void ScheduleFrameRestart(StackFrame* frame);
 
-  bool IsFrameBlackboxed(JavaScriptFrame* frame);
+  bool AllFramesOnStackAreBlackboxed();
 
   // Threading support.
   char* ArchiveDebug(char* to);
@@ -393,6 +396,9 @@ class Debug {
   StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
   int break_id() { return thread_local_.break_id_; }
 
+  Handle<Object> return_value_handle() {
+    return handle(thread_local_.return_value_, isolate_);
+  }
   Object* return_value() { return thread_local_.return_value_; }
   void set_return_value(Object* value) { thread_local_.return_value_ = value; }
 
@@ -482,6 +488,8 @@ class Debug {
   void FloodWithOneShot(Handle<SharedFunctionInfo> function);
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
+
+  bool IsFrameBlackboxed(JavaScriptFrame* frame);
 
   void ActivateStepOut(StackFrame* frame);
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
@@ -595,8 +603,9 @@ class Debug {
 class LegacyDebugDelegate : public v8::debug::DebugDelegate {
  public:
   explicit LegacyDebugDelegate(Isolate* isolate) : isolate_(isolate) {}
-  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            int parent_id) override;
+  void PromiseEventOccurred(v8::Local<v8::Context> context,
+                            v8::debug::PromiseDebugActionType type, int id,
+                            int parent_id, bool created_by_user) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
@@ -692,12 +701,24 @@ class DebugScope BASE_EMBEDDED {
   DebugScope* prev_;               // Previous scope if entered recursively.
   StackFrame::Id break_frame_id_;  // Previous break frame id.
   int break_id_;                   // Previous break id.
-  Handle<Object> return_value_;    // Previous result.
   bool failed_;                    // Did the debug context fail to load?
   SaveContext save_;               // Saves previous context.
   PostponeInterruptsScope no_termination_exceptons_;
 };
 
+// This scope is used to handle return values in nested debug break points.
+// When there are nested debug breaks, we use this to restore the return
+// value to the previous state. This is not merged with DebugScope because
+// return_value_ will not be cleared when we use DebugScope.
+class ReturnValueScope {
+ public:
+  explicit ReturnValueScope(Debug* debug);
+  ~ReturnValueScope();
+
+ private:
+  Debug* debug_;
+  Handle<Object> return_value_;  // Previous result.
+};
 
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {

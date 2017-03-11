@@ -5,11 +5,13 @@
 #include "src/heap/scavenger.h"
 
 #include "src/contexts.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/incremental-marking.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/scavenger-inl.h"
 #include "src/isolate.h"
 #include "src/log.h"
+#include "src/profiler/heap-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -145,9 +147,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
 
     if (marks_handling == TRANSFER_MARKS) {
-      if (IncrementalMarking::TransferColor(source, target, size)) {
-        MemoryChunk::IncrementLiveBytes(target, size);
-      }
+      IncrementalMarking::TransferColor(source, target);
     }
   }
 

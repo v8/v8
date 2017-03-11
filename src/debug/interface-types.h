@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "src/globals.h"
+
 namespace v8 {
 namespace debug {
 
@@ -16,7 +18,7 @@ namespace debug {
  * Defines location inside script.
  * Lines and columns are 0-based.
  */
-class Location {
+class V8_EXPORT_PRIVATE Location {
  public:
   Location(int line_number, int column_number);
   /**
@@ -48,6 +50,7 @@ struct WasmDisassemblyOffsetTableEntry {
   int line;
   int column;
 };
+
 struct WasmDisassembly {
   using OffsetTable = std::vector<WasmDisassemblyOffsetTableEntry>;
   WasmDisassembly() {}
@@ -67,6 +70,24 @@ enum PromiseDebugActionType {
   kDebugPromiseCollected,
   kDebugWillHandle,
   kDebugDidHandle,
+};
+
+enum BreakLocationType {
+  kCallBreakLocation,
+  kReturnBreakLocation,
+  kDebuggerStatementBreakLocation,
+  kCommonBreakLocation
+};
+
+class V8_EXPORT_PRIVATE BreakLocation : public Location {
+ public:
+  BreakLocation(int line_number, int column_number, BreakLocationType type)
+      : Location(line_number, column_number), type_(type) {}
+
+  BreakLocationType type() const { return type_; }
+
+ private:
+  BreakLocationType type_;
 };
 
 }  // namespace debug

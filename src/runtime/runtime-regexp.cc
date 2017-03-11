@@ -1084,15 +1084,32 @@ MUST_USE_RESULT MaybeHandle<String> StringReplaceNonGlobalRegExpWithFunction(
   Factory* factory = isolate->factory();
   Handle<RegExpMatchInfo> last_match_info = isolate->regexp_last_match_info();
 
-  // TODO(jgruber): This is a pattern we could refactor.
+  const int flags = regexp->GetFlags();
+
+  DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));
+  DCHECK_EQ(flags & JSRegExp::kGlobal, 0);
+
+  // TODO(jgruber): This should be an easy port to CSA with massive payback.
+
+  const bool sticky = (flags & JSRegExp::kSticky) != 0;
+  uint32_t last_index = 0;
+  if (sticky) {
+    Handle<Object> last_index_obj(regexp->LastIndex(), isolate);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
+                               Object::ToLength(isolate, last_index_obj),
+                               String);
+    last_index = PositiveNumberToUint32(*last_index_obj);
+
+    if (static_cast<int>(last_index) > subject->length()) last_index = 0;
+  }
+
   Handle<Object> match_indices_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, match_indices_obj,
-      RegExpImpl::Exec(regexp, subject, 0, last_match_info), String);
+      RegExpImpl::Exec(regexp, subject, last_index, last_match_info), String);
 
   if (match_indices_obj->IsNull(isolate)) {
-    RETURN_ON_EXCEPTION(isolate, RegExpUtils::SetLastIndex(isolate, regexp, 0),
-                        String);
+    if (sticky) regexp->SetLastIndex(0);
     return subject;
   }
 
@@ -1101,6 +1118,8 @@ MUST_USE_RESULT MaybeHandle<String> StringReplaceNonGlobalRegExpWithFunction(
 
   const int index = match_indices->Capture(0);
   const int end_of_match = match_indices->Capture(1);
+
+  if (sticky) regexp->SetLastIndex(end_of_match);
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(factory->NewSubString(subject, 0, index));
@@ -1153,10 +1172,9 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
                                                   Handle<Object> replace_obj) {
   Factory* factory = isolate->factory();
 
-  // TODO(jgruber): We need the even stricter guarantee of an unmodified
-  // JSRegExp map here for access to GetFlags to be legal.
   const int flags = regexp->GetFlags();
   const bool global = (flags & JSRegExp::kGlobal) != 0;
+  const bool sticky = (flags & JSRegExp::kSticky) != 0;
 
   // Functional fast-paths are dispatched directly by replace builtin.
   DCHECK(!replace_obj->IsCallable());
@@ -1171,14 +1189,24 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
   if (!global) {
     // Non-global regexp search, string replace.
 
+    uint32_t last_index = 0;
+    if (sticky) {
+      Handle<Object> last_index_obj(regexp->LastIndex(), isolate);
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
+                                 Object::ToLength(isolate, last_index_obj),
+                                 String);
+      last_index = PositiveNumberToUint32(*last_index_obj);
+
+      if (static_cast<int>(last_index) > string->length()) last_index = 0;
+    }
+
     Handle<Object> match_indices_obj;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, match_indices_obj,
-        RegExpImpl::Exec(regexp, string, 0, last_match_info), String);
+        RegExpImpl::Exec(regexp, string, last_index, last_match_info), String);
 
     if (match_indices_obj->IsNull(isolate)) {
-      RETURN_ON_EXCEPTION(
-          isolate, RegExpUtils::SetLastIndex(isolate, regexp, 0), String);
+      if (sticky) regexp->SetLastIndex(0);
       return string;
     }
 
@@ -1186,6 +1214,8 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
 
     const int start_index = match_indices->Capture(0);
     const int end_index = match_indices->Capture(1);
+
+    if (sticky) regexp->SetLastIndex(end_index);
 
     IncrementalStringBuilder builder(isolate);
     builder.AppendString(factory->NewSubString(string, 0, start_index));
@@ -1268,48 +1298,13 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, replace, 2);
 
+  DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));
+
   RETURN_RESULT_OR_FAILURE(isolate, StringReplaceNonGlobalRegExpWithFunction(
                                         isolate, subject, regexp, replace));
 }
 
 namespace {
-
-// ES##sec-speciesconstructor
-// SpeciesConstructor ( O, defaultConstructor )
-MUST_USE_RESULT MaybeHandle<Object> SpeciesConstructor(
-    Isolate* isolate, Handle<JSReceiver> recv,
-    Handle<JSFunction> default_ctor) {
-  Handle<Object> ctor_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, ctor_obj,
-      JSObject::GetProperty(recv, isolate->factory()->constructor_string()),
-      Object);
-
-  if (ctor_obj->IsUndefined(isolate)) return default_ctor;
-
-  if (!ctor_obj->IsJSReceiver()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kConstructorNotReceiver),
-                    Object);
-  }
-
-  Handle<JSReceiver> ctor = Handle<JSReceiver>::cast(ctor_obj);
-
-  Handle<Object> species;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, species,
-      JSObject::GetProperty(ctor, isolate->factory()->species_symbol()),
-      Object);
-
-  if (species->IsNullOrUndefined(isolate)) {
-    return default_ctor;
-  }
-
-  if (species->IsConstructor()) return species;
-
-  THROW_NEW_ERROR(
-      isolate, NewTypeError(MessageTemplate::kSpeciesNotConstructor), Object);
-}
 
 MUST_USE_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
                                              Handle<Object> object,
@@ -1352,7 +1347,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   Handle<JSFunction> regexp_fun = isolate->regexp_function();
   Handle<Object> ctor;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, ctor, SpeciesConstructor(isolate, recv, regexp_fun));
+      isolate, ctor, Object::SpeciesConstructor(isolate, recv, regexp_fun));
 
   Handle<Object> flags_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

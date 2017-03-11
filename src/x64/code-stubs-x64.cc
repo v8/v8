@@ -4,18 +4,24 @@
 
 #if V8_TARGET_ARCH_X64
 
-#include "src/code-stubs.h"
 #include "src/api-arguments.h"
 #include "src/bootstrapper.h"
+#include "src/code-stubs.h"
 #include "src/codegen.h"
+#include "src/counters.h"
+#include "src/double.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
+#include "src/objects/regexp-match-info.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
-#include "src/x64/code-stubs-x64.h"
+
+#include "src/x64/code-stubs-x64.h"  // Cannot be the first include.
 
 namespace v8 {
 namespace internal {
@@ -1453,8 +1459,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ movp(rbp, rsp);
 
     // Push the stack frame type.
-    int marker = type();
-    __ Push(Smi::FromInt(marker));  // context slot
+    __ Push(Immediate(StackFrame::TypeToMarker(type())));  // context slot
     ExternalReference context_address(Isolate::kContextAddress, isolate());
     __ Load(kScratchRegister, context_address);
     __ Push(kScratchRegister);  // context
@@ -1501,13 +1506,13 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Load(rax, js_entry_sp);
   __ testp(rax, rax);
   __ j(not_zero, &not_outermost_js);
-  __ Push(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ Push(Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ movp(rax, rbp);
   __ Store(js_entry_sp, rax);
   Label cont;
   __ jmp(&cont);
   __ bind(&not_outermost_js);
-  __ Push(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME));
+  __ Push(Immediate(StackFrame::INNER_JSENTRY_FRAME));
   __ bind(&cont);
 
   // Jump to a faked try block that does the invoke, with a faked catch
@@ -1552,7 +1557,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ bind(&exit);
   // Check if the current stack frame is marked as the outermost JS frame.
   __ Pop(rbx);
-  __ Cmp(rbx, Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ cmpp(rbx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
   __ Move(kScratchRegister, js_entry_sp);
   __ movp(Operand(kScratchRegister, 0), Immediate(0));
@@ -2487,6 +2492,9 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode());
 }
 
+void RecordWriteStub::Activate(Code* code) {
+  code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
+}
 
 void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     MacroAssembler* masm,

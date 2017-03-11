@@ -98,7 +98,7 @@ class Handle final : public HandleBase {
   }
 
   V8_INLINE explicit Handle(T* object) : Handle(object, object->GetIsolate()) {}
-  V8_INLINE Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
+  V8_INLINE Handle(T* object, Isolate* isolate);
 
   // Allocate a new handle for the object, do not canonicalize.
   V8_INLINE static Handle<T> New(T* object, Isolate* isolate);
@@ -331,7 +331,7 @@ class HandleScope {
 
 
 // Forward declarations for CanonicalHandleScope.
-template <typename V>
+template <typename V, class AllocationPolicy>
 class IdentityMap;
 class RootIndexMap;
 
@@ -352,7 +352,7 @@ class V8_EXPORT_PRIVATE CanonicalHandleScope final {
   Isolate* isolate_;
   Zone zone_;
   RootIndexMap* root_index_map_;
-  IdentityMap<Object**>* identity_map_;
+  IdentityMap<Object**, ZoneAllocationPolicy>* identity_map_;
   // Ordinary nested handle scopes within the current one are not canonical.
   int canonical_level_;
   // We may have nested canonical scopes. Handles are canonical within each one.

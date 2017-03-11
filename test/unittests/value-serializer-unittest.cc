@@ -263,6 +263,13 @@ class ValueSerializerTest : public TestWithIsolate {
         .ToLocalChecked();
   }
 
+  Local<Object> NewDummyUint8Array() {
+    static uint8_t data[] = {4, 5, 6};
+    Local<ArrayBuffer> ab =
+        ArrayBuffer::New(isolate(), static_cast<void*>(data), sizeof(data));
+    return Uint8Array::New(ab, 0, sizeof(data));
+  }
+
  private:
   Local<Context> serialization_context_;
   Local<Context> deserialization_context_;
@@ -680,6 +687,14 @@ TEST_F(ValueSerializerTest, DecodeDictionaryObject) {
         ASSERT_TRUE(value->IsObject());
         EXPECT_TRUE(EvaluateScriptForResultBool("result === result.self"));
       });
+}
+
+TEST_F(ValueSerializerTest, InvalidDecodeObjectWithInvalidKeyType) {
+  // Objects which would need conversion to string shouldn't be present as
+  // object keys. The serializer would have obtained them from the own property
+  // keys list, which should only contain names and indices.
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x6f, 0x61, 0x00, 0x40, 0x00, 0x00, 0x7b, 0x01});
 }
 
 TEST_F(ValueSerializerTest, RoundTripOnlyOwnEnumerableStringKeys) {
@@ -1322,7 +1337,7 @@ TEST_F(ValueSerializerTest, DecodeDate) {
 #else
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x41, 0x2e, 0x84, 0x80, 0x00, 0x00,
               0x00, 0x00, 0x00},
-             [this](Local<Value> value) {
+             [](Local<Value> value) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
                EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
@@ -1330,13 +1345,13 @@ TEST_F(ValueSerializerTest, DecodeDate) {
   DecodeTest(
       {0xff, 0x09, 0x3f, 0x00, 0x44, 0xc2, 0x87, 0x89, 0x27, 0x45, 0x20, 0x00,
        0x00, 0x00},
-      [this](Local<Value> value) {
+      [](Local<Value> value) {
         ASSERT_TRUE(value->IsDate());
         EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
       });
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x7f, 0xf8, 0x00, 0x00, 0x00, 0x00,
               0x00, 0x00, 0x00},
-             [this](Local<Value> value) {
+             [](Local<Value> value) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
              });
@@ -2355,8 +2370,9 @@ class ValueSerializerTestWithHostObject : public ValueSerializerTest {
   friend class DeserializerDelegate;
 };
 
-// This is a tag that's not used in V8.
-const uint8_t ValueSerializerTestWithHostObject::kExampleHostObjectTag = '+';
+// This is a tag that is used in V8. Using this ensures that we have separate
+// tag namespaces.
+const uint8_t ValueSerializerTestWithHostObject::kExampleHostObjectTag = 'T';
 
 TEST_F(ValueSerializerTestWithHostObject, RoundTripUint32) {
   // The host can serialize data as uint32_t.
@@ -2525,6 +2541,51 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripSameObject) {
       [this](Local<Value> value) {
         EXPECT_TRUE(EvaluateScriptForResultBool(
             "result.a instanceof ExampleHostObject"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+TEST_F(ValueSerializerTestWithHostObject, DecodeSimpleHostObject) {
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillRepeatedly(Invoke([this](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        return NewHostObject(deserialization_context(), 0, nullptr);
+      }));
+  DecodeTest(
+      {0xff, 0x0d, 0x5c, kExampleHostObjectTag}, [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === ExampleHostObject.prototype"));
+      });
+}
+
+class ValueSerializerTestWithHostArrayBufferView
+    : public ValueSerializerTestWithHostObject {
+ protected:
+  void BeforeEncode(ValueSerializer* serializer) override {
+    ValueSerializerTestWithHostObject::BeforeEncode(serializer);
+    serializer_->SetTreatArrayBufferViewsAsHostObjects(true);
+  }
+};
+
+TEST_F(ValueSerializerTestWithHostArrayBufferView, RoundTripUint8ArrayInput) {
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillOnce(Invoke([this](Isolate*, Local<Object> object) {
+        EXPECT_TRUE(object->IsUint8Array());
+        WriteExampleHostObjectTag();
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillOnce(Invoke([this](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        return NewDummyUint8Array();
+      }));
+  RoundTripTest(
+      "({ a: new Uint8Array([1, 2, 3]), get b() { return this.a; }})",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.a instanceof Uint8Array"));
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.a.toString() === '4,5,6'"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
       });
 }

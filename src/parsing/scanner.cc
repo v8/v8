@@ -19,6 +19,42 @@
 namespace v8 {
 namespace internal {
 
+class Scanner::ErrorState {
+ public:
+  ErrorState(MessageTemplate::Template* message_stack,
+             Scanner::Location* location_stack)
+      : message_stack_(message_stack),
+        old_message_(*message_stack),
+        location_stack_(location_stack),
+        old_location_(*location_stack) {
+    *message_stack_ = MessageTemplate::kNone;
+    *location_stack_ = Location::invalid();
+  }
+
+  ~ErrorState() {
+    *message_stack_ = old_message_;
+    *location_stack_ = old_location_;
+  }
+
+  void MoveErrorTo(TokenDesc* dest) {
+    if (*message_stack_ == MessageTemplate::kNone) {
+      return;
+    }
+    if (dest->invalid_template_escape_message == MessageTemplate::kNone) {
+      dest->invalid_template_escape_message = *message_stack_;
+      dest->invalid_template_escape_location = *location_stack_;
+    }
+    *message_stack_ = MessageTemplate::kNone;
+    *location_stack_ = Location::invalid();
+  }
+
+ private:
+  MessageTemplate::Template* const message_stack_;
+  MessageTemplate::Template const old_message_;
+  Scanner::Location* const location_stack_;
+  Scanner::Location const old_location_;
+};
+
 Handle<String> Scanner::LiteralBuffer::Internalize(Isolate* isolate) const {
   if (is_one_byte()) {
     return isolate->factory()->InternalizeOneByteString(one_byte_literal());
@@ -357,6 +393,7 @@ Token::Value Scanner::Next() {
       next_.location.end_pos = pos + 1;
       next_.literal_chars = nullptr;
       next_.raw_literal_chars = nullptr;
+      next_.invalid_template_escape_message = MessageTemplate::kNone;
       Advance();
       return current_.token;
     }
@@ -569,6 +606,7 @@ Token::Value Scanner::ScanHtmlComment() {
 void Scanner::Scan() {
   next_.literal_chars = NULL;
   next_.raw_literal_chars = NULL;
+  next_.invalid_template_escape_message = MessageTemplate::kNone;
   Token::Value token;
   do {
     // Remember the position of the next token
@@ -849,6 +887,8 @@ void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
   // - TEMPLATE_*: need both literal + raw literal chars.
   // - IDENTIFIERS, STRINGS, etc.: need a literal, but no raw literal.
   // - all others: should have neither.
+  // Furthermore, only TEMPLATE_* tokens can have a
+  // invalid_template_escape_message.
 
   switch (token.token) {
     case Token::UNINITIALIZED:
@@ -869,10 +909,12 @@ void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
     case Token::STRING:
       DCHECK_NOT_NULL(token.literal_chars);
       DCHECK_NULL(token.raw_literal_chars);
+      DCHECK_EQ(token.invalid_template_escape_message, MessageTemplate::kNone);
       break;
     default:
       DCHECK_NULL(token.literal_chars);
       DCHECK_NULL(token.raw_literal_chars);
+      DCHECK_EQ(token.invalid_template_escape_message, MessageTemplate::kNone);
       break;
   }
 }
@@ -948,16 +990,12 @@ bool Scanner::ScanEscape() {
       break;
   }
 
-  // According to ECMA-262, section 7.8.4, characters not covered by the
-  // above cases should be illegal, but they are commonly handled as
-  // non-escaped characters by JS VMs.
+  // Other escaped characters are interpreted as their non-escaped version.
   AddLiteralChar(c);
   return true;
 }
 
 
-// Octal escapes of the forms '\0xx' and '\xxx' are not a part of
-// ECMA-262. Other JS VMs support them.
 template <bool capture_raw>
 uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
   uc32 x = c - '0';
@@ -1039,6 +1077,12 @@ Token::Value Scanner::ScanTemplateSpan() {
   // TEMPLATE_TAIL terminates a TemplateLiteral and does not need to be
   // followed by an Expression.
 
+  // These scoped helpers save and restore the original error state, so that we
+  // can specially treat invalid escape sequences in templates (which are
+  // handled by the parser).
+  ErrorState scanner_error_state(&scanner_error_, &scanner_error_location_);
+  ErrorState octal_error_state(&octal_message_, &octal_pos_);
+
   Token::Value result = Token::TEMPLATE_SPAN;
   LiteralScope literal(this);
   StartRawLiteral();
@@ -1069,8 +1113,14 @@ Token::Value Scanner::ScanTemplateSpan() {
             AddRawLiteralChar('\n');
           }
         }
-      } else if (!ScanEscape<capture_raw, in_template_literal>()) {
-        return Token::ILLEGAL;
+      } else {
+        bool success = ScanEscape<capture_raw, in_template_literal>();
+        USE(success);
+        DCHECK_EQ(!success, has_error());
+        // For templates, invalid escape sequence checking is handled in the
+        // parser.
+        scanner_error_state.MoveErrorTo(&next_);
+        octal_error_state.MoveErrorTo(&next_);
       }
     } else if (c < 0) {
       // Unterminated template literal
@@ -1095,6 +1145,7 @@ Token::Value Scanner::ScanTemplateSpan() {
   literal.Complete();
   next_.location.end_pos = source_pos();
   next_.token = result;
+
   return result;
 }
 
@@ -1489,7 +1540,9 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
     Vector<const uint8_t> chars = next_.literal_chars->one_byte_literal();
     Token::Value token =
         KeywordOrIdentifierToken(chars.start(), chars.length());
-    if (token == Token::IDENTIFIER) literal.Complete();
+    if (token == Token::IDENTIFIER ||
+        token == Token::FUTURE_STRICT_RESERVED_WORD)
+      literal.Complete();
     return token;
   }
   literal.Complete();
@@ -1683,7 +1736,9 @@ void Scanner::SeekNext(size_t position) {
   // 1, Reset the current_, next_ and next_next_ tokens
   //    (next_ + next_next_ will be overwrittem by Next(),
   //     current_ will remain unchanged, so overwrite it fully.)
-  current_ = {{0, 0}, nullptr, nullptr, 0, Token::UNINITIALIZED};
+  current_ = {
+      {0, 0}, nullptr, nullptr, 0, Token::UNINITIALIZED, MessageTemplate::kNone,
+      {0, 0}};
   next_.token = Token::UNINITIALIZED;
   next_next_.token = Token::UNINITIALIZED;
   // 2, reset the source to the desired position,

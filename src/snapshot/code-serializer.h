@@ -85,24 +85,25 @@ class SerializedCodeData : public SerializedData {
     CPU_FEATURES_MISMATCH = 4,
     FLAGS_MISMATCH = 5,
     CHECKSUM_MISMATCH = 6,
-    INVALID_HEADER = 7
+    INVALID_HEADER = 7,
+    LENGTH_MISMATCH = 8
   };
 
   // The data header consists of uint32_t-sized entries:
-  // [0] magic number and external reference count
-  // [1] version hash
-  // [2] source hash
-  // [3] cpu features
-  // [4] flag hash
-  // [5] number of code stub keys
-  // [6] number of reservation size entries
-  // [7] payload length
-  // [8] payload checksum part 1
-  // [9] payload checksum part 2
+  // [0] magic number and (internally provided) external reference count
+  // [1] extra (API-provided) external reference count
+  // [2] version hash
+  // [3] source hash
+  // [4] cpu features
+  // [5] flag hash
+  // [6] number of code stub keys
+  // [7] number of reservation size entries
+  // [8] payload length
+  // [9] payload checksum part 1
+  // [10] payload checksum part 2
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload
-  static const int kVersionHashOffset = kMagicNumberOffset + kInt32Size;
   static const int kSourceHashOffset = kVersionHashOffset + kInt32Size;
   static const int kCpuFeaturesOffset = kSourceHashOffset + kInt32Size;
   static const int kFlagHashOffset = kCpuFeaturesOffset + kInt32Size;
@@ -111,7 +112,8 @@ class SerializedCodeData : public SerializedData {
   static const int kPayloadLengthOffset = kNumCodeStubKeysOffset + kInt32Size;
   static const int kChecksum1Offset = kPayloadLengthOffset + kInt32Size;
   static const int kChecksum2Offset = kChecksum1Offset + kInt32Size;
-  static const int kHeaderSize = kChecksum2Offset + kInt32Size;
+  static const int kUnalignedHeaderSize = kChecksum2Offset + kInt32Size;
+  static const int kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
 
   // Used when consuming.
   static const SerializedCodeData FromCachedData(

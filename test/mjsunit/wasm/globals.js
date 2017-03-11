@@ -13,7 +13,7 @@ function TestImported(type, val, expected) {
   var sig = makeSig([], [type]);
   var g = builder.addImportedGlobal("uuu", "foo", type);
   builder.addFunction("main", sig)
-    .addBody([kExprGetGlobal, g.index])
+    .addBody([kExprGetGlobal, g])
     .exportAs("main");
   builder.addGlobal(kWasmI32);  // pad
 

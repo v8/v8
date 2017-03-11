@@ -38,7 +38,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Register other(reg.index() + 1);
   Register wide(128);
   RegisterList reg_list;
-  RegisterList pair(0, 2), triple(0, 3);
+  RegisterList single(0, 1), pair(0, 2), triple(0, 3);
 
   // Emit argument creation operations.
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)
@@ -49,7 +49,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadLiteral(Smi::kZero)
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(8))
-      .CompareOperation(Token::Value::NE, reg,
+      .CompareOperation(Token::Value::EQ, reg,
                         1)  // Prevent peephole optimization
                             // LdaSmi, Star -> LdrSmi.
       .StoreAccumulatorInRegister(reg)
@@ -110,7 +110,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreNamedProperty(reg, name, 0, LanguageMode::SLOPPY)
       .StoreKeyedProperty(reg, reg, 0, LanguageMode::SLOPPY)
       .StoreNamedProperty(reg, name, 0, LanguageMode::STRICT)
-      .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT);
+      .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT)
+      .StoreNamedOwnProperty(reg, name, 0);
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -143,8 +144,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Call operations.
   builder.Call(reg, reg_list, 1, Call::GLOBAL_CALL)
+      .Call(reg, single, 1, Call::GLOBAL_CALL)
+      .Call(reg, pair, 1, Call::GLOBAL_CALL)
+      .Call(reg, triple, 1, Call::GLOBAL_CALL)
       .Call(reg, reg_list, 1, Call::NAMED_PROPERTY_CALL,
             TailCallMode::kDisallow)
+      .Call(reg, single, 1, Call::NAMED_PROPERTY_CALL)
+      .Call(reg, pair, 1, Call::NAMED_PROPERTY_CALL)
+      .Call(reg, triple, 1, Call::NAMED_PROPERTY_CALL)
       .Call(reg, reg_list, 1, Call::GLOBAL_CALL, TailCallMode::kAllow)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
@@ -200,14 +207,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, 1)
-      .CompareOperation(Token::Value::NE, reg, 2)
-      .CompareOperation(Token::Value::EQ_STRICT, reg, 3)
-      .CompareOperation(Token::Value::LT, reg, 4)
-      .CompareOperation(Token::Value::GT, reg, 5)
-      .CompareOperation(Token::Value::LTE, reg, 6)
-      .CompareOperation(Token::Value::GTE, reg, 7)
-      .CompareOperation(Token::Value::INSTANCEOF, reg, 8)
-      .CompareOperation(Token::Value::IN, reg, 9);
+      .CompareOperation(Token::Value::EQ_STRICT, reg, 2)
+      .CompareOperation(Token::Value::LT, reg, 3)
+      .CompareOperation(Token::Value::GT, reg, 4)
+      .CompareOperation(Token::Value::LTE, reg, 5)
+      .CompareOperation(Token::Value::GTE, reg, 6)
+      .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
+      .CompareOperation(Token::Value::IN, reg, 8);
 
   // Emit peephole optimizations of equality with Null or Undefined.
   builder.LoadUndefined()
@@ -332,7 +338,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreNamedProperty(reg, wide_name, 0, LanguageMode::SLOPPY)
       .StoreKeyedProperty(reg, reg, 2056, LanguageMode::SLOPPY)
       .StoreNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
-      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
+      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT)
+      .StoreNamedOwnProperty(reg, wide_name, 0);
 
   builder.StoreDataPropertyInLiteral(reg, reg,
                                      DataPropertyInLiteralFlag::kNoFlags, 0);

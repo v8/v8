@@ -20,9 +20,10 @@ class AstValue;
 namespace interpreter {
 
 // Constant array entries that represent singletons.
-#define SINGLETON_CONSTANT_ENTRY_TYPES(V) \
-  V(IteratorSymbol, iterator_symbol)      \
-  V(HomeObjectSymbol, home_object_symbol) \
+#define SINGLETON_CONSTANT_ENTRY_TYPES(V)       \
+  V(IteratorSymbol, iterator_symbol)            \
+  V(AsyncIteratorSymbol, async_iterator_symbol) \
+  V(HomeObjectSymbol, home_object_symbol)       \
   V(EmptyFixedArray, empty_fixed_array)
 
 // A helper class for constructing constant arrays for the

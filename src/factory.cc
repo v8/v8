@@ -89,12 +89,6 @@ Handle<HeapObject> Factory::NewFillerObject(int size,
 }
 
 
-Handle<Box> Factory::NewBox(Handle<Object> value) {
-  Handle<Box> result = Handle<Box>::cast(NewStruct(BOX_TYPE));
-  result->set_value(*value);
-  return result;
-}
-
 Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   Handle<PrototypeInfo> result =
       Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE));
@@ -717,10 +711,20 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
             NewRawTwoByteString(length).ToHandleChecked(), left, right);
   }
 
+  bool one_byte = (is_one_byte || is_one_byte_data_in_two_byte_string);
+  return NewConsString(left, right, length, one_byte);
+}
+
+Handle<String> Factory::NewConsString(Handle<String> left, Handle<String> right,
+                                      int length, bool one_byte) {
+  DCHECK(!left->IsThinString());
+  DCHECK(!right->IsThinString());
+  DCHECK_GE(length, ConsString::kMinLength);
+  DCHECK_LE(length, String::kMaxLength);
+
   Handle<ConsString> result =
-      (is_one_byte || is_one_byte_data_in_two_byte_string)
-          ? New<ConsString>(cons_one_byte_string_map(), NEW_SPACE)
-          : New<ConsString>(cons_string_map(), NEW_SPACE);
+      one_byte ? New<ConsString>(cons_one_byte_string_map(), NEW_SPACE)
+               : New<ConsString>(cons_string_map(), NEW_SPACE);
 
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
@@ -1945,6 +1949,7 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module->set_module_namespace(isolate()->heap()->undefined_value());
   module->set_requested_modules(*requested_modules);
+  module->set_status(Module::kUnprepared);
   DCHECK(!module->instantiated());
   DCHECK(!module->evaluated());
   return module;
@@ -1981,6 +1986,16 @@ Handle<JSIteratorResult> Factory::NewJSIteratorResult(Handle<Object> value,
   return js_iter_result;
 }
 
+Handle<JSAsyncFromSyncIterator> Factory::NewJSAsyncFromSyncIterator(
+    Handle<JSReceiver> sync_iterator) {
+  Handle<Map> map(isolate()->native_context()->async_from_sync_iterator_map());
+  Handle<JSAsyncFromSyncIterator> iterator =
+      Handle<JSAsyncFromSyncIterator>::cast(NewJSObjectFromMap(map));
+
+  iterator->set_sync_iterator(*sync_iterator);
+  return iterator;
+}
+
 Handle<JSMap> Factory::NewJSMap() {
   Handle<Map> map(isolate()->native_context()->js_map_map());
   Handle<JSMap> js_map = Handle<JSMap>::cast(NewJSObjectFromMap(map));
@@ -2012,6 +2027,31 @@ Handle<JSSetIterator> Factory::NewJSSetIterator() {
                      JSSetIterator);
 }
 
+ExternalArrayType Factory::GetArrayTypeFromElementsKind(ElementsKind kind) {
+  switch (kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case TYPE##_ELEMENTS:                                 \
+    return kExternal##Type##Array;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+      return kExternalInt8Array;
+  }
+#undef TYPED_ARRAY_CASE
+}
+
+size_t Factory::GetExternalArrayElementSize(ExternalArrayType type) {
+  switch (type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
+    return size;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+      return 0;
+  }
+#undef TYPED_ARRAY_CASE
+}
 
 namespace {
 
@@ -2027,21 +2067,6 @@ ElementsKind GetExternalArrayElementsKind(ExternalArrayType type) {
 #undef TYPED_ARRAY_CASE
 }
 
-
-size_t GetExternalArrayElementSize(ExternalArrayType type) {
-  switch (type) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                          \
-    return size;
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-      return 0;
-  }
-#undef TYPED_ARRAY_CASE
-}
-
-
 size_t GetFixedTypedArraysElementSize(ElementsKind kind) {
   switch (kind) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
@@ -2051,20 +2076,6 @@ size_t GetFixedTypedArraysElementSize(ElementsKind kind) {
     default:
       UNREACHABLE();
       return 0;
-  }
-#undef TYPED_ARRAY_CASE
-}
-
-
-ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
-  switch (kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                 \
-    return kExternal##Type##Array;
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-      return kExternalInt8Array;
   }
 #undef TYPED_ARRAY_CASE
 }
@@ -2326,6 +2337,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
     map->set_is_prototype_map(true);
   }
   JSObject::NotifyMapChange(old_map, map, isolate());
+  old_map->NotifyLeafMapLayoutChange();
 
   // Check that the already allocated object has the same size and type as
   // objects allocated using the constructor.
@@ -2351,15 +2363,14 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    Handle<String> name, int number_of_literals, FunctionKind kind,
-    Handle<Code> code, Handle<ScopeInfo> scope_info) {
+    Handle<String> name, FunctionKind kind, Handle<Code> code,
+    Handle<ScopeInfo> scope_info) {
   DCHECK(IsValidFunctionKind(kind));
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
       name, code, IsConstructable(kind, scope_info->language_mode()));
   shared->set_scope_info(*scope_info);
   shared->set_outer_scope_info(*the_hole_value());
   shared->set_kind(kind);
-  shared->set_num_literals(number_of_literals);
   if (IsGeneratorFunction(kind)) {
     shared->set_instance_class_name(isolate()->heap()->Generator_string());
   }
@@ -2370,9 +2381,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script) {
   Handle<Code> code = isolate()->builtins()->CompileLazy();
   Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
-  Handle<SharedFunctionInfo> result = NewSharedFunctionInfo(
-      literal->name(), literal->materialized_literal_count(), literal->kind(),
-      code, scope_info);
+  Handle<SharedFunctionInfo> result =
+      NewSharedFunctionInfo(literal->name(), literal->kind(), code, scope_info);
   SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
   SharedFunctionInfo::SetScript(result, script);
   return result;
@@ -2442,7 +2452,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_length(0);
   share->set_internal_formal_parameter_count(0);
   share->set_expected_nof_properties(0);
-  share->set_num_literals(0);
   share->set_start_position_and_type(0);
   share->set_end_position(0);
   share->set_function_token_position(0);

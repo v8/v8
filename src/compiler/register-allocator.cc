@@ -86,6 +86,10 @@ int GetByteWidth(MachineRepresentation rep) {
       return kDoubleSize;
     case MachineRepresentation::kSimd128:
       return kSimd128Size;
+    case MachineRepresentation::kSimd1x4:
+    case MachineRepresentation::kSimd1x8:
+    case MachineRepresentation::kSimd1x16:
+      return kSimdMaskRegisters ? kPointerSize : kSimd128Size;
     case MachineRepresentation::kNone:
       break;
   }

@@ -16,6 +16,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/type-cache.h"
 #include "src/compiler/types.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -29,30 +30,6 @@ class JSBinopReduction final {
  public:
   JSBinopReduction(JSTypedLowering* lowering, Node* node)
       : lowering_(lowering), node_(node) {}
-
-  bool GetBinaryNumberOperationHint(NumberOperationHint* hint) {
-    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
-      DCHECK_NE(0, node_->op()->ControlOutputCount());
-      DCHECK_EQ(1, node_->op()->EffectOutputCount());
-      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
-      switch (BinaryOperationHintOf(node_->op())) {
-        case BinaryOperationHint::kSignedSmall:
-          *hint = NumberOperationHint::kSignedSmall;
-          return true;
-        case BinaryOperationHint::kSigned32:
-          *hint = NumberOperationHint::kSigned32;
-          return true;
-        case BinaryOperationHint::kNumberOrOddball:
-          *hint = NumberOperationHint::kNumberOrOddball;
-          return true;
-        case BinaryOperationHint::kAny:
-        case BinaryOperationHint::kNone:
-        case BinaryOperationHint::kString:
-          break;
-      }
-    }
-    return false;
-  }
 
   bool GetCompareNumberOperationHint(NumberOperationHint* hint) {
     if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
@@ -98,11 +75,22 @@ class JSBinopReduction final {
     return false;
   }
 
+  bool IsStringCompareOperation() {
+    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
+      DCHECK_EQ(1, node_->op()->EffectOutputCount());
+      return (CompareOperationHintOf(node_->op()) ==
+              CompareOperationHint::kString) &&
+             BothInputsMaybe(Type::String());
+    }
+    return false;
+  }
+
   // Check if a string addition will definitely result in creating a ConsString,
   // i.e. if the combined length of the resulting string exceeds the ConsString
   // minimum length.
   bool ShouldCreateConsString() {
     DCHECK_EQ(IrOpcode::kJSAdd, node_->opcode());
+    DCHECK(OneInputIs(Type::String()));
     if (BothInputsAre(Type::String()) ||
         ((lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) &&
          BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString)) {
@@ -144,6 +132,24 @@ class JSBinopReduction final {
     if (!right_type()->Is(Type::Receiver())) {
       Node* right_input = graph()->NewNode(simplified()->CheckReceiver(),
                                            right(), effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
+  }
+
+  // Checks that both inputs are String, and if we don't know
+  // statically that one side is already a String, insert a
+  // CheckString node.
+  void CheckInputsToString() {
+    if (!left_type()->Is(Type::String())) {
+      Node* left_input = graph()->NewNode(simplified()->CheckString(), left(),
+                                          effect(), control());
+      node_->ReplaceInput(0, left_input);
+      update_effect(left_input);
+    }
+    if (!right_type()->Is(Type::String())) {
+      Node* right_input = graph()->NewNode(simplified()->CheckString(), right(),
+                                           effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
     }
@@ -215,9 +221,8 @@ class JSBinopReduction final {
   }
 
   // Remove all effect and control inputs and outputs to this node and change
-  // to the pure operator {op}, possibly inserting a boolean inversion.
-  Reduction ChangeToPureOperator(const Operator* op, bool invert = false,
-                                 Type* type = Type::Any()) {
+  // to the pure operator {op}.
+  Reduction ChangeToPureOperator(const Operator* op, Type* type = Type::Any()) {
     DCHECK_EQ(0, op->EffectInputCount());
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(0, op->ControlInputCount());
@@ -237,19 +242,10 @@ class JSBinopReduction final {
     Type* node_type = NodeProperties::GetType(node_);
     NodeProperties::SetType(node_, Type::Intersect(node_type, type, zone()));
 
-    if (invert) {
-      // Insert an boolean not to invert the value.
-      Node* value = graph()->NewNode(simplified()->BooleanNot(), node_);
-      node_->ReplaceUses(value);
-      // Note: ReplaceUses() smashes all uses, so smash it back here.
-      value->ReplaceInput(0, node_);
-      return lowering_->Replace(value);
-    }
     return lowering_->Changed(node_);
   }
 
-  Reduction ChangeToSpeculativeOperator(const Operator* op, bool invert,
-                                        Type* upper_bound) {
+  Reduction ChangeToSpeculativeOperator(const Operator* op, Type* upper_bound) {
     DCHECK_EQ(1, op->EffectInputCount());
     DCHECK_EQ(1, op->EffectOutputCount());
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
@@ -292,23 +288,7 @@ class JSBinopReduction final {
     NodeProperties::SetType(node_,
                             Type::Intersect(node_type, upper_bound, zone()));
 
-    if (invert) {
-      // Insert an boolean not to invert the value.
-      Node* value = graph()->NewNode(simplified()->BooleanNot(), node_);
-      node_->ReplaceUses(value);
-      // Note: ReplaceUses() smashes all uses, so smash it back here.
-      value->ReplaceInput(0, node_);
-      return lowering_->Replace(value);
-    }
     return lowering_->Changed(node_);
-  }
-
-  Reduction ChangeToPureOperator(const Operator* op, Type* type) {
-    return ChangeToPureOperator(op, false, type);
-  }
-
-  Reduction ChangeToSpeculativeOperator(const Operator* op, Type* type) {
-    return ChangeToSpeculativeOperator(op, false, type);
   }
 
   const Operator* NumberOp() {
@@ -342,30 +322,22 @@ class JSBinopReduction final {
     return nullptr;
   }
 
-  const Operator* SpeculativeNumberOp(NumberOperationHint hint) {
+  const Operator* NumberOpFromSpeculativeNumberOp() {
     switch (node_->opcode()) {
-      case IrOpcode::kJSAdd:
-        return simplified()->SpeculativeNumberAdd(hint);
-      case IrOpcode::kJSSubtract:
-        return simplified()->SpeculativeNumberSubtract(hint);
-      case IrOpcode::kJSMultiply:
-        return simplified()->SpeculativeNumberMultiply(hint);
-      case IrOpcode::kJSDivide:
-        return simplified()->SpeculativeNumberDivide(hint);
-      case IrOpcode::kJSModulus:
-        return simplified()->SpeculativeNumberModulus(hint);
-      case IrOpcode::kJSBitwiseAnd:
-        return simplified()->SpeculativeNumberBitwiseAnd(hint);
-      case IrOpcode::kJSBitwiseOr:
-        return simplified()->SpeculativeNumberBitwiseOr(hint);
-      case IrOpcode::kJSBitwiseXor:
-        return simplified()->SpeculativeNumberBitwiseXor(hint);
-      case IrOpcode::kJSShiftLeft:
-        return simplified()->SpeculativeNumberShiftLeft(hint);
-      case IrOpcode::kJSShiftRight:
-        return simplified()->SpeculativeNumberShiftRight(hint);
-      case IrOpcode::kJSShiftRightLogical:
-        return simplified()->SpeculativeNumberShiftRightLogical(hint);
+      case IrOpcode::kSpeculativeNumberLessThan:
+        return simplified()->NumberLessThan();
+      case IrOpcode::kSpeculativeNumberLessThanOrEqual:
+        return simplified()->NumberLessThanOrEqual();
+      case IrOpcode::kSpeculativeNumberAdd:
+        return simplified()->NumberAdd();
+      case IrOpcode::kSpeculativeNumberSubtract:
+        return simplified()->NumberSubtract();
+      case IrOpcode::kSpeculativeNumberMultiply:
+        return simplified()->NumberMultiply();
+      case IrOpcode::kSpeculativeNumberDivide:
+        return simplified()->NumberDivide();
+      case IrOpcode::kSpeculativeNumberModulus:
+        return simplified()->NumberModulus();
       default:
         break;
     }
@@ -543,20 +515,22 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
   }
 }
 
+Reduction JSTypedLowering::ReduceSpeculativeNumberAdd(Node* node) {
+  JSBinopReduction r(this, node);
+  NumberOperationHint hint = NumberOperationHintOf(node->op());
+  if (hint == NumberOperationHint::kNumberOrOddball &&
+      r.BothInputsAre(Type::PlainPrimitive()) &&
+      r.NeitherInputCanBe(Type::StringOrReceiver())) {
+    // SpeculativeNumberAdd(x:-string, y:-string) =>
+    //     NumberAdd(ToNumber(x), ToNumber(y))
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
-  NumberOperationHint hint;
-  if (r.GetBinaryNumberOperationHint(&hint)) {
-    if (hint == NumberOperationHint::kNumberOrOddball &&
-        r.BothInputsAre(Type::PlainPrimitive()) &&
-        r.NeitherInputCanBe(Type::StringOrReceiver())) {
-      // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
-      r.ConvertInputsToNumber();
-      return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
-    }
-    return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberAdd(hint), Type::Number());
-  }
   if (r.BothInputsAre(Type::Number())) {
     // JSAdd(x:number, y:number) => NumberAdd(x, y)
     r.ConvertInputsToNumber();
@@ -604,16 +578,6 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
 Reduction JSTypedLowering::ReduceNumberBinop(Node* node) {
   JSBinopReduction r(this, node);
-  NumberOperationHint hint;
-  if (r.GetBinaryNumberOperationHint(&hint)) {
-    if (hint == NumberOperationHint::kNumberOrOddball &&
-        r.BothInputsAre(Type::NumberOrOddball())) {
-      r.ConvertInputsToNumber();
-      return r.ChangeToPureOperator(r.NumberOp(), Type::Number());
-    }
-    return r.ChangeToSpeculativeOperator(r.SpeculativeNumberOp(hint),
-                                         Type::Number());
-  }
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();
@@ -622,13 +586,20 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceSpeculativeNumberBinop(Node* node) {
+  JSBinopReduction r(this, node);
+  NumberOperationHint hint = NumberOperationHintOf(node->op());
+  if (hint == NumberOperationHint::kNumberOrOddball &&
+      r.BothInputsAre(Type::NumberOrOddball())) {
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(r.NumberOpFromSpeculativeNumberOp(),
+                                  Type::Number());
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node) {
   JSBinopReduction r(this, node);
-  NumberOperationHint hint;
-  if (r.GetBinaryNumberOperationHint(&hint)) {
-    return r.ChangeToSpeculativeOperator(r.SpeculativeNumberOp(hint),
-                                         Type::Signed32());
-  }
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();
@@ -640,12 +611,6 @@ Reduction JSTypedLowering::ReduceInt32Binop(Node* node) {
 
 Reduction JSTypedLowering::ReduceUI32Shift(Node* node, Signedness signedness) {
   JSBinopReduction r(this, node);
-  NumberOperationHint hint;
-  if (r.GetBinaryNumberOperationHint(&hint)) {
-    return r.ChangeToSpeculativeOperator(
-        r.SpeculativeNumberOp(hint),
-        signedness == kUnsigned ? Type::Unsigned32() : Type::Signed32());
-  }
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();
@@ -727,7 +692,7 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
           javascript()->CallRuntime(Runtime::kThrowInvalidStringLength),
           context, frame_state, efalse, if_false);
       if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
-      if_false = graph()->NewNode(common()->Throw(), vfalse, efalse, if_false);
+      if_false = graph()->NewNode(common()->Throw(), efalse, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), if_false);
       Revisit(graph()->end());
@@ -784,6 +749,15 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   return Changed(node);
 }
 
+Reduction JSTypedLowering::ReduceSpeculativeNumberComparison(Node* node) {
+  JSBinopReduction r(this, node);
+  if (r.BothInputsAre(Type::Signed32()) ||
+      r.BothInputsAre(Type::Unsigned32())) {
+    return r.ChangeToPureOperator(r.NumberOpFromSpeculativeNumberOp());
+  }
+  return Changed(node);
+}
+
 Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::String())) {
@@ -811,22 +785,22 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     return Changed(node);
   }
 
-  NumberOperationHint hint;
   const Operator* less_than;
   const Operator* less_than_or_equal;
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
     less_than = simplified()->NumberLessThan();
     less_than_or_equal = simplified()->NumberLessThanOrEqual();
-  } else if (r.GetCompareNumberOperationHint(&hint)) {
-    less_than = simplified()->SpeculativeNumberLessThan(hint);
-    less_than_or_equal = simplified()->SpeculativeNumberLessThanOrEqual(hint);
   } else if (r.OneInputCannotBe(Type::StringOrReceiver()) &&
              (r.BothInputsAre(Type::PlainPrimitive()) ||
               !(flags() & kDeoptimizationEnabled))) {
     r.ConvertInputsToNumber();
     less_than = simplified()->NumberLessThan();
     less_than_or_equal = simplified()->NumberLessThanOrEqual();
+  } else if (r.IsStringCompareOperation()) {
+    r.CheckInputsToString();
+    less_than = simplified()->StringLessThan();
+    less_than_or_equal = simplified()->StringLessThanOrEqual();
   } else {
     return NoChange();
   }
@@ -849,11 +823,7 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     default:
       return NoChange();
   }
-  if (comparison->EffectInputCount() > 0) {
-    return r.ChangeToSpeculativeOperator(comparison, Type::Boolean());
-  } else {
-    return r.ChangeToPureOperator(comparison);
-  }
+  return r.ChangeToPureOperator(comparison);
 }
 
 Reduction JSTypedLowering::ReduceJSTypeOf(Node* node) {
@@ -882,7 +852,7 @@ Reduction JSTypedLowering::ReduceJSTypeOf(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
+Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node) {
   Node* input;
   Handle<String> type;
   HeapObjectBinopMatcher m(node);
@@ -907,7 +877,7 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
                          graph()->NewNode(simplified()->ReferenceEqual(), input,
                                           jsgraph()->FalseConstant()));
   } else if (String::Equals(type, factory()->function_string())) {
-    value = graph()->NewNode(simplified()->ObjectIsCallable(), input);
+    value = graph()->NewNode(simplified()->ObjectIsDetectableCallable(), input);
   } else if (String::Equals(type, factory()->number_string())) {
     value = graph()->NewNode(simplified()->ObjectIsNumber(), input);
   } else if (String::Equals(type, factory()->object_string())) {
@@ -929,120 +899,115 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
   } else {
     return NoChange();
   }
-  if (invert) {
-    value = graph()->NewNode(simplified()->BooleanNot(), value);
-  }
   ReplaceWithValue(node, value);
   return Replace(value);
 }
 
-Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
-  Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
+Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
+  Reduction const reduction = ReduceJSEqualTypeOf(node);
   if (reduction.Changed()) return reduction;
 
   JSBinopReduction r(this, node);
 
   if (r.BothInputsAre(Type::UniqueName())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.IsInternalizedStringCompareOperation()) {
     r.CheckInputsToInternalizedString();
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.BothInputsAre(Type::String())) {
-    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->StringEqual());
   }
   if (r.BothInputsAre(Type::Boolean())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.BothInputsAre(Type::Receiver())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.OneInputIs(Type::Undetectable())) {
     RelaxEffectsAndControls(node);
     node->RemoveInput(r.LeftInputIs(Type::Undetectable()) ? 0 : 1);
     node->TrimInputCount(1);
     NodeProperties::ChangeOp(node, simplified()->ObjectIsUndetectable());
-    if (invert) {
-      // Insert an boolean not to invert the value.
-      Node* value = graph()->NewNode(simplified()->BooleanNot(), node);
-      node->ReplaceUses(value);
-      // Note: ReplaceUses() smashes all uses, so smash it back here.
-      value->ReplaceInput(0, node);
-      return Replace(value);
-    }
     return Changed(node);
   }
 
   NumberOperationHint hint;
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
-    return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.GetCompareNumberOperationHint(&hint)) {
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
+        simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
-    return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.IsReceiverCompareOperation()) {
     r.CheckInputsToReceiver();
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
+  } else if (r.IsStringCompareOperation()) {
+    r.CheckInputsToString();
+    return r.ChangeToPureOperator(simplified()->StringEqual());
   }
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
+Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   JSBinopReduction r(this, node);
   if (r.left() == r.right()) {
     // x === x is always true if x != NaN
-    if (!r.left_type()->Maybe(Type::NaN())) {
-      Node* replacement = jsgraph()->BooleanConstant(!invert);
-      ReplaceWithValue(node, replacement);
-      return Replace(replacement);
-    }
+    Node* replacement = graph()->NewNode(
+        simplified()->BooleanNot(),
+        graph()->NewNode(simplified()->ObjectIsNaN(), r.left()));
+    ReplaceWithValue(node, replacement);
+    return Replace(replacement);
   }
   if (r.OneInputCannotBe(Type::NumberOrString())) {
     // For values with canonical representation (i.e. neither String, nor
     // Number) an empty type intersection means the values cannot be strictly
     // equal.
     if (!r.left_type()->Maybe(r.right_type())) {
-      Node* replacement = jsgraph()->BooleanConstant(invert);
+      Node* replacement = jsgraph()->FalseConstant();
       ReplaceWithValue(node, replacement);
       return Replace(replacement);
     }
   }
 
-  Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
+  Reduction const reduction = ReduceJSEqualTypeOf(node);
   if (reduction.Changed()) return reduction;
 
   if (r.BothInputsAre(Type::Unique())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.OneInputIs(pointer_comparable_type_)) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.IsInternalizedStringCompareOperation()) {
     r.CheckInputsToInternalizedString();
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.BothInputsAre(Type::String())) {
-    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->StringEqual());
   }
 
   NumberOperationHint hint;
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
-    return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.GetCompareNumberOperationHint(&hint)) {
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
+        simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
-    return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.IsReceiverCompareOperation()) {
     // For strict equality, it's enough to know that one input is a Receiver,
     // as a strict equality comparison with a Receiver can only yield true if
     // both sides refer to the same Receiver than.
     r.CheckLeftInputToReceiver();
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
+  } else if (r.IsStringCompareOperation()) {
+    r.CheckInputsToString();
+    return r.ChangeToPureOperator(simplified()->StringEqual());
   }
   return NoChange();
 }
@@ -2366,13 +2331,9 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreRegister(Node* node) {
 Reduction JSTypedLowering::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSEqual:
-      return ReduceJSEqual(node, false);
-    case IrOpcode::kJSNotEqual:
-      return ReduceJSEqual(node, true);
+      return ReduceJSEqual(node);
     case IrOpcode::kJSStrictEqual:
-      return ReduceJSStrictEqual(node, false);
-    case IrOpcode::kJSStrictNotEqual:
-      return ReduceJSStrictEqual(node, true);
+      return ReduceJSStrictEqual(node);
     case IrOpcode::kJSLessThan:         // fall through
     case IrOpcode::kJSGreaterThan:      // fall through
     case IrOpcode::kJSLessThanOrEqual:  // fall through
@@ -2446,6 +2407,18 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorRestoreContinuation(node);
     case IrOpcode::kJSGeneratorRestoreRegister:
       return ReduceJSGeneratorRestoreRegister(node);
+    // TODO(mstarzinger): Simplified operations hiding in JS-level reducer not
+    // fooling anyone. Consider moving this into a separate reducer.
+    case IrOpcode::kSpeculativeNumberAdd:
+      return ReduceSpeculativeNumberAdd(node);
+    case IrOpcode::kSpeculativeNumberSubtract:
+    case IrOpcode::kSpeculativeNumberMultiply:
+    case IrOpcode::kSpeculativeNumberDivide:
+    case IrOpcode::kSpeculativeNumberModulus:
+      return ReduceSpeculativeNumberBinop(node);
+    case IrOpcode::kSpeculativeNumberLessThan:
+    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
+      return ReduceSpeculativeNumberComparison(node);
     default:
       break;
   }

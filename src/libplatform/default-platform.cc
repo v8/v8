@@ -17,9 +17,9 @@
 namespace v8 {
 namespace platform {
 
-
-v8::Platform* CreateDefaultPlatform(int thread_pool_size) {
-  DefaultPlatform* platform = new DefaultPlatform();
+v8::Platform* CreateDefaultPlatform(int thread_pool_size,
+                                    IdleTaskSupport idle_task_support) {
+  DefaultPlatform* platform = new DefaultPlatform(idle_task_support);
   platform->SetThreadPoolSize(thread_pool_size);
   platform->EnsureInitialized();
   return platform;
@@ -45,8 +45,10 @@ void SetTracingController(
 
 const int DefaultPlatform::kMaxThreadPoolSize = 8;
 
-DefaultPlatform::DefaultPlatform()
-    : initialized_(false), thread_pool_size_(0) {}
+DefaultPlatform::DefaultPlatform(IdleTaskSupport idle_task_support)
+    : initialized_(false),
+      thread_pool_size_(0),
+      idle_task_support_(idle_task_support) {}
 
 DefaultPlatform::~DefaultPlatform() {
   if (tracing_controller_) {
@@ -165,6 +167,7 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
 
 void DefaultPlatform::RunIdleTasks(v8::Isolate* isolate,
                                    double idle_time_in_seconds) {
+  DCHECK(IdleTaskSupport::kEnabled == idle_task_support_);
   double deadline_in_seconds =
       MonotonicallyIncreasingTime() + idle_time_in_seconds;
   while (deadline_in_seconds > MonotonicallyIncreasingTime()) {
@@ -208,7 +211,9 @@ void DefaultPlatform::CallIdleOnForegroundThread(Isolate* isolate,
   main_thread_idle_queue_[isolate].push(task);
 }
 
-bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) { return true; }
+bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) {
+  return idle_task_support_ == IdleTaskSupport::kEnabled;
+}
 
 double DefaultPlatform::MonotonicallyIncreasingTime() {
   return base::TimeTicks::HighResolutionNow().ToInternalValue() /

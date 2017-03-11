@@ -10,6 +10,7 @@
 #include "src/ic/accessor-assembler.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -66,12 +67,18 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                                 ElementsKind packed_kind,
                                 ElementsKind packed_kind_2, Label* bailout);
 
-  void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
   void LookupPropertyOnPrototypeChain(Node* receiver_map, Node* name,
                                       Label* accessor,
                                       Variable* var_accessor_pair,
                                       Variable* var_accessor_holder,
                                       Label* readonly, Label* bailout);
+
+  void CheckFieldType(Node* descriptors, Node* name_index, Node* representation,
+                      Node* value, Label* bailout);
+  void OverwriteExistingFastProperty(Node* object, Node* object_map,
+                                     Node* properties, Node* descriptors,
+                                     Node* descriptor_name_index, Node* details,
+                                     Node* value, Label* slow);
 };
 
 void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state,
@@ -266,7 +273,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // can always be stored.
     {
       Label non_smi_value(this);
-      GotoUnless(TaggedIsSmi(value), &non_smi_value);
+      GotoIfNot(TaggedIsSmi(value), &non_smi_value);
       // If we're about to introduce holes, ensure holey elements.
       if (update_length == kBumpLengthWithGap) {
         TryChangeToHoleyMapMulti(receiver, receiver_map, elements_kind, context,
@@ -498,17 +505,6 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   }
 }
 
-void KeyedStoreGenericAssembler::JumpIfDataProperty(Node* details,
-                                                    Label* writable,
-                                                    Label* readonly) {
-  // Accessor properties never have the READ_ONLY attribute set.
-  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
-         readonly);
-  Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
-  GotoIf(Word32Equal(kind, Int32Constant(kData)), writable);
-  // Fall through if it's an accessor property.
-}
-
 void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
     Node* receiver_map, Node* name, Label* accessor,
     Variable* var_accessor_pair, Variable* var_accessor_holder, Label* readonly,
@@ -544,6 +540,7 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         // Accessor case.
+        // TODO(jkummerow): Implement a trimmed-down LoadAccessorFromFastObject.
         Variable var_details(this, MachineRepresentation::kWord32);
         LoadPropertyFromFastObject(holder, holder_map, descriptors, name_index,
                                    &var_details, var_accessor_pair);
@@ -599,6 +596,146 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
   Bind(&ok_to_write);
 }
 
+void KeyedStoreGenericAssembler::CheckFieldType(Node* descriptors,
+                                                Node* name_index,
+                                                Node* representation,
+                                                Node* value, Label* bailout) {
+  Label r_smi(this), r_double(this), r_heapobject(this), all_fine(this);
+  // Ignore FLAG_track_fields etc. and always emit code for all checks,
+  // because this builtin is part of the snapshot and therefore should
+  // be flag independent.
+  GotoIf(Word32Equal(representation, Int32Constant(Representation::kSmi)),
+         &r_smi);
+  GotoIf(Word32Equal(representation, Int32Constant(Representation::kDouble)),
+         &r_double);
+  GotoIf(
+      Word32Equal(representation, Int32Constant(Representation::kHeapObject)),
+      &r_heapobject);
+  GotoIf(Word32Equal(representation, Int32Constant(Representation::kNone)),
+         bailout);
+  CSA_ASSERT(this, Word32Equal(representation,
+                               Int32Constant(Representation::kTagged)));
+  Goto(&all_fine);
+
+  Bind(&r_smi);
+  { Branch(TaggedIsSmi(value), &all_fine, bailout); }
+
+  Bind(&r_double);
+  {
+    GotoIf(TaggedIsSmi(value), &all_fine);
+    Node* value_map = LoadMap(value);
+    // While supporting mutable HeapNumbers would be straightforward, such
+    // objects should not end up here anyway.
+    CSA_ASSERT(this,
+               WordNotEqual(value_map,
+                            LoadRoot(Heap::kMutableHeapNumberMapRootIndex)));
+    Branch(IsHeapNumberMap(value_map), &all_fine, bailout);
+  }
+
+  Bind(&r_heapobject);
+  {
+    GotoIf(TaggedIsSmi(value), bailout);
+    Node* field_type =
+        LoadValueByKeyIndex<DescriptorArray>(descriptors, name_index);
+    intptr_t kNoneType = reinterpret_cast<intptr_t>(FieldType::None());
+    intptr_t kAnyType = reinterpret_cast<intptr_t>(FieldType::Any());
+    // FieldType::None can't hold any value.
+    GotoIf(WordEqual(field_type, IntPtrConstant(kNoneType)), bailout);
+    // FieldType::Any can hold any value.
+    GotoIf(WordEqual(field_type, IntPtrConstant(kAnyType)), &all_fine);
+    CSA_ASSERT(this, IsWeakCell(field_type));
+    // Cleared WeakCells count as FieldType::None, which can't hold any value.
+    field_type = LoadWeakCellValue(field_type, bailout);
+    // FieldType::Class(...) performs a map check.
+    CSA_ASSERT(this, IsMap(field_type));
+    Branch(WordEqual(LoadMap(value), field_type), &all_fine, bailout);
+  }
+
+  Bind(&all_fine);
+}
+
+void KeyedStoreGenericAssembler::OverwriteExistingFastProperty(
+    Node* object, Node* object_map, Node* properties, Node* descriptors,
+    Node* descriptor_name_index, Node* details, Node* value, Label* slow) {
+  // Properties in descriptors can't be overwritten without map transition.
+  GotoIf(Word32NotEqual(DecodeWord32<PropertyDetails::LocationField>(details),
+                        Int32Constant(kField)),
+         slow);
+
+  if (FLAG_track_constant_fields) {
+    // TODO(ishell): Taking the slow path is not necessary if new and old
+    // values are identical.
+    GotoIf(Word32Equal(DecodeWord32<PropertyDetails::ConstnessField>(details),
+                       Int32Constant(kConst)),
+           slow);
+  }
+
+  Label done(this);
+  Node* representation =
+      DecodeWord32<PropertyDetails::RepresentationField>(details);
+
+  CheckFieldType(descriptors, descriptor_name_index, representation, value,
+                 slow);
+  Node* field_index =
+      DecodeWordFromWord32<PropertyDetails::FieldIndexField>(details);
+  Node* inobject_properties = LoadMapInobjectProperties(object_map);
+
+  Label inobject(this), backing_store(this);
+  Branch(UintPtrLessThan(field_index, inobject_properties), &inobject,
+         &backing_store);
+
+  Bind(&inobject);
+  {
+    Node* field_offset =
+        IntPtrMul(IntPtrSub(LoadMapInstanceSize(object_map),
+                            IntPtrSub(inobject_properties, field_index)),
+                  IntPtrConstant(kPointerSize));
+    Label tagged_rep(this), double_rep(this);
+    Branch(Word32Equal(representation, Int32Constant(Representation::kDouble)),
+           &double_rep, &tagged_rep);
+    Bind(&double_rep);
+    {
+      Node* double_value = ChangeNumberToFloat64(value);
+      if (FLAG_unbox_double_fields) {
+        StoreObjectFieldNoWriteBarrier(object, field_offset, double_value,
+                                       MachineRepresentation::kFloat64);
+      } else {
+        Node* mutable_heap_number = LoadObjectField(object, field_offset);
+        StoreHeapNumberValue(mutable_heap_number, double_value);
+      }
+      Goto(&done);
+    }
+
+    Bind(&tagged_rep);
+    {
+      StoreObjectField(object, field_offset, value);
+      Goto(&done);
+    }
+  }
+
+  Bind(&backing_store);
+  {
+    Node* backing_store_index = IntPtrSub(field_index, inobject_properties);
+    Label tagged_rep(this), double_rep(this);
+    Branch(Word32Equal(representation, Int32Constant(Representation::kDouble)),
+           &double_rep, &tagged_rep);
+    Bind(&double_rep);
+    {
+      Node* double_value = ChangeNumberToFloat64(value);
+      Node* mutable_heap_number =
+          LoadFixedArrayElement(properties, backing_store_index);
+      StoreHeapNumberValue(mutable_heap_number, double_value);
+      Goto(&done);
+    }
+    Bind(&tagged_rep);
+    {
+      StoreFixedArrayElement(properties, backing_store_index, value);
+      Goto(&done);
+    }
+  }
+  Bind(&done);
+}
+
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Node* receiver, Node* receiver_map, const StoreICParameters* p, Label* slow,
     LanguageMode language_mode) {
@@ -613,10 +750,40 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
   Bind(&fast_properties);
   {
-    // TODO(jkummerow): Does it make sense to support some cases here inline?
-    // Maybe overwrite existing writable properties?
-    // Maybe support map transitions?
-    Goto(&stub_cache);
+    Comment("fast property store");
+    Node* bitfield3 = LoadMapBitField3(receiver_map);
+    Node* descriptors = LoadMapDescriptors(receiver_map);
+    Label descriptor_found(this);
+    Variable var_name_index(this, MachineType::PointerRepresentation());
+    // TODO(jkummerow): Maybe look for existing map transitions?
+    Label* notfound = &stub_cache;
+    DescriptorLookup(p->name, descriptors, bitfield3, &descriptor_found,
+                     &var_name_index, notfound);
+
+    Bind(&descriptor_found);
+    {
+      Node* name_index = var_name_index.value();
+      Node* details =
+          LoadDetailsByKeyIndex<DescriptorArray>(descriptors, name_index);
+      Label data_property(this);
+      JumpIfDataProperty(details, &data_property, &readonly);
+
+      // Accessor case.
+      // TODO(jkummerow): Implement a trimmed-down LoadAccessorFromFastObject.
+      Variable var_details(this, MachineRepresentation::kWord32);
+      LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
+                                 name_index, &var_details, &var_accessor_pair);
+      var_accessor_holder.Bind(receiver);
+      Goto(&accessor);
+
+      Bind(&data_property);
+      {
+        OverwriteExistingFastProperty(receiver, receiver_map, properties,
+                                      descriptors, name_index, details,
+                                      p->value, slow);
+        Return(p->value);
+      }
+    }
   }
 
   Bind(&dictionary_properties);
@@ -670,7 +837,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Node* setter_map = LoadMap(setter);
     // FunctionTemplateInfo setters are not supported yet.
     GotoIf(IsFunctionTemplateInfoMap(setter_map), slow);
-    GotoUnless(IsCallableMap(setter_map), &not_callable);
+    GotoIfNot(IsCallableMap(setter_map), &not_callable);
 
     Callable callable = CodeFactory::Call(isolate());
     CallJS(callable, p->context, setter, receiver, p->value);

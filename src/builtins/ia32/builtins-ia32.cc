@@ -1719,125 +1719,6 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
-  // ----------- S t a t e -------------
-  //  -- eax                 : number of arguments
-  //  -- edi                 : function
-  //  -- esi                 : context
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 8] : arg[n] (zero-based)
-  //  -- esp[(argc + 1) * 8] : receiver
-  // -----------------------------------
-  Condition const cc = (kind == MathMaxMinKind::kMin) ? below : above;
-  Heap::RootListIndex const root_index =
-      (kind == MathMaxMinKind::kMin) ? Heap::kInfinityValueRootIndex
-                                     : Heap::kMinusInfinityValueRootIndex;
-  XMMRegister const reg = (kind == MathMaxMinKind::kMin) ? xmm1 : xmm0;
-
-  // Load the accumulator with the default return value (either -Infinity or
-  // +Infinity), with the tagged value in edx and the double value in xmm0.
-  __ LoadRoot(edx, root_index);
-  __ movsd(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
-  __ Move(ecx, eax);
-
-  Label done_loop, loop;
-  __ bind(&loop);
-  {
-    // Check if all parameters done.
-    __ test(ecx, ecx);
-    __ j(zero, &done_loop);
-
-    // Load the next parameter tagged value into ebx.
-    __ mov(ebx, Operand(esp, ecx, times_pointer_size, 0));
-
-    // Load the double value of the parameter into xmm1, maybe converting the
-    // parameter to a number first using the ToNumber builtin if necessary.
-    Label convert, convert_smi, convert_number, done_convert;
-    __ bind(&convert);
-    __ JumpIfSmi(ebx, &convert_smi);
-    __ JumpIfRoot(FieldOperand(ebx, HeapObject::kMapOffset),
-                  Heap::kHeapNumberMapRootIndex, &convert_number);
-    {
-      // Parameter is not a Number, use the ToNumber builtin to convert it.
-      FrameScope scope(masm, StackFrame::MANUAL);
-      __ SmiTag(eax);
-      __ SmiTag(ecx);
-      __ EnterBuiltinFrame(esi, edi, eax);
-      __ Push(ecx);
-      __ Push(edx);
-      __ mov(eax, ebx);
-      __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
-      __ mov(ebx, eax);
-      __ Pop(edx);
-      __ Pop(ecx);
-      __ LeaveBuiltinFrame(esi, edi, eax);
-      __ SmiUntag(ecx);
-      __ SmiUntag(eax);
-      {
-        // Restore the double accumulator value (xmm0).
-        Label restore_smi, done_restore;
-        __ JumpIfSmi(edx, &restore_smi, Label::kNear);
-        __ movsd(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
-        __ jmp(&done_restore, Label::kNear);
-        __ bind(&restore_smi);
-        __ SmiUntag(edx);
-        __ Cvtsi2sd(xmm0, edx);
-        __ SmiTag(edx);
-        __ bind(&done_restore);
-      }
-    }
-    __ jmp(&convert);
-    __ bind(&convert_number);
-    __ movsd(xmm1, FieldOperand(ebx, HeapNumber::kValueOffset));
-    __ jmp(&done_convert, Label::kNear);
-    __ bind(&convert_smi);
-    __ SmiUntag(ebx);
-    __ Cvtsi2sd(xmm1, ebx);
-    __ SmiTag(ebx);
-    __ bind(&done_convert);
-
-    // Perform the actual comparison with the accumulator value on the left hand
-    // side (xmm0) and the next parameter value on the right hand side (xmm1).
-    Label compare_equal, compare_nan, compare_swap, done_compare;
-    __ ucomisd(xmm0, xmm1);
-    __ j(parity_even, &compare_nan, Label::kNear);
-    __ j(cc, &done_compare, Label::kNear);
-    __ j(equal, &compare_equal, Label::kNear);
-
-    // Result is on the right hand side.
-    __ bind(&compare_swap);
-    __ movaps(xmm0, xmm1);
-    __ mov(edx, ebx);
-    __ jmp(&done_compare, Label::kNear);
-
-    // At least one side is NaN, which means that the result will be NaN too.
-    __ bind(&compare_nan);
-    __ LoadRoot(edx, Heap::kNanValueRootIndex);
-    __ movsd(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
-    __ jmp(&done_compare, Label::kNear);
-
-    // Left and right hand side are equal, check for -0 vs. +0.
-    __ bind(&compare_equal);
-    __ Push(edi);  // Preserve function in edi.
-    __ movmskpd(edi, reg);
-    __ test(edi, Immediate(1));
-    __ Pop(edi);
-    __ j(not_zero, &compare_swap);
-
-    __ bind(&done_compare);
-    __ dec(ecx);
-    __ jmp(&loop);
-  }
-
-  __ bind(&done_loop);
-  __ PopReturnAddressTo(ecx);
-  __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
-  __ PushReturnAddressFrom(ecx);
-  __ mov(eax, edx);
-  __ Ret();
-}
-
-// static
 void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax                 : number of arguments
@@ -2134,7 +2015,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ mov(ebp, esp);
 
   // Store the arguments adaptor context sentinel.
-  __ push(Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ push(Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Push the function on the stack.
   __ push(edi);
@@ -2332,7 +2213,7 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   Label arguments_adaptor, arguments_done;
   __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ cmp(Operand(ebx, CommonFrameConstants::kContextOrFrameTypeOffset),
-         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+         Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &arguments_adaptor, Label::kNear);
   {
     __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
@@ -2448,7 +2329,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   {
     Label no_interpreter_frame;
     __ cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
-           Immediate(Smi::FromInt(StackFrame::STUB)));
+           Immediate(StackFrame::TypeToMarker(StackFrame::STUB)));
     __ j(not_equal, &no_interpreter_frame, Label::kNear);
     __ mov(ebp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
     __ bind(&no_interpreter_frame);
@@ -2459,7 +2340,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ mov(scratch2, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ cmp(Operand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset),
-         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+         Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &no_arguments_adaptor, Label::kNear);
 
   // Drop current frame and load arguments count from arguments adaptor frame.
@@ -2916,12 +2797,16 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
     __ movd(xmm2, esi);
 
     __ mov(scratch, Immediate(0));
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ cmp(scratch, spread_len);
     __ j(equal, &done, Label::kNear);
     __ mov(scratch2, FieldOperand(spread, scratch, times_pointer_size,
                                   FixedArray::kHeaderSize));
+    __ CompareRoot(scratch2, Heap::kTheHoleValueRootIndex);
+    __ j(not_equal, &push, Label::kNear);
+    __ LoadRoot(scratch2, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
     __ Push(scratch2);
     __ inc(scratch);
     __ jmp(&loop);

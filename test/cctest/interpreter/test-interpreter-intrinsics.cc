@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects-inl.h"
 #include "test/cctest/interpreter/interpreter-tester.h"
 
 namespace v8 {

@@ -6,8 +6,8 @@
 
 #include "src/codegen.h"
 #include "src/ic/ic.h"
-#include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -62,9 +62,7 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
   // condition code uses at the patched jump.
   uint8_t delta = *reinterpret_cast<uint8_t*>(delta_address);
   if (FLAG_trace_ic) {
-    PrintF("[  patching ic at %p, test=%p, delta=%d\n",
-           static_cast<void*>(address),
-           static_cast<void*>(test_instruction_address), delta);
+    LOG(isolate, PatchIC(address, test_instruction_address, delta));
   }
 
   // Patch with a short conditional jump. Enabling means switching from a short

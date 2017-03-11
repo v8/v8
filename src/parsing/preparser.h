@@ -862,8 +862,7 @@ class PreParserFactory {
   }
   PreParserExpression NewFunctionLiteral(
       PreParserIdentifier name, Scope* scope, PreParserStatementList body,
-      int materialized_literal_count, int expected_property_count,
-      int parameter_count, int function_length,
+      int expected_property_count, int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
@@ -948,6 +947,11 @@ class PreParserFactory {
   PreParserStatement NewForEachStatement(ForEachStatement::VisitMode visit_mode,
                                          ZoneList<const AstRawString*>* labels,
                                          int pos) {
+    return PreParserStatement::Default();
+  }
+
+  PreParserStatement NewForOfStatement(ZoneList<const AstRawString*>* labels,
+                                       int pos) {
     return PreParserStatement::Default();
   }
 
@@ -1076,13 +1080,14 @@ class PreParserFactory {
 
 struct PreParserFormalParameters : FormalParametersBase {
   struct Parameter : public ZoneObject {
-    Parameter(PreParserExpression pattern, bool is_rest)
-        : pattern(pattern), is_rest(is_rest) {}
+    Parameter(ZoneList<VariableProxy*>* variables, bool is_rest)
+        : variables_(variables), is_rest(is_rest) {}
     Parameter** next() { return &next_parameter; }
     Parameter* const* next() const { return &next_parameter; }
-    PreParserExpression pattern;
+
+    ZoneList<VariableProxy*>* variables_;
     Parameter* next_parameter = nullptr;
-    bool is_rest;
+    bool is_rest : 1;
   };
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
@@ -1198,9 +1203,8 @@ class PreParser : public ParserBase<PreParser> {
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  PreParseResult PreParseProgram(int* materialized_literals = 0,
-                                 bool is_module = false) {
-    DCHECK_NULL(scope_state_);
+  PreParseResult PreParseProgram(bool is_module = false) {
+    DCHECK_NULL(scope_);
     DeclarationScope* scope = NewScriptScope();
 #ifdef DEBUG
     scope->set_is_being_lazily_parsed(true);
@@ -1211,7 +1215,7 @@ class PreParser : public ParserBase<PreParser> {
     // the global scope.
     if (is_module) scope = NewModuleScope(scope);
 
-    FunctionState top_scope(&function_state_, &scope_state_, scope);
+    FunctionState top_scope(&function_state_, &scope_, scope);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     parsing_module_ = is_module;
@@ -1223,9 +1227,6 @@ class PreParser : public ParserBase<PreParser> {
     } else if (is_strict(this->scope()->language_mode())) {
       CheckStrictOctalLiteral(start_position, scanner()->location().end_pos,
                               &ok);
-    }
-    if (materialized_literals) {
-      *materialized_literals = function_state_->materialized_literal_count();
     }
     return kPreParseSuccess;
   }
@@ -1263,12 +1264,11 @@ class PreParser : public ParserBase<PreParser> {
   bool AllowsLazyParsingWithoutUnresolvedVariables() const { return false; }
   bool parse_lazily() const { return false; }
 
-  V8_INLINE LazyParsingResult
-  SkipFunction(FunctionKind kind, DeclarationScope* function_scope,
-               int* num_parameters, int* function_length,
-               bool* has_duplicate_parameters, int* materialized_literal_count,
-               int* expected_property_count, bool is_inner_function,
-               typesystem::TypeFlags type_flags, bool may_abort, bool* ok) {
+  V8_INLINE LazyParsingResult SkipFunction(
+      FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
+      int* function_length, bool* has_duplicate_parameters,
+      int* expected_property_count, bool is_inner_function,
+      typesystem::TypeFlags type_flags, bool may_abort, bool* ok) {
     UNREACHABLE();
     return kLazyParsingComplete;
   }
@@ -1290,7 +1290,8 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void AddTemplateExpression(TemplateLiteralState* state,
                                        PreParserExpression expression) {}
-  V8_INLINE void AddTemplateSpan(TemplateLiteralState* state, bool tail) {}
+  V8_INLINE void AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
+                                 bool tail) {}
   V8_INLINE PreParserExpression CloseTemplateLiteral(
       TemplateLiteralState* state, int start, PreParserExpression tag);
   V8_INLINE void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
@@ -1631,6 +1632,14 @@ class PreParser : public ParserBase<PreParser> {
     return stmt;
   }
 
+  V8_INLINE PreParserStatement InitializeForOfStatement(
+      PreParserStatement stmt, PreParserExpression each,
+      PreParserExpression iterable, PreParserStatement body, bool finalize,
+      IteratorType type, int next_result_pos = kNoSourcePosition) {
+    MarkExpressionAsAssigned(each);
+    return stmt;
+  }
+
   V8_INLINE PreParserStatement RewriteForVarInLegacy(const ForInfo& for_info) {
     return PreParserStatement::Null();
   }
@@ -1950,8 +1959,8 @@ class PreParser : public ParserBase<PreParser> {
                                     bool is_rest) {
     if (track_unresolved_variables_) {
       DCHECK(FLAG_lazy_inner_functions);
-      parameters->params.Add(
-          new (zone()) PreParserFormalParameters::Parameter(pattern, is_rest));
+      parameters->params.Add(new (zone()) PreParserFormalParameters::Parameter(
+          pattern.variables_, is_rest));
     }
     parameters->UpdateArityAndFunctionLength(!initializer.IsEmpty(), is_rest);
   }
@@ -1959,14 +1968,13 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void DeclareFormalParameters(
       DeclarationScope* scope,
       const ThreadedList<PreParserFormalParameters::Parameter>& parameters) {
-    if (!classifier()->is_simple_parameter_list()) {
-      scope->SetHasNonSimpleParameters();
-    }
+    bool is_simple = classifier()->is_simple_parameter_list();
+    if (!is_simple) scope->SetHasNonSimpleParameters();
     if (track_unresolved_variables_) {
       DCHECK(FLAG_lazy_inner_functions);
       for (auto parameter : parameters) {
-        if (parameter->pattern.variables_ != nullptr) {
-          for (auto variable : *parameter->pattern.variables_) {
+        if (parameter->variables_ != nullptr) {
+          for (auto variable : (*parameter->variables_)) {
             scope->DeclareParameterName(
                 variable->raw_name(), parameter->is_rest, ast_value_factory());
           }
@@ -1999,12 +2007,6 @@ class PreParser : public ParserBase<PreParser> {
     return !tag.IsNoTemplateTag();
   }
 
-  V8_INLINE void MaterializeUnspreadArgumentsLiterals(int count) {
-    for (int i = 0; i < count; ++i) {
-      function_state_->NextMaterializedLiteralIndex();
-    }
-  }
-
   V8_INLINE PreParserExpression
   ExpressionListToExpression(PreParserExpressionList args) {
     return PreParserExpression::Default(args.variables_);
@@ -2031,6 +2033,8 @@ class PreParser : public ParserBase<PreParser> {
     if (use_counts_ != nullptr) ++use_counts_[feature];
   }
 
+  V8_INLINE bool ParsingDynamicFunctionDeclaration() const { return false; }
+
   // Preparser's private field members.
 
   int* use_counts_;
@@ -2054,12 +2058,6 @@ PreParserExpression PreParser::SpreadCallNew(PreParserExpression function,
 PreParserExpression PreParser::CloseTemplateLiteral(TemplateLiteralState* state,
                                                     int start,
                                                     PreParserExpression tag) {
-  if (IsTaggedTemplate(tag)) {
-    // Emulate generation of array literals for tag callsite
-    // 1st is array of cooked strings, second is array of raw strings
-    function_state_->NextMaterializedLiteralIndex();
-    function_state_->NextMaterializedLiteralIndex();
-  }
   return EmptyExpression();
 }
 

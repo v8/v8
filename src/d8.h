@@ -304,7 +304,8 @@ class ShellOptions {
         natives_blob(NULL),
         snapshot_blob(NULL),
         trace_enabled(false),
-        trace_config(NULL) {}
+        trace_config(NULL),
+        lcov_file(NULL) {}
 
   ~ShellOptions() {
     delete[] isolate_sources;
@@ -335,6 +336,7 @@ class ShellOptions {
   const char* snapshot_blob;
   bool trace_enabled;
   const char* trace_config;
+  const char* lcov_file;
 };
 
 class Shell : public i::AllStatic {
@@ -375,6 +377,7 @@ class Shell : public i::AllStatic {
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCreateAllowCrossRealmAccess(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -464,6 +467,8 @@ class Shell : public i::AllStatic {
   static std::vector<ExternalizedContents> externalized_contents_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
+  // Append LCOV coverage data to file.
+  static void WriteLcovData(v8::Isolate* isolate, const char* file);
   static Counter* GetCounter(const char* name, bool is_histogram);
   static Local<String> Stringify(Isolate* isolate, Local<Value> value);
   static void Initialize(Isolate* isolate);
@@ -471,7 +476,10 @@ class Shell : public i::AllStatic {
   static bool SetOptions(int argc, char* argv[]);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static MaybeLocal<Context> CreateRealm(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& args, int index,
+      v8::MaybeLocal<Value> global_object);
+  static void DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
+                           int index);
   static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Context> context,
                                             const std::string& file_name);
 };

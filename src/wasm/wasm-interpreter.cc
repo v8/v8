@@ -935,6 +935,7 @@ class ThreadImpl {
   void PushFrame(const WasmFunction* function, WasmVal* args) {
     InterpreterCode* code = codemap()->FindCode(function);
     CHECK_NOT_NULL(code);
+    ++num_interpreted_calls_;
     frames_.push_back({code, 0, 0, stack_.size()});
     for (size_t i = 0; i < function->sig->parameter_count(); ++i) {
       stack_.push_back(args[i]);
@@ -1009,6 +1010,8 @@ class ThreadImpl {
 
   bool PossibleNondeterminism() { return possible_nondeterminism_; }
 
+  uint64_t NumInterpretedCalls() { return num_interpreted_calls_; }
+
   void AddBreakFlags(uint8_t flags) { break_flags_ |= flags; }
 
   void ClearBreakFlags() { break_flags_ = WasmInterpreter::BreakFlag::None; }
@@ -1044,6 +1047,7 @@ class ThreadImpl {
   TrapReason trap_reason_ = kTrapCount;
   bool possible_nondeterminism_ = false;
   uint8_t break_flags_ = 0;  // a combination of WasmInterpreter::BreakFlag
+  uint64_t num_interpreted_calls_ = 0;
 
   CodeMap* codemap() { return codemap_; }
   WasmInstance* instance() { return instance_; }
@@ -1059,6 +1063,7 @@ class ThreadImpl {
   void PushFrame(InterpreterCode* code, pc_t call_pc, pc_t ret_pc) {
     CHECK_NOT_NULL(code);
     DCHECK(!frames_.empty());
+    ++num_interpreted_calls_;
     frames_.back().call_pc = call_pc;
     frames_.back().ret_pc = ret_pc;
     size_t arity = code->function->sig->parameter_count();
@@ -1796,6 +1801,9 @@ WasmVal WasmInterpreter::Thread::GetReturnValue(int index) {
 }
 bool WasmInterpreter::Thread::PossibleNondeterminism() {
   return ToImpl(this)->PossibleNondeterminism();
+}
+uint64_t WasmInterpreter::Thread::NumInterpretedCalls() {
+  return ToImpl(this)->NumInterpretedCalls();
 }
 void WasmInterpreter::Thread::AddBreakFlags(uint8_t flags) {
   ToImpl(this)->AddBreakFlags(flags);

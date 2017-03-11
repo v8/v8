@@ -7,12 +7,17 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/conversions.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
 #include "src/regexp/regexp-utils.h"
+#include "src/string-case.h"
+#include "src/unicode-inl.h"
+#include "src/unicode.h"
 
 namespace v8 {
 namespace internal {
 
-typedef CodeStubAssembler::ResultMode ResultMode;
 typedef CodeStubAssembler::RelationalComparisonMode RelationalComparisonMode;
 
 class StringBuiltinsAssembler : public CodeStubAssembler {
@@ -61,7 +66,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   Node* OneByteCharAddress(Node* string, Node* index) {
     Node* offset = OneByteCharOffset(index);
-    return IntPtrAdd(BitcastTaggedToWord(string), offset);
+    return IntPtrAdd(string, offset);
   }
 
   Node* OneByteCharOffset(Node* index) {
@@ -78,17 +83,28 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
     return offset;
   }
 
-  void BranchIfSimpleOneByteStringInstanceType(Node* instance_type,
-                                               Label* if_true,
-                                               Label* if_false) {
+  void DispatchOnStringInstanceType(Node* const instance_type,
+                                    Label* if_onebyte_sequential,
+                                    Label* if_onebyte_external,
+                                    Label* if_otherwise) {
     const int kMask = kStringRepresentationMask | kStringEncodingMask;
-    const int kType = kOneByteStringTag | kSeqStringTag;
-    Branch(Word32Equal(Word32And(instance_type, Int32Constant(kMask)),
-                       Int32Constant(kType)),
-           if_true, if_false);
+    Node* const encoding_and_representation =
+        Word32And(instance_type, Int32Constant(kMask));
+
+    int32_t values[] = {
+        kOneByteStringTag | kSeqStringTag,
+        kOneByteStringTag | kExternalStringTag,
+    };
+    Label* labels[] = {
+        if_onebyte_sequential, if_onebyte_external,
+    };
+    STATIC_ASSERT(arraysize(values) == arraysize(labels));
+
+    Switch(encoding_and_representation, if_otherwise, values, labels,
+           arraysize(values));
   }
 
-  void GenerateStringEqual(ResultMode mode);
+  void GenerateStringEqual();
   void GenerateStringRelationalComparison(RelationalComparisonMode mode);
 
   Node* ToSmiBetweenZeroAnd(Node* context, Node* value, Node* limit);
@@ -127,9 +143,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                  const NodeFunction1& generic_call);
 };
 
-void StringBuiltinsAssembler::GenerateStringEqual(ResultMode mode) {
-  // Here's pseudo-code for the algorithm below in case of kDontNegateResult
-  // mode; for kNegateResult mode we properly negate the result.
+void StringBuiltinsAssembler::GenerateStringEqual() {
+  // Here's pseudo-code for the algorithm below:
   //
   // if (lhs == rhs) return true;
   // if (lhs->length() != rhs->length()) return false;
@@ -245,17 +260,14 @@ void StringBuiltinsAssembler::GenerateStringEqual(ResultMode mode) {
                               rhs_instance_type, &restart);
     // TODO(bmeurer): Add support for two byte string equality checks.
 
-    Runtime::FunctionId function_id = (mode == ResultMode::kDontNegateResult)
-                                          ? Runtime::kStringEqual
-                                          : Runtime::kStringNotEqual;
-    TailCallRuntime(function_id, context, lhs, rhs);
+    TailCallRuntime(Runtime::kStringEqual, context, lhs, rhs);
   }
 
   Bind(&if_equal);
-  Return(BooleanConstant(mode == ResultMode::kDontNegateResult));
+  Return(TrueConstant());
 
   Bind(&if_notequal);
-  Return(BooleanConstant(mode == ResultMode::kNegateResult));
+  Return(FalseConstant());
 }
 
 void StringBuiltinsAssembler::GenerateStringRelationalComparison(
@@ -422,13 +434,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
   }
 }
 
-TF_BUILTIN(StringEqual, StringBuiltinsAssembler) {
-  GenerateStringEqual(ResultMode::kDontNegateResult);
-}
-
-TF_BUILTIN(StringNotEqual, StringBuiltinsAssembler) {
-  GenerateStringEqual(ResultMode::kNegateResult);
-}
+TF_BUILTIN(StringEqual, StringBuiltinsAssembler) { GenerateStringEqual(); }
 
 TF_BUILTIN(StringLessThan, StringBuiltinsAssembler) {
   GenerateStringRelationalComparison(RelationalComparisonMode::kLessThan);
@@ -693,7 +699,7 @@ TF_BUILTIN(StringPrototypeCharAt, CodeStubAssembler) {
     Label return_emptystring(this, Label::kDeferred);
     position =
         ToInteger(context, position, CodeStubAssembler::kTruncateMinusZero);
-    GotoUnless(TaggedIsSmi(position), &return_emptystring);
+    GotoIfNot(TaggedIsSmi(position), &return_emptystring);
 
     // Determine the actual length of the {receiver} String.
     Node* receiver_length = LoadObjectField(receiver, String::kLengthOffset);
@@ -732,7 +738,7 @@ TF_BUILTIN(StringPrototypeCharCodeAt, CodeStubAssembler) {
     Label return_nan(this, Label::kDeferred);
     position =
         ToInteger(context, position, CodeStubAssembler::kTruncateMinusZero);
-    GotoUnless(TaggedIsSmi(position), &return_nan);
+    GotoIfNot(TaggedIsSmi(position), &return_nan);
 
     // Determine the actual length of the {receiver} String.
     Node* receiver_length = LoadObjectField(receiver, String::kLengthOffset);
@@ -858,33 +864,85 @@ void StringBuiltinsAssembler::StringIndexOf(
   CSA_ASSERT(this, IsString(search_string));
   CSA_ASSERT(this, TaggedIsSmi(position));
 
-  Label zero_length_needle(this), call_runtime_unchecked(this),
-      return_minus_1(this), check_search_string(this), continue_fast_path(this);
+  Label zero_length_needle(this),
+      call_runtime_unchecked(this, Label::kDeferred), return_minus_1(this),
+      check_search_string(this), continue_fast_path(this);
+
+  Node* const int_zero = IntPtrConstant(0);
+  Variable var_needle_byte(this, MachineType::PointerRepresentation(),
+                           int_zero);
+  Variable var_string_addr(this, MachineType::PointerRepresentation(),
+                           int_zero);
 
   Node* needle_length = SmiUntag(LoadStringLength(search_string));
   // Use faster/complex runtime fallback for long search strings.
   GotoIf(IntPtrLessThan(IntPtrConstant(1), needle_length),
          &call_runtime_unchecked);
   Node* string_length = SmiUntag(LoadStringLength(receiver));
-  Node* start_position = IntPtrMax(SmiUntag(position), IntPtrConstant(0));
+  Node* start_position = IntPtrMax(SmiUntag(position), int_zero);
 
-  GotoIf(IntPtrEqual(IntPtrConstant(0), needle_length), &zero_length_needle);
+  GotoIf(IntPtrEqual(int_zero, needle_length), &zero_length_needle);
   // Check that the needle fits in the start position.
-  GotoUnless(IntPtrLessThanOrEqual(needle_length,
-                                   IntPtrSub(string_length, start_position)),
-             &return_minus_1);
-  // Only support one-byte strings on the fast path.
-  BranchIfSimpleOneByteStringInstanceType(instance_type, &check_search_string,
-                                          &call_runtime_unchecked);
+  GotoIfNot(IntPtrLessThanOrEqual(needle_length,
+                                  IntPtrSub(string_length, start_position)),
+            &return_minus_1);
+
+  // Load the string address.
+  {
+    Label if_onebyte_sequential(this);
+    Label if_onebyte_external(this, Label::kDeferred);
+
+    // Only support one-byte strings on the fast path.
+    DispatchOnStringInstanceType(instance_type, &if_onebyte_sequential,
+                                 &if_onebyte_external, &call_runtime_unchecked);
+
+    Bind(&if_onebyte_sequential);
+    {
+      var_string_addr.Bind(
+          OneByteCharAddress(BitcastTaggedToWord(receiver), start_position));
+      Goto(&check_search_string);
+    }
+
+    Bind(&if_onebyte_external);
+    {
+      Node* const unpacked = TryDerefExternalString(receiver, instance_type,
+                                                    &call_runtime_unchecked);
+      var_string_addr.Bind(OneByteCharAddress(unpacked, start_position));
+      Goto(&check_search_string);
+    }
+  }
+
+  // Load the needle character.
   Bind(&check_search_string);
-  BranchIfSimpleOneByteStringInstanceType(search_string_instance_type,
-                                          &continue_fast_path,
-                                          &call_runtime_unchecked);
+  {
+    Label if_onebyte_sequential(this);
+    Label if_onebyte_external(this, Label::kDeferred);
+
+    DispatchOnStringInstanceType(search_string_instance_type,
+                                 &if_onebyte_sequential, &if_onebyte_external,
+                                 &call_runtime_unchecked);
+
+    Bind(&if_onebyte_sequential);
+    {
+      var_needle_byte.Bind(
+          ChangeInt32ToIntPtr(LoadOneByteChar(search_string, int_zero)));
+      Goto(&continue_fast_path);
+    }
+
+    Bind(&if_onebyte_external);
+    {
+      Node* const unpacked = TryDerefExternalString(
+          search_string, search_string_instance_type, &call_runtime_unchecked);
+      var_needle_byte.Bind(
+          ChangeInt32ToIntPtr(LoadOneByteChar(unpacked, int_zero)));
+      Goto(&continue_fast_path);
+    }
+  }
+
   Bind(&continue_fast_path);
   {
-    Node* needle_byte =
-        ChangeInt32ToIntPtr(LoadOneByteChar(search_string, IntPtrConstant(0)));
-    Node* start_address = OneByteCharAddress(receiver, start_position);
+    Node* needle_byte = var_needle_byte.value();
+    Node* string_addr = var_string_addr.value();
     Node* search_length = IntPtrSub(string_length, start_position);
     // Call out to the highly optimized memchr to perform the actual byte
     // search.
@@ -893,19 +951,22 @@ void StringBuiltinsAssembler::StringIndexOf(
     Node* result_address =
         CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
                        MachineType::IntPtr(), MachineType::UintPtr(), memchr,
-                       start_address, needle_byte, search_length);
-    GotoIf(WordEqual(result_address, IntPtrConstant(0)), &return_minus_1);
+                       string_addr, needle_byte, search_length);
+    GotoIf(WordEqual(result_address, int_zero), &return_minus_1);
     Node* result_index =
-        IntPtrAdd(IntPtrSub(result_address, start_address), start_position);
+        IntPtrAdd(IntPtrSub(result_address, string_addr), start_position);
     f_return(SmiTag(result_index));
   }
+
   Bind(&return_minus_1);
-  { f_return(SmiConstant(-1)); }
+  f_return(SmiConstant(-1));
+
   Bind(&zero_length_needle);
   {
     Comment("0-length search_string");
     f_return(SmiTag(IntPtrMin(string_length, start_position)));
   }
+
   Bind(&call_runtime_unchecked);
   {
     // Simplified version of the runtime call where the types of the arguments
@@ -973,7 +1034,7 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
     Comment("2 Argument case");
     search_string.Bind(arguments.AtIndex(0));
     position.Bind(arguments.AtIndex(1));
-    GotoUnless(TaggedIsSmi(position.value()), &call_runtime);
+    GotoIfNot(TaggedIsSmi(position.value()), &call_runtime);
     Goto(&fast_path);
   }
 
@@ -985,10 +1046,10 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
     GotoIf(TaggedIsSmi(needle), &call_runtime);
 
     Node* instance_type = LoadInstanceType(receiver);
-    GotoUnless(IsStringInstanceType(instance_type), &call_runtime);
+    GotoIfNot(IsStringInstanceType(instance_type), &call_runtime);
 
     Node* needle_instance_type = LoadInstanceType(needle);
-    GotoUnless(IsStringInstanceType(needle_instance_type), &call_runtime);
+    GotoIfNot(IsStringInstanceType(needle_instance_type), &call_runtime);
 
     StringIndexOf(
         receiver, instance_type, needle, needle_instance_type, position.value(),
@@ -1130,7 +1191,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   {
     Label next(this);
 
-    GotoUnless(IsStringInstanceType(LoadMapInstanceType(object_map)), &next);
+    GotoIfNot(IsStringInstanceType(LoadMapInstanceType(object_map)), &next);
 
     Node* const native_context = LoadNativeContext(context);
     Node* const initial_proto_initial_map = LoadContextElement(
@@ -1226,16 +1287,16 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   {
     Label next(this);
 
-    GotoUnless(SmiEqual(search_length, SmiConstant(1)), &next);
-    GotoUnless(SmiGreaterThan(subject_length, SmiConstant(0xFF)), &next);
+    GotoIfNot(SmiEqual(search_length, SmiConstant(1)), &next);
+    GotoIfNot(SmiGreaterThan(subject_length, SmiConstant(0xFF)), &next);
     GotoIf(TaggedIsSmi(replace), &next);
-    GotoUnless(IsString(replace), &next);
+    GotoIfNot(IsString(replace), &next);
 
     Node* const dollar_string = HeapConstant(
         isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
     Node* const dollar_ix =
         CallStub(indexof_callable, context, replace, dollar_string, smi_zero);
-    GotoUnless(SmiIsNegative(dollar_ix), &next);
+    GotoIfNot(SmiIsNegative(dollar_ix), &next);
 
     // Searching by traversing a cons string tree and replace with cons of
     // slices works only when the replaced string is a single character, being
@@ -1260,7 +1321,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   {
     Label next(this), return_subject(this);
 
-    GotoUnless(SmiIsNegative(match_start_index), &next);
+    GotoIfNot(SmiIsNegative(match_start_index), &next);
 
     // The spec requires to perform ToString(replace) if the {replace} is not
     // callable even if we are going to exit here.
@@ -1395,7 +1456,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // Shortcut for {limit} == 0.
   {
     Label next(this);
-    GotoUnless(SmiEqual(limit_number, smi_zero), &next);
+    GotoIfNot(SmiEqual(limit_number, smi_zero), &next);
 
     const ElementsKind kind = FAST_ELEMENTS;
     Node* const native_context = LoadNativeContext(context);
@@ -1414,7 +1475,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // be an array of size 1 containing the entire string.
   {
     Label next(this);
-    GotoUnless(IsUndefined(separator), &next);
+    GotoIfNot(IsUndefined(separator), &next);
 
     const ElementsKind kind = FAST_ELEMENTS;
     Node* const native_context = LoadNativeContext(context);
@@ -1435,7 +1496,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // If the separator string is empty then return the elements in the subject.
   {
     Label next(this);
-    GotoUnless(SmiEqual(LoadStringLength(separator_string), smi_zero), &next);
+    GotoIfNot(SmiEqual(LoadStringLength(separator_string), smi_zero), &next);
 
     Node* const result = CallRuntime(Runtime::kStringToArray, context,
                                      subject_string, limit_number);
@@ -1532,7 +1593,7 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
       Node* const minimal_length = SmiSub(string_length, var_start.value());
       var_length.Bind(SmiMin(positive_length, minimal_length));
 
-      GotoUnless(SmiLessThanOrEqual(var_length.value(), zero), &out);
+      GotoIfNot(SmiLessThanOrEqual(var_length.value(), zero), &out);
       Return(EmptyStringConstant());
     }
 
@@ -1556,7 +1617,7 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
       Bind(&if_ispositive);
       {
         var_length.Bind(SmiSub(string_length, var_start.value()));
-        GotoUnless(SmiLessThanOrEqual(var_length.value(), zero), &out);
+        GotoIfNot(SmiLessThanOrEqual(var_length.value(), zero), &out);
         Return(EmptyStringConstant());
       }
     }
@@ -1796,7 +1857,7 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
          &return_result);
   Node* next_index = SmiAdd(index, SmiConstant(Smi::FromInt(1)));
 
-  GotoUnless(SmiLessThan(next_index, length), &return_result);
+  GotoIfNot(SmiLessThan(next_index, length), &return_result);
   var_trail.Bind(StringCharCodeAt(string, next_index));
   Branch(Word32Equal(Word32And(var_trail.value(), Int32Constant(0xFC00)),
                      Int32Constant(0xDC00)),
@@ -1858,9 +1919,9 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   Node* context = Parameter(3);
 
   GotoIf(TaggedIsSmi(iterator), &throw_bad_receiver);
-  GotoUnless(Word32Equal(LoadInstanceType(iterator),
-                         Int32Constant(JS_STRING_ITERATOR_TYPE)),
-             &throw_bad_receiver);
+  GotoIfNot(Word32Equal(LoadInstanceType(iterator),
+                        Int32Constant(JS_STRING_ITERATOR_TYPE)),
+            &throw_bad_receiver);
 
   Node* string = LoadObjectField(iterator, JSStringIterator::kStringOffset);
   Node* position =
@@ -1903,13 +1964,204 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   Bind(&throw_bad_receiver);
   {
     // The {receiver} is not a valid JSGeneratorObject.
-    Node* result =
-        CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                    HeapConstant(factory()->NewStringFromAsciiChecked(
-                        "String Iterator.prototype.next", TENURED)),
-                    iterator);
-    Return(result);  // Never reached.
+    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
+                HeapConstant(factory()->NewStringFromAsciiChecked(
+                    "String Iterator.prototype.next", TENURED)),
+                iterator);
+    Unreachable();
   }
+}
+
+namespace {
+
+inline bool ToUpperOverflows(uc32 character) {
+  // y with umlauts and the micro sign are the only characters that stop
+  // fitting into one-byte when converting to uppercase.
+  static const uc32 yuml_code = 0xff;
+  static const uc32 micro_code = 0xb5;
+  return (character == yuml_code || character == micro_code);
+}
+
+template <class Converter>
+MUST_USE_RESULT static Object* ConvertCaseHelper(
+    Isolate* isolate, String* string, SeqString* result, int result_length,
+    unibrow::Mapping<Converter, 128>* mapping) {
+  DisallowHeapAllocation no_gc;
+  // We try this twice, once with the assumption that the result is no longer
+  // than the input and, if that assumption breaks, again with the exact
+  // length.  This may not be pretty, but it is nicer than what was here before
+  // and I hereby claim my vaffel-is.
+  //
+  // NOTE: This assumes that the upper/lower case of an ASCII
+  // character is also ASCII.  This is currently the case, but it
+  // might break in the future if we implement more context and locale
+  // dependent upper/lower conversions.
+  bool has_changed_character = false;
+
+  // Convert all characters to upper case, assuming that they will fit
+  // in the buffer
+  StringCharacterStream stream(string);
+  unibrow::uchar chars[Converter::kMaxWidth];
+  // We can assume that the string is not empty
+  uc32 current = stream.GetNext();
+  bool ignore_overflow = Converter::kIsToLower || result->IsSeqTwoByteString();
+  for (int i = 0; i < result_length;) {
+    bool has_next = stream.HasMore();
+    uc32 next = has_next ? stream.GetNext() : 0;
+    int char_length = mapping->get(current, next, chars);
+    if (char_length == 0) {
+      // The case conversion of this character is the character itself.
+      result->Set(i, current);
+      i++;
+    } else if (char_length == 1 &&
+               (ignore_overflow || !ToUpperOverflows(current))) {
+      // Common case: converting the letter resulted in one character.
+      DCHECK(static_cast<uc32>(chars[0]) != current);
+      result->Set(i, chars[0]);
+      has_changed_character = true;
+      i++;
+    } else if (result_length == string->length()) {
+      bool overflows = ToUpperOverflows(current);
+      // We've assumed that the result would be as long as the
+      // input but here is a character that converts to several
+      // characters.  No matter, we calculate the exact length
+      // of the result and try the whole thing again.
+      //
+      // Note that this leaves room for optimization.  We could just
+      // memcpy what we already have to the result string.  Also,
+      // the result string is the last object allocated we could
+      // "realloc" it and probably, in the vast majority of cases,
+      // extend the existing string to be able to hold the full
+      // result.
+      int next_length = 0;
+      if (has_next) {
+        next_length = mapping->get(next, 0, chars);
+        if (next_length == 0) next_length = 1;
+      }
+      int current_length = i + char_length + next_length;
+      while (stream.HasMore()) {
+        current = stream.GetNext();
+        overflows |= ToUpperOverflows(current);
+        // NOTE: we use 0 as the next character here because, while
+        // the next character may affect what a character converts to,
+        // it does not in any case affect the length of what it convert
+        // to.
+        int char_length = mapping->get(current, 0, chars);
+        if (char_length == 0) char_length = 1;
+        current_length += char_length;
+        if (current_length > String::kMaxLength) {
+          AllowHeapAllocation allocate_error_and_return;
+          THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                         NewInvalidStringLengthError());
+        }
+      }
+      // Try again with the real length.  Return signed if we need
+      // to allocate a two-byte string for to uppercase.
+      return (overflows && !ignore_overflow) ? Smi::FromInt(-current_length)
+                                             : Smi::FromInt(current_length);
+    } else {
+      for (int j = 0; j < char_length; j++) {
+        result->Set(i, chars[j]);
+        i++;
+      }
+      has_changed_character = true;
+    }
+    current = next;
+  }
+  if (has_changed_character) {
+    return result;
+  } else {
+    // If we didn't actually change anything in doing the conversion
+    // we simple return the result and let the converted string
+    // become garbage; there is no reason to keep two identical strings
+    // alive.
+    return string;
+  }
+}
+
+template <class Converter>
+MUST_USE_RESULT static Object* ConvertCase(
+    Handle<String> s, Isolate* isolate,
+    unibrow::Mapping<Converter, 128>* mapping) {
+  s = String::Flatten(s);
+  int length = s->length();
+  // Assume that the string is not empty; we need this assumption later
+  if (length == 0) return *s;
+
+  // Simpler handling of ASCII strings.
+  //
+  // NOTE: This assumes that the upper/lower case of an ASCII
+  // character is also ASCII.  This is currently the case, but it
+  // might break in the future if we implement more context and locale
+  // dependent upper/lower conversions.
+  if (s->IsOneByteRepresentationUnderneath()) {
+    // Same length as input.
+    Handle<SeqOneByteString> result =
+        isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
+    DisallowHeapAllocation no_gc;
+    String::FlatContent flat_content = s->GetFlatContent();
+    DCHECK(flat_content.IsFlat());
+    bool has_changed_character = false;
+    int index_to_first_unprocessed = FastAsciiConvert<Converter::kIsToLower>(
+        reinterpret_cast<char*>(result->GetChars()),
+        reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
+        length, &has_changed_character);
+    // If not ASCII, we discard the result and take the 2 byte path.
+    if (index_to_first_unprocessed == length)
+      return has_changed_character ? *result : *s;
+  }
+
+  Handle<SeqString> result;  // Same length as input.
+  if (s->IsOneByteRepresentation()) {
+    result = isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
+  } else {
+    result = isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
+  }
+
+  Object* answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
+  if (answer->IsException(isolate) || answer->IsString()) return answer;
+
+  DCHECK(answer->IsSmi());
+  length = Smi::cast(answer)->value();
+  if (s->IsOneByteRepresentation() && length > 0) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, isolate->factory()->NewRawOneByteString(length));
+  } else {
+    if (length < 0) length = -length;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, isolate->factory()->NewRawTwoByteString(length));
+  }
+  return ConvertCaseHelper(isolate, *s, *result, length, mapping);
+}
+
+}  // namespace
+
+BUILTIN(StringPrototypeToLocaleLowerCase) {
+  HandleScope scope(isolate);
+  TO_THIS_STRING(string, "String.prototype.toLocaleLowerCase");
+  return ConvertCase(string, isolate,
+                     isolate->runtime_state()->to_lower_mapping());
+}
+
+BUILTIN(StringPrototypeToLocaleUpperCase) {
+  HandleScope scope(isolate);
+  TO_THIS_STRING(string, "String.prototype.toLocaleUpperCase");
+  return ConvertCase(string, isolate,
+                     isolate->runtime_state()->to_upper_mapping());
+}
+
+BUILTIN(StringPrototypeToLowerCase) {
+  HandleScope scope(isolate);
+  TO_THIS_STRING(string, "String.prototype.toLowerCase");
+  return ConvertCase(string, isolate,
+                     isolate->runtime_state()->to_lower_mapping());
+}
+
+BUILTIN(StringPrototypeToUpperCase) {
+  HandleScope scope(isolate);
+  TO_THIS_STRING(string, "String.prototype.toUpperCase");
+  return ConvertCase(string, isolate,
+                     isolate->runtime_state()->to_upper_mapping());
 }
 
 }  // namespace internal

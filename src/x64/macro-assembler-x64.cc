@@ -8,11 +8,14 @@
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/x64/assembler-x64.h"
-#include "src/x64/macro-assembler-x64.h"
+
+#include "src/x64/macro-assembler-x64.h"  // Cannot be the first include.
 
 namespace v8 {
 namespace internal {
@@ -4071,11 +4074,6 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   }
 }
 
-void MacroAssembler::DebugBreak() {
-  Call(isolate()->builtins()->HandleDebuggerStatement(),
-       RelocInfo::DEBUGGER_STATEMENT);
-}
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
@@ -4351,7 +4349,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
   pushq(rbp);  // Caller's frame pointer.
   movp(rbp, rsp);
-  Push(Smi::FromInt(type));
+  Push(Immediate(StackFrame::TypeToMarker(type)));
 }
 
 void MacroAssembler::Prologue(bool code_pre_aging) {
@@ -4387,7 +4385,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   pushq(rbp);
   movp(rbp, rsp);
-  Push(Smi::FromInt(type));
+  Push(Immediate(StackFrame::TypeToMarker(type)));
   if (type == StackFrame::INTERNAL) {
     Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
     Push(kScratchRegister);
@@ -4404,9 +4402,8 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   if (emit_debug_code()) {
-    Move(kScratchRegister, Smi::FromInt(type));
     cmpp(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
-         kScratchRegister);
+         Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, kStackFrameTypesMustMatch);
   }
   movp(rsp, rbp);
@@ -4445,7 +4442,7 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax,
   movp(rbp, rsp);
 
   // Reserve room for entry stack pointer and push the code object.
-  Push(Smi::FromInt(frame_type));
+  Push(Immediate(StackFrame::TypeToMarker(frame_type)));
   DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
   Push(Immediate(0));  // Saved entry sp, patched before call.
   Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);

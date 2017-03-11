@@ -27,7 +27,9 @@ namespace internal {
 // Version 10: one-byte (Latin-1) strings
 // Version 11: properly separate undefined from the hole in arrays
 // Version 12: regexp and string objects share normal string encoding
-static const uint32_t kLatestVersion = 12;
+// Version 13: host objects have an explicit tag (rather than handling all
+//             unknown tags)
+static const uint32_t kLatestVersion = 13;
 
 static const int kPretenureThreshold = 100 * KB;
 
@@ -124,6 +126,9 @@ enum class SerializationTag : uint8_t {
   //  wasmWireByteLength:uint32_t, then raw data
   //  compiledDataLength:uint32_t, then raw data
   kWasmModule = 'W',
+  // The delegate is responsible for processing all following data.
+  // This "escapes" to whatever wire format the delegate chooses.
+  kHostObject = '\\',
 };
 
 namespace {
@@ -152,8 +157,9 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
     : isolate_(isolate),
       delegate_(delegate),
       zone_(isolate->allocator(), ZONE_NAME),
-      id_map_(isolate->heap(), &zone_),
-      array_buffer_transfer_map_(isolate->heap(), &zone_) {}
+      id_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
+      array_buffer_transfer_map_(isolate->heap(),
+                                 ZoneAllocationPolicy(&zone_)) {}
 
 ValueSerializer::~ValueSerializer() {
   if (buffer_) {
@@ -168,6 +174,10 @@ ValueSerializer::~ValueSerializer() {
 void ValueSerializer::WriteHeader() {
   WriteTag(SerializationTag::kVersion);
   WriteVarint(kLatestVersion);
+}
+
+void ValueSerializer::SetTreatArrayBufferViewsAsHostObjects(bool mode) {
+  treat_array_buffer_views_as_host_objects_ = mode;
 }
 
 void ValueSerializer::WriteTag(SerializationTag tag) {
@@ -318,7 +328,7 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
       // TODO(jbroman): It may be possible to avoid materializing a typed
       // array's buffer here.
       Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(object);
-      if (!id_map_.Find(view)) {
+      if (!id_map_.Find(view) && !treat_array_buffer_views_as_host_objects_) {
         Handle<JSArrayBuffer> buffer(
             view->IsJSTypedArray()
                 ? Handle<JSTypedArray>::cast(view)->GetBuffer()
@@ -768,6 +778,9 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
 }
 
 Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
+  if (treat_array_buffer_views_as_host_objects_) {
+    return WriteHostObject(handle(view, isolate_));
+  }
   WriteTag(SerializationTag::kArrayBufferView);
   ArrayBufferViewTag tag = ArrayBufferViewTag::kInt8Array;
   if (view->IsJSTypedArray()) {
@@ -815,6 +828,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
 }
 
 Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
+  WriteTag(SerializationTag::kHostObject);
   if (!delegate_) {
     isolate_->Throw(*isolate_->factory()->NewError(
         isolate_->error_function(), MessageTemplate::kDataCloneError, object));
@@ -1136,11 +1150,16 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     }
     case SerializationTag::kWasmModule:
       return ReadWasmModule();
-    default:
-      // TODO(jbroman): Introduce an explicit tag for host objects to avoid
-      // having to treat every unknown tag as a potential host object.
-      position_--;
+    case SerializationTag::kHostObject:
       return ReadHostObject();
+    default:
+      // Before there was an explicit tag for host objects, all unknown tags
+      // were delegated to the host.
+      if (version_ < 13) {
+        position_--;
+        return ReadHostObject();
+      }
+      return MaybeHandle<Object>();
   }
 }
 
@@ -1617,10 +1636,8 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   MaybeHandle<JSObject> result;
   {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
-    result = wasm::CreateModuleObjectFromBytes(
-        isolate_, wire_bytes.begin(), wire_bytes.end(), &thrower,
-        wasm::ModuleOrigin::kWasmOrigin, Handle<Script>::null(),
-        Vector<const byte>::empty());
+    result = wasm::SyncCompile(isolate_, &thrower,
+                               wasm::ModuleWireBytes(wire_bytes));
   }
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
   return result;
@@ -1655,6 +1672,10 @@ static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
     // Initializing store.
     object->WriteToField(i, descriptors->GetDetails(i), *properties[i]);
   }
+}
+
+static bool IsValidObjectKey(Handle<Object> value) {
+  return value->IsName() || value->IsNumber();
 }
 
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
@@ -1692,7 +1713,9 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
         key = expected_key;
         target = TransitionArray::ExpectedTransitionTarget(map);
       } else {
-        if (!ReadObject().ToHandle(&key)) return Nothing<uint32_t>();
+        if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(key)) {
+          return Nothing<uint32_t>();
+        }
         if (key->IsString()) {
           key =
               isolate_->factory()->InternalizeString(Handle<String>::cast(key));
@@ -1772,7 +1795,9 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     }
 
     Handle<Object> key;
-    if (!ReadObject().ToHandle(&key)) return Nothing<uint32_t>();
+    if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(key)) {
+      return Nothing<uint32_t>();
+    }
     Handle<Object> value;
     if (!ReadObject().ToHandle(&value)) return Nothing<uint32_t>();
 
@@ -1821,6 +1846,7 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
                                                   uint32_t num_properties) {
   for (unsigned i = 0; i < 2 * num_properties; i += 2) {
     Handle<Object> key = data[i];
+    if (!IsValidObjectKey(key)) return Nothing<bool>();
     Handle<Object> value = data[i + 1];
     bool success;
     LookupIterator it = LookupIterator::PropertyOrElement(
@@ -1833,6 +1859,20 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
   }
   return Just(true);
 }
+
+namespace {
+
+// Throws a generic "deserialization failed" exception by default, unless a more
+// specific exception has already been thrown.
+void ThrowDeserializationExceptionIfNonePending(Isolate* isolate) {
+  if (!isolate->has_pending_exception()) {
+    isolate->Throw(*isolate->factory()->NewError(
+        MessageTemplate::kDataCloneDeserializationError));
+  }
+  DCHECK(isolate->has_pending_exception());
+}
+
+}  // namespace
 
 MaybeHandle<Object>
 ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
@@ -1866,7 +1906,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
             !SetPropertiesFromKeyValuePairs(
                  isolate_, js_object, &stack[begin_properties], num_properties)
                  .FromMaybe(false)) {
-          DCHECK(isolate_->has_pending_exception());
+          ThrowDeserializationExceptionIfNonePending(isolate_);
           return MaybeHandle<Object>();
         }
 
@@ -1897,7 +1937,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
             !SetPropertiesFromKeyValuePairs(
                  isolate_, js_array, &stack[begin_properties], num_properties)
                  .FromMaybe(false)) {
-          DCHECK(isolate_->has_pending_exception());
+          ThrowDeserializationExceptionIfNonePending(isolate_);
           return MaybeHandle<Object>();
         }
 

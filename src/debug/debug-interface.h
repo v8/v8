@@ -12,8 +12,17 @@
 #include "include/v8.h"
 
 #include "src/debug/interface-types.h"
+#include "src/globals.h"
 
 namespace v8 {
+
+namespace internal {
+struct CoverageFunction;
+struct CoverageScript;
+class Coverage;
+class Script;
+}
+
 namespace debug {
 
 /**
@@ -52,7 +61,7 @@ MaybeLocal<Value> Call(Local<Context> context, v8::Local<v8::Function> fun,
  * (default Isolate if not provided). V8 will abort if LiveEdit is
  * unexpectedly used. LiveEdit is enabled by default.
  */
-void SetLiveEditEnabled(Isolate* isolate, bool enable);
+V8_EXPORT_PRIVATE void SetLiveEditEnabled(Isolate* isolate, bool enable);
 
 // Schedule a debugger break to happen when JavaScript code is run
 // in the given isolate.
@@ -93,8 +102,9 @@ enum StepAction {
 };
 
 void PrepareStep(Isolate* isolate, StepAction action);
+void ClearStepping(Isolate* isolate);
 
-bool HasNonBlackboxedFrameOnStack(Isolate* isolate);
+bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
 
 /**
  * Out-of-memory callback function.
@@ -109,7 +119,7 @@ void SetOutOfMemoryCallback(Isolate* isolate, OutOfMemoryCallback callback,
 /**
  * Native wrapper around v8::internal::Script object.
  */
-class Script {
+class V8_EXPORT_PRIVATE Script {
  public:
   v8::Isolate* GetIsolate() const;
 
@@ -126,12 +136,12 @@ class Script {
   MaybeLocal<String> Source() const;
   bool IsWasm() const;
   bool IsModule() const;
-  bool GetPossibleBreakpoints(const debug::Location& start,
-                              const debug::Location& end,
-                              std::vector<debug::Location>* locations) const;
-
- private:
-  int GetSourcePosition(const debug::Location& location) const;
+  bool GetPossibleBreakpoints(
+      const debug::Location& start, const debug::Location& end,
+      bool restrict_to_function,
+      std::vector<debug::BreakLocation>* locations) const;
+  int GetSourceOffset(const debug::Location& location) const;
+  v8::debug::Location GetSourceLocation(int offset) const;
 };
 
 // Specialization for wasm Scripts.
@@ -155,8 +165,9 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
 class DebugDelegate {
  public:
   virtual ~DebugDelegate() {}
-  virtual void PromiseEventOccurred(debug::PromiseDebugActionType type, int id,
-                                    int parent_id) {}
+  virtual void PromiseEventOccurred(v8::Local<v8::Context> context,
+                                    debug::PromiseDebugActionType type, int id,
+                                    int parent_id, bool created_by_user) {}
   virtual void ScriptCompiled(v8::Local<Script> script,
                               bool has_compile_error) {}
   virtual void BreakProgramRequested(v8::Local<v8::Context> paused_context,
@@ -198,6 +209,55 @@ class GeneratorObject {
   static v8::Local<debug::GeneratorObject> Cast(v8::Local<v8::Value> value);
 };
 
+/*
+ * Provide API layer between inspector and code coverage.
+ */
+class V8_EXPORT_PRIVATE Coverage {
+ public:
+  class ScriptData;  // Forward declaration.
+
+  class V8_EXPORT_PRIVATE FunctionData {
+   public:
+    int StartOffset();
+    int EndOffset();
+    uint32_t Count();
+    MaybeLocal<String> Name();
+
+   private:
+    explicit FunctionData(i::CoverageFunction* function)
+        : function_(function) {}
+    i::CoverageFunction* function_;
+
+    friend class v8::debug::Coverage::ScriptData;
+  };
+
+  class V8_EXPORT_PRIVATE ScriptData {
+   public:
+    Local<debug::Script> GetScript();
+    size_t FunctionCount();
+    FunctionData GetFunctionData(size_t i);
+
+   private:
+    explicit ScriptData(i::CoverageScript* script) : script_(script) {}
+    i::CoverageScript* script_;
+
+    friend class v8::debug::Coverage;
+  };
+
+  static Coverage Collect(Isolate* isolate, bool reset_count);
+
+  static void TogglePrecise(Isolate* isolate, bool enable);
+
+  size_t ScriptCount();
+  ScriptData GetScriptData(size_t i);
+  bool IsEmpty() { return coverage_ == nullptr; }
+
+  ~Coverage();
+
+ private:
+  explicit Coverage(i::Coverage* coverage) : coverage_(coverage) {}
+  i::Coverage* coverage_;
+};
 }  // namespace debug
 }  // namespace v8
 

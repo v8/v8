@@ -10,10 +10,11 @@
 
 #include "src/arm/constants-arm.h"
 #include "src/arm/simulator-arm.h"
-#include "src/assembler.h"
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 #if defined(USE_SIMULATOR)
@@ -431,15 +432,12 @@ void ArmDebugger::Debug() {
         PrintF("INEXACT flag: %d;\n", sim_->inexact_vfp_flag_);
       } else if (strcmp(cmd, "stop") == 0) {
         int32_t value;
-        intptr_t stop_pc = sim_->get_pc() - 2 * Instruction::kInstrSize;
+        intptr_t stop_pc = sim_->get_pc() - Instruction::kInstrSize;
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
-        Instruction* msg_address =
-          reinterpret_cast<Instruction*>(stop_pc + Instruction::kInstrSize);
         if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
           // Remove the current stop.
           if (sim_->isStopInstruction(stop_instr)) {
             stop_instr->SetInstructionBits(kNopInstr);
-            msg_address->SetInstructionBits(kNopInstr);
           } else {
             PrintF("Not at debugger stop.\n");
           }
@@ -900,6 +898,18 @@ void Simulator::set_d_register(int dreg, const uint32_t* value) {
 }
 
 template <typename T>
+void Simulator::get_d_register(int dreg, T* value) {
+  DCHECK((dreg >= 0) && (dreg < num_d_registers));
+  memcpy(value, vfp_registers_ + dreg * 2, kDoubleSize);
+}
+
+template <typename T>
+void Simulator::set_d_register(int dreg, const T* value) {
+  DCHECK((dreg >= 0) && (dreg < num_d_registers));
+  memcpy(vfp_registers_ + dreg * 2, value, kDoubleSize);
+}
+
+template <typename T>
 void Simulator::get_q_register(int qreg, T* value) {
   DCHECK((qreg >= 0) && (qreg < num_q_registers));
   memcpy(value, vfp_registers_ + qreg * 4, kSimd128Size);
@@ -910,7 +920,6 @@ void Simulator::set_q_register(int qreg, const T* value) {
   DCHECK((qreg >= 0) && (qreg < num_q_registers));
   memcpy(vfp_registers_ + qreg * 4, value, kSimd128Size);
 }
-
 
 // Raw access to the PC register.
 void Simulator::set_pc(int32_t value) {
@@ -4006,6 +4015,11 @@ T Clamp(int64_t value) {
 }
 
 template <typename T>
+T MinMax(T a, T b, bool is_min) {
+  return is_min ? std::min(a, b) : std::max(a, b);
+}
+
+template <typename T>
 void AddSaturate(Simulator* simulator, int Vd, int Vm, int Vn) {
   static const int kLanes = 16 / sizeof(T);
   T src1[kLanes], src2[kLanes];
@@ -4179,10 +4193,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               get_q_register(Vn, src1);
               get_q_register(Vm, src2);
               for (int i = 0; i < 16; i++) {
-                if (min)
-                  src1[i] = std::min(src1[i], src2[i]);
-                else
-                  src1[i] = std::max(src1[i], src2[i]);
+                src1[i] = MinMax(src1[i], src2[i], min);
               }
               set_q_register(Vd, src1);
               break;
@@ -4192,10 +4203,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               get_q_register(Vn, src1);
               get_q_register(Vm, src2);
               for (int i = 0; i < 8; i++) {
-                if (min)
-                  src1[i] = std::min(src1[i], src2[i]);
-                else
-                  src1[i] = std::max(src1[i], src2[i]);
+                src1[i] = MinMax(src1[i], src2[i], min);
               }
               set_q_register(Vd, src1);
               break;
@@ -4205,10 +4213,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               get_q_register(Vn, src1);
               get_q_register(Vm, src2);
               for (int i = 0; i < 4; i++) {
-                if (min)
-                  src1[i] = std::min(src1[i], src2[i]);
-                else
-                  src1[i] = std::max(src1[i], src2[i]);
+                src1[i] = MinMax(src1[i], src2[i], min);
               }
               set_q_register(Vd, src1);
               break;
@@ -4343,6 +4348,48 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           }
           break;
         }
+        case 0xa: {
+          // vpmin/vpmax.s<size> Dd, Dm, Dn.
+          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+          bool min = instr->Bit(4) != 0;
+          switch (size) {
+            case Neon8: {
+              int8_t dst[8], src1[8], src2[8];
+              get_d_register(Vn, src1);
+              get_d_register(Vm, src2);
+              for (int i = 0; i < 4; i++) {
+                dst[i + 0] = MinMax(src1[i * 2], src1[i * 2 + 1], min);
+                dst[i + 4] = MinMax(src2[i * 2], src2[i * 2 + 1], min);
+              }
+              set_d_register(Vd, dst);
+              break;
+            }
+            case Neon16: {
+              int16_t dst[4], src1[4], src2[4];
+              get_d_register(Vn, src1);
+              get_d_register(Vm, src2);
+              for (int i = 0; i < 2; i++) {
+                dst[i + 0] = MinMax(src1[i * 2], src1[i * 2 + 1], min);
+                dst[i + 2] = MinMax(src2[i * 2], src2[i * 2 + 1], min);
+              }
+              set_d_register(Vd, dst);
+              break;
+            }
+            case Neon32: {
+              int32_t dst[2], src1[2], src2[2];
+              get_d_register(Vn, src1);
+              get_d_register(Vm, src2);
+              dst[0] = MinMax(src1[0], src1[1], min);
+              dst[1] = MinMax(src2[0], src2[1], min);
+              set_d_register(Vd, dst);
+              break;
+            }
+            default:
+              UNREACHABLE();
+              break;
+          }
+          break;
+        }
         case 0xd: {
           if (instr->Bit(4) == 0) {
             float src1[4], src2[4];
@@ -4397,16 +4444,10 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
                 }
               }
             } else {
-              if (instr->Bit(21) == 1) {
-                // vmin.f32 Qd, Qm, Qn.
-                for (int i = 0; i < 4; i++) {
-                  src1[i] = std::min(src1[i], src2[i]);
-                }
-              } else {
-                // vmax.f32 Qd, Qm, Qn.
-                for (int i = 0; i < 4; i++) {
-                  src1[i] = std::max(src1[i], src2[i]);
-                }
+              // vmin/vmax.f32 Qd, Qm, Qn.
+              bool min = instr->Bit(21) == 1;
+              for (int i = 0; i < 4; i++) {
+                src1[i] = MinMax(src1[i], src2[i], min);
               }
             }
             set_q_register(Vd, src1);
@@ -4692,10 +4733,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               get_q_register(Vn, src1);
               get_q_register(Vm, src2);
               for (int i = 0; i < 16; i++) {
-                if (min)
-                  src1[i] = std::min(src1[i], src2[i]);
-                else
-                  src1[i] = std::max(src1[i], src2[i]);
+                src1[i] = MinMax(src1[i], src2[i], min);
               }
               set_q_register(Vd, src1);
               break;
@@ -4705,10 +4743,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               get_q_register(Vn, src1);
               get_q_register(Vm, src2);
               for (int i = 0; i < 8; i++) {
-                if (min)
-                  src1[i] = std::min(src1[i], src2[i]);
-                else
-                  src1[i] = std::max(src1[i], src2[i]);
+                src1[i] = MinMax(src1[i], src2[i], min);
               }
               set_q_register(Vd, src1);
               break;
@@ -4718,10 +4753,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               get_q_register(Vn, src1);
               get_q_register(Vm, src2);
               for (int i = 0; i < 4; i++) {
-                if (min)
-                  src1[i] = std::min(src1[i], src2[i]);
-                else
-                  src1[i] = std::max(src1[i], src2[i]);
+                src1[i] = MinMax(src1[i], src2[i], min);
               }
               set_q_register(Vd, src1);
               break;
@@ -4809,6 +4841,48 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
                 UNREACHABLE();
                 break;
             }
+          }
+          break;
+        }
+        case 0xa: {
+          // vpmin/vpmax.u<size> Dd, Dm, Dn.
+          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+          bool min = instr->Bit(4) != 0;
+          switch (size) {
+            case Neon8: {
+              uint8_t dst[8], src1[8], src2[8];
+              get_d_register(Vn, src1);
+              get_d_register(Vm, src2);
+              for (int i = 0; i < 4; i++) {
+                dst[i + 0] = MinMax(src1[i * 2], src1[i * 2 + 1], min);
+                dst[i + 4] = MinMax(src2[i * 2], src2[i * 2 + 1], min);
+              }
+              set_d_register(Vd, dst);
+              break;
+            }
+            case Neon16: {
+              uint16_t dst[4], src1[4], src2[4];
+              get_d_register(Vn, src1);
+              get_d_register(Vm, src2);
+              for (int i = 0; i < 2; i++) {
+                dst[i + 0] = MinMax(src1[i * 2], src1[i * 2 + 1], min);
+                dst[i + 2] = MinMax(src2[i * 2], src2[i * 2 + 1], min);
+              }
+              set_d_register(Vd, dst);
+              break;
+            }
+            case Neon32: {
+              uint32_t dst[2], src1[2], src2[2];
+              get_d_register(Vn, src1);
+              get_d_register(Vm, src2);
+              dst[0] = MinMax(src1[0], src1[1], min);
+              dst[1] = MinMax(src2[0], src2[1], min);
+              set_d_register(Vd, dst);
+              break;
+            }
+            default:
+              UNREACHABLE();
+              break;
           }
           break;
         }
@@ -5594,10 +5668,6 @@ void Simulator::InstructionDecode(Instruction* instr) {
         break;
       }
     }
-  // If the instruction is a non taken conditional stop, we need to skip the
-  // inlined message address.
-  } else if (instr->IsStop()) {
-    set_pc(get_pc() + 2 * Instruction::kInstrSize);
   }
   if (!pc_modified_) {
     set_register(pc, reinterpret_cast<int32_t>(instr)

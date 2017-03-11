@@ -259,6 +259,8 @@ function TestTypedArray(constr, elementSize, typicalElement) {
 
   assertThrows(function() { new constr(Symbol()); }, TypeError);
 
+  assertThrows(function() { new constr(-1); }, RangeError);
+
   var jsArray = [];
   for (i = 0; i < 30; i++) {
     jsArray.push(typicalElement);
@@ -822,3 +824,24 @@ function TestNonConfigurableProperties(constructor) {
 for(i = 0; i < typedArrayConstructors.length; i++) {
   TestNonConfigurableProperties(typedArrayConstructors[i]);
 }
+
+(function TestInitialization() {
+  for (var i = 0; i <= 128; i++) {
+    var arr = new Uint8Array(i);
+    for (var j = 0; j < i; j++) {
+      assertEquals(0, arr[j]);
+    }
+  }
+})();
+
+(function TestBufferLengthTooLong() {
+  try {
+    var buf = new ArrayBuffer(2147483648);
+    assertThrows(function() {
+      new Int8Array(buf);
+    }, RangeError);
+  } catch (e) {
+    // The ArrayBuffer allocation fails on 32-bit archs, so no need to try to
+    // construct the typed array.
+  }
+})();

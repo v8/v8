@@ -1262,6 +1262,8 @@ enum ParserFlag {
   kAllowHarmonyClassFields,
   kAllowHarmonyObjectRestSpread,
   kAllowHarmonyDynamicImport,
+  kAllowHarmonyAsyncIteration,
+  kAllowHarmonyTemplateEscapes,
   kAllowTypes,
 };
 
@@ -1281,6 +1283,9 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_object_rest_spread =
       flags.Contains(kAllowHarmonyObjectRestSpread);
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
+  i::FLAG_harmony_async_iteration = flags.Contains(kAllowHarmonyAsyncIteration);
+  i::FLAG_harmony_template_escapes =
+      flags.Contains(kAllowHarmonyTemplateEscapes);
   i::FLAG_harmony_types = flags.Contains(kAllowTypes);
 }
 
@@ -1298,6 +1303,10 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyObjectRestSpread));
   parser->set_allow_harmony_dynamic_import(
       flags.Contains(kAllowHarmonyDynamicImport));
+  parser->set_allow_harmony_async_iteration(
+      flags.Contains(kAllowHarmonyAsyncIteration));
+  parser->set_allow_harmony_template_escapes(
+      flags.Contains(kAllowHarmonyTemplateEscapes));
   parser->set_allow_harmony_types(flags.Contains(kAllowTypes));
 }
 
@@ -1310,8 +1319,6 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::Factory* factory = isolate->factory();
 
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
-  int preparser_materialized_literals = -1;
-  int parser_materialized_literals = -2;
 
   // Preparse the data.
   i::PendingCompilationErrorHandler pending_error_handler;
@@ -1328,8 +1335,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
                            isolate->counters()->runtime_call_stats());
     SetParserFlags(&preparser, flags);
     scanner.Initialize(stream.get());
-    i::PreParser::PreParseResult result =
-        preparser.PreParseProgram(&preparser_materialized_literals, is_module);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram(is_module);
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
 
@@ -1343,9 +1349,6 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     if (is_module) info.set_module();
     i::parsing::ParseProgram(&info);
     function = info.literal();
-    if (function) {
-      parser_materialized_literals = function->materialized_literal_count();
-    }
   }
 
   // Check that preparsing fails iff parsing fails.
@@ -1413,16 +1416,6 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "Expected error on:\n"
         "\t%s\n"
         "However, parser and preparser succeeded",
-        source->ToCString().get());
-    CHECK(false);
-  } else if (test_preparser &&
-             preparser_materialized_literals != parser_materialized_literals) {
-    v8::base::OS::Print(
-        "Preparser materialized literals (%d) differ from Parser materialized "
-        "literals (%d) on:\n"
-        "\t%s\n"
-        "However, parser and preparser succeeded",
-        preparser_materialized_literals, parser_materialized_literals,
         source->ToCString().get());
     CHECK(false);
   }
@@ -7082,6 +7075,7 @@ TEST(ObjectSpreadPositiveTests) {
     "{ ...async () => { }}",
     "{ ...new Foo()}",
     NULL};
+  // clang-format on
 
   static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
@@ -7103,6 +7097,169 @@ TEST(ObjectSpreadNegativeTests) {
   static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
   RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
                     arraysize(flags));
+}
+
+TEST(TemplateEscapesPositiveTests) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {NULL, NULL}};
+
+  // clang-format off
+  const char* data[] = {
+    "tag`\\01`",
+    "tag`\\01${0}right`",
+    "tag`left${0}\\01`",
+    "tag`left${0}\\01${1}right`",
+    "tag`\\1`",
+    "tag`\\1${0}right`",
+    "tag`left${0}\\1`",
+    "tag`left${0}\\1${1}right`",
+    "tag`\\xg`",
+    "tag`\\xg${0}right`",
+    "tag`left${0}\\xg`",
+    "tag`left${0}\\xg${1}right`",
+    "tag`\\xAg`",
+    "tag`\\xAg${0}right`",
+    "tag`left${0}\\xAg`",
+    "tag`left${0}\\xAg${1}right`",
+    "tag`\\u0`",
+    "tag`\\u0${0}right`",
+    "tag`left${0}\\u0`",
+    "tag`left${0}\\u0${1}right`",
+    "tag`\\u0g`",
+    "tag`\\u0g${0}right`",
+    "tag`left${0}\\u0g`",
+    "tag`left${0}\\u0g${1}right`",
+    "tag`\\u00g`",
+    "tag`\\u00g${0}right`",
+    "tag`left${0}\\u00g`",
+    "tag`left${0}\\u00g${1}right`",
+    "tag`\\u000g`",
+    "tag`\\u000g${0}right`",
+    "tag`left${0}\\u000g`",
+    "tag`left${0}\\u000g${1}right`",
+    "tag`\\u{}`",
+    "tag`\\u{}${0}right`",
+    "tag`left${0}\\u{}`",
+    "tag`left${0}\\u{}${1}right`",
+    "tag`\\u{-0}`",
+    "tag`\\u{-0}${0}right`",
+    "tag`left${0}\\u{-0}`",
+    "tag`left${0}\\u{-0}${1}right`",
+    "tag`\\u{g}`",
+    "tag`\\u{g}${0}right`",
+    "tag`left${0}\\u{g}`",
+    "tag`left${0}\\u{g}${1}right`",
+    "tag`\\u{0`",
+    "tag`\\u{0${0}right`",
+    "tag`left${0}\\u{0`",
+    "tag`left${0}\\u{0${1}right`",
+    "tag`\\u{\\u{0}`",
+    "tag`\\u{\\u{0}${0}right`",
+    "tag`left${0}\\u{\\u{0}`",
+    "tag`left${0}\\u{\\u{0}${1}right`",
+    "tag`\\u{110000}`",
+    "tag`\\u{110000}${0}right`",
+    "tag`left${0}\\u{110000}`",
+    "tag`left${0}\\u{110000}${1}right`",
+    "tag` ${tag`\\u`}`",
+    "tag` ``\\u`",
+    "tag`\\u`` `",
+    "tag`\\u``\\u`",
+    "` ${tag`\\u`}`",
+    "` ``\\u`",
+    NULL};
+  // clang-format on
+
+  // No error with flag
+  static const ParserFlag flags[] = {kAllowHarmonyTemplateEscapes};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+                    arraysize(flags));
+
+  // Still an error without flag
+  RunParserSyncTest(context_data, data, kError);
+}
+
+TEST(TemplateEscapesNegativeTests) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {NULL, NULL}};
+
+  // clang-format off
+  const char* data[] = {
+    "`\\01`",
+    "`\\01${0}right`",
+    "`left${0}\\01`",
+    "`left${0}\\01${1}right`",
+    "`\\1`",
+    "`\\1${0}right`",
+    "`left${0}\\1`",
+    "`left${0}\\1${1}right`",
+    "`\\xg`",
+    "`\\xg${0}right`",
+    "`left${0}\\xg`",
+    "`left${0}\\xg${1}right`",
+    "`\\xAg`",
+    "`\\xAg${0}right`",
+    "`left${0}\\xAg`",
+    "`left${0}\\xAg${1}right`",
+    "`\\u0`",
+    "`\\u0${0}right`",
+    "`left${0}\\u0`",
+    "`left${0}\\u0${1}right`",
+    "`\\u0g`",
+    "`\\u0g${0}right`",
+    "`left${0}\\u0g`",
+    "`left${0}\\u0g${1}right`",
+    "`\\u00g`",
+    "`\\u00g${0}right`",
+    "`left${0}\\u00g`",
+    "`left${0}\\u00g${1}right`",
+    "`\\u000g`",
+    "`\\u000g${0}right`",
+    "`left${0}\\u000g`",
+    "`left${0}\\u000g${1}right`",
+    "`\\u{}`",
+    "`\\u{}${0}right`",
+    "`left${0}\\u{}`",
+    "`left${0}\\u{}${1}right`",
+    "`\\u{-0}`",
+    "`\\u{-0}${0}right`",
+    "`left${0}\\u{-0}`",
+    "`left${0}\\u{-0}${1}right`",
+    "`\\u{g}`",
+    "`\\u{g}${0}right`",
+    "`left${0}\\u{g}`",
+    "`left${0}\\u{g}${1}right`",
+    "`\\u{0`",
+    "`\\u{0${0}right`",
+    "`left${0}\\u{0`",
+    "`left${0}\\u{0${1}right`",
+    "`\\u{\\u{0}`",
+    "`\\u{\\u{0}${0}right`",
+    "`left${0}\\u{\\u{0}`",
+    "`left${0}\\u{\\u{0}${1}right`",
+    "`\\u{110000}`",
+    "`\\u{110000}${0}right`",
+    "`left${0}\\u{110000}`",
+    "`left${0}\\u{110000}${1}right`",
+    "`\\1``\\2`",
+    "tag` ${`\\u`}`",
+    "`\\u```",
+    NULL};
+  // clang-format on
+
+  // Error with flag
+  static const ParserFlag flags[] = {kAllowHarmonyTemplateEscapes};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                    arraysize(flags));
+
+  // Still an error without flag
+  RunParserSyncTest(context_data, data, kError);
 }
 
 TEST(DestructuringPositiveTests) {
@@ -9451,6 +9608,343 @@ TEST(NoPessimisticContextAllocation) {
                i::ScopeTestHelper::MustAllocateInContext(var));
     }
   }
+}
+
+TEST(EscapedStrictReservedWord) {
+  // Test that identifiers which are both escaped and only reserved in the
+  // strict mode are accepted in non-strict mode.
+  const char* context_data[][2] = {{"", ""}, {NULL, NULL}};
+
+  const char* statement_data[] = {"if (true) l\u0065t: ;",
+                                  "function l\u0065t() { }",
+                                  "(function l\u0065t() { })",
+                                  "async function l\u0065t() { }",
+                                  "(async function l\u0065t() { })",
+                                  "l\u0065t => 42",
+                                  "async l\u0065t => 42",
+                                  NULL};
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+TEST(ForAwaitOf) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "async function f() { for await ", " ; }" },
+    { "async function f() { for await ", " { } }" },
+    { "async function f() { 'use strict'; for await ", " ; }" },
+    { "async function f() { 'use strict'; for await ", "  { } }" },
+    { "async function f() { for\nawait ", " ; }" },
+    { "async function f() { for\nawait ", " { } }" },
+    { "async function f() { 'use strict'; for\nawait ", " ; }" },
+    { "async function f() { 'use strict'; for\nawait ", " { } }" },
+    { "async function f() { 'use strict'; for\nawait ", " { } }" },
+    { "async function f() { for await\n", " ; }" },
+    { "async function f() { for await\n", " { } }" },
+    { "async function f() { 'use strict'; for await\n", " ; }" },
+    { "async function f() { 'use strict'; for await\n", " { } }" },
+    { NULL, NULL }
+  };
+
+  const char* context_data2[][2] = {
+    { "async function f() { let a; for await ", " ; }" },
+    { "async function f() { let a; for await ", " { } }" },
+    { "async function f() { 'use strict'; let a; for await ", " ; }" },
+    { "async function f() { 'use strict'; let a; for await ", "  { } }" },
+    { "async function f() { let a; for\nawait ", " ; }" },
+    { "async function f() { let a; for\nawait ", " { } }" },
+    { "async function f() { 'use strict'; let a; for\nawait ", " ; }" },
+    { "async function f() { 'use strict'; let a; for\nawait ", " { } }" },
+    { "async function f() { 'use strict'; let a; for\nawait ", " { } }" },
+    { "async function f() { let a; for await\n", " ; }" },
+    { "async function f() { let a; for await\n", " { } }" },
+    { "async function f() { 'use strict'; let a; for await\n", " ; }" },
+    { "async function f() { 'use strict'; let a; for await\n", " { } }" },
+    { NULL, NULL }
+  };
+
+  const char* expr_data[] = {
+    // Primary Expressions
+    "(a of [])",
+    "(a.b of [])",
+    "([a] of [])",
+    "([a = 1] of [])",
+    "([a = 1, ...b] of [])",
+    "({a} of [])",
+    "({a: a} of [])",
+    "({'a': a} of [])",
+    "({\"a\": a} of [])",
+    "({[Symbol.iterator]: a} of [])",
+    "({0: a} of [])",
+    "({a = 1} of [])",
+    "({a: a = 1} of [])",
+    "({'a': a = 1} of [])",
+    "({\"a\": a = 1} of [])",
+    "({[Symbol.iterator]: a = 1} of [])",
+    "({0: a = 1} of [])",
+    NULL
+  };
+
+  const char* var_data[] = {
+    // VarDeclarations
+    "(var a of [])",
+    "(var [a] of [])",
+    "(var [a = 1] of [])",
+    "(var [a = 1, ...b] of [])",
+    "(var {a} of [])",
+    "(var {a: a} of [])",
+    "(var {'a': a} of [])",
+    "(var {\"a\": a} of [])",
+    "(var {[Symbol.iterator]: a} of [])",
+    "(var {0: a} of [])",
+    "(var {a = 1} of [])",
+    "(var {a: a = 1} of [])",
+    "(var {'a': a = 1} of [])",
+    "(var {\"a\": a = 1} of [])",
+    "(var {[Symbol.iterator]: a = 1} of [])",
+    "(var {0: a = 1} of [])",
+    NULL
+  };
+
+  const char* lexical_data[] = {
+    // LexicalDeclartions
+    "(let a of [])",
+    "(let [a] of [])",
+    "(let [a = 1] of [])",
+    "(let [a = 1, ...b] of [])",
+    "(let {a} of [])",
+    "(let {a: a} of [])",
+    "(let {'a': a} of [])",
+    "(let {\"a\": a} of [])",
+    "(let {[Symbol.iterator]: a} of [])",
+    "(let {0: a} of [])",
+    "(let {a = 1} of [])",
+    "(let {a: a = 1} of [])",
+    "(let {'a': a = 1} of [])",
+    "(let {\"a\": a = 1} of [])",
+    "(let {[Symbol.iterator]: a = 1} of [])",
+    "(let {0: a = 1} of [])",
+
+    "(const a of [])",
+    "(const [a] of [])",
+    "(const [a = 1] of [])",
+    "(const [a = 1, ...b] of [])",
+    "(const {a} of [])",
+    "(const {a: a} of [])",
+    "(const {'a': a} of [])",
+    "(const {\"a\": a} of [])",
+    "(const {[Symbol.iterator]: a} of [])",
+    "(const {0: a} of [])",
+    "(const {a = 1} of [])",
+    "(const {a: a = 1} of [])",
+    "(const {'a': a = 1} of [])",
+    "(const {\"a\": a = 1} of [])",
+    "(const {[Symbol.iterator]: a = 1} of [])",
+    "(const {0: a = 1} of [])",
+    NULL
+  };
+  // clang-format on
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
+  RunParserSyncTest(context_data, expr_data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+  RunParserSyncTest(context_data2, expr_data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+
+  RunParserSyncTest(context_data, var_data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+  // TODO(marja): PreParser doesn't report early errors.
+  //              (https://bugs.chromium.org/p/v8/issues/detail?id=2728)
+  // RunParserSyncTest(context_data2, var_data, kError, NULL, 0, always_flags,
+  //                   arraysize(always_flags));
+
+  RunParserSyncTest(context_data, lexical_data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+  RunParserSyncTest(context_data2, lexical_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+TEST(ForAwaitOfErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "async function f() { for await ", " ; }" },
+    { "async function f() { for await ", " { } }" },
+    { "async function f() { 'use strict'; for await ", " ; }" },
+    { "async function f() { 'use strict'; for await ", "  { } }" },
+    { NULL, NULL }
+  };
+
+  const char* data[] = {
+    // Primary Expressions
+    "(a = 1 of [])",
+    "(a = 1) of [])",
+    "(a.b = 1 of [])",
+    "((a.b = 1) of [])",
+    "([a] = 1 of [])",
+    "(([a] = 1) of [])",
+    "([a = 1] = 1 of [])",
+    "(([a = 1] = 1) of [])",
+    "([a = 1 = 1, ...b] = 1 of [])",
+    "(([a = 1 = 1, ...b] = 1) of [])",
+    "({a} = 1 of [])",
+    "(({a} = 1) of [])",
+    "({a: a} = 1 of [])",
+    "(({a: a} = 1) of [])",
+    "({'a': a} = 1 of [])",
+    "(({'a': a} = 1) of [])",
+    "({\"a\": a} = 1 of [])",
+    "(({\"a\": a} = 1) of [])",
+    "({[Symbol.iterator]: a} = 1 of [])",
+    "(({[Symbol.iterator]: a} = 1) of [])",
+    "({0: a} = 1 of [])",
+    "(({0: a} = 1) of [])",
+    "({a = 1} = 1 of [])",
+    "(({a = 1} = 1) of [])",
+    "({a: a = 1} = 1 of [])",
+    "(({a: a = 1} = 1) of [])",
+    "({'a': a = 1} = 1 of [])",
+    "(({'a': a = 1} = 1) of [])",
+    "({\"a\": a = 1} = 1 of [])",
+    "(({\"a\": a = 1} = 1) of [])",
+    "({[Symbol.iterator]: a = 1} = 1 of [])",
+    "(({[Symbol.iterator]: a = 1} = 1) of [])",
+    "({0: a = 1} = 1 of [])",
+    "(({0: a = 1} = 1) of [])",
+    "(function a() {} of [])",
+    "([1] of [])",
+    "({a: 1} of [])"
+
+    // VarDeclarations
+    "(var a = 1 of [])",
+    "(var a, b of [])",
+    "(var [a] = 1 of [])",
+    "(var [a], b of [])",
+    "(var [a = 1] = 1 of [])",
+    "(var [a = 1], b of [])",
+    "(var [a = 1 = 1, ...b] of [])",
+    "(var [a = 1, ...b], c of [])",
+    "(var {a} = 1 of [])",
+    "(var {a}, b of [])",
+    "(var {a: a} = 1 of [])",
+    "(var {a: a}, b of [])",
+    "(var {'a': a} = 1 of [])",
+    "(var {'a': a}, b of [])",
+    "(var {\"a\": a} = 1 of [])",
+    "(var {\"a\": a}, b of [])",
+    "(var {[Symbol.iterator]: a} = 1 of [])",
+    "(var {[Symbol.iterator]: a}, b of [])",
+    "(var {0: a} = 1 of [])",
+    "(var {0: a}, b of [])",
+    "(var {a = 1} = 1 of [])",
+    "(var {a = 1}, b of [])",
+    "(var {a: a = 1} = 1 of [])",
+    "(var {a: a = 1}, b of [])",
+    "(var {'a': a = 1} = 1 of [])",
+    "(var {'a': a = 1}, b of [])",
+    "(var {\"a\": a = 1} = 1 of [])",
+    "(var {\"a\": a = 1}, b of [])",
+    "(var {[Symbol.iterator]: a = 1} = 1 of [])",
+    "(var {[Symbol.iterator]: a = 1}, b of [])",
+    "(var {0: a = 1} = 1 of [])",
+    "(var {0: a = 1}, b of [])",
+
+    // LexicalDeclartions
+    "(let a = 1 of [])",
+    "(let a, b of [])",
+    "(let [a] = 1 of [])",
+    "(let [a], b of [])",
+    "(let [a = 1] = 1 of [])",
+    "(let [a = 1], b of [])",
+    "(let [a = 1, ...b] = 1 of [])",
+    "(let [a = 1, ...b], c of [])",
+    "(let {a} = 1 of [])",
+    "(let {a}, b of [])",
+    "(let {a: a} = 1 of [])",
+    "(let {a: a}, b of [])",
+    "(let {'a': a} = 1 of [])",
+    "(let {'a': a}, b of [])",
+    "(let {\"a\": a} = 1 of [])",
+    "(let {\"a\": a}, b of [])",
+    "(let {[Symbol.iterator]: a} = 1 of [])",
+    "(let {[Symbol.iterator]: a}, b of [])",
+    "(let {0: a} = 1 of [])",
+    "(let {0: a}, b of [])",
+    "(let {a = 1} = 1 of [])",
+    "(let {a = 1}, b of [])",
+    "(let {a: a = 1} = 1 of [])",
+    "(let {a: a = 1}, b of [])",
+    "(let {'a': a = 1} = 1 of [])",
+    "(let {'a': a = 1}, b of [])",
+    "(let {\"a\": a = 1} = 1 of [])",
+    "(let {\"a\": a = 1}, b of [])",
+    "(let {[Symbol.iterator]: a = 1} = 1 of [])",
+    "(let {[Symbol.iterator]: a = 1}, b of [])",
+    "(let {0: a = 1} = 1 of [])",
+    "(let {0: a = 1}, b of [])",
+
+    "(const a = 1 of [])",
+    "(const a, b of [])",
+    "(const [a] = 1 of [])",
+    "(const [a], b of [])",
+    "(const [a = 1] = 1 of [])",
+    "(const [a = 1], b of [])",
+    "(const [a = 1, ...b] = 1 of [])",
+    "(const [a = 1, ...b], b of [])",
+    "(const {a} = 1 of [])",
+    "(const {a}, b of [])",
+    "(const {a: a} = 1 of [])",
+    "(const {a: a}, b of [])",
+    "(const {'a': a} = 1 of [])",
+    "(const {'a': a}, b of [])",
+    "(const {\"a\": a} = 1 of [])",
+    "(const {\"a\": a}, b of [])",
+    "(const {[Symbol.iterator]: a} = 1 of [])",
+    "(const {[Symbol.iterator]: a}, b of [])",
+    "(const {0: a} = 1 of [])",
+    "(const {0: a}, b of [])",
+    "(const {a = 1} = 1 of [])",
+    "(const {a = 1}, b of [])",
+    "(const {a: a = 1} = 1 of [])",
+    "(const {a: a = 1}, b of [])",
+    "(const {'a': a = 1} = 1 of [])",
+    "(const {'a': a = 1}, b of [])",
+    "(const {\"a\": a = 1} = 1 of [])",
+    "(const {\"a\": a = 1}, b of [])",
+    "(const {[Symbol.iterator]: a = 1} = 1 of [])",
+    "(const {[Symbol.iterator]: a = 1}, b of [])",
+    "(const {0: a = 1} = 1 of [])",
+    "(const {0: a = 1}, b of [])",
+
+    NULL
+  };
+  // clang-format on
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+TEST(ForAwaitOfFunctionDeclaration) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "async function f() {", "}" },
+    { "async function f() { 'use strict'; ", "}" },
+    { NULL, NULL }
+  };
+
+  const char* data[] = {
+    "for await (x of []) function d() {};",
+    "for await (x of []) function d() {}; return d;",
+    "for await (x of []) function* g() {};",
+    "for await (x of []) function* g() {}; return g;",
+    // TODO(caitp): handle async function declarations in ParseScopedStatement.
+    // "for await (x of []) async function a() {};",
+    // "for await (x of []) async function a() {}; return a;",
+    NULL
+  };
+
+  // clang-format on
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }
 
 

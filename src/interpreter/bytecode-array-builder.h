@@ -127,6 +127,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Named load property of the @@iterator symbol.
   BytecodeArrayBuilder& LoadIteratorProperty(Register object,
                                              int feedback_slot);
+  // Named load property of the @@asyncIterator symbol.
+  BytecodeArrayBuilder& LoadAsyncIteratorProperty(Register object,
+                                                  int feedback_slot);
 
   // Store properties. Flag for NeedsSetFunctionName() should
   // be in the accumulator.
@@ -146,6 +149,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
                                            size_t constant_pool_entry,
                                            int feedback_slot,
                                            LanguageMode language_mode);
+  // Store an own property named by a constant from the constant pool. The
+  // value to be stored should be in the accumulator.
+  BytecodeArrayBuilder& StoreNamedOwnProperty(Register object,
+                                              const AstRawString* name,
+                                              int feedback_slot);
   // Store a property keyed by a value in a register. The value to be stored
   // should be in the accumulator.
   BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,

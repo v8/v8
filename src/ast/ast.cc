@@ -15,7 +15,9 @@
 #include "src/code-stubs.h"
 #include "src/contexts.h"
 #include "src/conversions.h"
+#include "src/double.h"
 #include "src/elements.h"
+#include "src/objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/property-details.h"
 #include "src/property.h"
@@ -37,6 +39,7 @@ static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
     return #name;
 
     NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELDS_IDX)
+#undef NATIVE_CONTEXT_FIELDS_IDX
 
     default:
       break;
@@ -48,6 +51,7 @@ static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
 void AstNode::Print() { Print(Isolate::Current()); }
 
 void AstNode::Print(Isolate* isolate) {
+  AllowHandleDereference allow_deref;
   AstPrinter::PrintOut(isolate, this);
 }
 
@@ -459,7 +463,7 @@ void ObjectLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
         // contains computed properties with an uninitialized value.
         if (key->IsStringLiteral()) {
           if (property->emit_store()) {
-            property->SetSlot(spec->AddStoreICSlot(language_mode));
+            property->SetSlot(spec->AddStoreOwnICSlot());
             if (FunctionLiteral::NeedsHomeObject(value)) {
               property->SetSlot(spec->AddStoreICSlot(language_mode), 1);
             }
@@ -789,6 +793,11 @@ bool ArrayLiteral::IsFastCloningSupported() const {
              ConstructorBuiltinsAssembler::kMaximumClonedShallowArrayElements;
 }
 
+void ArrayLiteral::RewindSpreads() {
+  values_->Rewind(first_spread_index_);
+  first_spread_index_ = -1;
+}
+
 void ArrayLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                        LanguageMode language_mode,
                                        FeedbackSlotCache* cache) {
@@ -1106,7 +1115,8 @@ bool Literal::Match(void* literal1, void* literal2) {
 
 const char* CallRuntime::debug_name() {
 #ifdef DEBUG
-  return NameForNativeContextIntrinsicIndex(context_index_);
+  return is_jsruntime() ? NameForNativeContextIntrinsicIndex(context_index_)
+                        : function_->name;
 #else
   return is_jsruntime() ? "(context function)" : function_->name;
 #endif  // DEBUG

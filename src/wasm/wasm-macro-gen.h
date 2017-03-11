@@ -372,15 +372,16 @@ class LocalDeclEncoder {
       static_cast<byte>(bit_cast<uint32_t>(static_cast<float>(val)) >> 8),  \
       static_cast<byte>(bit_cast<uint32_t>(static_cast<float>(val)) >> 16), \
       static_cast<byte>(bit_cast<uint32_t>(static_cast<float>(val)) >> 24)
-#define WASM_F64(val)                                        \
-  kExprF64Const, static_cast<byte>(bit_cast<uint64_t>(val)), \
-      static_cast<byte>(bit_cast<uint64_t>(val) >> 8),       \
-      static_cast<byte>(bit_cast<uint64_t>(val) >> 16),      \
-      static_cast<byte>(bit_cast<uint64_t>(val) >> 24),      \
-      static_cast<byte>(bit_cast<uint64_t>(val) >> 32),      \
-      static_cast<byte>(bit_cast<uint64_t>(val) >> 40),      \
-      static_cast<byte>(bit_cast<uint64_t>(val) >> 48),      \
-      static_cast<byte>(bit_cast<uint64_t>(val) >> 56)
+#define WASM_F64(val)                                                        \
+  kExprF64Const,                                                             \
+      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val))),       \
+      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 8),  \
+      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 16), \
+      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 24), \
+      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 32), \
+      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 40), \
+      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 48), \
+      static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 56)
 #define WASM_GET_LOCAL(index) kExprGetLocal, static_cast<byte>(index)
 #define WASM_SET_LOCAL(index, val) val, kExprSetLocal, static_cast<byte>(index)
 #define WASM_TEE_LOCAL(index, val) val, kExprTeeLocal, static_cast<byte>(index)
@@ -617,36 +618,6 @@ class LocalDeclEncoder {
 //------------------------------------------------------------------------------
 #define WASM_GROW_MEMORY(x) x, kExprGrowMemory, 0
 #define WASM_MEMORY_SIZE kExprMemorySize, 0
-
-//------------------------------------------------------------------------------
-// Simd Operations.
-//------------------------------------------------------------------------------
-// TODO(bbudge) Migrate these into tests.
-#define WASM_SIMD_F32x4_SPLAT(x) \
-  x, kSimdPrefix, static_cast<byte>(kExprF32x4Splat)
-#define WASM_SIMD_F32x4_EXTRACT_LANE(lane, x)               \
-  x, kSimdPrefix, static_cast<byte>(kExprF32x4ExtractLane), \
-      static_cast<byte>(lane)
-#define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y)               \
-  x, y, kSimdPrefix, static_cast<byte>(kExprF32x4ReplaceLane), \
-      static_cast<byte>(lane)
-#define WASM_SIMD_F32x4_ADD(x, y) \
-  x, y, kSimdPrefix, static_cast<byte>(kExprF32x4Add)
-#define WASM_SIMD_F32x4_SUB(x, y) \
-  x, y, kSimdPrefix, static_cast<byte>(kExprF32x4Sub)
-
-#define WASM_SIMD_I32x4_SPLAT(x) \
-  x, kSimdPrefix, static_cast<byte>(kExprI32x4Splat)
-#define WASM_SIMD_I32x4_EXTRACT_LANE(lane, x)               \
-  x, kSimdPrefix, static_cast<byte>(kExprI32x4ExtractLane), \
-      static_cast<byte>(lane)
-#define WASM_SIMD_I32x4_REPLACE_LANE(lane, x, y)               \
-  x, y, kSimdPrefix, static_cast<byte>(kExprI32x4ReplaceLane), \
-      static_cast<byte>(lane)
-#define WASM_SIMD_I32x4_ADD(x, y) \
-  x, y, kSimdPrefix, static_cast<byte>(kExprI32x4Add)
-#define WASM_SIMD_I32x4_SUB(x, y) \
-  x, y, kSimdPrefix, static_cast<byte>(kExprI32x4Sub)
 
 #define SIG_ENTRY_v_v kWasmFunctionTypeForm, 0, 0
 #define SIZEOF_SIG_ENTRY_v_v 3

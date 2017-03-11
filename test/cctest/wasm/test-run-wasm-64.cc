@@ -6,7 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
+#include "src/objects-inl.h"
 #include "src/wasm/wasm-macro-gen.h"
 
 #include "test/cctest/cctest.h"

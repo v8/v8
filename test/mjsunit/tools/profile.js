@@ -88,12 +88,12 @@ ProfileTestDriver.prototype.enter = function(funcName) {
   // Stack looks like this: [pc, caller, ..., main].
   // Therefore, we are adding entries at the beginning.
   this.stack_.unshift(this.funcAddrs_[funcName]);
-  this.profile.recordTick(this.stack_);
+  this.profile.recordTick(0, 0, this.stack_);
 };
 
 
 ProfileTestDriver.prototype.stay = function() {
-  this.profile.recordTick(this.stack_);
+  this.profile.recordTick(0, 0, this.stack_);
 };
 
 

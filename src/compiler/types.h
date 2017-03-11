@@ -164,9 +164,9 @@ namespace compiler {
   V(Primitive,                    kSymbol | kPlainPrimitive) \
   V(OtherUndetectableOrUndefined, kOtherUndetectable | kUndefined) \
   V(Proxy,                        kCallableProxy | kOtherProxy) \
-  V(Callable,                     kFunction | kBoundFunction | \
-                                  kOtherCallable | kCallableProxy | \
-                                  kOtherUndetectable) \
+  V(DetectableCallable,           kFunction | kBoundFunction | \
+                                  kOtherCallable | kCallableProxy) \
+  V(Callable,                     kDetectableCallable | kOtherUndetectable) \
   V(NonCallable,                  kOtherObject | kOtherProxy) \
   V(NonCallableOrNull,            kNonCallable | kNull) \
   V(DetectableObject,             kFunction | kBoundFunction | \

@@ -148,6 +148,10 @@ class MachineRepresentationInferrer {
             representation_vector_[node->id()] =
                 PromoteRepresentation(AtomicStoreRepresentationOf(node->op()));
             break;
+          case IrOpcode::kAtomicExchange:
+            representation_vector_[node->id()] = PromoteRepresentation(
+                AtomicExchangeRepresentationOf(node->op()).representation());
+            break;
           case IrOpcode::kStore:
           case IrOpcode::kProtectedStore:
             representation_vector_[node->id()] = PromoteRepresentation(
@@ -438,21 +442,8 @@ class MachineRepresentationChecker {
                 node, 1, MachineType::PointerRepresentation());
             break;
           case IrOpcode::kStore:
-            CheckValueInputIsTaggedOrPointer(node, 0);
-            CheckValueInputRepresentationIs(
-                node, 1, MachineType::PointerRepresentation());
-            switch (inferrer_->GetRepresentation(node)) {
-              case MachineRepresentation::kTagged:
-              case MachineRepresentation::kTaggedPointer:
-              case MachineRepresentation::kTaggedSigned:
-                CheckValueInputIsTagged(node, 2);
-                break;
-              default:
-                CheckValueInputRepresentationIs(
-                    node, 2, inferrer_->GetRepresentation(node));
-            }
-            break;
           case IrOpcode::kAtomicStore:
+          case IrOpcode::kAtomicExchange:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
@@ -520,6 +511,7 @@ class MachineRepresentationChecker {
             }
             break;
           }
+          case IrOpcode::kThrow:
           case IrOpcode::kTypedStateValues:
           case IrOpcode::kFrameState:
             break;
@@ -767,6 +759,9 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:
+      case MachineRepresentation::kSimd1x4:
+      case MachineRepresentation::kSimd1x8:
+      case MachineRepresentation::kSimd1x16:
       case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:

@@ -97,6 +97,9 @@ class WasmFunctionBuilder {
   }
 
   addBody(body) {
+    for (let b of body) {
+      if (typeof b != 'number') throw new Error("invalid body");
+    }
     this.body = body;
     // Automatically add the end for the function block to the body.
     body.push(kExprEnd);

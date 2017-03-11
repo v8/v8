@@ -40,7 +40,7 @@ function g() {
     else return c;
   }
   // Clear type feedback from previous stress runs.
-  %ClearFunctionTypeFeedback(f);
+  %ClearFunctionFeedback(f);
   return f;
 }
 

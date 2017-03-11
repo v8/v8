@@ -9,7 +9,6 @@
 #include "src/debug/interface-types.h"
 #include "src/objects.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/wasm/managed.h"
 #include "src/wasm/wasm-limits.h"
 
 namespace v8 {
@@ -45,6 +44,7 @@ class WasmInstanceWrapper;
 // Representation of a WebAssembly.Module JavaScript-level object.
 class WasmModuleObject : public JSObject {
  public:
+  // If a second field is added, we need a kWrapperTracerHeader field as well.
   // TODO(titzer): add the brand as an internal field instead of a property.
   enum Fields { kCompiledModule, kFieldCount };
 
@@ -59,8 +59,15 @@ class WasmModuleObject : public JSObject {
 // Representation of a WebAssembly.Table JavaScript-level object.
 class WasmTableObject : public JSObject {
  public:
+  // The 0-th field is used by the Blink Wrapper Tracer.
   // TODO(titzer): add the brand as an internal field instead of a property.
-  enum Fields { kFunctions, kMaximum, kDispatchTables, kFieldCount };
+  enum Fields {
+    kWrapperTracerHeader,
+    kFunctions,
+    kMaximum,
+    kDispatchTables,
+    kFieldCount
+  };
 
   DECLARE_CASTS(WasmTableObject);
   DECLARE_ACCESSORS(functions, FixedArray);
@@ -84,8 +91,15 @@ class WasmTableObject : public JSObject {
 // Representation of a WebAssembly.Memory JavaScript-level object.
 class WasmMemoryObject : public JSObject {
  public:
+  // The 0-th field is used by the Blink Wrapper Tracer.
   // TODO(titzer): add the brand as an internal field instead of a property.
-  enum Fields : uint8_t { kArrayBuffer, kMaximum, kInstancesLink, kFieldCount };
+  enum Fields : uint8_t {
+    kWrapperTracerHeader,
+    kArrayBuffer,
+    kMaximum,
+    kInstancesLink,
+    kFieldCount
+  };
 
   DECLARE_CASTS(WasmMemoryObject);
   DECLARE_ACCESSORS(buffer, JSArrayBuffer);
@@ -108,8 +122,10 @@ class WasmMemoryObject : public JSObject {
 // Representation of a WebAssembly.Instance JavaScript-level object.
 class WasmInstanceObject : public JSObject {
  public:
+  // The 0-th field is used by the Blink Wrapper Tracer.
   // TODO(titzer): add the brand as an internal field instead of a property.
   enum Fields {
+    kWrapperTracerHeader,
     kCompiledModule,
     kMemoryObject,
     kMemoryArrayBuffer,
@@ -143,7 +159,8 @@ class WasmInstanceObject : public JSObject {
 // Representation of an exported WASM function.
 class WasmExportedFunction : public JSFunction {
  public:
-  enum Fields { kInstance, kIndex, kFieldCount };
+  // The 0-th field is used by the Blink Wrapper Tracer.
+  enum Fields { kWrapperTracerHeader, kInstance, kIndex, kFieldCount };
 
   DECLARE_CASTS(WasmExportedFunction);
 
@@ -159,7 +176,9 @@ class WasmExportedFunction : public JSFunction {
 
 // Information shared by all WasmCompiledModule objects for the same module.
 class WasmSharedModuleData : public FixedArray {
+  // The 0-th field is used by the Blink Wrapper Tracer.
   enum Fields {
+    kWrapperTracerHeader,
     kModuleWrapper,
     kModuleBytes,
     kScript,
@@ -386,7 +405,7 @@ class WasmCompiledModule : public FixedArray {
   // Get a list of all possible breakpoints within a given range of this module.
   bool GetPossibleBreakpoints(const debug::Location& start,
                               const debug::Location& end,
-                              std::vector<debug::Location>* locations);
+                              std::vector<debug::BreakLocation>* locations);
 
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.
@@ -409,7 +428,9 @@ class WasmCompiledModule : public FixedArray {
 
 class WasmDebugInfo : public FixedArray {
  public:
+  // The 0-th field is used by the Blink Wrapper Tracer.
   enum Fields {
+    kWrapperTracerHeader,
     kInstance,
     kInterpreterHandle,
     kInterpretedFunctions,
@@ -421,7 +442,14 @@ class WasmDebugInfo : public FixedArray {
   static bool IsDebugInfo(Object*);
   static WasmDebugInfo* cast(Object*);
 
+  // Set a breakpoint in the given function at the given byte offset within that
+  // function. This will redirect all future calls to this function to the
+  // interpreter and will always pause at the given offset.
   static void SetBreakpoint(Handle<WasmDebugInfo>, int func_index, int offset);
+
+  // Make a function always execute in the interpreter without setting a
+  // breakpoints.
+  static void RedirectToInterpreter(Handle<WasmDebugInfo>, int func_index);
 
   void PrepareStep(StepAction);
 
@@ -434,6 +462,9 @@ class WasmDebugInfo : public FixedArray {
 
   std::unique_ptr<wasm::InterpretedFrame> GetInterpretedFrame(
       Address frame_pointer, int idx);
+
+  // Returns the number of calls / function frames executed in the interpreter.
+  uint64_t NumInterpretedCalls();
 
   DECLARE_GETTER(wasm_instance, WasmInstanceObject);
 };

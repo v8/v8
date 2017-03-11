@@ -64,7 +64,7 @@ if (standalone) {
     %OptimizeFunctionOnNextCall(name);
   }
   clearFunctionTypeFeedback = function(name) {
-    %ClearFunctionTypeFeedback(name);
+    %ClearFunctionFeedback(name);
   }
   deoptimizeFunction = function(name) {
     %DeoptimizeFunction(name);

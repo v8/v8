@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/assembler.h"
 #include "src/codegen.h"
+#include "src/factory.h"
 #include "src/find-and-replace-pattern.h"
 #include "src/globals.h"
 #include "src/ic/ic-state.h"

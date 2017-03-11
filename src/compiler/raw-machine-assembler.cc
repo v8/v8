@@ -166,6 +166,12 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2,
 
 void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }
 
+void RawMachineAssembler::Unreachable() {
+  Node* ret = MakeNode(common()->Throw(), 0, nullptr);
+  schedule()->AddThrow(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
 void RawMachineAssembler::Comment(const char* msg) {
   AddNode(machine()->Comment(msg));
 }

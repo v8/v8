@@ -93,7 +93,7 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
       isolate, eval_fun,
       Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
                                     NO_PARSE_RESTRICTION, kNoSourcePosition,
-                                    kNoSourcePosition),
+                                    kNoSourcePosition, kNoSourcePosition),
       Object);
 
   Handle<Object> result;
@@ -210,7 +210,6 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
 
 
 void DebugEvaluate::ContextBuilder::UpdateValues() {
-  // TODO(yangguo): remove updating values.
   for (int i = 0; i < context_chain_.length(); i++) {
     ContextChainElement element = context_chain_[i];
     if (!element.materialized_object.is_null()) {
@@ -261,7 +260,7 @@ namespace {
 
 bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   switch (id) {
-    // Whitelist for intrinsics amd runtime functions.
+    // Whitelist for intrinsics and runtime functions.
     // Conversions.
     case Runtime::kToInteger:
     case Runtime::kInlineToInteger:
@@ -271,12 +270,14 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
     case Runtime::kInlineToString:
     case Runtime::kToLength:
     case Runtime::kInlineToLength:
+    case Runtime::kToNumber:
     // Type checks.
     case Runtime::kIsJSReceiver:
     case Runtime::kInlineIsJSReceiver:
     case Runtime::kIsSmi:
     case Runtime::kInlineIsSmi:
     case Runtime::kIsArray:
+    case Runtime::kInlineIsArray:
     case Runtime::kIsFunction:
     case Runtime::kIsDate:
     case Runtime::kIsJSProxy:
@@ -284,6 +285,12 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
     case Runtime::kIsTypedArray:
     // Loads.
     case Runtime::kLoadLookupSlotForCall:
+    // Arrays.
+    case Runtime::kArraySpeciesConstructor:
+    case Runtime::kNormalizeElements:
+    case Runtime::kGetArrayKeys:
+    case Runtime::kHasComplexElements:
+    case Runtime::kEstimateNumberOfElements:
     // Errors.
     case Runtime::kReThrow:
     case Runtime::kThrowReferenceError:
@@ -297,8 +304,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
     case Runtime::kStringReplaceOneCharWithString:
     case Runtime::kSubString:
     case Runtime::kInlineSubString:
-    case Runtime::kStringToLowerCase:
-    case Runtime::kStringToUpperCase:
     case Runtime::kRegExpInternalReplace:
     // Literals.
     case Runtime::kCreateArrayLiteral:
@@ -373,6 +378,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kCreateUnmappedArguments:
     // Conversions.
     case Bytecode::kToObject:
+    case Bytecode::kToNumber:
     // Misc.
     case Bytecode::kForInPrepare:
     case Bytecode::kForInContinue:
@@ -398,8 +404,16 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
 bool BuiltinHasNoSideEffect(Builtins::Name id) {
   switch (id) {
     // Whitelist for builtins.
+    // Object builtins.
+    case Builtins::kObjectPrototypeValueOf:
     // Array builtins.
+    case Builtins::kArrayCode:
+    case Builtins::kArrayIndexOf:
     case Builtins::kArrayPrototypeValues:
+    case Builtins::kArrayIncludes:
+    case Builtins::kArrayPrototypeEntries:
+    case Builtins::kArrayPrototypeKeys:
+    case Builtins::kArrayForEach:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:
@@ -463,6 +477,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeSubstr:
     case Builtins::kStringPrototypeSubstring:
     case Builtins::kStringPrototypeToString:
+    case Builtins::kStringPrototypeToLowerCase:
+    case Builtins::kStringPrototypeToUpperCase:
     case Builtins::kStringPrototypeTrim:
     case Builtins::kStringPrototypeTrimLeft:
     case Builtins::kStringPrototypeTrimRight:
@@ -470,6 +486,12 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     // JSON builtins.
     case Builtins::kJsonParse:
     case Builtins::kJsonStringify:
+    // Error builtins.
+    case Builtins::kMakeError:
+    case Builtins::kMakeTypeError:
+    case Builtins::kMakeSyntaxError:
+    case Builtins::kMakeRangeError:
+    case Builtins::kMakeURIError:
       return true;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
@@ -483,7 +505,12 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
 static const Address accessors_with_no_side_effect[] = {
     // Whitelist for accessors.
     FUNCTION_ADDR(Accessors::StringLengthGetter),
-    FUNCTION_ADDR(Accessors::ArrayLengthGetter)};
+    FUNCTION_ADDR(Accessors::ArrayLengthGetter),
+    FUNCTION_ADDR(Accessors::FunctionLengthGetter),
+    FUNCTION_ADDR(Accessors::FunctionNameGetter),
+    FUNCTION_ADDR(Accessors::BoundFunctionLengthGetter),
+    FUNCTION_ADDR(Accessors::BoundFunctionNameGetter),
+};
 
 }  // anonymous namespace
 

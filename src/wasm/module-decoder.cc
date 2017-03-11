@@ -7,9 +7,11 @@
 
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/flags.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
+#include "src/ostreams.h"
 #include "src/v8.h"
 
 #include "src/wasm/decoder.h"
@@ -27,6 +29,39 @@ namespace wasm {
 #else
 #define TRACE(...)
 #endif
+
+const char* SectionName(WasmSectionCode code) {
+  switch (code) {
+    case kUnknownSectionCode:
+      return "Unknown";
+    case kTypeSectionCode:
+      return "Type";
+    case kImportSectionCode:
+      return "Import";
+    case kFunctionSectionCode:
+      return "Function";
+    case kTableSectionCode:
+      return "Table";
+    case kMemorySectionCode:
+      return "Memory";
+    case kGlobalSectionCode:
+      return "Global";
+    case kExportSectionCode:
+      return "Export";
+    case kStartSectionCode:
+      return "Start";
+    case kCodeSectionCode:
+      return "Code";
+    case kElementSectionCode:
+      return "Element";
+    case kDataSectionCode:
+      return "Data";
+    case kNameSectionCode:
+      return "Name";
+    default:
+      return "<unknown>";
+  }
+}
 
 namespace {
 
@@ -239,8 +274,7 @@ class ModuleDecoder : public Decoder {
     pos = pc_;
     {
       uint32_t magic_version = consume_u32("wasm version");
-      if (magic_version != kWasmVersion &&
-          magic_version != kWasmLegacyVersion) {
+      if (magic_version != kWasmVersion) {
         error(pos, pos,
               "expected version %02x %02x %02x %02x, "
               "found %02x %02x %02x %02x",
@@ -541,9 +575,9 @@ class ModuleDecoder : public Decoder {
         WasmIndirectFunctionTable* table = nullptr;
         if (table_index >= module->function_tables.size()) {
           error(pos, pos, "out of bounds table index %u", table_index);
-        } else {
-          table = &module->function_tables[table_index];
+          break;
         }
+        table = &module->function_tables[table_index];
         WasmInitExpr offset = consume_init_expr(module, kWasmI32);
         uint32_t num_elem =
             consume_count("number of elements", kV8MaxWasmTableEntries);
@@ -553,11 +587,12 @@ class ModuleDecoder : public Decoder {
         for (uint32_t j = 0; ok() && j < num_elem; j++) {
           WasmFunction* func = nullptr;
           uint32_t index = consume_func_index(module, &func);
+          DCHECK_EQ(func != nullptr, ok());
+          if (!func) break;
+          DCHECK_EQ(index, func->func_index);
           init->entries.push_back(index);
-          if (table && index < module->functions.size()) {
-            // Canonicalize signature indices during decoding.
-            table->map.FindOrInsert(module->functions[index].sig);
-          }
+          // Canonicalize signature indices during decoding.
+          table->map.FindOrInsert(func->sig);
         }
       }
 
@@ -1030,14 +1065,21 @@ class ModuleDecoder : public Decoder {
         return kWasmF32;
       case kLocalF64:
         return kWasmF64;
-      case kLocalS128:
-        if (origin_ != kAsmJsOrigin && FLAG_wasm_simd_prototype) {
-          return kWasmS128;
-        } else {
-          error(pc_ - 1, "invalid local type");
-          return kWasmStmt;
-        }
       default:
+        if (origin_ != kAsmJsOrigin && FLAG_wasm_simd_prototype) {
+          switch (t) {
+            case kLocalS128:
+              return kWasmS128;
+            case kLocalS1x4:
+              return kWasmS1x4;
+            case kLocalS1x8:
+              return kWasmS1x8;
+            case kLocalS1x16:
+              return kWasmS1x16;
+            default:
+              break;
+          }
+        }
         error(pc_ - 1, "invalid local type");
         return kWasmStmt;
     }

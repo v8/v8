@@ -15,7 +15,7 @@ Protocol = new Proxy({}, {
         const eventPattern = /^on(ce)?([A-Z][A-Za-z0-9]+)/;
         var match = eventPattern.exec(methodName);
         if (!match) {
-          return (args) => InspectorTest._sendCommandPromise(`${agentName}.${methodName}`, args || {});
+          return (args, contextGroupId) => InspectorTest._sendCommandPromise(`${agentName}.${methodName}`, args || {}, contextGroupId);
         } else {
           var eventName = match[2];
           eventName = eventName.charAt(0).toLowerCase() + eventName.slice(1);
@@ -30,7 +30,33 @@ Protocol = new Proxy({}, {
   }
 });
 
-InspectorTest.log = print.bind(null);
+var utils = {};
+(function setupUtils() {
+  utils.load = load;
+  this.load = null;
+  utils.read = read;
+  this.read = null;
+  utils.compileAndRunWithOrigin = compileAndRunWithOrigin;
+  this.compileAndRunWithOrigin = null;
+  utils.quit = quit;
+  this.quit = null;
+  utils.print = print;
+  this.print = null;
+  utils.setlocale = setlocale;
+  this.setlocale = null;
+  utils.setCurrentTimeMSForTest = setCurrentTimeMSForTest;
+  this.setCurrentTimeMSForTest = null;
+  utils.schedulePauseOnNextStatement = schedulePauseOnNextStatement;
+  this.schedulePauseOnNextStatement = null;
+  utils.cancelPauseOnNextStatement = cancelPauseOnNextStatement;
+  this.cancelPauseOnNextStatement = null;
+  utils.reconnect = reconnect;
+  this.reconnect = null;
+  utils.createContextGroup = createContextGroup;
+  this.createContextGroup = null;
+})();
+
+InspectorTest.log = utils.print.bind(null);
 
 InspectorTest.logMessage = function(originalMessage)
 {
@@ -38,7 +64,8 @@ InspectorTest.logMessage = function(originalMessage)
   if (message.id)
     message.id = "<messageId>";
 
-  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp", "executionContextId", "callFrameId", "breakpointId"]);
+  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp",
+    "executionContextId", "callFrameId", "breakpointId", "bindRemoteObjectFunctionId", "formatterObjectId" ]);
   var objects = [ message ];
   while (objects.length) {
     var object = objects.shift();
@@ -113,6 +140,37 @@ InspectorTest.logCallFrames = function(callFrames)
   }
 }
 
+InspectorTest.logSourceLocation = function(location)
+{
+  var scriptId = location.scriptId;
+  if (!InspectorTest._scriptMap || !InspectorTest._scriptMap.has(scriptId)) {
+    InspectorTest.log("InspectorTest.setupScriptMap should be called before Protocol.Debugger.enable.");
+    InspectorTest.completeTest();
+  }
+  var script = InspectorTest._scriptMap.get(scriptId);
+  if (!script.scriptSource) {
+    return Protocol.Debugger.getScriptSource({ scriptId })
+      .then(message => script.scriptSource = message.result.scriptSource)
+      .then(dumpSourceWithLocation);
+  }
+  return Promise.resolve().then(dumpSourceWithLocation);
+
+  function dumpSourceWithLocation() {
+    var lines = script.scriptSource.split('\n');
+    var line = lines[location.lineNumber];
+    line = line.slice(0, location.columnNumber) + '#' + (line.slice(location.columnNumber) || '');
+    lines[location.lineNumber] = line;
+    InspectorTest.log(lines.slice(Math.max(location.lineNumber - 1, 0), location.lineNumber + 2).join('\n'));
+    InspectorTest.log('');
+  }
+}
+
+InspectorTest.logSourceLocations = function(locations) {
+  if (locations.length == 0) return Promise.resolve();
+  return InspectorTest.logSourceLocation(locations[0])
+      .then(() => InspectorTest.logSourceLocations(locations.splice(1)));
+}
+
 InspectorTest.logAsyncStackTrace = function(asyncStackTrace)
 {
   while (asyncStackTrace) {
@@ -128,10 +186,7 @@ InspectorTest.logAsyncStackTrace = function(asyncStackTrace)
   }
 }
 
-InspectorTest.completeTest = function()
-{
-  Protocol.Debugger.disable().then(() => quit());
-}
+InspectorTest.completeTest = () => Protocol.Debugger.disable().then(() => utils.quit());
 
 InspectorTest.completeTestAfterPendingTimeouts = function()
 {
@@ -143,21 +198,21 @@ InspectorTest.waitPendingTasks = function()
   return Protocol.Runtime.evaluate({ expression: "new Promise(r => setTimeout(r, 0))//# sourceURL=wait-pending-tasks.js", awaitPromise: true });
 }
 
-InspectorTest.addScript = (string, lineOffset, columnOffset) => compileAndRunWithOrigin(string, "", lineOffset || 0, columnOffset || 0, false);
-InspectorTest.addScriptWithUrl = (string, url) => compileAndRunWithOrigin(string, url, 0, 0, false);
-InspectorTest.addModule = (string, url, lineOffset, columnOffset) => compileAndRunWithOrigin(string, url, lineOffset || 0, columnOffset || 0, true);
+InspectorTest.addScript = (string, lineOffset, columnOffset) => utils.compileAndRunWithOrigin(string, "", lineOffset || 0, columnOffset || 0, false);
+InspectorTest.addScriptWithUrl = (string, url) => utils.compileAndRunWithOrigin(string, url, 0, 0, false);
+InspectorTest.addModule = (string, url, lineOffset, columnOffset) => utils.compileAndRunWithOrigin(string, url, lineOffset || 0, columnOffset || 0, true);
 
 InspectorTest.startDumpingProtocolMessages = function()
 {
   InspectorTest._dumpInspectorProtocolMessages = true;
 }
 
-InspectorTest.sendRawCommand = function(requestId, command, handler)
+InspectorTest.sendRawCommand = function(requestId, command, handler, contextGroupId)
 {
   if (InspectorTest._dumpInspectorProtocolMessages)
-    print("frontend: " + command);
+    utils.print("frontend: " + command);
   InspectorTest._dispatchTable.set(requestId, handler);
-  sendMessageToBackend(command);
+  sendMessageToBackend(command, contextGroupId || 0);
 }
 
 InspectorTest.checkExpectation = function(fail, name, messageObject)
@@ -195,13 +250,21 @@ InspectorTest.runTestSuite = function(testSuite)
   nextTest();
 }
 
-InspectorTest._sendCommandPromise = function(method, params)
+InspectorTest.runAsyncTestSuite = async function(testSuite) {
+  for (var test of testSuite) {
+    InspectorTest.log("\nRunning test: " + test.name);
+    await test();
+  }
+  InspectorTest.completeTest();
+}
+
+InspectorTest._sendCommandPromise = function(method, params, contextGroupId)
 {
   var requestId = ++InspectorTest._requestId;
   var messageObject = { "id": requestId, "method": method, "params": params };
   var fulfillCallback;
   var promise = new Promise(fulfill => fulfillCallback = fulfill);
-  InspectorTest.sendRawCommand(requestId, JSON.stringify(messageObject), fulfillCallback);
+  InspectorTest.sendRawCommand(requestId, JSON.stringify(messageObject), fulfillCallback, contextGroupId);
   return promise;
 }
 
@@ -219,7 +282,7 @@ InspectorTest._waitForEventPromise = function(eventName)
 InspectorTest._dispatchMessage = function(messageObject)
 {
   if (InspectorTest._dumpInspectorProtocolMessages)
-    print("backend: " + JSON.stringify(messageObject));
+    utils.print("backend: " + JSON.stringify(messageObject));
   try {
     var messageId = messageObject["id"];
     if (typeof messageId === "number") {
@@ -242,4 +305,8 @@ InspectorTest._dispatchMessage = function(messageObject)
     InspectorTest.log("Exception when dispatching message: " + e + "\n" + e.stack + "\n message = " + JSON.stringify(messageObject, null, 2));
     InspectorTest.completeTest();
   }
+}
+
+InspectorTest.loadScript = function(fileName) {
+  InspectorTest.addScript(utils.read(fileName));
 }

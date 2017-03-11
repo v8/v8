@@ -192,6 +192,11 @@ inline bool IsAddressAligned(Address addr,
   return IsAligned(offs, alignment);
 }
 
+template <typename T, typename U>
+inline T RoundUpToMultipleOfPowOf2(T value, U multiple) {
+  DCHECK(multiple && ((multiple & (multiple - 1)) == 0));
+  return (value + multiple - 1) & ~(multiple - 1);
+}
 
 // Returns the maximum of the two parameters.
 template <typename T>
@@ -508,12 +513,21 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
                                          size_t size) {
   memmove(dest, src, size);
 }
-const int kMinComplexMemCopy = 16 * kPointerSize;
+const int kMinComplexMemCopy = 8;
 #endif  // V8_TARGET_ARCH_IA32
 
 
 // ----------------------------------------------------------------------------
 // Miscellaneous
+
+// Memory offset for lower and higher bits in a 64 bit integer.
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+static const int kInt64LowerHalfMemoryOffset = 0;
+static const int kInt64UpperHalfMemoryOffset = 4;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+static const int kInt64LowerHalfMemoryOffset = 4;
+static const int kInt64UpperHalfMemoryOffset = 0;
+#endif  // V8_TARGET_LITTLE_ENDIAN
 
 // A static resource holds a static instance that can be reserved in
 // a local scope using an instance of Access.  Attempts to re-reserve
@@ -1626,6 +1640,7 @@ class ThreadedList final {
     }
     bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
     T* operator*() { return *entry_; }
+    T* operator->() { return *entry_; }
     Iterator& operator=(T* entry) {
       T* next = *(*entry_)->next();
       *entry->next() = next;

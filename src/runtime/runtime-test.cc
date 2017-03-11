@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/arguments.h"
+#include "src/assembler-inl.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
@@ -19,6 +20,45 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 
+namespace {
+struct WasmCompileControls {
+  uint32_t MaxWasmBufferSize = std::numeric_limits<uint32_t>::max();
+  bool AllowAnySizeForAsync = true;
+};
+
+// We need per-isolate controls, because we sometimes run tests in multiple
+// isolates
+// concurrently.
+// To avoid upsetting the static initializer count, we lazy initialize this.
+v8::base::LazyInstance<std::map<v8::Isolate*, WasmCompileControls>>::type
+    g_PerIsolateWasmControls = LAZY_INSTANCE_INITIALIZER;
+
+bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                          bool is_async) {
+  DCHECK_GT(g_PerIsolateWasmControls.Get().count(isolate), 0);
+  const WasmCompileControls& ctrls = g_PerIsolateWasmControls.Get().at(isolate);
+  return (is_async && ctrls.AllowAnySizeForAsync) ||
+         (v8::Local<v8::ArrayBuffer>::Cast(value)->ByteLength() <=
+          ctrls.MaxWasmBufferSize);
+}
+
+// Use the compile controls for instantiation, too
+bool IsWasmInstantiateAllowed(v8::Isolate* isolate,
+                              v8::Local<v8::Value> module_or_bytes,
+                              v8::MaybeLocal<v8::Value> ffi, bool is_async) {
+  DCHECK_GT(g_PerIsolateWasmControls.Get().count(isolate), 0);
+  const WasmCompileControls& ctrls = g_PerIsolateWasmControls.Get().at(isolate);
+  if (is_async && ctrls.AllowAnySizeForAsync) return true;
+  if (!module_or_bytes->IsWebAssemblyCompiledModule()) {
+    return IsWasmCompileAllowed(isolate, module_or_bytes, is_async);
+  }
+  v8::Local<v8::WasmCompiledModule> module =
+      v8::Local<v8::WasmCompiledModule>::Cast(module_or_bytes);
+  return static_cast<uint32_t>(module->GetWasmWireBytes()->Length()) <=
+         ctrls.MaxWasmBufferSize;
+}
+}  // namespace
+
 namespace v8 {
 namespace internal {
 
@@ -29,6 +69,20 @@ RUNTIME_FUNCTION(Runtime_ConstructDouble) {
   CONVERT_NUMBER_CHECKED(uint32_t, lo, Uint32, args[1]);
   uint64_t result = (static_cast<uint64_t>(hi) << 32) | lo;
   return *isolate->factory()->NewNumber(uint64_to_double(result));
+}
+
+RUNTIME_FUNCTION(Runtime_ConstructConsString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, left, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, right, 1);
+
+  CHECK(left->IsOneByteRepresentation());
+  CHECK(right->IsOneByteRepresentation());
+
+  const bool kIsOneByte = true;
+  const int length = left->length() + right->length();
+  return *isolate->factory()->NewConsString(left, right, length, kIsOneByte);
 }
 
 RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
@@ -354,7 +408,7 @@ RUNTIME_FUNCTION(Runtime_GetCallable) {
   return *Utils::OpenHandle(*instance);
 }
 
-RUNTIME_FUNCTION(Runtime_ClearFunctionTypeFeedback) {
+RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -429,6 +483,26 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
   return isolate->heap()->ToBoolean(count == 1);
 }
 
+RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
+  HandleScope scope(isolate);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  CHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, block_size, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(allow_async, 1);
+  WasmCompileControls& ctrl = (*g_PerIsolateWasmControls.Pointer())[v8_isolate];
+  ctrl.AllowAnySizeForAsync = allow_async;
+  ctrl.MaxWasmBufferSize = static_cast<uint32_t>(block_size->value());
+  isolate->set_allow_wasm_compile_callback(IsWasmCompileAllowed);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_SetWasmInstantiateControls) {
+  HandleScope scope(isolate);
+  CHECK(args.length() == 0);
+  isolate->set_allow_wasm_instantiate_callback(IsWasmInstantiateAllowed);
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_NotifyContextDisposed) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
@@ -468,6 +542,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   if (args[0]->IsString() && isolate->context() != nullptr) {
     // If we have a string, assume it's a code "marker"
     // and print some interesting cpu debugging info.
+    args[0]->Print(os);
     JavaScriptFrameIterator it(isolate);
     JavaScriptFrame* frame = it.frame();
     os << "fp = " << static_cast<void*>(frame->fp())
@@ -475,8 +550,8 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
        << ", caller_sp = " << static_cast<void*>(frame->caller_sp()) << ": ";
   } else {
     os << "DebugPrint: ";
+    args[0]->Print(os);
   }
-  args[0]->Print(os);
   if (args[0]->IsHeapObject()) {
     HeapObject::cast(args[0])->map()->Print(os);
   }

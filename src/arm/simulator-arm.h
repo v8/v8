@@ -155,6 +155,10 @@ class Simulator {
   void set_d_register(int dreg, const uint32_t* value);
   // Support for NEON.
   template <typename T>
+  void get_d_register(int dreg, T* value);
+  template <typename T>
+  void set_d_register(int dreg, const T* value);
+  template <typename T>
   void get_q_register(int qreg, T* value);
   template <typename T>
   void set_q_register(int qreg, const T* value);

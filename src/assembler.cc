@@ -308,43 +308,32 @@ const int kCodeWithIdTag = 0;
 const int kDeoptReasonTag = 1;
 
 void RelocInfo::update_wasm_memory_reference(
-    Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
-    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
-  if (IsWasmMemoryReference(rmode_)) {
-    Address updated_reference;
-    DCHECK_GE(wasm_memory_reference(), old_base);
-    updated_reference = new_base + (wasm_memory_reference() - old_base);
-    // The reference is not checked here but at runtime. Validity of references
-    // may change over time.
-    unchecked_update_wasm_memory_reference(updated_reference,
-                                           icache_flush_mode);
-  } else if (IsWasmMemorySizeReference(rmode_)) {
-    uint32_t current_size_reference = wasm_memory_size_reference();
-    uint32_t updated_size_reference =
-        new_size + (current_size_reference - old_size);
-    unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
-  } else {
-    UNREACHABLE();
-  }
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
-  }
+    Address old_base, Address new_base, ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  DCHECK_GE(wasm_memory_reference(), old_base);
+  Address updated_reference = new_base + (wasm_memory_reference() - old_base);
+  // The reference is not checked here but at runtime. Validity of references
+  // may change over time.
+  unchecked_update_wasm_memory_reference(updated_reference, icache_flush_mode);
+}
+
+void RelocInfo::update_wasm_memory_size(uint32_t old_size, uint32_t new_size,
+                                        ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  uint32_t current_size_reference = wasm_memory_size_reference();
+  uint32_t updated_size_reference =
+      new_size + (current_size_reference - old_size);
+  unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
 }
 
 void RelocInfo::update_wasm_global_reference(
     Address old_base, Address new_base, ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmGlobalReference(rmode_));
   Address updated_reference;
-  DCHECK(reinterpret_cast<uintptr_t>(old_base) <=
-         reinterpret_cast<uintptr_t>(wasm_global_reference()));
+  DCHECK_LE(old_base, wasm_global_reference());
   updated_reference = new_base + (wasm_global_reference() - old_base);
-  DCHECK(reinterpret_cast<uintptr_t>(new_base) <=
-         reinterpret_cast<uintptr_t>(updated_reference));
+  DCHECK_LE(new_base, updated_reference);
   unchecked_update_wasm_memory_reference(updated_reference, icache_flush_mode);
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int32_t));
-  }
 }
 
 void RelocInfo::update_wasm_function_table_size_reference(
@@ -354,9 +343,6 @@ void RelocInfo::update_wasm_function_table_size_reference(
   uint32_t updated_size_reference =
       new_size + (current_size_reference - old_size);
   unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
-  }
 }
 
 void RelocInfo::set_target_address(Address target,
@@ -725,8 +711,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "no reloc 64";
     case EMBEDDED_OBJECT:
       return "embedded object";
-    case DEBUGGER_STATEMENT:
-      return "debugger statement";
     case CODE_TARGET:
       return "code target";
     case CODE_TARGET_WITH_ID:
@@ -834,7 +818,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CELL:
       Object::VerifyPointer(target_cell());
       break;
-    case DEBUGGER_STATEMENT:
     case CODE_TARGET_WITH_ID:
     case CODE_TARGET: {
       // convert inline target address to code object
@@ -1547,6 +1530,14 @@ void* libc_memchr(void* string, int character, size_t search_length) {
 
 ExternalReference ExternalReference::libc_memchr_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memchr)));
+}
+
+void* libc_memset(void* string, int character, size_t n) {
+  return memset(string, character, n);
+}
+
+ExternalReference ExternalReference::libc_memset_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memset)));
 }
 
 ExternalReference ExternalReference::page_flags(Page* page) {

@@ -270,7 +270,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         // everything except \x0a, \x0d, \u2028 and \u2029
         ZoneList<CharacterRange>* ranges =
             new (zone()) ZoneList<CharacterRange>(2, zone());
-        CharacterRange::AddClassEscape('.', ranges, zone());
+        CharacterRange::AddClassEscape('.', ranges, false, zone());
         RegExpCharacterClass* cc =
             new (zone()) RegExpCharacterClass(ranges, false);
         builder->AddCharacterClass(cc);
@@ -377,7 +377,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             Advance(2);
             ZoneList<CharacterRange>* ranges =
                 new (zone()) ZoneList<CharacterRange>(2, zone());
-            CharacterRange::AddClassEscape(c, ranges, zone());
+            CharacterRange::AddClassEscape(c, ranges,
+                                           unicode() && ignore_case(), zone());
             RegExpCharacterClass* cc =
                 new (zone()) RegExpCharacterClass(ranges, false);
             builder->AddCharacterClass(cc);
@@ -1389,9 +1390,11 @@ static const uc16 kNoCharClass = 0;
 // escape (i.e., 's' means whitespace, from '\s').
 static inline void AddRangeOrEscape(ZoneList<CharacterRange>* ranges,
                                     uc16 char_class, CharacterRange range,
+                                    bool add_unicode_case_equivalents,
                                     Zone* zone) {
   if (char_class != kNoCharClass) {
-    CharacterRange::AddClassEscape(char_class, ranges, zone);
+    CharacterRange::AddClassEscape(char_class, ranges,
+                                   add_unicode_case_equivalents, zone);
   } else {
     ranges->Add(range, zone);
   }
@@ -1431,6 +1434,7 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
   }
   ZoneList<CharacterRange>* ranges =
       new (zone()) ZoneList<CharacterRange>(2, zone());
+  bool add_unicode_case_equivalents = unicode() && ignore_case();
   while (has_more() && current() != ']') {
     bool parsed_property = ParseClassProperty(ranges CHECK_FAILED);
     if (parsed_property) continue;
@@ -1443,7 +1447,8 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
         // following code report an error.
         break;
       } else if (current() == ']') {
-        AddRangeOrEscape(ranges, char_class, first, zone());
+        AddRangeOrEscape(ranges, char_class, first,
+                         add_unicode_case_equivalents, zone());
         ranges->Add(CharacterRange::Singleton('-'), zone());
         break;
       }
@@ -1455,9 +1460,11 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
           // ES2015 21.2.2.15.1 step 1.
           return ReportError(CStrVector(kRangeInvalid));
         }
-        AddRangeOrEscape(ranges, char_class, first, zone());
+        AddRangeOrEscape(ranges, char_class, first,
+                         add_unicode_case_equivalents, zone());
         ranges->Add(CharacterRange::Singleton('-'), zone());
-        AddRangeOrEscape(ranges, char_class_2, next, zone());
+        AddRangeOrEscape(ranges, char_class_2, next,
+                         add_unicode_case_equivalents, zone());
         continue;
       }
       // ES2015 21.2.2.15.1 step 6.
@@ -1466,7 +1473,8 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
       }
       ranges->Add(CharacterRange::Range(first.from(), next.to()), zone());
     } else {
-      AddRangeOrEscape(ranges, char_class, first, zone());
+      AddRangeOrEscape(ranges, char_class, first, add_unicode_case_equivalents,
+                       zone());
     }
   }
   if (!has_more()) {

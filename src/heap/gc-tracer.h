@@ -31,7 +31,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_INCREMENTAL_WRAPPER_TRACING)                                \
   F(MC_INCREMENTAL_FINALIZE)                                       \
   F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
-  F(MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING)                       \
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
   F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)
 
@@ -43,7 +42,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_CLEAR)                                 \
   F(MC_CLEAR_CODE_FLUSH)                      \
   F(MC_CLEAR_DEPENDENT_CODE)                  \
-  F(MC_CLEAR_GLOBAL_HANDLES)                  \
   F(MC_CLEAR_MAPS)                            \
   F(MC_CLEAR_SLOTS_BUFFER)                    \
   F(MC_CLEAR_STORE_BUFFER)                    \
@@ -56,6 +54,9 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_EVACUATE_CANDIDATES)                   \
   F(MC_EVACUATE_CLEAN_UP)                     \
   F(MC_EVACUATE_COPY)                         \
+  F(MC_EVACUATE_EPILOGUE)                     \
+  F(MC_EVACUATE_PROLOGUE)                     \
+  F(MC_EVACUATE_REBALANCE)                    \
   F(MC_EVACUATE_UPDATE_POINTERS)              \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED) \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW)       \
@@ -73,7 +74,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_MARK_WRAPPER_EPILOGUE)                 \
   F(MC_MARK_WRAPPER_PROLOGUE)                 \
   F(MC_MARK_WRAPPER_TRACING)                  \
-  F(MC_MARK_OBJECT_GROUPING)                  \
   F(MC_PROLOGUE)                              \
   F(MC_SWEEP)                                 \
   F(MC_SWEEP_CODE)                            \
@@ -86,6 +86,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MINOR_MC_MARK_ROOTS)                      \
   F(MINOR_MC_MARK_WEAK)                       \
   F(SCAVENGER_CODE_FLUSH_CANDIDATES)          \
+  F(SCAVENGER_EVACUATE)                       \
   F(SCAVENGER_OLD_TO_NEW_POINTERS)            \
   F(SCAVENGER_ROOTS)                          \
   F(SCAVENGER_SCAVENGE)                       \
@@ -233,6 +234,9 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // Stop collecting data and print results.
   void Stop(GarbageCollector collector);
+
+  void NotifyYoungGenerationHandling(
+      YoungGenerationHandling young_generation_handling);
 
   // Sample and accumulate bytes allocated since the last GC.
   void SampleAllocation(double current_ms, size_t new_space_counter_bytes,

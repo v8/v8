@@ -2667,33 +2667,6 @@ TEST(ArrayBufferSharedBackingStore) {
 }
 
 
-TEST(BoxObject) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  v8::Local<v8::Object> global_proxy = env->Global();
-  v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
-
-  i::Factory* factory = CcTest::i_isolate()->factory();
-  i::Handle<i::String> string = factory->NewStringFromStaticChars("string");
-  i::Handle<i::Object> box = factory->NewBox(string);
-  global->Set(env.local(), 0, v8::ToApiHandle<v8::Object>(box)).FromJust();
-
-  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
-  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
-  CHECK(ValidateSnapshot(snapshot));
-  const v8::HeapGraphNode* global_node = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* box_node =
-      GetProperty(global_node, v8::HeapGraphEdge::kElement, "0");
-  CHECK(box_node);
-  v8::String::Utf8Value box_node_name(box_node->GetName());
-  CHECK_EQ(0, strcmp("system / Box", *box_node_name));
-  const v8::HeapGraphNode* box_value =
-      GetProperty(box_node, v8::HeapGraphEdge::kInternal, "value");
-  CHECK(box_value);
-}
-
-
 TEST(WeakContainers) {
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;

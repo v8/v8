@@ -475,6 +475,8 @@ class ErrorUtils : public AllStatic {
   T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
   T(SymbolIteratorInvalid,                                                     \
     "Result of the Symbol.iterator method is not an object")                   \
+  T(SymbolAsyncIteratorInvalid,                                                \
+    "Result of the Symbol.asyncIterator method is not an object")              \
   T(SymbolKeyFor, "% is not a symbol")                                         \
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
   T(SymbolToString, "Cannot convert a Symbol value to a string")               \
@@ -593,6 +595,9 @@ class ErrorUtils : public AllStatic {
     "Setter function argument must not be a rest parameter")                   \
   T(ParamDupe, "Duplicate parameter name not allowed in this context")         \
   T(ParenthesisInArgString, "Function arg string contains parenthesis")        \
+  T(ArgStringTerminatesParametersEarly,                                        \
+    "Arg string terminates parameters early")                                  \
+  T(UnexpectedEndOfArgString, "Unexpected end of arg string")                  \
   T(RuntimeWrongNumArgs, "Runtime function given wrong number of arguments")   \
   T(SingleFunctionLiteral, "Single function literal required")                 \
   T(SloppyFunction,                                                            \
@@ -640,6 +645,8 @@ class ErrorUtils : public AllStatic {
   T(UnexpectedTokenNumber, "Unexpected number")                                \
   T(UnexpectedTokenString, "Unexpected string")                                \
   T(UnexpectedTokenRegExp, "Unexpected regular expression")                    \
+  T(UnexpectedLexicalDeclaration,                                              \
+    "Lexical declaration cannot appear in a single-statement context")         \
   T(UnknownLabel, "Undefined label '%'")                                       \
   T(UnresolvableExport,                                                        \
     "The requested module does not provide an export named '%'")               \

@@ -49,6 +49,7 @@ class Isolate;
 //      Args: name, code kind, extra IC state
 // DBG: Builtin in platform-dependent assembly, used by the debugger.
 //      Args: name
+
 #define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG)                        \
   ASM(Abort)                                                                   \
   /* Code aging */                                                             \
@@ -145,7 +146,6 @@ class Isolate;
   TFS(StringIndexOf, BUILTIN, kNoExtraICState, StringIndexOf, 1)               \
   TFS(StringLessThan, BUILTIN, kNoExtraICState, Compare, 1)                    \
   TFS(StringLessThanOrEqual, BUILTIN, kNoExtraICState, Compare, 1)             \
-  TFS(StringNotEqual, BUILTIN, kNoExtraICState, Compare, 1)                    \
                                                                                \
   /* Interpreter */                                                            \
   ASM(InterpreterEntryTrampoline)                                              \
@@ -196,8 +196,6 @@ class Isolate;
       GrowArrayElements, 1)                                                    \
   TFS(NewUnmappedArgumentsElements, BUILTIN, kNoExtraICState,                  \
       NewArgumentsElements, 1)                                                 \
-  TFS(NewRestParameterElements, BUILTIN, kNoExtraICState,                      \
-      NewArgumentsElements, 1)                                                 \
                                                                                \
   /* Debugger */                                                               \
   DBG(FrameDropperTrampoline)                                                  \
@@ -246,10 +244,9 @@ class Isolate;
   TFS(LoadIC_FunctionPrototype, HANDLER, Code::LOAD_IC, LoadWithVector, 1)     \
   ASH(LoadIC_Getter_ForDeopt, BUILTIN, kNoExtraICState)                        \
   TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector, 1)                \
-  TFS(LoadIC_Normal, HANDLER, Code::LOAD_IC, LoadWithVector, 1)                \
   TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector, 1)                  \
+  TFS(LoadIC_Uninitialized, BUILTIN, kNoExtraICState, LoadWithVector, 1)       \
   TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector, 1)              \
-  TFS(StoreIC_Normal, HANDLER, Code::STORE_IC, StoreWithVector, 1)             \
   ASH(StoreIC_Setter_ForDeopt, BUILTIN, kNoExtraICState)                       \
                                                                                \
   /* Built-in functions for Javascript */                                      \
@@ -292,6 +289,7 @@ class Isolate;
   CPP(ArrayBufferConstructor_ConstructStub)                                    \
   CPP(ArrayBufferPrototypeGetByteLength)                                       \
   CPP(ArrayBufferIsView)                                                       \
+  CPP(ArrayBufferPrototypeSlice)                                               \
                                                                                \
   /* AsyncFunction */                                                          \
   TFJ(AsyncFunctionAwaitCaught, 3)                                             \
@@ -474,6 +472,7 @@ class Isolate;
                                                                                \
   /* ICs */                                                                    \
   TFS(LoadIC, LOAD_IC, kNoExtraICState, LoadWithVector, 1)                     \
+  TFS(LoadIC_Noninlined, BUILTIN, kNoExtraICState, LoadWithVector, 1)          \
   TFS(LoadICTrampoline, LOAD_IC, kNoExtraICState, Load, 1)                     \
   TFS(KeyedLoadIC, KEYED_LOAD_IC, kNoExtraICState, LoadWithVector, 1)          \
   TFS(KeyedLoadICTrampoline, KEYED_LOAD_IC, kNoExtraICState, Load, 1)          \
@@ -540,9 +539,9 @@ class Isolate;
   /* ES6 section 20.2.2.23 Math.log2 ( x ) */                                  \
   TFJ(MathLog2, 1)                                                             \
   /* ES6 section 20.2.2.24 Math.max ( value1, value2 , ...values ) */          \
-  ASM(MathMax)                                                                 \
+  TFJ(MathMax, SharedFunctionInfo::kDontAdaptArgumentsSentinel)                \
   /* ES6 section 20.2.2.25 Math.min ( value1, value2 , ...values ) */          \
-  ASM(MathMin)                                                                 \
+  TFJ(MathMin, SharedFunctionInfo::kDontAdaptArgumentsSentinel)                \
   /* ES6 section 20.2.2.26 Math.pow ( x, y ) */                                \
   TFJ(MathPow, 2)                                                              \
   /* ES6 section 20.2.2.27 Math.random */                                      \
@@ -604,9 +603,7 @@ class Isolate;
   TFS(GreaterThan, BUILTIN, kNoExtraICState, Compare, 1)                       \
   TFS(GreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare, 1)                \
   TFS(Equal, BUILTIN, kNoExtraICState, Compare, 1)                             \
-  TFS(NotEqual, BUILTIN, kNoExtraICState, Compare, 1)                          \
   TFS(StrictEqual, BUILTIN, kNoExtraICState, Compare, 1)                       \
-  TFS(StrictNotEqual, BUILTIN, kNoExtraICState, Compare, 1)                    \
                                                                                \
   /* Object */                                                                 \
   CPP(ObjectAssign)                                                            \
@@ -635,6 +632,7 @@ class Isolate;
   CPP(ObjectPreventExtensions)                                                 \
   /* ES6 section 19.1.3.6 Object.prototype.toString () */                      \
   TFJ(ObjectProtoToString, 0)                                                  \
+  TFJ(ObjectPrototypeValueOf, 0)                                               \
   CPP(ObjectPrototypePropertyIsEnumerable)                                     \
   CPP(ObjectPrototypeGetProto)                                                 \
   CPP(ObjectPrototypeSetProto)                                                 \
@@ -666,6 +664,11 @@ class Isolate;
   TFJ(PromiseResolve, 1)                                                       \
   TFJ(PromiseReject, 1)                                                        \
   TFJ(InternalPromiseReject, 3)                                                \
+  TFJ(PromiseFinally, 1)                                                       \
+  TFJ(PromiseThenFinally, 1)                                                   \
+  TFJ(PromiseCatchFinally, 1)                                                  \
+  TFJ(PromiseValueThunkFinally, 0)                                             \
+  TFJ(PromiseThrowerFinally, 0)                                                \
                                                                                \
   /* Proxy */                                                                  \
   CPP(ProxyConstructor)                                                        \
@@ -728,6 +731,7 @@ class Isolate;
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
   TFJ(AtomicsLoad, 2)                                                          \
   TFJ(AtomicsStore, 3)                                                         \
+  TFJ(AtomicsExchange, 3)                                                      \
                                                                                \
   /* String */                                                                 \
   ASM(StringConstructor)                                                       \
@@ -768,6 +772,14 @@ class Isolate;
   CPP(StringPrototypeStartsWith)                                               \
   /* ES6 section 21.1.3.25 String.prototype.toString () */                     \
   TFJ(StringPrototypeToString, 0)                                              \
+  /* ES #sec-string.prototype.tolocalelowercase */                             \
+  CPP(StringPrototypeToLocaleLowerCase)                                        \
+  /* ES #sec-string.prototype.tolocaleuppercase */                             \
+  CPP(StringPrototypeToLocaleUpperCase)                                        \
+  /* ES #sec-string.prototype.tolowercase */                                   \
+  CPP(StringPrototypeToLowerCase)                                              \
+  /* ES #sec-string.prototype.touppercase */                                   \
+  CPP(StringPrototypeToUpperCase)                                              \
   CPP(StringPrototypeTrim)                                                     \
   CPP(StringPrototypeTrimLeft)                                                 \
   CPP(StringPrototypeTrimRight)                                                \
@@ -794,6 +806,8 @@ class Isolate;
   TFJ(SymbolPrototypeValueOf, 0)                                               \
                                                                                \
   /* TypedArray */                                                             \
+  TFJ(TypedArrayConstructByLength, 3)                                          \
+  TFJ(TypedArrayInitialize, 6)                                                 \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 section 22.2.3.2 get %TypedArray%.prototype.byteLength */             \
   TFJ(TypedArrayPrototypeByteLength, 0)                                        \
@@ -806,7 +820,37 @@ class Isolate;
   /* ES6 #sec-%typedarray%.prototype.keys */                                   \
   TFJ(TypedArrayPrototypeKeys, 0)                                              \
   /* ES6 #sec-%typedarray%.prototype.values */                                 \
-  TFJ(TypedArrayPrototypeValues, 0)
+  TFJ(TypedArrayPrototypeValues, 0)                                            \
+  /* ES6 #sec-%typedarray%.prototype.copywithin */                             \
+  CPP(TypedArrayPrototypeCopyWithin)                                           \
+  /* ES7 #sec-%typedarray%.prototype.includes */                               \
+  CPP(TypedArrayPrototypeIncludes)                                             \
+                                                                               \
+  /* Wasm */                                                                   \
+  TFS(WasmStackGuard, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)            \
+  TFS(ThrowWasmTrapUnreachable, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)  \
+  TFS(ThrowWasmTrapMemOutOfBounds, BUILTIN, kNoExtraICState, WasmRuntimeCall,  \
+      1)                                                                       \
+  TFS(ThrowWasmTrapDivByZero, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)    \
+  TFS(ThrowWasmTrapDivUnrepresentable, BUILTIN, kNoExtraICState,               \
+      WasmRuntimeCall, 1)                                                      \
+  TFS(ThrowWasmTrapRemByZero, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)    \
+  TFS(ThrowWasmTrapFloatUnrepresentable, BUILTIN, kNoExtraICState,             \
+      WasmRuntimeCall, 1)                                                      \
+  TFS(ThrowWasmTrapFuncInvalid, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)  \
+  TFS(ThrowWasmTrapFuncSigMismatch, BUILTIN, kNoExtraICState, WasmRuntimeCall, \
+      1)                                                                       \
+                                                                               \
+  /* Async-from-Sync Iterator */                                               \
+                                                                               \
+  /* %AsyncFromSyncIteratorPrototype% */                                       \
+  /* (proposal-async-iteration/#sec-%asyncfromsynciteratorprototype%-object)*/ \
+  TFJ(AsyncFromSyncIteratorPrototypeNext, 1)                                   \
+  TFJ(AsyncFromSyncIteratorPrototypeThrow, 1)                                  \
+  TFJ(AsyncFromSyncIteratorPrototypeReturn, 1)                                 \
+                                                                               \
+  /* proposal-async-iteration/#sec-async-iterator-value-unwrap-functions */    \
+  TFJ(AsyncIteratorValueUnwrap, 1)
 
 #define IGNORE_BUILTIN(...)
 
@@ -846,7 +890,7 @@ class Builtins {
   // Disassembler support.
   const char* Lookup(byte* pc);
 
-  enum Name {
+  enum Name : int32_t {
 #define DEF_ENUM(Name, ...) k##Name,
     BUILTIN_LIST_ALL(DEF_ENUM)
 #undef DEF_ENUM
@@ -931,9 +975,6 @@ class Builtins {
 
   static void Generate_InterpreterPushArgsAndConstructImpl(
       MacroAssembler* masm, InterpreterPushArgsMode mode);
-
-  enum class MathMaxMinKind { kMax, kMin };
-  static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);
 
 #define DECLARE_ASM(Name, ...) \
   static void Generate_##Name(MacroAssembler* masm);

@@ -164,6 +164,7 @@ TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
 TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 TYPE_CHECKER(JSSet, JS_SET_TYPE)
 TYPE_CHECKER(JSSetIterator, JS_SET_ITERATOR_TYPE)
+TYPE_CHECKER(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)
 TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
 TYPE_CHECKER(JSTypedArray, JS_TYPED_ARRAY_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
@@ -656,6 +657,7 @@ CAST_ACCESSOR(JSPromiseCapability)
 CAST_ACCESSOR(JSPromise)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
+CAST_ACCESSOR(JSAsyncFromSyncIterator)
 CAST_ACCESSOR(JSStringIterator)
 CAST_ACCESSOR(JSArrayIterator)
 CAST_ACCESSOR(JSTypedArray)
@@ -1455,23 +1457,19 @@ Isolate* HeapObject::GetIsolate() const {
 
 
 Map* HeapObject::map() const {
-#ifdef DEBUG
-  // Clear mark potentially added by PathTracer.
-  uintptr_t raw_value =
-      map_word().ToRawValue() & ~static_cast<uintptr_t>(PathTracer::kMarkTag);
-  return MapWord::FromRawValue(raw_value).ToMap();
-#else
   return map_word().ToMap();
-#endif
 }
 
 
 void HeapObject::set_map(Map* value) {
   set_map_word(MapWord::FromMap(value));
-  if (value != NULL) {
+  if (value != nullptr) {
     // TODO(1600) We are passing NULL as a slot because maps can never be on
     // evacuation candidate.
-    value->GetHeap()->incremental_marking()->RecordWrite(this, NULL, value);
+    value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
+#ifdef VERIFY_HEAP
+    value->GetHeap()->VerifyObjectLayoutChange(this, value);
+#endif
   }
 }
 
@@ -1483,10 +1481,13 @@ Map* HeapObject::synchronized_map() {
 
 void HeapObject::synchronized_set_map(Map* value) {
   synchronized_set_map_word(MapWord::FromMap(value));
-  if (value != NULL) {
+  if (value != nullptr) {
     // TODO(1600) We are passing NULL as a slot because maps can never be on
     // evacuation candidate.
-    value->GetHeap()->incremental_marking()->RecordWrite(this, NULL, value);
+    value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
+#ifdef VERIFY_HEAP
+    value->GetHeap()->VerifyObjectLayoutChange(this, value);
+#endif
   }
 }
 
@@ -1661,6 +1662,11 @@ AllocationSiteMode AllocationSite::GetMode(
 }
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
+  if (FLAG_turbo) {
+    // TurboFan doesn't care at all about String pretenuring feedback,
+    // so don't bother even trying to track that.
+    return type == JS_ARRAY_TYPE || type == JS_OBJECT_TYPE;
+  }
   if (FLAG_allocation_site_pretenuring) {
     return type == JS_ARRAY_TYPE ||
         type == JS_OBJECT_TYPE ||
@@ -5239,20 +5245,15 @@ bool Code::IsWeakObject(Object* object) {
 
 bool Code::IsWeakObjectInOptimizedCode(Object* object) {
   if (object->IsMap()) {
-    return Map::cast(object)->CanTransition() &&
-           FLAG_weak_embedded_maps_in_optimized_code;
+    return Map::cast(object)->CanTransition();
   }
   if (object->IsCell()) {
     object = Cell::cast(object)->value();
   } else if (object->IsPropertyCell()) {
     object = PropertyCell::cast(object)->value();
   }
-  if (object->IsJSReceiver()) {
-    return FLAG_weak_embedded_objects_in_optimized_code;
-  }
-  if (object->IsContext()) {
-    // Contexts of inlined functions are embedded in optimized code.
-    return FLAG_weak_embedded_objects_in_optimized_code;
+  if (object->IsJSReceiver() || object->IsContext()) {
+    return true;
   }
   return false;
 }
@@ -5535,8 +5536,6 @@ ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
 ACCESSORS(AccessorInfo, js_getter, Object, kJsGetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 
-ACCESSORS(Box, value, Object, kValueOffset)
-
 ACCESSORS(PromiseResolveThenableJobInfo, thenable, JSReceiver, kThenableOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, then, JSReceiver, kThenOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, resolve, JSFunction, kResolveOffset)
@@ -5621,6 +5620,7 @@ ACCESSORS(Module, regular_exports, FixedArray, kRegularExportsOffset)
 ACCESSORS(Module, regular_imports, FixedArray, kRegularImportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
+SMI_ACCESSORS(Module, status, kStatusOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
 bool Module::evaluated() const { return code()->IsModuleInfo(); }
@@ -5872,7 +5872,6 @@ SMI_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
               kFormalParameterCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
-SMI_ACCESSORS(SharedFunctionInfo, num_literals, kNumLiteralsOffset)
 SMI_ACCESSORS(SharedFunctionInfo, start_position_and_type,
               kStartPositionAndTypeOffset)
 SMI_ACCESSORS(SharedFunctionInfo, end_position, kEndPositionOffset)
@@ -5922,7 +5921,6 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, internal_formal_parameter_count,
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
                         expected_nof_properties,
                         kExpectedNofPropertiesOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, num_literals, kNumLiteralsOffset)
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, end_position, kEndPositionOffset)
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
@@ -6485,6 +6483,9 @@ Context* JSFunction::context() {
   return Context::cast(READ_FIELD(this, kContextOffset));
 }
 
+bool JSFunction::has_context() const {
+  return READ_FIELD(this, kContextOffset)->IsContext();
+}
 
 JSObject* JSFunction::global_proxy() {
   return context()->global_proxy();
@@ -6933,6 +6934,18 @@ void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kLengthOffset, value, mode);
 }
 
+// static
+MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
+                                                 Handle<Object> receiver,
+                                                 const char* method_name) {
+  if (V8_UNLIKELY(!receiver->IsJSTypedArray())) {
+    const MessageTemplate::Template message = MessageTemplate::kNotTypedArray;
+    THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
+  }
+
+  // TODO(caitp): throw if array.[[ViewedArrayBuffer]] is neutered (per v8:4648)
+  return Handle<JSTypedArray>::cast(receiver);
+}
 
 #ifdef VERIFY_HEAP
 ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
@@ -7794,10 +7807,9 @@ Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
 
 
 bool NameDictionaryShape::IsMatch(Handle<Name> key, Object* other) {
-  // We know that all entries in a hash table had their hash keys created.
-  // Use that knowledge to have fast failure.
-  if (key->Hash() != Name::cast(other)->Hash()) return false;
-  return key->Equals(Name::cast(other));
+  DCHECK(Name::cast(other)->IsUniqueName());
+  DCHECK(key->IsUniqueName());
+  return *key == other;
 }
 
 
@@ -8221,6 +8233,9 @@ ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
 ACCESSORS(JSArrayIterator, object, Object, kIteratedObjectOffset)
 ACCESSORS(JSArrayIterator, index, Object, kNextIndexOffset)
 ACCESSORS(JSArrayIterator, object_map, Object, kIteratedObjectMapOffset)
+
+ACCESSORS(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
+          kSyncIteratorOffset)
 
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)

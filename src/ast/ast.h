@@ -1140,7 +1140,6 @@ class TryStatement : public Statement {
 class TryCatchStatement final : public TryStatement {
  public:
   Scope* scope() { return scope_; }
-  Variable* variable() { return variable_; }
   Block* catch_block() const { return catch_block_; }
   void set_catch_block(Block* b) { catch_block_ = b; }
 
@@ -1161,18 +1160,15 @@ class TryCatchStatement final : public TryStatement {
  private:
   friend class AstNodeFactory;
 
-  TryCatchStatement(Block* try_block, Scope* scope, Variable* variable,
-                    Block* catch_block,
+  TryCatchStatement(Block* try_block, Scope* scope, Block* catch_block,
                     HandlerTable::CatchPrediction catch_prediction, int pos)
       : TryStatement(try_block, pos, kTryCatchStatement),
         scope_(scope),
-        variable_(variable),
         catch_block_(catch_block) {
     catch_prediction_ = catch_prediction;
   }
 
   Scope* scope_;
-  Variable* variable_;
   Block* catch_block_;
 };
 
@@ -1194,26 +1190,10 @@ class TryFinallyStatement final : public TryStatement {
 
 
 class DebuggerStatement final : public Statement {
- public:
-  void set_base_id(int id) { base_id_ = id; }
-  static int num_ids() { return parent_num_ids() + 1; }
-  BailoutId DebugBreakId() const { return BailoutId(local_id(0)); }
-
  private:
   friend class AstNodeFactory;
 
-  explicit DebuggerStatement(int pos)
-      : Statement(pos, kDebuggerStatement),
-        base_id_(BailoutId::None().ToInt()) {}
-
-  static int parent_num_ids() { return 0; }
-  int base_id() const {
-    DCHECK(!BailoutId(base_id_).IsNone());
-    return base_id_;
-  }
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
-  int base_id_;
+  explicit DebuggerStatement(int pos) : Statement(pos, kDebuggerStatement) {}
 };
 
 
@@ -1649,10 +1629,7 @@ class ArrayLiteral final : public MaterializedLiteral {
   ZoneList<Expression*>::iterator EndValue() const { return values_->end(); }
 
   // Rewind an array literal omitting everything from the first spread on.
-  void RewindSpreads() {
-    values_->Rewind(first_spread_index_);
-    first_spread_index_ = -1;
-  }
+  void RewindSpreads();
 
   enum Flags {
     kNoFlags = 0,
@@ -2647,7 +2624,6 @@ class FunctionLiteral final : public Expression {
 
   static bool NeedsHomeObject(Expression* expr);
 
-  int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
   int parameter_count() { return parameter_count_; }
   int function_length() { return function_length_; }
@@ -2754,14 +2730,13 @@ class FunctionLiteral final : public Expression {
 
   FunctionLiteral(Zone* zone, const AstString* name,
                   AstValueFactory* ast_value_factory, DeclarationScope* scope,
-                  ZoneList<Statement*>* body, int materialized_literal_count,
-                  int expected_property_count, int parameter_count,
-                  int function_length, FunctionType function_type,
+                  ZoneList<Statement*>* body, int expected_property_count,
+                  int parameter_count, int function_length,
+                  FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, int position,
                   bool has_braces, int function_literal_id)
       : Expression(position, kFunctionLiteral),
-        materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
         parameter_count_(parameter_count),
         function_length_(function_length),
@@ -2793,7 +2768,6 @@ class FunctionLiteral final : public Expression {
       : public BitField<BailoutReason, ShouldNotBeUsedOnceHintField::kNext, 8> {
   };
 
-  int materialized_literal_count_;
   int expected_property_count_;
   int parameter_count_;
   int function_length_;
@@ -2996,8 +2970,11 @@ class EmptyParentheses final : public Expression {
 // (defined at https://tc39.github.io/ecma262/#sec-getiterator). Ignition
 // desugars this into a LoadIC / JSLoadNamed, CallIC, and a type-check to
 // validate return value of the Symbol.iterator() call.
+enum class IteratorType { kNormal, kAsync };
 class GetIterator final : public Expression {
  public:
+  IteratorType hint() const { return hint_; }
+
   Expression* iterable() const { return iterable_; }
   void set_iterable(Expression* iterable) { iterable_ = iterable; }
 
@@ -3007,6 +2984,10 @@ class GetIterator final : public Expression {
                            FeedbackSlotCache* cache) {
     iterator_property_feedback_slot_ = spec->AddLoadICSlot();
     iterator_call_feedback_slot_ = spec->AddCallICSlot();
+    if (hint() == IteratorType::kAsync) {
+      async_iterator_property_feedback_slot_ = spec->AddLoadICSlot();
+      async_iterator_call_feedback_slot_ = spec->AddCallICSlot();
+    }
   }
 
   FeedbackSlot IteratorPropertyFeedbackSlot() const {
@@ -3017,15 +2998,26 @@ class GetIterator final : public Expression {
     return iterator_call_feedback_slot_;
   }
 
+  FeedbackSlot AsyncIteratorPropertyFeedbackSlot() const {
+    return async_iterator_property_feedback_slot_;
+  }
+
+  FeedbackSlot AsyncIteratorCallFeedbackSlot() const {
+    return async_iterator_call_feedback_slot_;
+  }
+
  private:
   friend class AstNodeFactory;
 
-  explicit GetIterator(Expression* iterable, int pos)
-      : Expression(pos, kGetIterator), iterable_(iterable) {}
+  explicit GetIterator(Expression* iterable, IteratorType hint, int pos)
+      : Expression(pos, kGetIterator), hint_(hint), iterable_(iterable) {}
 
+  IteratorType hint_;
   Expression* iterable_;
   FeedbackSlot iterator_property_feedback_slot_;
   FeedbackSlot iterator_call_feedback_slot_;
+  FeedbackSlot async_iterator_property_feedback_slot_;
+  FeedbackSlot async_iterator_call_feedback_slot_;
 };
 
 
@@ -3695,6 +3687,11 @@ class AstNodeFactory final BASE_EMBEDDED {
     return NULL;
   }
 
+  ForOfStatement* NewForOfStatement(ZoneList<const AstRawString*>* labels,
+                                    int pos) {
+    return new (zone_) ForOfStatement(labels, pos);
+  }
+
   ExpressionStatement* NewExpressionStatement(Expression* expression, int pos) {
     return new (zone_) ExpressionStatement(expression, pos);
   }
@@ -3733,38 +3730,33 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   TryCatchStatement* NewTryCatchStatement(Block* try_block, Scope* scope,
-                                          Variable* variable,
                                           Block* catch_block, int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::CAUGHT, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::CAUGHT, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForReThrow(Block* try_block,
                                                     Scope* scope,
-                                                    Variable* variable,
                                                     Block* catch_block,
                                                     int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::UNCAUGHT, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::UNCAUGHT, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForDesugaring(Block* try_block,
                                                        Scope* scope,
-                                                       Variable* variable,
                                                        Block* catch_block,
                                                        int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::DESUGARING, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::DESUGARING, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForAsyncAwait(Block* try_block,
                                                        Scope* scope,
-                                                       Variable* variable,
                                                        Block* catch_block,
                                                        int pos) {
-    return new (zone_)
-        TryCatchStatement(try_block, scope, variable, catch_block,
-                          HandlerTable::ASYNC_AWAIT, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::ASYNC_AWAIT, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,
@@ -3981,30 +3973,30 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   FunctionLiteral* NewFunctionLiteral(
       const AstRawString* name, DeclarationScope* scope,
-      ZoneList<Statement*>* body, int materialized_literal_count,
-      int expected_property_count, int parameter_count, int function_length,
+      ZoneList<Statement*>* body, int expected_property_count,
+      int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
       bool has_braces, int function_literal_id) {
     return new (zone_) FunctionLiteral(
-        zone_, name, ast_value_factory_, scope, body,
-        materialized_literal_count, expected_property_count, parameter_count,
-        function_length, function_type, has_duplicate_parameters,
-        eager_compile_hint, position, has_braces, function_literal_id);
+        zone_, name, ast_value_factory_, scope, body, expected_property_count,
+        parameter_count, function_length, function_type,
+        has_duplicate_parameters, eager_compile_hint, position, has_braces,
+        function_literal_id);
   }
 
   // Creates a FunctionLiteral representing a top-level script, the
   // result of an eval (top-level or otherwise), or the result of calling
   // the Function constructor.
-  FunctionLiteral* NewScriptOrEvalFunctionLiteral(
-      DeclarationScope* scope, ZoneList<Statement*>* body,
-      int materialized_literal_count, int expected_property_count,
-      int parameter_count) {
+  FunctionLiteral* NewScriptOrEvalFunctionLiteral(DeclarationScope* scope,
+                                                  ZoneList<Statement*>* body,
+                                                  int expected_property_count,
+                                                  int parameter_count) {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
-        body, materialized_literal_count, expected_property_count,
-        parameter_count, parameter_count, FunctionLiteral::kAnonymousExpression,
+        body, expected_property_count, parameter_count, parameter_count,
+        FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
         FunctionLiteral::kShouldLazyCompile, 0, true,
         FunctionLiteral::kIdTypeTopLevel);
@@ -4061,8 +4053,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) EmptyParentheses(pos);
   }
 
-  GetIterator* NewGetIterator(Expression* iterable, int pos) {
-    return new (zone_) GetIterator(iterable, pos);
+  GetIterator* NewGetIterator(Expression* iterable, IteratorType hint,
+                              int pos) {
+    return new (zone_) GetIterator(iterable, hint, pos);
   }
 
   typesystem::PredefinedType* NewPredefinedType(

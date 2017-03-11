@@ -220,6 +220,9 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       opcode = kX64Movq;
       break;
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       break;
@@ -252,6 +255,9 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64Movq;
       break;
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return kArchNop;
@@ -336,6 +342,11 @@ void InstructionSelector::VisitStore(Node* node) {
         g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
     InstructionCode code =
         opcode | AddressingModeField::encode(addressing_mode);
+    if ((ElementSizeLog2Of(store_rep.representation()) < kPointerSizeLog2) &&
+        (value->opcode() == IrOpcode::kTruncateInt64ToInt32) &&
+        CanCover(node, value)) {
+      value = value->InputAt(0);
+    }
     InstructionOperand value_operand =
         g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
     inputs[input_count++] = value_operand;
@@ -399,6 +410,9 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       break;
     case MachineRepresentation::kBit:      // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:       // Fall through.
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:   // Fall through.
@@ -454,6 +468,9 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       break;
     case MachineRepresentation::kBit:      // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:       // Fall through.
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:   // Fall through.
@@ -2229,13 +2246,13 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   ArchOpcode opcode = kArchNop;
   switch (rep) {
     case MachineRepresentation::kWord8:
-      opcode = kX64Xchgb;
+      opcode = kAtomicExchangeInt8;
       break;
     case MachineRepresentation::kWord16:
-      opcode = kX64Xchgw;
+      opcode = kAtomicExchangeInt16;
       break;
     case MachineRepresentation::kWord32:
-      opcode = kX64Xchgl;
+      opcode = kAtomicExchangeWord32;
       break;
     default:
       UNREACHABLE();
@@ -2244,6 +2261,7 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   AddressingMode addressing_mode;
   InstructionOperand inputs[4];
   size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(value);
   inputs[input_count++] = g.UseUniqueRegister(base);
   if (g.CanBeImmediate(index)) {
     inputs[input_count++] = g.UseImmediate(index);
@@ -2252,14 +2270,53 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
     inputs[input_count++] = g.UseUniqueRegister(index);
     addressing_mode = kMode_MR1;
   }
-  inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
   Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count, inputs);
 }
 
-void InstructionSelector::VisitCreateInt32x4(Node* node) {
+void InstructionSelector::VisitAtomicExchange(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64Int32x4Create, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  MachineType type = AtomicExchangeRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  if (type == MachineType::Int8()) {
+    opcode = kAtomicExchangeInt8;
+  } else if (type == MachineType::Uint8()) {
+    opcode = kAtomicExchangeUint8;
+  } else if (type == MachineType::Int16()) {
+    opcode = kAtomicExchangeInt16;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kAtomicExchangeUint16;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = kAtomicExchangeWord32;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  InstructionOperand outputs[1];
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  outputs[0] = g.DefineSameAsFirst(node);
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs);
+}
+
+void InstructionSelector::VisitInt32x4Splat(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Int32x4Splat, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
@@ -2287,6 +2344,26 @@ void InstructionSelector::VisitInt32x4Sub(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64Int32x4Sub, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitSimd128Zero(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Simd128Zero, g.DefineSameAsFirst(node));
+}
+
+void InstructionSelector::VisitSimd1x4Zero(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Simd128Zero, g.DefineSameAsFirst(node));
+}
+
+void InstructionSelector::VisitSimd1x8Zero(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Simd128Zero, g.DefineSameAsFirst(node));
+}
+
+void InstructionSelector::VisitSimd1x16Zero(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Simd128Zero, g.DefineSameAsFirst(node));
 }
 
 // static

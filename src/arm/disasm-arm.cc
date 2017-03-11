@@ -1364,12 +1364,6 @@ int Decoder::DecodeType7(Instruction* instr) {
   if (instr->Bit(24) == 1) {
     if (instr->SvcValue() >= kStopCode) {
       Format(instr, "stop'cond 'svc");
-      out_buffer_pos_ += SNPrintF(
-          out_buffer_ + out_buffer_pos_, "\n  %p  %08x",
-          reinterpret_cast<void*>(instr + Instruction::kInstrSize),
-          *reinterpret_cast<uint32_t*>(instr + Instruction::kInstrSize));
-      // We have decoded 2 * Instruction::kInstrSize bytes.
-      return 2 * Instruction::kInstrSize;
     } else {
       Format(instr, "svc'cond 'svc");
     }
@@ -1867,10 +1861,10 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         Vm = instr->VFPMRegValue(kSimd128Precision);
         Vn = instr->VFPNRegValue(kSimd128Precision);
       }
+      int size = kBitsPerByte * (1 << instr->Bits(21, 20));
       switch (instr->Bits(11, 8)) {
         case 0x0: {
           if (instr->Bit(4) == 1) {
-            int size = kBitsPerByte * (1 << instr->Bits(21, 20));
             // vqadd.s<size> Qd, Qm, Qn.
             out_buffer_pos_ +=
                 SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -1904,7 +1898,6 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         }
         case 0x2: {
           if (instr->Bit(4) == 1) {
-            int size = kBitsPerByte * (1 << instr->Bits(21, 20));
             // vqsub.s<size> Qd, Qm, Qn.
             out_buffer_pos_ +=
                 SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -1915,7 +1908,6 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           break;
         }
         case 0x3: {
-          int size = kBitsPerByte * (1 << instr->Bits(21, 20));
           const char* op = (instr->Bit(4) == 1) ? "vcge" : "vcgt";
           // vcge/vcgt.s<size> Qd, Qm, Qn.
           out_buffer_pos_ +=
@@ -1924,7 +1916,6 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           break;
         }
         case 0x6: {
-          int size = kBitsPerByte * (1 << instr->Bits(21, 20));
           // vmin/vmax.s<size> Qd, Qm, Qn.
           const char* op = instr->Bit(4) == 1 ? "vmin" : "vmax";
           out_buffer_pos_ +=
@@ -1934,7 +1925,6 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         }
         case 0x8: {
           const char* op = (instr->Bit(4) == 0) ? "vadd" : "vtst";
-          int size = kBitsPerByte * (1 << instr->Bits(21, 20));
           // vadd/vtst.i<size> Qd, Qm, Qn.
           out_buffer_pos_ +=
               SNPrintF(out_buffer_ + out_buffer_pos_, "%s.i%d q%d, q%d, q%d",
@@ -1943,7 +1933,6 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         }
         case 0x9: {
           if (instr->Bit(6) == 1 && instr->Bit(4) == 1) {
-            int size = kBitsPerByte * (1 << instr->Bits(21, 20));
             // vmul.i<size> Qd, Qm, Qn.
             out_buffer_pos_ +=
                 SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -1951,6 +1940,14 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           } else {
             Unknown(instr);
           }
+          break;
+        }
+        case 0xa: {
+          // vpmin/vpmax.s<size> Dd, Dm, Dn.
+          const char* op = instr->Bit(4) == 1 ? "vpmin" : "vpmax";
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.s%d d%d, d%d, d%d",
+                       op, size, Vd, Vn, Vm);
           break;
         }
         case 0xd: {
@@ -2052,10 +2049,10 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         Vm = instr->VFPMRegValue(kSimd128Precision);
         Vn = instr->VFPNRegValue(kSimd128Precision);
       }
+      int size = kBitsPerByte * (1 << instr->Bits(21, 20));
       switch (instr->Bits(11, 8)) {
         case 0x0: {
           if (instr->Bit(4) == 1) {
-            int size = kBitsPerByte * (1 << instr->Bits(21, 20));
             // vqadd.u<size> Qd, Qm, Qn.
             out_buffer_pos_ +=
                 SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -2087,7 +2084,6 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         }
         case 0x2: {
           if (instr->Bit(4) == 1) {
-            int size = kBitsPerByte * (1 << instr->Bits(21, 20));
             // vqsub.u<size> Qd, Qm, Qn.
             out_buffer_pos_ +=
                 SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -2098,7 +2094,6 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           break;
         }
         case 0x3: {
-          int size = kBitsPerByte * (1 << instr->Bits(21, 20));
           const char* op = (instr->Bit(4) == 1) ? "vcge" : "vcgt";
           // vcge/vcgt.u<size> Qd, Qm, Qn.
           out_buffer_pos_ +=
@@ -2107,7 +2102,6 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           break;
         }
         case 0x6: {
-          int size = kBitsPerByte * (1 << instr->Bits(21, 20));
           // vmin/vmax.u<size> Qd, Qm, Qn.
           const char* op = instr->Bit(4) == 1 ? "vmin" : "vmax";
           out_buffer_pos_ +=
@@ -2116,7 +2110,6 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           break;
         }
         case 0x8: {
-          int size = kBitsPerByte * (1 << instr->Bits(21, 20));
           if (instr->Bit(4) == 0) {
             out_buffer_pos_ +=
                 SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -2126,6 +2119,14 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
                 SNPrintF(out_buffer_ + out_buffer_pos_,
                          "vceq.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
           }
+          break;
+        }
+        case 0xa: {
+          // vpmin/vpmax.u<size> Dd, Dm, Dn.
+          const char* op = instr->Bit(4) == 1 ? "vpmin" : "vpmax";
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d d%d, d%d, d%d",
+                       op, size, Vd, Vn, Vm);
           break;
         }
         case 0xd: {

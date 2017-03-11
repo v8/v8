@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/ic/accessor-assembler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -22,17 +23,18 @@ namespace internal {
   }
 
 IC_BUILTIN(LoadIC)
+IC_BUILTIN(LoadIC_Noninlined)
+IC_BUILTIN(LoadIC_Uninitialized)
 IC_BUILTIN(KeyedLoadIC)
 IC_BUILTIN(LoadICTrampoline)
 IC_BUILTIN(LoadField)
 IC_BUILTIN(KeyedLoadICTrampoline)
 IC_BUILTIN(KeyedLoadIC_Megamorphic)
-IC_BUILTIN(StoreIC)
-IC_BUILTIN(StoreICTrampoline)
 
-IC_BUILTIN_PARAM(StoreICStrict, StoreIC, /* no param */)
-IC_BUILTIN_PARAM(StoreICStrictTrampoline, StoreICTrampoline, /* no param */)
-
+IC_BUILTIN_PARAM(StoreIC, StoreIC, SLOPPY)
+IC_BUILTIN_PARAM(StoreICTrampoline, StoreICTrampoline, SLOPPY)
+IC_BUILTIN_PARAM(StoreICStrict, StoreIC, STRICT)
+IC_BUILTIN_PARAM(StoreICStrictTrampoline, StoreICTrampoline, STRICT)
 IC_BUILTIN_PARAM(KeyedStoreIC, KeyedStoreIC, SLOPPY)
 IC_BUILTIN_PARAM(KeyedStoreICTrampoline, KeyedStoreICTrampoline, SLOPPY)
 IC_BUILTIN_PARAM(KeyedStoreICStrict, KeyedStoreIC, STRICT)

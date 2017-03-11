@@ -12,10 +12,11 @@
 namespace v8 {
 namespace internal {
 
+template <MarkingMode mode>
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK(ObjectMarking::IsBlack(obj));
-  if (!marking_deque()->Push(obj)) {
-    ObjectMarking::BlackToGrey(obj);
+  DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC, mode>(obj)));
+  if (!marking_deque<mode>()->Push(obj)) {
+    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC, mode>(obj);
   }
 }
 
@@ -27,10 +28,11 @@ void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   }
 }
 
+template <MarkingMode mode>
 void MarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::IsWhite(obj)) {
-    ObjectMarking::WhiteToBlack(obj);
-    PushBlack(obj);
+  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC, mode>(obj)) {
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC, mode>(obj);
+    PushBlack<mode>(obj);
   }
 }
 
@@ -134,7 +136,9 @@ HeapObject* LiveObjectIterator<T>::Next() {
                      ->one_pointer_filler_map());
           return nullptr;
         }
-        it_.Advance();
+        bool not_done = it_.Advance();
+        USE(not_done);
+        DCHECK(not_done);
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }
@@ -177,9 +181,13 @@ HeapObject* LiveObjectIterator<T>::Next() {
 
       // We found a live object.
       if (object != nullptr) {
-        if (map == heap()->one_pointer_filler_map()) {
-          // Black areas together with slack tracking may result in black one
-          // word filler objects. We filter these objects out in the iterator.
+        if (object->IsFiller()) {
+          // There are two reasons why we can get black or grey fillers:
+          // 1) Black areas together with slack tracking may result in black one
+          // word filler objects.
+          // 2) Left trimming may leave black or grey fillers behind because we
+          // do not clear the old location of the object start.
+          // We filter these objects out in the iterator.
           object = nullptr;
         } else {
           break;
@@ -188,8 +196,7 @@ HeapObject* LiveObjectIterator<T>::Next() {
     }
 
     if (current_cell_ == 0) {
-      if (!it_.Done()) {
-        it_.Advance();
+      if (!it_.Done() && it_.Advance()) {
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }

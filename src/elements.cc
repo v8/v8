@@ -2766,10 +2766,14 @@ class TypedElementsAccessor
                : kMaxUInt32;
   }
 
+  static bool WasNeutered(JSObject* holder) {
+    JSArrayBufferView* view = JSArrayBufferView::cast(holder);
+    return view->WasNeutered();
+  }
+
   static uint32_t GetCapacityImpl(JSObject* holder,
                                   FixedArrayBase* backing_store) {
-    JSArrayBufferView* view = JSArrayBufferView::cast(holder);
-    if (view->WasNeutered()) return 0;
+    if (WasNeutered(holder)) return 0;
     return backing_store->length();
   }
 
@@ -2817,6 +2821,12 @@ class TypedElementsAccessor
                                        uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
     DisallowHeapAllocation no_gc;
+
+    // TODO(caitp): return Just(false) here when implementing strict throwing on
+    // neutered views.
+    if (WasNeutered(*receiver)) {
+      return Just(value->IsUndefined(isolate) && length > start_from);
+    }
 
     BackingStore* elements = BackingStore::cast(receiver->elements());
     if (value->IsUndefined(isolate) &&
@@ -2866,6 +2876,8 @@ class TypedElementsAccessor
                                          uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
     DisallowHeapAllocation no_gc;
+
+    if (WasNeutered(*receiver)) return Just<int64_t>(-1);
 
     BackingStore* elements = BackingStore::cast(receiver->elements());
     if (!value->IsNumber()) return Just<int64_t>(-1);

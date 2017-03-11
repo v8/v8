@@ -85,7 +85,7 @@ class InterpreterHandle {
     ScopedVector<WasmVal> wasm_args(num_params);
     uint8_t* arg_buf_ptr = arg_buffer;
     for (int i = 0; i < num_params; ++i) {
-      uint32_t param_size = 1 << ElementSizeLog2Of(sig->GetParam(i));
+      int param_size = 1 << ElementSizeLog2Of(sig->GetParam(i));
 #define CASE_ARG_TYPE(type, ctype)                                  \
   case type:                                                        \
     DCHECK_EQ(param_size, sizeof(ctype));                           \
@@ -100,7 +100,7 @@ class InterpreterHandle {
         default:
           UNREACHABLE();
       }
-      arg_buf_ptr += param_size;
+      arg_buf_ptr += RoundUpToMultipleOfPowOf2(param_size, 8);
     }
 
     WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
@@ -273,6 +273,11 @@ class InterpreterHandle {
     return std::unique_ptr<wasm::InterpretedFrame>(
         new wasm::InterpretedFrame(thread->GetMutableFrame(idx)));
   }
+
+  uint64_t NumInterpretedCalls() {
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    return interpreter()->GetThread(0)->NumInterpretedCalls();
+  }
 };
 
 InterpreterHandle* GetOrCreateInterpreterHandle(
@@ -291,6 +296,12 @@ InterpreterHandle* GetOrCreateInterpreterHandle(
 InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info) {
   Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandle);
   DCHECK(!handle_obj->IsUndefined(debug_info->GetIsolate()));
+  return Managed<InterpreterHandle>::cast(handle_obj)->get();
+}
+
+InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
+  Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandle);
+  if (handle_obj->IsUndefined(debug_info->GetIsolate())) return nullptr;
   return Managed<InterpreterHandle>::cast(handle_obj)->get();
 }
 
@@ -345,32 +356,13 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
   }
 }
 
-void EnsureRedirectToInterpreter(Isolate* isolate,
-                                 Handle<WasmDebugInfo> debug_info,
-                                 int func_index) {
-  Handle<FixedArray> interpreted_functions =
-      GetOrCreateInterpretedFunctions(isolate, debug_info);
-  if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) return;
-
-  Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
-  Handle<Code> new_code = compiler::CompileWasmInterpreterEntry(
-      isolate, func_index,
-      instance->compiled_module()->module()->functions[func_index].sig,
-      instance);
-
-  Handle<FixedArray> code_table = instance->compiled_module()->code_table();
-  Handle<Code> old_code(Code::cast(code_table->get(func_index)), isolate);
-  interpreted_functions->set(func_index, *new_code);
-
-  RedirectCallsitesInInstance(isolate, *instance, *old_code, *new_code);
-}
-
 }  // namespace
 
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   Isolate* isolate = instance->GetIsolate();
   Factory* factory = isolate->factory();
   Handle<FixedArray> arr = factory->NewFixedArray(kFieldCount, TENURED);
+  arr->set(kWrapperTracerHeader, Smi::kZero);
   arr->set(kInstance, *instance);
   return Handle<WasmDebugInfo>::cast(arr);
 }
@@ -400,12 +392,34 @@ void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,
                                   int func_index, int offset) {
   Isolate* isolate = debug_info->GetIsolate();
   InterpreterHandle* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
-  WasmInterpreter* interpreter = handle->interpreter();
-  DCHECK_LE(0, func_index);
-  DCHECK_GT(handle->module()->functions.size(), func_index);
+  RedirectToInterpreter(debug_info, func_index);
   const WasmFunction* func = &handle->module()->functions[func_index];
-  interpreter->SetBreakpoint(func, offset, true);
-  EnsureRedirectToInterpreter(isolate, debug_info, func_index);
+  handle->interpreter()->SetBreakpoint(func, offset, true);
+}
+
+void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
+                                          int func_index) {
+  Isolate* isolate = debug_info->GetIsolate();
+  DCHECK_LE(0, func_index);
+  DCHECK_GT(debug_info->wasm_instance()->module()->functions.size(),
+            func_index);
+  Handle<FixedArray> interpreted_functions =
+      GetOrCreateInterpretedFunctions(isolate, debug_info);
+  if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) return;
+
+  // Ensure that the interpreter is instantiated.
+  GetOrCreateInterpreterHandle(isolate, debug_info);
+  Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
+  Handle<Code> new_code = compiler::CompileWasmInterpreterEntry(
+      isolate, func_index,
+      instance->compiled_module()->module()->functions[func_index].sig,
+      instance);
+
+  Handle<FixedArray> code_table = instance->compiled_module()->code_table();
+  Handle<Code> old_code(Code::cast(code_table->get(func_index)), isolate);
+  interpreted_functions->set(func_index, *new_code);
+
+  RedirectCallsitesInInstance(isolate, *instance, *old_code, *new_code);
 }
 
 void WasmDebugInfo::PrepareStep(StepAction step_action) {
@@ -426,4 +440,9 @@ std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(
 std::unique_ptr<wasm::InterpretedFrame> WasmDebugInfo::GetInterpretedFrame(
     Address frame_pointer, int idx) {
   return GetInterpreterHandle(this)->GetInterpretedFrame(frame_pointer, idx);
+}
+
+uint64_t WasmDebugInfo::NumInterpretedCalls() {
+  auto handle = GetInterpreterHandleOrNull(this);
+  return handle ? handle->NumInterpretedCalls() : 0;
 }

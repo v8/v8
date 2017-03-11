@@ -319,12 +319,11 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
       return heap_number_->value();
     case Tag::kScope:
       return scope_->scope_info();
-    case Tag::kIteratorSymbol:
-      return isolate->factory()->iterator_symbol();
-    case Tag::kHomeObjectSymbol:
-      return isolate->factory()->home_object_symbol();
-    case Tag::kEmptyFixedArray:
-      return isolate->factory()->empty_fixed_array();
+#define ENTRY_LOOKUP(Name, name) \
+  case Tag::k##Name:             \
+    return isolate->factory()->name();
+      SINGLETON_CONSTANT_ENTRY_TYPES(ENTRY_LOOKUP);
+#undef ENTRY_LOOKUP
   }
   UNREACHABLE();
   return Handle<Object>::null();

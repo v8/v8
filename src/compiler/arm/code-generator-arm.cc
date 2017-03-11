@@ -5,11 +5,13 @@
 #include "src/compiler/code-generator.h"
 
 #include "src/arm/macro-assembler-arm.h"
+#include "src/assembler-inl.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/heap/heap-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -420,6 +422,19 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ dmb(ISH);                                                      \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)             \
+  do {                                                                        \
+    Label exchange;                                                           \
+    __ dmb(ISH);                                                              \
+    __ bind(&exchange);                                                       \
+    __ add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));        \
+    __ load_instr(i.OutputRegister(0), i.TempRegister(0));                    \
+    __ store_instr(i.TempRegister(0), i.InputRegister(2), i.TempRegister(0)); \
+    __ teq(i.TempRegister(0), Operand(0));                                    \
+    __ b(ne, &exchange);                                                      \
+    __ dmb(ISH);                                                              \
+  } while (0)
+
 #define ASSEMBLE_IEEE754_BINOP(name)                                           \
   do {                                                                         \
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
@@ -474,7 +489,8 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
   // Check if current frame is an arguments adaptor frame.
   __ ldr(scratch1, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ cmp(scratch1, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ cmp(scratch1,
+         Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(ne, &done);
 
   // Load arguments count from current arguments adaptor frame (note, it
@@ -1533,6 +1549,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vneg(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmFloat32x4RecipApprox: {
+      __ vrecpe(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4RecipSqrtApprox: {
+      __ vrsqrte(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kArmFloat32x4Add: {
       __ vadd(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1541,6 +1565,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmFloat32x4Sub: {
       __ vsub(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Mul: {
+      __ vmul(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Min: {
+      __ vmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Max: {
+      __ vmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4RecipRefine: {
+      __ vrecps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4RecipSqrtRefine: {
+      __ vrsqrts(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
       break;
     }
     case kArmFloat32x4Equal: {
@@ -1552,6 +1601,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       __ vceq(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
       __ vmvn(dst, dst);
+      break;
+    }
+    case kArmFloat32x4LessThan: {
+      __ vcgt(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4LessThanOrEqual: {
+      __ vcge(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmInt32x4Splat: {
@@ -1627,15 +1686,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt32x4GreaterThan: {
-      __ vcgt(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt32x4LessThan: {
+      __ vcgt(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmInt32x4GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonS32, dst, i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt32x4LessThanOrEqual: {
+      __ vcge(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmUint32x4ShiftRightByScalar: {
@@ -1653,15 +1711,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint32x4GreaterThan: {
-      __ vcgt(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint32x4LessThan: {
+      __ vcgt(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmUint32x4GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonU32, dst, i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint32x4LessThanOrEqual: {
+      __ vcge(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmInt16x8Splat: {
@@ -1739,15 +1796,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt16x8GreaterThan: {
-      __ vcgt(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt16x8LessThan: {
+      __ vcgt(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmInt16x8GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonS16, dst, i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt16x8LessThanOrEqual: {
+      __ vcge(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmUint16x8ShiftRightByScalar: {
@@ -1775,15 +1831,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint16x8GreaterThan: {
-      __ vcgt(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint16x8LessThan: {
+      __ vcgt(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmUint16x8GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonU16, dst, i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint16x8LessThanOrEqual: {
+      __ vcge(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmInt8x16Splat: {
@@ -1860,15 +1915,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt8x16GreaterThan: {
-      __ vcgt(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt8x16LessThan: {
+      __ vcgt(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmInt8x16GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonS8, dst, i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt8x16LessThanOrEqual: {
+      __ vcge(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmUint8x16ShiftRightByScalar: {
@@ -1896,15 +1950,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint8x16GreaterThan: {
-      __ vcgt(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint8x16LessThan: {
+      __ vcgt(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmUint8x16GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonU8, dst, i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint8x16LessThanOrEqual: {
+      __ vcge(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
+      break;
+    }
+    case kArmSimd128Zero: {
+      __ veor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+              i.OutputSimd128Register());
       break;
     }
     case kArmSimd128And: {
@@ -1926,28 +1984,67 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmvn(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmSimd32x4Select: {
-      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
-      __ vtst(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(0));
+    case kArmSimd128Select: {
+      // vbsl clobbers the mask input so make sure it was DefineSameAsFirst.
+      DCHECK(i.OutputSimd128Register().is(i.InputSimd128Register(0)));
       __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(2));
       break;
     }
-    case kArmSimd16x8Select: {
-      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
-      __ vtst(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(0));
-      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
-              i.InputSimd128Register(2));
+    case kArmSimd1x4AnyTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmax(NeonU32, kScratchDoubleReg, src.low(), src.high());
+      __ vpmax(NeonU32, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS32, 0);
       break;
     }
-    case kArmSimd8x16Select: {
-      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
-      __ vtst(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(0));
-      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
-              i.InputSimd128Register(2));
+    case kArmSimd1x4AllTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmin(NeonU32, kScratchDoubleReg, src.low(), src.high());
+      __ vpmin(NeonU32, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS32, 0);
+      break;
+    }
+    case kArmSimd1x8AnyTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmax(NeonU16, kScratchDoubleReg, src.low(), src.high());
+      __ vpmax(NeonU16, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ vpmax(NeonU16, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS16, 0);
+      break;
+    }
+    case kArmSimd1x8AllTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmin(NeonU16, kScratchDoubleReg, src.low(), src.high());
+      __ vpmin(NeonU16, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ vpmin(NeonU16, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS16, 0);
+      break;
+    }
+    case kArmSimd1x16AnyTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmax(NeonU8, kScratchDoubleReg, src.low(), src.high());
+      __ vpmax(NeonU8, kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      // vtst to detect any bits in the bottom 32 bits of kScratchDoubleReg.
+      // This saves an instruction vs. the naive sequence of vpmax.
+      // kDoubleRegZero is not changed, since it is 0.
+      __ vtst(Neon32, kScratchQuadReg, kScratchQuadReg, kScratchQuadReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS32, 0);
+      break;
+    }
+    case kArmSimd1x16AllTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmin(NeonU8, kScratchDoubleReg, src.low(), src.high());
+      __ vpmin(NeonU8, kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpmin(NeonU8, kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpmin(NeonU8, kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS8, 0);
       break;
     }
     case kCheckedLoadInt8:
@@ -2016,6 +2113,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(str);
       break;
+    case kAtomicExchangeInt8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexb, strexb);
+      __ sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicExchangeUint8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexb, strexb);
+      break;
+    case kAtomicExchangeInt16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexh, strexh);
+      __ sxth(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicExchangeUint16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexh, strexh);
+      break;
+    case kAtomicExchangeWord32:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrex, strex);
+      break;
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)
@@ -2049,8 +2163,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     void Generate() final {
       ArmOperandConverter i(gen_, instr_);
 
-      Runtime::FunctionId trap_id = static_cast<Runtime::FunctionId>(
-          i.InputInt32(instr_->InputCount() - 1));
+      Builtins::Name trap_id =
+          static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
       bool old_has_frame = __ has_frame();
       if (frame_elided_) {
         __ set_has_frame(true);
@@ -2063,8 +2177,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     }
 
    private:
-    void GenerateCallToTrap(Runtime::FunctionId trap_id) {
-      if (trap_id == Runtime::kNumFunctions) {
+    void GenerateCallToTrap(Builtins::Name trap_id) {
+      if (trap_id == Builtins::builtin_count) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
         // We use the context register as the scratch register, because we do
@@ -2076,9 +2190,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ LeaveFrame(StackFrame::WASM_COMPILED);
         __ Ret();
       } else {
-        __ Move(cp, Smi::kZero);
         gen_->AssembleSourcePosition(instr_);
-        __ CallRuntime(trap_id);
+        __ Call(handle(isolate()->builtins()->builtin(trap_id), isolate()),
+                RelocInfo::CODE_TARGET);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,

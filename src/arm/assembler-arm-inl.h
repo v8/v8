@@ -98,32 +98,28 @@ int RelocInfo::target_address_size() {
   return kPointerSize;
 }
 
-
-Object* RelocInfo::target_object() {
+HeapObject* RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));
+  return HeapObject::cast(
+      reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_)));
 }
 
-
-Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
+Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return Handle<Object>(reinterpret_cast<Object**>(
-      Assembler::target_address_at(pc_, host_)));
+  return Handle<HeapObject>(
+      reinterpret_cast<HeapObject**>(Assembler::target_address_at(pc_, host_)));
 }
 
-
-void RelocInfo::set_target_object(Object* target,
+void RelocInfo::set_target_object(HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   Assembler::set_target_address_at(isolate_, pc_, host_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
-      host() != NULL &&
-      target->IsHeapObject()) {
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target));
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  target);
     host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
@@ -187,13 +183,9 @@ void RelocInfo::set_target_cell(Cell* cell,
   }
 }
 
-
-static const int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;
-
-
-Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
+Handle<Code> RelocInfo::code_age_stub_handle(Assembler* origin) {
   UNREACHABLE();  // This should never be reached on Arm.
-  return Handle<Object>();
+  return Handle<Code>();
 }
 
 
@@ -299,6 +291,7 @@ Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
   rmode_ = rmode;
 }
 
+Operand Operand::Zero() { return Operand(static_cast<int32_t>(0)); }
 
 Operand::Operand(const ExternalReference& f)  {
   rm_ = no_reg;
@@ -319,14 +312,6 @@ Operand::Operand(Register rm) {
   rs_ = no_reg;
   shift_op_ = LSL;
   shift_imm_ = 0;
-}
-
-
-bool Operand::is_reg() const {
-  return rm_.is_valid() &&
-         rs_.is(no_reg) &&
-         shift_op_ == LSL &&
-         shift_imm_ == 0;
 }
 
 
@@ -601,6 +586,8 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
   Address constant_pool = code ? code->constant_pool() : NULL;
   set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
 }
+
+EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 
 }  // namespace internal
 }  // namespace v8

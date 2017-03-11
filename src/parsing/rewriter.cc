@@ -112,10 +112,8 @@ class Processor final : public AstVisitor<Processor> {
 
 
 Statement* Processor::AssignUndefinedBefore(Statement* s) {
-  Expression* result_proxy = factory()->NewVariableProxy(result_);
   Expression* undef = factory()->NewUndefinedLiteral(kNoSourcePosition);
-  Expression* assignment = factory()->NewAssignment(Token::ASSIGN, result_proxy,
-                                                    undef, kNoSourcePosition);
+  Expression* assignment = SetResult(undef);
   Block* b = factory()->NewBlock(NULL, 2, false, kNoSourcePosition);
   b->statements()->Add(
       factory()->NewExpressionStatement(assignment, kNoSourcePosition), zone());
@@ -366,17 +364,40 @@ bool Rewriter::Rewrite(ParseInfo* info) {
   DCHECK_NOT_NULL(function);
   Scope* scope = function->scope();
   DCHECK_NOT_NULL(scope);
-  if (!scope->is_script_scope() && !scope->is_eval_scope()) return true;
+  DCHECK_EQ(scope, scope->GetClosureScope());
 
-  DeclarationScope* closure_scope = scope->GetClosureScope();
+  if (!(scope->is_script_scope() || scope->is_eval_scope() ||
+        scope->is_module_scope())) {
+    return true;
+  }
 
   ZoneList<Statement*>* body = function->body();
+  DCHECK_IMPLIES(scope->is_module_scope(), !body->is_empty());
   if (!body->is_empty()) {
-    Variable* result = closure_scope->NewTemporary(
+    Variable* result = scope->AsDeclarationScope()->NewTemporary(
         info->ast_value_factory()->dot_result_string());
     Processor processor(info->isolate()->stack_guard()->real_climit(),
-                        closure_scope, result, info->ast_value_factory());
+                        scope->AsDeclarationScope(), result,
+                        info->ast_value_factory());
     processor.Process(body);
+
+    DCHECK_IMPLIES(scope->is_module_scope(), processor.result_assigned());
+    if (processor.result_assigned()) {
+      int pos = kNoSourcePosition;
+      Expression* result_value =
+          processor.factory()->NewVariableProxy(result, pos);
+      if (scope->is_module_scope()) {
+        auto args = new (info->zone()) ZoneList<Expression*>(2, info->zone());
+        args->Add(result_value, info->zone());
+        args->Add(processor.factory()->NewBooleanLiteral(true, pos),
+                  info->zone());
+        result_value = processor.factory()->NewCallRuntime(
+            Runtime::kInlineCreateIterResultObject, args, pos);
+      }
+      Statement* result_statement =
+          processor.factory()->NewReturnStatement(result_value, pos);
+      body->Add(result_statement, info->zone());
+    }
 
     // TODO(leszeks): Remove this check and releases once internalization is
     // moved out of parsing/analysis.
@@ -388,15 +409,6 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     // Internalize any values created during rewriting.
     info->ast_value_factory()->Internalize(info->isolate());
     if (processor.HasStackOverflow()) return false;
-
-    if (processor.result_assigned()) {
-      int pos = kNoSourcePosition;
-      VariableProxy* result_proxy =
-          processor.factory()->NewVariableProxy(result, pos);
-      Statement* result_statement =
-          processor.factory()->NewReturnStatement(result_proxy, pos);
-      body->Add(result_statement, info->zone());
-    }
   }
 
   return true;

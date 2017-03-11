@@ -110,26 +110,13 @@ JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
 namespace {
 
 MaybeHandle<Map> GetMapWitness(Node* node) {
+  ZoneHandleSet<Map> maps;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
-  // Check if the {node} is dominated by a CheckMaps with a single map
-  // for the {receiver}, and if so use that map for the lowering below.
-  for (Node* dominator = effect;;) {
-    if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
-      ZoneHandleSet<Map> const& maps =
-          CheckMapsParametersOf(dominator->op()).maps();
-      return (maps.size() == 1) ? MaybeHandle<Map>(maps[0])
-                                : MaybeHandle<Map>();
-    }
-    DCHECK_EQ(1, dominator->op()->EffectOutputCount());
-    if (dominator->op()->EffectInputCount() != 1 ||
-        !dominator->op()->HasProperty(Operator::kNoWrite)) {
-      // Didn't find any appropriate CheckMaps node.
-      return MaybeHandle<Map>();
-    }
-    dominator = NodeProperties::GetEffectInput(dominator);
+  if (NodeProperties::InferReceiverMaps(receiver, effect, &maps)) {
+    if (maps.size() == 1) return MaybeHandle<Map>(maps[0]);
   }
+  return MaybeHandle<Map>();
 }
 
 // TODO(turbofan): This was copied from Crankshaft, might be too restrictive.
@@ -736,6 +723,104 @@ Reduction JSBuiltinReducer::ReduceArrayIteratorNext(Node* node) {
     }
   }
   return NoChange();
+}
+
+// ES6 section 22.1.2.2 Array.isArray ( arg )
+Reduction JSBuiltinReducer::ReduceArrayIsArray(Node* node) {
+  // We certainly know that undefined is not an array.
+  if (node->op()->ValueInputCount() < 3) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+  Node* value = NodeProperties::GetValueInput(node, 2);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  int count = 0;
+  Node* values[5];
+  Node* effects[5];
+  Node* controls[4];
+
+  // Check if the {value} is a Smi.
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  control =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  // The {value} is a Smi.
+  controls[count] = graph()->NewNode(common()->IfTrue(), control);
+  effects[count] = effect;
+  values[count] = jsgraph()->FalseConstant();
+  count++;
+
+  control = graph()->NewNode(common()->IfFalse(), control);
+
+  // Load the {value}s instance type.
+  Node* value_map = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMap()), value, effect, control);
+  Node* value_instance_type = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), value_map,
+      effect, control);
+
+  // Check if the {value} is a JSArray.
+  check = graph()->NewNode(simplified()->NumberEqual(), value_instance_type,
+                           jsgraph()->Constant(JS_ARRAY_TYPE));
+  control = graph()->NewNode(common()->Branch(), check, control);
+
+  // The {value} is a JSArray.
+  controls[count] = graph()->NewNode(common()->IfTrue(), control);
+  effects[count] = effect;
+  values[count] = jsgraph()->TrueConstant();
+  count++;
+
+  control = graph()->NewNode(common()->IfFalse(), control);
+
+  // Check if the {value} is a JSProxy.
+  check = graph()->NewNode(simplified()->NumberEqual(), value_instance_type,
+                           jsgraph()->Constant(JS_PROXY_TYPE));
+  control =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  // The {value} is neither a JSArray nor a JSProxy.
+  controls[count] = graph()->NewNode(common()->IfFalse(), control);
+  effects[count] = effect;
+  values[count] = jsgraph()->FalseConstant();
+  count++;
+
+  control = graph()->NewNode(common()->IfTrue(), control);
+
+  // Let the %ArrayIsArray runtime function deal with the JSProxy {value}.
+  value = effect =
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kArrayIsArray), value,
+                       context, frame_state, effect, control);
+  NodeProperties::SetType(value, Type::Boolean());
+  control = graph()->NewNode(common()->IfSuccess(), value);
+
+  // Rewire any IfException edges on {node} to {value}.
+  for (Edge edge : node->use_edges()) {
+    Node* const user = edge.from();
+    if (user->opcode() == IrOpcode::kIfException) {
+      edge.UpdateTo(value);
+      Revisit(user);
+    }
+  }
+
+  // The {value} is neither a JSArray nor a JSProxy.
+  controls[count] = control;
+  effects[count] = effect;
+  values[count] = value;
+  count++;
+
+  control = graph()->NewNode(common()->Merge(count), count, controls);
+  effects[count] = control;
+  values[count] = control;
+  effect = graph()->NewNode(common()->EffectPhi(count), count + 1, effects);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, count),
+                           count + 1, values);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 // ES6 section 22.1.3.17 Array.prototype.pop ( )
@@ -1428,14 +1513,10 @@ Reduction JSBuiltinReducer::ReduceNumberIsInteger(Node* node) {
 // ES6 section 20.1.2.4 Number.isNaN ( number )
 Reduction JSBuiltinReducer::ReduceNumberIsNaN(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Number.isNaN(a:number) -> BooleanNot(NumberEqual(a, a))
-    Node* input = r.GetJSCallInput(0);
-    Node* check = graph()->NewNode(simplified()->NumberEqual(), input, input);
-    Node* value = graph()->NewNode(simplified()->BooleanNot(), check);
-    return Replace(value);
-  }
-  return NoChange();
+  // Number.isNaN(a:number) -> ObjectIsNaN(a)
+  Node* input = r.GetJSCallInput(0);
+  Node* value = graph()->NewNode(simplified()->ObjectIsNaN(), input);
+  return Replace(value);
 }
 
 // ES6 section 20.1.2.5 Number.isSafeInteger ( number )
@@ -1982,6 +2063,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceArrayIterator(node, IterationKind::kValues);
     case kArrayIteratorNext:
       return ReduceArrayIteratorNext(node);
+    case kArrayIsArray:
+      return ReduceArrayIsArray(node);
     case kArrayPop:
       return ReduceArrayPop(node);
     case kArrayPush:

@@ -485,17 +485,40 @@ class StatusFilesProcessor(SourceFileProcessor):
   """Checks status files for incorrect syntax and duplicate keys."""
 
   def IsRelevant(self, name):
-    return name.endswith('.status')
+    # Several changes to files under the test directories could impact status
+    # files.
+    return True
 
   def GetPathsToSearch(self):
     return ['test']
 
   def ProcessFiles(self, files):
+    test_path = join(dirname(TOOLS_PATH), 'test')
+    status_files = set([])
+    for file_path in files:
+      if file_path.startswith(test_path):
+        # Strip off absolute path prefix pointing to test suites.
+        pieces = file_path[len(test_path):].lstrip(os.sep).split(os.sep)
+        if pieces:
+          # Infer affected status file name. Only care for existing status
+          # files. Some directories under "test" don't have any.
+          if not os.path.isdir(join(test_path, pieces[0])):
+            continue
+          status_file = join(test_path, pieces[0], pieces[0] + ".status")
+          if not os.path.exists(status_file):
+            continue
+          status_files.add(status_file)
+
     success = True
-    for status_file_path in files:
+    for status_file_path in sorted(status_files):
       success &= statusfile.PresubmitCheck(status_file_path)
       success &= _CheckStatusFileForDuplicateKeys(status_file_path)
     return success
+
+
+def CheckDeps(workspace):
+  checkdeps_py = join(workspace, 'buildtools', 'checkdeps', 'checkdeps.py')
+  return subprocess.call([sys.executable, checkdeps_py, workspace]) == 0
 
 
 def GetOptions():
@@ -510,6 +533,8 @@ def Main():
   parser = GetOptions()
   (options, args) = parser.parse_args()
   success = True
+  print "Running checkdeps..."
+  success &= CheckDeps(workspace)
   print "Running C++ lint check..."
   if not options.no_lint:
     success &= CppLintProcessor().RunOnPath(workspace)

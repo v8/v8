@@ -342,18 +342,22 @@ class MacroAssembler : public Assembler {
   void DivP(Register dividend, Register divider);
   void Div32(Register dst, Register src1, const MemOperand& src2);
   void Div32(Register dst, Register src1, Register src2);
-  void Div32(Register dst, Register src1, const Operand& src2);
   void DivU32(Register dst, Register src1, const MemOperand& src2);
   void DivU32(Register dst, Register src1, Register src2);
-  void DivU32(Register dst, Register src1, const Operand& src2);
+  void Div64(Register dst, Register src1, const MemOperand& src2);
+  void Div64(Register dst, Register src1, Register src2);
+  void DivU64(Register dst, Register src1, const MemOperand& src2);
+  void DivU64(Register dst, Register src1, Register src2);
 
   // Mod
   void Mod32(Register dst, Register src1, const MemOperand& src2);
   void Mod32(Register dst, Register src1, Register src2);
-  void Mod32(Register dst, Register src1, const Operand& src2);
   void ModU32(Register dst, Register src1, const MemOperand& src2);
   void ModU32(Register dst, Register src1, Register src2);
-  void ModU32(Register dst, Register src1, const Operand& src2);
+  void Mod64(Register dst, Register src1, const MemOperand& src2);
+  void Mod64(Register dst, Register src1, Register src2);
+  void ModU64(Register dst, Register src1, const MemOperand& src2);
+  void ModU64(Register dst, Register src1, Register src2);
 
   // Square root
   void Sqrt(DoubleRegister result, DoubleRegister input);
@@ -407,6 +411,25 @@ class MacroAssembler : public Assembler {
   void LoadDouble(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32ConvertToDouble(DoubleRegister dst, const MemOperand& mem);
+
+  void AddFloat32(DoubleRegister dst, const MemOperand& opnd,
+                  DoubleRegister scratch);
+  void AddFloat64(DoubleRegister dst, const MemOperand& opnd,
+                  DoubleRegister scratch);
+  void SubFloat32(DoubleRegister dst, const MemOperand& opnd,
+                  DoubleRegister scratch);
+  void SubFloat64(DoubleRegister dst, const MemOperand& opnd,
+                  DoubleRegister scratch);
+  void MulFloat32(DoubleRegister dst, const MemOperand& opnd,
+                  DoubleRegister scratch);
+  void MulFloat64(DoubleRegister dst, const MemOperand& opnd,
+                  DoubleRegister scratch);
+  void DivFloat32(DoubleRegister dst, const MemOperand& opnd,
+                  DoubleRegister scratch);
+  void DivFloat64(DoubleRegister dst, const MemOperand& opnd,
+                  DoubleRegister scratch);
+  void LoadFloat32ToDouble(DoubleRegister dst, const MemOperand& opnd,
+                           DoubleRegister scratch);
 
   // Load On Condition
   void LoadOnConditionP(Condition cond, Register dst, Register src);
@@ -947,13 +970,9 @@ class MacroAssembler : public Assembler {
 
   void IsObjectNameType(Register object, Register scratch, Label* fail);
 
-  // ---------------------------------------------------------------------------
-  // Debugger Support
-
-  void DebugBreak();
+  // Frame restart support
   void MaybeDropFrames();
 
-  // ---------------------------------------------------------------------------
   // Exception handling
 
   // Push a new stack handler and link into stack handler chain.

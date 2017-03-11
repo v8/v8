@@ -27,6 +27,7 @@
 
 // Flags: --noalways-opt
 
+// Flags: --no-always-opt
 
 var Debug = debug.Debug;
 

@@ -5,12 +5,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 2
+    endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 42
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -29,6 +30,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 52
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -41,12 +43,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 3
+    endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : true
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 43
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -59,12 +62,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 4
+    endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : true
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 46
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -77,12 +81,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 2
+    endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 50
     scriptId : <scriptId>
     sourceMapURL : oneline-map
     startColumn : 0
@@ -101,6 +106,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 60
     scriptId : <scriptId>
     sourceMapURL : oneline-without-nl-map
     startColumn : 0
@@ -113,12 +119,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 3
+    endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 51
     scriptId : <scriptId>
     sourceMapURL : twoline-map
     startColumn : 0
@@ -131,12 +138,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 4
+    endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 54
     scriptId : <scriptId>
     sourceMapURL : threeline-map
     startColumn : 0
@@ -155,6 +163,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 88
     scriptId : <scriptId>
     sourceMapURL : source-mapping-url-map
     startColumn : 0
@@ -173,6 +182,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 89
     scriptId : <scriptId>
     sourceMapURL : source-mapping-url-map
     startColumn : 0
@@ -191,6 +201,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 40
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -209,6 +220,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 41
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -227,6 +239,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 18
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -245,6 +258,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 96
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -263,6 +277,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 39
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -275,12 +290,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 2
+    endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 19
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -293,12 +309,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 3
+    endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 20
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -311,12 +328,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 4
+    endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 21
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -329,12 +347,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 5
+    endLine : 4
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 22
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -347,12 +366,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 2
+    endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : true
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 42
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -371,6 +391,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 52
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -383,12 +404,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 3
+    endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : true
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 43
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -401,12 +423,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 4
+    endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : true
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 46
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -419,12 +442,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 2
+    endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 50
     scriptId : <scriptId>
     sourceMapURL : oneline-map
     startColumn : 0
@@ -443,6 +467,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 60
     scriptId : <scriptId>
     sourceMapURL : oneline-without-nl-map
     startColumn : 0
@@ -455,12 +480,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 3
+    endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 51
     scriptId : <scriptId>
     sourceMapURL : twoline-map
     startColumn : 0
@@ -473,12 +499,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 4
+    endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 54
     scriptId : <scriptId>
     sourceMapURL : threeline-map
     startColumn : 0
@@ -497,6 +524,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 88
     scriptId : <scriptId>
     sourceMapURL : source-mapping-url-map
     startColumn : 0
@@ -515,6 +543,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 89
     scriptId : <scriptId>
     sourceMapURL : source-mapping-url-map
     startColumn : 0
@@ -533,6 +562,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 40
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -551,6 +581,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 41
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -569,6 +600,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 18
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -587,6 +619,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 96
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -605,6 +638,7 @@ scriptParsed
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 39
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -622,6 +656,7 @@ scriptFailedToParse
     hasSourceURL : true
     hash : <hash>
     isModule : false
+    length : 56
     scriptId : <scriptId>
     sourceMapURL : failed-map
     startColumn : 0
@@ -634,12 +669,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 2
+    endLine : 1
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 19
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -652,12 +688,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 3
+    endLine : 2
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 20
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -670,12 +707,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 4
+    endLine : 3
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 21
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0
@@ -688,12 +726,13 @@ scriptParsed
 }
 {
     endColumn : 0
-    endLine : 5
+    endLine : 4
     executionContextId : <executionContextId>
     hasSourceURL : false
     hash : <hash>
     isLiveEdit : false
     isModule : false
+    length : 22
     scriptId : <scriptId>
     sourceMapURL : 
     startColumn : 0

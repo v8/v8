@@ -19,6 +19,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 #include "src/zone/zone.h"
 
@@ -187,6 +188,10 @@ Node* CodeAssembler::HeapConstant(Handle<HeapObject> object) {
   return raw_assembler()->HeapConstant(object);
 }
 
+Node* CodeAssembler::CStringConstant(const char* str) {
+  return HeapConstant(factory()->NewStringFromAsciiChecked(str, TENURED));
+}
+
 Node* CodeAssembler::BooleanConstant(bool value) {
   return raw_assembler()->BooleanConstant(value);
 }
@@ -273,6 +278,11 @@ void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
 }
 
 void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
+
+void CodeAssembler::Unreachable() {
+  DebugBreak();
+  raw_assembler()->Unreachable();
+}
 
 void CodeAssembler::Comment(const char* format, ...) {
   if (!FLAG_code_comments) return;
@@ -450,6 +460,11 @@ Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
 Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
                                  Node* offset, Node* value) {
   return raw_assembler()->AtomicStore(rep, base, offset, value);
+}
+
+Node* CodeAssembler::AtomicExchange(MachineType type, Node* base, Node* offset,
+                                    Node* value) {
+  return raw_assembler()->AtomicExchange(type, base, offset, value);
 }
 
 Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
@@ -651,7 +666,7 @@ void CodeAssembler::GotoIf(Node* condition, Label* true_label) {
   Bind(&false_label);
 }
 
-void CodeAssembler::GotoUnless(Node* condition, Label* false_label) {
+void CodeAssembler::GotoIfNot(Node* condition, Label* false_label) {
   Label true_label(this);
   Branch(condition, &true_label, false_label);
   Bind(&true_label);

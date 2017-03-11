@@ -430,8 +430,9 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
   DCHECK(block_->ignore_completion_value());
 
   auto temp = *temp_var = CreateTempVar(current_value_);
-  auto iterator = CreateTempVar(factory()->NewGetIterator(
-      factory()->NewVariableProxy(temp), kNoSourcePosition));
+  auto iterator = CreateTempVar(
+      factory()->NewGetIterator(factory()->NewVariableProxy(temp),
+                                IteratorType::kNormal, kNoSourcePosition));
   auto done =
       CreateTempVar(factory()->NewBooleanLiteral(false, kNoSourcePosition));
   auto result = CreateTempVar();
@@ -517,7 +518,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
           factory()->NewExpressionStatement(
               parser_->BuildIteratorNextResult(
                   factory()->NewVariableProxy(iterator), result,
-                  kNoSourcePosition),
+                  IteratorType::kNormal, kNoSourcePosition),
               kNoSourcePosition),
           zone());
       next_block->statements()->Add(inner_if, zone());
@@ -588,7 +589,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // result = IteratorNext(iterator);
     Statement* get_next = factory()->NewExpressionStatement(
         parser_->BuildIteratorNextResult(factory()->NewVariableProxy(iterator),
-                                         result, nopos),
+                                         result, IteratorType::kNormal, nopos),
         nopos);
 
     // %AppendElement(array, result.value);
@@ -657,7 +658,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
       Token::NOT, factory()->NewVariableProxy(done), nopos);
 
   parser_->FinalizeIteratorUse(scope(), completion, closing_condition, iterator,
-                               block_, target);
+                               block_, target, IteratorType::kNormal);
   block_ = target;
 }
 

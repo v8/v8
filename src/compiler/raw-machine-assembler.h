@@ -175,6 +175,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->AtomicStore(rep), base, index, value);
   }
 
+  Node* AtomicExchange(MachineType rep, Node* base, Node* index, Node* value) {
+    return AddNode(machine()->AtomicExchange(rep), base, index, value);
+  }
+
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
     return AddNode(machine()->WordAnd(), a, b);
@@ -769,6 +773,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
   void DebugBreak();
+  void Unreachable();
   void Comment(const char* msg);
 
   // Add success / exception successor blocks and ends the current block ending

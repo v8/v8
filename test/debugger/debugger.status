@@ -26,10 +26,6 @@
 
   # Too slow in debug mode and on slow platforms.
   'regress/regress-2318': [PASS, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
-
-  # Issue 5950: Flaky with --optimize-for-size.
-  'debug/es6/generators-debug-scopes': [PASS, ['system == linux and arch == x64', SKIP]],
-  'debug/harmony/modules-debug-scopes1': [PASS, ['system == linux and arch == x64', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################

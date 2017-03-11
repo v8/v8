@@ -6,9 +6,21 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
+
+class ConversionBuiltinsAssembler : public CodeStubAssembler {
+ public:
+  explicit ConversionBuiltinsAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+ protected:
+  void Generate_NonPrimitiveToPrimitive(ToPrimitiveHint hint);
+
+  void Generate_OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
+};
 
 Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
@@ -23,193 +35,140 @@ Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   return Handle<Code>::null();
 }
 
-namespace {
-
 // ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
-void Generate_NonPrimitiveToPrimitive(CodeStubAssembler* assembler,
-                                      ToPrimitiveHint hint) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  typedef TypeConversionDescriptor Descriptor;
-
-  Node* input = assembler->Parameter(Descriptor::kArgument);
-  Node* context = assembler->Parameter(Descriptor::kContext);
+void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
+    ToPrimitiveHint hint) {
+  Node* input = Parameter(TypeConversionDescriptor::kArgument);
+  Node* context = Parameter(TypeConversionDescriptor::kContext);
 
   // Lookup the @@toPrimitive property on the {input}.
-  Callable callable = CodeFactory::GetProperty(assembler->isolate());
-  Node* to_primitive_symbol =
-      assembler->HeapConstant(assembler->factory()->to_primitive_symbol());
+  Callable callable = CodeFactory::GetProperty(isolate());
+  Node* to_primitive_symbol = HeapConstant(factory()->to_primitive_symbol());
   Node* exotic_to_prim =
-      assembler->CallStub(callable, context, input, to_primitive_symbol);
+      CallStub(callable, context, input, to_primitive_symbol);
 
   // Check if {exotic_to_prim} is neither null nor undefined.
-  Label ordinary_to_primitive(assembler);
-  assembler->GotoIf(
-      assembler->WordEqual(exotic_to_prim, assembler->NullConstant()),
-      &ordinary_to_primitive);
-  assembler->GotoIf(
-      assembler->WordEqual(exotic_to_prim, assembler->UndefinedConstant()),
-      &ordinary_to_primitive);
+  Label ordinary_to_primitive(this);
+  GotoIf(WordEqual(exotic_to_prim, NullConstant()), &ordinary_to_primitive);
+  GotoIf(WordEqual(exotic_to_prim, UndefinedConstant()),
+         &ordinary_to_primitive);
   {
     // Invoke the {exotic_to_prim} method on the {input} with a string
     // representation of the {hint}.
-    Callable callable = CodeFactory::Call(
-        assembler->isolate(), ConvertReceiverMode::kNotNullOrUndefined);
-    Node* hint_string = assembler->HeapConstant(
-        assembler->factory()->ToPrimitiveHintString(hint));
-    Node* result = assembler->CallJS(callable, context, exotic_to_prim, input,
-                                     hint_string);
+    Callable callable =
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined);
+    Node* hint_string = HeapConstant(factory()->ToPrimitiveHintString(hint));
+    Node* result =
+        CallJS(callable, context, exotic_to_prim, input, hint_string);
 
     // Verify that the {result} is actually a primitive.
-    Label if_resultisprimitive(assembler),
-        if_resultisnotprimitive(assembler, Label::kDeferred);
-    assembler->GotoIf(assembler->TaggedIsSmi(result), &if_resultisprimitive);
-    Node* result_instance_type = assembler->LoadInstanceType(result);
+    Label if_resultisprimitive(this),
+        if_resultisnotprimitive(this, Label::kDeferred);
+    GotoIf(TaggedIsSmi(result), &if_resultisprimitive);
+    Node* result_instance_type = LoadInstanceType(result);
     STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
-    assembler->Branch(assembler->Int32LessThanOrEqual(
-                          result_instance_type,
-                          assembler->Int32Constant(LAST_PRIMITIVE_TYPE)),
-                      &if_resultisprimitive, &if_resultisnotprimitive);
+    Branch(Int32LessThanOrEqual(result_instance_type,
+                                Int32Constant(LAST_PRIMITIVE_TYPE)),
+           &if_resultisprimitive, &if_resultisnotprimitive);
 
-    assembler->Bind(&if_resultisprimitive);
+    Bind(&if_resultisprimitive);
     {
       // Just return the {result}.
-      assembler->Return(result);
+      Return(result);
     }
 
-    assembler->Bind(&if_resultisnotprimitive);
+    Bind(&if_resultisnotprimitive);
     {
       // Somehow the @@toPrimitive method on {input} didn't yield a primitive.
-      assembler->TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive,
-                                 context);
+      TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive, context);
     }
   }
 
   // Convert using the OrdinaryToPrimitive algorithm instead.
-  assembler->Bind(&ordinary_to_primitive);
+  Bind(&ordinary_to_primitive);
   {
     Callable callable = CodeFactory::OrdinaryToPrimitive(
-        assembler->isolate(), (hint == ToPrimitiveHint::kString)
-                                  ? OrdinaryToPrimitiveHint::kString
-                                  : OrdinaryToPrimitiveHint::kNumber);
-    assembler->TailCallStub(callable, context, input);
+        isolate(), (hint == ToPrimitiveHint::kString)
+                       ? OrdinaryToPrimitiveHint::kString
+                       : OrdinaryToPrimitiveHint::kNumber);
+    TailCallStub(callable, context, input);
   }
 }
 
-}  // namespace
-
-void Builtins::Generate_NonPrimitiveToPrimitive_Default(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_NonPrimitiveToPrimitive(&assembler, ToPrimitiveHint::kDefault);
+TF_BUILTIN(NonPrimitiveToPrimitive_Default, ConversionBuiltinsAssembler) {
+  Generate_NonPrimitiveToPrimitive(ToPrimitiveHint::kDefault);
 }
 
-void Builtins::Generate_NonPrimitiveToPrimitive_Number(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_NonPrimitiveToPrimitive(&assembler, ToPrimitiveHint::kNumber);
+TF_BUILTIN(NonPrimitiveToPrimitive_Number, ConversionBuiltinsAssembler) {
+  Generate_NonPrimitiveToPrimitive(ToPrimitiveHint::kNumber);
 }
 
-void Builtins::Generate_NonPrimitiveToPrimitive_String(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_NonPrimitiveToPrimitive(&assembler, ToPrimitiveHint::kString);
+TF_BUILTIN(NonPrimitiveToPrimitive_String, ConversionBuiltinsAssembler) {
+  Generate_NonPrimitiveToPrimitive(ToPrimitiveHint::kString);
 }
 
-void Builtins::Generate_StringToNumber(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef TypeConversionDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(StringToNumber, CodeStubAssembler) {
+  Node* input = Parameter(TypeConversionDescriptor::kArgument);
+  Node* context = Parameter(TypeConversionDescriptor::kContext);
 
-  Node* input = assembler.Parameter(Descriptor::kArgument);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  assembler.Return(assembler.StringToNumber(context, input));
+  Return(StringToNumber(context, input));
 }
 
-void Builtins::Generate_ToName(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef TypeConversionDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(ToName, CodeStubAssembler) {
+  Node* input = Parameter(TypeConversionDescriptor::kArgument);
+  Node* context = Parameter(TypeConversionDescriptor::kContext);
 
-  Node* input = assembler.Parameter(Descriptor::kArgument);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  assembler.Return(assembler.ToName(context, input));
+  Return(ToName(context, input));
 }
 
-// static
-void Builtins::Generate_NonNumberToNumber(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef TypeConversionDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(NonNumberToNumber, CodeStubAssembler) {
+  Node* input = Parameter(TypeConversionDescriptor::kArgument);
+  Node* context = Parameter(TypeConversionDescriptor::kContext);
 
-  Node* input = assembler.Parameter(Descriptor::kArgument);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  assembler.Return(assembler.NonNumberToNumber(context, input));
+  Return(NonNumberToNumber(context, input));
 }
 
 // ES6 section 7.1.3 ToNumber ( argument )
-void Builtins::Generate_ToNumber(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef TypeConversionDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(ToNumber, CodeStubAssembler) {
+  Node* input = Parameter(TypeConversionDescriptor::kArgument);
+  Node* context = Parameter(TypeConversionDescriptor::kContext);
 
-  Node* input = assembler.Parameter(Descriptor::kArgument);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  assembler.Return(assembler.ToNumber(context, input));
+  Return(ToNumber(context, input));
 }
 
-void Builtins::Generate_ToString(compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  typedef TypeConversionDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(ToString, CodeStubAssembler) {
+  Node* input = Parameter(TypeConversionDescriptor::kArgument);
+  Node* context = Parameter(TypeConversionDescriptor::kContext);
 
-  Node* input = assembler.Parameter(Descriptor::kArgument);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Label is_number(this);
+  Label runtime(this);
 
-  Label is_number(&assembler);
-  Label runtime(&assembler);
+  GotoIf(TaggedIsSmi(input), &is_number);
 
-  assembler.GotoIf(assembler.TaggedIsSmi(input), &is_number);
+  Node* input_map = LoadMap(input);
+  Node* input_instance_type = LoadMapInstanceType(input_map);
 
-  Node* input_map = assembler.LoadMap(input);
-  Node* input_instance_type = assembler.LoadMapInstanceType(input_map);
+  Label not_string(this);
+  GotoIfNot(IsStringInstanceType(input_instance_type), &not_string);
+  Return(input);
 
-  Label not_string(&assembler);
-  assembler.GotoUnless(assembler.IsStringInstanceType(input_instance_type),
-                       &not_string);
-  assembler.Return(input);
+  Label not_heap_number(this);
 
-  Label not_heap_number(&assembler);
+  Bind(&not_string);
+  { Branch(IsHeapNumberMap(input_map), &is_number, &not_heap_number); }
 
-  assembler.Bind(&not_string);
+  Bind(&is_number);
+  { Return(NumberToString(context, input)); }
+
+  Bind(&not_heap_number);
   {
-    assembler.GotoUnless(assembler.IsHeapNumberMap(input_map),
-                         &not_heap_number);
-    assembler.Goto(&is_number);
+    GotoIf(Word32NotEqual(input_instance_type, Int32Constant(ODDBALL_TYPE)),
+           &runtime);
+    Return(LoadObjectField(input, Oddball::kToStringOffset));
   }
 
-  assembler.Bind(&is_number);
-  { assembler.Return(assembler.NumberToString(context, input)); }
-
-  assembler.Bind(&not_heap_number);
-  {
-    assembler.GotoIf(
-        assembler.Word32NotEqual(input_instance_type,
-                                 assembler.Int32Constant(ODDBALL_TYPE)),
-        &runtime);
-    assembler.Return(
-        assembler.LoadObjectField(input, Oddball::kToStringOffset));
-  }
-
-  assembler.Bind(&runtime);
-  {
-    assembler.Return(assembler.CallRuntime(Runtime::kToString, context, input));
-  }
+  Bind(&runtime);
+  { Return(CallRuntime(Runtime::kToString, context, input)); }
 }
 
 Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
@@ -223,284 +182,234 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   return Handle<Code>::null();
 }
 
-namespace {
-
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )
-void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
-                                  OrdinaryToPrimitiveHint hint) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
-  typedef TypeConversionDescriptor Descriptor;
+void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
+    OrdinaryToPrimitiveHint hint) {
+  Node* input = Parameter(TypeConversionDescriptor::kArgument);
+  Node* context = Parameter(TypeConversionDescriptor::kContext);
 
-  Node* input = assembler->Parameter(Descriptor::kArgument);
-  Node* context = assembler->Parameter(Descriptor::kContext);
-
-  Variable var_result(assembler, MachineRepresentation::kTagged);
-  Label return_result(assembler, &var_result);
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Label return_result(this, &var_result);
 
   Handle<String> method_names[2];
   switch (hint) {
     case OrdinaryToPrimitiveHint::kNumber:
-      method_names[0] = assembler->factory()->valueOf_string();
-      method_names[1] = assembler->factory()->toString_string();
+      method_names[0] = factory()->valueOf_string();
+      method_names[1] = factory()->toString_string();
       break;
     case OrdinaryToPrimitiveHint::kString:
-      method_names[0] = assembler->factory()->toString_string();
-      method_names[1] = assembler->factory()->valueOf_string();
+      method_names[0] = factory()->toString_string();
+      method_names[1] = factory()->valueOf_string();
       break;
   }
   for (Handle<String> name : method_names) {
     // Lookup the {name} on the {input}.
-    Callable callable = CodeFactory::GetProperty(assembler->isolate());
-    Node* name_string = assembler->HeapConstant(name);
-    Node* method = assembler->CallStub(callable, context, input, name_string);
+    Callable callable = CodeFactory::GetProperty(isolate());
+    Node* name_string = HeapConstant(name);
+    Node* method = CallStub(callable, context, input, name_string);
 
     // Check if the {method} is callable.
-    Label if_methodiscallable(assembler),
-        if_methodisnotcallable(assembler, Label::kDeferred);
-    assembler->GotoIf(assembler->TaggedIsSmi(method), &if_methodisnotcallable);
-    Node* method_map = assembler->LoadMap(method);
-    assembler->Branch(assembler->IsCallableMap(method_map),
-                      &if_methodiscallable, &if_methodisnotcallable);
+    Label if_methodiscallable(this),
+        if_methodisnotcallable(this, Label::kDeferred);
+    GotoIf(TaggedIsSmi(method), &if_methodisnotcallable);
+    Node* method_map = LoadMap(method);
+    Branch(IsCallableMap(method_map), &if_methodiscallable,
+           &if_methodisnotcallable);
 
-    assembler->Bind(&if_methodiscallable);
+    Bind(&if_methodiscallable);
     {
       // Call the {method} on the {input}.
       Callable callable = CodeFactory::Call(
-          assembler->isolate(), ConvertReceiverMode::kNotNullOrUndefined);
-      Node* result = assembler->CallJS(callable, context, method, input);
+          isolate(), ConvertReceiverMode::kNotNullOrUndefined);
+      Node* result = CallJS(callable, context, method, input);
       var_result.Bind(result);
 
       // Return the {result} if it is a primitive.
-      assembler->GotoIf(assembler->TaggedIsSmi(result), &return_result);
-      Node* result_instance_type = assembler->LoadInstanceType(result);
+      GotoIf(TaggedIsSmi(result), &return_result);
+      Node* result_instance_type = LoadInstanceType(result);
       STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
-      assembler->GotoIf(assembler->Int32LessThanOrEqual(
-                            result_instance_type,
-                            assembler->Int32Constant(LAST_PRIMITIVE_TYPE)),
-                        &return_result);
+      GotoIf(Int32LessThanOrEqual(result_instance_type,
+                                  Int32Constant(LAST_PRIMITIVE_TYPE)),
+             &return_result);
     }
 
     // Just continue with the next {name} if the {method} is not callable.
-    assembler->Goto(&if_methodisnotcallable);
-    assembler->Bind(&if_methodisnotcallable);
+    Goto(&if_methodisnotcallable);
+    Bind(&if_methodisnotcallable);
   }
 
-  assembler->TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive, context);
+  TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive, context);
 
-  assembler->Bind(&return_result);
-  assembler->Return(var_result.value());
+  Bind(&return_result);
+  Return(var_result.value());
 }
 
-}  // namespace
-
-void Builtins::Generate_OrdinaryToPrimitive_Number(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_OrdinaryToPrimitive(&assembler, OrdinaryToPrimitiveHint::kNumber);
+TF_BUILTIN(OrdinaryToPrimitive_Number, ConversionBuiltinsAssembler) {
+  Generate_OrdinaryToPrimitive(OrdinaryToPrimitiveHint::kNumber);
 }
 
-void Builtins::Generate_OrdinaryToPrimitive_String(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_OrdinaryToPrimitive(&assembler, OrdinaryToPrimitiveHint::kString);
+TF_BUILTIN(OrdinaryToPrimitive_String, ConversionBuiltinsAssembler) {
+  Generate_OrdinaryToPrimitive(OrdinaryToPrimitiveHint::kString);
 }
 
 // ES6 section 7.1.2 ToBoolean ( argument )
-void Builtins::Generate_ToBoolean(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef TypeConversionDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(ToBoolean, CodeStubAssembler) {
+  Node* value = Parameter(TypeConversionDescriptor::kArgument);
 
-  Node* value = assembler.Parameter(Descriptor::kArgument);
+  Label return_true(this), return_false(this);
+  BranchIfToBooleanIsTrue(value, &return_true, &return_false);
 
-  Label return_true(&assembler), return_false(&assembler);
-  assembler.BranchIfToBooleanIsTrue(value, &return_true, &return_false);
+  Bind(&return_true);
+  Return(BooleanConstant(true));
 
-  assembler.Bind(&return_true);
-  assembler.Return(assembler.BooleanConstant(true));
-
-  assembler.Bind(&return_false);
-  assembler.Return(assembler.BooleanConstant(false));
+  Bind(&return_false);
+  Return(BooleanConstant(false));
 }
 
-void Builtins::Generate_ToLength(compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
-  CodeStubAssembler assembler(state);
-
-  Node* context = assembler.Parameter(1);
+TF_BUILTIN(ToLength, CodeStubAssembler) {
+  Node* context = Parameter(1);
 
   // We might need to loop once for ToNumber conversion.
-  Variable var_len(&assembler, MachineRepresentation::kTagged);
-  Label loop(&assembler, &var_len);
-  var_len.Bind(assembler.Parameter(0));
-  assembler.Goto(&loop);
-  assembler.Bind(&loop);
+  Variable var_len(this, MachineRepresentation::kTagged, Parameter(0));
+  Label loop(this, &var_len);
+  Goto(&loop);
+  Bind(&loop);
   {
     // Shared entry points.
-    Label return_len(&assembler),
-        return_two53minus1(&assembler, Label::kDeferred),
-        return_zero(&assembler, Label::kDeferred);
+    Label return_len(this), return_two53minus1(this, Label::kDeferred),
+        return_zero(this, Label::kDeferred);
 
     // Load the current {len} value.
     Node* len = var_len.value();
 
     // Check if {len} is a positive Smi.
-    assembler.GotoIf(assembler.TaggedIsPositiveSmi(len), &return_len);
+    GotoIf(TaggedIsPositiveSmi(len), &return_len);
 
     // Check if {len} is a (negative) Smi.
-    assembler.GotoIf(assembler.TaggedIsSmi(len), &return_zero);
+    GotoIf(TaggedIsSmi(len), &return_zero);
 
     // Check if {len} is a HeapNumber.
-    Label if_lenisheapnumber(&assembler),
-        if_lenisnotheapnumber(&assembler, Label::kDeferred);
-    assembler.Branch(assembler.IsHeapNumberMap(assembler.LoadMap(len)),
-                     &if_lenisheapnumber, &if_lenisnotheapnumber);
+    Label if_lenisheapnumber(this),
+        if_lenisnotheapnumber(this, Label::kDeferred);
+    Branch(IsHeapNumberMap(LoadMap(len)), &if_lenisheapnumber,
+           &if_lenisnotheapnumber);
 
-    assembler.Bind(&if_lenisheapnumber);
+    Bind(&if_lenisheapnumber);
     {
       // Load the floating-point value of {len}.
-      Node* len_value = assembler.LoadHeapNumberValue(len);
+      Node* len_value = LoadHeapNumberValue(len);
 
       // Check if {len} is not greater than zero.
-      assembler.GotoUnless(assembler.Float64GreaterThan(
-                               len_value, assembler.Float64Constant(0.0)),
-                           &return_zero);
+      GotoIfNot(Float64GreaterThan(len_value, Float64Constant(0.0)),
+                &return_zero);
 
       // Check if {len} is greater than or equal to 2^53-1.
-      assembler.GotoIf(
-          assembler.Float64GreaterThanOrEqual(
-              len_value, assembler.Float64Constant(kMaxSafeInteger)),
-          &return_two53minus1);
+      GotoIf(Float64GreaterThanOrEqual(len_value,
+                                       Float64Constant(kMaxSafeInteger)),
+             &return_two53minus1);
 
       // Round the {len} towards -Infinity.
-      Node* value = assembler.Float64Floor(len_value);
-      Node* result = assembler.ChangeFloat64ToTagged(value);
-      assembler.Return(result);
+      Node* value = Float64Floor(len_value);
+      Node* result = ChangeFloat64ToTagged(value);
+      Return(result);
     }
 
-    assembler.Bind(&if_lenisnotheapnumber);
+    Bind(&if_lenisnotheapnumber);
     {
       // Need to convert {len} to a Number first.
-      Callable callable = CodeFactory::NonNumberToNumber(assembler.isolate());
-      var_len.Bind(assembler.CallStub(callable, context, len));
-      assembler.Goto(&loop);
+      Callable callable = CodeFactory::NonNumberToNumber(isolate());
+      var_len.Bind(CallStub(callable, context, len));
+      Goto(&loop);
     }
 
-    assembler.Bind(&return_len);
-    assembler.Return(var_len.value());
+    Bind(&return_len);
+    Return(var_len.value());
 
-    assembler.Bind(&return_two53minus1);
-    assembler.Return(assembler.NumberConstant(kMaxSafeInteger));
+    Bind(&return_two53minus1);
+    Return(NumberConstant(kMaxSafeInteger));
 
-    assembler.Bind(&return_zero);
-    assembler.Return(assembler.SmiConstant(Smi::kZero));
+    Bind(&return_zero);
+    Return(SmiConstant(Smi::kZero));
   }
 }
 
-void Builtins::Generate_ToInteger(compiler::CodeAssemblerState* state) {
-  typedef TypeConversionDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(ToInteger, CodeStubAssembler) {
+  Node* input = Parameter(TypeConversionDescriptor::kArgument);
+  Node* context = Parameter(TypeConversionDescriptor::kContext);
 
-  compiler::Node* input = assembler.Parameter(Descriptor::kArgument);
-  compiler::Node* context = assembler.Parameter(Descriptor::kContext);
-
-  assembler.Return(assembler.ToInteger(context, input));
+  Return(ToInteger(context, input));
 }
 
 // ES6 section 7.1.13 ToObject (argument)
-void Builtins::Generate_ToObject(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  typedef TypeConversionDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(ToObject, CodeStubAssembler) {
+  Label if_number(this, Label::kDeferred), if_notsmi(this), if_jsreceiver(this),
+      if_noconstructor(this, Label::kDeferred), if_wrapjsvalue(this);
 
-  Label if_number(&assembler, Label::kDeferred), if_notsmi(&assembler),
-      if_jsreceiver(&assembler), if_noconstructor(&assembler, Label::kDeferred),
-      if_wrapjsvalue(&assembler);
+  Node* object = Parameter(TypeConversionDescriptor::kArgument);
+  Node* context = Parameter(TypeConversionDescriptor::kContext);
 
-  Node* object = assembler.Parameter(Descriptor::kArgument);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  Variable constructor_function_index_var(&assembler,
+  Variable constructor_function_index_var(this,
                                           MachineType::PointerRepresentation());
 
-  assembler.Branch(assembler.TaggedIsSmi(object), &if_number, &if_notsmi);
+  Branch(TaggedIsSmi(object), &if_number, &if_notsmi);
 
-  assembler.Bind(&if_notsmi);
-  Node* map = assembler.LoadMap(object);
+  Bind(&if_notsmi);
+  Node* map = LoadMap(object);
 
-  assembler.GotoIf(assembler.IsHeapNumberMap(map), &if_number);
+  GotoIf(IsHeapNumberMap(map), &if_number);
 
-  Node* instance_type = assembler.LoadMapInstanceType(map);
-  assembler.GotoIf(assembler.IsJSReceiverInstanceType(instance_type),
-                   &if_jsreceiver);
+  Node* instance_type = LoadMapInstanceType(map);
+  GotoIf(IsJSReceiverInstanceType(instance_type), &if_jsreceiver);
 
-  Node* constructor_function_index =
-      assembler.LoadMapConstructorFunctionIndex(map);
-  assembler.GotoIf(assembler.WordEqual(constructor_function_index,
-                                       assembler.IntPtrConstant(
-                                           Map::kNoConstructorFunctionIndex)),
-                   &if_noconstructor);
+  Node* constructor_function_index = LoadMapConstructorFunctionIndex(map);
+  GotoIf(WordEqual(constructor_function_index,
+                   IntPtrConstant(Map::kNoConstructorFunctionIndex)),
+         &if_noconstructor);
   constructor_function_index_var.Bind(constructor_function_index);
-  assembler.Goto(&if_wrapjsvalue);
+  Goto(&if_wrapjsvalue);
 
-  assembler.Bind(&if_number);
+  Bind(&if_number);
   constructor_function_index_var.Bind(
-      assembler.IntPtrConstant(Context::NUMBER_FUNCTION_INDEX));
-  assembler.Goto(&if_wrapjsvalue);
+      IntPtrConstant(Context::NUMBER_FUNCTION_INDEX));
+  Goto(&if_wrapjsvalue);
 
-  assembler.Bind(&if_wrapjsvalue);
-  Node* native_context = assembler.LoadNativeContext(context);
-  Node* constructor = assembler.LoadFixedArrayElement(
+  Bind(&if_wrapjsvalue);
+  Node* native_context = LoadNativeContext(context);
+  Node* constructor = LoadFixedArrayElement(
       native_context, constructor_function_index_var.value());
-  Node* initial_map = assembler.LoadObjectField(
-      constructor, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* js_value = assembler.Allocate(JSValue::kSize);
-  assembler.StoreMapNoWriteBarrier(js_value, initial_map);
-  assembler.StoreObjectFieldRoot(js_value, JSValue::kPropertiesOffset,
-                                 Heap::kEmptyFixedArrayRootIndex);
-  assembler.StoreObjectFieldRoot(js_value, JSObject::kElementsOffset,
-                                 Heap::kEmptyFixedArrayRootIndex);
-  assembler.StoreObjectField(js_value, JSValue::kValueOffset, object);
-  assembler.Return(js_value);
+  Node* initial_map =
+      LoadObjectField(constructor, JSFunction::kPrototypeOrInitialMapOffset);
+  Node* js_value = Allocate(JSValue::kSize);
+  StoreMapNoWriteBarrier(js_value, initial_map);
+  StoreObjectFieldRoot(js_value, JSValue::kPropertiesOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  StoreObjectFieldRoot(js_value, JSObject::kElementsOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  StoreObjectField(js_value, JSValue::kValueOffset, object);
+  Return(js_value);
 
-  assembler.Bind(&if_noconstructor);
-  assembler.TailCallRuntime(
+  Bind(&if_noconstructor);
+  TailCallRuntime(
       Runtime::kThrowUndefinedOrNullToObject, context,
-      assembler.HeapConstant(
-          assembler.factory()->NewStringFromAsciiChecked("ToObject", TENURED)));
+      HeapConstant(factory()->NewStringFromAsciiChecked("ToObject", TENURED)));
 
-  assembler.Bind(&if_jsreceiver);
-  assembler.Return(object);
+  Bind(&if_jsreceiver);
+  Return(object);
 }
 
 // Deprecated ES5 [[Class]] internal property (used to implement %_ClassOf).
-void Builtins::Generate_ClassOf(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef TypeofDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(ClassOf, CodeStubAssembler) {
+  Node* object = Parameter(TypeofDescriptor::kObject);
 
-  Node* object = assembler.Parameter(Descriptor::kObject);
-
-  assembler.Return(assembler.ClassOf(object));
+  Return(ClassOf(object));
 }
 
 // ES6 section 12.5.5 typeof operator
-void Builtins::Generate_Typeof(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef TypeofDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(Typeof, CodeStubAssembler) {
+  Node* object = Parameter(TypeofDescriptor::kObject);
+  Node* context = Parameter(TypeofDescriptor::kContext);
 
-  Node* object = assembler.Parameter(Descriptor::kObject);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  assembler.Return(assembler.Typeof(object, context));
+  Return(Typeof(object, context));
 }
 
 }  // namespace internal

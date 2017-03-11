@@ -28,6 +28,8 @@ RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  HandleScope scope(isolate);
+  ReturnValueScope result_scope(isolate->debug());
   isolate->debug()->set_return_value(*value);
 
   // Get the top-most JavaScript frame.
@@ -40,6 +42,8 @@ RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  HandleScope scope(isolate);
+  ReturnValueScope result_scope(isolate->debug());
   isolate->debug()->set_return_value(*value);
 
   // Get the top-most JavaScript frame.
@@ -732,9 +736,12 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
 
   // Add the receiver (same as in function frame).
-  Handle<Object> receiver(it.frame()->receiver(), isolate);
+  Handle<Object> receiver = frame_inspector.summary().receiver();
   DCHECK(function->shared()->IsUserJavaScript());
-  DCHECK_IMPLIES(is_sloppy(shared->language_mode()), receiver->IsJSReceiver());
+  // Optimized frames only restore the receiver as best-effort (see
+  // OptimizedFrame::Summarize).
+  DCHECK_IMPLIES(!is_optimized && is_sloppy(shared->language_mode()),
+                 receiver->IsJSReceiver());
   details->set(kFrameDetailsReceiverIndex, *receiver);
 
   DCHECK_EQ(details_size, details_index);
@@ -1888,79 +1895,48 @@ RUNTIME_FUNCTION(Runtime_DebugIsActive) {
   return Smi::FromInt(isolate->debug()->is_active());
 }
 
-
 RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
   return NULL;
 }
 
-namespace {
-Handle<JSObject> CreateRangeObject(Isolate* isolate,
-                                   const Coverage::Range* range,
-                                   Handle<String> inner_string,
-                                   Handle<String> start_string,
-                                   Handle<String> end_string,
-                                   Handle<String> count_string) {
-  HandleScope scope(isolate);
-  Factory* factory = isolate->factory();
-  Handle<JSObject> range_obj = factory->NewJSObjectWithNullProto();
-  JSObject::AddProperty(range_obj, start_string,
-                        factory->NewNumberFromInt(range->start), NONE);
-  JSObject::AddProperty(range_obj, end_string,
-                        factory->NewNumberFromInt(range->end), NONE);
-  JSObject::AddProperty(range_obj, count_string,
-                        factory->NewNumberFromUint(range->count), NONE);
-  Handle<String> name = factory->anonymous_string();
-  if (!range->name.empty()) {
-    Vector<const uc16> name_vector(range->name.data(),
-                                   static_cast<int>(range->name.size()));
-    name = factory->NewStringFromTwoByte(name_vector).ToHandleChecked();
-  }
-  JSObject::AddProperty(range_obj, factory->name_string(), name, NONE);
-  if (!range->inner.empty()) {
-    int size = static_cast<int>(range->inner.size());
-    Handle<FixedArray> inner_array = factory->NewFixedArray(size);
-    for (int i = 0; i < size; i++) {
-      Handle<JSObject> element =
-          CreateRangeObject(isolate, &range->inner[i], inner_string,
-                            start_string, end_string, count_string);
-      inner_array->set(i, *element);
-    }
-    Handle<JSArray> inner =
-        factory->NewJSArrayWithElements(inner_array, FAST_ELEMENTS);
-    JSObject::AddProperty(range_obj, inner_string, inner, NONE);
-  }
-  return scope.CloseAndEscape(range_obj);
-}
-}  // anonymous namespace
-
 RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
   // Collect coverage data.
-  std::vector<Coverage::ScriptData> script_data = Coverage::Collect(isolate);
+  std::unique_ptr<Coverage> coverage(Coverage::Collect(isolate, false));
   Factory* factory = isolate->factory();
   // Turn the returned data structure into JavaScript.
   // Create an array of scripts.
-  int num_scripts = static_cast<int>(script_data.size());
+  int num_scripts = static_cast<int>(coverage->size());
   // Prepare property keys.
   Handle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
   Handle<String> script_string = factory->NewStringFromStaticChars("script");
-  Handle<String> toplevel_string =
-      factory->NewStringFromStaticChars("toplevel");
-  Handle<String> inner_string = factory->NewStringFromStaticChars("inner");
   Handle<String> start_string = factory->NewStringFromStaticChars("start");
   Handle<String> end_string = factory->NewStringFromStaticChars("end");
   Handle<String> count_string = factory->NewStringFromStaticChars("count");
   for (int i = 0; i < num_scripts; i++) {
-    const auto& data = script_data[i];
+    const auto& script_data = coverage->at(i);
     HandleScope inner_scope(isolate);
-    Handle<JSObject> script_obj = factory->NewJSObjectWithNullProto();
-    Handle<JSObject> wrapper = Script::GetWrapper(data.script);
+    int num_functions = static_cast<int>(script_data.functions.size());
+    Handle<FixedArray> functions_array = factory->NewFixedArray(num_functions);
+    for (int j = 0; j < num_functions; j++) {
+      const auto& function_data = script_data.functions[j];
+      Handle<JSObject> range_obj = factory->NewJSObjectWithNullProto();
+      JSObject::AddProperty(range_obj, start_string,
+                            factory->NewNumberFromInt(function_data.start),
+                            NONE);
+      JSObject::AddProperty(range_obj, end_string,
+                            factory->NewNumberFromInt(function_data.end), NONE);
+      JSObject::AddProperty(range_obj, count_string,
+                            factory->NewNumberFromUint(function_data.count),
+                            NONE);
+      functions_array->set(j, *range_obj);
+    }
+    Handle<JSArray> script_obj =
+        factory->NewJSArrayWithElements(functions_array, FAST_ELEMENTS);
+    Handle<JSObject> wrapper = Script::GetWrapper(script_data.script);
     JSObject::AddProperty(script_obj, script_string, wrapper, NONE);
-    Handle<JSObject> toplevel =
-        CreateRangeObject(isolate, &data.toplevel, inner_string, start_string,
-                          end_string, count_string);
-    JSObject::AddProperty(script_obj, toplevel_string, toplevel, NONE);
     scripts_array->set(i, *script_obj);
   }
   return *factory->NewJSArrayWithElements(scripts_array, FAST_ELEMENTS);
@@ -1969,11 +1945,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
-  if (enable) {
-    Coverage::EnablePrecise(isolate);
-  } else {
-    Coverage::DisablePrecise(isolate);
-  }
+  Coverage::TogglePrecise(isolate, enable);
   return isolate->heap()->undefined_value();
 }
 
