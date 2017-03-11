@@ -39,6 +39,8 @@ void DateCache::ResetDateCache() {
   local_offset_ms_ = kInvalidLocalOffsetInMs;
   ymd_valid_ = false;
   tz_cache_->Clear();
+  tz_name_ = nullptr;
+  dst_tz_name_ = nullptr;
 }
 
 
