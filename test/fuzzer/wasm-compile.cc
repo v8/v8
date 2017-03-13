@@ -57,8 +57,13 @@ class DataRange {
     if (size() == 0) {
       return T();
     } else {
+      // We want to support the case where we have less than sizeof(T) bytes
+      // remaining in the slice. For example, if we emit an i32 constant, it's
+      // okay if we don't have a full four bytes available, we'll just use what
+      // we have. We aren't concerned about endianness because we are generating
+      // arbitrary expressions.
       const size_t num_bytes = std::min(sizeof(T), size());
-      T result;
+      T result = T();
       memcpy(&result, data_, num_bytes);
       data_ += num_bytes;
       size_ -= num_bytes;
