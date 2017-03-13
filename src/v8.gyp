@@ -1279,7 +1279,10 @@
         'transitions-inl.h',
         'transitions.cc',
         'transitions.h',
+        'trap-handler/handler-outside.cc',
+        'trap-handler/handler-shared.cc',
         'trap-handler/trap-handler.h',
+        'trap-handler/trap-handler-internal.h',
         'type-hints.cc',
         'type-hints.h',
         'type-info.cc',
@@ -1671,6 +1674,9 @@
             'regexp/x64/regexp-macro-assembler-x64.h',
             'third_party/valgrind/valgrind.h',
           ],
+        }],
+        ['v8_target_arch=="x64" and OS=="linux"', {
+            'sources': ['trap-handler/handler-inside.cc']
         }],
         ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
           'sources': [  ### gcmole(arch:ppc) ###
