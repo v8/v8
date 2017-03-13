@@ -2766,9 +2766,6 @@ void Heap::CreateInitialObjects() {
   set_natives_source_cache(
       *factory->NewFixedArray(Natives::GetBuiltinsCount()));
 
-  set_experimental_natives_source_cache(
-      *factory->NewFixedArray(ExperimentalNatives::GetBuiltinsCount()));
-
   set_extra_natives_source_cache(
       *factory->NewFixedArray(ExtraNatives::GetBuiltinsCount()));
 

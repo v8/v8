@@ -18,12 +18,6 @@ FixedArray* NativesCollection<CORE>::GetSourceCache(Heap* heap) {
 
 
 template <>
-FixedArray* NativesCollection<EXPERIMENTAL>::GetSourceCache(Heap* heap) {
-  return heap->experimental_natives_source_cache();
-}
-
-
-template <>
 FixedArray* NativesCollection<EXTRAS>::GetSourceCache(Heap* heap) {
   return heap->extra_natives_source_cache();
 }

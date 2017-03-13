@@ -734,6 +734,15 @@ class Isolate;
   TFJ(AtomicsLoad, 2)                                                          \
   TFJ(AtomicsStore, 3)                                                         \
   TFJ(AtomicsExchange, 3)                                                      \
+  CPP(AtomicsCompareExchange)                                                  \
+  CPP(AtomicsAdd)                                                              \
+  CPP(AtomicsSub)                                                              \
+  CPP(AtomicsAnd)                                                              \
+  CPP(AtomicsOr)                                                               \
+  CPP(AtomicsXor)                                                              \
+  CPP(AtomicsIsLockFree)                                                       \
+  CPP(AtomicsWait)                                                             \
+  CPP(AtomicsWake)                                                             \
                                                                                \
   /* String */                                                                 \
   ASM(StringConstructor)                                                       \

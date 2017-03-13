@@ -530,8 +530,8 @@ TEST(SizeOfInitialHeap) {
   // requires no extra space.
   CompileRun("/*empty*/");
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
-    // Debug code can be very large, so skip CODE_SPACE if we are generating it.
-    if (i == CODE_SPACE && i::FLAG_debug_code) continue;
+    // Skip CODE_SPACE, since we had to generate code even for an empty script.
+    if (i == CODE_SPACE) continue;
     CHECK_EQ(page_count[i], isolate->heap()->paged_space(i)->CountTotalPages());
   }
 
