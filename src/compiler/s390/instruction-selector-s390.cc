@@ -1633,6 +1633,10 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   }
   VisitRR(this, kS390_Uint32ToUint64, node);
 }
+
+void InstructionSelector::VisitChangeFloat64ToUint64(Node* node) {
+  VisitRR(this, kS390_DoubleToUint64, node);
+}
 #endif
 
 void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
