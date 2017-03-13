@@ -1149,10 +1149,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
   Handle<Script> script = parse_info->script();
 
-  // TODO(svenpanne) Obscure place for this, perhaps move to OnBeforeCompile?
-  FixedArray* array = isolate->native_context()->embedder_data();
-  script->set_context_data(array->get(v8::Context::kDebugIdIndex));
-
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
@@ -1509,17 +1505,17 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   CompilationCache* compilation_cache = isolate->compilation_cache();
   InfoVectorPair eval_result = compilation_cache->LookupEval(
       source, outer_info, context, language_mode, position);
-  Handle<SharedFunctionInfo> shared_info;
-  if (eval_result.has_shared()) {
-    shared_info = Handle<SharedFunctionInfo>(eval_result.shared(), isolate);
-  }
   Handle<Cell> vector;
   if (eval_result.has_vector()) {
     vector = Handle<Cell>(eval_result.vector(), isolate);
   }
 
+  Handle<SharedFunctionInfo> shared_info;
   Handle<Script> script;
-  if (!eval_result.has_shared()) {
+  if (eval_result.has_shared()) {
+    shared_info = Handle<SharedFunctionInfo>(eval_result.shared(), isolate);
+    script = Handle<Script>(Script::cast(shared_info->script()), isolate);
+  } else {
     script = isolate->factory()->NewScript(source);
     if (isolate->NeedsSourcePositionsForProfiling()) {
       Script::InitLineEnds(script);
@@ -1690,13 +1686,14 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       if (CodeSerializer::Deserialize(isolate, *cached_data, source)
               .ToHandle(&inner_result)) {
         // Promote to per-isolate compilation cache.
-        // TODO(mvstanton): create a feedback vector array here.
         DCHECK(inner_result->is_compiled());
         Handle<FeedbackVector> feedback_vector =
             FeedbackVector::New(isolate, inner_result);
         vector = isolate->factory()->NewCell(feedback_vector);
         compilation_cache->PutScript(source, context, language_mode,
                                      inner_result, vector);
+        Handle<Script> script(Script::cast(inner_result->script()), isolate);
+        isolate->debug()->OnAfterCompile(script);
         return inner_result;
       }
       // Deserializer failed. Fall through to compile.
