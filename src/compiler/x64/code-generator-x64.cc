@@ -331,22 +331,27 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
     }                                    \
   } while (0)
 
-
-#define ASSEMBLE_BINOP(asm_instr)                              \
-  do {                                                         \
-    if (HasImmediateInput(instr, 1)) {                         \
-      if (instr->InputAt(0)->IsRegister()) {                   \
-        __ asm_instr(i.InputRegister(0), i.InputImmediate(1)); \
-      } else {                                                 \
-        __ asm_instr(i.InputOperand(0), i.InputImmediate(1));  \
-      }                                                        \
-    } else {                                                   \
-      if (instr->InputAt(1)->IsRegister()) {                   \
-        __ asm_instr(i.InputRegister(0), i.InputRegister(1));  \
-      } else {                                                 \
-        __ asm_instr(i.InputRegister(0), i.InputOperand(1));   \
-      }                                                        \
-    }                                                          \
+#define ASSEMBLE_BINOP(asm_instr)                                     \
+  do {                                                                \
+    if (AddressingModeField::decode(instr->opcode()) != kMode_None) { \
+      size_t index = 1;                                               \
+      Operand right = i.MemoryOperand(&index);                        \
+      __ asm_instr(i.InputRegister(0), right);                        \
+    } else {                                                          \
+      if (HasImmediateInput(instr, 1)) {                              \
+        if (instr->InputAt(0)->IsRegister()) {                        \
+          __ asm_instr(i.InputRegister(0), i.InputImmediate(1));      \
+        } else {                                                      \
+          __ asm_instr(i.InputOperand(0), i.InputImmediate(1));       \
+        }                                                             \
+      } else {                                                        \
+        if (instr->InputAt(1)->IsRegister()) {                        \
+          __ asm_instr(i.InputRegister(0), i.InputRegister(1));       \
+        } else {                                                      \
+          __ asm_instr(i.InputRegister(0), i.InputOperand(1));        \
+        }                                                             \
+      }                                                               \
+    }                                                                 \
   } while (0)
 
 #define ASSEMBLE_COMPARE(asm_instr)                                   \
