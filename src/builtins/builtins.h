@@ -275,6 +275,8 @@ class Isolate;
   CPP(ArraySplice)                                                             \
   CPP(ArrayUnshift)                                                            \
   TFJ(ArrayForEach, 2)                                                         \
+  TFJ(ArrayEvery, 2)                                                           \
+  TFJ(ArraySome, 2)                                                            \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0)                                                \
   /* ES6 #sec-array.prototype.keys */                                          \

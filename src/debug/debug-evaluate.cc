@@ -414,6 +414,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kArrayPrototypeEntries:
     case Builtins::kArrayPrototypeKeys:
     case Builtins::kArrayForEach:
+    case Builtins::kArrayEvery:
+    case Builtins::kArraySome:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:

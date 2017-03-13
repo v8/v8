@@ -415,67 +415,162 @@ BUILTIN(ArrayUnshift) {
   return Smi::FromInt(new_length);
 }
 
-class ForEachCodeStubAssembler : public CodeStubAssembler {
+class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
  public:
-  explicit ForEachCodeStubAssembler(compiler::CodeAssemblerState* state)
+  explicit ArrayBuiltinCodeStubAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void VisitOneElement(Node* context, Node* this_arg, Node* o, Node* k,
-                       Node* callbackfn) {
-    Comment("begin VisitOneElement");
+  typedef std::function<Node*(Node* o, Node* len)> BuiltinResultGenerator;
+  typedef std::function<void(Node* a, Node* pK, Node* value)>
+      CallResultProcessor;
 
-    // a. Let Pk be ToString(k).
-    Node* p_k = ToString(context, k);
+  void GenerateArrayIteratingBuiltinBody(
+      const char* name, Node* receiver, Node* callbackfn, Node* this_arg,
+      Node* context, const BuiltinResultGenerator& generator,
+      const CallResultProcessor& processor) {
+    Variable k(this, MachineRepresentation::kTagged, SmiConstant(0));
+    Label non_array(this), slow(this, &k), array_changes(this, &k);
 
-    // b. Let kPresent be HasProperty(O, Pk).
-    // c. ReturnIfAbrupt(kPresent).
-    Node* k_present =
-        CallStub(CodeFactory::HasProperty(isolate()), context, p_k, o);
+    // TODO(danno): Seriously? Do we really need to throw the exact error
+    // message on null and undefined so that the webkit tests pass?
+    Label throw_null_undefined_exception(this, Label::kDeferred);
+    GotoIf(WordEqual(receiver, NullConstant()),
+           &throw_null_undefined_exception);
+    GotoIf(WordEqual(receiver, UndefinedConstant()),
+           &throw_null_undefined_exception);
 
-    // d. If kPresent is true, then
-    Label not_present(this);
-    GotoIf(WordNotEqual(k_present, TrueConstant()), &not_present);
+    // By the book: taken directly from the ECMAScript 2015 specification
 
-    // i. Let kValue be Get(O, Pk).
-    // ii. ReturnIfAbrupt(kValue).
-    Node* k_value =
-        CallStub(CodeFactory::GetProperty(isolate()), context, o, k);
+    // 1. Let O be ToObject(this value).
+    // 2. ReturnIfAbrupt(O)
+    Node* o = CallStub(CodeFactory::ToObject(isolate()), context, receiver);
 
-    // iii. Let funcResult be Call(callbackfn, T, «kValue, k, O»).
-    // iv. ReturnIfAbrupt(funcResult).
-    CallJS(CodeFactory::Call(isolate()), context, callbackfn, this_arg, k_value,
-           k, o);
+    // 3. Let len be ToLength(Get(O, "length")).
+    // 4. ReturnIfAbrupt(len).
+    Variable merged_length(this, MachineRepresentation::kTagged);
+    Label has_length(this, &merged_length), not_js_array(this);
+    GotoIf(DoesntHaveInstanceType(o, JS_ARRAY_TYPE), &not_js_array);
+    merged_length.Bind(LoadJSArrayLength(o));
+    Goto(&has_length);
+    Bind(&not_js_array);
+    Node* len_property =
+        CallStub(CodeFactory::GetProperty(isolate()), context, o,
+                 HeapConstant(isolate()->factory()->length_string()));
+    merged_length.Bind(
+        CallStub(CodeFactory::ToLength(isolate()), context, len_property));
+    Goto(&has_length);
+    Bind(&has_length);
+    Node* len = merged_length.value();
 
-    Goto(&not_present);
-    Bind(&not_present);
-    Comment("end VisitOneElement");
+    // 5. If IsCallable(callbackfn) is false, throw a TypeError exception.
+    Label type_exception(this, Label::kDeferred);
+    Label done(this);
+    GotoIf(TaggedIsSmi(callbackfn), &type_exception);
+    Branch(IsCallableMap(LoadMap(callbackfn)), &done, &type_exception);
+
+    Bind(&throw_null_undefined_exception);
+    {
+      CallRuntime(
+          Runtime::kThrowTypeError, context,
+          SmiConstant(MessageTemplate::kCalledOnNullOrUndefined),
+          HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(name)));
+      Unreachable();
+    }
+
+    Bind(&type_exception);
+    {
+      CallRuntime(Runtime::kThrowTypeError, context,
+                  SmiConstant(MessageTemplate::kCalledNonCallable), callbackfn);
+      Unreachable();
+    }
+
+    Bind(&done);
+
+    Node* a = generator(o, len);
+
+    // 6. If thisArg was supplied, let T be thisArg; else let T be undefined.
+    // [Already done by the arguments adapter]
+
+    HandleFastElements(context, this_arg, o, len, callbackfn, processor, a, k,
+                       &slow);
+
+    // 7. Let k be 0.
+    // Already done above in initialization of the Variable k
+
+    Bind(&slow);
+    {
+      // 8. Repeat, while k < len
+      Label loop(this, &k);
+      Label after_loop(this);
+      Goto(&loop);
+      Bind(&loop);
+      {
+        GotoUnlessNumberLessThan(k.value(), len, &after_loop);
+
+        Label done_element(this);
+        // a. Let Pk be ToString(k).
+        Node* p_k = ToString(context, k.value());
+
+        // b. Let kPresent be HasProperty(O, Pk).
+        // c. ReturnIfAbrupt(kPresent).
+        Node* k_present =
+            CallStub(CodeFactory::HasProperty(isolate()), context, p_k, o);
+
+        // d. If kPresent is true, then
+        GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);
+
+        // i. Let kValue be Get(O, Pk).
+        // ii. ReturnIfAbrupt(kValue).
+        Node* k_value = CallStub(CodeFactory::GetProperty(isolate()), context,
+                                 o, k.value());
+
+        // iii. Let funcResult be Call(callbackfn, T, «kValue, k, O»).
+        // iv. ReturnIfAbrupt(funcResult).
+        Node* result = CallJS(CodeFactory::Call(isolate()), context, callbackfn,
+                              this_arg, k_value, k.value(), o);
+
+        processor(a, p_k, result);
+        Goto(&done_element);
+        Bind(&done_element);
+
+        // e. Increase k by 1.
+        k.Bind(NumberInc(k.value()));
+        Goto(&loop);
+      }
+      Bind(&after_loop);
+      Return(a);
+    }
   }
 
-  void VisitAllFastElements(Node* context, ElementsKind kind, Node* this_arg,
-                            Node* o, Node* len, Node* callbackfn,
-                            ParameterMode mode) {
-    Comment("begin VisitAllFastElements");
+ private:
+  Node* VisitAllFastElementsOneKind(Node* context, ElementsKind kind,
+                                    Node* this_arg, Node* o, Node* len,
+                                    Node* callbackfn,
+                                    const CallResultProcessor& processor,
+                                    Node* a, Label* array_changed,
+                                    ParameterMode mode) {
+    Comment("begin VisitAllFastElementsOneKind");
     Variable original_map(this, MachineRepresentation::kTagged);
     original_map.Bind(LoadMap(o));
     VariableList list({&original_map}, zone());
+    Node* last_index = nullptr;
     BuildFastLoop(
         list, IntPtrOrSmiConstant(0, mode), TaggedToParameter(len, mode),
-        [context, kind, this, o, &original_map, callbackfn, this_arg,
-         mode](Node* index) {
-          Label one_element_done(this), array_changed(this, Label::kDeferred),
-              hole_element(this);
+        [=, &original_map, &last_index](Node* index) {
+          last_index = index;
+          Label one_element_done(this), hole_element(this);
 
           // Check if o's map has changed during the callback. If so, we have to
           // fall back to the slower spec implementation for the rest of the
           // iteration.
           Node* o_map = LoadMap(o);
-          GotoIf(WordNotEqual(o_map, original_map.value()), &array_changed);
+          GotoIf(WordNotEqual(o_map, original_map.value()), array_changed);
 
           // Check if o's length has changed during the callback and if the
           // index is now out of range of the new length.
           Node* tagged_index = ParameterToTagged(index, mode);
           GotoIf(SmiGreaterThanOrEqual(tagged_index, LoadJSArrayLength(o)),
-                 &array_changed);
+                 array_changed);
 
           // Re-load the elements array. If may have been resized.
           Node* elements = LoadElements(o);
@@ -496,159 +591,129 @@ class ForEachCodeStubAssembler : public CodeStubAssembler {
                 LoadDoubleWithHoleCheck(elements, offset, &hole_element);
             value = AllocateHeapNumberWithValue(double_value);
           }
-          CallJS(CodeFactory::Call(isolate()), context, callbackfn, this_arg,
-                 value, tagged_index, o);
+          Node* result = CallJS(CodeFactory::Call(isolate()), context,
+                                callbackfn, this_arg, value, tagged_index, o);
+          processor(a, tagged_index, result);
           Goto(&one_element_done);
 
           Bind(&hole_element);
+          // Check if o's prototype change unexpectedly has elements after the
+          // callback in the case of a hole.
           BranchIfPrototypesHaveNoElements(o_map, &one_element_done,
-                                           &array_changed);
-
-          // O's changed during the forEach. Use the implementation precisely
-          // specified in the spec for the rest of the iteration, also making
-          // the failed original_map sticky in case of a subseuent change that
-          // goes back to the original map.
-          Bind(&array_changed);
-          VisitOneElement(context, this_arg, o, ParameterToTagged(index, mode),
-                          callbackfn);
-          original_map.Bind(UndefinedConstant());
-          Goto(&one_element_done);
+                                           array_changed);
 
           Bind(&one_element_done);
         },
         1, mode, IndexAdvanceMode::kPost);
-    Comment("end VisitAllFastElements");
+    Comment("end VisitAllFastElementsOneKind");
+    return last_index;
+  }
+
+  void HandleFastElements(Node* context, Node* this_arg, Node* o, Node* len,
+                          Node* callbackfn, CallResultProcessor processor,
+                          Node* a, Variable& k, Label* slow) {
+    Label switch_on_elements_kind(this), fast_elements(this),
+        maybe_double_elements(this), fast_double_elements(this);
+
+    Comment("begin HandleFastElements");
+    // Non-smi lengths must use the slow path.
+    GotoIf(TaggedIsNotSmi(len), slow);
+
+    BranchIfFastJSArray(o, context,
+                        CodeStubAssembler::FastJSArrayAccessMode::INBOUNDS_READ,
+                        &switch_on_elements_kind, slow);
+
+    Bind(&switch_on_elements_kind);
+    // Select by ElementsKind
+    Node* o_map = LoadMap(o);
+    Node* bit_field2 = LoadMapBitField2(o_map);
+    Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
+    Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
+           &maybe_double_elements, &fast_elements);
+
+    ParameterMode mode = OptimalParameterMode();
+    Bind(&fast_elements);
+    {
+      Label array_changed(this, Label::kDeferred);
+      Node* last_index = VisitAllFastElementsOneKind(
+          context, FAST_ELEMENTS, this_arg, o, len, callbackfn, processor, a,
+          &array_changed, mode);
+
+      // No exception, return success
+      Return(a);
+
+      Bind(&array_changed);
+      k.Bind(ParameterToTagged(last_index, mode));
+      Goto(slow);
+    }
+
+    Bind(&maybe_double_elements);
+    Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
+           slow, &fast_double_elements);
+
+    Bind(&fast_double_elements);
+    {
+      Label array_changed(this, Label::kDeferred);
+      Node* last_index = VisitAllFastElementsOneKind(
+          context, FAST_DOUBLE_ELEMENTS, this_arg, o, len, callbackfn,
+          processor, a, &array_changed, mode);
+
+      // No exception, return success
+      Return(a);
+
+      Bind(&array_changed);
+      k.Bind(ParameterToTagged(last_index, mode));
+      Goto(slow);
+    }
   }
 };
 
-TF_BUILTIN(ArrayForEach, ForEachCodeStubAssembler) {
-  Label non_array(this), examine_elements(this), fast_elements(this),
-      slow(this), maybe_double_elements(this), fast_double_elements(this);
-
+TF_BUILTIN(ArrayForEach, ArrayBuiltinCodeStubAssembler) {
   Node* receiver = Parameter(ForEachDescriptor::kReceiver);
   Node* callbackfn = Parameter(ForEachDescriptor::kCallback);
   Node* this_arg = Parameter(ForEachDescriptor::kThisArg);
   Node* context = Parameter(ForEachDescriptor::kContext);
 
-  // TODO(danno): Seriously? Do we really need to throw the exact error message
-  // on null and undefined so that the webkit tests pass?
-  Label throw_null_undefined_exception(this, Label::kDeferred);
-  GotoIf(WordEqual(receiver, NullConstant()), &throw_null_undefined_exception);
-  GotoIf(WordEqual(receiver, UndefinedConstant()),
-         &throw_null_undefined_exception);
+  GenerateArrayIteratingBuiltinBody(
+      "Array.prototype.forEach", receiver, callbackfn, this_arg, context,
+      [=](Node*, Node*) { return UndefinedConstant(); },
+      [](Node* a, Node* p_k, Node* value) {});
+}
 
-  // By the book: taken directly from the ECMAScript 2015 specification
+TF_BUILTIN(ArrayEvery, ArrayBuiltinCodeStubAssembler) {
+  Node* receiver = Parameter(ForEachDescriptor::kReceiver);
+  Node* callbackfn = Parameter(ForEachDescriptor::kCallback);
+  Node* this_arg = Parameter(ForEachDescriptor::kThisArg);
+  Node* context = Parameter(ForEachDescriptor::kContext);
 
-  // 1. Let O be ToObject(this value).
-  // 2. ReturnIfAbrupt(O)
-  Node* o = CallStub(CodeFactory::ToObject(isolate()), context, receiver);
+  GenerateArrayIteratingBuiltinBody(
+      "Array.prototype.every", receiver, callbackfn, this_arg, context,
+      [=](Node*, Node*) { return TrueConstant(); },
+      [=](Node* a, Node* p_k, Node* value) {
+        Label true_continue(this), return_false(this);
+        BranchIfToBooleanIsTrue(value, &true_continue, &return_false);
+        Bind(&return_false);
+        Return(FalseConstant());
+        Bind(&true_continue);
+      });
+}
 
-  // 3. Let len be ToLength(Get(O, "length")).
-  // 4. ReturnIfAbrupt(len).
-  Variable merged_length(this, MachineRepresentation::kTagged);
-  Label has_length(this, &merged_length), not_js_array(this);
-  GotoIf(DoesntHaveInstanceType(o, JS_ARRAY_TYPE), &not_js_array);
-  merged_length.Bind(LoadJSArrayLength(o));
-  Goto(&has_length);
-  Bind(&not_js_array);
-  Node* len_property =
-      CallStub(CodeFactory::GetProperty(isolate()), context, o,
-               HeapConstant(isolate()->factory()->length_string()));
-  merged_length.Bind(
-      CallStub(CodeFactory::ToLength(isolate()), context, len_property));
-  Goto(&has_length);
-  Bind(&has_length);
-  Node* len = merged_length.value();
+TF_BUILTIN(ArraySome, ArrayBuiltinCodeStubAssembler) {
+  Node* receiver = Parameter(ForEachDescriptor::kReceiver);
+  Node* callbackfn = Parameter(ForEachDescriptor::kCallback);
+  Node* this_arg = Parameter(ForEachDescriptor::kThisArg);
+  Node* context = Parameter(ForEachDescriptor::kContext);
 
-  // 5. If IsCallable(callbackfn) is false, throw a TypeError exception.
-  Label type_exception(this, Label::kDeferred);
-  GotoIf(TaggedIsSmi(callbackfn), &type_exception);
-  GotoIfNot(IsCallableMap(LoadMap(callbackfn)), &type_exception);
-
-  // 6. If thisArg was supplied, let T be thisArg; else let T be undefined.
-  // [Already done by the arguments adapter]
-
-  // Non-smi lengths must use the slow path.
-  GotoIf(TaggedIsNotSmi(len), &slow);
-
-  BranchIfFastJSArray(o, context,
-                      CodeStubAssembler::FastJSArrayAccessMode::INBOUNDS_READ,
-                      &examine_elements, &slow);
-
-  Bind(&examine_elements);
-
-  ParameterMode mode = OptimalParameterMode();
-
-  // Select by ElementsKind
-  Node* o_map = LoadMap(o);
-  Node* bit_field2 = LoadMapBitField2(o_map);
-  Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
-  Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
-         &maybe_double_elements, &fast_elements);
-
-  Bind(&fast_elements);
-  {
-    VisitAllFastElements(context, FAST_ELEMENTS, this_arg, o, len, callbackfn,
-                         mode);
-
-    // No exception, return success
-    Return(UndefinedConstant());
-  }
-
-  Bind(&maybe_double_elements);
-  Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
-         &slow, &fast_double_elements);
-
-  Bind(&fast_double_elements);
-  {
-    VisitAllFastElements(context, FAST_DOUBLE_ELEMENTS, this_arg, o, len,
-                         callbackfn, mode);
-
-    // No exception, return success
-    Return(UndefinedConstant());
-  }
-
-  Bind(&slow);
-  {
-    // By the book: taken from the ECMAScript 2015 specification (cont.)
-
-    // 7. Let k be 0.
-    Variable k(this, MachineRepresentation::kTagged);
-    k.Bind(SmiConstant(0));
-
-    // 8. Repeat, while k < len
-    Label loop(this, &k);
-    Label after_loop(this);
-    Goto(&loop);
-    Bind(&loop);
-    {
-      GotoUnlessNumberLessThan(k.value(), len, &after_loop);
-
-      VisitOneElement(context, this_arg, o, k.value(), callbackfn);
-
-      // e. Increase k by 1.
-      k.Bind(NumberInc(k.value()));
-      Goto(&loop);
-    }
-    Bind(&after_loop);
-    Return(UndefinedConstant());
-  }
-
-  Bind(&throw_null_undefined_exception);
-  {
-    CallRuntime(Runtime::kThrowTypeError, context,
-                SmiConstant(MessageTemplate::kCalledOnNullOrUndefined),
-                HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(
-                    "Array.prototype.forEach")));
-    Unreachable();
-  }
-
-  Bind(&type_exception);
-  {
-    CallRuntime(Runtime::kThrowTypeError, context,
-                SmiConstant(MessageTemplate::kCalledNonCallable), callbackfn);
-    Unreachable();
-  }
+  GenerateArrayIteratingBuiltinBody(
+      "Array.prototype.some", receiver, callbackfn, this_arg, context,
+      [=](Node*, Node*) { return FalseConstant(); },
+      [=](Node* a, Node* p_k, Node* value) {
+        Label false_continue(this), return_true(this);
+        BranchIfToBooleanIsTrue(value, &return_true, &false_continue);
+        Bind(&return_true);
+        Return(TrueConstant());
+        Bind(&false_continue);
+      });
 }
 
 BUILTIN(ArraySlice) {

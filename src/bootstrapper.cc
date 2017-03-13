@@ -3708,6 +3708,26 @@ void Genesis::InitializeGlobal_enable_fast_array_builtins() {
   Handle<JSFunction>::cast(for_each_function)
       ->shared()
       ->set_code(isolate->builtins()->builtin(Builtins::kArrayForEach));
+
+  LookupIterator it4(array_prototype,
+                     factory->NewStringFromAsciiChecked("every"),
+                     LookupIterator::OWN_SKIP_INTERCEPTOR);
+  Handle<Object> every_function = Object::GetProperty(&it4).ToHandleChecked();
+  Handle<JSFunction>::cast(every_function)
+      ->set_code(isolate->builtins()->builtin(Builtins::kArrayEvery));
+  Handle<JSFunction>::cast(every_function)
+      ->shared()
+      ->set_code(isolate->builtins()->builtin(Builtins::kArrayEvery));
+
+  LookupIterator it5(array_prototype,
+                     factory->NewStringFromAsciiChecked("some"),
+                     LookupIterator::OWN_SKIP_INTERCEPTOR);
+  Handle<Object> some_function = Object::GetProperty(&it5).ToHandleChecked();
+  Handle<JSFunction>::cast(some_function)
+      ->set_code(isolate->builtins()->builtin(Builtins::kArraySome));
+  Handle<JSFunction>::cast(some_function)
+      ->shared()
+      ->set_code(isolate->builtins()->builtin(Builtins::kArraySome));
 }
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
