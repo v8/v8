@@ -5194,7 +5194,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
 
   {
     BlockState cases_block_state(zone(), &scope_);
-    scope()->set_start_position(scanner()->location().beg_pos);
+    scope()->set_start_position(switch_pos);
     scope()->SetNonlinear();
     typename Types::Target target(this, switch_statement);
 
