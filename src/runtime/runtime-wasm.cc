@@ -12,6 +12,7 @@
 #include "src/factory.h"
 #include "src/frames-inl.h"
 #include "src/objects-inl.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/v8memory.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -166,6 +167,16 @@ RUNTIME_FUNCTION(Runtime_WasmGetCaughtExceptionValue) {
   // lives in Isolate::is_catchable_by_wasm(Object*).
   CHECK(exception->IsNumber());
   return exception;
+}
+
+RUNTIME_FUNCTION(Runtime_SetThreadInWasm) {
+  trap_handler::SetThreadInWasm();
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_ClearThreadInWasm) {
+  trap_handler::ClearThreadInWasm();
+  return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {

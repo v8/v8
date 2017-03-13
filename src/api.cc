@@ -69,6 +69,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/startup-data-util.h"
 #include "src/tracing/trace-event.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/unicode-inl.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -6154,6 +6155,16 @@ bool v8::V8::Initialize() {
   return true;
 }
 
+#if V8_OS_LINUX && V8_TARGET_ARCH_X64
+bool V8::TryHandleSignal(int signum, void* info, void* context) {
+  return v8::internal::trap_handler::TryHandleSignal(
+      signum, static_cast<siginfo_t*>(info), static_cast<ucontext_t*>(context));
+}
+#endif  // V8_OS_LINUX
+
+bool V8::RegisterDefaultSignalHandler() {
+  return v8::internal::trap_handler::RegisterDefaultSignalHandler();
+}
 
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
   base::RandomNumberGenerator::SetEntropySource(entropy_source);

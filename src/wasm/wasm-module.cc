@@ -14,6 +14,7 @@
 #include "src/property-descriptor.h"
 #include "src/simulator.h"
 #include "src/snapshot/snapshot.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/v8.h"
 
 #include "src/asmjs/asm-wasm-builder.h"
@@ -671,6 +672,18 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   DCHECK(compiled_module->has_weak_wasm_module());
   WeakCell* weak_wasm_module = compiled_module->ptr_to_weak_wasm_module();
 
+  if (trap_handler::UseTrapHandler()) {
+    Handle<FixedArray> code_table = compiled_module->code_table();
+    for (int i = 0; i < code_table->length(); ++i) {
+      Handle<Code> code = code_table->GetValueChecked<Code>(isolate, i);
+      int index = code->trap_handler_index()->value();
+      if (index >= 0) {
+        trap_handler::ReleaseHandlerData(index);
+        code->set_trap_handler_index(Smi::FromInt(-1));
+      }
+    }
+  }
+
   // weak_wasm_module may have been cleared, meaning the module object
   // was GC-ed. In that case, there won't be any new instances created,
   // and we don't need to maintain the links between instances.
@@ -1230,7 +1243,7 @@ class InstantiationHelper {
     //--------------------------------------------------------------------------
     // Unpack and notify signal handler of protected instructions.
     //--------------------------------------------------------------------------
-    if (FLAG_wasm_trap_handler) {
+    if (trap_handler::UseTrapHandler()) {
       for (int i = 0; i < code_table->length(); ++i) {
         Handle<Code> code = code_table->GetValueChecked<Code>(isolate_, i);
 
@@ -1251,8 +1264,15 @@ class InstantiationHelper {
               reinterpret_cast<intptr_t>(it.rinfo()->pc()) - base;
           unpacked.emplace_back(data);
         }
-        // TODO(eholk): Register the protected instruction information once the
-        // trap handler is in place.
+        if (unpacked.size() > 0) {
+          int size = code->CodeSize();
+          const int index =
+              RegisterHandlerData(reinterpret_cast<void*>(base), size,
+                                  unpacked.size(), &unpacked[0]);
+          // TODO(eholk): if index is negative, fail.
+          DCHECK(index >= 0);
+          code->set_trap_handler_index(Smi::FromInt(index));
+        }
       }
     }
 
@@ -2153,7 +2173,8 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   // TODO(gdeepti): Change the protection here instead of allocating a new
   // buffer before guard regions are turned on, see issue #5886.
   const bool enable_guard_regions =
-      !old_buffer.is_null() && old_buffer->has_guard_region();
+      (old_buffer.is_null() && EnableGuardRegions()) ||
+      (!old_buffer.is_null() && old_buffer->has_guard_region());
   Handle<JSArrayBuffer> new_buffer =
       NewArrayBuffer(isolate, new_size, enable_guard_regions);
   if (new_buffer.is_null()) return new_buffer;

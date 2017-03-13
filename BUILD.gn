@@ -1775,6 +1775,9 @@ v8_source_set("v8_base") {
     "src/transitions-inl.h",
     "src/transitions.cc",
     "src/transitions.h",
+    "src/trap-handler/handler-outside.cc",
+    "src/trap-handler/handler-shared.cc",
+    "src/trap-handler/trap-handler-internal.h",
     "src/trap-handler/trap-handler.h",
     "src/type-hints.cc",
     "src/type-hints.h",
@@ -1931,6 +1934,9 @@ v8_source_set("v8_base") {
       "src/x64/simulator-x64.h",
       "src/x64/sse-instr.h",
     ]
+    if (is_linux) {
+      sources += [ "src/trap-handler/handler-inside.cc" ]
+    }
   } else if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###
       "src/arm/assembler-arm-inl.h",

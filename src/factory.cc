@@ -1700,6 +1700,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->set_prologue_offset(prologue_offset);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(-1);
+  code->set_trap_handler_index(Smi::FromInt(-1));
 
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     code->set_marked_for_deoptimization(false);

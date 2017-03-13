@@ -23,6 +23,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/zone-stats.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-interpreter.h"
@@ -824,17 +825,29 @@ bool WasmRunnerBase::trap_happened;
   TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
-#define WASM_EXEC_TEST_WITH_TRAP(name)                                     \
-  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
-  TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
-  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
-  TEST(RunWasmCompiledWithoutTrapIf_##name) {                              \
-    bool trap_if = FLAG_wasm_trap_if;                                      \
-    FLAG_wasm_trap_if = false;                                             \
-    RunWasm_##name(kExecuteCompiled);                                      \
-    FLAG_wasm_trap_if = trap_if;                                           \
-  }                                                                        \
-  TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
+#define WASM_EXEC_TEST_WITH_TRAP(name)                   \
+  void RunWasm_##name(WasmExecutionMode execution_mode); \
+  TEST(RunWasmCompiled_##name) {                         \
+    if (trap_handler::UseTrapHandler()) {                \
+      return;                                            \
+    }                                                    \
+    RunWasm_##name(kExecuteCompiled);                    \
+  }                                                      \
+  TEST(RunWasmCompiledWithoutTrapIf_##name) {            \
+    if (trap_handler::UseTrapHandler()) {                \
+      return;                                            \
+    }                                                    \
+    bool trap_if = FLAG_wasm_trap_if;                    \
+    FLAG_wasm_trap_if = true;                            \
+    RunWasm_##name(kExecuteCompiled);                    \
+    FLAG_wasm_trap_if = trap_if;                         \
+  }                                                      \
+  TEST(RunWasmInterpreted_##name) {                      \
+    if (trap_handler::UseTrapHandler()) {                \
+      return;                                            \
+    }                                                    \
+    RunWasm_##name(kExecuteInterpreted);                 \
+  }                                                      \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
 #define WASM_EXEC_COMPILED_TEST(name)                                \

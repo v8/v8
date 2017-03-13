@@ -633,7 +633,9 @@ namespace internal {
   F(WasmThrow, 2, 1)                   \
   F(WasmGetCaughtExceptionValue, 1, 1) \
   F(WasmRunInterpreter, 3, 1)          \
-  F(WasmStackGuard, 0, 1)
+  F(WasmStackGuard, 0, 1)              \
+  F(SetThreadInWasm, 0, 1)             \
+  F(ClearThreadInWasm, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
