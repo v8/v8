@@ -24,6 +24,18 @@
       'mips64el.debug': 'default_debug_mips64el',
       'mips64el.optdebug': 'default_optdebug_mips64el',
       'mips64el.release': 'default_release_mips64el',
+      'ppc.debug': 'default_debug_ppc',
+      'ppc.optdebug': 'default_optdebug_ppc',
+      'ppc.release': 'default_release_ppc',
+      'ppc64.debug': 'default_debug_ppc64',
+      'ppc64.optdebug': 'default_optdebug_ppc64',
+      'ppc64.release': 'default_release_ppc64',
+      's390.debug': 'default_debug_s390',
+      's390.optdebug': 'default_optdebug_s390',
+      's390.release': 'default_release_s390',
+      's390x.debug': 'default_debug_s390x',
+      's390x.optdebug': 'default_optdebug_s390x',
+      's390x.release': 'default_release_s390x',
       'x64.debug': 'default_debug_x64',
       'x64.optdebug': 'default_optdebug_x64',
       'x64.release': 'default_release_x64',
@@ -234,6 +246,34 @@
       'gn', 'debug', 'simulate_mips64el', 'v8_enable_slow_dchecks'],
     'default_release_mips64el': [
       'gn', 'release', 'simulate_mips64el'],
+    'default_debug_ppc': [
+      'gn', 'debug', 'simulate_ppc', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+    'default_optdebug_ppc': [
+      'gn', 'debug', 'simulate_ppc', 'v8_enable_slow_dchecks'],
+    'default_release_ppc': [
+      'gn', 'release', 'simulate_ppc'],
+    'default_debug_ppc64': [
+      'gn', 'debug', 'simulate_ppc64', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+    'default_optdebug_ppc64': [
+      'gn', 'debug', 'simulate_ppc64', 'v8_enable_slow_dchecks'],
+    'default_release_ppc64': [
+      'gn', 'release', 'simulate_ppc64'],
+    'default_debug_s390': [
+      'gn', 'debug', 'simulate_s390', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+    'default_optdebug_s390': [
+      'gn', 'debug', 'simulate_s390', 'v8_enable_slow_dchecks'],
+    'default_release_s390': [
+      'gn', 'release', 'simulate_s390'],
+    'default_debug_s390x': [
+      'gn', 'debug', 'simulate_s390x', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+    'default_optdebug_s390x': [
+      'gn', 'debug', 'simulate_s390x', 'v8_enable_slow_dchecks'],
+    'default_release_s390x': [
+      'gn', 'release', 'simulate_s390x'],
     'default_debug_x64': [
       'gn', 'debug', 'x64', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_x64': [

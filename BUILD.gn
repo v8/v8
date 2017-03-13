@@ -104,6 +104,19 @@ declare_args() {
   v8_enable_gdbjit = ((v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
                        v8_current_cpu == "x87") && (is_linux || is_mac)) ||
                      (v8_current_cpu == "ppc64" && is_linux)
+
+  # Set v8_host_byteorder
+  v8_host_byteorder = "little"
+
+  # ppc64 can be either BE or LE
+  if (host_cpu == "ppc64") {
+    v8_host_byteorder =
+        exec_script("//tools/get_byteorder.py", [], "trim string")
+  }
+  if (host_cpu == "ppc" || host_cpu == "s390" || host_cpu == "s390x" ||
+      host_cpu == "mips" || host_cpu == "mips64") {
+    v8_host_byteorder = "big"
+  }
 }
 
 # Derived defaults.
@@ -361,8 +374,31 @@ config("toolchain") {
     if (v8_current_cpu == "s390x") {
       defines += [ "V8_TARGET_ARCH_S390X" ]
     }
-    if (host_cpu == "x64" || host_cpu == "x86") {
+    if (v8_host_byteorder == "little") {
       defines += [ "V8_TARGET_ARCH_S390_LE_SIM" ]
+    } else {
+      cflags += [ "-march=z196" ]
+    }
+  }
+  if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
+    defines += [ "V8_TARGET_ARCH_PPC" ]
+    if (v8_current_cpu == "ppc64") {
+      defines += [ "V8_TARGET_ARCH_PPC64" ]
+    }
+    if (v8_host_byteorder == "little") {
+      defines += [ "V8_TARGET_ARCH_PPC_LE" ]
+    } else if (v8_host_byteorder == "big") {
+      defines += [ "V8_TARGET_ARCH_PPC_BE" ]
+      if (current_os == "aix") {
+        cflags += [
+          # Work around AIX ceil, trunc and round oddities.
+          "-mcpu=power5+",
+          "-mfprnd",
+
+          # Work around AIX assembler popcntb bug.
+          "-mno-popcntb",
+        ]
+      }
     }
   }
   if (v8_current_cpu == "x86") {
