@@ -317,6 +317,7 @@ namespace internal {
   F(ThrowIncompatibleMethodReceiver, 2, 1)          \
   F(ThrowInvalidHint, 1, 1)                         \
   F(ThrowInvalidStringLength, 0, 1)                 \
+  F(ThrowInvalidTypedArrayAlignment, 2, 1)          \
   F(ThrowIteratorResultNotAnObject, 1, 1)           \
   F(ThrowSymbolIteratorInvalid, 0, 1)               \
   F(ThrowNonCallableInInstanceOfCheck, 0, 1)        \
@@ -796,6 +797,8 @@ class Runtime : public AllStatic {
   static void ArrayIdToTypeAndSize(int array_id, ExternalArrayType* type,
                                    ElementsKind* fixed_elements_kind,
                                    size_t* element_size);
+
+  static const char* ElementsKindToType(ElementsKind fixed_elements_kind);
 
   static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,
                                                     Handle<Object>);

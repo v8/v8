@@ -391,6 +391,13 @@ Node* CodeAssembler::ChangeInt32ToIntPtr(Node* value) {
   return value;
 }
 
+Node* CodeAssembler::ChangeFloat64ToUintPtr(Node* value) {
+  if (raw_assembler()->machine()->Is64()) {
+    return raw_assembler()->ChangeFloat64ToUint64(value);
+  }
+  return raw_assembler()->ChangeFloat64ToUint32(value);
+}
+
 Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
   if (raw_assembler()->machine()->Is64()) {
     return raw_assembler()->RoundInt64ToFloat64(value);

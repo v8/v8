@@ -808,6 +808,7 @@ class Isolate;
   TFJ(SymbolPrototypeValueOf, 0)                                               \
                                                                                \
   /* TypedArray */                                                             \
+  TFJ(TypedArrayConstructByArrayBuffer, 5)                                     \
   TFJ(TypedArrayConstructByLength, 3)                                          \
   TFJ(TypedArrayInitialize, 6)                                                 \
   CPP(TypedArrayPrototypeBuffer)                                               \

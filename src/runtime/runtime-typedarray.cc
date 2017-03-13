@@ -61,6 +61,20 @@ void Runtime::ArrayIdToTypeAndSize(int arrayId, ExternalArrayType* array_type,
   }
 }
 
+const char* Runtime::ElementsKindToType(ElementsKind fixed_elements_kind) {
+  switch (fixed_elements_kind) {
+#define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype, size) \
+  case TYPE##_ELEMENTS:                                   \
+    return #Type "Array";
+
+    TYPED_ARRAYS(ELEMENTS_KIND_CASE)
+#undef ELEMENTS_KIND_CASE
+
+    default:
+      UNREACHABLE();
+      return "";
+  }
+}
 
 RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
   HandleScope scope(isolate);

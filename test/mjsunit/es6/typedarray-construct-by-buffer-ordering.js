@@ -29,3 +29,32 @@
   }, RangeError);
   assertEquals(expected, actual);
 })();
+
+(function TestConstructByBufferToPrimitiveOrdering() {
+  var expected = ["offset.toPrimitive", "length.toPrimitive"];
+  var actual = [];
+  var offset = {};
+  offset[Symbol.toPrimitive] = function() {
+    actual.push("offset.toPrimitive");
+    return 1;
+  };
+
+  var length = {};
+  length[Symbol.toPrimitive] = function() {
+    actual.push("length.toPrimitive");
+    return 1;
+  };
+
+  var buffer = new ArrayBuffer(16);
+  var arr = new Uint8Array(buffer, offset, length);
+
+  assertEquals(expected, actual);
+  assertEquals(1, arr.length);
+})();
+
+(function TestByteOffsetToIndexThrowsForNegative() {
+  var buffer = new ArrayBuffer(16);
+  assertThrows(function() {
+    new Uint8Array(buffer, -1);
+  }, RangeError);
+})();

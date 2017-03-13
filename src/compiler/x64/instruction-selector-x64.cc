@@ -1332,6 +1332,7 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
   V(ChangeFloat64ToInt32, kSSEFloat64ToInt32)                            \
   V(ChangeFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(1))   \
   V(TruncateFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(0)) \
+  V(ChangeFloat64ToUint64, kSSEFloat64ToUint64)                          \
   V(TruncateFloat64ToFloat32, kSSEFloat64ToFloat32)                      \
   V(ChangeFloat32ToFloat64, kSSEFloat32ToFloat64)                        \
   V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)                          \

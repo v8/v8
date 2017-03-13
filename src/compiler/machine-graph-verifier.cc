@@ -57,7 +57,6 @@ class MachineRepresentationInferrer {
       case IrOpcode::kTryTruncateFloat32ToInt64:
       case IrOpcode::kTryTruncateFloat64ToInt64:
       case IrOpcode::kTryTruncateFloat32ToUint64:
-      case IrOpcode::kTryTruncateFloat64ToUint64:
         CHECK_LE(index, static_cast<size_t>(1));
         return index == 0 ? MachineRepresentation::kWord64
                           : MachineRepresentation::kBit;
@@ -234,6 +233,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kInt64Constant:
           case IrOpcode::kRelocatableInt64Constant:
           case IrOpcode::kBitcastFloat64ToInt64:
+          case IrOpcode::kChangeFloat64ToUint64:
             MACHINE_BINOP_64_LIST(LABEL) {
               representation_vector_[node->id()] =
                   MachineRepresentation::kWord64;
@@ -335,6 +335,7 @@ class MachineRepresentationChecker {
           case IrOpcode::kFloat64ExtractLowWord32:
           case IrOpcode::kFloat64ExtractHighWord32:
           case IrOpcode::kBitcastFloat64ToInt64:
+          case IrOpcode::kTryTruncateFloat64ToInt64:
             CheckValueInputForFloat64Op(node, 0);
             break;
           case IrOpcode::kWord64Equal:
@@ -427,6 +428,7 @@ class MachineRepresentationChecker {
             }
             break;
           case IrOpcode::kFloat64SilenceNaN:
+          case IrOpcode::kChangeFloat64ToUint64:
             MACHINE_FLOAT64_UNOP_LIST(LABEL) {
               CheckValueInputForFloat64Op(node, 0);
             }

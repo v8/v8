@@ -68,6 +68,8 @@ enum ContextLookupFlags {
   V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property) \
   V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)               \
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                 \
+  V(TYPED_ARRAY_CONSTRUCT_BY_ARRAY_BUFFER_INDEX, JSFunction,            \
+    typed_array_construct_by_array_buffer)                              \
   V(TYPED_ARRAY_CONSTRUCT_BY_LENGTH_INDEX, JSFunction,                  \
     typed_array_construct_by_length)                                    \
   V(TYPED_ARRAY_INITIALIZE_INDEX, JSFunction, typed_array_initialize)   \

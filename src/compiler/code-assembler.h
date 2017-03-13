@@ -153,6 +153,7 @@ typedef std::function<void()> CodeAssemblerCallback;
   V(TruncateInt64ToInt32)               \
   V(ChangeFloat32ToFloat64)             \
   V(ChangeFloat64ToUint32)              \
+  V(ChangeFloat64ToUint64)              \
   V(ChangeInt32ToFloat64)               \
   V(ChangeInt32ToInt64)                 \
   V(ChangeUint32ToFloat64)              \
@@ -296,6 +297,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name) Node* name(Node* a);
   CODE_ASSEMBLER_UNARY_OP_LIST(DECLARE_CODE_ASSEMBLER_UNARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_UNARY_OP
+
+  // Changes a double to an inptr_t for pointer arithmetic outside of Smi range.
+  // Assumes that the double can be exactly represented as an int.
+  Node* ChangeFloat64ToUintPtr(Node* value);
 
   // Changes an intptr_t to a double, e.g. for storing an element index
   // outside Smi range in a HeapNumber. Lossless on 32-bit,

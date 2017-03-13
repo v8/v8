@@ -120,6 +120,28 @@ RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
 
 #undef THROW_ERROR
 
+RUNTIME_FUNCTION(Runtime_ThrowInvalidTypedArrayAlignment) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Map, map, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, problem_string, 1);
+
+  ElementsKind kind = map->elements_kind();
+
+  Handle<String> type = isolate->factory()->NewStringFromAsciiChecked(
+      Runtime::ElementsKindToType(kind));
+
+  ExternalArrayType external_type =
+      isolate->factory()->GetArrayTypeFromElementsKind(kind);
+  size_t size = isolate->factory()->GetExternalArrayElementSize(external_type);
+  Handle<Object> element_size =
+      handle(Smi::FromInt(static_cast<int>(size)), isolate);
+
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewRangeError(MessageTemplate::kInvalidTypedArrayAlignment,
+                             problem_string, type, element_size));
+}
+
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
