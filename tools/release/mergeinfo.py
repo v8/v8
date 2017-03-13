@@ -25,10 +25,9 @@ def describe_commit(git_working_dir, hash_to_search, one_line=False):
 
 
 def get_followup_commits(git_working_dir, hash_to_search):
-  return git_execute(git_working_dir, ['log',
-                                       '--grep=' + hash_to_search,
-                                       GIT_OPTION_HASH_ONLY,
-                                       'master']).strip().splitlines()
+  cmd = ['log', '--grep=' + hash_to_search, GIT_OPTION_HASH_ONLY,
+         'remotes/origin/master'];
+  return git_execute(git_working_dir, cmd).strip().splitlines()
 
 def get_merge_commits(git_working_dir, hash_to_search):
   merges = get_related_commits_not_on_master(git_working_dir, hash_to_search)
@@ -45,7 +44,7 @@ def get_related_commits_not_on_master(git_working_dir, grep_command):
                                           GIT_OPTION_ONELINE,
                                           '--decorate',
                                           '--not',
-                                          'master',
+                                          'remotes/origin/master',
                                           GIT_OPTION_HASH_ONLY])
   return commits.splitlines()
 

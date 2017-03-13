@@ -30,11 +30,18 @@ class TestMergeInfo(unittest.TestCase):
       raise Exception(err)
     return output
 
+  def _update_origin(self):
+    # Fetch from origin to get/update the origin/master branch
+    self._execute_git(['fetch', 'origin'])
+
   def setUp(self):
     if path.exists(self.base_dir):
       shutil.rmtree(self.base_dir)
 
     check_call(["git", "init", self.base_dir])
+
+    # Add fake remote with name 'origin'
+    self._execute_git(['remote', 'add', 'origin', self.base_dir])
 
     # Initial commit
     message = '''Initial commit'''
@@ -68,6 +75,7 @@ class TestMergeInfo(unittest.TestCase):
 
   def _make_empty_commit(self, message):
     self._execute_git(["commit", "--allow-empty", "-m", message])
+    self._update_origin()
     return self._get_commits()[-1]
 
   def testCanDescribeCommit(self):
