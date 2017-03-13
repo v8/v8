@@ -2909,7 +2909,6 @@ void SimplifiedLowering::DoJSToNumberTruncatesToFloat64(
   Node* frame_state = node->InputAt(2);
   Node* effect = node->InputAt(3);
   Node* control = node->InputAt(4);
-  Node* throwing;
 
   Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), value);
   Node* branch0 =
@@ -2927,10 +2926,18 @@ void SimplifiedLowering::DoJSToNumberTruncatesToFloat64(
   Node* efalse0 = effect;
   Node* vfalse0;
   {
-    throwing = vfalse0 = efalse0 =
+    vfalse0 = efalse0 = if_false0 =
         graph()->NewNode(ToNumberOperator(), ToNumberCode(), value, context,
                          frame_state, efalse0, if_false0);
-    if_false0 = graph()->NewNode(common()->IfSuccess(), throwing);
+
+    // Update potential {IfException} uses of {node} to point to the above
+    // {ToNumber} stub call node instead.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      NodeProperties::ReplaceControlInput(on_exception, vfalse0);
+      NodeProperties::ReplaceEffectInput(on_exception, efalse0);
+      if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
+    }
 
     Node* check1 = graph()->NewNode(simplified()->ObjectIsSmi(), vfalse0);
     Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
@@ -2972,10 +2979,9 @@ void SimplifiedLowering::DoJSToNumberTruncatesToFloat64(
       if (edge.from()->opcode() == IrOpcode::kIfSuccess) {
         edge.from()->ReplaceUses(control);
         edge.from()->Kill();
-      } else if (edge.from()->opcode() == IrOpcode::kIfException) {
-        edge.UpdateTo(throwing);
       } else {
-        UNREACHABLE();
+        DCHECK(edge.from()->opcode() != IrOpcode::kIfException);
+        edge.UpdateTo(control);
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
       edge.UpdateTo(effect);
@@ -2993,7 +2999,6 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
   Node* frame_state = node->InputAt(2);
   Node* effect = node->InputAt(3);
   Node* control = node->InputAt(4);
-  Node* throwing;
 
   Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), value);
   Node* branch0 =
@@ -3008,10 +3013,18 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
   Node* efalse0 = effect;
   Node* vfalse0;
   {
-    throwing = vfalse0 = efalse0 =
+    vfalse0 = efalse0 = if_false0 =
         graph()->NewNode(ToNumberOperator(), ToNumberCode(), value, context,
                          frame_state, efalse0, if_false0);
-    if_false0 = graph()->NewNode(common()->IfSuccess(), throwing);
+
+    // Update potential {IfException} uses of {node} to point to the above
+    // {ToNumber} stub call node instead.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      NodeProperties::ReplaceControlInput(on_exception, vfalse0);
+      NodeProperties::ReplaceEffectInput(on_exception, efalse0);
+      if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
+    }
 
     Node* check1 = graph()->NewNode(simplified()->ObjectIsSmi(), vfalse0);
     Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
@@ -3049,10 +3062,9 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
       if (edge.from()->opcode() == IrOpcode::kIfSuccess) {
         edge.from()->ReplaceUses(control);
         edge.from()->Kill();
-      } else if (edge.from()->opcode() == IrOpcode::kIfException) {
-        edge.UpdateTo(throwing);
       } else {
-        UNREACHABLE();
+        DCHECK(edge.from()->opcode() != IrOpcode::kIfException);
+        edge.UpdateTo(control);
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
       edge.UpdateTo(effect);

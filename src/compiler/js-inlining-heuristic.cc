@@ -226,26 +226,21 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
     // to the known {target}); the last input is the control dependency.
     inputs[0] = target;
     inputs[input_count - 1] = if_successes[i];
-    calls[i] = graph()->NewNode(node->op(), input_count, inputs);
-    if_successes[i] = graph()->NewNode(common()->IfSuccess(), calls[i]);
+    calls[i] = if_successes[i] =
+        graph()->NewNode(node->op(), input_count, inputs);
   }
 
   // Check if we have an exception projection for the call {node}.
   Node* if_exception = nullptr;
-  for (Edge const edge : node->use_edges()) {
-    if (NodeProperties::IsControlEdge(edge) &&
-        edge.from()->opcode() == IrOpcode::kIfException) {
-      if_exception = edge.from();
-      break;
-    }
-  }
-  if (if_exception != nullptr) {
-    // Morph the {if_exception} projection into a join.
+  if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
     Node* if_exceptions[kMaxCallPolymorphism + 1];
     for (int i = 0; i < num_calls; ++i) {
+      if_successes[i] = graph()->NewNode(common()->IfSuccess(), calls[i]);
       if_exceptions[i] =
           graph()->NewNode(common()->IfException(), calls[i], calls[i]);
     }
+
+    // Morph the {if_exception} projection into a join.
     Node* exception_control =
         graph()->NewNode(common()->Merge(num_calls), num_calls, if_exceptions);
     if_exceptions[num_calls] = exception_control;
@@ -258,7 +253,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
                      exception_control);
   }
 
-  // Morph the call site into the dispatched call sites.
+  // Morph the original call site into a join of the dispatched call sites.
   Node* control =
       graph()->NewNode(common()->Merge(num_calls), num_calls, if_successes);
   calls[num_calls] = control;

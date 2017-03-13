@@ -152,27 +152,45 @@ void Verifier::Visitor::Check(Node* node) {
                   "control");
     }
 
-    // Verify that nodes that can throw only have IfSuccess/IfException control
-    // uses.
+    // Verify that nodes that can throw either have both IfSuccess/IfException
+    // projections as the only control uses or no projections at all.
     if (!node->op()->HasProperty(Operator::kNoThrow)) {
-      int count_success = 0, count_exception = 0;
+      Node* discovered_if_exception = nullptr;
+      Node* discovered_if_success = nullptr;
+      int total_number_of_control_uses = 0;
       for (Edge edge : node->use_edges()) {
         if (!NodeProperties::IsControlEdge(edge)) {
           continue;
         }
+        total_number_of_control_uses++;
         Node* control_use = edge.from();
-        if (control_use->opcode() != IrOpcode::kIfSuccess &&
-            control_use->opcode() != IrOpcode::kIfException) {
-          V8_Fatal(__FILE__, __LINE__,
-                   "#%d:%s should be followed by IfSuccess/IfException, but is "
-                   "followed by #%d:%s",
-                   node->id(), node->op()->mnemonic(), control_use->id(),
-                   control_use->op()->mnemonic());
+        if (control_use->opcode() == IrOpcode::kIfSuccess) {
+          CHECK_NULL(discovered_if_success);  // Only one allowed.
+          discovered_if_success = control_use;
         }
-        if (control_use->opcode() == IrOpcode::kIfSuccess) ++count_success;
-        if (control_use->opcode() == IrOpcode::kIfException) ++count_exception;
-        CHECK_LE(count_success, 1);
-        CHECK_LE(count_exception, 1);
+        if (control_use->opcode() == IrOpcode::kIfException) {
+          CHECK_NULL(discovered_if_exception);  // Only one allowed.
+          discovered_if_exception = control_use;
+        }
+      }
+      if (discovered_if_success && !discovered_if_exception) {
+        V8_Fatal(__FILE__, __LINE__,
+                 "#%d:%s should be followed by IfSuccess/IfException, but is "
+                 "only followed by single #%d:%s",
+                 node->id(), node->op()->mnemonic(),
+                 discovered_if_success->id(),
+                 discovered_if_success->op()->mnemonic());
+      }
+      if (discovered_if_exception && !discovered_if_success) {
+        V8_Fatal(__FILE__, __LINE__,
+                 "#%d:%s should be followed by IfSuccess/IfException, but is "
+                 "only followed by single #%d:%s",
+                 node->id(), node->op()->mnemonic(),
+                 discovered_if_exception->id(),
+                 discovered_if_exception->op()->mnemonic());
+      }
+      if (discovered_if_success || discovered_if_exception) {
+        CHECK_EQ(2, total_number_of_control_uses);
       }
     }
   }

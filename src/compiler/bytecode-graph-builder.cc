@@ -2425,7 +2425,7 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       set_environment(success_env);
     }
     // Add implicit success continuation for throwing nodes.
-    if (!result->op()->HasProperty(Operator::kNoThrow)) {
+    if (!result->op()->HasProperty(Operator::kNoThrow) && inside_handler) {
       const Operator* if_success = common()->IfSuccess();
       Node* on_success = graph()->NewNode(if_success, result);
       environment()->UpdateControlDependency(on_success);

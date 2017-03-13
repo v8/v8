@@ -484,22 +484,6 @@ void EffectControlLinearizer::Run() {
   }
 }
 
-namespace {
-
-void TryScheduleCallIfSuccess(Node* node, Node** control) {
-  // Schedule the call's IfSuccess node if there is no exception use.
-  if (!NodeProperties::IsExceptionalCall(node)) {
-    for (Edge edge : node->use_edges()) {
-      if (NodeProperties::IsControlEdge(edge) &&
-          edge.from()->opcode() == IrOpcode::kIfSuccess) {
-        *control = edge.from();
-      }
-    }
-  }
-}
-
-}  // namespace
-
 void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
                                           Node** effect, Node** control) {
   SourcePositionTable::Scope scope(source_positions_,
@@ -583,13 +567,9 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
   for (int i = 0; i < node->op()->ControlInputCount(); i++) {
     NodeProperties::ReplaceControlInput(node, *control, i);
   }
-  // Update the current control and wire IfSuccess right after calls.
+  // Update the current control.
   if (node->op()->ControlOutputCount() > 0) {
     *control = node;
-    if (node->opcode() == IrOpcode::kCall) {
-      // Schedule the call's IfSuccess node (if there is no exception use).
-      TryScheduleCallIfSuccess(node, control);
-    }
   }
 }
 

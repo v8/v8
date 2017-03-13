@@ -2525,65 +2525,6 @@ Node* WasmGraphBuilder::BuildChangeTaggedToFloat64(Node* value) {
   MachineOperatorBuilder* machine = jsgraph()->machine();
   CommonOperatorBuilder* common = jsgraph()->common();
 
-  if (CanCover(value, IrOpcode::kJSToNumber)) {
-    // ChangeTaggedToFloat64(JSToNumber(x)) =>
-    //   if IsSmi(x) then ChangeSmiToFloat64(x)
-    //   else let y = JSToNumber(x) in
-    //     if IsSmi(y) then ChangeSmiToFloat64(y)
-    //     else BuildLoadHeapNumberValue(y)
-    Node* object = NodeProperties::GetValueInput(value, 0);
-    Node* context = NodeProperties::GetContextInput(value);
-    Node* frame_state = NodeProperties::GetFrameStateInput(value);
-    Node* effect = NodeProperties::GetEffectInput(value);
-    Node* control = NodeProperties::GetControlInput(value);
-
-    const Operator* merge_op = common->Merge(2);
-    const Operator* ephi_op = common->EffectPhi(2);
-    const Operator* phi_op = common->Phi(MachineRepresentation::kFloat64, 2);
-
-    Node* check1 = BuildTestNotSmi(object);
-    Node* branch1 =
-        graph()->NewNode(common->Branch(BranchHint::kFalse), check1, control);
-
-    Node* if_true1 = graph()->NewNode(common->IfTrue(), branch1);
-    Node* vtrue1 = graph()->NewNode(value->op(), object, context, frame_state,
-                                    effect, if_true1);
-    Node* etrue1 = vtrue1;
-
-    Node* check2 = BuildTestNotSmi(vtrue1);
-    Node* branch2 = graph()->NewNode(common->Branch(), check2, if_true1);
-
-    Node* if_true2 = graph()->NewNode(common->IfTrue(), branch2);
-    Node* vtrue2 = BuildLoadHeapNumberValue(vtrue1, if_true2);
-
-    Node* if_false2 = graph()->NewNode(common->IfFalse(), branch2);
-    Node* vfalse2 = BuildChangeSmiToFloat64(vtrue1);
-
-    if_true1 = graph()->NewNode(merge_op, if_true2, if_false2);
-    vtrue1 = graph()->NewNode(phi_op, vtrue2, vfalse2, if_true1);
-
-    Node* if_false1 = graph()->NewNode(common->IfFalse(), branch1);
-    Node* vfalse1 = BuildChangeSmiToFloat64(object);
-    Node* efalse1 = effect;
-
-    Node* merge1 = graph()->NewNode(merge_op, if_true1, if_false1);
-    Node* ephi1 = graph()->NewNode(ephi_op, etrue1, efalse1, merge1);
-    Node* phi1 = graph()->NewNode(phi_op, vtrue1, vfalse1, merge1);
-
-    // Wire the new diamond into the graph, {JSToNumber} can still throw.
-    NodeProperties::ReplaceUses(value, phi1, ephi1, etrue1, etrue1);
-
-    // TODO(mstarzinger): This iteration cuts out the IfSuccess projection from
-    // the node and places it inside the diamond. Come up with a helper method!
-    for (Node* use : etrue1->uses()) {
-      if (use->opcode() == IrOpcode::kIfSuccess) {
-        use->ReplaceUses(merge1);
-        NodeProperties::ReplaceControlInput(branch2, use);
-      }
-    }
-    return phi1;
-  }
-
   Node* check = BuildTestNotSmi(value);
   Node* branch = graph()->NewNode(common->Branch(BranchHint::kFalse), check,
                                   graph()->start());

@@ -792,19 +792,19 @@ Reduction JSBuiltinReducer::ReduceArrayIsArray(Node* node) {
   control = graph()->NewNode(common()->IfTrue(), control);
 
   // Let the %ArrayIsArray runtime function deal with the JSProxy {value}.
-  value = effect =
+  value = effect = control =
       graph()->NewNode(javascript()->CallRuntime(Runtime::kArrayIsArray), value,
                        context, frame_state, effect, control);
   NodeProperties::SetType(value, Type::Boolean());
-  control = graph()->NewNode(common()->IfSuccess(), value);
 
-  // Rewire any IfException edges on {node} to {value}.
-  for (Edge edge : node->use_edges()) {
-    Node* const user = edge.from();
-    if (user->opcode() == IrOpcode::kIfException) {
-      edge.UpdateTo(value);
-      Revisit(user);
-    }
+  // Update potential {IfException} uses of {node} to point to the above
+  // %ArrayIsArray runtime call node instead.
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    NodeProperties::ReplaceControlInput(on_exception, control);
+    NodeProperties::ReplaceEffectInput(on_exception, effect);
+    control = graph()->NewNode(common()->IfSuccess(), control);
+    Revisit(on_exception);
   }
 
   // The {value} is neither a JSArray nor a JSProxy.

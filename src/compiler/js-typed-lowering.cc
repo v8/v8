@@ -261,19 +261,7 @@ class JSBinopReduction final {
 
     // Reconnect the control output to bypass the IfSuccess node and
     // possibly disconnect from the IfException node.
-    for (Edge edge : node_->use_edges()) {
-      Node* const user = edge.from();
-      DCHECK(!user->IsDead());
-      if (NodeProperties::IsControlEdge(edge)) {
-        if (user->opcode() == IrOpcode::kIfSuccess) {
-          user->ReplaceUses(NodeProperties::GetControlInput(node_));
-          user->Kill();
-        } else {
-          DCHECK_EQ(user->opcode(), IrOpcode::kIfException);
-          edge.UpdateTo(jsgraph()->Dead());
-        }
-      }
-    }
+    lowering_->RelaxControls(node_);
 
     // Remove the frame state and the context.
     if (OperatorProperties::HasFrameStateInput(node_->op())) {
@@ -414,9 +402,7 @@ class JSBinopReduction final {
     DCHECK(!NodeProperties::GetType(node)->Is(Type::PlainPrimitive()));
     Node* const n = graph()->NewNode(javascript()->ToNumber(), node, context(),
                                      frame_state, effect(), control());
-    Node* const if_success = graph()->NewNode(common()->IfSuccess(), n);
-    NodeProperties::ReplaceControlInput(node_, if_success);
-    NodeProperties::ReplaceUses(node_, node_, node_, node_, n);
+    NodeProperties::ReplaceControlInput(node_, n);
     update_effect(n);
     return n;
   }
@@ -688,25 +674,27 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
     Node* efalse = effect;
     {
       // Throw a RangeError in case of overflow.
-      Node* vfalse = efalse = graph()->NewNode(
+      Node* vfalse = efalse = if_false = graph()->NewNode(
           javascript()->CallRuntime(Runtime::kThrowInvalidStringLength),
           context, frame_state, efalse, if_false);
-      if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
+
+      // Update potential {IfException} uses of {node} to point to the
+      // %ThrowInvalidStringLength runtime call node instead.
+      Node* on_exception = nullptr;
+      if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+        NodeProperties::ReplaceControlInput(on_exception, vfalse);
+        NodeProperties::ReplaceEffectInput(on_exception, efalse);
+        if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
+        Revisit(on_exception);
+      }
+
+      // The above %ThrowInvalidStringLength runtime call is an unconditional
+      // throw, making it impossible to return a successful completion in this
+      // case. We simply connect the successful completion to the graph end.
       if_false = graph()->NewNode(common()->Throw(), efalse, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), if_false);
       Revisit(graph()->end());
-
-      // Update potential {IfException} uses of {node} to point to the
-      // %ThrowInvalidStringLength runtime call node instead.
-      for (Edge edge : node->use_edges()) {
-        if (edge.from()->opcode() == IrOpcode::kIfException) {
-          DCHECK(NodeProperties::IsControlEdge(edge) ||
-                 NodeProperties::IsEffectEdge(edge));
-          edge.UpdateTo(vfalse);
-          Revisit(edge.from());
-        }
-      }
     }
     control = graph()->NewNode(common()->IfTrue(), branch);
   }
@@ -1233,10 +1221,9 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, node->op()->properties());
-    rfalse = efalse = graph()->NewNode(
+    rfalse = efalse = if_false = graph()->NewNode(
         common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
         receiver, context, frame_state, efalse, if_false);
-    if_false = graph()->NewNode(common()->IfSuccess(), rfalse);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);
@@ -1506,18 +1493,18 @@ Reduction JSTypedLowering::ReduceJSOrdinaryHasInstance(Node* node) {
   Node* vfalse1;
   {
     // Slow path, need to call the %HasInPrototypeChain runtime function.
-    vfalse1 = efalse1 = graph()->NewNode(
+    vfalse1 = efalse1 = if_false1 = graph()->NewNode(
         javascript()->CallRuntime(Runtime::kHasInPrototypeChain), object,
         prototype, context, frame_state, efalse1, if_false1);
-    if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
 
-    // Replace any potential IfException on {node} to catch exceptions
+    // Replace any potential {IfException} uses of {node} to catch exceptions
     // from this %HasInPrototypeChain runtime call instead.
-    for (Edge edge : node->use_edges()) {
-      if (edge.from()->opcode() == IrOpcode::kIfException) {
-        edge.UpdateTo(vfalse1);
-        Revisit(edge.from());
-      }
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      NodeProperties::ReplaceControlInput(on_exception, vfalse1);
+      NodeProperties::ReplaceEffectInput(on_exception, efalse1);
+      if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
+      Revisit(on_exception);
     }
   }
 
@@ -2211,10 +2198,9 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState);
-    vfalse0 = efalse0 = graph()->NewNode(
+    vfalse0 = efalse0 = if_false0 = graph()->NewNode(
         common()->Call(desc), jsgraph()->HeapConstant(callable.code()), key,
         receiver, context, frame_state, effect, if_false0);
-    if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);

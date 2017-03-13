@@ -646,8 +646,6 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
         graph()->NewNode(common()->Branch(BranchHint::kFalse), equal, control);
     Node* call_holey;
     Node* call_packed;
-    Node* if_success_packed;
-    Node* if_success_holey;
     Node* context = NodeProperties::GetContextInput(node);
     Node* frame_state = NodeProperties::GetFrameStateInput(node);
     Node* if_equal = graph()->NewNode(common()->IfTrue(), branch);
@@ -671,7 +669,6 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
 
       call_holey =
           graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
-      if_success_holey = graph()->NewNode(common()->IfSuccess(), call_holey);
     }
     Node* if_not_equal = graph()->NewNode(common()->IfFalse(), branch);
     {
@@ -695,10 +692,8 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
 
       call_packed =
           graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
-      if_success_packed = graph()->NewNode(common()->IfSuccess(), call_packed);
     }
-    Node* merge = graph()->NewNode(common()->Merge(2), if_success_holey,
-                                   if_success_packed);
+    Node* merge = graph()->NewNode(common()->Merge(2), call_holey, call_packed);
     Node* effect_phi = graph()->NewNode(common()->EffectPhi(2), call_holey,
                                         call_packed, merge);
     Node* phi =

@@ -2930,12 +2930,6 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       if (result->op()->EffectOutputCount() > 0) {
         environment_->UpdateEffectDependency(result);
       }
-      // Add implicit success continuation for throwing nodes.
-      if (!result->op()->HasProperty(Operator::kNoThrow)) {
-        const Operator* op = common()->IfSuccess();
-        Node* on_success = graph()->NewNode(op, result);
-        environment_->UpdateControlDependency(on_success);
-      }
     }
   }
 

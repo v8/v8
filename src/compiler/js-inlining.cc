@@ -141,12 +141,15 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
     int subcall_count = static_cast<int>(uncaught_subcalls.size());
     if (subcall_count > 0) {
       TRACE(
-          "Inlinee contains %d calls without IfException; "
-          "linking to existing IfException\n",
+          "Inlinee contains %d calls without local exception handler; "
+          "linking to surrounding exception handler\n",
           subcall_count);
     }
     NodeVector on_exception_nodes(local_zone_);
     for (Node* subcall : uncaught_subcalls) {
+      Node* on_success = graph()->NewNode(common()->IfSuccess(), subcall);
+      NodeProperties::ReplaceUses(subcall, subcall, subcall, on_success);
+      NodeProperties::ReplaceControlInput(on_success, subcall);
       Node* on_exception =
           graph()->NewNode(common()->IfException(), subcall, subcall);
       on_exception_nodes.push_back(on_exception);
@@ -578,24 +581,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     end = graph()->end();
   }
 
+  // If we are inlining into a surrounding exception handler, we collect all
+  // potentially throwing nodes within the inlinee that are not handled locally
+  // by the inlinee itself. They are later wired into the surrounding handler.
   NodeVector uncaught_subcalls(local_zone_);
   if (exception_target != nullptr) {
     // Find all uncaught 'calls' in the inlinee.
     AllNodes inlined_nodes(local_zone_, end, graph());
     for (Node* subnode : inlined_nodes.reachable) {
-      // Every possibly throwing node with an IfSuccess should get an
-      // IfException.
-      if (subnode->op()->HasProperty(Operator::kNoThrow)) {
-        continue;
-      }
-      bool hasIfException = false;
-      for (Node* use : subnode->uses()) {
-        if (use->opcode() == IrOpcode::kIfException) {
-          hasIfException = true;
-          break;
-        }
-      }
-      if (!hasIfException) {
+      // Every possibly throwing node should get {IfSuccess} and {IfException}
+      // projections, unless there already is local exception handling.
+      if (subnode->op()->HasProperty(Operator::kNoThrow)) continue;
+      if (!NodeProperties::IsExceptionalCall(subnode)) {
         DCHECK_EQ(2, subnode->op()->ControlOutputCount());
         uncaught_subcalls.push_back(subnode);
       }
@@ -634,9 +631,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       Node* create =
           graph()->NewNode(javascript()->Create(), call.target(), new_target,
                            context, frame_state_inside, effect, control);
-      Node* success = graph()->NewNode(common()->IfSuccess(), create);
-      uncaught_subcalls.push_back(create);  // Adds {IfException}.
-      NodeProperties::ReplaceControlInput(node, success);
+      uncaught_subcalls.push_back(create);  // Adds {IfSuccess} & {IfException}.
+      NodeProperties::ReplaceControlInput(node, create);
       NodeProperties::ReplaceEffectInput(node, create);
       // Insert a check of the return value to determine whether the return
       // value or the implicit receiver should be selected as a result of the
