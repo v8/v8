@@ -3426,7 +3426,8 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   Label no_rest_parameters;
   __ LoadP(r4, MemOperand(r4, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(ip, MemOperand(r4, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ CmpSmiLiteral(ip, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ LoadSmiLiteral(r0, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ CmpP(ip, r0);
   __ bne(&no_rest_parameters);
 
   // Check if the arguments adaptor frame contains more arguments than
@@ -3836,7 +3837,8 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   Label arguments_adaptor, arguments_done;
   __ LoadP(r5, MemOperand(r4, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(ip, MemOperand(r5, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ CmpSmiLiteral(ip, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ LoadSmiLiteral(r0, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ CmpP(ip, r0);
   __ beq(&arguments_adaptor);
   {
     __ LoadP(r6, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
