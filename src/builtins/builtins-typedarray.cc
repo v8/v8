@@ -532,7 +532,6 @@ BUILTIN(TypedArrayPrototypeIncludes) {
   if (args.length() < 2) return isolate->heap()->false_value();
 
   int64_t len = array->length_value();
-
   if (len == 0) return isolate->heap()->false_value();
 
   int64_t index = 0;
@@ -543,12 +542,47 @@ BUILTIN(TypedArrayPrototypeIncludes) {
     index = CapRelativeIndex(num, 0, len);
   }
 
+  // TODO(cwhan.tunz): throw. See the above comment in CopyWithin.
+  if (V8_UNLIKELY(array->WasNeutered())) return isolate->heap()->false_value();
+
   Handle<Object> search_element = args.at<Object>(1);
   ElementsAccessor* elements = array->GetElementsAccessor();
   Maybe<bool> result = elements->IncludesValue(isolate, array, search_element,
                                                static_cast<uint32_t>(index),
                                                static_cast<uint32_t>(len));
+  MAYBE_RETURN(result, isolate->heap()->exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
+}
+
+BUILTIN(TypedArrayPrototypeIndexOf) {
+  HandleScope scope(isolate);
+
+  Handle<JSTypedArray> array;
+  const char* method = "%TypedArray%.prototype.indexOf";
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+
+  int64_t len = array->length_value();
+  if (len == 0) return Smi::FromInt(-1);
+
+  int64_t index = 0;
+  if (args.length() > 2) {
+    Handle<Object> num;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
+    index = CapRelativeIndex(num, 0, len);
+  }
+
+  // TODO(cwhan.tunz): throw. See the above comment in CopyWithin.
+  if (V8_UNLIKELY(array->WasNeutered())) return Smi::FromInt(-1);
+
+  Handle<Object> search_element = args.at<Object>(1);
+  ElementsAccessor* elements = array->GetElementsAccessor();
+  Maybe<int64_t> result = elements->IndexOfValue(isolate, array, search_element,
+                                                 static_cast<uint32_t>(index),
+                                                 static_cast<uint32_t>(len));
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return *isolate->factory()->NewNumberFromInt64(result.FromJust());
 }
 
 }  // namespace internal

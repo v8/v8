@@ -514,40 +514,6 @@ function TypedArraySort(comparefn) {
 }
 
 
-// ES6 section 22.2.3.13
-function TypedArrayIndexOf(element, index) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
-
-  var length = %_TypedArrayGetLength(this);
-
-  if (length === 0) return -1;
-  if (!IS_NUMBER(element)) return -1;
-  var n = TO_INTEGER(index);
-
-  var k;
-  if (n === 0) {
-    k = 0;
-  } else if (n > 0) {
-    k = n;
-  } else {
-    k = length + n;
-    if (k < 0) {
-      k = 0;
-    }
-  }
-
-  while (k < length) {
-    var elementK = this[k];
-    if (element === elementK) {
-      return k;
-    }
-    ++k;
-  }
-  return -1;
-}
-%FunctionSetLength(TypedArrayIndexOf, 1);
-
-
 // ES6 section 22.2.3.16
 function TypedArrayLastIndexOf(element, index) {
   if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
@@ -780,7 +746,6 @@ utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
   "filter", TypedArrayFilter,
   "find", TypedArrayFind,
   "findIndex", TypedArrayFindIndex,
-  "indexOf", TypedArrayIndexOf,
   "join", TypedArrayJoin,
   "lastIndexOf", TypedArrayLastIndexOf,
   "forEach", TypedArrayForEach,
