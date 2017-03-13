@@ -7250,7 +7250,7 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
   return result.value();
 }
 
-Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs, Node* context) {
+Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
   // mode; for kNegateResult mode we properly negate the result.
   //
@@ -7400,7 +7400,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs, Node* context) {
             Bind(&if_rhsisstring);
             {
               Callable callable = CodeFactory::StringEqual(isolate());
-              result.Bind(CallStub(callable, context, lhs, rhs));
+              result.Bind(CallStub(callable, NoContextConstant(), lhs, rhs));
               Goto(&end);
             }
 
@@ -7471,7 +7471,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs, Node* context) {
 // ECMA#sec-samevalue
 // This algorithm differs from the Strict Equality Comparison Algorithm in its
 // treatment of signed zeroes and NaNs.
-Node* CodeStubAssembler::SameValue(Node* lhs, Node* rhs, Node* context) {
+Node* CodeStubAssembler::SameValue(Node* lhs, Node* rhs) {
   Variable var_result(this, MachineRepresentation::kWord32);
   Label strict_equal(this), out(this);
 
@@ -7545,7 +7545,7 @@ Node* CodeStubAssembler::SameValue(Node* lhs, Node* rhs, Node* context) {
 
   Bind(&strict_equal);
   {
-    Node* const is_equal = StrictEqual(lhs, rhs, context);
+    Node* const is_equal = StrictEqual(lhs, rhs);
     Node* const result = WordEqual(is_equal, TrueConstant());
     var_result.Bind(result);
     Goto(&out);
@@ -7656,7 +7656,7 @@ Node* CodeStubAssembler::ClassOf(Node* value) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::Typeof(Node* value, Node* context) {
+Node* CodeStubAssembler::Typeof(Node* value) {
   Variable result_var(this, MachineRepresentation::kTagged);
 
   Label return_number(this, Label::kDeferred), if_oddball(this),

@@ -862,7 +862,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     if (language_mode == STRICT) {
       Node* message =
           SmiConstant(Smi::FromInt(MessageTemplate::kStrictReadOnlyProperty));
-      Node* type = Typeof(p->receiver, p->context);
+      Node* type = Typeof(p->receiver);
       TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
                       type, p->receiver);
     } else {

@@ -1723,7 +1723,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
   // Ensure last index is 0.
   {
     Label next(this);
-    GotoIf(SameValue(previous_last_index, smi_zero, context), &next);
+    GotoIf(SameValue(previous_last_index, smi_zero), &next);
 
     SlowStoreLastIndex(context, regexp, smi_zero);
     Goto(&next);
@@ -1738,7 +1738,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
     Label next(this);
     Node* const current_last_index = SlowLoadLastIndex(context, regexp);
 
-    GotoIf(SameValue(current_last_index, previous_last_index, context), &next);
+    GotoIf(SameValue(current_last_index, previous_last_index), &next);
 
     SlowStoreLastIndex(context, regexp, previous_last_index);
     Goto(&next);

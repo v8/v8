@@ -407,9 +407,8 @@ TF_BUILTIN(ClassOf, CodeStubAssembler) {
 // ES6 section 12.5.5 typeof operator
 TF_BUILTIN(Typeof, CodeStubAssembler) {
   Node* object = Parameter(TypeofDescriptor::kObject);
-  Node* context = Parameter(TypeofDescriptor::kContext);
 
-  Return(Typeof(object, context));
+  Return(Typeof(object));
 }
 
 }  // namespace internal

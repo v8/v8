@@ -1204,14 +1204,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* Equal(Node* lhs, Node* rhs, Node* context);
 
-  Node* StrictEqual(Node* lhs, Node* rhs, Node* context);
+  Node* StrictEqual(Node* lhs, Node* rhs);
 
   // ECMA#sec-samevalue
   // Similar to StrictEqual except that NaNs are treated as equal and minus zero
   // differs from positive zero.
   // Unlike Equal and StrictEqual, returns a value suitable for use in Branch
   // instructions, e.g. Branch(SameValue(...), &label).
-  Node* SameValue(Node* lhs, Node* rhs, Node* context);
+  Node* SameValue(Node* lhs, Node* rhs);
 
   Node* HasProperty(
       Node* object, Node* key, Node* context,
@@ -1219,7 +1219,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* ClassOf(Node* object);
 
-  Node* Typeof(Node* value, Node* context);
+  Node* Typeof(Node* value);
 
   Node* GetSuperConstructor(Node* value, Node* context);
 

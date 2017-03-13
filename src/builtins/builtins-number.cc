@@ -1593,9 +1593,8 @@ TF_BUILTIN(Equal, CodeStubAssembler) {
 TF_BUILTIN(StrictEqual, CodeStubAssembler) {
   Node* lhs = Parameter(0);
   Node* rhs = Parameter(1);
-  Node* context = Parameter(2);
 
-  Return(StrictEqual(lhs, rhs, context));
+  Return(StrictEqual(lhs, rhs));
 }
 
 }  // namespace internal

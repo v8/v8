@@ -1362,7 +1362,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
       result = assembler->Equal(lhs, rhs, context);
       break;
     case Token::EQ_STRICT:
-      result = assembler->StrictEqual(lhs, rhs, context);
+      result = assembler->StrictEqual(lhs, rhs);
       break;
     case Token::LT:
       result = assembler->RelationalComparison(CodeStubAssembler::kLessThan,
@@ -2155,8 +2155,7 @@ void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
 // object in the accumulator.
 void Interpreter::DoTypeOf(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = assembler->Typeof(value, context);
+  Node* result = assembler->Typeof(value);
   __ SetAccumulator(result);
   __ Dispatch();
 }

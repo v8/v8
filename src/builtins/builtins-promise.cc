@@ -681,7 +681,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
 
   Bind(&cycle_check);
   // 6. If SameValue(resolution, promise) is true, then
-  GotoIf(SameValue(promise, result, context), &if_cycle);
+  GotoIf(SameValue(promise, result), &if_cycle);
 
   // 7. If Type(resolution) is not Object, then
   GotoIf(TaggedIsSmi(result), &fulfill);
@@ -1427,7 +1427,7 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
         CallStub(getproperty_callable, context, value, constructor_str);
 
     // 3.b If SameValue(xConstructor, C) is true, return x.
-    GotoIfNot(SameValue(constructor, receiver, context), &if_valueisnotpromise);
+    GotoIfNot(SameValue(constructor, receiver), &if_valueisnotpromise);
 
     Return(value);
   }
