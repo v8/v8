@@ -32,6 +32,6 @@ FAST_VARIANT_FLAGS = {
 }
 
 ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
-                    "noturbofan", "noturbofan_opt",
+                    "noturbofan", "noturbofan_stress",
                     "nocrankshaft", "ignition",
                     "ignition_turbofan", "asm_wasm", "wasm_traps"])
