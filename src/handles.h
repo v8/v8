@@ -106,12 +106,9 @@ class Handle final : public HandleBase {
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
   template <typename S>
-  V8_INLINE Handle(Handle<S> handle)
-      : HandleBase(handle) {
-    T* a = nullptr;
-    S* b = nullptr;
-    a = b;  // Fake assignment to enforce type checks.
-    USE(a);
+  V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {
+    // Type check:
+    static_assert(std::is_base_of<T, S>::value, "static type violation");
   }
 
   V8_INLINE T* operator->() const { return operator*(); }
@@ -192,10 +189,8 @@ class MaybeHandle final {
   template <typename S>
   V8_INLINE MaybeHandle(Handle<S> handle)
       : location_(reinterpret_cast<T**>(handle.location_)) {
-    T* a = nullptr;
-    S* b = nullptr;
-    a = b;  // Fake assignment to enforce type checks.
-    USE(a);
+    // Type check:
+    static_assert(std::is_base_of<T, S>::value, "static type violation");
   }
 
   // Constructor for handling automatic up casting.
@@ -203,10 +198,8 @@ class MaybeHandle final {
   template <typename S>
   V8_INLINE MaybeHandle(MaybeHandle<S> maybe_handle)
       : location_(reinterpret_cast<T**>(maybe_handle.location_)) {
-    T* a = nullptr;
-    S* b = nullptr;
-    a = b;  // Fake assignment to enforce type checks.
-    USE(a);
+    // Type check:
+    static_assert(std::is_base_of<T, S>::value, "static type violation");
   }
 
   template <typename S>
