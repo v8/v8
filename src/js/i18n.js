@@ -1751,8 +1751,8 @@ function FormatDateToParts(dateValue) {
 %FunctionSetLength(FormatDateToParts, 0);
 
 
-// 0 because date is optional argument.
-AddBoundMethod(GlobalIntlDateTimeFormat, 'format', formatDate, 0, 'dateformat',
+// Length is 1 as specified in ECMA 402 v2+
+AddBoundMethod(GlobalIntlDateTimeFormat, 'format', formatDate, 1, 'dateformat',
                true);
 
 

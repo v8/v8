@@ -232,7 +232,8 @@ class Test262TestSuite(testsuite.TestSuite):
         "--use-strict" not in testcase.flags):
       return outcome != statusfile.FAIL
     return not outcome in ([outcome for outcome in testcase.outcomes
-                                    if not outcome.startswith('--')]
+                                    if not outcome.startswith('--')
+                                       and outcome != statusfile.FAIL_SLOPPY]
                            or [statusfile.PASS])
 
   def PrepareSources(self):

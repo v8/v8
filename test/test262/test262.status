@@ -44,6 +44,7 @@
   'language/expressions/compound-assignment/S11.13.2_A7.7_T4': [FAIL],
   'language/expressions/compound-assignment/S11.13.2_A7.8_T4': [FAIL],
   'language/expressions/compound-assignment/S11.13.2_A7.9_T4': [FAIL],
+  'language/statements/with/unscopables-inc-dec': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4249
   'language/expressions/assignment/S11.13.1_A7_T1': [FAIL],
@@ -85,13 +86,6 @@
 
   # https://code.google.com/p/v8/issues/detail?id=4253
   'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
-
-  ###### BEGIN REGEXP SUBCLASSING SECTION ######
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5949
-  'built-ins/RegExp/prototype/exec/failure-lastindex-no-access': [FAIL],
-  'built-ins/RegExp/prototype/exec/success-lastindex-no-access': [FAIL],
-
-  ###### END REGEXP SUBCLASSING SECTION ######
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
@@ -275,10 +269,6 @@
   'built-ins/Function/prototype/toString/setter-object': ['--harmony-function-tostring'],
   'built-ins/Function/prototype/toString/unicode': ['--harmony-function-tostring'],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5115
-  'language/statements/class/subclass/class-definition-null-proto-missing-return-override': [FAIL],
-  'language/statements/class/subclass/class-definition-null-proto-this': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5116
   'built-ins/Object/internals/DefineOwnProperty/nan-equivalence': [PASS, FAIL],
   'built-ins/TypedArray/prototype/fill/fill-values-conversion-operations-consistent-nan': [PASS, FAIL],
@@ -430,10 +420,13 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5855
   'language/expressions/async-generators/*': [SKIP],
+  'language/statements/async-generator/*': [SKIP],
 
   # SharedArrayBuffer tests that require flags
   'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],
   'built-ins/Atomics/*': ['--harmony-sharedarraybuffer'],
+  'built-ins/ArrayBuffer/prototype/byteLength/this-is-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
+  'built-ins/ArrayBuffer/prototype/slice/this-is-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/buffer-does-not-have-arraybuffer-data-throws-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/buffer-reference-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/byteoffset-is-negative-throws-sab': ['--harmony-sharedarraybuffer'],
@@ -474,6 +467,7 @@
   'built-ins/DataView/toindex-bytelength-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/DataView/toindex-byteoffset-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-other-type-conversions-sab': ['--harmony-sharedarraybuffer'],
+  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-other-type-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-same-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/buffer-arg-bufferbyteoffset-throws-from-modulo-element-size-sab': ['--harmony-sharedarraybuffer'],
@@ -498,12 +492,22 @@
   'built-ins/TypedArrays/buffer-arg-returns-new-instance-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/buffer-arg-toindex-bytelength-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/buffer-arg-toindex-byteoffset-sab': ['--harmony-sharedarraybuffer'],
+  'built-ins/TypedArrays/buffer-arg-typedarray-backed-by-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/buffer-arg-use-custom-proto-if-object-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/buffer-arg-use-default-proto-if-custom-proto-is-not-object-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/internals/Get/indexed-value-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/ArrayBuffer/prototype/byteLength/this-is-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
-  'built-ins/ArrayBuffer/prototype/slice/this-is-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArrays/buffer-arg-typedarray-backed-by-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5961
+  'built-ins/Atomics/add/good-views': ['--harmony-sharedarraybuffer', FAIL],
+  'built-ins/Atomics/and/good-views': ['--harmony-sharedarraybuffer', FAIL],
+  'built-ins/Atomics/compareExchange/good-views': ['--harmony-sharedarraybuffer', FAIL],
+  'built-ins/Atomics/exchange/good-views': ['--harmony-sharedarraybuffer', FAIL],
+  'built-ins/Atomics/load/good-views': ['--harmony-sharedarraybuffer', FAIL],
+  'built-ins/Atomics/or/good-views': ['--harmony-sharedarraybuffer', FAIL],
+  'built-ins/Atomics/store/good-views': ['--harmony-sharedarraybuffer', FAIL],
+  'built-ins/Atomics/sub/good-views': ['--harmony-sharedarraybuffer', FAIL],
+  'built-ins/Atomics/wake/good-views': ['--harmony-sharedarraybuffer', FAIL],
+  'built-ins/Atomics/xor/good-views': ['--harmony-sharedarraybuffer', FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5983
   'built-ins/SharedArrayBuffer/newtarget-prototype-is-not-object': [FAIL],
@@ -511,11 +515,16 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5984
   'built-ins/SharedArrayBuffer/proto-from-ctor-realm': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5982
-  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-other-type-sab': ['--harmony-sharedarraybuffer', FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5897
   'built-ins/SharedArrayBuffer/prototype/slice/*': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6045
+  'intl402/NumberFormat/prototype/format/11.3.2_TRF': [FAIL],
+  'intl402/NumberFormat/prototype/format/11.3.2_TRP': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6049
+  'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
+  'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
 ######################## NEEDS INVESTIGATION ###########################
 
@@ -587,12 +596,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5449
   'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
   'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
-
-  # v8:5486
-  # Spec changed to be more permissive, tests need to be updated.
-  'language/module-code/instn-iee-star-cycle': [FAIL],
-  'language/module-code/instn-named-star-cycle': [FAIL],
-  'language/module-code/instn-star-star-cycle': [FAIL],
 
   # Symbol.iterator on namespace objects was removed, tests need to be updated.
   'language/module-code/namespace/Symbol.iterator/*': [SKIP],
