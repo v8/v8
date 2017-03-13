@@ -573,7 +573,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       Object* maybe_constructor = receiver_map->GetConstructor();
       // Detached global proxies have |null| as their constructor.
       if (maybe_constructor->IsJSFunction() &&
-          JSFunction::cast(maybe_constructor)->has_context() &&
           JSFunction::cast(maybe_constructor)->native_context() ==
               *native_context()) {
         return ReduceGlobalAccess(node, receiver, value, name, access_mode,
@@ -798,6 +797,17 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
       // Optimize accesses to the current native contexts' global proxy.
       return ReduceGlobalAccess(node, nullptr, value, name, access_mode);
     }
+  }
+
+  // Check if the {nexus} reports type feedback for the IC.
+  if (nexus.IsUninitialized()) {
+    if ((flags() & kDeoptimizationEnabled) &&
+        (flags() & kBailoutOnUninitialized)) {
+      return ReduceSoftDeoptimize(
+          node,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
+    }
+    return NoChange();
   }
 
   // Extract receiver maps from the IC using the {nexus}.
@@ -1182,6 +1192,17 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
         return Replace(value);
       }
     }
+  }
+
+  // Check if the {nexus} reports type feedback for the IC.
+  if (nexus.IsUninitialized()) {
+    if ((flags() & kDeoptimizationEnabled) &&
+        (flags() & kBailoutOnUninitialized)) {
+      return ReduceSoftDeoptimize(
+          node,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+    }
+    return NoChange();
   }
 
   // Extract receiver maps from the {nexus}.
@@ -2229,10 +2250,7 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     }
     return true;
   }
-  // Check if the {nexus} actually reports feedback for the IC. We return
-  // true if the IC is still uninitialized, which translates to a SOFT
-  // deoptimization exit in the callers.
-  return nexus.IsUninitialized();
+  return false;
 }
 
 bool JSNativeContextSpecialization::InferReceiverMaps(
