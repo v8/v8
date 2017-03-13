@@ -103,6 +103,7 @@ enum StepAction {
 
 void PrepareStep(Isolate* isolate, StepAction action);
 void ClearStepping(Isolate* isolate);
+void BreakRightNow(Isolate* isolate);
 
 bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
 

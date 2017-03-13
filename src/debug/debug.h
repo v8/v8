@@ -65,6 +65,11 @@ enum DebugBreakType {
   DEBUG_BREAK_SLOT_AT_TAIL_CALL,
 };
 
+enum IgnoreBreakMode {
+  kIgnoreIfAllFramesBlackboxed,
+  kIgnoreIfTopFrameBlackboxed
+};
+
 class BreakLocation {
  public:
   static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
@@ -276,7 +281,7 @@ class Debug {
   MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
                                            Handle<Object> data);
   Handle<Context> GetDebugContext();
-  void HandleDebugBreak();
+  void HandleDebugBreak(IgnoreBreakMode ignore_break_mode);
 
   // Internal logic
   bool Load();

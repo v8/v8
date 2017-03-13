@@ -9105,6 +9105,12 @@ void debug::ClearStepping(Isolate* v8_isolate) {
   isolate->debug()->ClearStepping();
 }
 
+void debug::BreakRightNow(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  isolate->debug()->HandleDebugBreak(i::kIgnoreIfAllFramesBlackboxed);
+}
+
 bool debug::AllFramesOnStackAreBlackboxed(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);

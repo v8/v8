@@ -105,7 +105,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   static void v8OOMCallback(void* data);
 
-  static void breakProgramCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   void handleProgramBreak(v8::Local<v8::Context> pausedContext,
                           v8::Local<v8::Object> executionState,
                           v8::Local<v8::Value> exception,

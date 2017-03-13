@@ -1309,6 +1309,9 @@ void V8DebuggerAgentImpl::breakProgram(
   m_debugger->breakProgram();
   popBreakDetails();
   m_breakReason.swap(currentScheduledReason);
+  if (!m_breakReason.empty()) {
+    m_debugger->setPauseOnNextStatement(true);
+  }
 }
 
 void V8DebuggerAgentImpl::breakProgramOnException(

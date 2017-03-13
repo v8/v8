@@ -2132,8 +2132,7 @@ MaybeHandle<Object> Debug::Call(Handle<Object> fun, Handle<Object> data) {
       argv);
 }
 
-
-void Debug::HandleDebugBreak() {
+void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
   // Initialize LiveEdit.
   LiveEdit::InitializeThreadLocal(this);
   // Ignore debug break during bootstrapping.
@@ -2154,7 +2153,10 @@ void Debug::HandleDebugBreak() {
       // Don't stop in builtin and blackboxed functions.
       Handle<SharedFunctionInfo> shared(JSFunction::cast(fun)->shared(),
                                         isolate_);
-      if (IsBlackboxed(shared)) {
+      bool ignore_break = ignore_break_mode == kIgnoreIfTopFrameBlackboxed
+                              ? IsBlackboxed(shared)
+                              : AllFramesOnStackAreBlackboxed();
+      if (ignore_break) {
         // Inspector uses pause on next statement for asynchronous breakpoints.
         // When breakpoint is fired we try to break on first not blackboxed
         // statement. To achieve this goal we need to deoptimize current

@@ -68,7 +68,7 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   if (isolate->debug()->break_points_active()) {
-    isolate->debug()->HandleDebugBreak();
+    isolate->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
   }
   return isolate->heap()->undefined_value();
 }
