@@ -1994,10 +1994,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- P r o m i s e
-    // Set catch prediction
-    Handle<Code> promise_code = isolate->builtins()->PromiseConstructor();
-    promise_code->set_is_promise_rejection(true);
-
     Handle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
     Handle<JSFunction> promise_fun =
@@ -2036,7 +2032,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     SimpleInstallFunction(promise_fun, "resolve", Builtins::kPromiseResolve, 1,
                           true, DONT_ENUM);
-    isolate->builtins()->PromiseResolve()->set_is_promise_rejection(true);
 
     SimpleInstallFunction(promise_fun, "reject", Builtins::kPromiseReject, 1,
                           true, DONT_ENUM);
@@ -2072,7 +2067,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       function->shared()->set_native(false);
       InstallWithIntrinsicDefaultProto(isolate, function,
                                        Context::PROMISE_RESOLVE_INDEX);
-      isolate->builtins()->ResolvePromise()->set_is_promise_rejection(true);
     }
 
     {  // Internal: PromiseHandle
@@ -2080,9 +2074,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate, factory->empty_string(), Builtins::kPromiseHandle, 5, false);
       InstallWithIntrinsicDefaultProto(isolate, function,
                                        Context::PROMISE_HANDLE_INDEX);
-      // Set up catch prediction
-      Handle<Code> promise_handle = isolate->builtins()->PromiseHandle();
-      promise_handle->set_is_promise_rejection(true);
     }
 
     {  // Internal: PromiseHandleReject
@@ -2091,9 +2082,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                Builtins::kPromiseHandleReject, 3, false);
       InstallWithIntrinsicDefaultProto(isolate, function,
                                        Context::PROMISE_HANDLE_REJECT_INDEX);
-      // Set up catch prediction
-      Handle<Code> promise_handle = isolate->builtins()->PromiseHandleReject();
-      promise_handle->set_is_exception_caught(true);
     }
 
     {  // Internal: InternalPromiseReject
@@ -2109,7 +2097,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       Handle<Code> code =
           handle(isolate->builtins()->builtin(Builtins::kPromiseResolveClosure),
                  isolate);
-      code->set_is_promise_rejection(true);
       Handle<SharedFunctionInfo> info =
           factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
       info->set_internal_formal_parameter_count(1);
@@ -3534,8 +3521,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kAsyncFunctionAwaitCaught, 3, false);
-      isolate->builtins()->AsyncFunctionAwaitCaught()->set_is_promise_rejection(
-          true);
       InstallWithIntrinsicDefaultProto(
           isolate, function, Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX);
     }
@@ -3544,9 +3529,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kAsyncFunctionAwaitUncaught, 3, false);
-      isolate->builtins()
-          ->AsyncFunctionAwaitUncaught()
-          ->set_is_promise_rejection(true);
       InstallWithIntrinsicDefaultProto(
           isolate, function, Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX);
     }

@@ -168,11 +168,17 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       Code::cast(builtins_[i])->set_builtin_index(i);
     }
 
-#define EXCEPTION_PREDICTION(Name, type) \
-  Code::cast(builtins_[k##Name])->set_##type(true);
+#define SET_PROMISE_REJECTION_PREDICTION(Name) \
+  Code::cast(builtins_[k##Name])->set_is_promise_rejection(true);
 
-    BUILTIN_EXCEPTION_PREDICTION_LIST(EXCEPTION_PREDICTION)
-#undef EXCEPTION_PREDICTION
+    BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(SET_PROMISE_REJECTION_PREDICTION)
+#undef SET_PROMISE_REJECTION_PREDICTION
+
+#define SET_EXCEPTION_CAUGHT_PREDICTION(Name) \
+  Code::cast(builtins_[k##Name])->set_is_exception_caught(true);
+
+    BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(SET_EXCEPTION_CAUGHT_PREDICTION)
+#undef SET_EXCEPTION_CAUGHT_PREDICTION
   }
 
   // Mark as initialized.
