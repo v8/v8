@@ -796,7 +796,6 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
   MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   SLOW_DCHECK(Marking::IsGrey(mark_bit) ||
-              (obj->IsFiller() && Marking::IsWhite(mark_bit)) ||
               (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
                Marking::IsBlack(mark_bit)));
 #endif
