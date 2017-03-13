@@ -2819,7 +2819,6 @@ class TypedElementsAccessor
                                        Handle<JSObject> receiver,
                                        Handle<Object> value,
                                        uint32_t start_from, uint32_t length) {
-    DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
     DisallowHeapAllocation no_gc;
 
     // TODO(caitp): return Just(false) here when implementing strict throwing on
@@ -2874,7 +2873,6 @@ class TypedElementsAccessor
                                          Handle<JSObject> receiver,
                                          Handle<Object> value,
                                          uint32_t start_from, uint32_t length) {
-    DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
     DisallowHeapAllocation no_gc;
 
     if (WasNeutered(*receiver)) return Just<int64_t>(-1);
