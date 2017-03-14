@@ -84,16 +84,6 @@ void LCallNewArray::PrintDataTo(StringStream* stream) {
 }
 
 
-void LClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
-  stream->Add("if class_of_test(");
-  value()->PrintTo(stream);
-  stream->Add(", \"%o\") then B%d else B%d",
-              *hydrogen()->class_name(),
-              true_block_id(),
-              false_block_id());
-}
-
-
 void LCompareNumericAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if ");
   left()->PrintTo(stream);
@@ -1188,16 +1178,6 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
         DefineAsRegister(new(zone()) LClampTToUint8(reg,
                                                     TempDoubleRegister())));
   }
-}
-
-
-LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
-    HClassOfTestAndBranch* instr) {
-  DCHECK(instr->value()->representation().IsTagged());
-  LOperand* value = UseRegisterAtStart(instr->value());
-  return new(zone()) LClassOfTestAndBranch(value,
-                                           TempRegister(),
-                                           TempRegister());
 }
 
 

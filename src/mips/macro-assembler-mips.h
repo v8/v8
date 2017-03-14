@@ -1101,11 +1101,6 @@ class MacroAssembler: public Assembler {
   // -------------------------------------------------------------------------
   // Support functions.
 
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done, and |temp2| its instance type.
-  void GetMapConstructor(Register result, Register map, Register temp,
-                         Register temp2);
-
   void GetObjectType(Register function,
                      Register map,
                      Register type_reg);

@@ -11023,20 +11023,6 @@ HValue* HGraphBuilder::BuildBinaryOperation(
 }
 
 
-// Check for the form (%_ClassOf(foo) === 'BarClass').
-static bool IsClassOfTest(CompareOperation* expr) {
-  if (expr->op() != Token::EQ_STRICT) return false;
-  CallRuntime* call = expr->left()->AsCallRuntime();
-  if (call == NULL) return false;
-  Literal* literal = expr->right()->AsLiteral();
-  if (literal == NULL) return false;
-  if (!literal->value()->IsString()) return false;
-  if (call->is_jsruntime()) return false;
-  if (call->function()->function_id != Runtime::kInlineClassOf) return false;
-  DCHECK_EQ(call->arguments()->length(), 1);
-  return true;
-}
-
 void HOptimizedGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
@@ -11223,17 +11209,6 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   }
   if (expr->IsLiteralCompareNull(&sub_expr)) {
     return HandleLiteralCompareNil(expr, sub_expr, kNullValue);
-  }
-
-  if (IsClassOfTest(expr)) {
-    CallRuntime* call = expr->left()->AsCallRuntime();
-    DCHECK(call->arguments()->length() == 1);
-    CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-    HValue* value = Pop();
-    Literal* literal = expr->right()->AsLiteral();
-    Handle<String> rhs = Handle<String>::cast(literal->value());
-    HClassOfTestAndBranch* instr = New<HClassOfTestAndBranch>(value, rhs);
-    return ast_context()->ReturnControl(instr, expr->id());
   }
 
   AstType* left_type = bounds_.get(expr->left()).lower;

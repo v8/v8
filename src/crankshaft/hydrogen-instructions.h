@@ -73,7 +73,6 @@ class SmallMapList;
   V(CheckSmi)                                 \
   V(CheckValue)                               \
   V(ClampToUint8)                             \
-  V(ClassOfTestAndBranch)                     \
   V(CompareNumericAndBranch)                  \
   V(CompareHoleAndBranch)                     \
   V(CompareGeneric)                           \
@@ -4010,30 +4009,6 @@ class HHasInstanceTypeAndBranch final : public HUnaryControlInstruction {
   InstanceType from_;
   InstanceType to_;  // Inclusive range, not all combinations work.
 };
-
-class HClassOfTestAndBranch final : public HUnaryControlInstruction {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HClassOfTestAndBranch, HValue*,
-                                 Handle<String>);
-
-  DECLARE_CONCRETE_INSTRUCTION(ClassOfTestAndBranch)
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  Handle<String> class_name() const { return class_name_; }
-
- private:
-  HClassOfTestAndBranch(HValue* value, Handle<String> class_name)
-      : HUnaryControlInstruction(value, NULL, NULL),
-        class_name_(class_name) { }
-
-  Handle<String> class_name_;
-};
-
 
 class HTypeofIsAndBranch final : public HUnaryControlInstruction {
  public:

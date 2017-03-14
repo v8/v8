@@ -2045,58 +2045,6 @@ void FullCodeGenerator::EmitIsJSProxy(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 1);
-  Label done, null, function, non_function_constructor;
-
-  VisitForAccumulatorValue(args->at(0));
-
-  // If the object is not a JSReceiver, we return null.
-  __ JumpIfSmi(r0, &null);
-  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  __ CompareObjectType(r0, r0, r1, FIRST_JS_RECEIVER_TYPE);
-  // Map is now in r0.
-  __ b(lt, &null);
-
-  // Return 'Function' for JSFunction and JSBoundFunction objects.
-  __ cmp(r1, Operand(FIRST_FUNCTION_TYPE));
-  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
-  __ b(hs, &function);
-
-  // Check if the constructor in the map is a JS function.
-  Register instance_type = r2;
-  __ GetMapConstructor(r0, r0, r1, instance_type);
-  __ cmp(instance_type, Operand(JS_FUNCTION_TYPE));
-  __ b(ne, &non_function_constructor);
-
-  // r0 now contains the constructor function. Grab the
-  // instance class name from there.
-  __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r0, FieldMemOperand(r0, SharedFunctionInfo::kInstanceClassNameOffset));
-  __ b(&done);
-
-  // Functions have class 'Function'.
-  __ bind(&function);
-  __ LoadRoot(r0, Heap::kFunction_stringRootIndex);
-  __ jmp(&done);
-
-  // Objects with a non-function constructor have class 'Object'.
-  __ bind(&non_function_constructor);
-  __ LoadRoot(r0, Heap::kObject_stringRootIndex);
-  __ jmp(&done);
-
-  // Non-JS objects have class null.
-  __ bind(&null);
-  __ LoadRoot(r0, Heap::kNullValueRootIndex);
-
-  // All done.
-  __ bind(&done);
-
-  context()->Plug(r0);
-}
-
-
 void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
