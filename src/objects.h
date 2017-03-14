@@ -7259,9 +7259,6 @@ class SharedFunctionInfo: public HeapObject {
   // Whether this function was marked to be tiered up.
   DECL_BOOLEAN_ACCESSORS(marked_for_tier_up)
 
-  // Whether this function has a concurrent compilation job running.
-  DECL_BOOLEAN_ACCESSORS(has_concurrent_optimization_job)
-
   // Indicates that asm->wasm conversion failed and should not be re-attempted.
   DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
 
@@ -7544,9 +7541,9 @@ class SharedFunctionInfo: public HeapObject {
     kDontFlush,
     kIsDeclaration,
     kIsAsmWasmBroken,
-    kHasConcurrentOptimizationJob,
 
     kUnused1,  // Unused fields.
+    kUnused2,
 
     // byte 2
     kFunctionKind,
