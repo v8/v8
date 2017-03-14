@@ -2045,7 +2045,7 @@ function onpage(kind, address) {
 
 <body>
   <div class="header">
-    <form class="navigation" action=/search.html">
+    <form class="navigation" action="search.html">
       <a href="summary.html?%(query_dump)s">Context info</a>&nbsp;&nbsp;&nbsp;
       <a href="info.html?%(query_dump)s">Dump info</a>&nbsp;&nbsp;&nbsp;
       <a href="modules.html?%(query_dump)s">Modules</a>&nbsp;&nbsp;&nbsp;
