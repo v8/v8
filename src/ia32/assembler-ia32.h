@@ -1061,8 +1061,12 @@ class Assembler : public AssemblerBase {
 
   void ptest(XMMRegister dst, XMMRegister src);
 
+  void psllw(XMMRegister reg, int8_t shift);
   void pslld(XMMRegister reg, int8_t shift);
+  void psrlw(XMMRegister reg, int8_t shift);
   void psrld(XMMRegister reg, int8_t shift);
+  void psraw(XMMRegister reg, int8_t shift);
+  void psrad(XMMRegister reg, int8_t shift);
   void psllq(XMMRegister reg, int8_t shift);
   void psllq(XMMRegister dst, XMMRegister src);
   void psrlq(XMMRegister reg, int8_t shift);
@@ -1305,6 +1309,13 @@ class Assembler : public AssemblerBase {
     vss(0x5d, dst, src1, src2);
   }
   void vss(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
+  void vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8);
+  void vpslld(XMMRegister dst, XMMRegister src, int8_t imm8);
+  void vpsrlw(XMMRegister dst, XMMRegister src, int8_t imm8);
+  void vpsrld(XMMRegister dst, XMMRegister src, int8_t imm8);
+  void vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8);
+  void vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8);
 
   // BMI instruction
   void andn(Register dst, Register src1, Register src2) {

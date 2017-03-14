@@ -54,7 +54,6 @@ TEST(DisasmIa320) {
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);
   DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
-
   // Short immediate instructions
   __ adc(eax, 12345678);
   __ add(eax, Immediate(12345678));
@@ -458,6 +457,13 @@ TEST(DisasmIa320) {
     __ cmpltsd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);
+
+    __ psllw(xmm0, 17);
+    __ pslld(xmm0, 17);
+    __ psrlw(xmm0, 17);
+    __ psrld(xmm0, 17);
+    __ psraw(xmm0, 17);
+    __ psrad(xmm0, 17);
     __ psllq(xmm0, 17);
     __ psllq(xmm0, xmm1);
     __ psrlq(xmm0, 17);
@@ -550,6 +556,12 @@ TEST(DisasmIa320) {
       __ vxorpd(xmm0, xmm1, xmm2);
       __ vxorpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
+      __ vpsllw(xmm0, xmm7, 21);
+      __ vpslld(xmm0, xmm7, 21);
+      __ vpsrlw(xmm0, xmm7, 21);
+      __ vpsrld(xmm0, xmm7, 21);
+      __ vpsraw(xmm0, xmm7, 21);
+      __ vpsrad(xmm0, xmm7, 21);
 #define EMIT_SSE2_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
   __ v##instruction(xmm7, xmm5, xmm1);                                \
   __ v##instruction(xmm7, xmm5, Operand(edx, 4));
