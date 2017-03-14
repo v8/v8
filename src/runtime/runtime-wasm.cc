@@ -200,7 +200,10 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   DCHECK_NULL(isolate->context());
   isolate->set_context(instance->compiled_module()->ptr_to_native_context());
 
+  trap_handler::ClearThreadInWasm();
   instance->debug_info()->RunInterpreter(func_index, arg_buffer);
+  trap_handler::SetThreadInWasm();
+
   return isolate->heap()->undefined_value();
 }
 
