@@ -562,7 +562,6 @@ void CompilerDispatcher::ConsiderJobForBackgroundProcessing(
 void CompilerDispatcher::ScheduleMoreBackgroundTasksIfNeeded() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherScheduleMoreBackgroundTasksIfNeeded");
-  if (FLAG_single_threaded) return;
   {
     base::LockGuard<base::Mutex> lock(&mutex_);
     if (pending_background_jobs_.empty()) return;

@@ -30,24 +30,27 @@ class CompilerDispatcherJobTest : public TestWithContext {
   CompilerDispatcherTracer* tracer() { return &tracer_; }
 
   static void SetUpTestCase() {
-    old_flag_ = i::FLAG_ignition;
-    i::FLAG_ignition = true;
+    CHECK_NULL(save_flags_);
+    save_flags_ = new SaveFlags();
+    FLAG_ignition = true;
     TestWithContext::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
     TestWithContext::TearDownTestCase();
-    i::FLAG_ignition = old_flag_;
+    CHECK_NOT_NULL(save_flags_);
+    delete save_flags_;
+    save_flags_ = nullptr;
   }
 
  private:
   CompilerDispatcherTracer tracer_;
-  static bool old_flag_;
+  static SaveFlags* save_flags_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJobTest);
 };
 
-bool CompilerDispatcherJobTest::old_flag_;
+SaveFlags* CompilerDispatcherJobTest::save_flags_ = nullptr;
 
 namespace {
 

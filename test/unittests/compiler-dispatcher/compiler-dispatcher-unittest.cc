@@ -26,26 +26,27 @@ namespace internal {
 class CompilerDispatcherTestFlags {
  public:
   static void SetFlagsForTest() {
-    old_compiler_dispatcher_flag_ = i::FLAG_compiler_dispatcher;
-    i::FLAG_compiler_dispatcher = true;
-    old_ignition_flag_ = i::FLAG_ignition;
-    i::FLAG_ignition = true;
+    CHECK_NULL(save_flags_);
+    save_flags_ = new SaveFlags();
+    FLAG_single_threaded = true;
+    FLAG_ignition = true;
+    FlagList::EnforceFlagImplications();
+    FLAG_compiler_dispatcher = true;
   }
 
   static void RestoreFlags() {
-    i::FLAG_compiler_dispatcher = old_compiler_dispatcher_flag_;
-    i::FLAG_ignition = old_ignition_flag_;
+    CHECK_NOT_NULL(save_flags_);
+    delete save_flags_;
+    save_flags_ = nullptr;
   }
 
  private:
-  static bool old_compiler_dispatcher_flag_;
-  static bool old_ignition_flag_;
+  static SaveFlags* save_flags_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilerDispatcherTestFlags);
 };
 
-bool CompilerDispatcherTestFlags::old_compiler_dispatcher_flag_;
-bool CompilerDispatcherTestFlags::old_ignition_flag_;
+SaveFlags* CompilerDispatcherTestFlags::save_flags_ = nullptr;
 
 class CompilerDispatcherTest : public TestWithContext {
  public:

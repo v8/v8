@@ -1282,6 +1282,7 @@ DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded, parallel_compaction)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_store_buffer)
+DEFINE_NEG_IMPLICATION(single_threaded, compiler_dispatcher)
 
 #undef FLAG
 
