@@ -160,6 +160,7 @@ InspectorTest.logSourceLocation = function(location)
     var line = lines[location.lineNumber];
     line = line.slice(0, location.columnNumber) + '#' + (line.slice(location.columnNumber) || '');
     lines[location.lineNumber] = line;
+    lines = lines.filter(line => line.indexOf('//# sourceURL=') === -1);
     InspectorTest.log(lines.slice(Math.max(location.lineNumber - 1, 0), location.lineNumber + 2).join('\n'));
     InspectorTest.log('');
   }
