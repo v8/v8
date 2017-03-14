@@ -14552,7 +14552,8 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     os << "major_key = " << (n == NULL ? "null" : n) << "\n";
   }
   if (is_inline_cache_stub()) {
-    if (!IC::ICUseVector(kind())) {
+    if (is_compare_ic_stub() || is_to_boolean_ic_stub() ||
+        is_binary_op_stub()) {
       InlineCacheState ic_state = IC::StateFromCode(this);
       os << "ic_state = " << ICState2String(ic_state) << "\n";
       PrintExtraICState(os, kind(), extra_ic_state());

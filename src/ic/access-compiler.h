@@ -49,7 +49,6 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   CacheHolderFlag cache_holder() const { return cache_holder_; }
   MacroAssembler* masm() { return &masm_; }
   Isolate* isolate() const { return isolate_; }
-  Heap* heap() const { return isolate()->heap(); }
   Factory* factory() const { return isolate()->factory(); }
 
   Register receiver() const { return registers_[0]; }
@@ -62,9 +61,6 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   Register* registers_;
 
   static void GenerateTailCall(MacroAssembler* masm, Handle<Code> code);
-
-  Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);
-  Handle<Code> GetCodeWithFlags(Code::Flags flags, Handle<Name> name);
 
  private:
   static Register* GetCallingConvention(Isolate* isolate, Code::Kind kind);

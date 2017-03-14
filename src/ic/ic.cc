@@ -70,7 +70,6 @@ const char* GetTransitionMarkModifier(KeyedAccessStoreMode mode) {
 void IC::TraceIC(const char* type, Handle<Object> name) {
   if (FLAG_ic_stats) {
     if (AddressIsDeoptimizedCode()) return;
-    DCHECK(UseVector());
     State new_state = nexus()->StateFromFeedback();
     TraceIC(type, name, state(), new_state);
   }
@@ -228,7 +227,6 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   if (nexus) {
     kind_ = nexus->kind();
-    DCHECK(UseVector());
     state_ = nexus->StateFromFeedback();
     extra_ic_state_ = kNoExtraICState;
   } else {
@@ -244,7 +242,6 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
       UNREACHABLE();
       kind_ = FeedbackSlotKind::kInvalid;
     }
-    DCHECK(!UseVector());
     state_ = StateFromCode(target);
     extra_ic_state_ = target->extra_ic_state();
   }
@@ -332,7 +329,6 @@ static void LookupForRead(LookupIterator* it) {
 bool IC::ShouldRecomputeHandler(Handle<String> name) {
   if (!RecomputeHandlerForName(name)) return false;
 
-  DCHECK(UseVector());
   maybe_handler_ = nexus()->FindHandlerForMap(receiver_map());
 
   // This is a contextual access, always just update the handler and stay
@@ -361,7 +357,6 @@ bool IC::RecomputeHandlerForName(Handle<Object> name) {
   if (is_keyed()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;
-    DCHECK(UseVector());
     Name* stub_name = nexus()->FindFirstName();
     if (*name != stub_name) return false;
   }
@@ -451,8 +446,9 @@ void IC::OnFeedbackChanged(Isolate* isolate, JSFunction* host_function) {
 void IC::PostPatching(Address address, Code* target, Code* old_target) {
   // Type vector based ICs update these statistics at a different time because
   // they don't always patch on state change.
-  // TODO(ishell): DCHECK
-  if (ICUseVector(target->kind())) return;
+  DCHECK(target->kind() == Code::BINARY_OP_IC ||
+         target->kind() == Code::COMPARE_IC ||
+         target->kind() == Code::TO_BOOLEAN_IC);
 
   DCHECK(old_target->is_inline_cache_stub());
   DCHECK(target->is_inline_cache_stub());
@@ -517,7 +513,6 @@ static bool MigrateDeprecated(Handle<Object> object) {
 }
 
 void IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
-  DCHECK(UseVector());
   if (new_state == PREMONOMORPHIC) {
     nexus()->ConfigurePremonomorphic();
   } else if (new_state == MEGAMORPHIC) {
@@ -541,7 +536,6 @@ void IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
 
 void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                               Handle<Object> handler) {
-  DCHECK(UseVector());
   switch (kind_) {
     case FeedbackSlotKind::kLoadProperty: {
       LoadICNexus* nexus = casted_nexus<LoadICNexus>();
@@ -592,7 +586,6 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
 
 void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
                               List<Handle<Object>>* handlers) {
-  DCHECK(UseVector());
   switch (kind_) {
     case FeedbackSlotKind::kLoadProperty: {
       LoadICNexus* nexus = casted_nexus<LoadICNexus>();
@@ -640,7 +633,6 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
 void IC::ConfigureVectorState(MapHandleList* maps,
                               MapHandleList* transitioned_maps,
                               List<Handle<Object>>* handlers) {
-  DCHECK(UseVector());
   DCHECK(IsKeyedStoreIC());
   KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
   nexus->ConfigurePolymorphic(maps, transitioned_maps, handlers);
@@ -774,7 +766,6 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
   if (number_of_maps == 0 && state() != MONOMORPHIC && state() != POLYMORPHIC) {
     return false;
   }
-  DCHECK(UseVector());
   if (!nexus()->FindHandlers(&handlers, maps.length())) return false;
 
   number_of_valid_maps++;
@@ -853,13 +844,11 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
         // same key.
         CopyICToMegamorphicCache(name);
       }
-      DCHECK(UseVector());
       ConfigureVectorState(MEGAMORPHIC, name);
     // Fall through.
     case MEGAMORPHIC:
       UpdateMegamorphicCache(*receiver_map(), *name, *handler);
       // Indicate that we've handled this case.
-      DCHECK(UseVector());
       vector_set_ = true;
       break;
     case GENERIC:

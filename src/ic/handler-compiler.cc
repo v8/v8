@@ -27,9 +27,26 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
 Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
                                               Handle<Name> name) {
   Code::Flags flags = Code::ComputeHandlerFlags(kind, cache_holder());
-  Handle<Code> code = GetCodeWithFlags(flags, name);
+
+  // Create code object in the heap.
+  CodeDesc desc;
+  masm()->GetCode(&desc);
+  Handle<Code> code = factory()->NewCode(desc, flags, masm()->CodeObject());
+  if (code->IsCodeStubOrIC()) code->set_stub_key(CodeStub::NoCacheKey());
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_code_stubs) {
+    char* raw_name = !name.is_null() && name->IsString()
+                         ? String::cast(*name)->ToCString().get()
+                         : nullptr;
+    CodeTracer::Scope trace_scope(isolate()->GetCodeTracer());
+    OFStream os(trace_scope.file());
+    code->Disassemble(raw_name, os);
+  }
+#endif
+
   PROFILE(isolate(), CodeCreateEvent(CodeEventListener::HANDLER_TAG,
                                      AbstractCode::cast(*code), *name));
+
 #ifdef DEBUG
   code->VerifyEmbeddedObjects();
 #endif

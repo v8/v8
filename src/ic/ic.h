@@ -66,17 +66,6 @@ class IC {
                                              Isolate* isolate,
                                              CacheHolderFlag* flag);
 
-  static bool ICUseVector(Code::Kind kind) {
-    return kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
-           kind == Code::KEYED_LOAD_IC || kind == Code::STORE_IC ||
-           kind == Code::KEYED_STORE_IC;
-  }
-  static bool ICUseVector(FeedbackSlotKind kind) {
-    return IsLoadICKind(kind) || IsLoadGlobalICKind(kind) ||
-           IsKeyedLoadICKind(kind) || IsStoreICKind(kind) ||
-           IsStoreOwnICKind(kind) || IsKeyedStoreICKind(kind);
-  }
-
   // The ICs that don't pass slot and vector through the stack have to
   // save/restore them in the dispatcher.
   static bool ShouldPushPopSlotAndVector(Code::Kind kind);
@@ -107,13 +96,6 @@ class IC {
   // Set the call-site target.
   inline void set_target(Code* code);
   bool is_vector_set() { return vector_set_; }
-
-  bool UseVector() const {
-    bool use = ICUseVector(kind());
-    // If we are supposed to use the nexus, verify the nexus is non-null.
-    DCHECK(!use || nexus_ != nullptr);
-    return use;
-  }
 
   // Configure for most states.
   void ConfigureVectorState(IC::State new_state, Handle<Object> key);
@@ -229,7 +211,6 @@ class IC {
   void FindTargetMaps() {
     if (target_maps_set_) return;
     target_maps_set_ = true;
-    DCHECK(UseVector());
     nexus()->ExtractMaps(&target_maps_);
   }
 

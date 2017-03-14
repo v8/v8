@@ -204,7 +204,8 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {
           out.AddFormatted(" %s", Code::Kind2String(kind));
-          if (!IC::ICUseVector(kind)) {
+          if (kind == Code::BINARY_OP_IC || kind == Code::TO_BOOLEAN_IC ||
+              kind == Code::COMPARE_IC) {
             InlineCacheState ic_state = IC::StateFromCode(code);
             out.AddFormatted(" %s", Code::ICState2String(ic_state));
           }
