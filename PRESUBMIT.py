@@ -250,6 +250,7 @@ def _CheckMissingFiles(input_api, output_api):
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   results = []
+  results.extend(_CheckCommitMessageBugEntry(input_api, output_api))
   results.extend(input_api.canned_checks.CheckOwners(
       input_api, output_api, source_file_filter=None))
   results.extend(input_api.canned_checks.CheckPatchFormatted(
@@ -274,6 +275,25 @@ def _SkipTreeCheck(input_api, output_api):
       lambda file: file.LocalPath() == src_version):
     return False
   return input_api.environ.get('PRESUBMIT_TREE_CHECK') == 'skip'
+
+
+def _CheckCommitMessageBugEntry(input_api, output_api):
+  """Check that bug entries are well-formed in commit message."""
+  results = []
+  for bug in (input_api.change.BUG or '').split(','):
+    bug = bug.strip()
+    if 'none'.startswith(bug.lower()):
+      continue
+    if ':' not in bug:
+      try:
+        if int(bug) > 100000:
+          # Rough indicator for current chromium bugs.
+          results.append(
+              'BUG=%s is probably not from V8 tracker. '
+              'Please add correct prefix, e.g. "chromium:%s"' % (bug, bug))
+      except ValueError:
+        results.append('Bogus BUG entry: %s' % bug)
+  return [output_api.PresubmitError(r) for r in results]
 
 
 def CheckChangeOnUpload(input_api, output_api):
