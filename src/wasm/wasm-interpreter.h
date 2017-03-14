@@ -136,7 +136,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
    public:
     // Execution control.
     State state();
-    void PushFrame(const WasmFunction* function, WasmVal* args);
+    void InitFrame(const WasmFunction* function, WasmVal* args);
     State Run();
     State Step();
     void Pause();
@@ -201,11 +201,11 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //==========================================================================
   // Testing functionality.
   //==========================================================================
-  // Manually adds a function to this interpreter, returning the index of the
-  // function.
-  int AddFunctionForTesting(const WasmFunction* function);
+  // Manually adds a function to this interpreter. The func_index of the
+  // function must match the current number of functions.
+  void AddFunctionForTesting(const WasmFunction* function);
   // Manually adds code to the interpreter for the given function.
-  bool SetFunctionCodeForTesting(const WasmFunction* function,
+  void SetFunctionCodeForTesting(const WasmFunction* function,
                                  const byte* start, const byte* end);
 
   // Computes the control transfers for the given bytecode. Used internally in

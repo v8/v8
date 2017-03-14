@@ -143,7 +143,7 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
 
   WasmInterpreter::Thread* thread = interpreter.GetThread(0);
   thread->Reset();
-  thread->PushFrame(&(module->functions[function_index]), args);
+  thread->InitFrame(&(module->functions[function_index]), args);
   WasmInterpreter::State interpreter_result = thread->Run();
   if (instance.mem_start) {
     free(instance.mem_start);

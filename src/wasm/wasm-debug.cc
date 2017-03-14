@@ -109,7 +109,7 @@ class InterpreterHandle {
     DCHECK(thread->state() == WasmInterpreter::STOPPED ||
            thread->state() == WasmInterpreter::FINISHED);
     thread->Reset();
-    thread->PushFrame(&module()->functions[func_index], wasm_args.start());
+    thread->InitFrame(&module()->functions[func_index], wasm_args.start());
     bool finished = false;
     while (!finished) {
       // TODO(clemensh): Add occasional StackChecks.

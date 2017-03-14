@@ -204,9 +204,7 @@ class TestingModule : public ModuleEnv {
     }
     instance->function_code.push_back(code);
     if (interpreter_) {
-      const WasmFunction* function = &module->functions.back();
-      int interpreter_index = interpreter_->AddFunctionForTesting(function);
-      CHECK_EQ(index, interpreter_index);
+      interpreter_->AddFunctionForTesting(&module->functions.back());
     }
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
@@ -551,7 +549,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
 
     if (interpreter_) {
       // Add the code to the interpreter.
-      CHECK(interpreter_->SetFunctionCodeForTesting(function_, start, end));
+      interpreter_->SetFunctionCodeForTesting(function_, start, end);
       return;
     }
 
@@ -799,7 +797,7 @@ class WasmRunner : public WasmRunnerBase {
     WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
     thread->Reset();
     std::array<WasmVal, sizeof...(p)> args{{WasmVal(p)...}};
-    thread->PushFrame(function(), args.data());
+    thread->InitFrame(function(), args.data());
     if (thread->Run() == WasmInterpreter::FINISHED) {
       WasmVal val = thread->GetReturnValue();
       possible_nondeterminism_ |= thread->PossibleNondeterminism();
