@@ -1374,11 +1374,8 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
             TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterDH);
             return smi_handler;
           }
-          if (!IsLoadGlobalIC()) {
-            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterFromPrototypeDH);
-            return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
-          }
-          break;  // Custom-compiled handler.
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterFromPrototypeDH);
+          return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
         }
       }
       TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
@@ -1463,45 +1460,30 @@ Handle<Object> LoadIC::CompileHandler(LookupIterator* lookup,
 
       DCHECK(IsCompatibleReceiver(lookup, map));
       Handle<Object> accessors = lookup->GetAccessors();
-      if (accessors->IsAccessorPair()) {
-        if (lookup->TryLookupCachedProperty()) {
-          DCHECK_EQ(LookupIterator::DATA, lookup->state());
-          return ComputeHandler(lookup);
-        }
-        DCHECK(holder->HasFastProperties());
-        DCHECK(!GetHostFunction()->shared()->HasDebugInfo());
-        Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
-                              isolate());
-        CallOptimization call_optimization(getter);
-        NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-        if (call_optimization.is_simple_api_call()) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
-          int index = lookup->GetAccessorIndex();
-          Handle<Code> code = compiler.CompileLoadCallback(
-              lookup->name(), call_optimization, index, slow_stub());
-          return code;
-        }
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadViaGetter);
-        int expected_arguments = Handle<JSFunction>::cast(getter)
-                                     ->shared()
-                                     ->internal_formal_parameter_count();
-        return compiler.CompileLoadViaGetter(
-            lookup->name(), lookup->GetAccessorIndex(), expected_arguments);
-      } else {
-        DCHECK(accessors->IsAccessorInfo());
-        Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
-        DCHECK(v8::ToCData<Address>(info->getter()) != nullptr);
-        DCHECK(AccessorInfo::IsCompatibleReceiverMap(isolate(), info, map));
-        DCHECK(holder->HasFastProperties());
-        DCHECK(!receiver_is_holder);
-        DCHECK(!info->is_sloppy() || receiver->IsJSReceiver());
+      DCHECK(accessors->IsAccessorPair());
+      if (lookup->TryLookupCachedProperty()) {
+        DCHECK_EQ(LookupIterator::DATA, lookup->state());
+        return ComputeHandler(lookup);
+      }
+      DCHECK(holder->HasFastProperties());
+      DCHECK(!GetHostFunction()->shared()->HasDebugInfo());
+      Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
+                            isolate());
+      CallOptimization call_optimization(getter);
+      NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
+      if (call_optimization.is_simple_api_call()) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
-        NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-        Handle<Code> code =
-            compiler.CompileLoadCallback(lookup->name(), info, slow_stub());
+        int index = lookup->GetAccessorIndex();
+        Handle<Code> code = compiler.CompileLoadCallback(
+            lookup->name(), call_optimization, index, slow_stub());
         return code;
       }
-      UNREACHABLE();
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadViaGetter);
+      int expected_arguments = Handle<JSFunction>::cast(getter)
+                                   ->shared()
+                                   ->internal_formal_parameter_count();
+      return compiler.CompileLoadViaGetter(
+          lookup->name(), lookup->GetAccessorIndex(), expected_arguments);
     }
 
     case LookupIterator::DATA: {

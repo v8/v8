@@ -130,10 +130,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   virtual ~NamedLoadHandlerCompiler() {}
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
-                                   Handle<AccessorInfo> callback,
-                                   Handle<Code> slow_stub);
-
-  Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    const CallOptimization& call_optimization,
                                    int accessor_index, Handle<Code> slow_stub);
 

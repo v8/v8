@@ -96,24 +96,6 @@ Register PropertyHandlerCompiler::Frontend(Handle<Name> name) {
 }
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
-    Handle<Name> name, Handle<AccessorInfo> callback, Handle<Code> slow_stub) {
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    GenerateTailCall(masm(), slow_stub);
-  }
-  Register reg = Frontend(name);
-  DCHECK(receiver().is(ApiGetterDescriptor::ReceiverRegister()));
-  __ Move(ApiGetterDescriptor::HolderRegister(), reg);
-  // The callback is alive if this instruction is executed,
-  // so the weak cell is not cleared and points to data.
-  Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
-  __ GetWeakValue(ApiGetterDescriptor::CallbackRegister(), cell);
-
-  CallApiGetterStub stub(isolate());
-  __ TailCallStub(&stub);
-  return GetCode(kind(), name);
-}
-
-Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, const CallOptimization& call_optimization,
     int accessor_index, Handle<Code> slow_stub) {
   DCHECK(call_optimization.is_simple_api_call());
