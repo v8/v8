@@ -700,7 +700,7 @@ BUILTIN(TypedArrayPrototypeIncludes) {
   // TODO(cwhan.tunz): throw. See the above comment in CopyWithin.
   if (V8_UNLIKELY(array->WasNeutered())) return isolate->heap()->false_value();
 
-  Handle<Object> search_element = args.at<Object>(1);
+  Handle<Object> search_element = args.atOrUndefined(isolate, 1);
   ElementsAccessor* elements = array->GetElementsAccessor();
   Maybe<bool> result = elements->IncludesValue(isolate, array, search_element,
                                                static_cast<uint32_t>(index),
@@ -731,7 +731,7 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
   // TODO(cwhan.tunz): throw. See the above comment in CopyWithin.
   if (V8_UNLIKELY(array->WasNeutered())) return Smi::FromInt(-1);
 
-  Handle<Object> search_element = args.at<Object>(1);
+  Handle<Object> search_element = args.atOrUndefined(isolate, 1);
   ElementsAccessor* elements = array->GetElementsAccessor();
   Maybe<int64_t> result = elements->IndexOfValue(isolate, array, search_element,
                                                  static_cast<uint32_t>(index),
