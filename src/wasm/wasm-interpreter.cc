@@ -936,16 +936,16 @@ class ThreadImpl {
     InterpreterCode* code = codemap()->FindCode(function);
     CHECK_NOT_NULL(code);
     ++num_interpreted_calls_;
-    frames_.push_back({code, 0, 0, stack_.size()});
+    frames_.push_back({code, 0, stack_.size()});
     for (size_t i = 0; i < function->sig->parameter_count(); ++i) {
       stack_.push_back(args[i]);
     }
-    frames_.back().ret_pc = InitLocals(code);
+    frames_.back().pc = InitLocals(code);
     blocks_.push_back(
         {0, stack_.size(), frames_.size(),
          static_cast<uint32_t>(code->function->sig->return_count())});
     TRACE("  => PushFrame(#%u @%zu)\n", code->function->func_index,
-          frames_.back().ret_pc);
+          frames_.back().pc);
   }
 
   WasmInterpreter::State Run() {
@@ -954,7 +954,7 @@ class ThreadImpl {
       if (state_ == WasmInterpreter::STOPPED ||
           state_ == WasmInterpreter::PAUSED) {
         state_ = WasmInterpreter::RUNNING;
-        Execute(frames_.back().code, frames_.back().ret_pc, kRunSteps);
+        Execute(frames_.back().code, frames_.back().pc, kRunSteps);
       }
     } while (state_ == WasmInterpreter::STOPPED);
     return state_;
@@ -965,7 +965,7 @@ class ThreadImpl {
     if (state_ == WasmInterpreter::STOPPED ||
         state_ == WasmInterpreter::PAUSED) {
       state_ = WasmInterpreter::RUNNING;
-      Execute(frames_.back().code, frames_.back().ret_pc, 1);
+      Execute(frames_.back().code, frames_.back().pc, 1);
     }
     return state_;
   }
@@ -991,10 +991,10 @@ class ThreadImpl {
     DCHECK_LE(0, index);
     DCHECK_GT(frames_.size(), index);
     Frame* frame = &frames_[index];
-    DCHECK_GE(kMaxInt, frame->ret_pc);
+    DCHECK_GE(kMaxInt, frame->pc);
     DCHECK_GE(kMaxInt, frame->sp);
     DCHECK_GE(kMaxInt, frame->llimit());
-    return frame_cons(frame->code->function, static_cast<int>(frame->ret_pc),
+    return frame_cons(frame->code->function, static_cast<int>(frame->pc),
                       static_cast<int>(frame->sp),
                       static_cast<int>(frame->llimit()));
   }
@@ -1020,8 +1020,7 @@ class ThreadImpl {
   // Entries on the stack of functions being evaluated.
   struct Frame {
     InterpreterCode* code;
-    pc_t call_pc;
-    pc_t ret_pc;
+    pc_t pc;
     sp_t sp;
 
     // Limit of parameters.
@@ -1060,22 +1059,21 @@ class ThreadImpl {
   }
 
   // Push a frame with arguments already on the stack.
-  void PushFrame(InterpreterCode* code, pc_t call_pc, pc_t ret_pc) {
+  void PushFrame(InterpreterCode* code, pc_t pc) {
     CHECK_NOT_NULL(code);
     DCHECK(!frames_.empty());
     ++num_interpreted_calls_;
-    frames_.back().call_pc = call_pc;
-    frames_.back().ret_pc = ret_pc;
+    frames_.back().pc = pc;
     size_t arity = code->function->sig->parameter_count();
     DCHECK_GE(stack_.size(), arity);
     // The parameters will overlap the arguments already on the stack.
-    frames_.push_back({code, 0, 0, stack_.size() - arity});
+    frames_.push_back({code, 0, stack_.size() - arity});
     blocks_.push_back(
         {0, stack_.size(), frames_.size(),
          static_cast<uint32_t>(code->function->sig->return_count())});
-    frames_.back().ret_pc = InitLocals(code);
+    frames_.back().pc = InitLocals(code);
     TRACE("  => push func#%u @%zu\n", code->function->func_index,
-          frames_.back().ret_pc);
+          frames_.back().pc);
   }
 
   pc_t InitLocals(InterpreterCode* code) {
@@ -1105,7 +1103,7 @@ class ThreadImpl {
 
   void CommitPc(pc_t pc) {
     if (!frames_.empty()) {
-      frames_.back().ret_pc = pc;
+      frames_.back().pc = pc;
     }
   }
 
@@ -1130,7 +1128,24 @@ class ThreadImpl {
     return LookupTarget(code, pc);
   }
 
-  bool DoReturn(InterpreterCode** code, pc_t* pc, pc_t* limit, size_t arity) {
+  pc_t ReturnPc(Decoder* decoder, InterpreterCode* code, pc_t pc) {
+    switch (code->orig_start[pc]) {
+      case kExprCallFunction: {
+        CallFunctionOperand operand(decoder, code->at(pc));
+        return pc + 1 + operand.length;
+      }
+      case kExprCallIndirect: {
+        CallIndirectOperand operand(decoder, code->at(pc));
+        return pc + 1 + operand.length;
+      }
+      default:
+        UNREACHABLE();
+        return 0;
+    }
+  }
+
+  bool DoReturn(Decoder* decoder, InterpreterCode** code, pc_t* pc, pc_t* limit,
+                size_t arity) {
     DCHECK_GT(frames_.size(), 0);
     // Pop all blocks for this frame.
     while (!blocks_.empty() && blocks_.back().fp == frames_.size()) {
@@ -1149,7 +1164,8 @@ class ThreadImpl {
       // Return to caller frame.
       Frame* top = &frames_.back();
       *code = top->code;
-      *pc = top->ret_pc;
+      decoder->Reset((*code)->start, (*code)->end);
+      *pc = ReturnPc(decoder, *code, top->pc);
       *limit = top->code->end - top->code->start;
       TRACE("  => pop func#%u @%zu\n", (*code)->function->func_index, *pc);
       DoStackTransfer(dest, arity);
@@ -1157,10 +1173,12 @@ class ThreadImpl {
     }
   }
 
-  void DoCall(InterpreterCode* target, pc_t* pc, pc_t ret_pc, pc_t* limit) {
-    PushFrame(target, *pc, ret_pc);
-    *pc = frames_.back().ret_pc;
+  void DoCall(Decoder* decoder, InterpreterCode* target, pc_t* pc,
+              pc_t* limit) {
+    PushFrame(target, *pc);
+    *pc = frames_.back().pc;
     *limit = target->end - target->start;
+    decoder->Reset(target->start, target->end);
   }
 
   // Copies {arity} values on the top of the stack down the stack to {dest},
@@ -1334,14 +1352,12 @@ class ThreadImpl {
         }
         case kExprReturn: {
           size_t arity = code->function->sig->return_count();
-          if (!DoReturn(&code, &pc, &limit, arity)) return;
-          decoder.Reset(code->start, code->end);
+          if (!DoReturn(&decoder, &code, &pc, &limit, arity)) return;
           PAUSE_IF_BREAK_FLAG(AfterReturn);
           continue;
         }
         case kExprUnreachable: {
-          DoTrap(kTrapUnreachable, pc);
-          return CommitPc(pc);
+          return DoTrap(kTrapUnreachable, pc);
         }
         case kExprEnd: {
           blocks_.pop_back();
@@ -1398,10 +1414,8 @@ class ThreadImpl {
         }
         case kExprCallFunction: {
           CallFunctionOperand operand(&decoder, code->at(pc));
-          InterpreterCode* target = codemap()->GetCode(operand.index);
-          DoCall(target, &pc, pc + 1 + operand.length, &limit);
-          code = target;
-          decoder.Reset(code->start, code->end);
+          code = codemap()->GetCode(operand.index);
+          DoCall(&decoder, code, &pc, &limit);
           PAUSE_IF_BREAK_FLAG(AfterCall);
           continue;
         }
@@ -1426,9 +1440,8 @@ class ThreadImpl {
             }
           }
 
-          DoCall(target, &pc, pc + 1 + operand.length, &limit);
+          DoCall(&decoder, target, &pc, &limit);
           code = target;
-          decoder.Reset(code->start, code->end);
           PAUSE_IF_BREAK_FLAG(AfterCall);
           continue;
         }
@@ -1656,9 +1669,9 @@ class ThreadImpl {
       if (pc == limit) {
         // Fell off end of code; do an implicit return.
         TRACE("@%-3zu: ImplicitReturn\n", pc);
-        if (!DoReturn(&code, &pc, &limit, code->function->sig->return_count()))
+        if (!DoReturn(&decoder, &code, &pc, &limit,
+                      code->function->sig->return_count()))
           return;
-        decoder.Reset(code->start, code->end);
         PAUSE_IF_BREAK_FLAG(AfterReturn);
       }
     }
