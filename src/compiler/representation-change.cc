@@ -307,12 +307,16 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedSigned);
     }
-  } else if (output_rep == MachineRepresentation::kBit &&
-             use_info.type_check() == TypeCheckKind::kSignedSmall) {
-    // TODO(turbofan): Consider adding a Bailout operator that just deopts.
-    // Also use that for MachineRepresentation::kPointer case above.
-    node = InsertChangeBitToTagged(node);
-    op = simplified()->CheckedTaggedToTaggedSigned();
+  } else if (output_rep == MachineRepresentation::kBit) {
+    if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      // TODO(turbofan): Consider adding a Bailout operator that just deopts.
+      // Also use that for MachineRepresentation::kPointer case above.
+      node = InsertChangeBitToTagged(node);
+      op = simplified()->CheckedTaggedToTaggedSigned();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTaggedSigned);
+    }
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kTaggedSigned);
@@ -633,6 +637,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
       op = machine()->TruncateFloat64ToWord32();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord32);
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     node = InsertChangeFloat32ToFloat64(node);  // float32 -> float64 -> int32
@@ -648,6 +655,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
       op = machine()->TruncateFloat64ToWord32();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord32);
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
     if (output_type->Is(Type::Signed32())) {
@@ -658,6 +668,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       } else {
         op = simplified()->TruncateTaggedToWord32();
       }
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord32);
     }
   } else if (output_rep == MachineRepresentation::kTagged ||
              output_rep == MachineRepresentation::kTaggedPointer) {
@@ -677,7 +690,13 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
         op = simplified()->TruncateTaggedToWord32();
       } else if (use_info.type_check() != TypeCheckKind::kNone) {
         op = simplified()->CheckedTruncateTaggedToWord32();
+      } else {
+        return TypeError(node, output_rep, output_type,
+                         MachineRepresentation::kWord32);
       }
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord32);
     }
   } else if (output_rep == MachineRepresentation::kWord32) {
     // Only the checked case should get here, the non-checked case is
@@ -688,6 +707,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
         return node;
       } else if (output_type->Is(Type::Unsigned32())) {
         op = simplified()->CheckedUint32ToInt32();
+      } else {
+        return TypeError(node, output_rep, output_type,
+                         MachineRepresentation::kWord32);
       }
     } else {
       DCHECK_EQ(TypeCheckKind::kNumberOrOddball, use_info.type_check());
