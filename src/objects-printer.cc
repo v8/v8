@@ -751,6 +751,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
       case FeedbackSlotKind::kCreateClosure:
       case FeedbackSlotKind::kLiteral:
       case FeedbackSlotKind::kGeneral:
+      case FeedbackSlotKind::kTypeProfile:
         break;
       case FeedbackSlotKind::kToBoolean:
       case FeedbackSlotKind::kInvalid:
