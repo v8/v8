@@ -2214,34 +2214,18 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   LhsKind assign_type = Property::GetAssignType(property);
 
   // Evaluate LHS expression.
-  Register lhs_name;
-  if (expr->HasTypeProfileSlot()) {
-    lhs_name = register_allocator()->NewRegister();
-  }
-
   switch (assign_type) {
     case VARIABLE:
-      if (expr->HasTypeProfileSlot()) {
-        builder()
-            ->LoadLiteral(expr->target()->AsVariableProxy()->var()->raw_name())
-            .StoreAccumulatorInRegister(lhs_name);
-      }
       // Nothing to do to evaluate variable assignment LHS.
       break;
     case NAMED_PROPERTY: {
       object = VisitForRegisterValue(property->obj());
       name = property->key()->AsLiteral()->AsRawPropertyName();
-      if (expr->HasTypeProfileSlot()) {
-        builder()->LoadLiteral(name).StoreAccumulatorInRegister(lhs_name);
-      }
       break;
     }
     case KEYED_PROPERTY: {
       object = VisitForRegisterValue(property->obj());
       key = VisitForRegisterValue(property->key());
-      if (expr->HasTypeProfileSlot()) {
-        builder()->StoreAccumulatorInRegister(lhs_name);
-      }
       break;
     }
     case NAMED_SUPER_PROPERTY: {
@@ -2254,9 +2238,6 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       builder()
           ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
           .StoreAccumulatorInRegister(super_property_args[2]);
-      if (expr->HasTypeProfileSlot()) {
-        builder()->StoreAccumulatorInRegister(lhs_name);
-      }
       break;
     }
     case KEYED_SUPER_PROPERTY: {
@@ -2267,10 +2248,6 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       VisitForRegisterValue(super_property->home_object(),
                             super_property_args[1]);
       VisitForRegisterValue(property->key(), super_property_args[2]);
-      if (expr->HasTypeProfileSlot()) {
-        builder()->StoreAccumulatorInRegister(lhs_name);
-      }
-
       break;
     }
   }
@@ -2358,14 +2335,6 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
           .CallRuntime(StoreKeyedToSuperRuntimeId(), super_property_args);
       break;
     }
-  }
-
-  // Value is in accumulator.
-  if (expr->HasTypeProfileSlot()) {
-    FeedbackSlot collect_type_feedback_slot = expr->TypeProfileSlot();
-
-    builder()->CollectTypeProfile(lhs_name,
-                                  feedback_index(collect_type_feedback_slot));
   }
 }
 
