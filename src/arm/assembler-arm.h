@@ -180,10 +180,13 @@ struct SwVfpRegister {
     SwVfpRegister r = {code};
     return r;
   }
-  void split_code(int* vm, int* m) const {
-    DCHECK(is_valid());
+  static void split_code(int reg_code, int* vm, int* m) {
+    DCHECK(from_code(reg_code).is_valid());
     *m = reg_code & 0x1;
     *vm = reg_code >> 1;
+  }
+  void split_code(int* vm, int* m) const {
+    split_code(reg_code, vm, m);
   }
 
   int reg_code;
@@ -226,10 +229,13 @@ struct DwVfpRegister {
     DwVfpRegister r = {code};
     return r;
   }
-  void split_code(int* vm, int* m) const {
-    DCHECK(is_valid());
+  static void split_code(int reg_code, int* vm, int* m) {
+    DCHECK(from_code(reg_code).is_valid());
     *m = (reg_code & 0x10) >> 4;
     *vm = reg_code & 0x0F;
+  }
+  void split_code(int* vm, int* m) const {
+    split_code(reg_code, vm, m);
   }
 
   int reg_code;
@@ -296,11 +302,14 @@ struct QwNeonRegister {
     DCHECK(is_valid());
     return reg_code;
   }
-  void split_code(int* vm, int* m) const {
-    DCHECK(is_valid());
+  static void split_code(int reg_code, int* vm, int* m) {
+    DCHECK(from_code(reg_code).is_valid());
     int encoded_code = reg_code << 1;
     *m = (encoded_code & 0x10) >> 4;
     *vm = encoded_code & 0x0F;
+  }
+  void split_code(int* vm, int* m) const {
+    split_code(reg_code, vm, m);
   }
   DwVfpRegister low() const {
     DwVfpRegister reg;
@@ -1315,27 +1324,27 @@ class Assembler : public AssemblerBase {
   void vmov(NeonDataType dt, DwVfpRegister dst, int index, Register src);
   void vmov(NeonDataType dt, Register dst, DwVfpRegister src, int index);
 
-  void vmov(const QwNeonRegister dst, const QwNeonRegister src);
-  void vmvn(const QwNeonRegister dst, const QwNeonRegister src);
+  void vmov(QwNeonRegister dst, QwNeonRegister src);
+  void vdup(NeonSize size, QwNeonRegister dst, Register src);
+  void vdup(QwNeonRegister dst, SwVfpRegister src);
+
+  void vcvt_f32_s32(QwNeonRegister dst, QwNeonRegister src);
+  void vcvt_f32_u32(QwNeonRegister dst, QwNeonRegister src);
+  void vcvt_s32_f32(QwNeonRegister dst, QwNeonRegister src);
+  void vcvt_u32_f32(QwNeonRegister dst, QwNeonRegister src);
+
+  void vmvn(QwNeonRegister dst, QwNeonRegister src);
   void vswp(DwVfpRegister dst, DwVfpRegister src);
   void vswp(QwNeonRegister dst, QwNeonRegister src);
-  // vdup conditional execution isn't supported.
-  void vdup(NeonSize size, const QwNeonRegister dst, const Register src);
-  void vdup(const QwNeonRegister dst, const SwVfpRegister src);
+  void vabs(QwNeonRegister dst, QwNeonRegister src);
+  void vabs(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
+  void vneg(QwNeonRegister dst, QwNeonRegister src);
+  void vneg(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
 
-  void vcvt_f32_s32(const QwNeonRegister dst, const QwNeonRegister src);
-  void vcvt_f32_u32(const QwNeonRegister dst, const QwNeonRegister src);
-  void vcvt_s32_f32(const QwNeonRegister dst, const QwNeonRegister src);
-  void vcvt_u32_f32(const QwNeonRegister dst, const QwNeonRegister src);
-
-  void vabs(const QwNeonRegister dst, const QwNeonRegister src);
-  void vabs(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);
-  void vneg(const QwNeonRegister dst, const QwNeonRegister src);
-  void vneg(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);
-  void veor(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2);
   void vand(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
-  void vbsl(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void veor(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2);
   void veor(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vbsl(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vorr(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
@@ -1374,24 +1383,23 @@ class Assembler : public AssemblerBase {
   void vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
   void vcge(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
-  void vcge(NeonDataType dt, QwNeonRegister dst,
-            QwNeonRegister src1, QwNeonRegister src2);
+  void vcge(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+            QwNeonRegister src2);
   void vcgt(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
-  void vcgt(NeonDataType dt, QwNeonRegister dst,
-            QwNeonRegister src1, QwNeonRegister src2);
-  void vext(const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2, int bytes);
-  void vzip(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);
-  void vrev16(NeonSize size, const QwNeonRegister dst,
-            const QwNeonRegister src);
-  void vrev32(NeonSize size, const QwNeonRegister dst,
-            const QwNeonRegister src);
-  void vrev64(NeonSize size, const QwNeonRegister dst,
-            const QwNeonRegister src);
-  void vtbl(const DwVfpRegister dst, const NeonListOperand& list,
-            const DwVfpRegister index);
-  void vtbx(const DwVfpRegister dst, const NeonListOperand& list,
-            const DwVfpRegister index);
+  void vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+            QwNeonRegister src2);
+  void vext(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2,
+            int bytes);
+  void vzip(NeonSize size, QwNeonRegister src1, QwNeonRegister src2);
+  void vuzp(NeonSize size, QwNeonRegister src1, QwNeonRegister src2);
+  void vrev16(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
+  void vrev32(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
+  void vrev64(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
+  void vtrn(NeonSize size, QwNeonRegister src1, QwNeonRegister src2);
+  void vtbl(DwVfpRegister dst, const NeonListOperand& list,
+            DwVfpRegister index);
+  void vtbx(DwVfpRegister dst, const NeonListOperand& list,
+            DwVfpRegister index);
 
   // Pseudo instructions
 

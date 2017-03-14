@@ -2225,14 +2225,17 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           FormatNeonList(Vn, list.type());
           Print(", ");
           PrintDRegister(Vm);
-        } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 6) == 0x7) {
+        } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 8) == 0x1 &&
+                   instr->Bit(6) == 1) {
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           int size = kBitsPerByte * (1 << instr->Bits(19, 18));
-          // vzip.<size> Qd, Qm.
+          const char* op = instr->Bit(7) != 0 ? "vzip" : "vuzp";
+          // vzip/vuzp.<size> Qd, Qm.
           out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "vzip.%d q%d, q%d", size, Vd, Vm);
-        } else if (instr->Bits(17, 16) == 0 && instr->Bits(11, 9) == 0) {
+                                      "%s.%d q%d, q%d", op, size, Vd, Vm);
+        } else if (instr->Bits(17, 16) == 0 && instr->Bits(11, 9) == 0 &&
+                   instr->Bit(6) == 1) {
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           int size = kBitsPerByte * (1 << instr->Bits(19, 18));
@@ -2241,7 +2244,15 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           // vrev<op>.<size> Qd, Qm.
           out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                       "vrev%d.%d q%d, q%d", op, size, Vd, Vm);
-        } else if (instr->Bits(17, 16) == 0x1 && instr->Bit(11) == 0) {
+        } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 6) == 0x3) {
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          int size = kBitsPerByte * (1 << instr->Bits(19, 18));
+          // vtrn.<size> Qd, Qm.
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "vtrn.%d q%d, q%d", size, Vd, Vm);
+        } else if (instr->Bits(17, 16) == 0x1 && instr->Bit(11) == 0 &&
+                   instr->Bit(6) == 1) {
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           int size = kBitsPerByte * (1 << instr->Bits(19, 18));
@@ -2259,7 +2270,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           } else {
             Unknown(instr);
           }
-        } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(11, 8) == 0x5) {
+        } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(11, 8) == 0x5 &&
+                   instr->Bit(6) == 1) {
           // vrecpe/vrsqrte.f32 Qd, Qm.
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
@@ -2269,7 +2281,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         } else {
           Unknown(instr);
         }
-      } else if (instr->Bits(11, 7) == 0 && instr->Bit(4) == 1) {
+      } else if (instr->Bits(11, 7) == 0 && instr->Bit(4) == 1 &&
+                 instr->Bit(6) == 1) {
         // vshr.u<size> Qd, Qm, shift
         int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
         int shift = 2 * size - instr->Bits(21, 16);

@@ -1140,8 +1140,12 @@ TEST(Neon) {
               "f2f0e360       vext.8 q15, q0, q8, #3");
       COMPARE(vzip(Neon16, q15, q0),
               "f3f6e1c0       vzip.16 q15, q0");
+      COMPARE(vuzp(Neon16, q15, q0),
+              "f3f6e140       vuzp.16 q15, q0");
       COMPARE(vrev64(Neon8, q15, q0),
               "f3f0e040       vrev64.8 q15, q0");
+      COMPARE(vtrn(Neon16, q15, q0),
+              "f3f6e0c0       vtrn.16 q15, q0");
       COMPARE(vtbl(d0, NeonListOperand(d1, 1), d2),
               "f3b10802       vtbl.8 d0, {d1}, d2");
       COMPARE(vtbl(d31, NeonListOperand(d0, 2), d4),
