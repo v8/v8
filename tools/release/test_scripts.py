@@ -1920,3 +1920,6 @@ Cr-Commit-Position: refs/heads/4.2.71@{#1}
       },],
     }
     self.assertEquals(expected_json, json.loads(FileToText(json_output)))
+
+if __name__ == '__main__':
+  unittest.main()
