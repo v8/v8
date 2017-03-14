@@ -588,6 +588,8 @@ DEFINE_BOOL(wasm_trap_if, true,
 DEFINE_BOOL(wasm_code_fuzzer_gen_test, false,
             "Generate a test case when running the wasm-code fuzzer")
 DEFINE_BOOL(print_wasm_code, false, "Print WebAssembly code")
+DEFINE_BOOL(wasm_interpret_all, false,
+            "Execute all wasm code in the wasm interpreter")
 
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")

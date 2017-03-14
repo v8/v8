@@ -1314,10 +1314,21 @@ class InstantiationHelper {
     }
 
     //--------------------------------------------------------------------------
-    // Set all breakpoints that were set on the shared module.
+    // Debugging support.
     //--------------------------------------------------------------------------
+    // Set all breakpoints that were set on the shared module.
     WasmSharedModuleData::SetBreakpointsOnNewInstance(
         compiled_module_->shared(), instance);
+
+    if (FLAG_wasm_interpret_all) {
+      Handle<WasmDebugInfo> debug_info =
+          WasmInstanceObject::GetOrCreateDebugInfo(instance);
+      for (int func_index = num_imported_functions,
+               num_wasm_functions = static_cast<int>(module_->functions.size());
+           func_index < num_wasm_functions; ++func_index) {
+        WasmDebugInfo::RedirectToInterpreter(debug_info, func_index);
+      }
+    }
 
     //--------------------------------------------------------------------------
     // Run the start function if one was specified.
