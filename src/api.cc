@@ -8143,6 +8143,12 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
     isolate->set_snapshot_blob(i::Snapshot::DefaultSnapshotBlob());
   }
   if (params.entry_hook) {
+#ifdef V8_USE_SNAPSHOT
+    // Setting a FunctionEntryHook is only supported in no-snapshot builds.
+    Utils::ApiCheck(
+        false, "v8::Isolate::New",
+        "Setting a FunctionEntryHook is only supported in no-snapshot builds.");
+#endif
     isolate->set_function_entry_hook(params.entry_hook);
   }
   auto code_event_handler = params.code_event_handler;

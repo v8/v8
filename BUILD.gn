@@ -258,6 +258,9 @@ config("features") {
   if (v8_enable_handle_zapping) {
     defines += [ "ENABLE_HANDLE_ZAPPING" ]
   }
+  if (v8_use_snapshot) {
+    defines += [ "V8_USE_SNAPSHOT" ]
+  }
   if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
   }
