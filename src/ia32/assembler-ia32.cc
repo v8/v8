@@ -2341,33 +2341,6 @@ void Assembler::movmskps(Register dst, XMMRegister src) {
 }
 
 
-void Assembler::pcmpeqd(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x76);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::punpckldq(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x62);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::punpckhdq(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x6A);
-  emit_sse_operand(dst, src);
-}
-
-
 void Assembler::maxsd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
@@ -2545,33 +2518,6 @@ void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
   EMIT(0x17);
   emit_sse_operand(src, dst);
   EMIT(imm8);
-}
-
-
-void Assembler::pand(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0xDB);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::pxor(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0xEF);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::por(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0xEB);
-  emit_sse_operand(dst, src);
 }
 
 
@@ -2884,6 +2830,17 @@ void Assembler::sse2_instr(XMMRegister dst, const Operand& src, byte prefix,
   EnsureSpace ensure_space(this);
   EMIT(prefix);
   EMIT(escape);
+  EMIT(opcode);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::sse4_instr(XMMRegister dst, const Operand& src, byte prefix,
+                           byte escape1, byte escape2, byte opcode) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  EMIT(prefix);
+  EMIT(escape1);
+  EMIT(escape2);
   EMIT(opcode);
   emit_sse_operand(dst, src);
 }

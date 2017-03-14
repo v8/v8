@@ -1027,10 +1027,6 @@ class Assembler : public AssemblerBase {
   void movmskps(Register dst, XMMRegister src);
 
   void cmpltsd(XMMRegister dst, XMMRegister src);
-  void pcmpeqd(XMMRegister dst, XMMRegister src);
-
-  void punpckldq(XMMRegister dst, XMMRegister src);
-  void punpckhdq(XMMRegister dst, XMMRegister src);
 
   void maxsd(XMMRegister dst, XMMRegister src) { maxsd(dst, Operand(src)); }
   void maxsd(XMMRegister dst, const Operand& src);
@@ -1063,9 +1059,6 @@ class Assembler : public AssemblerBase {
   void movss(XMMRegister dst, XMMRegister src) { movss(dst, Operand(src)); }
   void extractps(Register dst, XMMRegister src, byte imm8);
 
-  void pand(XMMRegister dst, XMMRegister src);
-  void pxor(XMMRegister dst, XMMRegister src);
-  void por(XMMRegister dst, XMMRegister src);
   void ptest(XMMRegister dst, XMMRegister src);
 
   void pslld(XMMRegister reg, int8_t shift);
@@ -1445,6 +1438,31 @@ class Assembler : public AssemblerBase {
   SSE2_INSTRUCTION_LIST(DECLARE_SSE2_AVX_INSTRUCTION)
 #undef DECLARE_SSE2_AVX_INSTRUCTION
 
+#define DECLARE_SSE4_INSTRUCTION(instruction, prefix, escape1, escape2,     \
+                                 opcode)                                    \
+  void instruction(XMMRegister dst, XMMRegister src) {                      \
+    instruction(dst, Operand(src));                                         \
+  }                                                                         \
+  void instruction(XMMRegister dst, const Operand& src) {                   \
+    sse4_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode); \
+  }
+
+  SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
+#undef DECLARE_SSE4_INSTRUCTION
+
+#define DECLARE_SSE4_AVX_INSTRUCTION(instruction, prefix, escape1, escape2,   \
+                                     opcode)                                  \
+  void v##instruction(XMMRegister dst, XMMRegister src1, XMMRegister src2) {  \
+    v##instruction(dst, src1, Operand(src2));                                 \
+  }                                                                           \
+  void v##instruction(XMMRegister dst, XMMRegister src1,                      \
+                      const Operand& src2) {                                  \
+    vinstr(0x##opcode, dst, src1, src2, k##prefix, k##escape1##escape2, kW0); \
+  }
+
+  SSE4_INSTRUCTION_LIST(DECLARE_SSE4_AVX_INSTRUCTION)
+#undef DECLARE_SSE4_AVX_INSTRUCTION
+
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
   // non-temporal
@@ -1577,6 +1595,8 @@ class Assembler : public AssemblerBase {
 
   void sse2_instr(XMMRegister dst, const Operand& src, byte prefix, byte escape,
                   byte opcode);
+  void sse4_instr(XMMRegister dst, const Operand& src, byte prefix,
+                  byte escape1, byte escape2, byte opcode);
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w);
   // Most BMI instructions are similiar.

@@ -462,12 +462,6 @@ TEST(DisasmIa320) {
     __ psllq(xmm0, xmm1);
     __ psrlq(xmm0, 17);
     __ psrlq(xmm0, xmm1);
-    __ por(xmm0, xmm1);
-
-    __ pcmpeqd(xmm1, xmm0);
-
-    __ punpckldq(xmm1, xmm6);
-    __ punpckhdq(xmm7, xmm5);
 
     __ pinsrw(xmm5, edx, 5);
     __ pinsrw(xmm5, Operand(edx, 4), 5);
@@ -506,6 +500,13 @@ TEST(DisasmIa320) {
       __ pextrd(eax, xmm0, 1);
       __ pinsrd(xmm1, eax, 0);
       __ extractps(eax, xmm1, 0);
+
+#define EMIT_SSE4_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
+  __ instruction(xmm5, xmm1);                                                \
+  __ instruction(xmm5, Operand(edx, 4));
+
+      SSE4_INSTRUCTION_LIST(EMIT_SSE4_INSTR)
+#undef EMIT_SSE4_INSTR
     }
   }
 
@@ -555,6 +556,14 @@ TEST(DisasmIa320) {
 
       SSE2_INSTRUCTION_LIST(EMIT_SSE2_AVXINSTR)
 #undef EMIT_SSE2_AVXINSTR
+
+#define EMIT_SSE4_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
+                           notUsed4)                                  \
+  __ v##instruction(xmm7, xmm5, xmm1);                                \
+  __ v##instruction(xmm7, xmm5, Operand(edx, 4));
+
+      SSE4_INSTRUCTION_LIST(EMIT_SSE4_AVXINSTR)
+#undef EMIT_SSE4_AVXINSTR
     }
   }
 

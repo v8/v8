@@ -802,6 +802,17 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         current += PrintRightOperand(current);
         AppendToBuffer(",%s", NameOfCPURegister(vvvv));
         break;
+#define DECLARE_SSE_AVX_DIS_CASE(instruction, notUsed1, notUsed2, notUsed3, \
+                                 opcode)                                    \
+  case 0x##opcode: {                                                        \
+    AppendToBuffer("v" #instruction " %s,%s,", NameOfXMMRegister(regop),    \
+                   NameOfXMMRegister(vvvv));                                \
+    current += PrintRightXMMOperand(current);                               \
+    break;                                                                  \
+  }
+
+        SSE4_INSTRUCTION_LIST(DECLARE_SSE_AVX_DIS_CASE)
+#undef DECLARE_SSE_AVX_DIS_CASE
       default:
         UnimplementedInstruction();
     }
@@ -1696,19 +1707,27 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           data++;
           if (*data == 0x38) {
             data++;
-            if (*data == 0x17) {
-              data++;
-              int mod, regop, rm;
-              get_modrm(*data, &mod, &regop, &rm);
-              AppendToBuffer("ptest %s,%s",
-                             NameOfXMMRegister(regop),
-                             NameOfXMMRegister(rm));
-              data++;
-            } else if (*data == 0x2A) {
-              // movntdqa
-              UnimplementedInstruction();
-            } else {
-              UnimplementedInstruction();
+            byte op = *data;
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            switch (op) {
+              case 0x17:
+                AppendToBuffer("ptest %s,%s", NameOfXMMRegister(regop),
+                               NameOfXMMRegister(rm));
+                data++;
+                break;
+#define SSE4_DIS_CASE(instruction, notUsed1, notUsed2, notUsed3, opcode) \
+  case 0x##opcode: {                                                     \
+    AppendToBuffer(#instruction " %s,", NameOfXMMRegister(regop));       \
+    data += PrintRightXMMOperand(data);                                  \
+    break;                                                               \
+  }
+
+                SSE4_INSTRUCTION_LIST(SSE4_DIS_CASE)
+#undef SSE4_DIS_CASE
+              default:
+                UnimplementedInstruction();
             }
           } else if (*data == 0x3A) {
             data++;
@@ -1831,28 +1850,6 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(rm),
                            static_cast<int>(imm8));
             data += 2;
-          } else if (*data == 0x62) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("punpckldq %s,%s", NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
-          } else if (*data == 0x6A) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("punpckhdq %s,%s", NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
-          } else if (*data == 0x76) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("pcmpeqd %s,%s",
-                           NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
           } else if (*data == 0x90) {
             data++;
             AppendToBuffer("nop");  // 2 byte nop.
@@ -1914,14 +1911,6 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             data += PrintRightOperand(data);
             AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
             data++;
-          } else if (*data == 0xDB) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("pand %s,%s",
-                           NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
           } else if (*data == 0xE7) {
             data++;
             int mod, regop, rm;
@@ -1932,39 +1921,27 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             } else {
               UnimplementedInstruction();
             }
-          } else if (*data == 0xEF) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("pxor %s,%s",
-                           NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
-          } else if (*data == 0xEB) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("por %s,%s",
-                           NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
-          } else if (*data == 0xFA) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("psubd %s,", NameOfXMMRegister(regop));
-            data += PrintRightXMMOperand(data);
-          } else if (*data == 0xFE) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("paddd %s,", NameOfXMMRegister(regop));
-            data += PrintRightXMMOperand(data);
           } else if (*data == 0xB1) {
             data++;
             data += PrintOperands("cmpxchg_w", OPER_REG_OP_ORDER, data);
           } else {
-            UnimplementedInstruction();
+            byte op = *data;
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            switch (op) {
+#define SSE2_DIS_CASE(instruction, notUsed1, notUsed2, opcode)     \
+  case 0x##opcode: {                                               \
+    AppendToBuffer(#instruction " %s,", NameOfXMMRegister(regop)); \
+    data += PrintRightXMMOperand(data);                            \
+    break;                                                         \
+  }
+
+              SSE2_INSTRUCTION_LIST(SSE2_DIS_CASE)
+#undef SSE2_DIS_CASE
+              default:
+                UnimplementedInstruction();
+            }
           }
         } else {
           UnimplementedInstruction();
