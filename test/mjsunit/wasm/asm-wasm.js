@@ -78,7 +78,7 @@ function Float64Test() {
 
   function caller() {
     var a = 0.0;
-    var ret = 0|0;
+    var ret = 0;
     a = +sum(70.1,10.2);
     if (a == 80.3) {
       ret = 1|0;
@@ -416,7 +416,7 @@ function TestContinueInDoWhileFalse() {
   function caller() {
     do {
       continue;
-    } while (false);
+    } while (0);
     return 47;
   }
 
@@ -889,7 +889,7 @@ function TestInitFunctionWithNoGlobals() {
   function caller() {
     return 51;
   }
-  return {caller};
+  return {caller:caller};
 }
 
 assertWasm(51, TestInitFunctionWithNoGlobals);
@@ -1100,7 +1100,6 @@ function TestForeignFunctionMultipleUse() {
 
 print("TestForeignFunctionMultipleUse...");
 TestForeignFunctionMultipleUse();
-
 
 function TestForeignVariables() {
   function AsmModule(stdlib, foreign, buffer) {
@@ -1474,7 +1473,7 @@ assertWasm(3, TestAndNegative);
 function TestNegativeDouble() {
   "use asm";
   function func() {
-    var x = -(34359738368.25);
+    var x = -34359738368.25;
     var y = -2.5;
     return +(x + y);
   }
@@ -1513,6 +1512,9 @@ assertWasm(-34359738370.75, TestNegativeDouble);
 })();
 
 
+/*
+// TODO(bradnelson): Technically invalid, but useful to cover unicode, revises
+// and re-enable.
 (function TestUnicodeExportKey() {
   function Module() {
     "use asm";
@@ -1526,6 +1528,7 @@ assertWasm(-34359738370.75, TestNegativeDouble);
   assertEquals(42, m.Ñæ());
   assertValidAsm(Module);
 })();
+*/
 
 
 function TestAndIntAndHeapValue(stdlib, foreign, buffer) {
