@@ -36,6 +36,8 @@ ADDED_FILES = [
   'testing/gtest/gtest_new',
   'testing/gtest/new/gtest_new',
   'testing/gtest/baz/gtest_new',
+  'third_party/jinja2/jinja2',
+  'third_party/markupsafe/markupsafe'
 ]
 
 REMOVED_FILES = [
@@ -61,7 +63,6 @@ class TestUpdateNode(unittest.TestCase):
 
   def testUpdate(self):
     v8_cwd = os.path.join(self.workdir, 'v8')
-    gtest_cwd = os.path.join(self.workdir, 'v8', 'testing', 'gtest')
     node_cwd = os.path.join(self.workdir, 'node')
 
     # Set up V8 test fixture.

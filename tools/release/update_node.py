@@ -16,7 +16,9 @@ SUB_REPOSITORIES = [ ["testing", "gtest"],
                      ["third_party", "markupsafe"] ]
 
 DELETE_FROM_GITIGNORE = [ "/base",
-                          "/testing/gtest" ]
+                          "/testing/gtest",
+                          "/third_party/jinja2",
+                          "/third_party/markupsafe" ]
 
 # Node.js requires only a single header file from gtest to build V8.
 # Both jinja2 and markupsafe are required to generate part of the inspector.
