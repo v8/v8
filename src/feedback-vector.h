@@ -36,6 +36,7 @@ enum class FeedbackSlotKind {
   kCompareOp,
   kToBoolean,
   kStoreDataPropertyInLiteral,
+  kTypeProfile,
   kCreateClosure,
   kLiteral,
   // This is a general purpose slot that occupies one feedback vector element.
@@ -150,6 +151,11 @@ class FeedbackVectorSpecBase {
     return AddSlot(FeedbackSlotKind::kStoreDataPropertyInLiteral);
   }
 
+  FeedbackSlot AddTypeProfileSlot() {
+    DCHECK(FLAG_type_profile);
+    return AddSlot(FeedbackSlotKind::kTypeProfile);
+  }
+
 #ifdef OBJECT_PRINT
   // For gdb debugging.
   void Print();
@@ -249,6 +255,8 @@ class FeedbackMetadata : public FixedArray {
   DECLARE_PRINTER(FeedbackMetadata)
 
   static const char* Kind2String(FeedbackSlotKind kind);
+
+  bool HasTypeProfileSlot();
 
  private:
   static const int kFeedbackSlotKindBits = 5;
@@ -738,6 +746,30 @@ class StoreDataPropertyInLiteralICNexus : public FeedbackNexus {
   }
 
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map);
+
+  InlineCacheState StateFromFeedback() const override;
+};
+
+// For each assignment, store the type of the value in the collection of types
+// in the feedback vector.
+class CollectTypeProfileNexus : public FeedbackNexus {
+ public:
+  CollectTypeProfileNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackSlotKind::kTypeProfile, vector->GetKind(slot));
+  }
+  CollectTypeProfileNexus(FeedbackVector* vector, FeedbackSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackSlotKind::kTypeProfile, vector->GetKind(slot));
+  }
+
+  // Add a type to the list of types.
+  void Collect(Handle<Name> type);
+
+  // Dump the types to stdout.
+  // TODO(franzih): pass this information to the debugger protocol instead of
+  // stdout.
+  void Print() const;
 
   InlineCacheState StateFromFeedback() const override;
 };
