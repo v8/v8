@@ -5,6 +5,8 @@
 #ifndef V8_PARSING_PREPARSE_DATA_H_
 #define V8_PARSING_PREPARSE_DATA_H_
 
+#include <unordered_map>
+
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/collector.h"
@@ -111,6 +113,40 @@ class ParserLogger final {
 #endif
 };
 
+class PreParseData final {
+ public:
+  struct FunctionData {
+    int start;
+    int end;
+    int num_parameters;
+    int function_length;
+    bool has_duplicate_parameters;
+    int expected_property_count;
+    int num_inner_functions;
+
+    FunctionData() : start(-1), end(-1) {}
+
+    FunctionData(int start, int end, int num_parameters, int function_length,
+                 bool has_duplicate_parameters, int expected_property_count,
+                 int num_inner_functions)
+        : start(start),
+          end(end),
+          num_parameters(num_parameters),
+          function_length(function_length),
+          has_duplicate_parameters(has_duplicate_parameters),
+          expected_property_count(expected_property_count),
+          num_inner_functions(num_inner_functions) {}
+
+    bool is_valid() const { return start < end; }
+  };
+
+  FunctionData GetTopLevelFunctionData(int start) const;
+  void AddTopLevelFunctionData(FunctionData&& data);
+  void AddTopLevelFunctionData(const FunctionData& data);
+
+ private:
+  std::unordered_map<int, FunctionData> top_level_functions_data_;
+};
 
 }  // namespace internal
 }  // namespace v8.

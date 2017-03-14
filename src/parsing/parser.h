@@ -1164,7 +1164,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Scanner scanner_;
   PreParser* reusable_preparser_;
-  Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   Mode mode_;
 
   friend class ParserTarget;

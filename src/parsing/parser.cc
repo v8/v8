@@ -507,7 +507,6 @@ Parser::Parser(ParseInfo* info)
                          true),
       scanner_(info->unicode_cache()),
       reusable_preparser_(nullptr),
-      original_scope_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       target_stack_(nullptr),
       compile_options_(info->compile_options()),
@@ -624,6 +623,12 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
 
   {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(source));
+    if (FLAG_use_parse_tasks) {
+      // FIXME(wiktorg) make it useful for something
+      scanner_.Initialize(stream.get());
+      reusable_preparser()->PreParseProgram();
+      stream->Seek(0);
+    }
     scanner_.Initialize(stream.get());
     result = DoParseProgram(info);
   }

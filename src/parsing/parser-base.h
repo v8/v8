@@ -201,6 +201,7 @@ class ParserBase {
              RuntimeCallStats* runtime_call_stats,
              bool parsing_on_main_thread = true)
       : scope_(nullptr),
+        original_scope_(nullptr),
         function_state_(nullptr),
         extension_(extension),
         fni_(nullptr),
@@ -1391,6 +1392,7 @@ class ParserBase {
   // Parser base's protected field members.
 
   Scope* scope_;                   // Scope stack.
+  Scope* original_scope_;  // The top scope for the current parsing item.
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
   FuncNameInferrer* fni_;

@@ -85,6 +85,35 @@ PreParserIdentifier PreParser::GetSymbol() const {
   return symbol;
 }
 
+PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
+  DCHECK_NULL(scope_);
+  DeclarationScope* scope = NewScriptScope();
+#ifdef DEBUG
+  scope->set_is_being_lazily_parsed(true);
+#endif
+
+  // ModuleDeclarationInstantiation for Source Text Module Records creates a
+  // new Module Environment Record whose outer lexical environment record is
+  // the global scope.
+  if (is_module) scope = NewModuleScope(scope);
+
+  FunctionState top_scope(&function_state_, &scope_, scope);
+  original_scope_ = scope_;
+  bool ok = true;
+  int start_position = scanner()->peek_location().beg_pos;
+  parsing_module_ = is_module;
+  PreParserStatementList body;
+  ParseStatementList(body, Token::EOS, &ok);
+  original_scope_ = nullptr;
+  if (stack_overflow()) return kPreParseStackOverflow;
+  if (!ok) {
+    ReportUnexpectedToken(scanner()->current_token());
+  } else if (is_strict(this->scope()->language_mode())) {
+    CheckStrictOctalLiteral(start_position, scanner()->location().end_pos, &ok);
+  }
+  return kPreParseSuccess;
+}
+
 PreParser::PreParseResult PreParser::PreParseFunction(
     FunctionKind kind, DeclarationScope* function_scope, bool parsing_module,
     bool is_inner_function, bool may_abort, int* use_counts) {
@@ -233,12 +262,15 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       runtime_call_stats_,
       counters[track_unresolved_variables_][parsing_on_main_thread_]);
 
+  bool is_top_level =
+      scope()->AllowsLazyParsingWithoutUnresolvedVariables(original_scope_);
+
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
   FunctionState function_state(&function_state_, &scope_, function_scope);
   DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
-  GetNextFunctionLiteralId();
+  int func_id = GetNextFunctionLiteralId();
 
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = scanner()->location().beg_pos;
@@ -278,6 +310,30 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   int end_position = scanner()->location().end_pos;
   if (is_strict(language_mode)) {
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
+  }
+
+  if (FLAG_use_parse_tasks && is_top_level && preparse_data_) {
+    preparse_data_->AddTopLevelFunctionData(PreParseData::FunctionData(
+        start_position, end_position, formals.num_parameters(),
+        formals.function_length,
+        formals_classifier.is_valid_formal_parameter_list_without_duplicates(),
+        function_state_->expected_property_count(),
+        GetLastFunctionLiteralId() - func_id));
+    // TODO(wiktorg) spin-off a parse task
+    if (FLAG_trace_parse_tasks) {
+      PrintF("Saved function at %d to %d with:\n", start_position,
+             end_position);
+      PrintF("\t- %d params\n", formals.num_parameters());
+      PrintF("\t- %d function length\n", formals.function_length);
+      PrintF(
+          "\t- %s duplicate parameters\n",
+          formals_classifier.is_valid_formal_parameter_list_without_duplicates()
+              ? "NO"
+              : "SOME");
+      PrintF("\t- %d expected properties\n",
+             function_state_->expected_property_count());
+      PrintF("\t- %d inner-funcs\n", GetLastFunctionLiteralId() - func_id);
+    }
   }
 
   if (FLAG_trace_preparse) {
