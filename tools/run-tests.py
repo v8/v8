@@ -110,7 +110,7 @@ VARIANTS = ["default", "noturbofan"]
 MORE_VARIANTS = [
   "stress",
   "noturbofan_stress",
-  "ignition",
+  "nooptimization",
   "asm_wasm",
   "wasm_traps",
 ]
@@ -123,7 +123,7 @@ VARIANT_ALIASES = {
   # Additional variants, run on all bots.
   "more": MORE_VARIANTS,
   # Additional variants, run on a subset of bots.
-  "extra": ["nocrankshaft"],
+  "extra": ["fullcode"],
 }
 
 DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",

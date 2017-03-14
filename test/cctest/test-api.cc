@@ -14253,7 +14253,7 @@ void SetFunctionEntryHookTest::RunTest() {
       CHECK_EQ(2, CountInvocations(NULL, "bar"));
       CHECK_EQ(200, CountInvocations("bar", "foo"));
       CHECK_EQ(200, CountInvocations(NULL, "foo"));
-    } else if (i::FLAG_crankshaft || i::FLAG_turbo) {
+    } else if (i::FLAG_crankshaft) {
       // For ignition we don't see the actual functions being called, instead
       // we see the InterpreterEntryTrampoline at least 102 times
       // (100 unoptimized calls to foo, and 2 calls to bar).

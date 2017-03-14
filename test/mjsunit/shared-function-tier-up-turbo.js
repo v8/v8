@@ -4,6 +4,7 @@
 //
 // Flags: --mark-shared-functions-for-tier-up --allow-natives-syntax
 // Flags: --ignition-staging --turbo --crankshaft --no-always-opt
+// Flags: --turbo-filter=*
 
 // If we are always or never optimizing it is useless.
 assertFalse(isAlwaysOptimize());
