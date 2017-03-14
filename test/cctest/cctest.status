@@ -366,10 +366,10 @@
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == turbofan or variant == ignition_turbofan', {
+['variant == turbofan', {
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
-}],  # variant == turbofan or variant == ignition_turbofan
+}],  # variant == turbofan
 
 ##############################################################################
 ['variant == asm_wasm', {

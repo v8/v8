@@ -39,20 +39,17 @@ CONFIGS = dict(
     '--no-lazy',
     '--no-lazy-inner-functions',
   ],
-  ignition_staging=[
-    '--ignition-staging',
-  ],
   ignition_turbo=[
-    '--ignition-staging',
+    '--ignition',
     '--turbo',
   ],
   ignition_turbo_opt=[
-    '--ignition-staging',
+    '--ignition',
     '--turbo',
     '--always-opt',
   ],
   ignition_turbo_opt_eager=[
-    '--ignition-staging',
+    '--ignition',
     '--turbo',
     '--always-opt',
     '--no-lazy',
