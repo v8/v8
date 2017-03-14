@@ -1429,21 +1429,20 @@ Handle<Object> LoadIC::CompileHandler(LookupIterator* lookup,
 #ifdef DEBUG
   // Only used by DCHECKs below.
   Handle<Object> receiver = lookup->GetReceiver();
-  bool receiver_is_holder = receiver.is_identical_to(holder);
-#endif
   // Non-map-specific handler stubs have already been selected.
-  DCHECK(!receiver->IsString() ||
-         !Name::Equals(isolate()->factory()->length_string(), lookup->name()));
-  DCHECK(!receiver->IsStringWrapper() ||
-         !Name::Equals(isolate()->factory()->length_string(), lookup->name()));
+  CHECK(!receiver->IsString() ||
+        !Name::Equals(isolate()->factory()->length_string(), lookup->name()));
+  CHECK(!receiver->IsStringWrapper() ||
+        !Name::Equals(isolate()->factory()->length_string(), lookup->name()));
 
-  DCHECK(!(
+  CHECK(!(
       receiver->IsJSFunction() &&
       Name::Equals(isolate()->factory()->prototype_string(), lookup->name()) &&
       receiver->IsConstructor() &&
       !Handle<JSFunction>::cast(receiver)
            ->map()
            ->has_non_instance_prototype()));
+#endif
 
   Handle<Map> map = receiver_map();
   switch (lookup->state()) {
