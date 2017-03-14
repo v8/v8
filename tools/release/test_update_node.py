@@ -29,6 +29,14 @@ EXPECTED_GITIGNORE = """
 /unrelated
 """
 
+EXPECTED_GIT_DIFF = """
+ rename deps/v8/baz/{delete_me => v8_new} (100%)
+ rename deps/v8/{delete_me => new/v8_new} (100%)
+ create mode 100644 deps/v8/third_party/jinja2/jinja2
+ create mode 100644 deps/v8/third_party/markupsafe/markupsafe
+ create mode 100644 deps/v8/v8_new
+"""
+
 ADDED_FILES = [
   'v8_new',
   'new/v8_new',
@@ -51,7 +59,7 @@ def gitify(path):
   files = os.listdir(path)
   subprocess.check_call(['git', 'init'], cwd=path)
   subprocess.check_call(['git', 'add'] + files, cwd=path)
-  subprocess.check_call(['git', 'commit', '-m="Initial"'], cwd=path)
+  subprocess.check_call(['git', 'commit', '-m', 'Initial'], cwd=path)
 
 
 class TestUpdateNode(unittest.TestCase):
@@ -71,11 +79,12 @@ class TestUpdateNode(unittest.TestCase):
     for repository in update_node.SUB_REPOSITORIES:
       gitify(os.path.join(v8_cwd, *repository))
 
-    # Set up node test fixture (no git repo required).
+    # Set up node test fixture.
     shutil.copytree(src=os.path.join(TEST_DATA, 'node'), dst=node_cwd)
+    gitify(os.path.join(node_cwd))
 
     # Run update script.
-    update_node.Main([v8_cwd, node_cwd])
+    update_node.Main([v8_cwd, node_cwd, "--commit"])
 
     # Check expectations.
     with open(os.path.join(node_cwd, 'deps', 'v8', '.gitignore')) as f:
@@ -87,6 +96,9 @@ class TestUpdateNode(unittest.TestCase):
     for f in REMOVED_FILES:
       removed_file = os.path.join(node_cwd, 'deps', 'v8', *f.split('/'))
       self.assertFalse(os.path.exists(removed_file))
+    gitlog = subprocess.check_output(['git', 'diff', 'master', '--summary'],
+                                     cwd=node_cwd)
+    self.assertEquals(EXPECTED_GIT_DIFF.strip(), gitlog.strip())
 
 if __name__ == "__main__":
   unittest.main()

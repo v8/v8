@@ -34,7 +34,7 @@ ADD_TO_GITIGNORE = [ "/testing/gtest/*",
 def RunGclient(path):
   assert os.path.isdir(path)
   print ">> Running gclient sync"
-  subprocess.check_call("gclient sync --nohooks", cwd=path, shell=True)
+  subprocess.check_call(["gclient", "sync", "--nohooks"], cwd=path)
 
 def UninitGit(path):
   target = os.path.join(path, ".git")
@@ -53,15 +53,15 @@ def UpdateTarget(repository, options):
   UninitGit(target)
 
   git_commands = [
-    "git init",                           # initialize target repo
-    "git remote add origin %s" % source,  # point to the source repo
-    "git fetch origin HEAD",              # sync to the current branch
-    "git reset --hard FETCH_HEAD",        # reset to the current branch
-    "git clean -fd"                       # delete removed files
+    ["git", "init"],                             # initialize target repo
+    ["git", "remote", "add", "origin", source],  # point to the source repo
+    ["git", "fetch", "origin", "HEAD"],          # sync to the current branch
+    ["git", "reset", "--hard", "FETCH_HEAD"],    # reset to the current branch
+    ["git", "clean", "-fd"],                     # delete removed files
   ]
   try:
     for command in git_commands:
-      subprocess.check_call(command, cwd=target, shell=True);
+      subprocess.check_call(command, cwd=target)
   except:
     raise
   finally:
@@ -87,12 +87,26 @@ def UpdateGitIgnore(options):
     for x in content:
       gitignore.write("%s\n" % x)
 
+def CreateCommit(options):
+  print ">> Creating commit."
+  # Find git hash from source.
+  githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
+                                    cwd=options.v8_path).strip()
+  # Create commit at target.
+  git_commands = [
+    ["git", "checkout", "-b", "update_v8_to_%s" % githash],  # new branch
+    ["git", "add", "."],                                     # add files
+    ["git", "commit", "-m", "Update V8 to %s" % githash]     # new commit
+  ]
+  for command in git_commands:
+    subprocess.check_call(command, cwd=options.node_path)
+
 def ParseOptions(args):
   parser = argparse.ArgumentParser(description="Update V8 in Node.js")
   parser.add_argument("v8_path", help="Path to V8 checkout")
   parser.add_argument("node_path", help="Path to Node.js checkout")
-  parser.add_argument("--gclient", dest="gclient",
-                      action="store_true", help="Run gclient sync")
+  parser.add_argument("--gclient", action="store_true", help="Run gclient sync")
+  parser.add_argument("--commit", action="store_true", help="Create commit")
   options = parser.parse_args(args)
   assert os.path.isdir(options.v8_path)
   options.v8_path = os.path.abspath(options.v8_path)
@@ -110,6 +124,8 @@ def Main(args):
   UpdateGitIgnore(options)
   for repo in SUB_REPOSITORIES:
     UpdateTarget(repo, options)
+  if options.commit:
+    CreateCommit(options)
 
 if __name__ == "__main__":
   Main(sys.argv[1:])
