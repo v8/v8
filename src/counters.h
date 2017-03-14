@@ -786,7 +786,9 @@ class RuntimeCallTimer final {
   V(LoadIC_LoadFieldFromPrototypeDH)             \
   V(LoadIC_LoadField)                            \
   V(LoadIC_LoadGlobal)                           \
-  V(LoadIC_LoadInterceptor)                      \
+  V(LoadIC_LoadInterceptorDH)                    \
+  V(LoadIC_LoadNonMaskingInterceptorDH)          \
+  V(LoadIC_LoadInterceptorFromPrototypeDH)       \
   V(LoadIC_LoadNonexistentDH)                    \
   V(LoadIC_LoadNonexistent)                      \
   V(LoadIC_LoadNormalDH)                         \

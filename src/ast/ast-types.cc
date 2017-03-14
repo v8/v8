@@ -186,7 +186,6 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
       if (map == heap->boolean_map()) return kBoolean;
       if (map == heap->the_hole_map()) return kHole;
       DCHECK(map == heap->uninitialized_map() ||
-             map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map() ||
              map == heap->optimized_out_map() ||

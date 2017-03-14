@@ -13,68 +13,68 @@
 namespace v8 {
 namespace internal {
 
-Handle<Object> LoadHandler::LoadNormal(Isolate* isolate) {
-  int config = KindBits::encode(kForNormal);
+Handle<Smi> LoadHandler::LoadNormal(Isolate* isolate) {
+  int config = KindBits::encode(kNormal);
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Object> LoadHandler::LoadField(Isolate* isolate,
-                                      FieldIndex field_index) {
-  int config = KindBits::encode(kForFields) |
+Handle<Smi> LoadHandler::LoadInterceptor(Isolate* isolate) {
+  int config = KindBits::encode(kInterceptor);
+  return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
+  int config = KindBits::encode(kField) |
                IsInobjectBits::encode(field_index.is_inobject()) |
                IsDoubleBits::encode(field_index.is_double()) |
                FieldOffsetBits::encode(field_index.offset());
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Object> LoadHandler::LoadConstant(Isolate* isolate, int descriptor) {
-  int config = KindBits::encode(kForConstants) |
-               IsAccessorInfoBits::encode(false) |
+Handle<Smi> LoadHandler::LoadConstant(Isolate* isolate, int descriptor) {
+  int config = KindBits::encode(kConstant) | IsAccessorInfoBits::encode(false) |
                DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Object> LoadHandler::LoadApiGetter(Isolate* isolate, int descriptor) {
-  int config = KindBits::encode(kForConstants) |
-               IsAccessorInfoBits::encode(true) |
+Handle<Smi> LoadHandler::LoadApiGetter(Isolate* isolate, int descriptor) {
+  int config = KindBits::encode(kConstant) | IsAccessorInfoBits::encode(true) |
                DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Object> LoadHandler::EnableAccessCheckOnReceiver(
-    Isolate* isolate, Handle<Object> smi_handler) {
-  int config = Smi::cast(*smi_handler)->value();
+Handle<Smi> LoadHandler::EnableAccessCheckOnReceiver(Isolate* isolate,
+                                                     Handle<Smi> smi_handler) {
+  int config = smi_handler->value();
 #ifdef DEBUG
   Kind kind = KindBits::decode(config);
-  DCHECK_NE(kForElements, kind);
+  DCHECK_NE(kElement, kind);
 #endif
   config = DoAccessCheckOnReceiverBits::update(config, true);
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Object> LoadHandler::EnableLookupOnReceiver(Isolate* isolate,
-                                                   Handle<Object> smi_handler) {
-  int config = Smi::cast(*smi_handler)->value();
+Handle<Smi> LoadHandler::EnableLookupOnReceiver(Isolate* isolate,
+                                                Handle<Smi> smi_handler) {
+  int config = smi_handler->value();
 #ifdef DEBUG
   Kind kind = KindBits::decode(config);
-  DCHECK_NE(kForElements, kind);
+  DCHECK_NE(kElement, kind);
 #endif
   config = LookupOnReceiverBits::update(config, true);
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Object> LoadHandler::LoadNonExistent(Isolate* isolate,
-                                            bool do_lookup_on_receiver) {
-  int config = KindBits::encode(kForNonExistent) |
-               LookupOnReceiverBits::encode(do_lookup_on_receiver);
+Handle<Smi> LoadHandler::LoadNonExistent(Isolate* isolate) {
+  int config = KindBits::encode(kNonExistent);
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Object> LoadHandler::LoadElement(Isolate* isolate,
-                                        ElementsKind elements_kind,
-                                        bool convert_hole_to_undefined,
-                                        bool is_js_array) {
-  int config = KindBits::encode(kForElements) |
+Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
+                                     ElementsKind elements_kind,
+                                     bool convert_hole_to_undefined,
+                                     bool is_js_array) {
+  int config = KindBits::encode(kElement) |
                ElementsKindBits::encode(elements_kind) |
                ConvertHoleBits::encode(convert_hole_to_undefined) |
                IsJsArrayBits::encode(is_js_array);

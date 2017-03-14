@@ -183,7 +183,7 @@ void AccessorAssembler::HandleLoadICHandlerCase(
   Bind(&if_smi_handler);
   {
     HandleLoadICSmiHandlerCase(p, var_holder.value(), var_smi_handler.value(),
-                               miss, exit_point, support_elements);
+                               miss, exit_point, false, support_elements);
   }
 
   Bind(&try_proto_handler);
@@ -245,7 +245,8 @@ void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
 
 void AccessorAssembler::HandleLoadICSmiHandlerCase(
     const LoadICParameters* p, Node* holder, Node* smi_handler, Label* miss,
-    ExitPoint* exit_point, ElementSupport support_elements) {
+    ExitPoint* exit_point, bool throw_reference_error_if_nonexistent,
+    ElementSupport support_elements) {
   Variable var_double_value(this, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
 
@@ -253,9 +254,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   Node* handler_kind = DecodeWord<LoadHandler::KindBits>(handler_word);
   if (support_elements == kSupportElements) {
     Label property(this);
-    GotoIfNot(
-        WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForElements)),
-        &property);
+    GotoIfNot(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kElement)),
+              &property);
 
     Comment("element_load");
     Node* intptr_index = TryToIntptr(p->name, miss);
@@ -296,16 +296,31 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     Comment("property_load");
   }
 
-  Label constant(this), field(this), normal(this, Label::kDeferred);
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForFields)),
-         &field);
+  Label constant(this), field(this), normal(this, Label::kDeferred),
+      interceptor(this, Label::kDeferred), nonexistent(this);
+  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)), &field);
 
-  Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForConstants)),
-         &constant, &normal);
+  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kConstant)),
+         &constant);
+
+  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNonExistent)),
+         &nonexistent);
+
+  Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNormal)), &normal,
+         &interceptor);
 
   Bind(&field);
   HandleLoadField(holder, handler_word, &var_double_value, &rebox_double,
                   exit_point);
+
+  Bind(&nonexistent);
+  // This is a handler for a load of a non-existent value.
+  if (throw_reference_error_if_nonexistent) {
+    exit_point->ReturnCallRuntime(Runtime::kThrowReferenceError, p->context,
+                                  p->name);
+  } else {
+    exit_point->Return(UndefinedConstant());
+  }
 
   Bind(&constant);
   {
@@ -352,6 +367,14 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
                                          p->context, p->receiver, miss);
       exit_point->Return(value);
     }
+  }
+
+  Bind(&interceptor);
+  {
+    Comment("load_interceptor");
+    exit_point->ReturnCallRuntime(Runtime::kLoadPropertyWithInterceptor,
+                                  p->context, p->name, p->receiver, holder,
+                                  p->slot, p->vector);
   }
 
   Bind(&rebox_double);
@@ -420,23 +443,27 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
 
   Bind(&tuple_handler);
   {
-    Label load_existent(this);
-    GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()), &load_existent);
-    // This is a handler for a load of a non-existent value.
-    if (throw_reference_error_if_nonexistent) {
-      exit_point->ReturnCallRuntime(Runtime::kThrowReferenceError, p->context,
-                                    p->name);
-    } else {
-      exit_point->Return(UndefinedConstant());
+    Label load_from_cached_holder(this), done(this);
+
+    GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()),
+           &load_from_cached_holder);
+    {
+      var_holder->Bind(p->receiver);
+      Goto(&done);
     }
 
-    Bind(&load_existent);
-    Node* holder = LoadWeakCellValue(maybe_holder_cell);
-    // The |holder| is guaranteed to be alive at this point since we passed
-    // both the receiver map check and the validity cell check.
-    CSA_ASSERT(this, WordNotEqual(holder, IntPtrConstant(0)));
+    Bind(&load_from_cached_holder);
+    {
+      Node* holder = LoadWeakCellValue(maybe_holder_cell);
+      // The |holder| is guaranteed to be alive at this point since we passed
+      // both the receiver map check and the validity cell check.
+      CSA_ASSERT(this, WordNotEqual(holder, IntPtrConstant(0)));
 
-    var_holder->Bind(holder);
+      var_holder->Bind(holder);
+      Goto(&done);
+    }
+
+    Bind(&done);
     var_smi_handler->Bind(smi_handler);
     Goto(if_smi_handler);
   }
@@ -450,10 +477,11 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
   }
 }
 
-Node* AccessorAssembler::EmitLoadICProtoArrayCheck(
-    const LoadICParameters* p, Node* handler, Node* handler_length,
-    Node* handler_flags, Label* miss,
-    bool throw_reference_error_if_nonexistent) {
+Node* AccessorAssembler::EmitLoadICProtoArrayCheck(const LoadICParameters* p,
+                                                   Node* handler,
+                                                   Node* handler_length,
+                                                   Node* handler_flags,
+                                                   Label* miss) {
   Variable start_index(this, MachineType::PointerRepresentation());
   start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex));
 
@@ -494,22 +522,22 @@ Node* AccessorAssembler::EmitLoadICProtoArrayCheck(
 
   Node* maybe_holder_cell =
       LoadFixedArrayElement(handler, LoadHandler::kHolderCellIndex);
-  Label load_existent(this);
-  GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()), &load_existent);
-  // This is a handler for a load of a non-existent value.
-  if (throw_reference_error_if_nonexistent) {
-    TailCallRuntime(Runtime::kThrowReferenceError, p->context, p->name);
-  } else {
-    Return(UndefinedConstant());
+
+  Variable var_holder(this, MachineRepresentation::kTagged, p->receiver);
+  Label done(this);
+  GotoIf(WordEqual(maybe_holder_cell, NullConstant()), &done);
+
+  {
+    var_holder.Bind(LoadWeakCellValue(maybe_holder_cell));
+    // The |holder| is guaranteed to be alive at this point since we passed
+    // the receiver map check, the validity cell check and the prototype chain
+    // check.
+    CSA_ASSERT(this, WordNotEqual(var_holder.value(), IntPtrConstant(0)));
+    Goto(&done);
   }
 
-  Bind(&load_existent);
-  Node* holder = LoadWeakCellValue(maybe_holder_cell);
-  // The |holder| is guaranteed to be alive at this point since we passed
-  // the receiver map check, the validity cell check and the prototype chain
-  // check.
-  CSA_ASSERT(this, WordNotEqual(holder, IntPtrConstant(0)));
-  return holder;
+  Bind(&done);
+  return var_holder.value();
 }
 
 void AccessorAssembler::HandleLoadGlobalICHandlerCase(
@@ -523,12 +551,14 @@ void AccessorAssembler::HandleLoadGlobalICHandlerCase(
   Variable var_holder(this, MachineRepresentation::kTagged);
   Variable var_smi_handler(this, MachineRepresentation::kTagged);
   Label if_smi_handler(this);
+
   HandleLoadICProtoHandlerCase(&p, handler, &var_holder, &var_smi_handler,
                                &if_smi_handler, miss, exit_point,
                                throw_reference_error_if_nonexistent);
   Bind(&if_smi_handler);
-  HandleLoadICSmiHandlerCase(&p, var_holder.value(), var_smi_handler.value(),
-                             miss, exit_point, kOnlyProperties);
+  HandleLoadICSmiHandlerCase(
+      &p, var_holder.value(), var_smi_handler.value(), miss, exit_point,
+      throw_reference_error_if_nonexistent, kOnlyProperties);
 }
 
 void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
@@ -1813,11 +1843,11 @@ void AccessorAssembler::LoadICProtoArray(
 
   Node* handler_length = LoadAndUntagFixedArrayBaseLength(handler);
 
-  Node* holder =
-      EmitLoadICProtoArrayCheck(p, handler, handler_length, handler_flags,
-                                &miss, throw_reference_error_if_nonexistent);
+  Node* holder = EmitLoadICProtoArrayCheck(p, handler, handler_length,
+                                           handler_flags, &miss);
 
   HandleLoadICSmiHandlerCase(p, holder, smi_handler, &miss, &direct_exit,
+                             throw_reference_error_if_nonexistent,
                              kOnlyProperties);
 
   Bind(&miss);
@@ -1844,33 +1874,47 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
   exit_point->Return(value);
 }
 
-void AccessorAssembler::LoadGlobalIC_TryHandlerCase(const LoadICParameters* p,
+void AccessorAssembler::LoadGlobalIC_TryHandlerCase(const LoadICParameters* pp,
                                                     TypeofMode typeof_mode,
                                                     ExitPoint* exit_point,
                                                     Label* miss) {
   Comment("LoadGlobalIC_TryHandlerCase");
 
-  Label call_handler(this);
+  Label call_handler(this), non_smi(this);
 
   Node* handler =
-      LoadFixedArrayElement(p->vector, p->slot, kPointerSize, SMI_PARAMETERS);
-  CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(handler)));
+      LoadFixedArrayElement(pp->vector, pp->slot, kPointerSize, SMI_PARAMETERS);
   GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
          miss);
-  GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
+
+  GotoIfNot(TaggedIsSmi(handler), &non_smi);
 
   bool throw_reference_error_if_nonexistent = typeof_mode == NOT_INSIDE_TYPEOF;
-  HandleLoadGlobalICHandlerCase(p, handler, miss, exit_point,
+
+  {
+    LoadICParameters p = *pp;
+    DCHECK_NULL(p.receiver);
+    Node* native_context = LoadNativeContext(p.context);
+    p.receiver = LoadContextElement(native_context, Context::EXTENSION_INDEX);
+    HandleLoadICSmiHandlerCase(&p, p.receiver, handler, miss, exit_point,
+                               throw_reference_error_if_nonexistent,
+                               kOnlyProperties);
+  }
+
+  Bind(&non_smi);
+  GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
+
+  HandleLoadGlobalICHandlerCase(pp, handler, miss, exit_point,
                                 throw_reference_error_if_nonexistent);
 
   Bind(&call_handler);
   {
     LoadWithVectorDescriptor descriptor(isolate());
-    Node* native_context = LoadNativeContext(p->context);
+    Node* native_context = LoadNativeContext(pp->context);
     Node* receiver =
         LoadContextElement(native_context, Context::EXTENSION_INDEX);
-    exit_point->ReturnCallStub(descriptor, handler, p->context, receiver,
-                               p->name, p->slot, p->vector);
+    exit_point->ReturnCallStub(descriptor, handler, pp->context, receiver,
+                               pp->name, pp->slot, pp->vector);
   }
 }
 

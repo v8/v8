@@ -287,23 +287,6 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   }
 }
 
-static void CompileCallLoadPropertyWithInterceptor(
-    MacroAssembler* masm, Register receiver, Register holder, Register name,
-    Handle<JSObject> holder_obj, Runtime::FunctionId id) {
-  DCHECK(NamedLoadHandlerCompiler::kInterceptorArgsLength ==
-         Runtime::FunctionForId(id)->nargs);
-
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 3);
-  __ push(name);
-  __ push(receiver);
-  __ push(holder);
-
-  __ CallRuntime(id);
-}
-
 #undef __
 #define __ ACCESS_MASM(masm())
 
@@ -443,102 +426,6 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }
-}
-
-void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
-    LookupIterator* it, Register holder_reg) {
-  DCHECK(holder()->HasNamedInterceptor());
-  DCHECK(!holder()->GetNamedInterceptor()->getter()->IsUndefined(isolate()));
-
-  // Compile the interceptor call, followed by inline code to load the
-  // property from further up the prototype chain if the call fails.
-  // Check that the maps haven't changed.
-  DCHECK(holder_reg.is(receiver()) || holder_reg.is(scratch1()));
-
-  // Preserve the receiver register explicitly whenever it is different from the
-  // holder and it is needed should the interceptor return without any result.
-  // The ACCESSOR case needs the receiver to be passed into C++ code, the FIELD
-  // case might cause a miss during the prototype check.
-  bool must_perform_prototype_check =
-      !holder().is_identical_to(it->GetHolder<JSObject>());
-  bool must_preserve_receiver_reg =
-      !receiver().is(holder_reg) &&
-      (it->state() == LookupIterator::ACCESSOR || must_perform_prototype_check);
-
-  // Save necessary data before invoking an interceptor.
-  // Requires a frame to make GC aware of pushed pointers.
-  {
-    FrameScope frame_scope(masm(), StackFrame::INTERNAL);
-
-    if (must_preserve_receiver_reg) {
-      __ push(receiver());
-    }
-    __ push(holder_reg);
-    __ push(this->name());
-    InterceptorVectorSlotPush(holder_reg);
-    // Invoke an interceptor.  Note: map checks from receiver to
-    // interceptor's holder has been compiled before (see a caller
-    // of this method.)
-    CompileCallLoadPropertyWithInterceptor(
-        masm(), receiver(), holder_reg, this->name(), holder(),
-        Runtime::kLoadPropertyWithInterceptorOnly);
-
-    // Check if interceptor provided a value for property.  If it's
-    // the case, return immediately.
-    Label interceptor_failed;
-    __ cmp(eax, factory()->no_interceptor_result_sentinel());
-    __ j(equal, &interceptor_failed);
-    frame_scope.GenerateLeaveFrame();
-    __ ret(0);
-
-    // Clobber registers when generating debug-code to provoke errors.
-    __ bind(&interceptor_failed);
-    if (FLAG_debug_code) {
-      __ mov(receiver(), Immediate(bit_cast<int32_t>(kZapValue)));
-      __ mov(holder_reg, Immediate(bit_cast<int32_t>(kZapValue)));
-      __ mov(this->name(), Immediate(bit_cast<int32_t>(kZapValue)));
-    }
-
-    InterceptorVectorSlotPop(holder_reg);
-    __ pop(this->name());
-    __ pop(holder_reg);
-    if (must_preserve_receiver_reg) {
-      __ pop(receiver());
-    }
-
-    // Leave the internal frame.
-  }
-
-  GenerateLoadPostInterceptor(it, holder_reg);
-}
-
-
-void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
-  DCHECK(holder()->HasNamedInterceptor());
-  DCHECK(!holder()->GetNamedInterceptor()->getter()->IsUndefined(isolate()));
-  // Call the runtime system to load the interceptor.
-
-  // Stack:
-  //   return address
-
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 3);
-  __ push(receiver());
-  __ push(holder_reg);
-  // See NamedLoadHandlerCompiler::InterceptorVectorSlotPop() for details.
-  if (holder_reg.is(receiver())) {
-    __ push(slot());
-    __ push(vector());
-  } else {
-    __ push(scratch3());  // slot
-    __ push(scratch2());  // vector
-  }
-  __ push(Operand(esp, 4 * kPointerSize));  // return address
-  __ mov(Operand(esp, 5 * kPointerSize), name());
-
-  __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor);
 }
 
 void NamedStoreHandlerCompiler::ZapStackArgumentsRegisterAliases() {

@@ -694,8 +694,6 @@ void Oddball::OddballVerify() {
           this == heap->false_value());
   } else if (map() == heap->uninitialized_map()) {
     CHECK(this == heap->uninitialized_value());
-  } else if (map() == heap->no_interceptor_result_sentinel_map()) {
-    CHECK(this == heap->no_interceptor_result_sentinel());
   } else if (map() == heap->arguments_marker_map()) {
     CHECK(this == heap->arguments_marker());
   } else if (map() == heap->termination_exception_map()) {

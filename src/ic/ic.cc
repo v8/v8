@@ -869,7 +869,7 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
   }
 }
 
-Handle<Object> LoadIC::SimpleFieldLoad(Isolate* isolate, FieldIndex index) {
+Handle<Smi> LoadIC::SimpleFieldLoad(Isolate* isolate, FieldIndex index) {
   TRACE_HANDLER_STATS(isolate, LoadIC_LoadFieldDH);
   return LoadHandler::LoadField(isolate, index);
 }
@@ -967,12 +967,13 @@ int GetPrototypeCheckCount(Isolate* isolate, Handle<Map> receiver_map,
 Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
                                          Handle<JSObject> holder,
                                          Handle<Name> name,
-                                         Handle<Object> smi_handler) {
+                                         Handle<Smi> smi_handler) {
   int checks_count =
       GetPrototypeCheckCount(isolate(), receiver_map, holder, name);
   DCHECK_LE(0, checks_count);
 
-  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap()) {
+  if (receiver_map->IsPrimitiveMap() ||
+      receiver_map->is_access_check_needed()) {
     DCHECK(!receiver_map->is_dictionary_map());
     DCHECK_LE(1, checks_count);  // For native context.
     smi_handler =
@@ -1003,43 +1004,45 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
   return handler_array;
 }
 
-Handle<Object> LoadIC::LoadNonExistent(Handle<Map> receiver_map,
-                                       Handle<Name> name) {
-  Handle<JSObject> holder;  // null handle
-  int checks_count =
-      GetPrototypeCheckCount(isolate(), receiver_map, holder, name);
+Handle<Object> LoadIC::LoadFullChain(Handle<Map> receiver_map,
+                                     Handle<Object> holder, Handle<Name> name,
+                                     Handle<Smi> smi_handler) {
+  Handle<JSObject> end;  // null handle
+  int checks_count = GetPrototypeCheckCount(isolate(), receiver_map, end, name);
   DCHECK_LE(0, checks_count);
 
-  bool do_negative_lookup_on_receiver =
-      receiver_map->is_dictionary_map() && !receiver_map->IsJSGlobalObjectMap();
-  Handle<Object> smi_handler =
-      LoadHandler::LoadNonExistent(isolate(), do_negative_lookup_on_receiver);
-
-  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap()) {
+  if (receiver_map->IsPrimitiveMap() ||
+      receiver_map->is_access_check_needed()) {
     DCHECK(!receiver_map->is_dictionary_map());
     DCHECK_LE(1, checks_count);  // For native context.
     smi_handler =
         LoadHandler::EnableAccessCheckOnReceiver(isolate(), smi_handler);
+  } else if (receiver_map->is_dictionary_map() &&
+             !receiver_map->IsJSGlobalObjectMap()) {
+    smi_handler = LoadHandler::EnableLookupOnReceiver(isolate(), smi_handler);
   }
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (validity_cell.is_null()) {
     DCHECK_EQ(0, checks_count);
-    validity_cell = handle(Smi::FromInt(0), isolate());
+    // Lookup on receiver isn't supported in case of a simple smi handler.
+    if (!LoadHandler::LookupOnReceiverBits::decode(smi_handler->value())) {
+      return smi_handler;
+    }
+    validity_cell = handle(Smi::kZero, isolate());
   }
 
   Factory* factory = isolate()->factory();
   if (checks_count == 0) {
-    return factory->NewTuple3(factory->null_value(), smi_handler,
-                              validity_cell);
+    return factory->NewTuple3(holder, smi_handler, validity_cell);
   }
   Handle<FixedArray> handler_array(factory->NewFixedArray(
       LoadHandler::kFirstPrototypeIndex + checks_count, TENURED));
   handler_array->set(LoadHandler::kSmiHandlerIndex, *smi_handler);
   handler_array->set(LoadHandler::kValidityCellIndex, *validity_cell);
-  handler_array->set(LoadHandler::kHolderCellIndex, *factory->null_value());
-  InitPrototypeChecks(isolate(), receiver_map, holder, name, handler_array,
+  handler_array->set(LoadHandler::kHolderCellIndex, *holder);
+  InitPrototypeChecks(isolate(), receiver_map, end, name, handler_array,
                       LoadHandler::kFirstPrototypeIndex);
   return handler_array;
 }
@@ -1099,7 +1102,9 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
     code = slow_stub();
   } else if (!lookup->IsFound()) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
-    code = LoadNonExistent(receiver_map(), lookup->name());
+    Handle<Smi> smi_handler = LoadHandler::LoadNonExistent(isolate());
+    code = LoadFullChain(receiver_map(), isolate()->factory()->null_value(),
+                         lookup->name(), smi_handler);
   } else {
     if (IsLoadGlobalIC() && lookup->state() == LookupIterator::DATA &&
         lookup->GetReceiver().is_identical_to(lookup->GetHolder<Object>())) {
@@ -1304,8 +1309,26 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
   Handle<JSObject> holder = lookup->GetHolder<JSObject>();
   bool receiver_is_holder = receiver.is_identical_to(holder);
   switch (lookup->state()) {
-    case LookupIterator::INTERCEPTOR:
-      break;  // Custom-compiled handler.
+    case LookupIterator::INTERCEPTOR: {
+      Handle<Smi> smi_handler = LoadHandler::LoadInterceptor(isolate());
+
+      if (holder->GetNamedInterceptor()->non_masking()) {
+        Handle<Object> holder_ref = isolate()->factory()->null_value();
+        if (!receiver_is_holder) {
+          holder_ref = Map::GetOrCreatePrototypeWeakCell(holder, isolate());
+        }
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonMaskingInterceptorDH);
+        return LoadFullChain(map, holder_ref, lookup->name(), smi_handler);
+      }
+
+      if (receiver_is_holder) {
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorDH);
+        return smi_handler;
+      }
+
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorFromPrototypeDH);
+      return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
+    }
 
     case LookupIterator::ACCESSOR: {
       // Use simple field loads for some well-known callback properties.
@@ -1345,7 +1368,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
             TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
             return slow_stub();
           }
-          Handle<Object> smi_handler =
+          Handle<Smi> smi_handler =
               LoadHandler::LoadApiGetter(isolate(), lookup->GetAccessorIndex());
           if (receiver_is_holder) {
             TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterDH);
@@ -1364,7 +1387,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
     case LookupIterator::DATA: {
       DCHECK_EQ(kData, lookup->property_details().kind());
-      Handle<Object> smi_handler;
+      Handle<Smi> smi_handler;
       if (lookup->is_dictionary_holder()) {
         if (holder->IsJSGlobalObject()) {
           break;  // Custom-compiled handler.
@@ -1427,17 +1450,9 @@ Handle<Object> LoadIC::CompileHandler(LookupIterator* lookup,
 
   Handle<Map> map = receiver_map();
   switch (lookup->state()) {
-    case LookupIterator::INTERCEPTOR: {
-      DCHECK(!holder->GetNamedInterceptor()->getter()->IsUndefined(isolate()));
-      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptor);
-      NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-      // Perform a lookup behind the interceptor. Copy the LookupIterator since
-      // the original iterator will be used to fetch the value.
-      LookupIterator it = *lookup;
-      it.Next();
-      LookupForRead(&it);
-      return compiler.CompileLoadInterceptor(&it);
-    }
+    case LookupIterator::INTERCEPTOR:
+      UNREACHABLE();
+      break;
 
     case LookupIterator::ACCESSOR: {
 #ifdef DEBUG
@@ -3056,56 +3071,15 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
 
 
 /**
- * Attempts to load a property with an interceptor (which must be present),
- * but doesn't search the prototype chain.
- *
- * Returns |Heap::no_interceptor_result_sentinel()| if interceptor doesn't
- * provide any value for the given name.
- */
-RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptorOnly) {
-  DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
-  Handle<Name> name =
-      args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
-  Handle<Object> receiver =
-      args.at(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
-  Handle<JSObject> holder =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
-  HandleScope scope(isolate);
-
-  if (!receiver->IsJSReceiver()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, receiver, Object::ConvertReceiver(isolate, receiver));
-  }
-
-  InterceptorInfo* interceptor = holder->GetNamedInterceptor();
-  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *holder, Object::DONT_THROW);
-
-  v8::GenericNamedPropertyGetterCallback getter =
-      v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
-          interceptor->getter());
-  Handle<Object> result = arguments.Call(getter, name);
-
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-
-  if (!result.is_null()) return *result;
-  return isolate->heap()->no_interceptor_result_sentinel();
-}
-
-
-/**
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.
  */
 RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength + 2);
-  Handle<Name> name =
-      args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
-  Handle<Object> receiver =
-      args.at(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
-  Handle<JSObject> holder =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
+  DCHECK_EQ(5, args.length());
+  Handle<Name> name = args.at<Name>(0);
+  Handle<Object> receiver = args.at(1);
+  Handle<JSObject> holder = args.at<JSObject>(2);
 
   if (!receiver->IsJSReceiver()) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

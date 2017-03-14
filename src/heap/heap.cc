@@ -2330,7 +2330,6 @@ bool Heap::CreateInitialMaps() {
                            Context::BOOLEAN_FUNCTION_INDEX);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, uninitialized);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, arguments_marker);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, no_interceptor_result_sentinel);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, optimized_out);
@@ -2669,11 +2668,6 @@ void Heap::CreateInitialObjects() {
       *factory->NewOddball(factory->arguments_marker_map(), "arguments_marker",
                            handle(Smi::FromInt(-4), isolate()), "undefined",
                            Oddball::kArgumentsMarker));
-
-  set_no_interceptor_result_sentinel(*factory->NewOddball(
-      factory->no_interceptor_result_sentinel_map(),
-      "no_interceptor_result_sentinel", handle(Smi::FromInt(-2), isolate()),
-      "undefined", Oddball::kOther));
 
   set_termination_exception(*factory->NewOddball(
       factory->termination_exception_map(), "termination_exception",

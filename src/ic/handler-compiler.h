@@ -137,11 +137,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                                    const CallOptimization& call_optimization,
                                    int accessor_index, Handle<Code> slow_stub);
 
-  // The LookupIterator is used to perform a lookup behind the interceptor. If
-  // the iterator points to a LookupIterator::PROPERTY, its access will be
-  // inlined.
-  Handle<Code> CompileLoadInterceptor(LookupIterator* it);
-
   Handle<Code> CompileLoadViaGetter(Handle<Name> name, int accessor_index,
                                     int expected_arguments);
 
@@ -158,15 +153,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                           no_reg);
   }
 
-  // These constants describe the structure of the interceptor arguments on the
-  // stack. The arguments are pushed by the (platform-specific)
-  // PushInterceptorArguments and read by LoadPropertyWithInterceptorOnly and
-  // LoadWithInterceptor.
-  static const int kInterceptorArgsNameIndex = 0;
-  static const int kInterceptorArgsThisIndex = 1;
-  static const int kInterceptorArgsHolderIndex = 2;
-  static const int kInterceptorArgsLength = 3;
-
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
                                   Label* miss, ReturnHolder return_what);
@@ -174,18 +160,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
 
  private:
-  void GenerateLoadCallback(Register reg, Handle<AccessorInfo> callback);
-
-  // Helper emits no code if vector-ics are disabled.
-  void InterceptorVectorSlotPush(Register holder_reg);
-  enum PopMode { POP, DISCARD };
-  void InterceptorVectorSlotPop(Register holder_reg, PopMode mode = POP);
-
-  void GenerateLoadInterceptor(Register holder_reg);
-  void GenerateLoadInterceptorWithFollowup(LookupIterator* it,
-                                           Register holder_reg);
-  void GenerateLoadPostInterceptor(LookupIterator* it, Register reg);
-
   Register scratch3() { return registers_[4]; }
 };
 

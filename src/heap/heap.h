@@ -67,7 +67,6 @@ using v8::MemoryPressureLevel;
   /* This means they are never in new space and never on a page that is     */ \
   /* being compacted.                                                       */ \
   /* Oddballs */                                                               \
-  V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   V(Oddball, exception, Exception)                                             \
   V(Oddball, termination_exception, TerminationException)                      \
@@ -216,7 +215,6 @@ using v8::MemoryPressureLevel;
   V(Map, boolean_map, BooleanMap)                                              \
   V(Map, uninitialized_map, UninitializedMap)                                  \
   V(Map, arguments_marker_map, ArgumentsMarkerMap)                             \
-  V(Map, no_interceptor_result_sentinel_map, NoInterceptorResultSentinelMap)   \
   V(Map, exception_map, ExceptionMap)                                          \
   V(Map, termination_exception_map, TerminationExceptionMap)                   \
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
@@ -278,7 +276,6 @@ using v8::MemoryPressureLevel;
   V(FixedDoubleArrayMap)                \
   V(WeakCellMap)                        \
   V(TransitionArrayMap)                 \
-  V(NoInterceptorResultSentinel)        \
   V(HashTableMap)                       \
   V(OrderedHashTableMap)                \
   V(EmptyFixedArray)                    \

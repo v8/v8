@@ -101,7 +101,15 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     GenerateTailCall(masm(), slow_stub);
   }
   Register reg = Frontend(name);
-  GenerateLoadCallback(reg, callback);
+  DCHECK(receiver().is(ApiGetterDescriptor::ReceiverRegister()));
+  __ Move(ApiGetterDescriptor::HolderRegister(), reg);
+  // The callback is alive if this instruction is executed,
+  // so the weak cell is not cleared and points to data.
+  Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
+  __ GetWeakValue(ApiGetterDescriptor::CallbackRegister(), cell);
+
+  CallApiGetterStub stub(isolate());
+  __ TailCallStub(&stub);
   return GetCode(kind(), name);
 }
 
@@ -116,191 +124,6 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
   GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
                           scratch2(), false, no_reg, holder, accessor_index);
   return GetCode(kind(), name);
-}
-
-
-void NamedLoadHandlerCompiler::InterceptorVectorSlotPush(Register holder_reg) {
-  if (IC::ShouldPushPopSlotAndVector(kind())) {
-    if (holder_reg.is(receiver())) {
-      PushVectorAndSlot();
-    } else {
-      DCHECK(holder_reg.is(scratch1()));
-      PushVectorAndSlot(scratch2(), scratch3());
-    }
-  }
-}
-
-
-void NamedLoadHandlerCompiler::InterceptorVectorSlotPop(Register holder_reg,
-                                                        PopMode mode) {
-  if (IC::ShouldPushPopSlotAndVector(kind())) {
-    if (mode == DISCARD) {
-      DiscardVectorAndSlot();
-    } else {
-      if (holder_reg.is(receiver())) {
-        PopVectorAndSlot();
-      } else {
-        DCHECK(holder_reg.is(scratch1()));
-        PopVectorAndSlot(scratch2(), scratch3());
-      }
-    }
-  }
-}
-
-
-Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
-    LookupIterator* it) {
-  // So far the most popular follow ups for interceptor loads are DATA and
-  // AccessorInfo, so inline only them. Other cases may be added
-  // later.
-  bool inline_followup = false;
-  switch (it->state()) {
-    case LookupIterator::TRANSITION:
-      UNREACHABLE();
-    case LookupIterator::ACCESS_CHECK:
-    case LookupIterator::INTERCEPTOR:
-    case LookupIterator::JSPROXY:
-    case LookupIterator::NOT_FOUND:
-    case LookupIterator::INTEGER_INDEXED_EXOTIC:
-      break;
-    case LookupIterator::DATA: {
-      PropertyDetails details = it->property_details();
-      inline_followup = details.kind() == kData &&
-                        details.location() == kField &&
-                        !it->is_dictionary_holder();
-      break;
-    }
-    case LookupIterator::ACCESSOR: {
-      Handle<Object> accessors = it->GetAccessors();
-      if (accessors->IsAccessorInfo()) {
-        Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
-        inline_followup =
-            info->getter() != NULL &&
-            AccessorInfo::IsCompatibleReceiverMap(isolate(), info, map());
-      } else if (accessors->IsAccessorPair()) {
-        Handle<JSObject> property_holder(it->GetHolder<JSObject>());
-        Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
-                              isolate());
-        if (!(getter->IsJSFunction() || getter->IsFunctionTemplateInfo())) {
-          break;
-        }
-        if (!property_holder->HasFastProperties()) break;
-        CallOptimization call_optimization(getter);
-        Handle<Map> receiver_map = map();
-        inline_followup = call_optimization.is_simple_api_call() &&
-                          call_optimization.IsCompatibleReceiverMap(
-                              receiver_map, property_holder);
-      }
-    }
-  }
-
-  Label miss;
-  InterceptorVectorSlotPush(receiver());
-  bool lost_holder_register = false;
-  auto holder_orig = holder();
-  // non masking interceptors must check the entire chain, so temporarily reset
-  // the holder to be that last element for the FrontendHeader call.
-  if (holder()->GetNamedInterceptor()->non_masking()) {
-    DCHECK(!inline_followup);
-    JSObject* last = *holder();
-    PrototypeIterator iter(isolate(), last);
-    while (!iter.IsAtEnd()) {
-      lost_holder_register = true;
-      // Casting to JSObject is fine here. The LookupIterator makes sure to
-      // look behind non-masking interceptors during the original lookup, and
-      // we wouldn't try to compile a handler if there was a Proxy anywhere.
-      last = iter.GetCurrent<JSObject>();
-      iter.Advance();
-    }
-    auto last_handle = handle(last);
-    set_holder(last_handle);
-  }
-  Register reg = FrontendHeader(receiver(), it->name(), &miss, RETURN_HOLDER);
-  // Reset the holder so further calculations are correct.
-  set_holder(holder_orig);
-  if (lost_holder_register) {
-    if (*it->GetReceiver() == *holder()) {
-      reg = receiver();
-    } else {
-      // Reload lost holder register.
-      auto cell = isolate()->factory()->NewWeakCell(holder());
-      __ LoadWeakValue(reg, cell, &miss);
-    }
-  }
-  FrontendFooter(it->name(), &miss);
-  InterceptorVectorSlotPop(reg);
-  if (inline_followup) {
-    // TODO(368): Compile in the whole chain: all the interceptors in
-    // prototypes and ultimate answer.
-    GenerateLoadInterceptorWithFollowup(it, reg);
-  } else {
-    GenerateLoadInterceptor(reg);
-  }
-  return GetCode(kind(), it->name());
-}
-
-void NamedLoadHandlerCompiler::GenerateLoadCallback(
-    Register reg, Handle<AccessorInfo> callback) {
-  DCHECK(receiver().is(ApiGetterDescriptor::ReceiverRegister()));
-  __ Move(ApiGetterDescriptor::HolderRegister(), reg);
-  // The callback is alive if this instruction is executed,
-  // so the weak cell is not cleared and points to data.
-  Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
-  __ GetWeakValue(ApiGetterDescriptor::CallbackRegister(), cell);
-
-  CallApiGetterStub stub(isolate());
-  __ TailCallStub(&stub);
-}
-
-void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
-    LookupIterator* it, Register interceptor_reg) {
-  Handle<JSObject> real_named_property_holder(it->GetHolder<JSObject>());
-
-  Handle<Map> holder_map(holder()->map());
-  set_map(holder_map);
-  set_holder(real_named_property_holder);
-
-  Label miss;
-  InterceptorVectorSlotPush(interceptor_reg);
-  Register reg =
-      FrontendHeader(interceptor_reg, it->name(), &miss, RETURN_HOLDER);
-  FrontendFooter(it->name(), &miss);
-  // We discard the vector and slot now because we don't miss below this point.
-  InterceptorVectorSlotPop(reg, DISCARD);
-
-  switch (it->state()) {
-    case LookupIterator::ACCESS_CHECK:
-    case LookupIterator::INTERCEPTOR:
-    case LookupIterator::JSPROXY:
-    case LookupIterator::NOT_FOUND:
-    case LookupIterator::INTEGER_INDEXED_EXOTIC:
-    case LookupIterator::TRANSITION:
-      UNREACHABLE();
-    case LookupIterator::DATA: {
-      DCHECK_EQ(kData, it->property_details().kind());
-      DCHECK_EQ(kField, it->property_details().location());
-      __ Move(LoadFieldDescriptor::ReceiverRegister(), reg);
-      Handle<Object> smi_handler =
-          LoadIC::SimpleFieldLoad(isolate(), it->GetFieldIndex());
-      __ Move(LoadFieldDescriptor::SmiHandlerRegister(), smi_handler);
-      GenerateTailCall(masm(), isolate()->builtins()->LoadField());
-      break;
-    }
-    case LookupIterator::ACCESSOR:
-      if (it->GetAccessors()->IsAccessorInfo()) {
-        Handle<AccessorInfo> info =
-            Handle<AccessorInfo>::cast(it->GetAccessors());
-        DCHECK_NOT_NULL(info->getter());
-        GenerateLoadCallback(reg, info);
-      } else {
-        Handle<Object> function = handle(
-            AccessorPair::cast(*it->GetAccessors())->getter(), isolate());
-        CallOptimization call_optimization(function);
-        GenerateApiAccessorCall(masm(), call_optimization, holder_map,
-                                receiver(), scratch2(), false, no_reg, reg,
-                                it->GetAccessorIndex());
-      }
-  }
 }
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(

@@ -139,6 +139,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void HandleLoadICSmiHandlerCase(const LoadICParameters* p, Node* holder,
                                   Node* smi_handler, Label* miss,
                                   ExitPoint* exit_point,
+                                  bool throw_reference_error_if_nonexistent,
                                   ElementSupport support_elements);
 
   void HandleLoadICProtoHandlerCase(const LoadICParameters* p, Node* handler,
@@ -154,8 +155,7 @@ class AccessorAssembler : public CodeStubAssembler {
 
   Node* EmitLoadICProtoArrayCheck(const LoadICParameters* p, Node* handler,
                                   Node* handler_length, Node* handler_flags,
-                                  Label* miss,
-                                  bool throw_reference_error_if_nonexistent);
+                                  Label* miss);
 
   // LoadGlobalIC implementation.
 
