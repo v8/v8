@@ -606,7 +606,23 @@
   'array-natives-elements': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
+
+  # Slow tests.
+  'regress/regress-2185-2': [SKIP],
 }],  # variant == stress
+
+##############################################################################
+['variant == noturbofan_stress', {
+  # Slow tests.
+  'ignition/regress-599001-verifyheap': [SKIP],
+  'regress/regress-2185-2': [SKIP],
+}],  # variant == noturbofan_stress
+
+##############################################################################
+['variant == nooptimization', {
+  # Slow tests.
+  'regress/regress-2185-2': [SKIP],
+}],  # variant == nooptimization
 
 ##############################################################################
 ['variant == turbofan_opt', {
