@@ -6658,11 +6658,8 @@ TEST(BuiltinsExceptionPrediction) {
   v8::Context::New(isolate);
 
   // TODO(gsathya): Fix catch prediction for the following.
-  std::set<int> whitelist({i::Builtins::kPromiseThenFinally,
-                           i::Builtins::kPromiseCatchFinally,
-                           i::Builtins::kAsyncFromSyncIteratorPrototypeNext,
-                           i::Builtins::kAsyncFromSyncIteratorPrototypeThrow,
-                           i::Builtins::kAsyncFromSyncIteratorPrototypeReturn});
+  std::set<int> whitelist(
+      {i::Builtins::kPromiseThenFinally, i::Builtins::kPromiseCatchFinally});
 
   i::Builtins* builtins = CcTest::i_isolate()->builtins();
   bool fail = false;
