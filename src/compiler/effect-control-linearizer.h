@@ -88,6 +88,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerObjectIsReceiver(Node* node);
   Node* LowerObjectIsSmi(Node* node);
   Node* LowerObjectIsString(Node* node);
+  Node* LowerObjectIsSymbol(Node* node);
   Node* LowerObjectIsUndetectable(Node* node);
   Node* LowerArgumentsFrame(Node* node);
   Node* LowerArgumentsLength(Node* node);

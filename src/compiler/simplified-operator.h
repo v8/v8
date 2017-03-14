@@ -420,6 +420,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ObjectIsReceiver();
   const Operator* ObjectIsSmi();
   const Operator* ObjectIsString();
+  const Operator* ObjectIsSymbol();
   const Operator* ObjectIsUndetectable();
 
   const Operator* ArgumentsFrame();

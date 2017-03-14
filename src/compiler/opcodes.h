@@ -339,6 +339,7 @@
   V(ObjectIsReceiver)               \
   V(ObjectIsSmi)                    \
   V(ObjectIsString)                 \
+  V(ObjectIsSymbol)                 \
   V(ObjectIsUndetectable)           \
   V(ArgumentsFrame)                 \
   V(ArgumentsLength)                \

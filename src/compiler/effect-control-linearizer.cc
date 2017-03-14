@@ -741,6 +741,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsString:
       result = LowerObjectIsString(node);
       break;
+    case IrOpcode::kObjectIsSymbol:
+      result = LowerObjectIsSymbol(node);
+      break;
     case IrOpcode::kObjectIsUndetectable:
       result = LowerObjectIsUndetectable(node);
       break;
@@ -1881,6 +1884,28 @@ Node* EffectControlLinearizer::LowerObjectIsString(Node* node) {
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
   Node* vfalse = __ Uint32LessThan(value_instance_type,
                                    __ Uint32Constant(FIRST_NONSTRING_TYPE));
+  __ Goto(&done, vfalse);
+
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerObjectIsSymbol(Node* node) {
+  Node* value = node->InputAt(0);
+
+  auto if_smi = __ MakeDeferredLabel<1>();
+  auto done = __ MakeLabel<2>(MachineRepresentation::kBit);
+
+  Node* check = ObjectIsSmi(value);
+  __ GotoIf(check, &if_smi);
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+  Node* vfalse =
+      __ Word32Equal(value_instance_type, __ Uint32Constant(SYMBOL_TYPE));
   __ Goto(&done, vfalse);
 
   __ Bind(&if_smi);

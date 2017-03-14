@@ -2620,6 +2620,10 @@ class RepresentationSelector {
         VisitObjectIs(node, Type::String(), lowering);
         return;
       }
+      case IrOpcode::kObjectIsSymbol: {
+        VisitObjectIs(node, Type::Symbol(), lowering);
+        return;
+      }
       case IrOpcode::kObjectIsUndetectable: {
         VisitObjectIs(node, Type::Undetectable(), lowering);
         return;

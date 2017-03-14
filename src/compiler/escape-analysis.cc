@@ -845,6 +845,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kObjectIsNumber:
       case IrOpcode::kObjectIsReceiver:
       case IrOpcode::kObjectIsString:
+      case IrOpcode::kObjectIsSymbol:
       case IrOpcode::kObjectIsUndetectable:
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",

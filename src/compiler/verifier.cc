@@ -959,6 +959,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kObjectIsReceiver:
     case IrOpcode::kObjectIsSmi:
     case IrOpcode::kObjectIsString:
+    case IrOpcode::kObjectIsSymbol:
     case IrOpcode::kObjectIsUndetectable:
     case IrOpcode::kArrayBufferWasNeutered:
       CheckValueInputIs(node, 0, Type::Any());

@@ -290,6 +290,7 @@ class Typer::Visitor : public Reducer {
   static Type* ObjectIsReceiver(Type*, Typer*);
   static Type* ObjectIsSmi(Type*, Typer*);
   static Type* ObjectIsString(Type*, Typer*);
+  static Type* ObjectIsSymbol(Type*, Typer*);
   static Type* ObjectIsUndetectable(Type*, Typer*);
 
   static ComparisonOutcome JSCompareTyper(Type*, Type*, Typer*);
@@ -537,6 +538,12 @@ Type* Typer::Visitor::ObjectIsSmi(Type* type, Typer* t) {
 Type* Typer::Visitor::ObjectIsString(Type* type, Typer* t) {
   if (type->Is(Type::String())) return t->singleton_true_;
   if (!type->Maybe(Type::String())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::ObjectIsSymbol(Type* type, Typer* t) {
+  if (type->Is(Type::Symbol())) return t->singleton_true_;
+  if (!type->Maybe(Type::Symbol())) return t->singleton_false_;
   return Type::Boolean();
 }
 
@@ -1941,6 +1948,10 @@ Type* Typer::Visitor::TypeObjectIsSmi(Node* node) {
 
 Type* Typer::Visitor::TypeObjectIsString(Node* node) {
   return TypeUnaryOp(node, ObjectIsString);
+}
+
+Type* Typer::Visitor::TypeObjectIsSymbol(Node* node) {
+  return TypeUnaryOp(node, ObjectIsSymbol);
 }
 
 Type* Typer::Visitor::TypeObjectIsUndetectable(Node* node) {

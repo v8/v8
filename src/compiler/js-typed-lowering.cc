@@ -889,6 +889,8 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node) {
                          jsgraph()->NullConstant()));
   } else if (String::Equals(type, factory()->string_string())) {
     value = graph()->NewNode(simplified()->ObjectIsString(), input);
+  } else if (String::Equals(type, factory()->symbol_string())) {
+    value = graph()->NewNode(simplified()->ObjectIsSymbol(), input);
   } else if (String::Equals(type, factory()->undefined_string())) {
     value = graph()->NewNode(
         common()->Select(MachineRepresentation::kTagged),

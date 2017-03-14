@@ -482,6 +482,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(ObjectIsReceiver, Operator::kNoProperties, 1, 0)             \
   V(ObjectIsSmi, Operator::kNoProperties, 1, 0)                  \
   V(ObjectIsString, Operator::kNoProperties, 1, 0)               \
+  V(ObjectIsSymbol, Operator::kNoProperties, 1, 0)               \
   V(ObjectIsUndetectable, Operator::kNoProperties, 1, 0)         \
   V(ConvertTaggedHoleToUndefined, Operator::kNoProperties, 1, 0) \
   V(ReferenceEqual, Operator::kCommutative, 2, 0)                \
