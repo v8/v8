@@ -56,6 +56,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
   static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode);
+  static Callable StoreIC_Uninitialized(Isolate* isolate, LanguageMode mode);
   static Callable StoreOwnIC(Isolate* isolate);
   static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
   static Callable KeyedStoreIC(Isolate* isolate, LanguageMode mode);

@@ -247,6 +247,9 @@ class Isolate;
   TFS(LoadIC_Uninitialized, BUILTIN, kNoExtraICState, LoadWithVector, 1)       \
   TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector, 1)              \
   ASH(StoreIC_Setter_ForDeopt, BUILTIN, kNoExtraICState)                       \
+  TFS(StoreIC_Uninitialized, BUILTIN, kNoExtraICState, StoreWithVector, 1)     \
+  TFS(StoreICStrict_Uninitialized, BUILTIN, kNoExtraICState, StoreWithVector,  \
+      1)                                                                       \
                                                                                \
   /* Built-in functions for Javascript */                                      \
   /* Special internal builtins */                                              \

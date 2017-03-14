@@ -123,6 +123,15 @@ Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
                   StoreWithVectorDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::StoreIC_Uninitialized(Isolate* isolate,
+                                            LanguageMode language_mode) {
+  return Callable(language_mode == STRICT
+                      ? isolate->builtins()->StoreICStrict_Uninitialized()
+                      : isolate->builtins()->StoreIC_Uninitialized(),
+                  StoreWithVectorDescriptor(isolate));
+}
+
 Callable CodeFactory::StoreOwnIC(Isolate* isolate) {
   // TODO(ishell): Currently we use StoreOwnIC only for storing properties that
   // already exist in the boilerplate therefore we can use StoreIC.

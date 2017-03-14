@@ -70,6 +70,16 @@ void Builtins::Generate_KeyedStoreIC_Megamorphic_Strict(
   KeyedStoreGenericGenerator::Generate(state, STRICT);
 }
 
+void Builtins::Generate_StoreIC_Uninitialized(
+    compiler::CodeAssemblerState* state) {
+  StoreICUninitializedGenerator::Generate(state, SLOPPY);
+}
+
+void Builtins::Generate_StoreICStrict_Uninitialized(
+    compiler::CodeAssemblerState* state) {
+  StoreICUninitializedGenerator::Generate(state, STRICT);
+}
+
 TF_BUILTIN(KeyedStoreIC_Miss, CodeStubAssembler) {
   typedef StoreWithVectorDescriptor Descriptor;
 

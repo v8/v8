@@ -24,6 +24,8 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
   void KeyedStoreGeneric(LanguageMode language_mode);
 
+  void StoreIC_Uninitialized(LanguageMode language_mode);
+
  private:
   enum UpdateLength {
     kDontChangeLength,
@@ -31,13 +33,16 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
     kBumpLengthWithGap
   };
 
+  enum UseStubCache { kUseStubCache, kDontUseStubCache };
+
   void EmitGenericElementStore(Node* receiver, Node* receiver_map,
                                Node* instance_type, Node* intptr_index,
                                Node* value, Node* context, Label* slow);
 
   void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
                                 const StoreICParameters* p, Label* slow,
-                                LanguageMode language_mode);
+                                LanguageMode language_mode,
+                                UseStubCache use_stub_cache = kUseStubCache);
 
   void BranchIfPrototypesHaveNonFastElements(Node* receiver_map,
                                              Label* non_fast_elements,
@@ -85,6 +90,12 @@ void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state,
                                           LanguageMode language_mode) {
   KeyedStoreGenericAssembler assembler(state);
   assembler.KeyedStoreGeneric(language_mode);
+}
+
+void StoreICUninitializedGenerator::Generate(
+    compiler::CodeAssemblerState* state, LanguageMode language_mode) {
+  KeyedStoreGenericAssembler assembler(state);
+  assembler.StoreIC_Uninitialized(language_mode);
 }
 
 void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
@@ -738,7 +749,7 @@ void KeyedStoreGenericAssembler::OverwriteExistingFastProperty(
 
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Node* receiver, Node* receiver_map, const StoreICParameters* p, Label* slow,
-    LanguageMode language_mode) {
+    LanguageMode language_mode, UseStubCache use_stub_cache) {
   Variable var_accessor_pair(this, MachineRepresentation::kTagged);
   Variable var_accessor_holder(this, MachineRepresentation::kTagged);
   Label stub_cache(this), fast_properties(this), dictionary_properties(this),
@@ -756,7 +767,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Label descriptor_found(this);
     Variable var_name_index(this, MachineType::PointerRepresentation());
     // TODO(jkummerow): Maybe look for existing map transitions?
-    Label* notfound = &stub_cache;
+    Label* notfound = use_stub_cache == kUseStubCache ? &stub_cache : slow;
     DescriptorLookup(p->name, descriptors, bitfield3, &descriptor_found,
                      &var_name_index, notfound);
 
@@ -819,6 +830,13 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     Bind(&not_found);
     {
+      Label extensible(this);
+      GotoIf(IsPrivateSymbol(p->name), &extensible);
+      Node* bitfield2 = LoadMapBitField2(receiver_map);
+      Branch(IsSetWord32(bitfield2, 1 << Map::kIsExtensible), &extensible,
+             slow);
+
+      Bind(&extensible);
       LookupPropertyOnPrototypeChain(receiver_map, p->name, &accessor,
                                      &var_accessor_pair, &var_accessor_holder,
                                      &readonly, slow);
@@ -871,8 +889,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     }
   }
 
-  Bind(&stub_cache);
-  {
+  if (use_stub_cache == kUseStubCache) {
+    Bind(&stub_cache);
     Comment("stub cache probe");
     Variable var_handler(this, MachineRepresentation::kTagged);
     Label found_handler(this, &var_handler), stub_cache_miss(this);
@@ -938,6 +956,48 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
     Comment("KeyedStoreGeneric_slow");
     TailCallRuntime(Runtime::kSetProperty, context, receiver, name, value,
                     SmiConstant(language_mode));
+  }
+}
+
+void KeyedStoreGenericAssembler::StoreIC_Uninitialized(
+    LanguageMode language_mode) {
+  typedef StoreWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Label miss(this);
+
+  GotoIf(TaggedIsSmi(receiver), &miss);
+  Node* receiver_map = LoadMap(receiver);
+  Node* instance_type = LoadMapInstanceType(receiver_map);
+  // Receivers requiring non-standard element accesses (interceptors, access
+  // checks, strings and string wrappers, proxies) are handled in the runtime.
+  GotoIf(Int32LessThanOrEqual(instance_type,
+                              Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
+         &miss);
+
+  // Optimistically write the state transition to the vector.
+  StoreFixedArrayElement(vector, slot,
+                         LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
+                         SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+
+  StoreICParameters p(context, receiver, name, value, slot, vector);
+  EmitGenericPropertyStore(receiver, receiver_map, &p, &miss, language_mode,
+                           kDontUseStubCache);
+
+  Bind(&miss);
+  {
+    // Undo the optimistic state transition.
+    StoreFixedArrayElement(vector, slot,
+                           LoadRoot(Heap::kuninitialized_symbolRootIndex),
+                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+    TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
+                    receiver, name);
   }
 }
 

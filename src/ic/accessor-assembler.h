@@ -112,7 +112,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void LoadGlobalIC(const LoadICParameters* p, TypeofMode typeof_mode);
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
-  void StoreIC(const StoreICParameters* p);
+  void StoreIC(const StoreICParameters* p, LanguageMode language_mode);
   void KeyedStoreIC(const StoreICParameters* p, LanguageMode language_mode);
 
   // IC dispatcher behavior.

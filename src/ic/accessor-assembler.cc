@@ -2041,10 +2041,12 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   }
 }
 
-void AccessorAssembler::StoreIC(const StoreICParameters* p) {
+void AccessorAssembler::StoreIC(const StoreICParameters* p,
+                                LanguageMode language_mode) {
   Variable var_handler(this, MachineRepresentation::kTagged);
   Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
-      try_megamorphic(this, Label::kDeferred), miss(this, Label::kDeferred);
+      try_megamorphic(this, Label::kDeferred),
+      try_uninitialized(this, Label::kDeferred), miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
   GotoIf(IsDeprecatedMap(receiver_map), &miss);
@@ -2074,10 +2076,20 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   {
     // Check megamorphic case.
     GotoIfNot(WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-              &miss);
+              &try_uninitialized);
 
     TryProbeStubCache(isolate()->store_stub_cache(), p->receiver, p->name,
                       &if_handler, &var_handler, &miss);
+  }
+  Bind(&try_uninitialized);
+  {
+    // Check uninitialized case.
+    GotoIfNot(
+        WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
+        &miss);
+    TailCallStub(CodeFactory::StoreIC_Uninitialized(isolate(), language_mode),
+                 p->context, p->receiver, p->name, p->value, p->slot,
+                 p->vector);
   }
   Bind(&miss);
   {
@@ -2376,8 +2388,7 @@ void AccessorAssembler::GenerateStoreIC(LanguageMode language_mode) {
   Node* context = Parameter(Descriptor::kContext);
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
-  // Current StoreIC dispatcher does not depend on the language mode.
-  StoreIC(&p);
+  StoreIC(&p, language_mode);
 }
 
 void AccessorAssembler::GenerateStoreICTrampoline(LanguageMode language_mode) {
