@@ -537,9 +537,26 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                         abstract_code, offset, flags);
       } break;
 
-      case StackFrame::WASM_INTERPRETER_ENTRY:
-        // TODO(clemensh): Add frames.
-        break;
+      case StackFrame::WASM_INTERPRETER_ENTRY: {
+        WasmInterpreterEntryFrame* interpreter_frame =
+            WasmInterpreterEntryFrame::cast(frame);
+        Handle<WasmInstanceObject> instance(interpreter_frame->wasm_instance(),
+                                            this);
+        // Get the interpreted stack (<func_index, offset> pairs).
+        std::vector<std::pair<uint32_t, int>> interpreted_stack =
+            instance->debug_info()->GetInterpretedStack(
+                interpreter_frame->fp());
+
+        // interpreted_stack is bottom-up, i.e. caller before callee. We need it
+        // the other way around.
+        for (auto it = interpreted_stack.rbegin(),
+                  end = interpreted_stack.rend();
+             it != end; ++it) {
+          elements = FrameArray::AppendWasmFrame(
+              elements, instance, it->first, Handle<AbstractCode>::null(),
+              it->second, FrameArray::kIsWasmInterpretedFrame);
+        }
+      } break;
 
       default:
         break;

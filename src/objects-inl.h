@@ -2690,6 +2690,11 @@ bool FrameArray::IsWasmFrame(int frame_ix) const {
   return (flags & kIsWasmFrame) != 0;
 }
 
+bool FrameArray::IsWasmInterpretedFrame(int frame_ix) const {
+  const int flags = Flags(frame_ix)->value();
+  return (flags & kIsWasmInterpretedFrame) != 0;
+}
+
 bool FrameArray::IsAsmJsWasmFrame(int frame_ix) const {
   const int flags = Flags(frame_ix)->value();
   return (flags & kIsAsmJsWasmFrame) != 0;

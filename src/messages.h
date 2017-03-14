@@ -149,6 +149,7 @@ class WasmStackFrame : public StackFrameBase {
   bool IsToplevel() override { return false; }
   bool IsConstructor() override { return false; }
   bool IsStrict() const override { return false; }
+  bool IsInterpreted() const { return code_.is_null(); }
 
   MaybeHandle<String> ToString() override;
 
@@ -161,7 +162,7 @@ class WasmStackFrame : public StackFrameBase {
   // TODO(wasm): Use proper typing.
   Handle<Object> wasm_instance_;
   uint32_t wasm_func_index_;
-  Handle<AbstractCode> code_;
+  Handle<AbstractCode> code_;  // null handle for interpreted frames.
   int offset_;
 
  private:

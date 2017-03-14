@@ -639,12 +639,19 @@ WasmStackFrame::WasmStackFrame() {}
 
 void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
                                     int frame_ix) {
-  // This function is called for both wasm and asm.js->wasm frames.
-  DCHECK(array->IsWasmFrame(frame_ix) || array->IsAsmJsWasmFrame(frame_ix));
+  // This function is called for compiled and interpreted wasm frames, and for
+  // asm.js->wasm frames.
+  DCHECK(array->IsWasmFrame(frame_ix) ||
+         array->IsWasmInterpretedFrame(frame_ix) ||
+         array->IsAsmJsWasmFrame(frame_ix));
   isolate_ = isolate;
   wasm_instance_ = handle(array->WasmInstance(frame_ix), isolate);
   wasm_func_index_ = array->WasmFunctionIndex(frame_ix)->value();
-  code_ = handle(array->Code(frame_ix), isolate);
+  if (array->IsWasmInterpretedFrame(frame_ix)) {
+    code_ = Handle<AbstractCode>::null();
+  } else {
+    code_ = handle(array->Code(frame_ix), isolate);
+  }
   offset_ = array->Offset(frame_ix)->value();
 }
 
@@ -692,6 +699,7 @@ MaybeHandle<String> WasmStackFrame::ToString() {
 }
 
 int WasmStackFrame::GetPosition() const {
+  if (IsInterpreted()) return offset_;
   // TODO(wasm): Clean this up (bug 5007).
   return (offset_ < 0) ? (-1 - offset_) : code_->SourcePosition(offset_);
 }
@@ -802,13 +810,17 @@ void FrameArrayIterator::Next() { next_frame_ix_++; }
 StackFrameBase* FrameArrayIterator::Frame() {
   DCHECK(HasNext());
   const int flags = array_->Flags(next_frame_ix_)->value();
-  switch (flags & (FrameArray::kIsWasmFrame | FrameArray::kIsAsmJsWasmFrame)) {
+  int flag_mask = FrameArray::kIsWasmFrame |
+                  FrameArray::kIsWasmInterpretedFrame |
+                  FrameArray::kIsAsmJsWasmFrame;
+  switch (flags & flag_mask) {
     case 0:
       // JavaScript Frame.
       js_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
       return &js_frame_;
     case FrameArray::kIsWasmFrame:
-      // Wasm Frame;
+    case FrameArray::kIsWasmInterpretedFrame:
+      // Wasm Frame:
       wasm_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
       return &wasm_frame_;
     case FrameArray::kIsAsmJsWasmFrame:
