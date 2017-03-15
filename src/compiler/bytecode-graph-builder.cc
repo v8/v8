@@ -7,6 +7,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/compilation-info.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-type-hint-lowering.h"
 #include "src/compiler/linkage.h"
@@ -1921,6 +1922,57 @@ void BytecodeGraphBuilder::VisitTestUndefined() {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* result = NewNode(simplified()->ReferenceEqual(), object,
                          jsgraph()->UndefinedConstant());
+  environment()->BindAccumulator(result);
+}
+
+void BytecodeGraphBuilder::VisitTestTypeOf() {
+  Node* object = environment()->LookupAccumulator();
+  auto literal_flag = interpreter::TestTypeOfFlags::Decode(
+      bytecode_iterator().GetFlagOperand(0));
+  Node* result;
+  switch (literal_flag) {
+    case interpreter::TestTypeOfFlags::LiteralFlag::kNumber:
+      result = NewNode(simplified()->ObjectIsNumber(), object);
+      break;
+    case interpreter::TestTypeOfFlags::LiteralFlag::kString:
+      result = NewNode(simplified()->ObjectIsString(), object);
+      break;
+    case interpreter::TestTypeOfFlags::LiteralFlag::kSymbol:
+      result = NewNode(simplified()->ObjectIsSymbol(), object);
+      break;
+    case interpreter::TestTypeOfFlags::LiteralFlag::kBoolean:
+      result = NewNode(common()->Select(MachineRepresentation::kTagged),
+                       NewNode(simplified()->ReferenceEqual(), object,
+                               jsgraph()->TrueConstant()),
+                       jsgraph()->TrueConstant(),
+                       NewNode(simplified()->ReferenceEqual(), object,
+                               jsgraph()->FalseConstant()));
+      break;
+    case interpreter::TestTypeOfFlags::LiteralFlag::kUndefined:
+      result = graph()->NewNode(
+          common()->Select(MachineRepresentation::kTagged),
+          graph()->NewNode(simplified()->ReferenceEqual(), object,
+                           jsgraph()->NullConstant()),
+          jsgraph()->FalseConstant(),
+          graph()->NewNode(simplified()->ObjectIsUndetectable(), object));
+      break;
+    case interpreter::TestTypeOfFlags::LiteralFlag::kFunction:
+      result =
+          graph()->NewNode(simplified()->ObjectIsDetectableCallable(), object);
+      break;
+    case interpreter::TestTypeOfFlags::LiteralFlag::kObject:
+      result = graph()->NewNode(
+          common()->Select(MachineRepresentation::kTagged),
+          graph()->NewNode(simplified()->ObjectIsNonCallable(), object),
+          jsgraph()->TrueConstant(),
+          graph()->NewNode(simplified()->ReferenceEqual(), object,
+                           jsgraph()->NullConstant()));
+      break;
+    case interpreter::TestTypeOfFlags::LiteralFlag::kOther:
+      UNREACHABLE();  // Should never be emitted.
+      result = nullptr;
+      break;
+  }
   environment()->BindAccumulator(result);
 }
 

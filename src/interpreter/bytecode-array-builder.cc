@@ -364,6 +364,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareTypeOf(
+    TestTypeOfFlags::LiteralFlag literal_flag) {
+  DCHECK(literal_flag != TestTypeOfFlags::LiteralFlag::kOther);
+  OutputTestTypeOf(TestTypeOfFlags::Encode(literal_flag));
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadConstantPoolEntry(
     size_t entry) {
   OutputLdaConstant(entry);

@@ -2584,6 +2584,126 @@ void Interpreter::DoTestUndefined(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+// TestTypeOf <literal_flag>
+//
+// Tests if the object in the <accumulator> is typeof the literal represented
+// by |literal_flag|.
+void Interpreter::DoTestTypeOf(InterpreterAssembler* assembler) {
+  Node* object = __ GetAccumulator();
+  Node* literal_flag = __ BytecodeOperandFlag(0);
+
+#define MAKE_LABEL(name, lower_case) Label if_##lower_case(assembler);
+  TYPEOF_LITERAL_LIST(MAKE_LABEL)
+#undef MAKE_LABEL
+
+#define LABEL_POINTER(name, lower_case) &if_##lower_case,
+  Label* labels[] = {TYPEOF_LITERAL_LIST(LABEL_POINTER)};
+#undef LABEL_POINTER
+
+#define CASE(name, lower_case) \
+  static_cast<int32_t>(TestTypeOfFlags::LiteralFlag::k##name),
+  int32_t cases[] = {TYPEOF_LITERAL_LIST(CASE)};
+#undef CASE
+
+  Label if_true(assembler), if_false(assembler), end(assembler),
+      abort(assembler, Label::kDeferred);
+
+  __ Switch(literal_flag, &abort, cases, labels, arraysize(cases));
+
+  __ Bind(&abort);
+  {
+    __ Comment("Abort");
+    __ Abort(BailoutReason::kUnexpectedTestTypeofLiteralFlag);
+    __ Goto(&if_false);
+  }
+  __ Bind(&if_number);
+  {
+    __ Comment("IfNumber");
+    __ GotoIfNumber(object, &if_true);
+    __ Goto(&if_false);
+  }
+  __ Bind(&if_string);
+  {
+    __ Comment("IfString");
+    __ GotoIf(__ TaggedIsSmi(object), &if_false);
+    __ Branch(__ IsString(object), &if_true, &if_false);
+  }
+  __ Bind(&if_symbol);
+  {
+    __ Comment("IfSymbol");
+    __ GotoIf(__ TaggedIsSmi(object), &if_false);
+    __ Branch(__ IsSymbol(object), &if_true, &if_false);
+  }
+  __ Bind(&if_boolean);
+  {
+    __ Comment("IfBoolean");
+    __ GotoIf(__ WordEqual(object, __ BooleanConstant(true)), &if_true);
+    __ Branch(__ WordEqual(object, __ BooleanConstant(false)), &if_true,
+              &if_false);
+  }
+  __ Bind(&if_undefined);
+  {
+    __ Comment("IfUndefined");
+    __ GotoIf(__ TaggedIsSmi(object), &if_false);
+    // Check it is not null and the map has the undetectable bit set.
+    __ GotoIf(__ WordEqual(object, __ NullConstant()), &if_false);
+    Node* map_bitfield = __ LoadMapBitField(__ LoadMap(object));
+    Node* undetectable_bit =
+        __ Word32And(map_bitfield, __ Int32Constant(1 << Map::kIsUndetectable));
+    __ Branch(__ Word32Equal(undetectable_bit, __ Int32Constant(0)), &if_false,
+              &if_true);
+  }
+  __ Bind(&if_function);
+  {
+    __ Comment("IfFunction");
+    __ GotoIf(__ TaggedIsSmi(object), &if_false);
+    // Check if callable bit is set and not undetectable.
+    Node* map_bitfield = __ LoadMapBitField(__ LoadMap(object));
+    Node* callable_undetectable = __ Word32And(
+        map_bitfield,
+        __ Int32Constant(1 << Map::kIsUndetectable | 1 << Map::kIsCallable));
+    __ Branch(__ Word32Equal(callable_undetectable,
+                             __ Int32Constant(1 << Map::kIsCallable)),
+              &if_true, &if_false);
+  }
+  __ Bind(&if_object);
+  {
+    __ Comment("IfObject");
+    __ GotoIf(__ TaggedIsSmi(object), &if_false);
+
+    // If the object is null then return true.
+    __ GotoIf(__ WordEqual(object, __ NullConstant()), &if_true);
+
+    // Check if the object is a receiver type and is not undefined or callable.
+    Node* map = __ LoadMap(object);
+    __ GotoIfNot(__ IsJSReceiverMap(map), &if_false);
+    Node* map_bitfield = __ LoadMapBitField(map);
+    Node* callable_undetectable = __ Word32And(
+        map_bitfield,
+        __ Int32Constant(1 << Map::kIsUndetectable | 1 << Map::kIsCallable));
+    __ Branch(__ Word32Equal(callable_undetectable, __ Int32Constant(0)),
+              &if_true, &if_false);
+  }
+  __ Bind(&if_other);
+  {
+    // Typeof doesn't return any other string value.
+    __ Goto(&if_false);
+  }
+
+  __ Bind(&if_false);
+  {
+    __ SetAccumulator(__ BooleanConstant(false));
+    __ Goto(&end);
+  }
+  __ Bind(&if_true);
+  {
+    __ SetAccumulator(__ BooleanConstant(true));
+    __ Goto(&end);
+  }
+  __ Bind(&end);
+  __ Dispatch();
+}
+
 // Jump <imm>
 //
 // Jump by number of bytes represented by the immediate operand |imm|.

@@ -10,6 +10,7 @@
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects-inl.h"
@@ -2069,6 +2070,58 @@ TEST(InterpreterStrictNotEqual) {
       CHECK_EQ(return_value->BooleanValue(),
                CompareC(Token::Value::NE_STRICT, inputs_number[i],
                         inputs_number[j]));
+    }
+  }
+}
+
+TEST(InterpreterCompareTypeOf) {
+  typedef TestTypeOfFlags::LiteralFlag LiteralFlag;
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  Zone* zone = handles.main_zone();
+  std::pair<Handle<Object>, LiteralFlag> inputs[] = {
+      {handle(Smi::FromInt(24), isolate), LiteralFlag::kNumber},
+      {factory->NewNumber(2.5), LiteralFlag::kNumber},
+      {factory->NewStringFromAsciiChecked("foo"), LiteralFlag::kString},
+      {factory
+           ->NewConsString(factory->NewStringFromAsciiChecked("foo"),
+                           factory->NewStringFromAsciiChecked("bar"))
+           .ToHandleChecked(),
+       LiteralFlag::kString},
+      {factory->prototype_string(), LiteralFlag::kString},
+      {factory->NewSymbol(), LiteralFlag::kSymbol},
+      {factory->true_value(), LiteralFlag::kBoolean},
+      {factory->false_value(), LiteralFlag::kBoolean},
+      {factory->undefined_value(), LiteralFlag::kUndefined},
+      {InterpreterTester::NewObject(
+           "(function() { return function() {}; })();"),
+       LiteralFlag::kFunction},
+      {InterpreterTester::NewObject("new Object();"), LiteralFlag::kObject},
+      {factory->null_value(), LiteralFlag::kObject},
+  };
+  const LiteralFlag kLiterals[] = {
+#define LITERAL_FLAG(name, _) LiteralFlag::k##name,
+      TYPEOF_LITERAL_LIST(LITERAL_FLAG)
+#undef LITERAL_FLAG
+  };
+
+  for (size_t l = 0; l < arraysize(kLiterals); l++) {
+    LiteralFlag literal_flag = kLiterals[l];
+    if (literal_flag == LiteralFlag::kOther) continue;
+
+    BytecodeArrayBuilder builder(isolate, zone, 1, 0, 0);
+    builder.LoadAccumulatorWithRegister(builder.Parameter(0))
+        .CompareTypeOf(kLiterals[l])
+        .Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+    InterpreterTester tester(isolate, bytecode_array);
+    auto callable = tester.GetCallable<Handle<Object>>();
+
+    for (size_t i = 0; i < arraysize(inputs); i++) {
+      Handle<Object> return_value = callable(inputs[i].first).ToHandleChecked();
+      CHECK(return_value->IsBoolean());
+      CHECK_EQ(return_value->BooleanValue(), inputs[i].second == literal_flag);
     }
   }
 }

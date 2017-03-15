@@ -2275,7 +2275,7 @@ class CompareOperation final : public Expression {
   FeedbackSlot CompareOperationFeedbackSlot() const { return feedback_slot_; }
 
   // Match special cases.
-  bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
+  bool IsLiteralCompareTypeof(Expression** expr, Literal** literal);
   bool IsLiteralCompareUndefined(Expression** expr);
   bool IsLiteralCompareNull(Expression** expr);
 

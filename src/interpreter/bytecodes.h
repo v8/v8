@@ -205,11 +205,10 @@ namespace interpreter {
     OperandType::kIdx)                                                         \
   V(TestInstanceOf, AccumulatorUse::kReadWrite, OperandType::kReg)             \
   V(TestIn, AccumulatorUse::kReadWrite, OperandType::kReg)                     \
-                                                                               \
-  /* TestEqual with Null or Undefined */                                       \
   V(TestUndetectable, AccumulatorUse::kWrite, OperandType::kReg)               \
   V(TestNull, AccumulatorUse::kWrite, OperandType::kReg)                       \
   V(TestUndefined, AccumulatorUse::kWrite, OperandType::kReg)                  \
+  V(TestTypeOf, AccumulatorUse::kReadWrite, OperandType::kFlag8)               \
                                                                                \
   /* Cast operators */                                                         \
   V(ToName, AccumulatorUse::kRead, OperandType::kRegOut)                       \
@@ -506,6 +505,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
       case Bytecode::kTestInstanceOf:
       case Bytecode::kTestIn:
       case Bytecode::kTestUndetectable:
+      case Bytecode::kTestTypeOf:
       case Bytecode::kForInContinue:
       case Bytecode::kTestUndefined:
       case Bytecode::kTestNull:

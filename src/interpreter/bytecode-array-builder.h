@@ -9,6 +9,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
@@ -306,6 +307,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Tests.
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
                                          int feedback_slot = kNoFeedbackSlot);
+  BytecodeArrayBuilder& CompareTypeOf(
+      TestTypeOfFlags::LiteralFlag literal_flag);
 
   // Converts accumulator and stores result in register |out|.
   BytecodeArrayBuilder& ConvertAccumulatorToObject(Register out);

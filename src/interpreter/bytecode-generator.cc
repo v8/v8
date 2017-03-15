@@ -621,6 +621,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
           info->scope()->num_stack_slots(), info->literal(),
           info->SourcePositionRecordingMode())),
       info_(info),
+      ast_string_constants_(info->isolate()->ast_string_constants()),
       closure_scope_(info->scope()),
       current_scope_(info->scope()),
       globals_builder_(new (zone()) GlobalDeclarationsBuilder(info->zone())),
@@ -634,11 +635,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       execution_result_(nullptr),
       generator_resume_points_(info->literal()->yield_count(), info->zone()),
       generator_state_(),
-      loop_depth_(0),
-      prototype_string_(
-          info->isolate()->ast_string_constants()->prototype_string()),
-      undefined_string_(
-          info->isolate()->ast_string_constants()->undefined_string()) {
+      loop_depth_(0) {
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
 }
 
@@ -1556,7 +1553,7 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
       // do not need to do this for every property.
       BytecodeLabel done;
       builder()
-          ->LoadLiteral(prototype_string())
+          ->LoadLiteral(ast_string_constants()->prototype_string())
           .CompareOperation(Token::Value::EQ_STRICT, key)
           .JumpIfFalse(&done)
           .CallRuntime(Runtime::kThrowStaticPrototypeError)
@@ -1945,7 +1942,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable, FeedbackSlot slot,
       // The global identifier "undefined" is immutable. Everything
       // else could be reassigned. For performance, we do a pointer comparison
       // rather than checking if the raw_name is really "undefined".
-      if (variable->raw_name() == undefined_string()) {
+      if (variable->raw_name() == ast_string_constants()->undefined_string()) {
         builder()->LoadUndefined();
       } else {
         builder()->LoadGlobal(variable->raw_name(), feedback_index(slot),
@@ -2710,17 +2707,21 @@ void BytecodeGenerator::VisitVoid(UnaryOperation* expr) {
   builder()->LoadUndefined();
 }
 
-void BytecodeGenerator::VisitTypeOf(UnaryOperation* expr) {
-  if (expr->expression()->IsVariableProxy()) {
+void BytecodeGenerator::VisitForTypeOfValue(Expression* expr) {
+  if (expr->IsVariableProxy()) {
     // Typeof does not throw a reference error on global variables, hence we
     // perform a non-contextual load in case the operand is a variable proxy.
-    VariableProxy* proxy = expr->expression()->AsVariableProxy();
+    VariableProxy* proxy = expr->AsVariableProxy();
     BuildVariableLoadForAccumulatorValue(
         proxy->var(), proxy->VariableFeedbackSlot(), proxy->hole_check_mode(),
         INSIDE_TYPEOF);
   } else {
-    VisitForAccumulatorValue(expr->expression());
+    VisitForAccumulatorValue(expr);
   }
+}
+
+void BytecodeGenerator::VisitTypeOf(UnaryOperation* expr) {
+  VisitForTypeOfValue(expr->expression());
   builder()->TypeOf();
 }
 
@@ -2963,11 +2964,27 @@ void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
 }
 
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
-  Register lhs = VisitForRegisterValue(expr->left());
-  VisitForAccumulatorValue(expr->right());
-  builder()->SetExpressionPosition(expr);
-  FeedbackSlot slot = expr->CompareOperationFeedbackSlot();
-  builder()->CompareOperation(expr->op(), lhs, feedback_index(slot));
+  // Emit a fast literal comparion for expressions of the form:
+  // typeof(x) === 'string'.
+  Expression* typeof_sub_expr;
+  Literal* literal;
+  if (expr->IsLiteralCompareTypeof(&typeof_sub_expr, &literal)) {
+    VisitForTypeOfValue(typeof_sub_expr);
+    builder()->SetExpressionPosition(expr);
+    TestTypeOfFlags::LiteralFlag literal_flag =
+        TestTypeOfFlags::GetFlagForLiteral(ast_string_constants(), literal);
+    if (literal_flag == TestTypeOfFlags::LiteralFlag::kOther) {
+      builder()->LoadFalse();
+    } else {
+      builder()->CompareTypeOf(literal_flag);
+    }
+  } else {
+    Register lhs = VisitForRegisterValue(expr->left());
+    VisitForAccumulatorValue(expr->right());
+    builder()->SetExpressionPosition(expr);
+    FeedbackSlot slot = expr->CompareOperationFeedbackSlot();
+    builder()->CompareOperation(expr->op(), lhs, feedback_index(slot));
+  }
 }
 
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {

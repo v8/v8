@@ -11200,9 +11200,10 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   // with the full codegen: We don't push both left and right values onto
   // the expression stack when one side is a special-case literal.
   Expression* sub_expr = NULL;
-  Handle<String> check;
-  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
-    return HandleLiteralCompareTypeof(expr, sub_expr, check);
+  Literal* literal;
+  if (expr->IsLiteralCompareTypeof(&sub_expr, &literal)) {
+    return HandleLiteralCompareTypeof(expr, sub_expr,
+                                      Handle<String>::cast(literal->value()));
   }
   if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     return HandleLiteralCompareNil(expr, sub_expr, kUndefinedValue);

@@ -1007,6 +1007,26 @@ TEST(Typeof) {
                      LoadGolden("Typeof.golden")));
 }
 
+TEST(CompareTypeOf) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "return typeof(1) === 'number';\n",
+
+      "return 'string' === typeof('foo');\n",
+
+      "return typeof(true) == 'boolean';\n",
+
+      "return 'string' === typeof(undefined);\n",
+
+      "return 'unknown' === typeof(undefined);\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CompareTypeOf.golden")));
+}
+
 TEST(Delete) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());

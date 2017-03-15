@@ -310,6 +310,7 @@ class AstValue : public ZoneObject {
   F(arguments, "arguments")                     \
   F(async, "async")                             \
   F(await, "await")                             \
+  F(boolean, "boolean")                         \
   F(constructor, "constructor")                 \
   F(default, "default")                         \
   F(done, "done")                               \
@@ -330,11 +331,15 @@ class AstValue : public ZoneObject {
   F(native, "native")                           \
   F(new_target, ".new.target")                  \
   F(next, "next")                               \
+  F(number, "number")                           \
+  F(object, "object")                           \
   F(proto, "__proto__")                         \
   F(prototype, "prototype")                     \
   F(return, "return")                           \
   F(set_space, "set ")                          \
   F(star_default_star, "*default*")             \
+  F(string, "string")                           \
+  F(symbol, "symbol")                           \
   F(this, "this")                               \
   F(this_function, ".this_function")            \
   F(throw, "throw")                             \

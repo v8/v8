@@ -905,24 +905,21 @@ void CompareOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
 }
 
 // Check for the pattern: typeof <expression> equals <string literal>.
-static bool MatchLiteralCompareTypeof(Expression* left,
-                                      Token::Value op,
-                                      Expression* right,
-                                      Expression** expr,
-                                      Handle<String>* check) {
+static bool MatchLiteralCompareTypeof(Expression* left, Token::Value op,
+                                      Expression* right, Expression** expr,
+                                      Literal** literal) {
   if (IsTypeof(left) && right->IsStringLiteral() && Token::IsEqualityOp(op)) {
     *expr = left->AsUnaryOperation()->expression();
-    *check = Handle<String>::cast(right->AsLiteral()->value());
+    *literal = right->AsLiteral();
     return true;
   }
   return false;
 }
 
-
 bool CompareOperation::IsLiteralCompareTypeof(Expression** expr,
-                                              Handle<String>* check) {
-  return MatchLiteralCompareTypeof(left_, op(), right_, expr, check) ||
-         MatchLiteralCompareTypeof(right_, op(), left_, expr, check);
+                                              Literal** literal) {
+  return MatchLiteralCompareTypeof(left_, op(), right_, expr, literal) ||
+         MatchLiteralCompareTypeof(right_, op(), left_, expr, literal);
 }
 
 

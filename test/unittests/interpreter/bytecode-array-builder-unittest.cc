@@ -213,7 +213,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareOperation(Token::Value::LTE, reg, 5)
       .CompareOperation(Token::Value::GTE, reg, 6)
       .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
-      .CompareOperation(Token::Value::IN, reg, 8);
+      .CompareOperation(Token::Value::IN, reg, 8)
+      .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber);
 
   // Emit peephole optimizations of equality with Null or Undefined.
   builder.LoadUndefined()

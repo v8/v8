@@ -237,6 +237,8 @@ namespace internal {
   V(kUnexpectedStackDepth, "Unexpected operand stack depth in full-codegen")   \
   V(kUnexpectedStackPointer, "The stack pointer is not the expected value")    \
   V(kUnexpectedStringType, "Unexpected string type")                           \
+  V(kUnexpectedTestTypeofLiteralFlag,                                          \
+    "Unexpected literal flag for TestTypeof bytecode")                         \
   V(kUnexpectedTypeForRegExpDataFixedArrayExpected,                            \
     "Unexpected type for RegExp data, FixedArray expected")                    \
   V(kUnexpectedValue, "Unexpected value")                                      \

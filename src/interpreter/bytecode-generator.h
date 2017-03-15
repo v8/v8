@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+class AstStringConstants;
 class CompilationInfo;
 
 namespace interpreter {
@@ -70,6 +71,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitTypeOf(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
   void VisitDelete(UnaryOperation* expr);
+
+  // Visits a typeof expression for the value on which to perform the typeof.
+  void VisitForTypeOfValue(Expression* expr);
 
   // Used by flow control routines to evaluate loop condition.
   void VisitCondition(Expression* expr);
@@ -175,6 +179,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   inline Zone* zone() const { return zone_; }
   inline DeclarationScope* closure_scope() const { return closure_scope_; }
   inline CompilationInfo* info() const { return info_; }
+  inline const AstStringConstants* ast_string_constants() const {
+    return ast_string_constants_;
+  }
 
   inline Scope* current_scope() const { return current_scope_; }
   inline void set_current_scope(Scope* scope) { current_scope_ = scope; }
@@ -202,12 +209,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   inline LanguageMode language_mode() const;
   int feedback_index(FeedbackSlot slot) const;
 
-  const AstRawString* prototype_string() const { return prototype_string_; }
-  const AstRawString* undefined_string() const { return undefined_string_; }
-
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
   CompilationInfo* info_;
+  const AstStringConstants* ast_string_constants_;
   DeclarationScope* closure_scope_;
   Scope* current_scope_;
 
@@ -226,9 +231,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ZoneVector<BytecodeLabel> generator_resume_points_;
   Register generator_state_;
   int loop_depth_;
-
-  const AstRawString* prototype_string_;
-  const AstRawString* undefined_string_;
 };
 
 }  // namespace interpreter
