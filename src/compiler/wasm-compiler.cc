@@ -1061,6 +1061,22 @@ Node* WasmGraphBuilder::HeapConstant(Handle<HeapObject> value) {
   return jsgraph()->HeapConstant(value);
 }
 
+Node* WasmGraphBuilder::ZeroConstant(wasm::ValueType type) {
+  switch (type) {
+    case wasm::kWasmI32:
+      return Int32Constant(0);
+    case wasm::kWasmI64:
+      return Int64Constant(0);
+    case wasm::kWasmF32:
+      return Float32Constant(0);
+    case wasm::kWasmF64:
+      return Float64Constant(0);
+    default:
+      UNIMPLEMENTED();
+      return nullptr;
+  }
+}
+
 namespace {
 Node* Branch(JSGraph* jsgraph, Node* cond, Node** true_node, Node** false_node,
              Node* control, BranchHint hint) {
@@ -2804,9 +2820,12 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
     // regenerated at instantiation time.
     Node* context =
         jsgraph()->HeapConstant(jsgraph()->isolate()->native_context());
-    Return(BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError,
-                                         jsgraph(), context, nullptr, 0,
-                                         effect_, *control_));
+    BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, jsgraph(),
+                                  context, nullptr, 0, effect_, *control_);
+    // TODO(wasm): Support multi-return.
+    wasm::ValueType return_type =
+        sig->return_count() == 0 ? wasm::kWasmI32 : sig->GetReturn();
+    Return(ZeroConstant(return_type));
     return;
   }
 
@@ -2890,9 +2909,8 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   }
 
   // Convert the return value back.
-  Node* i32_zero = jsgraph()->Int32Constant(0);
   Node* val = sig->return_count() == 0
-                  ? i32_zero
+                  ? jsgraph()->Int32Constant(0)
                   : FromJS(call, HeapConstant(isolate->native_context()),
                            sig->GetReturn());
   Return(val);
