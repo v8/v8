@@ -128,6 +128,19 @@ assertThrows(function() {
   assertThrows(() => instance.exports.main(), TypeError);
 })();
 
+(function ImportI64Return() {
+  // This tests that we generate correct code by using the correct return
+  // register(s). See bug 6104.
+  var builder = new WasmModuleBuilder();
+  builder.addImport('', 'f', makeSig([], [kWasmI64]));
+  builder.addFunction('main', kSig_v_v)
+      .addBody([kExprCallFunction, 0, kExprDrop])
+      .exportFunc();
+  var instance = builder.instantiate({'': {f: () => 1}});
+
+  assertThrows(() => instance.exports.main(), TypeError);
+})();
+
 (function ImportSymbolToNumberThrows() {
   var builder = new WasmModuleBuilder();
   var index = builder.addImport("", "func", kSig_i_v);

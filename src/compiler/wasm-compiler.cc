@@ -2823,9 +2823,14 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
     BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, jsgraph(),
                                   context, nullptr, 0, effect_, *control_);
     // TODO(wasm): Support multi-return.
-    wasm::ValueType return_type =
-        sig->return_count() == 0 ? wasm::kWasmI32 : sig->GetReturn();
-    Return(ZeroConstant(return_type));
+    if (sig->return_count() == 0) {
+      Return(Int32Constant(0));
+    } else if (Int64Lowering::IsI64AsTwoParameters(jsgraph()->machine(),
+                                                   sig->GetReturn())) {
+      Return(Int32Constant(0), Int32Constant(0));
+    } else {
+      Return(ZeroConstant(sig->GetReturn()));
+    }
     return;
   }
 
