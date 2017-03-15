@@ -2826,6 +2826,21 @@ Parser::LazyParsingResult Parser::SkipFunction(
         function_scope->RecordEvalCall();
       }
       SkipFunctionLiterals(data.num_inner_functions);
+    }
+  }
+
+  // FIXME(marja): There are 3 ways to skip functions now. Unify them.
+  if (preparsed_scope_data_->Consuming()) {
+    DCHECK(FLAG_preparser_scope_analysis);
+    int end_pos = kNoSourcePosition;
+    if (preparsed_scope_data_->FindFunctionEnd(function_scope->start_position(),
+                                               &end_pos)) {
+      function_scope->set_end_position(end_pos);
+      function_scope->set_is_skipped_function(true);
+      function_scope->outer_scope()->SetMustUsePreParsedScopeData();
+      scanner()->SeekForward(end_pos - 1);
+      Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
+      // FIXME(marja): SkipFunctionLiterals still needed.
       return kLazyParsingComplete;
     }
   }

@@ -262,6 +262,9 @@ Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
   set_language_mode(scope_info->language_mode());
   num_heap_slots_ = scope_info->ContextLength();
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
+  // We don't really need to use the preparsed scope data; this is just to
+  // shorten the recursion in SetMustUsePreParsedScopeData.
+  must_use_preparsed_scope_data_ = true;
 }
 
 DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
@@ -309,6 +312,7 @@ void DeclarationScope::SetDefaults() {
   rare_data_ = nullptr;
   should_eager_compile_ = false;
   was_lazily_parsed_ = false;
+  is_skipped_function_ = false;
 #ifdef DEBUG
   DeclarationScope* outer_declaration_scope =
       outer_scope_ ? outer_scope_->GetDeclarationScope() : nullptr;
@@ -345,6 +349,8 @@ void Scope::SetDefaults() {
   force_context_allocation_ = false;
 
   is_declaration_scope_ = false;
+
+  must_use_preparsed_scope_data_ = false;
 }
 
 bool Scope::HasSimpleParameters() {
@@ -618,6 +624,7 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
                                      &RuntimeCallStats::CompileScopeAnalysis);
   DCHECK(info->literal() != NULL);
   DeclarationScope* scope = info->literal()->scope();
+  DCHECK(scope->scope_info_.is_null());
 
   Handle<ScopeInfo> outer_scope_info;
   if (info->maybe_outer_scope_info().ToHandle(&outer_scope_info)) {
@@ -652,6 +659,13 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
 
   // The outer scope is never lazy.
   scope->set_should_eager_compile();
+
+  if (scope->must_use_preparsed_scope_data_) {
+    DCHECK(FLAG_preparser_scope_analysis);
+    DCHECK_NOT_NULL(info->preparsed_scope_data());
+    DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
+    info->preparsed_scope_data()->RestoreData(scope);
+  }
 
   scope->AllocateVariables(info, mode);
 
@@ -1522,7 +1536,7 @@ void DeclarationScope::AnalyzePartially(
       arguments_ = nullptr;
     }
 
-    if (FLAG_preparser_scope_analysis) {
+    if (FLAG_preparser_scope_analysis && preparsed_scope_data->Producing()) {
       // Store the information needed for allocating the locals of this scope
       // and its inner scopes.
       preparsed_scope_data->SaveData(this);

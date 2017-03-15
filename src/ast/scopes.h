@@ -155,6 +155,20 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   Zone* zone() const { return zone_; }
 
+  void SetMustUsePreParsedScopeData() {
+    if (must_use_preparsed_scope_data_) {
+      return;
+    }
+    must_use_preparsed_scope_data_ = true;
+    if (outer_scope_) {
+      outer_scope_->SetMustUsePreParsedScopeData();
+    }
+  }
+
+  bool must_use_preparsed_scope_data() const {
+    return must_use_preparsed_scope_data_;
+  }
+
   // ---------------------------------------------------------------------------
   // Declarations
 
@@ -556,6 +570,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
 
+  bool must_use_preparsed_scope_data_ : 1;
+
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
   Variable* NonLocal(const AstRawString* name, VariableMode mode);
@@ -850,6 +866,11 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
 
+  bool is_skipped_function() const { return is_skipped_function_; }
+  void set_is_skipped_function(bool is_skipped_function) {
+    is_skipped_function_ = is_skipped_function;
+  }
+
  private:
   void AllocateParameter(Variable* var, int index);
 
@@ -886,6 +907,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 #if DEBUG
   bool is_being_lazily_parsed_ : 1;
 #endif
+  bool is_skipped_function_ : 1;
 
   // Parameter list in source order.
   ZoneList<Variable*> params_;

@@ -1152,6 +1152,14 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   ParseInfo parse_info(handle(function->shared()));
   Zone compile_zone(isolate->allocator(), ZONE_NAME);
   CompilationInfo info(&compile_zone, &parse_info, function);
+  if (FLAG_preparser_scope_analysis) {
+    Handle<SharedFunctionInfo> shared(function->shared());
+    Handle<Script> script(Script::cast(function->shared()->script()));
+    if (script->HasPreparsedScopeData()) {
+      parse_info.preparsed_scope_data()->Deserialize(
+          script->GetPreparsedScopeData());
+    }
+  }
   Handle<Code> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result, GetUnoptimizedCode(&info, Compiler::CONCURRENT), Code);
@@ -1234,8 +1242,14 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     PROFILE(isolate, CodeCreateEvent(log_tag, result->abstract_code(), *result,
                                      *script_name));
 
-    if (!script.is_null())
+    if (!script.is_null()) {
       script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
+      if (FLAG_preparser_scope_analysis) {
+        Handle<FixedUint32Array> data(
+            parse_info->preparsed_scope_data()->Serialize(isolate));
+        script->set_preparsed_scope_data(*data);
+      }
+    }
   }
 
   return result;

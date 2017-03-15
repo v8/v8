@@ -13260,6 +13260,15 @@ Script::Iterator::Iterator(Isolate* isolate)
 
 Script* Script::Iterator::Next() { return iterator_.Next<Script>(); }
 
+bool Script::HasPreparsedScopeData() const {
+  return preparsed_scope_data()->length() > 0;
+}
+
+Handle<FixedUint32Array> Script::GetPreparsedScopeData() const {
+  return Handle<FixedUint32Array>::cast(
+      Handle<FixedTypedArrayBase>(preparsed_scope_data()));
+}
+
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Handle<Script> script)
     : ScriptIterator(script->GetIsolate(),
                      handle(script->shared_function_infos())) {}
