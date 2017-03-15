@@ -188,6 +188,9 @@
   # Investigate.
   'regress/regress-105': [SKIP],
 
+  # BUG(v8:6101): This fails because of a hole deopt, need to investigate.
+  'getters-on-elements': [SKIP],
+
 }],  # ALWAYS
 
 ['novfp3 == True', {
