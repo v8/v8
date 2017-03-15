@@ -206,7 +206,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     cached_parse_data_ = NULL;
   }
 
-  static bool const IsPreParser() { return false; }
+  static bool IsPreParser() { return false; }
 
   void ParseOnBackground(ParseInfo* info);
 

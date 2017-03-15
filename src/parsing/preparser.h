@@ -892,7 +892,7 @@ class PreParser : public ParserBase<PreParser> {
         track_unresolved_variables_(false),
         pending_error_handler_(pending_error_handler) {}
 
-  static bool const IsPreParser() { return true; }
+  static bool IsPreParser() { return true; }
 
   PreParserLogger* logger() { return &log_; }
 
