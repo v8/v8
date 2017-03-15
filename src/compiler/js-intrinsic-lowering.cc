@@ -298,6 +298,12 @@ Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
+  // ToString is unnecessary if the input is a string.
+  HeapObjectMatcher m(NodeProperties::GetValueInput(node, 0));
+  if (m.HasValue() && m.Value()->IsString()) {
+    ReplaceWithValue(node, m.node());
+    return Replace(m.node());
+  }
   NodeProperties::ChangeOp(node, javascript()->ToString());
   return Changed(node);
 }
