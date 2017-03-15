@@ -4,13 +4,15 @@
 
 #include "src/compiler/code-generator.h"
 
+#include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/frames-arm64.h"
-#include "src/arm64/macro-assembler-arm64.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/heap/heap-inl.h"
 
 namespace v8 {
 namespace internal {

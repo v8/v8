@@ -1071,6 +1071,7 @@
         'lookup.h',
         'map-updater.cc',
         'map-updater.h',
+        'macro-assembler-inl.h',
         'macro-assembler.h',
         'machine-type.cc',
         'machine-type.h',

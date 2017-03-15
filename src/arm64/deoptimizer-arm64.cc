@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api.h"
+#include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/frames-arm64.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"

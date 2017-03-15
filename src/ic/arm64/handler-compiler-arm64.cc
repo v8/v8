@@ -7,6 +7,8 @@
 #include "src/ic/handler-compiler.h"
 
 #include "src/api-arguments.h"
+#include "src/arm64/assembler-arm64-inl.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"

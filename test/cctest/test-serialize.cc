@@ -38,7 +38,7 @@
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/heap/spaces.h"
-#include "src/macro-assembler.h"
+#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"

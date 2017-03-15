@@ -7,8 +7,10 @@
 #include "src/debug/debug.h"
 
 #include "src/arm64/frames-arm64.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen.h"
 #include "src/debug/liveedit.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

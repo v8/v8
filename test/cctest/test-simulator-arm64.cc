@@ -30,7 +30,8 @@
 
 #include "src/arm64/simulator-arm64.h"
 #include "src/factory.h"
-#include "src/macro-assembler.h"
+#include "src/macro-assembler-inl.h"
+#include "src/objects-inl.h"
 
 #if defined(USE_SIMULATOR)
 

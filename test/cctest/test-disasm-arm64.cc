@@ -36,6 +36,7 @@
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64-inl.h"
 #include "src/arm64/disasm-arm64.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/arm64/macro-assembler-arm64.h"
 #include "src/arm64/utils-arm64.h"
 

@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/register-allocator.h"
+
+#include "src/assembler-inl.h"
 #include "src/base/adapters.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/register-allocator.h"
 #include "src/string-stream.h"
 
 namespace v8 {

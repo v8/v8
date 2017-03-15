@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include "src/assembler-inl.h"
 #include "src/base/adapters.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/instruction-selector-impl.h"

@@ -772,7 +772,6 @@ void RelocInfo::set_target_cell(Cell* cell,
 }
 
 
-static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 static const int kCodeAgeStubEntryOffset = 3 * kInstructionSize;
 
 Handle<Code> RelocInfo::code_age_stub_handle(Assembler* origin) {

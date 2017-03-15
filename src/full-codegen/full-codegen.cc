@@ -17,6 +17,7 @@
 #include "src/frames-inl.h"
 #include "src/globals.h"
 #include "src/isolate-inl.h"
+#include "src/macro-assembler-inl.h"
 #include "src/macro-assembler.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"

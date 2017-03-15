@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "src/arguments.h"
+#include "src/assembler-inl.h"
 #include "src/ast/ast.h"
 #include "src/bootstrapper.h"
 #include "src/code-factory.h"

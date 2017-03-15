@@ -172,37 +172,7 @@ class RecordWriteStub: public PlatformCodeStub {
   // The 'object' and 'address' registers must be preserved.
   class RegisterAllocation {
    public:
-    RegisterAllocation(Register object,
-                       Register address,
-                       Register scratch)
-        : object_(object),
-          address_(address),
-          scratch0_(scratch),
-          saved_regs_(kCallerSaved),
-          saved_fp_regs_(kCallerSavedFP) {
-      DCHECK(!AreAliased(scratch, object, address));
-
-      // The SaveCallerSaveRegisters method needs to save caller-saved
-      // registers, but we don't bother saving MacroAssembler scratch registers.
-      saved_regs_.Remove(MacroAssembler::DefaultTmpList());
-      saved_fp_regs_.Remove(MacroAssembler::DefaultFPTmpList());
-
-      // We would like to require more scratch registers for this stub,
-      // but the number of registers comes down to the ones used in
-      // FullCodeGen::SetVar(), which is architecture independent.
-      // We allocate 2 extra scratch registers that we'll save on the stack.
-      CPURegList pool_available = GetValidRegistersForAllocation();
-      CPURegList used_regs(object, address, scratch);
-      pool_available.Remove(used_regs);
-      scratch1_ = Register(pool_available.PopLowestIndex());
-      scratch2_ = Register(pool_available.PopLowestIndex());
-
-      // The scratch registers will be restored by other means so we don't need
-      // to save them with the other caller saved registers.
-      saved_regs_.Remove(scratch0_);
-      saved_regs_.Remove(scratch1_);
-      saved_regs_.Remove(scratch2_);
-    }
+    RegisterAllocation(Register object, Register address, Register scratch);
 
     void Save(MacroAssembler* masm) {
       // We don't have to save scratch0_ because it was given to us as
@@ -288,9 +258,7 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  void Activate(Code* code) override {
-    code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
-  }
+  void Activate(Code* code) override;
 
   Register object() const {
     return Register::from_code(ObjectBits::decode(minor_key_));

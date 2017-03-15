@@ -4,6 +4,7 @@
 
 #if V8_TARGET_ARCH_ARM64
 
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
 #include "src/builtins/builtins-constructor.h"
@@ -14,6 +15,7 @@
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 
 #include "src/arm64/code-stubs-arm64.h"

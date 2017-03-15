@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins.h"
 #include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/code-events.h"
 #include "src/compiler/code-assembler.h"
 #include "src/ic/ic-state.h"

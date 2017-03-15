@@ -4,20 +4,25 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "src/code-stubs.h"
 #include "src/api-arguments.h"
+#include "src/arm64/assembler-arm64-inl.h"
+#include "src/arm64/frames-arm64.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/bootstrapper.h"
+#include "src/code-stubs.h"
 #include "src/codegen.h"
+#include "src/counters.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
+#include "src/objects/regexp-match-info.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
 
-#include "src/arm64/code-stubs-arm64.h"
-#include "src/arm64/frames-arm64.h"
+#include "src/arm64/code-stubs-arm64.h"  // Cannot be the first include.
 
 namespace v8 {
 namespace internal {
@@ -2509,6 +2514,37 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   __ TailCallStub(&stub);
 }
 
+RecordWriteStub::RegisterAllocation::RegisterAllocation(Register object,
+                                                        Register address,
+                                                        Register scratch)
+    : object_(object),
+      address_(address),
+      scratch0_(scratch),
+      saved_regs_(kCallerSaved),
+      saved_fp_regs_(kCallerSavedFP) {
+  DCHECK(!AreAliased(scratch, object, address));
+
+  // The SaveCallerSaveRegisters method needs to save caller-saved
+  // registers, but we don't bother saving MacroAssembler scratch registers.
+  saved_regs_.Remove(MacroAssembler::DefaultTmpList());
+  saved_fp_regs_.Remove(MacroAssembler::DefaultFPTmpList());
+
+  // We would like to require more scratch registers for this stub,
+  // but the number of registers comes down to the ones used in
+  // FullCodeGen::SetVar(), which is architecture independent.
+  // We allocate 2 extra scratch registers that we'll save on the stack.
+  CPURegList pool_available = GetValidRegistersForAllocation();
+  CPURegList used_regs(object, address, scratch);
+  pool_available.Remove(used_regs);
+  scratch1_ = Register(pool_available.PopLowestIndex());
+  scratch2_ = Register(pool_available.PopLowestIndex());
+
+  // The scratch registers will be restored by other means so we don't need
+  // to save them with the other caller saved registers.
+  saved_regs_.Remove(scratch0_);
+  saved_regs_.Remove(scratch1_);
+  saved_regs_.Remove(scratch2_);
+}
 
 void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
   // We need some extra registers for this stub, they have been allocated
@@ -2566,6 +2602,9 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode());
 }
 
+void RecordWriteStub::Activate(Code* code) {
+  code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
+}
 
 void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     MacroAssembler* masm,

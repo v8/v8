@@ -167,7 +167,10 @@ class MacroAssembler : public Assembler {
   MacroAssembler(Isolate* isolate, byte* buffer, unsigned buffer_size,
                  CodeObjectRequired create_code_object);
 
-  inline Handle<Object> CodeObject();
+  Handle<Object> CodeObject() {
+    DCHECK(!code_object_.is_null());
+    return code_object_;
+  }
 
   // Instruction set functions ------------------------------------------------
   // Logical macros.
@@ -672,7 +675,7 @@ class MacroAssembler : public Assembler {
 
   // This is a convenience method for pushing a single Handle<Object>.
   inline void Push(Handle<Object> handle);
-  void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
+  inline void Push(Smi* smi);
 
   // Aliases of Push and Pop, required for V8 compatibility.
   inline void push(Register src) {
@@ -872,14 +875,7 @@ class MacroAssembler : public Assembler {
 
   // Align csp for a frame, as per ActivationFrameAlignment, and make it the
   // current stack pointer.
-  inline void AlignAndSetCSPForFrame() {
-    int sp_alignment = ActivationFrameAlignment();
-    // AAPCS64 mandates at least 16-byte alignment.
-    DCHECK(sp_alignment >= 16);
-    DCHECK(base::bits::IsPowerOfTwo32(sp_alignment));
-    Bic(csp, StackPointer(), sp_alignment - 1);
-    SetStackPointer(csp);
-  }
+  inline void AlignAndSetCSPForFrame();
 
   // Push the system stack pointer (csp) down to allow the same to be done to
   // the current stack pointer (according to StackPointer()). This must be
@@ -923,23 +919,15 @@ class MacroAssembler : public Assembler {
 
   void LoadHeapObject(Register dst, Handle<HeapObject> object);
 
-  void LoadObject(Register result, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      LoadHeapObject(result, Handle<HeapObject>::cast(object));
-    } else {
-      DCHECK(object->IsSmi());
-      Mov(result, Operand(object));
-    }
-  }
+  void LoadObject(Register result, Handle<Object> object);
 
   static int SafepointRegisterStackIndex(int reg_code);
 
   // This is required for compatibility with architecture independant code.
   // Remove if not needed.
-  inline void Move(Register dst, Register src) { Mov(dst, src); }
-  inline void Move(Register dst, Handle<Object> x) { LoadObject(dst, x); }
-  inline void Move(Register dst, Smi* src) { Mov(dst, src); }
+  void Move(Register dst, Register src);
+  void Move(Register dst, Handle<Object> x);
+  void Move(Register dst, Smi* src);
 
   void LoadInstanceDescriptors(Register map,
                                Register descriptors);
@@ -1112,7 +1100,7 @@ class MacroAssembler : public Assembler {
   // ---- Calling / Jumping helpers ----
 
   // This is required for compatibility in architecture indepenedant code.
-  inline void jmp(Label* L) { B(L); }
+  inline void jmp(Label* L);
 
   void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
   void TailCallStub(CodeStub* stub);
@@ -1660,15 +1648,11 @@ class MacroAssembler : public Assembler {
   void PopSafepointRegistersAndDoubles();
 
   // Store value in register src in the safepoint stack slot for register dst.
-  void StoreToSafepointRegisterSlot(Register src, Register dst) {
-    Poke(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
-  }
+  void StoreToSafepointRegisterSlot(Register src, Register dst);
 
   // Load the value of the src register from its safepoint stack slot
   // into register dst.
-  void LoadFromSafepointRegisterSlot(Register dst, Register src) {
-    Peek(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
-  }
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   void CheckPageFlag(const Register& object, const Register& scratch, int mask,
                      Condition cc, Label* condition_met);
@@ -1917,8 +1901,8 @@ class MacroAssembler : public Assembler {
   void PushPreamble(Operand total_size);
   void PopPostamble(Operand total_size);
 
-  void PushPreamble(int count, int size) { PushPreamble(count * size); }
-  void PopPostamble(int count, int size) { PopPostamble(count * size); }
+  void PushPreamble(int count, int size);
+  void PopPostamble(int count, int size);
 
  private:
   // The actual Push and Pop implementations. These don't generate any code
@@ -2113,15 +2097,8 @@ class UseScratchRegisterScope {
   RegList old_availablefp_;   // kFPRegister
 };
 
-
-inline MemOperand ContextMemOperand(Register context, int index = 0) {
-  return MemOperand(context, Context::SlotOffset(index));
-}
-
-inline MemOperand NativeContextMemOperand() {
-  return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
-}
-
+MemOperand ContextMemOperand(Register context, int index = 0);
+MemOperand NativeContextMemOperand();
 
 // Encode and decode information about patchable inline SMI checks.
 class InlineSmiCheckInfo {

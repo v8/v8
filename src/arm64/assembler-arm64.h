@@ -10,6 +10,7 @@
 #include <map>
 #include <vector>
 
+#include "src/arm64/constants-arm64.h"
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
 #include "src/globals.h"
@@ -64,6 +65,7 @@ namespace internal {
 // clang-format on
 
 constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
+static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 
 // Some CPURegister methods can return Register and FPRegister types, so we
 // need to declare them in advance.

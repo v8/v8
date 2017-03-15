@@ -4,16 +4,19 @@
 
 #if V8_TARGET_ARCH_ARM64
 
+#include "src/arm64/frames-arm64.h"
+#include "src/assembler.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
-#include "src/arm64/frames-arm64.h"
-#include "src/arm64/macro-assembler-arm64.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
+#include "src/arm64/macro-assembler-arm64.h"  // Cannot be the first include
 
 namespace v8 {
 namespace internal {
@@ -1232,6 +1235,12 @@ void MacroAssembler::PopPostamble(Operand total_size) {
   }
 }
 
+void MacroAssembler::PushPreamble(int count, int size) {
+  PushPreamble(count * size);
+}
+void MacroAssembler::PopPostamble(int count, int size) {
+  PopPostamble(count * size);
+}
 
 void MacroAssembler::Poke(const CPURegister& src, const Operand& offset) {
   if (offset.IsImmediate()) {
@@ -1428,6 +1437,21 @@ void MacroAssembler::LoadHeapObject(Register result,
   Mov(result, Operand(object));
 }
 
+void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
+  AllowDeferredHandleDereference heap_object_check;
+  if (object->IsHeapObject()) {
+    LoadHeapObject(result, Handle<HeapObject>::cast(object));
+  } else {
+    DCHECK(object->IsSmi());
+    Mov(result, Operand(object));
+  }
+}
+
+void MacroAssembler::Move(Register dst, Register src) { Mov(dst, src); }
+void MacroAssembler::Move(Register dst, Handle<Object> x) {
+  LoadObject(dst, x);
+}
+void MacroAssembler::Move(Register dst, Smi* src) { Mov(dst, src); }
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
@@ -3670,6 +3694,13 @@ void MacroAssembler::PopSafepointRegistersAndDoubles() {
   PopSafepointRegisters();
 }
 
+void MacroAssembler::StoreToSafepointRegisterSlot(Register src, Register dst) {
+  Poke(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
+}
+
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+  Peek(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
+}
 
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // Make sure the safepoint registers list is what we expect.
@@ -4571,6 +4602,13 @@ CPURegister UseScratchRegisterScope::UnsafeAcquire(CPURegList* available,
   return reg;
 }
 
+MemOperand ContextMemOperand(Register context, int index) {
+  return MemOperand(context, Context::SlotOffset(index));
+}
+
+MemOperand NativeContextMemOperand() {
+  return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
+}
 
 #define __ masm->
 

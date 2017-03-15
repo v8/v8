@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/accessors.h"
+#include "src/assembler-inl.h"
 #include "src/ast/prettyprinter.h"
 #include "src/codegen.h"
 #include "src/disasm.h"

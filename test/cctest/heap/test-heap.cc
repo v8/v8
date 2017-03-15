@@ -45,7 +45,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-reducer.h"
 #include "src/ic/ic.h"
-#include "src/macro-assembler.h"
+#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/snapshot/snapshot.h"
