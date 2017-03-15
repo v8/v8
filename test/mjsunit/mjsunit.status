@@ -84,7 +84,7 @@
 
   # Issue 488: this test sometimes times out.
   # TODO(arm): This seems to flush out a bug on arm with simulator.
-  'array-constructor': [PASS, TIMEOUT, ['arch == arm and simulator == True', SKIP]],
+  'array-constructor': [PASS, SLOW, ['arch == arm and simulator == True', SKIP]],
 
   # Issue 4413: this test sometimes times out with TSAN because we trigger
   # the slow path in C++ with holey arrays in Function.prototype.apply.
@@ -146,11 +146,18 @@
 
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
+  'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
+  'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
+  'harmony/regexp-property-script-extensions': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
+  'regress/regress-1122': [PASS, SLOW],
+  'regress/regress-605470': [PASS, SLOW],
+  'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
   'regress/regress-crbug-474297': [PASS, ['gc_stress == False', SKIP]],
-  'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
+  'wasm/embenchen/*': [PASS, SLOW],
+  'wasm/unreachable-validation': [PASS, SLOW],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
@@ -299,7 +306,6 @@
 
   # Slow tests.
   'array-concat': [PASS, SLOW],
-  'array-constructor': [PASS, SLOW],
   'array-indexing': [PASS, SLOW],
   'array-reduce': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
@@ -312,8 +318,8 @@
   'json2': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
+  'messages': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
-  'regress/regress-1122': [PASS, SLOW],
   'regress/regress-2185-2': [PASS, SLOW],
   'regress/regress-2185': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],

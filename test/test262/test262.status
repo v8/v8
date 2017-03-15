@@ -630,6 +630,13 @@
   'language/literals/regexp/S7.8.5_A2.4_T2': [SKIP],
   'built-ins/Array/prototype/slice/S15.4.4.10_A3_T1': [SKIP],
   'built-ins/Array/prototype/slice/S15.4.4.10_A3_T2': [SKIP],
+
+  ############################ SLOW TESTS #############################
+
+  'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, SLOW],
+  'annexB/built-ins/RegExp/RegExp-trailing-escape-BMP': [PASS, SLOW],
+  'language/comments/S7.4_A5': [PASS, SLOW],
+  'language/comments/S7.4_A6': [PASS, SLOW],
 }],  # ALWAYS
 
 ['no_i18n == True', {
