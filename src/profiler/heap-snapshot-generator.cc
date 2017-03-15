@@ -1299,7 +1299,14 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
     TagObject(constructor_or_backpointer, "(back pointer)");
     SetInternalReference(map, entry, "back_pointer", constructor_or_backpointer,
                          Map::kConstructorOrBackPointerOffset);
+  } else if (constructor_or_backpointer->IsFunctionTemplateInfo()) {
+    TagObject(constructor_or_backpointer, "(constructor function data)");
+    SetInternalReference(map, entry, "constructor_function_data",
+                         constructor_or_backpointer,
+                         Map::kConstructorOrBackPointerOffset);
   } else {
+    DCHECK(constructor_or_backpointer->IsJSFunction() ||
+           constructor_or_backpointer->IsNull(map->GetIsolate()));
     SetInternalReference(map, entry, "constructor", constructor_or_backpointer,
                          Map::kConstructorOrBackPointerOffset);
   }

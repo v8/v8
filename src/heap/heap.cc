@@ -2949,8 +2949,9 @@ bool Heap::IsUnmodifiedHeapObject(Object** p) {
   if (!object->IsJSObject()) return false;
   JSObject* js_object = JSObject::cast(object);
   if (!js_object->WasConstructedFromApiFunction()) return false;
-  JSFunction* constructor =
-      JSFunction::cast(js_object->map()->GetConstructor());
+  Object* maybe_constructor = js_object->map()->GetConstructor();
+  if (!maybe_constructor->IsJSFunction()) return false;
+  JSFunction* constructor = JSFunction::cast(maybe_constructor);
 
   return constructor->initial_map() == heap_object->map();
 }

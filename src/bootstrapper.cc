@@ -5016,32 +5016,19 @@ Genesis::Genesis(Isolate* isolate,
           global_object_template).ToHandleChecked();
 
   // (Re)initialize the global proxy object.
-  Handle<SharedFunctionInfo> shared =
-      FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate,
-                                                          global_constructor);
-  Handle<Map> initial_map =
-      factory()->CreateSloppyFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE);
-  Handle<JSFunction> global_proxy_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          initial_map, shared, factory()->undefined_value());
   DCHECK_EQ(global_proxy_data->internal_field_count(),
             global_proxy_template->InternalFieldCount());
   Handle<Map> global_proxy_map = isolate->factory()->NewMap(
       JS_GLOBAL_PROXY_TYPE, proxy_size, FAST_HOLEY_SMI_ELEMENTS);
-  JSFunction::SetInitialMap(global_proxy_function, global_proxy_map,
-                            factory()->null_value());
   global_proxy_map->set_is_access_check_needed(true);
   global_proxy_map->set_has_hidden_prototype(true);
-
-  Handle<String> global_name = factory()->global_string();
-  global_proxy_function->shared()->set_instance_class_name(*global_name);
-  factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
 
   // A remote global proxy has no native context.
   global_proxy->set_native_context(heap()->null_value());
 
   // Configure the hidden prototype chain of the global proxy.
   JSObject::ForceSetPrototype(global_proxy, global_object);
+  global_proxy->map()->SetConstructor(*global_constructor);
   // TODO(dcheng): This is a hack. Why does this need to be manually called
   // here? Line 4812 should have taken care of it?
   global_proxy->map()->set_has_hidden_prototype(true);

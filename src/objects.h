@@ -2010,7 +2010,7 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static Maybe<bool> IsExtensible(Handle<JSReceiver> object);
 
   // Returns the class name ([[Class]] property in the specification).
-  String* class_name();
+  V8_EXPORT_PRIVATE String* class_name();
 
   // Returns the constructor name (the name (possibly, inferred name) of the
   // function that was used to instantiate the object).
@@ -5910,12 +5910,16 @@ class Map: public HeapObject {
       Handle<Map> map, Handle<Object> prototype,
       PrototypeOptimizationMode proto_mode = FAST_PROTOTYPE);
 
-  // [constructor]: points back to the function responsible for this map.
+  // [constructor]: points back to the function or FunctionTemplateInfo
+  // responsible for this map.
   // The field overlaps with the back pointer. All maps in a transition tree
   // have the same constructor, so maps with back pointers can walk the
   // back pointer chain until they find the map holding their constructor.
+  // Returns null_value if there's neither a constructor function nor a
+  // FunctionTemplateInfo available.
   DECL_ACCESSORS(constructor_or_backpointer, Object)
   inline Object* GetConstructor() const;
+  inline FunctionTemplateInfo* GetFunctionTemplateInfo() const;
   inline void SetConstructor(Object* constructor,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [back pointer]: points back to the parent map from which a transition

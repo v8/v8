@@ -7640,7 +7640,9 @@ Node* CodeStubAssembler::HasProperty(
 
 Node* CodeStubAssembler::ClassOf(Node* value) {
   Variable var_result(this, MachineRepresentation::kTaggedPointer);
-  Label if_function(this, Label::kDeferred), if_object(this, Label::kDeferred),
+  Label if_function_template_info(this, Label::kDeferred),
+      if_no_class_name(this, Label::kDeferred),
+      if_function(this, Label::kDeferred), if_object(this, Label::kDeferred),
       if_primitive(this, Label::kDeferred), return_result(this);
 
   // Check if {value} is a Smi.
@@ -7663,6 +7665,8 @@ Node* CodeStubAssembler::ClassOf(Node* value) {
 
   // Load the {value}s constructor, and check that it's a JSFunction.
   Node* constructor = LoadMapConstructor(value_map);
+  GotoIf(HasInstanceType(constructor, FUNCTION_TEMPLATE_INFO_TYPE),
+         &if_function_template_info);
   GotoIfNot(IsJSFunction(constructor), &if_object);
 
   // Return the instance class name for the {constructor}.
@@ -7671,6 +7675,18 @@ Node* CodeStubAssembler::ClassOf(Node* value) {
   Node* instance_class_name = LoadObjectField(
       shared_info, SharedFunctionInfo::kInstanceClassNameOffset);
   var_result.Bind(instance_class_name);
+  Goto(&return_result);
+
+  // For remote objects the constructor might be given as FTI.
+  Bind(&if_function_template_info);
+  Node* class_name =
+      LoadObjectField(constructor, FunctionTemplateInfo::kClassNameOffset);
+  GotoIf(IsUndefined(class_name), &if_no_class_name);
+  var_result.Bind(class_name);
+  Goto(&return_result);
+
+  Bind(&if_no_class_name);
+  var_result.Bind(LoadRoot(Heap::kempty_stringRootIndex));
   Goto(&return_result);
 
   Bind(&if_function);

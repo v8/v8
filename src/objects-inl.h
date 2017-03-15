@@ -1941,18 +1941,14 @@ InterceptorInfo* JSObject::GetNamedInterceptor() {
 
 InterceptorInfo* Map::GetNamedInterceptor() {
   DCHECK(has_named_interceptor());
-  JSFunction* constructor = JSFunction::cast(GetConstructor());
-  DCHECK(constructor->shared()->IsApiFunction());
-  return InterceptorInfo::cast(
-      constructor->shared()->get_api_func_data()->named_property_handler());
+  FunctionTemplateInfo* info = GetFunctionTemplateInfo();
+  return InterceptorInfo::cast(info->named_property_handler());
 }
 
 InterceptorInfo* Map::GetIndexedInterceptor() {
   DCHECK(has_indexed_interceptor());
-  JSFunction* constructor = JSFunction::cast(GetConstructor());
-  DCHECK(constructor->shared()->IsApiFunction());
-  return InterceptorInfo::cast(
-      constructor->shared()->get_api_func_data()->indexed_property_handler());
+  FunctionTemplateInfo* info = GetFunctionTemplateInfo();
+  return InterceptorInfo::cast(info->indexed_property_handler());
 }
 
 double Oddball::to_number_raw() const {
@@ -5491,7 +5487,6 @@ ACCESSORS(Map, weak_cell_cache, Object, kWeakCellCacheOffset)
 ACCESSORS(Map, constructor_or_backpointer, Object,
           kConstructorOrBackPointerOffset)
 
-
 Object* Map::GetConstructor() const {
   Object* maybe_constructor = constructor_or_backpointer();
   // Follow any back pointers.
@@ -5502,6 +5497,15 @@ Object* Map::GetConstructor() const {
   return maybe_constructor;
 }
 
+FunctionTemplateInfo* Map::GetFunctionTemplateInfo() const {
+  Object* constructor = GetConstructor();
+  if (constructor->IsJSFunction()) {
+    DCHECK(JSFunction::cast(constructor)->shared()->IsApiFunction());
+    return JSFunction::cast(constructor)->shared()->get_api_func_data();
+  }
+  DCHECK(constructor->IsFunctionTemplateInfo());
+  return FunctionTemplateInfo::cast(constructor);
+}
 
 void Map::SetConstructor(Object* constructor, WriteBarrierMode mode) {
   // Never overwrite a back pointer with a constructor.
@@ -6536,6 +6540,7 @@ Object* JSFunction::prototype() {
     Object* prototype = map()->GetConstructor();
     // The map must have a prototype in that field, not a back pointer.
     DCHECK(!prototype->IsMap());
+    DCHECK(!prototype->IsFunctionTemplateInfo());
     return prototype;
   }
   return instance_prototype();

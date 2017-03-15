@@ -1213,14 +1213,20 @@ bool FunctionTemplateInfo::IsTemplateFor(Map* map) {
   if (!map->IsJSObjectMap()) return false;
   // Fetch the constructor function of the object.
   Object* cons_obj = map->GetConstructor();
-  if (!cons_obj->IsJSFunction()) return false;
-  JSFunction* fun = JSFunction::cast(cons_obj);
+  Object* type;
+  if (cons_obj->IsJSFunction()) {
+    JSFunction* fun = JSFunction::cast(cons_obj);
+    type = fun->shared()->function_data();
+  } else if (cons_obj->IsFunctionTemplateInfo()) {
+    type = FunctionTemplateInfo::cast(cons_obj);
+  } else {
+    return false;
+  }
   // Iterate through the chain of inheriting function templates to
   // see if the required one occurs.
-  for (Object* type = fun->shared()->function_data();
-       type->IsFunctionTemplateInfo();
-       type = FunctionTemplateInfo::cast(type)->parent_template()) {
+  while (type->IsFunctionTemplateInfo()) {
     if (type == this) return true;
+    type = FunctionTemplateInfo::cast(type)->parent_template();
   }
   // Didn't find the required type in the inheritance chain.
   return false;
@@ -2770,6 +2776,9 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
               }
             }
           }
+        } else if (constructor->IsFunctionTemplateInfo()) {
+          accumulator->Add(global_object ? "<RemoteObject>" : "<RemoteObject>");
+          printed = true;
         }
         if (!printed) {
           accumulator->Add("<JS%sObject", global_object ? "Global " : "");
@@ -3137,7 +3146,12 @@ String* JSReceiver::class_name() {
   if (maybe_constructor->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(maybe_constructor);
     return String::cast(constructor->shared()->instance_class_name());
+  } else if (maybe_constructor->IsFunctionTemplateInfo()) {
+    FunctionTemplateInfo* info = FunctionTemplateInfo::cast(maybe_constructor);
+    return info->class_name()->IsString() ? String::cast(info->class_name())
+                                          : GetHeap()->empty_string();
   }
+
   // If the constructor is not present, return "Object".
   return GetHeap()->Object_string();
 }
@@ -3161,6 +3175,12 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
       if (name->length() != 0 &&
           !name->Equals(isolate->heap()->Object_string())) {
         return handle(name, isolate);
+      }
+    } else if (maybe_constructor->IsFunctionTemplateInfo()) {
+      FunctionTemplateInfo* info =
+          FunctionTemplateInfo::cast(maybe_constructor);
+      if (info->class_name()->IsString()) {
+        return handle(String::cast(info->class_name()), isolate);
       }
     }
   }
@@ -3197,6 +3217,9 @@ Handle<Context> JSReceiver::GetCreationContext() {
   JSFunction* function;
   if (constructor->IsJSFunction()) {
     function = JSFunction::cast(constructor);
+  } else if (constructor->IsFunctionTemplateInfo()) {
+    // Remote objects don't have a creation context.
+    return Handle<Context>::null();
   } else {
     // Functions have null as a constructor,
     // but any JSFunction knows its context immediately.
@@ -3898,6 +3921,7 @@ void Map::DeprecateTransitionTree() {
   for (int i = 0; i < num_transitions; ++i) {
     TransitionArray::GetTarget(transitions, i)->DeprecateTransitionTree();
   }
+  DCHECK(!constructor_or_backpointer()->IsFunctionTemplateInfo());
   deprecate();
   dependent_code()->DeoptimizeDependentCodeGroup(
       GetIsolate(), DependentCode::kTransitionGroup);
@@ -12448,6 +12472,10 @@ void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
       is_hidden = (data->IsFunctionTemplateInfo() &&
                    FunctionTemplateInfo::cast(data)->hidden_prototype()) ||
                   prototype->IsJSGlobalObject();
+    } else if (maybe_constructor->IsFunctionTemplateInfo()) {
+      is_hidden =
+          FunctionTemplateInfo::cast(maybe_constructor)->hidden_prototype() ||
+          prototype->IsJSGlobalObject();
     }
   }
   map->set_has_hidden_prototype(is_hidden);
@@ -15834,12 +15862,17 @@ bool JSObject::WasConstructedFromApiFunction() {
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
     Object* maybe_constructor = map()->GetConstructor();
-    if (!maybe_constructor->IsJSFunction()) return false;
-    JSFunction* constructor = JSFunction::cast(maybe_constructor);
-    if (constructor->shared()->IsApiFunction()) {
+    if (maybe_constructor->IsJSFunction()) {
+      JSFunction* constructor = JSFunction::cast(maybe_constructor);
+      if (constructor->shared()->IsApiFunction()) {
+        DCHECK(is_api_object);
+      } else {
+        DCHECK(!is_api_object);
+      }
+    } else if (maybe_constructor->IsFunctionTemplateInfo()) {
       DCHECK(is_api_object);
     } else {
-      DCHECK(!is_api_object);
+      return false;
     }
   }
 #endif
@@ -19524,6 +19557,12 @@ AccessCheckInfo* AccessCheckInfo::Get(Isolate* isolate,
   DisallowHeapAllocation no_gc;
   DCHECK(receiver->map()->is_access_check_needed());
   Object* maybe_constructor = receiver->map()->GetConstructor();
+  if (maybe_constructor->IsFunctionTemplateInfo()) {
+    Object* data_obj =
+        FunctionTemplateInfo::cast(maybe_constructor)->access_check_info();
+    if (data_obj->IsUndefined(isolate)) return nullptr;
+    return AccessCheckInfo::cast(data_obj);
+  }
   // Might happen for a detached context.
   if (!maybe_constructor->IsJSFunction()) return nullptr;
   JSFunction* constructor = JSFunction::cast(maybe_constructor);

@@ -386,7 +386,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadMapInobjectProperties(Node* map);
   // Load the constructor function index of a Map (only for primitive maps).
   Node* LoadMapConstructorFunctionIndex(Node* map);
-  // Load the constructor of a Map (equivalent to Map::GetConstructor()).
+  // Load the constructor of a Map (equivalent to
+  // Map::GetConstructor()).
   Node* LoadMapConstructor(Node* map);
   // Loads a value from the specially encoded integer fields in the
   // SharedFunctionInfo object.

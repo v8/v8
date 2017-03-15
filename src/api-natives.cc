@@ -534,22 +534,14 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
 
   Handle<FunctionTemplateInfo> constructor(
       FunctionTemplateInfo::cast(data->constructor()));
-  Handle<SharedFunctionInfo> shared =
-      FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate, constructor);
-  Handle<Map> initial_map = isolate->factory()->CreateSloppyFunctionMap(
-      FUNCTION_WITH_WRITEABLE_PROTOTYPE);
-  Handle<JSFunction> object_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          initial_map, shared, isolate->factory()->undefined_value());
   Handle<Map> object_map = isolate->factory()->NewMap(
       JS_SPECIAL_API_OBJECT_TYPE,
       JSObject::kHeaderSize + data->internal_field_count() * kPointerSize,
       FAST_HOLEY_SMI_ELEMENTS);
-  JSFunction::SetInitialMap(object_function, object_map,
-                            isolate->factory()->null_value());
+  object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
 
-  Handle<JSObject> object = isolate->factory()->NewJSObject(object_function);
+  Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(object_map);
   JSObject::ForceSetPrototype(object, isolate->factory()->null_value());
 
   return object;
