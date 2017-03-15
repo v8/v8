@@ -312,6 +312,8 @@ class JSBinopReduction final {
 
   const Operator* NumberOpFromSpeculativeNumberOp() {
     switch (node_->opcode()) {
+      case IrOpcode::kSpeculativeNumberEqual:
+        return simplified()->NumberEqual();
       case IrOpcode::kSpeculativeNumberLessThan:
         return simplified()->NumberLessThan();
       case IrOpcode::kSpeculativeNumberLessThanOrEqual:
@@ -923,13 +925,9 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
     return Changed(node);
   }
 
-  NumberOperationHint hint;
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
-  } else if (r.GetCompareNumberOperationHint(&hint)) {
-    return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.IsReceiverCompareOperation()) {
@@ -2404,6 +2402,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kSpeculativeNumberDivide:
     case IrOpcode::kSpeculativeNumberModulus:
       return ReduceSpeculativeNumberBinop(node);
+    case IrOpcode::kSpeculativeNumberEqual:
     case IrOpcode::kSpeculativeNumberLessThan:
     case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       return ReduceSpeculativeNumberComparison(node);

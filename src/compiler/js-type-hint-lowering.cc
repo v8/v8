@@ -112,6 +112,8 @@ class JSSpeculativeBinopBuilder final {
 
   const Operator* SpeculativeCompareOp(NumberOperationHint hint) {
     switch (op_->opcode()) {
+      case IrOpcode::kJSEqual:
+        return simplified()->SpeculativeNumberEqual(hint);
       case IrOpcode::kJSLessThan:
         return simplified()->SpeculativeNumberLessThan(hint);
       case IrOpcode::kJSGreaterThan:
@@ -188,9 +190,9 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
                                                     Node* effect, Node* control,
                                                     FeedbackSlot slot) {
   switch (op->opcode()) {
-    case IrOpcode::kJSEqual:
     case IrOpcode::kJSStrictEqual:
       break;
+    case IrOpcode::kJSEqual:
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSGreaterThan:
     case IrOpcode::kJSLessThanOrEqual:

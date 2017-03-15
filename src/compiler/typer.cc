@@ -302,6 +302,7 @@ class Typer::Visitor : public Reducer {
 
   static Type* JSCallTyper(Type*, Typer*);
 
+  static Type* NumberEqualTyper(Type*, Type*, Typer*);
   static Type* NumberLessThanTyper(Type*, Type*, Typer*);
   static Type* NumberLessThanOrEqualTyper(Type*, Type*, Typer*);
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
@@ -1697,7 +1698,10 @@ Type* Typer::Visitor::TypeJSDebugger(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeBooleanNot(Node* node) { return Type::Boolean(); }
 
-Type* Typer::Visitor::TypeNumberEqual(Node* node) { return Type::Boolean(); }
+// static
+Type* Typer::Visitor::NumberEqualTyper(Type* lhs, Type* rhs, Typer* t) {
+  return JSEqualTyper(ToNumber(lhs, t), ToNumber(rhs, t), t);
+}
 
 // static
 Type* Typer::Visitor::NumberLessThanTyper(Type* lhs, Type* rhs, Typer* t) {
@@ -1712,6 +1716,10 @@ Type* Typer::Visitor::NumberLessThanOrEqualTyper(Type* lhs, Type* rhs,
       Invert(JSCompareTyper(ToNumber(rhs, t), ToNumber(lhs, t), t), t), t);
 }
 
+Type* Typer::Visitor::TypeNumberEqual(Node* node) {
+  return TypeBinaryOp(node, NumberEqualTyper);
+}
+
 Type* Typer::Visitor::TypeNumberLessThan(Node* node) {
   return TypeBinaryOp(node, NumberLessThanTyper);
 }
@@ -1721,7 +1729,7 @@ Type* Typer::Visitor::TypeNumberLessThanOrEqual(Node* node) {
 }
 
 Type* Typer::Visitor::TypeSpeculativeNumberEqual(Node* node) {
-  return Type::Boolean();
+  return TypeBinaryOp(node, NumberEqualTyper);
 }
 
 Type* Typer::Visitor::TypeSpeculativeNumberLessThan(Node* node) {

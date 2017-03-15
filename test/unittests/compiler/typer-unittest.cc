@@ -352,6 +352,15 @@ TEST_F(TyperTest, TypeJSEqual) {
                       std::equal_to<double>());
 }
 
+TEST_F(TyperTest, TypeNumberEqual) {
+  TestBinaryCompareOp(simplified_.NumberEqual(), std::equal_to<double>());
+}
+
+TEST_F(TyperTest, TypeSpeculativeNumberEqual) {
+  TestBinaryCompareOp(
+      simplified_.SpeculativeNumberEqual(NumberOperationHint::kNumberOrOddball),
+      std::equal_to<double>());
+}
 
 // For numbers there's no difference between strict and non-strict equality.
 TEST_F(TyperTest, TypeJSStrictEqual) {
