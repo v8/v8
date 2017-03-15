@@ -13577,16 +13577,9 @@ void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
   // to be added later.
   if (estimate == 0) estimate = 2;
 
-  // TODO(yangguo): check whether those heuristics are still up-to-date.
-  // We do not shrink objects that go into a snapshot (yet), so we adjust
-  // the estimate conservatively.
-  if (shared->GetIsolate()->serializer_enabled()) {
-    estimate += 2;
-  } else {
-    // Inobject slack tracking will reclaim redundant inobject space later,
-    // so we can afford to adjust the estimate generously.
-    estimate += 8;
-  }
+  // Inobject slack tracking will reclaim redundant inobject space later,
+  // so we can afford to adjust the estimate generously.
+  estimate += 8;
 
   shared->set_expected_nof_properties(estimate);
 }
@@ -13639,13 +13632,7 @@ void SharedFunctionInfo::SetConstructStub(Code* code) {
 
 void Map::StartInobjectSlackTracking() {
   DCHECK(!IsInobjectSlackTrackingInProgress());
-
-  // No tracking during the snapshot construction phase.
-  Isolate* isolate = GetIsolate();
-  if (isolate->serializer_enabled()) return;
-
   if (unused_property_fields() == 0) return;
-
   set_construction_counter(Map::kSlackTrackingCounterStart);
 }
 

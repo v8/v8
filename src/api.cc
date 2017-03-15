@@ -625,6 +625,14 @@ StartupData SnapshotCreator::CreateBlob(
     data->contexts_.Clear();
   }
 
+  // Complete in-object slack tracking for all functions.
+  i::HeapIterator heap_iterator(isolate->heap());
+  while (i::HeapObject* current_obj = heap_iterator.next()) {
+    if (!current_obj->IsJSFunction()) continue;
+    i::JSFunction* fun = i::JSFunction::cast(current_obj);
+    fun->CompleteInobjectSlackTrackingIfActive();
+  }
+
 #ifdef DEBUG
   i::ExternalReferenceTable::instance(isolate)->ResetCount();
 #endif  // DEBUG
