@@ -820,7 +820,7 @@ class ScriptsBase(object):
                         help="File to write results summary to.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
-    parser.add_argument("--rietveld", default=True, action="store_true",
+    parser.add_argument("--rietveld", default=False, action="store_true",
                         help="Whether to use rietveld instead of gerrit.")
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
