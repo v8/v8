@@ -759,6 +759,16 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
   CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
 
+  if (FLAG_mark_optimizing_shared_functions &&
+      info->closure()->shared()->has_concurrent_optimization_job()) {
+    if (FLAG_trace_concurrent_recompilation) {
+      PrintF("  ** Compilation job already running for ");
+      info->shared_info()->ShortPrint();
+      PrintF(".\n");
+    }
+    return false;
+  }
+
   if (!isolate->optimizing_compile_dispatcher()->IsQueueAvailable()) {
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
@@ -793,6 +803,7 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
 
   if (job->PrepareJob() != CompilationJob::SUCCEEDED) return false;
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
+  info->closure()->shared()->set_has_concurrent_optimization_job(true);
 
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queued ");
@@ -812,9 +823,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   bool ignition_osr = osr_frame && osr_frame->is_interpreted();
   DCHECK_IMPLIES(ignition_osr, !osr_ast_id.IsNone());
   DCHECK_IMPLIES(ignition_osr, FLAG_ignition_osr);
-
-  // Shared function no longer needs to be tiered up
-  shared->set_marked_for_tier_up(false);
 
   Handle<Code> cached_code;
   // TODO(4764): When compiling for OSR from bytecode, BailoutId might derive
@@ -928,6 +936,13 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   return MaybeHandle<Code>();
 }
 
+MaybeHandle<Code> GetOptimizedCodeMaybeLater(Handle<JSFunction> function) {
+  Isolate* isolate = function->GetIsolate();
+  return GetOptimizedCode(function, isolate->concurrent_recompilation_enabled()
+                                        ? Compiler::CONCURRENT
+                                        : Compiler::NOT_CONCURRENT);
+}
+
 CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
   CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
@@ -946,6 +961,11 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
   } else if (shared->HasBytecodeArray()) {
     shared->set_profiler_ticks(0);
   }
+
+  shared->set_has_concurrent_optimization_job(false);
+
+  // Shared function no longer needs to be tiered up.
+  shared->set_marked_for_tier_up(false);
 
   DCHECK(!shared->HasDebugInfo());
 
@@ -1094,9 +1114,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
         }
 
         Handle<Code> code;
-        // TODO(leszeks): Look into performing this compilation concurrently.
-        if (GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
-                .ToHandle(&code)) {
+        if (GetOptimizedCodeMaybeLater(function).ToHandle(&code)) {
           return code;
         }
         break;

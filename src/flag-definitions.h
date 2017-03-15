@@ -277,6 +277,8 @@ DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_BOOL(mark_shared_functions_for_tier_up, true,
             "mark shared functions for tier up")
+DEFINE_BOOL(mark_optimizing_shared_functions, true,
+            "mark shared functions if they are concurrently optimizing")
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
 DEFINE_INT(page_promotion_threshold, 70,
            "min percentage of live bytes on a page to enable fast evacuation")
