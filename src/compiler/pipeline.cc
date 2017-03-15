@@ -995,9 +995,7 @@ struct LoopExitEliminationPhase {
 };
 
 struct ConcurrentOptimizationPrepPhase {
-  static const char* phase_name() {
-    return "concurrent optimization preparation";
-  }
+  static const char* phase_name() { return "concurrency preparation"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     // Make sure we cache these code stubs.
@@ -1303,9 +1301,7 @@ struct AllocateGeneralRegistersPhase {
 
 template <typename RegAllocator>
 struct AllocateFPRegistersPhase {
-  static const char* phase_name() {
-    return "allocate floating point registers";
-  }
+  static const char* phase_name() { return "allocate f.p. registers"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     RegAllocator allocator(data->register_allocation_data(), FP_REGISTERS,
@@ -1542,8 +1538,6 @@ bool PipelineImpl::CreateGraph() {
     Run<TyperPhase>(&typer);
     RunPrintAndVerify("Typed");
 
-    data->BeginPhaseKind("lowering");
-
     // Lower JSOperators where we can determine types.
     Run<TypedLoweringPhase>();
     RunPrintAndVerify("Lowered typed");
@@ -1560,6 +1554,8 @@ bool PipelineImpl::CreateGraph() {
 
 bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
+
+  data->BeginPhaseKind("lowering");
 
   if (data->info()->is_loop_peeling_enabled()) {
     Run<LoopPeelingPhase>();
