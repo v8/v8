@@ -1160,6 +1160,9 @@ class WasmFullDecoder : public WasmDecoder {
           case kExprF64LoadMem:
             len = DecodeLoadMem(kWasmF64, MachineType::Float64());
             break;
+          case kExprS128LoadMem:
+            len = DecodeLoadMem(kWasmS128, MachineType::Simd128());
+            break;
           case kExprI32StoreMem8:
             len = DecodeStoreMem(kWasmI32, MachineType::Int8());
             break;
@@ -1186,6 +1189,9 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           case kExprF64StoreMem:
             len = DecodeStoreMem(kWasmF64, MachineType::Float64());
+            break;
+          case kExprS128StoreMem:
+            len = DecodeStoreMem(kWasmS128, MachineType::Simd128());
             break;
           case kExprGrowMemory: {
             if (!CheckHasMemory()) break;

@@ -426,8 +426,10 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = kArmLdr;
       break;
+    case MachineRepresentation::kSimd128:
+      opcode = kArmSimd128Load;
+      break;
     case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kSimd1x4:  // Fall through.
     case MachineRepresentation::kSimd1x8:  // Fall through.
     case MachineRepresentation::kSimd1x16:  // Fall through.
@@ -514,8 +516,10 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord32:
         opcode = kArmStr;
         break;
+      case MachineRepresentation::kSimd128:
+        opcode = kArmSimd128Store;
+        break;
       case MachineRepresentation::kWord64:   // Fall through.
-      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kSimd1x4:  // Fall through.
       case MachineRepresentation::kSimd1x8:  // Fall through.
       case MachineRepresentation::kSimd1x16:  // Fall through.

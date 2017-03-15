@@ -1612,9 +1612,6 @@ WASM_EXEC_COMPILED_TEST(S1x16Or) { RunS1x16BinOpTest(kExprS1x16Or, Or); }
 
 WASM_EXEC_COMPILED_TEST(S1x16Xor) { RunS1x16BinOpTest(kExprS1x16Xor, Xor); }
 
-#endif  // V8_TARGET_ARCH_ARM
-
-#if SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(SimdI32x4ExtractWithF32x4) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
@@ -1668,9 +1665,7 @@ WASM_EXEC_COMPILED_TEST(SimdI32x4AddWithF32x4) {
             WASM_I32V(1), WASM_I32V(0)));
   FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call()); }
 }
-#endif  // SIMD_LOWERING_TARGET
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(SimdI32x4Local) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
@@ -1752,9 +1747,7 @@ WASM_EXEC_COMPILED_TEST(SimdF32x4For) {
         WASM_GET_LOCAL(0));
   FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call()); }
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 
-#if SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(SimdI32x4GetGlobal) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
@@ -1846,4 +1839,22 @@ WASM_EXEC_COMPILED_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(*(global + 2), 32.25);
   CHECK_EQ(*(global + 3), 65.0);
 }
-#endif  // SIMD_LOWERING_TARGET
+
+WASM_EXEC_COMPILED_TEST(SimdLoadStoreLoad) {
+  FLAG_wasm_simd_prototype = true;
+  WasmRunner<int32_t> r(kExecuteCompiled);
+  int32_t* memory = r.module().AddMemoryElems<int32_t>(4);
+
+  BUILD(r,
+        WASM_STORE_MEM(MachineType::Simd128(), WASM_ZERO,
+                       WASM_LOAD_MEM(MachineType::Simd128(), WASM_ZERO)),
+        WASM_SIMD_I32x4_EXTRACT_LANE(
+            0, WASM_LOAD_MEM(MachineType::Simd128(), WASM_ZERO)));
+
+  FOR_INT32_INPUTS(i) {
+    int32_t expected = *i;
+    r.module().WriteMemory(&memory[0], expected);
+    CHECK_EQ(expected, r.Call());
+  }
+}
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET

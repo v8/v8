@@ -1965,6 +1965,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.OutputSimd128Register());
       break;
     }
+    case kArmSimd128Load: {
+      MemOperand src = i.InputOffset();
+      __ vld1(Neon8, NeonListOperand(i.OutputSimd128Register()),
+              NeonMemOperand(src.rn(), src.rm()));
+      break;
+    }
+    case kArmSimd128Store: {
+      MemOperand src = i.InputOffset(1);
+      __ vst1(Neon8, NeonListOperand(i.InputSimd128Register(0)),
+              NeonMemOperand(src.rn(), src.rm()));
+      break;
+    }
     case kArmSimd128And: {
       __ vand(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));

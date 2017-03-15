@@ -211,6 +211,8 @@ namespace compiler {
   V(ArmUint8x16LessThan)           \
   V(ArmUint8x16LessThanOrEqual)    \
   V(ArmSimd128Zero)                \
+  V(ArmSimd128Load)                \
+  V(ArmSimd128Store)               \
   V(ArmSimd128And)                 \
   V(ArmSimd128Or)                  \
   V(ArmSimd128Xor)                 \

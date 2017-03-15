@@ -100,7 +100,8 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I64LoadMem16S, 0x32, l_i)      \
   V(I64LoadMem16U, 0x33, l_i)      \
   V(I64LoadMem32S, 0x34, l_i)      \
-  V(I64LoadMem32U, 0x35, l_i)
+  V(I64LoadMem32U, 0x35, l_i)      \
+  V(S128LoadMem, 0xc0, s_i)
 
 // Store memory expressions.
 #define FOREACH_STORE_MEM_OPCODE(V) \
@@ -112,7 +113,8 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I32StoreMem16, 0x3b, i_ii)      \
   V(I64StoreMem8, 0x3c, l_il)       \
   V(I64StoreMem16, 0x3d, l_il)      \
-  V(I64StoreMem32, 0x3e, l_il)
+  V(I64StoreMem32, 0x3e, l_il)      \
+  V(S128StoreMem, 0xc1, s_is)
 
 // Miscellaneous memory expressions
 #define FOREACH_MISC_MEM_OPCODE(V) \
@@ -247,17 +249,17 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 
 // For compatibility with Asm.js.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
-  V(F64Acos, 0xc0, d_d)                \
-  V(F64Asin, 0xc1, d_d)                \
-  V(F64Atan, 0xc2, d_d)                \
-  V(F64Cos, 0xc3, d_d)                 \
-  V(F64Sin, 0xc4, d_d)                 \
-  V(F64Tan, 0xc5, d_d)                 \
-  V(F64Exp, 0xc6, d_d)                 \
-  V(F64Log, 0xc7, d_d)                 \
-  V(F64Atan2, 0xc8, d_dd)              \
-  V(F64Pow, 0xc9, d_dd)                \
-  V(F64Mod, 0xca, d_dd)                \
+  V(F64Acos, 0xc2, d_d)                \
+  V(F64Asin, 0xc3, d_d)                \
+  V(F64Atan, 0xc4, d_d)                \
+  V(F64Cos, 0xc5, d_d)                 \
+  V(F64Sin, 0xc6, d_d)                 \
+  V(F64Tan, 0xc7, d_d)                 \
+  V(F64Exp, 0xc8, d_d)                 \
+  V(F64Log, 0xc9, d_d)                 \
+  V(F64Atan2, 0xca, d_dd)              \
+  V(F64Pow, 0xcb, d_dd)                \
+  V(F64Mod, 0xcc, d_dd)                \
   V(I32AsmjsDivS, 0xd0, i_ii)          \
   V(I32AsmjsDivU, 0xd1, i_ii)          \
   V(I32AsmjsRemS, 0xd2, i_ii)          \
@@ -684,6 +686,8 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
       return store ? kExprF32StoreMem : kExprF32LoadMem;
     } else if (type == MachineType::Float64()) {
       return store ? kExprF64StoreMem : kExprF64LoadMem;
+    } else if (type == MachineType::Simd128()) {
+      return store ? kExprS128StoreMem : kExprS128LoadMem;
     } else {
       UNREACHABLE();
       return kExprNop;
