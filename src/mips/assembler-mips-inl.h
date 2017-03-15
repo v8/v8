@@ -49,7 +49,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return IsSupported(FPU); }
 
-bool CpuFeatures::SupportsSimd128() { return false; }
+bool CpuFeatures::SupportsWasmSimd128() { return false; }
 
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.

@@ -4050,7 +4050,7 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
         .LowerGraph();
   }
 
-  if (builder.has_simd() && !CpuFeatures::SupportsSimd128()) {
+  if (builder.has_simd() && !CpuFeatures::SupportsWasmSimd128()) {
     SimdScalarLowering(jsgraph_, func_body_.sig).LowerGraph();
   }
 

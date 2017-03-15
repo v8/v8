@@ -48,7 +48,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
-bool CpuFeatures::SupportsSimd128() { return true; }
+bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
 
 static const byte kCallOpcode = 0xE8;
 static const int kNoCodeAgeSequenceLength = 5;

@@ -148,6 +148,17 @@ namespace compiler {
   V(X64Int32x4ReplaceLane)         \
   V(X64Int32x4Add)                 \
   V(X64Int32x4Sub)                 \
+  V(X64Int32x4Mul)                 \
+  V(X64Int32x4Min)                 \
+  V(X64Int32x4Max)                 \
+  V(X64Int32x4Equal)               \
+  V(X64Int32x4NotEqual)            \
+  V(X64Int32x4ShiftLeftByScalar)   \
+  V(X64Int32x4ShiftRightByScalar)  \
+  V(X64Uint32x4ShiftRightByScalar) \
+  V(X64Uint32x4Min)                \
+  V(X64Uint32x4Max)                \
+  V(X64Simd32x4Select)             \
   V(X64Simd128Zero)
 
 // Addressing modes represent the "shape" of inputs to an instruction.

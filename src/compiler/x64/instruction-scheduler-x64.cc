@@ -128,6 +128,17 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Int32x4ReplaceLane:
     case kX64Int32x4Add:
     case kX64Int32x4Sub:
+    case kX64Int32x4Mul:
+    case kX64Int32x4Min:
+    case kX64Int32x4Max:
+    case kX64Int32x4Equal:
+    case kX64Int32x4NotEqual:
+    case kX64Int32x4ShiftLeftByScalar:
+    case kX64Int32x4ShiftRightByScalar:
+    case kX64Uint32x4ShiftRightByScalar:
+    case kX64Uint32x4Min:
+    case kX64Uint32x4Max:
+    case kX64Simd32x4Select:
     case kX64Simd128Zero:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags

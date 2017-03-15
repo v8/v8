@@ -241,7 +241,7 @@ class CpuFeatures : public AllStatic {
 
   static inline bool SupportsCrankshaft();
 
-  static inline bool SupportsSimd128();
+  static inline bool SupportsWasmSimd128();
 
   static inline unsigned icache_line_size() {
     DCHECK(icache_line_size_ != 0);
