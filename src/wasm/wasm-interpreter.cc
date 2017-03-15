@@ -34,6 +34,9 @@ namespace wasm {
 
 #define FOREACH_INTERNAL_OPCODE(V) V(Breakpoint, 0xFF)
 
+#define WASM_CTYPES(V) \
+  V(I32, uint32_t) V(I64, uint64_t) V(F32, float) V(F64, double)
+
 #define FOREACH_SIMPLE_BINOP(V) \
   V(I32Add, uint32_t, +)        \
   V(I32Sub, uint32_t, -)        \
@@ -849,9 +852,13 @@ class CodeMap {
   Zone* zone_;
   const WasmModule* module_;
   ZoneVector<InterpreterCode> interpreter_code_;
+  ZoneVector<Handle<HeapObject>> imported_functions_;  // callable objects
 
   CodeMap(const WasmModule* module, const uint8_t* module_start, Zone* zone)
-      : zone_(zone), module_(module), interpreter_code_(zone) {
+      : zone_(zone),
+        module_(module),
+        interpreter_code_(zone),
+        imported_functions_(zone) {
     if (module == nullptr) return;
     interpreter_code_.reserve(module->functions.size());
     for (const WasmFunction& function : module->functions) {
@@ -864,6 +871,18 @@ class CodeMap {
         AddFunction(&function, code_start, code_end);
       }
     }
+    imported_functions_.reserve(module_->num_imported_functions);
+  }
+
+  void AddImportedFunction(Handle<HeapObject> function) {
+    DCHECK_GT(module_->num_imported_functions, imported_functions_.size());
+    imported_functions_.emplace_back(function);
+  }
+
+  Handle<HeapObject> GetImportedFunction(uint32_t function_index) {
+    DCHECK_GT(module_->num_imported_functions, function_index);
+    DCHECK_EQ(module_->num_imported_functions, imported_functions_.size());
+    return imported_functions_[function_index];
   }
 
   InterpreterCode* GetCode(const WasmFunction* function) {
@@ -924,6 +943,42 @@ class CodeMap {
 };
 
 namespace {
+
+Handle<Object> WasmValToNumber(Factory* factory, WasmVal val,
+                               wasm::ValueType type) {
+  switch (type) {
+    case kWasmI32:
+      return factory->NewNumberFromInt(val.to<int32_t>());
+    case kWasmI64:
+      // wasm->js and js->wasm is illegal for i64 type.
+      UNREACHABLE();
+      return Handle<Object>::null();
+    case kWasmF32:
+      return factory->NewNumber(val.to<float>());
+    case kWasmF64:
+      return factory->NewNumber(val.to<double>());
+    default:
+      // TODO(wasm): Implement simd.
+      UNIMPLEMENTED();
+      return Handle<Object>::null();
+  }
+}
+
+WasmVal NumberToWasmVal(Handle<Object> number, wasm::ValueType type) {
+  double val = number->Number();
+  switch (type) {
+#define CASE_TYPE(wasm, ctype) \
+  case kWasm##wasm:            \
+    return WasmVal(static_cast<ctype>(val));
+    WASM_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+    default:
+      // TODO(wasm): Handle simd.
+      UNIMPLEMENTED();
+      return WasmVal();
+  }
+}
+
 // Responsible for executing code directly.
 class ThreadImpl {
  public:
@@ -1076,18 +1131,12 @@ class ThreadImpl {
     for (auto p : code->locals.type_list) {
       WasmVal val;
       switch (p) {
-        case kWasmI32:
-          val = WasmVal(static_cast<int32_t>(0));
-          break;
-        case kWasmI64:
-          val = WasmVal(static_cast<int64_t>(0));
-          break;
-        case kWasmF32:
-          val = WasmVal(static_cast<float>(0));
-          break;
-        case kWasmF64:
-          val = WasmVal(static_cast<double>(0));
-          break;
+#define CASE_TYPE(wasm, ctype)            \
+  case kWasm##wasm:                       \
+    val = WasmVal(static_cast<ctype>(0)); \
+    break;
+        WASM_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
         default:
           UNREACHABLE();
           break;
@@ -1246,6 +1295,7 @@ class ThreadImpl {
   if (V8_UNLIKELY(break_flags_ & WasmInterpreter::BreakFlag::flag)) max = 0;
 
       DCHECK_GT(limit, pc);
+      DCHECK_NOT_NULL(code->start);
 
       const char* skip = "        ";
       int len = 1;
@@ -1411,14 +1461,18 @@ class ThreadImpl {
         }
         case kExprCallFunction: {
           CallFunctionOperand operand(&decoder, code->at(pc));
-          code = codemap()->GetCode(operand.index);
-          if (code->function->imported) {
-            // TODO(clemensh): Call imported function.
-            UNREACHABLE();
+          InterpreterCode* target = codemap()->GetCode(operand.index);
+          if (target->function->imported) {
+            CommitPc(pc);
+            CallImportedFunction(operand.index);
+            PAUSE_IF_BREAK_FLAG(AfterCall);
+            len = 1 + operand.length;
+            break;  // bump pc
           }
-          DoCall(&decoder, code, &pc, &limit);
+          DoCall(&decoder, target, &pc, &limit);
+          code = target;
           PAUSE_IF_BREAK_FLAG(AfterCall);
-          continue;
+          continue;  // don't bump pc
         }
         case kExprCallIndirect: {
           CallIndirectOperand operand(&decoder, code->at(pc));
@@ -1452,18 +1506,16 @@ class ThreadImpl {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
-          ValueType type = global->type;
           WasmVal val;
-          if (type == kWasmI32) {
-            val = WasmVal(*reinterpret_cast<int32_t*>(ptr));
-          } else if (type == kWasmI64) {
-            val = WasmVal(*reinterpret_cast<int64_t*>(ptr));
-          } else if (type == kWasmF32) {
-            val = WasmVal(*reinterpret_cast<float*>(ptr));
-          } else if (type == kWasmF64) {
-            val = WasmVal(*reinterpret_cast<double*>(ptr));
-          } else {
-            UNREACHABLE();
+          switch (global->type) {
+#define CASE_TYPE(wasm, ctype)                     \
+  case kWasm##wasm:                                \
+    val = WasmVal(*reinterpret_cast<ctype*>(ptr)); \
+    break;
+            WASM_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+            default:
+              UNREACHABLE();
           }
           Push(pc, val);
           len = 1 + operand.length;
@@ -1473,18 +1525,16 @@ class ThreadImpl {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
-          ValueType type = global->type;
           WasmVal val = Pop();
-          if (type == kWasmI32) {
-            *reinterpret_cast<int32_t*>(ptr) = val.to<int32_t>();
-          } else if (type == kWasmI64) {
-            *reinterpret_cast<int64_t*>(ptr) = val.to<int64_t>();
-          } else if (type == kWasmF32) {
-            *reinterpret_cast<float*>(ptr) = val.to<float>();
-          } else if (type == kWasmF64) {
-            *reinterpret_cast<double*>(ptr) = val.to<double>();
-          } else {
-            UNREACHABLE();
+          switch (global->type) {
+#define CASE_TYPE(wasm, ctype)                        \
+  case kWasm##wasm:                                   \
+    *reinterpret_cast<ctype*>(ptr) = val.to<ctype>(); \
+    break;
+            WASM_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+            default:
+              UNREACHABLE();
           }
           len = 1 + operand.length;
           break;
@@ -1761,6 +1811,53 @@ class ThreadImpl {
     }
 #endif  // DEBUG
   }
+
+  void CallImportedFunction(uint32_t function_index) {
+    Handle<HeapObject> target = codemap()->GetImportedFunction(function_index);
+    if (target.is_null()) {
+      // The function does not have a js-compatible signature.
+      // TODO(clemensh): Throw type error.
+      UNIMPLEMENTED();
+    }
+    if (target->IsCode()) {
+      DCHECK_EQ(Code::WASM_FUNCTION, Code::cast(*target)->kind());
+      // TODO(clemensh): Call wasm code directly.
+      UNIMPLEMENTED();
+    }
+    std::ostringstream oss;
+    TRACE("  => CallImportedFunction #%u: %s\n", function_index,
+          (target->HeapObjectShortPrint(oss), oss.str().c_str()));
+    const WasmFunction* called_fun =
+        &codemap()->module_->functions[function_index];
+    int num_args = static_cast<int>(called_fun->sig->parameter_count());
+    DCHECK(!instance()->context.is_null());
+    Isolate* isolate = instance()->context->GetIsolate();
+
+    // Get all arguments as JS values.
+    std::vector<Handle<Object>> args;
+    args.reserve(num_args);
+    WasmVal* wasm_args = stack_.data() + (stack_.size() - num_args);
+    for (int i = 0; i < num_args; ++i) {
+      args.push_back(WasmValToNumber(isolate->factory(), wasm_args[i],
+                                     called_fun->sig->GetParam(i)));
+    }
+
+    MaybeHandle<Object> maybe_retval = Execution::Call(
+        isolate, target, isolate->global_proxy(), num_args, args.data());
+    if (maybe_retval.is_null()) {
+      // TODO(clemensh): Exception handling here.
+      UNIMPLEMENTED();
+    }
+    Handle<Object> retval = maybe_retval.ToHandleChecked();
+    // TODO(clemensh): Call ToNumber on retval.
+    // Pop arguments of the stack.
+    stack_.resize(stack_.size() - num_args);
+    if (called_fun->sig->return_count() > 0) {
+      // TODO(wasm): Handle multiple returns.
+      DCHECK_EQ(1, called_fun->sig->return_count());
+      stack_.push_back(NumberToWasmVal(retval, called_fun->sig->GetReturn()));
+    }
+  }
 };
 
 // Converters between WasmInterpreter::Thread and WasmInterpreter::ThreadImpl.
@@ -1901,6 +1998,10 @@ bool WasmInterpreter::GetBreakpoint(const WasmFunction* function, pc_t pc) {
 bool WasmInterpreter::SetTracing(const WasmFunction* function, bool enabled) {
   UNIMPLEMENTED();
   return false;
+}
+
+void WasmInterpreter::AddImportedFunction(Handle<HeapObject> code) {
+  internals_->codemap_.AddImportedFunction(code);
 }
 
 int WasmInterpreter::GetThreadCount() {

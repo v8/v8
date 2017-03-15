@@ -21,6 +21,27 @@ using namespace v8::internal::wasm;
 
 namespace {
 
+// Unwrap a wasm to js wrapper, return the callable heap object.
+// Only call this method for proper wrappers that do not throw a type error.
+HeapObject* UnwrapJSWrapper(Code* js_wrapper) {
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(js_wrapper, mask);; it.next()) {
+    DCHECK(!it.done());
+    HeapObject* obj = it.rinfo()->target_object();
+    if (!obj->IsCallable()) continue;
+#ifdef DEBUG
+    // There should only be this reference to a callable object.
+    for (it.next(); !it.done(); it.next()) {
+      HeapObject* other = it.rinfo()->target_object();
+      DCHECK(!other->IsCallable());
+    }
+#endif
+    return obj;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
 // Forward declaration.
 class InterpreterHandle;
 InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info);
@@ -32,6 +53,7 @@ class InterpreterHandle {
   Isolate* isolate_;
   StepAction next_step_action_ = StepNone;
   int last_step_stack_depth_ = 0;
+  DeferredHandles* import_handles_ = nullptr;
 
  public:
   // Initialize in the right order, using helper methods to make this possible.
@@ -50,6 +72,32 @@ class InterpreterHandle {
       instance_.mem_start = nullptr;
       instance_.mem_size = 0;
     }
+    if (instance_.module->num_imported_functions > 0) {
+      int num_imported_functions =
+          static_cast<int>(instance_.module->num_imported_functions);
+      Handle<WasmCompiledModule> compiled_module(
+          debug_info->wasm_instance()->compiled_module(), isolate);
+      Handle<FixedArray> code_table = compiled_module->code_table();
+      DeferredHandleScope deferred_scope(isolate_);
+      instance_.context =
+          handle(compiled_module->ptr_to_native_context(), isolate_);
+      for (int i = 0; i < num_imported_functions; ++i) {
+        Code* code = Code::cast(code_table->get(i));
+        Handle<HeapObject> called_obj;
+        if (code->kind() == Code::WASM_FUNCTION) {
+          called_obj = handle(code, isolate_);
+        } else if (IsJSCompatibleSignature(
+                       instance_.module->functions[i].sig)) {
+          called_obj = handle(UnwrapJSWrapper(code), isolate_);
+        }
+        interpreter_.AddImportedFunction(called_obj);
+      }
+      import_handles_ = deferred_scope.Detach();
+    }
+  }
+
+  ~InterpreterHandle() {
+    delete import_handles_;  // might be nullptr, which is ok.
   }
 
   static ModuleBytesEnv GetBytesEnv(WasmInstance* instance,

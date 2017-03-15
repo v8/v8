@@ -200,10 +200,7 @@ struct CallFunctionOperand {
   FunctionSig* sig;
   unsigned length;
   inline CallFunctionOperand(Decoder* decoder, const byte* pc) {
-    unsigned len1 = 0;
-    unsigned len2 = 0;
-    index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "function index");
-    length = len1 + len2;
+    index = decoder->checked_read_u32v(pc, 1, &length, "function index");
     sig = nullptr;
   }
 };

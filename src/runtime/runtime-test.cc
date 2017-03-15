@@ -936,5 +936,17 @@ RUNTIME_FUNCTION(Runtime_Verify) {
   return isolate->heap()->ToBoolean(true);
 }
 
+RUNTIME_FUNCTION(Runtime_WasmNumInterpretedCalls) {
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, instance_obj, 0);
+  CHECK(WasmInstanceObject::IsWasmInstanceObject(*instance_obj));
+  Handle<WasmInstanceObject> instance =
+      Handle<WasmInstanceObject>::cast(instance_obj);
+  if (!instance->has_debug_info()) return 0;
+  uint64_t num = instance->debug_info()->NumInterpretedCalls();
+  return *isolate->factory()->NewNumberFromSize(static_cast<size_t>(num));
+}
+
 }  // namespace internal
 }  // namespace v8
