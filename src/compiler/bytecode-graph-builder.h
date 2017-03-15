@@ -166,16 +166,12 @@ class BytecodeGraphBuilder {
     BuildCall(tail_call_mode, receiver_hint, args.begin(), args.size(),
               slot_id);
   }
-  void BuildThrow();
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
   void BuildTestingOp(const Operator* op);
   void BuildDelete(LanguageMode language_mode);
   void BuildCastOperator(const Operator* op);
-  void BuildForInPrepare();
-  void BuildForInNext();
-  void BuildInvokeIntrinsic();
 
   // Optional early lowering to the simplified operator level. Returns the node
   // representing the lowered operation or {nullptr} if no lowering available.

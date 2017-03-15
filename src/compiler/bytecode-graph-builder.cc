@@ -2089,7 +2089,7 @@ void BytecodeGraphBuilder::VisitDebugger() {
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
 #undef DEBUG_BREAK
 
-void BytecodeGraphBuilder::BuildForInPrepare() {
+void BytecodeGraphBuilder::VisitForInPrepare() {
   PrepareEagerCheckpoint();
   Node* receiver =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
@@ -2098,8 +2098,6 @@ void BytecodeGraphBuilder::BuildForInPrepare() {
       bytecode_iterator().GetRegisterOperand(1), prepare,
       Environment::kAttachFrameState);
 }
-
-void BytecodeGraphBuilder::VisitForInPrepare() { BuildForInPrepare(); }
 
 void BytecodeGraphBuilder::VisitForInContinue() {
   PrepareEagerCheckpoint();
@@ -2113,7 +2111,7 @@ void BytecodeGraphBuilder::VisitForInContinue() {
   environment()->BindAccumulator(exit_cond, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::BuildForInNext() {
+void BytecodeGraphBuilder::VisitForInNext() {
   PrepareEagerCheckpoint();
   Node* receiver =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
@@ -2129,8 +2127,6 @@ void BytecodeGraphBuilder::BuildForInNext() {
                         cache_type, index);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
-
-void BytecodeGraphBuilder::VisitForInNext() { BuildForInNext(); }
 
 void BytecodeGraphBuilder::VisitForInStep() {
   PrepareEagerCheckpoint();
