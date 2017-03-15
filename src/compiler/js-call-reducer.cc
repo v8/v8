@@ -617,9 +617,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return Changed(node);
   }
 
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-
   Handle<Object> feedback(nexus.GetFeedback(), isolate());
   if (feedback->IsAllocationSite()) {
     // Retrieve the Array function from the {node}.
@@ -726,9 +723,6 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     // TODO(bmeurer): Also support optimizing bound functions and proxies here.
     return NoChange();
   }
-
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
   if (!p.feedback().IsValid()) return NoChange();
   CallICNexus nexus(p.feedback().vector(), p.feedback().slot());

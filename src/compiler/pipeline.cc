@@ -783,12 +783,8 @@ struct InliningPhase {
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
-    JSCallReducer::Flags call_reducer_flags = JSCallReducer::kNoFlags;
-    if (data->info()->is_deoptimization_enabled()) {
-      call_reducer_flags |= JSCallReducer::kDeoptimizationEnabled;
-    }
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
-                               call_reducer_flags, data->native_context(),
+                               data->native_context(),
                                data->info()->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
@@ -804,9 +800,6 @@ struct InliningPhase {
     }
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= JSNativeContextSpecialization::kBailoutOnUninitialized;
-    }
-    if (data->info()->is_deoptimization_enabled()) {
-      flags |= JSNativeContextSpecialization::kDeoptimizationEnabled;
     }
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(), flags, data->native_context(),
@@ -827,10 +820,14 @@ struct InliningPhase {
     if (data->info()->is_frame_specializing()) {
       AddReducer(data, &graph_reducer, &frame_specialization);
     }
-    AddReducer(data, &graph_reducer, &native_context_specialization);
+    if (data->info()->is_deoptimization_enabled()) {
+      AddReducer(data, &graph_reducer, &native_context_specialization);
+    }
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
-    AddReducer(data, &graph_reducer, &call_reducer);
+    if (data->info()->is_deoptimization_enabled()) {
+      AddReducer(data, &graph_reducer, &call_reducer);
+    }
     AddReducer(data, &graph_reducer, &inlining);
     graph_reducer.ReduceGraph();
   }
