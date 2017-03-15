@@ -912,6 +912,9 @@ Type* OperationTyper::NumberImul(Type* lhs, Type* rhs) {
 Type* OperationTyper::NumberMax(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) {
     return Type::NaN();
   }
@@ -935,6 +938,9 @@ Type* OperationTyper::NumberMax(Type* lhs, Type* rhs) {
 Type* OperationTyper::NumberMin(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) {
     return Type::NaN();
   }
