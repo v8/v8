@@ -1677,7 +1677,8 @@ class MarkCompactCollector::EvacuateVisitorBase
     if (mode == kProfiled) {
       heap_->OnMoveEvent(dst, src, size);
     }
-    Memory::Address_at(src_addr) = dst_addr;
+    base::NoBarrier_Store(reinterpret_cast<base::AtomicWord*>(src_addr),
+                          reinterpret_cast<base::AtomicWord>(dst_addr));
   }
 
 #ifdef VERIFY_HEAP
