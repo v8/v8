@@ -498,8 +498,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
       node = jsgraph()->graph()->NewNode(op, node);
       op = machine()->TruncateFloat64ToFloat32();
     }
-  } else if (output_rep == MachineRepresentation::kTagged ||
-             output_rep == MachineRepresentation::kTaggedPointer) {
+  } else if (IsAnyTagged(output_rep)) {
     if (output_type->Is(Type::NumberOrOddball())) {
       // tagged -> float64 -> float32
       if (output_type->Is(Type::Number())) {
