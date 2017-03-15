@@ -18,6 +18,11 @@ Handle<Smi> LoadHandler::LoadNormal(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::LoadGlobal(Isolate* isolate) {
+  int config = KindBits::encode(kGlobal);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> LoadHandler::LoadInterceptor(Isolate* isolate) {
   int config = KindBits::encode(kInterceptor);
   return handle(Smi::FromInt(config), isolate);

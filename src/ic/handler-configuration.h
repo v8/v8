@@ -19,6 +19,7 @@ class LoadHandler {
   enum Kind {
     kElement,
     kNormal,
+    kGlobal,
     kField,
     kConstant,
     kInterceptor,
@@ -90,6 +91,9 @@ class LoadHandler {
 
   // Creates a Smi-handler for loading a property from a slow object.
   static inline Handle<Smi> LoadNormal(Isolate* isolate);
+
+  // Creates a Smi-handler for loading a property from a global object.
+  static inline Handle<Smi> LoadGlobal(Isolate* isolate);
 
   // Creates a Smi-handler for loading a property from an object with an
   // interceptor.

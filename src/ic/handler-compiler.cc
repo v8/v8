@@ -39,11 +39,9 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
 
 #define __ ACCESS_MASM(masm())
 
-
 Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                                   Handle<Name> name,
-                                                  Label* miss,
-                                                  ReturnHolder return_what) {
+                                                  Label* miss) {
   if (map()->IsPrimitiveMap() || map()->IsJSGlobalProxyMap()) {
     // If the receiver is a global proxy and if we get to this point then
     // the compile-time (current) native context has access to global proxy's
@@ -60,7 +58,7 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
 
   // Check that the maps starting from the prototype haven't changed.
   return CheckPrototypes(object_reg, scratch1(), scratch2(), scratch3(), name,
-                         miss, return_what);
+                         miss);
 }
 
 
@@ -68,8 +66,7 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
 // miss.
 Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
                                                    Handle<Name> name,
-                                                   Label* miss,
-                                                   ReturnHolder return_what) {
+                                                   Label* miss) {
   if (map()->IsJSGlobalProxyMap()) {
     Handle<Context> native_context = isolate()->native_context();
     Handle<WeakCell> weak_cell(native_context->self_weak_cell(), isolate());
@@ -77,7 +74,7 @@ Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
   }
 
   return CheckPrototypes(object_reg, this->name(), scratch1(), scratch2(), name,
-                         miss, return_what);
+                         miss);
 }
 
 
@@ -86,7 +83,7 @@ Register PropertyHandlerCompiler::Frontend(Handle<Name> name) {
   if (IC::ShouldPushPopSlotAndVector(kind())) {
     PushVectorAndSlot();
   }
-  Register reg = FrontendHeader(receiver(), name, &miss, RETURN_HOLDER);
+  Register reg = FrontendHeader(receiver(), name, &miss);
   FrontendFooter(name, &miss);
   // The footer consumes the vector and slot from the stack if miss occurs.
   if (IC::ShouldPushPopSlotAndVector(kind())) {

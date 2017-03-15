@@ -2937,6 +2937,10 @@ Node* CodeStubAssembler::IsBoolean(Node* object) {
   return IsBooleanMap(LoadMap(object));
 }
 
+Node* CodeStubAssembler::IsPropertyCell(Node* object) {
+  return IsPropertyCellMap(LoadMap(object));
+}
+
 Node* CodeStubAssembler::IsHeapNumber(Node* object) {
   return IsHeapNumberMap(LoadMap(object));
 }
