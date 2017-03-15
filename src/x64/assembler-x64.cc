@@ -1333,15 +1333,6 @@ void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
 }
 
 
-void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  EnsureSpace ensure_space(this);
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  emit(0xE9);
-  emit_runtime_entry(entry, rmode);
-}
-
-
 void Assembler::jmp(Register target) {
   EnsureSpace ensure_space(this);
   // Opcode FF/4 r64.

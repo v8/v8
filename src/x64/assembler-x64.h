@@ -925,7 +925,6 @@ class Assembler : public AssemblerBase {
   // Use a 32-bit signed displacement.
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
-  void jmp(Address entry, RelocInfo::Mode rmode);
   void jmp(Handle<Code> target, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
