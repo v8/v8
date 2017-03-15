@@ -637,9 +637,15 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
             instance->module->max_mem_pages) {
       return -1;
     }
-    new_mem_start = static_cast<byte*>(realloc(instance->mem_start, new_size));
-    if (!new_mem_start) {
-      return -1;
+    if (EnableGuardRegions()) {
+      v8::base::OS::Unprotect(instance->mem_start, new_size);
+      new_mem_start = instance->mem_start;
+    } else {
+      new_mem_start =
+          static_cast<byte*>(realloc(instance->mem_start, new_size));
+      if (!new_mem_start) {
+        return -1;
+      }
     }
     // Zero initializing uninitialized memory from realloc
     memset(new_mem_start + old_size, 0, new_size - old_size);

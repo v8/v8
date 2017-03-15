@@ -443,6 +443,19 @@ V8_EXPORT_PRIVATE void AsyncCompileAndInstantiate(
     Isolate* isolate, Handle<JSPromise> promise, const ModuleWireBytes& bytes,
     MaybeHandle<JSReceiver> imports);
 
+#if V8_TARGET_ARCH_64_BIT
+const bool kGuardRegionsSupported = true;
+#else
+const bool kGuardRegionsSupported = false;
+#endif
+
+inline bool EnableGuardRegions() {
+  return FLAG_wasm_guard_pages && kGuardRegionsSupported;
+}
+
+void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
+                                            Handle<FixedArray> code_table);
+
 namespace testing {
 void ValidateInstancesChain(Isolate* isolate,
                             Handle<WasmModuleObject> module_obj,

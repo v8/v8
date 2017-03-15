@@ -98,7 +98,16 @@ class TestingModule : public ModuleEnv {
 
   ~TestingModule() {
     if (instance->mem_start) {
-      free(instance->mem_start);
+      if (EnableGuardRegions() && module_.origin == kWasmOrigin) {
+        // See the corresponding code in AddMemory. We use a different
+        // allocation path when guard regions are enabled, which means we have
+        // to free it differently too.
+        const size_t alloc_size =
+            RoundUp(kWasmMaxHeapOffset, v8::base::OS::CommitPageSize());
+        v8::base::OS::Free(instance->mem_start, alloc_size);
+      } else {
+        free(instance->mem_start);
+      }
     }
     if (interpreter_) delete interpreter_;
   }
@@ -110,7 +119,17 @@ class TestingModule : public ModuleEnv {
     CHECK_NULL(instance->mem_start);
     CHECK_EQ(0, instance->mem_size);
     module_.has_memory = true;
-    instance->mem_start = reinterpret_cast<byte*>(malloc(size));
+    if (EnableGuardRegions() && module_.origin == kWasmOrigin) {
+      const size_t alloc_size =
+          RoundUp(kWasmMaxHeapOffset, v8::base::OS::CommitPageSize());
+      instance->mem_start = reinterpret_cast<byte*>(
+          v8::base::OS::AllocateGuarded(alloc_size * 2));
+      instance->mem_start += alloc_size;
+      const size_t guard_size = RoundUp(size, v8::base::OS::CommitPageSize());
+      v8::base::OS::Unprotect(instance->mem_start, guard_size);
+    } else {
+      instance->mem_start = reinterpret_cast<byte*>(malloc(size));
+    }
     CHECK(size == 0 || instance->mem_start);
     memset(instance->mem_start, 0, size);
     instance->mem_size = size;
@@ -573,6 +592,9 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     DCHECK(code_table->get(static_cast<int>(function_index()))
                ->IsUndefined(isolate()));
     code_table->set(static_cast<int>(function_index()), *code);
+    if (trap_handler::UseTrapHandler()) {
+      UnpackAndRegisterProtectedInstructions(isolate(), code_table);
+    }
   }
 
   byte AllocateLocal(ValueType type) {

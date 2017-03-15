@@ -99,14 +99,6 @@ TEST(Unreachable) {
 
 // Trigger a trap for loading from out-of-bounds.
 TEST(IllegalLoad) {
-  if (trap_handler::UseTrapHandler()) {
-    // r.module().AddMemory() does not allocate guard pages, so we skip this
-    // test for now when using trap handlers. The simple out of bounds access
-    // case is covered by mjsunit tests, so we are still getting test coverage.
-    //
-    // TODO(eholk): make this test work with trap handlers.
-    return;
-  }
   WasmRunner<void> r(kExecuteCompiled);
   TestSignatures sigs;
   // Set the execution context, such that a runtime error can be thrown.
