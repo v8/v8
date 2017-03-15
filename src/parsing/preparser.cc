@@ -108,7 +108,7 @@ PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
   if (stack_overflow()) return kPreParseStackOverflow;
   if (!ok) {
     ReportUnexpectedToken(scanner()->current_token());
-  } else if (is_strict(this->scope()->language_mode())) {
+  } else if (is_strict(language_mode())) {
     CheckStrictOctalLiteral(start_position, scanner()->location().end_pos, &ok);
   }
   return kPreParseSuccess;
