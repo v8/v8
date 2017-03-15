@@ -5182,18 +5182,15 @@ Address Code::constant_pool() {
   return constant_pool;
 }
 
-Code::Flags Code::ComputeFlags(Kind kind, ExtraICState extra_ic_state,
-                               CacheHolderFlag holder) {
+Code::Flags Code::ComputeFlags(Kind kind, ExtraICState extra_ic_state) {
   // Compute the bit mask.
-  unsigned int bits = KindField::encode(kind) |
-                      ExtraICStateField::encode(extra_ic_state) |
-                      CacheHolderField::encode(holder);
+  unsigned int bits =
+      KindField::encode(kind) | ExtraICStateField::encode(extra_ic_state);
   return static_cast<Flags>(bits);
 }
 
-Code::Flags Code::ComputeHandlerFlags(Kind handler_kind,
-                                      CacheHolderFlag holder) {
-  return ComputeFlags(Code::HANDLER, handler_kind, holder);
+Code::Flags Code::ComputeHandlerFlags(Kind handler_kind) {
+  return ComputeFlags(Code::HANDLER, handler_kind);
 }
 
 
@@ -5204,16 +5201,6 @@ Code::Kind Code::ExtractKindFromFlags(Flags flags) {
 
 ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
   return ExtraICStateField::decode(flags);
-}
-
-
-CacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
-  return CacheHolderField::decode(flags);
-}
-
-Code::Flags Code::RemoveHolderFromFlags(Flags flags) {
-  int bits = flags & ~CacheHolderField::kMask;
-  return static_cast<Flags>(bits);
 }
 
 

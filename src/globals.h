@@ -671,13 +671,6 @@ enum InlineCacheState {
   GENERIC,
 };
 
-enum CacheHolderFlag {
-  kCacheOnPrototype,
-  kCacheOnPrototypeReceiverIsDictionary,
-  kCacheOnPrototypeReceiverIsPrimitive,
-  kCacheOnReceiver
-};
-
 enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
 
 // The Store Buffer (GC).

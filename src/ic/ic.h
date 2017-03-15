@@ -58,14 +58,6 @@ class IC {
     return IsStoreIC() || IsStoreOwnIC() || IsKeyedStoreIC();
   }
 
-  static inline Handle<Map> GetHandlerCacheHolder(Handle<Map> receiver_map,
-                                                  bool receiver_is_holder,
-                                                  Isolate* isolate,
-                                                  CacheHolderFlag* flag);
-  static inline Handle<Map> GetICCacheHolder(Handle<Map> receiver_map,
-                                             Isolate* isolate,
-                                             CacheHolderFlag* flag);
-
   // The ICs that don't pass slot and vector through the stack have to
   // save/restore them in the dispatcher.
   static bool ShouldPushPopSlotAndVector(Code::Kind kind);
@@ -137,8 +129,7 @@ class IC {
     return Handle<Code>::null();
   }
   virtual Handle<Object> CompileHandler(LookupIterator* lookup,
-                                        Handle<Object> value,
-                                        CacheHolderFlag cache_holder) {
+                                        Handle<Object> value) {
     UNREACHABLE();
     return Handle<Object>::null();
   }
@@ -287,8 +278,8 @@ class LoadIC : public IC {
 
   Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
 
-  Handle<Object> CompileHandler(LookupIterator* lookup, Handle<Object> unused,
-                                CacheHolderFlag cache_holder) override;
+  Handle<Object> CompileHandler(LookupIterator* lookup,
+                                Handle<Object> unused) override;
 
  private:
   // Creates a data handler that represents a load of a field by given index.
@@ -374,8 +365,8 @@ class StoreIC : public IC {
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     JSReceiver::StoreFromKeyed store_mode);
   Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
-  Handle<Object> CompileHandler(LookupIterator* lookup, Handle<Object> value,
-                                CacheHolderFlag cache_holder) override;
+  Handle<Object> CompileHandler(LookupIterator* lookup,
+                                Handle<Object> value) override;
 
  private:
   Handle<Object> StoreTransition(Handle<Map> receiver_map,

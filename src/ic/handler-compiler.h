@@ -15,15 +15,12 @@ class CallOptimization;
 
 class PropertyHandlerCompiler : public PropertyAccessCompiler {
  public:
-  static Handle<Code> Find(Handle<Name> name, Handle<Map> map, Code::Kind kind,
-                           CacheHolderFlag cache_holder);
+  static Handle<Code> Find(Handle<Name> name, Handle<Map> map, Code::Kind kind);
 
  protected:
   PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind, Handle<Map> map,
-                          Handle<JSObject> holder, CacheHolderFlag cache_holder)
-      : PropertyAccessCompiler(isolate, kind, cache_holder),
-        map_(map),
-        holder_(holder) {}
+                          Handle<JSObject> holder)
+      : PropertyAccessCompiler(isolate, kind), map_(map), holder_(holder) {}
 
   virtual ~PropertyHandlerCompiler() {}
 
@@ -117,10 +114,8 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
  public:
   NamedLoadHandlerCompiler(Isolate* isolate, Handle<Map> map,
-                           Handle<JSObject> holder,
-                           CacheHolderFlag cache_holder)
-      : PropertyHandlerCompiler(isolate, Code::LOAD_IC, map, holder,
-                                cache_holder) {}
+                           Handle<JSObject> holder)
+      : PropertyHandlerCompiler(isolate, Code::LOAD_IC, map, holder) {}
 
   virtual ~NamedLoadHandlerCompiler() {}
 
@@ -159,8 +154,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 
   explicit NamedStoreHandlerCompiler(Isolate* isolate, Handle<Map> map,
                                      Handle<JSObject> holder)
-      : PropertyHandlerCompiler(isolate, Code::STORE_IC, map, holder,
-                                kCacheOnReceiver) {
+      : PropertyHandlerCompiler(isolate, Code::STORE_IC, map, holder) {
 #ifdef DEBUG
     if (Descriptor::kPassLastArgsOnStack) {
       ZapStackArgumentsRegisterAliases();
@@ -208,8 +202,8 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
  public:
   explicit ElementHandlerCompiler(Isolate* isolate)
       : PropertyHandlerCompiler(isolate, Code::KEYED_LOAD_IC,
-                                Handle<Map>::null(), Handle<JSObject>::null(),
-                                kCacheOnReceiver) {}
+                                Handle<Map>::null(), Handle<JSObject>::null()) {
+  }
 
   virtual ~ElementHandlerCompiler() {}
 

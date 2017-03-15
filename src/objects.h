@@ -5116,17 +5116,12 @@ class Code: public HeapObject {
 
   // Flags operations.
   static inline Flags ComputeFlags(
-      Kind kind, ExtraICState extra_ic_state = kNoExtraICState,
-      CacheHolderFlag holder = kCacheOnReceiver);
+      Kind kind, ExtraICState extra_ic_state = kNoExtraICState);
 
-  static inline Flags ComputeHandlerFlags(
-      Kind handler_kind, CacheHolderFlag holder = kCacheOnReceiver);
+  static inline Flags ComputeHandlerFlags(Kind handler_kind);
 
-  static inline CacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
-
-  static inline Flags RemoveHolderFromFlags(Flags flags);
 
   // Convert a target address into a code object.
   static inline Code* GetCodeFromTargetAddress(Address address);
@@ -5338,9 +5333,7 @@ class Code: public HeapObject {
 
   // Flags layout.  BitField<type, shift, size>.
   class HasUnwindingInfoField : public BitField<bool, 0, 1> {};
-  class CacheHolderField
-      : public BitField<CacheHolderFlag, HasUnwindingInfoField::kNext, 2> {};
-  class KindField : public BitField<Kind, CacheHolderField::kNext, 5> {};
+  class KindField : public BitField<Kind, HasUnwindingInfoField::kNext, 5> {};
   STATIC_ASSERT(NUMBER_OF_KINDS <= KindField::kMax);
   class ExtraICStateField
       : public BitField<ExtraICState, KindField::kNext,
@@ -5402,9 +5395,6 @@ class Code: public HeapObject {
 
   static const int kArgumentsBits = 16;
   static const int kMaxArguments = (1 << kArgumentsBits) - 1;
-
-  // This constant should be encodable in an ARM instruction.
-  static const int kFlagsNotUsedInLookup = CacheHolderField::kMask;
 
  private:
   friend class RelocIterator;
