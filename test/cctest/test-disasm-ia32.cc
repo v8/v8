@@ -424,6 +424,10 @@ TEST(DisasmIa320) {
     __ mulps(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ divps(xmm1, xmm0);
     __ divps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ minps(xmm1, xmm0);
+    __ minps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ maxps(xmm1, xmm0);
+    __ maxps(xmm1, Operand(ebx, ecx, times_4, 10000));
 
     __ ucomiss(xmm0, xmm1);
     __ ucomiss(xmm0, Operand(ebx, ecx, times_4, 10000));
@@ -550,11 +554,35 @@ TEST(DisasmIa320) {
       __ vandps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vxorps(xmm0, xmm1, xmm2);
       __ vxorps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vaddps(xmm0, xmm1, xmm2);
+      __ vaddps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmulps(xmm0, xmm1, xmm2);
+      __ vmulps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vsubps(xmm0, xmm1, xmm2);
+      __ vsubps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vminps(xmm0, xmm1, xmm2);
+      __ vminps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vdivps(xmm0, xmm1, xmm2);
+      __ vdivps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmaxps(xmm0, xmm1, xmm2);
+      __ vmaxps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
       __ vandpd(xmm0, xmm1, xmm2);
       __ vandpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vxorpd(xmm0, xmm1, xmm2);
       __ vxorpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vaddpd(xmm0, xmm1, xmm2);
+      __ vaddpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmulpd(xmm0, xmm1, xmm2);
+      __ vmulpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vsubpd(xmm0, xmm1, xmm2);
+      __ vsubpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vminpd(xmm0, xmm1, xmm2);
+      __ vminpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vdivpd(xmm0, xmm1, xmm2);
+      __ vdivpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmaxpd(xmm0, xmm1, xmm2);
+      __ vmaxpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
       __ vpsllw(xmm0, xmm7, 21);
       __ vpslld(xmm0, xmm7, 21);
