@@ -411,7 +411,7 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   jobs_.erase(job);
   if (jobs_.empty()) {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    abort_ = false;
+    if (num_background_tasks_ == 0) abort_ = false;
   }
   return result;
 }
@@ -479,7 +479,7 @@ void CompilerDispatcher::AbortInactiveJobs() {
   }
   if (jobs_.empty()) {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    abort_ = false;
+    if (num_background_tasks_ == 0) abort_ = false;
   }
 }
 
