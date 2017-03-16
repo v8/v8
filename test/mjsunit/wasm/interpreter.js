@@ -78,3 +78,33 @@ function checkStack(stack, expected_lines) {
   assertEquals(expected, ret);
   assertArrayEquals([args[0], args[0] + 1, args[1]], passed_test_args);
 })();
+
+(function testTrap() {
+  var builder = new WasmModuleBuilder();
+  var foo_idx = builder.addFunction('foo', kSig_v_v)
+                    .addBody([kExprNop, kExprNop, kExprUnreachable])
+                    .index;
+  builder.addFunction('main', kSig_v_v)
+      .addBody([kExprNop, kExprCallFunction, foo_idx])
+      .exportFunc();
+  var instance = builder.instantiate();
+  // Test that this does not mess up internal state by executing it three times.
+  for (var i = 0; i < 3; ++i) {
+    var interpreted_before = % WasmNumInterpretedCalls(instance);
+    var stack;
+    try {
+      instance.exports.main();
+      assertUnreachable();
+    } catch (e) {
+      stack = e.stack;
+    }
+    assertEquals(interpreted_before + 2, % WasmNumInterpretedCalls(instance));
+    checkStack(stripPath(stack), [
+      'RuntimeError: unreachable',                    // -
+      '    at foo (<WASM>[0]+3)',                     // -
+      '    at main (<WASM>[1]+2)',                    // -
+      /^    at testTrap \(interpreter.js:\d+:24\)$/,  // -
+      /^    at interpreter.js:\d+:3$/
+    ]);
+  }
+})();

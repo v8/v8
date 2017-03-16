@@ -1059,6 +1059,8 @@ class ThreadImpl {
     return stack_[index];
   }
 
+  TrapReason GetTrapReason() { return trap_reason_; }
+
   pc_t GetBreakpointPc() { return break_pc_; }
 
   bool PossibleNondeterminism() { return possible_nondeterminism_; }
@@ -1912,6 +1914,9 @@ InterpretedFrame WasmInterpreter::Thread::GetMutableFrame(int index) {
 }
 WasmVal WasmInterpreter::Thread::GetReturnValue(int index) {
   return ToImpl(this)->GetReturnValue(index);
+}
+TrapReason WasmInterpreter::Thread::GetTrapReason() {
+  return ToImpl(this)->GetTrapReason();
 }
 bool WasmInterpreter::Thread::PossibleNondeterminism() {
   return ToImpl(this)->PossibleNondeterminism();

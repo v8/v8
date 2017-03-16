@@ -148,6 +148,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     const InterpretedFrame GetFrame(int index);
     InterpretedFrame GetMutableFrame(int index);
     WasmVal GetReturnValue(int index = 0);
+    TrapReason GetTrapReason();
 
     // Returns true if the thread executed an instruction which may produce
     // nondeterministic results, e.g. float div, float sqrt, and float mul,

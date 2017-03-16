@@ -125,7 +125,7 @@ class InterpreterHandle {
     return interpreter()->GetThread(0)->GetFrameCount();
   }
 
-  void Execute(uint32_t func_index, uint8_t* arg_buffer) {
+  bool Execute(uint32_t func_index, uint8_t* arg_buffer) {
     DCHECK_GE(module()->functions.size(), func_index);
     FunctionSig* sig = module()->functions[func_index].sig;
     DCHECK_GE(kMaxInt, sig->parameter_count());
@@ -155,7 +155,8 @@ class InterpreterHandle {
     // We do not support reentering an already running interpreter at the moment
     // (like INTERPRETER -> JS -> WASM -> INTERPRETER).
     DCHECK(thread->state() == WasmInterpreter::STOPPED ||
-           thread->state() == WasmInterpreter::FINISHED);
+           thread->state() == WasmInterpreter::FINISHED ||
+           thread->state() == WasmInterpreter::TRAPPED);
     thread->Reset();
     thread->InitFrame(&module()->functions[func_index], wasm_args.start());
     bool finished = false;
@@ -170,10 +171,15 @@ class InterpreterHandle {
           // Perfect, just break the switch and exit the loop.
           finished = true;
           break;
-        case WasmInterpreter::State::TRAPPED:
-          // TODO(clemensh): Generate appropriate JS exception.
-          UNIMPLEMENTED();
-          break;
+        case WasmInterpreter::State::TRAPPED: {
+          int message_id =
+              WasmOpcodes::TrapReasonToMessageId(thread->GetTrapReason());
+          Handle<Object> exception = isolate_->factory()->NewWasmRuntimeError(
+              static_cast<MessageTemplate::Template>(message_id));
+          isolate_->Throw(*exception);
+          // And hard exit the execution.
+          return false;
+        } break;
         // STOPPED and RUNNING should never occur here.
         case WasmInterpreter::State::STOPPED:
         case WasmInterpreter::State::RUNNING:
@@ -203,6 +209,7 @@ class InterpreterHandle {
           UNREACHABLE();
       }
     }
+    return true;
   }
 
   WasmInterpreter::State ContinueExecution(WasmInterpreter::Thread* thread) {
@@ -474,10 +481,10 @@ void WasmDebugInfo::PrepareStep(StepAction step_action) {
   GetInterpreterHandle(this)->PrepareStep(step_action);
 }
 
-void WasmDebugInfo::RunInterpreter(int func_index, uint8_t* arg_buffer) {
+bool WasmDebugInfo::RunInterpreter(int func_index, uint8_t* arg_buffer) {
   DCHECK_LE(0, func_index);
-  GetInterpreterHandle(this)->Execute(static_cast<uint32_t>(func_index),
-                                      arg_buffer);
+  return GetInterpreterHandle(this)->Execute(static_cast<uint32_t>(func_index),
+                                             arg_buffer);
 }
 
 std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(
