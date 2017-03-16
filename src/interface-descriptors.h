@@ -647,9 +647,15 @@ class CallConstructDescriptor : public CallInterfaceDescriptor {
 
 class RegExpExecDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kRegExpObject, kString, kPreviousIndex, kLastMatchInfo)
-  DECLARE_DESCRIPTOR_WITH_STACK_ARGS(RegExpExecDescriptor,
-                                     CallInterfaceDescriptor)
+  DEFINE_PARAMETERS(kString, kLastIndex, kStringStart, kStringEnd, kCode)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(RegExpExecDescriptor,
+                                               CallInterfaceDescriptor)
+
+  static const Register StringRegister();
+  static const Register LastIndexRegister();
+  static const Register StringStartRegister();
+  static const Register StringEndRegister();
+  static const Register CodeRegister();
 };
 
 class RegExpReplaceDescriptor : public CallInterfaceDescriptor {

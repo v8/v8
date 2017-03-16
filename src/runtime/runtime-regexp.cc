@@ -1655,7 +1655,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
 
 RUNTIME_FUNCTION(Runtime_RegExpExecReThrow) {
   SealHandleScope shs(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(0, args.length());
   Object* exception = isolate->pending_exception();
   isolate->clear_pending_exception();
   return isolate->ReThrow(exception);

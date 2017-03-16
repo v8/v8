@@ -215,6 +215,285 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   return result;
 }
 
+void RegExpBuiltinsAssembler::GetStringPointers(
+    Node* const string, Node* const offset, Node* const last_index,
+    Node* const string_length, bool is_one_byte, Variable* var_string_start,
+    Variable* var_string_end) {
+  DCHECK_EQ(var_string_start->rep(), MachineType::PointerRepresentation());
+  DCHECK_EQ(var_string_end->rep(), MachineType::PointerRepresentation());
+
+  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  const int kHeaderSize = SeqOneByteString::kHeaderSize - kHeapObjectTag;
+  const ElementsKind kind = is_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
+
+  Node* const from_offset = ElementOffsetFromIndex(
+      IntPtrAdd(offset, last_index), kind, INTPTR_PARAMETERS, kHeaderSize);
+  var_string_start->Bind(IntPtrAdd(string, from_offset));
+
+  Node* const to_offset = ElementOffsetFromIndex(
+      IntPtrAdd(offset, string_length), kind, INTPTR_PARAMETERS, kHeaderSize);
+  var_string_end->Bind(IntPtrAdd(string, to_offset));
+}
+
+Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
+                                            Node* const regexp,
+                                            Node* const string,
+                                            Node* const last_index,
+                                            Node* const match_info) {
+// Just jump directly to runtime if native RegExp is not selected at compile
+// time or if regexp entry in generated code is turned off runtime switch or
+// at compilation.
+#ifdef V8_INTERPRETED_REGEXP
+  return CallRuntime(Runtime::kRegExpExec, context, regexp, string, last_index,
+                     match_info);
+#else   // V8_INTERPRETED_REGEXP
+  CSA_ASSERT(this, TaggedIsNotSmi(regexp));
+  CSA_ASSERT(this, HasInstanceType(regexp, JS_REGEXP_TYPE));
+
+  CSA_ASSERT(this, TaggedIsNotSmi(string));
+  CSA_ASSERT(this, IsString(string));
+
+  CSA_ASSERT(this, IsHeapNumberMap(LoadReceiverMap(last_index)));
+  CSA_ASSERT(this, IsFixedArrayMap(LoadReceiverMap(match_info)));
+
+  Node* const int_zero = IntPtrConstant(0);
+
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Variable var_string(this, MachineType::PointerRepresentation(), int_zero);
+  Variable var_string_offset(this, MachineType::PointerRepresentation(),
+                             int_zero);
+  Variable var_string_instance_type(this, MachineRepresentation::kWord32,
+                                    Int32Constant(0));
+
+  Label out(this), runtime(this, Label::kDeferred);
+
+  // External constants.
+  Node* const regexp_stack_memory_size_address = ExternalConstant(
+      ExternalReference::address_of_regexp_stack_memory_size(isolate()));
+  Node* const static_offsets_vector_address = ExternalConstant(
+      ExternalReference::address_of_static_offsets_vector(isolate()));
+  Node* const pending_exception_address = ExternalConstant(
+      ExternalReference(Isolate::kPendingExceptionAddress, isolate()));
+
+  // Ensure that a RegExp stack is allocated.
+  {
+    Node* const stack_size =
+        Load(MachineType::IntPtr(), regexp_stack_memory_size_address);
+    GotoIf(IntPtrEqual(stack_size, int_zero), &runtime);
+  }
+
+  Node* const data = LoadObjectField(regexp, JSRegExp::kDataOffset);
+  {
+    // Check that the RegExp has been compiled (data contains a fixed array).
+    CSA_ASSERT(this, TaggedIsNotSmi(data));
+    CSA_ASSERT(this, HasInstanceType(data, FIXED_ARRAY_TYPE));
+
+    // Check the type of the RegExp. Only continue if type is
+    // JSRegExp::IRREGEXP.
+    Node* const tag = LoadFixedArrayElement(data, JSRegExp::kTagIndex);
+    GotoIfNot(SmiEqual(tag, SmiConstant(JSRegExp::IRREGEXP)), &runtime);
+
+    // Check (number_of_captures + 1) * 2 <= offsets vector size
+    // Or              number_of_captures <= offsets vector size / 2 - 1
+    Node* const capture_count =
+        LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureCountIndex);
+    CSA_ASSERT(this, TaggedIsSmi(capture_count));
+
+    STATIC_ASSERT(Isolate::kJSRegexpStaticOffsetsVectorSize >= 2);
+    GotoIf(SmiAbove(
+               capture_count,
+               SmiConstant(Isolate::kJSRegexpStaticOffsetsVectorSize / 2 - 1)),
+           &runtime);
+  }
+
+  // Unpack the string if possible.
+
+  var_string.Bind(BitcastTaggedToWord(string));
+  var_string_offset.Bind(int_zero);
+  var_string_instance_type.Bind(LoadInstanceType(string));
+
+  {
+    TryUnpackString(&var_string, &var_string_offset, &var_string_instance_type,
+                    &runtime);
+
+    // At this point, {var_string} may contain a faked sequential string (i.e.
+    // an external string with an adjusted offset) so we cannot assert
+    // IsString({var_string}). We also cannot allocate after this point since
+    // GC could move {var_string}'s underlying string.
+  }
+
+  Node* const smi_string_length = LoadStringLength(string);
+
+  // Bail out to runtime for invalid {last_index} values.
+  GotoIfNot(TaggedIsSmi(last_index), &runtime);
+  GotoIf(SmiAboveOrEqual(last_index, smi_string_length), &runtime);
+
+  // Load the irregexp code object and offsets into the subject string. Both
+  // depend on whether the string is one- or two-byte.
+
+  Node* const int_last_index = SmiUntag(last_index);
+
+  Variable var_string_start(this, MachineType::PointerRepresentation());
+  Variable var_string_end(this, MachineType::PointerRepresentation());
+  Variable var_code(this, MachineRepresentation::kTagged);
+
+  {
+    Node* const int_string_length = SmiUntag(smi_string_length);
+
+    Node* const string_instance_type = var_string_instance_type.value();
+    CSA_ASSERT(this, IsSequentialStringInstanceType(string_instance_type));
+
+    Label next(this), if_isonebyte(this), if_istwobyte(this, Label::kDeferred);
+    Branch(IsOneByteStringInstanceType(string_instance_type), &if_isonebyte,
+           &if_istwobyte);
+
+    Bind(&if_isonebyte);
+    {
+      const bool kIsOneByte = true;
+      GetStringPointers(var_string.value(), var_string_offset.value(),
+                        int_last_index, int_string_length, kIsOneByte,
+                        &var_string_start, &var_string_end);
+      var_code.Bind(
+          LoadFixedArrayElement(data, JSRegExp::kIrregexpLatin1CodeIndex));
+      Goto(&next);
+    }
+
+    Bind(&if_istwobyte);
+    {
+      const bool kIsOneByte = false;
+      GetStringPointers(var_string.value(), var_string_offset.value(),
+                        int_last_index, int_string_length, kIsOneByte,
+                        &var_string_start, &var_string_end);
+      var_code.Bind(
+          LoadFixedArrayElement(data, JSRegExp::kIrregexpUC16CodeIndex));
+      Goto(&next);
+    }
+
+    Bind(&next);
+  }
+
+  // Check that the irregexp code has been generated for the actual string
+  // encoding. If it has, the field contains a code object otherwise it contains
+  // smi (code flushing support).
+
+  Node* const code = var_code.value();
+  GotoIf(TaggedIsSmi(code), &runtime);
+  CSA_ASSERT(this, HasInstanceType(code, CODE_TYPE));
+
+  Label if_success(this), if_failure(this),
+      if_exception(this, Label::kDeferred);
+  {
+    IncrementCounter(isolate()->counters()->regexp_entry_native(), 1);
+
+    Callable exec_callable = CodeFactory::RegExpExec(isolate());
+    Node* const result = CallStub(
+        exec_callable, context, string, TruncateWordToWord32(int_last_index),
+        var_string_start.value(), var_string_end.value(), code);
+
+    // Check the result.
+    // We expect exactly one result since the stub forces the called regexp to
+    // behave as non-global.
+    GotoIf(SmiEqual(result, SmiConstant(1)), &if_success);
+    GotoIf(SmiEqual(result, SmiConstant(NativeRegExpMacroAssembler::FAILURE)),
+           &if_failure);
+    GotoIf(SmiEqual(result, SmiConstant(NativeRegExpMacroAssembler::EXCEPTION)),
+           &if_exception);
+
+    CSA_ASSERT(
+        this, SmiEqual(result, SmiConstant(NativeRegExpMacroAssembler::RETRY)));
+    Goto(&runtime);
+  }
+
+  Bind(&if_success);
+  {
+    // Check that the last match info has space for the capture registers and
+    // the additional information. Ensure no overflow in add.
+    STATIC_ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
+    Node* const available_slots =
+        SmiSub(LoadFixedArrayBaseLength(match_info),
+               SmiConstant(RegExpMatchInfo::kLastMatchOverhead));
+    Node* const capture_count =
+        LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureCountIndex);
+    // Calculate number of register_count = (capture_count + 1) * 2.
+    Node* const register_count =
+        SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
+    GotoIf(SmiGreaterThan(register_count, available_slots), &runtime);
+
+    // Fill match_info.
+
+    StoreFixedArrayElement(match_info, RegExpMatchInfo::kNumberOfCapturesIndex,
+                           register_count, SKIP_WRITE_BARRIER);
+    StoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
+                           string);
+    StoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
+                           string);
+
+    // Fill match and capture offsets in match_info.
+    {
+      Node* const limit_offset = ElementOffsetFromIndex(
+          register_count, INT32_ELEMENTS, SMI_PARAMETERS, 0);
+
+      Node* const to_offset = ElementOffsetFromIndex(
+          IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), FAST_ELEMENTS,
+          INTPTR_PARAMETERS, RegExpMatchInfo::kHeaderSize - kHeapObjectTag);
+      Variable var_to_offset(this, MachineType::PointerRepresentation(),
+                             to_offset);
+
+      VariableList vars({&var_to_offset}, zone());
+      BuildFastLoop(
+          vars, int_zero, limit_offset,
+          [=, &var_to_offset](Node* offset) {
+            Node* const value = Load(MachineType::Int32(),
+                                     static_offsets_vector_address, offset);
+            Node* const smi_value = SmiFromWord32(value);
+            StoreNoWriteBarrier(MachineRepresentation::kTagged, match_info,
+                                var_to_offset.value(), smi_value);
+            Increment(var_to_offset, kPointerSize);
+          },
+          kInt32Size, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+    }
+
+    var_result.Bind(match_info);
+    Goto(&out);
+  }
+
+  Bind(&if_failure);
+  {
+    var_result.Bind(NullConstant());
+    Goto(&out);
+  }
+
+  Bind(&if_exception);
+  {
+    Node* const pending_exception =
+        Load(MachineType::AnyTagged(), pending_exception_address);
+
+    // If there is no pending exception, a
+    // stack overflow (on the backtrack stack) was detected in RegExp code.
+
+    Label stack_overflow(this), rethrow(this);
+    Branch(IsTheHole(pending_exception), &stack_overflow, &rethrow);
+
+    Bind(&stack_overflow);
+    TailCallRuntime(Runtime::kThrowStackOverflow, context);
+
+    Bind(&rethrow);
+    TailCallRuntime(Runtime::kRegExpExecReThrow, context);
+  }
+
+  Bind(&runtime);
+  {
+    Node* const result = CallRuntime(Runtime::kRegExpExec, context, regexp,
+                                     string, last_index, match_info);
+    var_result.Bind(result);
+    Goto(&out);
+  }
+
+  Bind(&out);
+  return var_result.value();
+#endif  // V8_INTERPRETED_REGEXP
+}
+
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 // Implements the core of RegExp.prototype.exec but without actually
@@ -311,9 +590,8 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
         native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
     // Call the exec stub.
-    Callable exec_callable = CodeFactory::RegExpExec(isolate);
-    match_indices = CallStub(exec_callable, context, regexp, string,
-                             var_lastindex.value(), last_match_info);
+    match_indices = IrregexpExec(context, regexp, string, var_lastindex.value(),
+                                 last_match_info);
     var_result.Bind(match_indices);
 
     // {match_indices} is either null or the RegExpMatchInfo array.
@@ -1810,8 +2088,6 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
                                                        Node* const regexp,
                                                        Node* const string,
                                                        Node* const limit) {
-  Isolate* isolate = this->isolate();
-
   Node* const null = NullConstant();
   Node* const smi_zero = SmiConstant(0);
   Node* const int_zero = IntPtrConstant(0);
@@ -1846,9 +2122,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
       Node* const last_match_info = LoadContextElement(
           native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
-      Callable exec_callable = CodeFactory::RegExpExec(isolate);
-      Node* const match_indices = CallStub(exec_callable, context, regexp,
-                                           string, smi_zero, last_match_info);
+      Node* const match_indices =
+          IrregexpExec(context, regexp, string, smi_zero, last_match_info);
 
       Label return_singleton_array(this);
       Branch(WordEqual(match_indices, null), &return_singleton_array,
@@ -1906,9 +2181,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     Node* const last_match_info = LoadContextElement(
         native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
-    Callable exec_callable = CodeFactory::RegExpExec(isolate);
-    Node* const match_indices = CallStub(exec_callable, context, regexp, string,
-                                         next_search_from, last_match_info);
+    Node* const match_indices = IrregexpExec(context, regexp, string,
+                                             next_search_from, last_match_info);
 
     // We're done if no match was found.
     {
@@ -2555,9 +2829,8 @@ TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
   Node* const internal_match_info = LoadContextElement(
       native_context, Context::REGEXP_INTERNAL_MATCH_INFO_INDEX);
 
-  Callable exec_callable = CodeFactory::RegExpExec(isolate());
-  Node* const match_indices = CallStub(exec_callable, context, regexp, string,
-                                       smi_zero, internal_match_info);
+  Node* const match_indices =
+      IrregexpExec(context, regexp, string, smi_zero, internal_match_info);
 
   Label if_matched(this), if_didnotmatch(this);
   Branch(WordEqual(match_indices, null), &if_didnotmatch, &if_matched);

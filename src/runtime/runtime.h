@@ -471,7 +471,7 @@ namespace internal {
   F(RegExpCreate, 1, 1)                             \
   F(RegExpExec, 4, 1)                               \
   F(RegExpExecMultiple, 4, 1)                       \
-  F(RegExpExecReThrow, 4, 1)                        \
+  F(RegExpExecReThrow, 0, 1)                        \
   F(RegExpInitializeAndCompile, 3, 1)               \
   F(RegExpInternalReplace, 3, 1)                    \
   F(RegExpReplace, 3, 1)                            \

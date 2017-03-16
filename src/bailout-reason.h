@@ -239,8 +239,7 @@ namespace internal {
   V(kUnexpectedStringType, "Unexpected string type")                           \
   V(kUnexpectedTestTypeofLiteralFlag,                                          \
     "Unexpected literal flag for TestTypeof bytecode")                         \
-  V(kUnexpectedTypeForRegExpDataFixedArrayExpected,                            \
-    "Unexpected type for RegExp data, FixedArray expected")                    \
+  V(kUnexpectedRegExpExecCall, "Unexpected call to the RegExpExecStub")        \
   V(kUnexpectedValue, "Unexpected value")                                      \
   V(kUnsupportedDoubleImmediate, "Unsupported double immediate")               \
   V(kUnsupportedLetCompoundAssignment, "Unsupported let compound assignment")  \

@@ -691,6 +691,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsSpecialReceiverMap(Node* map);
   Node* IsSpecialReceiverInstanceType(Node* instance_type);
   Node* IsStringInstanceType(Node* instance_type);
+  Node* IsOneByteStringInstanceType(Node* instance_type);
+  Node* IsSequentialStringInstanceType(Node* instance_type);
   Node* IsString(Node* object);
   Node* IsJSObject(Node* object);
   Node* IsJSGlobalProxy(Node* object);
@@ -735,6 +737,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Return a new string object produced by concatenating |first| with |second|.
   Node* StringAdd(Node* context, Node* first, Node* second,
                   AllocationFlags flags = kNone);
+
+  // Tries to unpack |string| into a pseudo-sequential string. For instance,
+  // In addition to the work done by TryDerefExternalString and
+  // MaybeDerefIndirectString, this method can also unpack sliced strings into
+  // a (string, offset) pair. The same GC restrictions on the returned string
+  // value apply as for TryDerefExternalString.
+  void TryUnpackString(Variable* var_string, Variable* var_offset,
+                       Variable* var_instance_type, Label* if_bailout);
 
   // Unpack the external string, returning a pointer that (offset-wise) looks
   // like a sequential string.

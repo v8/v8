@@ -8593,16 +8593,6 @@ class JSRegExp: public JSObject {
 
   static const int kIrregexpDataSize = kIrregexpCaptureNameMapIndex + 1;
 
-  // Offsets directly into the data fixed array.
-  static const int kDataTagOffset =
-      FixedArray::kHeaderSize + kTagIndex * kPointerSize;
-  static const int kDataOneByteCodeOffset =
-      FixedArray::kHeaderSize + kIrregexpLatin1CodeIndex * kPointerSize;
-  static const int kDataUC16CodeOffset =
-      FixedArray::kHeaderSize + kIrregexpUC16CodeIndex * kPointerSize;
-  static const int kIrregexpCaptureCountOffset =
-      FixedArray::kHeaderSize + kIrregexpCaptureCountIndex * kPointerSize;
-
   // In-object fields.
   static const int kLastIndexFieldIndex = 0;
   static const int kInObjectFieldCount = 1;

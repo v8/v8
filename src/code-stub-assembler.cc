@@ -2890,6 +2890,20 @@ Node* CodeStubAssembler::IsStringInstanceType(Node* instance_type) {
   return Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE));
 }
 
+Node* CodeStubAssembler::IsOneByteStringInstanceType(Node* instance_type) {
+  CSA_ASSERT(this, IsStringInstanceType(instance_type));
+  return Word32Equal(
+      Word32And(instance_type, Int32Constant(kStringEncodingMask)),
+      Int32Constant(kOneByteStringTag));
+}
+
+Node* CodeStubAssembler::IsSequentialStringInstanceType(Node* instance_type) {
+  CSA_ASSERT(this, IsStringInstanceType(instance_type));
+  return Word32Equal(
+      Word32And(instance_type, Int32Constant(kStringRepresentationMask)),
+      Int32Constant(kSeqStringTag));
+}
+
 Node* CodeStubAssembler::IsJSReceiverInstanceType(Node* instance_type) {
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   return Int32GreaterThanOrEqual(instance_type,
@@ -3255,18 +3269,16 @@ Node* AllocAndCopyStringCharacters(CodeStubAssembler* a, Node* context,
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
 
-  Label end(a), two_byte_sequential(a);
+  Label end(a), one_byte_sequential(a), two_byte_sequential(a);
   Variable var_result(a, MachineRepresentation::kTagged);
 
   Node* const smi_zero = a->SmiConstant(Smi::kZero);
 
-  STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
-  a->GotoIf(a->Word32Equal(a->Word32And(from_instance_type,
-                                        a->Int32Constant(kStringEncodingMask)),
-                           a->Int32Constant(0)),
-            &two_byte_sequential);
+  a->Branch(a->IsOneByteStringInstanceType(from_instance_type),
+            &one_byte_sequential, &two_byte_sequential);
 
   // The subject string is a sequential one-byte string.
+  a->Bind(&one_byte_sequential);
   {
     Node* result =
         a->AllocateSeqOneByteString(context, a->SmiToWord(character_count));
@@ -3550,6 +3562,109 @@ Node* IsShortExternalStringInstanceType(CodeStubAssembler* a,
 }
 
 }  // namespace
+
+void CodeStubAssembler::TryUnpackString(Variable* var_string,
+                                        Variable* var_offset,
+                                        Variable* var_instance_type,
+                                        Label* if_bailout) {
+  DCHECK_EQ(var_string->rep(), MachineType::PointerRepresentation());
+  DCHECK_EQ(var_offset->rep(), MachineType::PointerRepresentation());
+  DCHECK_EQ(var_instance_type->rep(), MachineRepresentation::kWord32);
+  CSA_ASSERT(this, IsString(var_string->value()));
+
+  Label out(this);
+
+  VariableList vars({var_string, var_offset, var_instance_type}, zone());
+  Label dispatch(this, vars);
+  Label if_isdirect(this);
+  Label if_iscons(this, Label::kDeferred);
+  Label if_isexternal(this, Label::kDeferred);
+  Label if_issliced(this, Label::kDeferred);
+  Label if_isthin(this, Label::kDeferred);
+
+  Goto(&dispatch);
+
+  // Dispatch based on string representation.
+  Bind(&dispatch);
+  {
+    int32_t values[] = {
+        kSeqStringTag,    kConsStringTag, kExternalStringTag,
+        kSlicedStringTag, kThinStringTag,
+    };
+    Label* labels[] = {
+        &if_isdirect, &if_iscons, &if_isexternal, &if_issliced, &if_isthin,
+    };
+    STATIC_ASSERT(arraysize(values) == arraysize(labels));
+
+    Node* const representation = Word32And(
+        var_instance_type->value(), Int32Constant(kStringRepresentationMask));
+    Switch(representation, if_bailout, values, labels, arraysize(values));
+  }
+
+  // Cons string.  Check whether it is flat, then fetch first part.
+  // Flat cons strings have an empty second part.
+  Bind(&if_iscons);
+  {
+    Node* const string = var_string->value();
+    GotoIfNot(IsEmptyString(LoadObjectField(string, ConsString::kSecondOffset)),
+              if_bailout);
+
+    Node* const lhs = LoadObjectField(string, ConsString::kFirstOffset);
+    var_string->Bind(BitcastTaggedToWord(lhs));
+    var_instance_type->Bind(LoadInstanceType(lhs));
+
+    Goto(&dispatch);
+  }
+
+  // Sliced string. Fetch parent and correct start index by offset.
+  Bind(&if_issliced);
+  {
+    Node* const string = var_string->value();
+    Node* const sliced_offset =
+        LoadObjectField(string, SlicedString::kOffsetOffset);
+    var_offset->Bind(IntPtrAdd(var_offset->value(), SmiUntag(sliced_offset)));
+
+    Node* const parent = LoadObjectField(string, SlicedString::kParentOffset);
+    var_string->Bind(BitcastTaggedToWord(parent));
+    var_instance_type->Bind(LoadInstanceType(parent));
+
+    Goto(&dispatch);
+  }
+
+  // Thin string. Fetch the actual string.
+  Bind(&if_isthin);
+  {
+    Node* const string = var_string->value();
+    Node* const actual_string =
+        LoadObjectField(string, ThinString::kActualOffset);
+    Node* const actual_instance_type = LoadInstanceType(actual_string);
+
+    var_string->Bind(BitcastTaggedToWord(actual_string));
+    var_instance_type->Bind(actual_instance_type);
+
+    Goto(&dispatch);
+  }
+
+  // External string.
+  Bind(&if_isexternal);
+  {
+    Node* const string = var_string->value();
+    Node* const faked_seq_string =
+        TryDerefExternalString(string, var_instance_type->value(), if_bailout);
+
+    STATIC_ASSERT(kSeqStringTag == 0x0);
+    Node* const faked_seq_instance_type = Word32Xor(
+        var_instance_type->value(), Int32Constant(kExternalStringTag));
+    CSA_ASSERT(this, IsSequentialStringInstanceType(faked_seq_instance_type));
+
+    var_string->Bind(faked_seq_string);
+    var_instance_type->Bind(faked_seq_instance_type);
+
+    Goto(&if_isdirect);
+  }
+
+  Bind(&if_isdirect);
+}
 
 Node* CodeStubAssembler::TryDerefExternalString(Node* const string,
                                                 Node* const instance_type,
@@ -5618,23 +5733,10 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
 }
 
 Node* CodeStubAssembler::LoadReceiverMap(Node* receiver) {
-  Variable var_receiver_map(this, MachineRepresentation::kTagged);
-  Label load_smi_map(this, Label::kDeferred), load_receiver_map(this),
-      if_result(this);
-
-  Branch(TaggedIsSmi(receiver), &load_smi_map, &load_receiver_map);
-  Bind(&load_smi_map);
-  {
-    var_receiver_map.Bind(LoadRoot(Heap::kHeapNumberMapRootIndex));
-    Goto(&if_result);
-  }
-  Bind(&load_receiver_map);
-  {
-    var_receiver_map.Bind(LoadMap(receiver));
-    Goto(&if_result);
-  }
-  Bind(&if_result);
-  return var_receiver_map.value();
+  return Select(TaggedIsSmi(receiver),
+                [=] { return LoadRoot(Heap::kHeapNumberMapRootIndex); },
+                [=] { return LoadMap(receiver); },
+                MachineRepresentation::kTagged);
 }
 
 Node* CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {

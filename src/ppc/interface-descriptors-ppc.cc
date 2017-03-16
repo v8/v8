@@ -52,11 +52,15 @@ const Register ApiGetterDescriptor::CallbackRegister() { return r6; }
 
 const Register MathPowTaggedDescriptor::exponent() { return r5; }
 
-
 const Register MathPowIntegerDescriptor::exponent() {
   return MathPowTaggedDescriptor::exponent();
 }
 
+const Register RegExpExecDescriptor::StringRegister() { return r3; }
+const Register RegExpExecDescriptor::LastIndexRegister() { return r4; }
+const Register RegExpExecDescriptor::StringStartRegister() { return r5; }
+const Register RegExpExecDescriptor::StringEndRegister() { return r6; }
+const Register RegExpExecDescriptor::CodeRegister() { return r17; }
 
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return r3; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return r6; }
