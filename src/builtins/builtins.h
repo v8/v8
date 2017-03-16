@@ -277,6 +277,9 @@ class Isolate;
   CPP(ArraySlice)                                                              \
   CPP(ArraySplice)                                                             \
   CPP(ArrayUnshift)                                                            \
+  TFJ(ArrayForEachLoopContinuation, 6)                                         \
+  TFJ(ArrayEveryLoopContinuation, 6)                                           \
+  TFJ(ArraySomeLoopContinuation, 6)                                            \
   TFJ(ArrayForEach, 2)                                                         \
   TFJ(ArrayEvery, 2)                                                           \
   TFJ(ArraySome, 2)                                                            \

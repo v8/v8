@@ -31,6 +31,9 @@
 #define REPEAT_1_TO_7(V, T) REPEAT_1_TO_6(V, T) V(T, T, T, T, T, T, T)
 #define REPEAT_1_TO_8(V, T) REPEAT_1_TO_7(V, T) V(T, T, T, T, T, T, T, T)
 #define REPEAT_1_TO_9(V, T) REPEAT_1_TO_8(V, T) V(T, T, T, T, T, T, T, T, T)
+#define REPEAT_1_TO_10(V, T) REPEAT_1_TO_9(V, T) V(T, T, T, T, T, T, T, T, T, T)
+#define REPEAT_1_TO_11(V, T) \
+  REPEAT_1_TO_10(V, T) V(T, T, T, T, T, T, T, T, T, T, T)
 
 namespace v8 {
 namespace internal {
@@ -532,7 +535,7 @@ Node* CodeAssembler::CallRuntime(Runtime::FunctionId function, Node* context,
   return return_value;
 }
 
-// Instantiate CallRuntime() with up to 6 arguments.
+// Instantiate CallRuntime() for argument counts used by CSA-generated code
 #define INSTANTIATE(...)                                       \
   template V8_EXPORT_PRIVATE Node* CodeAssembler::CallRuntime( \
       Runtime::FunctionId, __VA_ARGS__);
@@ -558,7 +561,7 @@ Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function,
   return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
 }
 
-// Instantiate TailCallRuntime() with up to 6 arguments.
+// Instantiate TailCallRuntime() for argument counts used by CSA-generated code
 #define INSTANTIATE(...)                                           \
   template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallRuntime( \
       Runtime::FunctionId, __VA_ARGS__);
@@ -573,7 +576,7 @@ Node* CodeAssembler::CallStubR(const CallInterfaceDescriptor& descriptor,
   return CallStubN(descriptor, result_size, arraysize(nodes), nodes);
 }
 
-// Instantiate CallStubR() with up to 6 arguments.
+// Instantiate CallStubR() for argument counts used by CSA-generated code.
 #define INSTANTIATE(...)                                     \
   template V8_EXPORT_PRIVATE Node* CodeAssembler::CallStubR( \
       const CallInterfaceDescriptor& descriptor, size_t, Node*, __VA_ARGS__);
@@ -612,15 +615,15 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
       MachineType::AnyTagged(), result_size);
 
   Node* nodes[] = {target, args..., context};
-
+  CHECK_EQ(descriptor.GetParameterCount() + 2, arraysize(nodes));
   return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
 }
 
-// Instantiate TailCallStub() with up to 6 arguments.
+// Instantiate TailCallStub() for argument counts used by CSA-generated code
 #define INSTANTIATE(...)                                        \
   template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallStub( \
       const CallInterfaceDescriptor& descriptor, Node*, __VA_ARGS__);
-REPEAT_1_TO_7(INSTANTIATE, Node*)
+REPEAT_1_TO_11(INSTANTIATE, Node*)
 #undef INSTANTIATE
 
 template <class... TArgs>
@@ -631,10 +634,12 @@ Node* CodeAssembler::TailCallBytecodeDispatch(
       isolate(), zone(), descriptor, descriptor.GetStackParameterCount());
 
   Node* nodes[] = {target, args...};
+  CHECK_EQ(descriptor.GetParameterCount() + 1, arraysize(nodes));
   return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
 }
 
-// Instantiate TailCallBytecodeDispatch() with 4 arguments.
+// Instantiate TailCallBytecodeDispatch() for argument counts used by
+// CSA-generated code
 template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
     const CallInterfaceDescriptor& descriptor, Node* target, Node*, Node*,
     Node*, Node*);

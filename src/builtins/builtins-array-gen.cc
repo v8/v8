@@ -18,10 +18,16 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   typedef std::function<void(Node* a, Node* pK, Node* value)>
       CallResultProcessor;
 
-  void GenerateArrayIteratingBuiltinBody(
-      const char* name, Node* receiver, Node* callbackfn, Node* this_arg,
-      Node* context, const BuiltinResultGenerator& generator,
-      const CallResultProcessor& processor) {
+  void GenerateIteratingArrayBuiltinBody(
+      const char* name, const BuiltinResultGenerator& generator,
+      const CallResultProcessor& processor,
+      const Callable& slow_case_continuation) {
+    Node* receiver = Parameter(IteratingArrayBuiltinDescriptor::kReceiver);
+    Node* callbackfn = Parameter(IteratingArrayBuiltinDescriptor::kCallback);
+    Node* this_arg = Parameter(IteratingArrayBuiltinDescriptor::kThisArg);
+    Node* context = Parameter(IteratingArrayBuiltinDescriptor::kContext);
+    Node* new_target = Parameter(IteratingArrayBuiltinDescriptor::kNewTarget);
+
     Variable k(this, MachineRepresentation::kTagged, SmiConstant(0));
     Label non_array(this), slow(this, &k), array_changes(this, &k);
 
@@ -91,47 +97,89 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     // Already done above in initialization of the Variable k
 
     Bind(&slow);
+
+    Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                                 MachineType::TaggedPointer());
+    TailCallStub(
+        slow_case_continuation, context, target, new_target,
+        Int32Constant(IteratingArrayBuiltinLoopContinuationDescriptor::kArity),
+        receiver, callbackfn, this_arg, a, o, k.value(), len);
+  }
+
+  void GenerateIteratingArrayBuiltinLoopContinuation(
+      const CallResultProcessor& processor) {
+    Node* callbackfn =
+        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kCallback);
+    Node* this_arg =
+        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kThisArg);
+    Node* a =
+        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kArray);
+    Node* o =
+        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kObject);
+    Node* initial_k =
+        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kInitialK);
+    Node* len =
+        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kLength);
+    Node* context =
+        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kContext);
+
+    // 8. Repeat, while k < len
+    Variable k(this, MachineRepresentation::kTagged, initial_k);
+    Label loop(this, &k);
+    Label after_loop(this);
+    Goto(&loop);
+    Bind(&loop);
     {
-      // 8. Repeat, while k < len
-      Label loop(this, &k);
-      Label after_loop(this);
+      GotoUnlessNumberLessThan(k.value(), len, &after_loop);
+
+      Label done_element(this);
+      // a. Let Pk be ToString(k).
+      Node* p_k = ToString(context, k.value());
+
+      // b. Let kPresent be HasProperty(O, Pk).
+      // c. ReturnIfAbrupt(kPresent).
+      Node* k_present = HasProperty(o, p_k, context);
+
+      // d. If kPresent is true, then
+      GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);
+
+      // i. Let kValue be Get(O, Pk).
+      // ii. ReturnIfAbrupt(kValue).
+      Node* k_value = GetProperty(context, o, k.value());
+
+      // iii. Let funcResult be Call(callbackfn, T, «kValue, k, O»).
+      // iv. ReturnIfAbrupt(funcResult).
+      Node* result = CallJS(CodeFactory::Call(isolate()), context, callbackfn,
+                            this_arg, k_value, k.value(), o);
+
+      processor(a, p_k, result);
+      Goto(&done_element);
+      Bind(&done_element);
+
+      // e. Increase k by 1.
+      k.Bind(NumberInc(k.value()));
       Goto(&loop);
-      Bind(&loop);
-      {
-        GotoUnlessNumberLessThan(k.value(), len, &after_loop);
-
-        Label done_element(this);
-        // a. Let Pk be ToString(k).
-        Node* p_k = ToString(context, k.value());
-
-        // b. Let kPresent be HasProperty(O, Pk).
-        // c. ReturnIfAbrupt(kPresent).
-        Node* k_present =
-            CallStub(CodeFactory::HasProperty(isolate()), context, p_k, o);
-
-        // d. If kPresent is true, then
-        GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);
-
-        // i. Let kValue be Get(O, Pk).
-        // ii. ReturnIfAbrupt(kValue).
-        Node* k_value = GetProperty(context, o, k.value());
-
-        // iii. Let funcResult be Call(callbackfn, T, «kValue, k, O»).
-        // iv. ReturnIfAbrupt(funcResult).
-        Node* result = CallJS(CodeFactory::Call(isolate()), context, callbackfn,
-                              this_arg, k_value, k.value(), o);
-
-        processor(a, p_k, result);
-        Goto(&done_element);
-        Bind(&done_element);
-
-        // e. Increase k by 1.
-        k.Bind(NumberInc(k.value()));
-        Goto(&loop);
-      }
-      Bind(&after_loop);
-      Return(a);
     }
+    Bind(&after_loop);
+    Return(a);
+  }
+
+  void ForEachProcessor(Node* a, Node* p_k, Node* value) {}
+
+  void SomeProcessor(Node* a, Node* p_k, Node* value) {
+    Label false_continue(this), return_true(this);
+    BranchIfToBooleanIsTrue(value, &return_true, &false_continue);
+    Bind(&return_true);
+    Return(TrueConstant());
+    Bind(&false_continue);
+  }
+
+  void EveryProcessor(Node* a, Node* p_k, Node* value) {
+    Label true_continue(this), return_false(this);
+    BranchIfToBooleanIsTrue(value, &true_continue, &return_false);
+    Bind(&return_false);
+    Return(FalseConstant());
+    Bind(&true_continue);
   }
 
  private:
@@ -414,52 +462,51 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   }
 }
 
-TF_BUILTIN(ArrayForEach, ArrayBuiltinCodeStubAssembler) {
-  Node* receiver = Parameter(ForEachDescriptor::kReceiver);
-  Node* callbackfn = Parameter(ForEachDescriptor::kCallback);
-  Node* this_arg = Parameter(ForEachDescriptor::kThisArg);
-  Node* context = Parameter(ForEachDescriptor::kContext);
-
-  GenerateArrayIteratingBuiltinBody(
-      "Array.prototype.forEach", receiver, callbackfn, this_arg, context,
-      [=](Node*, Node*) { return UndefinedConstant(); },
-      [](Node* a, Node* p_k, Node* value) {});
+TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinCodeStubAssembler) {
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      [this](Node* a, Node* p_k, Node* value) {
+        ForEachProcessor(a, p_k, value);
+      });
 }
 
-TF_BUILTIN(ArrayEvery, ArrayBuiltinCodeStubAssembler) {
-  Node* receiver = Parameter(ForEachDescriptor::kReceiver);
-  Node* callbackfn = Parameter(ForEachDescriptor::kCallback);
-  Node* this_arg = Parameter(ForEachDescriptor::kThisArg);
-  Node* context = Parameter(ForEachDescriptor::kContext);
+TF_BUILTIN(ArrayForEach, ArrayBuiltinCodeStubAssembler) {
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.forEach",
+      [=](Node*, Node*) { return UndefinedConstant(); },
+      [this](Node* a, Node* p_k, Node* value) {
+        ForEachProcessor(a, p_k, value);
+      },
+      CodeFactory::ArrayForEachLoopContinuation(isolate()));
+}
 
-  GenerateArrayIteratingBuiltinBody(
-      "Array.prototype.every", receiver, callbackfn, this_arg, context,
-      [=](Node*, Node*) { return TrueConstant(); },
-      [=](Node* a, Node* p_k, Node* value) {
-        Label true_continue(this), return_false(this);
-        BranchIfToBooleanIsTrue(value, &true_continue, &return_false);
-        Bind(&return_false);
-        Return(FalseConstant());
-        Bind(&true_continue);
+TF_BUILTIN(ArraySomeLoopContinuation, ArrayBuiltinCodeStubAssembler) {
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      [this](Node* a, Node* p_k, Node* value) {
+        SomeProcessor(a, p_k, value);
       });
 }
 
 TF_BUILTIN(ArraySome, ArrayBuiltinCodeStubAssembler) {
-  Node* receiver = Parameter(ForEachDescriptor::kReceiver);
-  Node* callbackfn = Parameter(ForEachDescriptor::kCallback);
-  Node* this_arg = Parameter(ForEachDescriptor::kThisArg);
-  Node* context = Parameter(ForEachDescriptor::kContext);
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.some", [=](Node*, Node*) { return FalseConstant(); },
+      [this](Node* a, Node* p_k, Node* value) { SomeProcessor(a, p_k, value); },
+      CodeFactory::ArraySomeLoopContinuation(isolate()));
+}
 
-  GenerateArrayIteratingBuiltinBody(
-      "Array.prototype.some", receiver, callbackfn, this_arg, context,
-      [=](Node*, Node*) { return FalseConstant(); },
-      [=](Node* a, Node* p_k, Node* value) {
-        Label false_continue(this), return_true(this);
-        BranchIfToBooleanIsTrue(value, &return_true, &false_continue);
-        Bind(&return_true);
-        Return(TrueConstant());
-        Bind(&false_continue);
+TF_BUILTIN(ArrayEveryLoopContinuation, ArrayBuiltinCodeStubAssembler) {
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      [this](Node* a, Node* p_k, Node* value) {
+        EveryProcessor(a, p_k, value);
       });
+}
+
+TF_BUILTIN(ArrayEvery, ArrayBuiltinCodeStubAssembler) {
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.every", [=](Node*, Node*) { return TrueConstant(); },
+      [this](Node* a, Node* p_k, Node* value) {
+        EveryProcessor(a, p_k, value);
+      },
+      CodeFactory::ArrayEveryLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {
