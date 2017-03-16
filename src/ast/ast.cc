@@ -283,13 +283,8 @@ Assignment::Assignment(Token::Value op, Expression* target, Expression* value,
 
 void Assignment::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                      LanguageMode language_mode,
-                                     FeedbackSlotCache* cache,
-                                     bool collect_type_profile) {
+                                     FeedbackSlotCache* cache) {
   AssignVectorSlots(target(), spec, language_mode, &slot_);
-
-  if (collect_type_profile) {
-    type_profile_slot_ = spec->AddTypeProfileSlot();
-  }
 }
 
 void CountOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
