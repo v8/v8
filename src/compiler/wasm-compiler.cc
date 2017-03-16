@@ -1147,10 +1147,12 @@ Node* WasmGraphBuilder::Return(unsigned count, Node** vals) {
   return ret;
 }
 
-Node* WasmGraphBuilder::ReturnVoid() { return Return(0, Buffer(0)); }
+Node* WasmGraphBuilder::ReturnVoid() { return Return(0, nullptr); }
 
 Node* WasmGraphBuilder::Unreachable(wasm::WasmCodePosition position) {
-  trap_->Unreachable(position);
+  trap_->AddTrapIfFalse(wasm::TrapReason::kTrapUnreachable, Int32Constant(0),
+                        position);
+  ReturnVoid();
   return nullptr;
 }
 
