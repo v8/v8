@@ -1165,6 +1165,18 @@ Token::Value Scanner::ScanTemplateContinuation() {
   return ScanTemplateSpan();
 }
 
+Handle<String> Scanner::SourceUrl(Isolate* isolate) const {
+  Handle<String> tmp;
+  if (source_url_.length() > 0) tmp = source_url_.Internalize(isolate);
+  return tmp;
+}
+
+Handle<String> Scanner::SourceMappingUrl(Isolate* isolate) const {
+  Handle<String> tmp;
+  if (source_mapping_url_.length() > 0)
+    tmp = source_mapping_url_.Internalize(isolate);
+  return tmp;
+}
 
 void Scanner::ScanDecimalDigits() {
   while (IsDecimalDigit(c0_))

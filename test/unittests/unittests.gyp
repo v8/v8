@@ -13,6 +13,7 @@
       'api/isolate-unittest.cc',
       'api/remote-object-unittest.cc',
       'api/v8-object-unittest.cc',
+      'asmjs/asm-scanner-unittest.cc',
       'base/atomic-utils-unittest.cc',
       'base/bits-unittest.cc',
       'base/cpu-unittest.cc',

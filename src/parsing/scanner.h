@@ -330,18 +330,8 @@ class Scanner {
   Token::Value ScanTemplateStart();
   Token::Value ScanTemplateContinuation();
 
-  Handle<String> SourceUrl(Isolate* isolate) const {
-    Handle<String> tmp;
-    if (source_url_.length() > 0) tmp = source_url_.Internalize(isolate);
-    return tmp;
-  }
-
-  Handle<String> SourceMappingUrl(Isolate* isolate) const {
-    Handle<String> tmp;
-    if (source_mapping_url_.length() > 0)
-      tmp = source_mapping_url_.Internalize(isolate);
-    return tmp;
-  }
+  Handle<String> SourceUrl(Isolate* isolate) const;
+  Handle<String> SourceMappingUrl(Isolate* isolate) const;
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 
