@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 
+class Callable;
 template <typename T>
 class Handle;
 class Isolate;
@@ -886,6 +887,10 @@ class Isolate;
 
 #define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V, V)
 
+#define BUILTIN_LIST_TFS(V)                                       \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+
 #define BUILTIN_LIST_C(V)                                            \
   BUILTIN_LIST(V, V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                IGNORE_BUILTIN, IGNORE_BUILTIN)
@@ -958,6 +963,8 @@ class Builtins {
   Address builtin_address(Name name) {
     return reinterpret_cast<Address>(&builtins_[name]);
   }
+
+  static Callable CallableFor(Isolate* isolate, Name name);
 
   static const char* name(int index);
 

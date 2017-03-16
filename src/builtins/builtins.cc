@@ -5,6 +5,7 @@
 #include "src/builtins/builtins.h"
 #include "src/api.h"
 #include "src/assembler-inl.h"
+#include "src/callable.h"
 #include "src/code-events.h"
 #include "src/compiler/code-assembler.h"
 #include "src/ic/ic-state.h"
@@ -272,6 +273,23 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   }
   UNREACHABLE();
   return Handle<Code>::null();
+}
+
+// static
+Callable Builtins::CallableFor(Isolate* isolate, Name name) {
+  switch (name) {
+#define CASE(Name, _, __, InterfaceDescriptor, ...)                      \
+  case k##Name: {                                                        \
+    Handle<Code> code(Code::cast(isolate->builtins()->builtins_[name])); \
+    auto descriptor = InterfaceDescriptor##Descriptor(isolate);          \
+    return Callable(code, descriptor);                                   \
+  }
+    BUILTIN_LIST_TFS(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+      return Callable(Handle<Code>::null(), VoidDescriptor(isolate));
+  }
 }
 
 // static

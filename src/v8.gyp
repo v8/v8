@@ -533,6 +533,7 @@
         'builtins/builtins.h',
         'cached-powers.cc',
         'cached-powers.h',
+        'callable.h',
         'cancelable-task.cc',
         'cancelable-task.h',
         'char-predicates.cc',

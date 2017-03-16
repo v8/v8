@@ -1056,6 +1056,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins.h",
     "src/cached-powers.cc",
     "src/cached-powers.h",
+    "src/callable.h",
     "src/cancelable-task.cc",
     "src/cancelable-task.h",
     "src/char-predicates-inl.h",

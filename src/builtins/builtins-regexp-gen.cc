@@ -476,8 +476,6 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
 Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
     Node* const context, Node* const regexp, Node* const string,
     Label* if_didnotmatch, const bool is_fastpath) {
-  Isolate* const isolate = this->isolate();
-
   Node* const null = NullConstant();
   Node* const int_zero = IntPtrConstant(0);
   Node* const smi_zero = SmiConstant(Smi::kZero);
@@ -505,9 +503,8 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
     Bind(&call_tolength);
     {
-      Callable tolength_callable = CodeFactory::ToLength(isolate);
       var_lastindex.Bind(
-          CallStub(tolength_callable, context, regexp_lastindex));
+          CallBuiltin(Builtins::kToLength, context, regexp_lastindex));
       Goto(&next);
     }
 
@@ -647,8 +644,8 @@ Node* RegExpBuiltinsAssembler::ThrowIfNotJSReceiver(
     Node* const method_name_str = HeapConstant(
         isolate()->factory()->NewStringFromAsciiChecked(method_name, TENURED));
 
-    Callable callable = CodeFactory::ToString(isolate());
-    Node* const value_str = CallStub(callable, context, maybe_receiver);
+    Node* const value_str =
+        CallBuiltin(Builtins::kToString, context, maybe_receiver);
 
     CallRuntime(Runtime::kThrowTypeError, context, message_id, method_name_str,
                 value_str);
@@ -1631,8 +1628,6 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
                                                        Node* const regexp,
                                                        Node* const string,
                                                        const bool is_fastpath) {
-  Isolate* const isolate = this->isolate();
-
   Node* const null = NullConstant();
   Node* const int_zero = IntPtrConstant(0);
   Node* const smi_zero = SmiConstant(Smi::kZero);
@@ -1745,11 +1740,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         Node* const match_length = LoadStringLength(match);
         GotoIfNot(SmiEqual(match_length, smi_zero), &loop);
 
-        Node* last_index = LoadLastIndex(context, regexp, is_fastpath);
-
-        Callable tolength_callable = CodeFactory::ToLength(isolate);
-        last_index = CallStub(tolength_callable, context, last_index);
-
+        Node* const last_index =
+            CallBuiltin(Builtins::kToLength, context,
+                        LoadLastIndex(context, regexp, is_fastpath));
         Node* const new_last_index =
             AdvanceStringIndex(string, last_index, is_unicode);
 
@@ -2225,8 +2218,8 @@ TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
   BranchIfFastRegExp(context, map, &stub, &runtime);
 
   Bind(&stub);
-  Callable split_callable = CodeFactory::RegExpSplit(isolate());
-  Return(CallStub(split_callable, context, receiver, string, maybe_limit));
+  Return(CallBuiltin(Builtins::kRegExpSplit, context, receiver, string,
+                     maybe_limit));
 
   Bind(&runtime);
   Return(CallRuntime(Runtime::kRegExpSplit, context, receiver, string,
@@ -2564,15 +2557,14 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
   // 3. Does ToString({replace_value}) contain '$'?
   Bind(&checkreplacestring);
   {
-    Callable tostring_callable = CodeFactory::ToString(isolate());
     Node* const replace_string =
-        CallStub(tostring_callable, context, replace_value);
+        CallBuiltin(Builtins::kToString, context, replace_value);
 
-    Callable indexof_callable = CodeFactory::StringIndexOf(isolate());
     Node* const dollar_string = HeapConstant(
         isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
-    Node* const dollar_ix = CallStub(indexof_callable, context, replace_string,
-                                     dollar_string, SmiConstant(0));
+    Node* const dollar_ix =
+        CallBuiltin(Builtins::kStringIndexOf, context, replace_string,
+                    dollar_string, SmiConstant(0));
     GotoIfNot(SmiEqual(dollar_ix, SmiConstant(-1)), &runtime);
 
     Return(
@@ -2636,16 +2628,15 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Callable tostring_callable = CodeFactory::ToString(isolate());
-  Node* const string = CallStub(tostring_callable, context, maybe_string);
+  Node* const string = CallBuiltin(Builtins::kToString, context, maybe_string);
 
   // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
   Label stub(this), runtime(this, Label::kDeferred);
   BranchIfFastRegExp(context, map, &stub, &runtime);
 
   Bind(&stub);
-  Callable replace_callable = CodeFactory::RegExpReplace(isolate());
-  Return(CallStub(replace_callable, context, receiver, string, replace_value));
+  Return(CallBuiltin(Builtins::kRegExpReplace, context, receiver, string,
+                     replace_value));
 
   Bind(&runtime);
   Return(CallRuntime(Runtime::kRegExpReplace, context, receiver, string,

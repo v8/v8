@@ -7,26 +7,13 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
+#include "src/callable.h"
 #include "src/codegen.h"
 #include "src/globals.h"
 #include "src/interface-descriptors.h"
 
 namespace v8 {
 namespace internal {
-
-// Associates a body of code with an interface descriptor.
-class Callable final BASE_EMBEDDED {
- public:
-  Callable(Handle<Code> code, CallInterfaceDescriptor descriptor)
-      : code_(code), descriptor_(descriptor) {}
-
-  Handle<Code> code() const { return code_; }
-  CallInterfaceDescriptor descriptor() const { return descriptor_; }
-
- private:
-  const Handle<Code> code_;
-  const CallInterfaceDescriptor descriptor_;
-};
 
 class V8_EXPORT_PRIVATE CodeFactory final {
  public:

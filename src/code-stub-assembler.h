@@ -1026,6 +1026,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                     name);
   }
 
+  template <class... TArgs>
+  Node* CallBuiltin(Builtins::Name id, Node* context, TArgs... args) {
+    return CallStub(Builtins::CallableFor(isolate(), id), context, args...);
+  }
+
   void LoadPropertyFromFastObject(Node* object, Node* map, Node* descriptors,
                                   Node* name_index, Variable* var_details,
                                   Variable* var_value);
