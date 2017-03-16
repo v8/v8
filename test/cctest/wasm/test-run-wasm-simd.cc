@@ -1620,7 +1620,7 @@ WASM_EXEC_COMPILED_TEST(SimdI32x4ExtractWithF32x4) {
                                0, WASM_SIMD_F32x4_SPLAT(WASM_F32(30.5))),
                            WASM_I32_REINTERPRET_F32(WASM_F32(30.5))),
                WASM_I32V(1), WASM_I32V(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call()); }
+  CHECK_EQ(1, r.Call());
 }
 
 WASM_EXEC_COMPILED_TEST(SimdF32x4ExtractWithI32x4) {
@@ -1631,23 +1631,27 @@ WASM_EXEC_COMPILED_TEST(SimdF32x4ExtractWithI32x4) {
                                        0, WASM_SIMD_I32x4_SPLAT(WASM_I32V(15))),
                                    WASM_F32_REINTERPRET_I32(WASM_I32V(15))),
                        WASM_I32V(1), WASM_I32V(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call()); }
+  CHECK_EQ(1, r.Call());
 }
 
 WASM_EXEC_COMPILED_TEST(SimdF32x4AddWithI32x4) {
   FLAG_wasm_simd_prototype = true;
+  // Choose two floating point values whose sum is normal and exactly
+  // representable as a float.
+  const int kOne = 0x3f800000;
+  const int kTwo = 0x40000000;
   WasmRunner<int32_t> r(kExecuteCompiled);
   BUILD(r,
         WASM_IF_ELSE_I(
             WASM_F32_EQ(
                 WASM_SIMD_F32x4_EXTRACT_LANE(
                     0, WASM_SIMD_BINOP(kExprF32x4Add,
-                                       WASM_SIMD_I32x4_SPLAT(WASM_I32V(32)),
-                                       WASM_SIMD_I32x4_SPLAT(WASM_I32V(19)))),
-                WASM_F32_ADD(WASM_F32_REINTERPRET_I32(WASM_I32V(32)),
-                             WASM_F32_REINTERPRET_I32(WASM_I32V(19)))),
+                                       WASM_SIMD_I32x4_SPLAT(WASM_I32V(kOne)),
+                                       WASM_SIMD_I32x4_SPLAT(WASM_I32V(kTwo)))),
+                WASM_F32_ADD(WASM_F32_REINTERPRET_I32(WASM_I32V(kOne)),
+                             WASM_F32_REINTERPRET_I32(WASM_I32V(kTwo)))),
             WASM_I32V(1), WASM_I32V(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call()); }
+  CHECK_EQ(1, r.Call());
 }
 
 WASM_EXEC_COMPILED_TEST(SimdI32x4AddWithF32x4) {
@@ -1663,7 +1667,7 @@ WASM_EXEC_COMPILED_TEST(SimdI32x4AddWithF32x4) {
                 WASM_I32_ADD(WASM_I32_REINTERPRET_F32(WASM_F32(21.25)),
                              WASM_I32_REINTERPRET_F32(WASM_F32(31.5)))),
             WASM_I32V(1), WASM_I32V(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call()); }
+  CHECK_EQ(1, r.Call());
 }
 
 WASM_EXEC_COMPILED_TEST(SimdI32x4Local) {
@@ -1673,7 +1677,7 @@ WASM_EXEC_COMPILED_TEST(SimdI32x4Local) {
   BUILD(r, WASM_SET_LOCAL(0, WASM_SIMD_I32x4_SPLAT(WASM_I32V(31))),
 
         WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_GET_LOCAL(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(31, r.Call()); }
+  CHECK_EQ(31, r.Call());
 }
 
 WASM_EXEC_COMPILED_TEST(SimdI32x4SplatFromExtract) {
@@ -1685,7 +1689,7 @@ WASM_EXEC_COMPILED_TEST(SimdI32x4SplatFromExtract) {
                                  0, WASM_SIMD_I32x4_SPLAT(WASM_I32V(76)))),
         WASM_SET_LOCAL(1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0))),
         WASM_SIMD_I32x4_EXTRACT_LANE(1, WASM_GET_LOCAL(1)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(76, r.Call()); }
+  CHECK_EQ(76, r.Call());
 }
 
 WASM_EXEC_COMPILED_TEST(SimdI32x4For) {
@@ -1720,7 +1724,7 @@ WASM_EXEC_COMPILED_TEST(SimdI32x4For) {
                             WASM_I32V(36)),
                 WASM_SET_LOCAL(0, WASM_I32V(0))),
         WASM_GET_LOCAL(0));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call()); }
+  CHECK_EQ(1, r.Call());
 }
 
 WASM_EXEC_COMPILED_TEST(SimdF32x4For) {
@@ -1745,7 +1749,7 @@ WASM_EXEC_COMPILED_TEST(SimdF32x4For) {
                             WASM_F32(25.5)),
                 WASM_SET_LOCAL(0, WASM_I32V(0))),
         WASM_GET_LOCAL(0));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call()); }
+  CHECK_EQ(1, r.Call());
 }
 
 WASM_EXEC_COMPILED_TEST(SimdI32x4GetGlobal) {
@@ -1772,7 +1776,7 @@ WASM_EXEC_COMPILED_TEST(SimdI32x4GetGlobal) {
                           WASM_SIMD_I32x4_EXTRACT_LANE(3, WASM_GET_GLOBAL(0))),
               WASM_SET_LOCAL(1, WASM_I32V(0))),
       WASM_GET_LOCAL(1));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(0)); }
+  CHECK_EQ(1, r.Call(0));
 }
 
 WASM_EXEC_COMPILED_TEST(SimdI32x4SetGlobal) {
@@ -1787,7 +1791,7 @@ WASM_EXEC_COMPILED_TEST(SimdI32x4SetGlobal) {
         WASM_SET_GLOBAL(0, WASM_SIMD_I32x4_REPLACE_LANE(3, WASM_GET_GLOBAL(0),
                                                         WASM_I32V(56))),
         WASM_I32V(1));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(0)); }
+  CHECK_EQ(1, r.Call(0));
   CHECK_EQ(*global, 23);
   CHECK_EQ(*(global + 1), 34);
   CHECK_EQ(*(global + 2), 45);
@@ -1818,7 +1822,7 @@ WASM_EXEC_COMPILED_TEST(SimdF32x4GetGlobal) {
                           WASM_SIMD_F32x4_EXTRACT_LANE(3, WASM_GET_GLOBAL(0))),
               WASM_SET_LOCAL(1, WASM_I32V(0))),
       WASM_GET_LOCAL(1));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(0)); }
+  CHECK_EQ(1, r.Call(0));
 }
 
 WASM_EXEC_COMPILED_TEST(SimdF32x4SetGlobal) {
@@ -1833,7 +1837,7 @@ WASM_EXEC_COMPILED_TEST(SimdF32x4SetGlobal) {
         WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_REPLACE_LANE(3, WASM_GET_GLOBAL(0),
                                                         WASM_F32(65.0))),
         WASM_I32V(1));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(0)); }
+  CHECK_EQ(1, r.Call(0));
   CHECK_EQ(*global, 13.5);
   CHECK_EQ(*(global + 1), 45.5);
   CHECK_EQ(*(global + 2), 32.25);
