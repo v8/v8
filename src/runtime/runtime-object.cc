@@ -691,6 +691,32 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   return *object;
 }
 
+RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 2);
+  CONVERT_SMI_ARG_CHECKED(index, 3);
+
+  DCHECK(FLAG_type_profile);
+
+  Handle<Name> type = Object::TypeOf(isolate, value);
+  if (value->IsJSReceiver()) {
+    Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
+    type = JSReceiver::GetConstructorName(object);
+  }
+
+  CollectTypeProfileNexus nexus(vector, vector->ToSlot(index));
+  nexus.Collect(type);
+
+  PrintF("%s\n", name->ToCString().get());
+  nexus.Print();
+  PrintF("\n");
+
+  return *name;
+}
+
 // Return property without being observable by accessors or interceptors.
 RUNTIME_FUNCTION(Runtime_GetDataProperty) {
   HandleScope scope(isolate);

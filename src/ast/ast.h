@@ -2414,8 +2414,16 @@ class Assignment final : public Expression {
   }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache);
+                           FeedbackSlotCache* cache,
+                           bool collect_type_profile = false);
   FeedbackSlot AssignmentSlot() const { return slot_; }
+
+  FeedbackSlot TypeProfileSlot() const {
+    DCHECK(HasTypeProfileSlot());
+    return type_profile_slot_;
+  }
+
+  bool HasTypeProfileSlot() const { return !type_profile_slot_.IsInvalid(); }
 
  private:
   friend class AstNodeFactory;
@@ -2438,6 +2446,8 @@ class Assignment final : public Expression {
   Expression* value_;
   BinaryOperation* binary_operation_;
   SmallMapList receiver_types_;
+
+  FeedbackSlot type_profile_slot_;
 };
 
 

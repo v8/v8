@@ -1045,6 +1045,19 @@ void Interpreter::DoStaDataPropertyInLiteral(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+void Interpreter::DoCollectTypeProfile(InterpreterAssembler* assembler) {
+  Node* name = __ LoadRegister(__ BytecodeOperandReg(0));
+  Node* value = __ GetAccumulator();
+  Node* vector_index = __ SmiTag(__ BytecodeOperandIdx(1));
+
+  Node* feedback_vector = __ LoadFeedbackVector();
+  Node* context = __ GetContext();
+
+  __ CallRuntime(Runtime::kCollectTypeProfile, context, name, value,
+                 feedback_vector, vector_index);
+  __ Dispatch();
+}
+
 // LdaModuleVariable <cell_index> <depth>
 //
 // Load the contents of a module variable into the accumulator.  The variable is

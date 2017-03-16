@@ -574,6 +574,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
     case FeedbackSlotKind::kLiteral:
     case FeedbackSlotKind::kGeneral:
     case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+    case FeedbackSlotKind::kTypeProfile:
     case FeedbackSlotKind::kInvalid:
     case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
@@ -620,6 +621,7 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
     case FeedbackSlotKind::kLiteral:
     case FeedbackSlotKind::kGeneral:
     case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+    case FeedbackSlotKind::kTypeProfile:
     case FeedbackSlotKind::kInvalid:
     case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
