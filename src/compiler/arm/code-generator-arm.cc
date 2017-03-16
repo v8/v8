@@ -435,6 +435,23 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ dmb(ISH);                                                              \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_instr, store_instr)     \
+  do {                                                                        \
+    Label compareExchange;                                                    \
+    Label exit;                                                               \
+    __ dmb(ISH);                                                              \
+    __ bind(&compareExchange);                                                \
+    __ add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));        \
+    __ load_instr(i.OutputRegister(0), i.TempRegister(0));                    \
+    __ teq(i.TempRegister(1), Operand(i.OutputRegister(0)));                  \
+    __ b(ne, &exit);                                                          \
+    __ store_instr(i.TempRegister(0), i.InputRegister(3), i.TempRegister(0)); \
+    __ teq(i.TempRegister(0), Operand(0));                                    \
+    __ b(ne, &compareExchange);                                               \
+    __ bind(&exit);                                                           \
+    __ dmb(ISH);                                                              \
+  } while (0)
+
 #define ASSEMBLE_IEEE754_BINOP(name)                                           \
   do {                                                                         \
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
@@ -2141,6 +2158,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrex, strex);
+      break;
+    case kAtomicCompareExchangeInt8:
+      __ uxtb(i.TempRegister(1), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexb, strexb);
+      __ sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicCompareExchangeUint8:
+      __ uxtb(i.TempRegister(1), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexb, strexb);
+      break;
+    case kAtomicCompareExchangeInt16:
+      __ uxth(i.TempRegister(1), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexh, strexh);
+      __ sxth(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicCompareExchangeUint16:
+      __ uxth(i.TempRegister(1), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexh, strexh);
+      break;
+    case kAtomicCompareExchangeWord32:
+      __ mov(i.TempRegister(1), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrex, strex);
       break;
   }
   return kSuccess;

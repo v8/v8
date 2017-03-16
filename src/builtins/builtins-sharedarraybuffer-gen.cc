@@ -319,6 +319,88 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   Bind(&other);
   Unreachable();
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
+        // || V8_TARGET_ARCH_PPC
+}
+
+TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
+  Node* array = Parameter(1);
+  Node* index = Parameter(2);
+  Node* old_value = Parameter(3);
+  Node* new_value = Parameter(4);
+  Node* context = Parameter(5 + 2);
+
+  Node* instance_type;
+  Node* backing_store;
+  ValidateSharedTypedArray(array, context, &instance_type, &backing_store);
+
+  Node* index_integer;
+  Node* index_word32 =
+      ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
+  Node* array_length_word32 = TruncateTaggedToWord32(
+      context, LoadObjectField(array, JSTypedArray::kLengthOffset));
+  ValidateAtomicIndex(index_word32, array_length_word32, context);
+
+  Node* old_value_integer = ToInteger(context, old_value);
+
+  Node* new_value_integer = ToInteger(context, new_value);
+
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+  Return(CallRuntime(Runtime::kAtomicsCompareExchange, context, array,
+                     index_integer, old_value_integer, new_value_integer));
+#else
+  Node* index_word = ChangeUint32ToWord(index_word32);
+
+  Node* old_value_word32 = TruncateTaggedToWord32(context, old_value_integer);
+
+  Node* new_value_word32 = TruncateTaggedToWord32(context, new_value_integer);
+
+  Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
+      other(this);
+  int32_t case_values[] = {
+      FIXED_INT8_ARRAY_TYPE,   FIXED_UINT8_ARRAY_TYPE, FIXED_INT16_ARRAY_TYPE,
+      FIXED_UINT16_ARRAY_TYPE, FIXED_INT32_ARRAY_TYPE, FIXED_UINT32_ARRAY_TYPE,
+  };
+  Label* case_labels[] = {
+      &i8, &u8, &i16, &u16, &i32, &u32,
+  };
+  Switch(instance_type, &other, case_values, case_labels,
+         arraysize(case_labels));
+
+  Bind(&i8);
+  Return(SmiFromWord32(AtomicCompareExchange(MachineType::Int8(), backing_store,
+                                             index_word, old_value_word32,
+                                             new_value_word32)));
+
+  Bind(&u8);
+  Return(SmiFromWord32(
+      AtomicCompareExchange(MachineType::Uint8(), backing_store, index_word,
+                            old_value_word32, new_value_word32)));
+
+  Bind(&i16);
+  Return(SmiFromWord32(AtomicCompareExchange(
+      MachineType::Int16(), backing_store, WordShl(index_word, 1),
+      old_value_word32, new_value_word32)));
+
+  Bind(&u16);
+  Return(SmiFromWord32(AtomicCompareExchange(
+      MachineType::Uint16(), backing_store, WordShl(index_word, 1),
+      old_value_word32, new_value_word32)));
+
+  Bind(&i32);
+  Return(ChangeInt32ToTagged(AtomicCompareExchange(
+      MachineType::Int32(), backing_store, WordShl(index_word, 2),
+      old_value_word32, new_value_word32)));
+
+  Bind(&u32);
+  Return(ChangeUint32ToTagged(AtomicCompareExchange(
+      MachineType::Uint32(), backing_store, WordShl(index_word, 2),
+      old_value_word32, new_value_word32)));
+
+  // This shouldn't happen, we've already validated the type.
+  Bind(&other);
+  Unreachable();
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
         // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
 }
 

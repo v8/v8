@@ -101,7 +101,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   Register OutputRegister32() { return ToRegister(instr_->Output()).W(); }
 
-  Register TempRegister32() { return ToRegister(instr_->TempAt(0)).W(); }
+  Register TempRegister32(size_t index) {
+    return ToRegister(instr_->TempAt(index)).W();
+  }
 
   Operand InputOperand2_32(size_t index) {
     switch (AddressingModeField::decode(instr_->opcode())) {
@@ -537,9 +539,24 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ bind(&exchange);                                                \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
     __ load_instr(i.OutputRegister32(), i.TempRegister(0));            \
-    __ store_instr(i.TempRegister32(), i.InputRegister32(2),           \
+    __ store_instr(i.TempRegister32(0), i.InputRegister32(2),          \
                    i.TempRegister(0));                                 \
-    __ cbnz(i.TempRegister32(), &exchange);                            \
+    __ cbnz(i.TempRegister32(0), &exchange);                           \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_instr, store_instr) \
+  do {                                                                    \
+    Label compareExchange;                                                \
+    Label exit;                                                           \
+    __ bind(&compareExchange);                                            \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));    \
+    __ load_instr(i.OutputRegister32(), i.TempRegister(0));               \
+    __ cmp(i.TempRegister32(1), i.OutputRegister32());                    \
+    __ B(ne, &exit);                                                      \
+    __ store_instr(i.TempRegister32(0), i.InputRegister32(3),             \
+                   i.TempRegister(0));                                    \
+    __ cbnz(i.TempRegister32(0), &compareExchange);                       \
+    __ bind(&exit);                                                       \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                          \
@@ -1662,6 +1679,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxr, stlxr);
+      break;
+    case kAtomicCompareExchangeInt8:
+      __ Uxtb(i.TempRegister(1), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb);
+      __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicCompareExchangeUint8:
+      __ Uxtb(i.TempRegister(1), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb);
+      break;
+    case kAtomicCompareExchangeInt16:
+      __ Uxth(i.TempRegister(1), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh);
+      __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicCompareExchangeUint16:
+      __ Uxth(i.TempRegister(1), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh);
+      break;
+    case kAtomicCompareExchangeWord32:
+      __ mov(i.TempRegister(1), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxr, stlxr);
       break;
   }
   return kSuccess;

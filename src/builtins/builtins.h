@@ -740,7 +740,7 @@ class Isolate;
   TFJ(AtomicsLoad, 2)                                                          \
   TFJ(AtomicsStore, 3)                                                         \
   TFJ(AtomicsExchange, 3)                                                      \
-  CPP(AtomicsCompareExchange)                                                  \
+  TFJ(AtomicsCompareExchange, 4)                                               \
   CPP(AtomicsAdd)                                                              \
   CPP(AtomicsSub)                                                              \
   CPP(AtomicsAnd)                                                              \

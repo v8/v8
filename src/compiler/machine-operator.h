@@ -99,6 +99,8 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
 
 MachineType AtomicExchangeRepresentationOf(Operator const* op);
 
+MachineType AtomicCompareExchangeRepresentationOf(Operator const* op);
+
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
@@ -611,6 +613,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* AtomicStore(MachineRepresentation rep);
   // atomic-exchange [base + index], value
   const Operator* AtomicExchange(MachineType rep);
+  // atomic-compare-exchange [base + index], old_value, new_value
+  const Operator* AtomicCompareExchange(MachineType rep);
 
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == MachineRepresentation::kWord32; }

@@ -1463,6 +1463,11 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(type.representation(), node);
       return VisitAtomicExchange(node);
     }
+    case IrOpcode::kAtomicCompareExchange: {
+      MachineType type = AtomicCompareExchangeRepresentationOf(node->op());
+      MarkAsRepresentation(type.representation(), node);
+      return VisitAtomicCompareExchange(node);
+    }
     case IrOpcode::kProtectedLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);

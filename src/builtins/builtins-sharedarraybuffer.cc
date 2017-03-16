@@ -186,13 +186,6 @@ namespace {
 #if V8_CC_GNU
 
 template <typename T>
-inline T CompareExchangeSeqCst(T* p, T oldval, T newval) {
-  (void)__atomic_compare_exchange_n(p, &oldval, newval, 0, __ATOMIC_SEQ_CST,
-                                    __ATOMIC_SEQ_CST);
-  return oldval;
-}
-
-template <typename T>
 inline T AddSeqCst(T* p, T value) {
   return __atomic_fetch_add(p, value, __ATOMIC_SEQ_CST);
 }
@@ -219,14 +212,11 @@ inline T XorSeqCst(T* p, T value) {
 
 #elif V8_CC_MSVC
 
-#define InterlockedCompareExchange32 _InterlockedCompareExchange
-#define InterlockedExchange32 _InterlockedExchange
 #define InterlockedExchangeAdd32 _InterlockedExchangeAdd
 #define InterlockedAnd32 _InterlockedAnd
 #define InterlockedOr32 _InterlockedOr
 #define InterlockedXor32 _InterlockedXor
 #define InterlockedExchangeAdd16 _InterlockedExchangeAdd16
-#define InterlockedCompareExchange8 _InterlockedCompareExchange8
 #define InterlockedExchangeAdd8 _InterlockedExchangeAdd8
 
 #define ATOMIC_OPS(type, suffix, vctype)                                    \
@@ -249,11 +239,6 @@ inline T XorSeqCst(T* p, T value) {
   inline type XorSeqCst(type* p, type value) {                              \
     return InterlockedXor##suffix(reinterpret_cast<vctype*>(p),             \
                                   bit_cast<vctype>(value));                 \
-  }                                                                         \
-  inline type CompareExchangeSeqCst(type* p, type oldval, type newval) {    \
-    return InterlockedCompareExchange##suffix(reinterpret_cast<vctype*>(p), \
-                                              bit_cast<vctype>(newval),     \
-                                              bit_cast<vctype>(oldval));    \
   }
 
 ATOMIC_OPS(int8_t, 8, char)
@@ -266,14 +251,11 @@ ATOMIC_OPS(uint32_t, 32, long)  /* NOLINT(runtime/int) */
 #undef ATOMIC_OPS_INTEGER
 #undef ATOMIC_OPS
 
-#undef InterlockedCompareExchange32
-#undef InterlockedExchange32
 #undef InterlockedExchangeAdd32
 #undef InterlockedAnd32
 #undef InterlockedOr32
 #undef InterlockedXor32
 #undef InterlockedExchangeAdd16
-#undef InterlockedCompareExchange8
 #undef InterlockedExchangeAdd8
 
 #else
@@ -334,16 +316,6 @@ inline Object* ToObject(Isolate* isolate, uint32_t t) {
 }
 
 template <typename T>
-inline Object* DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
-                                 Handle<Object> oldobj, Handle<Object> newobj) {
-  T oldval = FromObject<T>(oldobj);
-  T newval = FromObject<T>(newobj);
-  T result =
-      CompareExchangeSeqCst(static_cast<T*>(buffer) + index, oldval, newval);
-  return ToObject(isolate, result);
-}
-
-template <typename T>
 inline Object* DoAdd(Isolate* isolate, void* buffer, size_t index,
                      Handle<Object> obj) {
   T value = FromObject<T>(obj);
@@ -394,50 +366,6 @@ inline Object* DoXor(Isolate* isolate, void* buffer, size_t index,
   V(Int16, int16, INT16, int16_t, 2)     \
   V(Uint32, uint32, UINT32, uint32_t, 4) \
   V(Int32, int32, INT32, int32_t, 4)
-
-// ES #sec-atomics.wait
-// Atomics.compareExchange( typedArray, index, expectedValue, replacementValue )
-BUILTIN(AtomicsCompareExchange) {
-  HandleScope scope(isolate);
-  Handle<Object> array = args.atOrUndefined(isolate, 1);
-  Handle<Object> index = args.atOrUndefined(isolate, 2);
-  Handle<Object> expected_value = args.atOrUndefined(isolate, 3);
-  Handle<Object> replacement_value = args.atOrUndefined(isolate, 4);
-
-  Handle<JSTypedArray> sta;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, sta, ValidateSharedIntegerTypedArray(isolate, array));
-
-  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
-  if (maybe_index.IsNothing()) return isolate->heap()->exception();
-  size_t i = maybe_index.FromJust();
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, expected_value, Object::ToInteger(isolate, expected_value));
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, replacement_value,
-      Object::ToInteger(isolate, replacement_value));
-
-  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
-
-  switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size)             \
-  case kExternal##Type##Array:                                          \
-    return DoCompareExchange<ctype>(isolate, source, i, expected_value, \
-                                    replacement_value);
-
-    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
-}
 
 // ES #sec-atomics.add
 // Atomics.add( typedArray, index, value )

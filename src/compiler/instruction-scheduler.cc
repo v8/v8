@@ -331,6 +331,11 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kAtomicExchangeInt16:
     case kAtomicExchangeUint16:
     case kAtomicExchangeWord32:
+    case kAtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeUint8:
+    case kAtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeUint16:
+    case kAtomicCompareExchangeWord32:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

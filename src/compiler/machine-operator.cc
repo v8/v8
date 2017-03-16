@@ -85,6 +85,11 @@ MachineType AtomicExchangeRepresentationOf(Operator const* op) {
   return OpParameter<MachineType>(op);
 }
 
+MachineType AtomicCompareExchangeRepresentationOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kAtomicCompareExchange, op->opcode());
+  return OpParameter<MachineType>(op);
+}
+
 #define PURE_BINARY_OP_LIST_32(V)                                           \
   V(Word32And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(Word32Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
@@ -607,6 +612,19 @@ struct MachineOperatorGlobalCache {
   ATOMIC_TYPE_LIST(ATOMIC_EXCHANGE)
 #undef ATOMIC_EXCHANGE
 
+#define ATOMIC_COMPARE_EXCHANGE(Type)                                       \
+  struct AtomicCompareExchange##Type##Operator                              \
+      : public Operator1<MachineType> {                                     \
+    AtomicCompareExchange##Type##Operator()                                 \
+        : Operator1<MachineType>(IrOpcode::kAtomicCompareExchange,          \
+                                 Operator::kNoDeopt | Operator::kNoThrow,   \
+                                 "AtomicCompareExchange", 4, 1, 1, 1, 1, 0, \
+                                 MachineType::Type()) {}                    \
+  };                                                                        \
+  AtomicCompareExchange##Type##Operator kAtomicCompareExchange##Type;
+  ATOMIC_TYPE_LIST(ATOMIC_COMPARE_EXCHANGE)
+#undef ATOMIC_COMPARE_EXCHANGE
+
   // The {BitcastWordToTagged} operator must not be marked as pure (especially
   // not idempotent), because otherwise the splitting logic in the Scheduler
   // might decide to split these operators, thus potentially creating live
@@ -870,6 +888,17 @@ const Operator* MachineOperatorBuilder::AtomicExchange(MachineType rep) {
   }
   ATOMIC_TYPE_LIST(EXCHANGE)
 #undef EXCHANGE
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* MachineOperatorBuilder::AtomicCompareExchange(MachineType rep) {
+#define COMPARE_EXCHANGE(kRep)                   \
+  if (rep == MachineType::kRep()) {              \
+    return &cache_.kAtomicCompareExchange##kRep; \
+  }
+  ATOMIC_TYPE_LIST(COMPARE_EXCHANGE)
+#undef COMPARE_EXCHANGE
   UNREACHABLE();
   return nullptr;
 }

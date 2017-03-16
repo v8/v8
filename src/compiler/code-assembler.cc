@@ -477,6 +477,13 @@ Node* CodeAssembler::AtomicExchange(MachineType type, Node* base, Node* offset,
   return raw_assembler()->AtomicExchange(type, base, offset, value);
 }
 
+Node* CodeAssembler::AtomicCompareExchange(MachineType type, Node* base,
+                                           Node* offset, Node* old_value,
+                                           Node* new_value) {
+  return raw_assembler()->AtomicCompareExchange(type, base, offset, old_value,
+                                                new_value);
+}
+
 Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
   DCHECK(Heap::RootCanBeWrittenAfterInitialization(root_index));
   Node* roots_array_start =

@@ -6897,7 +6897,8 @@ class Script: public Struct {
 #define ATOMIC_FUNCTIONS_WITH_ID_LIST(V) \
   V(Atomics, load, AtomicsLoad)          \
   V(Atomics, store, AtomicsStore)        \
-  V(Atomics, exchange, AtomicsExchange)
+  V(Atomics, exchange, AtomicsExchange)  \
+  V(Atomics, compareExchange, AtomicsCompareExchange)
 
 enum BuiltinFunctionId {
   kArrayCode,

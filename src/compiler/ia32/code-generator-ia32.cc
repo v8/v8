@@ -1987,6 +1987,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xchg(i.InputRegister(0), i.MemoryOperand(1));
       break;
     }
+    case kAtomicCompareExchangeInt8: {
+      __ lock();
+      __ cmpxchg_b(i.MemoryOperand(2), i.InputRegister(1));
+      __ movsx_b(eax, eax);
+      break;
+    }
+    case kAtomicCompareExchangeUint8: {
+      __ lock();
+      __ cmpxchg_b(i.MemoryOperand(2), i.InputRegister(1));
+      __ movzx_b(eax, eax);
+      break;
+    }
+    case kAtomicCompareExchangeInt16: {
+      __ lock();
+      __ cmpxchg_w(i.MemoryOperand(2), i.InputRegister(1));
+      __ movsx_w(eax, eax);
+      break;
+    }
+    case kAtomicCompareExchangeUint16: {
+      __ lock();
+      __ cmpxchg_w(i.MemoryOperand(2), i.InputRegister(1));
+      __ movzx_w(eax, eax);
+      break;
+    }
+    case kAtomicCompareExchangeWord32: {
+      __ lock();
+      __ cmpxchg(i.MemoryOperand(2), i.InputRegister(1));
+      break;
+    }
     case kAtomicLoadInt8:
     case kAtomicLoadUint8:
     case kAtomicLoadInt16:

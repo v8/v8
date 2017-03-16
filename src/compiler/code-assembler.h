@@ -278,6 +278,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Exchange value at raw memory location
   Node* AtomicExchange(MachineType type, Node* base, Node* offset, Node* value);
 
+  // Compare and Exchange value at raw memory location
+  Node* AtomicCompareExchange(MachineType type, Node* base, Node* offset,
+                              Node* old_value, Node* new_value);
+
   // Store a value to the root array.
   Node* StoreRoot(Heap::RootListIndex root_index, Node* value);
 

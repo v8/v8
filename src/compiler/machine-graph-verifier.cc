@@ -151,6 +151,11 @@ class MachineRepresentationInferrer {
             representation_vector_[node->id()] = PromoteRepresentation(
                 AtomicExchangeRepresentationOf(node->op()).representation());
             break;
+          case IrOpcode::kAtomicCompareExchange:
+            representation_vector_[node->id()] = PromoteRepresentation(
+                AtomicCompareExchangeRepresentationOf(node->op())
+                    .representation());
+            break;
           case IrOpcode::kStore:
           case IrOpcode::kProtectedStore:
             representation_vector_[node->id()] = PromoteRepresentation(
@@ -458,6 +463,24 @@ class MachineRepresentationChecker {
               default:
                 CheckValueInputRepresentationIs(
                     node, 2, inferrer_->GetRepresentation(node));
+            }
+            break;
+          case IrOpcode::kAtomicCompareExchange:
+            CheckValueInputIsTaggedOrPointer(node, 0);
+            CheckValueInputRepresentationIs(
+                node, 1, MachineType::PointerRepresentation());
+            switch (inferrer_->GetRepresentation(node)) {
+              case MachineRepresentation::kTagged:
+              case MachineRepresentation::kTaggedPointer:
+              case MachineRepresentation::kTaggedSigned:
+                CheckValueInputIsTagged(node, 2);
+                CheckValueInputIsTagged(node, 3);
+                break;
+              default:
+                CheckValueInputRepresentationIs(
+                    node, 2, inferrer_->GetRepresentation(node));
+                CheckValueInputRepresentationIs(
+                    node, 3, inferrer_->GetRepresentation(node));
             }
             break;
           case IrOpcode::kPhi:

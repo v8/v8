@@ -554,6 +554,7 @@
   V(AtomicLoad)                 \
   V(AtomicStore)                \
   V(AtomicExchange)             \
+  V(AtomicCompareExchange)      \
   V(UnsafePointerAdd)
 
 #define MACHINE_SIMD_OP_LIST(V)  \

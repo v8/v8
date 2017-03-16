@@ -64,6 +64,7 @@ namespace internal {
   F(ThrowNotInt32SharedTypedArrayError, 1, 1)   \
   F(ThrowInvalidAtomicAccessIndexError, 0, 1)   \
   F(AtomicsExchange, 3, 1)                      \
+  F(AtomicsCompareExchange, 4, 1)               \
   F(AtomicsNumWaitersForTesting, 2, 1)          \
   F(SetAllowAtomicsWait, 1, 1)
 
