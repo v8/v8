@@ -3431,6 +3431,9 @@ class HashTable : public HashTableBase {
  protected:
   friend class ObjectHashTable;
 
+  MUST_USE_RESULT static Handle<Derived> New(Isolate* isolate, int capacity,
+                                             PretenureFlag pretenure);
+
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
   uint32_t FindInsertionEntry(uint32_t hash);
@@ -3651,6 +3654,10 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       Isolate* isolate, int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
+
+  // Creates an dictionary with minimal possible capacity.
+  MUST_USE_RESULT static Handle<Derived> NewEmpty(
+      Isolate* isolate, PretenureFlag pretenure = NOT_TENURED);
 
   // Ensures that a new dictionary is created when the capacity is checked.
   void SetRequiresCopyOnCapacityChange();
