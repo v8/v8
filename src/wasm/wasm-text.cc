@@ -52,18 +52,16 @@ void wasm::PrintWasmText(const WasmModule *module,
     os << " $";
     os.write(fun_name.start(), fun_name.length());
   }
-  size_t param_count = fun->sig->parameter_count();
-  if (param_count) {
+  if (fun->sig->parameter_count()) {
     os << " (param";
-    for (size_t i = 0; i < param_count; ++i)
-      os << ' ' << WasmOpcodes::TypeName(fun->sig->GetParam(i));
+    for (auto param : fun->sig->parameters())
+      os << ' ' << WasmOpcodes::TypeName(param);
     os << ')';
   }
-  size_t return_count = fun->sig->return_count();
-  if (return_count) {
+  if (fun->sig->return_count()) {
     os << " (result";
-    for (size_t i = 0; i < return_count; ++i)
-      os << ' ' << WasmOpcodes::TypeName(fun->sig->GetReturn(i));
+    for (auto ret : fun->sig->returns())
+      os << ' ' << WasmOpcodes::TypeName(ret);
     os << ')';
   }
   os << "\n";

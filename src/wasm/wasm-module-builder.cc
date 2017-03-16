@@ -334,12 +334,12 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     for (FunctionSig* sig : signatures_) {
       buffer.write_u8(kWasmFunctionTypeForm);
       buffer.write_size(sig->parameter_count());
-      for (size_t j = 0; j < sig->parameter_count(); j++) {
-        buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(sig->GetParam(j)));
+      for (auto param : sig->parameters()) {
+        buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(param));
       }
       buffer.write_size(sig->return_count());
-      for (size_t j = 0; j < sig->return_count(); j++) {
-        buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(sig->GetReturn(j)));
+      for (auto ret : sig->returns()) {
+        buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(ret));
       }
     }
     FixupSection(buffer, start);

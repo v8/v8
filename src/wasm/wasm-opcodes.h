@@ -32,7 +32,7 @@ static const uint8_t kMultivalBlock = 0x41;
 
 // We reuse the internal machine type to represent WebAssembly types.
 // A typedef improves readability without adding a whole new type system.
-typedef MachineRepresentation ValueType;
+using ValueType = MachineRepresentation;
 constexpr ValueType kWasmStmt = MachineRepresentation::kNone;
 constexpr ValueType kWasmI32 = MachineRepresentation::kWord32;
 constexpr ValueType kWasmI64 = MachineRepresentation::kWord64;
@@ -44,12 +44,13 @@ constexpr ValueType kWasmS1x8 = MachineRepresentation::kSimd1x8;
 constexpr ValueType kWasmS1x16 = MachineRepresentation::kSimd1x16;
 constexpr ValueType kWasmVar = MachineRepresentation::kTagged;
 
-typedef Signature<ValueType> FunctionSig;
+using FunctionSig = Signature<ValueType>;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
+bool IsJSCompatibleSignature(const FunctionSig* sig);
 
-typedef Vector<const char> WasmName;
+using WasmName = Vector<const char>;
 
-typedef int WasmCodePosition;
+using WasmCodePosition = int;
 constexpr WasmCodePosition kNoCodePosition = -1;
 
 // Control expressions and blocks.

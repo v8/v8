@@ -11,8 +11,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-typedef Signature<ValueType> FunctionSig;
-
 #define CASE_OP(name, str) \
   case kExpr##name:        \
     return str;
@@ -269,15 +267,22 @@ bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
-  for (size_t i = 0; i < sig.return_count(); ++i) {
-    os << WasmOpcodes::ShortNameOf(sig.GetReturn(i));
+  for (auto ret : sig.returns()) {
+    os << WasmOpcodes::ShortNameOf(ret);
   }
   os << "_";
   if (sig.parameter_count() == 0) os << "v";
-  for (size_t i = 0; i < sig.parameter_count(); ++i) {
-    os << WasmOpcodes::ShortNameOf(sig.GetParam(i));
+  for (auto param : sig.parameters()) {
+    os << WasmOpcodes::ShortNameOf(param);
   }
   return os;
+}
+
+bool IsJSCompatibleSignature(const FunctionSig* sig) {
+  for (auto type : sig->all()) {
+    if (type == wasm::kWasmI64 || type == wasm::kWasmS128) return false;
+  }
+  return true;
 }
 
 #define DECLARE_SIG_ENUM(name, ...) kSigEnum_##name,

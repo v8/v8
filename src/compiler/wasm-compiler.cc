@@ -2692,22 +2692,6 @@ Node* WasmGraphBuilder::BuildHeapNumberValueIndexConstant() {
   return jsgraph()->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag);
 }
 
-namespace {
-bool IsJSCompatible(wasm::ValueType type) {
-  return type != wasm::kWasmI64 && type != wasm::kWasmS128;
-}
-
-bool HasJSCompatibleSignature(wasm::FunctionSig* sig) {
-  for (size_t i = 0; i < sig->parameter_count(); i++) {
-    if (!IsJSCompatible(sig->GetParam(i))) return false;
-  }
-  for (size_t i = 0; i < sig->return_count(); i++) {
-    if (!IsJSCompatible(sig->GetReturn(i))) return false;
-  }
-  return true;
-}
-}  // namespace
-
 void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
                                             wasm::FunctionSig* sig) {
   int wasm_count = static_cast<int>(sig->parameter_count());
@@ -2725,7 +2709,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
           Linkage::GetJSCallContextParamIndex(wasm_count + 1), "%context"),
       graph()->start());
 
-  if (!HasJSCompatibleSignature(sig_)) {
+  if (!wasm::IsJSCompatibleSignature(sig_)) {
     // Throw a TypeError. Use the context of the calling javascript function
     // (passed as a parameter), such that the generated code is context
     // independent.
@@ -2817,7 +2801,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   *effect_ = start;
   *control_ = start;
 
-  if (!HasJSCompatibleSignature(sig_)) {
+  if (!wasm::IsJSCompatibleSignature(sig_)) {
     // Throw a TypeError. Embedding the context is ok here, since this code is
     // regenerated at instantiation time.
     Node* context =

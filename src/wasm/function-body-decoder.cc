@@ -177,10 +177,7 @@ class WasmDecoder : public Decoder {
     DCHECK_NOT_NULL(type_list);
     // Initialize from signature.
     if (sig != nullptr) {
-      type_list->reserve(sig->parameter_count());
-      for (size_t i = 0; i < sig->parameter_count(); ++i) {
-        type_list->push_back(sig->GetParam(i));
-      }
+      type_list->assign(sig->parameters().begin(), sig->parameters().end());
     }
     // Decode local declarations, if any.
     uint32_t entries = decoder->consume_u32v("local decls count");
