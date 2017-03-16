@@ -9406,7 +9406,7 @@ void debug::GetLoadedScripts(v8::Isolate* v8_isolate,
     i::Script::Iterator iterator(isolate);
     i::Script* script;
     while ((script = iterator.Next())) {
-      if (script->type() != i::Script::TYPE_NORMAL) continue;
+      if (!script->IsUserJavaScript()) continue;
       if (script->HasValidSource()) {
         i::HandleScope handle_scope(isolate);
         i::Handle<i::Script> script_handle(script, isolate);

@@ -6687,6 +6687,8 @@ class Script: public Struct {
   bool GetPositionInfo(int position, PositionInfo* info,
                        OffsetFlag offset_flag) const;
 
+  bool IsUserJavaScript();
+
   // Wrappers for GetPositionInfo
   static int GetColumnNumber(Handle<Script> script, int code_offset);
   int GetColumnNumber(int code_pos) const;

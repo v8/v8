@@ -94,8 +94,7 @@ Coverage* Coverage::Collect(Isolate* isolate, bool reset_count) {
   Coverage* result = new Coverage();
   Script::Iterator scripts(isolate);
   while (Script* script = scripts.Next()) {
-    // Dismiss non-user scripts.
-    if (script->type() != Script::TYPE_NORMAL) continue;
+    if (!script->IsUserJavaScript()) continue;
 
     // Create and add new script data.
     Handle<Script> script_handle(script, isolate);

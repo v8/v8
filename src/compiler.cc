@@ -485,8 +485,8 @@ bool Renumber(ParseInfo* parse_info,
   bool collect_type_profile;
   if (parse_info->shared_info().is_null() ||
       parse_info->shared_info()->feedback_metadata()->length() == 0) {
-    collect_type_profile = FLAG_type_profile &&
-                           parse_info->script()->type() == Script::TYPE_NORMAL;
+    collect_type_profile =
+        FLAG_type_profile && parse_info->script()->IsUserJavaScript();
   } else {
     collect_type_profile =
         parse_info->shared_info()->feedback_metadata()->HasTypeProfileSlot();

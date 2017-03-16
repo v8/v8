@@ -13073,6 +13073,8 @@ bool Script::GetPositionInfo(Handle<Script> script, int position,
   return script->GetPositionInfo(position, info, offset_flag);
 }
 
+bool Script::IsUserJavaScript() { return type() == Script::TYPE_NORMAL; }
+
 namespace {
 bool GetPositionInfoSlow(const Script* script, int position,
                          Script::PositionInfo* info) {

@@ -740,7 +740,7 @@ Handle<Object> AsmJsWasmStackFrame::GetFunction() const {
 Handle<Object> AsmJsWasmStackFrame::GetFileName() {
   Handle<Script> script =
       wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
-  DCHECK_EQ(Script::TYPE_NORMAL, script->type());
+  DCHECK(script->IsUserJavaScript());
   return handle(script->name(), isolate_);
 }
 
@@ -766,7 +766,7 @@ int AsmJsWasmStackFrame::GetLineNumber() {
   DCHECK_LE(0, GetPosition());
   Handle<Script> script =
       wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
-  DCHECK_EQ(Script::TYPE_NORMAL, script->type());
+  DCHECK(script->IsUserJavaScript());
   return Script::GetLineNumber(script, GetPosition()) + 1;
 }
 
@@ -774,7 +774,7 @@ int AsmJsWasmStackFrame::GetColumnNumber() {
   DCHECK_LE(0, GetPosition());
   Handle<Script> script =
       wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
-  DCHECK_EQ(Script::TYPE_NORMAL, script->type());
+  DCHECK(script->IsUserJavaScript());
   return Script::GetColumnNumber(script, GetPosition()) + 1;
 }
 

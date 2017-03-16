@@ -580,7 +580,7 @@ Handle<WasmSharedModuleData> WasmSharedModuleData::New(
 
 bool WasmSharedModuleData::is_asm_js() {
   bool asm_js = module()->origin == wasm::ModuleOrigin::kAsmJsOrigin;
-  DCHECK_EQ(asm_js, script()->type() == Script::TYPE_NORMAL);
+  DCHECK_EQ(asm_js, script()->IsUserJavaScript());
   DCHECK_EQ(asm_js, has_asm_js_offset_table());
   return asm_js;
 }

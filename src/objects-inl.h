@@ -6325,7 +6325,7 @@ bool SharedFunctionInfo::IsUserJavaScript() {
   Object* script_obj = script();
   if (script_obj->IsUndefined(GetIsolate())) return false;
   Script* script = Script::cast(script_obj);
-  return static_cast<Script::Type>(script->type()) == Script::TYPE_NORMAL;
+  return script->IsUserJavaScript();
 }
 
 bool SharedFunctionInfo::IsSubjectToDebugging() {

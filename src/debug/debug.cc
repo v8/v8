@@ -1979,7 +1979,7 @@ bool Debug::IsBlackboxed(Handle<SharedFunctionInfo> shared) {
       DisableBreak no_recursive_break(this);
       DCHECK(shared->script()->IsScript());
       Handle<Script> script(Script::cast(shared->script()));
-      DCHECK(script->type() == i::Script::TYPE_NORMAL);
+      DCHECK(script->IsUserJavaScript());
       debug::Location start =
           GetDebugLocation(script, shared->start_position());
       debug::Location end = GetDebugLocation(script, shared->end_position());
@@ -2030,8 +2030,7 @@ void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   FixedArray* array = isolate_->native_context()->embedder_data();
   script->set_context_data(array->get(v8::Context::kDebugIdIndex));
   if (ignore_events()) return;
-  if (script->type() != i::Script::TYPE_NORMAL &&
-      script->type() != i::Script::TYPE_WASM) {
+  if (!script->IsUserJavaScript() && script->type() != i::Script::TYPE_WASM) {
     return;
   }
   if (!debug_delegate_) return;
