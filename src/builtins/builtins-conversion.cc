@@ -42,10 +42,8 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
   Node* context = Parameter(TypeConversionDescriptor::kContext);
 
   // Lookup the @@toPrimitive property on the {input}.
-  Callable callable = CodeFactory::GetProperty(isolate());
-  Node* to_primitive_symbol = HeapConstant(factory()->to_primitive_symbol());
   Node* exotic_to_prim =
-      CallStub(callable, context, input, to_primitive_symbol);
+      GetProperty(context, input, factory()->to_primitive_symbol());
 
   // Check if {exotic_to_prim} is neither null nor undefined.
   Label ordinary_to_primitive(this);
@@ -204,9 +202,7 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
   }
   for (Handle<String> name : method_names) {
     // Lookup the {name} on the {input}.
-    Callable callable = CodeFactory::GetProperty(isolate());
-    Node* name_string = HeapConstant(name);
-    Node* method = CallStub(callable, context, input, name_string);
+    Node* method = GetProperty(context, input, name);
 
     // Check if the {method} is callable.
     Label if_methodiscallable(this),

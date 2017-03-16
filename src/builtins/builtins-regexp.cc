@@ -34,9 +34,7 @@ Node* RegExpBuiltinsAssembler::FastLoadLastIndex(Node* regexp) {
 
 Node* RegExpBuiltinsAssembler::SlowLoadLastIndex(Node* context, Node* regexp) {
   // Load through the GetProperty stub.
-  Node* const name = HeapConstant(isolate()->factory()->lastIndex_string());
-  Callable getproperty_callable = CodeFactory::GetProperty(isolate());
-  return CallStub(getproperty_callable, context, regexp, name);
+  return GetProperty(context, regexp, isolate()->factory()->lastIndex_string());
 }
 
 Node* RegExpBuiltinsAssembler::LoadLastIndex(Node* context, Node* regexp,
@@ -810,21 +808,18 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     // Fall back to GetProperty stub on the slow-path.
     var_flags.Bind(int_zero);
 
-    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
-
-#define CASE_FOR_FLAG(NAME, FLAG)                                             \
-  do {                                                                        \
-    Label next(this);                                                         \
-    Node* const name =                                                        \
-        HeapConstant(isolate->factory()->InternalizeUtf8String(NAME));        \
-    Node* const flag = CallStub(getproperty_callable, context, regexp, name); \
-    Label if_isflagset(this);                                                 \
-    BranchIfToBooleanIsTrue(flag, &if_isflagset, &next);                      \
-    Bind(&if_isflagset);                                                      \
-    var_length.Bind(IntPtrAdd(var_length.value(), int_one));                  \
-    var_flags.Bind(WordOr(var_flags.value(), IntPtrConstant(FLAG)));          \
-    Goto(&next);                                                              \
-    Bind(&next);                                                              \
+#define CASE_FOR_FLAG(NAME, FLAG)                                          \
+  do {                                                                     \
+    Label next(this);                                                      \
+    Node* const flag = GetProperty(                                        \
+        context, regexp, isolate->factory()->InternalizeUtf8String(NAME)); \
+    Label if_isflagset(this);                                              \
+    BranchIfToBooleanIsTrue(flag, &if_isflagset, &next);                   \
+    Bind(&if_isflagset);                                                   \
+    var_length.Bind(IntPtrAdd(var_length.value(), int_one));               \
+    var_flags.Bind(WordOr(var_flags.value(), IntPtrConstant(FLAG)));       \
+    Goto(&next);                                                           \
+    Bind(&next);                                                           \
   } while (false)
 
     CASE_FOR_FLAG("global", JSRegExp::kGlobal);
@@ -883,9 +878,8 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
 
   // Check @@match.
   {
-    Callable getproperty_callable = CodeFactory::GetProperty(isolate());
-    Node* const name = HeapConstant(isolate()->factory()->match_symbol());
-    Node* const value = CallStub(getproperty_callable, context, receiver, name);
+    Node* const value =
+        GetProperty(context, receiver, isolate()->factory()->match_symbol());
 
     Label match_isundefined(this), match_isnotundefined(this);
     Branch(IsUndefined(value), &match_isundefined, &match_isnotundefined);
@@ -977,9 +971,8 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
     GotoIfNot(pattern_is_regexp, &next);
     GotoIfNot(IsUndefined(flags), &next);
 
-    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
-    Node* const name = HeapConstant(isolate->factory()->constructor_string());
-    Node* const value = CallStub(getproperty_callable, context, pattern, name);
+    Node* const value =
+        GetProperty(context, pattern, isolate->factory()->constructor_string());
 
     GotoIfNot(WordEqual(value, regexp_function), &next);
     Return(pattern);
@@ -1017,12 +1010,9 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
     Bind(&if_patternisslowregexp);
     {
-      Callable getproperty_callable = CodeFactory::GetProperty(isolate);
-
       {
-        Node* const name = HeapConstant(isolate->factory()->source_string());
         Node* const value =
-            CallStub(getproperty_callable, context, pattern, name);
+            GetProperty(context, pattern, isolate->factory()->source_string());
         var_pattern.Bind(value);
       }
 
@@ -1030,9 +1020,8 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
         Label inner_next(this);
         GotoIfNot(IsUndefined(flags), &inner_next);
 
-        Node* const name = HeapConstant(isolate->factory()->flags_string());
         Node* const value =
-            CallStub(getproperty_callable, context, pattern, name);
+            GetProperty(context, pattern, isolate->factory()->flags_string());
         var_flags.Bind(value);
         Goto(&inner_next);
 
@@ -1243,30 +1232,28 @@ Node* RegExpBuiltinsAssembler::SlowFlagGetter(Node* const context,
   Label out(this);
   Variable var_result(this, MachineRepresentation::kWord32);
 
-  Node* name;
-
+  Handle<String> name;
   switch (flag) {
     case JSRegExp::kGlobal:
-      name = HeapConstant(factory->global_string());
+      name = factory->global_string();
       break;
     case JSRegExp::kIgnoreCase:
-      name = HeapConstant(factory->ignoreCase_string());
+      name = factory->ignoreCase_string();
       break;
     case JSRegExp::kMultiline:
-      name = HeapConstant(factory->multiline_string());
+      name = factory->multiline_string();
       break;
     case JSRegExp::kSticky:
-      name = HeapConstant(factory->sticky_string());
+      name = factory->sticky_string();
       break;
     case JSRegExp::kUnicode:
-      name = HeapConstant(factory->unicode_string());
+      name = factory->unicode_string();
       break;
     default:
       UNREACHABLE();
   }
 
-  Callable getproperty_callable = CodeFactory::GetProperty(isolate());
-  Node* const value = CallStub(getproperty_callable, context, regexp, name);
+  Node* const value = GetProperty(context, regexp, name);
 
   Label if_true(this), if_false(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
@@ -1494,9 +1481,8 @@ Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
     // verifying its return value.
 
     // Get the exec property.
-    Node* const name = HeapConstant(isolate->factory()->exec_string());
-    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
-    Node* const exec = CallStub(getproperty_callable, context, regexp, name);
+    Node* const exec =
+        GetProperty(context, regexp, isolate->factory()->exec_string());
 
     // Is {exec} callable?
     Label if_iscallable(this), if_isnotcallable(this);
@@ -1856,11 +1842,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
           Bind(&slow_result);
           {
             // TODO(ishell): Use GetElement stub once it's available.
-            Node* const name = smi_zero;
-            Callable getproperty_callable = CodeFactory::GetProperty(isolate);
-            Node* const match =
-                CallStub(getproperty_callable, context, result, name);
-
+            Node* const match = GetProperty(context, result, smi_zero);
             var_match.Bind(ToString(context, match));
             Goto(&if_didmatch);
           }
@@ -2027,11 +2009,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
 
     Bind(&slow_result);
     {
-      Node* const name = HeapConstant(isolate->factory()->index_string());
-      Callable getproperty_callable = CodeFactory::GetProperty(isolate);
-      Node* const index =
-          CallStub(getproperty_callable, context, exec_result, name);
-      Return(index);
+      Return(GetProperty(context, exec_result,
+                         isolate->factory()->index_string()));
     }
   }
 }

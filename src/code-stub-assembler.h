@@ -1018,8 +1018,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                          Label* if_not_found, Label* if_bailout);
 
   Node* GetProperty(Node* context, Node* receiver, Handle<Name> name) {
+    return GetProperty(context, receiver, HeapConstant(name));
+  }
+
+  Node* GetProperty(Node* context, Node* receiver, Node* const name) {
     return CallStub(CodeFactory::GetProperty(isolate()), context, receiver,
-                    HeapConstant(name));
+                    name);
   }
 
   void LoadPropertyFromFastObject(Node* object, Node* map, Node* descriptors,

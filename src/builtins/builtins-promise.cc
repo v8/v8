@@ -280,11 +280,8 @@ Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
   var_result.Bind(default_constructor);
 
   // 2. Let C be ? Get(O, "constructor").
-  Node* const constructor_str =
-      HeapConstant(isolate->factory()->constructor_string());
-  Callable getproperty_callable = CodeFactory::GetProperty(isolate);
   Node* const constructor =
-      CallStub(getproperty_callable, context, object, constructor_str);
+      GetProperty(context, object, isolate->factory()->constructor_string());
 
   // 3. If C is undefined, return defaultConstructor.
   Label out(this);
@@ -295,10 +292,8 @@ Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
                        MessageTemplate::kConstructorNotReceiver);
 
   // 5. Let S be ? Get(C, @@species).
-  Node* const species_symbol =
-      HeapConstant(isolate->factory()->species_symbol());
   Node* const species =
-      CallStub(getproperty_callable, context, constructor, species_symbol);
+      GetProperty(context, constructor, isolate->factory()->species_symbol());
 
   // 6. If S is either undefined or null, return defaultConstructor.
   GotoIf(IsUndefined(species), &out);
@@ -753,10 +748,8 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   Bind(&if_notnativepromise);
   {
     // 8. Let then be Get(resolution, "then").
-    Node* const then_str = HeapConstant(isolate->factory()->then_string());
-    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
     Node* const then =
-        CallStub(getproperty_callable, context, result, then_str);
+        GetProperty(context, result, isolate->factory()->then_string());
 
     // 9. If then is an abrupt completion, then
     GotoIfException(then, &if_rejectpromise, &var_reason);
@@ -1367,12 +1360,9 @@ TF_BUILTIN(PromiseCatch, PromiseBuiltinsAssembler) {
 
   Bind(&if_customthen);
   {
-    Isolate* isolate = this->isolate();
-    Node* const then_str = HeapConstant(isolate->factory()->then_string());
-    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
     Node* const then =
-        CallStub(getproperty_callable, context, promise, then_str);
-    Callable call_callable = CodeFactory::Call(isolate);
+        GetProperty(context, promise, isolate()->factory()->then_string());
+    Callable call_callable = CodeFactory::Call(isolate());
     Node* const result =
         CallJS(call_callable, context, then, promise, on_resolve, on_reject);
     Return(result);
@@ -1420,11 +1410,8 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
   {
     // 3.a Let xConstructor be ? Get(x, "constructor").
     // The constructor lookup is observable.
-    Node* const constructor_str =
-        HeapConstant(isolate->factory()->constructor_string());
-    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
     Node* const constructor =
-        CallStub(getproperty_callable, context, value, constructor_str);
+        GetProperty(context, value, isolate->factory()->constructor_string());
 
     // 3.b If SameValue(xConstructor, C) is true, return x.
     GotoIfNot(SameValue(constructor, receiver), &if_valueisnotpromise);
@@ -1760,12 +1747,9 @@ TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
 
   Bind(&if_custompromise);
   {
-    Isolate* isolate = this->isolate();
-    Node* const then_str = HeapConstant(isolate->factory()->then_string());
-    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
     Node* const then =
-        CallStub(getproperty_callable, context, promise, then_str);
-    Callable call_callable = CodeFactory::Call(isolate);
+        GetProperty(context, promise, isolate()->factory()->then_string());
+    Callable call_callable = CodeFactory::Call(isolate());
     // 5. Return ?  Invoke(promise, "then", « thenFinally, catchFinally »).
     Node* const result =
         CallJS(call_callable, context, then, promise, var_then_finally.value(),

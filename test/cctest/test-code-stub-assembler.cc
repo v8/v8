@@ -1862,10 +1862,8 @@ TEST(AllocatePromiseResolveThenableJobInfo) {
   Node* const context = p.Parameter(kNumParams + 2);
   Node* const native_context = p.LoadNativeContext(context);
   Node* const thenable = p.AllocateAndInitJSPromise(context);
-  Node* const then_str = p.HeapConstant(isolate->factory()->then_string());
-  Callable getproperty_callable = CodeFactory::GetProperty(isolate);
   Node* const then =
-      p.CallStub(getproperty_callable, context, thenable, then_str);
+      p.GetProperty(context, thenable, isolate->factory()->then_string());
   Node* resolve = nullptr;
   Node* reject = nullptr;
   std::tie(resolve, reject) = p.CreatePromiseResolvingFunctions(

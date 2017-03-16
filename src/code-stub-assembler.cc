@@ -7732,8 +7732,8 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
   GotoIfNot(IsJSReceiver(callable), &if_notreceiver);
 
   // Load the @@hasInstance property from {callable}.
-  Node* inst_of_handler = CallStub(CodeFactory::GetProperty(isolate()), context,
-                                   callable, HasInstanceSymbolConstant());
+  Node* inst_of_handler =
+      GetProperty(context, callable, HasInstanceSymbolConstant());
 
   // Optimize for the likely case where {inst_of_handler} is the builtin
   // Function.prototype[@@hasInstance] method, and emit a direct call in

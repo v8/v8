@@ -1226,10 +1226,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
 
   // Fall back to a slow lookup of {object[symbol]}.
 
-  Callable getproperty_callable = CodeFactory::GetProperty(isolate());
-  Node* const key = HeapConstant(symbol);
-  Node* const maybe_func = CallStub(getproperty_callable, context, object, key);
-
+  Node* const maybe_func = GetProperty(context, object, symbol);
   GotoIf(IsUndefined(maybe_func), &out);
 
   // Attempt to call the function.
