@@ -54,7 +54,6 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kToBoolean:
     case FeedbackSlotKind::kLiteral:
     case FeedbackSlotKind::kCreateClosure:
-    case FeedbackSlotKind::kTypeProfile:
       return 1;
 
     case FeedbackSlotKind::kCall:
@@ -187,8 +186,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       case FeedbackSlotKind::kStoreOwnNamed:
       case FeedbackSlotKind::kStoreKeyedSloppy:
       case FeedbackSlotKind::kStoreKeyedStrict:
-      case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-      case FeedbackSlotKind::kTypeProfile: {
+      case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
         if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
           with++;
         } else if (obj == megamorphic_sentinel) {

@@ -478,23 +478,9 @@ bool Renumber(ParseInfo* parse_info,
               Compiler::EagerInnerFunctionLiterals* eager_literals) {
   RuntimeCallTimerScope runtimeTimer(parse_info->isolate(),
                                      &RuntimeCallStats::CompileRenumber);
-
-  // CollectTypeProfile uses its own feedback slots. If we have existing
-  // FeedbackMetadata, we can only collect type profile, if the feedback vector
-  // has the appropriate slots.
-  bool collect_type_profile;
-  if (parse_info->shared_info().is_null() ||
-      parse_info->shared_info()->feedback_metadata()->length() == 0) {
-    collect_type_profile = FLAG_type_profile;
-  } else {
-    collect_type_profile =
-        parse_info->shared_info()->feedback_metadata()->HasTypeProfileSlot();
-  }
-
   if (!AstNumbering::Renumber(
           parse_info->isolate()->stack_guard()->real_climit(),
-          parse_info->zone(), parse_info->literal(), eager_literals,
-          collect_type_profile)) {
+          parse_info->zone(), parse_info->literal(), eager_literals)) {
     return false;
   }
   if (!parse_info->shared_info().is_null()) {
