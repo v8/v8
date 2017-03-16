@@ -1135,20 +1135,25 @@ void V8DebuggerAgentImpl::didParseSource(
   const bool* isLiveEditParam = isLiveEdit ? &isLiveEdit : nullptr;
   const bool* hasSourceURLParam = hasSourceURL ? &hasSourceURL : nullptr;
   const bool* isModuleParam = isModule ? &isModule : nullptr;
-  if (success)
+  std::unique_ptr<V8StackTraceImpl> stack =
+      V8StackTraceImpl::capture(m_inspector->debugger(), contextGroupId, 1);
+  std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
+      stack && !stack->isEmpty() ? stack->buildInspectorObjectImpl() : nullptr;
+  if (success) {
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
-        isModuleParam, scriptRef->source().length());
-  else
+        isModuleParam, scriptRef->source().length(), std::move(stackTrace));
+  } else {
     m_frontend.scriptFailedToParse(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
-        scriptRef->source().length());
+        scriptRef->source().length(), std::move(stackTrace));
+  }
 
   if (scriptURL.isEmpty() || !success) return;
 

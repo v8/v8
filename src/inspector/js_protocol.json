@@ -713,7 +713,8 @@
                     { "name": "sourceMapURL", "type": "string", "optional": true, "description": "URL of source map associated with script (if any)." },
                     { "name": "hasSourceURL", "type": "boolean", "optional": true, "description": "True, if this script has sourceURL.", "experimental": true },
                     { "name": "isModule", "type": "boolean", "optional": true, "description": "True, if this script is ES6 module.", "experimental": true },
-                    { "name": "length", "type": "integer", "optional": true, "description": "This script length.", "experimental": true }
+                    { "name": "length", "type": "integer", "optional": true, "description": "This script length.", "experimental": true },
+                    { "name": "stackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "JavaScript top stack frame of where the script parsed event was triggered if available.", "experimental": true }
                 ],
                 "description": "Fired when virtual machine parses script. This event is also fired for all known and uncollected scripts upon enabling debugger."
             },
@@ -732,7 +733,8 @@
                     { "name": "sourceMapURL", "type": "string", "optional": true, "description": "URL of source map associated with script (if any)." },
                     { "name": "hasSourceURL", "type": "boolean", "optional": true, "description": "True, if this script has sourceURL.", "experimental": true },
                     { "name": "isModule", "type": "boolean", "optional": true, "description": "True, if this script is ES6 module.", "experimental": true },
-                    { "name": "length", "type": "integer", "optional": true, "description": "This script length.", "experimental": true }
+                    { "name": "length", "type": "integer", "optional": true, "description": "This script length.", "experimental": true },
+                    { "name": "stackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "JavaScript top stack frame of where the script parsed event was triggered if available.", "experimental": true }
                 ],
                 "description": "Fired when virtual machine fails to parse the script."
             },
