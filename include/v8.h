@@ -7619,7 +7619,7 @@ class V8_EXPORT V8 {
    */
   static void ShutdownPlatform();
 
-#if V8_OS_LINUX && V8_TARGET_ARCH_X64
+#if V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
   /**
    * Give the V8 signal handler a chance to handle a fault.
    *
