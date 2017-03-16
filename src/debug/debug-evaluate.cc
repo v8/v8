@@ -315,6 +315,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
     case Runtime::kCall:
     case Runtime::kInlineMaxSmi:
     case Runtime::kMaxSmi:
+    case Runtime::kHasInPrototypeChain:
       return true;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
@@ -379,6 +380,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     // Conversions.
     case Bytecode::kToObject:
     case Bytecode::kToNumber:
+    case Bytecode::kToName:
     // Misc.
     case Bytecode::kForInPrepare:
     case Bytecode::kForInContinue:
@@ -405,7 +407,22 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
   switch (id) {
     // Whitelist for builtins.
     // Object builtins.
+    case Builtins::kObjectCreate:
+    case Builtins::kObjectEntries:
+    case Builtins::kObjectGetOwnPropertyDescriptor:
+    case Builtins::kObjectGetOwnPropertyDescriptors:
+    case Builtins::kObjectGetOwnPropertyNames:
+    case Builtins::kObjectGetOwnPropertySymbols:
+    case Builtins::kObjectGetPrototypeOf:
+    case Builtins::kObjectIs:
+    case Builtins::kObjectIsExtensible:
+    case Builtins::kObjectIsFrozen:
+    case Builtins::kObjectIsSealed:
     case Builtins::kObjectPrototypeValueOf:
+    case Builtins::kObjectValues:
+    case Builtins::kObjectHasOwnProperty:
+    case Builtins::kObjectPrototypePropertyIsEnumerable:
+    case Builtins::kObjectProtoToString:
     // Array builtins.
     case Builtins::kArrayCode:
     case Builtins::kArrayIndexOf:
@@ -485,6 +502,12 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeTrimLeft:
     case Builtins::kStringPrototypeTrimRight:
     case Builtins::kStringPrototypeValueOf:
+    // Symbol builtins.
+    case Builtins::kSymbolConstructor:
+    case Builtins::kSymbolKeyFor:
+    case Builtins::kSymbolPrototypeToString:
+    case Builtins::kSymbolPrototypeValueOf:
+    case Builtins::kSymbolPrototypeToPrimitive:
     // JSON builtins.
     case Builtins::kJsonParse:
     case Builtins::kJsonStringify:

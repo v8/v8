@@ -7,18 +7,55 @@
 Debug = debug.Debug
 
 var exception = null;
+var object_with_symbol_key = {[Symbol("a")]: 1};
+var object_with_callbacks = { toString: () => "string", valueOf: () => 3};
+var symbol_for_a = Symbol.for("a");
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     function success(expectation, source) {
-      assertEquals(expectation,
-                   exec_state.frame(0).evaluate(source, true).value());
+      var result = exec_state.frame(0).evaluate(source, true).value();
+      if (expectation !== undefined) assertEquals(expectation, result);
     }
     function fail(source) {
       assertThrows(() => exec_state.frame(0).evaluate(source, true),
                    EvalError);
     }
+
+    // Test some Object functions.
+    success({p : 3}, `Object.create({}, { p: { value: 3 } })`);
+    success("[[\"a\",1],[\"b\",2]]",
+            `JSON.stringify(Object.entries({a:1, b:2}))`);
+    success({value: 1, writable: true, enumerable: true, configurable: true},
+            `Object.getOwnPropertyDescriptor({a: 1}, "a")`);
+    success("{\"a\":{\"value\":1,\"writable\":true," +
+            "\"enumerable\":true,\"configurable\":true}}",
+            `JSON.stringify(Object.getOwnPropertyDescriptors({a: 1}))`);
+    success(["a"], `Object.getOwnPropertyNames({a: 1})`);
+    success(undefined, `Object.getOwnPropertySymbols(object_with_symbol_key)`);
+    success({}, `Object.getPrototypeOf(Object.create({}))`);
+    success(true, `Object.is(Object, Object)`);
+    success(true, `Object.isExtensible({})`);
+    success(false, `Object.isFrozen({})`);
+    success(false, `Object.isSealed({})`);
+    success([1, 2], `Object.values({a:1, b:2})`);
+
+    fail(`Object.assign({}, {})`);
+    fail(`Object.defineProperties({}, [{p:{value:3}}])`);
+    fail(`Object.defineProperty({}, {p:{value:3}})`);
+    fail(`Object.freeze({})`);
+    fail(`Object.preventExtensions({})`);
+    fail(`Object.seal({})`);
+    fail(`Object.setPrototypeOf({}, {})`);
+
+    // Test some Object.prototype functions.
+    success(true, `({a:1}).hasOwnProperty("a")`);
+    success(true, `Object.prototype.isPrototypeOf({})`);
+    success(true, `({a:1}).propertyIsEnumerable("a")`);
+    success("[object Object]", `({a:1}).toString()`);
+    success("string", `(object_with_callbacks).toString()`);
+    success(3, `(object_with_callbacks).valueOf()`);
 
     // Test Array functions.
     var function_param = [
@@ -97,6 +134,13 @@ function listener(event, exec_state, event_data, data) {
 
     // Test JSON functions.
     success('{"abc":[1,2]}', "JSON.stringify(JSON.parse('{\"abc\":[1,2]}'))");
+
+    // Test Symbol functions.
+    success(undefined, `Symbol("a")`);
+    fail(`Symbol.for("a")`);  // Symbol.for can be observed via Symbol.keyFor.
+    success("a", `Symbol.keyFor(symbol_for_a)`);
+    success("Symbol(a)", `symbol_for_a.valueOf().toString()`);
+    success("Symbol(a)", `symbol_for_a[Symbol.toPrimitive]().toString()`);
   } catch (e) {
     exception = e;
     print(e, e.stack);
