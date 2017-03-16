@@ -216,23 +216,23 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 }
 
 void RegExpBuiltinsAssembler::GetStringPointers(
-    Node* const string, Node* const offset, Node* const last_index,
-    Node* const string_length, bool is_one_byte, Variable* var_string_start,
-    Variable* var_string_end) {
+    Node* const string_data, Node* const offset, Node* const last_index,
+    Node* const string_length, String::Encoding encoding,
+    Variable* var_string_start, Variable* var_string_end) {
   DCHECK_EQ(var_string_start->rep(), MachineType::PointerRepresentation());
   DCHECK_EQ(var_string_end->rep(), MachineType::PointerRepresentation());
 
-  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-  const int kHeaderSize = SeqOneByteString::kHeaderSize - kHeapObjectTag;
-  const ElementsKind kind = is_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
+  const ElementsKind kind = (encoding == String::ONE_BYTE_ENCODING)
+                                ? UINT8_ELEMENTS
+                                : UINT16_ELEMENTS;
 
   Node* const from_offset = ElementOffsetFromIndex(
-      IntPtrAdd(offset, last_index), kind, INTPTR_PARAMETERS, kHeaderSize);
-  var_string_start->Bind(IntPtrAdd(string, from_offset));
+      IntPtrAdd(offset, last_index), kind, INTPTR_PARAMETERS);
+  var_string_start->Bind(IntPtrAdd(string_data, from_offset));
 
   Node* const to_offset = ElementOffsetFromIndex(
-      IntPtrAdd(offset, string_length), kind, INTPTR_PARAMETERS, kHeaderSize);
-  var_string_end->Bind(IntPtrAdd(string, to_offset));
+      IntPtrAdd(offset, string_length), kind, INTPTR_PARAMETERS);
+  var_string_end->Bind(IntPtrAdd(string_data, to_offset));
 }
 
 Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
@@ -258,13 +258,9 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
 
   Node* const int_zero = IntPtrConstant(0);
 
-  Variable var_result(this, MachineRepresentation::kTagged);
-  Variable var_string(this, MachineType::PointerRepresentation(), int_zero);
-  Variable var_string_offset(this, MachineType::PointerRepresentation(),
-                             int_zero);
-  Variable var_string_instance_type(this, MachineRepresentation::kWord32,
-                                    Int32Constant(0));
+  ToDirectStringAssembler to_direct(state(), string);
 
+  Variable var_result(this, MachineRepresentation::kTagged);
   Label out(this), runtime(this, Label::kDeferred);
 
   // External constants.
@@ -308,19 +304,7 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
 
   // Unpack the string if possible.
 
-  var_string.Bind(BitcastTaggedToWord(string));
-  var_string_offset.Bind(int_zero);
-  var_string_instance_type.Bind(LoadInstanceType(string));
-
-  {
-    TryUnpackString(&var_string, &var_string_offset, &var_string_instance_type,
-                    &runtime);
-
-    // At this point, {var_string} may contain a faked sequential string (i.e.
-    // an external string with an adjusted offset) so we cannot assert
-    // IsString({var_string}). We also cannot allocate after this point since
-    // GC could move {var_string}'s underlying string.
-  }
+  to_direct.TryToDirect(&runtime);
 
   Node* const smi_string_length = LoadStringLength(string);
 
@@ -339,19 +323,16 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
 
   {
     Node* const int_string_length = SmiUntag(smi_string_length);
-
-    Node* const string_instance_type = var_string_instance_type.value();
-    CSA_ASSERT(this, IsSequentialStringInstanceType(string_instance_type));
+    Node* const direct_string_data = to_direct.PointerToData(&runtime);
 
     Label next(this), if_isonebyte(this), if_istwobyte(this, Label::kDeferred);
-    Branch(IsOneByteStringInstanceType(string_instance_type), &if_isonebyte,
-           &if_istwobyte);
+    Branch(IsOneByteStringInstanceType(to_direct.instance_type()),
+           &if_isonebyte, &if_istwobyte);
 
     Bind(&if_isonebyte);
     {
-      const bool kIsOneByte = true;
-      GetStringPointers(var_string.value(), var_string_offset.value(),
-                        int_last_index, int_string_length, kIsOneByte,
+      GetStringPointers(direct_string_data, to_direct.offset(), int_last_index,
+                        int_string_length, String::ONE_BYTE_ENCODING,
                         &var_string_start, &var_string_end);
       var_code.Bind(
           LoadFixedArrayElement(data, JSRegExp::kIrregexpLatin1CodeIndex));
@@ -360,9 +341,8 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
 
     Bind(&if_istwobyte);
     {
-      const bool kIsOneByte = false;
-      GetStringPointers(var_string.value(), var_string_offset.value(),
-                        int_last_index, int_string_length, kIsOneByte,
+      GetStringPointers(direct_string_data, to_direct.offset(), int_last_index,
+                        int_string_length, String::TWO_BYTE_ENCODING,
                         &var_string_start, &var_string_end);
       var_code.Bind(
           LoadFixedArrayElement(data, JSRegExp::kIrregexpUC16CodeIndex));

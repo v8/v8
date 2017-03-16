@@ -34,10 +34,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                       bool is_fastpath);
 
   // Loads {var_string_start} and {var_string_end} with the corresponding
-  // offsets into the given {string}.
-  void GetStringPointers(Node* const string, Node* const offset,
+  // offsets into the given {string_data}.
+  void GetStringPointers(Node* const string_data, Node* const offset,
                          Node* const last_index, Node* const string_length,
-                         bool is_one_byte, Variable* var_string_start,
+                         String::Encoding encoding, Variable* var_string_start,
                          Variable* var_string_end);
 
   // Low level logic around the actual call into generated Irregexp code.
