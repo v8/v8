@@ -2638,9 +2638,9 @@ class FastDoubleElementsAccessor
     FixedArrayBase* elements_base = receiver->elements();
     Object* value = *search_value;
 
-    if (start_from >= length) return Just<int64_t>(-1);
-
     length = std::min(static_cast<uint32_t>(elements_base->length()), length);
+
+    if (start_from >= length) return Just<int64_t>(-1);
 
     if (!value->IsNumber()) {
       return Just<int64_t>(-1);
