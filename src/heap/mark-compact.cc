@@ -399,9 +399,11 @@ void MarkCompactCollector::ClearMarkbits() {
 class MarkCompactCollector::Sweeper::SweeperTask : public v8::Task {
  public:
   SweeperTask(Sweeper* sweeper, base::Semaphore* pending_sweeper_tasks,
+              base::AtomicNumber<intptr_t>* num_sweeping_tasks,
               AllocationSpace space_to_start)
       : sweeper_(sweeper),
         pending_sweeper_tasks_(pending_sweeper_tasks),
+        num_sweeping_tasks_(num_sweeping_tasks),
         space_to_start_(space_to_start) {}
 
   virtual ~SweeperTask() {}
@@ -419,11 +421,13 @@ class MarkCompactCollector::Sweeper::SweeperTask : public v8::Task {
       DCHECK_LE(space_id, LAST_PAGED_SPACE);
       sweeper_->ParallelSweepSpace(static_cast<AllocationSpace>(space_id), 0);
     }
+    num_sweeping_tasks_->Decrement(1);
     pending_sweeper_tasks_->Signal();
   }
 
   Sweeper* sweeper_;
   base::Semaphore* pending_sweeper_tasks_;
+  base::AtomicNumber<intptr_t>* num_sweeping_tasks_;
   AllocationSpace space_to_start_;
 
   DISALLOW_COPY_AND_ASSIGN(SweeperTask);
@@ -442,8 +446,10 @@ void MarkCompactCollector::Sweeper::StartSweeperTasks() {
     ForAllSweepingSpaces([this](AllocationSpace space) {
       if (space == NEW_SPACE) return;
       num_sweeping_tasks_.Increment(1);
+      semaphore_counter_++;
       V8::GetCurrentPlatform()->CallOnBackgroundThread(
-          new SweeperTask(this, &pending_sweeper_tasks_semaphore_, space),
+          new SweeperTask(this, &pending_sweeper_tasks_semaphore_,
+                          &num_sweeping_tasks_, space),
           v8::Platform::kShortRunningTask);
     });
   }
@@ -463,8 +469,7 @@ void MarkCompactCollector::Sweeper::SweepOrWaitUntilSweepingCompleted(
 }
 
 void MarkCompactCollector::SweepAndRefill(CompactionSpace* space) {
-  if (FLAG_concurrent_sweeping &&
-      !sweeper().IsSweepingCompleted(space->identity())) {
+  if (FLAG_concurrent_sweeping && sweeper().sweeping_in_progress()) {
     sweeper().ParallelSweepSpace(space->identity(), 0);
     space->RefillFreeList();
   }
@@ -484,16 +489,13 @@ void MarkCompactCollector::Sweeper::EnsureCompleted() {
 
   // If sweeping is not completed or not running at all, we try to complete it
   // here.
-  ForAllSweepingSpaces([this](AllocationSpace space) {
-    if (!FLAG_concurrent_sweeping || !this->IsSweepingCompleted(space)) {
-      ParallelSweepSpace(space, 0);
-    }
-  });
+  ForAllSweepingSpaces(
+      [this](AllocationSpace space) { ParallelSweepSpace(space, 0); });
 
   if (FLAG_concurrent_sweeping) {
-    while (num_sweeping_tasks_.Value() > 0) {
+    while (semaphore_counter_ > 0) {
       pending_sweeper_tasks_semaphore_.Wait();
-      num_sweeping_tasks_.Increment(-1);
+      semaphore_counter_--;
     }
   }
 
@@ -508,7 +510,7 @@ void MarkCompactCollector::Sweeper::EnsureCompleted() {
 
 void MarkCompactCollector::Sweeper::EnsureNewSpaceCompleted() {
   if (!sweeping_in_progress_) return;
-  if (!FLAG_concurrent_sweeping || !IsSweepingCompleted(NEW_SPACE)) {
+  if (!FLAG_concurrent_sweeping || sweeping_in_progress()) {
     for (Page* p : *heap_->new_space()) {
       SweepOrWaitUntilSweepingCompleted(p);
     }
@@ -528,22 +530,13 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
     VerifyEvacuation(heap_);
   }
 #endif
+
+  if (heap()->memory_allocator()->unmapper()->has_delayed_chunks())
+    heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 }
 
 bool MarkCompactCollector::Sweeper::AreSweeperTasksRunning() {
-  DCHECK(FLAG_concurrent_sweeping);
-  while (pending_sweeper_tasks_semaphore_.WaitFor(
-      base::TimeDelta::FromSeconds(0))) {
-    num_sweeping_tasks_.Increment(-1);
-  }
   return num_sweeping_tasks_.Value() != 0;
-}
-
-bool MarkCompactCollector::Sweeper::IsSweepingCompleted(AllocationSpace space) {
-  DCHECK(FLAG_concurrent_sweeping);
-  if (AreSweeperTasksRunning()) return false;
-  base::LockGuard<base::Mutex> guard(&mutex_);
-  return sweeping_list_[space].empty();
 }
 
 const char* AllocationSpaceName(AllocationSpace space) {
@@ -626,8 +619,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   pages.reserve(number_of_pages);
 
   DCHECK(!sweeping_in_progress());
-  DCHECK(!FLAG_concurrent_sweeping ||
-         sweeper().IsSweepingCompleted(space->identity()));
   Page* owner_of_linear_allocation_area =
       space->top() == space->limit()
           ? nullptr

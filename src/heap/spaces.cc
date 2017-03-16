@@ -417,7 +417,7 @@ bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
   // Chunks in old generation are unmapped if they are empty.
   DCHECK(chunk->InNewSpace() || chunk->SweepingDone());
   return !chunk->InNewSpace() || mc == nullptr || !FLAG_concurrent_sweeping ||
-         mc->sweeper().IsSweepingCompleted(NEW_SPACE);
+         !mc->sweeper().sweeping_in_progress();
 }
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,
@@ -2866,6 +2866,11 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   // Sweeping is still in progress.
   if (collector->sweeping_in_progress()) {
+    if (FLAG_concurrent_sweeping && !is_local() &&
+        !collector->sweeper().AreSweeperTasksRunning()) {
+      collector->EnsureSweepingCompleted();
+    }
+
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     RefillFreeList();

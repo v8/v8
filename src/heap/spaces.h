@@ -1176,6 +1176,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     bool WaitUntilCompleted();
     void TearDown();
 
+    bool has_delayed_chunks() { return delayed_regular_chunks_.size() > 0; }
+
    private:
     static const int kReservedQueueingSlots = 64;
 

@@ -424,6 +424,7 @@ class MarkCompactCollector {
     explicit Sweeper(Heap* heap)
         : heap_(heap),
           pending_sweeper_tasks_semaphore_(0),
+          semaphore_counter_(0),
           sweeping_in_progress_(false),
           num_sweeping_tasks_(0) {}
 
@@ -443,7 +444,6 @@ class MarkCompactCollector {
     void EnsureCompleted();
     void EnsureNewSpaceCompleted();
     bool AreSweeperTasksRunning();
-    bool IsSweepingCompleted(AllocationSpace space);
     void SweepOrWaitUntilSweepingCompleted(Page* page);
 
     void AddSweptPageSafe(PagedSpace* space, Page* page);
@@ -468,10 +468,14 @@ class MarkCompactCollector {
 
     Heap* heap_;
     base::Semaphore pending_sweeper_tasks_semaphore_;
+    // Counter is only used for waiting on the semaphore.
+    intptr_t semaphore_counter_;
     base::Mutex mutex_;
     SweptList swept_list_[kAllocationSpaces];
     SweepingList sweeping_list_[kAllocationSpaces];
     bool sweeping_in_progress_;
+    // Counter is actively maintained by the concurrent tasks to avoid querying
+    // the semaphore for maintaining a task counter on the main thread.
     base::AtomicNumber<intptr_t> num_sweeping_tasks_;
   };
 
