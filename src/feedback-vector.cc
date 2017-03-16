@@ -149,6 +149,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "kCreateClosure";
     case FeedbackSlotKind::kLiteral:
       return "LITERAL";
+    case FeedbackSlotKind::kTypeProfile:
+      return "TYPE_PROFILE";
     case FeedbackSlotKind::kGeneral:
       return "STUB";
     case FeedbackSlotKind::kKindsNumber:
@@ -156,6 +158,18 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
   }
   UNREACHABLE();
   return "?";
+}
+
+bool FeedbackMetadata::HasTypeProfileSlot() {
+  FeedbackMetadataIterator iter(this);
+  while (iter.HasNext()) {
+    iter.Next();
+    FeedbackSlotKind kind = iter.kind();
+    if (kind == FeedbackSlotKind::kTypeProfile) {
+      return true;
+    }
+  }
+  return false;
 }
 
 FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
@@ -219,6 +233,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kStoreKeyedStrict:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       case FeedbackSlotKind::kGeneral:
+      case FeedbackSlotKind::kTypeProfile:
         array->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
 
@@ -336,7 +351,8 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
           break;
         }
         case FeedbackSlotKind::kCreateClosure: {
-          break;
+          case FeedbackSlotKind::kTypeProfile:
+            break;
         }
         case FeedbackSlotKind::kGeneral: {
           if (obj->IsHeapObject()) {
@@ -1021,6 +1037,50 @@ void StoreDataPropertyInLiteralICNexus::ConfigureMonomorphic(
 
   SetFeedback(*cell);
   SetFeedbackExtra(*name);
+}
+
+InlineCacheState CollectTypeProfileNexus::StateFromFeedback() const {
+  Isolate* isolate = GetIsolate();
+  Object* const feedback = GetFeedback();
+
+  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+    return UNINITIALIZED;
+  }
+  return MONOMORPHIC;
+}
+
+void CollectTypeProfileNexus::Collect(Handle<Name> type) {
+  Isolate* isolate = GetIsolate();
+
+  Object* const feedback = GetFeedback();
+  Handle<ArrayList> types;
+
+  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+    types = ArrayList::New(isolate, 1);
+  } else {
+    types = Handle<ArrayList>(ArrayList::cast(feedback), isolate);
+  }
+  // TODO(franzih): Somehow sort this list. Either avoid duplicates
+  // or use the common base type.
+  SetFeedback(*ArrayList::Add(types, type));
+}
+
+void CollectTypeProfileNexus::Print() const {
+  Isolate* isolate = GetIsolate();
+
+  Object* const feedback = GetFeedback();
+
+  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+    return;
+  }
+
+  Handle<ArrayList> list;
+  list = Handle<ArrayList>(ArrayList::cast(feedback), isolate);
+
+  for (int i = 0; i < list->Length(); i++) {
+    String* name = String::cast(list->Get(i));
+    PrintF("%s\n", name->ToCString().get());
+  }
 }
 
 }  // namespace internal

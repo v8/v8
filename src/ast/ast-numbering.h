@@ -27,7 +27,8 @@ namespace AstNumbering {
 // non-null, adds any eager inner literal functions into it.
 bool Renumber(
     uintptr_t stack_limit, Zone* zone, FunctionLiteral* function,
-    ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* eager_literals);
+    ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* eager_literals,
+    bool collect_type_profile = false);
 }
 
 // Some details on yield IDs

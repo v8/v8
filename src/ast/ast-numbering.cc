@@ -15,7 +15,8 @@ namespace internal {
 class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
  public:
   AstNumberingVisitor(uintptr_t stack_limit, Zone* zone,
-                      Compiler::EagerInnerFunctionLiterals* eager_literals)
+                      Compiler::EagerInnerFunctionLiterals* eager_literals,
+                      bool collect_type_profile = false)
       : zone_(zone),
         eager_literals_(eager_literals),
         next_id_(BailoutId::FirstUsable().ToInt()),
@@ -25,7 +26,8 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         slot_cache_(zone),
         disable_crankshaft_reason_(kNoReason),
         dont_optimize_reason_(kNoReason),
-        catch_prediction_(HandlerTable::UNCAUGHT) {
+        catch_prediction_(HandlerTable::UNCAUGHT),
+        collect_type_profile_(collect_type_profile) {
     InitializeAstVisitor(stack_limit);
   }
 
@@ -101,6 +103,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   BailoutReason disable_crankshaft_reason_;
   BailoutReason dont_optimize_reason_;
   HandlerTable::CatchPrediction catch_prediction_;
+  bool collect_type_profile_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstNumberingVisitor);
@@ -422,7 +425,8 @@ void AstNumberingVisitor::VisitAssignment(Assignment* node) {
   if (node->is_compound()) VisitBinaryOperation(node->binary_operation());
   VisitReference(node->target());
   Visit(node->value());
-  ReserveFeedbackSlots(node);
+  node->AssignFeedbackSlots(properties_.get_spec(), language_mode_,
+                            &slot_cache_, collect_type_profile_);
 }
 
 
@@ -714,12 +718,14 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
 
 bool AstNumbering::Renumber(
     uintptr_t stack_limit, Zone* zone, FunctionLiteral* function,
-    Compiler::EagerInnerFunctionLiterals* eager_literals) {
+    Compiler::EagerInnerFunctionLiterals* eager_literals,
+    bool collect_type_profile) {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  AstNumberingVisitor visitor(stack_limit, zone, eager_literals);
+  AstNumberingVisitor visitor(stack_limit, zone, eager_literals,
+                              collect_type_profile);
   return visitor.Renumber(function);
 }
 }  // namespace internal
