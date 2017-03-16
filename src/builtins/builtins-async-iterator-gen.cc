@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-async.h"
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
@@ -11,6 +11,8 @@
 
 namespace v8 {
 namespace internal {
+
+using compiler::Node;
 
 namespace {
 
@@ -22,7 +24,7 @@ class ValueUnwrapContext {
 
 class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
  public:
-  explicit AsyncFromSyncBuiltinsAssembler(CodeAssemblerState* state)
+  explicit AsyncFromSyncBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : AsyncBuiltinsAssembler(state) {}
 
   void ThrowIfNotAsyncFromSyncIterator(Node* const context, Node* const object,

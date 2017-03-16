@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
@@ -12,11 +12,9 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::CodeAssemblerState CodeAssemblerState;
-
 class GeneratorBuiltinsAssembler : public CodeStubAssembler {
  public:
-  explicit GeneratorBuiltinsAssembler(CodeAssemblerState* state)
+  explicit GeneratorBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
  protected:

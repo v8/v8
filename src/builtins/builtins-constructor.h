@@ -7,13 +7,9 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
-typedef compiler::CodeAssemblerState CodeAssemblerState;
-typedef compiler::CodeAssemblerLabel CodeAssemblerLabel;
-
 class ConstructorBuiltinsAssembler : public CodeStubAssembler {
  public:
-  explicit ConstructorBuiltinsAssembler(CodeAssemblerState* state)
+  explicit ConstructorBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
   Node* EmitFastNewClosure(Node* shared_info, Node* feedback_vector, Node* slot,
@@ -25,8 +21,7 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   Node* EmitFastCloneRegExp(Node* closure, Node* literal_index, Node* pattern,
                             Node* flags, Node* context);
   Node* EmitFastCloneShallowArray(Node* closure, Node* literal_index,
-                                  Node* context,
-                                  CodeAssemblerLabel* call_runtime,
+                                  Node* context, Label* call_runtime,
                                   AllocationSiteMode allocation_site_mode);
 
   // Maximum number of elements in copied array (chosen so that even an array
@@ -40,15 +35,15 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   // Maximum number of properties in copied objects.
   static const int kMaximumClonedShallowObjectProperties = 6;
   static int FastCloneShallowObjectPropertiesCount(int literal_length);
-  Node* EmitFastCloneShallowObject(CodeAssemblerLabel* call_runtime,
-                                   Node* closure, Node* literals_index,
+  Node* EmitFastCloneShallowObject(Label* call_runtime, Node* closure,
+                                   Node* literals_index,
                                    Node* properties_count);
   void CreateFastCloneShallowObjectBuiltin(int properties_count);
 
   Node* EmitFastNewObject(Node* context, Node* target, Node* new_target);
 
   Node* EmitFastNewObject(Node* context, Node* target, Node* new_target,
-                          CodeAssemblerLabel* call_runtime);
+                          Label* call_runtime);
 
  private:
   static const int kMaximumSlots = 0x8000;

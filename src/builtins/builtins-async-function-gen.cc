@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-async.h"
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/objects-inl.h"
@@ -11,13 +11,9 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
-typedef CodeStubAssembler::ParameterMode ParameterMode;
-typedef compiler::CodeAssemblerState CodeAssemblerState;
-
 class AsyncFunctionBuiltinsAssembler : public AsyncBuiltinsAssembler {
  public:
-  explicit AsyncFunctionBuiltinsAssembler(CodeAssemblerState* state)
+  explicit AsyncFunctionBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : AsyncBuiltinsAssembler(state) {}
 
  protected:

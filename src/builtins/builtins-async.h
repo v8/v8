@@ -12,7 +12,7 @@ namespace internal {
 
 class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
  public:
-  explicit AsyncBuiltinsAssembler(CodeAssemblerState* state)
+  explicit AsyncBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : PromiseBuiltinsAssembler(state) {}
 
  protected:

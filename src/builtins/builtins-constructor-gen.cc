@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-constructor.h"
 #include "src/ast/ast.h"
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-constructor.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
@@ -21,9 +21,6 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
                                                        Node* feedback_vector,
                                                        Node* slot,
                                                        Node* context) {
-  typedef compiler::CodeAssembler::Label Label;
-  typedef compiler::CodeAssembler::Variable Variable;
-
   Isolate* isolate = this->isolate();
   Factory* factory = isolate->factory();
   IncrementCounter(isolate->counters()->fast_new_closure_total(), 1);
@@ -211,9 +208,10 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
   return var_obj.value();
 }
 
-Node* ConstructorBuiltinsAssembler::EmitFastNewObject(
-    Node* context, Node* target, Node* new_target,
-    CodeAssemblerLabel* call_runtime) {
+Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
+                                                      Node* target,
+                                                      Node* new_target,
+                                                      Label* call_runtime) {
   CSA_ASSERT(this, HasInstanceType(target, JS_FUNCTION_TYPE));
   CSA_ASSERT(this, IsJSReceiver(new_target));
 
@@ -403,18 +401,6 @@ TF_BUILTIN(FastNewFunctionContextFunction, ConstructorBuiltinsAssembler) {
                                     ScopeType::FUNCTION_SCOPE));
 }
 
-Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {
-  switch (scope_type) {
-    case ScopeType::EVAL_SCOPE:
-      return FastNewFunctionContextEval();
-    case ScopeType::FUNCTION_SCOPE:
-      return FastNewFunctionContextFunction();
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>::null();
-}
-
 Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
                                                         Node* literal_index,
                                                         Node* pattern,
@@ -501,12 +487,8 @@ Node* ConstructorBuiltinsAssembler::NonEmptyShallowClone(
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
-    Node* closure, Node* literal_index, Node* context,
-    CodeAssemblerLabel* call_runtime, AllocationSiteMode allocation_site_mode) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  typedef compiler::Node Node;
-
+    Node* closure, Node* literal_index, Node* context, Label* call_runtime,
+    AllocationSiteMode allocation_site_mode) {
   Label zero_capacity(this), cow_elements(this), fast_elements(this),
       return_result(this);
   Variable result(this, MachineRepresentation::kTagged);
@@ -641,19 +623,6 @@ TF_BUILTIN(FastCloneShallowArrayDontTrack, ConstructorBuiltinsAssembler) {
   CreateFastCloneShallowArrayBuiltin(DONT_TRACK_ALLOCATION_SITE);
 }
 
-Handle<Code> Builtins::NewCloneShallowArray(
-    AllocationSiteMode allocation_mode) {
-  switch (allocation_mode) {
-    case TRACK_ALLOCATION_SITE:
-      return FastCloneShallowArrayTrack();
-    case DONT_TRACK_ALLOCATION_SITE:
-      return FastCloneShallowArrayDontTrack();
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>::null();
-}
-
 // static
 int ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
     int literal_length) {
@@ -667,7 +636,7 @@ int ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
-    CodeAssemblerLabel* call_runtime, Node* closure, Node* literals_index,
+    Label* call_runtime, Node* closure, Node* literals_index,
     Node* properties_count) {
   Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
   Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
@@ -767,28 +736,6 @@ SHALLOW_OBJECT_BUILTIN(3);
 SHALLOW_OBJECT_BUILTIN(4);
 SHALLOW_OBJECT_BUILTIN(5);
 SHALLOW_OBJECT_BUILTIN(6);
-
-Handle<Code> Builtins::NewCloneShallowObject(int length) {
-  switch (length) {
-    case 0:
-      return FastCloneShallowObject0();
-    case 1:
-      return FastCloneShallowObject1();
-    case 2:
-      return FastCloneShallowObject2();
-    case 3:
-      return FastCloneShallowObject3();
-    case 4:
-      return FastCloneShallowObject4();
-    case 5:
-      return FastCloneShallowObject5();
-    case 6:
-      return FastCloneShallowObject6();
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>::null();
-}
 
 }  // namespace internal
 }  // namespace v8

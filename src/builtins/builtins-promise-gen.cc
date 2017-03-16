@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-constructor.h"
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-promise.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
@@ -12,6 +12,8 @@
 
 namespace v8 {
 namespace internal {
+
+using compiler::Node;
 
 Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
   Node* const native_context = LoadNativeContext(context);
@@ -410,7 +412,6 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
     Node* context, Node* promise, Node* on_resolve, Node* on_reject,
     Node* deferred_promise, Node* deferred_on_resolve,
     Node* deferred_on_reject) {
-
   Variable var_on_resolve(this, MachineRepresentation::kTagged),
       var_on_reject(this, MachineRepresentation::kTagged);
 

@@ -10,13 +10,9 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
-typedef compiler::CodeAssemblerState CodeAssemblerState;
-typedef compiler::CodeAssemblerLabel CodeAssemblerLabel;
-
 class RegExpBuiltinsAssembler : public CodeStubAssembler {
  public:
-  explicit RegExpBuiltinsAssembler(CodeAssemblerState* state)
+  explicit RegExpBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
   void BranchIfFastRegExp(Node* const context, Node* const map,

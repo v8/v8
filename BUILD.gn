@@ -808,6 +808,7 @@ v8_source_set("v8_nosnapshot") {
     ":js2c_experimental_extras",
     ":js2c_extras",
     ":v8_base",
+    ":v8_builtins_generators",
   ]
 
   sources = [
@@ -833,6 +834,7 @@ v8_source_set("v8_snapshot") {
     ":js2c_experimental_extras",
     ":js2c_extras",
     ":v8_base",
+    ":v8_builtins_generators",
   ]
   public_deps = [
     # This should be public so downstream targets can declare the snapshot
@@ -859,6 +861,7 @@ if (v8_use_external_startup_data) {
       ":js2c_experimental_extras",
       ":js2c_extras",
       ":v8_base",
+      ":v8_builtins_generators",
     ]
     public_deps = [
       ":natives_blob",
@@ -872,6 +875,53 @@ if (v8_use_external_startup_data) {
 
     configs = [ ":internal_config" ]
   }
+}
+
+v8_source_set("v8_builtins_generators") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  deps = [
+    ":v8_base",
+  ]
+
+  sources = [
+    ### gcmole(all) ###
+    "src/builtins/builtins-arguments-gen.cc",
+    "src/builtins/builtins-arguments.h",
+    "src/builtins/builtins-array-gen.cc",
+    "src/builtins/builtins-async-function-gen.cc",
+    "src/builtins/builtins-async-gen.cc",
+    "src/builtins/builtins-async-iterator-gen.cc",
+    "src/builtins/builtins-async.h",
+    "src/builtins/builtins-boolean-gen.cc",
+    "src/builtins/builtins-constructor-gen.cc",
+    "src/builtins/builtins-constructor.h",
+    "src/builtins/builtins-conversion-gen.cc",
+    "src/builtins/builtins-date-gen.cc",
+    "src/builtins/builtins-forin-gen.cc",
+    "src/builtins/builtins-forin.h",
+    "src/builtins/builtins-function-gen.cc",
+    "src/builtins/builtins-generator-gen.cc",
+    "src/builtins/builtins-global-gen.cc",
+    "src/builtins/builtins-handler-gen.cc",
+    "src/builtins/builtins-ic-gen.cc",
+    "src/builtins/builtins-internal-gen.cc",
+    "src/builtins/builtins-math-gen.cc",
+    "src/builtins/builtins-number-gen.cc",
+    "src/builtins/builtins-object-gen.cc",
+    "src/builtins/builtins-promise-gen.cc",
+    "src/builtins/builtins-promise.h",
+    "src/builtins/builtins-regexp-gen.cc",
+    "src/builtins/builtins-regexp-gen.h",
+    "src/builtins/builtins-sharedarraybuffer-gen.cc",
+    "src/builtins/builtins-string-gen.cc",
+    "src/builtins/builtins-symbol-gen.cc",
+    "src/builtins/builtins-typedarray-gen.cc",
+    "src/builtins/builtins-utils-gen.h",
+    "src/builtins/builtins-wasm-gen.cc",
+  ]
+
+  configs = [ ":internal_config" ]
 }
 
 # This is split out to be a non-code containing target that the Chromium browser
@@ -972,49 +1022,36 @@ v8_source_set("v8_base") {
     "src/bootstrapper.cc",
     "src/bootstrapper.h",
     "src/builtins/builtins-api.cc",
-    "src/builtins/builtins-arguments.cc",
     "src/builtins/builtins-arguments.h",
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
-    "src/builtins/builtins-async-function.cc",
-    "src/builtins/builtins-async-iterator.cc",
-    "src/builtins/builtins-async.cc",
-    "src/builtins/builtins-async.h",
     "src/builtins/builtins-boolean.cc",
     "src/builtins/builtins-call.cc",
     "src/builtins/builtins-callsite.cc",
-    "src/builtins/builtins-constructor.cc",
     "src/builtins/builtins-constructor.h",
-    "src/builtins/builtins-conversion.cc",
     "src/builtins/builtins-dataview.cc",
     "src/builtins/builtins-date.cc",
     "src/builtins/builtins-debug.cc",
     "src/builtins/builtins-error.cc",
-    "src/builtins/builtins-forin.cc",
     "src/builtins/builtins-forin.h",
     "src/builtins/builtins-function.cc",
-    "src/builtins/builtins-generator.cc",
     "src/builtins/builtins-global.cc",
-    "src/builtins/builtins-handler.cc",
-    "src/builtins/builtins-ic.cc",
     "src/builtins/builtins-internal.cc",
     "src/builtins/builtins-interpreter.cc",
     "src/builtins/builtins-json.cc",
     "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",
     "src/builtins/builtins-object.cc",
-    "src/builtins/builtins-promise.cc",
     "src/builtins/builtins-promise.h",
     "src/builtins/builtins-proxy.cc",
     "src/builtins/builtins-reflect.cc",
+    "src/builtins/builtins-regexp-gen.h",
     "src/builtins/builtins-regexp.cc",
-    "src/builtins/builtins-regexp.h",
     "src/builtins/builtins-sharedarraybuffer.cc",
     "src/builtins/builtins-string.cc",
     "src/builtins/builtins-symbol.cc",
     "src/builtins/builtins-typedarray.cc",
     "src/builtins/builtins-utils.h",
-    "src/builtins/builtins-wasm.cc",
     "src/builtins/builtins.cc",
     "src/builtins/builtins.h",
     "src/cached-powers.cc",

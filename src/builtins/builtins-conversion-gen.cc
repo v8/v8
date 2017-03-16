@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
@@ -21,19 +21,6 @@ class ConversionBuiltinsAssembler : public CodeStubAssembler {
 
   void Generate_OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
 };
-
-Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
-  switch (hint) {
-    case ToPrimitiveHint::kDefault:
-      return NonPrimitiveToPrimitive_Default();
-    case ToPrimitiveHint::kNumber:
-      return NonPrimitiveToPrimitive_Number();
-    case ToPrimitiveHint::kString:
-      return NonPrimitiveToPrimitive_String();
-  }
-  UNREACHABLE();
-  return Handle<Code>::null();
-}
 
 // ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
 void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
@@ -167,17 +154,6 @@ TF_BUILTIN(ToString, CodeStubAssembler) {
 
   Bind(&runtime);
   { Return(CallRuntime(Runtime::kToString, context, input)); }
-}
-
-Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
-  switch (hint) {
-    case OrdinaryToPrimitiveHint::kNumber:
-      return OrdinaryToPrimitive_Number();
-    case OrdinaryToPrimitiveHint::kString:
-      return OrdinaryToPrimitive_String();
-  }
-  UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )

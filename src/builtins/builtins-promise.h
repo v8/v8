@@ -11,8 +11,6 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
-typedef CodeStubAssembler::ParameterMode ParameterMode;
 typedef compiler::CodeAssemblerState CodeAssemblerState;
 
 class PromiseBuiltinsAssembler : public CodeStubAssembler {
@@ -48,7 +46,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kOnFinallyContextLength,
   };
 
-  explicit PromiseBuiltinsAssembler(CodeAssemblerState* state)
+  explicit PromiseBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
   // These allocate and initialize a promise with pending state and
   // undefined fields.
