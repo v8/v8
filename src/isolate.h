@@ -1346,10 +1346,6 @@ class Isolate {
   // then return true.
   bool PropagatePendingExceptionToExternalTryCatch();
 
-  // Remove per-frame stored materialized objects when we are unwinding
-  // the frame.
-  void RemoveMaterializedObjectsOnUnwind(StackFrame* frame);
-
   void RunMicrotasksInternal();
 
   const char* RAILModeName(RAILMode rail_mode) const {

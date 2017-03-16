@@ -1204,11 +1204,19 @@ Object* Isolate::ReThrow(Object* exception) {
 Object* Isolate::UnwindAndFindHandler() {
   Object* exception = pending_exception();
 
-  Code* code = nullptr;
-  Context* context = nullptr;
-  intptr_t offset = 0;
-  Address handler_sp = nullptr;
-  Address handler_fp = nullptr;
+  auto FoundHandler = [&](Context* context, Code* code, intptr_t offset,
+                          Address handler_sp, Address handler_fp) {
+    // Store information to be consumed by the CEntryStub.
+    thread_local_top()->pending_handler_context_ = context;
+    thread_local_top()->pending_handler_code_ = code;
+    thread_local_top()->pending_handler_offset_ = offset;
+    thread_local_top()->pending_handler_fp_ = handler_fp;
+    thread_local_top()->pending_handler_sp_ = handler_sp;
+
+    // Return and clear pending exception.
+    clear_pending_exception();
+    return exception;
+  };
 
   // Special handling of termination exceptions, uncatchable by JavaScript and
   // Wasm code, we unwind the handlers until the top ENTRY handler is found.
@@ -1216,92 +1224,92 @@ Object* Isolate::UnwindAndFindHandler() {
 
   // Compute handler and stack unwinding information by performing a full walk
   // over the stack and dispatching according to the frame type.
-  for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
+  for (StackFrameIterator iter(this);; iter.Advance()) {
+    // Handler must exist.
+    DCHECK(!iter.done());
+
     StackFrame* frame = iter.frame();
 
-    if (frame->is_wasm() && trap_handler::IsThreadInWasm()) {
-      trap_handler::ClearThreadInWasm();
-    }
+    switch (frame->type()) {
+      case StackFrame::ENTRY:
+      case StackFrame::ENTRY_CONSTRUCT: {
+        // For JSEntryStub frames we always have a handler.
+        StackHandler* handler = frame->top_handler();
 
-    // For JSEntryStub frames we always have a handler.
-    if (frame->is_entry() || frame->is_entry_construct()) {
-      StackHandler* handler = frame->top_handler();
+        // Restore the next handler.
+        thread_local_top()->handler_ = handler->next()->address();
 
-      // Restore the next handler.
-      thread_local_top()->handler_ = handler->next()->address();
+        // Gather information from the handler.
+        Code* code = frame->LookupCode();
+        return FoundHandler(
+            nullptr, code, Smi::cast(code->handler_table()->get(0))->value(),
+            handler->address() + StackHandlerConstants::kSize, 0);
+      }
 
-      // Gather information from the handler.
-      code = frame->LookupCode();
-      handler_sp = handler->address() + StackHandlerConstants::kSize;
-      offset = Smi::cast(code->handler_table()->get(0))->value();
-      break;
-    }
+      case StackFrame::WASM_COMPILED: {
+        if (trap_handler::IsThreadInWasm()) {
+          trap_handler::ClearThreadInWasm();
+        }
 
-    if (FLAG_wasm_eh_prototype) {
-      if (frame->is_wasm() && is_catchable_by_wasm(exception)) {
+        if (!FLAG_wasm_eh_prototype || !is_catchable_by_wasm(exception)) break;
         int stack_slots = 0;  // Will contain stack slot count of frame.
         WasmCompiledFrame* wasm_frame = static_cast<WasmCompiledFrame*>(frame);
-        offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
-        if (offset >= 0) {
-          // Compute the stack pointer from the frame pointer. This ensures that
-          // argument slots on the stack are dropped as returning would.
-          Address return_sp = frame->fp() +
-                              StandardFrameConstants::kFixedFrameSizeAboveFp -
-                              stack_slots * kPointerSize;
-
-          // Gather information from the frame.
-          code = frame->LookupCode();
-
-          handler_sp = return_sp;
-          handler_fp = frame->fp();
-
-          // This is going to be handled by Wasm, so we need to set the TLS flag
-          // again.
-          trap_handler::SetThreadInWasm();
-
-          break;
-        }
-      }
-    }
-
-    // For optimized frames we perform a lookup in the handler table.
-    if (frame->is_optimized() && catchable_by_js) {
-      OptimizedFrame* js_frame = static_cast<OptimizedFrame*>(frame);
-      int stack_slots = 0;  // Will contain stack slot count of frame.
-      offset = js_frame->LookupExceptionHandlerInTable(&stack_slots, nullptr);
-      if (offset >= 0) {
+        int offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
+        if (offset < 0) break;
         // Compute the stack pointer from the frame pointer. This ensures that
         // argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             stack_slots * kPointerSize;
 
-        // Gather information from the frame.
-        code = frame->LookupCode();
+        // This is going to be handled by Wasm, so we need to set the TLS flag
+        // again.
+        trap_handler::SetThreadInWasm();
 
-        // TODO(bmeurer): Turbofanned BUILTIN frames appear as OPTIMIZED, but
-        // do not have a code kind of OPTIMIZED_FUNCTION.
+        return FoundHandler(nullptr, frame->LookupCode(), offset, return_sp,
+                            frame->fp());
+      }
+
+      case StackFrame::OPTIMIZED: {
+        // For optimized frames we perform a lookup in the handler table.
+        if (!catchable_by_js) break;
+        OptimizedFrame* js_frame = static_cast<OptimizedFrame*>(frame);
+        int stack_slots = 0;  // Will contain stack slot count of frame.
+        int offset =
+            js_frame->LookupExceptionHandlerInTable(&stack_slots, nullptr);
+        if (offset < 0) break;
+        // Compute the stack pointer from the frame pointer. This ensures
+        // that argument slots on the stack are dropped as returning would.
+        Address return_sp = frame->fp() +
+                            StandardFrameConstants::kFixedFrameSizeAboveFp -
+                            stack_slots * kPointerSize;
+
+        // Gather information from the frame.
+        Code* code = frame->LookupCode();
+
+        // TODO(bmeurer): Turbofanned BUILTIN frames appear as OPTIMIZED,
+        // but do not have a code kind of OPTIMIZED_FUNCTION.
         if (code->kind() == Code::OPTIMIZED_FUNCTION &&
             code->marked_for_deoptimization()) {
           // If the target code is lazy deoptimized, we jump to the original
-          // return address, but we make a note that we are throwing, so that
-          // the deoptimizer can do the right thing.
+          // return address, but we make a note that we are throwing, so
+          // that the deoptimizer can do the right thing.
           offset = static_cast<int>(frame->pc() - code->entry());
           set_deoptimizer_lazy_throw(true);
         }
-        handler_sp = return_sp;
-        handler_fp = frame->fp();
-        break;
-      }
-    }
 
-    // For interpreted frame we perform a range lookup in the handler table.
-    if (frame->is_interpreted() && catchable_by_js) {
-      InterpretedFrame* js_frame = static_cast<InterpretedFrame*>(frame);
-      int register_slots = js_frame->GetBytecodeArray()->register_count();
-      int context_reg = 0;  // Will contain register index holding context.
-      offset = js_frame->LookupExceptionHandlerInTable(&context_reg, nullptr);
-      if (offset >= 0) {
+        return FoundHandler(nullptr, code, offset, return_sp, frame->fp());
+      }
+
+      case StackFrame::INTERPRETED: {
+        // For interpreted frame we perform a range lookup in the handler table.
+        if (!catchable_by_js) break;
+        InterpretedFrame* js_frame = static_cast<InterpretedFrame*>(frame);
+        int register_slots = js_frame->GetBytecodeArray()->register_count();
+        int context_reg = 0;  // Will contain register index holding context.
+        int offset =
+            js_frame->LookupExceptionHandlerInTable(&context_reg, nullptr);
+        if (offset < 0) break;
         // Compute the stack pointer from the frame pointer. This ensures that
         // argument slots on the stack are dropped as returning would.
         // Note: This is only needed for interpreted frames that have been
@@ -1315,44 +1323,48 @@ Object* Isolate::UnwindAndFindHandler() {
         // position of the exception handler. The special builtin below will
         // take care of continuing to dispatch at that position. Also restore
         // the correct context for the handler from the interpreter register.
-        context = Context::cast(js_frame->ReadInterpreterRegister(context_reg));
+        Context* context =
+            Context::cast(js_frame->ReadInterpreterRegister(context_reg));
         js_frame->PatchBytecodeOffset(static_cast<int>(offset));
-        offset = 0;
 
-        // Gather information from the frame.
-        code = *builtins()->InterpreterEnterBytecodeDispatch();
-        handler_sp = return_sp;
-        handler_fp = frame->fp();
-        break;
+        Code* code = *builtins()->InterpreterEnterBytecodeDispatch();
+        return FoundHandler(context, code, 0, return_sp, frame->fp());
       }
+
+      case StackFrame::JAVA_SCRIPT:
+      case StackFrame::BUILTIN:
+        // For JavaScript frames we are guaranteed not to find a handler.
+        if (catchable_by_js) {
+          CHECK_EQ(-1,
+                   JavaScriptFrame::cast(frame)->LookupExceptionHandlerInTable(
+                       nullptr, nullptr));
+        }
+        break;
+
+      case StackFrame::WASM_INTERPRETER_ENTRY:
+        // TODO(clemensh): Handle unwinding interpreted wasm frames (stored in
+        // the WasmInterpreter C++ object).
+        if (trap_handler::IsThreadInWasm()) {
+          trap_handler::ClearThreadInWasm();
+        }
+        break;
+
+      default:
+        // All other types can not handle exception.
+        break;
     }
 
-    // For JavaScript frames we are guaranteed not to find a handler.
-    if (frame->is_java_script() && catchable_by_js) {
-      JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
-      offset = js_frame->LookupExceptionHandlerInTable(nullptr, nullptr);
-      CHECK_EQ(-1, offset);
+    if (frame->is_optimized()) {
+      // Remove per-frame stored materialized objects.
+      bool removed = materialized_object_store_->Remove(frame->fp());
+      USE(removed);
+      // If there were any materialized objects, the code should be
+      // marked for deopt.
+      DCHECK_IMPLIES(removed, frame->LookupCode()->marked_for_deoptimization());
     }
-
-    // TODO(clemensh): Handle unwinding interpreted wasm frames (stored in the
-    // WasmInterpreter C++ object).
-
-    RemoveMaterializedObjectsOnUnwind(frame);
   }
 
-  // Handler must exist.
-  CHECK(code != nullptr);
-
-  // Store information to be consumed by the CEntryStub.
-  thread_local_top()->pending_handler_context_ = context;
-  thread_local_top()->pending_handler_code_ = code;
-  thread_local_top()->pending_handler_offset_ = offset;
-  thread_local_top()->pending_handler_fp_ = handler_fp;
-  thread_local_top()->pending_handler_sp_ = handler_sp;
-
-  // Return and clear pending exception.
-  clear_pending_exception();
-  return exception;
+  UNREACHABLE();
 }
 
 namespace {
@@ -1407,52 +1419,55 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
 
 Isolate::CatchType Isolate::PredictExceptionCatcher() {
   Address external_handler = thread_local_top()->try_catch_handler_address();
-  Address entry_handler = Isolate::handler(thread_local_top());
   if (IsExternalHandlerOnTop(nullptr)) return CAUGHT_BY_EXTERNAL;
 
   // Search for an exception handler by performing a full walk over the stack.
   for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
     StackFrame* frame = iter.frame();
 
-    // For JSEntryStub frames we update the JS_ENTRY handler.
-    if (frame->is_entry() || frame->is_entry_construct()) {
-      entry_handler = frame->top_handler()->next()->address();
-    }
+    switch (frame->type()) {
+      case StackFrame::ENTRY:
+      case StackFrame::ENTRY_CONSTRUCT: {
+        Address entry_handler = frame->top_handler()->next()->address();
+        // The exception has been externally caught if and only if there is an
+        // external handler which is on top of the top-most JS_ENTRY handler.
+        if (external_handler != nullptr && !try_catch_handler()->is_verbose_) {
+          if (entry_handler == nullptr || entry_handler > external_handler) {
+            return CAUGHT_BY_EXTERNAL;
+          }
+        }
+      } break;
 
-    // For JavaScript frames we perform a lookup in the handler table.
-    if (frame->is_java_script()) {
-      JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
-      HandlerTable::CatchPrediction prediction = PredictException(js_frame);
-      if (prediction == HandlerTable::DESUGARING) return CAUGHT_BY_DESUGARING;
-      if (prediction == HandlerTable::ASYNC_AWAIT) return CAUGHT_BY_ASYNC_AWAIT;
-      if (prediction == HandlerTable::PROMISE) return CAUGHT_BY_PROMISE;
-      if (prediction != HandlerTable::UNCAUGHT) return CAUGHT_BY_JAVASCRIPT;
-    }
+      // For JavaScript frames we perform a lookup in the handler table.
+      case StackFrame::JAVA_SCRIPT:
+      case StackFrame::OPTIMIZED:
+      case StackFrame::INTERPRETED:
+      case StackFrame::BUILTIN: {
+        JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
+        HandlerTable::CatchPrediction prediction = PredictException(js_frame);
+        switch (prediction) {
+          case HandlerTable::UNCAUGHT:
+            break;
+          case HandlerTable::CAUGHT:
+            return CAUGHT_BY_JAVASCRIPT;
+          case HandlerTable::PROMISE:
+            return CAUGHT_BY_PROMISE;
+          case HandlerTable::DESUGARING:
+            return CAUGHT_BY_DESUGARING;
+          case HandlerTable::ASYNC_AWAIT:
+            return CAUGHT_BY_ASYNC_AWAIT;
+        }
+      } break;
 
-    // The exception has been externally caught if and only if there is an
-    // external handler which is on top of the top-most JS_ENTRY handler.
-    if (external_handler != nullptr && !try_catch_handler()->is_verbose_) {
-      if (entry_handler == nullptr || entry_handler > external_handler) {
-        return CAUGHT_BY_EXTERNAL;
-      }
+      default:
+        // All other types can not handle exception.
+        break;
     }
   }
 
   // Handler not found.
   return NOT_CAUGHT;
 }
-
-
-void Isolate::RemoveMaterializedObjectsOnUnwind(StackFrame* frame) {
-  if (frame->is_optimized()) {
-    bool removed = materialized_object_store_->Remove(frame->fp());
-    USE(removed);
-    // If there were any materialized objects, the code should be
-    // marked for deopt.
-    DCHECK(!removed || frame->LookupCode()->marked_for_deoptimization());
-  }
-}
-
 
 Object* Isolate::ThrowIllegalOperation() {
   if (FLAG_stack_trace_on_illegal) PrintStack(stdout);
