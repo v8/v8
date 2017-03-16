@@ -11,7 +11,8 @@ import sys
 
 TARGET_SUBDIR = os.path.join("deps", "v8")
 
-SUB_REPOSITORIES = [ ["testing", "gtest"],
+SUB_REPOSITORIES = [ ["base", "trace_event", "common"],
+                     ["testing", "gtest"],
                      ["third_party", "jinja2"],
                      ["third_party", "markupsafe"] ]
 
