@@ -2693,7 +2693,7 @@ void v8::TryCatch::SetCaptureMessage(bool value) {
 
 Local<String> Message::Get() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::String> raw_result = i::MessageHandler::GetMessage(isolate, obj);
@@ -2704,6 +2704,7 @@ Local<String> Message::Get() const {
 
 ScriptOrigin Message::GetScriptOrigin() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   auto script_wraper = i::Handle<i::Object>(message->script(), isolate);
   auto script_value = i::Handle<i::JSValue>::cast(script_wraper);
@@ -2719,7 +2720,7 @@ v8::Local<Value> Message::GetScriptResourceName() const {
 
 v8::Local<v8::StackTrace> Message::GetStackTrace() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> stackFramesObj(message->stack_frames(), isolate);
@@ -2732,7 +2733,7 @@ v8::Local<v8::StackTrace> Message::GetStackTrace() const {
 Maybe<int> Message::GetLineNumber(Local<Context> context) const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
   auto msg = i::Handle<i::JSMessageObject>::cast(self);
   return Just(msg->GetLineNumber());
@@ -2764,7 +2765,7 @@ int Message::ErrorLevel() const {
 Maybe<int> Message::GetStartColumn(Local<Context> context) const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
   auto msg = i::Handle<i::JSMessageObject>::cast(self);
   return Just(msg->GetColumnNumber());
@@ -2781,7 +2782,7 @@ int Message::GetStartColumn() const {
 Maybe<int> Message::GetEndColumn(Local<Context> context) const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
   auto msg = i::Handle<i::JSMessageObject>::cast(self);
   const int column_number = msg->GetColumnNumber();
@@ -2801,7 +2802,7 @@ int Message::GetEndColumn() const {
 
 bool Message::IsSharedCrossOrigin() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   auto self = Utils::OpenHandle(this);
   auto script = i::Handle<i::JSValue>::cast(
       i::Handle<i::Object>(self->script(), isolate));
@@ -2812,7 +2813,7 @@ bool Message::IsSharedCrossOrigin() const {
 
 bool Message::IsOpaque() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   auto self = Utils::OpenHandle(this);
   auto script = i::Handle<i::JSValue>::cast(
       i::Handle<i::Object>(self->script(), isolate));
@@ -2823,7 +2824,7 @@ bool Message::IsOpaque() const {
 MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
   auto msg = i::Handle<i::JSMessageObject>::cast(self);
   RETURN_ESCAPED(Utils::ToLocal(msg->GetSourceLine()));
@@ -2838,7 +2839,7 @@ Local<String> Message::GetSourceLine() const {
 
 void Message::PrintCurrentStackTrace(Isolate* isolate, FILE* out) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8(i_isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i_isolate->PrintCurrentStackTrace(out);
 }
 

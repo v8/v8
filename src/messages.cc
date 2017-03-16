@@ -1020,6 +1020,8 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
       template_index, result_string, factory->empty_string(),
       factory->empty_string());
   if (!maybe_result_string.ToHandle(&result_string)) {
+    DCHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
     return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
   }
   // A string that has been obtained from JS code in this way is
