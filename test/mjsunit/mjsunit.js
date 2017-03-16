@@ -149,6 +149,9 @@ var isCrankshafted;
 // Returns true if given function is compiled by TurboFan.
 var isTurboFanned;
 
+// Monkey-patchable all-purpose failure handler.
+var failWithMessage;
+
 
 (function () {  // Scope for utility functions.
 
@@ -233,7 +236,8 @@ var isTurboFanned;
   }
 
 
-  function failWithMessage(message) {
+  failWithMessage = function failWithMessage(message) {
+    print("oh, we failed: " + message);
     throw new MjsUnitAssertionError(message);
   }
 
@@ -251,7 +255,7 @@ var isTurboFanned;
     } else {
       message += ":\nexpected:\n" + expectedText + "\nfound:\n" + foundText;
     }
-    throw new MjsUnitAssertionError(message);
+    return failWithMessage(message);
   }
 
 

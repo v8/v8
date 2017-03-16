@@ -2585,12 +2585,23 @@ void Shell::CollectGarbage(Isolate* isolate) {
   }
 }
 
-
 void Shell::EmptyMessageQueues(Isolate* isolate) {
-  if (!i::FLAG_verify_predictable) {
-    while (v8::platform::PumpMessageLoop(g_platform, isolate)) continue;
+  if (i::FLAG_verify_predictable) return;
+  while (true) {
+    // Pump the message loop until it is empty.
+    while (v8::platform::PumpMessageLoop(g_platform, isolate)) {
+      isolate->RunMicrotasks();
+    }
+    // Run the idle tasks.
     v8::platform::RunIdleTasks(g_platform, isolate,
                                50.0 / base::Time::kMillisecondsPerSecond);
+    // If there are still outstanding waiters, sleep a little (to wait for
+    // background tasks) and then try everything again.
+    if (reinterpret_cast<i::Isolate*>(isolate)->GetWaitCountForTesting() > 0) {
+      base::OS::Sleep(base::TimeDelta::FromMilliseconds(1));
+    } else {
+      break;
+    }
   }
 }
 

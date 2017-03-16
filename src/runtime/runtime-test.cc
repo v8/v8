@@ -948,5 +948,14 @@ RUNTIME_FUNCTION(Runtime_WasmNumInterpretedCalls) {
   return *isolate->factory()->NewNumberFromSize(static_cast<size_t>(num));
 }
 
+RUNTIME_FUNCTION(Runtime_IncrementWaitCount) {
+  isolate->IncrementWaitCountForTesting();
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DecrementWaitCount) {
+  isolate->DecrementWaitCountForTesting();
+  return isolate->heap()->undefined_value();
+}
 }  // namespace internal
 }  // namespace v8
