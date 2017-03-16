@@ -1281,7 +1281,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   CHECK(r2.is(RegExpExecDescriptor::StringRegister()));
 
   // Locate the code entry and call it.
-  Register code_reg = RegExpDescriptor::CodeRegister();
+  Register code_reg = RegExpExecDescriptor::CodeRegister();
   __ AddP(code_reg, Operand(Code::kHeaderSize - kHeapObjectTag));
 
   DirectCEntryStub stub(isolate());

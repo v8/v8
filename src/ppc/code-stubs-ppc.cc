@@ -1245,9 +1245,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
       ExternalReference::address_of_regexp_stack_memory_size(isolate());
   __ mov(r11, Operand(address_of_regexp_stack_memory_address));
   __ LoadP(r11, MemOperand(r11, 0));
-  __ mov(r12, Operand(address_of_regexp_stack_memory_size));
-  __ LoadP(r12, MemOperand(r12, 0));
-  __ add(r9, r11, r12);
+  __ mov(ip, Operand(address_of_regexp_stack_memory_size));
+  __ LoadP(ip, MemOperand(ip, 0));
+  __ add(r9, r11, ip);
 
   // Argument 6 (r8): Set the number of capture registers to zero to force
   // global egexps to behave as non-global.  This does not affect non-global
