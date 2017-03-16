@@ -838,8 +838,12 @@ void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
                                         int position) {
   if (scope->is_function_scope()) {
     // Do not collect scopes of nested inner functions inside the current one.
+    // Nested arrow functions could have the same end positions.
     Handle<JSFunction> function = frame_inspector_->GetFunction();
-    if (scope->end_position() < function->shared()->end_position()) return;
+    if (scope->start_position() > function->shared()->start_position() &&
+        scope->end_position() <= function->shared()->end_position()) {
+      return;
+    }
   }
   if (scope->is_hidden()) {
     // We need to add this chain element in case the scope has a context
