@@ -1134,9 +1134,14 @@ function ArrayMap(f, receiver) {
 }
 
 
-function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
+function ArrayLastIndexOf(element, index) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.lastIndexOf");
+
+  var array = this;
+  var length = TO_LENGTH(this.length);
+
   if (length == 0) return -1;
-  if (argumentsLength < 2) {
+  if (arguments.length < 2) {
     index = length - 1;
   } else {
     index = INVERT_NEG_ZERO(TO_INTEGER(index));
@@ -1181,15 +1186,6 @@ function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
     }
   }
   return -1;
-}
-
-
-function ArrayLastIndexOf(element, index) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.lastIndexOf");
-
-  var length = TO_LENGTH(this.length);
-  return InnerArrayLastIndexOf(this, element, index, length,
-                               arguments.length);
 }
 
 
@@ -1628,7 +1624,6 @@ utils.Export(function(to) {
   to.InnerArrayFindIndex = InnerArrayFindIndex;
   to.InnerArrayForEach = InnerArrayForEach;
   to.InnerArrayJoin = InnerArrayJoin;
-  to.InnerArrayLastIndexOf = InnerArrayLastIndexOf;
   to.InnerArrayReduce = InnerArrayReduce;
   to.InnerArrayReduceRight = InnerArrayReduceRight;
   to.InnerArraySome = InnerArraySome;

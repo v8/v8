@@ -845,6 +845,8 @@ class Isolate;
   CPP(TypedArrayPrototypeIncludes)                                             \
   /* ES6 #sec-%typedarray%.prototype.indexof */                                \
   CPP(TypedArrayPrototypeIndexOf)                                              \
+  /* ES6 #sec-%typedarray%.prototype.indexof */                                \
+  CPP(TypedArrayPrototypeLastIndexOf)                                          \
                                                                                \
   /* Wasm */                                                                   \
   TFS(WasmStackGuard, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)            \

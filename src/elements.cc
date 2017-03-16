@@ -1219,6 +1219,20 @@ class ElementsAccessorBase : public ElementsAccessor {
                                       length);
   }
 
+  static Maybe<int64_t> LastIndexOfValueImpl(Isolate* isolate,
+                                             Handle<JSObject> receiver,
+                                             Handle<Object> value,
+                                             uint32_t start_from) {
+    UNREACHABLE();
+    return Just<int64_t>(-1);
+  }
+
+  Maybe<int64_t> LastIndexOfValue(Isolate* isolate, Handle<JSObject> receiver,
+                                  Handle<Object> value,
+                                  uint32_t start_from) final {
+    return Subclass::LastIndexOfValueImpl(isolate, receiver, value, start_from);
+  }
+
   static uint32_t GetIndexForEntryImpl(FixedArrayBase* backing_store,
                                        uint32_t entry) {
     return entry;
@@ -2913,6 +2927,47 @@ class TypedElementsAccessor
       ctype element_k = elements->get_scalar(k);
       if (element_k == typed_search_value) return Just<int64_t>(k);
     }
+    return Just<int64_t>(-1);
+  }
+
+  static Maybe<int64_t> LastIndexOfValueImpl(Isolate* isolate,
+                                             Handle<JSObject> receiver,
+                                             Handle<Object> value,
+                                             uint32_t start_from) {
+    DisallowHeapAllocation no_gc;
+    DCHECK(!WasNeutered(*receiver));
+
+    if (!value->IsNumber()) return Just<int64_t>(-1);
+    BackingStore* elements = BackingStore::cast(receiver->elements());
+
+    double search_value = value->Number();
+
+    if (!std::isfinite(search_value)) {
+      if (std::is_integral<ctype>::value) {
+        // Integral types cannot represent +Inf or NaN.
+        return Just<int64_t>(-1);
+      } else if (std::isnan(search_value)) {
+        // Strict Equality Comparison of NaN is always false.
+        return Just<int64_t>(-1);
+      }
+    } else if (search_value < std::numeric_limits<ctype>::lowest() ||
+               search_value > std::numeric_limits<ctype>::max()) {
+      // Return -1 if value can't be represented in this ElementsKind.
+      return Just<int64_t>(-1);
+    }
+
+    ctype typed_search_value = static_cast<ctype>(search_value);
+    if (static_cast<double>(typed_search_value) != search_value) {
+      return Just<int64_t>(-1);  // Loss of precision.
+    }
+
+    DCHECK_LT(start_from, elements->length());
+
+    uint32_t k = start_from;
+    do {
+      ctype element_k = elements->get_scalar(k);
+      if (element_k == typed_search_value) return Just<int64_t>(k);
+    } while (k-- != 0);
     return Just<int64_t>(-1);
   }
 };

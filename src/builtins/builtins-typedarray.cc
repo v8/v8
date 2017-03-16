@@ -172,5 +172,39 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
   return *isolate->factory()->NewNumberFromInt64(result.FromJust());
 }
 
+BUILTIN(TypedArrayPrototypeLastIndexOf) {
+  HandleScope scope(isolate);
+
+  Handle<JSTypedArray> array;
+  const char* method = "%TypedArray%.prototype.lastIndexOf";
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+
+  int64_t len = array->length_value();
+  if (len == 0) return Smi::FromInt(-1);
+
+  int64_t index = len - 1;
+  if (args.length() > 2) {
+    Handle<Object> num;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
+    // Set a negative value (-1) for returning -1 if num is negative and
+    // len + num is still negative. Upper bound is len - 1.
+    index = std::min<int64_t>(CapRelativeIndex(num, -1, len), len - 1);
+  }
+
+  if (index < 0) return Smi::FromInt(-1);
+
+  // TODO(cwhan.tunz): throw. See the above comment in CopyWithin.
+  if (V8_UNLIKELY(array->WasNeutered())) return Smi::FromInt(-1);
+
+  Handle<Object> search_element = args.atOrUndefined(isolate, 1);
+  ElementsAccessor* elements = array->GetElementsAccessor();
+  Maybe<int64_t> result = elements->LastIndexOfValue(
+      isolate, array, search_element, static_cast<uint32_t>(index));
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return *isolate->factory()->NewNumberFromInt64(result.FromJust());
+}
+
 }  // namespace internal
 }  // namespace v8
