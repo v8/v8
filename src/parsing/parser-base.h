@@ -1573,7 +1573,8 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(bool* ok) {
     }
 
     if (classifier()->duplicate_finder() != nullptr &&
-        scanner()->FindSymbol(classifier()->duplicate_finder())) {
+        scanner()->IsDuplicateSymbol(classifier()->duplicate_finder(),
+                                     ast_value_factory())) {
       classifier()->RecordDuplicateFormalParameterError(scanner()->location());
     }
     return name;
@@ -2380,7 +2381,8 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
       DCHECK(!*is_computed_name);
 
       if (classifier()->duplicate_finder() != nullptr &&
-          scanner()->FindSymbol(classifier()->duplicate_finder())) {
+          scanner()->IsDuplicateSymbol(classifier()->duplicate_finder(),
+                                       ast_value_factory())) {
         classifier()->RecordDuplicateFormalParameterError(
             scanner()->location());
       }

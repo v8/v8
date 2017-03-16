@@ -1112,7 +1112,6 @@
         'objects/scope-info.h',
         'ostreams.cc',
         'ostreams.h',
-        'parsing/duplicate-finder.cc',
         'parsing/duplicate-finder.h',
         'parsing/expression-classifier.h',
         'parsing/func-name-inferrer.cc',

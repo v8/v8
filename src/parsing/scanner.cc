@@ -1678,25 +1678,24 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
   return Just(RegExp::Flags(flags));
 }
 
-
-const AstRawString* Scanner::CurrentSymbol(AstValueFactory* ast_value_factory) {
+const AstRawString* Scanner::CurrentSymbol(
+    AstValueFactory* ast_value_factory) const {
   if (is_literal_one_byte()) {
     return ast_value_factory->GetOneByteString(literal_one_byte_string());
   }
   return ast_value_factory->GetTwoByteString(literal_two_byte_string());
 }
 
-
-const AstRawString* Scanner::NextSymbol(AstValueFactory* ast_value_factory) {
+const AstRawString* Scanner::NextSymbol(
+    AstValueFactory* ast_value_factory) const {
   if (is_next_literal_one_byte()) {
     return ast_value_factory->GetOneByteString(next_literal_one_byte_string());
   }
   return ast_value_factory->GetTwoByteString(next_literal_two_byte_string());
 }
 
-
 const AstRawString* Scanner::CurrentRawSymbol(
-    AstValueFactory* ast_value_factory) {
+    AstValueFactory* ast_value_factory) const {
   if (is_raw_literal_one_byte()) {
     return ast_value_factory->GetOneByteString(raw_literal_one_byte_string());
   }
@@ -1719,13 +1718,12 @@ bool Scanner::ContainsDot() {
   return std::find(str.begin(), str.end(), '.') != str.end();
 }
 
-bool Scanner::FindSymbol(DuplicateFinder* finder) {
-  // TODO(vogelheim): Move this logic into the calling class; this can be fully
-  //                  implemented using the public interface.
-  if (is_literal_one_byte()) {
-    return finder->AddOneByteSymbol(literal_one_byte_string());
-  }
-  return finder->AddTwoByteSymbol(literal_two_byte_string());
+bool Scanner::IsDuplicateSymbol(DuplicateFinder* duplicate_finder,
+                                AstValueFactory* ast_value_factory) const {
+  DCHECK_NOT_NULL(duplicate_finder);
+  DCHECK_NOT_NULL(ast_value_factory);
+  const AstRawString* string = CurrentSymbol(ast_value_factory);
+  return !duplicate_finder->known_symbols_.insert(string).second;
 }
 
 void Scanner::SeekNext(size_t position) {

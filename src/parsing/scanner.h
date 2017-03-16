@@ -247,9 +247,10 @@ class Scanner {
     return next_.literal_chars->is_contextual_keyword(keyword);
   }
 
-  const AstRawString* CurrentSymbol(AstValueFactory* ast_value_factory);
-  const AstRawString* NextSymbol(AstValueFactory* ast_value_factory);
-  const AstRawString* CurrentRawSymbol(AstValueFactory* ast_value_factory);
+  const AstRawString* CurrentSymbol(AstValueFactory* ast_value_factory) const;
+  const AstRawString* NextSymbol(AstValueFactory* ast_value_factory) const;
+  const AstRawString* CurrentRawSymbol(
+      AstValueFactory* ast_value_factory) const;
 
   double DoubleValue();
   bool ContainsDot();
@@ -281,7 +282,11 @@ class Scanner {
     return false;
   }
 
-  bool FindSymbol(DuplicateFinder* finder);
+  // Check whether the CurrentSymbol() has already been seen.
+  // The DuplicateFinder holds the data, so different instances can be used
+  // for different sets of duplicates to check for.
+  bool IsDuplicateSymbol(DuplicateFinder* duplicate_finder,
+                         AstValueFactory* ast_value_factory) const;
 
   UnicodeCache* unicode_cache() { return unicode_cache_; }
 
@@ -628,7 +633,7 @@ class Scanner {
   // requested for tokens that do not have a literal. Hence, we treat any
   // token as a one-byte literal. E.g. Token::FUNCTION pretends to have a
   // literal "function".
-  Vector<const uint8_t> literal_one_byte_string() {
+  Vector<const uint8_t> literal_one_byte_string() const {
     if (current_.literal_chars)
       return current_.literal_chars->one_byte_literal();
     const char* str = Token::String(current_.token);
@@ -636,11 +641,11 @@ class Scanner {
     return Vector<const uint8_t>(str_as_uint8,
                                  Token::StringLength(current_.token));
   }
-  Vector<const uint16_t> literal_two_byte_string() {
+  Vector<const uint16_t> literal_two_byte_string() const {
     DCHECK_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->two_byte_literal();
   }
-  bool is_literal_one_byte() {
+  bool is_literal_one_byte() const {
     return !current_.literal_chars || current_.literal_chars->is_one_byte();
   }
   int literal_length() const {
@@ -649,27 +654,27 @@ class Scanner {
   }
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
-  Vector<const uint8_t> next_literal_one_byte_string() {
+  Vector<const uint8_t> next_literal_one_byte_string() const {
     DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->one_byte_literal();
   }
-  Vector<const uint16_t> next_literal_two_byte_string() {
+  Vector<const uint16_t> next_literal_two_byte_string() const {
     DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->two_byte_literal();
   }
-  bool is_next_literal_one_byte() {
+  bool is_next_literal_one_byte() const {
     DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->is_one_byte();
   }
-  Vector<const uint8_t> raw_literal_one_byte_string() {
+  Vector<const uint8_t> raw_literal_one_byte_string() const {
     DCHECK_NOT_NULL(current_.raw_literal_chars);
     return current_.raw_literal_chars->one_byte_literal();
   }
-  Vector<const uint16_t> raw_literal_two_byte_string() {
+  Vector<const uint16_t> raw_literal_two_byte_string() const {
     DCHECK_NOT_NULL(current_.raw_literal_chars);
     return current_.raw_literal_chars->two_byte_literal();
   }
-  bool is_raw_literal_one_byte() {
+  bool is_raw_literal_one_byte() const {
     DCHECK_NOT_NULL(current_.raw_literal_chars);
     return current_.raw_literal_chars->is_one_byte();
   }
