@@ -415,6 +415,7 @@ void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
 bool Heap::UncommitFromSpace() { return new_space_->UncommitFromSpace(); }
 
 void Heap::GarbageCollectionPrologue() {
+  TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE);
   {
     AllowHeapAllocation for_the_first_part_of_prologue;
     gc_count_++;
@@ -641,6 +642,7 @@ void Heap::DeoptMarkedAllocationSites() {
 
 
 void Heap::GarbageCollectionEpilogue() {
+  TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE);
   // In release mode, we only zap the from space under heap verification.
   if (Heap::ShouldZapGarbage()) {
     ZapFromSpace();
@@ -746,7 +748,10 @@ void Heap::GarbageCollectionEpilogue() {
   new_space_top_after_last_gc_ = new_space()->top();
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
 
-  ReduceNewSpaceSize();
+  {
+    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
+    ReduceNewSpaceSize();
+  }
 }
 
 
@@ -1312,7 +1317,7 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      TRACE_GC(tracer(), GCTracer::Scope::EXTERNAL_PROLOGUE);
+      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
@@ -1373,7 +1378,7 @@ bool Heap::PerformGarbageCollection(
   gc_post_processing_depth_++;
   {
     AllowHeapAllocation allow_allocation;
-    TRACE_GC(tracer(), GCTracer::Scope::EXTERNAL_WEAK_GLOBAL_HANDLES);
+    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
     freed_global_handles =
         isolate_->global_handles()->PostGarbageCollectionProcessing(
             collector, gc_callback_flags);
@@ -1403,7 +1408,7 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      TRACE_GC(tracer(), GCTracer::Scope::EXTERNAL_EPILOGUE);
+      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
