@@ -2355,16 +2355,16 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object, Handle<Name> name);
 
   // Get the header size for a JSObject.  Used to compute the index of
-  // internal fields as well as the number of internal fields.
+  // embedder fields as well as the number of embedder fields.
   static inline int GetHeaderSize(InstanceType instance_type);
   inline int GetHeaderSize();
 
-  static inline int GetInternalFieldCount(Map* map);
-  inline int GetInternalFieldCount();
-  inline int GetInternalFieldOffset(int index);
-  inline Object* GetInternalField(int index);
-  inline void SetInternalField(int index, Object* value);
-  inline void SetInternalField(int index, Smi* value);
+  static inline int GetEmbedderFieldCount(Map* map);
+  inline int GetEmbedderFieldCount();
+  inline int GetEmbedderFieldOffset(int index);
+  inline Object* GetEmbedderField(int index);
+  inline void SetEmbedderField(int index, Object* value);
+  inline void SetEmbedderField(int index, Smi* value);
   bool WasConstructedFromApiFunction();
 
   // Returns a new map with all transitions dropped from the object's current
@@ -8064,14 +8064,14 @@ class JSFunction: public JSObject {
 
   // Calculate the instance size and in-object properties count.
   void CalculateInstanceSize(InstanceType instance_type,
-                             int requested_internal_fields, int* instance_size,
+                             int requested_embedder_fields, int* instance_size,
                              int* in_object_properties);
   void CalculateInstanceSizeForDerivedClass(InstanceType instance_type,
-                                            int requested_internal_fields,
+                                            int requested_embedder_fields,
                                             int* instance_size,
                                             int* in_object_properties);
   static void CalculateInstanceSizeHelper(InstanceType instance_type,
-                                          int requested_internal_fields,
+                                          int requested_embedder_fields,
                                           int requested_in_object_properties,
                                           int* instance_size,
                                           int* in_object_properties);
@@ -8158,7 +8158,7 @@ class JSGlobalProxy : public JSObject {
 
   inline bool IsDetachedFrom(JSGlobalObject* global) const;
 
-  static int SizeWithInternalFields(int internal_field_count);
+  static int SizeWithEmbedderFields(int embedder_field_count);
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSGlobalProxy)
@@ -10438,10 +10438,10 @@ class JSArrayIterator : public JSObject {
 
   DECLARE_CAST(JSArrayIterator)
 
-  // [object]: the [[IteratedObject]] internal field.
+  // [object]: the [[IteratedObject]] inobject property.
   DECL_ACCESSORS(object, Object)
 
-  // [index]: The [[ArrayIteratorNextIndex]] internal field.
+  // [index]: The [[ArrayIteratorNextIndex]] inobject property.
   DECL_ACCESSORS(index, Object)
 
   // [map]: The Map of the [[IteratedObject]] field at the time the iterator is
@@ -10495,10 +10495,10 @@ class JSStringIterator : public JSObject {
 
   DECLARE_CAST(JSStringIterator)
 
-  // [string]: the [[IteratedString]] internal field.
+  // [string]: the [[IteratedString]] inobject property.
   DECL_ACCESSORS(string, String)
 
-  // [index]: The [[StringIteratorNextIndex]] internal field.
+  // [index]: The [[StringIteratorNextIndex]] inobject property.
   inline int index() const;
   inline void set_index(int value);
 
@@ -10746,8 +10746,8 @@ class JSArrayBuffer: public JSObject {
 #endif
   static const int kSize = kBitFieldSlot + kPointerSize;
 
-  static const int kSizeWithInternalFields =
-      kSize + v8::ArrayBuffer::kInternalFieldCount * kPointerSize;
+  static const int kSizeWithEmbedderFields =
+      kSize + v8::ArrayBuffer::kEmbedderFieldCount * kPointerSize;
 
   // Iterates all fields in the object including internal ones except
   // kBackingStoreOffset and kBitFieldSlot.
@@ -10825,8 +10825,8 @@ class JSTypedArray: public JSArrayBufferView {
   static const int kLengthOffset = kViewSize + kPointerSize;
   static const int kSize = kLengthOffset + kPointerSize;
 
-  static const int kSizeWithInternalFields =
-      kSize + v8::ArrayBufferView::kInternalFieldCount * kPointerSize;
+  static const int kSizeWithEmbedderFields =
+      kSize + v8::ArrayBufferView::kEmbedderFieldCount * kPointerSize;
 
  private:
   static Handle<JSArrayBuffer> MaterializeArrayBuffer(
@@ -10849,8 +10849,8 @@ class JSDataView: public JSArrayBufferView {
 
   static const int kSize = kViewSize;
 
-  static const int kSizeWithInternalFields =
-      kSize + v8::ArrayBufferView::kInternalFieldCount * kPointerSize;
+  static const int kSizeWithEmbedderFields =
+      kSize + v8::ArrayBufferView::kEmbedderFieldCount * kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataView);
@@ -11339,7 +11339,7 @@ class ObjectTemplateInfo: public TemplateInfo {
  public:
   DECL_ACCESSORS(constructor, Object)
   DECL_ACCESSORS(data, Object)
-  DECL_INT_ACCESSORS(internal_field_count)
+  DECL_INT_ACCESSORS(embedder_field_count)
   DECL_BOOLEAN_ACCESSORS(immutable_proto)
 
   DECLARE_CAST(ObjectTemplateInfo)
@@ -11349,7 +11349,7 @@ class ObjectTemplateInfo: public TemplateInfo {
   DECLARE_VERIFIER(ObjectTemplateInfo)
 
   static const int kConstructorOffset = TemplateInfo::kHeaderSize;
-  // LSB is for immutable_proto, higher bits for internal_field_count
+  // LSB is for immutable_proto, higher bits for embedder_field_count
   static const int kDataOffset = kConstructorOffset + kPointerSize;
   static const int kSize = kDataOffset + kPointerSize;
 
@@ -11359,7 +11359,7 @@ class ObjectTemplateInfo: public TemplateInfo {
 
  private:
   class IsImmutablePrototype : public BitField<bool, 0, 1> {};
-  class InternalFieldCount
+  class EmbedderFieldCount
       : public BitField<int, IsImmutablePrototype::kNext, 29> {};
 };
 

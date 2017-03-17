@@ -51,15 +51,15 @@ class BodyDescriptorBase BASE_EMBEDDED {
   static inline void IteratePointer(Heap* heap, HeapObject* obj, int offset);
 
  protected:
-  // Returns true for all header and internal fields.
+  // Returns true for all header and embedder fields.
   static inline bool IsValidSlotImpl(HeapObject* obj, int offset);
 
-  // Treats all header and internal fields in the range as tagged.
+  // Treats all header and embedder fields in the range as tagged.
   template <typename ObjectVisitor>
   static inline void IterateBodyImpl(HeapObject* obj, int start_offset,
                                      int end_offset, ObjectVisitor* v);
 
-  // Treats all header and internal fields in the range as tagged.
+  // Treats all header and embedder fields in the range as tagged.
   template <typename StaticVisitor>
   static inline void IterateBodyImpl(Heap* heap, HeapObject* obj,
                                      int start_offset, int end_offset);

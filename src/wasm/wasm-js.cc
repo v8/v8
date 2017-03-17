@@ -771,16 +771,16 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<Map> prev_map = Handle<Map>(context->sloppy_function_map(), isolate);
 
   InstanceType instance_type = prev_map->instance_type();
-  int internal_fields = JSObject::GetInternalFieldCount(*prev_map);
-  CHECK_EQ(0, internal_fields);
+  int embedder_fields = JSObject::GetEmbedderFieldCount(*prev_map);
+  CHECK_EQ(0, embedder_fields);
   int pre_allocated =
       prev_map->GetInObjectProperties() - prev_map->unused_property_fields();
   int instance_size = 0;
   int in_object_properties = 0;
-  int wasm_internal_fields = internal_fields + 1  // module instance object
-      + 1                  // function arity
-      + 1;                 // function signature
-  JSFunction::CalculateInstanceSizeHelper(instance_type, wasm_internal_fields,
+  int wasm_embedder_fields = embedder_fields + 1  // module instance object
+                             + 1                  // function arity
+                             + 1;                 // function signature
+  JSFunction::CalculateInstanceSizeHelper(instance_type, wasm_embedder_fields,
                                           0, &instance_size,
                                           &in_object_properties);
 

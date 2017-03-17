@@ -458,7 +458,7 @@ bool Debug::Load() {
   static const int kFirstContextSnapshotIndex = 0;
   Handle<Context> context = isolate_->bootstrapper()->CreateEnvironment(
       MaybeHandle<JSGlobalProxy>(), v8::Local<ObjectTemplate>(), &no_extensions,
-      kFirstContextSnapshotIndex, v8::DeserializeInternalFieldsCallback(),
+      kFirstContextSnapshotIndex, v8::DeserializeEmbedderFieldsCallback(),
       DEBUG_CONTEXT);
 
   // Fail if no context could be created.

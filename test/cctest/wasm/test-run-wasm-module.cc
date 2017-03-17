@@ -272,7 +272,7 @@ class WasmSerializationTest {
     {
       DisallowHeapAllocation assume_no_gc;
       Handle<WasmCompiledModule> compiled_part(
-          WasmCompiledModule::cast(module_object->GetInternalField(0)),
+          WasmCompiledModule::cast(module_object->GetEmbedderField(0)),
           current_isolate());
       CHECK_EQ(memcmp(compiled_part->module_bytes()->GetCharsAddress(),
                       wire_bytes().first, wire_bytes().second),

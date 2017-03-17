@@ -60,7 +60,7 @@ class Snapshot : public AllStatic {
   static MaybeHandle<Context> NewContextFromSnapshot(
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
       size_t context_index,
-      v8::DeserializeInternalFieldsCallback internal_fields_deserializer);
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   static bool HaveASnapshotToStartFrom(Isolate* isolate);
 

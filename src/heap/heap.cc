@@ -3509,7 +3509,7 @@ void Heap::InitializeJSObjectBody(JSObject* obj, Map* map, int start_offset) {
   DCHECK_LT(start_offset, map->instance_size());
 
   // We cannot always fill with one_pointer_filler_map because objects
-  // created from API functions expect their internal fields to be initialized
+  // created from API functions expect their embedder fields to be initialized
   // with undefined_value.
   // Pre-allocated fields need to be initialized with undefined_value as well
   // so that object accesses before the constructor completes (e.g. in the
@@ -5628,14 +5628,14 @@ void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
 
 void Heap::TracePossibleWrapper(JSObject* js_object) {
   DCHECK(js_object->WasConstructedFromApiFunction());
-  if (js_object->GetInternalFieldCount() >= 2 &&
-      js_object->GetInternalField(0) &&
-      js_object->GetInternalField(0) != undefined_value() &&
-      js_object->GetInternalField(1) != undefined_value()) {
-    DCHECK(reinterpret_cast<intptr_t>(js_object->GetInternalField(0)) % 2 == 0);
+  if (js_object->GetEmbedderFieldCount() >= 2 &&
+      js_object->GetEmbedderField(0) &&
+      js_object->GetEmbedderField(0) != undefined_value() &&
+      js_object->GetEmbedderField(1) != undefined_value()) {
+    DCHECK(reinterpret_cast<intptr_t>(js_object->GetEmbedderField(0)) % 2 == 0);
     local_embedder_heap_tracer()->AddWrapperToTrace(std::pair<void*, void*>(
-        reinterpret_cast<void*>(js_object->GetInternalField(0)),
-        reinterpret_cast<void*>(js_object->GetInternalField(1))));
+        reinterpret_cast<void*>(js_object->GetEmbedderField(0)),
+        reinterpret_cast<void*>(js_object->GetEmbedderField(1))));
   }
 }
 

@@ -352,9 +352,9 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
 
 // Check whether the given object represents a WebAssembly.Instance instance.
-// This checks the number and type of internal fields, so it's not 100 percent
+// This checks the number and type of embedder fields, so it's not 100 percent
 // secure. If it turns out that we need more complete checks, we could add a
-// special marker as internal field, which will definitely never occur anywhere
+// special marker as embedder field, which will definitely never occur anywhere
 // else.
 bool IsWasmInstance(Object* instance);
 

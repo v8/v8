@@ -121,7 +121,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
 
 MaybeHandle<Object> Deserializer::DeserializePartial(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
-    v8::DeserializeInternalFieldsCallback internal_fields_deserializer) {
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   Initialize(isolate);
   if (!ReserveSpace()) {
     V8::FatalProcessOutOfMemory("deserialize context");
@@ -138,7 +138,7 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   Object* root;
   VisitPointer(&root);
   DeserializeDeferredObjects();
-  DeserializeInternalFields(internal_fields_deserializer);
+  DeserializeEmbedderFields(embedder_fields_deserializer);
 
   isolate->heap()->RegisterReservationsForBlackAllocation(reservations_);
 
@@ -225,13 +225,13 @@ void Deserializer::DeserializeDeferredObjects() {
   }
 }
 
-void Deserializer::DeserializeInternalFields(
-    v8::DeserializeInternalFieldsCallback internal_fields_deserializer) {
-  if (!source_.HasMore() || source_.Get() != kInternalFieldsData) return;
+void Deserializer::DeserializeEmbedderFields(
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
+  if (!source_.HasMore() || source_.Get() != kEmbedderFieldsData) return;
   DisallowHeapAllocation no_gc;
   DisallowJavascriptExecution no_js(isolate_);
   DisallowCompilation no_compile(isolate_);
-  DCHECK_NOT_NULL(internal_fields_deserializer.callback);
+  DCHECK_NOT_NULL(embedder_fields_deserializer.callback);
   for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
     HandleScope scope(isolate_);
     int space = code & kSpaceMask;
@@ -243,9 +243,9 @@ void Deserializer::DeserializeInternalFields(
     int size = source_.GetInt();
     byte* data = new byte[size];
     source_.CopyRaw(data, size);
-    internal_fields_deserializer.callback(v8::Utils::ToLocal(obj), index,
+    embedder_fields_deserializer.callback(v8::Utils::ToLocal(obj), index,
                                           {reinterpret_cast<char*>(data), size},
-                                          internal_fields_deserializer.data);
+                                          embedder_fields_deserializer.data);
     delete[] data;
   }
 }

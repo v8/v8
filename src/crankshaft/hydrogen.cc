@@ -9879,7 +9879,7 @@ HValue* HGraphBuilder::BuildAllocateEmptyArrayBuffer(HValue* byte_length) {
   byte_length = AddUncasted<HForceRepresentation>(
       byte_length, byte_length_access.representation());
   HAllocate* result =
-      BuildAllocate(Add<HConstant>(JSArrayBuffer::kSizeWithInternalFields),
+      BuildAllocate(Add<HConstant>(JSArrayBuffer::kSizeWithEmbedderFields),
                     HType::JSObject(), JS_ARRAY_BUFFER_TYPE, HAllocationMode());
 
   HValue* native_context = BuildGetNativeContext();
@@ -9909,7 +9909,7 @@ HValue* HGraphBuilder::BuildAllocateEmptyArrayBuffer(HValue* byte_length) {
       Add<HConstant>((1 << JSArrayBuffer::IsExternal::kShift) |
                      (1 << JSArrayBuffer::IsNeuterable::kShift)));
 
-  for (int field = 0; field < v8::ArrayBuffer::kInternalFieldCount; ++field) {
+  for (int field = 0; field < v8::ArrayBuffer::kEmbedderFieldCount; ++field) {
     Add<HStoreNamedField>(
         result,
         HObjectAccess::ForObservableJSObjectOffset(
@@ -9927,10 +9927,8 @@ void HGraphBuilder::BuildArrayBufferViewInitialization(
     HValue* buffer,
     HValue* byte_offset,
     HValue* byte_length) {
-
   for (int offset = ViewClass::kSize;
-       offset < ViewClass::kSizeWithInternalFields;
-       offset += kPointerSize) {
+       offset < ViewClass::kSizeWithEmbedderFields; offset += kPointerSize) {
     Add<HStoreNamedField>(obj,
         HObjectAccess::ForObservableJSObjectOffset(offset),
         graph()->GetConstant0());

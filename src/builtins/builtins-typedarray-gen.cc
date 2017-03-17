@@ -146,12 +146,12 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     //  - Set the length.
     //  - Set the byte_offset.
     //  - Set the byte_length.
-    //  - Set InternalFields to 0.
+    //  - Set EmbedderFields to 0.
     StoreObjectField(holder, JSTypedArray::kLengthOffset, length);
     StoreObjectField(holder, JSArrayBufferView::kByteOffsetOffset, byte_offset);
     StoreObjectField(holder, JSArrayBufferView::kByteLengthOffset, byte_length);
     for (int offset = JSTypedArray::kSize;
-         offset < JSTypedArray::kSizeWithInternalFields;
+         offset < JSTypedArray::kSizeWithEmbedderFields;
          offset += kPointerSize) {
       StoreObjectField(holder, offset, SmiConstant(Smi::kZero));
     }
@@ -168,7 +168,7 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
         LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX);
     Node* empty_fixed_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
 
-    Node* const buffer = Allocate(JSArrayBuffer::kSizeWithInternalFields);
+    Node* const buffer = Allocate(JSArrayBuffer::kSizeWithEmbedderFields);
     StoreMapNoWriteBarrier(buffer, map);
     StoreObjectFieldNoWriteBarrier(buffer, JSArray::kPropertiesOffset,
                                    empty_fixed_array);
@@ -192,7 +192,7 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
                                    byte_length);
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
                                    SmiConstant(Smi::kZero));
-    for (int i = 0; i < v8::ArrayBuffer::kInternalFieldCount; i++) {
+    for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
       int offset = JSArrayBuffer::kSize + i * kPointerSize;
       StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(Smi::kZero));
     }

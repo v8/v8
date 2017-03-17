@@ -120,10 +120,10 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
 
   // All checks are done, now we can modify objects.
 
-  DCHECK_EQ(v8::ArrayBufferView::kInternalFieldCount,
-            holder->GetInternalFieldCount());
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    holder->SetInternalField(i, Smi::kZero);
+  DCHECK_EQ(v8::ArrayBufferView::kEmbedderFieldCount,
+            holder->GetEmbedderFieldCount());
+  for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
+    holder->SetEmbedderField(i, Smi::kZero);
   }
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
@@ -193,10 +193,10 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   }
   size_t byte_length = length * element_size;
 
-  DCHECK_EQ(v8::ArrayBufferView::kInternalFieldCount,
-            holder->GetInternalFieldCount());
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    holder->SetInternalField(i, Smi::kZero);
+  DCHECK_EQ(v8::ArrayBufferView::kEmbedderFieldCount,
+            holder->GetEmbedderFieldCount());
+  for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
+    holder->SetEmbedderField(i, Smi::kZero);
   }
 
   // NOTE: not initializing backing store.

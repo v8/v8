@@ -377,7 +377,7 @@ template <class T> class Eternal {
 
 
 static const int kInternalFieldsInWeakCallback = 2;
-
+static const int kEmbedderFieldsInWeakCallback = 2;
 
 template <typename T>
 class WeakCallbackInfo {
@@ -385,11 +385,11 @@ class WeakCallbackInfo {
   typedef void (*Callback)(const WeakCallbackInfo<T>& data);
 
   WeakCallbackInfo(Isolate* isolate, T* parameter,
-                   void* internal_fields[kInternalFieldsInWeakCallback],
+                   void* embedder_fields[kEmbedderFieldsInWeakCallback],
                    Callback* callback)
       : isolate_(isolate), parameter_(parameter), callback_(callback) {
-    for (int i = 0; i < kInternalFieldsInWeakCallback; ++i) {
-      internal_fields_[i] = internal_fields[i];
+    for (int i = 0; i < kEmbedderFieldsInWeakCallback; ++i) {
+      embedder_fields_[i] = embedder_fields[i];
     }
   }
 
@@ -399,11 +399,11 @@ class WeakCallbackInfo {
 
   V8_INLINE V8_DEPRECATED("use indexed version",
                           void* GetInternalField1() const) {
-    return internal_fields_[0];
+    return embedder_fields_[0];
   }
   V8_INLINE V8_DEPRECATED("use indexed version",
                           void* GetInternalField2() const) {
-    return internal_fields_[1];
+    return embedder_fields_[1];
   }
 
   V8_DEPRECATED("Not realiable once SetSecondPassCallback() was used.",
@@ -423,7 +423,7 @@ class WeakCallbackInfo {
   Isolate* isolate_;
   T* parameter_;
   Callback* callback_;
-  void* internal_fields_[kInternalFieldsInWeakCallback];
+  void* embedder_fields_[kEmbedderFieldsInWeakCallback];
 };
 
 
@@ -4079,6 +4079,7 @@ class V8_EXPORT ArrayBuffer : public Object {
   V8_INLINE static ArrayBuffer* Cast(Value* obj);
 
   static const int kInternalFieldCount = V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT;
+  static const int kEmbedderFieldCount = V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT;
 
  private:
   ArrayBuffer();
@@ -4131,6 +4132,8 @@ class V8_EXPORT ArrayBufferView : public Object {
   V8_INLINE static ArrayBufferView* Cast(Value* obj);
 
   static const int kInternalFieldCount =
+      V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT;
+  static const int kEmbedderFieldCount =
       V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT;
 
  private:
@@ -6234,7 +6237,7 @@ class V8_EXPORT EmbedderHeapTracer {
    * wrappers from them when called through |AdvanceTracing|.
    */
   virtual void RegisterV8References(
-      const std::vector<std::pair<void*, void*> >& internal_fields) = 0;
+      const std::vector<std::pair<void*, void*> >& embedder_fields) = 0;
 
   /**
    * Called at the beginning of a GC cycle.
@@ -6297,6 +6300,9 @@ struct SerializeInternalFieldsCallback {
   CallbackFunction callback;
   void* data;
 };
+// Note that these fields are called "internal fields" in the API and called
+// "embedder fields" within V8.
+typedef SerializeInternalFieldsCallback SerializeEmbedderFieldsCallback;
 
 /**
  * Callback and supporting data used to implement embedder logic to deserialize
@@ -6312,6 +6318,7 @@ struct DeserializeInternalFieldsCallback {
                    void* data);
   void* data;
 };
+typedef DeserializeInternalFieldsCallback DeserializeEmbedderFieldsCallback;
 
 /**
  * Isolate represents an isolated instance of the V8 engine.  V8 isolates have
@@ -8064,7 +8071,7 @@ class V8_EXPORT Context {
    * \param context_snapshot_index The index of the context snapshot to
    * deserialize from. Use v8::Context::New for the default snapshot.
    *
-   * \param internal_fields_deserializer Optional callback to deserialize
+   * \param embedder_fields_deserializer Optional callback to deserialize
    * internal fields. It should match the SerializeInternalFieldCallback used
    * to serialize.
    *
@@ -8075,7 +8082,7 @@ class V8_EXPORT Context {
 
   static MaybeLocal<Context> FromSnapshot(
       Isolate* isolate, size_t context_snapshot_index,
-      DeserializeInternalFieldsCallback internal_fields_deserializer =
+      DeserializeInternalFieldsCallback embedder_fields_deserializer =
           DeserializeInternalFieldsCallback(),
       ExtensionConfiguration* extensions = nullptr,
       MaybeLocal<Value> global_object = MaybeLocal<Value>());
@@ -8654,11 +8661,11 @@ Local<T> MaybeLocal<T>::ToLocalChecked() {
 template <class T>
 void* WeakCallbackInfo<T>::GetInternalField(int index) const {
 #ifdef V8_ENABLE_CHECKS
-  if (index < 0 || index >= kInternalFieldsInWeakCallback) {
+  if (index < 0 || index >= kEmbedderFieldsInWeakCallback) {
     V8::InternalFieldOutOfBounds(index);
   }
 #endif
-  return internal_fields_[index];
+  return embedder_fields_[index];
 }
 
 

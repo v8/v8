@@ -51,7 +51,7 @@ class Deserializer : public SerializerDeserializer {
   // Deserialize a single object and the objects reachable from it.
   MaybeHandle<Object> DeserializePartial(
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
-      v8::DeserializeInternalFieldsCallback internal_fields_deserializer);
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   // Deserialize an object graph. Fail gracefully.
   MaybeHandle<HeapObject> DeserializeObject(Isolate* isolate);
@@ -90,8 +90,8 @@ class Deserializer : public SerializerDeserializer {
   }
 
   void DeserializeDeferredObjects();
-  void DeserializeInternalFields(
-      v8::DeserializeInternalFieldsCallback internal_fields_deserializer);
+  void DeserializeEmbedderFields(
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   void FlushICacheForNewIsolate();
   void FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();

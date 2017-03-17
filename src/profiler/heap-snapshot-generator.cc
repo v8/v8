@@ -1662,11 +1662,11 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
 
 
 void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj, int entry) {
-  int length = js_obj->GetInternalFieldCount();
+  int length = js_obj->GetEmbedderFieldCount();
   for (int i = 0; i < length; ++i) {
-    Object* o = js_obj->GetInternalField(i);
-    SetInternalReference(
-        js_obj, entry, i, o, js_obj->GetInternalFieldOffset(i));
+    Object* o = js_obj->GetEmbedderField(i);
+    SetInternalReference(js_obj, entry, i, o,
+                         js_obj->GetEmbedderFieldOffset(i));
   }
 }
 

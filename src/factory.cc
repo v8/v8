@@ -1640,7 +1640,7 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
 Handle<JSObject> Factory::NewExternal(void* value) {
   Handle<Foreign> foreign = NewForeign(static_cast<Address>(value));
   Handle<JSObject> external = NewJSObjectFromMap(external_map());
-  external->SetInternalField(0, *foreign);
+  external->SetEmbedderField(0, *foreign);
   return external;
 }
 
@@ -2133,10 +2133,10 @@ void SetupArrayBufferView(i::Isolate* isolate,
   DCHECK(byte_offset + byte_length <=
          static_cast<size_t>(buffer->byte_length()->Number()));
 
-  DCHECK_EQ(obj->GetInternalFieldCount(),
-            v8::ArrayBufferView::kInternalFieldCount);
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    obj->SetInternalField(i, Smi::kZero);
+  DCHECK_EQ(obj->GetEmbedderFieldCount(),
+            v8::ArrayBufferView::kEmbedderFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
+    obj->SetEmbedderField(i, Smi::kZero);
   }
 
   obj->set_buffer(*buffer);
@@ -2208,10 +2208,10 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
                                               size_t number_of_elements,
                                               PretenureFlag pretenure) {
   Handle<JSTypedArray> obj = NewJSTypedArray(elements_kind, pretenure);
-  DCHECK_EQ(obj->GetInternalFieldCount(),
-            v8::ArrayBufferView::kInternalFieldCount);
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    obj->SetInternalField(i, Smi::kZero);
+  DCHECK_EQ(obj->GetEmbedderFieldCount(),
+            v8::ArrayBufferView::kEmbedderFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
+    obj->SetEmbedderField(i, Smi::kZero);
   }
 
   size_t element_size = GetFixedTypedArraysElementSize(elements_kind);

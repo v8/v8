@@ -49,12 +49,12 @@ using namespace v8::internal::wasm;
   type* Container::name() { return type::cast(getter(field)); }
 
 #define DEFINE_OBJ_GETTER(Container, name, field, type) \
-  DEFINE_GETTER0(GetInternalField, Container, name, field, type)
+  DEFINE_GETTER0(GetEmbedderField, Container, name, field, type)
 #define DEFINE_OBJ_ACCESSORS(Container, name, field, type)               \
-  DEFINE_ACCESSORS0(GetInternalField, SetInternalField, Container, name, \
+  DEFINE_ACCESSORS0(GetEmbedderField, SetEmbedderField, Container, name, \
                     field, type)
 #define DEFINE_OPTIONAL_OBJ_ACCESSORS(Container, name, field, type)         \
-  DEFINE_OPTIONAL_ACCESSORS0(GetInternalField, SetInternalField, Container, \
+  DEFINE_OPTIONAL_ACCESSORS0(GetEmbedderField, SetEmbedderField, Container, \
                              name, field, type)
 #define DEFINE_ARR_GETTER(Container, name, field, type) \
   DEFINE_GETTER0(get, Container, name, field, type)
@@ -235,7 +235,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
         JSObject::kHeaderSize + WasmModuleObject::kFieldCount * kPointerSize);
     module_object = isolate->factory()->NewJSObjectFromMap(map, TENURED);
   }
-  module_object->SetInternalField(WasmModuleObject::kCompiledModule,
+  module_object->SetEmbedderField(WasmModuleObject::kCompiledModule,
                                   *compiled_module);
   Handle<WeakCell> link_to_module =
       isolate->factory()->NewWeakCell(module_object);
@@ -251,7 +251,7 @@ WasmModuleObject* WasmModuleObject::cast(Object* object) {
 
 bool WasmModuleObject::IsWasmModuleObject(Object* object) {
   return object->IsJSObject() &&
-         JSObject::cast(object)->GetInternalFieldCount() == kFieldCount;
+         JSObject::cast(object)->GetEmbedderFieldCount() == kFieldCount;
 }
 
 DEFINE_OBJ_GETTER(WasmModuleObject, compiled_module, kCompiledModule,
@@ -263,19 +263,19 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
   Handle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor());
   Handle<JSObject> table_obj = isolate->factory()->NewJSObject(table_ctor);
-  table_obj->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+  table_obj->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
 
   *js_functions = isolate->factory()->NewFixedArray(initial);
   Object* null = isolate->heap()->null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
     (*js_functions)->set(i, null);
   }
-  table_obj->SetInternalField(kFunctions, *(*js_functions));
+  table_obj->SetEmbedderField(kFunctions, *(*js_functions));
   Handle<Object> max = isolate->factory()->NewNumber(maximum);
-  table_obj->SetInternalField(kMaximum, *max);
+  table_obj->SetEmbedderField(kMaximum, *max);
 
   Handle<FixedArray> dispatch_tables = isolate->factory()->NewFixedArray(0);
-  table_obj->SetInternalField(kDispatchTables, *dispatch_tables);
+  table_obj->SetEmbedderField(kDispatchTables, *dispatch_tables);
   Handle<Symbol> table_sym(isolate->native_context()->wasm_table_sym());
   Object::SetProperty(table_obj, table_sym, table_obj, STRICT).Check();
   return Handle<WasmTableObject>::cast(table_obj);
@@ -288,7 +288,7 @@ Handle<FixedArray> WasmTableObject::AddDispatchTable(
     Handle<WasmInstanceObject> instance, int table_index,
     Handle<FixedArray> function_table, Handle<FixedArray> signature_table) {
   Handle<FixedArray> dispatch_tables(
-      FixedArray::cast(table_obj->GetInternalField(kDispatchTables)), isolate);
+      FixedArray::cast(table_obj->GetEmbedderField(kDispatchTables)), isolate);
   DCHECK_EQ(0, dispatch_tables->length() % 4);
 
   if (instance.is_null()) return dispatch_tables;
@@ -304,7 +304,7 @@ Handle<FixedArray> WasmTableObject::AddDispatchTable(
   new_dispatch_tables->set(dispatch_tables->length() + 2, *function_table);
   new_dispatch_tables->set(dispatch_tables->length() + 3, *signature_table);
 
-  table_obj->SetInternalField(WasmTableObject::kDispatchTables,
+  table_obj->SetEmbedderField(WasmTableObject::kDispatchTables,
                               *new_dispatch_tables);
 
   return new_dispatch_tables;
@@ -315,11 +315,11 @@ DEFINE_OBJ_ACCESSORS(WasmTableObject, functions, kFunctions, FixedArray)
 uint32_t WasmTableObject::current_length() { return functions()->length(); }
 
 bool WasmTableObject::has_maximum_length() {
-  return GetInternalField(kMaximum)->Number() >= 0;
+  return GetEmbedderField(kMaximum)->Number() >= 0;
 }
 
 int64_t WasmTableObject::maximum_length() {
-  return static_cast<int64_t>(GetInternalField(kMaximum)->Number());
+  return static_cast<int64_t>(GetEmbedderField(kMaximum)->Number());
 }
 
 WasmTableObject* WasmTableObject::cast(Object* object) {
@@ -342,11 +342,11 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
       isolate->native_context()->wasm_memory_constructor());
   Handle<JSObject> memory_obj =
       isolate->factory()->NewJSObject(memory_ctor, TENURED);
-  memory_obj->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+  memory_obj->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
 
-  memory_obj->SetInternalField(kArrayBuffer, *buffer);
+  memory_obj->SetEmbedderField(kArrayBuffer, *buffer);
   Handle<Object> max = isolate->factory()->NewNumber(maximum);
-  memory_obj->SetInternalField(kMaximum, *max);
+  memory_obj->SetEmbedderField(kMaximum, *max);
   Handle<Symbol> memory_sym(isolate->native_context()->wasm_memory_sym());
   Object::SetProperty(memory_obj, memory_sym, memory_obj, STRICT).Check();
   return Handle<WasmMemoryObject>::cast(memory_obj);
@@ -361,11 +361,11 @@ uint32_t WasmMemoryObject::current_pages() {
 }
 
 bool WasmMemoryObject::has_maximum_pages() {
-  return GetInternalField(kMaximum)->Number() >= 0;
+  return GetEmbedderField(kMaximum)->Number() >= 0;
 }
 
 int32_t WasmMemoryObject::maximum_pages() {
-  return static_cast<int32_t>(GetInternalField(kMaximum)->Number());
+  return static_cast<int32_t>(GetEmbedderField(kMaximum)->Number());
 }
 
 WasmMemoryObject* WasmMemoryObject::cast(Object* object) {
@@ -390,7 +390,7 @@ void WasmMemoryObject::AddInstance(Isolate* isolate,
 
 void WasmMemoryObject::ResetInstancesLink(Isolate* isolate) {
   Handle<Object> undefined = isolate->factory()->undefined_value();
-  SetInternalField(kInstancesLink, *undefined);
+  SetEmbedderField(kInstancesLink, *undefined);
 }
 
 DEFINE_OBJ_ACCESSORS(WasmInstanceObject, compiled_module, kCompiledModule,
@@ -430,14 +430,14 @@ bool WasmInstanceObject::IsWasmInstanceObject(Object* object) {
 
   JSObject* obj = JSObject::cast(object);
   Isolate* isolate = obj->GetIsolate();
-  if (obj->GetInternalFieldCount() != kFieldCount) {
+  if (obj->GetEmbedderFieldCount() != kFieldCount) {
     return false;
   }
 
-  Object* mem = obj->GetInternalField(kMemoryArrayBuffer);
+  Object* mem = obj->GetEmbedderField(kMemoryArrayBuffer);
   if (!(mem->IsUndefined(isolate) || mem->IsJSArrayBuffer()) ||
       !WasmCompiledModule::IsWasmCompiledModule(
-          obj->GetInternalField(kCompiledModule))) {
+          obj->GetEmbedderField(kCompiledModule))) {
     return false;
   }
 
@@ -451,7 +451,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate->native_context()->wasm_instance_constructor());
   Handle<JSObject> instance_object =
       isolate->factory()->NewJSObject(instance_cons, TENURED);
-  instance_object->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+  instance_object->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
 
   Handle<Symbol> instance_sym(isolate->native_context()->wasm_instance_sym());
   Object::SetProperty(instance_object, instance_sym, instance_object, STRICT)
@@ -459,20 +459,20 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   Handle<WasmInstanceObject> instance(
       reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
 
-  instance->SetInternalField(kCompiledModule, *compiled_module);
-  instance->SetInternalField(kMemoryObject, isolate->heap()->undefined_value());
+  instance->SetEmbedderField(kCompiledModule, *compiled_module);
+  instance->SetEmbedderField(kMemoryObject, isolate->heap()->undefined_value());
   Handle<WasmInstanceWrapper> instance_wrapper =
       WasmInstanceWrapper::New(isolate, instance);
-  instance->SetInternalField(kWasmMemInstanceWrapper, *instance_wrapper);
+  instance->SetEmbedderField(kWasmMemInstanceWrapper, *instance_wrapper);
   return instance;
 }
 
 WasmInstanceObject* WasmExportedFunction::instance() {
-  return WasmInstanceObject::cast(GetInternalField(kInstance));
+  return WasmInstanceObject::cast(GetEmbedderField(kInstance));
 }
 
 int WasmExportedFunction::function_index() {
-  return SafeInt32(GetInternalField(kIndex));
+  return SafeInt32(GetEmbedderField(kIndex));
 }
 
 WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
@@ -505,12 +505,12 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   shared->set_internal_formal_parameter_count(arity);
   Handle<JSFunction> function = isolate->factory()->NewFunction(
       isolate->wasm_function_map(), name, export_wrapper);
-  function->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+  function->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
 
   function->set_shared(*shared);
 
-  function->SetInternalField(kInstance, *instance);
-  function->SetInternalField(kIndex, Smi::FromInt(func_index));
+  function->SetEmbedderField(kInstance, *instance);
+  function->SetEmbedderField(kIndex, Smi::FromInt(func_index));
   return Handle<WasmExportedFunction>::cast(function);
 }
 

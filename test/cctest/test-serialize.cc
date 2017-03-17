@@ -422,7 +422,7 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
     Handle<Object> root;
     Handle<JSGlobalProxy> global_proxy =
         isolate->factory()->NewUninitializedJSGlobalProxy(
-            JSGlobalProxy::SizeWithInternalFields(0));
+            JSGlobalProxy::SizeWithEmbedderFields(0));
     {
       SnapshotData snapshot_data(partial_blob);
       Deserializer deserializer(&snapshot_data);
@@ -547,7 +547,7 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
     Handle<Object> root;
     Handle<JSGlobalProxy> global_proxy =
         isolate->factory()->NewUninitializedJSGlobalProxy(
-            JSGlobalProxy::SizeWithInternalFields(0));
+            JSGlobalProxy::SizeWithEmbedderFields(0));
     {
       SnapshotData snapshot_data(partial_blob);
       Deserializer deserializer(&snapshot_data);
@@ -2089,12 +2089,12 @@ struct InternalFieldData {
 v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder, int index,
                                         void* data) {
   CHECK_EQ(reinterpret_cast<void*>(2016), data);
-  InternalFieldData* internal_field = static_cast<InternalFieldData*>(
+  InternalFieldData* embedder_field = static_cast<InternalFieldData*>(
       holder->GetAlignedPointerFromInternalField(index));
-  int size = sizeof(*internal_field);
+  int size = sizeof(*embedder_field);
   char* payload = new char[size];
   // We simply use memcpy to serialize the content.
-  memcpy(payload, internal_field, size);
+  memcpy(payload, embedder_field, size);
   return {payload, size};
 }
 
@@ -2103,10 +2103,10 @@ std::vector<InternalFieldData*> deserialized_data;
 void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
                                v8::StartupData payload, void* data) {
   CHECK_EQ(reinterpret_cast<void*>(2017), data);
-  InternalFieldData* internal_field = new InternalFieldData{0};
-  memcpy(internal_field, payload.data, payload.raw_size);
-  holder->SetAlignedPointerInInternalField(index, internal_field);
-  deserialized_data.push_back(internal_field);
+  InternalFieldData* embedder_field = new InternalFieldData{0};
+  memcpy(embedder_field, payload.data, payload.raw_size);
+  holder->SetAlignedPointerInInternalField(index, embedder_field);
+  deserialized_data.push_back(embedder_field);
 }
 
 TEST(SnapshotCreatorTemplates) {
@@ -2215,7 +2215,7 @@ TEST(SnapshotCreatorTemplates) {
         // Check that it instantiates to the same prototype.
         ExpectTrue("g.prototype === f.prototype");
 
-        // Retrieve internal fields.
+        // Retrieve embedder fields.
         v8::Local<v8::Object> a = context->Global()
                                       ->Get(context, v8_str("a"))
                                       .ToLocalChecked()

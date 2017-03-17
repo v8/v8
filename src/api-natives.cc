@@ -536,7 +536,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
       FunctionTemplateInfo::cast(data->constructor()));
   Handle<Map> object_map = isolate->factory()->NewMap(
       JS_SPECIAL_API_OBJECT_TYPE,
-      JSObject::kHeaderSize + data->internal_field_count() * kPointerSize,
+      JSObject::kHeaderSize + data->embedder_field_count() * kPointerSize,
       FAST_HOLEY_SMI_ELEMENTS);
   object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
@@ -631,18 +631,18 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
                           DONT_ENUM);
   }
 
-  int internal_field_count = 0;
+  int embedder_field_count = 0;
   bool immutable_proto = false;
   if (!obj->instance_template()->IsUndefined(isolate)) {
     Handle<ObjectTemplateInfo> instance_template = Handle<ObjectTemplateInfo>(
         ObjectTemplateInfo::cast(obj->instance_template()));
-    internal_field_count = instance_template->internal_field_count();
+    embedder_field_count = instance_template->embedder_field_count();
     immutable_proto = instance_template->immutable_proto();
   }
 
   // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing
   // JSObject::GetHeaderSize.
-  int instance_size = kPointerSize * internal_field_count;
+  int instance_size = kPointerSize * embedder_field_count;
   InstanceType type;
   switch (instance_type) {
     case JavaScriptObjectType:

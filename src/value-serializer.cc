@@ -441,7 +441,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
           map->GetConstructor() ==
               isolate_->native_context()->wasm_module_constructor()) {
         return WriteWasmModule(js_object);
-      } else if (JSObject::GetInternalFieldCount(map)) {
+      } else if (JSObject::GetEmbedderFieldCount(map)) {
         return WriteHostObject(js_object);
       } else {
         return WriteJSObject(js_object);
@@ -804,7 +804,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
 
 Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
   Handle<WasmCompiledModule> compiled_part(
-      WasmCompiledModule::cast(object->GetInternalField(0)), isolate_);
+      WasmCompiledModule::cast(object->GetEmbedderField(0)), isolate_);
   WasmEncodingTag encoding_tag = WasmEncodingTag::kRawBytes;
   WriteTag(SerializationTag::kWasmModule);
   WriteRawBytes(&encoding_tag, sizeof(encoding_tag));

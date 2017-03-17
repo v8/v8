@@ -681,7 +681,7 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   if (!weak_wasm_module->cleared()) {
     JSObject* wasm_module = JSObject::cast(weak_wasm_module->value());
     WasmCompiledModule* current_template =
-        WasmCompiledModule::cast(wasm_module->GetInternalField(0));
+        WasmCompiledModule::cast(wasm_module->GetEmbedderField(0));
 
     TRACE("chain before {\n");
     TRACE_CHAIN(current_template);
@@ -696,7 +696,7 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
         ResetCompiledModule(isolate, owner, compiled_module);
       } else {
         DCHECK(next->value()->IsFixedArray());
-        wasm_module->SetInternalField(0, next->value());
+        wasm_module->SetEmbedderField(0, next->value());
         DCHECK_NULL(prev);
         WasmCompiledModule::cast(next->value())->reset_weak_prev_instance();
       }
@@ -725,7 +725,7 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
       }
     }
     TRACE("chain after {\n");
-    TRACE_CHAIN(WasmCompiledModule::cast(wasm_module->GetInternalField(0)));
+    TRACE_CHAIN(WasmCompiledModule::cast(wasm_module->GetEmbedderField(0)));
     TRACE("}\n");
   }
   compiled_module->reset_weak_owning_instance();
@@ -1303,7 +1303,7 @@ class InstantiationHelper {
           compiled_module_->set_weak_wasm_module(
               original.ToHandleChecked()->weak_wasm_module());
         }
-        module_object_->SetInternalField(0, *compiled_module_);
+        module_object_->SetEmbedderField(0, *compiled_module_);
         compiled_module_->set_weak_owning_instance(link_to_owning_instance);
         GlobalHandles::MakeWeak(global_handle.location(),
                                 global_handle.location(), &InstanceFinalizer,

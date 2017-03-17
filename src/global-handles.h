@@ -28,12 +28,12 @@ enum WeaknessType {
   // Embedder gets a handle to the dying object.
   FINALIZER_WEAK,
   // In the following cases, the embedder gets the parameter they passed in
-  // earlier, and 0 or 2 first internal fields. Note that the internal
+  // earlier, and 0 or 2 first embedder fields. Note that the internal
   // fields must contain aligned non-V8 pointers.  Getting pointers to V8
   // objects through this interface would be GC unsafe so in that case the
   // embedder gets a null pointer instead.
   PHANTOM_WEAK,
-  PHANTOM_WEAK_2_INTERNAL_FIELDS,
+  PHANTOM_WEAK_2_EMBEDDER_FIELDS,
   // The handle is automatically reset by the garbage collector when
   // the object is no longer reachable.
   PHANTOM_WEAK_RESET_HANDLE
@@ -232,10 +232,10 @@ class GlobalHandles::PendingPhantomCallback {
   typedef v8::WeakCallbackInfo<void> Data;
   PendingPhantomCallback(
       Node* node, Data::Callback callback, void* parameter,
-      void* internal_fields[v8::kInternalFieldsInWeakCallback])
+      void* embedder_fields[v8::kEmbedderFieldsInWeakCallback])
       : node_(node), callback_(callback), parameter_(parameter) {
-    for (int i = 0; i < v8::kInternalFieldsInWeakCallback; ++i) {
-      internal_fields_[i] = internal_fields[i];
+    for (int i = 0; i < v8::kEmbedderFieldsInWeakCallback; ++i) {
+      embedder_fields_[i] = embedder_fields[i];
     }
   }
 
@@ -248,7 +248,7 @@ class GlobalHandles::PendingPhantomCallback {
   Node* node_;
   Data::Callback callback_;
   void* parameter_;
-  void* internal_fields_[v8::kInternalFieldsInWeakCallback];
+  void* embedder_fields_[v8::kEmbedderFieldsInWeakCallback];
 };
 
 

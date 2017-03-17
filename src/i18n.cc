@@ -741,7 +741,7 @@ icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
 icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
     Isolate* isolate,
     Handle<JSObject> obj) {
-  return reinterpret_cast<icu::SimpleDateFormat*>(obj->GetInternalField(0));
+  return reinterpret_cast<icu::SimpleDateFormat*>(obj->GetEmbedderField(0));
 }
 
 void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
@@ -796,7 +796,7 @@ icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
 icu::DecimalFormat* NumberFormat::UnpackNumberFormat(
     Isolate* isolate,
     Handle<JSObject> obj) {
-  return reinterpret_cast<icu::DecimalFormat*>(obj->GetInternalField(0));
+  return reinterpret_cast<icu::DecimalFormat*>(obj->GetEmbedderField(0));
 }
 
 void NumberFormat::DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data) {
@@ -848,7 +848,7 @@ icu::Collator* Collator::InitializeCollator(
 
 icu::Collator* Collator::UnpackCollator(Isolate* isolate,
                                         Handle<JSObject> obj) {
-  return reinterpret_cast<icu::Collator*>(obj->GetInternalField(0));
+  return reinterpret_cast<icu::Collator*>(obj->GetEmbedderField(0));
 }
 
 void Collator::DeleteCollator(const v8::WeakCallbackInfo<void>& data) {
@@ -899,7 +899,7 @@ icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
 
 icu::BreakIterator* V8BreakIterator::UnpackBreakIterator(Isolate* isolate,
                                                          Handle<JSObject> obj) {
-  return reinterpret_cast<icu::BreakIterator*>(obj->GetInternalField(0));
+  return reinterpret_cast<icu::BreakIterator*>(obj->GetEmbedderField(0));
 }
 
 void V8BreakIterator::DeleteBreakIterator(

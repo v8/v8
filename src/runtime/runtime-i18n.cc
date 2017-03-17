@@ -322,13 +322,13 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
                                      JSObject::New(constructor, constructor));
 
-  // Set date time formatter as internal field of the resulting JS object.
+  // Set date time formatter as embedder field of the resulting JS object.
   icu::SimpleDateFormat* date_format =
       DateFormat::InitializeDateTimeFormat(isolate, locale, options, resolved);
 
   if (!date_format) return isolate->ThrowIllegalOperation();
 
-  local_object->SetInternalField(0, reinterpret_cast<Smi*>(date_format));
+  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(date_format));
 
   // Make object handle weak so we can delete the data format once GC kicks in.
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
@@ -512,13 +512,13 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
                                      JSObject::New(constructor, constructor));
 
-  // Set number formatter as internal field of the resulting JS object.
+  // Set number formatter as embedder field of the resulting JS object.
   icu::DecimalFormat* number_format =
       NumberFormat::InitializeNumberFormat(isolate, locale, options, resolved);
 
   if (!number_format) return isolate->ThrowIllegalOperation();
 
-  local_object->SetInternalField(0, reinterpret_cast<Smi*>(number_format));
+  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(number_format));
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
   GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
@@ -569,13 +569,13 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
                                      JSObject::New(constructor, constructor));
 
-  // Set collator as internal field of the resulting JS object.
+  // Set collator as embedder field of the resulting JS object.
   icu::Collator* collator =
       Collator::InitializeCollator(isolate, locale, options, resolved);
 
   if (!collator) return isolate->ThrowIllegalOperation();
 
-  local_object->SetInternalField(0, reinterpret_cast<Smi*>(collator));
+  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(collator));
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
   GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
@@ -696,15 +696,15 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
                                      JSObject::New(constructor, constructor));
 
-  // Set break iterator as internal field of the resulting JS object.
+  // Set break iterator as embedder field of the resulting JS object.
   icu::BreakIterator* break_iterator = V8BreakIterator::InitializeBreakIterator(
       isolate, locale, options, resolved);
 
   if (!break_iterator) return isolate->ThrowIllegalOperation();
 
-  local_object->SetInternalField(0, reinterpret_cast<Smi*>(break_iterator));
+  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(break_iterator));
   // Make sure that the pointer to adopted text is NULL.
-  local_object->SetInternalField(1, static_cast<Smi*>(nullptr));
+  local_object->SetEmbedderField(1, static_cast<Smi*>(nullptr));
 
   // Make object handle weak so we can delete the break iterator once GC kicks
   // in.
@@ -729,7 +729,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
   CHECK_NOT_NULL(break_iterator);
 
   icu::UnicodeString* u_text = reinterpret_cast<icu::UnicodeString*>(
-      break_iterator_holder->GetInternalField(1));
+      break_iterator_holder->GetEmbedderField(1));
   delete u_text;
 
   int length = text->length();
@@ -739,7 +739,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
   std::unique_ptr<uc16[]> sap;
   const UChar* text_value = GetUCharBufferFromFlat(flat, &sap, length);
   u_text = new icu::UnicodeString(text_value, length);
-  break_iterator_holder->SetInternalField(1, reinterpret_cast<Smi*>(u_text));
+  break_iterator_holder->SetEmbedderField(1, reinterpret_cast<Smi*>(u_text));
 
   break_iterator->setText(*u_text);
 

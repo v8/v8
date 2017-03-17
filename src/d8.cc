@@ -226,7 +226,6 @@ static Local<Value> Throw(Isolate* isolate, const char* message) {
           .ToLocalChecked());
 }
 
-
 Worker* GetWorkerFromInternalField(Isolate* isolate, Local<Object> object) {
   if (object->InternalFieldCount() != 1) {
     Throw(isolate, "this is not a Worker");
@@ -1147,7 +1146,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
       return;
     }
 
-    // Initialize the internal field to NULL; if we return early without
+    // Initialize the embedder field to NULL; if we return early without
     // creating a new Worker (because the main thread is terminating) we can
     // early-out from the instance calls.
     args.Holder()->SetAlignedPointerInInternalField(0, NULL);

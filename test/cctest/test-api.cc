@@ -2624,7 +2624,6 @@ THREADED_TEST(FunctionPrototype) {
   CHECK_EQ(v8_run_int32value(script), 321);
 }
 
-
 THREADED_TEST(InternalFields) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -2642,7 +2641,6 @@ THREADED_TEST(InternalFields) {
   obj->SetInternalField(0, v8_num(17));
   CHECK_EQ(17, obj->GetInternalField(0)->Int32Value(env.local()).FromJust());
 }
-
 
 THREADED_TEST(GlobalObjectInternalFields) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -2668,7 +2666,6 @@ THREADED_TEST(GlobalObjectHasRealIndexedProperty) {
   CHECK(global->HasRealIndexedProperty(env.local(), 0).FromJust());
 }
 
-
 static void CheckAlignedPointerInInternalField(Local<v8::Object> obj,
                                                void* value) {
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
@@ -2676,7 +2673,6 @@ static void CheckAlignedPointerInInternalField(Local<v8::Object> obj,
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(0));
 }
-
 
 THREADED_TEST(InternalFieldsAlignedPointers) {
   LocalContext env;
@@ -7547,7 +7543,6 @@ class Trivial2 {
   int x_;
 };
 
-
 void CheckInternalFields(
     const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
   v8::Persistent<v8::Object>* handle = data.GetParameter();
@@ -7559,7 +7554,6 @@ void CheckInternalFields(
   t1->set_x(1729);
   t2->set_x(33550336);
 }
-
 
 void InternalFieldCallback(bool global_gc) {
   LocalContext env;
@@ -7611,7 +7605,6 @@ void InternalFieldCallback(bool global_gc) {
   delete t1;
   delete t2;
 }
-
 
 THREADED_TEST(InternalFieldCallback) {
   InternalFieldCallback(false);
@@ -14599,9 +14592,8 @@ TEST(Regress51719) {
   isolate->AdjustAmountOfExternalAllocatedMemory(kTriggerGCSize);
 }
 
-
-// Regression test for issue 54, object templates with internal fields
-// but no accessors or interceptors did not get their internal field
+// Regression test for issue 54, object templates with embedder fields
+// but no accessors or interceptors did not get their embedder field
 // count set on instances.
 THREADED_TEST(Regress54) {
   LocalContext context;
@@ -16682,7 +16674,6 @@ THREADED_TEST(SharedDataView) {
   CHECK_EQ(kSize, static_cast<int>(dv->ByteLength()));
   CHECK(ab->Equals(env.local(), dv->Buffer()).FromJust());
 }
-
 
 #define IS_ARRAY_BUFFER_VIEW_TEST(View)                                     \
   THREADED_TEST(Is##View) {                                                 \

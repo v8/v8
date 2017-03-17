@@ -172,8 +172,8 @@ class SerializerDeserializer : public ObjectVisitor {
   // Used for the source code for compiled stubs, which is in the executable,
   // but is referred to from external strings in the snapshot.
   static const int kExtraNativesStringResource = 0x1e;
-  // Used for embedder-provided serialization data for internal fields.
-  static const int kInternalFieldsData = 0x1f;
+  // Used for embedder-provided serialization data for embedder fields.
+  static const int kEmbedderFieldsData = 0x1f;
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kNumberOfHotObjects = 8;

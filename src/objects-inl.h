@@ -2117,7 +2117,7 @@ inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
   return instance_type <= LAST_SPECIAL_RECEIVER_TYPE;
 }
 
-int JSObject::GetInternalFieldCount(Map* map) {
+int JSObject::GetEmbedderFieldCount(Map* map) {
   int instance_size = map->instance_size();
   if (instance_size == kVariableSizeSentinel) return 0;
   InstanceType instance_type = map->instance_type();
@@ -2125,27 +2125,23 @@ int JSObject::GetInternalFieldCount(Map* map) {
          map->GetInObjectProperties();
 }
 
+int JSObject::GetEmbedderFieldCount() { return GetEmbedderFieldCount(map()); }
 
-int JSObject::GetInternalFieldCount() { return GetInternalFieldCount(map()); }
-
-
-int JSObject::GetInternalFieldOffset(int index) {
-  DCHECK(index < GetInternalFieldCount() && index >= 0);
+int JSObject::GetEmbedderFieldOffset(int index) {
+  DCHECK(index < GetEmbedderFieldCount() && index >= 0);
   return GetHeaderSize() + (kPointerSize * index);
 }
 
-
-Object* JSObject::GetInternalField(int index) {
-  DCHECK(index < GetInternalFieldCount() && index >= 0);
+Object* JSObject::GetEmbedderField(int index) {
+  DCHECK(index < GetEmbedderFieldCount() && index >= 0);
   // Internal objects do follow immediately after the header, whereas in-object
   // properties are at the end of the object. Therefore there is no need
   // to adjust the index here.
   return READ_FIELD(this, GetHeaderSize() + (kPointerSize * index));
 }
 
-
-void JSObject::SetInternalField(int index, Object* value) {
-  DCHECK(index < GetInternalFieldCount() && index >= 0);
+void JSObject::SetEmbedderField(int index, Object* value) {
+  DCHECK(index < GetEmbedderFieldCount() && index >= 0);
   // Internal objects do follow immediately after the header, whereas in-object
   // properties are at the end of the object. Therefore there is no need
   // to adjust the index here.
@@ -2154,9 +2150,8 @@ void JSObject::SetInternalField(int index, Object* value) {
   WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
-
-void JSObject::SetInternalField(int index, Smi* value) {
-  DCHECK(index < GetInternalFieldCount() && index >= 0);
+void JSObject::SetEmbedderField(int index, Smi* value) {
+  DCHECK(index < GetEmbedderFieldCount() && index >= 0);
   // Internal objects do follow immediately after the header, whereas in-object
   // properties are at the end of the object. Therefore there is no need
   // to adjust the index here.
@@ -5709,15 +5704,15 @@ SMI_ACCESSORS(FunctionTemplateInfo, flag, kFlagOffset)
 ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, data, Object, kDataOffset)
 
-int ObjectTemplateInfo::internal_field_count() const {
+int ObjectTemplateInfo::embedder_field_count() const {
   Object* value = data();
   DCHECK(value->IsSmi());
-  return InternalFieldCount::decode(Smi::cast(value)->value());
+  return EmbedderFieldCount::decode(Smi::cast(value)->value());
 }
 
-void ObjectTemplateInfo::set_internal_field_count(int count) {
+void ObjectTemplateInfo::set_embedder_field_count(int count) {
   return set_data(Smi::FromInt(
-      InternalFieldCount::update(Smi::cast(data())->value(), count)));
+      EmbedderFieldCount::update(Smi::cast(data())->value(), count)));
 }
 
 bool ObjectTemplateInfo::immutable_proto() const {
@@ -7579,9 +7574,9 @@ bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject* global) const {
   return iter.GetCurrent() != global;
 }
 
-inline int JSGlobalProxy::SizeWithInternalFields(int internal_field_count) {
-  DCHECK_GE(internal_field_count, 0);
-  return kSize + internal_field_count * kPointerSize;
+inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
+  DCHECK_GE(embedder_field_count, 0);
+  return kSize + embedder_field_count * kPointerSize;
 }
 
 Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate,

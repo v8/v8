@@ -144,7 +144,7 @@ class WasmSectionIterator {
   const byte* section_end_;
 
   // Reads the section code/name at the current position and sets up
-  // the internal fields.
+  // the embedder fields.
   void next() {
     while (true) {
       if (!decoder_.more()) {

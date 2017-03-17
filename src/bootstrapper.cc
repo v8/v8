@@ -144,7 +144,7 @@ class Genesis BASE_EMBEDDED {
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,
           size_t context_snapshot_index,
-          v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
+          v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
           GlobalContextType context_type);
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template);
@@ -316,11 +316,11 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-    v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     GlobalContextType context_type) {
   HandleScope scope(isolate_);
   Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
-                  context_snapshot_index, internal_fields_deserializer,
+                  context_snapshot_index, embedder_fields_deserializer,
                   context_type);
   Handle<Context> env = genesis.result();
   if (env.is_null() || !InstallExtensions(env, extensions)) {
@@ -1022,7 +1022,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     Handle<Code> code = isolate()->builtins()->Illegal();
     global_proxy_function =
         factory()->NewFunction(name, code, JS_GLOBAL_PROXY_TYPE,
-                               JSGlobalProxy::SizeWithInternalFields(0));
+                               JSGlobalProxy::SizeWithEmbedderFields(0));
   } else {
     Handle<ObjectTemplateInfo> data =
         v8::Utils::OpenHandle(*global_proxy_template);
@@ -2648,7 +2648,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->NewJSObject(isolate->object_function(), TENURED);
     Handle<JSFunction> data_view_fun =
         InstallFunction(global, "DataView", JS_DATA_VIEW_TYPE,
-                        JSDataView::kSizeWithInternalFields, prototype,
+                        JSDataView::kSizeWithEmbedderFields, prototype,
                         Builtins::kDataViewConstructor);
     InstallWithIntrinsicDefaultProto(isolate, data_view_fun,
                                      Context::DATA_VIEW_FUN_INDEX);
@@ -3037,7 +3037,7 @@ void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
   Handle<JSObject> prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   Handle<JSFunction> result = InstallFunction(
-      global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithInternalFields,
+      global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithEmbedderFields,
       prototype, Builtins::kIllegal);
   result->initial_map()->set_elements_kind(elements_kind);
 
@@ -3933,7 +3933,7 @@ Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
   // Allocate the constructor with the given {prototype}.
   Handle<JSFunction> array_buffer_fun =
       InstallFunction(target, name, JS_ARRAY_BUFFER_TYPE,
-                      JSArrayBuffer::kSizeWithInternalFields, prototype,
+                      JSArrayBuffer::kSizeWithEmbedderFields, prototype,
                       Builtins::kArrayBufferConstructor);
   array_buffer_fun->shared()->SetConstructStub(
       *isolate()->builtins()->ArrayBufferConstructor_ConstructStub());
@@ -4837,7 +4837,7 @@ Genesis::Genesis(
     Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     size_t context_snapshot_index,
-    v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     GlobalContextType context_type)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
@@ -4871,7 +4871,7 @@ Genesis::Genesis(
           static_cast<int>(context_snapshot_index) - 1);
       instance_size = Smi::cast(size)->value();
     } else {
-      instance_size = JSGlobalProxy::SizeWithInternalFields(
+      instance_size = JSGlobalProxy::SizeWithEmbedderFields(
           global_proxy_template.IsEmpty()
               ? 0
               : global_proxy_template->InternalFieldCount());
@@ -4886,7 +4886,7 @@ Genesis::Genesis(
   if (!isolate->initialized_from_snapshot() ||
       !Snapshot::NewContextFromSnapshot(isolate, global_proxy,
                                         context_snapshot_index,
-                                        internal_fields_deserializer)
+                                        embedder_fields_deserializer)
            .ToHandle(&native_context_)) {
     native_context_ = Handle<Context>();
   }
@@ -4997,7 +4997,7 @@ Genesis::Genesis(Isolate* isolate,
     return;
   }
 
-  const int proxy_size = JSGlobalProxy::SizeWithInternalFields(
+  const int proxy_size = JSGlobalProxy::SizeWithEmbedderFields(
       global_proxy_template->InternalFieldCount());
 
   Handle<JSGlobalProxy> global_proxy;
@@ -5018,7 +5018,7 @@ Genesis::Genesis(Isolate* isolate,
           global_object_template).ToHandleChecked();
 
   // (Re)initialize the global proxy object.
-  DCHECK_EQ(global_proxy_data->internal_field_count(),
+  DCHECK_EQ(global_proxy_data->embedder_field_count(),
             global_proxy_template->InternalFieldCount());
   Handle<Map> global_proxy_map = isolate->factory()->NewMap(
       JS_GLOBAL_PROXY_TYPE, proxy_size, FAST_HOLEY_SMI_ELEMENTS);

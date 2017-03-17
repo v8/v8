@@ -162,7 +162,7 @@ class GlobalHandles::Node {
   bool IsPendingPhantomCallback() const {
     return state() == PENDING &&
            (weakness_type() == PHANTOM_WEAK ||
-            weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS);
+            weakness_type() == PHANTOM_WEAK_2_EMBEDDER_FIELDS);
   }
 
   bool IsPendingPhantomResetHandle() const {
@@ -224,7 +224,7 @@ class GlobalHandles::Node {
         set_weakness_type(PHANTOM_WEAK);
         break;
       case v8::WeakCallbackType::kInternalFields:
-        set_weakness_type(PHANTOM_WEAK_2_INTERNAL_FIELDS);
+        set_weakness_type(PHANTOM_WEAK_2_EMBEDDER_FIELDS);
         break;
       case v8::WeakCallbackType::kFinalizer:
         set_weakness_type(FINALIZER_WEAK);
@@ -255,19 +255,19 @@ class GlobalHandles::Node {
       Isolate* isolate,
       List<PendingPhantomCallback>* pending_phantom_callbacks) {
     DCHECK(weakness_type() == PHANTOM_WEAK ||
-           weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS);
+           weakness_type() == PHANTOM_WEAK_2_EMBEDDER_FIELDS);
     DCHECK(state() == PENDING);
     DCHECK(weak_callback_ != nullptr);
 
-    void* internal_fields[v8::kInternalFieldsInWeakCallback] = {nullptr,
+    void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
                                                                 nullptr};
     if (weakness_type() != PHANTOM_WEAK && object()->IsJSObject()) {
       auto jsobject = JSObject::cast(object());
-      int field_count = jsobject->GetInternalFieldCount();
-      for (int i = 0; i < v8::kInternalFieldsInWeakCallback; ++i) {
+      int field_count = jsobject->GetEmbedderFieldCount();
+      for (int i = 0; i < v8::kEmbedderFieldsInWeakCallback; ++i) {
         if (field_count == i) break;
-        auto field = jsobject->GetInternalField(i);
-        if (field->IsSmi()) internal_fields[i] = field;
+        auto field = jsobject->GetEmbedderField(i);
+        if (field->IsSmi()) embedder_fields[i] = field;
       }
     }
 
@@ -277,7 +277,7 @@ class GlobalHandles::Node {
     typedef v8::WeakCallbackInfo<void> Data;
     auto callback = reinterpret_cast<Data::Callback>(weak_callback_);
     pending_phantom_callbacks->Add(
-        PendingPhantomCallback(this, callback, parameter(), internal_fields));
+        PendingPhantomCallback(this, callback, parameter(), embedder_fields));
     DCHECK(IsInUse());
     set_state(NEAR_DEATH);
   }
@@ -313,10 +313,10 @@ class GlobalHandles::Node {
     // Leaving V8.
     VMState<EXTERNAL> vmstate(isolate);
     HandleScope handle_scope(isolate);
-    void* internal_fields[v8::kInternalFieldsInWeakCallback] = {nullptr,
+    void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
                                                                 nullptr};
     v8::WeakCallbackInfo<void> data(reinterpret_cast<v8::Isolate*>(isolate),
-                                    parameter(), internal_fields, nullptr);
+                                    parameter(), embedder_fields, nullptr);
     weak_callback_(data);
 
     // Absence of explicit cleanup or revival of weak handle
@@ -882,7 +882,7 @@ void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate) {
     callback_addr = &callback_;
   }
   Data data(reinterpret_cast<v8::Isolate*>(isolate), parameter_,
-            internal_fields_, callback_addr);
+            embedder_fields_, callback_addr);
   Data::Callback callback = callback_;
   callback_ = nullptr;
   callback(data);
