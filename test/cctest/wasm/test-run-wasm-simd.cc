@@ -543,7 +543,7 @@ void RunF32x4BinOpTest(WasmOpcode simd_op, FloatBinOp expected_op) {
 
 WASM_EXEC_COMPILED_TEST(F32x4Add) { RunF32x4BinOpTest(kExprF32x4Add, Add); }
 WASM_EXEC_COMPILED_TEST(F32x4Sub) { RunF32x4BinOpTest(kExprF32x4Sub, Sub); }
-WASM_EXEC_COMPILED_TEST(F32x4Mul) { RunF32x4BinOpTest(kExprF32x4Sub, Sub); }
+WASM_EXEC_COMPILED_TEST(F32x4Mul) { RunF32x4BinOpTest(kExprF32x4Mul, Mul); }
 WASM_EXEC_COMPILED_TEST(F32x4_Min) {
   RunF32x4BinOpTest(kExprF32x4Min, Minimum);
 }
