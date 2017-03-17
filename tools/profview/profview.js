@@ -55,6 +55,7 @@ function setCallTreeState(state, callTreeState) {
 
 let main = {
   currentState : emptyState(),
+  renderPending : false,
 
   setMode(mode) {
     if (mode !== main.currentState.mode) {
@@ -197,7 +198,11 @@ let main = {
   },
 
   delayRender()  {
-    Promise.resolve().then(() => {
+    if (main.renderPending) return;
+    main.renderPending = true;
+
+    window.requestAnimationFrame(() => {
+      main.renderPending = false;
       for (let c of components) {
         c.render(main.currentState);
       }
