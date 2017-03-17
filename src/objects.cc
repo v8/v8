@@ -15068,10 +15068,12 @@ bool DependentCode::MarkCodeForDeoptimization(
 void DependentCode::DeoptimizeDependentCodeGroup(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
-  DCHECK(AllowCodeDependencyChange::IsAllowed());
   DisallowHeapAllocation no_allocation_scope;
   bool marked = MarkCodeForDeoptimization(isolate, group);
-  if (marked) Deoptimizer::DeoptimizeMarkedCode(isolate);
+  if (marked) {
+    DCHECK(AllowCodeDependencyChange::IsAllowed());
+    Deoptimizer::DeoptimizeMarkedCode(isolate);
+  }
 }
 
 
