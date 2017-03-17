@@ -2211,23 +2211,24 @@ void UncheckedUpdateInstanceMemory(Isolate* isolate,
 void DetachArrayBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer) {
   const bool has_guard_regions =
       (!buffer.is_null() && buffer->has_guard_region());
+  const bool is_external = buffer->is_external();
   void* backing_store = buffer->backing_store();
   if (backing_store != nullptr) {
     DCHECK(!buffer->is_neuterable());
     int64_t byte_length = NumberToSize(buffer->byte_length());
     buffer->set_is_neuterable(true);
-    if (!has_guard_regions) {
+    if (!has_guard_regions && !is_external) {
       buffer->set_is_external(true);
       isolate->heap()->UnregisterArrayBuffer(*buffer);
     }
     buffer->Neuter();
-    if (!has_guard_regions) {
-      isolate->array_buffer_allocator()->Free(backing_store, byte_length);
-    } else {
+    if (has_guard_regions) {
       base::OS::Free(backing_store, RoundUp(i::wasm::kWasmMaxHeapOffset,
                                             base::OS::CommitPageSize()));
       reinterpret_cast<v8::Isolate*>(isolate)
           ->AdjustAmountOfExternalAllocatedMemory(-byte_length);
+    } else if (!has_guard_regions && !is_external) {
+      isolate->array_buffer_allocator()->Free(backing_store, byte_length);
     }
   }
 }
