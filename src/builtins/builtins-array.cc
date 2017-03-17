@@ -2032,36 +2032,29 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
 
   assembler.Bind(&init_k);
   {
-    Label done(&assembler), init_k_smi(&assembler), init_k_heap_num(&assembler),
+    // For now only deal with undefined and Smis here; we must be really careful
+    // with side-effects from the ToInteger conversion as the side-effects might
+    // render our assumptions about the receiver being a fast JSArray and the
+    // length invalid.
+    Label done(&assembler), init_k_smi(&assembler), init_k_other(&assembler),
         init_k_zero(&assembler), init_k_n(&assembler);
-    Node* tagged_n = assembler.ToInteger(context, start_from);
 
-    assembler.Branch(assembler.TaggedIsSmi(tagged_n), &init_k_smi,
-                     &init_k_heap_num);
+    assembler.Branch(assembler.TaggedIsSmi(start_from), &init_k_smi,
+                     &init_k_other);
 
     assembler.Bind(&init_k_smi);
     {
-      start_from_var.Bind(assembler.SmiUntag(tagged_n));
+      start_from_var.Bind(assembler.SmiUntag(start_from));
       assembler.Goto(&init_k_n);
     }
 
-    assembler.Bind(&init_k_heap_num);
+    assembler.Bind(&init_k_other);
     {
-      Label do_return_not_found(&assembler);
-      // This round is lossless for all valid lengths.
-      Node* fp_len = assembler.RoundIntPtrToFloat64(len_var.value());
-      Node* fp_n = assembler.LoadHeapNumberValue(tagged_n);
-      assembler.GotoIf(assembler.Float64GreaterThanOrEqual(fp_n, fp_len),
-                       &do_return_not_found);
-      start_from_var.Bind(assembler.ChangeInt32ToIntPtr(
-          assembler.TruncateFloat64ToWord32(fp_n)));
+      // The fromIndex must be undefined here, otherwise bailout and let the
+      // runtime deal with the full ToInteger conversion.
+      assembler.GotoIfNot(assembler.IsUndefined(start_from), &call_runtime);
+      start_from_var.Bind(intptr_zero);
       assembler.Goto(&init_k_n);
-
-      assembler.Bind(&do_return_not_found);
-      {
-        index_var.Bind(intptr_zero);
-        assembler.Goto(&return_not_found);
-      }
     }
 
     assembler.Bind(&init_k_n);
