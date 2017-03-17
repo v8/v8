@@ -454,9 +454,14 @@ Type* Typer::Visitor::ToLength(Type* type, Typer* t) {
   type = ToInteger(type, t);
   double min = type->Min();
   double max = type->Max();
+  if (max <= 0.0) {
+    return Type::NewConstant(0, t->zone());
+  }
+  if (min >= kMaxSafeInteger) {
+    return Type::NewConstant(kMaxSafeInteger, t->zone());
+  }
   if (min <= 0.0) min = 0.0;
-  if (max > kMaxSafeInteger) max = kMaxSafeInteger;
-  if (max <= min) max = min;
+  if (max >= kMaxSafeInteger) max = kMaxSafeInteger;
   return Type::Range(min, max, t->zone());
 }
 

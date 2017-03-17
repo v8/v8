@@ -574,8 +574,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::OrderedNumber());
       break;
     case IrOpcode::kJSToLength:
-      // Type is OrderedNumber.
-      CheckTypeIs(node, Type::OrderedNumber());
+      CheckTypeIs(node, Type::Range(0, kMaxSafeInteger, zone));
       break;
     case IrOpcode::kJSToName:
       // Type is Name.
