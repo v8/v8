@@ -142,6 +142,8 @@ class MacroAssembler: public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
+  Isolate* isolate() const { return isolate_; }
+
   // Arguments macros.
 #define COND_TYPED_ARGS Condition cond, Register r1, const Operand& r2
 #define COND_ARGS cond, r1, r2
@@ -1746,6 +1748,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   bool generating_stub_;
   bool has_frame_;
   bool has_double_zero_reg_set_;
+  Isolate* isolate_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
 

@@ -5,7 +5,6 @@
 #ifndef V8_X64_MACRO_ASSEMBLER_X64_H_
 #define V8_X64_MACRO_ASSEMBLER_X64_H_
 
-#include "src/assembler.h"
 #include "src/bailout-reason.h"
 #include "src/base/flags.h"
 #include "src/frames.h"
@@ -93,6 +92,8 @@ class MacroAssembler: public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
+  int jit_cookie() const { return jit_cookie_; }
+
   // Prevent the use of the RootArray during the lifetime of this
   // scope object.
   class NoRootArrayScope BASE_EMBEDDED {
@@ -109,6 +110,8 @@ class MacroAssembler: public Assembler {
     bool* variable_;
     bool old_value_;
   };
+
+  Isolate* isolate() const { return isolate_; }
 
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
@@ -1531,7 +1534,9 @@ class MacroAssembler: public Assembler {
 
   bool generating_stub_;
   bool has_frame_;
+  Isolate* isolate_;
   bool root_array_available_;
+  int jit_cookie_;
 
   // Returns a register holding the smi value. The register MUST NOT be
   // modified. It may be the "smi 1 constant" register.

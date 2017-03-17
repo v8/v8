@@ -143,18 +143,18 @@ uint32_t RelocInfo::wasm_function_table_size_reference() {
 }
 
 void RelocInfo::unchecked_update_wasm_memory_reference(
-    Address address, ICacheFlushMode icache_flush_mode) {
+    Isolate* isolate, Address address, ICacheFlushMode icache_flush_mode) {
   Memory::Address_at(pc_) = address;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(Address));
+    Assembler::FlushICache(isolate, pc_, sizeof(Address));
   }
 }
 
-void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
                                            ICacheFlushMode icache_flush_mode) {
   Memory::uint32_at(pc_) = size;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(uint32_t));
+    Assembler::FlushICache(isolate, pc_, sizeof(uint32_t));
   }
 }
 
@@ -292,12 +292,11 @@ bool Operand::AddressUsesRegister(Register reg) const {
   }
 }
 
-
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size), code_targets_(100) {
+Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
+    : AssemblerBase(isolate_data, buffer, buffer_size), code_targets_(100) {
 // Clear the buffer in debug mode unless it was provided by the
 // caller in which case we can't be sure it's okay to overwrite
 // existing code in it.
@@ -417,7 +416,7 @@ void Assembler::GrowBuffer() {
   // they must ensure that kMaximalBufferSize is not too large.
   if (desc.buffer_size > kMaximalBufferSize ||
       static_cast<size_t>(desc.buffer_size) >
-          isolate()->heap()->MaxOldGenerationSize()) {
+          isolate_data().max_old_generation_size_) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 
@@ -4670,9 +4669,8 @@ void Assembler::emit_sse_operand(XMMRegister dst) {
 
 void Assembler::RecordProtectedInstructionLanding(int pc_offset) {
   EnsureSpace ensure_space(this);
-  RelocInfo rinfo(isolate(), pc(),
-                  RelocInfo::WASM_PROTECTED_INSTRUCTION_LANDING, pc_offset,
-                  nullptr);
+  RelocInfo rinfo(pc(), RelocInfo::WASM_PROTECTED_INSTRUCTION_LANDING,
+                  pc_offset, nullptr);
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -4728,7 +4726,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     // Don't record psuedo relocation info for code age sequence mode.
     return;
   }
-  RelocInfo rinfo(isolate(), pc_, rmode, data, NULL);
+  RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
 }
 

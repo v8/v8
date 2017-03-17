@@ -9,6 +9,7 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/counters.h"
@@ -22,14 +23,19 @@
 namespace v8 {
 namespace internal {
 
-MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size,
+MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
-    : Assembler(arg_isolate, buffer, size),
+    : Assembler(isolate, buffer, size),
       generating_stub_(false),
-      has_frame_(false) {
+      has_frame_(false),
+      isolate_(isolate),
+      jit_cookie_(0) {
+  if (FLAG_mask_constants_with_cookie) {
+    jit_cookie_ = isolate->random_number_generator()->NextInt();
+  }
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate()->heap()->undefined_value(), isolate());
+        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 
@@ -3813,7 +3819,6 @@ bool AreAliased(Register reg1,
   return n_of_valid_regs != n_of_non_aliasing_regs;
 }
 #endif
-
 
 CodePatcher::CodePatcher(Isolate* isolate, byte* address, int instructions,
                          FlushICache flush_cache)

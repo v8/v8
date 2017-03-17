@@ -149,7 +149,8 @@ bool CodeSpecialization::ApplyToWholeInstance(
       Code* new_code = Code::cast(code_table->get(exp.index));
       DCHECK(new_code->kind() == Code::WASM_FUNCTION ||
              new_code->kind() == Code::WASM_TO_JS_FUNCTION);
-      it.rinfo()->set_target_address(new_code->instruction_start(),
+      it.rinfo()->set_target_address(new_code->GetIsolate(),
+                                     new_code->instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       break;
     }
@@ -191,20 +192,22 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
     switch (mode) {
       case RelocInfo::WASM_MEMORY_REFERENCE:
         DCHECK(reloc_mem_addr);
-        it.rinfo()->update_wasm_memory_reference(old_mem_start, new_mem_start,
+        it.rinfo()->update_wasm_memory_reference(code->GetIsolate(),
+                                                 old_mem_start, new_mem_start,
                                                  icache_flush_mode);
         changed = true;
         break;
       case RelocInfo::WASM_MEMORY_SIZE_REFERENCE:
         DCHECK(reloc_mem_size);
-        it.rinfo()->update_wasm_memory_size(old_mem_size, new_mem_size,
-                                            icache_flush_mode);
+        it.rinfo()->update_wasm_memory_size(code->GetIsolate(), old_mem_size,
+                                            new_mem_size, icache_flush_mode);
         changed = true;
         break;
       case RelocInfo::WASM_GLOBAL_REFERENCE:
         DCHECK(reloc_globals);
         it.rinfo()->update_wasm_global_reference(
-            old_globals_start, new_globals_start, icache_flush_mode);
+            code->GetIsolate(), old_globals_start, new_globals_start,
+            icache_flush_mode);
         changed = true;
         break;
       case RelocInfo::CODE_TARGET: {
@@ -230,7 +233,8 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
             relocate_direct_calls_instance->compiled_module()
                 ->ptr_to_code_table();
         Code* new_code = Code::cast(code_table->get(called_func_index));
-        it.rinfo()->set_target_address(new_code->instruction_start(),
+        it.rinfo()->set_target_address(new_code->GetIsolate(),
+                                       new_code->instruction_start(),
                                        UPDATE_WRITE_BARRIER, icache_flush_mode);
         changed = true;
       } break;
@@ -248,8 +252,8 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
       case RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE:
         DCHECK(patch_table_size);
         it.rinfo()->update_wasm_function_table_size_reference(
-            old_function_table_size, new_function_table_size,
-            icache_flush_mode);
+            code->GetIsolate(), old_function_table_size,
+            new_function_table_size, icache_flush_mode);
         changed = true;
         break;
       default:

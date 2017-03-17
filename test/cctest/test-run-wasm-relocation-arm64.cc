@@ -62,7 +62,7 @@ TEST(WasmRelocationArm64MemoryReference) {
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsWasmMemoryReference(it.rinfo()->rmode()));
     it.rinfo()->update_wasm_memory_reference(
-        it.rinfo()->wasm_memory_reference(),
+        isolate, it.rinfo()->wasm_memory_reference(),
         it.rinfo()->wasm_memory_reference() + offset, SKIP_ICACHE_FLUSH);
   }
 
@@ -117,7 +117,7 @@ TEST(WasmRelocationArm64MemorySizeReference) {
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsWasmMemorySizeReference(it.rinfo()->rmode()));
     it.rinfo()->update_wasm_memory_size(
-        it.rinfo()->wasm_memory_size_reference(),
+        isolate, it.rinfo()->wasm_memory_size_reference(),
         it.rinfo()->wasm_memory_size_reference() + diff, SKIP_ICACHE_FLUSH);
   }
 

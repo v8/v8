@@ -184,13 +184,13 @@ uint32_t RelocInfo::wasm_function_table_size_reference() {
 }
 
 void RelocInfo::unchecked_update_wasm_memory_reference(
-    Address address, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+    Isolate* isolate, Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
                                            ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_,
+  Assembler::set_target_address_at(isolate, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
@@ -231,8 +231,8 @@ MemOperand::MemOperand(Register ra, Register rb) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
+    : AssemblerBase(isolate_data, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
@@ -493,9 +493,9 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       // pointer in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
       int32_t offset = target_pos + (Code::kHeaderSize - kHeapObjectTag);
-      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos), 2,
-                          CodePatcher::DONT_FLUSH);
-      patcher.masm()->bitwise_mov32(dst, offset);
+      PatchingAssembler patcher(isolate_data(),
+                                reinterpret_cast<byte*>(buffer_ + pos), 2);
+      patcher.bitwise_mov32(dst, offset);
       break;
     }
     case kUnboundAddLabelOffsetOpcode: {
@@ -504,26 +504,27 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       Register dst = Register::from_code((operands >> 21) & 0x1f);
       Register base = Register::from_code((operands >> 16) & 0x1f);
       int32_t offset = target_pos + SIGN_EXT_IMM16(operands & kImm16Mask);
-      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos), 2,
-                          CodePatcher::DONT_FLUSH);
-      patcher.masm()->bitwise_add32(dst, base, offset);
+      PatchingAssembler patcher(isolate_data(),
+                                reinterpret_cast<byte*>(buffer_ + pos), 2);
+      patcher.bitwise_add32(dst, base, offset);
       break;
     }
     case kUnboundMovLabelAddrOpcode: {
       // Load the address of the label in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
-      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
-                          kMovInstructionsNoConstantPool,
-                          CodePatcher::DONT_FLUSH);
+      PatchingAssembler patcher(isolate_data(),
+                                reinterpret_cast<byte*>(buffer_ + pos),
+                                kMovInstructionsNoConstantPool);
       // Keep internal references relative until EmitRelocations.
-      patcher.masm()->bitwise_mov(dst, target_pos);
+      patcher.bitwise_mov(dst, target_pos);
       break;
     }
     case kUnboundJumpTableEntryOpcode: {
-      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
-                          kPointerSize / kInstrSize, CodePatcher::DONT_FLUSH);
+      PatchingAssembler patcher(isolate_data(),
+                                reinterpret_cast<byte*>(buffer_ + pos),
+                                kPointerSize / kInstrSize);
       // Keep internal references relative until EmitRelocations.
-      patcher.masm()->dp(target_pos);
+      patcher.dp(target_pos);
       break;
     }
     default:
@@ -2485,7 +2486,7 @@ void Assembler::EmitRelocations() {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = buffer_ + it->position();
     Code* code = NULL;
-    RelocInfo rinfo(isolate(), pc, rmode, it->data(), code);
+    RelocInfo rinfo(pc, rmode, it->data(), code);
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
@@ -2495,7 +2496,7 @@ void Assembler::EmitRelocations() {
     } else if (RelocInfo::IsInternalReferenceEncoded(rmode)) {
       // mov sequence
       intptr_t pos = reinterpret_cast<intptr_t>(target_address_at(pc, code));
-      set_target_address_at(isolate(), pc, code, buffer_ + pos,
+      set_target_address_at(nullptr, pc, code, buffer_ + pos,
                             SKIP_ICACHE_FLUSH);
     }
 
@@ -2540,6 +2541,21 @@ void Assembler::CheckTrampolinePool() {
   }
 }
 
+PatchingAssembler::PatchingAssembler(IsolateData isolate_data, byte* address,
+                                     int instructions)
+    : Assembler(isolate_data, address, instructions * kInstrSize + kGap) {
+  DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
+}
+
+PatchingAssembler::~PatchingAssembler() {
+  // Check that the code was patched as expected.
+  DCHECK_EQ(pc_, buffer_ + buffer_size_ - kGap);
+  DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
+}
+
+void PatchingAssembler::FlushICache(Isolate* isolate) {
+  Assembler::FlushICache(isolate, buffer_, buffer_size_ - kGap);
+}
 
 }  // namespace internal
 }  // namespace v8

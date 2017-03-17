@@ -6,12 +6,14 @@
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
 #include "src/ia32/frames-ia32.h"
-#include "src/ia32/macro-assembler-ia32.h"
 #include "src/runtime/runtime.h"
+
+#include "src/ia32/macro-assembler-ia32.h"
 
 namespace v8 {
 namespace internal {
@@ -19,14 +21,19 @@ namespace internal {
 // -------------------------------------------------------------------------
 // MacroAssembler implementation.
 
-MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size,
+MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
-    : Assembler(arg_isolate, buffer, size),
+    : Assembler(isolate, buffer, size),
       generating_stub_(false),
-      has_frame_(false) {
+      has_frame_(false),
+      isolate_(isolate),
+      jit_cookie_(0) {
+  if (FLAG_mask_constants_with_cookie) {
+    jit_cookie_ = isolate->random_number_generator()->NextInt();
+  }
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate()->heap()->undefined_value(), isolate());
+        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 

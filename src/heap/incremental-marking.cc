@@ -81,7 +81,7 @@ void IncrementalMarking::RecordWriteOfCodeEntryFromCode(JSFunction* host,
 void IncrementalMarking::RecordCodeTargetPatch(Code* host, Address pc,
                                                HeapObject* value) {
   if (IsMarking()) {
-    RelocInfo rinfo(heap_->isolate(), pc, RelocInfo::CODE_TARGET, 0, host);
+    RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
     RecordWriteIntoCode(host, &rinfo, value);
   }
 }
@@ -92,7 +92,7 @@ void IncrementalMarking::RecordCodeTargetPatch(Address pc, HeapObject* value) {
     Code* host = heap_->isolate()
                      ->inner_pointer_to_code_cache()
                      ->GcSafeFindCodeForInnerPointer(pc);
-    RelocInfo rinfo(heap_->isolate(), pc, RelocInfo::CODE_TARGET, 0, host);
+    RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
     RecordWriteIntoCode(host, &rinfo, value);
   }
 }

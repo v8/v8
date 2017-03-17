@@ -174,7 +174,8 @@ class JSToWasmWrapperCache {
         if (target->kind() == Code::WASM_FUNCTION ||
             target->kind() == Code::WASM_TO_JS_FUNCTION ||
             target->builtin_index() == Builtins::kIllegal) {
-          it.rinfo()->set_target_address(wasm_code->instruction_start());
+          it.rinfo()->set_target_address(isolate,
+                                         wasm_code->instruction_start());
           break;
         }
       }

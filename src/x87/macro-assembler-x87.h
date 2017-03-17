@@ -60,6 +60,8 @@ class MacroAssembler: public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
+  Isolate* isolate() const { return isolate_; }
+
   void Load(Register dst, const Operand& src, Representation r);
   void Store(Register src, const Operand& dst, Representation r);
 
@@ -860,6 +862,7 @@ class MacroAssembler: public Assembler {
  private:
   bool generating_stub_;
   bool has_frame_;
+  Isolate* isolate_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
 

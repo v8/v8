@@ -93,6 +93,9 @@ class MacroAssembler: public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
+  int jit_cookie() const { return jit_cookie_; }
+
+  Isolate* isolate() const { return isolate_; }
 
   // Returns the size of a call in instructions. Note, the value returned is
   // only valid as long as no entries are added to the constant pool between
@@ -1406,14 +1409,15 @@ class MacroAssembler: public Assembler {
 
   bool generating_stub_;
   bool has_frame_;
+  Isolate* isolate_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
+  int jit_cookie_;
 
   // Needs access to SafepointRegisterStackIndex for compiled frame
   // traversal.
   friend class StandardFrame;
 };
-
 
 // The code patcher is used to patch (typically) small parts of code e.g. for
 // debugging and other types of instrumentation. When using the code patcher

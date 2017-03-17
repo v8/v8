@@ -42,16 +42,21 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     } else {
       pointer = code->instruction_start();
     }
-    CodePatcher patcher(isolate, pointer, 1);
-    patcher.masm()->bkpt(0);
+
+    {
+      PatchingAssembler patcher(Assembler::IsolateData(isolate), pointer, 1);
+      patcher.bkpt(0);
+      patcher.FlushICache(isolate);
+    }
 
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(code->deoptimization_data());
     int osr_offset = data->OsrPcOffset()->value();
     if (osr_offset > 0) {
-      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
-                              1);
-      osr_patcher.masm()->bkpt(0);
+      PatchingAssembler patcher(Assembler::IsolateData(isolate),
+                                code->instruction_start() + osr_offset, 1);
+      patcher.bkpt(0);
+      patcher.FlushICache(isolate);
     }
   }
 

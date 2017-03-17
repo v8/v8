@@ -390,7 +390,9 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size)
+      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
+  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
   virtual ~Assembler() { }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -462,6 +464,7 @@ class Assembler : public AssemblerBase {
   void label_at_put(Label* L, int at_offset);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
+  // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_address_at(Address pc);
   static void set_target_address_at(
       Isolate* isolate, Address pc, Address target,

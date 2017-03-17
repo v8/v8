@@ -71,7 +71,7 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
   // to
   //   tb(!n)z test_reg, #0, <target>
   Instruction* to_patch = info.SmiCheck();
-  PatchingAssembler patcher(isolate, to_patch, 1);
+  PatchingAssembler patcher(isolate, reinterpret_cast<byte*>(to_patch), 1);
   DCHECK(to_patch->IsTestBranch());
   DCHECK(to_patch->ImmTestBranchBit5() == 0);
   DCHECK(to_patch->ImmTestBranchBit40() == 0);

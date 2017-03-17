@@ -20,14 +20,15 @@
 namespace v8 {
 namespace internal {
 
-MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size,
+MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
-    : Assembler(arg_isolate, buffer, size),
+    : Assembler(isolate, buffer, size),
       generating_stub_(false),
-      has_frame_(false) {
+      has_frame_(false),
+      isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate()->heap()->undefined_value(), isolate());
+        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 

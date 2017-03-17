@@ -167,6 +167,8 @@ class MacroAssembler : public Assembler {
   MacroAssembler(Isolate* isolate, byte* buffer, unsigned buffer_size,
                  CodeObjectRequired create_code_object);
 
+  Isolate* isolate() const { return isolate_; }
+
   Handle<Object> CodeObject() {
     DCHECK(!code_object_.is_null());
     return code_object_;
@@ -1956,6 +1958,7 @@ class MacroAssembler : public Assembler {
   bool allow_macro_instructions_;
 #endif
   bool has_frame_;
+  Isolate* isolate_;
 
   // The Abort method should call a V8 runtime function, but the CallRuntime
   // mechanism depends on CEntryStub. If use_real_aborts is false, Abort will

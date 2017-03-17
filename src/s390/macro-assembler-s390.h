@@ -168,6 +168,8 @@ class MacroAssembler : public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
+  Isolate* isolate() const { return isolate_; }
+
   // Returns the size of a call in instructions.
   static int CallSize(Register target);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
@@ -1815,6 +1817,7 @@ class MacroAssembler : public Assembler {
 
   bool generating_stub_;
   bool has_frame_;
+  Isolate* isolate_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
 

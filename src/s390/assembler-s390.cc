@@ -251,13 +251,13 @@ uint32_t RelocInfo::wasm_function_table_size_reference() {
 }
 
 void RelocInfo::unchecked_update_wasm_memory_reference(
-    Address address, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+    Isolate* isolate, Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
                                            ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_,
+  Assembler::set_target_address_at(isolate, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
@@ -295,8 +295,8 @@ MemOperand::MemOperand(Register rx, Register rb, int32_t offset) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
+    : AssemblerBase(isolate_data, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
       code_targets_(100) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
@@ -2147,7 +2147,7 @@ void Assembler::EmitRelocations() {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = buffer_ + it->position();
     Code* code = NULL;
-    RelocInfo rinfo(isolate(), pc, rmode, it->data(), code);
+    RelocInfo rinfo(pc, rmode, it->data(), code);
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
@@ -2157,7 +2157,7 @@ void Assembler::EmitRelocations() {
     } else if (RelocInfo::IsInternalReferenceEncoded(rmode)) {
       // mov sequence
       intptr_t pos = reinterpret_cast<intptr_t>(target_address_at(pc, code));
-      set_target_address_at(isolate(), pc, code, buffer_ + pos,
+      set_target_address_at(nullptr, pc, code, buffer_ + pos,
                             SKIP_ICACHE_FLUSH);
     }
 

@@ -717,7 +717,9 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(Isolate* arg_isolate, void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size)
+      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
+  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
 
   virtual ~Assembler();
 
@@ -768,6 +770,7 @@ class Assembler : public AssemblerBase {
   inline static Address target_pointer_address_at(Address pc);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
+  // The isolate argument is unused (and may be nullptr) when skipping flushing.
   inline static Address target_address_at(Address pc, Address constant_pool);
   inline static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
@@ -2045,6 +2048,7 @@ class Assembler : public AssemblerBase {
   // Each relocation is encoded as a variable size value
   static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
+
   // Internal reference positions, required for (potential) patching in
   // GrowBuffer(); contains only those internal references whose labels
   // are already bound.
@@ -2156,14 +2160,18 @@ class PatchingAssembler : public Assembler {
   // If more or fewer instructions than expected are generated or if some
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
-  PatchingAssembler(Isolate* isolate, Instruction* start, unsigned count)
-      : Assembler(isolate, reinterpret_cast<byte*>(start),
-                  count * kInstructionSize + kGap) {
-    StartBlockPools();
+
+  // This version will flush at destruction.
+  PatchingAssembler(Isolate* isolate, byte* start, unsigned count)
+      : PatchingAssembler(IsolateData(isolate), start, count) {
+    CHECK_NOT_NULL(isolate);
+    isolate_ = isolate;
   }
 
-  PatchingAssembler(Isolate* isolate, byte* start, unsigned count)
-      : Assembler(isolate, start, count * kInstructionSize + kGap) {
+  // This version will not flush.
+  PatchingAssembler(IsolateData isolate_data, byte* start, unsigned count)
+      : Assembler(isolate_data, start, count * kInstructionSize + kGap),
+        isolate_(nullptr) {
     // Block constant pool emission.
     StartBlockPools();
   }
@@ -2178,13 +2186,16 @@ class PatchingAssembler : public Assembler {
     DCHECK(IsConstPoolEmpty());
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
-    Assembler::FlushICache(isolate(), buffer_, length);
+    if (isolate_ != nullptr) Assembler::FlushICache(isolate_, buffer_, length);
   }
 
   // See definition of PatchAdrFar() for details.
   static constexpr int kAdrFarPatchableNNops = 2;
   static constexpr int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
   void PatchAdrFar(int64_t target_offset);
+
+ private:
+  Isolate* isolate_;
 };
 
 

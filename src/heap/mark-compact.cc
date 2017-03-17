@@ -4009,7 +4009,7 @@ void MarkCompactCollector::RecordCodeTargetPatch(Address pc, Code* target) {
         isolate()->inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(
             pc);
     if (ObjectMarking::IsBlack(host)) {
-      RelocInfo rinfo(isolate(), pc, RelocInfo::CODE_TARGET, 0, host);
+      RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
       // The target is always in old space, we don't have to record the slot in
       // the old-to-new remembered set.
       DCHECK(!heap()->InNewSpace(target));

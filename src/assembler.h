@@ -64,17 +64,29 @@ enum class CodeObjectRequired { kNo, kYes };
 
 class AssemblerBase: public Malloced {
  public:
-  AssemblerBase(Isolate* isolate, void* buffer, int buffer_size);
+  struct IsolateData {
+    explicit IsolateData(Isolate* isolate);
+    IsolateData(const IsolateData&) = default;
+
+    bool serializer_enabled_;
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+    size_t max_old_generation_size_;
+#endif
+#if V8_TARGET_ARCH_X64
+    Address code_range_start_;
+#endif
+  };
+
+  AssemblerBase(IsolateData isolate_data, void* buffer, int buffer_size);
   virtual ~AssemblerBase();
 
-  Isolate* isolate() const { return isolate_; }
-  int jit_cookie() const { return jit_cookie_; }
+  IsolateData isolate_data() const { return isolate_data_; }
+
+  bool serializer_enabled() const { return isolate_data_.serializer_enabled_; }
+  void enable_serializer() { isolate_data_.serializer_enabled_ = true; }
 
   bool emit_debug_code() const { return emit_debug_code_; }
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
-
-  bool serializer_enabled() const { return serializer_enabled_; }
-  void enable_serializer() { serializer_enabled_ = true; }
 
   bool predictable_code_size() const { return predictable_code_size_; }
   void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
@@ -113,7 +125,7 @@ class AssemblerBase: public Malloced {
   virtual void AbortedCodeGeneration() { }
 
   // Debugging
-  void Print();
+  void Print(Isolate* isolate);
 
   static const int kMinimalBufferSize = 4*KB;
 
@@ -139,12 +151,10 @@ class AssemblerBase: public Malloced {
   byte* pc_;
 
  private:
-  Isolate* isolate_;
-  int jit_cookie_;
+  IsolateData isolate_data_;
   uint64_t enabled_cpu_features_;
   bool emit_debug_code_;
   bool predictable_code_size_;
-  bool serializer_enabled_;
 
   // Indicates whether the constant pool can be accessed, which is only possible
   // if the pp register points to the current code object's constant pool.
@@ -372,14 +382,10 @@ class RelocInfo {
 
   STATIC_ASSERT(NUMBER_OF_MODES <= kBitsPerInt);
 
-  explicit RelocInfo(Isolate* isolate) : isolate_(isolate) {
-    DCHECK_NOT_NULL(isolate);
-  }
+  RelocInfo() = default;
 
-  RelocInfo(Isolate* isolate, byte* pc, Mode rmode, intptr_t data, Code* host)
-      : isolate_(isolate), pc_(pc), rmode_(rmode), data_(data), host_(host) {
-    DCHECK_NOT_NULL(isolate);
-  }
+  RelocInfo(byte* pc, Mode rmode, intptr_t data, Code* host)
+      : pc_(pc), rmode_(rmode), data_(data), host_(host) {}
 
   static inline bool IsRealRelocMode(Mode mode) {
     return mode >= FIRST_REAL_RELOC_MODE && mode <= LAST_REAL_RELOC_MODE;
@@ -478,7 +484,6 @@ class RelocInfo {
   static inline int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
-  Isolate* isolate() const { return isolate_; }
   byte* pc() const { return pc_; }
   void set_pc(byte* pc) { pc_ = pc; }
   Mode rmode() const {  return rmode_; }
@@ -506,19 +511,19 @@ class RelocInfo {
   uint32_t wasm_function_table_size_reference();
   uint32_t wasm_memory_size_reference();
   void update_wasm_memory_reference(
-      Address old_base, Address new_base,
+      Isolate* isolate, Address old_base, Address new_base,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void update_wasm_memory_size(
-      uint32_t old_size, uint32_t new_size,
+      Isolate* isolate, uint32_t old_size, uint32_t new_size,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void update_wasm_global_reference(
-      Address old_base, Address new_base,
+      Isolate* isolate, Address old_base, Address new_base,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void update_wasm_function_table_size_reference(
-      uint32_t old_base, uint32_t new_base,
+      Isolate* isolate, uint32_t old_base, uint32_t new_base,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_target_address(
-      Address target,
+      Isolate* isolate, Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
@@ -533,7 +538,7 @@ class RelocInfo {
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Address target_runtime_entry(Assembler* origin));
   INLINE(void set_target_runtime_entry(
-      Address target,
+      Isolate* isolate, Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Cell* target_cell());
@@ -585,11 +590,11 @@ class RelocInfo {
   // the break points where straight-line code is patched with a call
   // instruction.
   INLINE(Address debug_call_address());
-  INLINE(void set_debug_call_address(Address target));
+  INLINE(void set_debug_call_address(Isolate*, Address target));
 
   // Wipe out a relocation to a fixed value, used for making snapshots
   // reproducible.
-  INLINE(void WipeOut());
+  INLINE(void WipeOut(Isolate* isolate));
 
   template<typename StaticVisitor> inline void Visit(Heap* heap);
 
@@ -603,7 +608,7 @@ class RelocInfo {
 #ifdef DEBUG
   // Check whether the given code contains relocation information that
   // either is position-relative or movable by the garbage collector.
-  static bool RequiresRelocation(const CodeDesc& desc);
+  static bool RequiresRelocation(Isolate* isolate, const CodeDesc& desc);
 #endif
 
 #ifdef ENABLE_DISASSEMBLER
@@ -623,11 +628,11 @@ class RelocInfo {
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
  private:
-  void unchecked_update_wasm_memory_reference(Address address,
+  void unchecked_update_wasm_memory_reference(Isolate* isolate, Address address,
                                               ICacheFlushMode flush_mode);
-  void unchecked_update_wasm_size(uint32_t size, ICacheFlushMode flush_mode);
+  void unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
+                                  ICacheFlushMode flush_mode);
 
-  Isolate* isolate_;
   // On ARM, note that pc_ is the address of the constant pool entry
   // to be relocated and not the address of the instruction
   // referencing the constant pool entry (except when rmode_ ==

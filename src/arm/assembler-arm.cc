@@ -359,13 +359,13 @@ uint32_t RelocInfo::wasm_function_table_size_reference() {
 }
 
 void RelocInfo::unchecked_update_wasm_memory_reference(
-    Address address, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+    Isolate* isolate, Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
                                            ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_,
+  Assembler::set_target_address_at(isolate, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
@@ -551,8 +551,8 @@ const Instr kStrRegFpNegOffsetPattern =
     al | B26 | NegOffset | Register::kCode_fp * B16;
 const Instr kLdrStrInstrTypeMask = 0xffff0000;
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
+    : AssemblerBase(isolate_data, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
       pending_32_bit_constants_(),
       pending_64_bit_constants_(),
@@ -941,25 +941,25 @@ void Assembler::target_at_put(int pos, int target_pos) {
     if (is_uint8(target24)) {
       // If the target fits in a byte then only patch with a mov
       // instruction.
-      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos), 1,
-                          CodePatcher::DONT_FLUSH);
-      patcher.masm()->mov(dst, Operand(target24));
+      PatchingAssembler patcher(isolate_data(),
+                                reinterpret_cast<byte*>(buffer_ + pos), 1);
+      patcher.mov(dst, Operand(target24));
     } else {
       uint16_t target16_0 = target24 & kImm16Mask;
       uint16_t target16_1 = target24 >> 16;
       if (CpuFeatures::IsSupported(ARMv7)) {
         // Patch with movw/movt.
         if (target16_1 == 0) {
-          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
-                              1, CodePatcher::DONT_FLUSH);
-          CpuFeatureScope scope(patcher.masm(), ARMv7);
-          patcher.masm()->movw(dst, target16_0);
+          PatchingAssembler patcher(isolate_data(),
+                                    reinterpret_cast<byte*>(buffer_ + pos), 1);
+          CpuFeatureScope scope(&patcher, ARMv7);
+          patcher.movw(dst, target16_0);
         } else {
-          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
-                              2, CodePatcher::DONT_FLUSH);
-          CpuFeatureScope scope(patcher.masm(), ARMv7);
-          patcher.masm()->movw(dst, target16_0);
-          patcher.masm()->movt(dst, target16_1);
+          PatchingAssembler patcher(isolate_data(),
+                                    reinterpret_cast<byte*>(buffer_ + pos), 2);
+          CpuFeatureScope scope(&patcher, ARMv7);
+          patcher.movw(dst, target16_0);
+          patcher.movt(dst, target16_1);
         }
       } else {
         // Patch with a sequence of mov/orr/orr instructions.
@@ -967,16 +967,16 @@ void Assembler::target_at_put(int pos, int target_pos) {
         uint8_t target8_1 = target16_0 >> 8;
         uint8_t target8_2 = target16_1 & kImm8Mask;
         if (target8_2 == 0) {
-          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
-                              2, CodePatcher::DONT_FLUSH);
-          patcher.masm()->mov(dst, Operand(target8_0));
-          patcher.masm()->orr(dst, dst, Operand(target8_1 << 8));
+          PatchingAssembler patcher(isolate_data(),
+                                    reinterpret_cast<byte*>(buffer_ + pos), 2);
+          patcher.mov(dst, Operand(target8_0));
+          patcher.orr(dst, dst, Operand(target8_1 << 8));
         } else {
-          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
-                              3, CodePatcher::DONT_FLUSH);
-          patcher.masm()->mov(dst, Operand(target8_0));
-          patcher.masm()->orr(dst, dst, Operand(target8_1 << 8));
-          patcher.masm()->orr(dst, dst, Operand(target8_2 << 16));
+          PatchingAssembler patcher(isolate_data(),
+                                    reinterpret_cast<byte*>(buffer_ + pos), 3);
+          patcher.mov(dst, Operand(target8_0));
+          patcher.orr(dst, dst, Operand(target8_1 << 8));
+          patcher.orr(dst, dst, Operand(target8_2 << 16));
         }
       }
     }
@@ -4998,7 +4998,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     data = RecordedAstId().ToInt();
     ClearRecordedAstId();
   }
-  RelocInfo rinfo(isolate(), pc_, rmode, data, NULL);
+  RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -5352,6 +5352,29 @@ void Assembler::PatchConstantPoolAccessInstruction(
   }
 }
 
+PatchingAssembler::PatchingAssembler(IsolateData isolate_data, byte* address,
+                                     int instructions)
+    : Assembler(isolate_data, address, instructions * kInstrSize + kGap) {
+  DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
+}
+
+PatchingAssembler::~PatchingAssembler() {
+  // Check that we don't have any pending constant pools.
+  DCHECK(pending_32_bit_constants_.empty());
+  DCHECK(pending_64_bit_constants_.empty());
+
+  // Check that the code was patched as expected.
+  DCHECK_EQ(pc_, buffer_ + buffer_size_ - kGap);
+  DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
+}
+
+void PatchingAssembler::Emit(Address addr) {
+  emit(reinterpret_cast<Instr>(addr));
+}
+
+void PatchingAssembler::FlushICache(Isolate* isolate) {
+  Assembler::FlushICache(isolate, buffer_, buffer_size_ - kGap);
+}
 
 }  // namespace internal
 }  // namespace v8

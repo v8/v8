@@ -190,13 +190,13 @@ uint32_t RelocInfo::wasm_function_table_size_reference() {
 }
 
 void RelocInfo::unchecked_update_wasm_memory_reference(
-    Address address, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+    Isolate* isolate, Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
                                            ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_,
+  Assembler::set_target_address_at(isolate, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
@@ -269,8 +269,8 @@ const Instr kLwSwInstrTypeMask = 0xffe00000;
 const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
+    : AssemblerBase(isolate_data, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
@@ -3353,7 +3353,7 @@ void Assembler::dd(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(isolate(), pc_, rmode, data, NULL);
+  RelocInfo rinfo(pc_, rmode, data, NULL);
   if (rmode >= RelocInfo::COMMENT &&
       rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL) {
     // Adjust code for new modes.
@@ -3368,8 +3368,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     }
     DCHECK(buffer_space() >= kMaxRelocSize);  // Too late to grow buffer here.
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(isolate(), pc_, rmode,
-                                       RecordedAstId().ToInt(), NULL);
+      RelocInfo reloc_info_with_ast_id(pc_, rmode, RecordedAstId().ToInt(),
+                                       NULL);
       ClearRecordedAstId();
       reloc_info_writer.Write(&reloc_info_with_ast_id);
     } else {

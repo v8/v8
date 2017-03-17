@@ -695,7 +695,9 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size)
+      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
+  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
   virtual ~Assembler();
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -735,6 +737,7 @@ class Assembler : public AssemblerBase {
                                                     Address constant_pool));
 
   // Read/Modify the code target address in the branch/call instruction at pc.
+  // The isolate argument is unused (and may be nullptr) when skipping flushing.
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
@@ -1699,8 +1702,7 @@ class Assembler : public AssemblerBase {
            (reg.reg_code < LowDwVfpRegister::kMaxNumLowRegisters / 2);
   }
 
- private:
-  int next_buffer_check_;  // pc offset of next buffer check
+  inline void emit(Instr x);
 
   // Code generation
   // The relocation writer's position is at least kGap bytes below the end of
@@ -1708,6 +1710,25 @@ class Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 32;
+
+  // Relocation info generation
+  // Each relocation is encoded as a variable size value
+  static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
+  RelocInfoWriter reloc_info_writer;
+
+  // ConstantPoolEntry records are used during code generation as temporary
+  // containers for constants and code target addresses until they are emitted
+  // to the constant pool. These records are temporarily stored in a separate
+  // buffer until a constant pool is emitted.
+  // If every instruction in a long sequence is accessing the pool, we need one
+  // pending relocation entry per instruction.
+
+  // The buffers of pending constant pool entries.
+  std::vector<ConstantPoolEntry> pending_32_bit_constants_;
+  std::vector<ConstantPoolEntry> pending_64_bit_constants_;
+
+ private:
+  int next_buffer_check_;  // pc offset of next buffer check
 
   // Constant pool generation
   // Pools are emitted in the instruction stream, preferably after unconditional
@@ -1736,31 +1757,13 @@ class Assembler : public AssemblerBase {
   int first_const_pool_32_use_;
   int first_const_pool_64_use_;
 
-  // Relocation info generation
-  // Each relocation is encoded as a variable size value
-  static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
-  RelocInfoWriter reloc_info_writer;
-
-  // ConstantPoolEntry records are used during code generation as temporary
-  // containers for constants and code target addresses until they are emitted
-  // to the constant pool. These records are temporarily stored in a separate
-  // buffer until a constant pool is emitted.
-  // If every instruction in a long sequence is accessing the pool, we need one
-  // pending relocation entry per instruction.
-
-  // The buffers of pending constant pool entries.
-  std::vector<ConstantPoolEntry> pending_32_bit_constants_;
-  std::vector<ConstantPoolEntry> pending_64_bit_constants_;
-
   ConstantPoolBuilder constant_pool_builder_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
-  // Code emission
   inline void CheckBuffer();
   void GrowBuffer();
-  inline void emit(Instr x);
 
   // 32-bit immediate values
   void move_32_bit_immediate(Register rd,
@@ -1797,6 +1800,15 @@ constexpr int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;
 class EnsureSpace BASE_EMBEDDED {
  public:
   INLINE(explicit EnsureSpace(Assembler* assembler));
+};
+
+class PatchingAssembler : public Assembler {
+ public:
+  PatchingAssembler(IsolateData isolate_data, byte* address, int instructions);
+  ~PatchingAssembler();
+
+  void Emit(Address addr);
+  void FlushICache(Isolate* isolate);
 };
 
 

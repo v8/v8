@@ -212,7 +212,7 @@ void RelocInfo::set_target_object(HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(isolate_, pc_, host_,
+  Assembler::set_target_address_at(target->GetIsolate(), pc_, host_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
@@ -262,13 +262,12 @@ Address RelocInfo::target_runtime_entry(Assembler* origin) {
   return target_address();
 }
 
-
-void RelocInfo::set_target_runtime_entry(Address target,
+void RelocInfo::set_target_runtime_entry(Isolate* isolate, Address target,
                                          WriteBarrierMode write_barrier_mode,
                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsRuntimeEntry(rmode_));
   if (target_address() != target)
-    set_target_address(target, write_barrier_mode, icache_flush_mode);
+    set_target_address(isolate, target, write_barrier_mode, icache_flush_mode);
 }
 
 
@@ -316,7 +315,8 @@ Code* RelocInfo::code_age_stub() {
 void RelocInfo::set_code_age_stub(Code* stub,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  Assembler::set_target_address_at(isolate_, pc_ + Assembler::kInstrSize, host_,
+  Assembler::set_target_address_at(stub->GetIsolate(),
+                                   pc_ + Assembler::kInstrSize, host_,
                                    stub->instruction_start());
 }
 
@@ -328,12 +328,11 @@ Address RelocInfo::debug_call_address() {
   return Assembler::target_address_at(pc_, host_);
 }
 
-
-void RelocInfo::set_debug_call_address(Address target) {
+void RelocInfo::set_debug_call_address(Isolate* isolate, Address target) {
   DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
   // The pc_ offset of 0 assumes patched debug break slot or return
   // sequence.
-  Assembler::set_target_address_at(isolate_, pc_, host_, target);
+  Assembler::set_target_address_at(isolate, pc_, host_, target);
   if (host() != NULL) {
     Code* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
@@ -341,8 +340,7 @@ void RelocInfo::set_debug_call_address(Address target) {
   }
 }
 
-
-void RelocInfo::WipeOut() {
+void RelocInfo::WipeOut(Isolate* isolate) {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
@@ -351,7 +349,7 @@ void RelocInfo::WipeOut() {
   } else if (IsInternalReferenceEncoded(rmode_)) {
     Assembler::set_target_internal_reference_encoded_at(pc_, nullptr);
   } else {
-    Assembler::set_target_address_at(isolate_, pc_, host_, NULL);
+    Assembler::set_target_address_at(isolate, pc_, host_, NULL);
   }
 }
 

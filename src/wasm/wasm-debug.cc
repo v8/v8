@@ -386,7 +386,8 @@ void RedirectCallsitesInCode(Code* code, Code* old_target, Code* new_target) {
     DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
     if (target != old_target) continue;
-    it.rinfo()->set_target_address(new_target->instruction_start());
+    it.rinfo()->set_target_address(code->GetIsolate(),
+                                   new_target->instruction_start());
   }
 }
 

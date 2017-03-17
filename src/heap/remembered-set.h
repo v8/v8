@@ -300,11 +300,12 @@ class UpdateTypedSlotHelper {
   static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
                                              Callback callback) {
     DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
-    Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    Object* old_target = target;
-    SlotCallbackResult result = callback(&target);
-    if (target != old_target) {
-      rinfo->set_target_address(Code::cast(target)->instruction_start());
+    Code* old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    Object* new_target = old_target;
+    SlotCallbackResult result = callback(&new_target);
+    if (new_target != old_target) {
+      rinfo->set_target_address(old_target->GetIsolate(),
+                                Code::cast(new_target)->instruction_start());
     }
     return result;
   }
@@ -331,10 +332,12 @@ class UpdateTypedSlotHelper {
                                               Callback callback) {
     DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
            rinfo->IsPatchedDebugBreakSlotSequence());
-    Object* target =
+    Code* old_target =
         Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
-    SlotCallbackResult result = callback(&target);
-    rinfo->set_debug_call_address(Code::cast(target)->instruction_start());
+    Object* new_target = old_target;
+    SlotCallbackResult result = callback(&new_target);
+    rinfo->set_debug_call_address(old_target->GetIsolate(),
+                                  Code::cast(new_target)->instruction_start());
     return result;
   }
 
@@ -346,26 +349,25 @@ class UpdateTypedSlotHelper {
                                             Callback callback) {
     switch (slot_type) {
       case CODE_TARGET_SLOT: {
-        RelocInfo rinfo(isolate, addr, RelocInfo::CODE_TARGET, 0, NULL);
+        RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, NULL);
         return UpdateCodeTarget(&rinfo, callback);
       }
       case CELL_TARGET_SLOT: {
-        RelocInfo rinfo(isolate, addr, RelocInfo::CELL, 0, NULL);
+        RelocInfo rinfo(addr, RelocInfo::CELL, 0, NULL);
         return UpdateCell(&rinfo, callback);
       }
       case CODE_ENTRY_SLOT: {
         return UpdateCodeEntry(addr, callback);
       }
       case DEBUG_TARGET_SLOT: {
-        RelocInfo rinfo(isolate, addr, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION,
-                        0, NULL);
+        RelocInfo rinfo(addr, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION, 0, NULL);
         if (rinfo.IsPatchedDebugBreakSlotSequence()) {
           return UpdateDebugTarget(&rinfo, callback);
         }
         return REMOVE_SLOT;
       }
       case EMBEDDED_OBJECT_SLOT: {
-        RelocInfo rinfo(isolate, addr, RelocInfo::EMBEDDED_OBJECT, 0, NULL);
+        RelocInfo rinfo(addr, RelocInfo::EMBEDDED_OBJECT, 0, NULL);
         return UpdateEmbeddedPointer(&rinfo, callback);
       }
       case OBJECT_SLOT: {

@@ -2281,7 +2281,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   MemoryChunk* chunk = data->deopt_entry_code_[type];
   CHECK(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=

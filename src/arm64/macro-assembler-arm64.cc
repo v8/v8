@@ -24,23 +24,23 @@ namespace internal {
 // Define a fake double underscore to use with the ASM_UNIMPLEMENTED macros.
 #define __
 
-
-MacroAssembler::MacroAssembler(Isolate* arg_isolate, byte* buffer,
+MacroAssembler::MacroAssembler(Isolate* isolate, byte* buffer,
                                unsigned buffer_size,
                                CodeObjectRequired create_code_object)
-    : Assembler(arg_isolate, buffer, buffer_size),
+    : Assembler(isolate, buffer, buffer_size),
       generating_stub_(false),
 #if DEBUG
       allow_macro_instructions_(true),
 #endif
       has_frame_(false),
+      isolate_(isolate),
       use_real_aborts_(true),
       sp_(jssp),
       tmp_list_(DefaultTmpList()),
       fptmp_list_(DefaultFPTmpList()) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
-        Handle<Object>::New(isolate()->heap()->undefined_value(), isolate());
+        Handle<Object>::New(isolate_->heap()->undefined_value(), isolate_);
   }
 }
 

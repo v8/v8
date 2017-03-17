@@ -1889,7 +1889,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
+  if (isolate()->NeedsSourcePositionsForProfiling()) {
+    __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
+  }
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   return kSuccess;
 }
