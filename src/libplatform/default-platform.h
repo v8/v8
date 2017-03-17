@@ -72,6 +72,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
 
   void AddTraceStateObserver(TraceStateObserver* observer) override;
   void RemoveTraceStateObserver(TraceStateObserver* observer) override;
+  StackTracePrinter GetStackTracePrinter() override;
 
  private:
   static const int kMaxThreadPoolSize;

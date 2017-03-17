@@ -24,7 +24,6 @@
 #include "include/libplatform/v8-tracing.h"
 #include "src/api.h"
 #include "src/base/cpu.h"
-#include "src/base/debug/stack_trace.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
@@ -2893,7 +2892,6 @@ static void DumpHeapConstants(i::Isolate* isolate) {
 
 int Shell::Main(int argc, char* argv[]) {
   std::ofstream trace_file;
-  v8::base::debug::EnableInProcessStackDumping();
 #if (defined(_WIN32) || defined(_WIN64))
   UINT new_flags =
       SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;

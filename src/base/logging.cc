@@ -13,6 +13,16 @@
 namespace v8 {
 namespace base {
 
+namespace {
+
+void (*g_print_stack_trace)() = nullptr;
+
+}  // namespace
+
+void SetPrintStackTrace(void (*print_stack_trace)()) {
+  g_print_stack_trace = print_stack_trace;
+}
+
 // Explicit instantiations for commonly used comparisons.
 #define DEFINE_MAKE_CHECK_OP_STRING(type) \
   template std::string* MakeCheckOpString<type, type>(type, type, char const*);
@@ -57,11 +67,8 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
   va_end(arguments);
   v8::base::OS::PrintError("\n#\n");
 
-  v8::base::debug::StackTrace trace;
-  trace.Print();
+  if (v8::base::g_print_stack_trace) v8::base::g_print_stack_trace();
 
   fflush(stderr);
-  // Avoid dumping stack trace on abort signal.
-  v8::base::debug::DisableSignalStackDump();
   v8::base::OS::Abort();
 }
