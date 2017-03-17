@@ -294,7 +294,7 @@ class WasmCompiledModule : public FixedArray {
 #define DEBUG_ONLY_TABLE(MACRO) MACRO(SMALL_NUMBER, uint32_t, instance_id)
 #else
 #define DEBUG_ONLY_TABLE(IGNORE)
-  uint32_t instance_id() const { return -1; }
+  uint32_t instance_id() const { return static_cast<uint32_t>(-1); }
 #endif
 
 #define WCM_PROPERTY_TABLE(MACRO) \

@@ -523,7 +523,7 @@ Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
 Maybe<bool> ValueSerializer::WriteJSObjectSlow(Handle<JSObject> object) {
   WriteTag(SerializationTag::kBeginJSObject);
   Handle<FixedArray> keys;
-  uint32_t properties_written;
+  uint32_t properties_written = 0;
   if (!KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
                                ENUMERABLE_STRINGS)
            .ToHandle(&keys) ||
@@ -632,7 +632,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     WriteTag(SerializationTag::kBeginSparseJSArray);
     WriteVarint<uint32_t>(length);
     Handle<FixedArray> keys;
-    uint32_t properties_written;
+    uint32_t properties_written = 0;
     if (!KeyAccumulator::GetKeys(array, KeyCollectionMode::kOwnOnly,
                                  ENUMERABLE_STRINGS)
              .ToHandle(&keys) ||

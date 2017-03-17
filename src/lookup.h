@@ -69,7 +69,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
         initial_holder_(holder),
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
-        number_(DescriptorArray::kNotFound) {
+        number_(static_cast<uint32_t>(DescriptorArray::kNotFound)) {
 #ifdef DEBUG
     uint32_t index;  // Assert that the name is not an array index.
     DCHECK(!name->AsArrayIndex(&index));
@@ -92,7 +92,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
         receiver_(receiver),
         initial_holder_(holder),
         index_(index),
-        number_(DescriptorArray::kNotFound) {
+        number_(static_cast<uint32_t>(DescriptorArray::kNotFound)) {
     // kMaxUInt32 isn't a valid index.
     DCHECK_NE(kMaxUInt32, index_);
     Start<true>();

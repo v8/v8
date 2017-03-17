@@ -1983,8 +1983,8 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
     if (callback->IsFunction()) {
       v8::TryCatch try_catch(isolate_);
       Local<Value> args[] = {message};
-      MaybeLocal<Value> result = Local<Function>::Cast(callback)->Call(
-          context, Undefined(isolate_), 1, args);
+      USE(Local<Function>::Cast(callback)->Call(context, Undefined(isolate_), 1,
+                                                args));
 #ifdef DEBUG
       if (try_catch.HasCaught()) {
         Local<Object> exception = Local<Object>::Cast(try_catch.Exception());

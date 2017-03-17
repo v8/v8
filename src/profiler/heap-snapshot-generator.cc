@@ -1715,6 +1715,7 @@ class RootsReferencesExtractor : public ObjectVisitor {
   void FillReferences(V8HeapExplorer* explorer) {
     DCHECK(strong_references_.length() <= all_references_.length());
     Builtins* builtins = heap_->isolate()->builtins();
+    USE(builtins);
     int strong_index = 0, all_index = 0, tags_index = 0, builtin_index = 0;
     while (all_index < all_references_.length()) {
       bool is_strong = strong_index < strong_references_.length()

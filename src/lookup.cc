@@ -108,7 +108,7 @@ template <bool is_element>
 void LookupIterator::RestartInternal(InterceptorState interceptor_state) {
   interceptor_state_ = interceptor_state;
   property_details_ = PropertyDetails::Empty();
-  number_ = DescriptorArray::kNotFound;
+  number_ = static_cast<uint32_t>(DescriptorArray::kNotFound);
   Start<is_element>();
 }
 

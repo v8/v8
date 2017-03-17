@@ -1291,7 +1291,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
     HeapIterator iterator(isolate_->heap());
     HeapObject* obj;
 
-    while ((obj = iterator.next())) {
+    while ((obj = iterator.next()) != nullptr) {
       if (obj->IsJSFunction()) {
         JSFunction* function = JSFunction::cast(obj);
         if (!function->Inlines(*shared)) continue;
@@ -1637,7 +1637,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   {
     Script::Iterator iterator(isolate_);
     Script* script;
-    while ((script = iterator.Next())) {
+    while ((script = iterator.Next()) != nullptr) {
       if (script->HasValidSource()) results->set(length++, script);
     }
   }

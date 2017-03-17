@@ -463,6 +463,20 @@ config("toolchain") {
     #  cflags += [ "-Wshorten-64-to-32" ]
     #}
   }
+
+  if (is_win) {
+    cflags += [
+      "/wd4245",  # Conversion with signed/unsigned mismatch.
+      "/wd4267",  # Conversion with possible loss of data.
+      "/wd4324",  # Padding structure due to alignment.
+      "/wd4701",  # Potentially uninitialized local variable.
+      "/wd4702",  # Unreachable code.
+      "/wd4703",  # Potentially uninitialized local pointer variable.
+      "/wd4709",  # Comma operator within array index expr (bugged).
+      "/wd4718",  # Recursive call has no side-effect.
+      "/wd4800",  # Forcing value to bool.
+    ]
+  }
 }
 
 ###############################################################################
@@ -2288,11 +2302,6 @@ v8_source_set("v8_base") {
 
   sources += [ v8_generated_peephole_source ]
   deps += [ ":run_mkpeephole" ]
-
-  if (is_win) {
-    # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
-    cflags = [ "/wd4267" ]
-  }
 
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]

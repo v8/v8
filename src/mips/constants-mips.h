@@ -122,7 +122,9 @@ const uint32_t kMipsSwlOffset = 0;
 #error Unknown endianness
 #endif
 
+#ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
+#endif
 #include <inttypes.h>
 
 // Defines constants and accessor classes to assemble, disassemble and

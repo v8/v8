@@ -1312,7 +1312,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
     // Get the constructor function for context extension and arguments array.
     Object* arguments_fun = isolate->sloppy_arguments_map()->GetConstructor();
     HeapObject* heap_obj;
-    while ((heap_obj = iterator.next())) {
+    while ((heap_obj = iterator.next()) != nullptr) {
       if (!heap_obj->IsJSObject()) continue;
       JSObject* obj = JSObject::cast(heap_obj);
       if (obj->IsJSContextExtensionObject()) continue;
@@ -1365,7 +1365,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   {
     HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
     HeapObject* heap_obj;
-    while ((heap_obj = iterator.next())) {
+    while ((heap_obj = iterator.next()) != nullptr) {
       if (!heap_obj->IsJSObject()) continue;
       JSObject* obj = JSObject::cast(heap_obj);
       if (obj->map()->GetConstructor() != *constructor) continue;

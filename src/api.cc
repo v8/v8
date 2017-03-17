@@ -9398,7 +9398,7 @@ void debug::GetLoadedScripts(v8::Isolate* v8_isolate,
     i::DisallowHeapAllocation no_gc;
     i::Script::Iterator iterator(isolate);
     i::Script* script;
-    while ((script = iterator.Next())) {
+    while ((script = iterator.Next()) != nullptr) {
       if (!script->IsUserJavaScript()) continue;
       if (script->HasValidSource()) {
         i::HandleScope handle_scope(isolate);

@@ -789,6 +789,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
       default:
         return 0;
     }
+    UNREACHABLE();
     return 0;
   }
 

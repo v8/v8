@@ -534,7 +534,7 @@ class MemoryChunk {
 
   void SetFlag(Flag flag) { flags_ |= flag; }
   void ClearFlag(Flag flag) { flags_ &= ~Flags(flag); }
-  bool IsFlagSet(Flag flag) { return flags_ & flag; }
+  bool IsFlagSet(Flag flag) { return (flags_ & flag) != 0; }
 
   // Set or clear multiple flags at a time. The flags in the mask are set to
   // the value in "flags", the rest retain the current value in |flags_|.

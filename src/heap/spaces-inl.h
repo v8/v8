@@ -212,7 +212,7 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   DCHECK(old_page->InNewSpace());
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  old_page->SetFlags(0, ~0);
+  old_page->SetFlags(0, static_cast<uintptr_t>(~0));
   old_space->AccountCommitted(old_page->size());
   Page* new_page = Page::Initialize<kDoNotFreeMemory>(
       old_page->heap(), old_page, NOT_EXECUTABLE, old_space);

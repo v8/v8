@@ -508,7 +508,7 @@ void Page::InitializeAsAnchor(Space* space) {
   set_owner(space);
   set_next_chunk(this);
   set_prev_chunk(this);
-  SetFlags(0, ~0);
+  SetFlags(0, static_cast<uintptr_t>(~0));
   SetFlag(ANCHOR);
 }
 
@@ -1637,7 +1637,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       current_page->InsertAfter(anchor());
       current_page->ClearLiveness();
       current_page->SetFlags(anchor()->prev_page()->GetFlags(),
-                             Page::kCopyAllFlags);
+                             static_cast<uintptr_t>(Page::kCopyAllFlags));
       heap()->CreateFillerObjectAt(current_page->area_start(),
                                    static_cast<int>(current_page->area_size()),
                                    ClearRecordedSlots::kNo);
@@ -2094,7 +2094,8 @@ void SemiSpace::RemovePage(Page* page) {
 }
 
 void SemiSpace::PrependPage(Page* page) {
-  page->SetFlags(current_page()->GetFlags(), Page::kCopyAllFlags);
+  page->SetFlags(current_page()->GetFlags(),
+                 static_cast<uintptr_t>(Page::kCopyAllFlags));
   page->set_owner(this);
   page->InsertAfter(anchor());
   pages_used_++;

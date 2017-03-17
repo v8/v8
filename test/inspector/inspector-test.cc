@@ -288,7 +288,6 @@ class UtilsExtension : public v8::Extension {
       fprintf(stderr, "Internal error: cancelPauseOnNextStatement().");
       Exit();
     }
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     inspector_client_->session()->cancelPauseOnNextStatement();
   }
 

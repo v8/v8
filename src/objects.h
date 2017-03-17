@@ -10144,7 +10144,7 @@ class Oddball: public HeapObject {
 
   static const byte kFalse = 0;
   static const byte kTrue = 1;
-  static const byte kNotBooleanMask = ~1;
+  static const byte kNotBooleanMask = static_cast<byte>(~1);
   static const byte kTheHole = 2;
   static const byte kNull = 3;
   static const byte kArgumentsMarker = 4;

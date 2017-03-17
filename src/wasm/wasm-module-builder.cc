@@ -367,7 +367,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(functions_.size());
     for (auto function : functions_) {
       function->WriteSignature(buffer);
-      exports += function->exported_names_.size();
+      exports += static_cast<uint32_t>(function->exported_names_.size());
       if (function->name_.size() > 0) has_names = true;
     }
     FixupSection(buffer, start);

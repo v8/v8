@@ -12351,7 +12351,7 @@ static void InvalidatePrototypeChainsInternal(Map* map) {
   WeakFixedArray::Iterator iterator(proto_info->prototype_users());
   // For now, only maps register themselves as users.
   Map* user;
-  while ((user = iterator.Next<Map>())) {
+  while ((user = iterator.Next<Map>()) != nullptr) {
     // Walk the prototype chain (backwards, towards leaf objects) if necessary.
     InvalidatePrototypeChainsInternal(user);
   }
@@ -13342,7 +13342,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     if (FLAG_enable_slow_asserts) {
       WeakFixedArray::Iterator iterator(*list);
       SharedFunctionInfo* next;
-      while ((next = iterator.Next<SharedFunctionInfo>())) {
+      while ((next = iterator.Next<SharedFunctionInfo>()) != nullptr) {
         DCHECK_NE(next, *shared);
       }
     }

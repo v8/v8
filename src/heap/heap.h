@@ -1646,15 +1646,15 @@ class Heap {
   }
 
   inline bool ShouldReduceMemory() const {
-    return current_gc_flags_ & kReduceMemoryFootprintMask;
+    return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
   }
 
   inline bool ShouldAbortIncrementalMarking() const {
-    return current_gc_flags_ & kAbortIncrementalMarkingMask;
+    return (current_gc_flags_ & kAbortIncrementalMarkingMask) != 0;
   }
 
   inline bool ShouldFinalizeIncrementalMarking() const {
-    return current_gc_flags_ & kFinalizeIncrementalMarkingMask;
+    return (current_gc_flags_ & kFinalizeIncrementalMarkingMask) != 0;
   }
 
   void PreprocessStackTraces();

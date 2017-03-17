@@ -5715,7 +5715,7 @@ TEST(NewSpaceAllocationCounter) {
   size_t counter3 = heap->NewSpaceAllocationCounter();
   CHECK_EQ(0U, counter3 - counter2);
   // Test counter overflow.
-  size_t max_counter = -1;
+  size_t max_counter = static_cast<size_t>(-1);
   heap->set_new_space_allocation_counter(max_counter - 10 * kSize);
   size_t start = heap->NewSpaceAllocationCounter();
   for (int i = 0; i < 20; i++) {
@@ -5748,7 +5748,7 @@ TEST(OldSpaceAllocationCounter) {
   size_t counter4 = heap->OldGenerationAllocationCounter();
   CHECK_LE(kSize, counter4 - counter3);
   // Test counter overflow.
-  size_t max_counter = -1;
+  size_t max_counter = static_cast<size_t>(-1);
   heap->set_old_generation_allocation_counter_at_last_gc(max_counter -
                                                          10 * kSize);
   size_t start = heap->OldGenerationAllocationCounter();

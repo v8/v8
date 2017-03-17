@@ -1125,23 +1125,23 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
 
 inline bool IsArrowFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kArrowFunction;
+  return (kind & FunctionKind::kArrowFunction) != 0;
 }
 
 
 inline bool IsGeneratorFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kGeneratorFunction;
+  return (kind & FunctionKind::kGeneratorFunction) != 0;
 }
 
 inline bool IsModule(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kModule;
+  return (kind & FunctionKind::kModule) != 0;
 }
 
 inline bool IsAsyncFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kAsyncFunction;
+  return (kind & FunctionKind::kAsyncFunction) != 0;
 }
 
 inline bool IsResumableFunction(FunctionKind kind) {
@@ -1150,45 +1150,45 @@ inline bool IsResumableFunction(FunctionKind kind) {
 
 inline bool IsConciseMethod(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kConciseMethod;
+  return (kind & FunctionKind::kConciseMethod) != 0;
 }
 
 inline bool IsGetterFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kGetterFunction;
+  return (kind & FunctionKind::kGetterFunction) != 0;
 }
 
 inline bool IsSetterFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kSetterFunction;
+  return (kind & FunctionKind::kSetterFunction) != 0;
 }
 
 inline bool IsAccessorFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kAccessorFunction;
+  return (kind & FunctionKind::kAccessorFunction) != 0;
 }
 
 
 inline bool IsDefaultConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kDefaultConstructor;
+  return (kind & FunctionKind::kDefaultConstructor) != 0;
 }
 
 
 inline bool IsBaseConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kBaseConstructor;
+  return (kind & FunctionKind::kBaseConstructor) != 0;
 }
 
 inline bool IsDerivedConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kDerivedConstructor;
+  return (kind & FunctionKind::kDerivedConstructor) != 0;
 }
 
 
 inline bool IsClassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kClassConstructor;
+  return (kind & FunctionKind::kClassConstructor) != 0;
 }
 
 
