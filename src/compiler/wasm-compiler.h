@@ -166,6 +166,19 @@ class WasmGraphBuilder {
   Node* BranchExpectTrue(Node* cond, Node** true_node, Node** false_node);
   Node* BranchExpectFalse(Node* cond, Node** true_node, Node** false_node);
 
+  Node* TrapIfTrue(wasm::TrapReason reason, Node* cond,
+                   wasm::WasmCodePosition position);
+  Node* TrapIfFalse(wasm::TrapReason reason, Node* cond,
+                    wasm::WasmCodePosition position);
+  Node* TrapIfEq32(wasm::TrapReason reason, Node* node, int32_t val,
+                   wasm::WasmCodePosition position);
+  Node* ZeroCheck32(wasm::TrapReason reason, Node* node,
+                    wasm::WasmCodePosition position);
+  Node* TrapIfEq64(wasm::TrapReason reason, Node* node, int64_t val,
+                   wasm::WasmCodePosition position);
+  Node* ZeroCheck64(wasm::TrapReason reason, Node* node,
+                    wasm::WasmCodePosition position);
+
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
   Node* IfDefault(Node* sw);
@@ -262,7 +275,6 @@ class WasmGraphBuilder {
   Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
 
-  WasmTrapHelper* trap_;
   wasm::FunctionSig* sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 

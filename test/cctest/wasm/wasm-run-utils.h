@@ -853,15 +853,6 @@ bool WasmRunnerBase::trap_happened;
     }                                                    \
     RunWasm_##name(kExecuteCompiled);                    \
   }                                                      \
-  TEST(RunWasmCompiledWithoutTrapIf_##name) {            \
-    if (trap_handler::UseTrapHandler()) {                \
-      return;                                            \
-    }                                                    \
-    bool trap_if = FLAG_wasm_trap_if;                    \
-    FLAG_wasm_trap_if = true;                            \
-    RunWasm_##name(kExecuteCompiled);                    \
-    FLAG_wasm_trap_if = trap_if;                         \
-  }                                                      \
   TEST(RunWasmInterpreted_##name) {                      \
     if (trap_handler::UseTrapHandler()) {                \
       return;                                            \

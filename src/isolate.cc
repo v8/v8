@@ -1559,11 +1559,6 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
     return false;
   }
 
-  // TODO(wasm): Remove this once trap-if is always on.
-  // Background: Without trap-if, the information on the stack trace is
-  // incomplete (see bug v8:5007).
-  if (summary.IsWasmCompiled() && !FLAG_wasm_trap_if) return false;
-
   if (summary.IsJavaScript()) {
     shared = handle(summary.AsJavaScript().function()->shared());
   }
