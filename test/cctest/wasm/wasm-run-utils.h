@@ -465,7 +465,7 @@ class WasmFunctionWrapper : private GraphAndBuilders {
         common()->Return(), zero,
         graph()->NewNode(common()->Int32Constant(WASM_WRAPPER_RETURN_VALUE)),
         effect, graph()->start());
-    graph()->SetEnd(graph()->NewNode(common()->End(2), r, graph()->start()));
+    graph()->SetEnd(graph()->NewNode(common()->End(1), r));
   }
 
   template <typename ReturnType, typename... ParamTypes>

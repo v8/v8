@@ -778,6 +778,13 @@ class V8_EXPORT_PRIVATE IrOpcode {
     return kIfTrue <= value && value <= kIfDefault;
   }
 
+  // Returns true if opcode terminates control flow in a graph (i.e. respective
+  // nodes are expected to have control uses by the graphs {End} node only).
+  static bool IsGraphTerminator(Value value) {
+    return value == kDeoptimize || value == kReturn || value == kTailCall ||
+           value == kTerminate || value == kThrow;
+  }
+
   // Returns true if opcode can be inlined.
   static bool IsInlineeOpcode(Value value) {
     return value == kJSConstruct || value == kJSCall;

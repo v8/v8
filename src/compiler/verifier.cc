@@ -208,6 +208,10 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK(node->op()->ValueOutputCount() == 0);
       CHECK(node->op()->EffectOutputCount() == 0);
       CHECK(node->op()->ControlOutputCount() == 0);
+      // All inputs are graph terminators.
+      for (const Node* input : node->inputs()) {
+        CHECK(IrOpcode::IsGraphTerminator(input->opcode()));
+      }
       // Type is empty.
       CheckNotTyped(node);
       break;

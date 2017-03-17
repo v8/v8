@@ -571,9 +571,13 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
+    JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
+    if (info_->is_bailout_on_uninitialized()) {
+      flags |= JSTypeHintLowering::kBailoutOnUninitialized;
+    }
     BytecodeGraphBuilder graph_builder(
         parse_info.zone(), shared_info, feedback_vector, BailoutId::None(),
-        jsgraph(), call.frequency(), source_positions_, inlining_id);
+        jsgraph(), call.frequency(), source_positions_, inlining_id, flags);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.

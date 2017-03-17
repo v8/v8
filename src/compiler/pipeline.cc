@@ -753,11 +753,15 @@ struct GraphBuilderPhase {
     if (data->info()->is_optimizing_from_bytecode()) {
       // Bytecode graph builder assumes deoptimziation is enabled.
       DCHECK(data->info()->is_deoptimization_enabled());
+      JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
+      if (data->info()->is_bailout_on_uninitialized()) {
+        flags |= JSTypeHintLowering::kBailoutOnUninitialized;
+      }
       BytecodeGraphBuilder graph_builder(
           temp_zone, data->info()->shared_info(),
           handle(data->info()->closure()->feedback_vector()),
           data->info()->osr_ast_id(), data->jsgraph(), 1.0f,
-          data->source_positions());
+          data->source_positions(), SourcePosition::kNotInlined, flags);
       succeeded = graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(

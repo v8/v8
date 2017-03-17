@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_JS_TYPE_HINT_LOWERING_H_
 #define V8_COMPILER_JS_TYPE_HINT_LOWERING_H_
 
+#include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/handles.h"
 
@@ -21,9 +22,9 @@ class JSGraph;
 class Node;
 class Operator;
 
-// The type-hint lowering consumes feedback about data operations (i.e. unary
-// and binary operations) to emit nodes using speculative simplified operators
-// in favor of the generic JavaScript operators.
+// The type-hint lowering consumes feedback about high-level operations in order
+// to potentially emit nodes using speculative simplified operators in favor of
+// the generic JavaScript operators.
 //
 // This lowering is implemented as an early reduction and can be applied before
 // nodes are placed into the initial graph. It provides the ability to shortcut
@@ -32,23 +33,34 @@ class Operator;
 // follow the interface of the reducer framework used after graph construction.
 class JSTypeHintLowering {
  public:
-  JSTypeHintLowering(JSGraph* jsgraph, Handle<FeedbackVector> feedback_vector);
+  // Flags that control the mode of operation.
+  enum Flag { kNoFlags = 0u, kBailoutOnUninitialized = 1u << 1 };
+  typedef base::Flags<Flag> Flags;
+
+  JSTypeHintLowering(JSGraph* jsgraph, Handle<FeedbackVector> feedback_vector,
+                     Flags flags);
 
   // Potential reduction of binary (arithmetic, logical, shift and relational
   // comparison) operations.
   Reduction ReduceBinaryOperation(const Operator* op, Node* left, Node* right,
                                   Node* effect, Node* control,
-                                  FeedbackSlot slot);
+                                  FeedbackSlot slot) const;
+
+  // Potential reduction of property access operations.
+  Reduction ReduceLoadNamedOperation(Node* effect, Node* control,
+                                     FeedbackSlot slot) const;
 
  private:
   friend class JSSpeculativeBinopBuilder;
 
   JSGraph* jsgraph() const { return jsgraph_; }
+  Flags flags() const { return flags_; }
   const Handle<FeedbackVector>& feedback_vector() const {
     return feedback_vector_;
   }
 
   JSGraph* jsgraph_;
+  Flags const flags_;
   Handle<FeedbackVector> feedback_vector_;
 
   DISALLOW_COPY_AND_ASSIGN(JSTypeHintLowering);
