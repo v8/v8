@@ -23,7 +23,7 @@ class Operator;
 class Type;
 class TypeCache;
 
-class OperationTyper {
+class V8_EXPORT_PRIVATE OperationTyper {
  public:
   OperationTyper(Isolate* isolate, Zone* zone);
 
