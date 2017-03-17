@@ -65,6 +65,28 @@ class TyperTest : public TypedGraphTest {
   std::vector<double> integers;
   std::vector<double> int32s;
 
+  Type* TypeUnaryOp(const Operator* op, Type* type0) {
+    Node* p0 = Parameter(0);
+    NodeProperties::SetType(p0, type0);
+    std::vector<Node*> inputs;
+    inputs.push_back(p0);
+    if (OperatorProperties::HasContextInput(op)) {
+      inputs.push_back(context_node_);
+    }
+    for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(op); i++) {
+      inputs.push_back(EmptyFrameState());
+    }
+    for (int i = 0; i < op->EffectInputCount(); i++) {
+      inputs.push_back(graph()->start());
+    }
+    for (int i = 0; i < op->ControlInputCount(); i++) {
+      inputs.push_back(graph()->start());
+    }
+    Node* n = graph()->NewNode(op, static_cast<int>(inputs.size()),
+                               &(inputs.front()));
+    return NodeProperties::GetType(n);
+  }
+
   Type* TypeBinaryOp(const Operator* op, Type* lhs, Type* rhs) {
     Node* p0 = Parameter(0);
     Node* p1 = Parameter(1);
@@ -254,6 +276,13 @@ class TyperTest : public TypedGraphTest {
     EXPECT_TRUE(subtype->Is(type));
   }
 
+  void TestUnaryMonotonicity(const Operator* op, Type* upper1 = Type::Any()) {
+    UnaryTyper typer = [&](Type* type1) { return TypeUnaryOp(op, type1); };
+    for (int i = 0; i < kRepetitions; ++i) {
+      TestUnaryMonotonicity(typer, upper1);
+    }
+  }
+
   void TestBinaryMonotonicity(const Operator* op, Type* upper1 = Type::Any(),
                               Type* upper2 = Type::Any()) {
     BinaryTyper typer = [&](Type* type1, Type* type2) {
@@ -390,6 +419,29 @@ TEST_F(TyperTest, TypeJSStrictEqual) {
 //------------------------------------------------------------------------------
 // Typer Monotonicity
 
+// JS UNOPs without hint
+#define TEST_MONOTONICITY(name)                \
+  TEST_F(TyperTest, Monotonicity_##name) {     \
+    TestUnaryMonotonicity(javascript_.name()); \
+  }
+TEST_MONOTONICITY(ToInteger)
+TEST_MONOTONICITY(ToLength)
+TEST_MONOTONICITY(ToName)
+TEST_MONOTONICITY(ToNumber)
+TEST_MONOTONICITY(ToObject)
+TEST_MONOTONICITY(ToString)
+TEST_MONOTONICITY(ClassOf)
+TEST_MONOTONICITY(TypeOf)
+#undef TEST_MONOTONICITY
+
+// JS UNOPs with ToBooleanHint
+#define TEST_MONOTONICITY(name)                               \
+  TEST_F(TyperTest, Monotonicity_##name) {                    \
+    TestUnaryMonotonicity(javascript_.name(ToBooleanHint())); \
+  }
+TEST_MONOTONICITY(ToBoolean)
+#undef TEST_MONOTONICITY
+
 // JS BINOPs with CompareOperationHint
 #define TEST_MONOTONICITY(name)                                           \
   TEST_F(TyperTest, Monotonicity_##name) {                                \
@@ -426,6 +478,8 @@ TEST_MONOTONICITY(Subtract)
 TEST_MONOTONICITY(Multiply)
 TEST_MONOTONICITY(Divide)
 TEST_MONOTONICITY(Modulus)
+TEST_MONOTONICITY(InstanceOf)
+TEST_MONOTONICITY(OrdinaryHasInstance)
 #undef TEST_MONOTONICITY
 
 // SIMPLIFIED BINOPs without hint, with Number input restriction
