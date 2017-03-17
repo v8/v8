@@ -492,8 +492,8 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     EmbeddedVector<char, 16> buffer;
     int length = SNPrintF(buffer, "%d", func_index);
     name = isolate->factory()
-               ->NewStringFromAscii(
-                   Vector<const char>::cast(buffer.SubVector(0, length)))
+               ->NewStringFromOneByte(
+                   Vector<uint8_t>::cast(buffer.SubVector(0, length)))
                .ToHandleChecked();
   } else {
     name = maybe_name.ToHandleChecked();

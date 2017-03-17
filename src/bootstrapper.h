@@ -48,7 +48,9 @@ class SourceCodeCache final BASE_EMBEDDED {
     cache_->CopyTo(0, *new_array, 0, cache_->length());
     cache_ = *new_array;
     Handle<String> str =
-        factory->NewStringFromAscii(name, TENURED).ToHandleChecked();
+        factory
+            ->NewStringFromOneByte(Vector<const uint8_t>::cast(name), TENURED)
+            .ToHandleChecked();
     DCHECK(!str.is_null());
     cache_->set(length, *str);
     cache_->set(length + 1, *shared);

@@ -136,7 +136,10 @@ bool RegExpParser::IsSyntaxCharacterOrSlash(uc32 c) {
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
   if (failed_) return NULL;  // Do not overwrite any existing error.
   failed_ = true;
-  *error_ = isolate()->factory()->NewStringFromAscii(message).ToHandleChecked();
+  *error_ = isolate()
+                ->factory()
+                ->NewStringFromOneByte(Vector<const uint8_t>::cast(message))
+                .ToHandleChecked();
   // Zip to the end to make sure the no more input is read.
   current_ = kEndMarker;
   next_pos_ = in()->length();

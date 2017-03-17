@@ -180,8 +180,9 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x80);
         }
-        building_blocks[i] = factory->NewStringFromAscii(
-            Vector<const char>(buf, len)).ToHandleChecked();
+        building_blocks[i] =
+            factory->NewStringFromOneByte(OneByteVector(buf, len))
+                .ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -1585,7 +1586,6 @@ TEST(InvalidExternalString) {
     dummy.Dispose();                                                           \
   }
 
-INVALID_STRING_TEST(NewStringFromAscii, char)
 INVALID_STRING_TEST(NewStringFromUtf8, char)
 INVALID_STRING_TEST(NewStringFromOneByte, uint8_t)
 

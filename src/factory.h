@@ -166,29 +166,6 @@ class V8_EXPORT_PRIVATE Factory final {
         OneByteVector(str), pretenure).ToHandleChecked();
   }
 
-
-  // Allocates and fully initializes a String.  There are two String encodings:
-  // one-byte and two-byte. One should choose between the threestring
-  // allocation functions based on the encoding of the string buffer used to
-  // initialized the string.
-  //   - ...FromOneByte initializes the string from a buffer that is Latin1
-  //     encoded (it does not check that the buffer is Latin1 encoded) and the
-  //     result will be Latin1 encoded.
-  //   - ...FromUTF8 initializes the string from a buffer that is UTF-8
-  //     encoded.  If the characters are all ASCII characters, the result
-  //     will be Latin1 encoded, otherwise it will converted to two-byte.
-  //   - ...FromTwoByte initializes the string from a buffer that is two-byte
-  //     encoded.  If the characters are all Latin1 characters, the
-  //     result will be converted to Latin1, otherwise it will be left as
-  //     two-byte.
-
-  // TODO(dcarney): remove this function.
-  MUST_USE_RESULT inline MaybeHandle<String> NewStringFromAscii(
-      Vector<const char> str,
-      PretenureFlag pretenure = NOT_TENURED) {
-    return NewStringFromOneByte(Vector<const uint8_t>::cast(str), pretenure);
-  }
-
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
   MUST_USE_RESULT MaybeHandle<String> NewStringFromUtf8(
