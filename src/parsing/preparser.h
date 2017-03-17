@@ -900,7 +900,8 @@ class PreParser : public ParserBase<PreParser> {
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  PreParseResult PreParseProgram(bool is_module = false);
+  PreParseResult PreParseProgram(bool is_module = false,
+                                 int* use_counts = nullptr);
 
   // Parses a single function literal, from the opening parentheses before
   // parameters to the closing brace after the body.

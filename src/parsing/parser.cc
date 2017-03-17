@@ -625,9 +625,19 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(source));
     if (FLAG_use_parse_tasks) {
       // FIXME(wiktorg) make it useful for something
-      scanner_.Initialize(stream.get());
-      reusable_preparser()->PreParseProgram();
-      stream->Seek(0);
+      // TODO(wiktorg) make preparser work also with modules
+      if (!info->is_module()) {
+        scanner_.Initialize(stream.get());
+        // NOTE: Some features will be double counted - once here and one more
+        //  time while being fully parsed by a parse task.
+        PreParser::PreParseResult result =
+            reusable_preparser()->PreParseProgram(false, use_counts_);
+        if (result == PreParser::kPreParseStackOverflow) {
+          set_stack_overflow();
+          return nullptr;
+        }
+        stream->Seek(0);
+      }
     }
     scanner_.Initialize(stream.get());
     result = DoParseProgram(info);
@@ -2808,6 +2818,13 @@ Parser::LazyParsingResult Parser::SkipFunction(
       *function_length = data.function_length;
       *has_duplicate_parameters = data.has_duplicate_parameters;
       *expected_property_count = data.expected_property_count;
+      SetLanguageMode(function_scope, data.language_mode);
+      if (data.uses_super_property) {
+        function_scope->RecordSuperPropertyUsage();
+      }
+      if (data.calls_eval) {
+        function_scope->RecordEvalCall();
+      }
       SkipFunctionLiterals(data.num_inner_functions);
       return kLazyParsingComplete;
     }

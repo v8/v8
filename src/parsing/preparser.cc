@@ -85,8 +85,10 @@ PreParserIdentifier PreParser::GetSymbol() const {
   return symbol;
 }
 
-PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
+PreParser::PreParseResult PreParser::PreParseProgram(bool is_module,
+                                                     int* use_counts) {
   DCHECK_NULL(scope_);
+  use_counts_ = use_counts;
   DeclarationScope* scope = NewScriptScope();
 #ifdef DEBUG
   scope->set_is_being_lazily_parsed(true);
@@ -105,6 +107,7 @@ PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
   PreParserStatementList body;
   ParseStatementList(body, Token::EOS, &ok);
   original_scope_ = nullptr;
+  use_counts_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
   if (!ok) {
     ReportUnexpectedToken(scanner()->current_token());
@@ -313,23 +316,22 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
 
   if (FLAG_use_parse_tasks && is_top_level && preparse_data_) {
+    bool has_duplicate_parameters =
+        !formals_classifier.is_valid_formal_parameter_list_without_duplicates();
     preparse_data_->AddTopLevelFunctionData(PreParseData::FunctionData(
         start_position, end_position, formals.num_parameters(),
-        formals.function_length,
-        formals_classifier.is_valid_formal_parameter_list_without_duplicates(),
+        formals.function_length, has_duplicate_parameters,
         function_state_->expected_property_count(),
-        GetLastFunctionLiteralId() - func_id));
+        GetLastFunctionLiteralId() - func_id, language_mode,
+        function_scope->uses_super_property(), function_scope->calls_eval()));
     // TODO(wiktorg) spin-off a parse task
     if (FLAG_trace_parse_tasks) {
       PrintF("Saved function at %d to %d with:\n", start_position,
              end_position);
       PrintF("\t- %d params\n", formals.num_parameters());
       PrintF("\t- %d function length\n", formals.function_length);
-      PrintF(
-          "\t- %s duplicate parameters\n",
-          formals_classifier.is_valid_formal_parameter_list_without_duplicates()
-              ? "NO"
-              : "SOME");
+      PrintF("\t- %s duplicate parameters\n",
+             has_duplicate_parameters ? "SOME" : "NO");
       PrintF("\t- %d expected properties\n",
              function_state_->expected_property_count());
       PrintF("\t- %d inner-funcs\n", GetLastFunctionLiteralId() - func_id);

@@ -123,19 +123,26 @@ class PreParseData final {
     bool has_duplicate_parameters;
     int expected_property_count;
     int num_inner_functions;
+    LanguageMode language_mode;
+    bool uses_super_property;
+    bool calls_eval;
 
     FunctionData() : start(-1), end(-1) {}
 
     FunctionData(int start, int end, int num_parameters, int function_length,
                  bool has_duplicate_parameters, int expected_property_count,
-                 int num_inner_functions)
+                 int num_inner_functions, LanguageMode language_mode,
+                 bool uses_super_property, bool calls_eval)
         : start(start),
           end(end),
           num_parameters(num_parameters),
           function_length(function_length),
           has_duplicate_parameters(has_duplicate_parameters),
           expected_property_count(expected_property_count),
-          num_inner_functions(num_inner_functions) {}
+          num_inner_functions(num_inner_functions),
+          language_mode(language_mode),
+          uses_super_property(uses_super_property),
+          calls_eval(calls_eval) {}
 
     bool is_valid() const { return start < end; }
   };
