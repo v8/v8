@@ -181,6 +181,11 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
 
     BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(SET_EXCEPTION_CAUGHT_PREDICTION)
 #undef SET_EXCEPTION_CAUGHT_PREDICTION
+
+#define SET_CODE_NON_TAGGED_PARAMS(Name) \
+  Code::cast(builtins_[k##Name])->set_has_tagged_params(false);
+    BUILTINS_WITH_UNTAGGED_PARAMS(SET_CODE_NON_TAGGED_PARAMS)
+#undef SET_CODE_NON_TAGGED_PARAMS
   }
 
   // Mark as initialized.

@@ -4916,6 +4916,16 @@ inline void Code::set_is_crankshafted(bool value) {
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
 }
 
+inline bool Code::has_tagged_params() {
+  int flags = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  return HasTaggedStackField::decode(flags);
+}
+
+inline void Code::set_has_tagged_params(bool value) {
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  int updated = HasTaggedStackField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
+}
 
 inline bool Code::is_turbofanned() {
   return IsTurbofannedField::decode(
