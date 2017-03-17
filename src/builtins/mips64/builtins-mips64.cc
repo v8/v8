@@ -3035,6 +3035,32 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   }
 }
 
+void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Save all parameter registers (see wasm-linkage.cc). They might be
+    // overwritten in the runtime call below. We don't have any callee-saved
+    // registers in wasm, so no need to store anything else.
+    const RegList gp_regs = a0.bit() | a1.bit() | a2.bit() | a3.bit() |
+                            a4.bit() | a5.bit() | a6.bit() | a7.bit();
+    const RegList fp_regs = f2.bit() | f4.bit() | f6.bit() | f8.bit() |
+                            f10.bit() | f12.bit() | f14.bit();
+    __ MultiPush(gp_regs);
+    __ MultiPushFPU(fp_regs);
+
+    __ Move(kContextRegister, Smi::kZero);
+    __ CallRuntime(Runtime::kWasmCompileLazy);
+
+    // Restore registers.
+    __ MultiPopFPU(fp_regs);
+    __ MultiPop(gp_regs);
+  }
+  // Now jump to the instructions of the returned code object.
+  __ Daddu(at, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Jump(at);
+}
+
 #undef __
 
 }  // namespace internal

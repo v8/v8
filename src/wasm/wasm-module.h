@@ -271,10 +271,23 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
 // minimal information about the globals, functions, and function tables.
 struct V8_EXPORT_PRIVATE ModuleEnv {
   ModuleEnv(const WasmModule* module, WasmInstance* instance)
-      : module(module), instance(instance) {}
+      : module(module),
+        instance(instance),
+        function_tables(instance ? &instance->function_tables : nullptr),
+        signature_tables(instance ? &instance->signature_tables : nullptr) {}
+  ModuleEnv(const WasmModule* module,
+            std::vector<Handle<FixedArray>>* function_tables,
+            std::vector<Handle<FixedArray>>* signature_tables)
+      : module(module),
+        instance(nullptr),
+        function_tables(function_tables),
+        signature_tables(signature_tables) {}
 
   const WasmModule* module;
   WasmInstance* instance;
+
+  std::vector<Handle<FixedArray>>* function_tables;
+  std::vector<Handle<FixedArray>>* signature_tables;
 
   bool IsValidGlobal(uint32_t index) const {
     return module && index < module->globals.size();
@@ -307,6 +320,7 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
 
   bool asm_js() { return module->origin == kAsmJsOrigin; }
 
+  // Only used for testing.
   Handle<Code> GetFunctionCode(uint32_t index) {
     DCHECK_NOT_NULL(instance);
     return instance->function_code[index];
@@ -455,6 +469,34 @@ inline bool EnableGuardRegions() {
 
 void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
                                             Handle<FixedArray> code_table);
+
+// Triggered by the WasmCompileLazy builtin.
+// Walks the stack (top three frames) to determine the wasm instance involved
+// and which function to compile.
+// Then triggers WasmCompiledModule::CompileLazy, taking care of correctly
+// patching the call site or indirect function tables.
+// Returns either the Code object that has been lazily compiled, or Illegal if
+// an error occured. In the latter case, a pending exception has been set, which
+// will be triggered when returning from the runtime function, i.e. the Illegal
+// builtin will never be called.
+Handle<Code> CompileLazy(Isolate* isolate);
+
+// This class orchestrates the lazy compilation of wasm functions. It is
+// triggered by the WasmCompileLazy builtin.
+// It contains the logic for compiling and specializing wasm functions, and
+// patching the calling wasm code.
+// Once we support concurrent lazy compilation, this class will contain the
+// logic to actually orchestrate parallel execution of wasm compilation jobs.
+// TODO(clemensh): Implement concurrent lazy compilation.
+class LazyCompilationOrchestrator {
+  bool CompileFunction(Isolate*, Handle<WasmInstanceObject>,
+                       int func_index) WARN_UNUSED_RESULT;
+
+ public:
+  MaybeHandle<Code> CompileLazy(Isolate*, Handle<WasmInstanceObject>,
+                                Handle<Code> caller, int call_offset,
+                                int exported_func_index, bool patch_caller);
+};
 
 namespace testing {
 void ValidateInstancesChain(Isolate* isolate,

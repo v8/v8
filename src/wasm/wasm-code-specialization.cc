@@ -61,7 +61,8 @@ bool IsAtWasmDirectCallTarget(RelocIterator& it) {
   Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
   return code->kind() == Code::WASM_FUNCTION ||
          code->kind() == Code::WASM_TO_JS_FUNCTION ||
-         code->builtin_index() == Builtins::kIllegal;
+         code->builtin_index() == Builtins::kIllegal ||
+         code->builtin_index() == Builtins::kWasmCompileLazy;
 }
 
 }  // namespace
@@ -131,6 +132,7 @@ bool CodeSpecialization::ApplyToWholeInstance(
   for (int num_wasm_functions = static_cast<int>(wasm_functions->size());
        func_index < num_wasm_functions; ++func_index) {
     Code* wasm_function = Code::cast(code_table->get(func_index));
+    if (wasm_function->builtin_index() == Builtins::kWasmCompileLazy) continue;
     changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
   }
 
@@ -147,8 +149,6 @@ bool CodeSpecialization::ApplyToWholeInstance(
       // Ignore calls to other builtins like ToNumber.
       if (!IsAtWasmDirectCallTarget(it)) continue;
       Code* new_code = Code::cast(code_table->get(exp.index));
-      DCHECK(new_code->kind() == Code::WASM_FUNCTION ||
-             new_code->kind() == Code::WASM_TO_JS_FUNCTION);
       it.rinfo()->set_target_address(new_code->GetIsolate(),
                                      new_code->instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);

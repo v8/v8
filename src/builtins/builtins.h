@@ -865,6 +865,7 @@ class Isolate;
   CPP(TypedArrayPrototypeLastIndexOf)                                          \
                                                                                \
   /* Wasm */                                                                   \
+  ASM(WasmCompileLazy)                                                         \
   TFS(WasmStackGuard, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)            \
   TFS(ThrowWasmTrapUnreachable, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)  \
   TFS(ThrowWasmTrapMemOutOfBounds, BUILTIN, kNoExtraICState, WasmRuntimeCall,  \
@@ -924,8 +925,7 @@ class Isolate;
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                IGNORE_BUILTIN, IGNORE_BUILTIN, V)
 
-// TODO(clemensh): Add WasmCompileLazy once that CL lands.
-#define BUILTINS_WITH_UNTAGGED_PARAMS(V)
+#define BUILTINS_WITH_UNTAGGED_PARAMS(V) V(WasmCompileLazy)
 
 // Forward declarations.
 class ObjectVisitor;

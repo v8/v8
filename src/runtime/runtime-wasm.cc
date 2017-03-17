@@ -226,5 +226,12 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
+  DCHECK(args.length() == 0);
+  HandleScope scope(isolate);
+
+  return *wasm::CompileLazy(isolate);
+}
+
 }  // namespace internal
 }  // namespace v8

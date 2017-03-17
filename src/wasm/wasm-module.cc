@@ -10,6 +10,7 @@
 #include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/interface-types.h"
+#include "src/frames-inl.h"
 #include "src/objects.h"
 #include "src/property-descriptor.h"
 #include "src/simulator.h"
@@ -173,7 +174,8 @@ class JSToWasmWrapperCache {
             Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
         if (target->kind() == Code::WASM_FUNCTION ||
             target->kind() == Code::WASM_TO_JS_FUNCTION ||
-            target->builtin_index() == Builtins::kIllegal) {
+            target->builtin_index() == Builtins::kIllegal ||
+            target->builtin_index() == Builtins::kWasmCompileLazy) {
           it.rinfo()->set_target_address(isolate,
                                          wasm_code->instruction_start());
           break;
@@ -196,6 +198,96 @@ class JSToWasmWrapperCache {
   wasm::SignatureMap sig_map_;
   std::vector<Handle<Code>> code_cache_;
 };
+
+// Ensure that the code object in <code_table> at offset <func_index> has
+// deoptimization data attached. This is needed for lazy compile stubs which are
+// called from JS_TO_WASM functions or via exported function tables. The deopt
+// data is used to determine which function this lazy compile stub belongs to.
+Handle<Code> EnsureExportedLazyDeoptData(Isolate* isolate,
+                                         Handle<WasmInstanceObject> instance,
+                                         Handle<FixedArray> code_table,
+                                         int func_index) {
+  Handle<Code> code(Code::cast(code_table->get(func_index)), isolate);
+  if (code->builtin_index() != Builtins::kWasmCompileLazy) {
+    // No special deopt data needed for compiled functions, and imported
+    // functions, which map to Illegal at this point (they get compiled at
+    // instantiation time).
+    DCHECK(code->kind() == Code::WASM_FUNCTION ||
+           code->kind() == Code::WASM_TO_JS_FUNCTION ||
+           code->builtin_index() == Builtins::kIllegal);
+    return code;
+  }
+  // deopt_data:
+  //   #0: weak instance
+  //   #1: func_index
+  // might be extended later for table exports (see
+  // EnsureTableExportLazyDeoptData).
+  Handle<FixedArray> deopt_data(code->deoptimization_data());
+  DCHECK_EQ(0, deopt_data->length() % 2);
+  if (deopt_data->length() == 0) {
+    code = isolate->factory()->CopyCode(code);
+    code_table->set(func_index, *code);
+    deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
+    code->set_deoptimization_data(*deopt_data);
+    if (!instance.is_null()) {
+      Handle<WeakCell> weak_instance =
+          isolate->factory()->NewWeakCell(instance);
+      deopt_data->set(0, *weak_instance);
+    }
+    deopt_data->set(1, Smi::FromInt(func_index));
+  }
+  DCHECK_IMPLIES(!instance.is_null(),
+                 WeakCell::cast(code->deoptimization_data()->get(0))->value() ==
+                     *instance);
+  DCHECK_EQ(func_index,
+            Smi::cast(code->deoptimization_data()->get(1))->value());
+  return code;
+}
+
+// Ensure that the code object in <code_table> at offset <func_index> has
+// deoptimization data attached. This is needed for lazy compile stubs which are
+// called from JS_TO_WASM functions or via exported function tables. The deopt
+// data is used to determine which function this lazy compile stub belongs to.
+Handle<Code> EnsureTableExportLazyDeoptData(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    Handle<FixedArray> code_table, int func_index,
+    Handle<FixedArray> export_table, int export_index,
+    std::unordered_map<uint32_t, uint32_t>& table_export_count) {
+  Handle<Code> code =
+      EnsureExportedLazyDeoptData(isolate, instance, code_table, func_index);
+  if (code->builtin_index() != Builtins::kWasmCompileLazy) return code;
+
+  // deopt_data:
+  // #0: weak instance
+  // #1: func_index
+  // [#2: export table
+  //  #3: export table index]
+  // [#4: export table
+  //  #5: export table index]
+  // ...
+  // table_export_count counts down and determines the index for the new export
+  // table entry.
+  auto table_export_entry = table_export_count.find(func_index);
+  DCHECK(table_export_entry != table_export_count.end());
+  DCHECK_LT(0, table_export_entry->second);
+  uint32_t this_idx = 2 * table_export_entry->second;
+  --table_export_entry->second;
+  Handle<FixedArray> deopt_data(code->deoptimization_data());
+  DCHECK_EQ(0, deopt_data->length() % 2);
+  if (deopt_data->length() == 2) {
+    // Then only the "header" (#0 and #1) exists. Extend for the export table
+    // entries (make space for this_idx + 2 elements).
+    deopt_data = isolate->factory()->CopyFixedArrayAndGrow(deopt_data, this_idx,
+                                                           TENURED);
+    code->set_deoptimization_data(*deopt_data);
+  }
+  DCHECK_LE(this_idx + 2, deopt_data->length());
+  DCHECK(deopt_data->get(this_idx)->IsUndefined(isolate));
+  DCHECK(deopt_data->get(this_idx + 1)->IsUndefined(isolate));
+  deopt_data->set(this_idx, *export_table);
+  deopt_data->set(this_idx + 1, Smi::FromInt(export_index));
+  return code;
+}
 
 // A helper for compiling an entire module.
 class CompilationHelper {
@@ -374,9 +466,8 @@ class CompilationHelper {
       if (func.imported)
         continue;  // Imports are compiled at instantiation time.
 
-      Handle<Code> code = Handle<Code>::null();
       // Compile the function.
-      code = compiler::WasmCompilationUnit::CompileWasmFunction(
+      Handle<Code> code = compiler::WasmCompilationUnit::CompileWasmFunction(
           thrower, isolate_, module_env, &func);
       if (code.is_null()) {
         WasmName str = module_env->wire_bytes.GetName(&func);
@@ -429,31 +520,40 @@ class CompilationHelper {
     Handle<FixedArray> code_table =
         factory->NewFixedArray(static_cast<int>(code_table_size), TENURED);
 
-    // Initialize the code table with the illegal builtin. All call sites will
-    // be
+    // Check whether lazy compilation is enabled for this module.
+    bool lazy_compile =
+        FLAG_asm_wasm_lazy_compilation && module_->origin == wasm::kAsmJsOrigin;
+
+    // If lazy compile: Initialize the code table with the lazy compile builtin.
+    // Otherwise: Initialize with the illegal builtin. All call sites will be
     // patched at instantiation.
-    Handle<Code> illegal_builtin = isolate_->builtins()->Illegal();
-    for (uint32_t i = 0; i < module_->functions.size(); ++i) {
-      code_table->set(static_cast<int>(i), *illegal_builtin);
-      temp_instance.function_code[i] = illegal_builtin;
+    Handle<Code> init_builtin = lazy_compile
+                                    ? isolate_->builtins()->WasmCompileLazy()
+                                    : isolate_->builtins()->Illegal();
+    for (int i = 0, e = static_cast<int>(module_->functions.size()); i < e;
+         ++i) {
+      code_table->set(i, *init_builtin);
+      temp_instance.function_code[i] = init_builtin;
     }
 
     isolate_->counters()->wasm_functions_per_module()->AddSample(
         static_cast<int>(module_->functions.size()));
-    CompilationHelper helper(isolate_, module_);
-    size_t funcs_to_compile =
-        module_->functions.size() - module_->num_imported_functions;
-    if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0 &&
-        funcs_to_compile > 1) {
-      // Avoid a race condition by collecting results into a second vector.
-      std::vector<Handle<Code>> results(temp_instance.function_code);
-      helper.CompileInParallel(&module_env, results, thrower);
-      temp_instance.function_code.swap(results);
-    } else {
-      helper.CompileSequentially(&module_env, temp_instance.function_code,
-                                 thrower);
+    if (!lazy_compile) {
+      CompilationHelper helper(isolate_, module_);
+      size_t funcs_to_compile =
+          module_->functions.size() - module_->num_imported_functions;
+      if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0 &&
+          funcs_to_compile > 1) {
+        // Avoid a race condition by collecting results into a second vector.
+        std::vector<Handle<Code>> results(temp_instance.function_code);
+        helper.CompileInParallel(&module_env, results, thrower);
+        temp_instance.function_code.swap(results);
+      } else {
+        helper.CompileSequentially(&module_env, temp_instance.function_code,
+                                   thrower);
+      }
+      if (thrower->error()) return {};
     }
-    if (thrower->error()) return {};
 
     // At this point, compilation has completed. Update the code table.
     for (size_t i = FLAG_skip_compiling_wasm_funcs;
@@ -494,6 +594,7 @@ class CompilationHelper {
     Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
         isolate_, module_wrapper, Handle<SeqOneByteString>::cast(module_bytes),
         script, asm_js_offset_table);
+    if (lazy_compile) WasmSharedModuleData::PrepareForLazyCompilation(shared);
 
     // Create the compiled module object, and populate with compiled functions
     // and information needed at instantiation time. This object needs to be
@@ -524,7 +625,8 @@ class CompilationHelper {
     int func_index = 0;
     for (auto exp : module_->export_table) {
       if (exp.kind != kExternalFunction) continue;
-      Handle<Code> wasm_code(Code::cast(code_table->get(exp.index)), isolate_);
+      Handle<Code> wasm_code = EnsureExportedLazyDeoptData(
+          isolate_, Handle<WasmInstanceObject>::null(), code_table, exp.index);
       Handle<Code> wrapper_code =
           js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(isolate_, module_,
                                                          wasm_code, exp.index);
@@ -587,6 +689,8 @@ static void ResetCompiledModule(Isolate* isolate, WasmInstanceObject* owner,
              end = functions->length();
          i < end; ++i) {
       Code* code = Code::cast(functions->get(i));
+      // Skip lazy compile stubs.
+      if (code->builtin_index() == Builtins::kWasmCompileLazy) continue;
       if (code->kind() != Code::WASM_FUNCTION) {
         // From here on, there should only be wrappers for exported functions.
         for (; i < end; ++i) {
@@ -744,6 +848,35 @@ std::pair<int, int> GetFunctionOffsetAndLength(
   return {static_cast<int>(func.code_start_offset),
           static_cast<int>(func.code_end_offset - func.code_start_offset)};
 }
+
+int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
+                                       int offset) {
+  DCHECK(!iterator.done());
+  int byte_pos;
+  do {
+    byte_pos = iterator.source_position().ScriptOffset();
+    iterator.Advance();
+  } while (!iterator.done() && iterator.code_offset() <= offset);
+  return byte_pos;
+}
+
+int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
+  DCHECK_EQ(static_cast<int>(kExprCallFunction), static_cast<int>(*pc));
+  // Read the leb128 encoded u32 value (up to 5 bytes starting at pc + 1).
+  decoder.Reset(pc + 1, pc + 6);
+  uint32_t call_idx = decoder.consume_u32v("call index");
+  DCHECK(decoder.ok());
+  DCHECK_GE(kMaxInt, call_idx);
+  return static_cast<int>(call_idx);
+}
+
+void RecordLazyCodeStats(Isolate* isolate, Code* code) {
+  isolate->counters()->asm_wasm_lazily_compiled_functions()->Increment();
+  isolate->counters()->wasm_generated_code_size()->Increment(code->body_size());
+  isolate->counters()->wasm_reloc_size()->Increment(
+      code->relocation_info()->length());
+}
+
 }  // namespace
 
 Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
@@ -1068,6 +1201,19 @@ class InstantiationHelper {
             case Code::WASM_TO_JS_FUNCTION:
               // Imports will be overwritten with newly compiled wrappers.
               break;
+            case Code::BUILTIN:
+              DCHECK_EQ(Builtins::kWasmCompileLazy, orig_code->builtin_index());
+              // If this code object has deoptimization data, then we need a
+              // unique copy to attach updated deoptimization data.
+              if (orig_code->deoptimization_data()->length() > 0) {
+                Handle<Code> code = factory->CopyCode(orig_code);
+                Handle<FixedArray> deopt_data =
+                    factory->NewFixedArray(2, TENURED);
+                deopt_data->set(1, Smi::FromInt(i));
+                code->set_deoptimization_data(*deopt_data);
+                code_table->set(i, *code);
+              }
+              break;
             case Code::JS_TO_WASM_FUNCTION:
             case Code::WASM_FUNCTION: {
               Handle<Code> code = factory->CopyCode(orig_code);
@@ -1230,7 +1376,7 @@ class InstantiationHelper {
     Handle<WeakCell> weak_link = factory->NewWeakCell(instance);
 
     for (int i = num_imported_functions + FLAG_skip_compiling_wasm_funcs,
-             num_functions = code_table->length();
+             num_functions = static_cast<int>(module_->functions.size());
          i < num_functions; ++i) {
       Handle<Code> code = handle(Code::cast(code_table->get(i)), isolate_);
       if (code->kind() == Code::WASM_FUNCTION) {
@@ -1238,7 +1384,13 @@ class InstantiationHelper {
         deopt_data->set(0, *weak_link);
         deopt_data->set(1, Smi::FromInt(i));
         code->set_deoptimization_data(*deopt_data);
+        continue;
       }
+      DCHECK_EQ(Builtins::kWasmCompileLazy, code->builtin_index());
+      if (code->deoptimization_data()->length() == 0) continue;
+      DCHECK_LE(2, code->deoptimization_data()->length());
+      DCHECK_EQ(i, Smi::cast(code->deoptimization_data()->get(1))->value());
+      code->deoptimization_data()->set(0, *weak_link);
     }
 
     //--------------------------------------------------------------------------
@@ -1260,10 +1412,8 @@ class InstantiationHelper {
     if (function_table_count > 0) LoadTableSegments(code_table, instance);
 
     // Patch all code with the relocations registered in code_specialization.
-    {
-      code_specialization.RelocateDirectCalls(instance);
-      code_specialization.ApplyToWholeInstance(*instance, SKIP_ICACHE_FLUSH);
-    }
+    code_specialization.RelocateDirectCalls(instance);
+    code_specialization.ApplyToWholeInstance(*instance, SKIP_ICACHE_FLUSH);
 
     FlushICache(isolate_, code_table);
 
@@ -1334,8 +1484,8 @@ class InstantiationHelper {
     if (module_->start_function_index >= 0) {
       HandleScope scope(isolate_);
       int start_index = module_->start_function_index;
-      Handle<Code> startup_code(Code::cast(code_table->get(start_index)),
-                                isolate_);
+      Handle<Code> startup_code = EnsureExportedLazyDeoptData(
+          isolate_, instance, code_table, start_index);
       FunctionSig* sig = module_->functions[start_index].sig;
       Handle<Code> wrapper_code =
           js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
@@ -2027,6 +2177,24 @@ class InstantiationHelper {
             Handle<FixedArray>::null(), Handle<FixedArray>::null());
       }
 
+      // Count the number of table exports for each function (needed for lazy
+      // compilation).
+      std::unordered_map<uint32_t, uint32_t> num_table_exports;
+      if (FLAG_asm_wasm_lazy_compilation &&
+          module_->origin == ModuleOrigin::kAsmJsOrigin) {
+        for (auto table_init : module_->table_inits) {
+          for (uint32_t func_index : table_init.entries) {
+            Code* code =
+                Code::cast(code_table->get(static_cast<int>(func_index)));
+            // Only increase the counter for lazy compile builtins (it's not
+            // needed otherwise).
+            if (code->is_wasm_code()) continue;
+            DCHECK_EQ(Builtins::kWasmCompileLazy, code->builtin_index());
+            ++num_table_exports[func_index];
+          }
+        }
+      }
+
       // TODO(titzer): this does redundant work if there are multiple tables,
       // since initializations are not sorted by table index.
       for (auto table_init : module_->table_inits) {
@@ -2042,12 +2210,12 @@ class InstantiationHelper {
           DCHECK_GE(sig_index, 0);
           table_instance.signature_table->set(table_index,
                                               Smi::FromInt(sig_index));
-          table_instance.function_table->set(table_index,
-                                             code_table->get(func_index));
+          Handle<Code> wasm_code = EnsureTableExportLazyDeoptData(
+              isolate_, instance, code_table, func_index,
+              table_instance.function_table, table_index, num_table_exports);
+          table_instance.function_table->set(table_index, *wasm_code);
 
           if (!all_dispatch_tables.is_null()) {
-            Handle<Code> wasm_code(Code::cast(code_table->get(func_index)),
-                                   isolate_);
             if (js_wrappers_[func_index].is_null()) {
               // No JSFunction entry yet exists for this function. Create one.
               // TODO(titzer): We compile JS->WASM wrappers for functions are
@@ -2086,6 +2254,14 @@ class InstantiationHelper {
           }
         }
       }
+
+#ifdef DEBUG
+      // Check that the count of table exports was accurate. The entries are
+      // decremented on each export, so all should be zero now.
+      for (auto e : num_table_exports) {
+        DCHECK_EQ(0, e.second);
+      }
+#endif
 
       // TODO(titzer): we add the new dispatch table at the end to avoid
       // redundant work and also because the new instance is not yet fully
@@ -2758,4 +2934,268 @@ void wasm::AsyncCompileAndInstantiate(Isolate* isolate,
                         instance_object.ToHandleChecked(), NONE);
 
   ResolvePromise(isolate, promise, ret);
+}
+
+Handle<Code> wasm::CompileLazy(Isolate* isolate) {
+  HistogramTimerScope lazy_time_scope(
+      isolate->counters()->asm_wasm_lazy_compilation_time());
+
+  // Find the wasm frame which triggered the lazy compile, to get the wasm
+  // instance.
+  StackFrameIterator it(isolate);
+  // First frame: C entry stub.
+  DCHECK(!it.done());
+  DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
+  it.Advance();
+  // Second frame: WasmCompileLazy builtin.
+  DCHECK(!it.done());
+  Handle<Code> lazy_compile_code(it.frame()->LookupCode(), isolate);
+  DCHECK_EQ(Builtins::kWasmCompileLazy, lazy_compile_code->builtin_index());
+  Handle<WasmInstanceObject> instance;
+  Handle<FixedArray> exp_deopt_data;
+  int func_index = -1;
+  if (lazy_compile_code->deoptimization_data()->length() > 0) {
+    // Then it's an indirect call or via JS->WASM wrapper.
+    DCHECK_LE(2, lazy_compile_code->deoptimization_data()->length());
+    exp_deopt_data = handle(lazy_compile_code->deoptimization_data(), isolate);
+    auto* weak_cell = WeakCell::cast(exp_deopt_data->get(0));
+    instance = handle(WasmInstanceObject::cast(weak_cell->value()), isolate);
+    func_index = Smi::cast(exp_deopt_data->get(1))->value();
+  }
+  it.Advance();
+  // Third frame: The calling wasm code or js-to-wasm wrapper.
+  DCHECK(!it.done());
+  DCHECK(it.frame()->is_js_to_wasm() || it.frame()->is_wasm_compiled());
+  Handle<Code> caller_code = handle(it.frame()->LookupCode(), isolate);
+  if (it.frame()->is_js_to_wasm()) {
+    DCHECK(!instance.is_null());
+  } else if (instance.is_null()) {
+    instance = handle(wasm::GetOwningWasmInstance(*caller_code), isolate);
+  } else {
+    DCHECK(*instance == wasm::GetOwningWasmInstance(*caller_code));
+  }
+  int offset =
+      static_cast<int>(it.frame()->pc() - caller_code->instruction_start());
+  // Only patch the caller code if this is *no* indirect call.
+  // exp_deopt_data will be null if the called function is not exported at all,
+  // and its length will be <= 2 if all entries in tables were already patched.
+  // Note that this check is conservative: If the first call to an exported
+  // function is direct, we will just patch the export tables, and only on the
+  // second call we will patch the caller.
+  bool patch_caller = caller_code->kind() == Code::JS_TO_WASM_FUNCTION ||
+                      exp_deopt_data.is_null() || exp_deopt_data->length() <= 2;
+
+  MaybeHandle<Code> maybe_compiled_code = WasmCompiledModule::CompileLazy(
+      isolate, instance, caller_code, offset, func_index, patch_caller);
+  if (maybe_compiled_code.is_null()) {
+    DCHECK(isolate->has_pending_exception());
+    return isolate->builtins()->Illegal();
+  }
+  Handle<Code> compiled_code = maybe_compiled_code.ToHandleChecked();
+  if (!exp_deopt_data.is_null() && exp_deopt_data->length() > 2) {
+    // See EnsureExportedLazyDeoptData: exp_deopt_data[2...(len-1)] are pairs of
+    // <export_table, index> followed by undefined values.
+    // Use this information here to patch all export tables.
+    DCHECK_EQ(0, exp_deopt_data->length() % 2);
+    for (int idx = 2, end = exp_deopt_data->length(); idx < end; idx += 2) {
+      if (exp_deopt_data->get(idx)->IsUndefined(isolate)) break;
+      FixedArray* exp_table = FixedArray::cast(exp_deopt_data->get(idx));
+      int exp_index = Smi::cast(exp_deopt_data->get(idx + 1))->value();
+      DCHECK(exp_table->get(exp_index) == *lazy_compile_code);
+      exp_table->set(exp_index, *compiled_code);
+    }
+    // After processing, remove the list of exported entries, such that we don't
+    // do the patching redundantly.
+    Handle<FixedArray> new_deopt_data =
+        isolate->factory()->CopyFixedArrayUpTo(exp_deopt_data, 2, TENURED);
+    lazy_compile_code->set_deoptimization_data(*new_deopt_data);
+  }
+
+  return compiled_code;
+}
+
+bool LazyCompilationOrchestrator::CompileFunction(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index) {
+  Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
+                                             isolate);
+  if (Code::cast(compiled_module->code_table()->get(func_index))->kind() ==
+      Code::WASM_FUNCTION) {
+    return true;
+  }
+  size_t num_function_tables =
+      compiled_module->module()->function_tables.size();
+  // Store a vector of handles to be embedded in the generated code.
+  // TODO(clemensh): For concurrent compilation, these will have to live in a
+  // DeferredHandleScope.
+  std::vector<Handle<FixedArray>> fun_tables(num_function_tables);
+  std::vector<Handle<FixedArray>> sig_tables(num_function_tables);
+  for (size_t i = 0; i < num_function_tables; ++i) {
+    Object* fun_table =
+        compiled_module->function_tables()->get(static_cast<int>(i));
+    fun_tables[i] = handle(FixedArray::cast(fun_table), isolate);
+    Object* sig_table =
+        compiled_module->signature_tables()->get(static_cast<int>(i));
+    sig_tables[i] = handle(FixedArray::cast(sig_table), isolate);
+  }
+  wasm::ModuleEnv module_env(compiled_module->module(), &fun_tables,
+                             &sig_tables);
+  uint8_t* module_start = compiled_module->module_bytes()->GetChars();
+  const WasmFunction* func = &module_env.module->functions[func_index];
+  wasm::FunctionBody body{func->sig, module_start,
+                          module_start + func->code_start_offset,
+                          module_start + func->code_end_offset};
+  // TODO(wasm): Refactor this to only get the name if it is really needed for
+  // tracing / debugging.
+  std::string func_name;
+  {
+    wasm::WasmName name = Vector<const char>::cast(
+        compiled_module->GetRawFunctionName(func_index));
+    // Copy to std::string, because the underlying string object might move on
+    // the heap.
+    func_name.assign(name.start(), static_cast<size_t>(name.length()));
+  }
+  ErrorThrower thrower(isolate, "WasmLazyCompile");
+  compiler::WasmCompilationUnit unit(isolate, &module_env, body,
+                                     CStrVector(func_name.c_str()), func_index);
+  unit.ExecuteCompilation();
+  Handle<Code> code = unit.FinishCompilation(&thrower);
+
+  Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
+  Handle<WeakCell> weak_instance = isolate->factory()->NewWeakCell(instance);
+  // TODO(wasm): Introduce constants for the indexes in wasm deopt data.
+  deopt_data->set(0, *weak_instance);
+  deopt_data->set(1, Smi::FromInt(func_index));
+  code->set_deoptimization_data(*deopt_data);
+
+  if (thrower.error()) {
+    if (!isolate->has_pending_exception()) isolate->Throw(*thrower.Reify());
+    return false;
+  }
+
+  DCHECK_EQ(Builtins::kWasmCompileLazy,
+            Code::cast(compiled_module->code_table()->get(func_index))
+                ->builtin_index());
+  compiled_module->code_table()->set(func_index, *code);
+
+  // Now specialize the generated code for this instance.
+  Zone specialization_zone(isolate->allocator(), ZONE_NAME);
+  CodeSpecialization code_specialization(isolate, &specialization_zone);
+  if (module_env.module->globals_size) {
+    Address globals_start =
+        reinterpret_cast<Address>(instance->globals_buffer()->backing_store());
+    code_specialization.RelocateGlobals(nullptr, globals_start);
+  }
+  if (instance->has_memory_buffer()) {
+    Address mem_start =
+        reinterpret_cast<Address>(instance->memory_buffer()->backing_store());
+    int mem_size = instance->memory_buffer()->byte_length()->Number();
+    DCHECK_IMPLIES(mem_size == 0, mem_start == nullptr);
+    if (mem_size > 0) {
+      code_specialization.RelocateMemoryReferences(nullptr, 0, mem_start,
+                                                   mem_size);
+    }
+  }
+  code_specialization.RelocateDirectCalls(instance);
+  code_specialization.ApplyToWasmCode(*code, SKIP_ICACHE_FLUSH);
+  Assembler::FlushICache(isolate, code->instruction_start(),
+                         code->instruction_size());
+  RecordLazyCodeStats(isolate, *code);
+  return true;
+}
+
+MaybeHandle<Code> LazyCompilationOrchestrator::CompileLazy(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, Handle<Code> caller,
+    int call_offset, int exported_func_index, bool patch_caller) {
+  struct NonCompiledFunction {
+    int offset;
+    int func_index;
+  };
+  std::vector<NonCompiledFunction> non_compiled_functions;
+  int func_to_return_idx = exported_func_index;
+  wasm::Decoder decoder(nullptr, nullptr);
+  bool is_js_to_wasm = caller->kind() == Code::JS_TO_WASM_FUNCTION;
+  Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
+                                             isolate);
+
+  if (is_js_to_wasm) {
+    non_compiled_functions.push_back({0, exported_func_index});
+  } else if (patch_caller) {
+    DisallowHeapAllocation no_gc;
+    SeqOneByteString* module_bytes = compiled_module->module_bytes();
+    SourcePositionTableIterator source_pos_iterator(
+        caller->source_position_table());
+    DCHECK_EQ(2, caller->deoptimization_data()->length());
+    int caller_func_index =
+        Smi::cast(caller->deoptimization_data()->get(1))->value();
+    const byte* func_bytes =
+        module_bytes->GetChars() + compiled_module->module()
+                                       ->functions[caller_func_index]
+                                       .code_start_offset;
+    for (RelocIterator it(*caller, RelocInfo::kCodeTargetMask); !it.done();
+         it.next()) {
+      Code* callee =
+          Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+      if (callee->builtin_index() != Builtins::kWasmCompileLazy) continue;
+      // TODO(clemensh): Introduce safe_cast<T, bool> which (D)CHECKS
+      // (depending on the bool) against limits of T and then static_casts.
+      size_t offset_l = it.rinfo()->pc() - caller->instruction_start();
+      DCHECK_GE(kMaxInt, offset_l);
+      int offset = static_cast<int>(offset_l);
+      int byte_pos =
+          AdvanceSourcePositionTableIterator(source_pos_iterator, offset);
+      int called_func_index =
+          ExtractDirectCallIndex(decoder, func_bytes + byte_pos);
+      non_compiled_functions.push_back({offset, called_func_index});
+      // Call offset one instruction after the call. Remember the last called
+      // function before that offset.
+      if (offset < call_offset) func_to_return_idx = called_func_index;
+    }
+  }
+
+  // TODO(clemensh): compile all functions in non_compiled_functions in
+  // background, wait for func_to_return_idx.
+  if (!CompileFunction(isolate, instance, func_to_return_idx)) {
+    return {};
+  }
+
+  if (is_js_to_wasm || patch_caller) {
+    DisallowHeapAllocation no_gc;
+    // Now patch the code object with all functions which are now compiled.
+    int idx = 0;
+    for (RelocIterator it(*caller, RelocInfo::kCodeTargetMask); !it.done();
+         it.next()) {
+      Code* callee =
+          Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+      if (callee->builtin_index() != Builtins::kWasmCompileLazy) continue;
+      DCHECK_GT(non_compiled_functions.size(), idx);
+      int called_func_index = non_compiled_functions[idx].func_index;
+      // Check that the callee agrees with our assumed called_func_index.
+      DCHECK_IMPLIES(
+          callee->deoptimization_data()->length() > 0,
+          Smi::cast(callee->deoptimization_data()->get(1))->value() ==
+              called_func_index);
+      if (is_js_to_wasm) {
+        DCHECK_EQ(func_to_return_idx, called_func_index);
+      } else {
+        DCHECK_EQ(non_compiled_functions[idx].offset,
+                  it.rinfo()->pc() - caller->instruction_start());
+      }
+      ++idx;
+      Handle<Code> callee_compiled(
+          Code::cast(compiled_module->code_table()->get(called_func_index)));
+      if (callee_compiled->builtin_index() == Builtins::kWasmCompileLazy) {
+        DCHECK_NE(func_to_return_idx, called_func_index);
+        continue;
+      }
+      DCHECK_EQ(Code::WASM_FUNCTION, callee_compiled->kind());
+      it.rinfo()->set_target_address(isolate,
+                                     callee_compiled->instruction_start());
+    }
+    DCHECK_EQ(non_compiled_functions.size(), idx);
+  }
+
+  Code* ret =
+      Code::cast(compiled_module->code_table()->get(func_to_return_idx));
+  DCHECK_EQ(Code::WASM_FUNCTION, ret->kind());
+  return handle(ret, isolate);
 }

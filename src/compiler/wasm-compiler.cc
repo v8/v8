@@ -238,7 +238,8 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
                                   Node** effect, Node** control) {
   if (FLAG_wasm_no_stack_checks) return;
   // We do not generate stack checks for cctests.
-  if (!module_ || module_->instance->context.is_null()) return;
+  if (!module_ || (module_->instance && module_->instance->context.is_null()))
+    return;
   if (effect == nullptr) effect = effect_;
   if (control == nullptr) control = control_;
 
@@ -890,7 +891,9 @@ Builtins::Name GetBuiltinIdForTrap(bool in_cctest, wasm::TrapReason reason) {
 
 Node* WasmGraphBuilder::TrapIfTrue(wasm::TrapReason reason, Node* cond,
                                    wasm::WasmCodePosition position) {
-  bool in_cctest = !module_ || module_->instance->context.is_null();
+  // TODO(wasm): Introduce a testing flag instead of trying to infer it here.
+  bool in_cctest =
+      !module_ || (module_->instance && module_->instance->context.is_null());
   int32_t trap_id = GetBuiltinIdForTrap(in_cctest, reason);
   Node* node = graph()->NewNode(jsgraph()->common()->TrapIf(trap_id), cond,
                                 Effect(), Control());
@@ -901,7 +904,9 @@ Node* WasmGraphBuilder::TrapIfTrue(wasm::TrapReason reason, Node* cond,
 
 Node* WasmGraphBuilder::TrapIfFalse(wasm::TrapReason reason, Node* cond,
                                     wasm::WasmCodePosition position) {
-  bool in_cctest = !module_ || module_->instance->context.is_null();
+  // TODO(wasm): Introduce a testing flag instead of trying to infer it here.
+  bool in_cctest =
+      !module_ || (module_->instance && module_->instance->context.is_null());
   int32_t trap_id = GetBuiltinIdForTrap(in_cctest, reason);
 
   Node* node = graph()->NewNode(jsgraph()->common()->TrapUnless(trap_id), cond,
@@ -1649,6 +1654,11 @@ Node* WasmGraphBuilder::BuildFloatToIntConversionInstruction(
 }
 
 Node* WasmGraphBuilder::GrowMemory(Node* input) {
+  // GrowMemory will not be called from asm.js, hence we cannot be in
+  // lazy-compilation mode, hence the instance will be set.
+  DCHECK_NOT_NULL(module_);
+  DCHECK_NOT_NULL(module_->instance);
+
   Diamond check_input_range(
       graph(), jsgraph()->common(),
       graph()->NewNode(jsgraph()->machine()->Uint32LessThanOrEqual(), input,
@@ -2135,7 +2145,10 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
   DCHECK_NULL(args[0]);
 
   // Add code object as constant.
-  Handle<Code> code = module_->GetFunctionCode(index);
+  // TODO(wasm): Always use the illegal builtin, except for testing.
+  Handle<Code> code = module_->instance
+                          ? module_->GetFunctionCode(index)
+                          : jsgraph()->isolate()->builtins()->Illegal();
   DCHECK(!code.is_null());
   args[0] = HeapConstant(code);
   wasm::FunctionSig* sig = module_->GetFunctionSignature(index);
@@ -2147,7 +2160,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
                                      Node*** rets,
                                      wasm::WasmCodePosition position) {
   DCHECK_NOT_NULL(args[0]);
-  DCHECK(module_ && module_->instance);
+  DCHECK_NOT_NULL(module_);
 
   // Assume only one table for now.
   uint32_t table_index = 0;
@@ -2847,22 +2860,28 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
 }
 
 Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
-  DCHECK(module_ && module_->instance);
+  DCHECK_NOT_NULL(module_);
+  uintptr_t mem_start = reinterpret_cast<uintptr_t>(
+      module_->instance ? module_->instance->mem_start : nullptr);
   if (offset == 0) {
     if (!mem_buffer_) {
       mem_buffer_ = jsgraph()->RelocatableIntPtrConstant(
-          reinterpret_cast<uintptr_t>(module_->instance->mem_start),
-          RelocInfo::WASM_MEMORY_REFERENCE);
+          mem_start, RelocInfo::WASM_MEMORY_REFERENCE);
     }
     return mem_buffer_;
   } else {
     return jsgraph()->RelocatableIntPtrConstant(
-        reinterpret_cast<uintptr_t>(module_->instance->mem_start + offset),
-        RelocInfo::WASM_MEMORY_REFERENCE);
+        mem_start + offset, RelocInfo::WASM_MEMORY_REFERENCE);
   }
 }
 
 Node* WasmGraphBuilder::CurrentMemoryPages() {
+  // CurrentMemoryPages will not be called from asm.js, hence we cannot be in
+  // lazy-compilation mode, hence the instance will be set.
+  DCHECK_EQ(wasm::kWasmOrigin, module_->module->origin);
+  DCHECK_NOT_NULL(module_);
+  DCHECK_NOT_NULL(module_->instance);
+
   Runtime::FunctionId function_id = Runtime::kWasmMemorySize;
   const Runtime::Function* function = Runtime::FunctionForId(function_id);
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
@@ -2896,12 +2915,14 @@ Node* WasmGraphBuilder::MemSize() {
 
 void WasmGraphBuilder::EnsureFunctionTableNodes() {
   if (function_tables_.size() > 0) return;
-  size_t tables_size = module_->instance->function_tables.size();
-  DCHECK(tables_size == module_->instance->signature_tables.size());
+  size_t tables_size = module_->module->function_tables.size();
+  if (module_->instance) {
+    DCHECK_EQ(tables_size, module_->instance->function_tables.size());
+    DCHECK_EQ(tables_size, module_->instance->signature_tables.size());
+  }
   for (size_t i = 0; i < tables_size; ++i) {
-    auto function_handle = module_->instance->function_tables[i];
-    auto signature_handle = module_->instance->signature_tables[i];
-    DCHECK(!function_handle.is_null() && !signature_handle.is_null());
+    auto function_handle = (*module_->function_tables)[i];
+    auto signature_handle = (*module_->signature_tables)[i];
     function_tables_.push_back(HeapConstant(function_handle));
     signature_tables_.push_back(HeapConstant(signature_handle));
     uint32_t table_size = module_->module->function_tables[i].min_size;
@@ -2914,10 +2935,12 @@ void WasmGraphBuilder::EnsureFunctionTableNodes() {
 Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
   MachineType mem_type =
       wasm::WasmOpcodes::MachineTypeFor(module_->GetGlobalType(index));
+  byte* globals_start =
+      module_->instance ? module_->instance->globals_start : nullptr;
+  uintptr_t global_addr = reinterpret_cast<uintptr_t>(
+      globals_start + module_->module->globals[index].offset);
   Node* addr = jsgraph()->RelocatableIntPtrConstant(
-      reinterpret_cast<uintptr_t>(module_->instance->globals_start +
-                                  module_->module->globals[index].offset),
-      RelocInfo::WASM_GLOBAL_REFERENCE);
+      global_addr, RelocInfo::WASM_GLOBAL_REFERENCE);
   const Operator* op = jsgraph()->machine()->Load(mem_type);
   Node* node = graph()->NewNode(op, addr, jsgraph()->Int32Constant(0), *effect_,
                                 *control_);
@@ -2928,8 +2951,10 @@ Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
 Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
   MachineType mem_type =
       wasm::WasmOpcodes::MachineTypeFor(module_->GetGlobalType(index));
+  byte* globals_start =
+      module_->instance ? module_->instance->globals_start : 0;
   Node* addr = jsgraph()->RelocatableIntPtrConstant(
-      reinterpret_cast<uintptr_t>(module_->instance->globals_start +
+      reinterpret_cast<uintptr_t>(globals_start +
                                   module_->module->globals[index].offset),
       RelocInfo::WASM_GLOBAL_REFERENCE);
   const Operator* op = jsgraph()->machine()->Store(

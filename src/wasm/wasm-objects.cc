@@ -5,10 +5,13 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/utils.h"
 
+#include "src/assembler-inl.h"
 #include "src/base/iterator.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-interface.h"
 #include "src/objects-inl.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-text.h"
 
@@ -555,6 +558,8 @@ DEFINE_OPTIONAL_ARR_ACCESSORS(WasmSharedModuleData, asm_js_offset_table,
                               kAsmJsOffsetTable, ByteArray);
 DEFINE_OPTIONAL_ARR_GETTER(WasmSharedModuleData, breakpoint_infos,
                            kBreakPointInfos, FixedArray);
+DEFINE_OPTIONAL_ARR_GETTER(WasmSharedModuleData, lazy_compilation_orchestrator,
+                           kLazyCompilationOrchestrator, Foreign);
 
 Handle<WasmSharedModuleData> WasmSharedModuleData::New(
     Isolate* isolate, Handle<Foreign> module_wrapper,
@@ -742,6 +747,16 @@ void WasmSharedModuleData::SetBreakpointsOnNewInstance(
     int offset_in_func = position - func.code_start_offset;
     WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
   }
+}
+
+void WasmSharedModuleData::PrepareForLazyCompilation(
+    Handle<WasmSharedModuleData> shared) {
+  if (shared->has_lazy_compilation_orchestrator()) return;
+  Isolate* isolate = shared->GetIsolate();
+  LazyCompilationOrchestrator* orch = new LazyCompilationOrchestrator();
+  Handle<Managed<LazyCompilationOrchestrator>> orch_handle =
+      Managed<LazyCompilationOrchestrator>::New(isolate, orch);
+  shared->set(WasmSharedModuleData::kLazyCompilationOrchestrator, *orch_handle);
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
@@ -1168,6 +1183,18 @@ MaybeHandle<FixedArray> WasmCompiledModule::CheckBreakPoints(int position) {
   Handle<Object> breakpoint_objects(breakpoint_info->break_point_objects(),
                                     isolate);
   return isolate->debug()->GetHitBreakPointObjects(breakpoint_objects);
+}
+
+MaybeHandle<Code> WasmCompiledModule::CompileLazy(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, Handle<Code> caller,
+    int offset, int func_index, bool patch_caller) {
+  isolate->set_context(*instance->compiled_module()->native_context());
+  Object* orch_obj =
+      instance->compiled_module()->shared()->lazy_compilation_orchestrator();
+  LazyCompilationOrchestrator* orch =
+      Managed<LazyCompilationOrchestrator>::cast(orch_obj)->get();
+  return orch->CompileLazy(isolate, instance, caller, offset, func_index,
+                           patch_caller);
 }
 
 Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(

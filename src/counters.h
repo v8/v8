@@ -988,7 +988,9 @@ class RuntimeCallTimerScope {
   HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000,  \
      MICROSECOND)                                                              \
   HT(asm_wasm_translation_time, V8.AsmWasmTranslationMicroSeconds, 1000000,    \
-     MICROSECOND)
+     MICROSECOND)                                                              \
+  HT(asm_wasm_lazy_compilation_time, V8.AsmWasmLazyCompilationMicroSeconds,    \
+     1000000, MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
@@ -1156,7 +1158,8 @@ class RuntimeCallTimerScope {
   /* Total count of functions compiled using the baseline compiler. */         \
   SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)               \
   SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                                       \
+  SC(asm_wasm_lazily_compiled_functions, V8.AsmWasmLazilyCompiledFunctions)
 
 // This file contains all the v8 counters that are in use.
 class Counters {
