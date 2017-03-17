@@ -2761,8 +2761,7 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
   // Compute size for the argument buffer.
   int args_size_bytes = 0;
   for (int i = 0; i < wasm_count; i++) {
-    args_size_bytes +=
-        RoundUpToMultipleOfPowOf2(1 << ElementSizeLog2Of(sig->GetParam(i)), 8);
+    args_size_bytes += 1 << ElementSizeLog2Of(sig->GetParam(i));
   }
 
   // The return value is also passed via this buffer:
@@ -2807,10 +2806,8 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
       *effect_ =
           graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
                            Int32Constant(offset), param, *effect_, *control_);
-      offset += RoundUpToMultipleOfPowOf2(1 << ElementSizeLog2Of(param_rep), 8);
+      offset += 1 << ElementSizeLog2Of(param_rep);
     }
-
-    DCHECK(IsAligned(offset, 8));
   }
   DCHECK_EQ(param_count, param_index);
   DCHECK_EQ(args_size_bytes, offset);
@@ -3788,10 +3785,7 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
   Zone zone(isolate->allocator(), ZONE_NAME);
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
-  MachineOperatorBuilder machine(
-      &zone, MachineType::PointerRepresentation(),
-      InstructionSelector::SupportedMachineOperatorFlags(),
-      InstructionSelector::AlignmentRequirements());
+  MachineOperatorBuilder machine(&zone);
   JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
 
   Node* control = nullptr;

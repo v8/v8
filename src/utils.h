@@ -192,11 +192,6 @@ inline bool IsAddressAligned(Address addr,
   return IsAligned(offs, alignment);
 }
 
-template <typename T, typename U>
-inline T RoundUpToMultipleOfPowOf2(T value, U multiple) {
-  DCHECK(multiple && ((multiple & (multiple - 1)) == 0));
-  return (value + multiple - 1) & ~(multiple - 1);
-}
 
 // Returns the maximum of the two parameters.
 template <typename T>
