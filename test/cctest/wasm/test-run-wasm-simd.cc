@@ -1612,6 +1612,9 @@ WASM_EXEC_COMPILED_TEST(S1x16Or) { RunS1x16BinOpTest(kExprS1x16Or, Or); }
 
 WASM_EXEC_COMPILED_TEST(S1x16Xor) { RunS1x16BinOpTest(kExprS1x16Xor, Xor); }
 
+#endif  // V8_TARGET_ARCH_ARM
+
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(SimdI32x4ExtractWithF32x4) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
