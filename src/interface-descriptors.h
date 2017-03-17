@@ -50,6 +50,7 @@ class PlatformInterfaceDescriptor;
   V(ConstructStub)                         \
   V(ConstructTrampoline)                   \
   V(RegExpExec)                            \
+  V(RegExpPrototypeExecSlow)               \
   V(RegExpReplace)                         \
   V(RegExpSplit)                           \
   V(CopyFastSmiOrObjectElements)           \
@@ -656,6 +657,13 @@ class RegExpExecDescriptor : public CallInterfaceDescriptor {
   static const Register StringStartRegister();
   static const Register StringEndRegister();
   static const Register CodeRegister();
+};
+
+class RegExpPrototypeExecSlowDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kString)
+  DECLARE_DEFAULT_DESCRIPTOR(RegExpPrototypeExecSlowDescriptor,
+                             CallInterfaceDescriptor, kParameterCount)
 };
 
 class RegExpReplaceDescriptor : public CallInterfaceDescriptor {

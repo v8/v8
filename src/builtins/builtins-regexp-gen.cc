@@ -448,10 +448,12 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
     Branch(IsTheHole(pending_exception), &stack_overflow, &rethrow);
 
     Bind(&stack_overflow);
-    TailCallRuntime(Runtime::kThrowStackOverflow, context);
+    CallRuntime(Runtime::kThrowStackOverflow, context);
+    Unreachable();
 
     Bind(&rethrow);
-    TailCallRuntime(Runtime::kRegExpExecReThrow, context);
+    CallRuntime(Runtime::kRegExpExecReThrow, context);
+    Unreachable();
   }
 
   Bind(&runtime);
@@ -726,6 +728,17 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExpResult(Node* context, Node* map,
          if_ismodified);
 }
 
+// Slow path stub for RegExpPrototypeExec to decrease code size.
+TF_BUILTIN(RegExpPrototypeExecSlow, RegExpBuiltinsAssembler) {
+  typedef RegExpPrototypeExecSlowDescriptor Descriptor;
+
+  Node* const regexp = Parameter(Descriptor::kReceiver);
+  Node* const string = Parameter(Descriptor::kString);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  Return(RegExpPrototypeExecBody(context, regexp, string, false));
+}
+
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
@@ -754,8 +767,8 @@ TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
 
   Bind(&if_isslowpath);
   {
-    Node* const result =
-        RegExpPrototypeExecBody(context, receiver, string, false);
+    Node* const result = CallBuiltin(Builtins::kRegExpPrototypeExecSlow,
+                                     context, receiver, string);
     Return(result);
   }
 }
@@ -1330,64 +1343,49 @@ TF_BUILTIN(RegExpPrototypeUnicodeGetter, RegExpBuiltinsAssembler) {
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
 Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
                                           Node* string) {
-  Isolate* isolate = this->isolate();
-
-  Node* const null = NullConstant();
+  CSA_ASSERT(this, Word32BinaryNot(IsFastRegExpMap(context, LoadMap(regexp))));
 
   Variable var_result(this, MachineRepresentation::kTagged);
-  Label out(this), if_isfastpath(this), if_isslowpath(this);
+  Label out(this);
 
-  Node* const map = LoadMap(regexp);
-  BranchIfFastRegExp(context, map, &if_isfastpath, &if_isslowpath);
+  // Take the slow path of fetching the exec property, calling it, and
+  // verifying its return value.
 
-  Bind(&if_isfastpath);
+  // Get the exec property.
+  Node* const exec =
+      GetProperty(context, regexp, isolate()->factory()->exec_string());
+
+  // Is {exec} callable?
+  Label if_iscallable(this), if_isnotcallable(this);
+
+  GotoIf(TaggedIsSmi(exec), &if_isnotcallable);
+
+  Node* const exec_map = LoadMap(exec);
+  Branch(IsCallableMap(exec_map), &if_iscallable, &if_isnotcallable);
+
+  Bind(&if_iscallable);
   {
-    Node* const result = RegExpPrototypeExecBody(context, regexp, string, true);
+    Callable call_callable = CodeFactory::Call(isolate());
+    Node* const result = CallJS(call_callable, context, exec, regexp, string);
+
     var_result.Bind(result);
+    GotoIf(WordEqual(result, NullConstant()), &out);
+
+    ThrowIfNotJSReceiver(context, result,
+                         MessageTemplate::kInvalidRegExpExecResult, "unused");
+
     Goto(&out);
   }
 
-  Bind(&if_isslowpath);
+  Bind(&if_isnotcallable);
   {
-    // Take the slow path of fetching the exec property, calling it, and
-    // verifying its return value.
+    ThrowIfNotInstanceType(context, regexp, JS_REGEXP_TYPE,
+                           "RegExp.prototype.exec");
 
-    // Get the exec property.
-    Node* const exec =
-        GetProperty(context, regexp, isolate->factory()->exec_string());
-
-    // Is {exec} callable?
-    Label if_iscallable(this), if_isnotcallable(this);
-
-    GotoIf(TaggedIsSmi(exec), &if_isnotcallable);
-
-    Node* const exec_map = LoadMap(exec);
-    Branch(IsCallableMap(exec_map), &if_iscallable, &if_isnotcallable);
-
-    Bind(&if_iscallable);
-    {
-      Callable call_callable = CodeFactory::Call(isolate);
-      Node* const result = CallJS(call_callable, context, exec, regexp, string);
-
-      var_result.Bind(result);
-      GotoIf(WordEqual(result, null), &out);
-
-      ThrowIfNotJSReceiver(context, result,
-                           MessageTemplate::kInvalidRegExpExecResult, "unused");
-
-      Goto(&out);
-    }
-
-    Bind(&if_isnotcallable);
-    {
-      ThrowIfNotInstanceType(context, regexp, JS_REGEXP_TYPE,
-                             "RegExp.prototype.exec");
-
-      Node* const result =
-          RegExpPrototypeExecBody(context, regexp, string, false);
-      var_result.Bind(result);
-      Goto(&out);
-    }
+    Node* const result = CallBuiltin(Builtins::kRegExpPrototypeExecSlow,
+                                     context, regexp, string);
+    var_result.Bind(result);
+    Goto(&out);
   }
 
   Bind(&out);

@@ -698,6 +698,8 @@ class Isolate;
   CPP(ReflectSetPrototypeOf)                                                   \
                                                                                \
   /* RegExp */                                                                 \
+  TFS(RegExpPrototypeExecSlow, BUILTIN, kNoExtraICState,                       \
+      RegExpPrototypeExecSlow, 1)                                              \
   CPP(RegExpCapture1Getter)                                                    \
   CPP(RegExpCapture2Getter)                                                    \
   CPP(RegExpCapture3Getter)                                                    \
