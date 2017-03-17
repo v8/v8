@@ -377,6 +377,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     // Allocations.
     case Bytecode::kCreateClosure:
     case Bytecode::kCreateUnmappedArguments:
+    case Bytecode::kCreateRestParameter:
     // Conversions.
     case Bytecode::kToObject:
     case Bytecode::kToNumber:
@@ -433,6 +434,41 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kArrayForEach:
     case Builtins::kArrayEvery:
     case Builtins::kArraySome:
+    // Boolean bulitins.
+    case Builtins::kBooleanConstructor:
+    case Builtins::kBooleanPrototypeToString:
+    case Builtins::kBooleanPrototypeValueOf:
+    // Date builtins.
+    case Builtins::kDateConstructor:
+    case Builtins::kDateNow:
+    case Builtins::kDateParse:
+    case Builtins::kDatePrototypeGetDate:
+    case Builtins::kDatePrototypeGetDay:
+    case Builtins::kDatePrototypeGetFullYear:
+    case Builtins::kDatePrototypeGetHours:
+    case Builtins::kDatePrototypeGetMilliseconds:
+    case Builtins::kDatePrototypeGetMinutes:
+    case Builtins::kDatePrototypeGetMonth:
+    case Builtins::kDatePrototypeGetSeconds:
+    case Builtins::kDatePrototypeGetTime:
+    case Builtins::kDatePrototypeGetTimezoneOffset:
+    case Builtins::kDatePrototypeGetUTCDate:
+    case Builtins::kDatePrototypeGetUTCDay:
+    case Builtins::kDatePrototypeGetUTCFullYear:
+    case Builtins::kDatePrototypeGetUTCHours:
+    case Builtins::kDatePrototypeGetUTCMilliseconds:
+    case Builtins::kDatePrototypeGetUTCMinutes:
+    case Builtins::kDatePrototypeGetUTCMonth:
+    case Builtins::kDatePrototypeGetUTCSeconds:
+    case Builtins::kDatePrototypeGetYear:
+    case Builtins::kDatePrototypeToDateString:
+    case Builtins::kDatePrototypeToISOString:
+    case Builtins::kDatePrototypeToUTCString:
+    case Builtins::kDatePrototypeToString:
+    case Builtins::kDatePrototypeToTimeString:
+    case Builtins::kDatePrototypeToJson:
+    case Builtins::kDatePrototypeToPrimitive:
+    case Builtins::kDatePrototypeValueOf:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:
@@ -511,6 +547,13 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     // JSON builtins.
     case Builtins::kJsonParse:
     case Builtins::kJsonStringify:
+    // Global function builtins.
+    case Builtins::kGlobalDecodeURI:
+    case Builtins::kGlobalDecodeURIComponent:
+    case Builtins::kGlobalEncodeURI:
+    case Builtins::kGlobalEncodeURIComponent:
+    case Builtins::kGlobalEscape:
+    case Builtins::kGlobalUnescape:
     // Error builtins.
     case Builtins::kMakeError:
     case Builtins::kMakeTypeError:

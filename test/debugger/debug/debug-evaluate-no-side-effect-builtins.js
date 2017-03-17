@@ -24,6 +24,7 @@ function listener(event, exec_state, event_data, data) {
     }
 
     // Test some Object functions.
+    success({}, `new Object()`);
     success({p : 3}, `Object.create({}, { p: { value: 3 } })`);
     success("[[\"a\",1],[\"b\",2]]",
             `JSON.stringify(Object.entries({a:1, b:2}))`);
@@ -58,6 +59,7 @@ function listener(event, exec_state, event_data, data) {
     success(3, `(object_with_callbacks).valueOf()`);
 
     // Test Array functions.
+    success([], `new Array()`);
     var function_param = [
       "forEach", "every", "some", "reduce", "reduceRight", "find", "filter",
       "map", "findIndex"
@@ -91,6 +93,7 @@ function listener(event, exec_state, event_data, data) {
     }
 
     // Test Number functions.
+    success(new Number(0), `new Number()`);
     for (f of Object.getOwnPropertyNames(Number)) {
       if (typeof Number[f] === "function") {
         success(Number[f](0.5), `Number.${f}(0.5);`);
@@ -104,6 +107,7 @@ function listener(event, exec_state, event_data, data) {
     }
 
     // Test String functions.
+    success(new String(), `new String()`);
     success(" ", "String.fromCodePoint(0x20)");
     success(" ", "String.fromCharCode(0x20)");
     for (f of Object.getOwnPropertyNames(String.prototype)) {
