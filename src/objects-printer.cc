@@ -523,7 +523,7 @@ static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
   if (internal_fields > 0) {
     os << " - internal fields = {";
     for (int i = 0; i < internal_fields; i++) {
-      os << "\n    " << Brief(obj->GetInternalField(i));
+      os << "\n    " << obj->GetInternalField(i);
     }
     os << "\n }\n";
   }

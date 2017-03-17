@@ -2723,7 +2723,7 @@ void Heap::CreateInitialObjects() {
   }
 
   Handle<NameDictionary> empty_properties_dictionary =
-      NameDictionary::New(isolate(), 0, TENURED);
+      NameDictionary::NewEmpty(isolate(), TENURED);
   empty_properties_dictionary->SetRequiresCopyOnCapacityChange();
   set_empty_properties_dictionary(*empty_properties_dictionary);
 
@@ -2845,7 +2845,7 @@ void Heap::CreateInitialObjects() {
   set_script_list(Smi::kZero);
 
   Handle<SeededNumberDictionary> slow_element_dictionary =
-      SeededNumberDictionary::New(isolate(), 0, TENURED);
+      SeededNumberDictionary::NewEmpty(isolate(), TENURED);
   slow_element_dictionary->set_requires_slow_elements();
   set_empty_slow_element_dictionary(*slow_element_dictionary);
 
