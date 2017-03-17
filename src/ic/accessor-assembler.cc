@@ -497,10 +497,10 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
 
     Bind(&load_from_cached_holder);
     {
-      Node* holder = LoadWeakCellValue(maybe_holder_cell);
-      // The |holder| is guaranteed to be alive at this point since we passed
-      // both the receiver map check and the validity cell check.
-      CSA_ASSERT(this, WordNotEqual(holder, IntPtrConstant(0)));
+      // For regular holders, having passed the receiver map check and the
+      // validity cell check implies that |holder| is alive. However, for
+      // global object receivers, the |maybe_holder_cell| may be cleared.
+      Node* holder = LoadWeakCellValue(maybe_holder_cell, miss);
 
       var_holder->Bind(holder);
       Goto(&done);
@@ -571,11 +571,10 @@ Node* AccessorAssembler::EmitLoadICProtoArrayCheck(const LoadICParameters* p,
   GotoIf(WordEqual(maybe_holder_cell, NullConstant()), &done);
 
   {
-    var_holder.Bind(LoadWeakCellValue(maybe_holder_cell));
-    // The |holder| is guaranteed to be alive at this point since we passed
-    // the receiver map check, the validity cell check and the prototype chain
-    // check.
-    CSA_ASSERT(this, WordNotEqual(var_holder.value(), IntPtrConstant(0)));
+    // For regular holders, having passed the receiver map check and the
+    // validity cell check implies that |holder| is alive. However, for
+    // global object receivers, the |maybe_holder_cell| may be cleared.
+    var_holder.Bind(LoadWeakCellValue(maybe_holder_cell, miss));
     Goto(&done);
   }
 
