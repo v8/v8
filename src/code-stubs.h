@@ -898,14 +898,12 @@ class KeyedStoreSloppyArgumentsStub : public TurboFanCodeStub {
 class StoreGlobalStub : public TurboFanCodeStub {
  public:
   StoreGlobalStub(Isolate* isolate, PropertyCellType type,
-                  Maybe<PropertyCellConstantType> constant_type,
-                  bool check_global)
+                  Maybe<PropertyCellConstantType> constant_type)
       : TurboFanCodeStub(isolate) {
     PropertyCellConstantType encoded_constant_type =
         constant_type.FromMaybe(PropertyCellConstantType::kSmi);
     minor_key_ = CellTypeBits::encode(type) |
-                 ConstantTypeBits::encode(encoded_constant_type) |
-                 CheckGlobalBits::encode(check_global);
+                 ConstantTypeBits::encode(encoded_constant_type);
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
@@ -915,17 +913,8 @@ class StoreGlobalStub : public TurboFanCodeStub {
     return isolate->factory()->uninitialized_value();
   }
 
-  static Handle<HeapObject> global_map_placeholder(Isolate* isolate) {
-    return isolate->factory()->termination_exception();
-  }
-
-  Handle<Code> GetCodeCopyFromTemplate(Handle<JSGlobalObject> global,
-                                       Handle<PropertyCell> cell) {
+  Handle<Code> GetCodeCopyFromTemplate(Handle<PropertyCell> cell) {
     FindAndReplacePattern pattern;
-    if (check_global()) {
-      pattern.Add(handle(global_map_placeholder(isolate())->map()),
-                  Map::WeakCellForMap(Handle<Map>(global->map())));
-    }
     pattern.Add(handle(property_cell_placeholder(isolate())->map()),
                 isolate()->factory()->NewWeakCell(cell));
     return CodeStub::GetCodeCopy(pattern);
@@ -940,13 +929,10 @@ class StoreGlobalStub : public TurboFanCodeStub {
     return ConstantTypeBits::decode(minor_key_);
   }
 
-  bool check_global() const { return CheckGlobalBits::decode(minor_key_); }
-
  private:
   class CellTypeBits : public BitField<PropertyCellType, 0, 2> {};
   class ConstantTypeBits
       : public BitField<PropertyCellConstantType, CellTypeBits::kNext, 2> {};
-  class CheckGlobalBits : public BitField<bool, ConstantTypeBits::kNext, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreGlobal, TurboFanCodeStub);

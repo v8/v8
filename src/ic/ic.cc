@@ -1848,18 +1848,19 @@ Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
   return handler_array;
 }
 
-static Handle<Code> PropertyCellStoreHandler(
-    Isolate* isolate, Handle<JSObject> receiver, Handle<JSGlobalObject> holder,
-    Handle<Name> name, Handle<PropertyCell> cell, PropertyCellType type) {
+static Handle<Code> PropertyCellStoreHandler(Isolate* isolate,
+                                             Handle<JSObject> store_target,
+                                             Handle<Name> name,
+                                             Handle<PropertyCell> cell,
+                                             PropertyCellType type) {
   auto constant_type = Nothing<PropertyCellConstantType>();
   if (type == PropertyCellType::kConstantType) {
     constant_type = Just(cell->GetConstantType());
   }
-  StoreGlobalStub stub(isolate, type, constant_type,
-                       receiver->IsJSGlobalProxy());
-  auto code = stub.GetCodeCopyFromTemplate(holder, cell);
+  StoreGlobalStub stub(isolate, type, constant_type);
+  auto code = stub.GetCodeCopyFromTemplate(cell);
   // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
-  HeapObject::UpdateMapCodeCache(receiver, name, code);
+  HeapObject::UpdateMapCodeCache(store_target, name, code);
   return code;
 }
 
@@ -2010,9 +2011,9 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransition);
         Handle<PropertyCell> cell = lookup->transition_cell();
         cell->set_value(*value);
-        Handle<Code> code = PropertyCellStoreHandler(
-            isolate(), store_target, Handle<JSGlobalObject>::cast(store_target),
-            lookup->name(), cell, PropertyCellType::kConstant);
+        Handle<Code> code =
+            PropertyCellStoreHandler(isolate(), receiver, lookup->name(), cell,
+                                     PropertyCellType::kConstant);
         cell->set_value(isolate()->heap()->the_hole_value());
         return code;
       }
@@ -2078,7 +2079,6 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
       auto updated_type =
           PropertyCell::UpdatedType(cell, value, lookup->property_details());
       auto code = PropertyCellStoreHandler(isolate(), receiver,
-                                           Handle<JSGlobalObject>::cast(holder),
                                            lookup->name(), cell, updated_type);
       return code;
     }

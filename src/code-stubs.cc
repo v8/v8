@@ -1496,12 +1496,11 @@ void StoreGlobalStub::GenerateAssembly(
   typedef compiler::Node Node;
   CodeStubAssembler assembler(state);
 
-  assembler.Comment(
-      "StoreGlobalStub: cell_type=%d, constant_type=%d, check_global=%d",
-      cell_type(), PropertyCellType::kConstantType == cell_type()
-                       ? static_cast<int>(constant_type())
-                       : -1,
-      check_global());
+  assembler.Comment("StoreGlobalStub: cell_type=%d, constant_type=%d",
+                    cell_type(),
+                    PropertyCellType::kConstantType == cell_type()
+                        ? static_cast<int>(constant_type())
+                        : -1);
 
   Node* receiver = assembler.Parameter(Descriptor::kReceiver);
   Node* name = assembler.Parameter(Descriptor::kName);
@@ -1511,18 +1510,6 @@ void StoreGlobalStub::GenerateAssembly(
   Node* context = assembler.Parameter(Descriptor::kContext);
 
   Label miss(&assembler);
-
-  if (check_global()) {
-    // Check that the map of the global has not changed: use a placeholder map
-    // that will be replaced later with the global object's map.
-    Node* proxy_map = assembler.LoadMap(receiver);
-    Node* global = assembler.LoadObjectField(proxy_map, Map::kPrototypeOffset);
-    Node* map_cell = assembler.HeapConstant(isolate()->factory()->NewWeakCell(
-        StoreGlobalStub::global_map_placeholder(isolate())));
-    Node* expected_map = assembler.LoadWeakCellValueUnchecked(map_cell);
-    Node* map = assembler.LoadMap(global);
-    assembler.GotoIf(assembler.WordNotEqual(expected_map, map), &miss);
-  }
 
   Node* weak_cell = assembler.HeapConstant(isolate()->factory()->NewWeakCell(
       StoreGlobalStub::property_cell_placeholder(isolate())));
