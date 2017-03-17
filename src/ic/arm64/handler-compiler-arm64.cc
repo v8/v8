@@ -237,10 +237,9 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   __ Ret();
 }
 
-
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
-    int accessor_index, int expected_arguments, Register scratch) {
+    int accessor_index, int expected_arguments) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -248,15 +247,6 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     __ Push(cp);
 
     if (accessor_index >= 0) {
-      DCHECK(!AreAliased(holder, scratch));
-      DCHECK(!AreAliased(receiver, scratch));
-      // Call the JavaScript getter with the receiver on the stack.
-      if (map->IsJSGlobalObjectMap()) {
-        // Swap in the global receiver.
-        __ Ldr(scratch,
-               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
-        receiver = scratch;
-      }
       __ Push(receiver);
       __ LoadAccessor(x1, holder, accessor_index, ACCESSOR_GETTER);
       __ Mov(x0, 0);

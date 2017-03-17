@@ -232,10 +232,9 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   __ ret(0);
 }
 
-
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
-    int accessor_index, int expected_arguments, Register scratch) {
+    int accessor_index, int expected_arguments) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
   //  -- rcx    : name
@@ -248,15 +247,6 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     __ pushq(rsi);
 
     if (accessor_index >= 0) {
-      DCHECK(!holder.is(scratch));
-      DCHECK(!receiver.is(scratch));
-      // Call the JavaScript getter with the receiver on the stack.
-      if (map->IsJSGlobalObjectMap()) {
-        // Swap in the global receiver.
-        __ movp(scratch,
-                FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
-        receiver = scratch;
-      }
       __ Push(receiver);
       __ LoadAccessor(rdi, holder, accessor_index, ACCESSOR_GETTER);
       __ Set(rax, 0);

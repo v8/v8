@@ -563,7 +563,7 @@ void AccessorAssembler::HandleLoadGlobalICHandlerCase(
   LoadICParameters p = *pp;
   DCHECK_NULL(p.receiver);
   Node* native_context = LoadNativeContext(p.context);
-  p.receiver = LoadContextElement(native_context, Context::EXTENSION_INDEX);
+  p.receiver = LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
 
   Variable var_holder(this, MachineRepresentation::kTagged);
   Variable var_smi_handler(this, MachineRepresentation::kTagged);
@@ -1911,8 +1911,10 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(const LoadICParameters* pp,
     LoadICParameters p = *pp;
     DCHECK_NULL(p.receiver);
     Node* native_context = LoadNativeContext(p.context);
-    p.receiver = LoadContextElement(native_context, Context::EXTENSION_INDEX);
-    HandleLoadICSmiHandlerCase(&p, p.receiver, handler, miss, exit_point,
+    p.receiver =
+        LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
+    Node* holder = LoadContextElement(native_context, Context::EXTENSION_INDEX);
+    HandleLoadICSmiHandlerCase(&p, holder, handler, miss, exit_point,
                                throw_reference_error_if_nonexistent,
                                kOnlyProperties);
   }
@@ -1928,7 +1930,7 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(const LoadICParameters* pp,
     LoadWithVectorDescriptor descriptor(isolate());
     Node* native_context = LoadNativeContext(pp->context);
     Node* receiver =
-        LoadContextElement(native_context, Context::EXTENSION_INDEX);
+        LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
     exit_point->ReturnCallStub(descriptor, handler, pp->context, receiver,
                                pp->name, pp->slot, pp->vector);
   }

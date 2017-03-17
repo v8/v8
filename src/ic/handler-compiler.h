@@ -128,12 +128,10 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
   static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<Map> map,
                                     Register receiver, Register holder,
-                                    int accessor_index, int expected_arguments,
-                                    Register scratch);
+                                    int accessor_index, int expected_arguments);
 
   static void GenerateLoadViaGetterForDeopt(MacroAssembler* masm) {
-    GenerateLoadViaGetter(masm, Handle<Map>::null(), no_reg, no_reg, -1, -1,
-                          no_reg);
+    GenerateLoadViaGetter(masm, Handle<Map>::null(), no_reg, no_reg, -1, -1);
   }
 
  protected:

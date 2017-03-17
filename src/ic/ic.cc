@@ -891,7 +891,10 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
     }
     checks_count++;
 
-  } else if (receiver_map->IsJSGlobalObjectMap()) {
+  } else if (receiver_map->IsJSGlobalObjectMap() &&
+             (holder.is_null() || holder->map() != *receiver_map)) {
+    // If we are creating a handler for [Load/Store]GlobalIC then we need to
+    // check that the property did not appear in the global object.
     if (fill_array) {
       Handle<JSGlobalObject> global = isolate->global_object();
       Handle<PropertyCell> cell = JSGlobalObject::EnsureEmptyPropertyCell(
@@ -1258,6 +1261,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       }
 
       if (receiver_is_holder) {
+        DCHECK(map->has_named_interceptor());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorDH);
         return smi_handler;
       }
@@ -1284,11 +1288,30 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
           return ComputeHandler(lookup);
         }
 
-        if (!holder->HasFastProperties() ||
-            // When debugging we need to go the slow path to flood the accessor.
-            GetHostFunction()->shared()->HasDebugInfo()) {
+        // When debugging we need to go the slow path to flood the accessor.
+        if (GetHostFunction()->shared()->HasDebugInfo()) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return slow_stub();
+        }
+
+        if (!holder->HasFastProperties()) {
+          // Global loads always need the extended data handler since it embeds
+          // the PropertyCell.
+          if (receiver_is_holder && !holder->IsJSGlobalObject()) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
+            return LoadHandler::LoadNormal(isolate());
+          }
+
+          Handle<Smi> smi_handler;
+          if (holder->IsJSGlobalObject()) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobalFromPrototypeDH);
+            smi_handler = LoadHandler::LoadGlobal(isolate());
+          } else {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
+            smi_handler = LoadHandler::LoadNormal(isolate());
+          }
+
+          return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
         }
 
         Handle<Object> getter(AccessorPair::cast(*accessors)->getter(),
@@ -2490,7 +2513,8 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 
   } else if (IsLoadGlobalICKind(kind)) {
-    DCHECK_EQ(*isolate->global_object(), *receiver);
+    DCHECK_EQ(isolate->native_context()->global_proxy(), *receiver);
+    receiver = isolate->global_object();
     LoadGlobalICNexus nexus(vector, vector_slot);
     LoadGlobalIC ic(isolate, &nexus);
     ic.UpdateState(receiver, key);

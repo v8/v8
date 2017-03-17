@@ -126,7 +126,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
     Handle<Name> name, int accessor_index, int expected_arguments) {
   Register holder = Frontend(name);
   GenerateLoadViaGetter(masm(), map(), receiver(), holder, accessor_index,
-                        expected_arguments, scratch2());
+                        expected_arguments);
   return GetCode(kind(), name);
 }
 

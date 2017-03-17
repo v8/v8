@@ -17,10 +17,9 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
-    int accessor_index, int expected_arguments, Register scratch) {
+    int accessor_index, int expected_arguments) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -28,15 +27,6 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     __ push(esi);
 
     if (accessor_index >= 0) {
-      DCHECK(!holder.is(scratch));
-      DCHECK(!receiver.is(scratch));
-      // Call the JavaScript getter with the receiver on the stack.
-      if (map->IsJSGlobalObjectMap()) {
-        // Swap in the global receiver.
-        __ mov(scratch,
-               FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
-        receiver = scratch;
-      }
       __ push(receiver);
       __ LoadAccessor(edi, holder, accessor_index, ACCESSOR_GETTER);
       __ Set(eax, 0);
