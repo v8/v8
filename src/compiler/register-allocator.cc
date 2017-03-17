@@ -3152,6 +3152,9 @@ bool LinearScanAllocator::TryAllocateFreeReg(
     // the range end. Split current at position where it becomes blocked.
     LiveRange* tail = SplitRangeAt(current, pos);
     AddToUnhandledSorted(tail);
+
+    // Try to allocate preferred register once more.
+    if (TryAllocatePreferredReg(current, free_until_pos)) return true;
   }
 
   // Register reg is available at the range start and is free until the range
