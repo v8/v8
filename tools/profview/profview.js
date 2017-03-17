@@ -161,7 +161,8 @@ let main = {
 
   onResize() {
     main.setTimeLineDimensions(
-      window.innerWidth - 20, window.innerHeight / 5);
+      Math.round(window.innerWidth - 20),
+      Math.round(window.innerHeight / 5));
   },
 
   onLoad() {
@@ -236,6 +237,14 @@ let bucketDescriptors =
         backgroundColor : "#e0e0e0",
         text : "Unknown" }
     ];
+
+let kindToBucketDescriptor = {}
+for (let i = 0; i < bucketDescriptors.length; i++) {
+  let bucket = bucketDescriptors[i];
+  for (let j = 0; j < bucket.kinds.length; j++) {
+    kindToBucketDescriptor[bucket.kinds[j]] = bucket;
+  }
+}
 
 function bucketFromKind(kind) {
   for (let i = 0; i < bucketDescriptors.length; i++) {
@@ -651,8 +660,8 @@ class TimelineView {
     this.selecting = false;
 
     this.fontSize = 12;
-    this.imageOffset = this.fontSize * 1.2;
-    this.functionTimelineHeight = 12;
+    this.imageOffset = Math.round(this.fontSize * 1.2);
+    this.functionTimelineHeight = 16;
 
     this.currentState = null;
   }
@@ -679,7 +688,7 @@ class TimelineView {
         this.selectionStart = null;
         this.selectionEnd = null;
         let ctx = this.canvas.getContext("2d");
-        ctx.drawImage(this.buffer, 0, 0);
+        ctx.drawImage(this.buffer, 0, this.imageOffset);
       } else {
         this.selectionEnd = x;
         this.drawSelection();
@@ -850,23 +859,25 @@ class TimelineView {
         for (let k = 0; k < desc.kinds.length; k++) {
           sum += buckets[i][desc.kinds[k]];
         }
-        bucketData.push(graphHeight * sum / total);
+        bucketData.push(Math.round(graphHeight * sum / total));
       }
       bucketsGraph.push(bucketData);
     }
 
     // Draw the graph into the buffer.
-    let bucketWidth = width / bucketCount;
+    let bucketWidth = width / (bucketsGraph.length - 1);
     let ctx = buffer.getContext('2d');
     for (let i = 0; i < bucketsGraph.length - 1; i++) {
       let bucketData = bucketsGraph[i];
       let nextBucketData = bucketsGraph[i + 1];
       for (let j = 0; j < bucketData.length; j++) {
+        let x1 = Math.round(i * bucketWidth);
+        let x2 = Math.round((i + 1) * bucketWidth);
         ctx.beginPath();
-        ctx.moveTo(i * bucketWidth, j && bucketData[j - 1]);
-        ctx.lineTo((i + 1) * bucketWidth, j && nextBucketData[j - 1]);
-        ctx.lineTo((i + 1) * bucketWidth, nextBucketData[j]);
-        ctx.lineTo(i * bucketWidth, bucketData[j]);
+        ctx.moveTo(x1, j && bucketData[j - 1]);
+        ctx.lineTo(x2, j && nextBucketData[j - 1]);
+        ctx.lineTo(x2, nextBucketData[j]);
+        ctx.lineTo(x1, bucketData[j]);
         ctx.closePath();
         ctx.fillStyle = bucketDescriptors[j].color;
         ctx.fill();
@@ -874,6 +885,7 @@ class TimelineView {
     }
     let functionTimelineYOffset = graphHeight;
     let functionTimelineHeight = this.functionTimelineHeight;
+    let functionTimelineHalfHeight = Math.round(functionTimelineHeight / 2);
     let timestampScaler = width / (lastTime - firstTime);
     ctx.fillStyle = "white";
     ctx.fillRect(
@@ -883,13 +895,27 @@ class TimelineView {
       functionTimelineHeight);
     for (let i = 0; i < codeIdProcessor.blocks.length; i++) {
       let block = codeIdProcessor.blocks[i];
-      ctx.fillStyle = "#000000";
+      let bucket = kindToBucketDescriptor[block.kind];
+      ctx.fillStyle = bucket.color;
       ctx.fillRect(
         Math.round((block.start - firstTime) * timestampScaler),
         functionTimelineYOffset,
         Math.max(1, Math.round((block.end - block.start) * timestampScaler)),
-        block.topOfStack ? functionTimelineHeight : functionTimelineHeight / 2);
+        block.topOfStack ? functionTimelineHeight : functionTimelineHalfHeight);
     }
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = "1";
+    ctx.beginPath();
+    ctx.moveTo(0, functionTimelineYOffset + 0.5);
+    ctx.lineTo(buffer.width, functionTimelineYOffset + 0.5);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.lineWidth = "1";
+    ctx.beginPath();
+    ctx.moveTo(0, functionTimelineYOffset + functionTimelineHalfHeight - 0.5);
+    ctx.lineTo(buffer.width,
+        functionTimelineYOffset + functionTimelineHalfHeight - 0.5);
+    ctx.stroke();
 
     // Remember stuff for later.
     this.buffer = buffer;
@@ -925,9 +951,7 @@ class TimelineView {
     }
     if (currentCodeId) {
       let currentCode = file.code[currentCodeId];
-      this.currentCode.appendChild(createTypeDiv(resolveCodeKind(currentCode)));
       this.currentCode.appendChild(document.createTextNode(currentCode.name));
-
     } else {
       this.currentCode.appendChild(document.createTextNode("<none>"));
     }

@@ -72,6 +72,19 @@ function resolveCodeKindAndVmState(code, vmState) {
   return kind;
 }
 
+function codeEquals(code1, code2, allowDifferentKinds = false) {
+  if (!code1 || !code2) return false;
+  if (code1.name != code2.name || code1.type != code2.type) return false;
+
+  if (code1.type == 'CODE') {
+    if (!allowDifferentKinds && code1.kind != code2.kind) return false;
+  } else if (code1.type == 'JS') {
+    if (!allowDifferentKinds && code1.kind != code2.kind) return false;
+    if (code1.func != code2.func) return false;
+  }
+  return true;
+}
+
 function createNodeFromStackEntry(code, codeId) {
   let name = code ? code.name : "UNKNOWN";
 
@@ -383,36 +396,56 @@ class FunctionTimelineProcessor {
   }
 
   addStack(file, tickIndex) {
+    if (!this.functionCodeId) return;
+
     let { tm : timestamp, vm : vmState, s : stack } = file.ticks[tickIndex];
+    let functionCode = file.code[this.functionCodeId];
 
-    let codeInStack = stack.includes(this.functionCodeId);
-    if (codeInStack) {
-      let topOfStack = -1;
-      for (let i = 0; i < stack.length - 1; i += 2) {
-        let codeId = stack[i];
-        let code = codeId >= 0 ? file.code[codeId] : undefined;
-        let type = code ? code.type : undefined;
-        let kind = code ? code.kind : undefined;
-        if (!this.filter(type, kind)) continue;
+    // Find if the function is on the stack, and its position on the stack,
+    // ignoring any filtered entries.
+    let stackCode = undefined;
+    let functionPosInStack = -1;
+    let filteredI = 0
+    for (let i = 0; i < stack.length - 1; i += 2) {
+      let codeId = stack[i];
+      let code = codeId >= 0 ? file.code[codeId] : undefined;
+      let type = code ? code.type : undefined;
+      let kind = code ? code.kind : undefined;
+      if (!this.filter(type, kind)) continue;
 
-        topOfStack = i;
+      // Match other instances of the same function (e.g. unoptimised, various
+      // different optimised versions).
+      if (codeEquals(code, functionCode, true)) {
+        functionPosInStack = filteredI;
+        stackCode = code;
         break;
       }
+      filteredI++;
+    }
 
-      let codeIsTopOfStack =
-          (topOfStack !== -1 && stack[topOfStack] === this.functionCodeId);
+    if (functionPosInStack >= 0) {
+      let stackKind = resolveCodeKindAndVmState(stackCode, vmState);
+
+      let codeIsTopOfStack = (functionPosInStack == 0);
 
       if (this.currentBlock !== null) {
         this.currentBlock.end = timestamp;
 
-        if (codeIsTopOfStack === this.currentBlock.topOfStack) {
+        if (codeIsTopOfStack === this.currentBlock.topOfStack
+          && stackKind === this.currentBlock.kind) {
+          // If we haven't changed the stack top or the function kind, then
+          // we're happy just extending the current block and not starting
+          // a new one.
           return;
         }
       }
 
+      // Start a new block at the current timestamp.
       this.currentBlock = {
         start: timestamp,
         end: timestamp,
+        code: stackCode,
+        kind: stackKind,
         topOfStack: codeIsTopOfStack
       };
       this.blocks.push(this.currentBlock);
