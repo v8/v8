@@ -113,6 +113,9 @@ void Deserializer::Deserialize(Isolate* isolate) {
         isolate_->heap()->undefined_value());
   }
 
+  // If needed, print the dissassembly of deserialized code objects.
+  PrintDisassembledCodeObjects();
+
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
   LOG_CODE_EVENT(isolate_, LogBytecodeHandlers());
@@ -248,6 +251,26 @@ void Deserializer::DeserializeEmbedderFields(
                                           embedder_fields_deserializer.data);
     delete[] data;
   }
+}
+
+void Deserializer::PrintDisassembledCodeObjects() {
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_builtin_code) {
+    Heap* heap = isolate_->heap();
+    HeapIterator iterator(heap);
+    DisallowHeapAllocation no_gc;
+
+    CodeTracer::Scope tracing_scope(isolate_->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+
+    for (HeapObject* obj = iterator.next(); obj != NULL;
+         obj = iterator.next()) {
+      if (obj->IsCode()) {
+        Code::cast(obj)->Disassemble(nullptr, os);
+      }
+    }
+  }
+#endif
 }
 
 // Used to insert a deserialized internalized string into the string table.
