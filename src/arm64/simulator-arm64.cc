@@ -1962,6 +1962,9 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
   int32_t is_not_exclusive = instr->LoadStoreXNotExclusive();
   int32_t is_load = instr->LoadStoreXLoad();
   int32_t is_pair = instr->LoadStoreXPair();
+  USE(is_acquire_release);
+  USE(is_not_exclusive);
+  USE(is_pair);
   DCHECK_NE(is_acquire_release, 0);
   DCHECK_EQ(is_not_exclusive, 0);  // Non exclusive unimplemented.
   DCHECK_EQ(is_pair, 0);           // Pair unimplemented.
