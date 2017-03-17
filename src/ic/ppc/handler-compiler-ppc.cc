@@ -17,33 +17,13 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
-    MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
-    int accessor_index, int expected_arguments) {
-  // ----------- S t a t e -------------
-  //  -- r3    : receiver
-  //  -- r5    : name
-  //  -- lr    : return address
-  // -----------------------------------
+void NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(
+    MacroAssembler* masm) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-
-    // Save context register
-    __ push(cp);
-
-    if (accessor_index >= 0) {
-      __ push(receiver);
-      __ LoadAccessor(r4, holder, accessor_index, ACCESSOR_GETTER);
-      __ li(r3, Operand::Zero());
-      __ Call(masm->isolate()->builtins()->CallFunction(
-                  ConvertReceiverMode::kNotNullOrUndefined),
-              RelocInfo::CODE_TARGET);
-    } else {
-      // If we generate a global code snippet for deoptimization only, remember
-      // the place to continue after deoptimization.
-      masm->isolate()->heap()->SetGetterStubDeoptPCOffset(masm->pc_offset());
-    }
-
+    // If we generate a global code snippet for deoptimization only, remember
+    // the place to continue after deoptimization.
+    masm->isolate()->heap()->SetGetterStubDeoptPCOffset(masm->pc_offset());
     // Restore context register.
     __ pop(cp);
   }

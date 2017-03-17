@@ -22,6 +22,7 @@ class LoadHandler {
     kGlobal,
     kField,
     kConstant,
+    kAccessor,
     kInterceptor,
     kNonExistent
   };
@@ -104,6 +105,9 @@ class LoadHandler {
 
   // Creates a Smi-handler for loading a constant from fast object.
   static inline Handle<Smi> LoadConstant(Isolate* isolate, int descriptor);
+
+  // Creates a Smi-handler for calling a getter on a fast object.
+  static inline Handle<Smi> LoadAccessor(Isolate* isolate, int descriptor);
 
   // Creates a Smi-handler for loading an Api getter property from fast object.
   static inline Handle<Smi> LoadApiGetter(Isolate* isolate, int descriptor);

@@ -2971,6 +2971,10 @@ Node* CodeStubAssembler::IsPropertyCell(Node* object) {
   return IsPropertyCellMap(LoadMap(object));
 }
 
+Node* CodeStubAssembler::IsAccessorPair(Node* object) {
+  return IsAccessorPairMap(LoadMap(object));
+}
+
 Node* CodeStubAssembler::IsHeapNumber(Node* object) {
   return IsHeapNumberMap(LoadMap(object));
 }
@@ -5061,7 +5065,7 @@ Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
     GotoIf(Word32Equal(LoadInstanceType(accessor_pair),
                        Int32Constant(ACCESSOR_INFO_TYPE)),
            if_bailout);
-    CSA_ASSERT(this, HasInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE));
+    CSA_ASSERT(this, IsAccessorPair(accessor_pair));
     Node* getter = LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
     Node* getter_map = LoadMap(getter);
     Node* instance_type = LoadMapInstanceType(getter_map);

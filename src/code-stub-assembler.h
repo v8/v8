@@ -23,6 +23,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
 #define HEAP_CONSTANT_LIST(V)                         \
   V(AccessorInfoMap, AccessorInfoMap)                 \
+  V(AccessorPairMap, AccessorPairMap)                 \
   V(AllocationSiteMap, AllocationSiteMap)             \
   V(BooleanMap, BooleanMap)                           \
   V(CodeMap, CodeMap)                                 \
@@ -707,6 +708,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsCallable(Node* object);
   Node* IsBoolean(Node* object);
   Node* IsPropertyCell(Node* object);
+  Node* IsAccessorPair(Node* object);
   Node* IsHeapNumber(Node* object);
   Node* IsName(Node* object);
   Node* IsSymbol(Node* object);

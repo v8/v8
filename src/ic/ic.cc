@@ -1330,13 +1330,31 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
           return slow_stub();
         }
 
-        CallOptimization call_optimization(getter);
-        if (call_optimization.is_simple_api_call() &&
-            !call_optimization.IsCompatibleReceiverMap(map, holder)) {
-          return slow_stub();
+        Handle<Smi> smi_handler;
+        if (holder->HasFastProperties()) {
+          CallOptimization call_optimization(getter);
+          if (call_optimization.is_simple_api_call()) {
+            if (!call_optimization.IsCompatibleReceiverMap(map, holder)) {
+              return slow_stub();
+            }
+            break;
+          }
+          smi_handler =
+              LoadHandler::LoadAccessor(isolate(), lookup->GetAccessorIndex());
+
+          if (receiver_is_holder) return smi_handler;
+        } else if (receiver_is_holder && !holder->IsJSGlobalObject()) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
+          return LoadHandler::LoadNormal(isolate());
+        } else if (holder->IsJSGlobalObject()) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobalFromPrototypeDH);
+          smi_handler = LoadHandler::LoadGlobal(isolate());
+        } else {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
+          smi_handler = LoadHandler::LoadNormal(isolate());
         }
 
-        break;
+        return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
       }
 
       Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
@@ -1441,19 +1459,12 @@ Handle<Object> LoadIC::CompileHandler(LookupIterator* lookup,
                             isolate());
       CallOptimization call_optimization(getter);
       NamedLoadHandlerCompiler compiler(isolate(), map, holder);
-      if (call_optimization.is_simple_api_call()) {
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
-        int index = lookup->GetAccessorIndex();
-        Handle<Code> code = compiler.CompileLoadCallback(
-            lookup->name(), call_optimization, index, slow_stub());
-        return code;
-      }
-      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadViaGetter);
-      int expected_arguments = Handle<JSFunction>::cast(getter)
-                                   ->shared()
-                                   ->internal_formal_parameter_count();
-      return compiler.CompileLoadViaGetter(
-          lookup->name(), lookup->GetAccessorIndex(), expected_arguments);
+      DCHECK(call_optimization.is_simple_api_call());
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
+      int index = lookup->GetAccessorIndex();
+      Handle<Code> code = compiler.CompileLoadCallback(
+          lookup->name(), call_optimization, index, slow_stub());
+      return code;
     }
 
     case LookupIterator::INTERCEPTOR:

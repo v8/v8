@@ -42,6 +42,12 @@ Handle<Smi> LoadHandler::LoadConstant(Isolate* isolate, int descriptor) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::LoadAccessor(Isolate* isolate, int descriptor) {
+  int config = KindBits::encode(kAccessor) | IsAccessorInfoBits::encode(false) |
+               DescriptorBits::encode(descriptor);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> LoadHandler::LoadApiGetter(Isolate* isolate, int descriptor) {
   int config = KindBits::encode(kConstant) | IsAccessorInfoBits::encode(true) |
                DescriptorBits::encode(descriptor);

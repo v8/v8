@@ -232,33 +232,12 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   __ ret(0);
 }
 
-void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
-    MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
-    int accessor_index, int expected_arguments) {
-  // ----------- S t a t e -------------
-  //  -- rax    : receiver
-  //  -- rcx    : name
-  //  -- rsp[0] : return address
-  // -----------------------------------
+void NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(
+    MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Save context register
-    __ pushq(rsi);
-
-    if (accessor_index >= 0) {
-      __ Push(receiver);
-      __ LoadAccessor(rdi, holder, accessor_index, ACCESSOR_GETTER);
-      __ Set(rax, 0);
-      __ Call(masm->isolate()->builtins()->CallFunction(
-                  ConvertReceiverMode::kNotNullOrUndefined),
-              RelocInfo::CODE_TARGET);
-    } else {
-      // If we generate a global code snippet for deoptimization only, remember
-      // the place to continue after deoptimization.
-      masm->isolate()->heap()->SetGetterStubDeoptPCOffset(masm->pc_offset());
-    }
-
+    // Remember the place to continue after deoptimization.
+    masm->isolate()->heap()->SetGetterStubDeoptPCOffset(masm->pc_offset());
     // Restore context register.
     __ popq(rsi);
   }

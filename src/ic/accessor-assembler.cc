@@ -297,7 +297,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   }
 
   Label constant(this), field(this), normal(this, Label::kDeferred),
-      interceptor(this, Label::kDeferred), nonexistent(this),
+      interceptor(this, Label::kDeferred), nonexistent(this), accessor(this),
       global(this, Label::kDeferred);
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)), &field);
 
@@ -309,6 +309,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNormal)),
          &normal);
+
+  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kAccessor)),
+         &accessor);
 
   Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kGlobal)), &global,
          &interceptor);
@@ -371,6 +374,29 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
                                          p->context, p->receiver, miss);
       exit_point->Return(value);
     }
+  }
+
+  Bind(&accessor);
+  {
+    Comment("accessor_load");
+    Node* descriptors = LoadMapDescriptors(LoadMap(holder));
+    Node* descriptor = DecodeWord<LoadHandler::DescriptorBits>(handler_word);
+    Node* scaled_descriptor =
+        IntPtrMul(descriptor, IntPtrConstant(DescriptorArray::kEntrySize));
+    Node* value_index =
+        IntPtrAdd(scaled_descriptor,
+                  IntPtrConstant(DescriptorArray::kFirstIndex +
+                                 DescriptorArray::kEntryValueIndex));
+    CSA_ASSERT(this,
+               UintPtrLessThan(descriptor,
+                               LoadAndUntagFixedArrayBaseLength(descriptors)));
+    Node* accessor_pair = LoadFixedArrayElement(descriptors, value_index);
+    CSA_ASSERT(this, IsAccessorPair(accessor_pair));
+    Node* getter = LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
+    CSA_ASSERT(this, Word32BinaryNot(IsTheHole(getter)));
+
+    Callable callable = CodeFactory::Call(isolate());
+    exit_point->Return(CallJS(callable, p->context, getter, p->receiver));
   }
 
   Bind(&global);

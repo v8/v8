@@ -123,16 +123,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                                    const CallOptimization& call_optimization,
                                    int accessor_index, Handle<Code> slow_stub);
 
-  Handle<Code> CompileLoadViaGetter(Handle<Name> name, int accessor_index,
-                                    int expected_arguments);
-
-  static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<Map> map,
-                                    Register receiver, Register holder,
-                                    int accessor_index, int expected_arguments);
-
-  static void GenerateLoadViaGetterForDeopt(MacroAssembler* masm) {
-    GenerateLoadViaGetter(masm, Handle<Map>::null(), no_reg, no_reg, -1, -1);
-  }
+  static void GenerateLoadViaGetterForDeopt(MacroAssembler* masm);
 
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,

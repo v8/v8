@@ -122,14 +122,6 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
   return GetCode(kind(), name);
 }
 
-Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
-    Handle<Name> name, int accessor_index, int expected_arguments) {
-  Register holder = Frontend(name);
-  GenerateLoadViaGetter(masm(), map(), receiver(), holder, accessor_index,
-                        expected_arguments);
-  return GetCode(kind(), name);
-}
-
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
     Handle<JSObject> object, Handle<Name> name, int accessor_index,
     int expected_arguments) {
