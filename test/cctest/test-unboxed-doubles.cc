@@ -1411,7 +1411,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
     obj = factory->NewJSObjectFromMap(map, TENURED);
     CHECK(old_space->Contains(*obj));
 
-    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS);
+    obj_value = factory->NewHeapNumber(0.);
   }
 
   CHECK(heap->InNewSpace(*obj_value));
