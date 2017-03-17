@@ -722,9 +722,12 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   // Force the compilation to finish, even while aborting.
   ASSERT_TRUE(dispatcher.FinishNow(shared));
   ASSERT_TRUE(dispatcher.jobs_.empty());
-  {
+  for (;;) {
     base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
-    ASSERT_FALSE(dispatcher.abort_);
+    if (dispatcher.num_background_tasks_ == 0) {
+      ASSERT_FALSE(dispatcher.abort_);
+      break;
+    }
   }
 
   ASSERT_TRUE(platform.ForegroundTasksPending());
