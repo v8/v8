@@ -6,6 +6,7 @@
 
 #include "src/base/hashmap.h"
 #include "src/deoptimizer.h"
+#include "src/frames-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
@@ -148,6 +149,13 @@ void Coverage::TogglePrecise(Isolate* isolate, bool enable) {
         ArrayList::New(isolate, static_cast<int>(vectors.size()));
     for (const auto& vector : vectors) list = ArrayList::Add(list, vector);
     isolate->SetCodeCoverageList(*list);
+    // Increment count for functions currently on the stack. We won't observe
+    // entry of these functions, but we know they have coverage.
+    for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+      JSFunction* function = it.frame()->function();
+      if (!function->shared()->IsSubjectToDebugging()) continue;
+      function->feedback_vector()->increment_invocation_count();
+    }
   } else {
     isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
   }

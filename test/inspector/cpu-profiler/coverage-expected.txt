@@ -347,3 +347,82 @@ Running test: testBestEffortCoveragePrecise
         ]
     }
 }
+
+Running test: testEnablePreciseCoverageAtPause
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 114
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : g
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 29
+                                startOffset : 1
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : f
+                        ranges : [
+                            [0] : {
+                                count : 4
+                                endOffset : 83
+                                startOffset : 30
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : h
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 107
+                                startOffset : 84
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 5
+            }
+            [1] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 11
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+    }
+}

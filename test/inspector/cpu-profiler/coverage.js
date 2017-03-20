@@ -14,6 +14,21 @@ function fib(x) {
 fib(5);
 `;
 
+var break_source =
+`
+function g() {
+  debugger;
+}
+function f(x) {
+  if (x == 0) g();
+  else f(x - 1);
+}
+function h() {
+  g();
+}
+f(3);
+`;
+
 InspectorTest.log("Test collecting code coverage data with Profiler.collectCoverage.");
 
 function ClearAndGC() {
@@ -113,6 +128,27 @@ InspectorTest.runTestSuite([
       .then(Protocol.Profiler.getBestEffortCoverage)
       .then(LogSorted)
       .then(ClearAndGC)
+      .then(Protocol.Profiler.stopPreciseCoverage)
+      .then(Protocol.Profiler.disable)
+      .then(Protocol.Runtime.disable)
+      .then(next);
+  },
+  function testEnablePreciseCoverageAtPause(next)
+  {
+    function handleDebuggerPause() {
+      Protocol.Profiler.enable()
+          .then(Protocol.Profiler.startPreciseCoverage)
+          .then(Protocol.Debugger.resume)
+    }
+    Protocol.Debugger.enable();
+    Protocol.Debugger.oncePaused().then(handleDebuggerPause);
+    Protocol.Runtime.enable()
+      .then(() => Protocol.Runtime.compileScript({ expression: break_source, sourceURL: "5", persistScript: true }))
+      .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId }))
+      .then(InspectorTest.logMessage)
+      .then(ClearAndGC)
+      .then(Protocol.Profiler.takePreciseCoverage)
+      .then(LogSorted)
       .then(Protocol.Profiler.stopPreciseCoverage)
       .then(Protocol.Profiler.disable)
       .then(Protocol.Runtime.disable)

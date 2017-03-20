@@ -299,6 +299,7 @@ class FeedbackVector : public FixedArray {
   inline FeedbackMetadata* metadata() const;
   inline SharedFunctionInfo* shared_function_info() const;
   inline int invocation_count() const;
+  inline void increment_invocation_count();
   inline void clear_invocation_count();
 
   // Conversion from a slot to an integer index to the underlying array.
