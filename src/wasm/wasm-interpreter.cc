@@ -1006,11 +1006,13 @@ class ThreadImpl {
   WasmInterpreter::State Run() {
     DCHECK(state_ == WasmInterpreter::STOPPED ||
            state_ == WasmInterpreter::PAUSED);
+    // Execute in chunks of {kRunSteps} steps as long as we did not trap or
+    // unwind.
     do {
       TRACE("  => Run()\n");
       state_ = WasmInterpreter::RUNNING;
       Execute(frames_.back().code, frames_.back().pc, kRunSteps);
-    } while (state_ == WasmInterpreter::STOPPED);
+    } while (state_ == WasmInterpreter::STOPPED && !frames_.empty());
     return state_;
   }
 
@@ -1070,6 +1072,22 @@ class ThreadImpl {
   void AddBreakFlags(uint8_t flags) { break_flags_ |= flags; }
 
   void ClearBreakFlags() { break_flags_ = WasmInterpreter::BreakFlag::None; }
+
+  // Handle a thrown exception. Returns whether the exception was handled inside
+  // wasm. Unwinds the interpreted stack accordingly.
+  WasmInterpreter::Thread::ExceptionHandlingResult HandleException(
+      Isolate* isolate) {
+    DCHECK(isolate->has_pending_exception());
+    // TODO(wasm): Add wasm exception handling.
+    USE(isolate->pending_exception());
+    TRACE("----- UNWIND -----\n");
+    // TODO(clemensh): Only clear the portion of the stack belonging to the
+    // current activation of the interpreter.
+    stack_.clear();
+    frames_.clear();
+    state_ = WasmInterpreter::STOPPED;
+    return WasmInterpreter::Thread::UNWOUND;
+  }
 
  private:
   // Entries on the stack of functions being evaluated.
@@ -1466,7 +1484,7 @@ class ThreadImpl {
           InterpreterCode* target = codemap()->GetCode(operand.index);
           if (target->function->imported) {
             CommitPc(pc);
-            CallImportedFunction(operand.index);
+            if (!CallImportedFunction(operand.index)) return;
             PAUSE_IF_BREAK_FLAG(AfterCall);
             len = 1 + operand.length;
             break;  // bump pc
@@ -1814,7 +1832,11 @@ class ThreadImpl {
 #endif  // DEBUG
   }
 
-  void CallImportedFunction(uint32_t function_index) {
+  // Call imported function. Return true if the function returned normally or a
+  // thrown exception was handled inside this wasm activation. Returns false if
+  // the stack was fully unwound. A pending exception will be set in the latter
+  // case.
+  bool CallImportedFunction(uint32_t function_index) {
     Handle<HeapObject> target = codemap()->GetImportedFunction(function_index);
     if (target.is_null()) {
       // The function does not have a js-compatible signature.
@@ -1847,9 +1869,10 @@ class ThreadImpl {
     MaybeHandle<Object> maybe_retval = Execution::Call(
         isolate, target, isolate->global_proxy(), num_args, args.data());
     if (maybe_retval.is_null()) {
-      // TODO(clemensh): Exception handling here.
-      UNIMPLEMENTED();
+      auto result = HandleException(isolate);
+      return result == WasmInterpreter::Thread::HANDLED;
     }
+
     Handle<Object> retval = maybe_retval.ToHandleChecked();
     // TODO(clemensh): Call ToNumber on retval.
     // Pop arguments of the stack.
@@ -1859,6 +1882,7 @@ class ThreadImpl {
       DCHECK_EQ(1, called_fun->sig->return_count());
       stack_.push_back(NumberToWasmVal(retval, called_fun->sig->GetReturn()));
     }
+    return true;
   }
 };
 
@@ -1895,6 +1919,10 @@ WasmInterpreter::State WasmInterpreter::Thread::Step() {
 }
 void WasmInterpreter::Thread::Pause() { return ToImpl(this)->Pause(); }
 void WasmInterpreter::Thread::Reset() { return ToImpl(this)->Reset(); }
+WasmInterpreter::Thread::ExceptionHandlingResult
+WasmInterpreter::Thread::HandleException(Isolate* isolate) {
+  return ToImpl(this)->HandleException(isolate);
+}
 pc_t WasmInterpreter::Thread::GetBreakpointPc() {
   return ToImpl(this)->GetBreakpointPc();
 }

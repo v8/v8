@@ -487,6 +487,10 @@ class WasmDebugInfo : public FixedArray {
   std::unique_ptr<wasm::InterpretedFrame> GetInterpretedFrame(
       Address frame_pointer, int idx);
 
+  // Unwind the interpreted stack belonging to the passed interpreter entry
+  // frame.
+  void Unwind(Address frame_pointer);
+
   // Returns the number of calls / function frames executed in the interpreter.
   uint64_t NumInterpretedCalls();
 

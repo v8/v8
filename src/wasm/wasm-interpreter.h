@@ -113,11 +113,11 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //                       +---------------Run()-----------+
   //                       V                               |
   // STOPPED ---Run()-->  RUNNING  ------Pause()-----+-> PAUSED  <------+
-  //                       | | |                    /      |            |
-  //                       | | +---- Breakpoint ---+       +-- Step() --+
-  //                       | |
-  //                       | +------------ Trap --------------> TRAPPED
-  //                       +------------- Finish -------------> FINISHED
+  //  ^                   | | | |                   /      |            |
+  //  +- HandleException -+ | | +--- Breakpoint ---+       +-- Step() --+
+  //                        | |
+  //                        | +---------- Trap --------------> TRAPPED
+  //                        +----------- Finish -------------> FINISHED
   enum State { STOPPED, RUNNING, PAUSED, FINISHED, TRAPPED };
 
   // Tells a thread to pause after certain instructions.
@@ -134,6 +134,8 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     Thread() = delete;
 
    public:
+    enum ExceptionHandlingResult { HANDLED, UNWOUND };
+
     // Execution control.
     State state();
     void InitFrame(const WasmFunction* function, WasmVal* args);
@@ -141,6 +143,9 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     State Step();
     void Pause();
     void Reset();
+    // Handle the pending exception in the passed isolate. Unwind the stack
+    // accordingly. Return whether the exception was handled inside wasm.
+    ExceptionHandlingResult HandleException(Isolate* isolate);
 
     // Stack inspection and modification.
     pc_t GetBreakpointPc();

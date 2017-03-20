@@ -154,9 +154,7 @@ class InterpreterHandle {
     WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
     // We do not support reentering an already running interpreter at the moment
     // (like INTERPRETER -> JS -> WASM -> INTERPRETER).
-    DCHECK(thread->state() == WasmInterpreter::STOPPED ||
-           thread->state() == WasmInterpreter::FINISHED ||
-           thread->state() == WasmInterpreter::TRAPPED);
+    DCHECK_EQ(0, thread->GetFrameCount());
     thread->Reset();
     thread->InitFrame(&module()->functions[func_index], wasm_args.start());
     bool finished = false;
@@ -180,8 +178,11 @@ class InterpreterHandle {
           // And hard exit the execution.
           return false;
         } break;
-        // STOPPED and RUNNING should never occur here.
         case WasmInterpreter::State::STOPPED:
+          // Then an exception happened, and the stack was unwound.
+          DCHECK_EQ(0, thread->GetFrameCount());
+          return false;
+        // RUNNING should never occur here.
         case WasmInterpreter::State::RUNNING:
         default:
           UNREACHABLE();
@@ -327,6 +328,17 @@ class InterpreterHandle {
     WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
     return std::unique_ptr<wasm::InterpretedFrame>(
         new wasm::InterpretedFrame(thread->GetMutableFrame(idx)));
+  }
+
+  void Unwind(Address frame_pointer) {
+    // TODO(clemensh): Use frame_pointer.
+    USE(frame_pointer);
+
+    using ExceptionResult = WasmInterpreter::Thread::ExceptionHandlingResult;
+    ExceptionResult result =
+        interpreter()->GetThread(0)->HandleException(isolate_);
+    // TODO(wasm): Handle exceptions caught in wasm land.
+    CHECK_EQ(ExceptionResult::UNWOUND, result);
   }
 
   uint64_t NumInterpretedCalls() {
@@ -496,6 +508,10 @@ std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(
 std::unique_ptr<wasm::InterpretedFrame> WasmDebugInfo::GetInterpretedFrame(
     Address frame_pointer, int idx) {
   return GetInterpreterHandle(this)->GetInterpretedFrame(frame_pointer, idx);
+}
+
+void WasmDebugInfo::Unwind(Address frame_pointer) {
+  return GetInterpreterHandle(this)->Unwind(frame_pointer);
 }
 
 uint64_t WasmDebugInfo::NumInterpretedCalls() {

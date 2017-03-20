@@ -1341,13 +1341,14 @@ Object* Isolate::UnwindAndFindHandler() {
         }
         break;
 
-      case StackFrame::WASM_INTERPRETER_ENTRY:
-        // TODO(clemensh): Handle unwinding interpreted wasm frames (stored in
-        // the WasmInterpreter C++ object).
+      case StackFrame::WASM_INTERPRETER_ENTRY: {
         if (trap_handler::IsThreadInWasm()) {
           trap_handler::ClearThreadInWasm();
         }
-        break;
+        WasmInterpreterEntryFrame* interpreter_frame =
+            WasmInterpreterEntryFrame::cast(frame);
+        interpreter_frame->wasm_instance()->debug_info()->Unwind(frame->fp());
+      } break;
 
       default:
         // All other types can not handle exception.

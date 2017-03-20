@@ -108,3 +108,34 @@ function checkStack(stack, expected_lines) {
     ]);
   }
 })();
+
+(function testThrowFromImport() {
+  function func() {
+    throw new Error('thrown from imported function');
+  }
+  var builder = new WasmModuleBuilder();
+  builder.addImport("mod", "func", kSig_v_v);
+  builder.addFunction('main', kSig_v_v)
+      .addBody([kExprCallFunction, 0])
+      .exportFunc();
+  var instance = builder.instantiate({mod: {func: func}});
+  // Test that this does not mess up internal state by executing it three times.
+  for (var i = 0; i < 3; ++i) {
+    var interpreted_before = % WasmNumInterpretedCalls(instance);
+    var stack;
+    try {
+      instance.exports.main();
+      assertUnreachable();
+    } catch (e) {
+      stack = e.stack;
+    }
+    assertEquals(interpreted_before + 1, % WasmNumInterpretedCalls(instance));
+    checkStack(stripPath(stack), [
+      'Error: thrown from imported function',                   // -
+      /^    at func \(interpreter.js:\d+:11\)$/,                // -
+      '    at main (<WASM>[1]+1)',                              // -
+      /^    at testThrowFromImport \(interpreter.js:\d+:24\)/,  // -
+      /^    at interpreter.js:\d+:3$/
+    ]);
+  }
+})();
