@@ -333,7 +333,9 @@ var failWithMessage;
 
   assertEqualsDelta =
       function assertEqualsDelta(expected, found, delta, name_opt) {
-    assertTrue(Math.abs(expected - found) <= delta, name_opt);
+    if (Math.abs(expected - found) > delta) {
+      fail(PrettyPrint(expected) + " +- " + PrettyPrint(delta), found, name_opt);
+    }
   };
 
 
