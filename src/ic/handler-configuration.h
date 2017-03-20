@@ -191,32 +191,30 @@ class StoreHandler {
   static const int kFirstPrototypeIndex = 3;
 
   // Creates a Smi-handler for storing a field to fast object.
-  static inline Handle<Object> StoreField(Isolate* isolate, int descriptor,
-                                          FieldIndex field_index,
-                                          PropertyConstness constness,
-                                          Representation representation);
+  static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,
+                                       FieldIndex field_index,
+                                       PropertyConstness constness,
+                                       Representation representation);
 
   // Creates a Smi-handler for storing a property to a slow object.
-  static inline Handle<Object> StoreNormal(Isolate* isolate);
+  static inline Handle<Smi> StoreNormal(Isolate* isolate);
 
   // Creates a Smi-handler for transitioning store to a field.
-  static inline Handle<Object> TransitionToField(Isolate* isolate,
-                                                 int descriptor,
-                                                 FieldIndex field_index,
-                                                 Representation representation,
-                                                 bool extend_storage);
+  static inline Handle<Smi> TransitionToField(Isolate* isolate, int descriptor,
+                                              FieldIndex field_index,
+                                              Representation representation,
+                                              bool extend_storage);
 
   // Creates a Smi-handler for transitioning store to a constant field (in this
   // case the only thing that needs to be done is an update of a map).
-  static inline Handle<Object> TransitionToConstant(Isolate* isolate,
-                                                    int descriptor);
+  static inline Handle<Smi> TransitionToConstant(Isolate* isolate,
+                                                 int descriptor);
 
  private:
-  static inline Handle<Object> StoreField(Isolate* isolate, Kind kind,
-                                          int descriptor,
-                                          FieldIndex field_index,
-                                          Representation representation,
-                                          bool extend_storage);
+  static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,
+                                       int descriptor, FieldIndex field_index,
+                                       Representation representation,
+                                       bool extend_storage);
 };
 
 }  // namespace internal

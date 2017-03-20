@@ -2960,7 +2960,7 @@ Node* CodeStubAssembler::IsJSArray(Node* object) {
 }
 
 Node* CodeStubAssembler::IsWeakCell(Node* object) {
-  return HasInstanceType(object, WEAK_CELL_TYPE);
+  return IsWeakCellMap(LoadMap(object));
 }
 
 Node* CodeStubAssembler::IsBoolean(Node* object) {

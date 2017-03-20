@@ -90,7 +90,6 @@ class Node;
   V(StringAdd)                                \
   V(GetProperty)                              \
   V(StoreFastElement)                         \
-  V(StoreGlobal)                              \
   V(StoreInterceptor)                         \
   V(LoadIndexedInterceptor)                   \
   V(GrowArrayElements)
@@ -893,49 +892,6 @@ class KeyedStoreSloppyArgumentsStub : public TurboFanCodeStub {
  protected:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(KeyedStoreSloppyArguments, TurboFanCodeStub);
-};
-
-class StoreGlobalStub : public TurboFanCodeStub {
- public:
-  StoreGlobalStub(Isolate* isolate, PropertyCellType type,
-                  Maybe<PropertyCellConstantType> constant_type)
-      : TurboFanCodeStub(isolate) {
-    PropertyCellConstantType encoded_constant_type =
-        constant_type.FromMaybe(PropertyCellConstantType::kSmi);
-    minor_key_ = CellTypeBits::encode(type) |
-                 ConstantTypeBits::encode(encoded_constant_type);
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
-
-  static Handle<HeapObject> property_cell_placeholder(Isolate* isolate) {
-    return isolate->factory()->uninitialized_value();
-  }
-
-  Handle<Code> GetCodeCopyFromTemplate(Handle<PropertyCell> cell) {
-    FindAndReplacePattern pattern;
-    pattern.Add(handle(property_cell_placeholder(isolate())->map()),
-                isolate()->factory()->NewWeakCell(cell));
-    return CodeStub::GetCodeCopy(pattern);
-  }
-
-  PropertyCellType cell_type() const {
-    return CellTypeBits::decode(minor_key_);
-  }
-
-  PropertyCellConstantType constant_type() const {
-    DCHECK(PropertyCellType::kConstantType == cell_type());
-    return ConstantTypeBits::decode(minor_key_);
-  }
-
- private:
-  class CellTypeBits : public BitField<PropertyCellType, 0, 2> {};
-  class ConstantTypeBits
-      : public BitField<PropertyCellConstantType, CellTypeBits::kNext, 2> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreGlobal, TurboFanCodeStub);
 };
 
 class CallApiCallbackStub : public PlatformCodeStub {
