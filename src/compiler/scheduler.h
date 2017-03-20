@@ -29,12 +29,12 @@ class SpecialRPONumberer;
 class V8_EXPORT_PRIVATE Scheduler {
  public:
   // Flags that control the mode of operation.
-  enum Flag { kNoFlags = 0u, kSplitNodes = 1u << 1 };
+  enum Flag { kNoFlags = 0u, kSplitNodes = 1u << 1, kTempSchedule = 1u << 2 };
   typedef base::Flags<Flag> Flags;
 
   // The complete scheduling algorithm. Creates a new schedule and places all
   // nodes from the graph into it.
-  static Schedule* ComputeSchedule(Zone* zone, Graph* graph, Flags flags);
+  static Schedule* ComputeSchedule(Zone* temp_zone, Graph* graph, Flags flags);
 
   // Compute the RPO of blocks in an existing schedule.
   static BasicBlockVector* ComputeSpecialRPO(Zone* zone, Schedule* schedule);

@@ -37,8 +37,10 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags)
 
 
 Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags) {
-  Schedule* schedule = new (graph->zone())
-      Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
+  Zone* schedule_zone =
+      (flags & Scheduler::kTempSchedule) ? zone : graph->zone();
+  Schedule* schedule = new (schedule_zone)
+      Schedule(schedule_zone, static_cast<size_t>(graph->NodeCount()));
   Scheduler scheduler(zone, graph, schedule, flags);
 
   scheduler.BuildCFG();

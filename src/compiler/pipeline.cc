@@ -1074,7 +1074,7 @@ struct EffectControlLinearizationPhase {
     // effects (such as changing representation to tagged or
     // 'floating' allocation regions.)
     Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
-                                                    Scheduler::kNoFlags);
+                                                    Scheduler::kTempSchedule);
     if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
     TraceSchedule(data->info(), schedule);
 

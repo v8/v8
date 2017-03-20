@@ -148,8 +148,8 @@ void RemoveRegionNode(Node* node) {
   node->Kill();
 }
 
-void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
-                    CommonOperatorBuilder* common,
+void TryCloneBranch(Node* node, BasicBlock* block, Zone* temp_zone,
+                    Graph* graph, CommonOperatorBuilder* common,
                     BlockEffectControlMap* block_effects,
                     SourcePositionTable* source_positions) {
   DCHECK_EQ(IrOpcode::kBranch, node->opcode());
@@ -216,7 +216,7 @@ void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
   // Grab the IfTrue/IfFalse projections of the Branch.
   BranchMatcher matcher(branch);
   // Check/collect other Phi/EffectPhi nodes hanging off the Merge.
-  NodeVector phis(graph->zone());
+  NodeVector phis(temp_zone);
   for (Node* const use : merge->uses()) {
     if (use == branch || use == cond) continue;
     // We cannot currently deal with non-Phi/EffectPhi nodes hanging off the
@@ -456,8 +456,8 @@ void EffectControlLinearizer::Run() {
 
       case BasicBlock::kBranch:
         ProcessNode(block->control_input(), &frame_state, &effect, &control);
-        TryCloneBranch(block->control_input(), block, graph(), common(),
-                       &block_effects, source_positions_);
+        TryCloneBranch(block->control_input(), block, temp_zone(), graph(),
+                       common(), &block_effects, source_positions_);
         break;
     }
 
