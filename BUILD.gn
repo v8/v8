@@ -473,6 +473,7 @@ config("toolchain") {
       "/wd4702",  # Unreachable code.
       "/wd4703",  # Potentially uninitialized local pointer variable.
       "/wd4709",  # Comma operator within array index expr (bugged).
+      "/wd4714",  # Function marked forceinline not inlined.
       "/wd4718",  # Recursive call has no side-effect.
       "/wd4800",  # Forcing value to bool.
     ]
