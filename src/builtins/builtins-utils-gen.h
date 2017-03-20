@@ -5,6 +5,8 @@
 #ifndef V8_BUILTINS_BUILTINS_UTILS_GEN_H_
 #define V8_BUILTINS_BUILTINS_UTILS_GEN_H_
 
+#include "src/builtins/builtins-descriptors.h"
+
 namespace v8 {
 namespace internal {
 
@@ -27,6 +29,8 @@ class CodeAssemblerState;
 #define TF_BUILTIN(Name, AssemblerBase)                                 \
   class Name##Assembler : public AssemblerBase {                        \
    public:                                                              \
+    typedef Builtin_##Name##_InterfaceDescriptor Descriptor;            \
+                                                                        \
     explicit Name##Assembler(compiler::CodeAssemblerState* state)       \
         : AssemblerBase(state) {}                                       \
     void Generate##Name##Impl();                                        \

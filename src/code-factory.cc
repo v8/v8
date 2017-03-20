@@ -5,6 +5,7 @@
 #include "src/code-factory.h"
 
 #include "src/bootstrapper.h"
+#include "src/builtins/builtins-descriptors.h"
 #include "src/ic/ic.h"
 #include "src/objects-inl.h"
 
@@ -223,16 +224,10 @@ Callable CodeFactory::StringFromCharCode(Isolate* isolate) {
   return Callable(code, BuiltinDescriptor(isolate));
 }
 
-#define DECLARE_TFS(Name, Kind, Extra, InterfaceDescriptor, result_size) \
-  typedef InterfaceDescriptor##Descriptor Name##Descriptor;
-BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TFS,
-             IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
-#undef DECLARE_TFS
-
-#define TFS_BUILTIN(Name)                             \
-  Callable CodeFactory::Name(Isolate* isolate) {      \
-    Handle<Code> code(isolate->builtins()->Name());   \
-    return Callable(code, Name##Descriptor(isolate)); \
+#define TFS_BUILTIN(Name)                                                 \
+  Callable CodeFactory::Name(Isolate* isolate) {                          \
+    Handle<Code> code(isolate->builtins()->Name());                       \
+    return Callable(code, Builtin_##Name##_InterfaceDescriptor(isolate)); \
   }
 
 TFS_BUILTIN(ToString)
@@ -274,6 +269,9 @@ TFS_BUILTIN(NewUnmappedArgumentsElements)
 TFS_BUILTIN(FastCloneRegExp)
 TFS_BUILTIN(FastNewClosure)
 TFS_BUILTIN(FastNewObject)
+TFS_BUILTIN(FastNewRestParameter)
+TFS_BUILTIN(FastNewSloppyArguments)
+TFS_BUILTIN(FastNewStrictArguments)
 TFS_BUILTIN(ForInFilter)
 TFS_BUILTIN(GetSuperConstructor)
 TFS_BUILTIN(LoadIC_Uninitialized)
@@ -367,24 +365,6 @@ Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
                                              ScopeType scope_type) {
   return Callable(isolate->builtins()->NewFunctionContext(scope_type),
                   FastNewFunctionContextDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::FastNewRestParameter(Isolate* isolate) {
-  return Callable(isolate->builtins()->FastNewRestParameter(),
-                  FastNewRestParameterDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::FastNewSloppyArguments(Isolate* isolate) {
-  return Callable(isolate->builtins()->FastNewSloppyArguments(),
-                  FastNewRestParameterDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::FastNewStrictArguments(Isolate* isolate) {
-  return Callable(isolate->builtins()->FastNewStrictArguments(),
-                  FastNewRestParameterDescriptor(isolate));
 }
 
 // static

@@ -22,6 +22,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       const char* name, const BuiltinResultGenerator& generator,
       const CallResultProcessor& processor,
       const Callable& slow_case_continuation) {
+    // TODO(ishell): use constants from Descriptor once the JSFunction linkage
+    // arguments are reordered.
     Node* receiver = Parameter(IteratingArrayBuiltinDescriptor::kReceiver);
     Node* callbackfn = Parameter(IteratingArrayBuiltinDescriptor::kCallback);
     Node* this_arg = Parameter(IteratingArrayBuiltinDescriptor::kThisArg);
@@ -108,6 +110,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
   void GenerateIteratingArrayBuiltinLoopContinuation(
       const CallResultProcessor& processor) {
+    // TODO(ishell): use constants from Descriptor once the JSFunction linkage
+    // arguments are reordered.
     Node* callbackfn =
         Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kCallback);
     Node* this_arg =
@@ -318,6 +322,8 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   Label double_transition(this);
   Label runtime(this, Label::kDeferred);
 
+  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
+  // arguments are reordered.
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
@@ -510,8 +516,8 @@ TF_BUILTIN(ArrayEvery, ArrayBuiltinCodeStubAssembler) {
 }
 
 TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {
-  Node* object = Parameter(1);
-  Node* context = Parameter(4);
+  Node* object = Parameter(Descriptor::kArg);
+  Node* context = Parameter(Descriptor::kContext);
 
   Label call_runtime(this), return_true(this), return_false(this);
 
@@ -536,10 +542,10 @@ TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
-  Node* const array = Parameter(0);
-  Node* const search_element = Parameter(1);
-  Node* const start_from = Parameter(2);
-  Node* const context = Parameter(3 + 2);
+  Node* const array = Parameter(Descriptor::kReceiver);
+  Node* const search_element = Parameter(Descriptor::kSearchElement);
+  Node* const start_from = Parameter(Descriptor::kFromIndex);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Variable index_var(this, MachineType::PointerRepresentation());
 
@@ -825,10 +831,10 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
-  Node* array = Parameter(0);
-  Node* search_element = Parameter(1);
-  Node* start_from = Parameter(2);
-  Node* context = Parameter(3 + 2);
+  Node* array = Parameter(Descriptor::kReceiver);
+  Node* search_element = Parameter(Descriptor::kSearchElement);
+  Node* start_from = Parameter(Descriptor::kFromIndex);
+  Node* context = Parameter(Descriptor::kContext);
 
   Node* intptr_zero = IntPtrConstant(0);
   Node* intptr_one = IntPtrConstant(1);
@@ -1095,10 +1101,8 @@ class ArrayPrototypeIterationAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  void Generate_ArrayPrototypeIterationMethod(IterationKind iteration_kind) {
-    Node* receiver = Parameter(0);
-    Node* context = Parameter(3);
-
+  void Generate_ArrayPrototypeIterationMethod(Node* context, Node* receiver,
+                                              IterationKind iteration_kind) {
     Variable var_array(this, MachineRepresentation::kTagged);
     Variable var_map(this, MachineRepresentation::kTagged);
     Variable var_type(this, MachineRepresentation::kWord32);
@@ -1130,23 +1134,32 @@ class ArrayPrototypeIterationAssembler : public CodeStubAssembler {
 };
 
 TF_BUILTIN(ArrayPrototypeValues, ArrayPrototypeIterationAssembler) {
-  Generate_ArrayPrototypeIterationMethod(IterationKind::kValues);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_ArrayPrototypeIterationMethod(context, receiver,
+                                         IterationKind::kValues);
 }
 
 TF_BUILTIN(ArrayPrototypeEntries, ArrayPrototypeIterationAssembler) {
-  Generate_ArrayPrototypeIterationMethod(IterationKind::kEntries);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_ArrayPrototypeIterationMethod(context, receiver,
+                                         IterationKind::kEntries);
 }
 
 TF_BUILTIN(ArrayPrototypeKeys, ArrayPrototypeIterationAssembler) {
-  Generate_ArrayPrototypeIterationMethod(IterationKind::kKeys);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_ArrayPrototypeIterationMethod(context, receiver,
+                                         IterationKind::kKeys);
 }
 
 TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   Handle<String> operation = factory()->NewStringFromAsciiChecked(
       "Array Iterator.prototype.next", TENURED);
 
-  Node* iterator = Parameter(0);
-  Node* context = Parameter(3);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* iterator = Parameter(Descriptor::kReceiver);
 
   Variable var_value(this, MachineRepresentation::kTagged);
   Variable var_done(this, MachineRepresentation::kTagged);

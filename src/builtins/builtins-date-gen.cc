@@ -18,13 +18,13 @@ class DateBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  void Generate_DatePrototype_GetField(int field_index);
+  void Generate_DatePrototype_GetField(Node* context, Node* receiver,
+                                       int field_index);
 };
 
-void DateBuiltinsAssembler::Generate_DatePrototype_GetField(int field_index) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
-
+void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
+                                                            Node* receiver,
+                                                            int field_index) {
   Label receiver_not_date(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(receiver), &receiver_not_date);
@@ -68,85 +68,123 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(int field_index) {
 }
 
 TF_BUILTIN(DatePrototypeGetDate, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kDay);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kDay);
 }
 
 TF_BUILTIN(DatePrototypeGetDay, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kWeekday);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kWeekday);
 }
 
 TF_BUILTIN(DatePrototypeGetFullYear, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kYear);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kYear);
 }
 
 TF_BUILTIN(DatePrototypeGetHours, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kHour);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kHour);
 }
 
 TF_BUILTIN(DatePrototypeGetMilliseconds, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kMillisecond);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kMillisecond);
 }
 
 TF_BUILTIN(DatePrototypeGetMinutes, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kMinute);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kMinute);
 }
 
 TF_BUILTIN(DatePrototypeGetMonth, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kMonth);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kMonth);
 }
 
 TF_BUILTIN(DatePrototypeGetSeconds, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kSecond);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kSecond);
 }
 
 TF_BUILTIN(DatePrototypeGetTime, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kDateValue);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kDateValue);
 }
 
 TF_BUILTIN(DatePrototypeGetTimezoneOffset, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kTimezoneOffset);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kTimezoneOffset);
 }
 
 TF_BUILTIN(DatePrototypeGetUTCDate, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kDayUTC);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kDayUTC);
 }
 
 TF_BUILTIN(DatePrototypeGetUTCDay, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kWeekdayUTC);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kWeekdayUTC);
 }
 
 TF_BUILTIN(DatePrototypeGetUTCFullYear, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kYearUTC);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kYearUTC);
 }
 
 TF_BUILTIN(DatePrototypeGetUTCHours, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kHourUTC);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kHourUTC);
 }
 
 TF_BUILTIN(DatePrototypeGetUTCMilliseconds, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kMillisecondUTC);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kMillisecondUTC);
 }
 
 TF_BUILTIN(DatePrototypeGetUTCMinutes, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kMinuteUTC);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kMinuteUTC);
 }
 
 TF_BUILTIN(DatePrototypeGetUTCMonth, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kMonthUTC);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kMonthUTC);
 }
 
 TF_BUILTIN(DatePrototypeGetUTCSeconds, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kSecondUTC);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kSecondUTC);
 }
 
 TF_BUILTIN(DatePrototypeValueOf, DateBuiltinsAssembler) {
-  Generate_DatePrototype_GetField(JSDate::kDateValue);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Generate_DatePrototype_GetField(context, receiver, JSDate::kDateValue);
 }
 
 TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* hint = Parameter(1);
-  Node* context = Parameter(4);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* hint = Parameter(Descriptor::kHint);
 
   // Check if the {receiver} is actually a JSReceiver.
   Label receiver_is_invalid(this, Label::kDeferred);

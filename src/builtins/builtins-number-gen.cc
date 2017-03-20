@@ -34,7 +34,7 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
 
   template <Signedness signed_result = kSigned>
   void BitwiseShiftOp(std::function<Node*(Node* lhs, Node* shift_count)> body) {
-    BitwiseOp<signed_result>([this, body](Node* lhs, Node* rhs) {
+    BitwiseOp<signed_result>([=](Node* lhs, Node* rhs) {
       Node* shift_count = Word32And(rhs, Int32Constant(0x1f));
       return body(lhs, shift_count);
     });
@@ -49,9 +49,9 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
   }
 };
 
-// ES6 section 20.1.2.2 Number.isFinite ( number )
+// ES6 #sec-number.isfinite
 TF_BUILTIN(NumberIsFinite, CodeStubAssembler) {
-  Node* number = Parameter(1);
+  Node* number = Parameter(Descriptor::kNumber);
 
   Label return_true(this), return_false(this);
 
@@ -73,9 +73,9 @@ TF_BUILTIN(NumberIsFinite, CodeStubAssembler) {
   Return(BooleanConstant(false));
 }
 
-// ES6 section 20.1.2.3 Number.isInteger ( number )
+// ES6 #sec-number.isinteger
 TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
-  Node* number = Parameter(1);
+  Node* number = Parameter(Descriptor::kNumber);
 
   Label return_true(this), return_false(this);
 
@@ -102,9 +102,9 @@ TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
   Return(BooleanConstant(false));
 }
 
-// ES6 section 20.1.2.4 Number.isNaN ( number )
+// ES6 #sec-number.isnan
 TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
-  Node* number = Parameter(1);
+  Node* number = Parameter(Descriptor::kNumber);
 
   Label return_true(this), return_false(this);
 
@@ -125,9 +125,9 @@ TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
   Return(BooleanConstant(false));
 }
 
-// ES6 section 20.1.2.5 Number.isSafeInteger ( number )
+// ES6 #sec-number.issafeinteger
 TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
-  Node* number = Parameter(1);
+  Node* number = Parameter(Descriptor::kNumber);
 
   Label return_true(this), return_false(this);
 
@@ -160,14 +160,14 @@ TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
   Return(BooleanConstant(false));
 }
 
-// ES6 section 20.1.2.12 Number.parseFloat ( string )
+// ES6 #sec-number.parsefloat
 TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
-  Node* context = Parameter(4);
+  Node* context = Parameter(Descriptor::kContext);
 
   // We might need to loop once for ToString conversion.
-  Variable var_input(this, MachineRepresentation::kTagged);
+  Variable var_input(this, MachineRepresentation::kTagged,
+                     Parameter(Descriptor::kString));
   Label loop(this, &var_input);
-  var_input.Bind(Parameter(1));
   Goto(&loop);
   Bind(&loop);
   {
@@ -255,11 +255,11 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
   }
 }
 
-// ES6 section 20.1.2.13 Number.parseInt ( string, radix )
+// ES6 #sec-number.parseint
 TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
-  Node* input = Parameter(1);
-  Node* radix = Parameter(2);
-  Node* context = Parameter(5);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kString);
+  Node* radix = Parameter(Descriptor::kRadix);
 
   // Check if {radix} is treated as 10 (i.e. undefined, 0 or 10).
   Label if_radix10(this), if_generic(this, Label::kDeferred);
@@ -332,10 +332,10 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
   }
 }
 
-// ES6 section 20.1.3.7 Number.prototype.valueOf ( )
+// ES6 #sec-number.prototype.valueof
 TF_BUILTIN(NumberPrototypeValueOf, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
 
   Node* result = ToThisValue(context, receiver, PrimitiveType::kNumber,
                              "Number.prototype.valueOf");
@@ -343,9 +343,9 @@ TF_BUILTIN(NumberPrototypeValueOf, CodeStubAssembler) {
 }
 
 TF_BUILTIN(Add, CodeStubAssembler) {
-  Node* left = Parameter(0);
-  Node* right = Parameter(1);
-  Node* context = Parameter(2);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
 
   // Shared entry for floating point addition.
   Label do_fadd(this);
@@ -686,9 +686,9 @@ TF_BUILTIN(Add, CodeStubAssembler) {
 }
 
 TF_BUILTIN(Subtract, CodeStubAssembler) {
-  Node* left = Parameter(0);
-  Node* right = Parameter(1);
-  Node* context = Parameter(2);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
 
   // Shared entry for floating point subtraction.
   Label do_fsub(this), end(this);
@@ -845,9 +845,9 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
 }
 
 TF_BUILTIN(Multiply, CodeStubAssembler) {
-  Node* left = Parameter(0);
-  Node* right = Parameter(1);
-  Node* context = Parameter(2);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
 
   // Shared entry point for floating point multiplication.
   Label do_fmul(this), return_result(this);
@@ -982,9 +982,9 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
 }
 
 TF_BUILTIN(Divide, CodeStubAssembler) {
-  Node* left = Parameter(0);
-  Node* right = Parameter(1);
-  Node* context = Parameter(2);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
 
   // Shared entry point for floating point division.
   Label do_fdiv(this), end(this);
@@ -1177,9 +1177,9 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
 }
 
 TF_BUILTIN(Modulus, CodeStubAssembler) {
-  Node* left = Parameter(0);
-  Node* right = Parameter(1);
-  Node* context = Parameter(2);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
 
   Variable var_result(this, MachineRepresentation::kTagged);
   Label return_result(this, &var_result);

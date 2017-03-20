@@ -12,10 +12,10 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // ES6 section 19.3 Boolean Objects
 
-// ES6 section 19.3.3.2 Boolean.prototype.toString ( )
+// ES6 #sec-boolean.prototype.tostring
 TF_BUILTIN(BooleanPrototypeToString, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
 
   Node* value = ToThisValue(context, receiver, PrimitiveType::kBoolean,
                             "Boolean.prototype.toString");
@@ -23,10 +23,10 @@ TF_BUILTIN(BooleanPrototypeToString, CodeStubAssembler) {
   Return(result);
 }
 
-// ES6 section 19.3.3.3 Boolean.prototype.valueOf ( )
+// ES6 #sec-boolean.prototype.valueof
 TF_BUILTIN(BooleanPrototypeValueOf, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
 
   Node* result = ToThisValue(context, receiver, PrimitiveType::kBoolean,
                              "Boolean.prototype.valueOf");

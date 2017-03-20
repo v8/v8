@@ -137,7 +137,7 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   code = BuildAdaptor(isolate, FUNCTION_ADDR(Builtin_##Name), EXIT, \
                       kBuiltinFlags, #Name);                        \
   builtins_[index++] = code;
-#define BUILD_TFJ(Name, Argc)                                          \
+#define BUILD_TFJ(Name, Argc, ...)                                     \
   code = BuildWithCodeStubAssemblerJS(isolate, &Generate_##Name, Argc, \
                                       kBuiltinFlags, #Name);           \
   builtins_[index++] = code;

@@ -18,15 +18,14 @@ class GeneratorBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  void GeneratorPrototypeResume(JSGeneratorObject::ResumeMode resume_mode,
+  void GeneratorPrototypeResume(Node* receiver, Node* value, Node* context,
+                                JSGeneratorObject::ResumeMode resume_mode,
                                 char const* const method_name);
 };
 
 void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
+    Node* receiver, Node* value, Node* context,
     JSGeneratorObject::ResumeMode resume_mode, char const* const method_name) {
-  Node* receiver = Parameter(0);
-  Node* value = Parameter(1);
-  Node* context = Parameter(4);
   Node* closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
 
   // Check if the {receiver} is actually a JSGeneratorObject.
@@ -92,21 +91,31 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   }
 }
 
-// ES6 section 25.3.1.2 Generator.prototype.next ( value )
+// ES6 #sec-generator.prototype.next
 TF_BUILTIN(GeneratorPrototypeNext, GeneratorBuiltinsAssembler) {
-  GeneratorPrototypeResume(JSGeneratorObject::kNext,
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* context = Parameter(Descriptor::kContext);
+  GeneratorPrototypeResume(receiver, value, context, JSGeneratorObject::kNext,
                            "[Generator].prototype.next");
 }
 
-// ES6 section 25.3.1.3 Generator.prototype.return ( value )
+// ES6 #sec-generator.prototype.return
 TF_BUILTIN(GeneratorPrototypeReturn, GeneratorBuiltinsAssembler) {
-  GeneratorPrototypeResume(JSGeneratorObject::kReturn,
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* context = Parameter(Descriptor::kContext);
+  GeneratorPrototypeResume(receiver, value, context, JSGeneratorObject::kReturn,
                            "[Generator].prototype.return");
 }
 
-// ES6 section 25.3.1.4 Generator.prototype.throw ( exception )
+// ES6 #sec-generator.prototype.throw
 TF_BUILTIN(GeneratorPrototypeThrow, GeneratorBuiltinsAssembler) {
-  GeneratorPrototypeResume(JSGeneratorObject::kThrow,
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* exception = Parameter(Descriptor::kException);
+  Node* context = Parameter(Descriptor::kContext);
+  GeneratorPrototypeResume(receiver, exception, context,
+                           JSGeneratorObject::kThrow,
                            "[Generator].prototype.throw");
 }
 

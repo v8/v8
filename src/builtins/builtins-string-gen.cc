@@ -477,6 +477,8 @@ TF_BUILTIN(StringCharCodeAt, CodeStubAssembler) {
 
 // ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
 TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
+  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
+  // arguments are reordered.
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
 
@@ -807,6 +809,8 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
       no_argc_0(this), argc_1(this), no_argc_1(this), argc_2(this),
       fast_path(this), return_minus_1(this);
 
+  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
+  // arguments are reordered.
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
 

@@ -71,8 +71,8 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
 
 TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  Node* const sentError = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const sentError = Parameter(Descriptor::kSentError);
+  Node* const context = Parameter(Descriptor::kContext);
 
   AsyncFunctionAwaitResumeClosure(context, sentError,
                                   JSGeneratorObject::kThrow);
@@ -81,8 +81,8 @@ TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
 
 TF_BUILTIN(AsyncFunctionAwaitResolveClosure, AsyncFunctionBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  Node* const sentValue = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const sentValue = Parameter(Descriptor::kSentValue);
+  Node* const context = Parameter(Descriptor::kContext);
 
   AsyncFunctionAwaitResumeClosure(context, sentValue, JSGeneratorObject::kNext);
   Return(UndefinedConstant());
@@ -130,10 +130,10 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
 // prediction indicates that there is a locally surrounding catch block.
 TF_BUILTIN(AsyncFunctionAwaitCaught, AsyncFunctionBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 3);
-  Node* const generator = Parameter(1);
-  Node* const awaited = Parameter(2);
-  Node* const outer_promise = Parameter(3);
-  Node* const context = Parameter(6);
+  Node* const generator = Parameter(Descriptor::kGenerator);
+  Node* const awaited = Parameter(Descriptor::kAwaited);
+  Node* const outer_promise = Parameter(Descriptor::kOuterPromise);
+  Node* const context = Parameter(Descriptor::kContext);
 
   static const bool kIsPredictedAsCaught = true;
 
@@ -145,10 +145,10 @@ TF_BUILTIN(AsyncFunctionAwaitCaught, AsyncFunctionBuiltinsAssembler) {
 // prediction indicates no locally surrounding catch block.
 TF_BUILTIN(AsyncFunctionAwaitUncaught, AsyncFunctionBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 3);
-  Node* const generator = Parameter(1);
-  Node* const awaited = Parameter(2);
-  Node* const outer_promise = Parameter(3);
-  Node* const context = Parameter(6);
+  Node* const generator = Parameter(Descriptor::kGenerator);
+  Node* const awaited = Parameter(Descriptor::kAwaited);
+  Node* const outer_promise = Parameter(Descriptor::kOuterPromise);
+  Node* const context = Parameter(Descriptor::kContext);
 
   static const bool kIsPredictedAsCaught = false;
 
@@ -158,7 +158,7 @@ TF_BUILTIN(AsyncFunctionAwaitUncaught, AsyncFunctionBuiltinsAssembler) {
 
 TF_BUILTIN(AsyncFunctionPromiseCreate, AsyncFunctionBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 0);
-  Node* const context = Parameter(3);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const promise = AllocateAndInitJSPromise(context);
 
@@ -182,8 +182,8 @@ TF_BUILTIN(AsyncFunctionPromiseCreate, AsyncFunctionBuiltinsAssembler) {
 
 TF_BUILTIN(AsyncFunctionPromiseRelease, AsyncFunctionBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  Node* const promise = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const promise = Parameter(Descriptor::kPromise);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Label if_is_debug_active(this, Label::kDeferred);
   GotoIf(IsDebugActive(), &if_is_debug_active);

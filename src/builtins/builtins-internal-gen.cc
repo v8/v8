@@ -168,7 +168,9 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
   }
 }
 
-TF_BUILTIN(ReturnReceiver, CodeStubAssembler) { Return(Parameter(0)); }
+TF_BUILTIN(ReturnReceiver, CodeStubAssembler) {
+  Return(Parameter(Descriptor::kReceiver));
+}
 
 }  // namespace internal
 }  // namespace v8

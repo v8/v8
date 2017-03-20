@@ -9,16 +9,16 @@
 namespace v8 {
 namespace internal {
 
-// ES6 section 18.2.2 isFinite ( number )
+// ES #sec-isfinite-number
 TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
-  Node* context = Parameter(4);
+  Node* context = Parameter(Descriptor::kContext);
 
   Label return_true(this), return_false(this);
 
   // We might need to loop once for ToNumber conversion.
   Variable var_num(this, MachineRepresentation::kTagged);
   Label loop(this, &var_num);
-  var_num.Bind(Parameter(1));
+  var_num.Bind(Parameter(Descriptor::kNumber));
   Goto(&loop);
   Bind(&loop);
   {
@@ -57,16 +57,16 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
   Return(BooleanConstant(false));
 }
 
-// ES6 section 18.2.3 isNaN ( number )
+// ES6 #sec-isnan-number
 TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
-  Node* context = Parameter(4);
+  Node* context = Parameter(Descriptor::kContext);
 
   Label return_true(this), return_false(this);
 
   // We might need to loop once for ToNumber conversion.
   Variable var_num(this, MachineRepresentation::kTagged);
   Label loop(this, &var_num);
-  var_num.Bind(Parameter(1));
+  var_num.Bind(Parameter(Descriptor::kNumber));
   Goto(&loop);
   Bind(&loop);
   {

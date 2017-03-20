@@ -494,6 +494,7 @@
         'builtins/builtins-date.cc',
         'builtins/builtins-date-gen.cc',
         'builtins/builtins-debug.cc',
+        'builtins/builtins-descriptors.h',
         'builtins/builtins-error.cc',
         'builtins/builtins-forin-gen.cc',
         'builtins/builtins-forin.h',

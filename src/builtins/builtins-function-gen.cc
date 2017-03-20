@@ -12,6 +12,8 @@ namespace internal {
 TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   Label slow(this);
 
+  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
+  // arguments are reordered.
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
@@ -165,11 +167,11 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
                new_target, argc);
 }
 
-// ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V )
+// ES6 #sec-function.prototype-@@hasinstance
 TF_BUILTIN(FunctionPrototypeHasInstance, CodeStubAssembler) {
-  Node* f = Parameter(0);
-  Node* v = Parameter(1);
-  Node* context = Parameter(4);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* f = Parameter(Descriptor::kReceiver);
+  Node* v = Parameter(Descriptor::kV);
   Node* result = OrdinaryHasInstance(context, f, v);
   Return(result);
 }
