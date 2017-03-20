@@ -1376,8 +1376,8 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
     }
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
-      TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
-      return slow_stub();
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadIntegerIndexedExoticDH);
+      return LoadHandler::LoadNonExistent(isolate());
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
