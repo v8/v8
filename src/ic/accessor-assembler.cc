@@ -297,8 +297,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   }
 
   Label constant(this), field(this), normal(this, Label::kDeferred),
-      interceptor(this, Label::kDeferred), nonexistent(this), accessor(this),
-      global(this, Label::kDeferred);
+      interceptor(this, Label::kDeferred), nonexistent(this),
+      accessor(this, Label::kDeferred), global(this, Label::kDeferred);
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)), &field);
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kConstant)),
