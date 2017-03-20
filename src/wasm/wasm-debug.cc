@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/factory.h"
 #include "src/frames-inl.h"
+#include "src/identity-map.h"
 #include "src/isolate.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-interpreter.h"
@@ -391,26 +392,28 @@ Handle<FixedArray> GetOrCreateInterpretedFunctions(
   return new_arr;
 }
 
-void RedirectCallsitesInCode(Code* code, Code* old_target, Code* new_target) {
+using CodeRelocationMap = IdentityMap<Handle<Code>, FreeStoreAllocationPolicy>;
+
+void RedirectCallsitesInCode(Code* code, CodeRelocationMap& map) {
   DisallowHeapAllocation no_gc;
   for (RelocIterator it(code, RelocInfo::kCodeTargetMask); !it.done();
        it.next()) {
     DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-    if (target != old_target) continue;
+    Handle<Code>* new_target = map.Find(target);
+    if (!new_target) continue;
     it.rinfo()->set_target_address(code->GetIsolate(),
-                                   new_target->instruction_start());
+                                   (*new_target)->instruction_start());
   }
 }
 
 void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
-                                 Code* old_target, Code* new_target) {
+                                 CodeRelocationMap& map) {
   DisallowHeapAllocation no_gc;
   // Redirect all calls in wasm functions.
   FixedArray* code_table = instance->compiled_module()->ptr_to_code_table();
   for (int i = 0, e = GetNumFunctions(instance); i < e; ++i) {
-    RedirectCallsitesInCode(Code::cast(code_table->get(i)), old_target,
-                            new_target);
+    RedirectCallsitesInCode(Code::cast(code_table->get(i)), map);
   }
 
   // Redirect all calls in exported functions.
@@ -420,7 +423,7 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
     WeakCell* weak_function = WeakCell::cast(weak_exported_functions->get(i));
     if (weak_function->cleared()) continue;
     Code* code = JSFunction::cast(weak_function->value())->code();
-    RedirectCallsitesInCode(code, old_target, new_target);
+    RedirectCallsitesInCode(code, map);
   }
 }
 
@@ -460,34 +463,38 @@ void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,
                                   int func_index, int offset) {
   Isolate* isolate = debug_info->GetIsolate();
   InterpreterHandle* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
-  RedirectToInterpreter(debug_info, func_index);
+  RedirectToInterpreter(debug_info, Vector<int>(&func_index, 1));
   const WasmFunction* func = &handle->module()->functions[func_index];
   handle->interpreter()->SetBreakpoint(func, offset, true);
 }
 
 void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
-                                          int func_index) {
+                                          Vector<int> func_indexes) {
   Isolate* isolate = debug_info->GetIsolate();
-  DCHECK_LE(0, func_index);
-  DCHECK_GT(debug_info->wasm_instance()->module()->functions.size(),
-            func_index);
-  Handle<FixedArray> interpreted_functions =
-      GetOrCreateInterpretedFunctions(isolate, debug_info);
-  if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) return;
-
   // Ensure that the interpreter is instantiated.
   GetOrCreateInterpreterHandle(isolate, debug_info);
+  Handle<FixedArray> interpreted_functions =
+      GetOrCreateInterpretedFunctions(isolate, debug_info);
   Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
-  Handle<Code> new_code = compiler::CompileWasmInterpreterEntry(
-      isolate, func_index,
-      instance->compiled_module()->module()->functions[func_index].sig,
-      instance);
-
   Handle<FixedArray> code_table = instance->compiled_module()->code_table();
-  Handle<Code> old_code(Code::cast(code_table->get(func_index)), isolate);
-  interpreted_functions->set(func_index, *new_code);
+  CodeRelocationMap code_to_relocate(isolate->heap());
+  for (int func_index : func_indexes) {
+    DCHECK_LE(0, func_index);
+    DCHECK_GT(debug_info->wasm_instance()->module()->functions.size(),
+              func_index);
+    if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) continue;
 
-  RedirectCallsitesInInstance(isolate, *instance, *old_code, *new_code);
+    Handle<Code> new_code = compiler::CompileWasmInterpreterEntry(
+        isolate, func_index,
+        instance->compiled_module()->module()->functions[func_index].sig,
+        instance);
+
+    Code* old_code = Code::cast(code_table->get(func_index));
+    interpreted_functions->set(func_index, *new_code);
+    DCHECK_NULL(code_to_relocate.Find(old_code));
+    code_to_relocate.Set(old_code, new_code);
+  }
+  RedirectCallsitesInInstance(isolate, *instance, code_to_relocate);
 }
 
 void WasmDebugInfo::PrepareStep(StepAction step_action) {

@@ -1471,11 +1471,15 @@ class InstantiationHelper {
     if (FLAG_wasm_interpret_all) {
       Handle<WasmDebugInfo> debug_info =
           WasmInstanceObject::GetOrCreateDebugInfo(instance);
+      std::vector<int> func_indexes;
       for (int func_index = num_imported_functions,
                num_wasm_functions = static_cast<int>(module_->functions.size());
            func_index < num_wasm_functions; ++func_index) {
-        WasmDebugInfo::RedirectToInterpreter(debug_info, func_index);
+        func_indexes.push_back(func_index);
       }
+      WasmDebugInfo::RedirectToInterpreter(
+          debug_info, Vector<int>(func_indexes.data(),
+                                  static_cast<int>(func_indexes.size())));
     }
 
     //--------------------------------------------------------------------------

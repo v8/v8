@@ -467,9 +467,10 @@ class WasmDebugInfo : public FixedArray {
   // interpreter and will always pause at the given offset.
   static void SetBreakpoint(Handle<WasmDebugInfo>, int func_index, int offset);
 
-  // Make a function always execute in the interpreter without setting a
+  // Make a set of functions always execute in the interpreter without setting
   // breakpoints.
-  static void RedirectToInterpreter(Handle<WasmDebugInfo>, int func_index);
+  static void RedirectToInterpreter(Handle<WasmDebugInfo>,
+                                    Vector<int> func_indexes);
 
   void PrepareStep(StepAction);
 
