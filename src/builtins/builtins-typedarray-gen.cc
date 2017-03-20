@@ -349,7 +349,7 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
 TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   Node* const holder = Parameter(1);
   Node* const buffer = Parameter(2);
-  Node* byte_offset = Parameter(3);
+  Node* const byte_offset = Parameter(3);
   Node* const length = Parameter(4);
   Node* const element_size = Parameter(5);
   CSA_ASSERT(this, TaggedIsSmi(element_size));
@@ -358,11 +358,14 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
 
   Variable new_byte_length(this, MachineRepresentation::kTagged,
                            SmiConstant(0));
+  Variable offset(this, MachineRepresentation::kTagged, SmiConstant(0));
 
-  Label start_offset_error(this), byte_length_error(this),
-      invalid_offset_error(this);
-  Label call_init(this), invalid_length(this), length_undefined(this),
-      length_defined(this);
+  Label start_offset_error(this, Label::kDeferred),
+      byte_length_error(this, Label::kDeferred),
+      invalid_offset_error(this, Label::kDeferred);
+  Label offset_is_smi(this), offset_not_smi(this, Label::kDeferred),
+      check_length(this), call_init(this), invalid_length(this),
+      length_undefined(this), length_defined(this);
 
   Callable add = CodeFactory::Add(isolate());
   Callable div = CodeFactory::Divide(isolate());
@@ -372,16 +375,32 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   Callable mod = CodeFactory::Modulus(isolate());
   Callable sub = CodeFactory::Subtract(isolate());
 
-  byte_offset =
-      ToInteger(context, byte_offset, CodeStubAssembler::kTruncateMinusZero);
-  GotoIf(IsTrue(CallStub(less_than, context, byte_offset, SmiConstant(0))),
-         &invalid_length);
+  GotoIf(IsUndefined(byte_offset), &check_length);
 
-  Node* remainder = CallStub(mod, context, byte_offset, element_size);
-  // Remainder can be a heap number.
-  GotoIf(IsFalse(CallStub(equal, context, remainder, SmiConstant(0))),
-         &start_offset_error);
+  offset.Bind(
+      ToInteger(context, byte_offset, CodeStubAssembler::kTruncateMinusZero));
+  Branch(TaggedIsSmi(offset.value()), &offset_is_smi, &offset_not_smi);
 
+  // Check that the offset is a multiple of the element size.
+  Bind(&offset_is_smi);
+  {
+    GotoIf(SmiEqual(offset.value(), SmiConstant(0)), &check_length);
+    GotoIf(SmiLessThan(offset.value(), SmiConstant(0)), &invalid_length);
+    Node* remainder = SmiMod(offset.value(), element_size);
+    Branch(SmiEqual(remainder, SmiConstant(0)), &check_length,
+           &start_offset_error);
+  }
+  Bind(&offset_not_smi);
+  {
+    GotoIf(IsTrue(CallStub(less_than, context, offset.value(), SmiConstant(0))),
+           &invalid_length);
+    Node* remainder = CallStub(mod, context, offset.value(), element_size);
+    // Remainder can be a heap number.
+    Branch(IsTrue(CallStub(equal, context, remainder, SmiConstant(0))),
+           &check_length, &start_offset_error);
+  }
+
+  Bind(&check_length);
   // TODO(petermarshall): Throw on detached typedArray.
   Branch(IsUndefined(length), &length_undefined, &length_defined);
 
@@ -396,7 +415,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
            &byte_length_error);
 
     new_byte_length.Bind(
-        CallStub(sub, context, buffer_byte_length, byte_offset));
+        CallStub(sub, context, buffer_byte_length, offset.value()));
 
     Branch(IsTrue(CallStub(less_than, context, new_byte_length.value(),
                            SmiConstant(0))),
@@ -412,7 +431,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
     Node* buffer_byte_length =
         LoadObjectField(buffer, JSArrayBuffer::kByteLengthOffset);
 
-    Node* end = CallStub(add, context, byte_offset, new_byte_length.value());
+    Node* end = CallStub(add, context, offset.value(), new_byte_length.value());
 
     Branch(IsTrue(CallStub(greater_than, context, end, buffer_byte_length)),
            &invalid_length, &call_init);
@@ -425,7 +444,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
     // Force the result into a Smi, or throw a range error if it doesn't fit.
     new_length = ToSmiIndex(new_length, context, &invalid_length);
 
-    DoInitialize(holder, new_length, buffer, byte_offset,
+    DoInitialize(holder, new_length, buffer, offset.value(),
                  new_byte_length.value(), initialize, context);
   }
 
