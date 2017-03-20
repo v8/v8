@@ -870,9 +870,7 @@ template <bool fill_array = true>
 int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
                         Handle<JSObject> holder, Handle<Name> name,
                         Handle<FixedArray> array, int first_index) {
-  // We don't encode the requirement to check access rights because we already
-  // passed the access check for current native context and the access
-  // can't be revoked.
+  if (!holder.is_null() && holder->map() == *receiver_map) return 0;
 
   HandleScope scope(isolate);
   int checks_count = 0;
@@ -891,8 +889,7 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
     }
     checks_count++;
 
-  } else if (receiver_map->IsJSGlobalObjectMap() &&
-             (holder.is_null() || holder->map() != *receiver_map)) {
+  } else if (receiver_map->IsJSGlobalObjectMap()) {
     // If we are creating a handler for [Load/Store]GlobalIC then we need to
     // check that the property did not appear in the global object.
     if (fill_array) {
@@ -1292,26 +1289,6 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         if (GetHostFunction()->shared()->HasDebugInfo()) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return slow_stub();
-        }
-
-        if (!holder->HasFastProperties()) {
-          // Global loads always need the extended data handler since it embeds
-          // the PropertyCell.
-          if (receiver_is_holder && !holder->IsJSGlobalObject()) {
-            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
-            return LoadHandler::LoadNormal(isolate());
-          }
-
-          Handle<Smi> smi_handler;
-          if (holder->IsJSGlobalObject()) {
-            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobalFromPrototypeDH);
-            smi_handler = LoadHandler::LoadGlobal(isolate());
-          } else {
-            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
-            smi_handler = LoadHandler::LoadNormal(isolate());
-          }
-
-          return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
         }
 
         Handle<Object> getter(AccessorPair::cast(*accessors)->getter(),
