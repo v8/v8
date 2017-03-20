@@ -3038,6 +3038,38 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   }
 }
 
+void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+
+    // Save all parameter registers (see wasm-linkage.cc). They might be
+    // overwritten in the runtime call below. We don't have any callee-saved
+    // registers in wasm, so no need to store anything else.
+    const RegList gp_regs =
+        r2.bit() | r3.bit() | r4.bit() | r5.bit() | r6.bit();
+#if V8_TARGET_ARCH_S390X
+    const RegList fp_regs = d0.bit() | d2.bit() | d4.bit() | d6.bit();
+#else
+    const RegList fp_regs = d0.bit() | d2.bit();
+#endif
+    __ MultiPush(gp_regs);
+    __ MultiPushDoubles(fp_regs);
+
+    // Initialize cp register with kZero, CEntryStub will use it to set the
+    // current context on the isolate.
+    __ LoadSmiLiteral(cp, Smi::kZero);
+    __ CallRuntime(Runtime::kWasmCompileLazy);
+    // Store returned instruction start in ip.
+    __ AddP(ip, r2, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+    // Restore registers.
+    __ MultiPopDoubles(fp_regs);
+    __ MultiPop(gp_regs);
+  }
+  // Now jump to the instructions of the returned code object.
+  __ Jump(ip);
+}
+
 #undef __
 
 }  // namespace internal
