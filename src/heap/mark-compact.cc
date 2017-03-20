@@ -630,8 +630,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     // of a GC all evacuation candidates are cleared and their slot buffers are
     // released.
     CHECK(!p->IsEvacuationCandidate());
-    CHECK_NULL(p->old_to_old_slots());
-    CHECK_NULL(p->typed_old_to_old_slots());
+    CHECK_NULL(p->slot_set<OLD_TO_OLD>());
+    CHECK_NULL(p->typed_slot_set<OLD_TO_OLD>());
     CHECK(p->SweepingDone());
     DCHECK(p->area_size() == area_size);
     pages.push_back(std::make_pair(p->LiveBytesFromFreeList(), p));
@@ -3304,10 +3304,10 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
 MarkCompactCollector::Sweeper::ClearOldToNewSlotsMode
 MarkCompactCollector::Sweeper::GetClearOldToNewSlotsMode(Page* p) {
   AllocationSpace identity = p->owner()->identity();
-  if (p->old_to_new_slots() &&
+  if (p->slot_set<OLD_TO_NEW>() &&
       (identity == OLD_SPACE || identity == MAP_SPACE)) {
     return MarkCompactCollector::Sweeper::CLEAR_REGULAR_SLOTS;
-  } else if (p->typed_old_to_new_slots() && identity == CODE_SPACE) {
+  } else if (p->typed_slot_set<OLD_TO_NEW>() && identity == CODE_SPACE) {
     return MarkCompactCollector::Sweeper::CLEAR_TYPED_SLOTS;
   }
   return MarkCompactCollector::Sweeper::DO_NOT_CLEAR;
@@ -3421,7 +3421,7 @@ int MarkCompactCollector::Sweeper::RawSweep(
 
   // Clear invalid typed slots after collection all free ranges.
   if (slots_clearing_mode == CLEAR_TYPED_SLOTS) {
-    p->typed_old_to_new_slots()->RemoveInvaldSlots(free_ranges);
+    p->typed_slot_set<OLD_TO_NEW>()->RemoveInvaldSlots(free_ranges);
   }
 
   // Clear the mark bits of that page and reset live bytes count.
@@ -3476,15 +3476,14 @@ bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page, Visitor* visitor,
         page->markbits()->ClearRange(
             page->AddressToMarkbitIndex(page->area_start()),
             page->AddressToMarkbitIndex(object->address()));
-        if (page->old_to_new_slots() != nullptr) {
-          page->old_to_new_slots()->RemoveRange(
+        SlotSet* slot_set = page->slot_set<OLD_TO_NEW>();
+        if (slot_set != nullptr) {
+          slot_set->RemoveRange(
               0, static_cast<int>(object->address() - page->address()),
               SlotSet::PREFREE_EMPTY_BUCKETS);
         }
-        if (page->typed_old_to_new_slots() != nullptr) {
-          RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
-                                                      object->address());
-        }
+        RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
+                                                    object->address());
         RecomputeLiveBytes(page);
       }
       return false;
@@ -3584,7 +3583,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 #endif
 }
 
-template <PointerDirection direction>
+template <RememberedSetType type>
 class PointerUpdateJobTraits {
  public:
   typedef int PerPageData;  // Per page data is not used in this job.
@@ -3602,7 +3601,7 @@ class PointerUpdateJobTraits {
 
  private:
   static void UpdateUntypedPointers(Heap* heap, MemoryChunk* chunk) {
-    if (direction == OLD_TO_NEW) {
+    if (type == OLD_TO_NEW) {
       RememberedSet<OLD_TO_NEW>::Iterate(chunk, [heap](Address slot) {
         return CheckAndUpdateOldToNewSlot(heap, slot);
       });
@@ -3614,20 +3613,21 @@ class PointerUpdateJobTraits {
   }
 
   static void UpdateTypedPointers(Heap* heap, MemoryChunk* chunk) {
-    if (direction == OLD_TO_OLD) {
+    if (type == OLD_TO_OLD) {
       Isolate* isolate = heap->isolate();
       RememberedSet<OLD_TO_OLD>::IterateTyped(
-          chunk, [isolate](SlotType type, Address host_addr, Address slot) {
-            return UpdateTypedSlotHelper::UpdateTypedSlot(isolate, type, slot,
-                                                          UpdateSlot);
+          chunk,
+          [isolate](SlotType slot_type, Address host_addr, Address slot) {
+            return UpdateTypedSlotHelper::UpdateTypedSlot(isolate, slot_type,
+                                                          slot, UpdateSlot);
           });
     } else {
       Isolate* isolate = heap->isolate();
       RememberedSet<OLD_TO_NEW>::IterateTyped(
           chunk,
-          [isolate, heap](SlotType type, Address host_addr, Address slot) {
+          [isolate, heap](SlotType slot_type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
-                isolate, type, slot, [heap](Object** slot) {
+                isolate, slot_type, slot, [heap](Object** slot) {
                   return CheckAndUpdateOldToNewSlot(
                       heap, reinterpret_cast<Address>(slot));
                 });
@@ -3692,11 +3692,11 @@ int NumberOfPointerUpdateTasks(int pages) {
   return Min(available_cores, (pages + kPagesPerTask - 1) / kPagesPerTask);
 }
 
-template <PointerDirection direction>
+template <RememberedSetType type>
 void UpdatePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
-  PageParallelJob<PointerUpdateJobTraits<direction> > job(
+  PageParallelJob<PointerUpdateJobTraits<type> > job(
       heap, heap->isolate()->cancelable_task_manager(), semaphore);
-  RememberedSet<direction>::IterateMemoryChunks(
+  RememberedSet<type>::IterateMemoryChunks(
       heap, [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
   int num_pages = job.NumberOfPages();
   int num_tasks = NumberOfPointerUpdateTasks(num_pages);
@@ -3851,11 +3851,13 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     DCHECK(page->SweepingDone());
 
     // After finishing sweeping of a page we clean up its remembered set.
-    if (page->typed_old_to_new_slots()) {
-      page->typed_old_to_new_slots()->FreeToBeFreedChunks();
+    TypedSlotSet* typed_slot_set = page->typed_slot_set<OLD_TO_NEW>();
+    if (typed_slot_set) {
+      page->typed_slot_set<OLD_TO_NEW>()->FreeToBeFreedChunks();
     }
-    if (page->old_to_new_slots()) {
-      page->old_to_new_slots()->FreeToBeFreedBuckets();
+    SlotSet* slot_set = page->slot_set<OLD_TO_NEW>();
+    if (slot_set) {
+      page->slot_set<OLD_TO_NEW>()->FreeToBeFreedBuckets();
     }
   }
 
