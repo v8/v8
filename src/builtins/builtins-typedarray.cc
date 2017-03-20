@@ -108,6 +108,55 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   return *array;
 }
 
+BUILTIN(TypedArrayPrototypeFill) {
+  HandleScope scope(isolate);
+
+  Handle<JSTypedArray> array;
+  const char* method = "%TypedArray%.prototype.fill";
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+
+  if (V8_UNLIKELY(array->WasNeutered())) return *array;
+
+  int64_t len = array->length_value();
+  int64_t start = 0;
+  int64_t end = len;
+
+  if (args.length() > 2) {
+    Handle<Object> num = args.atOrUndefined(isolate, 2);
+    if (!num->IsUndefined(isolate)) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, num, Object::ToInteger(isolate, num));
+      start = CapRelativeIndex(num, 0, len);
+
+      num = args.atOrUndefined(isolate, 3);
+      if (!num->IsUndefined(isolate)) {
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+            isolate, num, Object::ToInteger(isolate, num));
+        end = CapRelativeIndex(num, 0, len);
+      }
+    }
+  }
+
+  int64_t count = end - start;
+  if (count <= 0) return *array;
+
+  if (V8_UNLIKELY(array->WasNeutered())) return *array;
+
+  // Ensure processed indexes are within array bounds
+  DCHECK_GE(start, 0);
+  DCHECK_LT(start, len);
+  DCHECK_GE(end, 0);
+  DCHECK_LE(end, len);
+  DCHECK_LE(count, len);
+
+  Handle<Object> obj_value = args.atOrUndefined(isolate, 1);
+
+  return array->GetElementsAccessor()->Fill(isolate, array, obj_value,
+                                            static_cast<uint32_t>(start),
+                                            static_cast<uint32_t>(end));
+}
+
 BUILTIN(TypedArrayPrototypeIncludes) {
   HandleScope scope(isolate);
 

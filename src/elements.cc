@@ -470,6 +470,22 @@ static void SortIndices(
   }
 }
 
+static Object* FillNumberSlowPath(Isolate* isolate, Handle<JSTypedArray> array,
+                                  Handle<Object> obj_value,
+                                  uint32_t start, uint32_t end) {
+  Handle<Object> cast_value;
+  ElementsAccessor* elements = array->GetElementsAccessor();
+
+  for (uint32_t k = start; k < end; ++k) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, cast_value, Object::ToNumber(obj_value));
+    // TODO(caitp,cbruni): throw on neutered array
+    if (V8_UNLIKELY(array->WasNeutered())) return *array;
+    elements->Set(array, k, *cast_value);
+  }
+  return *array;
+}
+
 static Maybe<bool> IncludesValueSlowPath(Isolate* isolate,
                                          Handle<JSObject> receiver,
                                          Handle<Object> value,
@@ -1189,6 +1205,18 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   uint32_t GetCapacity(JSObject* holder, FixedArrayBase* backing_store) final {
     return Subclass::GetCapacityImpl(holder, backing_store);
+  }
+
+  static Object* FillImpl(Isolate* isolate, Handle<JSObject> receiver,
+                          Handle<Object> obj_value, uint32_t start,
+                          uint32_t end) {
+    UNREACHABLE();
+    return *receiver;
+  }
+
+  Object* Fill(Isolate* isolate, Handle<JSObject> receiver,
+               Handle<Object> obj_value, uint32_t start, uint32_t end) {
+    return Subclass::FillImpl(isolate, receiver, obj_value, start, end);
   }
 
   static Maybe<bool> IncludesValueImpl(Isolate* isolate,
@@ -2827,6 +2855,36 @@ class TypedElementsAccessor
     }
     *nof_items = count;
     return Just(true);
+  }
+
+  static Object* FillImpl(Isolate* isolate, Handle<JSObject> receiver,
+                          Handle<Object> obj_value, uint32_t start,
+                          uint32_t end) {
+    Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
+    DCHECK(!array->WasNeutered());
+
+    if (!obj_value->IsNumber()) {
+      return FillNumberSlowPath(isolate, array, obj_value, start, end);
+    }
+
+    ctype value = 0;
+    if (obj_value->IsSmi()) {
+      value = BackingStore::from_int(Smi::cast(*obj_value)->value());
+    } else {
+      DCHECK(obj_value->IsHeapNumber());
+      value = BackingStore::from_double(HeapNumber::cast(*obj_value)->value());
+    }
+
+    // Ensure indexes are within array bounds
+    DCHECK_LE(0, start);
+    DCHECK_LE(start, end);
+    DCHECK_LE(end, array->length_value());
+
+    DisallowHeapAllocation no_gc;
+    BackingStore* elements = BackingStore::cast(receiver->elements());
+    ctype* data = static_cast<ctype*>(elements->DataPtr());
+    std::fill(data + start, data + end, value);
+    return *array;
   }
 
   static Maybe<bool> IncludesValueImpl(Isolate* isolate,

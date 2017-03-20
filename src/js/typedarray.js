@@ -21,7 +21,6 @@ var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalArrayBufferPrototype = GlobalArrayBuffer.prototype;
 var GlobalObject = global.Object;
 var InnerArrayEvery;
-var InnerArrayFill;
 var InnerArrayFilter;
 var InnerArrayFind;
 var InnerArrayFindIndex;
@@ -68,7 +67,6 @@ utils.Import(function(from) {
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
   InnerArrayEvery = from.InnerArrayEvery;
-  InnerArrayFill = from.InnerArrayFill;
   InnerArrayFilter = from.InnerArrayFilter;
   InnerArrayFind = from.InnerArrayFind;
   InnerArrayFindIndex = from.InnerArrayFindIndex;
@@ -396,17 +394,6 @@ function TypedArrayForEach(f, receiver) {
 %FunctionSetLength(TypedArrayForEach, 1);
 
 
-// ES6 draft 04-05-14 section 22.2.3.8
-function TypedArrayFill(value, start, end) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
-
-  var length = %_TypedArrayGetLength(this);
-
-  return InnerArrayFill(value, start, end, this, length);
-}
-%FunctionSetLength(TypedArrayFill, 1);
-
-
 // ES6 draft 07-15-13, section 22.2.3.9
 function TypedArrayFilter(f, thisArg) {
   if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
@@ -658,7 +645,6 @@ utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
   "subarray", TypedArraySubArray,
   "set", TypedArraySet,
   "every", TypedArrayEvery,
-  "fill", TypedArrayFill,
   "filter", TypedArrayFilter,
   "find", TypedArrayFind,
   "findIndex", TypedArrayFindIndex,

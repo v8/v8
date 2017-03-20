@@ -855,6 +855,8 @@ class Isolate;
   TFJ(TypedArrayPrototypeValues, 0)                                            \
   /* ES6 #sec-%typedarray%.prototype.copywithin */                             \
   CPP(TypedArrayPrototypeCopyWithin)                                           \
+  /* ES6 #sec-%typedarray%.prototype.fill */                                   \
+  CPP(TypedArrayPrototypeFill)                                                 \
   /* ES7 #sec-%typedarray%.prototype.includes */                               \
   CPP(TypedArrayPrototypeIncludes)                                             \
   /* ES6 #sec-%typedarray%.prototype.indexof */                                \

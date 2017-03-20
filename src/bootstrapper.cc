@@ -2598,6 +2598,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // TODO(caitp): alphasort accessors/methods
     SimpleInstallFunction(prototype, "copyWithin",
                           Builtins::kTypedArrayPrototypeCopyWithin, 2, false);
+    SimpleInstallFunction(prototype, "fill",
+                          Builtins::kTypedArrayPrototypeFill, 1, false);
     SimpleInstallFunction(prototype, "includes",
                           Builtins::kTypedArrayPrototypeIncludes, 1, false);
     SimpleInstallFunction(prototype, "indexOf",

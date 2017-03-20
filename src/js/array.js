@@ -1376,7 +1376,12 @@ function ArrayFindIndex(predicate, thisArg) {
 
 
 // ES6, draft 04-05-14, section 22.1.3.6
-function InnerArrayFill(value, start, end, array, length) {
+function ArrayFill(value, start, end) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.fill");
+
+  var array = TO_OBJECT(this);
+  var length = TO_LENGTH(array.length);
+
   var i = IS_UNDEFINED(start) ? 0 : TO_INTEGER(start);
   var end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
 
@@ -1401,17 +1406,6 @@ function InnerArrayFill(value, start, end, array, length) {
   for (; i < end; i++)
     array[i] = value;
   return array;
-}
-
-
-// ES6, draft 04-05-14, section 22.1.3.6
-function ArrayFill(value, start, end) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.fill");
-
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-
-  return InnerArrayFill(value, start, end, array, length);
 }
 
 
@@ -1618,7 +1612,6 @@ utils.Export(function(to) {
   to.ArrayToString = ArrayToString;
   to.ArrayValues = IteratorFunctions.values,
   to.InnerArrayEvery = InnerArrayEvery;
-  to.InnerArrayFill = InnerArrayFill;
   to.InnerArrayFilter = InnerArrayFilter;
   to.InnerArrayFind = InnerArrayFind;
   to.InnerArrayFindIndex = InnerArrayFindIndex;
