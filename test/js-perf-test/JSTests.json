@@ -322,6 +322,18 @@
           "test_flags": ["construct-arraylike"]
         },
         {
+          "name": "ConstructByTypedArray",
+          "main": "run.js",
+          "test_flags": ["construct-typedarray"]
+        },
+        {
+          "name": "ConstructByTypedArray--noTF",
+          "flags": ["--no-turbo"],
+          "results_regexp": "^TypedArrays\\-ConstructByTypedArray\\(Score\\): (.+)$",
+          "main": "run.js",
+          "test_flags": ["construct-typedarray"]
+        },
+        {
           "name": "Sort",
           "main": "run.js",
           "test_flags": ["sort"]
