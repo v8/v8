@@ -2199,11 +2199,23 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
     vfalse0 = efalse0 = if_false0 = graph()->NewNode(
         common()->Call(desc), jsgraph()->HeapConstant(callable.code()), key,
         receiver, context, frame_state, effect, if_false0);
+
+    // Update potential {IfException} uses of {node} to point to the ahove
+    // ForInFilter stub call node instead.
+    Node* if_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
+      if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
+      NodeProperties::ReplaceControlInput(if_exception, vfalse0);
+      NodeProperties::ReplaceEffectInput(if_exception, efalse0);
+      Revisit(if_exception);
+    }
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
   ReplaceWithValue(node, node, effect, control);
+
+  // Morph the {node} into a Phi.
   node->ReplaceInput(0, vtrue0);
   node->ReplaceInput(1, vfalse0);
   node->ReplaceInput(2, control);
