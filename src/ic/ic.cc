@@ -1293,16 +1293,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
         Handle<Object> getter(AccessorPair::cast(*accessors)->getter(),
                               isolate());
-        if (getter->IsJSFunction()) {
-          Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
-          if (!receiver->IsJSObject() &&
-              function->shared()->IsUserJavaScript() &&
-              is_sloppy(function->shared()->language_mode())) {
-            // Calling sloppy non-builtins with a value as the receiver
-            // requires boxing.
-            return slow_stub();
-          }
-        } else if (!getter->IsFunctionTemplateInfo()) {
+        if (!getter->IsJSFunction() && !getter->IsFunctionTemplateInfo()) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return slow_stub();
         }
@@ -1902,10 +1893,6 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return slow_stub();
         }
-        if (info->is_sloppy() && !receiver->IsJSReceiver()) {
-          TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
-          return slow_stub();
-        }
         break;  // Custom-compiled handler.
       } else if (accessors->IsAccessorPair()) {
         Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
@@ -2010,7 +1997,6 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
                lookup->HolderIsReceiverOrHiddenPrototype());
         DCHECK(AccessorInfo::IsCompatibleReceiverMap(isolate(), info,
                                                      receiver_map()));
-        DCHECK(!info->is_sloppy() || receiver->IsJSReceiver());
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
         // TODO(ishell): don't hard-code language mode into the handler because
