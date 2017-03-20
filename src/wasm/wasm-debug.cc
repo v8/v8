@@ -73,6 +73,10 @@ class InterpreterHandle {
       instance_.mem_start = nullptr;
       instance_.mem_size = 0;
     }
+    if (debug_info->wasm_instance()->has_globals_buffer()) {
+      instance_.globals_start = reinterpret_cast<byte*>(
+          debug_info->wasm_instance()->globals_buffer()->backing_store());
+    }
     if (instance_.module->num_imported_functions > 0) {
       int num_imported_functions =
           static_cast<int>(instance_.module->num_imported_functions);

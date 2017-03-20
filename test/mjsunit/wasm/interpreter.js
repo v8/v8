@@ -139,3 +139,52 @@ function checkStack(stack, expected_lines) {
     ]);
   }
 })();
+
+(function testGlobals() {
+  var builder = new WasmModuleBuilder();
+  builder.addGlobal(kWasmI32, true);  // 0
+  builder.addGlobal(kWasmI64, true);  // 1
+  builder.addGlobal(kWasmF32, true);  // 2
+  builder.addGlobal(kWasmF64, true);  // 3
+  builder.addFunction('get_i32', kSig_i_v)
+      .addBody([kExprGetGlobal, 0])
+      .exportFunc();
+  builder.addFunction('get_i64', kSig_d_v)
+      .addBody([kExprGetGlobal, 1, kExprF64SConvertI64])
+      .exportFunc();
+  builder.addFunction('get_f32', kSig_d_v)
+      .addBody([kExprGetGlobal, 2, kExprF64ConvertF32])
+      .exportFunc();
+  builder.addFunction('get_f64', kSig_d_v)
+      .addBody([kExprGetGlobal, 3])
+      .exportFunc();
+  builder.addFunction('set_i32', kSig_v_i)
+      .addBody([kExprGetLocal, 0, kExprSetGlobal, 0])
+      .exportFunc();
+  builder.addFunction('set_i64', kSig_v_d)
+      .addBody([kExprGetLocal, 0, kExprI64SConvertF64, kExprSetGlobal, 1])
+      .exportFunc();
+  builder.addFunction('set_f32', kSig_v_d)
+      .addBody([kExprGetLocal, 0, kExprF32ConvertF64, kExprSetGlobal, 2])
+      .exportFunc();
+  builder.addFunction('set_f64', kSig_v_d)
+      .addBody([kExprGetLocal, 0, kExprSetGlobal, 3])
+      .exportFunc();
+  var instance = builder.instantiate();
+  // Initially, all should be zero.
+  assertEquals(0, instance.exports.get_i32());
+  assertEquals(0, instance.exports.get_i64());
+  assertEquals(0, instance.exports.get_f32());
+  assertEquals(0, instance.exports.get_f64());
+  // Assign values to all variables.
+  var values = [4711, 1<<40 + 1 << 33, 0.3, 12.34567];
+  instance.exports.set_i32(values[0]);
+  instance.exports.set_i64(values[1]);
+  instance.exports.set_f32(values[2]);
+  instance.exports.set_f64(values[3]);
+  // Now check the values.
+  assertEquals(values[0], instance.exports.get_i32());
+  assertEquals(values[1], instance.exports.get_i64());
+  assertEqualsDelta(values[2], instance.exports.get_f32(), 2**-23);
+  assertEquals(values[3], instance.exports.get_f64());
+})();
