@@ -710,10 +710,6 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   CollectTypeProfileNexus nexus(vector, vector->ToSlot(index));
   nexus.Collect(type);
 
-  PrintF("%s\n", name->ToCString().get());
-  nexus.Print();
-  PrintF("\n");
-
   return *name;
 }
 

@@ -156,6 +156,35 @@ RUNTIME_FUNCTION(Runtime_IsConcurrentRecompilationSupported) {
       isolate->concurrent_recompilation_enabled());
 }
 
+RUNTIME_FUNCTION(Runtime_PrintTypeProfile) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  if (!FLAG_type_profile) {
+    return isolate->heap()->undefined_value();
+  }
+
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  if (function->has_feedback_vector()) {
+    FeedbackVector* vector = function->feedback_vector();
+
+    Object* function_name = vector->shared_function_info()->name();
+    PrintF("Function: %s\n", String::cast(function_name)->ToCString().get());
+
+    FeedbackMetadataIterator iter(vector->metadata());
+    while (iter.HasNext()) {
+      FeedbackSlot slot = iter.Next();
+      FeedbackSlotKind kind = iter.kind();
+      if (kind == FeedbackSlotKind::kTypeProfile) {
+        CollectTypeProfileNexus nexus(vector, slot);
+        nexus.Print();
+        PrintF("\n");
+        return isolate->heap()->undefined_value();
+      }
+    }
+  }
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
