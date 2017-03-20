@@ -1149,31 +1149,6 @@ class FunctionError : public FunctionResult {
   }
 };
 
-// Find section with given section code. Return Vector of the payload, or null
-// Vector if section is not found or module bytes are invalid.
-Vector<const byte> FindSection(const byte* module_start, const byte* module_end,
-                               WasmSectionCode code) {
-  Decoder decoder(module_start, module_end);
-
-  uint32_t magic_word = decoder.consume_u32("wasm magic");
-  if (magic_word != kWasmMagic) decoder.error("wrong magic word");
-
-  uint32_t magic_version = decoder.consume_u32("wasm version");
-  if (magic_version != kWasmVersion) decoder.error("wrong wasm version");
-
-  WasmSectionIterator section_iter(decoder);
-  while (section_iter.more()) {
-    if (section_iter.section_code() == code) {
-      return Vector<const uint8_t>(section_iter.payload_start(),
-                                   section_iter.payload_length());
-    }
-    decoder.consume_bytes(section_iter.payload_length(), "section payload");
-    section_iter.advance();
-  }
-
-  return Vector<const uint8_t>();
-}
-
 }  // namespace
 
 ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
@@ -1230,38 +1205,6 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
   WasmFunction* function = new WasmFunction();
   ModuleDecoder decoder(zone, function_start, function_end, kWasmOrigin);
   return decoder.DecodeSingleFunction(module_env, function);
-}
-
-FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
-                                                const byte* module_end) {
-  // Find and decode the code section.
-  Vector<const byte> code_section =
-      FindSection(module_start, module_end, kCodeSectionCode);
-  Decoder decoder(code_section.start(), code_section.end());
-  FunctionOffsets table;
-  if (!code_section.start()) {
-    decoder.error("no code section");
-    return decoder.toResult(std::move(table));
-  }
-
-  uint32_t functions_count = decoder.consume_u32v("functions count");
-  // Reserve space for the entries, taking care of invalid input.
-  if (functions_count < static_cast<unsigned>(code_section.length()) / 2) {
-    table.reserve(functions_count);
-  }
-
-  int section_offset = static_cast<int>(code_section.start() - module_start);
-  DCHECK_LE(0, section_offset);
-  for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
-    uint32_t size = decoder.consume_u32v("body size");
-    int offset = static_cast<int>(section_offset + decoder.pc_offset());
-    table.emplace_back(offset, static_cast<int>(size));
-    DCHECK(table.back().first >= 0 && table.back().second >= 0);
-    decoder.consume_bytes(size);
-  }
-  if (decoder.more()) decoder.error("unexpected additional bytes");
-
-  return decoder.toResult(std::move(table));
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
