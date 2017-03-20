@@ -694,7 +694,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
 RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, position, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 2);
   CONVERT_SMI_ARG_CHECKED(index, 3);
@@ -708,9 +708,9 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   }
 
   CollectTypeProfileNexus nexus(vector, vector->ToSlot(index));
-  nexus.Collect(type);
+  nexus.Collect(type, position->value());
 
-  return *name;
+  return isolate->heap()->undefined_value();
 }
 
 // Return property without being observable by accessors or interceptors.

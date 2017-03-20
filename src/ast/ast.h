@@ -904,6 +904,15 @@ class ReturnStatement final : public JumpStatement {
   Type type() const { return TypeField::decode(bit_field_); }
   bool is_async_return() const { return type() == kAsyncReturn; }
 
+  FeedbackSlot TypeProfileSlot() const {
+    DCHECK(HasTypeProfileSlot());
+    return type_profile_slot_;
+  }
+
+  void SetTypeProfileSlot(FeedbackSlot slot) { type_profile_slot_ = slot; }
+
+  bool HasTypeProfileSlot() const { return !type_profile_slot_.IsInvalid(); }
+
  private:
   friend class AstNodeFactory;
 
@@ -911,6 +920,8 @@ class ReturnStatement final : public JumpStatement {
       : JumpStatement(pos, kReturnStatement), expression_(expression) {
     bit_field_ |= TypeField::encode(type);
   }
+
+  FeedbackSlot type_profile_slot_;
 
   Expression* expression_;
 

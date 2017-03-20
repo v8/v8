@@ -640,9 +640,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreDataPropertyInLiteral(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CollectTypeProfile(
-    Register name, int feedback_slot) {
+    int position, int feedback_slot) {
   DCHECK(FLAG_type_profile);
-  OutputCollectTypeProfile(name, feedback_slot);
+  OutputCollectTypeProfile(position, feedback_slot);
   return *this;
 }
 

@@ -765,7 +765,7 @@ class CollectTypeProfileNexus : public FeedbackNexus {
   }
 
   // Add a type to the list of types.
-  void Collect(Handle<Name> type);
+  void Collect(Handle<Name> type, int position);
 
   // Dump the types to stdout.
   // TODO(franzih): pass this information to the debugger protocol instead of

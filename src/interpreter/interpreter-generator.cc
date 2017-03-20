@@ -822,14 +822,14 @@ void InterpreterGenerator::DoStaDataPropertyInLiteral(
 
 void InterpreterGenerator::DoCollectTypeProfile(
     InterpreterAssembler* assembler) {
-  Node* name = __ LoadRegister(__ BytecodeOperandReg(0));
+  Node* position = __ BytecodeOperandImmSmi(0);
   Node* value = __ GetAccumulator();
   Node* vector_index = __ SmiTag(__ BytecodeOperandIdx(1));
 
   Node* feedback_vector = __ LoadFeedbackVector();
   Node* context = __ GetContext();
 
-  __ CallRuntime(Runtime::kCollectTypeProfile, context, name, value,
+  __ CallRuntime(Runtime::kCollectTypeProfile, context, position, value,
                  feedback_vector, vector_index);
   __ Dispatch();
 }

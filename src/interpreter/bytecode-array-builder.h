@@ -141,7 +141,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Collect type information for developer tools. The value for which we
   // record the type is stored in the accumulator.
   // TODO(franzih): Do not pass the name, instead use the source position.
-  BytecodeArrayBuilder& CollectTypeProfile(Register name, int feedback_slot);
+  BytecodeArrayBuilder& CollectTypeProfile(int position, int feedback_slot);
 
   // Store a property named by a property name. The value to be stored should be
   // in the accumulator.

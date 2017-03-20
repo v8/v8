@@ -1,19 +1,19 @@
-Function: test
-Object
-number
-string
-number
+Function: testFunction
+424: Object
+374: number
+424: string
+424: number
 
-Function: test
-Object
-number
-string
-number
-undefined
-string
-Object
-Object
+Function: testFunction
+424: Object
+374: number
+424: string
+424: number
+424: undefined
+374: string
+374: Object
+424: Object
 
-*%(basename)s:40: throw otherwise test fails with --stress-opt
+*%(basename)s:51: throw otherwise test fails with --stress-opt
 throw "throw otherwise test fails with --stress-opt";
 ^

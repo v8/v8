@@ -105,7 +105,7 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
   V(StaDataPropertyInLiteral, AccumulatorUse::kRead, OperandType::kReg,        \
     OperandType::kReg, OperandType::kFlag8, OperandType::kIdx)                 \
-  V(CollectTypeProfile, AccumulatorUse::kRead, OperandType::kReg,              \
+  V(CollectTypeProfile, AccumulatorUse::kRead, OperandType::kImm,              \
     OperandType::kIdx)                                                         \
                                                                                \
   /* Binary Operators */                                                       \

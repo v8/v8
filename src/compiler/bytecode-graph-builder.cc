@@ -806,8 +806,8 @@ void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
 void BytecodeGraphBuilder::VisitCollectTypeProfile() {
   PrepareEagerCheckpoint();
 
-  Node* name =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* position =
+      jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
   Node* value = environment()->LookupAccumulator();
   Node* index = jsgraph()->Constant(bytecode_iterator().GetIndexOperand(1));
 
@@ -815,7 +815,7 @@ void BytecodeGraphBuilder::VisitCollectTypeProfile() {
 
   const Operator* op = javascript()->CallRuntime(Runtime::kCollectTypeProfile);
 
-  Node* node = NewNode(op, name, value, vector, index);
+  Node* node = NewNode(op, position, value, vector, index);
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
