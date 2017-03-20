@@ -814,8 +814,8 @@ class RuntimeCallTimer final {
   V(StoreIC_StoreField)                          \
   V(StoreIC_StoreFieldDH)                        \
   V(StoreIC_StoreFieldStub)                      \
-  V(StoreIC_StoreGlobalDH)                       \
-  V(StoreIC_StoreGlobalTransitionDH)             \
+  V(StoreIC_StoreGlobal)                         \
+  V(StoreIC_StoreGlobalTransition)               \
   V(StoreIC_StoreInterceptorStub)                \
   V(StoreIC_StoreNormalDH)                       \
   V(StoreIC_StoreScriptContextFieldStub)         \

@@ -617,8 +617,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     const StoreICParameters* p, Node* handler, Label* miss,
     ElementSupport support_elements) {
   Label if_smi_handler(this), if_nonsmi_handler(this);
-  Label if_proto_handler(this), if_element_handler(this), call_handler(this),
-      store_global(this);
+  Label if_proto_handler(this), if_element_handler(this), call_handler(this);
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &if_nonsmi_handler);
 
@@ -666,7 +665,6 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     if (support_elements == kSupportElements) {
       GotoIf(IsTuple2Map(handler_map), &if_element_handler);
     }
-    GotoIf(IsWeakCellMap(handler_map), &store_global);
     Branch(IsCodeMap(handler_map), &call_handler, &if_proto_handler);
   }
 
@@ -686,66 +684,6 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     StoreWithVectorDescriptor descriptor(isolate());
     TailCallStub(descriptor, handler, p->context, p->receiver, p->name,
                  p->value, p->slot, p->vector);
-  }
-
-  Bind(&store_global);
-  {
-    Node* cell = LoadWeakCellValue(handler, miss);
-    CSA_ASSERT(this, IsPropertyCell(cell));
-
-    // Load the payload of the global parameter cell. A hole indicates that
-    // the cell has been invalidated and that the store must be handled by the
-    // runtime.
-    Node* cell_contents = LoadObjectField(cell, PropertyCell::kValueOffset);
-    Node* details =
-        LoadAndUntagToWord32ObjectField(cell, PropertyCell::kDetailsOffset);
-    Node* type = DecodeWord32<PropertyDetails::PropertyCellTypeField>(details);
-
-    Label constant(this), store(this), not_smi(this);
-
-    GotoIf(
-        Word32Equal(
-            type, Int32Constant(static_cast<int>(PropertyCellType::kConstant))),
-        &constant);
-
-    GotoIf(IsTheHole(cell_contents), miss);
-
-    GotoIf(
-        Word32Equal(
-            type, Int32Constant(static_cast<int>(PropertyCellType::kMutable))),
-        &store);
-    CSA_ASSERT(this,
-               Word32Or(Word32Equal(type,
-                                    Int32Constant(static_cast<int>(
-                                        PropertyCellType::kConstantType))),
-                        Word32Equal(type,
-                                    Int32Constant(static_cast<int>(
-                                        PropertyCellType::kUndefined)))));
-
-    GotoIfNot(TaggedIsSmi(cell_contents), &not_smi);
-    GotoIfNot(TaggedIsSmi(p->value), miss);
-    Goto(&store);
-
-    Bind(&not_smi);
-    {
-      GotoIf(TaggedIsSmi(p->value), miss);
-      Node* expected_map = LoadMap(cell_contents);
-      Node* map = LoadMap(p->value);
-      GotoIfNot(WordEqual(expected_map, map), miss);
-      Goto(&store);
-    }
-
-    Bind(&store);
-    {
-      StoreObjectField(cell, PropertyCell::kValueOffset, p->value);
-      Return(p->value);
-    }
-
-    Bind(&constant);
-    {
-      GotoIfNot(WordEqual(cell_contents, p->value), miss);
-      Return(p->value);
-    }
   }
 }
 
