@@ -108,6 +108,7 @@ class Private;
 class Uint32;
 class Utils;
 class Value;
+class WasmCompiledModule;
 template <class T> class Local;
 template <class T>
 class MaybeLocal;
@@ -1709,6 +1710,8 @@ class V8_EXPORT ValueSerializer {
     virtual Maybe<uint32_t> GetSharedArrayBufferId(
         Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer);
 
+    virtual Maybe<uint32_t> GetWasmModuleTransferId(
+        Isolate* isolate, Local<WasmCompiledModule> module);
     /*
      * Allocates memory for the buffer of at least the size provided. The actual
      * size (which may be greater or equal) is written to |actual_size|. If no
@@ -1819,6 +1822,13 @@ class V8_EXPORT ValueDeserializer {
      * MaybeLocal<Object>() returned.
      */
     virtual MaybeLocal<Object> ReadHostObject(Isolate* isolate);
+
+    /*
+     * Get a WasmCompiledModule given a transfer_id previously provided
+     * by ValueSerializer::GetWasmModuleTransferId
+     */
+    virtual MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(
+        Isolate* isolate, uint32_t transfer_id);
   };
 
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);
@@ -1860,6 +1870,11 @@ class V8_EXPORT ValueDeserializer {
    * blink::ScriptValueSerializer.
    */
   void SetSupportsLegacyWireFormat(bool supports_legacy_wire_format);
+
+  /*
+   * Expect inline wasm in the data stream (rather than in-memory transfer)
+   */
+  void SetExpectInlineWasm(bool allow_inline_wasm);
 
   /*
    * Reads the underlying wire format version. Likely mostly to be useful to
@@ -3903,6 +3918,37 @@ class V8_EXPORT WasmCompiledModule : public Object {
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
   // A buffer that is owned by the caller.
   typedef std::pair<const uint8_t*, size_t> CallerOwnedBuffer;
+
+  // An opaque, native heap object for transferring wasm modules. It
+  // supports move semantics, and does not support copy semantics.
+  class TransferrableModule final {
+   public:
+    TransferrableModule(TransferrableModule&& src) = default;
+    TransferrableModule(const TransferrableModule& src) = delete;
+
+    TransferrableModule& operator=(TransferrableModule&& src) = default;
+    TransferrableModule& operator=(const TransferrableModule& src) = delete;
+
+   private:
+    typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> OwnedBuffer;
+    friend class WasmCompiledModule;
+    TransferrableModule(OwnedBuffer&& code, OwnedBuffer&& bytes)
+        : compiled_code(std::move(code)), wire_bytes(std::move(bytes)) {}
+
+    OwnedBuffer compiled_code = {nullptr, 0};
+    OwnedBuffer wire_bytes = {nullptr, 0};
+  };
+
+  // Get an in-memory, non-persistable, and context-independent (meaning,
+  // suitable for transfer to another Isolate and Context) representation
+  // of this wasm compiled module.
+  TransferrableModule GetTransferrableModule();
+
+  // Efficiently re-create a WasmCompiledModule, without recompiling, from
+  // a TransferrableModule.
+  static MaybeLocal<WasmCompiledModule> FromTransferrableModule(
+      Isolate* isolate, const TransferrableModule&);
+
   // Get the wasm-encoded bytes that were used to compile this module.
   Local<String> GetWasmWireBytes();
 
@@ -3924,6 +3970,11 @@ class V8_EXPORT WasmCompiledModule : public Object {
   static MaybeLocal<WasmCompiledModule> Compile(Isolate* isolate,
                                                 const uint8_t* start,
                                                 size_t length);
+  static CallerOwnedBuffer AsCallerOwned(
+      const TransferrableModule::OwnedBuffer& buff) {
+    return {buff.first.get(), buff.second};
+  }
+
   WasmCompiledModule();
   static void CheckCast(Value* obj);
 };

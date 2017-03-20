@@ -3125,6 +3125,11 @@ Maybe<uint32_t> ValueSerializer::Delegate::GetSharedArrayBufferId(
   return Nothing<uint32_t>();
 }
 
+Maybe<uint32_t> ValueSerializer::Delegate::GetWasmModuleTransferId(
+    Isolate* v8_isolate, Local<WasmCompiledModule> module) {
+  return Nothing<uint32_t>();
+}
+
 void* ValueSerializer::Delegate::ReallocateBufferMemory(void* old_buffer,
                                                         size_t size,
                                                         size_t* actual_size) {
@@ -3213,6 +3218,15 @@ MaybeLocal<Object> ValueDeserializer::Delegate::ReadHostObject(
   return MaybeLocal<Object>();
 }
 
+MaybeLocal<WasmCompiledModule> ValueDeserializer::Delegate::GetWasmModuleFromId(
+    Isolate* v8_isolate, uint32_t id) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->ScheduleThrow(*isolate->factory()->NewError(
+      isolate->error_function(),
+      i::MessageTemplate::kDataCloneDeserializationError));
+  return MaybeLocal<WasmCompiledModule>();
+}
+
 struct ValueDeserializer::PrivateData {
   PrivateData(i::Isolate* i, i::Vector<const uint8_t> data, Delegate* delegate)
       : isolate(i), deserializer(i, data, delegate) {}
@@ -3273,6 +3287,10 @@ Maybe<bool> ValueDeserializer::ReadHeader(Local<Context> context) {
 void ValueDeserializer::SetSupportsLegacyWireFormat(
     bool supports_legacy_wire_format) {
   private_->supports_legacy_wire_format = supports_legacy_wire_format;
+}
+
+void ValueDeserializer::SetExpectInlineWasm(bool expect_inline_wasm) {
+  private_->deserializer.set_expect_inline_wasm(expect_inline_wasm);
 }
 
 uint32_t ValueDeserializer::GetWireFormatVersion() const {
@@ -7504,6 +7522,36 @@ Local<String> WasmCompiledModule::GetWasmWireBytes() {
       i::handle(i::WasmCompiledModule::cast(obj->GetEmbedderField(0)));
   i::Handle<i::String> wire_bytes(compiled_part->module_bytes());
   return Local<String>::Cast(Utils::ToLocal(wire_bytes));
+}
+
+// Currently, wasm modules are bound, both to Isolate and to
+// the Context they were created in. The currently-supported means to
+// decontextualize and then re-contextualize a module is via
+// serialization/deserialization.
+WasmCompiledModule::TransferrableModule
+WasmCompiledModule::GetTransferrableModule() {
+  i::DisallowHeapAllocation no_gc;
+  WasmCompiledModule::SerializedModule compiled_part = Serialize();
+
+  Local<String> wire_bytes = GetWasmWireBytes();
+  size_t wire_size = static_cast<size_t>(wire_bytes->Length());
+  uint8_t* bytes = new uint8_t[wire_size];
+  wire_bytes->WriteOneByte(bytes, 0, wire_bytes->Length());
+
+  return TransferrableModule(
+      std::move(compiled_part),
+      std::make_pair(
+          std::unique_ptr<const uint8_t[]>(const_cast<const uint8_t*>(bytes)),
+          wire_size));
+}
+
+MaybeLocal<WasmCompiledModule> WasmCompiledModule::FromTransferrableModule(
+    Isolate* isolate,
+    const WasmCompiledModule::TransferrableModule& transferrable_module) {
+  MaybeLocal<WasmCompiledModule> ret =
+      Deserialize(isolate, AsCallerOwned(transferrable_module.compiled_code),
+                  AsCallerOwned(transferrable_module.wire_bytes));
+  return ret;
 }
 
 WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {

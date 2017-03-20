@@ -469,6 +469,43 @@ TEST(BlockWasmCodeGenAtDeserialization) {
   Cleanup();
 }
 
+TEST(TransferrableWasmModules) {
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneBuffer buffer(&zone);
+  WasmSerializationTest::BuildWireBytes(&zone, &buffer);
+
+  Isolate* from_isolate = CcTest::InitIsolateOnce();
+  ErrorThrower thrower(from_isolate, "");
+  std::vector<v8::WasmCompiledModule::TransferrableModule> store;
+  {
+    HandleScope scope(from_isolate);
+    testing::SetupIsolateForWasmModule(from_isolate);
+
+    MaybeHandle<WasmModuleObject> module_object = SyncCompile(
+        from_isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+    v8::Local<v8::WasmCompiledModule> v8_module =
+        v8::Local<v8::WasmCompiledModule>::Cast(v8::Utils::ToLocal(
+            Handle<JSObject>::cast(module_object.ToHandleChecked())));
+    store.push_back(v8_module->GetTransferrableModule());
+  }
+
+  {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator =
+        from_isolate->array_buffer_allocator();
+    v8::Isolate* to_isolate = v8::Isolate::New(create_params);
+    v8::HandleScope new_scope(to_isolate);
+    v8::Local<v8::Context> deserialization_context =
+        v8::Context::New(to_isolate);
+    deserialization_context->Enter();
+    v8::MaybeLocal<v8::WasmCompiledModule> mod =
+        v8::WasmCompiledModule::FromTransferrableModule(to_isolate, store[0]);
+    CHECK(!mod.IsEmpty());
+  }
+}
+
 TEST(MemorySize) {
   {
     // Initial memory size is 16, see wasm-module-builder.cc
