@@ -2019,7 +2019,6 @@ void Assembler::stop(const char* msg, uint32_t code) {
 #if V8_HOST_ARCH_MIPS
   break_(0x54321);
 #else  // V8_HOST_ARCH_MIPS
-  BlockTrampolinePoolFor(2);
   break_(code, true);
 #endif
 }

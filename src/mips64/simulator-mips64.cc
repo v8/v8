@@ -102,8 +102,6 @@ void MipsDebugger::Stop(Instruction* instr) {
   // Get the stop code.
   uint32_t code = instr->Bits(25, 6);
   PrintF("Simulator hit (%u)\n", code);
-  // TODO(yuyin): 2 -> 3?
-  sim_->set_pc(sim_->get_pc() + 3 * Instruction::kInstrSize);
   Debug();
 }
 
@@ -2282,8 +2280,6 @@ void Simulator::HandleStop(uint64_t code, Instruction* instr) {
   if (IsEnabledStop(code)) {
     MipsDebugger dbg(this);
     dbg.Stop(instr);
-  } else {
-    set_pc(get_pc() + 2 * Instruction::kInstrSize);
   }
 }
 

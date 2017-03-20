@@ -75,7 +75,6 @@ void ArmDebugger::Stop(Instruction* instr) {
   } else {
     PrintF("Simulator hit\n");
   }
-  sim_->set_pc(sim_->get_pc() + 2 * Instruction::kInstrSize);
   Debug();
 }
 
@@ -1987,8 +1986,6 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (isEnabledStop(code)) {
           ArmDebugger dbg(this);
           dbg.Stop(instr);
-        } else {
-          set_pc(get_pc() + 2 * Instruction::kInstrSize);
         }
       } else {
         // This is not a valid svc code.
