@@ -1060,6 +1060,8 @@
         'interpreter/interpreter.h',
         'interpreter/interpreter-assembler.cc',
         'interpreter/interpreter-assembler.h',
+        'interpreter/interpreter-generator.cc',
+        'interpreter/interpreter-generator.h',
         'interpreter/interpreter-intrinsics.cc',
         'interpreter/interpreter-intrinsics.h',
         'isolate-inl.h',

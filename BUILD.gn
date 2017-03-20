@@ -933,6 +933,8 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-typedarray-gen.cc",
     "src/builtins/builtins-utils-gen.h",
     "src/builtins/builtins-wasm-gen.cc",
+    "src/interpreter/interpreter-generator.cc",
+    "src/interpreter/interpreter-generator.h",
   ]
 
   configs = [ ":internal_config" ]
@@ -1597,6 +1599,7 @@ v8_source_set("v8_base") {
     "src/interpreter/handler-table-builder.h",
     "src/interpreter/interpreter-assembler.cc",
     "src/interpreter/interpreter-assembler.h",
+    "src/interpreter/interpreter-generator.h",
     "src/interpreter/interpreter-intrinsics.cc",
     "src/interpreter/interpreter-intrinsics.h",
     "src/interpreter/interpreter.cc",
