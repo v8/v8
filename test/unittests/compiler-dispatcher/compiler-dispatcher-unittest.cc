@@ -722,10 +722,11 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   // Force the compilation to finish, even while aborting.
   ASSERT_TRUE(dispatcher.FinishNow(shared));
   ASSERT_TRUE(dispatcher.jobs_.empty());
+
+  // Busy wait for the background task to finish.
   for (;;) {
     base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
     if (dispatcher.num_background_tasks_ == 0) {
-      ASSERT_FALSE(dispatcher.abort_);
       break;
     }
   }
@@ -733,6 +734,13 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   ASSERT_TRUE(platform.ForegroundTasksPending());
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.BackgroundTasksPending());
+
+  platform.RunForegroundTasks();
+  {
+    base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
+    ASSERT_FALSE(dispatcher.abort_);
+  }
+
   platform.ClearForegroundTasks();
   platform.ClearIdleTask();
 }
