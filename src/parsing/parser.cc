@@ -2826,6 +2826,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
         function_scope->RecordEvalCall();
       }
       SkipFunctionLiterals(data.num_inner_functions);
+      return kLazyParsingComplete;
     }
   }
 
