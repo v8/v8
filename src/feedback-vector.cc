@@ -422,18 +422,6 @@ Handle<FixedArray> FeedbackNexus::EnsureExtraArrayOfSize(int length) {
   return Handle<FixedArray>::cast(feedback_extra);
 }
 
-void FeedbackNexus::InstallHandlers(Handle<FixedArray> array,
-                                    MapHandleList* maps,
-                                    List<Handle<Object>>* handlers) {
-  int receiver_count = maps->length();
-  for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map = maps->at(current);
-    Handle<WeakCell> cell = Map::WeakCellForMap(map);
-    array->set(current * 2, *cell);
-    array->set(current * 2 + 1, *handlers->at(current));
-  }
-}
-
 void FeedbackNexus::ConfigureUninitialized() {
   SetFeedback(*FeedbackVector::UninitializedSentinel(GetIsolate()),
               SKIP_WRITE_BARRIER);
@@ -448,27 +436,7 @@ void FeedbackNexus::ConfigurePremonomorphic() {
                    SKIP_WRITE_BARRIER);
 }
 
-void FeedbackNexus::ConfigureMegamorphic() {
-  // Keyed ICs must use ConfigureMegamorphicKeyed.
-  DCHECK(!vector()->IsKeyedLoadIC(slot()));
-  DCHECK(!vector()->IsKeyedStoreIC(slot()));
-
-  Isolate* isolate = GetIsolate();
-  SetFeedback(*FeedbackVector::MegamorphicSentinel(isolate),
-              SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
-                   SKIP_WRITE_BARRIER);
-}
-
-void KeyedLoadICNexus::ConfigureMegamorphicKeyed(IcCheckType property_type) {
-  Isolate* isolate = GetIsolate();
-  SetFeedback(*FeedbackVector::MegamorphicSentinel(isolate),
-              SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(Smi::FromInt(static_cast<int>(property_type)),
-                   SKIP_WRITE_BARRIER);
-}
-
-void KeyedStoreICNexus::ConfigureMegamorphicKeyed(IcCheckType property_type) {
+void FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
   Isolate* isolate = GetIsolate();
   SetFeedback(*FeedbackVector::MegamorphicSentinel(isolate),
               SKIP_WRITE_BARRIER);
@@ -625,43 +593,6 @@ void CallICNexus::ConfigureUninitialized() {
   SetFeedbackExtra(Smi::kZero, SKIP_WRITE_BARRIER);
 }
 
-void CallICNexus::ConfigureMonomorphicArray() {
-  Object* feedback = GetFeedback();
-  if (!feedback->IsAllocationSite()) {
-    Handle<AllocationSite> new_site =
-        GetIsolate()->factory()->NewAllocationSite();
-    SetFeedback(*new_site);
-  }
-  SetFeedbackExtra(Smi::FromInt(1), SKIP_WRITE_BARRIER);
-}
-
-void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
-  Handle<WeakCell> new_cell = GetIsolate()->factory()->NewWeakCell(function);
-  SetFeedback(*new_cell);
-  SetFeedbackExtra(Smi::FromInt(1), SKIP_WRITE_BARRIER);
-}
-
-void CallICNexus::ConfigureMegamorphic() {
-  SetFeedback(*FeedbackVector::MegamorphicSentinel(GetIsolate()),
-              SKIP_WRITE_BARRIER);
-  Smi* count = Smi::cast(GetFeedbackExtra());
-  int new_count = count->value() + 1;
-  SetFeedbackExtra(Smi::FromInt(new_count), SKIP_WRITE_BARRIER);
-}
-
-void CallICNexus::ConfigureMegamorphic(int call_count) {
-  SetFeedback(*FeedbackVector::MegamorphicSentinel(GetIsolate()),
-              SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(Smi::FromInt(call_count), SKIP_WRITE_BARRIER);
-}
-
-void LoadICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
-                                       Handle<Object> handler) {
-  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
-  SetFeedback(*cell);
-  SetFeedbackExtra(*handler);
-}
-
 void LoadGlobalICNexus::ConfigureUninitialized() {
   Isolate* isolate = GetIsolate();
   SetFeedback(isolate->heap()->empty_weak_cell(), SKIP_WRITE_BARRIER);
@@ -681,9 +612,9 @@ void LoadGlobalICNexus::ConfigureHandlerMode(Handle<Object> handler) {
   SetFeedbackExtra(*handler);
 }
 
-void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
-                                            Handle<Map> receiver_map,
-                                            Handle<Object> handler) {
+void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
+                                         Handle<Map> receiver_map,
+                                         Handle<Object> handler) {
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   if (name.is_null()) {
     SetFeedback(*cell);
@@ -696,41 +627,8 @@ void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
   }
 }
 
-void StoreICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
-                                        Handle<Object> handler) {
-  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
-  SetFeedback(*cell);
-  SetFeedbackExtra(*handler);
-}
-
-void KeyedStoreICNexus::ConfigureMonomorphic(Handle<Name> name,
-                                             Handle<Map> receiver_map,
-                                             Handle<Object> handler) {
-  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
-  if (name.is_null()) {
-    SetFeedback(*cell);
-    SetFeedbackExtra(*handler);
-  } else {
-    Handle<FixedArray> array = EnsureExtraArrayOfSize(2);
-    SetFeedback(*name);
-    array->set(0, *cell);
-    array->set(1, *handler);
-  }
-}
-
-void LoadICNexus::ConfigurePolymorphic(MapHandleList* maps,
-                                       List<Handle<Object>>* handlers) {
-  Isolate* isolate = GetIsolate();
-  int receiver_count = maps->length();
-  Handle<FixedArray> array = EnsureArrayOfSize(receiver_count * 2);
-  InstallHandlers(array, maps, handlers);
-  SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
-                   SKIP_WRITE_BARRIER);
-}
-
-void KeyedLoadICNexus::ConfigurePolymorphic(Handle<Name> name,
-                                            MapHandleList* maps,
-                                            List<Handle<Object>>* handlers) {
+void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
+                                         List<Handle<Object>>* handlers) {
   int receiver_count = maps->length();
   DCHECK(receiver_count > 1);
   Handle<FixedArray> array;
@@ -743,46 +641,12 @@ void KeyedLoadICNexus::ConfigurePolymorphic(Handle<Name> name,
     SetFeedback(*name);
   }
 
-  InstallHandlers(array, maps, handlers);
-}
-
-void StoreICNexus::ConfigurePolymorphic(MapHandleList* maps,
-                                        List<Handle<Object>>* handlers) {
-  Isolate* isolate = GetIsolate();
-  int receiver_count = maps->length();
-  Handle<FixedArray> array = EnsureArrayOfSize(receiver_count * 2);
-  InstallHandlers(array, maps, handlers);
-  SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
-                   SKIP_WRITE_BARRIER);
-}
-
-void KeyedStoreICNexus::ConfigurePolymorphic(Handle<Name> name,
-                                             MapHandleList* maps,
-                                             List<Handle<Object>>* handlers) {
-  int receiver_count = maps->length();
-  DCHECK(receiver_count > 1);
-  Handle<FixedArray> array;
-  if (name.is_null()) {
-    array = EnsureArrayOfSize(receiver_count * 2);
-    SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(GetIsolate()),
-                     SKIP_WRITE_BARRIER);
-  } else {
-    array = EnsureExtraArrayOfSize(receiver_count * 2);
-    SetFeedback(*name);
+  for (int current = 0; current < receiver_count; ++current) {
+    Handle<Map> map = maps->at(current);
+    Handle<WeakCell> cell = Map::WeakCellForMap(map);
+    array->set(current * 2, *cell);
+    array->set(current * 2 + 1, *handlers->at(current));
   }
-
-  InstallHandlers(array, maps, handlers);
-}
-
-void KeyedStoreICNexus::ConfigurePolymorphic(MapHandleList* maps,
-                                             List<Handle<Object>>* handlers) {
-  int receiver_count = maps->length();
-  DCHECK(receiver_count > 1);
-  Handle<FixedArray> array = EnsureArrayOfSize(receiver_count * 2);
-  SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(GetIsolate()),
-                   SKIP_WRITE_BARRIER);
-
-  InstallHandlers(array, maps, handlers);
 }
 
 int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {

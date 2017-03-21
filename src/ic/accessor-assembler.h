@@ -124,9 +124,6 @@ class AccessorAssembler : public CodeStubAssembler {
   void HandlePolymorphicCase(Node* receiver_map, Node* feedback,
                              Label* if_handler, Variable* var_handler,
                              Label* if_miss, int min_feedback_capacity);
-  void HandleKeyedStorePolymorphicCase(Node* receiver_map, Node* feedback,
-                                       Label* if_handler, Variable* var_handler,
-                                       Label* if_miss);
 
   // LoadIC implementation.
 

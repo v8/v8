@@ -474,13 +474,19 @@ class FeedbackNexus {
 
   virtual void Clear() { ConfigureUninitialized(); }
   virtual void ConfigureUninitialized();
-  virtual void ConfigurePremonomorphic();
-  virtual void ConfigureMegamorphic();
+  void ConfigurePremonomorphic();
+  void ConfigureMegamorphic(IcCheckType property_type);
 
   inline Object* GetFeedback() const;
   inline Object* GetFeedbackExtra() const;
 
   inline Isolate* GetIsolate() const;
+
+  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
+                            Handle<Object> handler);
+
+  void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
+                            List<Handle<Object>>* handlers);
 
  protected:
   inline void SetFeedback(Object* feedback,
@@ -490,8 +496,6 @@ class FeedbackNexus {
 
   Handle<FixedArray> EnsureArrayOfSize(int length);
   Handle<FixedArray> EnsureExtraArrayOfSize(int length);
-  void InstallHandlers(Handle<FixedArray> array, MapHandleList* maps,
-                       List<Handle<Object>>* handlers);
 
  private:
   // The reason for having a vector handle and a raw pointer is that we can and
@@ -514,11 +518,7 @@ class CallICNexus final : public FeedbackNexus {
     DCHECK(vector->IsCallIC(slot));
   }
 
-  void ConfigureUninitialized() override;
-  void ConfigureMonomorphicArray();
-  void ConfigureMonomorphic(Handle<JSFunction> function);
-  void ConfigureMegamorphic() final;
-  void ConfigureMegamorphic(int call_count);
+  void ConfigureUninitialized() final;
 
   InlineCacheState StateFromFeedback() const final;
 
@@ -554,11 +554,6 @@ class LoadICNexus : public FeedbackNexus {
 
   void Clear() override { ConfigurePremonomorphic(); }
 
-  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Object> handler);
-
-  void ConfigurePolymorphic(MapHandleList* maps,
-                            List<Handle<Object>>* handlers);
-
   InlineCacheState StateFromFeedback() const override;
 };
 
@@ -585,8 +580,6 @@ class LoadGlobalICNexus : public FeedbackNexus {
     return length == 0;
   }
 
-  void ConfigureMegamorphic() override { UNREACHABLE(); }
-
   void ConfigureUninitialized() override;
   void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
   void ConfigureHandlerMode(Handle<Object> handler);
@@ -607,15 +600,6 @@ class KeyedLoadICNexus : public FeedbackNexus {
 
   void Clear() override { ConfigurePremonomorphic(); }
 
-  // name can be a null handle for element loads.
-  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
-                            Handle<Object> handler);
-  // name can be null.
-  void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
-                            List<Handle<Object>>* handlers);
-
-  void ConfigureMegamorphicKeyed(IcCheckType property_type);
-
   IcCheckType GetKeyType() const;
   InlineCacheState StateFromFeedback() const override;
   Name* FindFirstName() const override;
@@ -633,11 +617,6 @@ class StoreICNexus : public FeedbackNexus {
   }
 
   void Clear() override { ConfigurePremonomorphic(); }
-
-  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Object> handler);
-
-  void ConfigurePolymorphic(MapHandleList* maps,
-                            List<Handle<Object>>* handlers);
 
   InlineCacheState StateFromFeedback() const override;
 };
@@ -658,16 +637,6 @@ class KeyedStoreICNexus : public FeedbackNexus {
   }
 
   void Clear() override { ConfigurePremonomorphic(); }
-
-  // name can be a null handle for element loads.
-  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
-                            Handle<Object> handler);
-  // name can be null.
-  void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
-                            List<Handle<Object>>* handlers);
-  void ConfigurePolymorphic(MapHandleList* maps,
-                            List<Handle<Object>>* handlers);
-  void ConfigureMegamorphicKeyed(IcCheckType property_type);
 
   KeyedAccessStoreMode GetKeyedAccessStoreMode() const;
   IcCheckType GetKeyType() const;

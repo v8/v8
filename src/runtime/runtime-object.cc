@@ -659,12 +659,12 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
     if (name->IsUniqueName()) {
       nexus.ConfigureMonomorphic(name, handle(object->map()));
     } else {
-      nexus.ConfigureMegamorphic();
+      nexus.ConfigureMegamorphic(PROPERTY);
     }
   } else if (nexus.ic_state() == MONOMORPHIC) {
     if (nexus.FindFirstMap() != object->map() ||
         nexus.GetFeedbackExtra() != *name) {
-      nexus.ConfigureMegamorphic();
+      nexus.ConfigureMegamorphic(PROPERTY);
     }
   }
 

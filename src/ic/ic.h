@@ -97,10 +97,6 @@ class IC {
   // Configure the vector for POLYMORPHIC.
   void ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
                             List<Handle<Object>>* handlers);
-  // Configure the vector for POLYMORPHIC with transitions (only for element
-  // keyed stores).
-  void ConfigureVectorState(MapHandleList* maps,
-                            List<Handle<Object>>* handlers);
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, Handle<Object> name);

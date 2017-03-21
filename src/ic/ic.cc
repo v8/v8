@@ -516,16 +516,8 @@ void IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   if (new_state == PREMONOMORPHIC) {
     nexus()->ConfigurePremonomorphic();
   } else if (new_state == MEGAMORPHIC) {
-    if (IsLoadIC() || IsStoreIC() || IsStoreOwnIC()) {
-      nexus()->ConfigureMegamorphic();
-    } else if (IsKeyedLoadIC()) {
-      KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
-      nexus->ConfigureMegamorphicKeyed(key->IsName() ? PROPERTY : ELEMENT);
-    } else {
-      DCHECK(IsKeyedStoreIC());
-      KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
-      nexus->ConfigureMegamorphicKeyed(key->IsName() ? PROPERTY : ELEMENT);
-    }
+    DCHECK_IMPLIES(!is_keyed(), key->IsName());
+    nexus()->ConfigureMegamorphic(key->IsName() ? PROPERTY : ELEMENT);
   } else {
     UNREACHABLE();
   }
@@ -536,49 +528,13 @@ void IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
 
 void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                               Handle<Object> handler) {
-  switch (kind_) {
-    case FeedbackSlotKind::kLoadProperty: {
-      LoadICNexus* nexus = casted_nexus<LoadICNexus>();
-      nexus->ConfigureMonomorphic(map, handler);
-      break;
-    }
-    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
-      LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
-      nexus->ConfigureHandlerMode(handler);
-      break;
-    }
-    case FeedbackSlotKind::kLoadKeyed: {
-      KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
-      nexus->ConfigureMonomorphic(name, map, handler);
-      break;
-    }
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreOwnNamed: {
-      StoreICNexus* nexus = casted_nexus<StoreICNexus>();
-      nexus->ConfigureMonomorphic(map, handler);
-      break;
-    }
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict: {
-      KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
-      nexus->ConfigureMonomorphic(name, map, handler);
-      break;
-    }
-    case FeedbackSlotKind::kCall:
-    case FeedbackSlotKind::kBinaryOp:
-    case FeedbackSlotKind::kCompareOp:
-    case FeedbackSlotKind::kToBoolean:
-    case FeedbackSlotKind::kCreateClosure:
-    case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kGeneral:
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-    case FeedbackSlotKind::kTypeProfile:
-    case FeedbackSlotKind::kInvalid:
-    case FeedbackSlotKind::kKindsNumber:
-      UNREACHABLE();
-      break;
+  if (IsLoadGlobalIC()) {
+    LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
+    nexus->ConfigureHandlerMode(handler);
+  } else {
+    // Non-keyed ICs don't track the name explicitly.
+    if (!is_keyed()) name = Handle<Name>::null();
+    nexus()->ConfigureMonomorphic(name, map, handler);
   }
 
   vector_set_ = true;
@@ -587,61 +543,14 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
 
 void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
                               List<Handle<Object>>* handlers) {
-  switch (kind_) {
-    case FeedbackSlotKind::kLoadProperty: {
-      LoadICNexus* nexus = casted_nexus<LoadICNexus>();
-      nexus->ConfigurePolymorphic(maps, handlers);
-      break;
-    }
-    case FeedbackSlotKind::kLoadKeyed: {
-      KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
-      nexus->ConfigurePolymorphic(name, maps, handlers);
-      break;
-    }
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreOwnNamed: {
-      StoreICNexus* nexus = casted_nexus<StoreICNexus>();
-      nexus->ConfigurePolymorphic(maps, handlers);
-      break;
-    }
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict: {
-      KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
-      nexus->ConfigurePolymorphic(name, maps, handlers);
-      break;
-    }
-    case FeedbackSlotKind::kCall:
-    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
-    case FeedbackSlotKind::kBinaryOp:
-    case FeedbackSlotKind::kCompareOp:
-    case FeedbackSlotKind::kToBoolean:
-    case FeedbackSlotKind::kCreateClosure:
-    case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kGeneral:
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-    case FeedbackSlotKind::kTypeProfile:
-    case FeedbackSlotKind::kInvalid:
-    case FeedbackSlotKind::kKindsNumber:
-      UNREACHABLE();
-      break;
-  }
+  DCHECK(!IsLoadGlobalIC());
+  // Non-keyed ICs don't track the name explicitly.
+  if (!is_keyed()) name = Handle<Name>::null();
+  nexus()->ConfigurePolymorphic(name, maps, handlers);
 
   vector_set_ = true;
   OnFeedbackChanged(isolate(), GetHostFunction());
 }
-
-void IC::ConfigureVectorState(MapHandleList* maps,
-                              List<Handle<Object>>* handlers) {
-  DCHECK(IsKeyedStoreIC());
-  KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
-  nexus->ConfigurePolymorphic(maps, handlers);
-
-  vector_set_ = true;
-  OnFeedbackChanged(isolate(), GetHostFunction());
-}
-
 
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   // If the object is undefined or null it's illegal to try to get any
@@ -2167,7 +2076,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   List<Handle<Object>> handlers(target_receiver_maps.length());
   StoreElementPolymorphicHandlers(&target_receiver_maps, &handlers, store_mode);
-  ConfigureVectorState(&target_receiver_maps, &handlers);
+  ConfigureVectorState(Handle<Name>(), &target_receiver_maps, &handlers);
 }
 
 

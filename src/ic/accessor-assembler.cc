@@ -126,35 +126,6 @@ void AccessorAssembler::HandlePolymorphicCase(Node* receiver_map,
   Goto(if_miss);
 }
 
-void AccessorAssembler::HandleKeyedStorePolymorphicCase(Node* receiver_map,
-                                                        Node* feedback,
-                                                        Label* if_handler,
-                                                        Variable* var_handler,
-                                                        Label* if_miss) {
-  DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
-
-  const int kEntrySize = 2;
-
-  Node* init = IntPtrConstant(0);
-  Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
-  BuildFastLoop(init, length,
-                [=](Node* index) {
-                  Node* cached_map =
-                      LoadWeakCellValue(LoadFixedArrayElement(feedback, index));
-                  Label next_entry(this);
-                  GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
-
-                  var_handler->Bind(
-                      LoadFixedArrayElement(feedback, index, kPointerSize));
-                  Goto(if_handler);
-
-                  Bind(&next_entry);
-                },
-                kEntrySize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
-  // The loop falls through if no handler was found.
-  Goto(if_miss);
-}
-
 void AccessorAssembler::HandleLoadICHandlerCase(
     const LoadICParameters* p, Node* handler, Label* miss,
     ExitPoint* exit_point, ElementSupport support_elements) {
@@ -775,6 +746,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     }
 
     Node* smi_handler = smi_or_code;
+    CSA_ASSERT(this, TaggedIsSmi(smi_handler));
     Node* handler_word = SmiUntag(smi_handler);
 
     Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
@@ -2178,8 +2150,8 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
       GotoIfNot(
           WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
           &try_megamorphic);
-      HandleKeyedStorePolymorphicCase(receiver_map, feedback, &if_handler,
-                                      &var_handler, &miss);
+      HandlePolymorphicCase(receiver_map, feedback, &if_handler, &var_handler,
+                            &miss, 2);
     }
 
     Bind(&try_megamorphic);
