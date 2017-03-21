@@ -1037,7 +1037,7 @@ void MemoryAllocator::ZapBlock(Address start, size_t size) {
 void MemoryAllocator::ReportStatistics() {
   size_t size = Size();
   float pct = static_cast<float>(capacity_ - size) / capacity_;
-  PrintF("  capacity: %zu , used: %" V8PRIdPTR ", available: %%%d\n\n",
+  PrintF("  capacity: %zu , used: %" PRIuS ", available: %%%d\n\n",
          capacity_, size, static_cast<int>(pct * 100));
 }
 #endif
@@ -2334,7 +2334,7 @@ void NewSpace::ReportStatistics() {
 #ifdef DEBUG
   if (FLAG_heap_stats) {
     float pct = static_cast<float>(Available()) / TotalCapacity();
-    PrintF("  capacity: %" V8PRIdPTR ", available: %" V8PRIdPTR ", %%%d\n",
+    PrintF("  capacity: %" PRIuS ", available: %" PRIuS ", %%%d\n",
            TotalCapacity(), Available(), static_cast<int>(pct * 100));
     PrintF("\n  Object Histogram:\n");
     for (int i = 0; i <= LAST_TYPE; i++) {
@@ -2918,8 +2918,8 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 #ifdef DEBUG
 void PagedSpace::ReportStatistics() {
   int pct = static_cast<int>(Available() * 100 / Capacity());
-  PrintF("  capacity: %" V8PRIdPTR ", waste: %" V8PRIdPTR
-         ", available: %" V8PRIdPTR ", %%%d\n",
+  PrintF("  capacity: %" PRIuS ", waste: %" PRIuS
+         ", available: %" PRIuS ", %%%d\n",
          Capacity(), Waste(), Available(), pct);
 
   heap()->mark_compact_collector()->EnsureSweepingCompleted();
@@ -3260,7 +3260,7 @@ void LargeObjectSpace::Print() {
 
 
 void LargeObjectSpace::ReportStatistics() {
-  PrintF("  size: %" V8PRIdPTR "\n", size_);
+  PrintF("  size: %" PRIuS "\n", size_);
   int num_objects = 0;
   ClearHistograms(heap()->isolate());
   LargeObjectIterator it(this);
@@ -3271,7 +3271,7 @@ void LargeObjectSpace::ReportStatistics() {
 
   PrintF(
       "  number of objects %d, "
-      "size of objects %" V8PRIdPTR "\n",
+      "size of objects %" PRIuS "\n",
       num_objects, objects_size_);
   if (num_objects > 0) ReportHistogram(heap()->isolate(), false);
 }

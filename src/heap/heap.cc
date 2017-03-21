@@ -4573,7 +4573,7 @@ void Heap::ReportHeapStatistics(const char* title) {
   USE(title);
   PrintF(">>>>>> =============== %s (%d) =============== >>>>>>\n", title,
          gc_count_);
-  PrintF("old_generation_allocation_limit_ %" V8PRIdPTR "\n",
+  PrintF("old_generation_allocation_limit_ %" PRIuS "\n",
          old_generation_allocation_limit_);
 
   PrintF("\n");
