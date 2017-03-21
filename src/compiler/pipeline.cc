@@ -1503,8 +1503,6 @@ bool PipelineImpl::CreateGraph() {
   // Perform OSR deconstruction.
   if (info()->is_osr()) {
     Run<OsrDeconstructionPhase>();
-
-    Run<UntyperPhase>();
     RunPrintAndVerify("OSR deconstruction", true);
   }
 
