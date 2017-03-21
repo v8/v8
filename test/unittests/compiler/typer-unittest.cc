@@ -482,6 +482,22 @@ TEST_MONOTONICITY(InstanceOf)
 TEST_MONOTONICITY(OrdinaryHasInstance)
 #undef TEST_MONOTONICITY
 
+// SIMPLIFIED UNOPs without hint
+#define TEST_MONOTONICITY(name)                \
+  TEST_F(TyperTest, Monotonicity_##name) {     \
+    TestUnaryMonotonicity(simplified_.name()); \
+  }
+TEST_MONOTONICITY(ObjectIsDetectableCallable)
+TEST_MONOTONICITY(ObjectIsNaN)
+TEST_MONOTONICITY(ObjectIsNonCallable)
+TEST_MONOTONICITY(ObjectIsNumber)
+TEST_MONOTONICITY(ObjectIsReceiver)
+TEST_MONOTONICITY(ObjectIsSmi)
+TEST_MONOTONICITY(ObjectIsString)
+TEST_MONOTONICITY(ObjectIsSymbol)
+TEST_MONOTONICITY(ObjectIsUndetectable)
+#undef TEST_MONOTONICITY
+
 // SIMPLIFIED BINOPs without hint, with Number input restriction
 #define TEST_MONOTONICITY(name)                                \
   TEST_F(TyperTest, Monotonicity_##name) {                     \
@@ -499,6 +515,10 @@ SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY);
 TEST_MONOTONICITY(NumberLessThan)
 TEST_MONOTONICITY(NumberLessThanOrEqual)
 TEST_MONOTONICITY(NumberEqual)
+TEST_MONOTONICITY(ReferenceEqual)
+TEST_MONOTONICITY(StringEqual)
+TEST_MONOTONICITY(StringLessThan)
+TEST_MONOTONICITY(StringLessThanOrEqual)
 #undef TEST_MONOTONICITY
 
 // SIMPLIFIED BINOPs with NumberOperationHint, without input restriction
