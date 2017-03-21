@@ -1065,6 +1065,8 @@
         'interpreter/interpreter-generator.h',
         'interpreter/interpreter-intrinsics.cc',
         'interpreter/interpreter-intrinsics.h',
+        'interpreter/interpreter-intrinsics-generator.cc',
+        'interpreter/interpreter-intrinsics-generator.h',
         'isolate-inl.h',
         'isolate.cc',
         'isolate.h',

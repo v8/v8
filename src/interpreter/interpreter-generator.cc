@@ -17,7 +17,7 @@
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
-#include "src/interpreter/interpreter-intrinsics.h"
+#include "src/interpreter/interpreter-intrinsics-generator.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -2123,9 +2123,8 @@ void InterpreterGenerator::DoInvokeIntrinsic(InterpreterAssembler* assembler) {
   Node* first_arg_reg = __ BytecodeOperandReg(1);
   Node* arg_count = __ BytecodeOperandCount(2);
   Node* context = __ GetContext();
-  IntrinsicsHelper helper(assembler);
-  Node* result =
-      helper.InvokeIntrinsic(function_id, context, first_arg_reg, arg_count);
+  Node* result = GenerateInvokeIntrinsic(assembler, function_id, context,
+                                         first_arg_reg, arg_count);
   __ SetAccumulator(result);
   __ Dispatch();
 }
