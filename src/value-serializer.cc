@@ -126,6 +126,8 @@ enum class SerializationTag : uint8_t {
   //  wasmWireByteLength:uint32_t, then raw data
   //  compiledDataLength:uint32_t, then raw data
   kWasmModule = 'W',
+  // A wasm module object transfer. next value is its index.
+  kWasmModuleTransfer = 'w',
   // The delegate is responsible for processing all following data.
   // This "escapes" to whatever wire format the delegate chooses.
   kHostObject = '\\',
@@ -803,6 +805,19 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
 }
 
 Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
+  if (delegate_ != nullptr) {
+    Maybe<uint32_t> transfer_id = delegate_->GetWasmModuleTransferId(
+        reinterpret_cast<v8::Isolate*>(isolate_),
+        v8::Local<v8::WasmCompiledModule>::Cast(Utils::ToLocal(object)));
+    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+    uint32_t id = 0;
+    if (transfer_id.To(&id)) {
+      WriteTag(SerializationTag::kWasmModuleTransfer);
+      WriteVarint<uint32_t>(id);
+      return Just(true);
+    }
+  }
+
   Handle<WasmCompiledModule> compiled_part(
       WasmCompiledModule::cast(object->GetEmbedderField(0)), isolate_);
   WasmEncodingTag encoding_tag = WasmEncodingTag::kRawBytes;
@@ -1150,6 +1165,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     }
     case SerializationTag::kWasmModule:
       return ReadWasmModule();
+    case SerializationTag::kWasmModuleTransfer:
+      return ReadWasmModuleTransfer();
     case SerializationTag::kHostObject:
       return ReadHostObject();
     default:
@@ -1595,8 +1612,32 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   return typed_array;
 }
 
+MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
+  if (FLAG_wasm_disable_structured_cloning || expect_inline_wasm()) {
+    return MaybeHandle<JSObject>();
+  }
+
+  uint32_t transfer_id = 0;
+  Local<Value> module_value;
+  if (!ReadVarint<uint32_t>().To(&transfer_id) || delegate_ == nullptr ||
+      !delegate_
+           ->GetWasmModuleFromId(reinterpret_cast<v8::Isolate*>(isolate_),
+                                 transfer_id)
+           .ToLocal(&module_value)) {
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
+    return MaybeHandle<JSObject>();
+  }
+  uint32_t id = next_id_++;
+  Handle<JSObject> module =
+      Handle<JSObject>::cast(Utils::OpenHandle(*module_value));
+  AddObjectWithID(id, module);
+  return module;
+}
+
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
-  if (FLAG_wasm_disable_structured_cloning) return MaybeHandle<JSObject>();
+  if (FLAG_wasm_disable_structured_cloning || !expect_inline_wasm()) {
+    return MaybeHandle<JSObject>();
+  }
 
   Vector<const uint8_t> encoding_tag;
   if (!ReadRawBytes(sizeof(WasmEncodingTag)).To(&encoding_tag) ||
@@ -1625,21 +1666,22 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   // Try to deserialize the compiled module first.
   ScriptData script_data(compiled_bytes.start(), compiled_bytes.length());
   Handle<FixedArray> compiled_part;
+  MaybeHandle<JSObject> result;
   if (WasmCompiledModuleSerializer::DeserializeWasmModule(
           isolate_, &script_data, wire_bytes)
           .ToHandle(&compiled_part)) {
-    return WasmModuleObject::New(
+    result = WasmModuleObject::New(
         isolate_, Handle<WasmCompiledModule>::cast(compiled_part));
-  }
-
-  // If that fails, recompile.
-  MaybeHandle<JSObject> result;
-  {
+  } else {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
     result = wasm::SyncCompile(isolate_, &thrower,
                                wasm::ModuleWireBytes(wire_bytes));
   }
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
+  uint32_t id = next_id_++;
+  if (!result.is_null()) {
+    AddObjectWithID(id, result.ToHandleChecked());
+  }
   return result;
 }
 
