@@ -2295,13 +2295,19 @@ class RepresentationSelector {
       case IrOpcode::kCheckBounds: {
         Type* index_type = TypeOf(node->InputAt(0));
         Type* length_type = TypeOf(node->InputAt(1));
-        if (index_type->Is(Type::Unsigned32())) {
+        if (index_type->Is(Type::Integral32OrMinusZero())) {
+          // Map -0 to 0, and the values in the [-2^31,-1] range to the
+          // [2^31,2^32-1] range, which will be considered out-of-bounds
+          // as well, because the {length_type} is limited to Unsigned31.
           VisitBinop(node, UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
-          if (lower() && index_type->Max() < length_type->Min()) {
-            // The bounds check is redundant if we already know that
-            // the index is within the bounds of [0.0, length[.
-            DeferReplacement(node, node->InputAt(0));
+          if (lower()) {
+            if (index_type->Min() >= 0.0 &&
+                index_type->Max() < length_type->Min()) {
+              // The bounds check is redundant if we already know that
+              // the index is within the bounds of [0.0, length[.
+              DeferReplacement(node, node->InputAt(0));
+            }
           }
         } else {
           VisitBinop(node, UseInfo::CheckedSigned32AsWord32(kIdentifyZeros),
