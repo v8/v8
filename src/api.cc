@@ -9625,8 +9625,8 @@ debug::Coverage debug::Coverage::Collect(Isolate* isolate, bool reset_count) {
                                        reset_count));
 }
 
-void debug::Coverage::TogglePrecise(Isolate* isolate, bool enable) {
-  i::Coverage::TogglePrecise(reinterpret_cast<i::Isolate*>(isolate), enable);
+void debug::Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
+  i::Coverage::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);
 }
 
 const char* CpuProfileNode::GetFunctionNameStr() const {

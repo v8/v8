@@ -2539,7 +2539,9 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     options.isolate_sources[i].StartExecuteInThread();
   }
   {
-    if (options.lcov_file) debug::Coverage::TogglePrecise(isolate, true);
+    if (options.lcov_file) {
+      debug::Coverage::SelectMode(isolate, debug::Coverage::kPreciseCount);
+    }
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
     if (last_run && options.use_interactive_shell()) {

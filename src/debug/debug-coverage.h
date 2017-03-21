@@ -39,9 +39,8 @@ class Coverage : public std::vector<CoverageScript> {
   // The ownership is transferred to the caller.
   static Coverage* Collect(Isolate* isolate, bool reset_count);
 
-  // Enable precise code coverage. This disables optimization and makes sure
-  // invocation count is not affected by GC.
-  static void TogglePrecise(Isolate* isolate, bool enable);
+  // Select code coverage mode.
+  static void SelectMode(Isolate* isolate, debug::Coverage::Mode mode);
 
  private:
   Coverage() {}

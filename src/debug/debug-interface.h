@@ -215,6 +215,14 @@ class GeneratorObject {
  */
 class V8_EXPORT_PRIVATE Coverage {
  public:
+  enum Mode {
+    // Make use of existing information in feedback vectors on the heap.
+    kBestEffort,
+    // Disable optimization and prevent feedback vectors from being garbage
+    // collected in order to get precise invocation counts.
+    kPreciseCount,
+  };
+
   class ScriptData;  // Forward declaration.
 
   class V8_EXPORT_PRIVATE FunctionData {
@@ -247,7 +255,7 @@ class V8_EXPORT_PRIVATE Coverage {
 
   static Coverage Collect(Isolate* isolate, bool reset_count);
 
-  static void TogglePrecise(Isolate* isolate, bool enable);
+  static void SelectMode(Isolate* isolate, Mode mode);
 
   size_t ScriptCount();
   ScriptData GetScriptData(size_t i);

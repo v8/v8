@@ -6613,7 +6613,7 @@ TEST(DebugCoverage) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::debug::Coverage::TogglePrecise(isolate, true);
+  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
   v8::Local<v8::String> source = v8_str(
       "function f() {\n"
       "}\n"

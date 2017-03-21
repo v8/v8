@@ -1945,7 +1945,8 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
-  Coverage::TogglePrecise(isolate, enable);
+  Coverage::SelectMode(isolate, enable ? debug::Coverage::kPreciseCount
+                                       : debug::Coverage::kBestEffort);
   return isolate->heap()->undefined_value();
 }
 

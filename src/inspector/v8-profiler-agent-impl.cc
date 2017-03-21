@@ -273,14 +273,15 @@ Response V8ProfilerAgentImpl::stop(
 Response V8ProfilerAgentImpl::startPreciseCoverage() {
   if (!m_enabled) return Response::Error("Profiler is not enabled");
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, true);
-  v8::debug::Coverage::TogglePrecise(m_isolate, true);
+  v8::debug::Coverage::SelectMode(m_isolate,
+                                  v8::debug::Coverage::kPreciseCount);
   return Response::OK();
 }
 
 Response V8ProfilerAgentImpl::stopPreciseCoverage() {
   if (!m_enabled) return Response::Error("Profiler is not enabled");
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, false);
-  v8::debug::Coverage::TogglePrecise(m_isolate, false);
+  v8::debug::Coverage::SelectMode(m_isolate, v8::debug::Coverage::kBestEffort);
   return Response::OK();
 }
 
