@@ -859,10 +859,7 @@ class Assembler : public AssemblerBase {
 
   // Load, store, and move.
   void lwc1(FPURegister fd, const MemOperand& src);
-  void ldc1(FPURegister fd, const MemOperand& src);
-
   void swc1(FPURegister fs, const MemOperand& dst);
-  void sdc1(FPURegister fs, const MemOperand& dst);
 
   void mtc1(Register rt, FPURegister fs);
   void mthc1(Register rt, FPURegister fs);

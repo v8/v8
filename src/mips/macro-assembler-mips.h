@@ -673,6 +673,9 @@ class MacroAssembler: public Assembler {
   void Uldc1(FPURegister fd, const MemOperand& rs, Register scratch);
   void Usdc1(FPURegister fd, const MemOperand& rs, Register scratch);
 
+  void Ldc1(FPURegister fd, const MemOperand& src);
+  void Sdc1(FPURegister fs, const MemOperand& dst);
+
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
   inline void li(Register rd, int32_t j, LiFlags mode = OPTIMIZE_SIZE) {

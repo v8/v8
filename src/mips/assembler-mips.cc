@@ -2219,90 +2219,12 @@ void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
 }
 
 
-void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
-  // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
-  // load to two 32-bit loads.
-  if (IsFp32Mode()) {  // fp32 mode.
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(LWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      FPURegister nextfpreg;
-      nextfpreg.setcode(fd.code() + 1);
-      GenInstrImmediate(LWC1, src.rm(), nextfpreg,
-                        src.offset_ + Register::kExponentOffset);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
-      GenInstrImmediate(LWC1, at, fd, off16 + Register::kMantissaOffset);
-      FPURegister nextfpreg;
-      nextfpreg.setcode(fd.code() + 1);
-      GenInstrImmediate(LWC1, at, nextfpreg, off16 + Register::kExponentOffset);
-    }
-  } else {
-    DCHECK(IsFp64Mode() || IsFpxxMode());
-    // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
-    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(LWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      GenInstrImmediate(LW, src.rm(), at,
-                        src.offset_ + Register::kExponentOffset);
-      mthc1(at, fd);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
-      GenInstrImmediate(LWC1, at, fd, off16 + Register::kMantissaOffset);
-      GenInstrImmediate(LW, at, at, off16 + Register::kExponentOffset);
-      mthc1(at, fd);
-    }
-  }
-}
-
-
 void Assembler::swc1(FPURegister fd, const MemOperand& src) {
   if (is_int16(src.offset_)) {
     GenInstrImmediate(SWC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
     int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
     GenInstrImmediate(SWC1, at, fd, off16);
-  }
-}
-
-
-void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
-  // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
-  // store to two 32-bit stores.
-  DCHECK(!src.rm().is(at));
-  DCHECK(!src.rm().is(t8));
-  if (IsFp32Mode()) {  // fp32 mode.
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(SWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      FPURegister nextfpreg;
-      nextfpreg.setcode(fd.code() + 1);
-      GenInstrImmediate(SWC1, src.rm(), nextfpreg,
-                        src.offset_ + Register::kExponentOffset);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
-      GenInstrImmediate(SWC1, at, fd, off16 + Register::kMantissaOffset);
-      FPURegister nextfpreg;
-      nextfpreg.setcode(fd.code() + 1);
-      GenInstrImmediate(SWC1, at, nextfpreg, off16 + Register::kExponentOffset);
-    }
-  } else {
-    DCHECK(IsFp64Mode() || IsFpxxMode());
-    // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
-    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(SWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      mfhc1(at, fd);
-      GenInstrImmediate(SW, src.rm(), at,
-                        src.offset_ + Register::kExponentOffset);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
-      GenInstrImmediate(SWC1, at, fd, off16 + Register::kMantissaOffset);
-      mfhc1(t8, fd);
-      GenInstrImmediate(SW, at, t8, off16 + Register::kExponentOffset);
-    }
   }
 }
 

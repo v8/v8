@@ -122,7 +122,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
     int offset = code * kDoubleSize;
-    __ sdc1(fpu_reg, MemOperand(sp, offset));
+    __ Sdc1(fpu_reg, MemOperand(sp, offset));
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -199,8 +199,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
     int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
-    __ ldc1(f0, MemOperand(sp, src_offset));
-    __ sdc1(f0, MemOperand(a1, dst_offset));
+    __ Ldc1(f0, MemOperand(sp, src_offset));
+    __ Sdc1(f0, MemOperand(a1, dst_offset));
   }
 
   // Remove the bailout id and the saved registers from the stack.
@@ -270,7 +270,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
     int src_offset = code * kDoubleSize + double_regs_offset;
-    __ ldc1(fpu_reg, MemOperand(a1, src_offset));
+    __ Ldc1(fpu_reg, MemOperand(a1, src_offset));
   }
 
   // Push state, pc, and continuation from the last output frame.

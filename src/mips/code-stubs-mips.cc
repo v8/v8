@@ -93,7 +93,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   if (!skip_fastpath()) {
     // Load double input.
-    __ ldc1(double_scratch, MemOperand(input_reg, double_offset));
+    __ Ldc1(double_scratch, MemOperand(input_reg, double_offset));
 
     // Clear cumulative exception flags and save the FCSR.
     __ cfc1(scratch2, FCSR);
@@ -347,7 +347,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   __ sra(at, rhs, kSmiTagSize);
   __ mtc1(at, f14);
   __ cvt_d_w(f14, f14);
-  __ ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
+  __ Ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
 
   // We now have both loaded as doubles.
   __ jmp(both_loaded_as_doubles);
@@ -371,7 +371,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   __ sra(at, lhs, kSmiTagSize);
   __ mtc1(at, f12);
   __ cvt_d_w(f12, f12);
-  __ ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
+  __ Ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
   // Fall through to both_loaded_as_doubles.
 }
 
@@ -428,8 +428,8 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 
   // Both are heap numbers. Load them up then jump to the code we have
   // for that.
-  __ ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
-  __ ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
+  __ Ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
+  __ Ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
 
   __ jmp(both_loaded_as_doubles);
 }
@@ -763,7 +763,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     // Base is already in double_base.
     __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
 
-    __ ldc1(double_exponent,
+    __ Ldc1(double_exponent,
             FieldMemOperand(exponent, HeapNumber::kValueOffset));
   }
 
@@ -1805,7 +1805,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   __ CheckMap(a0, a2, Heap::kHeapNumberMapRootIndex, &maybe_undefined1,
               DONT_DO_SMI_CHECK);
   __ Subu(a2, a0, Operand(kHeapObjectTag));
-  __ ldc1(f2, MemOperand(a2, HeapNumber::kValueOffset));
+  __ Ldc1(f2, MemOperand(a2, HeapNumber::kValueOffset));
   __ Branch(&left);
   __ bind(&right_smi);
   __ SmiUntag(a2, a0);  // Can't clobber a0 yet.
@@ -1818,7 +1818,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   __ CheckMap(a1, a2, Heap::kHeapNumberMapRootIndex, &maybe_undefined2,
               DONT_DO_SMI_CHECK);
   __ Subu(a2, a1, Operand(kHeapObjectTag));
-  __ ldc1(f0, MemOperand(a2, HeapNumber::kValueOffset));
+  __ Ldc1(f0, MemOperand(a2, HeapNumber::kValueOffset));
   __ Branch(&done);
   __ bind(&left_smi);
   __ SmiUntag(a2, a1);  // Can't clobber a1 yet.

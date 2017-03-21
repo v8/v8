@@ -1291,7 +1291,7 @@ void MacroAssembler::Uldc1(FPURegister fd, const MemOperand& rs,
                            Register scratch) {
   DCHECK(!scratch.is(at));
   if (IsMipsArchVariant(kMips32r6)) {
-    ldc1(fd, rs);
+    Ldc1(fd, rs);
   } else {
     DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r1) ||
            IsMipsArchVariant(kLoongson));
@@ -1306,7 +1306,7 @@ void MacroAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
                            Register scratch) {
   DCHECK(!scratch.is(at));
   if (IsMipsArchVariant(kMips32r6)) {
-    sdc1(fd, rs);
+    Sdc1(fd, rs);
   } else {
     DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r1) ||
            IsMipsArchVariant(kLoongson));
@@ -1317,6 +1317,75 @@ void MacroAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
   }
 }
 
+void MacroAssembler::Ldc1(FPURegister fd, const MemOperand& src) {
+  // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
+  // load to two 32-bit loads.
+  if (IsFp32Mode()) {  // fp32 mode.
+    if (is_int16(src.offset()) && is_int16(src.offset() + kIntSize)) {
+      lwc1(fd, MemOperand(src.rm(), src.offset() + Register::kMantissaOffset));
+      FPURegister nextfpreg;
+      nextfpreg.setcode(fd.code() + 1);
+      lwc1(nextfpreg,
+           MemOperand(src.rm(), src.offset() + Register::kExponentOffset));
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
+      lwc1(fd, MemOperand(at, off16 + Register::kMantissaOffset));
+      FPURegister nextfpreg;
+      nextfpreg.setcode(fd.code() + 1);
+      lwc1(nextfpreg, MemOperand(at, off16 + Register::kExponentOffset));
+    }
+  } else {
+    DCHECK(IsFp64Mode() || IsFpxxMode());
+    // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
+    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+    if (is_int16(src.offset()) && is_int16(src.offset() + kIntSize)) {
+      lwc1(fd, MemOperand(src.rm(), src.offset() + Register::kMantissaOffset));
+      lw(at, MemOperand(src.rm(), src.offset() + Register::kExponentOffset));
+      mthc1(at, fd);
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
+      lwc1(fd, MemOperand(at, off16 + Register::kMantissaOffset));
+      lw(at, MemOperand(at, off16 + Register::kExponentOffset));
+      mthc1(at, fd);
+    }
+  }
+}
+
+void MacroAssembler::Sdc1(FPURegister fd, const MemOperand& src) {
+  // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
+  // store to two 32-bit stores.
+  DCHECK(!src.rm().is(at));
+  DCHECK(!src.rm().is(t8));
+  if (IsFp32Mode()) {  // fp32 mode.
+    if (is_int16(src.offset()) && is_int16(src.offset() + kIntSize)) {
+      swc1(fd, MemOperand(src.rm(), src.offset() + Register::kMantissaOffset));
+      FPURegister nextfpreg;
+      nextfpreg.setcode(fd.code() + 1);
+      swc1(nextfpreg,
+           MemOperand(src.rm(), src.offset() + Register::kExponentOffset));
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
+      swc1(fd, MemOperand(at, off16 + Register::kMantissaOffset));
+      FPURegister nextfpreg;
+      nextfpreg.setcode(fd.code() + 1);
+      swc1(nextfpreg, MemOperand(at, off16 + Register::kExponentOffset));
+    }
+  } else {
+    DCHECK(IsFp64Mode() || IsFpxxMode());
+    // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
+    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+    if (is_int16(src.offset()) && is_int16(src.offset() + kIntSize)) {
+      swc1(fd, MemOperand(src.rm(), src.offset() + Register::kMantissaOffset));
+      mfhc1(at, fd);
+      sw(at, MemOperand(src.rm(), src.offset() + Register::kExponentOffset));
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
+      swc1(fd, MemOperand(at, off16 + Register::kMantissaOffset));
+      mfhc1(t8, fd);
+      sw(t8, MemOperand(at, off16 + Register::kExponentOffset));
+    }
+  }
+}
 
 void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
   li(dst, Operand(value), mode);
@@ -1412,7 +1481,7 @@ void MacroAssembler::MultiPushFPU(RegList regs) {
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
     if ((regs & (1 << i)) != 0) {
       stack_offset -= kDoubleSize;
-      sdc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+      Sdc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
     }
   }
 }
@@ -1426,7 +1495,7 @@ void MacroAssembler::MultiPushReversedFPU(RegList regs) {
   for (int16_t i = 0; i < kNumRegisters; i++) {
     if ((regs & (1 << i)) != 0) {
       stack_offset -= kDoubleSize;
-      sdc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+      Sdc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
     }
   }
 }
@@ -1437,7 +1506,7 @@ void MacroAssembler::MultiPopFPU(RegList regs) {
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
     if ((regs & (1 << i)) != 0) {
-      ldc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+      Ldc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
       stack_offset += kDoubleSize;
     }
   }
@@ -1450,7 +1519,7 @@ void MacroAssembler::MultiPopReversedFPU(RegList regs) {
 
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
     if ((regs & (1 << i)) != 0) {
-      ldc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+      Ldc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
       stack_offset += kDoubleSize;
     }
   }
@@ -2489,7 +2558,7 @@ void MacroAssembler::TruncateDoubleToI(Register result,
   // If we fell through then inline version didn't succeed - call stub instead.
   push(ra);
   Subu(sp, sp, Operand(kDoubleSize));  // Put input on stack.
-  sdc1(double_input, MemOperand(sp, 0));
+  Sdc1(double_input, MemOperand(sp, 0));
 
   DoubleToIStub stub(isolate(), sp, result, 0, true, true);
   CallStub(&stub);
@@ -2506,7 +2575,7 @@ void MacroAssembler::TruncateHeapNumberToI(Register result, Register object) {
   DoubleRegister double_scratch = f12;
   DCHECK(!result.is(object));
 
-  ldc1(double_scratch,
+  Ldc1(double_scratch,
        MemOperand(object, HeapNumber::kValueOffset - kHeapObjectTag));
   TryInlineTruncateDoubleToI(result, double_scratch, &done);
 
@@ -4239,7 +4308,7 @@ void MacroAssembler::AllocateHeapNumberWithValue(Register result,
                                                  Label* gc_required) {
   LoadRoot(t8, Heap::kHeapNumberMapRootIndex);
   AllocateHeapNumber(result, scratch1, scratch2, t8, gc_required);
-  sdc1(value, FieldMemOperand(result, HeapNumber::kValueOffset));
+  Sdc1(value, FieldMemOperand(result, HeapNumber::kValueOffset));
 }
 
 
@@ -4791,7 +4860,7 @@ void MacroAssembler::ObjectToDoubleFPURegister(Register object,
     And(exponent, exponent, mask_reg);
     Branch(not_number, eq, exponent, Operand(mask_reg));
   }
-  ldc1(result, FieldMemOperand(object, HeapNumber::kValueOffset));
+  Ldc1(result, FieldMemOperand(object, HeapNumber::kValueOffset));
   bind(&done);
 }
 
@@ -5418,7 +5487,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     // Remember: we only need to save every 2nd double FPU value.
     for (int i = 0; i < FPURegister::kMaxNumRegisters; i+=2) {
       FPURegister reg = FPURegister::from_code(i);
-      sdc1(reg, MemOperand(sp, i * kDoubleSize));
+      Sdc1(reg, MemOperand(sp, i * kDoubleSize));
     }
   }
 
@@ -5448,7 +5517,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
     lw(t8, MemOperand(fp, ExitFrameConstants::kSPOffset));
     for (int i = 0; i < FPURegister::kMaxNumRegisters; i+=2) {
       FPURegister reg = FPURegister::from_code(i);
-      ldc1(reg, MemOperand(t8, i * kDoubleSize + kPointerSize));
+      Ldc1(reg, MemOperand(t8, i * kDoubleSize + kPointerSize));
     }
   }
 
