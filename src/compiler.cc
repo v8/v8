@@ -383,8 +383,21 @@ bool ShouldUseIgnition(CompilationInfo* info) {
 
 bool UseAsmWasm(DeclarationScope* scope, Handle<SharedFunctionInfo> shared_info,
                 bool is_debug) {
-  return FLAG_validate_asm && scope->asm_module() &&
-         !shared_info->is_asm_wasm_broken() && !is_debug;
+  // Check whether asm.js validation is enabled.
+  if (!FLAG_validate_asm) return false;
+
+  // Modules that have validated successfully, but were subsequently broken by
+  // invalid module instantiation attempts are off limit forever.
+  if (shared_info->is_asm_wasm_broken()) return false;
+
+  // Compiling for debugging is not supported, fall back.
+  if (is_debug) return false;
+
+  // In stress mode we want to run the validator on everything.
+  if (FLAG_stress_validate_asm) return true;
+
+  // In general, we respect the "use asm" directive.
+  return scope->asm_module();
 }
 
 bool UseCompilerDispatcher(Compiler::ConcurrencyMode inner_function_mode,

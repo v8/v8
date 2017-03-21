@@ -660,6 +660,14 @@
 
 ##############################################################################
 ['variant == asm_wasm', {
+  # Issue 6127: We won't fix these in the "old" validator. But we definitely
+  # need to re-enable these for the "new" validator.
+  'code-coverage-precise': [SKIP],
+  'object-freeze': [SKIP],
+  'regress/regress-599068-func-bindings': [SKIP],
+  'regress/regress-619382': [SKIP],
+  'regress/regress-632289': [SKIP],
+
   # Skip stuff uninteresting for asm.js
   'bugs/*': [SKIP],
   'compiler/*': [SKIP],
