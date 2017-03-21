@@ -1934,7 +1934,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lhr(i.OutputRegister(), i.InputRegister(0));
       CHECK_AND_ZERO_EXT_OUTPUT(1);
       break;
-#if V8_TARGET_ARCH_S390X
     case kS390_ExtendSignWord32:
       __ lgfr(i.OutputRegister(), i.InputRegister(0));
       break;
@@ -1946,135 +1945,133 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // sign extend
       __ lgfr(i.OutputRegister(), i.InputRegister(0));
       break;
+    // Convert Fixed to Floating Point
     case kS390_Int64ToFloat32:
-      __ ConvertInt64ToFloat(i.InputRegister(0), i.OutputDoubleRegister());
+      __ ConvertInt64ToFloat(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kS390_Int64ToDouble:
-      __ ConvertInt64ToDouble(i.InputRegister(0), i.OutputDoubleRegister());
+      __ ConvertInt64ToDouble(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kS390_Uint64ToFloat32:
-      __ ConvertUnsignedInt64ToFloat(i.InputRegister(0),
-                                     i.OutputDoubleRegister());
+      __ ConvertUnsignedInt64ToFloat(i.OutputDoubleRegister(),
+                                     i.InputRegister(0));
       break;
     case kS390_Uint64ToDouble:
-      __ ConvertUnsignedInt64ToDouble(i.InputRegister(0),
-                                      i.OutputDoubleRegister());
+      __ ConvertUnsignedInt64ToDouble(i.OutputDoubleRegister(),
+                                      i.InputRegister(0));
       break;
-#endif
     case kS390_Int32ToFloat32:
-      __ ConvertIntToFloat(i.InputRegister(0), i.OutputDoubleRegister());
+      __ ConvertIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kS390_Int32ToDouble:
-      __ ConvertIntToDouble(i.InputRegister(0), i.OutputDoubleRegister());
+      __ ConvertIntToDouble(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kS390_Uint32ToFloat32:
-      __ ConvertUnsignedIntToFloat(i.InputRegister(0),
-                                   i.OutputDoubleRegister());
+      __ ConvertUnsignedIntToFloat(i.OutputDoubleRegister(),
+                                   i.InputRegister(0));
       break;
     case kS390_Uint32ToDouble:
-      __ ConvertUnsignedIntToDouble(i.InputRegister(0),
-                                    i.OutputDoubleRegister());
+      __ ConvertUnsignedIntToDouble(i.OutputDoubleRegister(),
+                                    i.InputRegister(0));
       break;
-    case kS390_DoubleToInt32:
-    case kS390_DoubleToUint32:
+    case kS390_DoubleToInt32: {
+      Label done;
+      __ ConvertDoubleToInt32(i.OutputRegister(0), i.InputDoubleRegister(0),
+                              kRoundToNearest);
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      __ lghi(i.OutputRegister(0), Operand::Zero());
+      __ bind(&done);
+      break;
+    }
+    case kS390_DoubleToUint32: {
+      Label done;
+      __ ConvertDoubleToUnsignedInt32(i.OutputRegister(0),
+                                      i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      __ lghi(i.OutputRegister(0), Operand::Zero());
+      __ bind(&done);
+      break;
+    }
     case kS390_DoubleToInt64: {
-#if V8_TARGET_ARCH_S390X
-      bool check_conversion =
-          (opcode == kS390_DoubleToInt64 && i.OutputCount() > 1);
-#endif
-      __ ConvertDoubleToInt64(i.InputDoubleRegister(0),
-#if !V8_TARGET_ARCH_S390X
-                              kScratchReg,
-#endif
-                              i.OutputRegister(0), kScratchDoubleReg);
-#if V8_TARGET_ARCH_S390X
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
+      Label done;
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand(1));
       }
-#endif
+      __ ConvertDoubleToInt64(i.OutputRegister(0), i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand::Zero());
+      } else {
+        __ lghi(i.OutputRegister(0), Operand::Zero());
+      }
+      __ bind(&done);
+      break;
+    }
+    case kS390_DoubleToUint64: {
+      Label done;
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand(1));
+      }
+      __ ConvertDoubleToUnsignedInt64(i.OutputRegister(0),
+                                      i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand::Zero());
+      } else {
+        __ lghi(i.OutputRegister(0), Operand::Zero());
+      }
+      __ bind(&done);
       break;
     }
     case kS390_Float32ToInt32: {
-      bool check_conversion = (i.OutputCount() > 1);
-      __ ConvertFloat32ToInt32(i.InputDoubleRegister(0), i.OutputRegister(0),
-                               kScratchDoubleReg, kRoundToZero);
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
-      }
+      Label done;
+      __ ConvertFloat32ToInt32(i.OutputRegister(0), i.InputDoubleRegister(0),
+                               kRoundToZero);
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      __ lghi(i.OutputRegister(0), Operand::Zero());
+      __ bind(&done);
       break;
     }
     case kS390_Float32ToUint32: {
-      bool check_conversion = (i.OutputCount() > 1);
-      __ ConvertFloat32ToUnsignedInt32(i.InputDoubleRegister(0),
-                                       i.OutputRegister(0), kScratchDoubleReg);
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
-      }
+      Label done;
+      __ ConvertFloat32ToUnsignedInt32(i.OutputRegister(0),
+                                       i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      __ lghi(i.OutputRegister(0), Operand::Zero());
+      __ bind(&done);
       break;
     }
-#if V8_TARGET_ARCH_S390X
     case kS390_Float32ToUint64: {
-      bool check_conversion = (i.OutputCount() > 1);
-      __ ConvertFloat32ToUnsignedInt64(i.InputDoubleRegister(0),
-                                       i.OutputRegister(0), kScratchDoubleReg);
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
+      Label done;
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand(1));
       }
+      __ ConvertFloat32ToUnsignedInt64(i.OutputRegister(0),
+                                       i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand::Zero());
+      } else {
+        __ lghi(i.OutputRegister(0), Operand::Zero());
+      }
+      __ bind(&done);
       break;
     }
-#endif
     case kS390_Float32ToInt64: {
-#if V8_TARGET_ARCH_S390X
-      bool check_conversion =
-          (opcode == kS390_Float32ToInt64 && i.OutputCount() > 1);
-#endif
-      __ ConvertFloat32ToInt64(i.InputDoubleRegister(0),
-#if !V8_TARGET_ARCH_S390X
-                               kScratchReg,
-#endif
-                               i.OutputRegister(0), kScratchDoubleReg);
-#if V8_TARGET_ARCH_S390X
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
+      Label done;
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand(1));
       }
-#endif
+      __ ConvertFloat32ToInt64(i.OutputRegister(0), i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand::Zero());
+      } else {
+        __ lghi(i.OutputRegister(0), Operand::Zero());
+      }
+      __ bind(&done);
       break;
     }
-#if V8_TARGET_ARCH_S390X
-    case kS390_DoubleToUint64: {
-      bool check_conversion = (i.OutputCount() > 1);
-      __ ConvertDoubleToUnsignedInt64(i.InputDoubleRegister(0),
-                                      i.OutputRegister(0), kScratchDoubleReg);
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
-      }
-      break;
-    }
-#endif
     case kS390_DoubleToFloat32:
       ASSEMBLE_UNARY_OP(D_DInstr(ledbr), nullInstr, nullInstr);
       break;
@@ -2091,13 +2088,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ srlg(i.OutputRegister(), i.OutputRegister(), Operand(32));
       break;
     case kS390_DoubleInsertLowWord32:
-      __ lgdr(kScratchReg, i.OutputDoubleRegister());
+      __ lgdr(kScratchReg, i.InputDoubleRegister(0));
       __ lr(kScratchReg, i.InputRegister(1));
       __ ldgr(i.OutputDoubleRegister(), kScratchReg);
       break;
     case kS390_DoubleInsertHighWord32:
       __ sllg(kScratchReg, i.InputRegister(1), Operand(32));
-      __ lgdr(r0, i.OutputDoubleRegister());
+      __ lgdr(r0, i.InputDoubleRegister(0));
       __ lr(kScratchReg, r0);
       __ ldgr(i.OutputDoubleRegister(), kScratchReg);
       break;

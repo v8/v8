@@ -1596,7 +1596,9 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
         __ mr_z(scratch1, ip);      // R4:R5 = R5 * ip
         // Check for overflowing the smi range - no overflow if higher 33 bits
         // of the result are identical.
-        __ TestIfInt32(scratch1, scratch2, ip);
+        __ lr(ip, scratch2);  // 32 bit load
+        __ sra(ip, Operand(31));
+        __ cr_z(ip, scratch1);  // 32 bit compare
         __ bne(&stub_call);
 #endif
         // Go slow on zero result to handle -0.

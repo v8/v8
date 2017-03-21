@@ -330,6 +330,8 @@ ArchOpcode SelectLoadOpcode(Node* node) {
   /* Word32 unary op */            \
   V(Word32Clz)                     \
   V(Word32Popcnt)                  \
+  V(Float64ExtractLowWord32)       \
+  V(Float64ExtractHighWord32)      \
   /* Word32 bin op */              \
   V(Int32Add)                      \
   V(Int32Sub)                      \
@@ -1379,13 +1381,44 @@ static inline bool TryMatchInt64SubWithOverflow(InstructionSelector* selector,
 }
 #endif
 
+static inline bool TryMatchDoubleConstructFromInsert(
+    InstructionSelector* selector, Node* node) {
+  S390OperandGenerator g(selector);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Node* lo32 = NULL;
+  Node* hi32 = NULL;
+
+  if (node->opcode() == IrOpcode::kFloat64InsertLowWord32) {
+    lo32 = right;
+  } else if (node->opcode() == IrOpcode::kFloat64InsertHighWord32) {
+    hi32 = right;
+  } else {
+    return false;  // doesn't match
+  }
+
+  if (left->opcode() == IrOpcode::kFloat64InsertLowWord32) {
+    lo32 = left->InputAt(1);
+  } else if (left->opcode() == IrOpcode::kFloat64InsertHighWord32) {
+    hi32 = left->InputAt(1);
+  } else {
+    return false;  // doesn't match
+  }
+
+  if (!lo32 || !hi32) return false;  // doesn't match
+
+  selector->Emit(kS390_DoubleConstruct, g.DefineAsRegister(node),
+                 g.UseRegister(hi32), g.UseRegister(lo32));
+  return true;
+}
+
 #define null ([]() { return false; })
 // TODO(john.yan): place kAllowRM where available
 #define FLOAT_UNARY_OP_LIST_32(V)                                              \
   V(Float32, ChangeFloat32ToFloat64, kS390_Float32ToDouble,                    \
     OperandMode::kAllowRM, null)                                               \
   V(Float32, BitcastFloat32ToInt32, kS390_BitcastFloat32ToInt32,               \
-    OperandMode::kNone, null)                                                  \
+    OperandMode::kAllowRM, null)                                               \
   V(Float64, TruncateFloat64ToFloat32, kS390_DoubleToFloat32,                  \
     OperandMode::kNone, null)                                                  \
   V(Float64, TruncateFloat64ToWord32, kArchTruncateDoubleToI,                  \
@@ -1419,7 +1452,12 @@ static inline bool TryMatchInt64SubWithOverflow(InstructionSelector* selector,
   V(Float64, Float64RoundTiesAway, kS390_RoundDouble, OperandMode::kNone,      \
     null)                                                                      \
   V(Float32, Float32Neg, kS390_NegFloat, OperandMode::kNone, null)             \
-  V(Float64, Float64Neg, kS390_NegDouble, OperandMode::kNone, null)
+  V(Float64, Float64Neg, kS390_NegDouble, OperandMode::kNone, null)            \
+  /* TODO(john.yan): can use kAllowRM */                                       \
+  V(Word32, Float64ExtractLowWord32, kS390_DoubleExtractLowWord32,             \
+    OperandMode::kNone, null)                                                  \
+  V(Word32, Float64ExtractHighWord32, kS390_DoubleExtractHighWord32,           \
+    OperandMode::kNone, null)
 
 #define FLOAT_BIN_OP_LIST(V)                                           \
   V(Float32, Float32Add, kS390_AddFloat, OperandMode::kAllowRM, null)  \
@@ -1511,7 +1549,13 @@ static inline bool TryMatchInt64SubWithOverflow(InstructionSelector* selector,
   V(Word32, Word32Shl, kS390_ShiftLeft32, Shift32OperandMode, null)            \
   V(Word32, Word32Shr, kS390_ShiftRight32, Shift32OperandMode, null)           \
   V(Word32, Word32Sar, kS390_ShiftRightArith32, Shift32OperandMode,            \
-    [&]() { return TryMatchSignExtInt16OrInt8FromWord32Sar(this, node); })
+    [&]() { return TryMatchSignExtInt16OrInt8FromWord32Sar(this, node); })     \
+  V(Word32, Float64InsertLowWord32, kS390_DoubleInsertLowWord32,               \
+    OperandMode::kAllowRRR,                                                    \
+    [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); })   \
+  V(Word32, Float64InsertHighWord32, kS390_DoubleInsertHighWord32,             \
+    OperandMode::kAllowRRR,                                                    \
+    [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); })
 
 #define WORD64_UNARY_OP_LIST(V)                                              \
   V(Word64, Word64Popcnt, kS390_Popcnt64, OperandMode::kNone, null)          \
@@ -2299,48 +2343,6 @@ void InstructionSelector::EmitPrepareArguments(
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 
 int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
-
-void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
-  S390OperandGenerator g(this);
-  Emit(kS390_DoubleExtractLowWord32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
-
-void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
-  S390OperandGenerator g(this);
-  Emit(kS390_DoubleExtractHighWord32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
-
-void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
-  S390OperandGenerator g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (left->opcode() == IrOpcode::kFloat64InsertHighWord32 &&
-      CanCover(node, left)) {
-    left = left->InputAt(1);
-    Emit(kS390_DoubleConstruct, g.DefineAsRegister(node), g.UseRegister(left),
-         g.UseRegister(right));
-    return;
-  }
-  Emit(kS390_DoubleInsertLowWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.UseRegister(right));
-}
-
-void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
-  S390OperandGenerator g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (left->opcode() == IrOpcode::kFloat64InsertLowWord32 &&
-      CanCover(node, left)) {
-    left = left->InputAt(1);
-    Emit(kS390_DoubleConstruct, g.DefineAsRegister(node), g.UseRegister(right),
-         g.UseRegister(left));
-    return;
-  }
-  Emit(kS390_DoubleInsertHighWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.UseRegister(right));
-}
 
 void InstructionSelector::VisitAtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());

@@ -735,26 +735,24 @@ class MacroAssembler : public Assembler {
 
   // Converts the integer (untagged smi) in |src| to a double, storing
   // the result to |dst|
-  void ConvertIntToDouble(Register src, DoubleRegister dst);
+  void ConvertIntToDouble(DoubleRegister dst, Register src);
 
   // Converts the unsigned integer (untagged smi) in |src| to
   // a double, storing the result to |dst|
-  void ConvertUnsignedIntToDouble(Register src, DoubleRegister dst);
+  void ConvertUnsignedIntToDouble(DoubleRegister dst, Register src);
 
   // Converts the integer (untagged smi) in |src| to
   // a float, storing the result in |dst|
-  void ConvertIntToFloat(Register src, DoubleRegister dst);
+  void ConvertIntToFloat(DoubleRegister dst, Register src);
 
   // Converts the unsigned integer (untagged smi) in |src| to
   // a float, storing the result in |dst|
-  void ConvertUnsignedIntToFloat(Register src, DoubleRegister dst);
+  void ConvertUnsignedIntToFloat(DoubleRegister dst, Register src);
 
-#if V8_TARGET_ARCH_S390X
-  void ConvertInt64ToFloat(Register src, DoubleRegister double_dst);
-  void ConvertInt64ToDouble(Register src, DoubleRegister double_dst);
-  void ConvertUnsignedInt64ToFloat(Register src, DoubleRegister double_dst);
-  void ConvertUnsignedInt64ToDouble(Register src, DoubleRegister double_dst);
-#endif
+  void ConvertInt64ToFloat(DoubleRegister double_dst, Register src);
+  void ConvertInt64ToDouble(DoubleRegister double_dst, Register src);
+  void ConvertUnsignedInt64ToFloat(DoubleRegister double_dst, Register src);
+  void ConvertUnsignedInt64ToDouble(DoubleRegister double_dst, Register src);
 
   void MovIntToFloat(DoubleRegister dst, Register src);
   void MovFloatToInt(Register dst, DoubleRegister src);
@@ -762,43 +760,36 @@ class MacroAssembler : public Assembler {
   void MovInt64ToDouble(DoubleRegister dst, Register src);
   // Converts the double_input to an integer.  Note that, upon return,
   // the contents of double_dst will also hold the fixed point representation.
-  void ConvertFloat32ToInt64(const DoubleRegister double_input,
-#if !V8_TARGET_ARCH_S390X
-                             const Register dst_hi,
-#endif
-                             const Register dst,
-                             const DoubleRegister double_dst,
+  void ConvertFloat32ToInt64(const Register dst,
+                             const DoubleRegister double_input,
                              FPRoundingMode rounding_mode = kRoundToZero);
 
   // Converts the double_input to an integer.  Note that, upon return,
   // the contents of double_dst will also hold the fixed point representation.
-  void ConvertDoubleToInt64(const DoubleRegister double_input,
-#if !V8_TARGET_ARCH_S390X
-                            const Register dst_hi,
-#endif
-                            const Register dst, const DoubleRegister double_dst,
+  void ConvertDoubleToInt64(const Register dst,
+                            const DoubleRegister double_input,
+                            FPRoundingMode rounding_mode = kRoundToZero);
+  void ConvertDoubleToInt32(const Register dst,
+                            const DoubleRegister double_input,
                             FPRoundingMode rounding_mode = kRoundToZero);
 
-  void ConvertFloat32ToInt32(const DoubleRegister double_input,
-                             const Register dst,
-                             const DoubleRegister double_dst,
+  void ConvertFloat32ToInt32(const Register result,
+                             const DoubleRegister double_input,
                              FPRoundingMode rounding_mode);
   void ConvertFloat32ToUnsignedInt32(
-      const DoubleRegister double_input, const Register dst,
-      const DoubleRegister double_dst,
+      const Register result, const DoubleRegister double_input,
       FPRoundingMode rounding_mode = kRoundToZero);
-#if V8_TARGET_ARCH_S390X
   // Converts the double_input to an unsigned integer.  Note that, upon return,
   // the contents of double_dst will also hold the fixed point representation.
   void ConvertDoubleToUnsignedInt64(
-      const DoubleRegister double_input, const Register dst,
-      const DoubleRegister double_dst,
+      const Register dst, const DoubleRegister double_input,
+      FPRoundingMode rounding_mode = kRoundToZero);
+  void ConvertDoubleToUnsignedInt32(
+      const Register dst, const DoubleRegister double_input,
       FPRoundingMode rounding_mode = kRoundToZero);
   void ConvertFloat32ToUnsignedInt64(
-      const DoubleRegister double_input, const Register dst,
-      const DoubleRegister double_dst,
+      const Register result, const DoubleRegister double_input,
       FPRoundingMode rounding_mode = kRoundToZero);
-#endif
 
 #if !V8_TARGET_ARCH_S390X
   void ShiftLeftPair(Register dst_low, Register dst_high, Register src_low,
@@ -1625,20 +1616,10 @@ class MacroAssembler : public Assembler {
   void AssertNotSmi(Register object);
   void AssertSmi(Register object);
 
-#if V8_TARGET_ARCH_S390X
-  inline void TestIfInt32(Register value, Register scratch) {
+  inline void TestIfInt32(Register value) {
     // High bits must be identical to fit into an 32-bit integer
-    lgfr(scratch, value);
-    CmpP(scratch, value);
+    cgfr(value, value);
   }
-#else
-  inline void TestIfInt32(Register hi_word, Register lo_word,
-                          Register scratch) {
-    // High bits must be identical to fit into an 32-bit integer
-    ShiftRightArith(scratch, lo_word, Operand(31));
-    CmpP(scratch, hi_word);
-  }
-#endif
 
 #if V8_TARGET_ARCH_S390X
   // Ensure it is permissable to read/write int value directly from

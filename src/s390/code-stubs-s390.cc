@@ -87,18 +87,10 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ LoadDouble(double_scratch, MemOperand(input_reg, double_offset));
 
     // Do fast-path convert from double to int.
-    __ ConvertDoubleToInt64(double_scratch,
-#if !V8_TARGET_ARCH_S390X
-                            scratch,
-#endif
-                            result_reg, d0);
+    __ ConvertDoubleToInt64(result_reg, double_scratch);
 
-// Test for overflow
-#if V8_TARGET_ARCH_S390X
-    __ TestIfInt32(result_reg, r0);
-#else
-    __ TestIfInt32(scratch, result_reg, r0);
-#endif
+    // Test for overflow
+    __ TestIfInt32(result_reg);
     __ beq(&fastpath_done, Label::kNear);
   }
 
@@ -746,7 +738,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   }
   __ ldr(double_scratch, double_base);  // Back up base.
   __ LoadImmP(scratch2, Operand(1));
-  __ ConvertIntToDouble(scratch2, double_result);
+  __ ConvertIntToDouble(double_result, scratch2);
 
   // Get absolute value of exponent.
   Label positive_exponent;
@@ -775,7 +767,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   // get 1/double_result:
   __ ldr(double_scratch, double_result);
   __ LoadImmP(scratch2, Operand(1));
-  __ ConvertIntToDouble(scratch2, double_result);
+  __ ConvertIntToDouble(double_result, scratch2);
   __ ddbr(double_result, double_scratch);
 
   // Test whether result is zero.  Bail out to check for subnormal result.
@@ -785,7 +777,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ bne(&done, Label::kNear);
   // double_exponent may not containe the exponent value if the input was a
   // smi.  We set it with exponent value before bailing out.
-  __ ConvertIntToDouble(exponent, double_exponent);
+  __ ConvertIntToDouble(double_exponent, exponent);
 
   // Returning or bailing out.
   __ push(r14);

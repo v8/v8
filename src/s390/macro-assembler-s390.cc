@@ -637,12 +637,12 @@ void MacroAssembler::CanonicalizeNaN(const DoubleRegister dst,
   sdbr(dst, kDoubleRegZero);
 }
 
-void MacroAssembler::ConvertIntToDouble(Register src, DoubleRegister dst) {
+void MacroAssembler::ConvertIntToDouble(DoubleRegister dst, Register src) {
   cdfbr(dst, src);
 }
 
-void MacroAssembler::ConvertUnsignedIntToDouble(Register src,
-                                                DoubleRegister dst) {
+void MacroAssembler::ConvertUnsignedIntToDouble(DoubleRegister dst,
+                                                Register src) {
   if (CpuFeatures::IsSupported(FLOATING_POINT_EXT)) {
     cdlfbr(Condition(5), Condition(0), dst, src);
   } else {
@@ -653,43 +653,37 @@ void MacroAssembler::ConvertUnsignedIntToDouble(Register src,
   }
 }
 
-void MacroAssembler::ConvertIntToFloat(Register src, DoubleRegister dst) {
+void MacroAssembler::ConvertIntToFloat(DoubleRegister dst, Register src) {
   cefbr(Condition(4), dst, src);
 }
 
-void MacroAssembler::ConvertUnsignedIntToFloat(Register src,
-                                               DoubleRegister dst) {
+void MacroAssembler::ConvertUnsignedIntToFloat(DoubleRegister dst,
+                                               Register src) {
   celfbr(Condition(4), Condition(0), dst, src);
 }
 
-#if V8_TARGET_ARCH_S390X
-void MacroAssembler::ConvertInt64ToDouble(Register src,
-                                          DoubleRegister double_dst) {
+void MacroAssembler::ConvertInt64ToFloat(DoubleRegister double_dst,
+                                         Register src) {
+  cegbr(double_dst, src);
+}
+
+void MacroAssembler::ConvertInt64ToDouble(DoubleRegister double_dst,
+                                          Register src) {
   cdgbr(double_dst, src);
 }
 
-void MacroAssembler::ConvertUnsignedInt64ToFloat(Register src,
-                                                 DoubleRegister double_dst) {
+void MacroAssembler::ConvertUnsignedInt64ToFloat(DoubleRegister double_dst,
+                                                 Register src) {
   celgbr(Condition(0), Condition(0), double_dst, src);
 }
 
-void MacroAssembler::ConvertUnsignedInt64ToDouble(Register src,
-                                                  DoubleRegister double_dst) {
+void MacroAssembler::ConvertUnsignedInt64ToDouble(DoubleRegister double_dst,
+                                                  Register src) {
   cdlgbr(Condition(0), Condition(0), double_dst, src);
 }
 
-void MacroAssembler::ConvertInt64ToFloat(Register src,
-                                         DoubleRegister double_dst) {
-  cegbr(double_dst, src);
-}
-#endif
-
-void MacroAssembler::ConvertFloat32ToInt64(const DoubleRegister double_input,
-#if !V8_TARGET_ARCH_S390X
-                                           const Register dst_hi,
-#endif
-                                           const Register dst,
-                                           const DoubleRegister double_dst,
+void MacroAssembler::ConvertFloat32ToInt64(const Register dst,
+                                           const DoubleRegister double_input,
                                            FPRoundingMode rounding_mode) {
   Condition m = Condition(0);
   switch (rounding_mode) {
@@ -710,18 +704,10 @@ void MacroAssembler::ConvertFloat32ToInt64(const DoubleRegister double_input,
       break;
   }
   cgebr(m, dst, double_input);
-  ldgr(double_dst, dst);
-#if !V8_TARGET_ARCH_S390X
-  srlg(dst_hi, dst, Operand(32));
-#endif
 }
 
-void MacroAssembler::ConvertDoubleToInt64(const DoubleRegister double_input,
-#if !V8_TARGET_ARCH_S390X
-                                          const Register dst_hi,
-#endif
-                                          const Register dst,
-                                          const DoubleRegister double_dst,
+void MacroAssembler::ConvertDoubleToInt64(const Register dst,
+                                          const DoubleRegister double_input,
                                           FPRoundingMode rounding_mode) {
   Condition m = Condition(0);
   switch (rounding_mode) {
@@ -742,15 +728,34 @@ void MacroAssembler::ConvertDoubleToInt64(const DoubleRegister double_input,
       break;
   }
   cgdbr(m, dst, double_input);
-  ldgr(double_dst, dst);
-#if !V8_TARGET_ARCH_S390X
-  srlg(dst_hi, dst, Operand(32));
-#endif
 }
 
-void MacroAssembler::ConvertFloat32ToInt32(const DoubleRegister double_input,
-                                           const Register dst,
-                                           const DoubleRegister double_dst,
+void MacroAssembler::ConvertDoubleToInt32(const Register dst,
+                                          const DoubleRegister double_input,
+                                          FPRoundingMode rounding_mode) {
+  Condition m = Condition(0);
+  switch (rounding_mode) {
+    case kRoundToZero:
+      m = Condition(5);
+      break;
+    case kRoundToNearest:
+      m = Condition(4);
+      break;
+    case kRoundToPlusInf:
+      m = Condition(6);
+      break;
+    case kRoundToMinusInf:
+      m = Condition(7);
+      break;
+    default:
+      UNIMPLEMENTED();
+      break;
+  }
+  cfdbr(m, dst, double_input);
+}
+
+void MacroAssembler::ConvertFloat32ToInt32(const Register result,
+                                           const DoubleRegister double_input,
                                            FPRoundingMode rounding_mode) {
   Condition m = Condition(0);
   switch (rounding_mode) {
@@ -770,17 +775,12 @@ void MacroAssembler::ConvertFloat32ToInt32(const DoubleRegister double_input,
       UNIMPLEMENTED();
       break;
   }
-  cfebr(m, dst, double_input);
-  Label done;
-  b(Condition(0xe), &done, Label::kNear);  // special case
-  LoadImmP(dst, Operand::Zero());
-  bind(&done);
-  ldgr(double_dst, dst);
+  cfebr(m, result, double_input);
 }
 
 void MacroAssembler::ConvertFloat32ToUnsignedInt32(
-    const DoubleRegister double_input, const Register dst,
-    const DoubleRegister double_dst, FPRoundingMode rounding_mode) {
+    const Register result, const DoubleRegister double_input,
+    FPRoundingMode rounding_mode) {
   Condition m = Condition(0);
   switch (rounding_mode) {
     case kRoundToZero:
@@ -799,18 +799,12 @@ void MacroAssembler::ConvertFloat32ToUnsignedInt32(
       UNIMPLEMENTED();
       break;
   }
-  clfebr(m, Condition(0), dst, double_input);
-  Label done;
-  b(Condition(0xe), &done, Label::kNear);  // special case
-  LoadImmP(dst, Operand::Zero());
-  bind(&done);
-  ldgr(double_dst, dst);
+  clfebr(m, Condition(0), result, double_input);
 }
 
-#if V8_TARGET_ARCH_S390X
 void MacroAssembler::ConvertFloat32ToUnsignedInt64(
-    const DoubleRegister double_input, const Register dst,
-    const DoubleRegister double_dst, FPRoundingMode rounding_mode) {
+    const Register result, const DoubleRegister double_input,
+    FPRoundingMode rounding_mode) {
   Condition m = Condition(0);
   switch (rounding_mode) {
     case kRoundToZero:
@@ -829,13 +823,12 @@ void MacroAssembler::ConvertFloat32ToUnsignedInt64(
       UNIMPLEMENTED();
       break;
   }
-  clgebr(m, Condition(0), dst, double_input);
-  ldgr(double_dst, dst);
+  clgebr(m, Condition(0), result, double_input);
 }
 
 void MacroAssembler::ConvertDoubleToUnsignedInt64(
-    const DoubleRegister double_input, const Register dst,
-    const DoubleRegister double_dst, FPRoundingMode rounding_mode) {
+    const Register dst, const DoubleRegister double_input,
+    FPRoundingMode rounding_mode) {
   Condition m = Condition(0);
   switch (rounding_mode) {
     case kRoundToZero:
@@ -855,10 +848,31 @@ void MacroAssembler::ConvertDoubleToUnsignedInt64(
       break;
   }
   clgdbr(m, Condition(0), dst, double_input);
-  ldgr(double_dst, dst);
 }
 
-#endif
+void MacroAssembler::ConvertDoubleToUnsignedInt32(
+    const Register dst, const DoubleRegister double_input,
+    FPRoundingMode rounding_mode) {
+  Condition m = Condition(0);
+  switch (rounding_mode) {
+    case kRoundToZero:
+      m = Condition(5);
+      break;
+    case kRoundToNearest:
+      UNIMPLEMENTED();
+      break;
+    case kRoundToPlusInf:
+      m = Condition(6);
+      break;
+    case kRoundToMinusInf:
+      m = Condition(7);
+      break;
+    default:
+      UNIMPLEMENTED();
+      break;
+  }
+  clfdbr(m, Condition(0), dst, double_input);
+}
 
 #if !V8_TARGET_ARCH_S390X
 void MacroAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
@@ -1876,7 +1890,7 @@ void MacroAssembler::CompareRoot(Register obj, Heap::RootListIndex index) {
 
 void MacroAssembler::SmiToDouble(DoubleRegister value, Register smi) {
   SmiUntag(ip, smi);
-  ConvertIntToDouble(ip, value);
+  ConvertIntToDouble(value, ip);
 }
 
 void MacroAssembler::CompareMap(Register obj, Register scratch, Handle<Map> map,
@@ -2001,22 +2015,13 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
   Label done;
   DCHECK(!double_input.is(double_scratch));
 
-  ConvertDoubleToInt64(double_input,
-#if !V8_TARGET_ARCH_S390X
-                       scratch,
-#endif
-                       result, double_scratch);
+  ConvertDoubleToInt64(result, double_input);
 
-#if V8_TARGET_ARCH_S390X
-  TestIfInt32(result, r0);
-#else
-  TestIfInt32(scratch, result, r0);
-#endif
+  TestIfInt32(result);
   bne(&done);
 
   // convert back and compare
-  lgdr(scratch, double_scratch);
-  cdfbr(double_scratch, scratch);
+  cdfbr(double_scratch, result);
   cdbr(double_scratch, double_input);
   bind(&done);
 }
@@ -2041,23 +2046,14 @@ void MacroAssembler::TryInt32Floor(Register result, DoubleRegister double_input,
   beq(&exception);
 
   // Convert (rounding to -Inf)
-  ConvertDoubleToInt64(double_input,
-#if !V8_TARGET_ARCH_S390X
-                       scratch,
-#endif
-                       result, double_scratch, kRoundToMinusInf);
+  ConvertDoubleToInt64(result, double_input, kRoundToMinusInf);
 
-// Test for overflow
-#if V8_TARGET_ARCH_S390X
-  TestIfInt32(result, r0);
-#else
-  TestIfInt32(scratch, result, r0);
-#endif
+  // Test for overflow
+  TestIfInt32(result);
   bne(&exception);
 
   // Test for exactness
-  lgdr(scratch, double_scratch);
-  cdfbr(double_scratch, scratch);
+  cdfbr(double_scratch, result);
   cdbr(double_scratch, double_input);
   beq(exact);
   b(done);
@@ -2068,23 +2064,10 @@ void MacroAssembler::TryInt32Floor(Register result, DoubleRegister double_input,
 void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DoubleRegister double_input,
                                                 Label* done) {
-  DoubleRegister double_scratch = kScratchDoubleReg;
-#if !V8_TARGET_ARCH_S390X
-  Register scratch = ip;
-#endif
+  ConvertDoubleToInt64(result, double_input);
 
-  ConvertDoubleToInt64(double_input,
-#if !V8_TARGET_ARCH_S390X
-                       scratch,
-#endif
-                       result, double_scratch);
-
-// Test for overflow
-#if V8_TARGET_ARCH_S390X
-  TestIfInt32(result, r0);
-#else
-  TestIfInt32(scratch, result, r0);
-#endif
+  // Test for overflow
+  TestIfInt32(result);
   beq(done);
 }
 
