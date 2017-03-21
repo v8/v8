@@ -969,10 +969,20 @@ JsonProfile.prototype.recordTick = function(time_ns, vmState, stack) {
 };
 
 JsonProfile.prototype.writeJson = function() {
-  var toplevel = {
-    code : this.codeEntries_,
-    functions : this.functionEntries_,
-    ticks : this.ticks_
-  };
-  write(JSON.stringify(toplevel));
+  // Write out the JSON in a partially manual way to avoid creating too-large
+  // strings in one JSON.stringify call when there are a lot of ticks.
+  write('{\n')
+  write('  "code": ' + JSON.stringify(this.codeEntries_) + ',\n');
+  write('  "functions": ' + JSON.stringify(this.functionEntries_) + ',\n');
+  write('  "ticks": [\n');
+  for (var i = 0; i < this.ticks_.length; i++) {
+    write('    ' + JSON.stringify(this.ticks_[i]));
+    if (i < this.ticks_.length - 1) {
+      write(',\n');
+    } else {
+      write('\n');
+    }
+  }
+  write('  ]\n');
+  write('}\n');
 };
