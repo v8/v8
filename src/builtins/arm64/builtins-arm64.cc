@@ -3070,6 +3070,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
+  // Wasm code uses the csp. This builtin excepts to use the jssp.
+  // Thus, move csp to jssp when entering this builtin (called from wasm).
   DCHECK(masm->StackPointer().is(jssp));
   __ Move(jssp, csp);
   {
@@ -3096,6 +3098,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ PopDRegList(fp_regs);
     __ PopXRegList(gp_regs);
   }
+  // Move back to csp land. jssp now has the same value as when entering this
+  // function, but csp might have changed in the runtime call.
+  __ Move(csp, jssp);
   // Now jump to the instructions of the returned code object.
   __ Jump(x8);
 }
