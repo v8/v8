@@ -185,6 +185,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ArrayForEachLoopContinuation(Isolate* isolate);
   static Callable ArraySomeLoopContinuation(Isolate* isolate);
   static Callable ArrayEveryLoopContinuation(Isolate* isolate);
+  static Callable ArrayReduceLoopContinuation(Isolate* isolate);
   static Callable FunctionPrototypeBind(Isolate* isolate);
   static Callable PromiseHandleReject(Isolate* isolate);
 };

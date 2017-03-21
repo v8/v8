@@ -587,7 +587,7 @@ Node* CodeAssembler::CallStubR(const CallInterfaceDescriptor& descriptor,
 #define INSTANTIATE(...)                                     \
   template V8_EXPORT_PRIVATE Node* CodeAssembler::CallStubR( \
       const CallInterfaceDescriptor& descriptor, size_t, Node*, __VA_ARGS__);
-REPEAT_1_TO_7(INSTANTIATE, Node*)
+REPEAT_1_TO_8(INSTANTIATE, Node*)
 #undef INSTANTIATE
 
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
@@ -766,7 +766,7 @@ bool CodeAssemblerVariable::IsBound() const { return impl_->value_ != nullptr; }
 
 CodeAssemblerLabel::CodeAssemblerLabel(CodeAssembler* assembler,
                                        size_t vars_count,
-                                       CodeAssemblerVariable** vars,
+                                       CodeAssemblerVariable* const* vars,
                                        CodeAssemblerLabel::Type type)
     : bound_(false),
       merge_count_(0),

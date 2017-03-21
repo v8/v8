@@ -513,6 +513,12 @@ Callable CodeFactory::ArrayEveryLoopContinuation(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::ArrayReduceLoopContinuation(Isolate* isolate) {
+  return Callable(isolate->builtins()->ArrayReduceLoopContinuation(),
+                  IteratingArrayBuiltinLoopContinuationDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::FunctionPrototypeBind(Isolate* isolate) {
   return Callable(isolate->builtins()->FunctionPrototypeBind(),
                   BuiltinDescriptor(isolate));

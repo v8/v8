@@ -12,32 +12,189 @@ namespace internal {
 class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
  public:
   explicit ArrayBuiltinCodeStubAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state), to_(this, MachineRepresentation::kTagged) {
-    to_.Bind(SmiConstant(0));
+      : CodeStubAssembler(state),
+        k_(this, MachineRepresentation::kTagged, SmiConstant(0)),
+        a_(this, MachineRepresentation::kTagged, SmiConstant(0)),
+        to_(this, MachineRepresentation::kTagged, SmiConstant(0)) {}
+
+  typedef std::function<Node*(ArrayBuiltinCodeStubAssembler* masm)>
+      BuiltinResultGenerator;
+
+  typedef std::function<void(ArrayBuiltinCodeStubAssembler* masm)>
+      BuiltinResultIndexInitializer;
+
+  typedef std::function<Node*(ArrayBuiltinCodeStubAssembler* masm,
+                              Node* k_value, Node* k)>
+      CallResultProcessor;
+
+  typedef std::function<void(ArrayBuiltinCodeStubAssembler* masm)>
+      PostLoopAction;
+
+  Node* ForEachResultGenerator() { return UndefinedConstant(); }
+
+  Node* ForEachProcessor(Node* k_value, Node* k) {
+    CallJS(CodeFactory::Call(isolate()), context(), callbackfn(), this_arg(),
+           k_value, k, o());
+    return a();
   }
 
-  typedef std::function<Node*(Node* context, Node* o, Node* len)>
-      BuiltinResultGenerator;
-  typedef std::function<void(Node* context, Node* a)>
-      BuiltinResultIndexInitializer;
-  typedef std::function<void(Node* context, Node* value, Node* a,
-                             Node* callback_result)>
-      CallResultProcessor;
+  Node* SomeResultGenerator() { return FalseConstant(); }
+
+  Node* SomeProcessor(Node* k_value, Node* k) {
+    Node* value = CallJS(CodeFactory::Call(isolate()), context(), callbackfn(),
+                         this_arg(), k_value, k, o());
+    Label false_continue(this), return_true(this);
+    BranchIfToBooleanIsTrue(value, &return_true, &false_continue);
+    Bind(&return_true);
+    Return(TrueConstant());
+    Bind(&false_continue);
+    return a();
+  }
+
+  Node* EveryResultGenerator() { return TrueConstant(); }
+
+  Node* EveryProcessor(Node* k_value, Node* k) {
+    Node* value = CallJS(CodeFactory::Call(isolate()), context(), callbackfn(),
+                         this_arg(), k_value, k, o());
+    Label true_continue(this), return_false(this);
+    BranchIfToBooleanIsTrue(value, &true_continue, &return_false);
+    Bind(&return_false);
+    Return(FalseConstant());
+    Bind(&true_continue);
+    return a();
+  }
+
+  Node* ReduceResultGenerator() {
+    Variable a(this, MachineRepresentation::kTagged, UndefinedConstant());
+    Label no_initial_value(this), has_initial_value(this), done(this, {&a});
+
+    // 8. If initialValue is present, then
+    Node* parent_frame_ptr = LoadParentFramePointer();
+    Node* marker_or_function = LoadBufferObject(
+        parent_frame_ptr, CommonFrameConstants::kContextOrFrameTypeOffset);
+    GotoIf(
+        MarkerIsNotFrameType(marker_or_function, StackFrame::ARGUMENTS_ADAPTOR),
+        &has_initial_value);
+
+    // Has arguments adapter, check count.
+    Node* adapted_parameter_count = LoadBufferObject(
+        parent_frame_ptr, ArgumentsAdaptorFrameConstants::kLengthOffset);
+    Branch(SmiLessThan(adapted_parameter_count,
+                       SmiConstant(IteratingArrayBuiltinDescriptor::kThisArg)),
+           &no_initial_value, &has_initial_value);
+
+    // a. Set accumulator to initialValue.
+    Bind(&has_initial_value);
+    a.Bind(this_arg());
+    Goto(&done);
+
+    // 9. Else initialValue is not present,
+    Bind(&no_initial_value);
+
+    // a. Let kPresent be false.
+    a.Bind(TheHoleConstant());
+    Goto(&done);
+    Bind(&done);
+    return a.value();
+  }
+
+  Node* ReduceProcessor(Node* k_value, Node* k) {
+    Variable result(this, MachineRepresentation::kTagged);
+    Label done(this, {&result}), initial(this);
+    GotoIf(WordEqual(a(), TheHoleConstant()), &initial);
+    result.Bind(CallJS(CodeFactory::Call(isolate()), context(), callbackfn(),
+                       UndefinedConstant(), a(), k_value, k, o()));
+    Goto(&done);
+
+    Bind(&initial);
+    result.Bind(k_value);
+    Goto(&done);
+
+    Bind(&done);
+    return result.value();
+  }
+
+  void ReducePostLoopAction() {
+    Label ok(this);
+    GotoIf(WordNotEqual(a(), TheHoleConstant()), &ok);
+    CallRuntime(Runtime::kThrowTypeError, context(),
+                SmiConstant(MessageTemplate::kReduceNoInitial));
+    Unreachable();
+    Bind(&ok);
+  }
+
+  Node* FilterResultGenerator() {
+    // 7. Let A be ArraySpeciesCreate(O, 0).
+    return ArraySpeciesCreate(context(), o(), SmiConstant(0));
+  }
+
+  void FilterResultIndexReinitializer() {
+    Variable merged_length(this, MachineRepresentation::kTagged);
+    Label has_length(this, &merged_length), not_js_array(this);
+    GotoIf(DoesntHaveInstanceType(a(), JS_ARRAY_TYPE), &not_js_array);
+    merged_length.Bind(LoadJSArrayLength(a()));
+    Goto(&has_length);
+    Bind(&not_js_array);
+    Node* len_property =
+        GetProperty(context(), a(), isolate()->factory()->length_string());
+    merged_length.Bind(
+        CallStub(CodeFactory::ToLength(isolate()), context(), len_property));
+    Goto(&has_length);
+    Bind(&has_length);
+    Node* len = merged_length.value();
+
+    to_.Bind(len);
+  }
+
+  Node* FilterProcessor(Node* k_value, Node* k) {
+    Node* callback_result = CallJS(CodeFactory::Call(isolate()), context(),
+                                   callbackfn(), this_arg(), k_value, k, o());
+    Label true_continue(this, &to_), false_continue(this);
+    BranchIfToBooleanIsTrue(callback_result, &true_continue, &false_continue);
+    Bind(&true_continue);
+
+    // 1. let status be CreateDataPropertyOrThrow(A, ToString(to), kValue).
+    // 2. ReturnIfAbrupt(status)
+    Node* const p_to = ToString(context(), to_.value());
+    CallRuntime(Runtime::kCreateDataProperty, context(), a(), p_to, k_value);
+
+    // 3. Increase to by 1.
+    to_.Bind(NumberInc(to_.value()));
+    Goto(&false_continue);
+    Bind(&false_continue);
+    return a();
+  }
+
+  void NullPostLoopAction() {}
+
+  void NullResultIndexReinitializer() {}
+
+ protected:
+  Node* context() { return context_; }
+  Node* o() { return o_; }
+  Node* len() { return len_; }
+  Node* callbackfn() { return callbackfn_; }
+  Node* this_arg() { return this_arg_; }
+  Node* k() { return k_.value(); }
+  Node* a() { return a_.value(); }
 
   void GenerateIteratingArrayBuiltinBody(
       const char* name, const BuiltinResultGenerator& generator,
-      const CallResultProcessor& processor,
+      const CallResultProcessor& processor, const PostLoopAction& action,
       const Callable& slow_case_continuation) {
     // TODO(ishell): use constants from Descriptor once the JSFunction linkage
     // arguments are reordered.
     Node* receiver = Parameter(IteratingArrayBuiltinDescriptor::kReceiver);
-    Node* callbackfn = Parameter(IteratingArrayBuiltinDescriptor::kCallback);
-    Node* this_arg = Parameter(IteratingArrayBuiltinDescriptor::kThisArg);
-    Node* context = Parameter(IteratingArrayBuiltinDescriptor::kContext);
+    callbackfn_ = Parameter(IteratingArrayBuiltinDescriptor::kCallback);
+    this_arg_ = Parameter(IteratingArrayBuiltinDescriptor::kThisArg);
+    context_ = Parameter(IteratingArrayBuiltinDescriptor::kContext);
     Node* new_target = Parameter(IteratingArrayBuiltinDescriptor::kNewTarget);
 
-    Variable k(this, MachineRepresentation::kTagged, SmiConstant(0));
-    Label non_array(this), slow(this, &k), array_changes(this, &k);
+    k_.Bind(SmiConstant(0));
+    a_.Bind(UndefinedConstant());
+
+    Label non_array(this), slow(this, {&k_, &a_, &to_}),
+        array_changes(this, {&k_, &a_, &to_});
 
     // TODO(danno): Seriously? Do we really need to throw the exact error
     // message on null and undefined so that the webkit tests pass?
@@ -51,34 +208,34 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
     // 1. Let O be ToObject(this value).
     // 2. ReturnIfAbrupt(O)
-    Node* o = CallStub(CodeFactory::ToObject(isolate()), context, receiver);
+    o_ = CallStub(CodeFactory::ToObject(isolate()), context(), receiver);
 
     // 3. Let len be ToLength(Get(O, "length")).
     // 4. ReturnIfAbrupt(len).
     Variable merged_length(this, MachineRepresentation::kTagged);
     Label has_length(this, &merged_length), not_js_array(this);
-    GotoIf(DoesntHaveInstanceType(o, JS_ARRAY_TYPE), &not_js_array);
-    merged_length.Bind(LoadJSArrayLength(o));
+    GotoIf(DoesntHaveInstanceType(o(), JS_ARRAY_TYPE), &not_js_array);
+    merged_length.Bind(LoadJSArrayLength(o()));
     Goto(&has_length);
     Bind(&not_js_array);
     Node* len_property =
-        GetProperty(context, o, isolate()->factory()->length_string());
+        GetProperty(context(), o(), isolate()->factory()->length_string());
     merged_length.Bind(
-        CallStub(CodeFactory::ToLength(isolate()), context, len_property));
+        CallStub(CodeFactory::ToLength(isolate()), context(), len_property));
     Goto(&has_length);
     Bind(&has_length);
-    Node* len = merged_length.value();
+    len_ = merged_length.value();
 
     // 5. If IsCallable(callbackfn) is false, throw a TypeError exception.
     Label type_exception(this, Label::kDeferred);
     Label done(this);
-    GotoIf(TaggedIsSmi(callbackfn), &type_exception);
-    Branch(IsCallableMap(LoadMap(callbackfn)), &done, &type_exception);
+    GotoIf(TaggedIsSmi(callbackfn()), &type_exception);
+    Branch(IsCallableMap(LoadMap(callbackfn())), &done, &type_exception);
 
     Bind(&throw_null_undefined_exception);
     {
       CallRuntime(
-          Runtime::kThrowTypeError, context,
+          Runtime::kThrowTypeError, context(),
           SmiConstant(MessageTemplate::kCalledOnNullOrUndefined),
           HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(name)));
       Unreachable();
@@ -86,192 +243,120 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
     Bind(&type_exception);
     {
-      CallRuntime(Runtime::kThrowTypeError, context,
-                  SmiConstant(MessageTemplate::kCalledNonCallable), callbackfn);
+      CallRuntime(Runtime::kThrowTypeError, context(),
+                  SmiConstant(MessageTemplate::kCalledNonCallable),
+                  callbackfn());
       Unreachable();
     }
 
     Bind(&done);
 
-    Node* a = generator(context, o, len);
-
     // 6. If thisArg was supplied, let T be thisArg; else let T be undefined.
     // [Already done by the arguments adapter]
 
-    HandleFastElements(context, this_arg, o, len, callbackfn, processor, a, k,
-                       &slow);
-
     // 7. Let k be 0.
-    // Already done above in initialization of the Variable k
+    // [Already done in code assembler initialization]
+
+    a_.Bind(generator(this));
+
+    HandleFastElements(processor, action, &slow);
 
     Bind(&slow);
 
     Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                  MachineType::TaggedPointer());
     TailCallStub(
-        slow_case_continuation, context, target, new_target,
+        slow_case_continuation, context(), target, new_target,
         Int32Constant(IteratingArrayBuiltinLoopContinuationDescriptor::kArity),
-        receiver, callbackfn, this_arg, a, o, k.value(), len);
+        receiver, callbackfn(), this_arg(), a_.value(), o(), k_.value(), len_);
   }
 
   void GenerateIteratingArrayBuiltinLoopContinuation(
       const BuiltinResultIndexInitializer& index_initializer,
-      const CallResultProcessor& processor) {
+      const CallResultProcessor& processor, const PostLoopAction& action) {
     // TODO(ishell): use constants from Descriptor once the JSFunction linkage
     // arguments are reordered.
-    Node* callbackfn =
-        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kCallback);
-    Node* this_arg =
+    this_arg_ =
         Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kThisArg);
-    Node* a =
-        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kArray);
-    Node* o =
-        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kObject);
-    Node* initial_k =
-        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kInitialK);
-    Node* len =
-        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kLength);
-    Node* context =
+    callbackfn_ =
+        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kCallback);
+    a_.Bind(Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kArray));
+    k_.Bind(
+        Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kInitialK));
+    o_ = Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kObject);
+    len_ = Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kLength);
+    context_ =
         Parameter(IteratingArrayBuiltinLoopContinuationDescriptor::kContext);
 
-    index_initializer(context, a);
+    index_initializer(this);
 
     // 8. Repeat, while k < len
-    Variable k(this, MachineRepresentation::kTagged, initial_k);
-    VariableList list({&k, &to_}, zone());
-    Label loop(this, list);
+    Label loop(this, {&k_, &a_, &to_});
     Label after_loop(this);
     Goto(&loop);
     Bind(&loop);
     {
-      GotoUnlessNumberLessThan(k.value(), len, &after_loop);
+      GotoUnlessNumberLessThan(k(), len_, &after_loop);
 
       Label done_element(this, &to_);
       // a. Let Pk be ToString(k).
-      Node* p_k = ToString(context, k.value());
+      Node* p_k = ToString(context(), k());
 
       // b. Let kPresent be HasProperty(O, Pk).
       // c. ReturnIfAbrupt(kPresent).
-      Node* k_present = HasProperty(o, p_k, context);
+      Node* k_present = HasProperty(o(), p_k, context());
 
       // d. If kPresent is true, then
       GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);
 
       // i. Let kValue be Get(O, Pk).
       // ii. ReturnIfAbrupt(kValue).
-      Node* k_value = GetProperty(context, o, k.value());
+      Node* k_value = GetProperty(context(), o(), k());
 
       // iii. Let funcResult be Call(callbackfn, T, «kValue, k, O»).
       // iv. ReturnIfAbrupt(funcResult).
-      Node* callback_result =
-          CallJS(CodeFactory::Call(isolate()), context, callbackfn, this_arg,
-                 k_value, k.value(), o);
-
-      processor(context, k_value, a, callback_result);
+      a_.Bind(processor(this, k_value, k()));
       Goto(&done_element);
+
       Bind(&done_element);
 
       // e. Increase k by 1.
-      k.Bind(NumberInc(k.value()));
+      k_.Bind(NumberInc(k_.value()));
       Goto(&loop);
     }
     Bind(&after_loop);
-    Return(a);
-  }
 
-  Node* FilterResultGenerator(Node* context, Node* o, Node* len) {
-    // 7. Let A be ArraySpeciesCreate(O, 0).
-    return ArraySpeciesCreate(context, o, SmiConstant(0));
-  }
-
-  void FilterResultIndexReinitializer(Node* context, Node* a) {
-    Variable merged_length(this, MachineRepresentation::kTagged);
-    Label has_length(this, &merged_length), not_js_array(this);
-    GotoIf(DoesntHaveInstanceType(a, JS_ARRAY_TYPE), &not_js_array);
-    merged_length.Bind(LoadJSArrayLength(a));
-    Goto(&has_length);
-    Bind(&not_js_array);
-    Node* len_property =
-        GetProperty(context, a, isolate()->factory()->length_string());
-    merged_length.Bind(
-        CallStub(CodeFactory::ToLength(isolate()), context, len_property));
-    Goto(&has_length);
-    Bind(&has_length);
-    Node* len = merged_length.value();
-
-    to_.Bind(len);
-  }
-
-  void ForEachProcessor(Node* context, Node* value, Node* a,
-                        Node* callback_result) {}
-
-  void SomeProcessor(Node* context, Node* value, Node* a,
-                     Node* callback_result) {
-    Label false_continue(this), return_true(this);
-    BranchIfToBooleanIsTrue(callback_result, &return_true, &false_continue);
-    Bind(&return_true);
-    Return(TrueConstant());
-    Bind(&false_continue);
-  }
-
-  void EveryProcessor(Node* context, Node* value, Node* a,
-                      Node* callback_result) {
-    Label true_continue(this), return_false(this);
-    BranchIfToBooleanIsTrue(callback_result, &true_continue, &return_false);
-    Bind(&return_false);
-    Return(FalseConstant());
-    Bind(&true_continue);
-  }
-
-  void FilterProcessor(Node* context, Node* value, Node* a,
-                       Node* callback_result) {
-    Label true_continue(this, &to_), false_continue(this);
-    BranchIfToBooleanIsTrue(callback_result, &true_continue, &false_continue);
-    Bind(&true_continue);
-
-    // 1. let status be CreateDataPropertyOrThrow(A, ToString(to), kValue).
-    // 2. ReturnIfAbrupt(status)
-    Node* const p_to = ToString(context, to_.value());
-    CallRuntime(Runtime::kCreateDataProperty, context, a, p_to, value);
-
-    // 3. Increase to by 1.
-    to_.Bind(NumberInc(to_.value()));
-    Goto(&false_continue);
-    Bind(&false_continue);
+    action(this);
+    Return(a_.value());
   }
 
  private:
-  Node* VisitAllFastElementsOneKind(Node* context, ElementsKind kind,
-                                    Node* this_arg, Node* o, Node* len,
-                                    Node* callbackfn,
-                                    const CallResultProcessor& processor,
-                                    Node* a, Label* array_changed,
-                                    ParameterMode mode) {
+  void VisitAllFastElementsOneKind(ElementsKind kind,
+                                   const CallResultProcessor& processor,
+                                   Label* array_changed, ParameterMode mode) {
     Comment("begin VisitAllFastElementsOneKind");
     Variable original_map(this, MachineRepresentation::kTagged);
-    original_map.Bind(LoadMap(o));
-    VariableList list({&original_map, &to_}, zone());
-    Node* last_index = nullptr;
+    original_map.Bind(LoadMap(o()));
+    VariableList list({&original_map, &a_, &k_, &to_}, zone());
     BuildFastLoop(
-        list, IntPtrOrSmiConstant(0, mode), TaggedToParameter(len, mode),
-        [=, &original_map, &last_index](Node* index) {
-          last_index = index;
+        list, IntPtrOrSmiConstant(0, mode), TaggedToParameter(len(), mode),
+        [=, &original_map](Node* index) {
+          k_.Bind(ParameterToTagged(index, mode));
           Label one_element_done(this), hole_element(this);
 
           // Check if o's map has changed during the callback. If so, we have to
           // fall back to the slower spec implementation for the rest of the
           // iteration.
-          Node* o_map = LoadMap(o);
+          Node* o_map = LoadMap(o());
           GotoIf(WordNotEqual(o_map, original_map.value()), array_changed);
 
           // Check if o's length has changed during the callback and if the
           // index is now out of range of the new length.
-          Node* tagged_index = ParameterToTagged(index, mode);
-          GotoIf(SmiGreaterThanOrEqual(tagged_index, LoadJSArrayLength(o)),
+          GotoIf(SmiGreaterThanOrEqual(k_.value(), LoadJSArrayLength(o())),
                  array_changed);
 
           // Re-load the elements array. If may have been resized.
-          Node* elements = LoadElements(o);
+          Node* elements = LoadElements(o());
 
           // Fast case: load the element directly from the elements FixedArray
           // and call the callback if the element is not the hole.
@@ -289,10 +374,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
                 LoadDoubleWithHoleCheck(elements, offset, &hole_element);
             value = AllocateHeapNumberWithValue(double_value);
           }
-          Node* callback_result =
-              CallJS(CodeFactory::Call(isolate()), context, callbackfn,
-                     this_arg, value, tagged_index, o);
-          processor(context, value, a, callback_result);
+          a_.Bind(processor(this, value, k()));
           Goto(&one_element_done);
 
           Bind(&hole_element);
@@ -305,26 +387,24 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
         },
         1, mode, IndexAdvanceMode::kPost);
     Comment("end VisitAllFastElementsOneKind");
-    return last_index;
   }
 
-  void HandleFastElements(Node* context, Node* this_arg, Node* o, Node* len,
-                          Node* callbackfn, CallResultProcessor processor,
-                          Node* a, Variable& k, Label* slow) {
+  void HandleFastElements(const CallResultProcessor& processor,
+                          const PostLoopAction& action, Label* slow) {
     Label switch_on_elements_kind(this), fast_elements(this),
         maybe_double_elements(this), fast_double_elements(this);
 
     Comment("begin HandleFastElements");
     // Non-smi lengths must use the slow path.
-    GotoIf(TaggedIsNotSmi(len), slow);
+    GotoIf(TaggedIsNotSmi(len()), slow);
 
-    BranchIfFastJSArray(o, context,
+    BranchIfFastJSArray(o(), context(),
                         CodeStubAssembler::FastJSArrayAccessMode::INBOUNDS_READ,
                         &switch_on_elements_kind, slow);
 
     Bind(&switch_on_elements_kind);
     // Select by ElementsKind
-    Node* o_map = LoadMap(o);
+    Node* o_map = LoadMap(o());
     Node* bit_field2 = LoadMapBitField2(o_map);
     Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
     Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
@@ -333,17 +413,12 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     ParameterMode mode = OptimalParameterMode();
     Bind(&fast_elements);
     {
-      Label array_changed(this, Label::kDeferred);
-      Node* last_index = VisitAllFastElementsOneKind(
-          context, FAST_ELEMENTS, this_arg, o, len, callbackfn, processor, a,
-          &array_changed, mode);
+      VisitAllFastElementsOneKind(FAST_ELEMENTS, processor, slow, mode);
+
+      action(this);
 
       // No exception, return success
-      Return(a);
-
-      Bind(&array_changed);
-      k.Bind(ParameterToTagged(last_index, mode));
-      Goto(slow);
+      Return(a_.value());
     }
 
     Bind(&maybe_double_elements);
@@ -352,20 +427,22 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
     Bind(&fast_double_elements);
     {
-      Label array_changed(this, Label::kDeferred);
-      Node* last_index = VisitAllFastElementsOneKind(
-          context, FAST_DOUBLE_ELEMENTS, this_arg, o, len, callbackfn,
-          processor, a, &array_changed, mode);
+      VisitAllFastElementsOneKind(FAST_DOUBLE_ELEMENTS, processor, slow, mode);
+
+      action(this);
 
       // No exception, return success
-      Return(a);
-
-      Bind(&array_changed);
-      k.Bind(ParameterToTagged(last_index, mode));
-      Goto(slow);
+      Return(a_.value());
     }
   }
 
+  Node* callbackfn_;
+  Node* o_;
+  Node* this_arg_;
+  Node* len_;
+  Node* context_;
+  Variable k_;
+  Variable a_;
   Variable to_;
 };
 
@@ -527,78 +604,82 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
 
 TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   GenerateIteratingArrayBuiltinLoopContinuation(
-      [](Node* context, Node* a) {},
-      [this](Node* context, Node* value, Node* a, Node* callback_result) {
-        ForEachProcessor(context, value, a, callback_result);
-      });
-}
-
-TF_BUILTIN(ArrayFilter, ArrayBuiltinCodeStubAssembler) {
-  GenerateIteratingArrayBuiltinBody(
-      "Array.prototype.filter",
-      [=](Node* context, Node* o, Node* len) {
-        return FilterResultGenerator(context, o, len);
-      },
-      [this](Node* context, Node* value, Node* a, Node* callback_result) {
-        FilterProcessor(context, value, a, callback_result);
-      },
-      CodeFactory::ArrayFilterLoopContinuation(isolate()));
-}
-
-TF_BUILTIN(ArrayFilterLoopContinuation, ArrayBuiltinCodeStubAssembler) {
-  GenerateIteratingArrayBuiltinLoopContinuation(
-      [this](Node* context, Node* a) {
-        FilterResultIndexReinitializer(context, a);
-      },
-      [this](Node* context, Node* value, Node* a, Node* callback_result) {
-        FilterProcessor(context, value, a, callback_result);
-      });
+      &ArrayBuiltinCodeStubAssembler::NullResultIndexReinitializer,
+      &ArrayBuiltinCodeStubAssembler::ForEachProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
 TF_BUILTIN(ArrayForEach, ArrayBuiltinCodeStubAssembler) {
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.forEach",
-      [=](Node*, Node*, Node*) { return UndefinedConstant(); },
-      [this](Node* context, Node* value, Node* a, Node* callback_result) {
-        ForEachProcessor(context, value, a, callback_result);
-      },
+      &ArrayBuiltinCodeStubAssembler::ForEachResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::ForEachProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
       CodeFactory::ArrayForEachLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(ArraySomeLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   GenerateIteratingArrayBuiltinLoopContinuation(
-      [](Node* context, Node* a) {},
-      [this](Node* context, Node* value, Node* a, Node* callback_result) {
-        SomeProcessor(context, value, a, callback_result);
-      });
+      &ArrayBuiltinCodeStubAssembler::NullResultIndexReinitializer,
+      &ArrayBuiltinCodeStubAssembler::SomeProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
 TF_BUILTIN(ArraySome, ArrayBuiltinCodeStubAssembler) {
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.some",
-      [=](Node*, Node*, Node*) { return FalseConstant(); },
-      [this](Node* context, Node* value, Node* a, Node* callback_result) {
-        SomeProcessor(context, value, a, callback_result);
-      },
+      &ArrayBuiltinCodeStubAssembler::SomeResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::SomeProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
       CodeFactory::ArraySomeLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(ArrayEveryLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   GenerateIteratingArrayBuiltinLoopContinuation(
-      [](Node* context, Node* a) {},
-      [this](Node* context, Node* value, Node* a, Node* callback_result) {
-        EveryProcessor(context, value, a, callback_result);
-      });
+      &ArrayBuiltinCodeStubAssembler::NullResultIndexReinitializer,
+      &ArrayBuiltinCodeStubAssembler::EveryProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
 TF_BUILTIN(ArrayEvery, ArrayBuiltinCodeStubAssembler) {
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.every",
-      [=](Node*, Node*, Node*) { return TrueConstant(); },
-      [this](Node* context, Node* value, Node* a, Node* callback_result) {
-        EveryProcessor(context, value, a, callback_result);
-      },
+      &ArrayBuiltinCodeStubAssembler::EveryResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::EveryProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
       CodeFactory::ArrayEveryLoopContinuation(isolate()));
+}
+
+TF_BUILTIN(ArrayReduceLoopContinuation, ArrayBuiltinCodeStubAssembler) {
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      &ArrayBuiltinCodeStubAssembler::NullResultIndexReinitializer,
+      &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
+      &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction);
+}
+
+TF_BUILTIN(ArrayReduce, ArrayBuiltinCodeStubAssembler) {
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.reduce",
+      &ArrayBuiltinCodeStubAssembler::ReduceResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
+      &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction,
+      CodeFactory::ArrayReduceLoopContinuation(isolate()));
+}
+
+TF_BUILTIN(ArrayFilterLoopContinuation, ArrayBuiltinCodeStubAssembler) {
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      &ArrayBuiltinCodeStubAssembler::FilterResultIndexReinitializer,
+      &ArrayBuiltinCodeStubAssembler::FilterProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
+}
+
+TF_BUILTIN(ArrayFilter, ArrayBuiltinCodeStubAssembler) {
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.reduce",
+      &ArrayBuiltinCodeStubAssembler::FilterResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::FilterProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      CodeFactory::ArrayFilterLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {

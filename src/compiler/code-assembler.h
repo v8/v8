@@ -462,8 +462,14 @@ class CodeAssemblerLabel {
       : CodeAssemblerLabel(assembler, merged_variables.length(),
                            &(merged_variables[0]), type) {}
   CodeAssemblerLabel(
-      CodeAssembler* assembler, size_t count, CodeAssemblerVariable** vars,
+      CodeAssembler* assembler, size_t count,
+      CodeAssemblerVariable* const* vars,
       CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred);
+  CodeAssemblerLabel(
+      CodeAssembler* assembler,
+      std::initializer_list<CodeAssemblerVariable*> vars,
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
+      : CodeAssemblerLabel(assembler, vars.size(), vars.begin(), type) {}
   CodeAssemblerLabel(
       CodeAssembler* assembler, CodeAssemblerVariable* merged_variable,
       CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
