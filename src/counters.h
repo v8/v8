@@ -486,21 +486,29 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
 
 class RuntimeCallCounter final {
  public:
-  explicit RuntimeCallCounter(const char* name) : name_(name) {}
+  explicit RuntimeCallCounter(const char* name)
+      : name_(name), count_(0), time_(0) {}
   V8_NOINLINE void Reset();
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
   void Add(RuntimeCallCounter* other);
 
   const char* name() const { return name_; }
   int64_t count() const { return count_; }
-  base::TimeDelta time() const { return time_; }
+  base::TimeDelta time() const {
+    return base::TimeDelta::FromMicroseconds(time_);
+  }
   void Increment() { count_++; }
-  void Add(base::TimeDelta delta) { time_ += delta; }
+  void Add(base::TimeDelta delta) { time_ += delta.InMicroseconds(); }
 
  private:
+  RuntimeCallCounter() {}
+
   const char* name_;
-  int64_t count_ = 0;
-  base::TimeDelta time_;
+  int64_t count_;
+  // Stored as int64_t so that its initialization can be deferred.
+  int64_t time_;
+
+  friend class RuntimeCallStats;
 };
 
 // RuntimeCallTimer is used to keep track of the stack of currently active
@@ -827,25 +835,22 @@ class RuntimeCallTimer final {
 class RuntimeCallStats final : public ZoneObject {
  public:
   typedef RuntimeCallCounter RuntimeCallStats::*CounterId;
+  V8_EXPORT_PRIVATE RuntimeCallStats();
 
-#define CALL_RUNTIME_COUNTER(name) \
-  RuntimeCallCounter name = RuntimeCallCounter(#name);
+#define CALL_RUNTIME_COUNTER(name) RuntimeCallCounter name;
   FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
 #define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
-  RuntimeCallCounter Runtime_##name = RuntimeCallCounter(#name);
+  RuntimeCallCounter Runtime_##name;
   FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) \
-  RuntimeCallCounter Builtin_##name = RuntimeCallCounter(#name);
+#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter Builtin_##name;
   BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) \
-  RuntimeCallCounter API_##name = RuntimeCallCounter("API_" #name);
+#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter API_##name;
   FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) \
-  RuntimeCallCounter Handler_##name = RuntimeCallCounter(#name);
+#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter Handler_##name;
   FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
 
@@ -874,11 +879,6 @@ class RuntimeCallStats final : public ZoneObject {
   void Add(RuntimeCallStats* other);
   V8_EXPORT_PRIVATE void Print(std::ostream& os);
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
-
-  RuntimeCallStats() {
-    Reset();
-    in_use_ = false;
-  }
 
   RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
   bool InUse() { return in_use_; }
