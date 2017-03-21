@@ -108,8 +108,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable Equal(Isolate* isolate);
   static Callable StrictEqual(Isolate* isolate);
 
-  static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
-                            PretenureFlag pretenure_flag);
+  static Callable StringAdd(Isolate* isolate,
+                            StringAddFlags flags = STRING_ADD_CHECK_NONE,
+                            PretenureFlag pretenure_flag = NOT_TENURED);
   static Callable StringCharAt(Isolate* isolate);
   static Callable StringCharCodeAt(Isolate* isolate);
   static Callable StringCompare(Isolate* isolate, Token::Value token);

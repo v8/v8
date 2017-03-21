@@ -774,6 +774,8 @@ class Isolate;
   TFJ(StringPrototypeCharAt, 1)                                                \
   /* ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos ) */               \
   TFJ(StringPrototypeCharCodeAt, 1)                                            \
+  /* ES6 #sec-string.prototype.concat */                                       \
+  TFJ(StringPrototypeConcat, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   /* ES6 section 21.1.3.6 */                                                   \
   /* String.prototype.endsWith ( searchString [ , endPosition ] ) */           \
   CPP(StringPrototypeEndsWith)                                                 \

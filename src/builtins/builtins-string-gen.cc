@@ -662,6 +662,30 @@ TF_BUILTIN(StringPrototypeCharCodeAt, CodeStubAssembler) {
   Return(result);
 }
 
+// ES6 String.prototype.concat(...args)
+// #sec-string.prototype.concat
+TF_BUILTIN(StringPrototypeConcat, CodeStubAssembler) {
+  CodeStubArguments arguments(
+      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+  Node* receiver = arguments.GetReceiver();
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  // Check that {receiver} is coercible to Object and convert it to a String.
+  receiver = ToThisString(context, receiver, "String.prototype.concat");
+
+  // Concatenate all the arguments passed to this builtin.
+  Variable var_result(this, MachineRepresentation::kTagged);
+  var_result.Bind(receiver);
+  arguments.ForEach(
+      CodeStubAssembler::VariableList({&var_result}, zone()),
+      [this, context, &var_result](Node* arg) {
+        arg = CallStub(CodeFactory::ToString(isolate()), context, arg);
+        var_result.Bind(CallStub(CodeFactory::StringAdd(isolate()), context,
+                                 var_result.value(), arg));
+      });
+  arguments.PopAndReturn(var_result.value());
+}
+
 void StringBuiltinsAssembler::StringIndexOf(
     Node* receiver, Node* instance_type, Node* search_string,
     Node* search_string_instance_type, Node* position,
