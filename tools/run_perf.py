@@ -732,7 +732,8 @@ class AndroidPlatform(Platform):  # pragma: no cover
   def PostExecution(self):
     perf = perf_control.PerfControl(self.device)
     perf.SetDefaultPerfMode()
-    self.device.RunShellCommand(["rm", "-rf", AndroidPlatform.DEVICE_DIR])
+    self.device.RemovePath(
+        AndroidPlatform.DEVICE_DIR, force=True, recursive=True)
 
   def _PushFile(self, host_dir, file_name, target_rel=".",
                 skip_if_missing=False):
@@ -830,6 +831,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
       output = self.device.RunShellCommand(
           cmd,
           cwd=os.path.join(AndroidPlatform.DEVICE_DIR, bench_rel),
+          check_return=True,
           timeout=runnable.timeout,
           retries=0,
       )
