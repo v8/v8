@@ -98,11 +98,6 @@ int FeedbackVector::invocation_count() const {
   return Smi::cast(get(kInvocationCountIndex))->value();
 }
 
-void FeedbackVector::increment_invocation_count() {
-  int count = invocation_count() + 1;
-  if (Smi::IsValid(count)) set(kInvocationCountIndex, Smi::FromInt(count));
-}
-
 void FeedbackVector::clear_invocation_count() {
   set(kInvocationCountIndex, Smi::kZero);
 }

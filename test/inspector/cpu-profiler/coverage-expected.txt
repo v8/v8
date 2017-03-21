@@ -11,7 +11,7 @@ Running test: testPreciseBaseline
                         functionName : fib
                         ranges : [
                             [0] : {
-                                count : 0
+                                count : 15
                                 endOffset : 73
                                 startOffset : 1
                             }
