@@ -666,7 +666,6 @@ class KeyedStoreICNexus : public FeedbackNexus {
   void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
                             List<Handle<Object>>* handlers);
   void ConfigurePolymorphic(MapHandleList* maps,
-                            MapHandleList* transitioned_maps,
                             List<Handle<Object>>* handlers);
   void ConfigureMegamorphicKeyed(IcCheckType property_type);
 

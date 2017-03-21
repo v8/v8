@@ -126,8 +126,6 @@ class AccessorAssembler : public CodeStubAssembler {
                              Label* if_miss, int min_feedback_capacity);
   void HandleKeyedStorePolymorphicCase(Node* receiver_map, Node* feedback,
                                        Label* if_handler, Variable* var_handler,
-                                       Label* if_transition_handler,
-                                       Variable* var_transition_map_cell,
                                        Label* if_miss);
 
   // LoadIC implementation.
@@ -169,7 +167,7 @@ class AccessorAssembler : public CodeStubAssembler {
                                        Node* handler, Label* miss);
 
   void HandleStoreICProtoHandler(const StoreICParameters* p, Node* handler,
-                                 Label* miss);
+                                 Label* miss, ElementSupport support_elements);
   // If |transition| is nullptr then the normal field store is generated or
   // transitioning store otherwise.
   void HandleStoreICSmiHandlerCase(Node* handler_word, Node* holder,

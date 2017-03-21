@@ -633,11 +633,10 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
 }
 
 void IC::ConfigureVectorState(MapHandleList* maps,
-                              MapHandleList* transitioned_maps,
                               List<Handle<Object>>* handlers) {
   DCHECK(IsKeyedStoreIC());
   KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
-  nexus->ConfigurePolymorphic(maps, transitioned_maps, handlers);
+  nexus->ConfigurePolymorphic(maps, handlers);
 
   vector_set_ = true;
   OnFeedbackChanged(isolate(), GetHostFunction());
@@ -2166,11 +2165,9 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     }
   }
 
-  MapHandleList transitioned_maps(target_receiver_maps.length());
   List<Handle<Object>> handlers(target_receiver_maps.length());
-  StoreElementPolymorphicHandlers(&target_receiver_maps, &transitioned_maps,
-                                  &handlers, store_mode);
-  ConfigureVectorState(&target_receiver_maps, &transitioned_maps, &handlers);
+  StoreElementPolymorphicHandlers(&target_receiver_maps, &handlers, store_mode);
+  ConfigureVectorState(&target_receiver_maps, &handlers);
 }
 
 
@@ -2230,15 +2227,13 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   }
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
-  if (validity_cell.is_null()) {
-    return stub;
-  }
+  if (validity_cell.is_null()) return stub;
   return isolate()->factory()->NewTuple2(validity_cell, stub);
 }
 
 void KeyedStoreIC::StoreElementPolymorphicHandlers(
-    MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
-    List<Handle<Object>>* handlers, KeyedAccessStoreMode store_mode) {
+    MapHandleList* receiver_maps, List<Handle<Object>>* handlers,
+    KeyedAccessStoreMode store_mode) {
   DCHECK(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
@@ -2281,17 +2276,17 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
         Handle<Object> validity_cell =
             Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
         if (validity_cell.is_null()) {
-          handler = stub;
-        } else {
-          handler = isolate()->factory()->NewTuple2(validity_cell, stub);
+          validity_cell = handle(Smi::kZero, isolate());
         }
+        Handle<WeakCell> transition = Map::WeakCellForMap(transitioned_map);
+        handler =
+            isolate()->factory()->NewTuple3(transition, stub, validity_cell);
       } else {
         handler = StoreElementHandler(receiver_map, store_mode);
       }
     }
     DCHECK(!handler.is_null());
     handlers->Add(handler);
-    transitioned_maps->Add(transitioned_map);
   }
 }
 

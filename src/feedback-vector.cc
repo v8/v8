@@ -775,47 +775,15 @@ void KeyedStoreICNexus::ConfigurePolymorphic(Handle<Name> name,
 }
 
 void KeyedStoreICNexus::ConfigurePolymorphic(MapHandleList* maps,
-                                             MapHandleList* transitioned_maps,
                                              List<Handle<Object>>* handlers) {
   int receiver_count = maps->length();
   DCHECK(receiver_count > 1);
-  Handle<FixedArray> array = EnsureArrayOfSize(receiver_count * 3);
+  Handle<FixedArray> array = EnsureArrayOfSize(receiver_count * 2);
   SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(GetIsolate()),
                    SKIP_WRITE_BARRIER);
 
-  Handle<Oddball> undefined_value = GetIsolate()->factory()->undefined_value();
-  for (int i = 0; i < receiver_count; ++i) {
-    Handle<Map> map = maps->at(i);
-    Handle<WeakCell> cell = Map::WeakCellForMap(map);
-    array->set(i * 3, *cell);
-    if (!transitioned_maps->at(i).is_null()) {
-      Handle<Map> transitioned_map = transitioned_maps->at(i);
-      cell = Map::WeakCellForMap(transitioned_map);
-      array->set((i * 3) + 1, *cell);
-    } else {
-      array->set((i * 3) + 1, *undefined_value);
-    }
-    array->set((i * 3) + 2, *handlers->at(i));
-  }
+  InstallHandlers(array, maps, handlers);
 }
-
-namespace {
-
-int GetStepSize(FixedArray* array, Isolate* isolate) {
-  // The array should be of the form
-  // [map, handler, map, handler, ...]
-  // or
-  // [map, map, handler, map, map, handler, ...]
-  // where "map" is either a WeakCell or |undefined|,
-  // and "handler" is either a Code object or a Smi.
-  DCHECK(array->length() >= 2);
-  Object* second = array->get(1);
-  if (second->IsWeakCell() || second->IsUndefined(isolate)) return 3;
-  DCHECK(IC::IsHandler(second));
-  return 2;
-}
-
-}  // namespace
 
 int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
   Isolate* isolate = GetIsolate();
@@ -827,7 +795,7 @@ int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
-    int increment = GetStepSize(array, isolate);
+    const int increment = 2;
     for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
@@ -859,7 +827,7 @@ MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
-    int increment = GetStepSize(array, isolate);
+    const int increment = 2;
     for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
@@ -898,7 +866,7 @@ bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
-    int increment = GetStepSize(array, isolate);
+    const int increment = 2;
     for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
@@ -951,10 +919,16 @@ KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
     // The first handler that isn't the slow handler will have the bits we need.
     Handle<Object> maybe_code_handler = handlers.at(i);
     Handle<Code> handler;
-    if (maybe_code_handler->IsTuple2()) {
+    if (maybe_code_handler->IsTuple3()) {
+      // Elements transition.
+      Handle<Tuple3> data_handler = Handle<Tuple3>::cast(maybe_code_handler);
+      handler = handle(Code::cast(data_handler->value2()));
+    } else if (maybe_code_handler->IsTuple2()) {
+      // Element store with prototype chain check.
       Handle<Tuple2> data_handler = Handle<Tuple2>::cast(maybe_code_handler);
       handler = handle(Code::cast(data_handler->value2()));
     } else {
+      // Element store without prototype chain check.
       handler = Handle<Code>::cast(maybe_code_handler);
     }
     CodeStub::Major major_key = CodeStub::MajorKeyFromKey(handler->stub_key());
