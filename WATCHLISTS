@@ -66,6 +66,10 @@
     'inspector': {
       'filepath': 'inspector',
     },
+    'wasm': {
+      'filepath': 'src/wasm/' \
+                  '|src/compiler/wasm',
+    },
   },
 
   'WATCHLISTS': {
@@ -101,6 +105,9 @@
     ],
     'inspector': [
       'devtools-reviews@chromium.org',
+    ],
+    'wasm': [
+      'wasm-v8@google.com',
     ],
   },
 }
