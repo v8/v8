@@ -820,22 +820,6 @@ Node* WasmGraphBuilder::HeapConstant(Handle<HeapObject> value) {
   return jsgraph()->HeapConstant(value);
 }
 
-Node* WasmGraphBuilder::ZeroConstant(wasm::ValueType type) {
-  switch (type) {
-    case wasm::kWasmI32:
-      return Int32Constant(0);
-    case wasm::kWasmI64:
-      return Int64Constant(0);
-    case wasm::kWasmF32:
-      return Float32Constant(0);
-    case wasm::kWasmF64:
-      return Float64Constant(0);
-    default:
-      UNIMPLEMENTED();
-      return nullptr;
-  }
-}
-
 namespace {
 Node* Branch(JSGraph* jsgraph, Node* cond, Node** true_node, Node** false_node,
              Node* control, BranchHint hint) {
@@ -2659,22 +2643,15 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
         jsgraph()->HeapConstant(jsgraph()->isolate()->native_context());
     BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, jsgraph(),
                                   context, nullptr, 0, effect_, *control_);
-    // TODO(wasm): Support multi-return.
-    if (sig->return_count() == 0) {
-      Return(Int32Constant(0));
-    } else if (Int64Lowering::IsI64AsTwoParameters(jsgraph()->machine(),
-                                                   sig->GetReturn())) {
-      Return(Int32Constant(0), Int32Constant(0));
-    } else {
-      Return(ZeroConstant(sig->GetReturn()));
-    }
+    // We don't need to return a value here, as the runtime call will not return
+    // anyway (the c entry stub will trigger stack unwinding).
+    ReturnVoid();
     return;
   }
 
   Node** args = Buffer(wasm_count + 7);
 
-  Node* call;
-  bool direct_call = false;
+  Node* call = nullptr;
 
   if (trap_handler::UseTrapHandler()) {
     BuildCallToRuntime(Runtime::kClearThreadInWasm, jsgraph(), nullptr, 0,
@@ -2684,7 +2661,6 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   if (target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(target);
     if (function->shared()->internal_formal_parameter_count() == wasm_count) {
-      direct_call = true;
       int pos = 0;
       args[pos++] = jsgraph()->Constant(target);  // target callable.
       // Receiver.
@@ -2714,7 +2690,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   }
 
   // We cannot call the target directly, we have to use the Call builtin.
-  if (!direct_call) {
+  if (!call) {
     int pos = 0;
     Callable callable = CodeFactory::Call(isolate);
     args[pos++] = jsgraph()->HeapConstant(callable.code());
