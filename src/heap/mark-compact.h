@@ -27,6 +27,7 @@ typedef void (*MarkObjectFunction)(Heap* heap, HeapObject* object);
 
 // Forward declarations.
 class CodeFlusher;
+class HeapObjectVisitor;
 class MarkCompactCollector;
 class MinorMarkCompactCollector;
 class MarkingVisitor;
@@ -44,11 +45,15 @@ class MarkingState {
         chunk->live_bytes_address<MarkingMode::YOUNG_GENERATION>());
   }
 
-  MarkingState(Bitmap* bitmap, intptr_t* live_bytes)
+  MarkingState(Bitmap* bitmap, int* live_bytes)
       : bitmap(bitmap), live_bytes(live_bytes) {}
 
-  void IncrementLiveBytes(intptr_t by) const { *live_bytes += by; }
-  void SetLiveBytes(intptr_t value) const { *live_bytes = value; }
+  void IncrementLiveBytes(intptr_t by) const {
+    *live_bytes += static_cast<int>(by);
+  }
+  void SetLiveBytes(intptr_t value) const {
+    *live_bytes = static_cast<int>(value);
+  }
 
   void ClearLiveness() const {
     bitmap->Clear();
@@ -56,7 +61,7 @@ class MarkingState {
   }
 
   Bitmap* bitmap;
-  intptr_t* live_bytes;
+  int* live_bytes;
 };
 
 // TODO(mlippautz): Remove duplicate accessors once the architecture for
@@ -488,6 +493,24 @@ class LiveObjectIterator BASE_EMBEDDED {
   MarkBit::CellType current_cell_;
 };
 
+class LiveObjectVisitor BASE_EMBEDDED {
+ public:
+  enum IterationMode {
+    kKeepMarking,
+    kClearMarkbits,
+  };
+
+  // Visits black objects on a MemoryChunk until the Visitor returns for an
+  // object. If IterationMode::kClearMarkbits is passed the markbits and slots
+  // for visited objects are cleared for each successfully visited object.
+  template <class Visitor>
+  bool VisitBlackObjects(MemoryChunk* chunk, const MarkingState& state,
+                         Visitor* visitor, IterationMode iteration_mode);
+
+ private:
+  void RecomputeLiveBytes(MemoryChunk* chunk, const MarkingState& state);
+};
+
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 
 class MinorMarkCompactCollector {
@@ -529,7 +552,6 @@ class MinorMarkCompactCollector {
 // Mark-Compact collector
 class MarkCompactCollector {
  public:
-  class Evacuator;
   class RootMarkingVisitor;
 
   class Sweeper {
@@ -716,15 +738,6 @@ class MarkCompactCollector {
 #endif
 
  private:
-  template <PageEvacuationMode mode>
-  class EvacuateNewSpacePageVisitor;
-  class EvacuateNewSpaceVisitor;
-  class EvacuateOldSpaceVisitor;
-  class EvacuateRecordOnlyVisitor;
-  class EvacuateVisitorBase;
-  class HeapObjectVisitor;
-  class ObjectStatsVisitor;
-
   explicit MarkCompactCollector(Heap* heap);
 
   bool WillBeDeoptimized(Code* code);
@@ -880,14 +893,6 @@ class MarkCompactCollector {
   void EvacuateNewSpaceAndCandidates();
 
   void UpdatePointersAfterEvacuation();
-
-  // Iterates through all live objects on a page using marking information.
-  // Returns whether all objects have successfully been visited.
-  template <class Visitor>
-  bool VisitLiveObjects(MemoryChunk* page, Visitor* visitor,
-                        IterationMode mode);
-
-  void RecomputeLiveBytes(MemoryChunk* page);
 
   void ReleaseEvacuationCandidates();
 

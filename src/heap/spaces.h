@@ -527,11 +527,11 @@ class MemoryChunk {
   }
 
   template <MarkingMode mode = MarkingMode::FULL>
-  inline intptr_t* live_bytes_address() {
+  inline int* live_bytes_address() {
     // TODO(mlippautz): Fix type of live_byte_count_.
     return mode == MarkingMode::FULL
-               ? reinterpret_cast<intptr_t*>(&live_byte_count_)
-               : &young_generation_live_byte_count_;
+               ? &live_byte_count_
+               : reinterpret_cast<int*>(&young_generation_live_byte_count_);
   }
 
   inline uint32_t AddressToMarkbitIndex(Address addr) const {
