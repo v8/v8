@@ -209,7 +209,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
     }
   }
 
-  FinishCode(masm());
+  FinishCode();
 
   // Emit the jump tables.
   if (jump_tables_) {

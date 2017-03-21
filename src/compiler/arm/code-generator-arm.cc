@@ -2473,6 +2473,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   __ Ret();
 }
 
+void CodeGenerator::FinishCode() { masm()->CheckConstPool(true, false); }
+
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   ArmOperandConverter g(this, nullptr);
