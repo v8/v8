@@ -1862,22 +1862,20 @@ class WasmFullDecoder : public WasmDecoder {
     env->control = builder_->Loop(env->control);
     env->effect = builder_->EffectPhi(1, &env->effect, env->control);
     builder_->Terminate(env->effect, env->control);
-    if (FLAG_wasm_loop_assignment_analysis) {
-      BitVector* assigned = AnalyzeLoopAssignment(
-          this, pc, static_cast<int>(total_locals()), zone_);
-      if (failed()) return env;
-      if (assigned != nullptr) {
-        // Only introduce phis for variables assigned in this loop.
-        for (int i = EnvironmentCount() - 1; i >= 0; i--) {
-          if (!assigned->Contains(i)) continue;
-          env->locals[i] = builder_->Phi(local_type_vec_[i], 1, &env->locals[i],
-                                         env->control);
-        }
-        SsaEnv* loop_body_env = Split(env);
-        builder_->StackCheck(position(), &(loop_body_env->effect),
-                             &(loop_body_env->control));
-        return loop_body_env;
+    BitVector* assigned = AnalyzeLoopAssignment(
+        this, pc, static_cast<int>(total_locals()), zone_);
+    if (failed()) return env;
+    if (assigned != nullptr) {
+      // Only introduce phis for variables assigned in this loop.
+      for (int i = EnvironmentCount() - 1; i >= 0; i--) {
+        if (!assigned->Contains(i)) continue;
+        env->locals[i] =
+            builder_->Phi(local_type_vec_[i], 1, &env->locals[i], env->control);
       }
+      SsaEnv* loop_body_env = Split(env);
+      builder_->StackCheck(position(), &(loop_body_env->effect),
+                           &(loop_body_env->control));
+      return loop_body_env;
     }
 
     // Conservatively introduce phis for all local variables.
