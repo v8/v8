@@ -12,14 +12,20 @@
 namespace v8 {
 namespace internal {
 
-template <MarkingMode mode>
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC, mode>(obj)));
-  if (!marking_deque<mode>()->Push(obj)) {
-    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC, mode>(obj);
+  DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(obj)));
+  if (!marking_deque()->Push(obj)) {
+    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC>(obj);
   }
 }
 
+void MinorMarkCompactCollector::PushBlack(HeapObject* obj) {
+  DCHECK(
+      (ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(obj, StateForObject(obj))));
+  if (!marking_deque()->Push(obj)) {
+    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC>(obj, StateForObject(obj));
+  }
+}
 
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   DCHECK(ObjectMarking::IsBlack(obj));
@@ -28,11 +34,17 @@ void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   }
 }
 
-template <MarkingMode mode>
 void MarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC, mode>(obj)) {
-    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC, mode>(obj);
-    PushBlack<mode>(obj);
+  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(obj)) {
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(obj);
+    PushBlack(obj);
+  }
+}
+
+void MinorMarkCompactCollector::MarkObject(HeapObject* obj) {
+  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(obj, StateForObject(obj))) {
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(obj, StateForObject(obj));
+    PushBlack(obj);
   }
 }
 

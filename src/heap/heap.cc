@@ -133,6 +133,7 @@ Heap::Heap()
       last_gc_time_(0.0),
       scavenge_collector_(nullptr),
       mark_compact_collector_(nullptr),
+      minor_mark_compact_collector_(nullptr),
       memory_allocator_(nullptr),
       store_buffer_(nullptr),
       incremental_marking_(nullptr),
@@ -1466,7 +1467,21 @@ void Heap::MarkCompact() {
   }
 }
 
-void Heap::MinorMarkCompact() { UNREACHABLE(); }
+void Heap::MinorMarkCompact() {
+  DCHECK(FLAG_minor_mc);
+
+  SetGCState(MINOR_MARK_COMPACT);
+  LOG(isolate_, ResourceEvent("MinorMarkCompact", "begin"));
+
+  TRACE_GC(tracer(), GCTracer::Scope::MC_MINOR_MC);
+  AlwaysAllocateScope always_allocate(isolate());
+  PauseAllocationObserversScope pause_observers(this);
+
+  minor_mark_compact_collector()->CollectGarbage();
+
+  LOG(isolate_, ResourceEvent("MinorMarkCompact", "end"));
+  SetGCState(NOT_IN_GC);
+}
 
 void Heap::MarkCompactEpilogue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_EPILOGUE);
@@ -5519,6 +5534,8 @@ bool Heap::SetUp() {
   tracer_ = new GCTracer(this);
   scavenge_collector_ = new Scavenger(this);
   mark_compact_collector_ = new MarkCompactCollector(this);
+  if (FLAG_minor_mc)
+    minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
   gc_idle_time_handler_ = new GCIdleTimeHandler();
   memory_reducer_ = new MemoryReducer(this);
   if (V8_UNLIKELY(FLAG_gc_stats)) {
@@ -5534,6 +5551,9 @@ bool Heap::SetUp() {
   store_buffer()->SetUp();
 
   mark_compact_collector()->SetUp();
+  if (minor_mark_compact_collector() != nullptr) {
+    minor_mark_compact_collector()->SetUp();
+  }
 
   idle_scavenge_observer_ = new IdleScavengeObserver(
       *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
@@ -5653,6 +5673,12 @@ void Heap::TearDown() {
     mark_compact_collector_->TearDown();
     delete mark_compact_collector_;
     mark_compact_collector_ = nullptr;
+  }
+
+  if (minor_mark_compact_collector_ != nullptr) {
+    minor_mark_compact_collector_->TearDown();
+    delete minor_mark_compact_collector_;
+    minor_mark_compact_collector_ = nullptr;
   }
 
   delete incremental_marking_;

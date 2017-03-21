@@ -82,6 +82,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_SWEEP_CODE)                            \
   F(MC_SWEEP_MAP)                             \
   F(MC_SWEEP_OLD)                             \
+  F(MC_MINOR_MC)                              \
   F(MINOR_MC_MARK)                            \
   F(MINOR_MC_MARK_CODE_FLUSH_CANDIDATES)      \
   F(MINOR_MC_MARK_GLOBAL_HANDLES)             \

@@ -325,6 +325,7 @@ class Isolate;
 class LocalEmbedderHeapTracer;
 class MemoryAllocator;
 class MemoryReducer;
+class MinorMarkCompactCollector;
 class ObjectIterator;
 class ObjectStats;
 class Page;
@@ -559,7 +560,7 @@ class Heap {
 
   enum FindMementoMode { kForRuntime, kForGC };
 
-  enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
+  enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT, MINOR_MARK_COMPACT };
 
   enum UpdateAllocationSiteMode { kGlobal, kCached };
 
@@ -1038,6 +1039,10 @@ class Heap {
 
   MarkCompactCollector* mark_compact_collector() {
     return mark_compact_collector_;
+  }
+
+  MinorMarkCompactCollector* minor_mark_compact_collector() {
+    return minor_mark_compact_collector_;
   }
 
   // ===========================================================================
@@ -2278,6 +2283,7 @@ class Heap {
   Scavenger* scavenge_collector_;
 
   MarkCompactCollector* mark_compact_collector_;
+  MinorMarkCompactCollector* minor_mark_compact_collector_;
 
   MemoryAllocator* memory_allocator_;
 
@@ -2377,6 +2383,7 @@ class Heap {
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
   friend class MarkCompactCollector;
+  friend class MinorMarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
   friend class NewSpace;
   friend class ObjectStatsCollector;
