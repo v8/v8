@@ -31,7 +31,6 @@ class JSValue;
 class Object;
 class Oddball;
 class Smi;
-class WasmModuleObject;
 
 enum class SerializationTag : uint8_t;
 
@@ -219,9 +218,6 @@ class ValueDeserializer {
   bool ReadUint64(uint64_t* value) WARN_UNUSED_RESULT;
   bool ReadDouble(double* value) WARN_UNUSED_RESULT;
   bool ReadRawBytes(size_t length, const void** data) WARN_UNUSED_RESULT;
-  void set_expect_inline_wasm(bool expect_inline_wasm) {
-    expect_inline_wasm_ = expect_inline_wasm;
-  }
 
  private:
   // Reading the wire format.
@@ -234,7 +230,6 @@ class ValueDeserializer {
   Maybe<T> ReadZigZag() WARN_UNUSED_RESULT;
   Maybe<double> ReadDouble() WARN_UNUSED_RESULT;
   Maybe<Vector<const uint8_t>> ReadRawBytes(int size) WARN_UNUSED_RESULT;
-  bool expect_inline_wasm() const { return expect_inline_wasm_; }
 
   // Reads a string if it matches the one provided.
   // Returns true if this was the case. Otherwise, nothing is consumed.
@@ -268,7 +263,6 @@ class ValueDeserializer {
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadWasmModule() WARN_UNUSED_RESULT;
-  MaybeHandle<JSObject> ReadWasmModuleTransfer() WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadHostObject() WARN_UNUSED_RESULT;
 
   /*
@@ -291,7 +285,6 @@ class ValueDeserializer {
   PretenureFlag pretenure_;
   uint32_t version_ = 0;
   uint32_t next_id_ = 0;
-  bool expect_inline_wasm_ = false;
 
   // Always global handles.
   Handle<FixedArray> id_map_;
