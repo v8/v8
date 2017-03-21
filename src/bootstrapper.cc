@@ -3678,6 +3678,7 @@ void Genesis::InitializeGlobal_enable_fast_array_builtins() {
                      factory->NewStringFromAsciiChecked("prototype"),
                      LookupIterator::OWN_SKIP_INTERCEPTOR);
   Handle<Object> array_prototype = Object::GetProperty(&it2).ToHandleChecked();
+
   LookupIterator it3(array_prototype,
                      factory->NewStringFromAsciiChecked("forEach"),
                      LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -3708,6 +3709,19 @@ void Genesis::InitializeGlobal_enable_fast_array_builtins() {
   Handle<JSFunction>::cast(some_function)
       ->shared()
       ->set_code(isolate->builtins()->builtin(Builtins::kArraySome));
+
+  if (FLAG_experimental_array_builtins) {
+    LookupIterator it6(array_prototype,
+                       factory->NewStringFromAsciiChecked("filter"),
+                       LookupIterator::OWN_SKIP_INTERCEPTOR);
+    Handle<Object> filter_function =
+        Object::GetProperty(&it6).ToHandleChecked();
+    Handle<JSFunction>::cast(filter_function)
+        ->set_code(isolate->builtins()->builtin(Builtins::kArrayFilter));
+    Handle<JSFunction>::cast(filter_function)
+        ->shared()
+        ->set_code(isolate->builtins()->builtin(Builtins::kArrayFilter));
+  }
 }
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {

@@ -770,6 +770,8 @@ DEFINE_BOOL(builtins_in_stack_traces, false,
 
 // builtins.cc
 DEFINE_BOOL(enable_fast_array_builtins, false, "use optimized builtins")
+DEFINE_BOOL(experimental_array_builtins, false,
+            "Experimental versions of array builtins")
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
             "allow invoking the function constructor without security checks")
 

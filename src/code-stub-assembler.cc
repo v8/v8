@@ -8080,6 +8080,16 @@ Node* CodeStubAssembler::AllocateJSArrayIterator(Node* array, Node* array_map,
   return iterator;
 }
 
+Node* CodeStubAssembler::ArraySpeciesCreate(Node* context, Node* originalArray,
+                                            Node* len) {
+  // TODO(mvstanton): Install a fast path as well, which avoids the runtime
+  // call.
+  Node* constructor =
+      CallRuntime(Runtime::kArraySpeciesConstructor, context, originalArray);
+  return ConstructJS(CodeFactory::Construct(isolate()), context, constructor,
+                     len);
+}
+
 Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   CSA_ASSERT(this, HasInstanceType(buffer, JS_ARRAY_BUFFER_TYPE));
 

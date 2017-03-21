@@ -293,6 +293,9 @@ class Isolate;
   /* ES6 #sec-array.prototype.some */                                          \
   TFJ(ArraySomeLoopContinuation, 6)                                            \
   TFJ(ArraySome, 2, kCallbackFn, kThisArg)                                     \
+  /* ES6 #sec-array.prototype.filter */                                        \
+  TFJ(ArrayFilterLoopContinuation, 6)                                          \
+  TFJ(ArrayFilter, 2, kCallbackFn, kThisArg)                                   \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0)                                                \
   /* ES6 #sec-array.prototype.keys */                                          \

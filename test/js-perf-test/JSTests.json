@@ -327,6 +327,18 @@
           "test_flags": ["sort"]
         }
       ]
+    },
+    {
+      "name": "Arrays",
+      "path": ["Arrays"],
+      "main": "run.js",
+      "resources": [
+        "filter.js"
+      ],
+      "results_regexp": "^Arrays\\-%s\\(Scope\\): (.+)$",
+      "tests": [
+        {"name": "Filter"}
+      ]
     }
   ]
 }
