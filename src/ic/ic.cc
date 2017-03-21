@@ -1705,7 +1705,7 @@ Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (validity_cell.is_null()) {
     DCHECK_EQ(0, checks_count);
-    validity_cell = handle(Smi::FromInt(0), isolate());
+    validity_cell = handle(Smi::kZero, isolate());
   }
 
   Handle<WeakCell> transition_cell = Map::WeakCellForMap(transition);
@@ -1724,21 +1724,13 @@ Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
   return handler_array;
 }
 
-static Handle<Code> PropertyCellStoreHandler(Isolate* isolate,
-                                             Handle<JSObject> store_target,
-                                             Handle<Name> name,
-                                             Handle<PropertyCell> cell,
-                                             PropertyCellType type) {
-  auto constant_type = Nothing<PropertyCellConstantType>();
-  if (type == PropertyCellType::kConstantType) {
-    constant_type = Just(cell->GetConstantType());
-  }
-  StoreGlobalStub stub(isolate, type, constant_type);
-  auto code = stub.GetCodeCopyFromTemplate(cell);
-  // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
-  HeapObject::UpdateMapCodeCache(store_target, name, code);
-  return code;
+namespace {
+
+Handle<Object> StoreGlobal(Isolate* isolate, Handle<PropertyCell> cell) {
+  return isolate->factory()->NewWeakCell(cell);
 }
+
+}  // namespace
 
 Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
   DCHECK_NE(LookupIterator::JSPROXY, lookup->state());
@@ -1752,7 +1744,8 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
     case LookupIterator::TRANSITION: {
       auto store_target = lookup->GetStoreTarget();
       if (store_target->IsJSGlobalObject()) {
-        break;  // Custom-compiled handler.
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
+        return StoreGlobal(isolate(), lookup->transition_cell());
       }
       // Currently not handled by CompileStoreTransition.
       if (!holder->HasFastProperties()) {
@@ -1829,7 +1822,8 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
       DCHECK_EQ(kData, lookup->property_details().kind());
       if (lookup->is_dictionary_holder()) {
         if (holder->IsJSGlobalObject()) {
-          break;  // Custom-compiled handler.
+          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalDH);
+          return StoreGlobal(isolate(), lookup->GetPropertyCell());
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
         DCHECK(holder.is_identical_to(receiver));
@@ -1877,24 +1871,6 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
   DCHECK(!receiver->IsAccessCheckNeeded() || lookup->name()->IsPrivate());
 
   switch (lookup->state()) {
-    case LookupIterator::TRANSITION: {
-      auto store_target = lookup->GetStoreTarget();
-      if (store_target->IsJSGlobalObject()) {
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransition);
-        Handle<PropertyCell> cell = lookup->transition_cell();
-        cell->set_value(*value);
-        Handle<Code> code =
-            PropertyCellStoreHandler(isolate(), receiver, lookup->name(), cell,
-                                     PropertyCellType::kConstant);
-        cell->set_value(isolate()->heap()->the_hole_value());
-        return code;
-      }
-      UNREACHABLE();
-    }
-
-    case LookupIterator::INTERCEPTOR:
-      UNREACHABLE();
-
     case LookupIterator::ACCESSOR: {
       DCHECK(holder->HasFastProperties());
       Handle<Object> accessors = lookup->GetAccessors();
@@ -1940,20 +1916,9 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
       }
     }
 
-    case LookupIterator::DATA: {
-      DCHECK(lookup->is_dictionary_holder());
-      DCHECK(holder->IsJSGlobalObject());
-      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobal);
-      DCHECK(holder.is_identical_to(receiver) ||
-             receiver->map()->prototype() == *holder);
-      auto cell = lookup->GetPropertyCell();
-      auto updated_type =
-          PropertyCell::UpdatedType(cell, value, lookup->property_details());
-      auto code = PropertyCellStoreHandler(isolate(), receiver,
-                                           lookup->name(), cell, updated_type);
-      return code;
-    }
-
+    case LookupIterator::DATA:
+    case LookupIterator::TRANSITION:
+    case LookupIterator::INTERCEPTOR:
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::JSPROXY:
