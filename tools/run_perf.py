@@ -1039,7 +1039,8 @@ def Main(args):
     if options.outdir_no_patch:
       print "specify either binary-override-path or outdir-no-patch"
       return 1
-    options.shell_dir = os.path.dirname(options.binary_override_path)
+    options.shell_dir = os.path.abspath(
+        os.path.dirname(options.binary_override_path))
     default_binary_name = os.path.basename(options.binary_override_path)
 
   if options.outdir_no_patch:
@@ -1047,6 +1048,17 @@ def Main(args):
         workspace, options.outdir_no_patch, build_config)
   else:
     options.shell_dir_no_patch = None
+
+  if options.json_test_results:
+    options.json_test_results = os.path.abspath(options.json_test_results)
+
+  if options.json_test_results_no_patch:
+    options.json_test_results_no_patch = os.path.abspath(
+        options.json_test_results_no_patch)
+
+  # Ensure all arguments have absolute path before we start changing current
+  # directory.
+  args = map(os.path.abspath, args)
 
   prev_aslr = None
   prev_cpu_gov = None
@@ -1057,8 +1069,6 @@ def Main(args):
   with CustomMachineConfiguration(governor = options.cpu_governor,
                                   disable_aslr = options.noaslr) as conf:
     for path in args:
-      path = os.path.abspath(path)
-
       if not os.path.exists(path):  # pragma: no cover
         results.errors.append("Configuration file %s does not exist." % path)
         continue
