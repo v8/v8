@@ -56,6 +56,7 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   const intptr_t kMaxSlots = kMaxInlineSlots + 1024;
   const intptr_t kPointerSize = sizeof(void*);
   DCHECK(0 <= index && index < kMaxSlots);
+  USE(kMaxSlots);
   if (index < kMaxInlineSlots) {
     return static_cast<intptr_t>(__readfsdword(kTibInlineTlsOffset +
                                                kPointerSize * index));
