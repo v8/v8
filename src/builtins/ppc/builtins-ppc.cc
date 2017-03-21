@@ -3045,15 +3045,15 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // current context on the isolate.
     __ LoadSmiLiteral(cp, Smi::kZero);
     __ CallRuntime(Runtime::kWasmCompileLazy);
-    // Store returned instruction start in ip.
-    __ addi(ip, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
+    // Store returned instruction start in r11.
+    __ addi(r11, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
 
     // Restore registers.
     __ MultiPopDoubles(fp_regs);
     __ MultiPop(gp_regs);
   }
   // Now jump to the instructions of the returned code object.
-  __ Jump(ip);
+  __ Jump(r11);
 }
 
 #undef __
