@@ -392,8 +392,7 @@ void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   ScopeType scope_type = parameters.scope_type();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
-  if (slot_count <=
-      ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+  if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
     Callable callable =
         CodeFactory::FastNewFunctionContext(isolate(), scope_type);
     node->InsertInput(zone(), 1, jsgraph()->Int32Constant(slot_count));
@@ -422,8 +421,7 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   // Use the FastCloneShallowArray builtin only for shallow boilerplates without
   // properties up to the number of elements that the stubs can handle.
   if ((p.flags() & ArrayLiteral::kShallowElements) != 0 &&
-      p.length() <
-          ConstructorBuiltinsAssembler::kMaximumClonedShallowArrayElements) {
+      p.length() < ConstructorBuiltins::kMaximumClonedShallowArrayElements) {
     Callable callable = CodeFactory::FastCloneShallowArray(
         isolate(), DONT_TRACK_ALLOCATION_SITE);
     ReplaceWithStubCall(node, callable, flags);
@@ -445,7 +443,7 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   // without elements up to the number of properties that the stubs can handle.
   if ((p.flags() & ObjectLiteral::kShallowProperties) != 0 &&
       p.length() <=
-          ConstructorBuiltinsAssembler::kMaximumClonedShallowObjectProperties) {
+          ConstructorBuiltins::kMaximumClonedShallowObjectProperties) {
     Callable callable =
         CodeFactory::FastCloneShallowObject(isolate(), p.length());
     ReplaceWithStubCall(node, callable, flags);

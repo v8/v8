@@ -687,8 +687,8 @@ bool ObjectLiteral::IsFastCloningSupported() const {
   // literals don't support copy-on-write (COW) elements for now.
   // TODO(mvstanton): make object literals support COW elements.
   return fast_elements() && has_shallow_properties() &&
-         properties_count() <= ConstructorBuiltinsAssembler::
-                                   kMaximumClonedShallowObjectProperties;
+         properties_count() <=
+             ConstructorBuiltins::kMaximumClonedShallowObjectProperties;
 }
 
 ElementsKind ArrayLiteral::constant_elements_kind() const {
@@ -792,7 +792,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
 bool ArrayLiteral::IsFastCloningSupported() const {
   return depth() <= 1 &&
          values()->length() <=
-             ConstructorBuiltinsAssembler::kMaximumClonedShallowArrayElements;
+             ConstructorBuiltins::kMaximumClonedShallowArrayElements;
 }
 
 void ArrayLiteral::RewindSpreads() {

@@ -29,11 +29,10 @@ uint8_t CreateObjectLiteralFlags::Encode(bool fast_clone_supported,
   uint8_t result = FlagsBits::encode(runtime_flags);
   if (fast_clone_supported) {
     STATIC_ASSERT(
-        ConstructorBuiltinsAssembler::kMaximumClonedShallowObjectProperties <=
+        ConstructorBuiltins::kMaximumClonedShallowObjectProperties <=
         1 << CreateObjectLiteralFlags::FastClonePropertiesCountBits::kShift);
-    DCHECK_LE(
-        properties_count,
-        ConstructorBuiltinsAssembler::kMaximumClonedShallowObjectProperties);
+    DCHECK_LE(properties_count,
+              ConstructorBuiltins::kMaximumClonedShallowObjectProperties);
     result |= CreateObjectLiteralFlags::FastClonePropertiesCountBits::encode(
         properties_count);
   }

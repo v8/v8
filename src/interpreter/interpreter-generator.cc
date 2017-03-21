@@ -7,9 +7,9 @@
 #include <array>
 #include <tuple>
 
-#include "src/builtins/builtins-arguments.h"
-#include "src/builtins/builtins-constructor.h"
-#include "src/builtins/builtins-forin.h"
+#include "src/builtins/builtins-arguments-gen.h"
+#include "src/builtins/builtins-constructor-gen.h"
+#include "src/builtins/builtins-forin-gen.h"
 #include "src/code-events.h"
 #include "src/code-factory.h"
 #include "src/factory.h"

@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins-regexp-gen.h"
 
-#include "src/builtins/builtins-constructor.h"
+#include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"

@@ -902,19 +902,20 @@ v8_source_set("v8_builtins_generators") {
   sources = [
     ### gcmole(all) ###
     "src/builtins/builtins-arguments-gen.cc",
-    "src/builtins/builtins-arguments.h",
+    "src/builtins/builtins-arguments-gen.h",
     "src/builtins/builtins-array-gen.cc",
     "src/builtins/builtins-async-function-gen.cc",
     "src/builtins/builtins-async-gen.cc",
+    "src/builtins/builtins-async-gen.h",
     "src/builtins/builtins-async-iterator-gen.cc",
-    "src/builtins/builtins-async.h",
     "src/builtins/builtins-boolean-gen.cc",
     "src/builtins/builtins-constructor-gen.cc",
+    "src/builtins/builtins-constructor-gen.h",
     "src/builtins/builtins-constructor.h",
     "src/builtins/builtins-conversion-gen.cc",
     "src/builtins/builtins-date-gen.cc",
     "src/builtins/builtins-forin-gen.cc",
-    "src/builtins/builtins-forin.h",
+    "src/builtins/builtins-forin-gen.h",
     "src/builtins/builtins-function-gen.cc",
     "src/builtins/builtins-generator-gen.cc",
     "src/builtins/builtins-global-gen.cc",
@@ -925,7 +926,7 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-number-gen.cc",
     "src/builtins/builtins-object-gen.cc",
     "src/builtins/builtins-promise-gen.cc",
-    "src/builtins/builtins-promise.h",
+    "src/builtins/builtins-promise-gen.h",
     "src/builtins/builtins-regexp-gen.cc",
     "src/builtins/builtins-regexp-gen.h",
     "src/builtins/builtins-sharedarraybuffer-gen.cc",
@@ -934,9 +935,60 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-typedarray-gen.cc",
     "src/builtins/builtins-utils-gen.h",
     "src/builtins/builtins-wasm-gen.cc",
+    "src/ic/accessor-assembler.cc",
+    "src/ic/accessor-assembler.h",
+    "src/ic/keyed-store-generic.cc",
+    "src/ic/keyed-store-generic.h",
     "src/interpreter/interpreter-generator.cc",
     "src/interpreter/interpreter-generator.h",
   ]
+
+  if (v8_current_cpu == "x86") {
+    sources += [
+      ### gcmole(arch:ia32) ###
+      "src/builtins/ia32/builtins-ia32.cc",
+    ]
+  } else if (v8_current_cpu == "x64") {
+    sources += [
+      ### gcmole(arch:x64) ###
+      "src/builtins/x64/builtins-x64.cc",
+    ]
+  } else if (v8_current_cpu == "arm") {
+    sources += [
+      ### gcmole(arch:arm) ###
+      "src/builtins/arm/builtins-arm.cc",
+    ]
+  } else if (v8_current_cpu == "arm64") {
+    sources += [
+      ### gcmole(arch:arm64) ###
+      "src/builtins/arm64/builtins-arm64.cc",
+    ]
+  } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
+    sources += [
+      ### gcmole(arch:mipsel) ###
+      "src/builtins/mips/builtins-mips.cc",
+    ]
+  } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
+    sources += [
+      ### gcmole(arch:mips64el) ###
+      "src/builtins/mips64/builtins-mips64.cc",
+    ]
+  } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
+    sources += [
+      ### gcmole(arch:ppc) ###
+      "src/builtins/ppc/builtins-ppc.cc",
+    ]
+  } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+    sources += [
+      ### gcmole(arch:s390) ###
+      "src/builtins/s390/builtins-s390.cc",
+    ]
+  } else if (v8_current_cpu == "x87") {
+    sources += [
+      ### gcmole(arch:x87) ###
+      "src/builtins/x87/builtins-x87.cc",
+    ]
+  }
 
   configs = [ ":internal_config" ]
 }
@@ -1042,7 +1094,6 @@ v8_source_set("v8_base") {
     "src/bootstrapper.cc",
     "src/bootstrapper.h",
     "src/builtins/builtins-api.cc",
-    "src/builtins/builtins-arguments.h",
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
     "src/builtins/builtins-boolean.cc",
@@ -1054,7 +1105,6 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-debug.cc",
     "src/builtins/builtins-descriptors.h",
     "src/builtins/builtins-error.cc",
-    "src/builtins/builtins-forin.h",
     "src/builtins/builtins-function.cc",
     "src/builtins/builtins-global.cc",
     "src/builtins/builtins-internal.cc",
@@ -1063,10 +1113,8 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",
     "src/builtins/builtins-object.cc",
-    "src/builtins/builtins-promise.h",
     "src/builtins/builtins-proxy.cc",
     "src/builtins/builtins-reflect.cc",
-    "src/builtins/builtins-regexp-gen.h",
     "src/builtins/builtins-regexp.cc",
     "src/builtins/builtins-sharedarraybuffer.cc",
     "src/builtins/builtins-string.cc",
@@ -1532,8 +1580,6 @@ v8_source_set("v8_base") {
     "src/ic/access-compiler-data.h",
     "src/ic/access-compiler.cc",
     "src/ic/access-compiler.h",
-    "src/ic/accessor-assembler.cc",
-    "src/ic/accessor-assembler.h",
     "src/ic/call-optimization.cc",
     "src/ic/call-optimization.h",
     "src/ic/handler-compiler.cc",
@@ -1547,8 +1593,6 @@ v8_source_set("v8_base") {
     "src/ic/ic-stats.h",
     "src/ic/ic.cc",
     "src/ic/ic.h",
-    "src/ic/keyed-store-generic.cc",
-    "src/ic/keyed-store-generic.h",
     "src/ic/stub-cache.cc",
     "src/ic/stub-cache.h",
     "src/icu_util.cc",
@@ -1912,7 +1956,6 @@ v8_source_set("v8_base") {
 
   if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
-      "src/builtins/ia32/builtins-ia32.cc",
       "src/compiler/ia32/code-generator-ia32.cc",
       "src/compiler/ia32/instruction-codes-ia32.h",
       "src/compiler/ia32/instruction-scheduler-ia32.cc",
@@ -1951,7 +1994,6 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [  ### gcmole(arch:x64) ###
-      "src/builtins/x64/builtins-x64.cc",
       "src/compiler/x64/code-generator-x64.cc",
       "src/compiler/x64/instruction-codes-x64.h",
       "src/compiler/x64/instruction-scheduler-x64.cc",
@@ -2018,7 +2060,6 @@ v8_source_set("v8_base") {
       "src/arm/macro-assembler-arm.h",
       "src/arm/simulator-arm.cc",
       "src/arm/simulator-arm.h",
-      "src/builtins/arm/builtins-arm.cc",
       "src/compiler/arm/code-generator-arm.cc",
       "src/compiler/arm/instruction-codes-arm.h",
       "src/compiler/arm/instruction-scheduler-arm.cc",
@@ -2072,7 +2113,6 @@ v8_source_set("v8_base") {
       "src/arm64/simulator-arm64.h",
       "src/arm64/utils-arm64.cc",
       "src/arm64/utils-arm64.h",
-      "src/builtins/arm64/builtins-arm64.cc",
       "src/compiler/arm64/code-generator-arm64.cc",
       "src/compiler/arm64/instruction-codes-arm64.h",
       "src/compiler/arm64/instruction-scheduler-arm64.cc",
@@ -2098,7 +2138,6 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
     sources += [  ### gcmole(arch:mipsel) ###
-      "src/builtins/mips/builtins-mips.cc",
       "src/compiler/mips/code-generator-mips.cc",
       "src/compiler/mips/instruction-codes-mips.h",
       "src/compiler/mips/instruction-scheduler-mips.cc",
@@ -2138,7 +2177,6 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [  ### gcmole(arch:mips64el) ###
-      "src/builtins/mips64/builtins-mips64.cc",
       "src/compiler/mips64/code-generator-mips64.cc",
       "src/compiler/mips64/instruction-codes-mips64.h",
       "src/compiler/mips64/instruction-scheduler-mips64.cc",
@@ -2178,7 +2216,6 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc) ###
-      "src/builtins/ppc/builtins-ppc.cc",
       "src/compiler/ppc/code-generator-ppc.cc",
       "src/compiler/ppc/instruction-codes-ppc.h",
       "src/compiler/ppc/instruction-scheduler-ppc.cc",
@@ -2218,7 +2255,6 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [  ### gcmole(arch:s390) ###
-      "src/builtins/s390/builtins-s390.cc",
       "src/compiler/s390/code-generator-s390.cc",
       "src/compiler/s390/instruction-codes-s390.h",
       "src/compiler/s390/instruction-scheduler-s390.cc",
@@ -2258,7 +2294,6 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_current_cpu == "x87") {
     sources += [  ### gcmole(arch:x87) ###
-      "src/builtins/x87/builtins-x87.cc",
       "src/compiler/x87/code-generator-x87.cc",
       "src/compiler/x87/instruction-codes-x87.h",
       "src/compiler/x87/instruction-scheduler-x87.cc",

@@ -1674,7 +1674,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // Deep-copy the literal boilerplate.
   uint8_t flags = CreateObjectLiteralFlags::Encode(
       expr->IsFastCloningSupported(),
-      ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
+      ConstructorBuiltins::FastCloneShallowObjectPropertiesCount(
           expr->properties_count()),
       expr->ComputeFlags());
 
@@ -3212,8 +3212,7 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
   } else {
     DCHECK(scope->is_function_scope() || scope->is_eval_scope());
     int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-    if (slot_count <=
-        ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+    if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
       switch (scope->scope_type()) {
         case EVAL_SCOPE:
           builder()->CreateEvalContext(slot_count);

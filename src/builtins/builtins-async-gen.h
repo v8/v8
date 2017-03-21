@@ -5,7 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_ASYNC_H_
 #define V8_BUILTINS_BUILTINS_ASYNC_H_
 
-#include "src/builtins/builtins-promise.h"
+#include "src/builtins/builtins-promise-gen.h"
 
 namespace v8 {
 namespace internal {

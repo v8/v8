@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-constructor-gen.h"
+
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-utils-gen.h"
@@ -330,7 +332,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   slots = ChangeUint32ToWord(slots);
 
   // TODO(ishell): Use CSA::OptimalParameterMode() here.
-  CodeStubAssembler::ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
+  ParameterMode mode = INTPTR_PARAMETERS;
   Node* min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
   Node* length = IntPtrAdd(slots, min_context_slots);
   Node* size = GetFixedArrayAllocationSize(length, FAST_ELEMENTS, mode);
@@ -379,12 +381,6 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   return function_context;
 }
 
-// static
-int ConstructorBuiltinsAssembler::MaximumFunctionContextSlots() {
-  return FLAG_test_small_max_function_context_stub_size ? kSmallMaximumSlots
-                                                        : kMaximumSlots;
-}
-
 TF_BUILTIN(FastNewFunctionContextEval, ConstructorBuiltinsAssembler) {
   Node* function = Parameter(FastNewFunctionContextDescriptor::kFunction);
   Node* slots = Parameter(FastNewFunctionContextDescriptor::kSlots);
@@ -406,10 +402,6 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
                                                         Node* pattern,
                                                         Node* flags,
                                                         Node* context) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  typedef compiler::Node Node;
-
   Label call_runtime(this, Label::kDeferred), end(this);
 
   Variable result(this, MachineRepresentation::kTagged);
@@ -455,8 +447,6 @@ TF_BUILTIN(FastCloneRegExp, ConstructorBuiltinsAssembler) {
 Node* ConstructorBuiltinsAssembler::NonEmptyShallowClone(
     Node* boilerplate, Node* boilerplate_map, Node* boilerplate_elements,
     Node* allocation_site, Node* capacity, ElementsKind kind) {
-  typedef CodeStubAssembler::ParameterMode ParameterMode;
-
   ParameterMode param_mode = OptimalParameterMode();
 
   Node* length = LoadJSArrayLength(boilerplate);
@@ -589,9 +579,6 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
 
 void ConstructorBuiltinsAssembler::CreateFastCloneShallowArrayBuiltin(
     AllocationSiteMode allocation_site_mode) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-
   Node* closure = Parameter(FastCloneShallowArrayDescriptor::kClosure);
   Node* literal_index =
       Parameter(FastCloneShallowArrayDescriptor::kLiteralIndex);
@@ -621,18 +608,6 @@ TF_BUILTIN(FastCloneShallowArrayTrack, ConstructorBuiltinsAssembler) {
 
 TF_BUILTIN(FastCloneShallowArrayDontTrack, ConstructorBuiltinsAssembler) {
   CreateFastCloneShallowArrayBuiltin(DONT_TRACK_ALLOCATION_SITE);
-}
-
-// static
-int ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
-    int literal_length) {
-  // This heuristic of setting empty literals to have
-  // kInitialGlobalObjectUnusedPropertiesCount must remain in-sync with the
-  // runtime.
-  // TODO(verwaest): Unify this with the heuristic in the runtime.
-  return literal_length == 0
-             ? JSObject::kInitialGlobalObjectUnusedPropertiesCount
-             : literal_length;
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
@@ -705,13 +680,15 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
 void ConstructorBuiltinsAssembler::CreateFastCloneShallowObjectBuiltin(
     int properties_count) {
   DCHECK_GE(properties_count, 0);
-  DCHECK_LE(properties_count, kMaximumClonedShallowObjectProperties);
+  DCHECK_LE(properties_count,
+            ConstructorBuiltins::kMaximumClonedShallowObjectProperties);
   Label call_runtime(this);
   Node* closure = Parameter(0);
   Node* literals_index = Parameter(1);
 
   Node* properties_count_node =
-      IntPtrConstant(FastCloneShallowObjectPropertiesCount(properties_count));
+      IntPtrConstant(ConstructorBuiltins::FastCloneShallowObjectPropertiesCount(
+          properties_count));
   Node* copy = EmitFastCloneShallowObject(
       &call_runtime, closure, literals_index, properties_count_node);
   Return(copy);

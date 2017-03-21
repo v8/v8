@@ -4,7 +4,7 @@
 
 #include "src/api.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/builtins/builtins-promise.h"
+#include "src/builtins/builtins-promise-gen.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
