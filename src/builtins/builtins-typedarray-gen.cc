@@ -18,10 +18,12 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  void GenerateTypedArrayPrototypeGetter(const char* method_name,
+  void GenerateTypedArrayPrototypeGetter(Node* context, Node* receiver,
+                                         const char* method_name,
                                          int object_offset);
-  template <IterationKind kIterationKind>
-  void GenerateTypedArrayPrototypeIterationMethod(const char* method_name);
+  void GenerateTypedArrayPrototypeIterationMethod(Node* context, Node* receiver,
+                                                  const char* method_name,
+                                                  IterationKind iteration_kind);
 
   void LoadMapAndElementsSize(Node* const array, Variable* typed_map,
                               Variable* size);
@@ -280,25 +282,25 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
 }
 
 TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
-  Node* const holder = Parameter(1);
-  Node* length = Parameter(2);
-  Node* const maybe_buffer = Parameter(3);
-  Node* const byte_offset = Parameter(4);
-  Node* byte_length = Parameter(5);
-  Node* const initialize = Parameter(6);
-  Node* const context = Parameter(9);
+  Node* const holder = Parameter(Descriptor::kHolder);
+  Node* length = Parameter(Descriptor::kLength);
+  Node* const maybe_buffer = Parameter(Descriptor::kBuffer);
+  Node* const byte_offset = Parameter(Descriptor::kByteOffset);
+  Node* byte_length = Parameter(Descriptor::kByteLength);
+  Node* const initialize = Parameter(Descriptor::kInitialize);
+  Node* const context = Parameter(Descriptor::kContext);
 
   DoInitialize(holder, length, maybe_buffer, byte_offset, byte_length,
                initialize, context);
 }
 
-// ES6 section 22.2.4.2 TypedArray ( length )
+// ES6 #sec-typedarray-length
 TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
   // We know that holder cannot be an object if this builtin was called.
-  Node* holder = Parameter(1);
-  Node* length = Parameter(2);
-  Node* element_size = Parameter(3);
-  Node* context = Parameter(6);
+  Node* holder = Parameter(Descriptor::kHolder);
+  Node* length = Parameter(Descriptor::kLength);
+  Node* element_size = Parameter(Descriptor::kElementSize);
+  Node* context = Parameter(Descriptor::kContext);
 
   Variable maybe_buffer(this, MachineRepresentation::kTagged);
   maybe_buffer.Bind(NullConstant());
@@ -345,15 +347,15 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
   }
 }
 
-// ES6 section 22.2.4.5 TypedArray ( buffer [ , byteOffset [ , length ] ] )
+// ES6 #sec-typedarray-buffer-byteoffset-length
 TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
-  Node* const holder = Parameter(1);
-  Node* const buffer = Parameter(2);
-  Node* const byte_offset = Parameter(3);
-  Node* const length = Parameter(4);
-  Node* const element_size = Parameter(5);
+  Node* const holder = Parameter(Descriptor::kHolder);
+  Node* const buffer = Parameter(Descriptor::kBuffer);
+  Node* const byte_offset = Parameter(Descriptor::kByteOffset);
+  Node* const length = Parameter(Descriptor::kLength);
+  Node* const element_size = Parameter(Descriptor::kElementSize);
   CSA_ASSERT(this, TaggedIsSmi(element_size));
-  Node* const context = Parameter(8);
+  Node* const context = Parameter(Descriptor::kContext);
   Node* const initialize = BooleanConstant(true);
 
   Variable new_byte_length(this, MachineRepresentation::kTagged,
@@ -486,10 +488,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
 }
 
 void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
-    const char* method_name, int object_offset) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
-
+    Node* context, Node* receiver, const char* method_name, int object_offset) {
   // Check if the {receiver} is actually a JSTypedArray.
   Label receiver_is_incompatible(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(receiver), &receiver_is_incompatible);
@@ -520,30 +519,36 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
   }
 }
 
-// ES6 section 22.2.3.2 get %TypedArray%.prototype.byteLength
+// ES6 #sec-get-%typedarray%.prototype.bytelength
 TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
-  GenerateTypedArrayPrototypeGetter("get TypedArray.prototype.byteLength",
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  GenerateTypedArrayPrototypeGetter(context, receiver,
+                                    "get TypedArray.prototype.byteLength",
                                     JSTypedArray::kByteLengthOffset);
 }
 
-// ES6 section 22.2.3.3 get %TypedArray%.prototype.byteOffset
+// ES6 #sec-get-%typedarray%.prototype.byteoffset
 TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
-  GenerateTypedArrayPrototypeGetter("get TypedArray.prototype.byteOffset",
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  GenerateTypedArrayPrototypeGetter(context, receiver,
+                                    "get TypedArray.prototype.byteOffset",
                                     JSTypedArray::kByteOffsetOffset);
 }
 
-// ES6 section 22.2.3.18 get %TypedArray%.prototype.length
+// ES6 #sec-get-%typedarray%.prototype.length
 TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
-  GenerateTypedArrayPrototypeGetter("get TypedArray.prototype.length",
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  GenerateTypedArrayPrototypeGetter(context, receiver,
+                                    "get TypedArray.prototype.length",
                                     JSTypedArray::kLengthOffset);
 }
 
-template <IterationKind kIterationKind>
 void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
-    const char* method_name) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
-
+    Node* context, Node* receiver, const char* method_name,
+    IterationKind iteration_kind) {
   Label throw_bad_receiver(this, Label::kDeferred);
   Label throw_typeerror(this, Label::kDeferred);
 
@@ -561,7 +566,7 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   GotoIf(IsDetachedBuffer(receiver_buffer), &if_receiverisneutered);
 
   Return(CreateArrayIterator(receiver, map, instance_type, context,
-                             kIterationKind));
+                             iteration_kind));
 
   Variable var_message(this, MachineRepresentation::kTagged);
   Bind(&throw_bad_receiver);
@@ -583,19 +588,30 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   }
 }
 
+// ES6 #sec-%typedarray%.prototype.values
 TF_BUILTIN(TypedArrayPrototypeValues, TypedArrayBuiltinsAssembler) {
-  GenerateTypedArrayPrototypeIterationMethod<IterationKind::kValues>(
-      "%TypedArray%.prototype.values()");
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  GenerateTypedArrayPrototypeIterationMethod(context, receiver,
+                                             "%TypedArray%.prototype.values()",
+                                             IterationKind::kValues);
 }
 
+// ES6 #sec-%typedarray%.prototype.entries
 TF_BUILTIN(TypedArrayPrototypeEntries, TypedArrayBuiltinsAssembler) {
-  GenerateTypedArrayPrototypeIterationMethod<IterationKind::kEntries>(
-      "%TypedArray%.prototype.entries()");
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  GenerateTypedArrayPrototypeIterationMethod(context, receiver,
+                                             "%TypedArray%.prototype.entries()",
+                                             IterationKind::kEntries);
 }
 
+// ES6 #sec-%typedarray%.prototype.keys
 TF_BUILTIN(TypedArrayPrototypeKeys, TypedArrayBuiltinsAssembler) {
-  GenerateTypedArrayPrototypeIterationMethod<IterationKind::kKeys>(
-      "%TypedArray%.prototype.keys()");
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  GenerateTypedArrayPrototypeIterationMethod(
+      context, receiver, "%TypedArray%.prototype.keys()", IterationKind::kKeys);
 }
 
 }  // namespace internal

@@ -10,22 +10,22 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// ES6 section 19.4 Symbol Objects
+// ES6 #sec-symbol-objects
 
-// ES6 section 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint )
+// ES6 #sec-symbol.prototype-@@toprimitive
 TF_BUILTIN(SymbolPrototypeToPrimitive, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(4);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
 
   Node* result = ToThisValue(context, receiver, PrimitiveType::kSymbol,
                              "Symbol.prototype [ @@toPrimitive ]");
   Return(result);
 }
 
-// ES6 section 19.4.3.2 Symbol.prototype.toString ( )
+// ES6 #sec-symbol.prototype.tostring
 TF_BUILTIN(SymbolPrototypeToString, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
 
   Node* value = ToThisValue(context, receiver, PrimitiveType::kSymbol,
                             "Symbol.prototype.toString");
@@ -33,10 +33,10 @@ TF_BUILTIN(SymbolPrototypeToString, CodeStubAssembler) {
   Return(result);
 }
 
-// ES6 section 19.4.3.3 Symbol.prototype.valueOf ( )
+// ES6 #sec-symbol.prototype.valueof
 TF_BUILTIN(SymbolPrototypeValueOf, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
 
   Node* result = ToThisValue(context, receiver, PrimitiveType::kSymbol,
                              "Symbol.prototype.valueOf");

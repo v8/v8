@@ -975,8 +975,8 @@ void PromiseBuiltinsAssembler::InternalPromiseReject(Node* context,
 // ES#sec-promise-reject-functions
 // Promise Reject Functions
 TF_BUILTIN(PromiseRejectClosure, PromiseBuiltinsAssembler) {
-  Node* const value = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Label out(this);
 
@@ -1006,10 +1006,11 @@ TF_BUILTIN(PromiseRejectClosure, PromiseBuiltinsAssembler) {
   Return(UndefinedConstant());
 }
 
+// ES6 #sec-promise-executor
 TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
-  Node* const executor = Parameter(1);
-  Node* const new_target = Parameter(2);
-  Node* const context = Parameter(4);
+  Node* const executor = Parameter(Descriptor::kExecutor);
+  Node* const new_target = Parameter(Descriptor::kNewTarget);
+  Node* const context = Parameter(Descriptor::kContext);
   Isolate* isolate = this->isolate();
 
   Label if_targetisundefined(this, Label::kDeferred);
@@ -1129,13 +1130,13 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
 }
 
 TF_BUILTIN(PromiseInternalConstructor, PromiseBuiltinsAssembler) {
-  Node* const parent = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const parent = Parameter(Descriptor::kParent);
+  Node* const context = Parameter(Descriptor::kContext);
   Return(AllocateAndInitJSPromise(context, parent));
 }
 
 TF_BUILTIN(IsPromise, PromiseBuiltinsAssembler) {
-  Node* const maybe_promise = Parameter(1);
+  Node* const maybe_promise = Parameter(Descriptor::kObject);
   Label if_notpromise(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(maybe_promise), &if_notpromise);
@@ -1152,10 +1153,10 @@ TF_BUILTIN(IsPromise, PromiseBuiltinsAssembler) {
 // Promise.prototype.catch ( onFulfilled, onRejected )
 TF_BUILTIN(PromiseThen, PromiseBuiltinsAssembler) {
   // 1. Let promise be the this value.
-  Node* const promise = Parameter(0);
-  Node* const on_resolve = Parameter(1);
-  Node* const on_reject = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const promise = Parameter(Descriptor::kReceiver);
+  Node* const on_resolve = Parameter(Descriptor::kOnFullfilled);
+  Node* const on_reject = Parameter(Descriptor::kOnRejected);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const result =
       InternalPromiseThen(context, promise, on_resolve, on_reject);
@@ -1165,8 +1166,8 @@ TF_BUILTIN(PromiseThen, PromiseBuiltinsAssembler) {
 // ES#sec-promise-resolve-functions
 // Promise Resolve Functions
 TF_BUILTIN(PromiseResolveClosure, PromiseBuiltinsAssembler) {
-  Node* const value = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Label out(this);
 
@@ -1194,10 +1195,11 @@ TF_BUILTIN(PromiseResolveClosure, PromiseBuiltinsAssembler) {
   Return(UndefinedConstant());
 }
 
+// ES #sec-fulfillpromise
 TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
-  Node* const promise = Parameter(1);
-  Node* const result = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const promise = Parameter(Descriptor::kPromise);
+  Node* const result = Parameter(Descriptor::kValue);
+  Node* const context = Parameter(Descriptor::kContext);
 
   InternalResolvePromise(context, promise, result);
   Return(UndefinedConstant());
@@ -1231,12 +1233,12 @@ TF_BUILTIN(PromiseHandleReject, PromiseBuiltinsAssembler) {
 }
 
 TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
-  Node* const value = Parameter(1);
-  Node* const handler = Parameter(2);
-  Node* const deferred_promise = Parameter(3);
-  Node* const deferred_on_resolve = Parameter(4);
-  Node* const deferred_on_reject = Parameter(5);
-  Node* const context = Parameter(8);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const handler = Parameter(Descriptor::kHandler);
+  Node* const deferred_promise = Parameter(Descriptor::kDeferredPromise);
+  Node* const deferred_on_resolve = Parameter(Descriptor::kDeferredOnResolve);
+  Node* const deferred_on_reject = Parameter(Descriptor::kDeferredOnReject);
+  Node* const context = Parameter(Descriptor::kContext);
   Isolate* isolate = this->isolate();
 
   Variable var_reason(this, MachineRepresentation::kTagged);
@@ -1344,10 +1346,10 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 // Promise.prototype.catch ( onRejected )
 TF_BUILTIN(PromiseCatch, PromiseBuiltinsAssembler) {
   // 1. Let promise be the this value.
-  Node* const promise = Parameter(0);
+  Node* const promise = Parameter(Descriptor::kReceiver);
   Node* const on_resolve = UndefinedConstant();
-  Node* const on_reject = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const on_reject = Parameter(Descriptor::kOnRejected);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Label if_internalthen(this), if_customthen(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(promise), &if_customthen);
@@ -1373,9 +1375,9 @@ TF_BUILTIN(PromiseCatch, PromiseBuiltinsAssembler) {
 
 TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
   //  1. Let C be the this value.
-  Node* receiver = Parameter(0);
-  Node* value = Parameter(1);
-  Node* context = Parameter(4);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* context = Parameter(Descriptor::kContext);
   Isolate* isolate = this->isolate();
 
   // 2. If Type(C) is not Object, throw a TypeError exception.
@@ -1455,10 +1457,11 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
   }
 }
 
+// ES6 #sec-getcapabilitiesexecutor-functions
 TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
-  Node* const resolve = Parameter(1);
-  Node* const reject = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const resolve = Parameter(Descriptor::kResolve);
+  Node* const reject = Parameter(Descriptor::kReject);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const capability = LoadContextElement(context, kCapabilitySlot);
 
@@ -1483,10 +1486,11 @@ TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
   Unreachable();
 }
 
+// ES6 #sec-newpromisecapability
 TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
-  Node* constructor = Parameter(1);
-  Node* debug_event = Parameter(2);
-  Node* context = Parameter(5);
+  Node* constructor = Parameter(Descriptor::kConstructor);
+  Node* debug_event = Parameter(Descriptor::kDebugEvent);
+  Node* context = Parameter(Descriptor::kContext);
 
   CSA_ASSERT_JS_ARGC_EQ(this, 2);
 
@@ -1495,9 +1499,9 @@ TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
 
 TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
   // 1. Let C be the this value.
-  Node* const receiver = Parameter(0);
-  Node* const reason = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const reason = Parameter(Descriptor::kReason);
+  Node* const context = Parameter(Descriptor::kContext);
 
   // 2. If Type(C) is not Object, throw a TypeError exception.
   ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
@@ -1538,10 +1542,10 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
 }
 
 TF_BUILTIN(InternalPromiseReject, PromiseBuiltinsAssembler) {
-  Node* const promise = Parameter(1);
-  Node* const reason = Parameter(2);
-  Node* const debug_event = Parameter(3);
-  Node* const context = Parameter(6);
+  Node* const promise = Parameter(Descriptor::kPromise);
+  Node* const reason = Parameter(Descriptor::kReason);
+  Node* const debug_event = Parameter(Descriptor::kDebugEvent);
+  Node* const context = Parameter(Descriptor::kContext);
 
   InternalPromiseReject(context, promise, reason, debug_event);
   Return(UndefinedConstant());
@@ -1573,7 +1577,7 @@ std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
 }
 
 TF_BUILTIN(PromiseValueThunkFinally, PromiseBuiltinsAssembler) {
-  Node* const context = Parameter(3);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const value = LoadContextElement(context, kOnFinallySlot);
   Return(value);
@@ -1603,8 +1607,8 @@ Node* PromiseBuiltinsAssembler::CreateValueThunkFunction(Node* value,
 TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
 
-  Node* const value = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const on_finally = LoadContextElement(context, kOnFinallySlot);
 
@@ -1633,7 +1637,7 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
 }
 
 TF_BUILTIN(PromiseThrowerFinally, PromiseBuiltinsAssembler) {
-  Node* const context = Parameter(3);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const reason = LoadContextElement(context, kOnFinallySlot);
   CallRuntime(Runtime::kThrow, context, reason);
@@ -1664,8 +1668,8 @@ Node* PromiseBuiltinsAssembler::CreateThrowerFunction(Node* reason,
 TF_BUILTIN(PromiseCatchFinally, PromiseBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
 
-  Node* const reason = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const reason = Parameter(Descriptor::kReason);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const on_finally = LoadContextElement(context, kOnFinallySlot);
 
@@ -1697,9 +1701,9 @@ TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
 
   // 1.  Let promise be the this value.
-  Node* const promise = Parameter(0);
-  Node* const on_finally = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const promise = Parameter(Descriptor::kReceiver);
+  Node* const on_finally = Parameter(Descriptor::kOnFinally);
+  Node* const context = Parameter(Descriptor::kContext);
 
   // 2. If IsPromise(promise) is false, throw a TypeError exception.
   ThrowIfNotInstanceType(context, promise, JS_PROMISE_TYPE,

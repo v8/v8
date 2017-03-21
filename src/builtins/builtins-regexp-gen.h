@@ -71,7 +71,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                        JSRegExp::Flag flag);
   Node* FlagGetter(Node* const context, Node* const regexp, JSRegExp::Flag flag,
                    bool is_fastpath);
-  void FlagGetter(JSRegExp::Flag flag, v8::Isolate::UseCounterFeature counter,
+  void FlagGetter(Node* context, Node* receiver, JSRegExp::Flag flag,
+                  v8::Isolate::UseCounterFeature counter,
                   const char* method_name);
 
   Node* IsRegExp(Node* const context, Node* const maybe_receiver);

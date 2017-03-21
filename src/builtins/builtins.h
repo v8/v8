@@ -285,19 +285,24 @@ class Isolate;
   /* ES6 #sec-array.prototype.unshift */                                       \
   CPP(ArrayUnshift)                                                            \
   /* ES6 #sec-array.prototype.foreach */                                       \
-  TFJ(ArrayForEachLoopContinuation, 6)                                         \
+  TFJ(ArrayForEachLoopContinuation, 6, kCallbackFn, kThisArg, kArray, kObject, \
+      kInitialK, kLength)                                                      \
   TFJ(ArrayForEach, 2, kCallbackFn, kThisArg)                                  \
   /* ES6 #sec-array.prototype.every */                                         \
-  TFJ(ArrayEveryLoopContinuation, 6)                                           \
+  TFJ(ArrayEveryLoopContinuation, 6, kCallbackFn, kThisArg, kArray, kObject,   \
+      kInitialK, kLength)                                                      \
   TFJ(ArrayEvery, 2, kCallbackFn, kThisArg)                                    \
   /* ES6 #sec-array.prototype.some */                                          \
-  TFJ(ArraySomeLoopContinuation, 6)                                            \
+  TFJ(ArraySomeLoopContinuation, 6, kCallbackFn, kThisArg, kArray, kObject,    \
+      kInitialK, kLength)                                                      \
   TFJ(ArraySome, 2, kCallbackFn, kThisArg)                                     \
   /* ES6 #sec-array.prototype.filter */                                        \
-  TFJ(ArrayFilterLoopContinuation, 6)                                          \
+  TFJ(ArrayFilterLoopContinuation, 6, kCallbackFn, kThisArg, kArray, kObject,  \
+      kInitialK, kLength)                                                      \
   TFJ(ArrayFilter, 2, kCallbackFn, kThisArg)                                   \
   /* ES6 #sec-array.prototype.reduce */                                        \
-  TFJ(ArrayReduceLoopContinuation, 6)                                          \
+  TFJ(ArrayReduceLoopContinuation, 6, kCallbackFn, kThisArg, kAccumulator,     \
+      kObject, kInitialK, kLength)                                             \
   TFJ(ArrayReduce, 2, kCallbackFn, kInitialValue)                              \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0)                                                \
@@ -633,7 +638,8 @@ class Isolate;
                                                                                \
   /* Object */                                                                 \
   CPP(ObjectAssign)                                                            \
-  TFJ(ObjectCreate, 2)                                                         \
+  /* ES #sec-object.create */                                                  \
+  TFJ(ObjectCreate, 2, kPrototype, kProperties)                                \
   CPP(ObjectDefineGetter)                                                      \
   CPP(ObjectDefineProperties)                                                  \
   CPP(ObjectDefineProperty)                                                    \
@@ -646,7 +652,7 @@ class Isolate;
   CPP(ObjectGetOwnPropertySymbols)                                             \
   CPP(ObjectGetPrototypeOf)                                                    \
   CPP(ObjectSetPrototypeOf)                                                    \
-  /* ES6 section 19.1.3.2 Object.prototype.hasOwnProperty */                   \
+  /* ES6 #sec-object.prototype.hasownproperty */                               \
   TFJ(ObjectHasOwnProperty, 1)                                                 \
   CPP(ObjectIs)                                                                \
   CPP(ObjectIsExtensible)                                                      \
@@ -656,8 +662,9 @@ class Isolate;
   CPP(ObjectLookupGetter)                                                      \
   CPP(ObjectLookupSetter)                                                      \
   CPP(ObjectPreventExtensions)                                                 \
-  /* ES6 section 19.1.3.6 Object.prototype.toString () */                      \
+  /* ES6 #sec-object.prototype.tostring */                                     \
   TFJ(ObjectProtoToString, 0)                                                  \
+  /* ES6 #sec-object.prototype.valueof */                                      \
   TFJ(ObjectPrototypeValueOf, 0)                                               \
   CPP(ObjectPrototypePropertyIsEnumerable)                                     \
   CPP(ObjectPrototypeGetProto)                                                 \
@@ -675,24 +682,35 @@ class Isolate;
   TFS(ForInPrepare, BUILTIN, kNoExtraICState, ForInPrepare, 3)                 \
                                                                                \
   /* Promise */                                                                \
-  TFJ(PromiseGetCapabilitiesExecutor, 2)                                       \
-  TFJ(NewPromiseCapability, 2)                                                 \
-  TFJ(PromiseConstructor, 1)                                                   \
-  TFJ(PromiseInternalConstructor, 1)                                           \
-  TFJ(IsPromise, 1)                                                            \
-  TFJ(PromiseResolveClosure, 1)                                                \
-  TFJ(PromiseRejectClosure, 1)                                                 \
-  TFJ(PromiseThen, 2)                                                          \
-  TFJ(PromiseCatch, 1)                                                         \
-  TFJ(ResolvePromise, 2)                                                       \
+  /* ES6 #sec-getcapabilitiesexecutor-functions */                             \
+  TFJ(PromiseGetCapabilitiesExecutor, 2, kResolve, kReject)                    \
+  /* ES6 #sec-newpromisecapability */                                          \
+  TFJ(NewPromiseCapability, 2, kConstructor, kDebugEvent)                      \
+  /* ES6 #sec-promise-executor */                                              \
+  TFJ(PromiseConstructor, 1, kExecutor)                                        \
+  TFJ(PromiseInternalConstructor, 1, kParent)                                  \
+  TFJ(IsPromise, 1, kObject)                                                   \
+  /* ES #sec-promise-resolve-functions */                                      \
+  TFJ(PromiseResolveClosure, 1, kValue)                                        \
+  /* ES #sec-promise-reject-functions */                                       \
+  TFJ(PromiseRejectClosure, 1, kValue)                                         \
+  /* ES #sec-promise.prototype.then */                                         \
+  TFJ(PromiseThen, 2, kOnFullfilled, kOnRejected)                              \
+  /* ES #sec-promise.prototype.catch */                                        \
+  TFJ(PromiseCatch, 1, kOnRejected)                                            \
+  /* ES #sec-fulfillpromise */                                                 \
+  TFJ(ResolvePromise, 2, kPromise, kValue)                                     \
   TFS(PromiseHandleReject, BUILTIN, kNoExtraICState, PromiseHandleReject, 1)   \
-  TFJ(PromiseHandle, 5)                                                        \
-  TFJ(PromiseResolve, 1)                                                       \
-  TFJ(PromiseReject, 1)                                                        \
-  TFJ(InternalPromiseReject, 3)                                                \
-  TFJ(PromiseFinally, 1)                                                       \
-  TFJ(PromiseThenFinally, 1)                                                   \
-  TFJ(PromiseCatchFinally, 1)                                                  \
+  TFJ(PromiseHandle, 5, kValue, kHandler, kDeferredPromise,                    \
+      kDeferredOnResolve, kDeferredOnReject)                                   \
+  /* ES #sec-promise.resolve */                                                \
+  TFJ(PromiseResolve, 1, kValue)                                               \
+  /* ES #sec-promise.reject */                                                 \
+  TFJ(PromiseReject, 1, kReason)                                               \
+  TFJ(InternalPromiseReject, 3, kPromise, kReason, kDebugEvent)                \
+  TFJ(PromiseFinally, 1, kOnFinally)                                           \
+  TFJ(PromiseThenFinally, 1, kValue)                                           \
+  TFJ(PromiseCatchFinally, 1, kReason)                                         \
   TFJ(PromiseValueThunkFinally, 0)                                             \
   TFJ(PromiseThrowerFinally, 0)                                                \
                                                                                \
@@ -727,40 +745,55 @@ class Isolate;
   CPP(RegExpCapture7Getter)                                                    \
   CPP(RegExpCapture8Getter)                                                    \
   CPP(RegExpCapture9Getter)                                                    \
-  TFJ(RegExpConstructor, 2)                                                    \
-  TFJ(RegExpInternalMatch, 2)                                                  \
+  /* ES #sec-regexp-pattern-flags */                                           \
+  TFJ(RegExpConstructor, 2, kPattern, kFlags)                                  \
+  TFJ(RegExpInternalMatch, 2, kRegExp, kString)                                \
   CPP(RegExpInputGetter)                                                       \
   CPP(RegExpInputSetter)                                                       \
   CPP(RegExpLastMatchGetter)                                                   \
   CPP(RegExpLastParenGetter)                                                   \
   CPP(RegExpLeftContextGetter)                                                 \
-  TFJ(RegExpPrototypeCompile, 2)                                               \
-  TFJ(RegExpPrototypeExec, 1)                                                  \
+  /* ES #sec-regexp.prototype.compile */                                       \
+  TFJ(RegExpPrototypeCompile, 2, kPattern, kFlags)                             \
+  /* ES #sec-regexp.prototype.exec */                                          \
+  TFJ(RegExpPrototypeExec, 1, kString)                                         \
+  /* ES #sec-get-regexp.prototype.flags */                                     \
   TFJ(RegExpPrototypeFlagsGetter, 0)                                           \
+  /* ES #sec-get-regexp.prototype.global */                                    \
   TFJ(RegExpPrototypeGlobalGetter, 0)                                          \
+  /* ES #sec-get-regexp.prototype.ignorecase */                                \
   TFJ(RegExpPrototypeIgnoreCaseGetter, 0)                                      \
-  TFJ(RegExpPrototypeMatch, 1)                                                 \
+  /* ES #sec-regexp.prototype-@@match */                                       \
+  TFJ(RegExpPrototypeMatch, 1, kString)                                        \
+  /* ES #sec-get-regexp.prototype.multiline */                                 \
   TFJ(RegExpPrototypeMultilineGetter, 0)                                       \
-  TFJ(RegExpPrototypeSearch, 1)                                                \
+  /* ES #sec-regexp.prototype-@@search */                                      \
+  TFJ(RegExpPrototypeSearch, 1, kString)                                       \
+  /* ES #sec-get-regexp.prototype.source */                                    \
   TFJ(RegExpPrototypeSourceGetter, 0)                                          \
+  /* ES #sec-get-regexp.prototype.sticky */                                    \
   TFJ(RegExpPrototypeStickyGetter, 0)                                          \
-  TFJ(RegExpPrototypeTest, 1)                                                  \
+  /* ES #sec-regexp.prototype.test */                                          \
+  TFJ(RegExpPrototypeTest, 1, kString)                                         \
   CPP(RegExpPrototypeToString)                                                 \
+  /* ES #sec-get-regexp.prototype.unicode */                                   \
   TFJ(RegExpPrototypeUnicodeGetter, 0)                                         \
   CPP(RegExpRightContextGetter)                                                \
                                                                                \
   TFS(RegExpReplace, BUILTIN, kNoExtraICState, RegExpReplace, 1)               \
-  TFJ(RegExpPrototypeReplace, 2)                                               \
+  /* ES #sec-regexp.prototype-@@replace */                                     \
+  TFJ(RegExpPrototypeReplace, 2, kString, kReplaceValue)                       \
                                                                                \
   TFS(RegExpSplit, BUILTIN, kNoExtraICState, RegExpSplit, 1)                   \
-  TFJ(RegExpPrototypeSplit, 2)                                                 \
+  /* ES #sec-regexp.prototype-@@split */                                       \
+  TFJ(RegExpPrototypeSplit, 2, kString, kLimit)                                \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
-  TFJ(AtomicsLoad, 2)                                                          \
-  TFJ(AtomicsStore, 3)                                                         \
-  TFJ(AtomicsExchange, 3)                                                      \
-  TFJ(AtomicsCompareExchange, 4)                                               \
+  TFJ(AtomicsLoad, 2, kArray, kIndex)                                          \
+  TFJ(AtomicsStore, 3, kArray, kIndex, kValue)                                 \
+  TFJ(AtomicsExchange, 3, kArray, kIndex, kValue)                              \
+  TFJ(AtomicsCompareExchange, 4, kArray, kIndex, kOldValue, kNewValue)         \
   CPP(AtomicsAdd)                                                              \
   CPP(AtomicsSub)                                                              \
   CPP(AtomicsAnd)                                                              \
@@ -774,42 +807,37 @@ class Isolate;
   ASM(StringConstructor)                                                       \
   ASM(StringConstructor_ConstructStub)                                         \
   CPP(StringFromCodePoint)                                                     \
-  /* ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits ) */              \
+  /* ES6 #sec-string.fromcharcode */                                           \
   TFJ(StringFromCharCode, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
-  /* ES6 section 21.1.3.1 String.prototype.charAt ( pos ) */                   \
-  TFJ(StringPrototypeCharAt, 1)                                                \
-  /* ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos ) */               \
-  TFJ(StringPrototypeCharCodeAt, 1)                                            \
+  /* ES6 #sec-string.prototype.charat */                                       \
+  TFJ(StringPrototypeCharAt, 1, kPosition)                                     \
+  /* ES6 #sec-string.prototype.charcodeat */                                   \
+  TFJ(StringPrototypeCharCodeAt, 1, kPosition)                                 \
   /* ES6 #sec-string.prototype.concat */                                       \
   TFJ(StringPrototypeConcat, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
-  /* ES6 section 21.1.3.6 */                                                   \
-  /* String.prototype.endsWith ( searchString [ , endPosition ] ) */           \
+  /* ES6 #sec-string.prototype.endswith */                                     \
   CPP(StringPrototypeEndsWith)                                                 \
-  /* ES6 section 21.1.3.7 */                                                   \
-  /* String.prototype.includes ( searchString [ , position ] ) */              \
+  /* ES6 #sec-string.prototype.includes */                                     \
   CPP(StringPrototypeIncludes)                                                 \
-  /* ES6 section #sec-string.prototype.indexof */                              \
-  /* String.prototype.indexOf ( searchString [ , position ] ) */               \
+  /* ES6 #sec-string.prototype.indexof */                                      \
   TFJ(StringPrototypeIndexOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
-  /* ES6 section 21.1.3.9 */                                                   \
-  /* String.prototype.lastIndexOf ( searchString [ , position ] ) */           \
+  /* ES6 #sec-string.prototype.lastindexof */                                  \
   CPP(StringPrototypeLastIndexOf)                                              \
-  /* ES6 section 21.1.3.10 String.prototype.localeCompare ( that ) */          \
+  /* ES6 #sec-string.prototype.localecompare */                                \
   CPP(StringPrototypeLocaleCompare)                                            \
-  /* ES6 section 21.1.3.12 String.prototype.normalize ( [form] ) */            \
+  /* ES6 #sec-string.prototype.normalize */                                    \
   CPP(StringPrototypeNormalize)                                                \
-  /* ES6 section 21.1.3.16 String.prototype.replace ( search, replace ) */     \
-  TFJ(StringPrototypeReplace, 2)                                               \
-  /* ES6 section 21.1.3.19 String.prototype.split ( separator, limit )  */     \
-  TFJ(StringPrototypeSplit, 2)                                                 \
-  /* ES6 section B.2.3.1 String.prototype.substr ( start, length ) */          \
-  TFJ(StringPrototypeSubstr, 2)                                                \
-  /* ES6 section 21.1.3.19 String.prototype.substring ( start, end ) */        \
-  TFJ(StringPrototypeSubstring, 2)                                             \
-  /* ES6 section 21.1.3.20 */                                                  \
-  /* String.prototype.startsWith ( searchString [ , position ] ) */            \
+  /* ES6 #sec-string.prototype.replace */                                      \
+  TFJ(StringPrototypeReplace, 2, kSearch, kReplace)                            \
+  /* ES6 #sec-string.prototype.split */                                        \
+  TFJ(StringPrototypeSplit, 2, kSeparator, kLimit)                             \
+  /* ES6 #sec-string.prototype.substr */                                       \
+  TFJ(StringPrototypeSubstr, 2, kStart, kLength)                               \
+  /* ES6 #sec-string.prototype.substring */                                    \
+  TFJ(StringPrototypeSubstring, 2, kStart, kEnd)                               \
+  /* ES6 #sec-string.prototype.startswith */                                   \
   CPP(StringPrototypeStartsWith)                                               \
-  /* ES6 section 21.1.3.25 String.prototype.toString () */                     \
+  /* ES6 #sec-string.prototype.tostring */                                     \
   TFJ(StringPrototypeToString, 0)                                              \
   /* ES #sec-string.prototype.tolocalelowercase */                             \
   CPP(StringPrototypeToLocaleLowerCase)                                        \
@@ -822,38 +850,43 @@ class Isolate;
   CPP(StringPrototypeTrim)                                                     \
   CPP(StringPrototypeTrimLeft)                                                 \
   CPP(StringPrototypeTrimRight)                                                \
-  /* ES6 section 21.1.3.28 String.prototype.valueOf () */                      \
+  /* ES6 #sec-string.prototype.valueof */                                      \
   TFJ(StringPrototypeValueOf, 0)                                               \
   /* ES6 #sec-string.prototype-@@iterator */                                   \
   TFJ(StringPrototypeIterator, 0)                                              \
                                                                                \
   /* StringIterator */                                                         \
+  /* ES6 #sec-%stringiteratorprototype%.next */                                \
   TFJ(StringIteratorPrototypeNext, 0)                                          \
                                                                                \
   /* Symbol */                                                                 \
   CPP(SymbolConstructor)                                                       \
   CPP(SymbolConstructor_ConstructStub)                                         \
-  /* ES6 section 19.4.2.1 Symbol.for */                                        \
+  /* ES6 #sec-symbol.for */                                                    \
   CPP(SymbolFor)                                                               \
-  /* ES6 section 19.4.2.5 Symbol.keyFor */                                     \
+  /* ES6 #sec-symbol.keyfor */                                                 \
   CPP(SymbolKeyFor)                                                            \
-  /* ES6 section 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint ) */       \
-  TFJ(SymbolPrototypeToPrimitive, 1)                                           \
-  /* ES6 section 19.4.3.2 Symbol.prototype.toString ( ) */                     \
+  /* ES6 #sec-symbol.prototype-@@toprimitive */                                \
+  TFJ(SymbolPrototypeToPrimitive, 1, kHint)                                    \
+  /* ES6 #sec-symbol.prototype.tostring */                                     \
   TFJ(SymbolPrototypeToString, 0)                                              \
-  /* ES6 section 19.4.3.3 Symbol.prototype.valueOf ( ) */                      \
+  /* ES6 #sec-symbol.prototype.valueof */                                      \
   TFJ(SymbolPrototypeValueOf, 0)                                               \
                                                                                \
   /* TypedArray */                                                             \
-  TFJ(TypedArrayConstructByArrayBuffer, 5)                                     \
-  TFJ(TypedArrayConstructByLength, 3)                                          \
-  TFJ(TypedArrayInitialize, 6)                                                 \
+  /* ES6 #sec-typedarray-buffer-byteoffset-length */                           \
+  TFJ(TypedArrayConstructByArrayBuffer, 5, kHolder, kBuffer, kByteOffset,      \
+      kLength, kElementSize)                                                   \
+  /* ES6 #sec-typedarray-length */                                             \
+  TFJ(TypedArrayConstructByLength, 3, kHolder, kLength, kElementSize)          \
+  TFJ(TypedArrayInitialize, 6, kHolder, kLength, kBuffer, kByteOffset,         \
+      kByteLength, kInitialize)                                                \
   CPP(TypedArrayPrototypeBuffer)                                               \
-  /* ES6 section 22.2.3.2 get %TypedArray%.prototype.byteLength */             \
+  /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \
   TFJ(TypedArrayPrototypeByteLength, 0)                                        \
-  /* ES6 section 22.2.3.3 get %TypedArray%.prototype.byteOffset */             \
+  /* ES6 #sec-get-%typedarray%.prototype.byteoffset */                         \
   TFJ(TypedArrayPrototypeByteOffset, 0)                                        \
-  /* ES6 section 22.2.3.18 get %TypedArray%.prototype.length */                \
+  /* ES6 #sec-get-%typedarray%.prototype.length */                             \
   TFJ(TypedArrayPrototypeLength, 0)                                            \
   /* ES6 #sec-%typedarray%.prototype.entries */                                \
   TFJ(TypedArrayPrototypeEntries, 0)                                           \
@@ -891,13 +924,15 @@ class Isolate;
   /* Async-from-Sync Iterator */                                               \
                                                                                \
   /* %AsyncFromSyncIteratorPrototype% */                                       \
-  /* (proposal-async-iteration/#sec-%asyncfromsynciteratorprototype%-object)*/ \
-  TFJ(AsyncFromSyncIteratorPrototypeNext, 1)                                   \
-  TFJ(AsyncFromSyncIteratorPrototypeThrow, 1)                                  \
-  TFJ(AsyncFromSyncIteratorPrototypeReturn, 1)                                 \
-                                                                               \
-  /* proposal-async-iteration/#sec-async-iterator-value-unwrap-functions */    \
-  TFJ(AsyncIteratorValueUnwrap, 1)
+  /* See tc39.github.io/proposal-async-iteration/ */                           \
+  /* #sec-%asyncfromsynciteratorprototype%-object) */                          \
+  TFJ(AsyncFromSyncIteratorPrototypeNext, 1, kValue)                           \
+  /* #sec-%asyncfromsynciteratorprototype%.throw */                            \
+  TFJ(AsyncFromSyncIteratorPrototypeThrow, 1, kReason)                         \
+  /* #sec-%asyncfromsynciteratorprototype%.return */                           \
+  TFJ(AsyncFromSyncIteratorPrototypeReturn, 1, kValue)                         \
+  /* #sec-async-iterator-value-unwrap-functions */                             \
+  TFJ(AsyncIteratorValueUnwrap, 1, kValue)
 
 #define BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(V) \
   V(AsyncFromSyncIteratorPrototypeNext)              \

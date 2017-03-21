@@ -140,9 +140,9 @@ void SharedArrayBufferBuiltinsAssembler::ValidateAtomicIndex(
 }
 
 TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
-  Node* array = Parameter(1);
-  Node* index = Parameter(2);
-  Node* context = Parameter(3 + 2);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* index = Parameter(Descriptor::kIndex);
+  Node* context = Parameter(Descriptor::kContext);
 
   Node* instance_type;
   Node* backing_store;
@@ -198,10 +198,10 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
-  Node* array = Parameter(1);
-  Node* index = Parameter(2);
-  Node* value = Parameter(3);
-  Node* context = Parameter(4 + 2);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* index = Parameter(Descriptor::kIndex);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* context = Parameter(Descriptor::kContext);
 
   Node* instance_type;
   Node* backing_store;
@@ -250,10 +250,10 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
-  Node* array = Parameter(1);
-  Node* index = Parameter(2);
-  Node* value = Parameter(3);
-  Node* context = Parameter(4 + 2);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* index = Parameter(Descriptor::kIndex);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* context = Parameter(Descriptor::kContext);
 
   Node* instance_type;
   Node* backing_store;
@@ -323,11 +323,11 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
-  Node* array = Parameter(1);
-  Node* index = Parameter(2);
-  Node* old_value = Parameter(3);
-  Node* new_value = Parameter(4);
-  Node* context = Parameter(5 + 2);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* index = Parameter(Descriptor::kIndex);
+  Node* old_value = Parameter(Descriptor::kOldValue);
+  Node* new_value = Parameter(Descriptor::kNewValue);
+  Node* context = Parameter(Descriptor::kContext);
 
   Node* instance_type;
   Node* backing_store;

@@ -257,9 +257,9 @@ Node* AsyncFromSyncBuiltinsAssembler::AllocateAsyncIteratorValueUnwrapContext(
 // https://tc39.github.io/proposal-async-iteration/
 // Section #sec-%asyncfromsynciteratorprototype%.next
 TF_BUILTIN(AsyncFromSyncIteratorPrototypeNext, AsyncFromSyncBuiltinsAssembler) {
-  Node* const iterator = Parameter(0);
-  Node* const value = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const iterator = Parameter(Descriptor::kReceiver);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Generate_AsyncFromSyncIteratorMethod(
       context, iterator, value, factory()->next_string(),
@@ -270,9 +270,9 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeNext, AsyncFromSyncBuiltinsAssembler) {
 // Section #sec-%asyncfromsynciteratorprototype%.return
 TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
            AsyncFromSyncBuiltinsAssembler) {
-  Node* const iterator = Parameter(0);
-  Node* const value = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const iterator = Parameter(Descriptor::kReceiver);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const context = Parameter(Descriptor::kContext);
 
   auto if_return_undefined = [=](Node* const native_context,
                                  Node* const promise, Label* if_exception) {
@@ -298,9 +298,9 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
 // Section #sec-%asyncfromsynciteratorprototype%.throw
 TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrow,
            AsyncFromSyncBuiltinsAssembler) {
-  Node* const iterator = Parameter(0);
-  Node* const reason = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const iterator = Parameter(Descriptor::kReceiver);
+  Node* const reason = Parameter(Descriptor::kReason);
+  Node* const context = Parameter(Descriptor::kContext);
 
   auto if_throw_undefined = [=](Node* const native_context, Node* const promise,
                                 Label* if_exception) { Goto(if_exception); };
@@ -312,8 +312,8 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrow,
 }
 
 TF_BUILTIN(AsyncIteratorValueUnwrap, AsyncFromSyncBuiltinsAssembler) {
-  Node* const value = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const done = LoadContextElement(context, ValueUnwrapContext::kDoneSlot);
   CSA_ASSERT(this, IsBoolean(done));

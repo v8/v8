@@ -742,9 +742,9 @@ TF_BUILTIN(RegExpPrototypeExecSlow, RegExpBuiltinsAssembler) {
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(0);
-  Node* const maybe_string = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
+  Node* const maybe_string = Parameter(Descriptor::kString);
+  Node* const context = Parameter(Descriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSRegExp.
   Node* const regexp_map = ThrowIfNotInstanceType(
@@ -928,9 +928,10 @@ Node* RegExpBuiltinsAssembler::RegExpInitialize(Node* const context,
                      pattern, flags);
 }
 
+// ES #sec-get-regexp.prototype.flags
 TF_BUILTIN(RegExpPrototypeFlagsGetter, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(0);
-  Node* const context = Parameter(3);
+  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const map = ThrowIfNotJSReceiver(context, maybe_receiver,
                                          MessageTemplate::kRegExpNonObject,
@@ -950,10 +951,10 @@ TF_BUILTIN(RegExpPrototypeFlagsGetter, RegExpBuiltinsAssembler) {
 // ES#sec-regexp-pattern-flags
 // RegExp ( pattern, flags )
 TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
-  Node* const pattern = Parameter(1);
-  Node* const flags = Parameter(2);
-  Node* const new_target = Parameter(3);
-  Node* const context = Parameter(5);
+  Node* const pattern = Parameter(Descriptor::kPattern);
+  Node* const flags = Parameter(Descriptor::kFlags);
+  Node* const new_target = Parameter(Descriptor::kNewTarget);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Isolate* isolate = this->isolate();
 
@@ -1077,10 +1078,10 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 // ES#sec-regexp.prototype.compile
 // RegExp.prototype.compile ( pattern, flags )
 TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(0);
-  Node* const maybe_pattern = Parameter(1);
-  Node* const maybe_flags = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
+  Node* const maybe_pattern = Parameter(Descriptor::kPattern);
+  Node* const maybe_flags = Parameter(Descriptor::kFlags);
+  Node* const context = Parameter(Descriptor::kContext);
 
   ThrowIfNotInstanceType(context, maybe_receiver, JS_REGEXP_TYPE,
                          "RegExp.prototype.compile");
@@ -1125,9 +1126,10 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
 }
 
 // ES6 21.2.5.10.
+// ES #sec-get-regexp.prototype.source
 TF_BUILTIN(RegExpPrototypeSourceGetter, RegExpBuiltinsAssembler) {
-  Node* const receiver = Parameter(0);
-  Node* const context = Parameter(3);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const context = Parameter(Descriptor::kContext);
 
   // Check whether we have an unmodified regexp instance.
   Label if_isjsregexp(this), if_isnotjsregexp(this, Label::kDeferred);
@@ -1250,12 +1252,10 @@ Node* RegExpBuiltinsAssembler::FlagGetter(Node* const context,
                      : SlowFlagGetter(context, regexp, flag);
 }
 
-void RegExpBuiltinsAssembler::FlagGetter(JSRegExp::Flag flag,
+void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
+                                         JSRegExp::Flag flag,
                                          v8::Isolate::UseCounterFeature counter,
                                          const char* method_name) {
-  Node* const receiver = Parameter(0);
-  Node* const context = Parameter(3);
-
   Isolate* isolate = this->isolate();
 
   // Check whether we have an unmodified regexp instance.
@@ -1311,32 +1311,52 @@ void RegExpBuiltinsAssembler::FlagGetter(JSRegExp::Flag flag,
 }
 
 // ES6 21.2.5.4.
+// ES #sec-get-regexp.prototype.global
 TF_BUILTIN(RegExpPrototypeGlobalGetter, RegExpBuiltinsAssembler) {
-  FlagGetter(JSRegExp::kGlobal, v8::Isolate::kRegExpPrototypeOldFlagGetter,
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  FlagGetter(context, receiver, JSRegExp::kGlobal,
+             v8::Isolate::kRegExpPrototypeOldFlagGetter,
              "RegExp.prototype.global");
 }
 
 // ES6 21.2.5.5.
+// ES #sec-get-regexp.prototype.ignorecase
 TF_BUILTIN(RegExpPrototypeIgnoreCaseGetter, RegExpBuiltinsAssembler) {
-  FlagGetter(JSRegExp::kIgnoreCase, v8::Isolate::kRegExpPrototypeOldFlagGetter,
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  FlagGetter(context, receiver, JSRegExp::kIgnoreCase,
+             v8::Isolate::kRegExpPrototypeOldFlagGetter,
              "RegExp.prototype.ignoreCase");
 }
 
 // ES6 21.2.5.7.
+// ES #sec-get-regexp.prototype.multiline
 TF_BUILTIN(RegExpPrototypeMultilineGetter, RegExpBuiltinsAssembler) {
-  FlagGetter(JSRegExp::kMultiline, v8::Isolate::kRegExpPrototypeOldFlagGetter,
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  FlagGetter(context, receiver, JSRegExp::kMultiline,
+             v8::Isolate::kRegExpPrototypeOldFlagGetter,
              "RegExp.prototype.multiline");
 }
 
 // ES6 21.2.5.12.
+// ES #sec-get-regexp.prototype.sticky
 TF_BUILTIN(RegExpPrototypeStickyGetter, RegExpBuiltinsAssembler) {
-  FlagGetter(JSRegExp::kSticky, v8::Isolate::kRegExpPrototypeStickyGetter,
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  FlagGetter(context, receiver, JSRegExp::kSticky,
+             v8::Isolate::kRegExpPrototypeStickyGetter,
              "RegExp.prototype.sticky");
 }
 
 // ES6 21.2.5.15.
+// ES #sec-get-regexp.prototype.unicode
 TF_BUILTIN(RegExpPrototypeUnicodeGetter, RegExpBuiltinsAssembler) {
-  FlagGetter(JSRegExp::kUnicode, v8::Isolate::kRegExpPrototypeUnicodeGetter,
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  FlagGetter(context, receiver, JSRegExp::kUnicode,
+             v8::Isolate::kRegExpPrototypeUnicodeGetter,
              "RegExp.prototype.unicode");
 }
 
@@ -1395,9 +1415,9 @@ Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
 // ES#sec-regexp.prototype.test
 // RegExp.prototype.test ( S )
 TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(0);
-  Node* const maybe_string = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
+  Node* const maybe_string = Parameter(Descriptor::kString);
+  Node* const context = Parameter(Descriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map = ThrowIfNotJSReceiver(
@@ -1763,9 +1783,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
 // ES#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
 TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(0);
-  Node* const maybe_string = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
+  Node* const maybe_string = Parameter(Descriptor::kString);
+  Node* const context = Parameter(Descriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map = ThrowIfNotJSReceiver(
@@ -1885,9 +1905,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
 // ES#sec-regexp.prototype-@@search
 // RegExp.prototype [ @@search ] ( string )
 TF_BUILTIN(RegExpPrototypeSearch, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(0);
-  Node* const maybe_string = Parameter(1);
-  Node* const context = Parameter(4);
+  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
+  Node* const maybe_string = Parameter(Descriptor::kString);
+  Node* const context = Parameter(Descriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map = ThrowIfNotJSReceiver(
@@ -2198,10 +2218,10 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
 // ES#sec-regexp.prototype-@@split
 // RegExp.prototype [ @@split ] ( string, limit )
 TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(0);
-  Node* const maybe_string = Parameter(1);
-  Node* const maybe_limit = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
+  Node* const maybe_string = Parameter(Descriptor::kString);
+  Node* const maybe_limit = Parameter(Descriptor::kLimit);
+  Node* const context = Parameter(Descriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map = ThrowIfNotJSReceiver(
@@ -2596,10 +2616,10 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
 TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(0);
-  Node* const maybe_string = Parameter(1);
-  Node* const replace_value = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
+  Node* const maybe_string = Parameter(Descriptor::kString);
+  Node* const replace_value = Parameter(Descriptor::kReplaceValue);
+  Node* const context = Parameter(Descriptor::kContext);
 
   // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:
   //
@@ -2644,9 +2664,9 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
 // Simple string matching functionality for internal use which does not modify
 // the last match info.
 TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
-  Node* const regexp = Parameter(1);
-  Node* const string = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const regexp = Parameter(Descriptor::kRegExp);
+  Node* const string = Parameter(Descriptor::kString);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const null = NullConstant();
   Node* const smi_zero = SmiConstant(Smi::FromInt(0));

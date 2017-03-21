@@ -92,7 +92,7 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
   Return(CallRuntime(Runtime::kObjectHasOwnProperty, context, object, key));
 }
 
-// ES6 section 19.1.3.6 Object.prototype.toString
+// ES6 #sec-object.prototype.tostring
 TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
   Label return_undefined(this, Label::kDeferred),
       return_null(this, Label::kDeferred),
@@ -107,8 +107,8 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
   Label checkstringtag(this);
   Label if_tostringtag(this), if_notostringtag(this);
 
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* context = Parameter(Descriptor::kContext);
 
   GotoIf(WordEqual(receiver, UndefinedConstant()), &return_undefined);
 
@@ -255,10 +255,10 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
   }
 }
 
-// ES6 19.3.7 Object.prototype.valueOf
+// ES6 #sec-object.prototype.valueof
 TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* context = Parameter(Descriptor::kContext);
 
   Callable to_object = CodeFactory::ToObject(isolate());
   receiver = CallStub(to_object, context, receiver);
@@ -266,10 +266,11 @@ TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
   Return(receiver);
 }
 
+// ES #sec-object.create
 TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
-  Node* prototype = Parameter(1);
-  Node* properties = Parameter(2);
-  Node* context = Parameter(3 + 2);
+  Node* prototype = Parameter(Descriptor::kPrototype);
+  Node* properties = Parameter(Descriptor::kProperties);
+  Node* context = Parameter(Descriptor::kContext);
 
   Label call_runtime(this, Label::kDeferred), prototype_valid(this),
       no_properties(this);

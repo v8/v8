@@ -475,7 +475,7 @@ TF_BUILTIN(StringCharCodeAt, CodeStubAssembler) {
 // -----------------------------------------------------------------------------
 // ES6 section 21.1 String Objects
 
-// ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
+// ES6 #sec-string.fromcharcode
 TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
@@ -586,11 +586,11 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
   }
 }
 
-// ES6 section 21.1.3.1 String.prototype.charAt ( pos )
+// ES6 #sec-string.prototype.charat
 TF_BUILTIN(StringPrototypeCharAt, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* position = Parameter(1);
-  Node* context = Parameter(4);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* position = Parameter(Descriptor::kPosition);
+  Node* context = Parameter(Descriptor::kContext);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
   receiver = ToThisString(context, receiver, "String.prototype.charAt");
@@ -625,11 +625,11 @@ TF_BUILTIN(StringPrototypeCharAt, CodeStubAssembler) {
   Return(result);
 }
 
-// ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
+// ES6 #sec-string.prototype.charcodeat
 TF_BUILTIN(StringPrototypeCharCodeAt, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* position = Parameter(1);
-  Node* context = Parameter(4);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* position = Parameter(Descriptor::kPosition);
+  Node* context = Parameter(Descriptor::kContext);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
   receiver = ToThisString(context, receiver, "String.prototype.charCodeAt");
@@ -663,8 +663,10 @@ TF_BUILTIN(StringPrototypeCharCodeAt, CodeStubAssembler) {
 }
 
 // ES6 String.prototype.concat(...args)
-// #sec-string.prototype.concat
+// ES6 #sec-string.prototype.concat
 TF_BUILTIN(StringPrototypeConcat, CodeStubAssembler) {
+  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
+  // arguments are reordered.
   CodeStubArguments arguments(
       this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
   Node* receiver = arguments.GetReceiver();
@@ -975,14 +977,14 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   Bind(&out);
 }
 
-// ES6 section 21.1.3.16 String.prototype.replace ( search, replace )
+// ES6 #sec-string.prototype.replace
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
 
-  Node* const receiver = Parameter(0);
-  Node* const search = Parameter(1);
-  Node* const replace = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const search = Parameter(Descriptor::kSearch);
+  Node* const replace = Parameter(Descriptor::kReplace);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const smi_zero = SmiConstant(0);
 
@@ -1147,10 +1149,10 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   Label out(this);
 
-  Node* const receiver = Parameter(0);
-  Node* const separator = Parameter(1);
-  Node* const limit = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const separator = Parameter(Descriptor::kSeparator);
+  Node* const limit = Parameter(Descriptor::kLimit);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const smi_zero = SmiConstant(0);
 
@@ -1246,17 +1248,17 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   Return(result);
 }
 
-// ES6 section B.2.3.1 String.prototype.substr ( start, length )
+// ES6 #sec-string.prototype.substr
 TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
   Label out(this), handle_length(this);
 
   Variable var_start(this, MachineRepresentation::kTagged);
   Variable var_length(this, MachineRepresentation::kTagged);
 
-  Node* const receiver = Parameter(0);
-  Node* const start = Parameter(1);
-  Node* const length = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const start = Parameter(Descriptor::kStart);
+  Node* const length = Parameter(Descriptor::kLength);
+  Node* const context = Parameter(Descriptor::kContext);
 
   Node* const zero = SmiConstant(Smi::kZero);
 
@@ -1415,17 +1417,17 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
   return var_result.value();
 }
 
-// ES6 section 21.1.3.19 String.prototype.substring ( start, end )
+// ES6 #sec-string.prototype.substring
 TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
   Label out(this);
 
   Variable var_start(this, MachineRepresentation::kTagged);
   Variable var_end(this, MachineRepresentation::kTagged);
 
-  Node* const receiver = Parameter(0);
-  Node* const start = Parameter(1);
-  Node* const end = Parameter(2);
-  Node* const context = Parameter(5);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const start = Parameter(Descriptor::kStart);
+  Node* const end = Parameter(Descriptor::kEnd);
+  Node* const context = Parameter(Descriptor::kContext);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
   Node* const string =
@@ -1464,20 +1466,20 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
   }
 }
 
-// ES6 section 21.1.3.25 String.prototype.toString ()
+// ES6 #sec-string.prototype.tostring
 TF_BUILTIN(StringPrototypeToString, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
 
   Node* result = ToThisValue(context, receiver, PrimitiveType::kString,
                              "String.prototype.toString");
   Return(result);
 }
 
-// ES6 section 21.1.3.28 String.prototype.valueOf ( )
+// ES6 #sec-string.prototype.valueof
 TF_BUILTIN(StringPrototypeValueOf, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
 
   Node* result = ToThisValue(context, receiver, PrimitiveType::kString,
                              "String.prototype.valueOf");
@@ -1485,8 +1487,8 @@ TF_BUILTIN(StringPrototypeValueOf, CodeStubAssembler) {
 }
 
 TF_BUILTIN(StringPrototypeIterator, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
 
   Node* string =
       ToThisString(context, receiver, "String.prototype[Symbol.iterator]");
@@ -1573,6 +1575,7 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
   return var_result.value();
 }
 
+// ES6 #sec-%stringiteratorprototype%.next
 TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   Variable var_value(this, MachineRepresentation::kTagged);
   Variable var_done(this, MachineRepresentation::kTagged);
@@ -1582,8 +1585,8 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
 
   Label throw_bad_receiver(this), next_codepoint(this), return_result(this);
 
-  Node* iterator = Parameter(0);
-  Node* context = Parameter(3);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* iterator = Parameter(Descriptor::kReceiver);
 
   GotoIf(TaggedIsSmi(iterator), &throw_bad_receiver);
   GotoIfNot(Word32Equal(LoadInstanceType(iterator),
