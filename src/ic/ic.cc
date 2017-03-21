@@ -436,6 +436,8 @@ void IC::OnFeedbackChanged(Isolate* isolate, JSFunction* host_function) {
     TypeFeedbackInfo* info = TypeFeedbackInfo::cast(host->type_feedback_info());
     info->change_own_type_change_checksum();
     host->set_profiler_ticks(0);
+  } else if (host_function->IsInterpreted()) {
+    host_function->shared()->set_profiler_ticks(0);
   }
   isolate->runtime_profiler()->NotifyICChanged();
   // TODO(2029): When an optimized function is patched, it would
