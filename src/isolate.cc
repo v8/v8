@@ -1347,6 +1347,7 @@ Object* Isolate::UnwindAndFindHandler() {
         }
         WasmInterpreterEntryFrame* interpreter_frame =
             WasmInterpreterEntryFrame::cast(frame);
+        // TODO(wasm): Implement try-catch in the interpreter.
         interpreter_frame->wasm_instance()->debug_info()->Unwind(frame->fp());
       } break;
 

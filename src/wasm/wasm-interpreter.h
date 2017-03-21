@@ -149,6 +149,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
     // Stack inspection and modification.
     pc_t GetBreakpointPc();
+    // TODO(clemensh): Make this uint32_t.
     int GetFrameCount();
     const InterpretedFrame GetFrame(int index);
     InterpretedFrame GetMutableFrame(int index);
@@ -170,6 +171,18 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
     void AddBreakFlags(uint8_t flags);
     void ClearBreakFlags();
+
+    // Each thread can have multiple activations, each represented by a portion
+    // of the stack frames of this thread. StartActivation returns the id
+    // (counting from 0 up) of the started activation.
+    // Activations must be properly stacked, i.e. if FinishActivation is called,
+    // the given id must the the latest activation on the stack.
+    uint32_t NumActivations();
+    uint32_t StartActivation();
+    void FinishActivation(uint32_t activation_id);
+    // Return the frame base of the given activation, i.e. the number of frames
+    // when this activation was started.
+    uint32_t ActivationFrameBase(uint32_t activation_id);
   };
 
   WasmInterpreter(const ModuleBytesEnv& env, AccountingAllocator* allocator);

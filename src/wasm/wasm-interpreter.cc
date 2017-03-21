@@ -981,13 +981,20 @@ WasmVal NumberToWasmVal(Handle<Object> number, wasm::ValueType type) {
 
 // Responsible for executing code directly.
 class ThreadImpl {
+  struct Activation {
+    uint32_t fp;
+    uint32_t sp;
+    Activation(uint32_t fp, uint32_t sp) : fp(fp), sp(sp) {}
+  };
+
  public:
   ThreadImpl(Zone* zone, CodeMap* codemap, WasmInstance* instance)
       : codemap_(codemap),
         instance_(instance),
         stack_(zone),
         frames_(zone),
-        blocks_(zone) {}
+        blocks_(zone),
+        activations_(zone) {}
 
   //==========================================================================
   // Implementation of public interface for WasmInterpreter::Thread.
@@ -996,6 +1003,7 @@ class ThreadImpl {
   WasmInterpreter::State state() { return state_; }
 
   void InitFrame(const WasmFunction* function, WasmVal* args) {
+    DCHECK_EQ(current_activation().fp, frames_.size());
     InterpreterCode* code = codemap()->GetCode(function);
     for (size_t i = 0; i < function->sig->parameter_count(); ++i) {
       stack_.push_back(args[i]);
@@ -1054,11 +1062,14 @@ class ThreadImpl {
                       static_cast<int>(frame->llimit()));
   }
 
-  WasmVal GetReturnValue(int index) {
+  WasmVal GetReturnValue(uint32_t index) {
     if (state_ == WasmInterpreter::TRAPPED) return WasmVal(0xdeadbeef);
-    CHECK_EQ(WasmInterpreter::FINISHED, state_);
-    CHECK_LT(static_cast<size_t>(index), stack_.size());
-    return stack_[index];
+    DCHECK_EQ(WasmInterpreter::FINISHED, state_);
+    Activation act = current_activation();
+    // Current activation must be finished.
+    DCHECK_EQ(act.fp, frames_.size());
+    DCHECK_GT(stack_.size(), act.sp + index);
+    return stack_[act.sp + index];
   }
 
   TrapReason GetTrapReason() { return trap_reason_; }
@@ -1073,18 +1084,53 @@ class ThreadImpl {
 
   void ClearBreakFlags() { break_flags_ = WasmInterpreter::BreakFlag::None; }
 
+  uint32_t NumActivations() {
+    return static_cast<uint32_t>(activations_.size());
+  }
+
+  uint32_t StartActivation() {
+    TRACE("----- START ACTIVATION %zu -----\n", activations_.size());
+    // If you use activations, use them consistently:
+    DCHECK_IMPLIES(activations_.empty(), frames_.empty());
+    DCHECK_IMPLIES(activations_.empty(), stack_.empty());
+    uint32_t activation_id = static_cast<uint32_t>(activations_.size());
+    activations_.emplace_back(static_cast<uint32_t>(frames_.size()),
+                              static_cast<uint32_t>(stack_.size()));
+    state_ = WasmInterpreter::STOPPED;
+    return activation_id;
+  }
+
+  void FinishActivation(uint32_t id) {
+    TRACE("----- FINISH ACTIVATION %zu -----\n", activations_.size() - 1);
+    DCHECK_LT(0, activations_.size());
+    DCHECK_EQ(activations_.size() - 1, id);
+    // Stack height must match the start of this activation (otherwise unwind
+    // first).
+    DCHECK_EQ(activations_.back().fp, frames_.size());
+    DCHECK_LE(activations_.back().sp, stack_.size());
+    stack_.resize(activations_.back().sp);
+    activations_.pop_back();
+  }
+
+  uint32_t ActivationFrameBase(uint32_t id) {
+    DCHECK_GT(activations_.size(), id);
+    return activations_[id].fp;
+  }
+
   // Handle a thrown exception. Returns whether the exception was handled inside
-  // wasm. Unwinds the interpreted stack accordingly.
+  // the current activation. Unwinds the interpreted stack accordingly.
   WasmInterpreter::Thread::ExceptionHandlingResult HandleException(
       Isolate* isolate) {
     DCHECK(isolate->has_pending_exception());
-    // TODO(wasm): Add wasm exception handling.
+    // TODO(wasm): Add wasm exception handling (would return true).
     USE(isolate->pending_exception());
     TRACE("----- UNWIND -----\n");
-    // TODO(clemensh): Only clear the portion of the stack belonging to the
-    // current activation of the interpreter.
-    stack_.clear();
-    frames_.clear();
+    DCHECK_LT(0, activations_.size());
+    Activation& act = activations_.back();
+    DCHECK_LE(act.fp, frames_.size());
+    frames_.resize(act.fp);
+    DCHECK_LE(act.sp, stack_.size());
+    stack_.resize(act.sp);
     state_ = WasmInterpreter::STOPPED;
     return WasmInterpreter::Thread::UNWOUND;
   }
@@ -1120,6 +1166,9 @@ class ThreadImpl {
   bool possible_nondeterminism_ = false;
   uint8_t break_flags_ = 0;  // a combination of WasmInterpreter::BreakFlag
   uint64_t num_interpreted_calls_ = 0;
+  // Store the stack height of each activation (for unwind and frame
+  // inspection).
+  ZoneVector<Activation> activations_;
 
   CodeMap* codemap() { return codemap_; }
   WasmInstance* instance() { return instance_; }
@@ -1218,10 +1267,10 @@ class ThreadImpl {
 
     sp_t dest = frames_.back().sp;
     frames_.pop_back();
-    if (frames_.size() == 0) {
+    if (frames_.size() == current_activation().fp) {
       // A return from the last frame terminates the execution.
       state_ = WasmInterpreter::FINISHED;
-      DoStackTransfer(0, arity);
+      DoStackTransfer(dest, arity);
       TRACE("  => finish\n");
       return false;
     } else {
@@ -1484,7 +1533,7 @@ class ThreadImpl {
           InterpreterCode* target = codemap()->GetCode(operand.index);
           if (target->function->imported) {
             CommitPc(pc);
-            if (!CallImportedFunction(operand.index)) return;
+            if (!CallImportedFunction(target->function->func_index)) return;
             PAUSE_IF_BREAK_FLAG(AfterCall);
             len = 1 + operand.length;
             break;  // bump pc
@@ -1884,6 +1933,10 @@ class ThreadImpl {
     }
     return true;
   }
+
+  inline Activation current_activation() {
+    return activations_.empty() ? Activation(0, 0) : activations_.back();
+  }
 };
 
 // Converters between WasmInterpreter::Thread and WasmInterpreter::ThreadImpl.
@@ -1957,6 +2010,18 @@ void WasmInterpreter::Thread::AddBreakFlags(uint8_t flags) {
 }
 void WasmInterpreter::Thread::ClearBreakFlags() {
   ToImpl(this)->ClearBreakFlags();
+}
+uint32_t WasmInterpreter::Thread::NumActivations() {
+  return ToImpl(this)->NumActivations();
+}
+uint32_t WasmInterpreter::Thread::StartActivation() {
+  return ToImpl(this)->StartActivation();
+}
+void WasmInterpreter::Thread::FinishActivation(uint32_t id) {
+  ToImpl(this)->FinishActivation(id);
+}
+uint32_t WasmInterpreter::Thread::ActivationFrameBase(uint32_t id) {
+  return ToImpl(this)->ActivationFrameBase(id);
 }
 
 //============================================================================

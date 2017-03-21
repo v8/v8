@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <unordered_map>
+
 #include "src/assembler-inl.h"
 #include "src/assert-scope.h"
 #include "src/compiler/wasm-compiler.h"
@@ -55,6 +57,36 @@ class InterpreterHandle {
   StepAction next_step_action_ = StepNone;
   int last_step_stack_depth_ = 0;
   DeferredHandles* import_handles_ = nullptr;
+  std::unordered_map<Address, uint32_t> activations_;
+
+  uint32_t StartActivation(Address frame_pointer) {
+    WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
+    uint32_t activation_id = thread->StartActivation();
+    DCHECK_EQ(0, activations_.count(frame_pointer));
+    activations_.insert(std::make_pair(frame_pointer, activation_id));
+    return activation_id;
+  }
+
+  void FinishActivation(Address frame_pointer, uint32_t activation_id) {
+    WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
+    thread->FinishActivation(activation_id);
+    DCHECK_EQ(1, activations_.count(frame_pointer));
+    activations_.erase(frame_pointer);
+  }
+
+  std::pair<uint32_t, uint32_t> GetActivationFrameRange(
+      WasmInterpreter::Thread* thread, Address frame_pointer) {
+    DCHECK_EQ(1, activations_.count(frame_pointer));
+    uint32_t activation_id = activations_.find(frame_pointer)->second;
+    uint32_t num_activations = static_cast<uint32_t>(activations_.size() - 1);
+    uint32_t frame_base = thread->ActivationFrameBase(activation_id);
+    uint32_t frame_limit = activation_id == num_activations
+                               ? thread->GetFrameCount()
+                               : thread->ActivationFrameBase(activation_id + 1);
+    DCHECK_LE(frame_base, frame_limit);
+    DCHECK_LE(frame_limit, thread->GetFrameCount());
+    return {frame_base, frame_limit};
+  }
 
  public:
   // Initialize in the right order, using helper methods to make this possible.
@@ -102,6 +134,7 @@ class InterpreterHandle {
   }
 
   ~InterpreterHandle() {
+    DCHECK_EQ(0, activations_.size());
     delete import_handles_;  // might be nullptr, which is ok.
   }
 
@@ -130,7 +163,11 @@ class InterpreterHandle {
     return interpreter()->GetThread(0)->GetFrameCount();
   }
 
-  bool Execute(uint32_t func_index, uint8_t* arg_buffer) {
+  // Returns true if exited regularly, false if a trap/exception occured and was
+  // not handled inside this activation. In the latter case, a pending exception
+  // will have been set on the isolate.
+  bool Execute(Address frame_pointer, uint32_t func_index,
+               uint8_t* arg_buffer) {
     DCHECK_GE(module()->functions.size(), func_index);
     FunctionSig* sig = module()->functions[func_index].sig;
     DCHECK_GE(kMaxInt, sig->parameter_count());
@@ -156,11 +193,9 @@ class InterpreterHandle {
       arg_buf_ptr += param_size;
     }
 
+    uint32_t activation_id = StartActivation(frame_pointer);
+
     WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
-    // We do not support reentering an already running interpreter at the moment
-    // (like INTERPRETER -> JS -> WASM -> INTERPRETER).
-    DCHECK_EQ(0, thread->GetFrameCount());
-    thread->Reset();
     thread->InitFrame(&module()->functions[func_index], wasm_args.start());
     bool finished = false;
     while (!finished) {
@@ -180,8 +215,10 @@ class InterpreterHandle {
           Handle<Object> exception = isolate_->factory()->NewWasmRuntimeError(
               static_cast<MessageTemplate::Template>(message_id));
           isolate_->Throw(*exception);
-          // And hard exit the execution.
-          return false;
+          // Handle this exception. Return without trying to read back the
+          // return value.
+          auto result = thread->HandleException(isolate_);
+          return result == WasmInterpreter::Thread::HANDLED;
         } break;
         case WasmInterpreter::State::STOPPED:
           // Then an exception happened, and the stack was unwound.
@@ -215,6 +252,9 @@ class InterpreterHandle {
           UNREACHABLE();
       }
     }
+
+    FinishActivation(frame_pointer, activation_id);
+
     return true;
   }
 
@@ -311,39 +351,53 @@ class InterpreterHandle {
 
   std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
       Address frame_pointer) {
-    // TODO(clemensh): Use frame_pointer.
-    USE(frame_pointer);
-
     DCHECK_EQ(1, interpreter()->GetThreadCount());
     WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-    std::vector<std::pair<uint32_t, int>> stack(thread->GetFrameCount());
-    for (int i = 0, e = thread->GetFrameCount(); i < e; ++i) {
-      wasm::InterpretedFrame frame = thread->GetFrame(i);
-      stack[i] = {frame.function()->func_index, frame.pc()};
+
+    std::pair<uint32_t, uint32_t> frame_range =
+        GetActivationFrameRange(thread, frame_pointer);
+
+    std::vector<std::pair<uint32_t, int>> stack;
+    stack.reserve(frame_range.second - frame_range.first);
+    for (uint32_t fp = frame_range.first; fp < frame_range.second; ++fp) {
+      wasm::InterpretedFrame frame = thread->GetFrame(fp);
+      stack.emplace_back(frame.function()->func_index, frame.pc());
     }
     return stack;
   }
 
   std::unique_ptr<wasm::InterpretedFrame> GetInterpretedFrame(
       Address frame_pointer, int idx) {
-    // TODO(clemensh): Use frame_pointer.
-    USE(frame_pointer);
-
     DCHECK_EQ(1, interpreter()->GetThreadCount());
     WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-    return std::unique_ptr<wasm::InterpretedFrame>(
-        new wasm::InterpretedFrame(thread->GetMutableFrame(idx)));
+
+    std::pair<uint32_t, uint32_t> frame_range =
+        GetActivationFrameRange(thread, frame_pointer);
+    DCHECK_LE(0, idx);
+    DCHECK_GT(frame_range.second - frame_range.first, idx);
+
+    return std::unique_ptr<wasm::InterpretedFrame>(new wasm::InterpretedFrame(
+        thread->GetMutableFrame(frame_range.first + idx)));
   }
 
   void Unwind(Address frame_pointer) {
-    // TODO(clemensh): Use frame_pointer.
-    USE(frame_pointer);
+    // Find the current activation.
+    DCHECK_EQ(1, activations_.count(frame_pointer));
+    // Activations must be properly stacked:
+    DCHECK_EQ(activations_.size() - 1, activations_[frame_pointer]);
+    uint32_t activation_id = static_cast<uint32_t>(activations_.size() - 1);
 
-    using ExceptionResult = WasmInterpreter::Thread::ExceptionHandlingResult;
-    ExceptionResult result =
-        interpreter()->GetThread(0)->HandleException(isolate_);
-    // TODO(wasm): Handle exceptions caught in wasm land.
-    CHECK_EQ(ExceptionResult::UNWOUND, result);
+    // Unwind the frames of the current activation if not already unwound.
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+    if (static_cast<uint32_t>(thread->GetFrameCount()) >
+        thread->ActivationFrameBase(activation_id)) {
+      using ExceptionResult = WasmInterpreter::Thread::ExceptionHandlingResult;
+      ExceptionResult result = thread->HandleException(isolate_);
+      // TODO(wasm): Handle exceptions caught in wasm land.
+      CHECK_EQ(ExceptionResult::UNWOUND, result);
+    }
+
+    FinishActivation(frame_pointer, activation_id);
   }
 
   uint64_t NumInterpretedCalls() {
@@ -505,10 +559,11 @@ void WasmDebugInfo::PrepareStep(StepAction step_action) {
   GetInterpreterHandle(this)->PrepareStep(step_action);
 }
 
-bool WasmDebugInfo::RunInterpreter(int func_index, uint8_t* arg_buffer) {
+bool WasmDebugInfo::RunInterpreter(Address frame_pointer, int func_index,
+                                   uint8_t* arg_buffer) {
   DCHECK_LE(0, func_index);
-  return GetInterpreterHandle(this)->Execute(static_cast<uint32_t>(func_index),
-                                             arg_buffer);
+  return GetInterpreterHandle(this)->Execute(
+      frame_pointer, static_cast<uint32_t>(func_index), arg_buffer);
 }
 
 std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(

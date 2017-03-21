@@ -200,8 +200,21 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   DCHECK_NULL(isolate->context());
   isolate->set_context(instance->compiled_module()->ptr_to_native_context());
 
+  // Find the frame pointer of the interpreter entry.
+  Address frame_pointer = 0;
+  {
+    StackFrameIterator it(isolate, isolate->thread_local_top());
+    // On top: C entry stub.
+    DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
+    it.Advance();
+    // Next: the wasm interpreter entry.
+    DCHECK_EQ(StackFrame::WASM_INTERPRETER_ENTRY, it.frame()->type());
+    frame_pointer = it.frame()->fp();
+  }
+
   trap_handler::ClearThreadInWasm();
-  bool success = instance->debug_info()->RunInterpreter(func_index, arg_buffer);
+  bool success = instance->debug_info()->RunInterpreter(frame_pointer,
+                                                        func_index, arg_buffer);
   trap_handler::SetThreadInWasm();
 
   if (!success) {

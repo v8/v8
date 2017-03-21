@@ -131,10 +131,10 @@ function checkStack(stack, expected_lines) {
     }
     assertEquals(interpreted_before + 1, % WasmNumInterpretedCalls(instance));
     checkStack(stripPath(stack), [
-      'Error: thrown from imported function',                   // -
-      /^    at func \(interpreter.js:\d+:11\)$/,                // -
-      '    at main (<WASM>[1]+1)',                              // -
-      /^    at testThrowFromImport \(interpreter.js:\d+:24\)/,  // -
+      'Error: thrown from imported function',                    // -
+      /^    at func \(interpreter.js:\d+:11\)$/,                 // -
+      '    at main (<WASM>[1]+1)',                               // -
+      /^    at testThrowFromImport \(interpreter.js:\d+:24\)$/,  // -
       /^    at interpreter.js:\d+:3$/
     ]);
   }
@@ -187,4 +187,41 @@ function checkStack(stack, expected_lines) {
   assertEquals(values[1], instance.exports.get_i64());
   assertEqualsDelta(values[2], instance.exports.get_f32(), 2**-23);
   assertEquals(values[3], instance.exports.get_f64());
+})();
+
+(function testReentrantInterpreter() {
+  var stacks;
+  var instance;
+  function func(i) {
+    stacks.push(new Error('reentrant interpreter test #' + i).stack);
+    if (i < 2) instance.exports.main(i + 1);
+  }
+
+  var builder = new WasmModuleBuilder();
+  builder.addImport('mod', 'func', kSig_v_i);
+  builder.addFunction('main', kSig_v_i)
+      .addBody([kExprGetLocal, 0, kExprCallFunction, 0])
+      .exportFunc();
+  instance = builder.instantiate({mod: {func: func}});
+  // Test that this does not mess up internal state by executing it three times.
+  for (var i = 0; i < 3; ++i) {
+    var interpreted_before = % WasmNumInterpretedCalls(instance);
+    stacks = [];
+    instance.exports.main(0);
+    assertEquals(interpreted_before + 3, % WasmNumInterpretedCalls(instance));
+    assertEquals(3, stacks.length);
+    for (var e = 0; e < stacks.length; ++e) {
+      expected = ['Error: reentrant interpreter test #' + e];
+      expected.push(/^    at func \(interpreter.js:\d+:17\)$/);
+      expected.push('    at main (<WASM>[1]+3)');
+      for (var k = e; k > 0; --k) {
+        expected.push(/^    at func \(interpreter.js:\d+:33\)$/);
+        expected.push('    at main (<WASM>[1]+3)');
+      }
+      expected.push(
+          /^    at testReentrantInterpreter \(interpreter.js:\d+:22\)$/);
+      expected.push(/    at interpreter.js:\d+:3$/);
+      checkStack(stripPath(stacks[e]), expected);
+    }
+  }
 })();
