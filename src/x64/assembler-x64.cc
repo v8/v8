@@ -834,6 +834,23 @@ void Assembler::bsfq(Register dst, const Operand& src) {
   emit_operand(dst, src);
 }
 
+void Assembler::pshufw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x70);
+  emit(0xC0 | (dst.low_bits() << 3) | src.low_bits());
+  emit(shuffle);
+}
+
+void Assembler::pshufw(XMMRegister dst, const Operand& src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x70);
+  emit_operand(dst.code(), src);
+  emit(shuffle);
+}
 
 void Assembler::call(Label* L) {
   EnsureSpace ensure_space(this);
@@ -2871,13 +2888,15 @@ void Assembler::pinsrw(XMMRegister dst, const Operand& src, int8_t imm8) {
 }
 
 void Assembler::pextrw(Register dst, XMMRegister src, int8_t imm8) {
+  DCHECK(IsEnabled(SSE4_1));
   DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);
   emit(0x66);
-  emit_optional_rex_32(src, dst);
+  emit_optional_rex_32(dst, src);
   emit(0x0F);
-  emit(0xC5);
-  emit_sse_operand(src, dst);
+  emit(0x3A);
+  emit(0x15);
+  emit_sse_operand(dst, src);
   emit(imm8);
 }
 

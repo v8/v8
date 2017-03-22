@@ -889,6 +889,9 @@ class Assembler : public AssemblerBase {
   void ud2();
   void setcc(Condition cc, Register reg);
 
+  void pshufw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void pshufw(XMMRegister dst, const Operand& src, uint8_t shuffle);
+
   // Label operations & relative jumps (PPUM Appendix D)
   //
   // Takes a branch opcode (cc) and a label (L) and generates
