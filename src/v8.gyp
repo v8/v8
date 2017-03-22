@@ -553,6 +553,7 @@
         'code-stubs.cc',
         'code-stubs.h',
         'code-stubs-hydrogen.cc',
+        'code-stubs-utils.h',
         'codegen.cc',
         'codegen.h',
         'collector.h',

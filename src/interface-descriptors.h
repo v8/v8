@@ -703,6 +703,7 @@ class TransitionElementsKindDescriptor : public CallInterfaceDescriptor {
 
 class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
  public:
+  DEFINE_EMPTY_PARAMETERS()
   DECLARE_DESCRIPTOR(AllocateHeapNumberDescriptor, CallInterfaceDescriptor)
 };
 

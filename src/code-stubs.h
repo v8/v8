@@ -844,16 +844,16 @@ class CallICStub : public TurboFanCodeStub {
                  TailCallModeBits::encode(tail_call_mode);
   }
 
- protected:
-  typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
-  typedef BitField<TailCallMode, ConvertModeBits::kNext, 1> TailCallModeBits;
-
   ConvertReceiverMode convert_mode() const {
     return ConvertModeBits::decode(minor_key_);
   }
   TailCallMode tail_call_mode() const {
     return TailCallModeBits::decode(minor_key_);
   }
+
+ protected:
+  typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
+  typedef BitField<TailCallMode, ConvertModeBits::kNext, 1> TailCallModeBits;
 
  private:
   void PrintState(std::ostream& os) const final;  // NOLINT
@@ -1301,31 +1301,14 @@ class StringCharCodeAtGenerator {
   DISALLOW_COPY_AND_ASSIGN(StringCharCodeAtGenerator);
 };
 
-class CallICTrampolineStub : public TurboFanCodeStub {
+class CallICTrampolineStub : public CallICStub {
  public:
   CallICTrampolineStub(Isolate* isolate, ConvertReceiverMode convert_mode,
                        TailCallMode tail_call_mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = ConvertModeBits::encode(convert_mode) |
-                 TailCallModeBits::encode(tail_call_mode);
-  }
-
- protected:
-  typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
-  typedef BitField<TailCallMode, ConvertModeBits::kNext, 1> TailCallModeBits;
-
-  ConvertReceiverMode convert_mode() const {
-    return ConvertModeBits::decode(minor_key_);
-  }
-  TailCallMode tail_call_mode() const {
-    return TailCallModeBits::decode(minor_key_);
-  }
-
- private:
-  void PrintState(std::ostream& os) const override;  // NOLINT
+      : CallICStub(isolate, convert_mode, tail_call_mode) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallICTrampoline);
-  DEFINE_TURBOFAN_CODE_STUB(CallICTrampoline, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(CallICTrampoline, CallICStub);
 };
 
 class DoubleToIStub : public PlatformCodeStub {
@@ -1779,10 +1762,6 @@ class StoreBufferOverflowStub : public PlatformCodeStub {
 class SubStringStub : public TurboFanCodeStub {
  public:
   explicit SubStringStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  static compiler::Node* Generate(CodeStubAssembler* assembler,
-                                  compiler::Node* string, compiler::Node* from,
-                                  compiler::Node* to, compiler::Node* context);
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(SubString);
   DEFINE_TURBOFAN_CODE_STUB(SubString, TurboFanCodeStub);
