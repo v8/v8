@@ -476,3 +476,93 @@ function generateTree(
 
   return tickCount;
 }
+
+function computeOptimizationStats(file,
+    timeStart = -Infinity, timeEnd = Infinity) {
+  function newCollection() {
+    return { count : 0, functions : [], functionTable : [] };
+  }
+  function addToCollection(collection, code) {
+    collection.count++;
+    let funcData = collection.functionTable[code.func];
+    if (!funcData) {
+      funcData = { f : file.functions[code.func], instances : [] };
+      collection.functionTable[code.func] = funcData;
+      collection.functions.push(funcData);
+    }
+    funcData.instances.push(code);
+  }
+
+  let functionCount = 0;
+  let optimizedFunctionCount = 0;
+  let deoptimizedFunctionCount = 0;
+  let optimizations = newCollection();
+  let eagerDeoptimizations = newCollection();
+  let softDeoptimizations = newCollection();
+  let lazyDeoptimizations = newCollection();
+
+  for (let i = 0; i < file.functions.length; i++) {
+    let f = file.functions[i];
+
+    // Skip special SFIs that do not correspond to JS functions.
+    if (f.codes.length === 0) continue;
+    if (file.code[f.codes[0]].type !== "JS") continue;
+
+    functionCount++;
+    let optimized = false;
+    let deoptimized = false;
+
+    for (let j = 0; j < f.codes.length; j++) {
+      let code = file.code[f.codes[j]];
+      console.assert(code.type === "JS");
+      if (code.kind === "Opt") {
+        optimized = true;
+        if (code.tm >= timeStart && code.tm <= timeEnd) {
+          addToCollection(optimizations, code);
+        }
+      }
+      if (code.deopt) {
+        deoptimized = true;
+        if (code.deopt.tm >= timeStart && code.deopt.tm <= timeEnd) {
+          switch (code.deopt.bailoutType) {
+            case "lazy":
+              addToCollection(lazyDeoptimizations, code);
+              break;
+            case "eager":
+              addToCollection(eagerDeoptimizations, code);
+              break;
+            case "soft":
+              addToCollection(softDeoptimizations, code);
+              break;
+          }
+        }
+      }
+    }
+    if (optimized) {
+      optimizedFunctionCount++;
+    }
+    if (deoptimized) {
+      deoptimizedFunctionCount++;
+    }
+  }
+
+  function sortCollection(collection) {
+    collection.functions.sort(
+        (a, b) => a.instances.length - b.instances.length);
+  }
+
+  sortCollection(eagerDeoptimizations);
+  sortCollection(lazyDeoptimizations);
+  sortCollection(softDeoptimizations);
+  sortCollection(optimizations);
+
+  return {
+    functionCount,
+    optimizedFunctionCount,
+    deoptimizedFunctionCount,
+    optimizations,
+    eagerDeoptimizations,
+    lazyDeoptimizations,
+    softDeoptimizations,
+  };
+}

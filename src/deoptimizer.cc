@@ -445,6 +445,24 @@ const char* Deoptimizer::MessageFor(BailoutType type) {
   return NULL;
 }
 
+namespace {
+
+CodeEventListener::DeoptKind DeoptKindOfBailoutType(
+    Deoptimizer::BailoutType bailout_type) {
+  switch (bailout_type) {
+    case Deoptimizer::EAGER:
+      return CodeEventListener::kEager;
+    case Deoptimizer::SOFT:
+      return CodeEventListener::kSoft;
+    case Deoptimizer::LAZY:
+      return CodeEventListener::kLazy;
+  }
+  UNREACHABLE();
+  return CodeEventListener::kEager;
+}
+
+}  // namespace
+
 Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
                          BailoutType type, unsigned bailout_id, Address from,
                          int fp_to_sp_delta)
@@ -509,7 +527,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   disallow_heap_allocation_ = new DisallowHeapAllocation();
 #endif  // DEBUG
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
-    PROFILE(isolate_, CodeDeoptEvent(compiled_code_, from_, fp_to_sp_delta_));
+    PROFILE(isolate_,
+            CodeDeoptEvent(compiled_code_, DeoptKindOfBailoutType(type), from_,
+                           fp_to_sp_delta_));
   }
   unsigned size = ComputeInputFrameSize();
   int parameter_count =

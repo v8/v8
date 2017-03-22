@@ -135,7 +135,7 @@ Profile.prototype.addStaticCode = function(
  * @param {number} size Code entry size.
  */
 Profile.prototype.addCode = function(
-    type, name, start, size) {
+    type, name, timestamp, start, size) {
   var entry = new Profile.DynamicCodeEntry(size, type, name);
   this.codeMap_.addCode(start, entry);
   return entry;
@@ -153,7 +153,7 @@ Profile.prototype.addCode = function(
  * @param {Profile.CodeState} state Optimization state.
  */
 Profile.prototype.addFuncCode = function(
-    type, name, start, size, funcAddr, state) {
+    type, name, timestamp, start, size, funcAddr, state) {
   // As code and functions are in the same address space,
   // it is safe to put them in a single code map.
   var func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
@@ -192,6 +192,10 @@ Profile.prototype.moveCode = function(from, to) {
   }
 };
 
+Profile.prototype.deoptCode = function(
+    timestamp, code, inliningId, scriptOffset, bailoutType,
+    sourcePositionText, deoptReasonText) {
+};
 
 /**
  * Reports about deletion of a dynamic code entry.
@@ -864,18 +868,23 @@ JsonProfile.prototype.addStaticCode = function(
 };
 
 JsonProfile.prototype.addCode = function(
-    kind, name, start, size) {
+    kind, name, timestamp, start, size) {
   var entry = new CodeMap.CodeEntry(size, name, 'CODE');
   this.codeMap_.addCode(start, entry);
 
   entry.codeId = this.codeEntries_.length;
-  this.codeEntries_.push({name : entry.name, type : entry.type, kind : kind});
+  this.codeEntries_.push({
+    name : entry.name,
+    timestamp: timestamp,
+    type : entry.type,
+    kind : kind
+  });
 
   return entry;
 };
 
 JsonProfile.prototype.addFuncCode = function(
-    kind, name, start, size, funcAddr, state) {
+    kind, name, timestamp, start, size, funcAddr, state) {
   // As code and functions are in the same address space,
   // it is safe to put them in a single code map.
   var func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
@@ -921,7 +930,8 @@ JsonProfile.prototype.addFuncCode = function(
         name : entry.name,
         type : entry.type,
         kind : kind,
-        func : func.funcId
+        func : func.funcId,
+        tm : timestamp
     });
   }
   return entry;
@@ -932,6 +942,28 @@ JsonProfile.prototype.moveCode = function(from, to) {
     this.codeMap_.moveCode(from, to);
   } catch (e) {
     printErr("Move: unknown source " + from);
+  }
+};
+
+JsonProfile.prototype.deoptCode = function(
+    timestamp, code, inliningId, scriptOffset, bailoutType,
+    sourcePositionText, deoptReasonText) {
+  let entry = this.codeMap_.findDynamicEntryByStartAddress(code);
+  if (entry) {
+    let codeId = entry.codeId;
+    if (!this.codeEntries_[codeId].deopt) {
+      // Only add the deopt if there was no deopt before.
+      // The subsequent deoptimizations should be lazy deopts for
+      // other on-stack activations.
+      this.codeEntries_[codeId].deopt = {
+          tm : timestamp,
+          inliningId : inliningId,
+          scriptOffset : scriptOffset,
+          posText : sourcePositionText,
+          reason : deoptReasonText,
+          bailoutType : bailoutType
+      };
+    }
   }
 };
 

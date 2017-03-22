@@ -88,9 +88,14 @@ function TickProcessor(
       'shared-library': { parsers: [null, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary },
       'code-creation': {
-          parsers: [null, parseInt, parseInt, parseInt, null, 'var-args'],
+          parsers: [null, parseInt, parseInt, parseInt, parseInt,
+                    null, 'var-args'],
           processor: this.processCodeCreation },
-      'code-move': { parsers: [parseInt, parseInt],
+      'code-deopt': {
+          parsers: [parseInt, parseInt, parseInt, parseInt, parseInt,
+                    null, null, null],
+          processor: this.processCodeDeopt },
+      'code-move': { parsers: [parseInt, parseInt, ],
           processor: this.processCodeMove },
       'code-delete': { parsers: [parseInt],
           processor: this.processCodeDelete },
@@ -266,15 +271,23 @@ TickProcessor.prototype.processSharedLibrary = function(
 
 
 TickProcessor.prototype.processCodeCreation = function(
-    type, kind, start, size, name, maybe_func) {
+    type, kind, timestamp, start, size, name, maybe_func) {
   name = this.deserializedEntriesNames_[start] || name;
   if (maybe_func.length) {
     var funcAddr = parseInt(maybe_func[0]);
     var state = parseState(maybe_func[1]);
-    this.profile_.addFuncCode(type, name, start, size, funcAddr, state);
+    this.profile_.addFuncCode(type, name, timestamp, start, size, funcAddr, state);
   } else {
-    this.profile_.addCode(type, name, start, size);
+    this.profile_.addCode(type, name, timestamp, start, size);
   }
+};
+
+
+TickProcessor.prototype.processCodeDeopt = function(
+    timestamp, size, code, inliningId, scriptOffset, bailoutType,
+    sourcePositionText, deoptReasonText) {
+  this.profile_.deoptCode(timestamp, code, inliningId, scriptOffset,
+      bailoutType, sourcePositionText, deoptReasonText);
 };
 
 
