@@ -2508,6 +2508,8 @@ class Suspend final : public Expression {
   static constexpr Flags kYieldStar = Flags::kYieldStar;
   static constexpr Flags kAwait = Flags::kAwait;
 
+  static constexpr Flags kAsyncGenerator = Flags::kAsyncGenerator;
+
   Expression* generator_object() const { return generator_object_; }
   Expression* expression() const { return expression_; }
   OnException on_exception() const {
@@ -2525,6 +2527,9 @@ class Suspend final : public Expression {
   bool is_yield() const { return suspend_type() == Flags::kYield; }
   bool is_yield_star() const { return suspend_type() == Flags::kYieldStar; }
   bool is_await() const { return suspend_type() == Flags::kAwait; }
+  bool is_async_generator() const {
+    return (suspend_type() & Flags::kGeneratorTypeMask) == kAsyncGenerator;
+  }
 
   void set_generator_object(Expression* e) { generator_object_ = e; }
   void set_expression(Expression* e) { expression_ = e; }

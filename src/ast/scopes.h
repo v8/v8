@@ -704,6 +704,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Ignition without ScopeInfo.
   Variable* DeclareGeneratorObjectVar(const AstRawString* name);
   Variable* DeclarePromiseVar(const AstRawString* name);
+  Variable* DeclareAsyncGeneratorAwaitVar(const AstRawString* name);
 
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
@@ -756,7 +757,14 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   Variable* promise_var() const {
     DCHECK(is_function_scope());
     DCHECK(IsAsyncFunction(function_kind_));
+    if (IsAsyncGeneratorFunction(function_kind_)) return nullptr;
     return GetRareVariable(RareVariable::kPromise);
+  }
+
+  Variable* async_generator_await_var() const {
+    DCHECK(is_function_scope());
+    DCHECK(IsAsyncGeneratorFunction(function_kind_));
+    return GetRareVariable(RareVariable::kAsyncGeneratorAwaitResult);
   }
 
   // Parameters. The left-most parameter has index 0.
@@ -936,7 +944,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   enum class RareVariable {
     kThisFunction = offsetof(RareData, this_function),
     kGeneratorObject = offsetof(RareData, generator_object),
-    kPromise = offsetof(RareData, promise)
+    kPromise = offsetof(RareData, promise),
+    kAsyncGeneratorAwaitResult = kPromise
   };
 
   V8_INLINE RareData* EnsureRareData() {

@@ -9637,34 +9637,44 @@ TEST(ForAwaitOf) {
   const char* context_data[][2] = {
     { "async function f() { for await ", " ; }" },
     { "async function f() { for await ", " { } }" },
+    { "async function * f() { for await ", " { } }" },
     { "async function f() { 'use strict'; for await ", " ; }" },
     { "async function f() { 'use strict'; for await ", "  { } }" },
+    { "async function * f() { 'use strict'; for await ", "  { } }" },
     { "async function f() { for\nawait ", " ; }" },
     { "async function f() { for\nawait ", " { } }" },
+    { "async function * f() { for\nawait ", " { } }" },
     { "async function f() { 'use strict'; for\nawait ", " ; }" },
     { "async function f() { 'use strict'; for\nawait ", " { } }" },
-    { "async function f() { 'use strict'; for\nawait ", " { } }" },
+    { "async function * f() { 'use strict'; for\nawait ", " { } }" },
     { "async function f() { for await\n", " ; }" },
     { "async function f() { for await\n", " { } }" },
+    { "async function * f() { for await\n", " { } }" },
     { "async function f() { 'use strict'; for await\n", " ; }" },
     { "async function f() { 'use strict'; for await\n", " { } }" },
+    { "async function * f() { 'use strict'; for await\n", " { } }" },
     { NULL, NULL }
   };
 
   const char* context_data2[][2] = {
     { "async function f() { let a; for await ", " ; }" },
     { "async function f() { let a; for await ", " { } }" },
+    { "async function * f() { let a; for await ", " { } }" },
     { "async function f() { 'use strict'; let a; for await ", " ; }" },
     { "async function f() { 'use strict'; let a; for await ", "  { } }" },
+    { "async function * f() { 'use strict'; let a; for await ", "  { } }" },
     { "async function f() { let a; for\nawait ", " ; }" },
     { "async function f() { let a; for\nawait ", " { } }" },
+    { "async function * f() { let a; for\nawait ", " { } }" },
     { "async function f() { 'use strict'; let a; for\nawait ", " ; }" },
     { "async function f() { 'use strict'; let a; for\nawait ", " { } }" },
-    { "async function f() { 'use strict'; let a; for\nawait ", " { } }" },
+    { "async function * f() { 'use strict'; let a; for\nawait ", " { } }" },
     { "async function f() { let a; for await\n", " ; }" },
     { "async function f() { let a; for await\n", " { } }" },
+    { "async function * f() { let a; for await\n", " { } }" },
     { "async function f() { 'use strict'; let a; for await\n", " ; }" },
     { "async function f() { 'use strict'; let a; for await\n", " { } }" },
+    { "async function * f() { 'use strict'; let a; for await\n", " { } }" },
     { NULL, NULL }
   };
 
@@ -9775,6 +9785,10 @@ TEST(ForAwaitOfErrors) {
     { "async function f() { for await ", " { } }" },
     { "async function f() { 'use strict'; for await ", " ; }" },
     { "async function f() { 'use strict'; for await ", "  { } }" },
+    { "async function * f() { for await ", " ; }" },
+    { "async function * f() { for await ", " { } }" },
+    { "async function * f() { 'use strict'; for await ", " ; }" },
+    { "async function * f() { 'use strict'; for await ", "  { } }" },
     { NULL, NULL }
   };
 
@@ -9949,5 +9963,194 @@ TEST(ForAwaitOfFunctionDeclaration) {
   // clang-format on
   static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
   RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+TEST(AsyncGenerator) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "async function * gen() {", "}" },
+    { "(async function * gen() {", "})" },
+    { "(async function * () {", "})" },
+    { "({ async * gen () {", "} })" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    // An async generator without a body is valid.
+    ""
+    // Valid yield expressions inside generators.
+    "yield 2;",
+    "yield * 2;",
+    "yield * \n 2;",
+    "yield yield 1;",
+    "yield * yield * 1;",
+    "yield 3 + (yield 4);",
+    "yield * 3 + (yield * 4);",
+    "(yield * 3) + (yield * 4);",
+    "yield 3; yield 4;",
+    "yield * 3; yield * 4;",
+    "(function (yield) { })",
+    "(function yield() { })",
+    "(function (await) { })",
+    "(function await() { })",
+    "yield { yield: 12 }",
+    "yield /* comment */ { yield: 12 }",
+    "yield * \n { yield: 12 }",
+    "yield /* comment */ * \n { yield: 12 }",
+    // You can return in an async generator.
+    "yield 1; return",
+    "yield * 1; return",
+    "yield 1; return 37",
+    "yield * 1; return 37",
+    "yield 1; return 37; yield 'dead';",
+    "yield * 1; return 37; yield * 'dead';",
+    // Yield/Await are still a valid key in object literals.
+    "({ yield: 1 })",
+    "({ get yield() { } })",
+    "({ await: 1 })",
+    "({ get await() { } })",
+    // And in assignment pattern computed properties
+    "({ [yield]: x } = { })",
+    "({ [await 1]: x } = { })",
+    // Yield without RHS.
+    "yield;",
+    "yield",
+    "yield\n",
+    "yield /* comment */"
+    "yield // comment\n"
+    "(yield)",
+    "[yield]",
+    "{yield}",
+    "yield, yield",
+    "yield; yield",
+    "(yield) ? yield : yield",
+    "(yield) \n ? yield : yield",
+    // If there is a newline before the next token, we don't look for RHS.
+    "yield\nfor (;;) {}",
+    "x = class extends (yield) {}",
+    "x = class extends f(yield) {}",
+    "x = class extends (null, yield) { }",
+    "x = class extends (a ? null : yield) { }",
+    "x = class extends (await 10) {}",
+    "x = class extends f(await 10) {}",
+    "x = class extends (null, await 10) { }",
+    "x = class extends (a ? null : await 10) { }",
+
+    // More tests featuring AwaitExpressions
+    "await 10",
+    "await 10; return",
+    "await 10; return 20",
+    "await 10; return 20; yield 'dead'",
+    "await (yield 10)",
+    "await (yield 10); return",
+    "await (yield 10); return 20",
+    "await (yield 10); return 20; yield 'dead'",
+    "yield await 10",
+    "yield await 10; return",
+    "yield await 10; return 20",
+    "yield await 10; return 20; yield 'dead'",
+    "await /* comment */ 10",
+    "await // comment\n 10",
+    "yield await /* comment\n */ 10",
+    "yield await // comment\n 10",
+    "await (yield /* comment */)",
+    "await (yield // comment\n)",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+TEST(AsyncGeneratorErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "async function * gen() {", "}" },
+    { "\"use strict\"; async function * gen() {", "}" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    // Invalid yield expressions inside generators.
+    "var yield;",
+    "var await;",
+    "var foo, yield;",
+    "var foo, await;",
+    "try { } catch (yield) { }",
+    "try { } catch (await) { }",
+    "function yield() { }",
+    "function await() { }",
+    // The name of the NFE is bound in the generator, which does not permit
+    // yield or await to be identifiers.
+    "(async function * yield() { })",
+    "(async function * await() { })",
+    // Yield and Await aren't valid as a formal parameter for generators.
+    "async function * foo(yield) { }",
+    "(async function * foo(yield) { })",
+    "async function * foo(await) { }",
+    "(async function * foo(await) { })",
+    "yield = 1;",
+    "await = 1;",
+    "var foo = yield = 1;",
+    "var foo = await = 1;",
+    "++yield;",
+    "++await;",
+    "yield++;",
+    "await++;",
+    "yield *",
+    "(yield *)",
+    // Yield binds very loosely, so this parses as "yield (3 + yield 4)", which
+    // is invalid.
+    "yield 3 + yield 4;",
+    "yield: 34",
+    "yield ? 1 : 2",
+    // Parses as yield (/ yield): invalid.
+    "yield / yield",
+    "+ yield",
+    "+ yield 3",
+    // Invalid (no newline allowed between yield and *).
+    "yield\n*3",
+    // Invalid (we see a newline, so we parse {yield:42} as a statement, not an
+    // object literal, and yield is not a valid label).
+    "yield\n{yield: 42}",
+    "yield /* comment */\n {yield: 42}",
+    "yield //comment\n {yield: 42}",
+    // Destructuring binding and assignment are both disallowed
+    "var [yield] = [42];",
+    "var [await] = [42];",
+    "var {foo: yield} = {a: 42};",
+    "var {foo: await} = {a: 42};",
+    "[yield] = [42];",
+    "[await] = [42];",
+    "({a: yield} = {a: 42});",
+    "({a: await} = {a: 42});",
+    // Also disallow full yield/await expressions on LHS
+    "var [yield 24] = [42];",
+    "var [await 24] = [42];",
+    "var {foo: yield 24} = {a: 42};",
+    "var {foo: await 24} = {a: 42};",
+    "[yield 24] = [42];",
+    "[await 24] = [42];",
+    "({a: yield 24} = {a: 42});",
+    "({a: await 24} = {a: 42});",
+    "for (yield 'x' in {});",
+    "for (await 'x' in {});",
+    "for (yield 'x' of {});",
+    "for (await 'x' of {});",
+    "for (yield 'x' in {} in {});",
+    "for (await 'x' in {} in {});",
+    "for (yield 'x' in {} of {});",
+    "for (await 'x' in {} of {});",
+    "class C extends yield { }",
+    "class C extends await { }",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
+  RunParserSyncTest(context_data, statement_data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
 }

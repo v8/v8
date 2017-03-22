@@ -179,6 +179,7 @@ struct ParserTypes<Parser> {
   typedef v8::internal::FunctionLiteral* FunctionLiteral;
   typedef ObjectLiteral::Property* ObjectLiteralProperty;
   typedef ClassLiteral::Property* ClassLiteralProperty;
+  typedef v8::internal::Suspend* Suspend;
   typedef ZoneList<v8::internal::Expression*>* ExpressionList;
   typedef ZoneList<ObjectLiteral::Property*>* ObjectPropertyList;
   typedef ZoneList<ClassLiteral::Property*>* ClassPropertyList;
@@ -673,6 +674,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* BuildResolvePromise(Expression* value, int pos);
   Expression* BuildRejectPromise(Expression* value, int pos);
   Variable* PromiseVariable();
+  Variable* AsyncGeneratorAwaitVariable();
 
   // Generic AST generator for throwing errors from compiled code.
   Expression* NewThrowError(Runtime::FunctionId function_id,
@@ -687,7 +689,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
                                     IteratorType type, int pos);
   void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
-                          Variable* input, Variable* output);
+                          Variable* input, Variable* output, IteratorType type);
   void BuildIteratorCloseForCompletion(Scope* scope,
                                        ZoneList<Statement*>* statements,
                                        Variable* iterator,

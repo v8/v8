@@ -324,10 +324,17 @@ void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
   // has to stash it somewhere. Changing the runtime function into another
   // one in ast-numbering seemed like a simple and straightforward solution to
   // that problem.
-  if (node->is_jsruntime() &&
-      node->context_index() == Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX &&
-      catch_prediction_ == HandlerTable::ASYNC_AWAIT) {
-    node->set_context_index(Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX);
+  if (node->is_jsruntime() && catch_prediction_ == HandlerTable::ASYNC_AWAIT) {
+    switch (node->context_index()) {
+      case Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX:
+        node->set_context_index(Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX);
+        break;
+      case Context::ASYNC_GENERATOR_AWAIT_CAUGHT:
+        node->set_context_index(Context::ASYNC_GENERATOR_AWAIT_UNCAUGHT);
+        break;
+      default:
+        break;
+    }
   }
 }
 

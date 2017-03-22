@@ -77,6 +77,36 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
   return generator->input_or_debug_pos();
 }
 
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorGetAwaitInput) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  // To be implemented in a followup CL
+  UNREACHABLE();
+
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorReturn) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  // To be implemented in a followup CL
+  UNREACHABLE();
+
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorReject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  // To be implemented in a followup CL
+  UNREACHABLE();
+
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

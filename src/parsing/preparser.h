@@ -834,6 +834,7 @@ struct ParserTypes<PreParser> {
   typedef PreParserExpression FunctionLiteral;
   typedef PreParserExpression ObjectLiteralProperty;
   typedef PreParserExpression ClassLiteralProperty;
+  typedef PreParserExpression Suspend;
   typedef PreParserExpressionList ExpressionList;
   typedef PreParserExpressionList ObjectPropertyList;
   typedef PreParserExpressionList ClassPropertyList;

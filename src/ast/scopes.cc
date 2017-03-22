@@ -767,6 +767,16 @@ Variable* DeclarationScope::DeclarePromiseVar(const AstRawString* name) {
   return result;
 }
 
+Variable* DeclarationScope::DeclareAsyncGeneratorAwaitVar(
+    const AstRawString* name) {
+  DCHECK(is_function_scope());
+  DCHECK_NULL(async_generator_await_var());
+  Variable* result = EnsureRareData()->promise = NewTemporary(name);
+  DCHECK_NULL(promise_var());  // promise is alias for generator await var
+  result->set_is_used();
+  return result;
+}
+
 bool Scope::HasBeenRemoved() const {
   if (sibling() == this) {
     DCHECK_NULL(inner_scope_);
