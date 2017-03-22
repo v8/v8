@@ -29,7 +29,8 @@ class BlockingCompilationJob : public CompilationJob {
       : CompilationJob(isolate, &info_, "BlockingCompilationJob",
                        State::kReadyToExecute),
         parse_info_(handle(function->shared())),
-        info_(parse_info_.zone(), &parse_info_, function),
+        info_(parse_info_.zone(), &parse_info_, function->GetIsolate(),
+              function),
         blocking_(false),
         semaphore_(0) {}
   ~BlockingCompilationJob() override = default;

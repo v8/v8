@@ -532,7 +532,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
 
   ParseInfo parse_info(shared_info);
   CompilationInfo info(parse_info.zone(), &parse_info,
-                       Handle<JSFunction>::null());
+                       shared_info->GetIsolate(), Handle<JSFunction>::null());
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   info.MarkAsOptimizeFromBytecode();
 

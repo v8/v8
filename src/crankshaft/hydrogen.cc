@@ -8101,7 +8101,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
       top_info()->parse_info()->ast_value_factory());
   parse_info.set_ast_value_factory_owned(false);
 
-  CompilationInfo target_info(parse_info.zone(), &parse_info, target);
+  CompilationInfo target_info(parse_info.zone(), &parse_info,
+                              target->GetIsolate(), target);
 
   if (inlining_kind != CONSTRUCT_CALL_RETURN &&
       IsClassConstructor(target_shared->kind())) {

@@ -577,7 +577,7 @@ bool CompileUnoptimizedInnerFunctions(
     } else {
       // Otherwise generate unoptimized code now.
       ParseInfo parse_info(script);
-      CompilationInfo info(parse_info.zone(), &parse_info,
+      CompilationInfo info(parse_info.zone(), &parse_info, isolate,
                            Handle<JSFunction>::null());
 
       parse_info.set_literal(literal);
@@ -1038,7 +1038,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   VMState<COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
   ParseInfo parse_info(handle(function->shared()));
-  CompilationInfo info(parse_info.zone(), &parse_info, function);
+  CompilationInfo info(parse_info.zone(), &parse_info, isolate, function);
 
   DCHECK(function->shared()->is_compiled());
 
@@ -1163,7 +1163,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 
   ParseInfo parse_info(handle(function->shared()));
   Zone compile_zone(isolate->allocator(), ZONE_NAME);
-  CompilationInfo info(&compile_zone, &parse_info, function);
+  CompilationInfo info(&compile_zone, &parse_info, isolate, function);
   if (FLAG_preparser_scope_analysis) {
     Handle<SharedFunctionInfo> shared(function->shared());
     Handle<Script> script(Script::cast(function->shared()->script()));
@@ -1390,7 +1390,7 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
 
   // Start a compilation.
   ParseInfo parse_info(shared);
-  CompilationInfo info(parse_info.zone(), &parse_info,
+  CompilationInfo info(parse_info.zone(), &parse_info, isolate,
                        Handle<JSFunction>::null());
   info.MarkAsDebug();
   if (GetUnoptimizedCode(&info, Compiler::NOT_CONCURRENT).is_null()) {
@@ -1419,7 +1419,8 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   // Start a compilation.
   ParseInfo parse_info(script);
   Zone compile_zone(isolate->allocator(), ZONE_NAME);
-  CompilationInfo info(&compile_zone, &parse_info, Handle<JSFunction>::null());
+  CompilationInfo info(&compile_zone, &parse_info, isolate,
+                       Handle<JSFunction>::null());
   info.MarkAsDebug();
 
   // TODO(635): support extensions.
@@ -1472,7 +1473,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
   if (!shared->has_deoptimization_support()) {
     Zone compile_zone(info->isolate()->allocator(), ZONE_NAME);
     CompilationInfo unoptimized(&compile_zone, info->parse_info(),
-                                info->closure());
+                                info->isolate(), info->closure());
     unoptimized.EnableDeoptimizationSupport();
 
     // Don't generate full-codegen code for functions it can't support.
@@ -1591,7 +1592,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
     ParseInfo parse_info(script);
     Zone compile_zone(isolate->allocator(), ZONE_NAME);
-    CompilationInfo info(&compile_zone, &parse_info,
+    CompilationInfo info(&compile_zone, &parse_info, isolate,
                          Handle<JSFunction>::null());
     parse_info.set_eval();
     parse_info.set_language_mode(language_mode);
@@ -1803,7 +1804,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     // Compile the function and add it to the cache.
     ParseInfo parse_info(script);
     Zone compile_zone(isolate->allocator(), ZONE_NAME);
-    CompilationInfo info(&compile_zone, &parse_info,
+    CompilationInfo info(&compile_zone, &parse_info, isolate,
                          Handle<JSFunction>::null());
     if (resource_options.IsModule()) parse_info.set_module();
     if (compile_options != ScriptCompiler::kNoCompileOptions) {
@@ -1872,7 +1873,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
       static_cast<LanguageMode>(parse_info->language_mode() | language_mode));
 
   Zone compile_zone(isolate->allocator(), ZONE_NAME);
-  CompilationInfo compile_info(&compile_zone, parse_info,
+  CompilationInfo compile_info(&compile_zone, parse_info, isolate,
                                Handle<JSFunction>::null());
 
   // The source was parsed lazily, so compiling for debugging is not possible.

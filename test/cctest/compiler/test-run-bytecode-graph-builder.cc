@@ -125,7 +125,8 @@ class BytecodeGraphTester {
     // having to instantiate a ParseInfo first. Fix this!
     ParseInfo parse_info(handle(function->shared()));
 
-    CompilationInfo compilation_info(parse_info.zone(), &parse_info, function);
+    CompilationInfo compilation_info(parse_info.zone(), &parse_info,
+                                     function->GetIsolate(), function);
     compilation_info.SetOptimizing();
     compilation_info.MarkAsDeoptimizationEnabled();
     compilation_info.MarkAsOptimizeFromBytecode();

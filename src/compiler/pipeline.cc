@@ -550,10 +550,11 @@ class PipelineCompilationJob final : public CompilationJob {
   PipelineCompilationJob(ParseInfo* parse_info, Handle<JSFunction> function)
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
-      : CompilationJob(parse_info->isolate(), &info_, "TurboFan"),
+      : CompilationJob(function->GetIsolate(), &info_, "TurboFan"),
         parse_info_(parse_info),
-        zone_stats_(parse_info->isolate()->allocator()),
-        info_(parse_info_.get()->zone(), parse_info_.get(), function),
+        zone_stats_(function->GetIsolate()->allocator()),
+        info_(parse_info_.get()->zone(), parse_info_.get(),
+              function->GetIsolate(), function),
         pipeline_statistics_(CreatePipelineStatistics(info(), &zone_stats_)),
         data_(&zone_stats_, info(), pipeline_statistics_.get()),
         pipeline_(&data_),
