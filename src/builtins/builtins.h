@@ -285,24 +285,24 @@ class Isolate;
   /* ES6 #sec-array.prototype.unshift */                                       \
   CPP(ArrayUnshift)                                                            \
   /* ES6 #sec-array.prototype.foreach */                                       \
-  TFJ(ArrayForEachLoopContinuation, 6, kCallbackFn, kThisArg, kArray, kObject, \
-      kInitialK, kLength)                                                      \
+  TFJ(ArrayForEachLoopContinuation, 7, kCallbackFn, kThisArg, kArray, kObject, \
+      kInitialK, kLength, kTo)                                                 \
   TFJ(ArrayForEach, 2, kCallbackFn, kThisArg)                                  \
   /* ES6 #sec-array.prototype.every */                                         \
-  TFJ(ArrayEveryLoopContinuation, 6, kCallbackFn, kThisArg, kArray, kObject,   \
-      kInitialK, kLength)                                                      \
+  TFJ(ArrayEveryLoopContinuation, 7, kCallbackFn, kThisArg, kArray, kObject,   \
+      kInitialK, kLength, kTo)                                                 \
   TFJ(ArrayEvery, 2, kCallbackFn, kThisArg)                                    \
   /* ES6 #sec-array.prototype.some */                                          \
-  TFJ(ArraySomeLoopContinuation, 6, kCallbackFn, kThisArg, kArray, kObject,    \
-      kInitialK, kLength)                                                      \
+  TFJ(ArraySomeLoopContinuation, 7, kCallbackFn, kThisArg, kArray, kObject,    \
+      kInitialK, kLength, kTo)                                                 \
   TFJ(ArraySome, 2, kCallbackFn, kThisArg)                                     \
   /* ES6 #sec-array.prototype.filter */                                        \
-  TFJ(ArrayFilterLoopContinuation, 6, kCallbackFn, kThisArg, kArray, kObject,  \
-      kInitialK, kLength)                                                      \
+  TFJ(ArrayFilterLoopContinuation, 7, kCallbackFn, kThisArg, kArray, kObject,  \
+      kInitialK, kLength, kTo)                                                 \
   TFJ(ArrayFilter, 2, kCallbackFn, kThisArg)                                   \
   /* ES6 #sec-array.prototype.reduce */                                        \
-  TFJ(ArrayReduceLoopContinuation, 6, kCallbackFn, kThisArg, kAccumulator,     \
-      kObject, kInitialK, kLength)                                             \
+  TFJ(ArrayReduceLoopContinuation, 7, kCallbackFn, kThisArg, kAccumulator,     \
+      kObject, kInitialK, kLength, kTo)                                        \
   TFJ(ArrayReduce, 2, kCallbackFn, kInitialValue)                              \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0)                                                \

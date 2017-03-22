@@ -34,6 +34,8 @@
 #define REPEAT_1_TO_10(V, T) REPEAT_1_TO_9(V, T) V(T, T, T, T, T, T, T, T, T, T)
 #define REPEAT_1_TO_11(V, T) \
   REPEAT_1_TO_10(V, T) V(T, T, T, T, T, T, T, T, T, T, T)
+#define REPEAT_1_TO_12(V, T) \
+  REPEAT_1_TO_11(V, T) V(T, T, T, T, T, T, T, T, T, T, T, T)
 
 namespace v8 {
 namespace internal {
@@ -630,7 +632,7 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
 #define INSTANTIATE(...)                                        \
   template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallStub( \
       const CallInterfaceDescriptor& descriptor, Node*, __VA_ARGS__);
-REPEAT_1_TO_11(INSTANTIATE, Node*)
+REPEAT_1_TO_12(INSTANTIATE, Node*)
 #undef INSTANTIATE
 
 template <class... TArgs>

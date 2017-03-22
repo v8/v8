@@ -728,7 +728,7 @@ class IteratingArrayBuiltinLoopContinuationDescriptor
     : public BuiltinDescriptor {
  public:
   DEFINE_BUILTIN_PARAMETERS(kCallback, kThisArg, kArray, kObject, kInitialK,
-                            kLength)
+                            kLength, kTo)
   DECLARE_BUILTIN_DESCRIPTOR(IteratingArrayBuiltinLoopContinuationDescriptor)
 };
 

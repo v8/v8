@@ -128,24 +128,6 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     return ArraySpeciesCreate(context(), o(), SmiConstant(0));
   }
 
-  void FilterResultIndexReinitializer() {
-    Variable merged_length(this, MachineRepresentation::kTagged);
-    Label has_length(this, &merged_length), not_js_array(this);
-    GotoIf(DoesntHaveInstanceType(a(), JS_ARRAY_TYPE), &not_js_array);
-    merged_length.Bind(LoadJSArrayLength(a()));
-    Goto(&has_length);
-    Bind(&not_js_array);
-    Node* len_property =
-        GetProperty(context(), a(), isolate()->factory()->length_string());
-    merged_length.Bind(
-        CallStub(CodeFactory::ToLength(isolate()), context(), len_property));
-    Goto(&has_length);
-    Bind(&has_length);
-    Node* len = merged_length.value();
-
-    to_.Bind(len);
-  }
-
   Node* FilterProcessor(Node* k_value, Node* k) {
     Node* callback_result = CallJS(CodeFactory::Call(isolate()), context(),
                                    callbackfn(), this_arg(), k_value, k, o());
@@ -166,8 +148,6 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   }
 
   void NullPostLoopAction() {}
-
-  void NullResultIndexReinitializer() {}
 
  protected:
   Node* context() { return context_; }
@@ -273,14 +253,14 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
         slow_case_continuation, context(), target, new_target(),
         Int32Constant(IteratingArrayBuiltinLoopContinuationDescriptor::kArity),
         receiver(), callbackfn(), this_arg(), a_.value(), o(), k_.value(),
-        len());
+        len(), to_.value());
   }
 
   void InitIteratingArrayBuiltinLoopContinuation(Node* context, Node* receiver,
                                                  Node* callbackfn,
                                                  Node* this_arg, Node* a,
                                                  Node* o, Node* initial_k,
-                                                 Node* len) {
+                                                 Node* len, Node* to) {
     context_ = context;
     this_arg_ = this_arg;
     callbackfn_ = callbackfn;
@@ -288,13 +268,11 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     k_.Bind(initial_k);
     o_ = o;
     len_ = len;
+    to_.Bind(to);
   }
 
   void GenerateIteratingArrayBuiltinLoopContinuation(
-      const BuiltinResultIndexInitializer& index_initializer,
       const CallResultProcessor& processor, const PostLoopAction& action) {
-    index_initializer(this);
-
     // 8. Repeat, while k < len
     Label loop(this, {&k_, &a_, &to_});
     Label after_loop(this);
@@ -618,12 +596,13 @@ TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* initial_k = Parameter(Descriptor::kInitialK);
   Node* len = Parameter(Descriptor::kLength);
+  Node* to = Parameter(Descriptor::kTo);
 
-  InitIteratingArrayBuiltinLoopContinuation(
-      context, receiver, callbackfn, this_arg, array, object, initial_k, len);
+  InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
+                                            this_arg, array, object, initial_k,
+                                            len, to);
 
   GenerateIteratingArrayBuiltinLoopContinuation(
-      &ArrayBuiltinCodeStubAssembler::NullResultIndexReinitializer,
       &ArrayBuiltinCodeStubAssembler::ForEachProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
@@ -655,12 +634,13 @@ TF_BUILTIN(ArraySomeLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* initial_k = Parameter(Descriptor::kInitialK);
   Node* len = Parameter(Descriptor::kLength);
+  Node* to = Parameter(Descriptor::kTo);
 
-  InitIteratingArrayBuiltinLoopContinuation(
-      context, receiver, callbackfn, this_arg, array, object, initial_k, len);
+  InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
+                                            this_arg, array, object, initial_k,
+                                            len, to);
 
   GenerateIteratingArrayBuiltinLoopContinuation(
-      &ArrayBuiltinCodeStubAssembler::NullResultIndexReinitializer,
       &ArrayBuiltinCodeStubAssembler::SomeProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
@@ -692,12 +672,13 @@ TF_BUILTIN(ArrayEveryLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* initial_k = Parameter(Descriptor::kInitialK);
   Node* len = Parameter(Descriptor::kLength);
+  Node* to = Parameter(Descriptor::kTo);
 
-  InitIteratingArrayBuiltinLoopContinuation(
-      context, receiver, callbackfn, this_arg, array, object, initial_k, len);
+  InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
+                                            this_arg, array, object, initial_k,
+                                            len, to);
 
   GenerateIteratingArrayBuiltinLoopContinuation(
-      &ArrayBuiltinCodeStubAssembler::NullResultIndexReinitializer,
       &ArrayBuiltinCodeStubAssembler::EveryProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
@@ -729,13 +710,13 @@ TF_BUILTIN(ArrayReduceLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* initial_k = Parameter(Descriptor::kInitialK);
   Node* len = Parameter(Descriptor::kLength);
+  Node* to = Parameter(Descriptor::kTo);
 
   InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
                                             this_arg, accumulator, object,
-                                            initial_k, len);
+                                            initial_k, len, to);
 
   GenerateIteratingArrayBuiltinLoopContinuation(
-      &ArrayBuiltinCodeStubAssembler::NullResultIndexReinitializer,
       &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
       &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction);
 }
@@ -767,12 +748,13 @@ TF_BUILTIN(ArrayFilterLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* initial_k = Parameter(Descriptor::kInitialK);
   Node* len = Parameter(Descriptor::kLength);
+  Node* to = Parameter(Descriptor::kTo);
 
-  InitIteratingArrayBuiltinLoopContinuation(
-      context, receiver, callbackfn, this_arg, array, object, initial_k, len);
+  InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
+                                            this_arg, array, object, initial_k,
+                                            len, to);
 
   GenerateIteratingArrayBuiltinLoopContinuation(
-      &ArrayBuiltinCodeStubAssembler::FilterResultIndexReinitializer,
       &ArrayBuiltinCodeStubAssembler::FilterProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
