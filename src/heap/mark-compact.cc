@@ -1679,9 +1679,11 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
  protected:
   enum MigrationMode { kFast, kProfiled };
 
-  EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces)
+  EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces,
+                      RecordMigratedSlotVisitor* record_visitor)
       : heap_(heap),
         compaction_spaces_(compaction_spaces),
+        record_visitor_(record_visitor),
         profiling_(
             heap->isolate()->is_profiling() ||
             heap->isolate()->logger()->is_logging_code_events() ||
@@ -1726,8 +1728,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
         PROFILE(heap_->isolate(),
                 CodeMoveEvent(AbstractCode::cast(src), dst_addr));
       }
-      RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
-      dst->IterateBodyFast(dst->map()->instance_type(), size, &visitor);
+      dst->IterateBodyFast(dst->map()->instance_type(), size, record_visitor_);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, heap_->code_space());
       if (mode == kProfiled) {
@@ -1737,7 +1738,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       heap_->CopyBlock(dst_addr, src_addr, size);
       Code::cast(dst)->Relocate(dst_addr - src_addr);
       RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
-      dst->IterateBodyFast(dst->map()->instance_type(), size, &visitor);
+      dst->IterateBodyFast(dst->map()->instance_type(), size, record_visitor_);
     } else {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
@@ -1772,6 +1773,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   Heap* heap_;
   CompactionSpaceCollection* compaction_spaces_;
+  RecordMigratedSlotVisitor* record_visitor_;
   bool profiling_;
 };
 
@@ -1782,8 +1784,9 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 
   explicit EvacuateNewSpaceVisitor(Heap* heap,
                                    CompactionSpaceCollection* compaction_spaces,
+                                   RecordMigratedSlotVisitor* record_visitor,
                                    base::HashMap* local_pretenuring_feedback)
-      : EvacuateVisitorBase(heap, compaction_spaces),
+      : EvacuateVisitorBase(heap, compaction_spaces, record_visitor),
         buffer_(LocalAllocationBuffer::InvalidBuffer()),
         space_to_allocate_(NEW_SPACE),
         promoted_size_(0),
@@ -1921,8 +1924,10 @@ template <PageEvacuationMode mode>
 class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
  public:
   explicit EvacuateNewSpacePageVisitor(
-      Heap* heap, base::HashMap* local_pretenuring_feedback)
+      Heap* heap, RecordMigratedSlotVisitor* record_visitor,
+      base::HashMap* local_pretenuring_feedback)
       : heap_(heap),
+        record_visitor_(record_visitor),
         moved_bytes_(0),
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
@@ -1945,8 +1950,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
     heap_->UpdateAllocationSite<Heap::kCached>(object,
                                                local_pretenuring_feedback_);
     if (mode == NEW_TO_OLD) {
-      RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
-      object->IterateBodyFast(&visitor);
+      object->IterateBodyFast(record_visitor_);
     }
     return true;
   }
@@ -1956,6 +1960,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
 
  private:
   Heap* heap_;
+  RecordMigratedSlotVisitor* record_visitor_;
   intptr_t moved_bytes_;
   base::HashMap* local_pretenuring_feedback_;
 };
@@ -1963,8 +1968,9 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
 class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
  public:
   EvacuateOldSpaceVisitor(Heap* heap,
-                          CompactionSpaceCollection* compaction_spaces)
-      : EvacuateVisitorBase(heap, compaction_spaces) {}
+                          CompactionSpaceCollection* compaction_spaces,
+                          RecordMigratedSlotVisitor* record_visitor)
+      : EvacuateVisitorBase(heap, compaction_spaces, record_visitor) {}
 
   inline bool Visit(HeapObject* object) override {
     CompactionSpace* target_space = compaction_spaces_->Get(
@@ -3080,20 +3086,24 @@ class Evacuator : public Malloced {
     return Page::kAllocatableMemory + kPointerSize;
   }
 
-  explicit Evacuator(Heap* heap)
+  Evacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)
       : heap_(heap),
         compaction_spaces_(heap_),
         local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
-        new_space_visitor_(heap_, &compaction_spaces_,
+        new_space_visitor_(heap_, &compaction_spaces_, record_visitor,
                            &local_pretenuring_feedback_),
-        new_to_new_page_visitor_(heap_, &local_pretenuring_feedback_),
-        new_to_old_page_visitor_(heap_, &local_pretenuring_feedback_),
+        new_to_new_page_visitor_(heap_, record_visitor,
+                                 &local_pretenuring_feedback_),
+        new_to_old_page_visitor_(heap_, record_visitor,
+                                 &local_pretenuring_feedback_),
 
-        old_space_visitor_(heap_, &compaction_spaces_),
+        old_space_visitor_(heap_, &compaction_spaces_, record_visitor),
         duration_(0.0),
         bytes_compacted_(0) {}
 
-  inline bool EvacuatePage(Page* chunk);
+  virtual ~Evacuator() {}
+
+  virtual bool EvacuatePage(Page* page, const MarkingState& state) = 0;
 
   // Merge back locally cached info sequentially. Note that this method needs
   // to be called from the main thread.
@@ -3102,7 +3112,7 @@ class Evacuator : public Malloced {
   CompactionSpaceCollection* compaction_spaces() { return &compaction_spaces_; }
   AllocationInfo CloseNewSpaceLAB() { return new_space_visitor_.CloseLAB(); }
 
- private:
+ protected:
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
   inline Heap* heap() { return heap_; }
@@ -3131,16 +3141,41 @@ class Evacuator : public Malloced {
   intptr_t bytes_compacted_;
 };
 
-bool Evacuator::EvacuatePage(Page* page) {
+void Evacuator::Finalize() {
+  heap()->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
+  heap()->code_space()->MergeCompactionSpace(
+      compaction_spaces_.Get(CODE_SPACE));
+  heap()->tracer()->AddCompactionEvent(duration_, bytes_compacted_);
+  heap()->IncrementPromotedObjectsSize(new_space_visitor_.promoted_size() +
+                                       new_to_old_page_visitor_.moved_bytes());
+  heap()->IncrementSemiSpaceCopiedObjectSize(
+      new_space_visitor_.semispace_copied_size() +
+      new_to_new_page_visitor_.moved_bytes());
+  heap()->IncrementYoungSurvivorsCounter(
+      new_space_visitor_.promoted_size() +
+      new_space_visitor_.semispace_copied_size() +
+      new_to_old_page_visitor_.moved_bytes() +
+      new_to_new_page_visitor_.moved_bytes());
+  heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
+}
+
+class FullEvacuator : public Evacuator {
+ public:
+  FullEvacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)
+      : Evacuator(heap, record_visitor) {}
+
+  bool EvacuatePage(Page* page, const MarkingState& state) override;
+};
+
+bool FullEvacuator::EvacuatePage(Page* page, const MarkingState& state) {
   bool success = false;
   DCHECK(page->SweepingDone());
-  int saved_live_bytes = page->LiveBytes();
+  int saved_live_bytes = *state.live_bytes;
   double evacuation_time = 0.0;
   {
     AlwaysAllocateScope always_allocate(heap()->isolate());
     TimedScope timed_scope(&evacuation_time);
     LiveObjectVisitor object_visitor;
-    const MarkingState state = MarkingState::FromPageInternal(page);
     switch (ComputeEvacuationMode(page)) {
       case kObjectsNewToOld:
         success =
@@ -3209,24 +3244,6 @@ bool Evacuator::EvacuatePage(Page* page) {
   return success;
 }
 
-void Evacuator::Finalize() {
-  heap()->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
-  heap()->code_space()->MergeCompactionSpace(
-      compaction_spaces_.Get(CODE_SPACE));
-  heap()->tracer()->AddCompactionEvent(duration_, bytes_compacted_);
-  heap()->IncrementPromotedObjectsSize(new_space_visitor_.promoted_size() +
-                                       new_to_old_page_visitor_.moved_bytes());
-  heap()->IncrementSemiSpaceCopiedObjectSize(
-      new_space_visitor_.semispace_copied_size() +
-      new_to_new_page_visitor_.moved_bytes());
-  heap()->IncrementYoungSurvivorsCounter(
-      new_space_visitor_.promoted_size() +
-      new_space_visitor_.semispace_copied_size() +
-      new_to_old_page_visitor_.moved_bytes() +
-      new_to_new_page_visitor_.moved_bytes());
-  heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
-}
-
 int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
                                                           intptr_t live_bytes) {
   if (!FLAG_parallel_compaction) return 1;
@@ -3264,7 +3281,8 @@ class EvacuationJobTraits {
 
   static bool ProcessPageInParallel(Heap* heap, PerTaskData evacuator,
                                     MemoryChunk* chunk, PerPageData) {
-    return evacuator->EvacuatePage(reinterpret_cast<Page*>(chunk));
+    return evacuator->EvacuatePage(reinterpret_cast<Page*>(chunk),
+                                   MarkingState::FromPageInternal(chunk));
   }
 
   static void FinalizePageSequentially(Heap* heap, MemoryChunk* chunk,
@@ -3338,9 +3356,10 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   const int wanted_num_tasks =
       NumberOfParallelCompactionTasks(job.NumberOfPages(), live_bytes);
-  Evacuator** evacuators = new Evacuator*[wanted_num_tasks];
+  FullEvacuator** evacuators = new FullEvacuator*[wanted_num_tasks];
+  RecordMigratedSlotVisitor record_visitor(this);
   for (int i = 0; i < wanted_num_tasks; i++) {
-    evacuators[i] = new Evacuator(heap());
+    evacuators[i] = new FullEvacuator(heap(), &record_visitor);
   }
   job.Run(wanted_num_tasks, [evacuators](int i) { return evacuators[i]; });
   const Address top = heap()->new_space()->top();
