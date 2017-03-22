@@ -566,7 +566,8 @@ class Debug {
     // Step action for last step performed.
     StepAction last_step_action_;
 
-    // If set then this function will be ignored in PrepareStepIn call.
+    // If set, next PrepareStepIn will ignore this function until stepped into
+    // another function, at which point this will be cleared.
     Object* ignore_step_into_function_;
 
     // If set then we need to repeat StepOut action at return.

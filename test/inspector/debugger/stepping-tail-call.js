@@ -5,11 +5,11 @@
 InspectorTest.log('Checks stepping over tail calls.');
 
 InspectorTest.setupScriptMap();
-InspectorTest.dumpProtocolCommand('Debugger.pause');
-InspectorTest.dumpProtocolCommand('Debugger.stepInto');
-InspectorTest.dumpProtocolCommand('Debugger.stepOver');
-InspectorTest.dumpProtocolCommand('Debugger.stepOut');
-InspectorTest.dumpProtocolCommand('Debugger.resume');
+InspectorTest.logProtocolCommandCalls('Debugger.pause');
+InspectorTest.logProtocolCommandCalls('Debugger.stepInto');
+InspectorTest.logProtocolCommandCalls('Debugger.stepOver');
+InspectorTest.logProtocolCommandCalls('Debugger.stepOut');
+InspectorTest.logProtocolCommandCalls('Debugger.resume');
 
 let source = `
 function f(x) {
