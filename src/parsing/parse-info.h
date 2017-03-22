@@ -211,19 +211,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
-  Isolate* isolate() const { return isolate_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_; }
   Handle<Script> script() const { return script_; }
   MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
     return maybe_outer_scope_info_;
   }
   void clear_script() { script_ = Handle<Script>::null(); }
-  void set_isolate(Isolate* isolate) {
-    if (isolate) {
-      InitFromIsolate(isolate);
-    }
-    isolate_ = isolate;
-  }
   void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
   void set_outer_scope_info(Handle<ScopeInfo> outer_scope_info) {
     maybe_outer_scope_info_ = outer_scope_info;
@@ -297,8 +290,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int function_literal_id_;
   int max_function_literal_id_;
 
-  // TODO(titzer): Move handles and isolate out of ParseInfo.
-  Isolate* isolate_;
+  // TODO(titzer): Move handles out of ParseInfo.
   Handle<SharedFunctionInfo> shared_;
   Handle<Script> script_;
   MaybeHandle<ScopeInfo> maybe_outer_scope_info_;

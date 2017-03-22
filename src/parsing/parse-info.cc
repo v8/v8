@@ -34,7 +34,6 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       parameters_end_pos_(kNoSourcePosition),
       function_literal_id_(FunctionLiteral::kIdTypeInvalid),
       max_function_literal_id_(FunctionLiteral::kIdTypeInvalid),
-      isolate_(nullptr),
       cached_data_(nullptr),
       ast_value_factory_(nullptr),
       ast_string_constants_(nullptr),
@@ -46,8 +45,8 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
 ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
     : ParseInfo(shared->GetIsolate()->allocator()) {
   Isolate* isolate = shared->GetIsolate();
+  InitFromIsolate(isolate);
 
-  set_isolate(isolate);
   set_toplevel(shared->is_toplevel());
   set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_is_named_expression(shared->is_named_expression());
@@ -81,7 +80,8 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared,
 
 ParseInfo::ParseInfo(Handle<Script> script)
     : ParseInfo(script->GetIsolate()->allocator()) {
-  set_isolate(script->GetIsolate());
+  InitFromIsolate(script->GetIsolate());
+
   set_allow_lazy_parsing();
   set_toplevel();
   set_script(script);
@@ -103,7 +103,7 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   Isolate* isolate = shared->GetIsolate();
   ParseInfo* p = new ParseInfo(isolate->allocator());
 
-  p->set_isolate(isolate);
+  p->InitFromIsolate(isolate);
   p->set_toplevel(shared->is_toplevel());
   p->set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   p->set_is_named_expression(shared->is_named_expression());

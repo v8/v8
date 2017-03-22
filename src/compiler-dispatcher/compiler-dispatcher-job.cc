@@ -206,7 +206,7 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
         ScannerStream::For(wrapper_, shared_->start_position() - offset,
                            shared_->end_position() - offset));
   }
-  parse_info_->set_isolate(isolate_);
+  parse_info_->InitFromIsolate(isolate_);
   parse_info_->set_character_stream(character_stream_.get());
   parse_info_->set_hash_seed(isolate_->heap()->HashSeed());
   parse_info_->set_is_named_expression(shared_->is_named_expression());
@@ -244,16 +244,10 @@ void CompilerDispatcherJob::Parse() {
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  // Nullify the Isolate temporarily so that the parser doesn't accidentally
-  // use it.
-  parse_info_->set_isolate(nullptr);
-
   uintptr_t stack_limit = GetCurrentStackPosition() - max_stack_size_ * KB;
 
   parser_->set_stack_limit(stack_limit);
   parser_->ParseOnBackground(parse_info_.get());
-
-  parse_info_->set_isolate(isolate_);
 
   status_ = CompileJobStatus::kParsed;
 }
