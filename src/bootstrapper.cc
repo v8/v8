@@ -218,7 +218,7 @@ class Genesis BASE_EMBEDDED {
 
   void InstallOneBuiltinFunction(const char* object, const char* method,
                                  Builtins::Name name);
-  void InitializeGlobal_enable_fast_array_builtins();
+  void InitializeGlobal_experimental_fast_array_builtins();
 
   Handle<JSFunction> InstallArrayBuffer(Handle<JSObject> target,
                                         const char* name, Builtins::Name call,
@@ -430,6 +430,24 @@ Handle<JSFunction> SimpleCreateFunction(Isolate* isolate, Handle<String> name,
     fun->shared()->DontAdaptArguments();
   }
   fun->shared()->set_length(len);
+  return fun;
+}
+
+Handle<JSFunction> InstallArrayBuiltinFunction(Handle<JSObject> base,
+                                               const char* name,
+                                               Builtins::Name call,
+                                               int argument_count) {
+  Isolate* isolate = base->GetIsolate();
+  Handle<String> str_name = isolate->factory()->InternalizeUtf8String(name);
+  Handle<JSFunction> fun =
+      CreateFunction(isolate, str_name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                     MaybeHandle<JSObject>(), call, true);
+  fun->shared()->set_internal_formal_parameter_count(argument_count);
+
+  // Set the length to 1 to satisfy ECMA-262.
+  fun->shared()->set_length(1);
+  fun->shared()->set_language_mode(STRICT);
+  InstallFunction(base, fun, str_name);
   return fun;
 }
 
@@ -3066,9 +3084,8 @@ void Genesis::InitializeExperimentalGlobal() {
   HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
 
-  InitializeGlobal_enable_fast_array_builtins();
+  InitializeGlobal_experimental_fast_array_builtins();
 }
-
 
 bool Bootstrapper::CompileBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = Natives::GetScriptName(index);
@@ -3689,17 +3706,11 @@ void Genesis::InstallOneBuiltinFunction(const char* object_name,
       isolate->builtins()->builtin(builtin_name));
 }
 
-void Genesis::InitializeGlobal_enable_fast_array_builtins() {
-  if (!FLAG_enable_fast_array_builtins) return;
+void Genesis::InitializeGlobal_experimental_fast_array_builtins() {
+  if (!FLAG_experimental_fast_array_builtins) return;
 
-  InstallOneBuiltinFunction("Array", "forEach", Builtins::kArrayForEach);
-  InstallOneBuiltinFunction("Array", "every", Builtins::kArrayEvery);
-  InstallOneBuiltinFunction("Array", "some", Builtins::kArraySome);
-  InstallOneBuiltinFunction("Array", "reduce", Builtins::kArrayReduce);
-
-  if (FLAG_experimental_array_builtins) {
-    InstallOneBuiltinFunction("Array", "filter", Builtins::kArrayFilter);
-  }
+  // Insert experimental fast array builtins here.
+  InstallOneBuiltinFunction("Array", "filter", Builtins::kArrayFilter);
 }
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
@@ -4143,10 +4154,21 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   SimpleInstallFunction(global_object, "isNaN", Builtins::kGlobalIsNaN, 1, true,
                         kGlobalIsNaN);
 
-  // Install Array.prototype.concat
+  // Install Array builtin functions.
   {
     Handle<JSFunction> array_constructor(native_context()->array_function());
-    Handle<JSObject> proto(JSObject::cast(array_constructor->prototype()));
+    Handle<JSArray> proto(JSArray::cast(array_constructor->prototype()));
+
+    // Verification of important array prototype properties.
+    Object* length = proto->length();
+    CHECK(length->IsSmi());
+    CHECK(Smi::cast(length)->value() == 0);
+    CHECK(proto->HasFastSmiOrObjectElements());
+    // This is necessary to enable fast checks for absence of elements
+    // on Array.prototype and below.
+    proto->set_elements(heap()->empty_fixed_array());
+
+    // Install Array.prototype.concat
     Handle<JSFunction> concat =
         InstallFunction(proto, "concat", JS_OBJECT_TYPE, JSObject::kHeaderSize,
                         MaybeHandle<JSObject>(), Builtins::kArrayConcat);
@@ -4158,6 +4180,21 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     DCHECK(concat->is_compiled());
     // Set the lengths for the functions to satisfy ECMA-262.
     concat->shared()->set_length(1);
+
+    // Install Array.prototype.forEach
+    Handle<JSFunction> forEach = InstallArrayBuiltinFunction(
+        proto, "forEach", Builtins::kArrayForEach, 2);
+    // Add forEach to the context.
+    native_context()->set_array_for_each_iterator(*forEach);
+
+    // Install Array.prototype.every
+    InstallArrayBuiltinFunction(proto, "every", Builtins::kArrayEvery, 2);
+
+    // Install Array.prototype.some
+    InstallArrayBuiltinFunction(proto, "some", Builtins::kArraySome, 2);
+
+    // Install Array.prototype.reduce
+    InstallArrayBuiltinFunction(proto, "reduce", Builtins::kArrayReduce, 2);
   }
 
   // Install InternalArray.prototype.concat

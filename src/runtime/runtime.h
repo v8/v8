@@ -37,7 +37,6 @@ namespace internal {
 // are specified by inline comments
 
 #define FOR_EACH_INTRINSIC_ARRAY(F)  \
-  F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 0, 1)     \
   F(TransitionElementsKind, 2, 1)    \
   F(RemoveArrayHoles, 2, 1)          \

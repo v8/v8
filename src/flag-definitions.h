@@ -269,7 +269,6 @@ DEFINE_BOOL(future, FUTURE_BOOL,
 DEFINE_IMPLICATION(future, turbo)
 
 DEFINE_DUAL_IMPLICATION(turbo, ignition)
-DEFINE_DUAL_IMPLICATION(turbo, enable_fast_array_builtins)
 DEFINE_DUAL_IMPLICATION(turbo, thin_strings)
 
 // Flags for experimental implementation features.
@@ -772,9 +771,8 @@ DEFINE_BOOL(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")
 
 // builtins.cc
-DEFINE_BOOL(enable_fast_array_builtins, false, "use optimized builtins")
-DEFINE_BOOL(experimental_array_builtins, false,
-            "Experimental versions of array builtins")
+DEFINE_BOOL(experimental_fast_array_builtins, false,
+            "use experimental array builtins")
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
             "allow invoking the function constructor without security checks")
 

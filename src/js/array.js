@@ -1033,88 +1033,6 @@ function ArrayFilter(f, receiver) {
   return InnerArrayFilter(f, receiver, array, length, result);
 }
 
-
-function InnerArrayForEach(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-
-  if (IS_UNDEFINED(receiver)) {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        f(element, i, array);
-      }
-    }
-  } else {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        %_Call(f, receiver, element, i, array);
-      }
-    }
-  }
-}
-
-
-function ArrayForEach(f, receiver) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.forEach");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-  InnerArrayForEach(f, receiver, array, length);
-}
-
-
-function InnerArraySome(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      if (%_Call(f, receiver, element, i, array)) return true;
-    }
-  }
-  return false;
-}
-
-
-// Executes the function once for each element present in the
-// array until it finds one where callback returns true.
-function ArraySome(f, receiver) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.some");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-  return InnerArraySome(f, receiver, array, length);
-}
-
-
-function InnerArrayEvery(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      if (!%_Call(f, receiver, element, i, array)) return false;
-    }
-  }
-  return true;
-}
-
-function ArrayEvery(f, receiver) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.every");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-  return InnerArrayEvery(f, receiver, array, length);
-}
-
-
 function ArrayMap(f, receiver) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.map");
 
@@ -1187,45 +1105,6 @@ function ArrayLastIndexOf(element, index) {
   }
   return -1;
 }
-
-
-function InnerArrayReduce(callback, current, array, length, argumentsLength) {
-  if (!IS_CALLABLE(callback)) {
-    throw %make_type_error(kCalledNonCallable, callback);
-  }
-
-  var i = 0;
-  find_initial: if (argumentsLength < 2) {
-    for (; i < length; i++) {
-      if (i in array) {
-        current = array[i++];
-        break find_initial;
-      }
-    }
-    throw %make_type_error(kReduceNoInitial);
-  }
-
-  for (; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      current = callback(current, element, i, array);
-    }
-  }
-  return current;
-}
-
-
-function ArrayReduce(callback, current) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduce");
-
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping and side effects are visible.
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-  return InnerArrayReduce(callback, current, array, length,
-                          arguments.length);
-}
-
 
 function InnerArrayReduceRight(callback, current, array, length,
                                argumentsLength) {
@@ -1522,7 +1401,6 @@ function getFunction(name, jsBuiltin, len) {
 // public API via Template::SetIntrinsicDataProperty().
 var IteratorFunctions = {
     "entries": getFunction("entries", null, 0),
-    "forEach": getFunction("forEach", ArrayForEach, 1),
     "keys": getFunction("keys", null, 0),
     "values": getFunction("values", null, 0)
 }
@@ -1544,12 +1422,9 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "splice", getFunction("splice", ArraySplice, 2),
   "sort", getFunction("sort", ArraySort),
   "filter", getFunction("filter", ArrayFilter, 1),
-  "some", getFunction("some", ArraySome, 1),
-  "every", getFunction("every", ArrayEvery, 1),
   "map", getFunction("map", ArrayMap, 1),
   "indexOf", getFunction("indexOf", null, 1),
   "lastIndexOf", getFunction("lastIndexOf", ArrayLastIndexOf, 1),
-  "reduce", getFunction("reduce", ArrayReduce, 1),
   "reduceRight", getFunction("reduceRight", ArrayReduceRight, 1),
   "copyWithin", getFunction("copyWithin", ArrayCopyWithin, 2),
   "find", getFunction("find", ArrayFind, 1),
@@ -1557,19 +1432,13 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "fill", getFunction("fill", ArrayFill, 1),
   "includes", getFunction("includes", null, 1),
   "entries", IteratorFunctions.entries,
-  "forEach", IteratorFunctions.forEach,
   "keys", IteratorFunctions.keys,
   iteratorSymbol, IteratorFunctions.values
 ]);
 
-utils.ForEachFunction = GlobalArray.prototype.forEach;
-
 %FunctionSetName(IteratorFunctions.entries, "entries");
-%FunctionSetName(IteratorFunctions.forEach, "forEach");
 %FunctionSetName(IteratorFunctions.keys, "keys");
 %FunctionSetName(IteratorFunctions.values, "values");
-
-%FinishArrayPrototypeSetup(GlobalArray.prototype);
 
 // The internal Array prototype doesn't need to be fancy, since it's never
 // exposed to user code.
@@ -1611,15 +1480,11 @@ utils.Export(function(to) {
   to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
   to.ArrayValues = IteratorFunctions.values,
-  to.InnerArrayEvery = InnerArrayEvery;
   to.InnerArrayFilter = InnerArrayFilter;
   to.InnerArrayFind = InnerArrayFind;
   to.InnerArrayFindIndex = InnerArrayFindIndex;
-  to.InnerArrayForEach = InnerArrayForEach;
   to.InnerArrayJoin = InnerArrayJoin;
-  to.InnerArrayReduce = InnerArrayReduce;
   to.InnerArrayReduceRight = InnerArrayReduceRight;
-  to.InnerArraySome = InnerArraySome;
   to.InnerArraySort = InnerArraySort;
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;
   to.PackedArrayReverse = PackedArrayReverse;
@@ -1627,7 +1492,6 @@ utils.Export(function(to) {
 
 %InstallToContext([
   "array_entries_iterator", IteratorFunctions.entries,
-  "array_for_each_iterator", IteratorFunctions.forEach,
   "array_keys_iterator", IteratorFunctions.keys,
   "array_pop", ArrayPop,
   "array_push", ArrayPush,

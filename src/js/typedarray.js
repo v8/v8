@@ -20,15 +20,11 @@ var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalArrayBufferPrototype = GlobalArrayBuffer.prototype;
 var GlobalObject = global.Object;
-var InnerArrayEvery;
 var InnerArrayFilter;
 var InnerArrayFind;
 var InnerArrayFindIndex;
-var InnerArrayForEach;
 var InnerArrayJoin;
-var InnerArrayReduce;
 var InnerArrayReduceRight;
-var InnerArraySome;
 var InnerArraySort;
 var InnerArrayToLocaleString;
 var InternalArray = utils.InternalArray;
@@ -66,15 +62,11 @@ utils.Import(function(from) {
   ArrayValues = from.ArrayValues;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
-  InnerArrayEvery = from.InnerArrayEvery;
   InnerArrayFilter = from.InnerArrayFilter;
   InnerArrayFind = from.InnerArrayFind;
   InnerArrayFindIndex = from.InnerArrayFindIndex;
-  InnerArrayForEach = from.InnerArrayForEach;
   InnerArrayJoin = from.InnerArrayJoin;
-  InnerArrayReduce = from.InnerArrayReduce;
   InnerArrayReduceRight = from.InnerArrayReduceRight;
-  InnerArraySome = from.InnerArraySome;
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
   MaxSimple = from.MaxSimple;
@@ -371,6 +363,17 @@ function TypedArrayGetToStringTag() {
   return name;
 }
 
+function InnerTypedArrayEvery(f, receiver, array, length) {
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
+
+  for (var i = 0; i < length; i++) {
+    if (i in array) {
+      var element = array[i];
+      if (!%_Call(f, receiver, element, i, array)) return false;
+    }
+  }
+  return true;
+}
 
 // ES6 draft 05-05-15, section 22.2.3.7
 function TypedArrayEvery(f, receiver) {
@@ -378,10 +381,29 @@ function TypedArrayEvery(f, receiver) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayEvery(f, receiver, this, length);
+  return InnerTypedArrayEvery(f, receiver, this, length);
 }
 %FunctionSetLength(TypedArrayEvery, 1);
 
+function InnerTypedArrayForEach(f, receiver, array, length) {
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
+
+  if (IS_UNDEFINED(receiver)) {
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        f(element, i, array);
+      }
+    }
+  } else {
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        %_Call(f, receiver, element, i, array);
+      }
+    }
+  }
+}
 
 // ES6 draft 08-24-14, section 22.2.3.12
 function TypedArrayForEach(f, receiver) {
@@ -389,7 +411,7 @@ function TypedArrayForEach(f, receiver) {
 
   var length = %_TypedArrayGetLength(this);
 
-  InnerArrayForEach(f, receiver, this, length);
+  InnerTypedArrayForEach(f, receiver, this, length);
 }
 %FunctionSetLength(TypedArrayForEach, 1);
 
@@ -472,6 +494,17 @@ function TypedArrayMap(f, thisArg) {
 }
 %FunctionSetLength(TypedArrayMap, 1);
 
+function InnerTypedArraySome(f, receiver, array, length) {
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
+
+  for (var i = 0; i < length; i++) {
+    if (i in array) {
+      var element = array[i];
+      if (%_Call(f, receiver, element, i, array)) return true;
+    }
+  }
+  return false;
+}
 
 // ES6 draft 05-05-15, section 22.2.3.24
 function TypedArraySome(f, receiver) {
@@ -479,7 +512,7 @@ function TypedArraySome(f, receiver) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArraySome(f, receiver, this, length);
+  return InnerTypedArraySome(f, receiver, this, length);
 }
 %FunctionSetLength(TypedArraySome, 1);
 
@@ -503,14 +536,39 @@ function TypedArrayJoin(separator) {
   return InnerArrayJoin(separator, this, length);
 }
 
+function InnerTypedArrayReduce(
+    callback, current, array, length, argumentsLength) {
+  if (!IS_CALLABLE(callback)) {
+    throw %make_type_error(kCalledNonCallable, callback);
+  }
+
+  var i = 0;
+  find_initial: if (argumentsLength < 2) {
+    for (; i < length; i++) {
+      if (i in array) {
+        current = array[i++];
+        break find_initial;
+      }
+    }
+    throw %make_type_error(kReduceNoInitial);
+  }
+
+  for (; i < length; i++) {
+    if (i in array) {
+      var element = array[i];
+      current = callback(current, element, i, array);
+    }
+  }
+  return current;
+}
 
 // ES6 draft 07-15-13, section 22.2.3.19
 function TypedArrayReduce(callback, current) {
   if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
-  return InnerArrayReduce(callback, current, this, length,
-                          arguments.length);
+  return InnerTypedArrayReduce(
+      callback, current, this, length, arguments.length);
 }
 %FunctionSetLength(TypedArrayReduce, 1);
 
