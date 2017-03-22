@@ -5,6 +5,8 @@
 #ifndef V8_GLOBAL_HANDLES_H_
 #define V8_GLOBAL_HANDLES_H_
 
+#include <type_traits>
+
 #include "include/v8.h"
 #include "include/v8-profiler.h"
 
@@ -51,6 +53,14 @@ class GlobalHandles {
 
   // Creates a new global handle that is alive until Destroy is called.
   Handle<Object> Create(Object* value);
+
+  template <typename T>
+  Handle<T> Create(T* value) {
+    static_assert(std::is_base_of<Object, T>::value, "static type violation");
+    // The compiler should only pick this method if T is not Object.
+    static_assert(!std::is_same<Object, T>::value, "compiler error");
+    return Handle<T>::cast(Create(static_cast<Object*>(value)));
+  }
 
   // Copy a global handle
   static Handle<Object> CopyGlobal(Object** location);

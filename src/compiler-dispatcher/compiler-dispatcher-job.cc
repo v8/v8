@@ -68,10 +68,8 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
     : status_(CompileJobStatus::kInitial),
       isolate_(isolate),
       tracer_(tracer),
-      context_(Handle<Context>::cast(
-          isolate_->global_handles()->Create(isolate->context()))),
-      shared_(Handle<SharedFunctionInfo>::cast(
-          isolate_->global_handles()->Create(*shared))),
+      context_(isolate_->global_handles()->Create(isolate->context())),
+      shared_(isolate_->global_handles()->Create(*shared)),
       max_stack_size_(max_stack_size),
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
   DCHECK(!shared_->is_toplevel());
@@ -94,10 +92,8 @@ CompilerDispatcherJob::CompilerDispatcherJob(
     : status_(CompileJobStatus::kAnalyzed),
       isolate_(isolate),
       tracer_(tracer),
-      context_(Handle<Context>::cast(
-          isolate_->global_handles()->Create(isolate->context()))),
-      shared_(Handle<SharedFunctionInfo>::cast(
-          isolate_->global_handles()->Create(*shared))),
+      context_(isolate_->global_handles()->Create(isolate->context())),
+      shared_(isolate_->global_handles()->Create(*shared)),
       max_stack_size_(max_stack_size),
       parse_info_(new ParseInfo(shared_)),
       parse_zone_(parse_zone),
@@ -158,8 +154,7 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
     if (isolate_->heap()->lo_space()->Contains(*source)) {
       // We need to globalize the handle to the flattened string here, in
       // case it's not referenced from anywhere else.
-      source_ =
-          Handle<String>::cast(isolate_->global_handles()->Create(*source));
+      source_ = isolate_->global_handles()->Create(*source);
       DisallowHeapAllocation no_allocation;
       String::FlatContent content = source->GetFlatContent();
       DCHECK(content.IsFlat());
@@ -205,8 +200,7 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
                     ->NewExternalStringFromTwoByte(resource)
                     .ToHandleChecked();
     }
-    wrapper_ =
-        Handle<String>::cast(isolate_->global_handles()->Create(*wrapper));
+    wrapper_ = isolate_->global_handles()->Create(*wrapper);
 
     character_stream_.reset(
         ScannerStream::For(wrapper_, shared_->start_position() - offset,

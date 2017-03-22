@@ -1846,8 +1846,7 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
 void Isolate::PushPromise(Handle<JSObject> promise) {
   ThreadLocalTop* tltop = thread_local_top();
   PromiseOnStack* prev = tltop->promise_on_stack_;
-  Handle<JSObject> global_promise =
-      Handle<JSObject>::cast(global_handles()->Create(*promise));
+  Handle<JSObject> global_promise = global_handles()->Create(*promise);
   tltop->promise_on_stack_ = new PromiseOnStack(global_promise, prev);
 }
 

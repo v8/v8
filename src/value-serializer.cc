@@ -922,8 +922,8 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
       position_(data.start()),
       end_(data.start() + data.length()),
       pretenure_(data.length() > kPretenureThreshold ? TENURED : NOT_TENURED),
-      id_map_(Handle<FixedArray>::cast(isolate->global_handles()->Create(
-          isolate_->heap()->empty_fixed_array()))) {}
+      id_map_(isolate->global_handles()->Create(
+          isolate_->heap()->empty_fixed_array())) {}
 
 ValueDeserializer::~ValueDeserializer() {
   GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
@@ -1052,9 +1052,8 @@ bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
 void ValueDeserializer::TransferArrayBuffer(
     uint32_t transfer_id, Handle<JSArrayBuffer> array_buffer) {
   if (array_buffer_transfer_map_.is_null()) {
-    array_buffer_transfer_map_ =
-        Handle<SeededNumberDictionary>::cast(isolate_->global_handles()->Create(
-            *SeededNumberDictionary::New(isolate_, 0)));
+    array_buffer_transfer_map_ = isolate_->global_handles()->Create(
+        *SeededNumberDictionary::New(isolate_, 0));
   }
   Handle<SeededNumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();
@@ -1064,8 +1063,8 @@ void ValueDeserializer::TransferArrayBuffer(
                                           not_a_prototype_holder);
   if (!new_dictionary.is_identical_to(dictionary)) {
     GlobalHandles::Destroy(Handle<Object>::cast(dictionary).location());
-    array_buffer_transfer_map_ = Handle<SeededNumberDictionary>::cast(
-        isolate_->global_handles()->Create(*new_dictionary));
+    array_buffer_transfer_map_ =
+        isolate_->global_handles()->Create(*new_dictionary);
   }
 }
 
@@ -1877,8 +1876,7 @@ void ValueDeserializer::AddObjectWithID(uint32_t id,
   // If the dictionary was reallocated, update the global handle.
   if (!new_array.is_identical_to(id_map_)) {
     GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
-    id_map_ = Handle<FixedArray>::cast(
-        isolate_->global_handles()->Create(*new_array));
+    id_map_ = isolate_->global_handles()->Create(*new_array);
   }
 }
 

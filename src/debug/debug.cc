@@ -423,8 +423,7 @@ void Debug::Iterate(ObjectVisitor* v) {
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   // Globalize the request debug info object and make it weak.
   GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
-  debug_info_ =
-      Handle<DebugInfo>::cast(global_handles->Create(debug_info)).location();
+  debug_info_ = global_handles->Create(debug_info).location();
 }
 
 
@@ -464,8 +463,7 @@ bool Debug::Load() {
   // Fail if no context could be created.
   if (context.is_null()) return false;
 
-  debug_context_ = Handle<Context>::cast(
-      isolate_->global_handles()->Create(*context));
+  debug_context_ = isolate_->global_handles()->Create(*context);
 
   feature_tracker()->Track(DebugFeatureTracker::kActive);
 
@@ -2369,7 +2367,7 @@ JavaScriptDebugDelegate::JavaScriptDebugDelegate(Isolate* isolate,
                                                  Handle<Object> data)
     : LegacyDebugDelegate(isolate) {
   GlobalHandles* global_handles = isolate->global_handles();
-  listener_ = Handle<JSFunction>::cast(global_handles->Create(*listener));
+  listener_ = global_handles->Create(*listener);
   data_ = global_handles->Create(*data);
 }
 
