@@ -51,7 +51,7 @@ class Isolate;
 // DBG: Builtin in platform-dependent assembly, used by the debugger.
 //      Args: name
 
-#define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG)                        \
+#define BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, ASM, ASH, DBG)                   \
   ASM(Abort)                                                                   \
   /* Code aging */                                                             \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                        \
@@ -845,9 +845,9 @@ class Isolate;
   CPP(StringPrototypeToLocaleLowerCase)                                        \
   /* ES #sec-string.prototype.tolocaleuppercase */                             \
   CPP(StringPrototypeToLocaleUpperCase)                                        \
-  /* ES #sec-string.prototype.tolowercase */                                   \
+  /* (obsolete) Unibrow version */                                             \
   CPP(StringPrototypeToLowerCase)                                              \
-  /* ES #sec-string.prototype.touppercase */                                   \
+  /* (obsolete) Unibrow version */                                             \
   CPP(StringPrototypeToUpperCase)                                              \
   CPP(StringPrototypeTrim)                                                     \
   CPP(StringPrototypeTrimLeft)                                                 \
@@ -935,6 +935,19 @@ class Isolate;
   TFJ(AsyncFromSyncIteratorPrototypeReturn, 1, kValue)                         \
   /* #sec-async-iterator-value-unwrap-functions */                             \
   TFJ(AsyncIteratorValueUnwrap, 1, kValue)
+
+#ifdef V8_I18N_SUPPORT
+#define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG) \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, ASM, ASH, DBG)  \
+                                                        \
+  /* ES #sec-string.prototype.tolowercase */            \
+  CPP(StringPrototypeToLowerCaseI18N)                   \
+  /* ES #sec-string.prototype.touppercase */            \
+  CPP(StringPrototypeToUpperCaseI18N)
+#else
+#define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG) \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, ASM, ASH, DBG)
+#endif  // V8_I18N_SUPPORT
 
 #define BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(V) \
   V(AsyncFromSyncIteratorPrototypeNext)              \

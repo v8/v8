@@ -3890,21 +3890,22 @@ void Genesis::InitializeGlobal_icu_case_mapping() {
   Handle<JSObject> string_prototype(
       JSObject::cast(native_context()->string_function()->prototype()));
 
-  Handle<JSFunction> to_lower_case = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(
-          exports_container,
-          factory()->InternalizeUtf8String("ToLowerCaseI18N"))
-          .ToHandleChecked());
-  SetFunction(string_prototype, to_lower_case,
-              factory()->InternalizeUtf8String("toLowerCase"));
-
-  Handle<JSFunction> to_upper_case = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(
-          exports_container,
-          factory()->InternalizeUtf8String("ToUpperCaseI18N"))
-          .ToHandleChecked());
-  SetFunction(string_prototype, to_upper_case,
-              factory()->InternalizeUtf8String("toUpperCase"));
+  {
+    Handle<String> name = factory()->InternalizeUtf8String("toLowerCase");
+    SetFunction(string_prototype,
+                SimpleCreateFunction(isolate(), name,
+                                     Builtins::kStringPrototypeToLowerCaseI18N,
+                                     0, false),
+                name);
+  }
+  {
+    Handle<String> name = factory()->InternalizeUtf8String("toUpperCase");
+    SetFunction(string_prototype,
+                SimpleCreateFunction(isolate(), name,
+                                     Builtins::kStringPrototypeToUpperCaseI18N,
+                                     0, false),
+                name);
+  }
 
   Handle<JSFunction> to_locale_lower_case = Handle<JSFunction>::cast(
       JSReceiver::GetProperty(

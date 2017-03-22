@@ -1115,6 +1115,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-global.cc",
     "src/builtins/builtins-internal.cc",
     "src/builtins/builtins-interpreter.cc",
+    "src/builtins/builtins-intl.cc",
     "src/builtins/builtins-json.cc",
     "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",
