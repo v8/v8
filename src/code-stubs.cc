@@ -2002,39 +2002,39 @@ TF_STUB(InternalArrayNoArgumentConstructorStub, CodeStubAssembler) {
   Return(array);
 }
 
-namespace {
-
-// TODO(ishell): wrap the code into SingleArgumentConstructorAssembler.
-template <typename Descriptor>
-void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
-                                     ElementsKind elements_kind,
-                                     compiler::Node* array_map,
-                                     compiler::Node* allocation_site,
-                                     AllocationSiteMode mode) {
+class ArrayConstructorAssembler : public CodeStubAssembler {
+ public:
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
 
-  Label ok(assembler);
-  Label smi_size(assembler);
-  Label small_smi_size(assembler);
-  Label call_runtime(assembler, Label::kDeferred);
+  explicit ArrayConstructorAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
 
-  Node* size = assembler->Parameter(Descriptor::kArraySizeSmiParameter);
-  assembler->Branch(assembler->TaggedIsSmi(size), &smi_size, &call_runtime);
+  void GenerateConstructor(Node* context, Node* array_function, Node* array_map,
+                           Node* array_size, Node* allocation_site,
+                           ElementsKind elements_kind, AllocationSiteMode mode);
+};
 
-  assembler->Bind(&smi_size);
+void ArrayConstructorAssembler::GenerateConstructor(
+    Node* context, Node* array_function, Node* array_map, Node* array_size,
+    Node* allocation_site, ElementsKind elements_kind,
+    AllocationSiteMode mode) {
+  Label ok(this);
+  Label smi_size(this);
+  Label small_smi_size(this);
+  Label call_runtime(this, Label::kDeferred);
+
+  Branch(TaggedIsSmi(array_size), &smi_size, &call_runtime);
+
+  Bind(&smi_size);
 
   if (IsFastPackedElementsKind(elements_kind)) {
-    Label abort(assembler, Label::kDeferred);
-    assembler->Branch(
-        assembler->SmiEqual(size, assembler->SmiConstant(Smi::kZero)),
-        &small_smi_size, &abort);
+    Label abort(this, Label::kDeferred);
+    Branch(SmiEqual(array_size, SmiConstant(Smi::kZero)), &small_smi_size,
+           &abort);
 
-    assembler->Bind(&abort);
-    Node* reason =
-        assembler->SmiConstant(Smi::FromInt(kAllocatingNonEmptyPackedArray));
-    Node* context = assembler->Parameter(Descriptor::kContext);
-    assembler->TailCallRuntime(Runtime::kAbort, context, reason);
+    Bind(&abort);
+    Node* reason = SmiConstant(Smi::FromInt(kAllocatingNonEmptyPackedArray));
+    TailCallRuntime(Runtime::kAbort, context, reason);
   } else {
     int element_size =
         IsFastDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
@@ -2042,56 +2042,53 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
         (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
          AllocationMemento::kSize) /
         element_size;
-    assembler->Branch(
-        assembler->SmiAboveOrEqual(
-            size, assembler->SmiConstant(Smi::FromInt(max_fast_elements))),
-        &call_runtime, &small_smi_size);
+    Branch(SmiAboveOrEqual(array_size,
+                           SmiConstant(Smi::FromInt(max_fast_elements))),
+           &call_runtime, &small_smi_size);
   }
 
-  assembler->Bind(&small_smi_size);
+  Bind(&small_smi_size);
   {
-    Node* array = assembler->AllocateJSArray(
-        elements_kind, array_map, size, size,
+    Node* array = AllocateJSArray(
+        elements_kind, array_map, array_size, array_size,
         mode == DONT_TRACK_ALLOCATION_SITE ? nullptr : allocation_site,
         CodeStubAssembler::SMI_PARAMETERS);
-    assembler->Return(array);
+    Return(array);
   }
 
-  assembler->Bind(&call_runtime);
+  Bind(&call_runtime);
   {
-    Node* context = assembler->Parameter(Descriptor::kContext);
-    Node* function = assembler->Parameter(Descriptor::kFunction);
-    Node* array_size = assembler->Parameter(Descriptor::kArraySizeSmiParameter);
-    Node* allocation_site = assembler->Parameter(Descriptor::kAllocationSite);
-    assembler->TailCallRuntime(Runtime::kNewArray, context, function,
-                               array_size, function, allocation_site);
+    TailCallRuntime(Runtime::kNewArray, context, array_function, array_size,
+                    array_function, allocation_site);
   }
 }
-}  // namespace
 
-TF_STUB(ArraySingleArgumentConstructorStub, CodeStubAssembler) {
+TF_STUB(ArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
   ElementsKind elements_kind = stub->elements_kind();
+  Node* context = Parameter(Descriptor::kContext);
   Node* function = Parameter(Descriptor::kFunction);
   Node* native_context = LoadObjectField(function, JSFunction::kContextOffset);
   Node* array_map = LoadJSArrayElementsMap(elements_kind, native_context);
   AllocationSiteMode mode = stub->override_mode() == DISABLE_ALLOCATION_SITES
                                 ? DONT_TRACK_ALLOCATION_SITE
                                 : AllocationSite::GetMode(elements_kind);
+  Node* array_size = Parameter(Descriptor::kArraySizeSmiParameter);
   Node* allocation_site = Parameter(Descriptor::kAllocationSite);
-  // TODO(ishell): pass all parameters explicitly.
-  SingleArgumentConstructorCommon<Descriptor>(this, elements_kind, array_map,
-                                              allocation_site, mode);
+
+  GenerateConstructor(context, function, array_map, array_size, allocation_site,
+                      elements_kind, mode);
 }
 
-TF_STUB(InternalArraySingleArgumentConstructorStub, CodeStubAssembler) {
+TF_STUB(InternalArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
   Node* function = Parameter(Descriptor::kFunction);
   Node* array_map =
       LoadObjectField(function, JSFunction::kPrototypeOrInitialMapOffset);
+  Node* array_size = Parameter(Descriptor::kArraySizeSmiParameter);
+  Node* allocation_site = UndefinedConstant();
 
-  // TODO(ishell): pass all parameters explicitly.
-  SingleArgumentConstructorCommon<Descriptor>(this, stub->elements_kind(),
-                                              array_map, UndefinedConstant(),
-                                              DONT_TRACK_ALLOCATION_SITE);
+  GenerateConstructor(context, function, array_map, array_size, allocation_site,
+                      stub->elements_kind(), DONT_TRACK_ALLOCATION_SITE);
 }
 
 TF_STUB(GrowArrayElementsStub, CodeStubAssembler) {
