@@ -851,6 +851,10 @@ DEFINE_BOOL(
     "print debug messages for side-effect-free debug-evaluate for testing")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 
+// inspector
+DEFINE_BOOL(expose_inspector_scripts, false,
+            "expose injected-script-source.js for debugging")
+
 // execution.cc
 DEFINE_INT(stack_size, V8_DEFAULT_STACK_SIZE_KB,
            "default size of stack region v8 is allowed to use (in kBytes)")

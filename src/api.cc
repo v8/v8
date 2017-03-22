@@ -9465,7 +9465,9 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
     result = i::Compiler::GetSharedFunctionInfoForScript(
         str, i::Handle<i::Object>(), 0, 0, origin_options,
         i::Handle<i::Object>(), isolate->native_context(), NULL, &script_data,
-        ScriptCompiler::kNoCompileOptions, i::INSPECTOR_CODE);
+        ScriptCompiler::kNoCompileOptions,
+        i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
+                                         : i::INSPECTOR_CODE);
     has_pending_exception = result.is_null();
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
   }
