@@ -14,6 +14,10 @@ function testFunction(param, flag) {
   return second_var;
 }
 
+class MyClass {
+  constructor() {}
+}
+
 %PrintTypeProfile(testFunction);
 
 testFunction({});
@@ -26,21 +30,9 @@ testFunction(undefined);
 testFunction('hello', true);
 testFunction({x: 12}, true);
 testFunction({x: 12});
+testFunction(new MyClass());
 
 %PrintTypeProfile(testFunction);
-
-class MyClass {
-  constructor() {}
-}
-
-
-function testConstructorNames(param) {
-  var my_var = param;
-}
-
-testConstructorNames(new MyClass());
-testConstructorNames({});
-testConstructorNames(2);
 
 function testReturnOfNonVariable() {
   return 32;
@@ -55,10 +47,17 @@ function try_finally() {
     return "nope, string is better"
   }
 }
-
 try_finally();
-
 %PrintTypeProfile(try_finally);
+
+// TODO(franzih): 'undefined' should be the return type.
+function fall_off() {
+  //nothing
+}
+fall_off();
+%PrintTypeProfile(fall_off);
+
+
 
 
 testReturnOfNonVariable();

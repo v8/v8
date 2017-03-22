@@ -13,11 +13,14 @@ Function: testFunction
 374: string
 374: Object
 424: Object
+424: MyClass
 
 Function: try_finally
-1157: number
-1186: string
+1032: number
+1061: string
 
-*%(basename)s:66: throw otherwise test fails with --stress-opt
+Function: fall_off
+
+*%(basename)s:65: throw otherwise test fails with --stress-opt
 throw "throw otherwise test fails with --stress-opt";
 ^
