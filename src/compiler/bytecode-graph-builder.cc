@@ -1850,19 +1850,15 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* right = environment()->LookupAccumulator();
 
-  Node* node = nullptr;
   int slot_index = bytecode_iterator().GetIndexOperand(1);
-  if (slot_index != 0) {
-    FeedbackSlot slot = feedback_vector()->ToSlot(slot_index);
-    if (Node* simplified = TryBuildSimplifiedBinaryOp(op, left, right, slot)) {
-      node = simplified;
-    } else {
-      node = NewNode(op, left, right);
-    }
+  DCHECK(slot_index != 0);
+  FeedbackSlot slot = feedback_vector()->ToSlot(slot_index);
+  Node* node = nullptr;
+  if (Node* simplified = TryBuildSimplifiedBinaryOp(op, left, right, slot)) {
+    node = simplified;
   } else {
     node = NewNode(op, left, right);
   }
-
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -1888,6 +1884,21 @@ void BytecodeGraphBuilder::VisitTestLessThanOrEqual() {
 
 void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual() {
   BuildCompareOp(javascript()->GreaterThanOrEqual(GetCompareOperationHint()));
+}
+
+void BytecodeGraphBuilder::VisitTestEqualStrictNoFeedback() {
+  // TODO(5310): Currently this is used with both Smi operands and with
+  // string operands. We pass string operands for static property check in
+  // VisitClassLiteralProperties. This should be changed, so we only use this
+  // for Smi operations and lower it to SpeculativeNumberEqual[kSignedSmall]
+  PrepareEagerCheckpoint();
+  Node* left =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* right = environment()->LookupAccumulator();
+
+  Node* node = NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
+                       left, right);
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::BuildTestingOp(const Operator* op) {

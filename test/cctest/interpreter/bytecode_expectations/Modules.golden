@@ -13,16 +13,16 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 145
+bytecode array length: 142
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(2),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(1),
                 B(LdaZero),
-                B(TestEqualStrict), R(1), U8(0),
+                B(TestEqualStrictNoFeedback), R(1),
                 B(JumpIfTrue), U8(63),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
@@ -57,10 +57,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
                 B(Star), R(6),
                 B(LdaZero),
-                B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(6),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(6), U8(0),
+                B(TestEqualStrictNoFeedback), R(6),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
@@ -91,16 +91,16 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 145
+bytecode array length: 142
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(2),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(1),
                 B(LdaZero),
-                B(TestEqualStrict), R(1), U8(0),
+                B(TestEqualStrictNoFeedback), R(1),
                 B(JumpIfTrue), U8(63),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
@@ -135,10 +135,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
                 B(Star), R(6),
                 B(LdaZero),
-                B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(6),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(6), U8(0),
+                B(TestEqualStrictNoFeedback), R(6),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
@@ -171,16 +171,16 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 215
+bytecode array length: 212
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(3),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(2),
                 B(LdaZero),
-                B(TestEqualStrict), R(2), U8(0),
+                B(TestEqualStrictNoFeedback), R(2),
                 B(JumpIfTrue), U8(63),
                 B(LdaSmi), I8(78),
                 B(Star), R(4),
@@ -215,10 +215,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(5), U8(1),
                 B(Star), R(7),
                 B(LdaZero),
-                B(TestEqualStrict), R(7), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(7),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(7), U8(0),
+                B(TestEqualStrictNoFeedback), R(7),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
@@ -282,16 +282,16 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 186
+bytecode array length: 183
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(3),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(2),
                 B(LdaZero),
-                B(TestEqualStrict), R(2), U8(0),
+                B(TestEqualStrictNoFeedback), R(2),
                 B(JumpIfTrue), U8(63),
                 B(LdaSmi), I8(78),
                 B(Star), R(4),
@@ -326,10 +326,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(5), U8(1),
                 B(Star), R(7),
                 B(LdaZero),
-                B(TestEqualStrict), R(7), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(7),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(7), U8(0),
+                B(TestEqualStrictNoFeedback), R(7),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
@@ -381,16 +381,16 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 190
+bytecode array length: 187
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(3),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(2),
                 B(LdaZero),
-                B(TestEqualStrict), R(2), U8(0),
+                B(TestEqualStrictNoFeedback), R(2),
                 B(JumpIfTrue), U8(67),
                 B(LdaSmi), I8(78),
                 B(Star), R(4),
@@ -427,10 +427,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(5), U8(1),
                 B(Star), R(7),
                 B(LdaZero),
-                B(TestEqualStrict), R(7), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(7),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(7), U8(0),
+                B(TestEqualStrictNoFeedback), R(7),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
@@ -482,16 +482,16 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 194
+bytecode array length: 191
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(3),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(2),
                 B(LdaZero),
-                B(TestEqualStrict), R(2), U8(0),
+                B(TestEqualStrictNoFeedback), R(2),
                 B(JumpIfTrue), U8(67),
                 B(LdaSmi), I8(78),
                 B(Star), R(4),
@@ -528,10 +528,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(5), U8(1),
                 B(Star), R(7),
                 B(LdaZero),
-                B(TestEqualStrict), R(7), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(7),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(7), U8(0),
+                B(TestEqualStrictNoFeedback), R(7),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
@@ -581,16 +581,16 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 156
+bytecode array length: 153
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(2),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(1),
                 B(LdaZero),
-                B(TestEqualStrict), R(1), U8(0),
+                B(TestEqualStrictNoFeedback), R(1),
                 B(JumpIfTrue), U8(67),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
@@ -627,10 +627,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
                 B(Star), R(6),
                 B(LdaZero),
-                B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(6),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(6), U8(0),
+                B(TestEqualStrictNoFeedback), R(6),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
@@ -664,16 +664,16 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 193
+bytecode array length: 190
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(2),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(1),
                 B(LdaZero),
-                B(TestEqualStrict), R(1), U8(0),
+                B(TestEqualStrictNoFeedback), R(1),
                 B(JumpIfTrue), U8(67),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
@@ -710,10 +710,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
                 B(Star), R(6),
                 B(LdaZero),
-                B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(6),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(6), U8(0),
+                B(TestEqualStrictNoFeedback), R(6),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
@@ -761,16 +761,16 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 145
+bytecode array length: 142
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(2),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(1),
                 B(LdaZero),
-                B(TestEqualStrict), R(1), U8(0),
+                B(TestEqualStrictNoFeedback), R(1),
                 B(JumpIfTrue), U8(63),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
@@ -805,10 +805,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
                 B(Star), R(6),
                 B(LdaZero),
-                B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(6),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(6), U8(0),
+                B(TestEqualStrictNoFeedback), R(6),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
@@ -839,16 +839,16 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 145
+bytecode array length: 142
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(2),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(1),
                 B(LdaZero),
-                B(TestEqualStrict), R(1), U8(0),
+                B(TestEqualStrictNoFeedback), R(1),
                 B(JumpIfTrue), U8(63),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
@@ -883,10 +883,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
                 B(Star), R(6),
                 B(LdaZero),
-                B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(6),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(6), U8(0),
+                B(TestEqualStrictNoFeedback), R(6),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
@@ -918,16 +918,16 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 183
+bytecode array length: 180
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(28),
+                B(JumpIfUndefined), U8(27),
                 B(CallRuntime), U16(Runtime::k_GeneratorGetContext), R(new_target), U8(1),
                 B(PushContext), R(2),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(1),
                 B(LdaZero),
-                B(TestEqualStrict), R(1), U8(0),
+                B(TestEqualStrictNoFeedback), R(1),
                 B(JumpIfTrue), U8(73),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
@@ -966,10 +966,10 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
                 B(Star), R(6),
                 B(LdaZero),
-                B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(25),
+                B(TestEqualStrictNoFeedback), R(6),
+                B(JumpIfTrue), U8(24),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(6), U8(0),
+                B(TestEqualStrictNoFeedback), R(6),
                 B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),

@@ -311,7 +311,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Tests.
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
-                                         int feedback_slot = kNoFeedbackSlot);
+                                         int feedback_slot);
+  BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg);
   BytecodeArrayBuilder& CompareTypeOf(
       TestTypeOfFlags::LiteralFlag literal_flag);
 

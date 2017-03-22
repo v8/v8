@@ -205,6 +205,7 @@ namespace interpreter {
     OperandType::kIdx)                                                         \
   V(TestGreaterThanOrEqual, AccumulatorUse::kReadWrite, OperandType::kReg,     \
     OperandType::kIdx)                                                         \
+  V(TestEqualStrictNoFeedback, AccumulatorUse::kReadWrite, OperandType::kReg)  \
   V(TestInstanceOf, AccumulatorUse::kReadWrite, OperandType::kReg)             \
   V(TestIn, AccumulatorUse::kReadWrite, OperandType::kReg)                     \
   V(TestUndetectable, AccumulatorUse::kWrite, OperandType::kReg)               \
@@ -506,6 +507,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
       case Bytecode::kTestGreaterThanOrEqual:
       case Bytecode::kTestInstanceOf:
       case Bytecode::kTestIn:
+      case Bytecode::kTestEqualStrictNoFeedback:
       case Bytecode::kTestUndetectable:
       case Bytecode::kTestTypeOf:
       case Bytecode::kForInContinue:

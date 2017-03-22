@@ -11,7 +11,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 264
+bytecode array length: 263
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -117,7 +117,7 @@ bytecodes: [
                 B(Ldar), R(11),
                 B(SetPendingMessage),
                 B(LdaZero),
-                B(TestEqualStrict), R(9), U8(0),
+                B(TestEqualStrictNoFeedback), R(9),
                 B(JumpIfTrue), U8(4),
                 B(Jump), U8(5),
                 B(Ldar), R(10),
@@ -150,7 +150,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 278
+bytecode array length: 276
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -258,10 +258,10 @@ bytecodes: [
                 B(Ldar), R(12),
                 B(SetPendingMessage),
                 B(LdaZero),
-                B(TestEqualStrict), R(10), U8(0),
-                B(JumpIfTrue), U8(11),
+                B(TestEqualStrictNoFeedback), R(10),
+                B(JumpIfTrue), U8(10),
                 B(LdaSmi), I8(1),
-                B(TestEqualStrict), R(10), U8(0),
+                B(TestEqualStrictNoFeedback), R(10),
                 B(JumpIfTrue), U8(7),
                 B(Jump), U8(8),
                 B(Ldar), R(11),
@@ -298,7 +298,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 282
+bytecode array length: 281
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -412,7 +412,7 @@ bytecodes: [
                 B(Ldar), R(11),
                 B(SetPendingMessage),
                 B(LdaZero),
-                B(TestEqualStrict), R(9), U8(0),
+                B(TestEqualStrictNoFeedback), R(9),
                 B(JumpIfTrue), U8(4),
                 B(Jump), U8(5),
                 B(Ldar), R(10),
@@ -445,7 +445,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 289
+bytecode array length: 287
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(2), U8(1), R(8),
@@ -556,10 +556,10 @@ bytecodes: [
                 B(Ldar), R(10),
                 B(SetPendingMessage),
                 B(LdaZero),
-                B(TestEqualStrict), R(8), U8(0),
-                B(JumpIfTrue), U8(11),
+                B(TestEqualStrictNoFeedback), R(8),
+                B(JumpIfTrue), U8(10),
                 B(LdaSmi), I8(1),
-                B(TestEqualStrict), R(8), U8(0),
+                B(TestEqualStrictNoFeedback), R(8),
                 B(JumpIfTrue), U8(7),
                 B(Jump), U8(8),
                 B(Ldar), R(9),

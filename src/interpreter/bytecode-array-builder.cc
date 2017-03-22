@@ -333,6 +333,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetSuperConstructor(Register out) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     Token::Value op, Register reg, int feedback_slot) {
+  DCHECK(feedback_slot != kNoFeedbackSlot);
   switch (op) {
     case Token::Value::EQ:
       OutputTestEqual(reg, feedback_slot);
@@ -351,6 +352,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
       break;
     case Token::Value::GTE:
       OutputTestGreaterThanOrEqual(reg, feedback_slot);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
+                                                             Register reg) {
+  switch (op) {
+    case Token::Value::EQ_STRICT:
+      OutputTestEqualStrictNoFeedback(reg);
       break;
     case Token::Value::INSTANCEOF:
       OutputTestInstanceOf(reg);

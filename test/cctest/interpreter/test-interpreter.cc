@@ -2151,7 +2151,7 @@ TEST(InterpreterInstanceOf) {
     size_t func_entry = builder.AllocateDeferredConstantPoolEntry();
     builder.SetDeferredConstantPoolEntry(func_entry, func);
     builder.LoadConstantPoolEntry(func_entry)
-        .CompareOperation(Token::Value::INSTANCEOF, r0, 0)
+        .CompareOperation(Token::Value::INSTANCEOF, r0)
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -2187,7 +2187,7 @@ TEST(InterpreterTestIn) {
     size_t array_entry = builder.AllocateDeferredConstantPoolEntry();
     builder.SetDeferredConstantPoolEntry(array_entry, array);
     builder.LoadConstantPoolEntry(array_entry)
-        .CompareOperation(Token::Value::IN, r0, 0)
+        .CompareOperation(Token::Value::IN, r0)
         .Return();
 
     ast_factory.Internalize(isolate);

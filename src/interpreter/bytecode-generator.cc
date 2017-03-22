@@ -817,7 +817,7 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
     BytecodeLabel not_resuming;
     builder()
         ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
-        .CompareOperation(Token::Value::EQ, generator_state_)
+        .CompareOperation(Token::Value::EQ_STRICT, generator_state_)
         .JumpIfTrue(&not_resuming);
     BuildIndexedJump(generator_state_, first_yield,
         stmt->yield_count(), generator_resume_points_);
@@ -2987,7 +2987,11 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     VisitForAccumulatorValue(expr->right());
     builder()->SetExpressionPosition(expr);
     FeedbackSlot slot = expr->CompareOperationFeedbackSlot();
-    builder()->CompareOperation(expr->op(), lhs, feedback_index(slot));
+    if (slot.IsInvalid()) {
+      builder()->CompareOperation(expr->op(), lhs);
+    } else {
+      builder()->CompareOperation(expr->op(), lhs, feedback_index(slot));
+    }
   }
 }
 

@@ -208,13 +208,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, 1)
       .CompareOperation(Token::Value::EQ_STRICT, reg, 2)
+      .CompareOperation(Token::Value::EQ_STRICT, reg)
       .CompareOperation(Token::Value::LT, reg, 3)
       .CompareOperation(Token::Value::GT, reg, 4)
       .CompareOperation(Token::Value::LTE, reg, 5)
       .CompareOperation(Token::Value::GTE, reg, 6)
-      .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
-      .CompareOperation(Token::Value::IN, reg, 8)
-      .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber);
+      .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber)
+      .CompareOperation(Token::Value::INSTANCEOF, reg)
+      .CompareOperation(Token::Value::IN, reg);
 
   // Emit peephole optimizations of equality with Null or Undefined.
   builder.LoadUndefined()
