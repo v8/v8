@@ -38,7 +38,7 @@ struct TestHelper : public HandleAndZoneScope {
                          function);
 
     CHECK(parsing::ParseFunction(&parse_info));
-    CHECK(Rewriter::Rewrite(&parse_info));
+    CHECK(Rewriter::Rewrite(&parse_info, function->GetIsolate()));
     DeclarationScope::Analyze(&parse_info, info.isolate(),
                               AnalyzeMode::kRegular);
 

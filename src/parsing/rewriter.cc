@@ -352,7 +352,7 @@ DECLARATION_NODE_LIST(DEF_VISIT)
 
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
-bool Rewriter::Rewrite(ParseInfo* info) {
+bool Rewriter::Rewrite(ParseInfo* info, Isolate* isolate) {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
@@ -400,14 +400,14 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     }
 
     // TODO(leszeks): Remove this check and releases once internalization is
-    // moved out of parsing/analysis.
-    DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
+    // moved out of parsing/analysis. Also remove the parameter once done.
+    DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
     no_deref.Release();
     no_handles.Release();
     no_allocation.Release();
 
     // Internalize any values created during rewriting.
-    info->ast_value_factory()->Internalize(info->isolate());
+    info->ast_value_factory()->Internalize(isolate);
     if (processor.HasStackOverflow()) return false;
   }
 

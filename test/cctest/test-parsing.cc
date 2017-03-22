@@ -812,7 +812,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       // The information we're checking is only produced when eager parsing.
       info.set_allow_lazy_parsing(false);
       CHECK(i::parsing::ParseProgram(&info));
-      CHECK(i::Rewriter::Rewrite(&info));
+      CHECK(i::Rewriter::Rewrite(&info, isolate));
       i::DeclarationScope::Analyze(&info, isolate, i::AnalyzeMode::kRegular);
       CHECK(info.literal() != NULL);
 

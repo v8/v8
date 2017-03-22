@@ -1194,7 +1194,7 @@ bool Compiler::Analyze(ParseInfo* info,
   RuntimeCallTimerScope runtimeTimer(info->runtime_call_stats(),
                                      &RuntimeCallStats::CompileAnalyse);
   Isolate* isolate = info->isolate();
-  if (!Rewriter::Rewrite(info)) return false;
+  if (!Rewriter::Rewrite(info, isolate)) return false;
   DeclarationScope::Analyze(info, isolate, AnalyzeMode::kRegular);
   if (!Renumber(info, eager_literals)) {
     return false;
