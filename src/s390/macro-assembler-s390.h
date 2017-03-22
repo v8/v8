@@ -961,8 +961,6 @@ class MacroAssembler : public Assembler {
 
   void IsObjectJSStringType(Register object, Register scratch, Label* fail);
 
-  void IsObjectNameType(Register object, Register scratch, Label* fail);
-
   // Frame restart support
   void MaybeDropFrames();
 
@@ -1105,17 +1103,6 @@ class MacroAssembler : public Assembler {
 
   void CheckMap(Register obj, Register scratch, Heap::RootListIndex index,
                 Label* fail, SmiCheckType smi_check_type);
-
-  // Check if the map of an object is equal to a specified weak map and branch
-  // to a specified target if equal. Skip the smi check if not required
-  // (object is known to be a heap object)
-  void DispatchWeakMap(Register obj, Register scratch1, Register scratch2,
-                       Handle<WeakCell> cell, Handle<Code> success,
-                       SmiCheckType smi_check_type);
-
-  // Compare the given value and the value of weak cell.
-  void CmpWeakValue(Register value, Handle<WeakCell> cell, Register scratch,
-                    CRegister cr = cr7);
 
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
@@ -1326,7 +1313,6 @@ class MacroAssembler : public Assembler {
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cond, BailoutReason reason, CRegister cr = cr7);
-  void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
   void Check(Condition cond, BailoutReason reason, CRegister cr = cr7);
@@ -1609,9 +1595,6 @@ class MacroAssembler : public Assembler {
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
 
-  // Abort execution if argument is a number, enabled via --debug-code.
-  void AssertNotNumber(Register object);
-
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
   void AssertSmi(Register object);
@@ -1633,12 +1616,6 @@ class MacroAssembler : public Assembler {
 #define SmiWordOffset(offset) offset
 #endif
 
-  // Abort execution if argument is not a string, enabled via --debug-code.
-  void AssertString(Register object);
-
-  // Abort execution if argument is not a name, enabled via --debug-code.
-  void AssertName(Register object);
-
   void AssertFunction(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,
@@ -1648,9 +1625,6 @@ class MacroAssembler : public Assembler {
   // Abort execution if argument is not a JSGeneratorObject,
   // enabled via --debug-code.
   void AssertGeneratorObject(Register object);
-
-  // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
-  void AssertReceiver(Register object);
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.

@@ -1619,20 +1619,6 @@ void MacroAssembler::AssertNotSmi(Register object, BailoutReason reason) {
 }
 
 
-void MacroAssembler::AssertName(Register object) {
-  if (emit_debug_code()) {
-    AssertNotSmi(object, kOperandIsASmiAndNotAName);
-
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireX();
-
-    Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
-    CompareInstanceType(temp, temp, LAST_NAME_TYPE);
-    Check(ls, kOperandIsNotAName);
-  }
-}
-
-
 void MacroAssembler::AssertFunction(Register object) {
   if (emit_debug_code()) {
     AssertNotSmi(object, kOperandIsASmiAndNotAFunction);
@@ -1670,20 +1656,6 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   }
 }
 
-void MacroAssembler::AssertReceiver(Register object) {
-  if (emit_debug_code()) {
-    AssertNotSmi(object, kOperandIsASmiAndNotAReceiver);
-
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireX();
-
-    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-    CompareObjectType(object, temp, temp, FIRST_JS_RECEIVER_TYPE);
-    Check(hs, kOperandIsNotAReceiver);
-  }
-}
-
-
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
   if (emit_debug_code()) {
@@ -1698,48 +1670,12 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
 }
 
 
-void MacroAssembler::AssertString(Register object) {
-  if (emit_debug_code()) {
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireX();
-    STATIC_ASSERT(kSmiTag == 0);
-    Tst(object, kSmiTagMask);
-    Check(ne, kOperandIsASmiAndNotAString);
-    Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
-    CompareInstanceType(temp, temp, FIRST_NONSTRING_TYPE);
-    Check(lo, kOperandIsNotAString);
-  }
-}
-
-
 void MacroAssembler::AssertPositiveOrZero(Register value) {
   if (emit_debug_code()) {
     Label done;
     int sign_bit = value.Is64Bits() ? kXSignBit : kWSignBit;
     Tbz(value, sign_bit, &done);
     Abort(kUnexpectedNegativeValue);
-    Bind(&done);
-  }
-}
-
-void MacroAssembler::AssertNotNumber(Register value) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    Tst(value, kSmiTagMask);
-    Check(ne, kOperandIsANumber);
-    Label done;
-    JumpIfNotHeapNumber(value, &done);
-    Abort(kOperandIsANumber);
-    Bind(&done);
-  }
-}
-
-void MacroAssembler::AssertNumber(Register value) {
-  if (emit_debug_code()) {
-    Label done;
-    JumpIfSmi(value, &done);
-    JumpIfHeapNumber(value, &done);
-    Abort(kOperandIsNotANumber);
     Bind(&done);
   }
 }
@@ -3355,30 +3291,6 @@ void MacroAssembler::CheckMap(Register obj_map,
 }
 
 
-void MacroAssembler::DispatchWeakMap(Register obj, Register scratch1,
-                                     Register scratch2, Handle<WeakCell> cell,
-                                     Handle<Code> success,
-                                     SmiCheckType smi_check_type) {
-  Label fail;
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, &fail);
-  }
-  Ldr(scratch1, FieldMemOperand(obj, HeapObject::kMapOffset));
-  CmpWeakValue(scratch1, cell, scratch2);
-  B(ne, &fail);
-  Jump(success, RelocInfo::CODE_TARGET);
-  Bind(&fail);
-}
-
-
-void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
-                                  Register scratch) {
-  Mov(scratch, Operand(cell));
-  Ldr(scratch, FieldMemOperand(scratch, WeakCell::kValueOffset));
-  Cmp(value, scratch);
-}
-
-
 void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   Mov(value, Operand(cell));
   Ldr(value, FieldMemOperand(value, WeakCell::kValueOffset));
@@ -4099,20 +4011,6 @@ void MacroAssembler::AssertRegisterIsRoot(Register reg,
   }
 }
 
-
-void MacroAssembler::AssertFastElements(Register elements) {
-  if (emit_debug_code()) {
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireX();
-    Label ok;
-    Ldr(temp, FieldMemOperand(elements, HeapObject::kMapOffset));
-    JumpIfRoot(temp, Heap::kFixedArrayMapRootIndex, &ok);
-    JumpIfRoot(temp, Heap::kFixedDoubleArrayMapRootIndex, &ok);
-    JumpIfRoot(temp, Heap::kFixedCOWArrayMapRootIndex, &ok);
-    Abort(kJSObjectWithFastElementsMapHasSlowElements);
-    Bind(&ok);
-  }
-}
 
 
 void MacroAssembler::AssertIsString(const Register& object) {

@@ -4503,21 +4503,6 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
-void MacroAssembler::DispatchWeakMap(Register obj, Register scratch1,
-                                     Register scratch2, Handle<WeakCell> cell,
-                                     Handle<Code> success,
-                                     SmiCheckType smi_check_type) {
-  Label fail;
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, &fail);
-  }
-  ld(scratch1, FieldMemOperand(obj, HeapObject::kMapOffset));
-  GetWeakValue(scratch2, cell);
-  Jump(success, RelocInfo::CODE_TARGET, eq, scratch1, Operand(scratch2));
-  bind(&fail);
-}
-
-
 void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Heap::RootListIndex index,
@@ -4899,15 +4884,6 @@ void MacroAssembler::IsObjectJSStringType(Register object,
   lbu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
   And(scratch, scratch, Operand(kIsNotStringMask));
   Branch(fail, ne, scratch, Operand(zero_reg));
-}
-
-
-void MacroAssembler::IsObjectNameType(Register object,
-                                      Register scratch,
-                                      Label* fail) {
-  ld(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  lbu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  Branch(fail, hi, scratch, Operand(LAST_NAME_TYPE));
 }
 
 
@@ -5501,24 +5477,6 @@ void MacroAssembler::Assert(Condition cc, BailoutReason reason,
 }
 
 
-void MacroAssembler::AssertFastElements(Register elements) {
-  if (emit_debug_code()) {
-    DCHECK(!elements.is(at));
-    Label ok;
-    push(elements);
-    ld(elements, FieldMemOperand(elements, HeapObject::kMapOffset));
-    LoadRoot(at, Heap::kFixedArrayMapRootIndex);
-    Branch(&ok, eq, elements, Operand(at));
-    LoadRoot(at, Heap::kFixedDoubleArrayMapRootIndex);
-    Branch(&ok, eq, elements, Operand(at));
-    LoadRoot(at, Heap::kFixedCOWArrayMapRootIndex);
-    Branch(&ok, eq, elements, Operand(at));
-    Abort(kJSObjectWithFastElementsMapHasSlowElements);
-    bind(&ok);
-    pop(elements);
-  }
-}
-
 
 void MacroAssembler::Check(Condition cc, BailoutReason reason,
                            Register rs, Operand rt) {
@@ -6013,16 +5971,6 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
   JumpIfSmi(at, on_either_smi);
 }
 
-void MacroAssembler::AssertNotNumber(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    andi(at, object, kSmiTagMask);
-    Check(ne, kOperandIsANumber, at, Operand(zero_reg));
-    GetObjectType(object, t8, t8);
-    Check(ne, kOperandIsNotANumber, t8, Operand(HEAP_NUMBER_TYPE));
-  }
-}
-
 void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
@@ -6037,28 +5985,6 @@ void MacroAssembler::AssertSmi(Register object) {
     STATIC_ASSERT(kSmiTag == 0);
     andi(at, object, kSmiTagMask);
     Check(eq, kOperandIsASmi, at, Operand(zero_reg));
-  }
-}
-
-
-void MacroAssembler::AssertString(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    SmiTst(object, t8);
-    Check(ne, kOperandIsASmiAndNotAString, t8, Operand(zero_reg));
-    GetObjectType(object, t8, t8);
-    Check(lo, kOperandIsNotAString, t8, Operand(FIRST_NONSTRING_TYPE));
-  }
-}
-
-
-void MacroAssembler::AssertName(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    SmiTst(object, t8);
-    Check(ne, kOperandIsASmiAndNotAName, t8, Operand(zero_reg));
-    GetObjectType(object, t8, t8);
-    Check(le, kOperandIsNotAName, t8, Operand(LAST_NAME_TYPE));
   }
 }
 
@@ -6092,16 +6018,6 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
     GetObjectType(object, t8, t8);
     Check(eq, kOperandIsNotAGeneratorObject, t8,
           Operand(JS_GENERATOR_OBJECT_TYPE));
-  }
-}
-
-void MacroAssembler::AssertReceiver(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    SmiTst(object, t8);
-    Check(ne, kOperandIsASmiAndNotAReceiver, t8, Operand(zero_reg));
-    GetObjectType(object, t8, t8);
-    Check(ge, kOperandIsNotAReceiver, t8, Operand(FIRST_JS_RECEIVER_TYPE));
   }
 }
 

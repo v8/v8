@@ -1545,15 +1545,6 @@ void MacroAssembler::IsObjectJSStringType(Register object, Register scratch,
 }
 
 
-void MacroAssembler::IsObjectNameType(Register object, Register scratch,
-                                      Label* fail) {
-  LoadP(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  lbz(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  cmpi(scratch, Operand(LAST_NAME_TYPE));
-  bgt(fail);
-}
-
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
@@ -2090,29 +2081,6 @@ void MacroAssembler::CheckMap(Register obj, Register scratch,
 }
 
 
-void MacroAssembler::DispatchWeakMap(Register obj, Register scratch1,
-                                     Register scratch2, Handle<WeakCell> cell,
-                                     Handle<Code> success,
-                                     SmiCheckType smi_check_type) {
-  Label fail;
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, &fail);
-  }
-  LoadP(scratch1, FieldMemOperand(obj, HeapObject::kMapOffset));
-  CmpWeakValue(scratch1, cell, scratch2);
-  Jump(success, RelocInfo::CODE_TARGET, eq);
-  bind(&fail);
-}
-
-
-void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
-                                  Register scratch, CRegister cr) {
-  mov(scratch, Operand(cell));
-  LoadP(scratch, FieldMemOperand(scratch, WeakCell::kValueOffset));
-  cmp(value, scratch, cr);
-}
-
-
 void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   mov(value, Operand(cell));
   LoadP(value, FieldMemOperand(value, WeakCell::kValueOffset));
@@ -2452,27 +2420,6 @@ void MacroAssembler::Assert(Condition cond, BailoutReason reason,
 }
 
 
-void MacroAssembler::AssertFastElements(Register elements) {
-  if (emit_debug_code()) {
-    DCHECK(!elements.is(r0));
-    Label ok;
-    push(elements);
-    LoadP(elements, FieldMemOperand(elements, HeapObject::kMapOffset));
-    LoadRoot(r0, Heap::kFixedArrayMapRootIndex);
-    cmp(elements, r0);
-    beq(&ok);
-    LoadRoot(r0, Heap::kFixedDoubleArrayMapRootIndex);
-    cmp(elements, r0);
-    beq(&ok);
-    LoadRoot(r0, Heap::kFixedCOWArrayMapRootIndex);
-    cmp(elements, r0);
-    beq(&ok);
-    Abort(kJSObjectWithFastElementsMapHasSlowElements);
-    bind(&ok);
-    pop(elements);
-  }
-}
-
 
 void MacroAssembler::Check(Condition cond, BailoutReason reason, CRegister cr) {
   Label L;
@@ -2623,18 +2570,6 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1, Register reg2,
   JumpIfSmi(reg2, on_either_smi);
 }
 
-void MacroAssembler::AssertNotNumber(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    TestIfSmi(object, r0);
-    Check(ne, kOperandIsANumber, cr0);
-    push(object);
-    CompareObjectType(object, object, object, HEAP_NUMBER_TYPE);
-    pop(object);
-    Check(ne, kOperandIsANumber);
-  }
-}
-
 void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
@@ -2649,34 +2584,6 @@ void MacroAssembler::AssertSmi(Register object) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object, r0);
     Check(eq, kOperandIsNotSmi, cr0);
-  }
-}
-
-
-void MacroAssembler::AssertString(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    TestIfSmi(object, r0);
-    Check(ne, kOperandIsASmiAndNotAString, cr0);
-    push(object);
-    LoadP(object, FieldMemOperand(object, HeapObject::kMapOffset));
-    CompareInstanceType(object, object, FIRST_NONSTRING_TYPE);
-    pop(object);
-    Check(lt, kOperandIsNotAString);
-  }
-}
-
-
-void MacroAssembler::AssertName(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    TestIfSmi(object, r0);
-    Check(ne, kOperandIsASmiAndNotAName, cr0);
-    push(object);
-    LoadP(object, FieldMemOperand(object, HeapObject::kMapOffset));
-    CompareInstanceType(object, object, LAST_NAME_TYPE);
-    pop(object);
-    Check(le, kOperandIsNotAName);
   }
 }
 
@@ -2715,19 +2622,6 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
     CompareObjectType(object, object, object, JS_GENERATOR_OBJECT_TYPE);
     pop(object);
     Check(eq, kOperandIsNotAGeneratorObject);
-  }
-}
-
-void MacroAssembler::AssertReceiver(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    TestIfSmi(object, r0);
-    Check(ne, kOperandIsASmiAndNotAReceiver, cr0);
-    push(object);
-    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-    CompareObjectType(object, object, object, FIRST_JS_RECEIVER_TYPE);
-    pop(object);
-    Check(ge, kOperandIsNotAReceiver);
   }
 }
 

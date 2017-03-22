@@ -994,9 +994,6 @@ class MacroAssembler : public Assembler {
   inline void ObjectTag(Register tagged_obj, Register obj);
   inline void ObjectUntag(Register untagged_obj, Register obj);
 
-  // Abort execution if argument is not a name, enabled via --debug-code.
-  void AssertName(Register object);
-
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
 
@@ -1008,23 +1005,13 @@ class MacroAssembler : public Assembler {
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
-  // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
-  void AssertReceiver(Register object);
-
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
-  // Abort execution if argument is not a string, enabled via --debug-code.
-  void AssertString(Register object);
-
   // Abort execution if argument is not a positive or zero integer, enabled via
   // --debug-code.
   void AssertPositiveOrZero(Register value);
-
-  // Abort execution if argument is not a number (heap number or smi).
-  void AssertNumber(Register value);
-  void AssertNotNumber(Register value);
 
   void JumpIfHeapNumber(Register object, Label* on_heap_number,
                         SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
@@ -1430,16 +1417,6 @@ class MacroAssembler : public Assembler {
                 Label* fail,
                 SmiCheckType smi_check_type);
 
-  // Check if the map of an object is equal to a specified weak map and branch
-  // to a specified target if equal. Skip the smi check if not required
-  // (object is known to be a heap object)
-  void DispatchWeakMap(Register obj, Register scratch1, Register scratch2,
-                       Handle<WeakCell> cell, Handle<Code> success,
-                       SmiCheckType smi_check_type);
-
-  // Compare the given value and the value of weak cell.
-  void CmpWeakValue(Register value, Handle<WeakCell> cell, Register scratch);
-
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
   // Load the value of the weak cell in the value register. Branch to the given
@@ -1469,13 +1446,6 @@ class MacroAssembler : public Assembler {
   void JumpIfNotRoot(const Register& obj,
                      Heap::RootListIndex index,
                      Label* if_not_equal);
-
-  // Load and check the instance type of an object for being a unique name.
-  // Loads the type into the second argument register.
-  // The object and type arguments can be the same register; in that case it
-  // will be overwritten with the type.
-  // Fall-through if the object was a string and jump on fail otherwise.
-  inline void IsObjectNameType(Register object, Register type, Label* fail);
 
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.
@@ -1789,7 +1759,6 @@ class MacroAssembler : public Assembler {
       Register reg,
       Heap::RootListIndex index,
       BailoutReason reason = kRegisterDidNotMatchExpectedRoot);
-  void AssertFastElements(Register elements);
 
   // Abort if the specified register contains the invalid color bit pattern.
   // The pattern must be in bits [1:0] of 'reg' register.

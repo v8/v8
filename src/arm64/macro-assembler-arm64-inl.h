@@ -1444,14 +1444,6 @@ void MacroAssembler::ObjectUntag(Register untagged_obj, Register obj) {
 
 void MacroAssembler::jmp(Label* L) { B(L); }
 
-void MacroAssembler::IsObjectNameType(Register object,
-                                      Register type,
-                                      Label* fail) {
-  CompareObjectType(object, type, type, LAST_NAME_TYPE);
-  B(hi, fail);
-}
-
-
 void MacroAssembler::IsObjectJSStringType(Register object,
                                           Register type,
                                           Label* not_string,
