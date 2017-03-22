@@ -191,6 +191,8 @@
   # BUG(v8:6101): This fails because of a hole deopt, need to investigate.
   'getters-on-elements': [SKIP],
 
+  # BUG(v8:6113).
+  'es6/array-iterator-turbo': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -691,6 +693,9 @@
   'math-*': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
+
+  # BUG(v8:6132).
+  'wasm/grow-memory': [PASS, ['gc_stress', SKIP]],
 }],  # variant == wasm_traps
 
 ]

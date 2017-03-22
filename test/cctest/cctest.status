@@ -80,6 +80,9 @@
   'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
 
+  # BUG(v8:5193): Flaky.
+  'test-cpu-profiler/FunctionApplySample': [SKIP],
+
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
 
@@ -178,6 +181,12 @@
 }],  # 'msan == True'
 
 ##############################################################################
+['tsan == True', {
+  # BUG(v8:6133).
+  'test-cpu-profiler/TickEvents': [SKIP],
+}],  # 'tsan == True'
+
+##############################################################################
 ['no_snap == True', {
   # Slow tests.
   'test-api/ExternalWrap': [PASS, SLOW],
@@ -217,9 +226,6 @@
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
 
-  # BUG(v8:5193): Flaky.
-  'test-cpu-profiler/FunctionApplySample': [SKIP],
-
   # BUG(5193): Flaky timeout.
   'test-sampler/LibSamplerCollectSample': [PASS, ['arch == x64', SKIP]],
 
@@ -230,7 +236,6 @@
 ##############################################################################
 ['system == macos', {
   # BUG(v8:5193) Flaky failures.
-  'test-cpu-profiler/FunctionApplySample': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
 }],  # 'system == macos'
