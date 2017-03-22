@@ -127,12 +127,20 @@ void V8InjectedScriptHost::subtypeCallback(
     info.GetReturnValue().Set(toV8StringInternalized(isolate, "regexp"));
     return;
   }
-  if (value->IsMap() || value->IsWeakMap()) {
+  if (value->IsMap()) {
     info.GetReturnValue().Set(toV8StringInternalized(isolate, "map"));
     return;
   }
-  if (value->IsSet() || value->IsWeakSet()) {
+  if (value->IsWeakMap()) {
+    info.GetReturnValue().Set(toV8StringInternalized(isolate, "weakmap"));
+    return;
+  }
+  if (value->IsSet()) {
     info.GetReturnValue().Set(toV8StringInternalized(isolate, "set"));
+    return;
+  }
+  if (value->IsWeakSet()) {
+    info.GetReturnValue().Set(toV8StringInternalized(isolate, "weakset"));
     return;
   }
   if (value->IsMapIterator() || value->IsSetIterator()) {

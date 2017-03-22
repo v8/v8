@@ -917,7 +917,7 @@ InjectedScript.RemoteObject.prototype = {
             }
             this._appendPropertyPreviewDescriptors(preview, descriptors, secondLevelKeys, isTable);
 
-            if (subtype === "map" || subtype === "set" || subtype === "iterator")
+            if (subtype === "map" || subtype === "set" || subtype === "weakmap" || subtype === "weakset" || subtype === "iterator")
                 this._appendEntriesPreview(entries, preview, skipEntriesPreview);
 
         } catch (e) {}

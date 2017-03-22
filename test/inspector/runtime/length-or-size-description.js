@@ -12,7 +12,10 @@ Promise.all([
   testExpression("new Array()"),
   testExpression("new Array(2)"),
   testExpression("new Uint8Array()"),
-  testExpression("new Uint8Array(2)")
+  testExpression("new Uint8Array(2)"),
+  // WeakMap and WeakSet should not have size in description.
+  testExpression("new WeakMap([[{}, 42]])"),
+  testExpression("new WeakSet([{}])")
 ]).then(() => InspectorTest.completeTest());
 
 function testExpression(expression) {
