@@ -2946,9 +2946,9 @@ Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
 void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
                                       uint32_t offset,
                                       wasm::WasmCodePosition position) {
-  DCHECK(module_ && module_->instance);
   if (FLAG_wasm_no_bounds_checks) return;
-  uint32_t size = module_->instance->mem_size;
+  uint32_t size =
+      module_ && module_->instance ? module_->instance->mem_size : 0;
   byte memsize = wasm::WasmOpcodes::MemSize(memtype);
 
   size_t effective_size;

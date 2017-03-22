@@ -289,6 +289,11 @@ Handle<Code> EnsureTableExportLazyDeoptData(
   return code;
 }
 
+bool compile_lazy(const WasmModule* module) {
+  return FLAG_wasm_lazy_compilation || (FLAG_asm_wasm_lazy_compilation &&
+                                        module->origin == wasm::kAsmJsOrigin);
+}
+
 // A helper for compiling an entire module.
 class CompilationHelper {
  public:
@@ -521,8 +526,7 @@ class CompilationHelper {
         factory->NewFixedArray(static_cast<int>(code_table_size), TENURED);
 
     // Check whether lazy compilation is enabled for this module.
-    bool lazy_compile =
-        FLAG_asm_wasm_lazy_compilation && module_->origin == wasm::kAsmJsOrigin;
+    bool lazy_compile = compile_lazy(module_);
 
     // If lazy compile: Initialize the code table with the lazy compile builtin.
     // Otherwise: Initialize with the illegal builtin. All call sites will be
@@ -871,7 +875,7 @@ int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
 }
 
 void RecordLazyCodeStats(Isolate* isolate, Code* code) {
-  isolate->counters()->asm_wasm_lazily_compiled_functions()->Increment();
+  isolate->counters()->wasm_lazily_compiled_functions()->Increment();
   isolate->counters()->wasm_generated_code_size()->Increment(code->body_size());
   isolate->counters()->wasm_reloc_size()->Increment(
       code->relocation_info()->length());
@@ -2184,8 +2188,7 @@ class InstantiationHelper {
       // Count the number of table exports for each function (needed for lazy
       // compilation).
       std::unordered_map<uint32_t, uint32_t> num_table_exports;
-      if (FLAG_asm_wasm_lazy_compilation &&
-          module_->origin == ModuleOrigin::kAsmJsOrigin) {
+      if (compile_lazy(module_)) {
         for (auto table_init : module_->table_inits) {
           for (uint32_t func_index : table_init.entries) {
             Code* code =
@@ -2945,7 +2948,7 @@ void wasm::AsyncCompileAndInstantiate(Isolate* isolate,
 
 Handle<Code> wasm::CompileLazy(Isolate* isolate) {
   HistogramTimerScope lazy_time_scope(
-      isolate->counters()->asm_wasm_lazy_compilation_time());
+      isolate->counters()->wasm_lazy_compilation_time());
 
   // Find the wasm frame which triggered the lazy compile, to get the wasm
   // instance.

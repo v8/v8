@@ -587,6 +587,8 @@ DEFINE_BOOL(wasm_interpret_all, false,
 DEFINE_BOOL(asm_wasm_lazy_compilation, false,
             "enable lazy compilation for asm-wasm modules")
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
+DEFINE_BOOL(wasm_lazy_compilation, false,
+            "enable lazy compilation for all wasm modules")
 
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
