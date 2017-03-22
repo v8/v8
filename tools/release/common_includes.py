@@ -611,7 +611,7 @@ class Step(GitRecipesMixin):
   def WaitForResolvingConflicts(self, patch_file):
     print("Applying the patch \"%s\" failed. Either type \"ABORT<Return>\", "
           "or resolve the conflicts, stage *all* touched files with "
-          "'git add', and type \"RESOLVED<Return>\"")
+          "'git add', and type \"RESOLVED<Return>\"" % (patch_file))
     self.DieNoManualMode()
     answer = ""
     while answer != "RESOLVED":
