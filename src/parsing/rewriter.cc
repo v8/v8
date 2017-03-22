@@ -358,7 +358,8 @@ bool Rewriter::Rewrite(ParseInfo* info) {
   DisallowHandleDereference no_deref;
 
   RuntimeCallTimerScope runtimeTimer(
-      info->isolate(), &RuntimeCallStats::CompileRewriteReturnResult);
+      info->runtime_call_stats(),
+      &RuntimeCallStats::CompileRewriteReturnResult);
 
   FunctionLiteral* function = info->literal();
   DCHECK_NOT_NULL(function);
@@ -376,9 +377,8 @@ bool Rewriter::Rewrite(ParseInfo* info) {
   if (!body->is_empty()) {
     Variable* result = scope->AsDeclarationScope()->NewTemporary(
         info->ast_value_factory()->dot_result_string());
-    Processor processor(info->isolate()->stack_guard()->real_climit(),
-                        scope->AsDeclarationScope(), result,
-                        info->ast_value_factory());
+    Processor processor(info->stack_limit(), scope->AsDeclarationScope(),
+                        result, info->ast_value_factory());
     processor.Process(body);
 
     DCHECK_IMPLIES(scope->is_module_scope(), processor.result_assigned());

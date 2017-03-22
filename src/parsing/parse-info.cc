@@ -37,29 +37,29 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       isolate_(nullptr),
       cached_data_(nullptr),
       ast_value_factory_(nullptr),
+      ast_string_constants_(nullptr),
       function_name_(nullptr),
+      runtime_call_stats_(nullptr),
       literal_(nullptr),
       deferred_handles_(nullptr) {}
 
 ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
     : ParseInfo(shared->GetIsolate()->allocator()) {
-  isolate_ = shared->GetIsolate();
+  Isolate* isolate = shared->GetIsolate();
 
+  set_isolate(isolate);
   set_toplevel(shared->is_toplevel());
   set_allow_lazy_parsing(FLAG_lazy_inner_functions);
-  set_hash_seed(isolate_->heap()->HashSeed());
   set_is_named_expression(shared->is_named_expression());
   set_calls_eval(shared->scope_info()->CallsEval());
   set_compiler_hints(shared->compiler_hints());
   set_start_position(shared->start_position());
   set_end_position(shared->end_position());
   function_literal_id_ = shared->function_literal_id();
-  set_stack_limit(isolate_->stack_guard()->real_climit());
-  set_unicode_cache(isolate_->unicode_cache());
   set_language_mode(shared->language_mode());
   set_shared_info(shared);
   set_module(shared->kind() == FunctionKind::kModule);
-  set_scope_info_is_empty(shared->scope_info() == ScopeInfo::Empty(isolate_));
+  set_scope_info_is_empty(shared->scope_info() == ScopeInfo::Empty(isolate));
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
@@ -67,7 +67,7 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
 
   Handle<HeapObject> scope_info(shared->outer_scope_info());
-  if (!scope_info->IsTheHole(isolate()) &&
+  if (!scope_info->IsTheHole(isolate) &&
       Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
     set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));
   }
@@ -81,13 +81,9 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared,
 
 ParseInfo::ParseInfo(Handle<Script> script)
     : ParseInfo(script->GetIsolate()->allocator()) {
-  isolate_ = script->GetIsolate();
-
+  set_isolate(script->GetIsolate());
   set_allow_lazy_parsing();
   set_toplevel();
-  set_hash_seed(isolate_->heap()->HashSeed());
-  set_stack_limit(isolate_->stack_guard()->real_climit());
-  set_unicode_cache(isolate_->unicode_cache());
   set_script(script);
 
   set_native(script->type() == Script::TYPE_NATIVE);
@@ -106,19 +102,16 @@ ParseInfo::~ParseInfo() {
 ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   Isolate* isolate = shared->GetIsolate();
   ParseInfo* p = new ParseInfo(isolate->allocator());
-  p->isolate_ = isolate;
 
+  p->set_isolate(isolate);
   p->set_toplevel(shared->is_toplevel());
   p->set_allow_lazy_parsing(FLAG_lazy_inner_functions);
-  p->set_hash_seed(isolate->heap()->HashSeed());
   p->set_is_named_expression(shared->is_named_expression());
   p->set_calls_eval(shared->scope_info()->CallsEval());
   p->set_compiler_hints(shared->compiler_hints());
   p->set_start_position(shared->start_position());
   p->set_end_position(shared->end_position());
   p->function_literal_id_ = shared->function_literal_id();
-  p->set_stack_limit(isolate->stack_guard()->real_climit());
-  p->set_unicode_cache(isolate->unicode_cache());
   p->set_language_mode(shared->language_mode());
   p->set_shared_info(shared);
   p->set_module(shared->kind() == FunctionKind::kModule);
@@ -162,6 +155,17 @@ void ParseInfo::set_deferred_handles(
 void ParseInfo::set_deferred_handles(DeferredHandles* deferred_handles) {
   DCHECK(deferred_handles_.get() == nullptr);
   deferred_handles_.reset(deferred_handles);
+}
+
+void ParseInfo::InitFromIsolate(Isolate* isolate) {
+  DCHECK_NOT_NULL(isolate);
+  set_hash_seed(isolate->heap()->HashSeed());
+  set_stack_limit(isolate->stack_guard()->real_climit());
+  set_unicode_cache(isolate->unicode_cache());
+  set_tail_call_elimination_enabled(
+      isolate->is_tail_call_elimination_enabled());
+  set_runtime_call_stats(isolate->counters()->runtime_call_stats());
+  set_ast_string_constants(isolate->ast_string_constants());
 }
 
 #ifdef DEBUG

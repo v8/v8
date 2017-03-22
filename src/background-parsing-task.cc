@@ -34,7 +34,6 @@ BackgroundParsingTask::BackgroundParsingTask(
   info->set_isolate(isolate);
   info->set_source_stream(source->source_stream.get());
   info->set_source_stream_encoding(source->encoding);
-  info->set_hash_seed(isolate->heap()->HashSeed());
   info->set_unicode_cache(&source_->unicode_cache);
   info->set_compile_options(options);
   info->set_allow_lazy_parsing();
