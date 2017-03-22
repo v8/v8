@@ -65,13 +65,112 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 }
 
 #ifdef VERIFY_HEAP
-class VerifyMarkingVisitor : public ObjectVisitor {
+class MarkingVerifier : public ObjectVisitor {
  public:
+  virtual void Run() = 0;
+
+ protected:
+  explicit MarkingVerifier(Heap* heap) : heap_(heap) {}
+
+  virtual MarkingState marking_state(MemoryChunk* chunk) = 0;
+
+  void VerifyRoots(VisitMode mode);
+  void VerifyMarkingOnPage(const Page& page, const MarkingState& state,
+                           Address start, Address end);
+  void VerifyMarking(NewSpace* new_space);
+  void VerifyMarking(PagedSpace* paged_space);
+
+  Heap* heap_;
+};
+
+void MarkingVerifier::VerifyRoots(VisitMode mode) {
+  heap_->IterateStrongRoots(this, mode);
+}
+
+void MarkingVerifier::VerifyMarkingOnPage(const Page& page,
+                                          const MarkingState& state,
+                                          Address start, Address end) {
+  HeapObject* object;
+  Address next_object_must_be_here_or_later = start;
+  for (Address current = start; current < end;) {
+    object = HeapObject::FromAddress(current);
+    // One word fillers at the end of a black area can be grey.
+    if (ObjectMarking::IsBlackOrGrey(object, state) &&
+        object->map() != heap_->one_pointer_filler_map()) {
+      CHECK(ObjectMarking::IsBlack(object, state));
+      CHECK(current >= next_object_must_be_here_or_later);
+      object->Iterate(this);
+      next_object_must_be_here_or_later = current + object->Size();
+      // The object is either part of a black area of black allocation or a
+      // regular black object
+      CHECK(
+          state.bitmap->AllBitsSetInRange(
+              page.AddressToMarkbitIndex(current),
+              page.AddressToMarkbitIndex(next_object_must_be_here_or_later)) ||
+          state.bitmap->AllBitsClearInRange(
+              page.AddressToMarkbitIndex(current + kPointerSize * 2),
+              page.AddressToMarkbitIndex(next_object_must_be_here_or_later)));
+      current = next_object_must_be_here_or_later;
+    } else {
+      current += kPointerSize;
+    }
+  }
+}
+
+void MarkingVerifier::VerifyMarking(NewSpace* space) {
+  Address end = space->top();
+  // The bottom position is at the start of its page. Allows us to use
+  // page->area_start() as start of range on all pages.
+  CHECK_EQ(space->bottom(), Page::FromAddress(space->bottom())->area_start());
+
+  PageRange range(space->bottom(), end);
+  for (auto it = range.begin(); it != range.end();) {
+    Page* page = *(it++);
+    Address limit = it != range.end() ? page->area_end() : end;
+    CHECK(limit == end || !page->Contains(end));
+    VerifyMarkingOnPage(*page, marking_state(page), page->area_start(), limit);
+  }
+}
+
+void MarkingVerifier::VerifyMarking(PagedSpace* space) {
+  for (Page* p : *space) {
+    VerifyMarkingOnPage(*p, marking_state(p), p->area_start(), p->area_end());
+  }
+}
+
+class FullMarkingVerifier : public MarkingVerifier {
+ public:
+  explicit FullMarkingVerifier(Heap* heap) : MarkingVerifier(heap) {}
+
+  void Run() override {
+    VerifyRoots(VISIT_ONLY_STRONG);
+    VerifyMarking(heap_->new_space());
+    VerifyMarking(heap_->old_space());
+    VerifyMarking(heap_->code_space());
+    VerifyMarking(heap_->map_space());
+
+    LargeObjectIterator it(heap_->lo_space());
+    for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+      if (ObjectMarking::IsBlackOrGrey(obj, marking_state(obj))) {
+        obj->Iterate(this);
+      }
+    }
+  }
+
+ protected:
+  MarkingState marking_state(MemoryChunk* chunk) override {
+    return MarkingState::FromPageInternal(chunk);
+  }
+
+  MarkingState marking_state(HeapObject* object) {
+    return marking_state(Page::FromAddress(object->address()));
+  }
+
   void VisitPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        CHECK(ObjectMarking::IsBlackOrGrey(object));
+        CHECK(ObjectMarking::IsBlackOrGrey(object, marking_state(object)));
       }
     }
   }
@@ -93,78 +192,33 @@ class VerifyMarkingVisitor : public ObjectVisitor {
   }
 };
 
+class YoungGenerationMarkingVerifier : public MarkingVerifier {
+ public:
+  explicit YoungGenerationMarkingVerifier(Heap* heap) : MarkingVerifier(heap) {}
 
-static void VerifyMarking(Heap* heap, Address bottom, Address top) {
-  VerifyMarkingVisitor visitor;
-  HeapObject* object;
-  Address next_object_must_be_here_or_later = bottom;
-  for (Address current = bottom; current < top;) {
-    object = HeapObject::FromAddress(current);
-    // One word fillers at the end of a black area can be grey.
-    if (ObjectMarking::IsBlackOrGrey(object) &&
-        object->map() != heap->one_pointer_filler_map()) {
-      CHECK(ObjectMarking::IsBlack(object));
-      CHECK(current >= next_object_must_be_here_or_later);
-      object->Iterate(&visitor);
-      next_object_must_be_here_or_later = current + object->Size();
-      // The object is either part of a black area of black allocation or a
-      // regular black object
-      Page* page = Page::FromAddress(current);
-      CHECK(
-          page->markbits()->AllBitsSetInRange(
-              page->AddressToMarkbitIndex(current),
-              page->AddressToMarkbitIndex(next_object_must_be_here_or_later)) ||
-          page->markbits()->AllBitsClearInRange(
-              page->AddressToMarkbitIndex(current + kPointerSize * 2),
-              page->AddressToMarkbitIndex(next_object_must_be_here_or_later)));
-      current = next_object_must_be_here_or_later;
-    } else {
-      current += kPointerSize;
+  MarkingState marking_state(MemoryChunk* chunk) override {
+    return MarkingState::FromPageExternal(chunk);
+  }
+
+  MarkingState marking_state(HeapObject* object) {
+    return marking_state(Page::FromAddress(object->address()));
+  }
+
+  void Run() override {
+    VerifyRoots(VISIT_ALL_IN_SCAVENGE);
+    VerifyMarking(heap_->new_space());
+  }
+
+  void VisitPointers(Object** start, Object** end) override {
+    for (Object** current = start; current < end; current++) {
+      if ((*current)->IsHeapObject()) {
+        HeapObject* object = HeapObject::cast(*current);
+        if (!heap_->InNewSpace(object)) return;
+        CHECK(ObjectMarking::IsBlackOrGrey(object, marking_state(object)));
+      }
     }
   }
-}
-
-static void VerifyMarking(NewSpace* space) {
-  Address end = space->top();
-  // The bottom position is at the start of its page. Allows us to use
-  // page->area_start() as start of range on all pages.
-  CHECK_EQ(space->bottom(), Page::FromAddress(space->bottom())->area_start());
-
-  PageRange range(space->bottom(), end);
-  for (auto it = range.begin(); it != range.end();) {
-    Page* page = *(it++);
-    Address limit = it != range.end() ? page->area_end() : end;
-    CHECK(limit == end || !page->Contains(end));
-    VerifyMarking(space->heap(), page->area_start(), limit);
-  }
-}
-
-
-static void VerifyMarking(PagedSpace* space) {
-  for (Page* p : *space) {
-    VerifyMarking(space->heap(), p->area_start(), p->area_end());
-  }
-}
-
-
-static void VerifyMarking(Heap* heap) {
-  VerifyMarking(heap->old_space());
-  VerifyMarking(heap->code_space());
-  VerifyMarking(heap->map_space());
-  VerifyMarking(heap->new_space());
-
-  VerifyMarkingVisitor visitor;
-
-  LargeObjectIterator it(heap->lo_space());
-  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-    if (ObjectMarking::IsBlackOrGrey(obj)) {
-      obj->Iterate(&visitor);
-    }
-  }
-
-  heap->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
-}
-
+};
 
 class VerifyEvacuationVisitor : public ObjectVisitor {
  public:
@@ -310,7 +364,8 @@ void MarkCompactCollector::CollectGarbage() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    VerifyMarking(heap_);
+    FullMarkingVerifier verifier(heap());
+    verifier.Run();
   }
 #endif
 
@@ -2354,7 +2409,16 @@ void MinorMarkCompactCollector::EmptyMarkingDeque() {
   }
 }
 
-void MinorMarkCompactCollector::CollectGarbage() { MarkLiveObjects(); }
+void MinorMarkCompactCollector::CollectGarbage() {
+  MarkLiveObjects();
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    YoungGenerationMarkingVerifier verifier(heap());
+    verifier.Run();
+  }
+#endif  // VERIFY_HEAP
+}
 
 void MarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK);
