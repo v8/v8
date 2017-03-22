@@ -45,11 +45,11 @@ class InterpreterGenerator {
                                                         Node* slot,
                                                         Node* vector);
 
-  // Generates code to perform the binary operation via |Generator|.
+  // Generates code to perform the binary operation via |generator|.
   void DoBinaryOpWithFeedback(InterpreterAssembler* assembler,
                               BinaryOpGenerator generator);
 
-  // Generates code to perform the comparison via |Generator| while gathering
+  // Generates code to perform the |compare_op| comparison while gathering
   // type feedback.
   void DoCompareOpWithFeedback(Token::Value compare_op,
                                InterpreterAssembler* assembler);
@@ -58,16 +58,6 @@ class InterpreterGenerator {
   // |bitwise_op| while gathering type feedback.
   void DoBitwiseBinaryOp(Token::Value bitwise_op,
                          InterpreterAssembler* assembler);
-
-  // Generates code to perform the binary operation via |Generator| using
-  // an immediate value rather the accumulator as the rhs operand.
-  template <class Generator>
-  void DoBinaryOpWithImmediate(InterpreterAssembler* assembler);
-
-  // Generates code to perform the unary operation via |Generator| while
-  // gatering type feedback.
-  template <class Generator>
-  void DoUnaryOpWithFeedback(InterpreterAssembler* assembler);
 
   // Generates code to perform the comparison operation associated with
   // |compare_op|.
@@ -1560,19 +1550,6 @@ Node* InterpreterGenerator::BuildUnaryOp(Callable callable,
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   return __ CallStub(callable.descriptor(), target, context, accumulator);
-}
-
-template <class Generator>
-void InterpreterGenerator::DoUnaryOpWithFeedback(
-    InterpreterAssembler* assembler) {
-  Node* value = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* slot_index = __ BytecodeOperandIdx(0);
-  Node* feedback_vector = __ LoadFeedbackVector();
-  Node* result = Generator::Generate(assembler, value, context, feedback_vector,
-                                     slot_index);
-  __ SetAccumulator(result);
-  __ Dispatch();
 }
 
 // ToName

@@ -338,15 +338,6 @@ class CodeStub BASE_EMBEDDED {
   void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)        \
- public:                                                                     \
-  static compiler::Node* Generate(                                           \
-      CodeStubAssembler* assembler, compiler::Node* value,                   \
-      compiler::Node* context, compiler::Node* feedback_vector,              \
-      compiler::Node* slot_id);                                              \
-  void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
-  DEFINE_CODE_STUB(NAME, SUPER)
-
 #define DEFINE_HANDLER_CODE_STUB(NAME, SUPER) \
  public:                                      \
   Handle<Code> GenerateCode() override;       \
