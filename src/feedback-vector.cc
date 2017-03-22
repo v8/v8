@@ -177,6 +177,17 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
   return metadata()->GetKind(slot);
 }
 
+FeedbackSlot FeedbackVector::GetTypeProfileSlot() const {
+  FeedbackMetadataIterator iter(metadata());
+  while (iter.HasNext()) {
+    FeedbackSlot slot = iter.Next();
+    if (IsTypeProfile(slot)) {
+      return slot;
+    }
+  }
+  return FeedbackSlot();
+}
+
 // static
 Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
                                            Handle<SharedFunctionInfo> shared) {

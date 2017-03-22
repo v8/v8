@@ -1,4 +1,4 @@
-// Copyright 2016 the V8 project authors. All rights reserved.
+// Copyright 2017 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,7 +39,6 @@ function testReturnOfNonVariable() {
 }
 
 // Return statement is reached but its expression is never really returned.
-// TODO(franzih): The only return type should be 'string'.
 function try_finally() {
   try {
     return 23;
@@ -50,15 +49,11 @@ function try_finally() {
 try_finally();
 %PrintTypeProfile(try_finally);
 
-// TODO(franzih): 'undefined' should be the return type.
 function fall_off() {
   //nothing
 }
 fall_off();
 %PrintTypeProfile(fall_off);
-
-
-
 
 testReturnOfNonVariable();
 

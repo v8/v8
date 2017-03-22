@@ -707,6 +707,7 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
     type = JSReceiver::GetConstructorName(object);
   }
 
+  DCHECK(!vector->ToSlot(index).IsInvalid());
   CollectTypeProfileNexus nexus(vector, vector->ToSlot(index));
   nexus.Collect(type, position->value());
 

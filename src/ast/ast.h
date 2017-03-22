@@ -904,15 +904,6 @@ class ReturnStatement final : public JumpStatement {
   Type type() const { return TypeField::decode(bit_field_); }
   bool is_async_return() const { return type() == kAsyncReturn; }
 
-  FeedbackSlot TypeProfileSlot() const {
-    DCHECK(HasTypeProfileSlot());
-    return type_profile_slot_;
-  }
-
-  void SetTypeProfileSlot(FeedbackSlot slot) { type_profile_slot_ = slot; }
-
-  bool HasTypeProfileSlot() const { return !type_profile_slot_.IsInvalid(); }
-
  private:
   friend class AstNodeFactory;
 
@@ -920,8 +911,6 @@ class ReturnStatement final : public JumpStatement {
       : JumpStatement(pos, kReturnStatement), expression_(expression) {
     bit_field_ |= TypeField::encode(type);
   }
-
-  FeedbackSlot type_profile_slot_;
 
   Expression* expression_;
 
@@ -2425,16 +2414,8 @@ class Assignment final : public Expression {
   }
 
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
-                           FeedbackSlotCache* cache,
-                           bool collect_type_profile = false);
+                           FeedbackSlotCache* cache);
   FeedbackSlot AssignmentSlot() const { return slot_; }
-
-  FeedbackSlot TypeProfileSlot() const {
-    DCHECK(HasTypeProfileSlot());
-    return type_profile_slot_;
-  }
-
-  bool HasTypeProfileSlot() const { return !type_profile_slot_.IsInvalid(); }
 
  private:
   friend class AstNodeFactory;
@@ -2457,8 +2438,6 @@ class Assignment final : public Expression {
   Expression* value_;
   BinaryOperation* binary_operation_;
   SmallMapList receiver_types_;
-
-  FeedbackSlot type_profile_slot_;
 };
 
 
@@ -2606,7 +2585,10 @@ class FunctionLiteral final : public Expression {
     literal_feedback_slot_ = spec->AddCreateClosureSlot();
   }
 
+  void SetTypeProfileSlot(FeedbackSlot slot) { type_profile_slot_ = slot; }
+
   FeedbackSlot LiteralFeedbackSlot() const { return literal_feedback_slot_; }
+  FeedbackSlot TypeProfileSlot() const { return type_profile_slot_; }
 
   static bool NeedsHomeObject(Expression* expr);
 
@@ -2769,6 +2751,7 @@ class FunctionLiteral final : public Expression {
   AstProperties ast_properties_;
   int function_literal_id_;
   FeedbackSlot literal_feedback_slot_;
+  FeedbackSlot type_profile_slot_;
 };
 
 // Property is used for passing information

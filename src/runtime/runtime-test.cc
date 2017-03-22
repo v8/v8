@@ -171,16 +171,11 @@ RUNTIME_FUNCTION(Runtime_PrintTypeProfile) {
     Object* function_name = vector->shared_function_info()->name();
     PrintF("Function: %s\n", String::cast(function_name)->ToCString().get());
 
-    FeedbackMetadataIterator iter(vector->metadata());
-    while (iter.HasNext()) {
-      FeedbackSlot slot = iter.Next();
-      FeedbackSlotKind kind = iter.kind();
-      if (kind == FeedbackSlotKind::kTypeProfile) {
-        CollectTypeProfileNexus nexus(vector, slot);
-        nexus.Print();
-        PrintF("\n");
-        return isolate->heap()->undefined_value();
-      }
+    FeedbackSlot slot = vector->GetTypeProfileSlot();
+    if (!slot.IsInvalid()) {
+      CollectTypeProfileNexus nexus(vector, slot);
+      nexus.Print();
+      PrintF("\n");
     }
   }
   return isolate->heap()->undefined_value();

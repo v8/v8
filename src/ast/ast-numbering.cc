@@ -33,13 +33,6 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
 
   bool Renumber(FunctionLiteral* node);
 
-  FeedbackSlot TypeProfileSlotForReturnValue() const {
-    if (collect_type_profile_) {
-      DCHECK(!type_profile_for_return_value_.IsInvalid());
-    }
-    return type_profile_for_return_value_;
-  }
-
  private:
 // AST node visitor interface.
 #define DEFINE_VISIT(type) void Visit##type(type* node);
@@ -111,7 +104,6 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   BailoutReason dont_optimize_reason_;
   HandlerTable::CatchPrediction catch_prediction_;
   bool collect_type_profile_;
-  FeedbackSlot type_profile_for_return_value_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstNumberingVisitor);
@@ -244,8 +236,6 @@ void AstNumberingVisitor::VisitExpressionStatement(ExpressionStatement* node) {
 void AstNumberingVisitor::VisitReturnStatement(ReturnStatement* node) {
   IncrementNodeCount();
   Visit(node->expression());
-
-  node->SetTypeProfileSlot(TypeProfileSlotForReturnValue());
 
   DCHECK(!node->is_async_return() ||
          properties_.flags() & AstProperties::kMustUseIgnitionTurbo);
@@ -435,8 +425,7 @@ void AstNumberingVisitor::VisitAssignment(Assignment* node) {
   if (node->is_compound()) VisitBinaryOperation(node->binary_operation());
   VisitReference(node->target());
   Visit(node->value());
-  node->AssignFeedbackSlots(properties_.get_spec(), language_mode_,
-                            &slot_cache_, collect_type_profile_);
+  ReserveFeedbackSlots(node);
 }
 
 
@@ -702,8 +691,7 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   LanguageModeScope language_mode_scope(this, node->language_mode());
 
   if (collect_type_profile_) {
-    type_profile_for_return_value_ =
-        properties_.get_spec()->AddTypeProfileSlot();
+    node->SetTypeProfileSlot(properties_.get_spec()->AddTypeProfileSlot());
   }
 
   VisitDeclarations(scope->declarations());

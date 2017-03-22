@@ -76,6 +76,10 @@ inline bool IsKeyedStoreICKind(FeedbackSlotKind kind) {
          kind == FeedbackSlotKind::kStoreKeyedStrict;
 }
 
+inline bool IsTypeProfileKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kTypeProfile;
+}
+
 inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
   DCHECK(IsLoadGlobalICKind(kind));
   return (kind == FeedbackSlotKind::kLoadGlobalInsideTypeof)
@@ -315,6 +319,8 @@ class FeedbackVector : public FixedArray {
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
+  FeedbackSlot GetTypeProfileSlot() const;
+
   static Handle<FeedbackVector> New(Isolate* isolate,
                                     Handle<SharedFunctionInfo> shared);
 
@@ -331,6 +337,7 @@ class FeedbackVector : public FixedArray {
   DEFINE_SLOT_KIND_PREDICATE(IsStoreIC)
   DEFINE_SLOT_KIND_PREDICATE(IsStoreOwnIC)
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedStoreIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsTypeProfile)
 #undef DEFINE_SLOT_KIND_PREDICATE
 
   // Returns typeof mode encoded into kind of given slot.
