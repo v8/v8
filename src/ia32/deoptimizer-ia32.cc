@@ -204,13 +204,23 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ movsd(Operand(esp, offset), xmm_reg);
   }
 
+  STATIC_ASSERT(kFloatSize == kPointerSize);
+  const int kFloatRegsSize = kFloatSize * XMMRegister::kMaxNumRegisters;
+  __ sub(esp, Immediate(kFloatRegsSize));
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    XMMRegister xmm_reg = XMMRegister::from_code(code);
+    int offset = code * kFloatSize;
+    __ movss(Operand(esp, offset), xmm_reg);
+  }
+
   __ pushad();
 
   ExternalReference c_entry_fp_address(Isolate::kCEntryFPAddress, isolate());
   __ mov(Operand::StaticVariable(c_entry_fp_address), ebp);
 
-  const int kSavedRegistersAreaSize = kNumberOfRegisters * kPointerSize +
-                                      kDoubleRegsSize;
+  const int kSavedRegistersAreaSize =
+      kNumberOfRegisters * kPointerSize + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
   __ mov(ebx, Operand(esp, kSavedRegistersAreaSize));
@@ -251,6 +261,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ pop(Operand(ebx, offset));
+  }
+
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  // Fill in the float input registers.
+  for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    int dst_offset = i * kFloatSize + float_regs_offset;
+    __ pop(Operand(ebx, dst_offset));
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();

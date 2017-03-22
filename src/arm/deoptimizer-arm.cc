@@ -121,6 +121,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList restored_regs = kJSCallerSaved | kCalleeSaved | ip.bit();
 
   const int kDoubleRegsSize = kDoubleSize * DwVfpRegister::kMaxNumRegisters;
+  const int kFloatRegsSize = kFloatSize * SwVfpRegister::kMaxNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
   DCHECK(kDoubleRegZero.code() == 14);
@@ -139,6 +140,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ vstm(db_w, sp, d16, d31, ne);
     __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
     __ vstm(db_w, sp, d0, d15);
+
+    // Push registers s0-s15, and possibly s16-s31, on the stack.
+    // If s16-s31 are not pushed, decrease the stack pointer instead.
+    __ vstm(db_w, sp, s16, s31, ne);
+    __ sub(sp, sp, Operand(16 * kFloatSize), LeaveCC, eq);
+    __ vstm(db_w, sp, s0, s15);
   }
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
@@ -150,7 +157,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ str(fp, MemOperand(ip));
 
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
+      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
   __ ldr(r2, MemOperand(sp, kSavedRegistersAreaSize));
@@ -203,9 +210,21 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    int src_offset =
+        code * kDoubleSize + kNumberOfRegisters * kPointerSize + kFloatRegsSize;
     __ vldr(d0, sp, src_offset);
     __ vstr(d0, r1, dst_offset);
+  }
+
+  // Copy VFP registers to
+  // float_registers_[FloatRegister::kMaxNumAllocatableRegisters]
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    int dst_offset = code * kFloatSize + float_regs_offset;
+    int src_offset = code * kFloatSize + kNumberOfRegisters * kPointerSize;
+    __ ldr(r2, MemOperand(sp, src_offset));
+    __ str(r2, MemOperand(r1, dst_offset));
   }
 
   // Remove the bailout id and the saved registers from the stack.

@@ -816,6 +816,10 @@ class FrameDescription {
     return OFFSET_OF(FrameDescription, register_values_.double_registers_);
   }
 
+  static int float_registers_offset() {
+    return OFFSET_OF(FrameDescription, register_values_.float_registers_);
+  }
+
   static int frame_size_offset() {
     return offsetof(FrameDescription, frame_size_);
   }
