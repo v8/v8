@@ -846,7 +846,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         // continue unless deoptimization is enabled.
         Handle<Map> initial_map(function->initial_map(), isolate());
         dependencies()->AssumeInitialMapCantChange(initial_map);
-        Handle<Object> prototype(initial_map->prototype(), isolate());
+        Handle<Object> prototype(function->prototype(), isolate());
         Node* value = jsgraph()->Constant(prototype);
         ReplaceWithValue(node, value);
         return Replace(value);
