@@ -568,7 +568,6 @@ Parser::Parser(ParseInfo* info)
 
 void Parser::DeserializeScopeChain(
     ParseInfo* info, MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
-  DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
   // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
   // context, which will have the "this" binding for script scopes.
   DeclarationScope* script_scope = NewScriptScope();
@@ -576,9 +575,11 @@ void Parser::DeserializeScopeChain(
   Scope* scope = script_scope;
   Handle<ScopeInfo> outer_scope_info;
   if (maybe_outer_scope_info.ToHandle(&outer_scope_info)) {
+    DCHECK(ThreadId::Current().Equals(
+        outer_scope_info->GetIsolate()->thread_id()));
     scope = Scope::DeserializeScopeChain(
-        info->isolate(), zone(), *outer_scope_info, script_scope,
-        ast_value_factory(), Scope::DeserializationMode::kScopesOnly);
+        zone(), *outer_scope_info, script_scope, ast_value_factory(),
+        Scope::DeserializationMode::kScopesOnly);
     DCHECK(!info->is_module() || scope->is_module_scope());
   }
   original_scope_ = scope;

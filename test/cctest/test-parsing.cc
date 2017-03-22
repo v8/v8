@@ -3157,7 +3157,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      isolate, &zone, context->scope_info(), script_scope, &avf,
+      &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
   CHECK(name != NULL);
@@ -3206,7 +3206,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      isolate, &zone, context->scope_info(), script_scope, &avf,
+      &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
 
@@ -3929,7 +3929,7 @@ i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
   i::DeclarationScope* script_scope =
       new (zone) i::DeclarationScope(zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      isolate, zone, f->context()->scope_info(), script_scope, &avf,
+      zone, f->context()->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   return s;
 }

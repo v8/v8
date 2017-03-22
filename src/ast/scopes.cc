@@ -201,10 +201,11 @@ ModuleScope::ModuleScope(DeclarationScope* script_scope,
   DeclareThis(ast_value_factory);
 }
 
-ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
+ModuleScope::ModuleScope(Handle<ScopeInfo> scope_info,
                          AstValueFactory* avfactory)
     : DeclarationScope(avfactory->zone(), MODULE_SCOPE, scope_info) {
   Zone* zone = avfactory->zone();
+  Isolate* isolate = scope_info->GetIsolate();
   Handle<ModuleInfo> module_info(scope_info->ModuleDescriptorInfo(), isolate);
 
   set_language_mode(STRICT);
@@ -384,8 +385,7 @@ bool Scope::IsAsmFunction() const {
   return is_function_scope() && AsDeclarationScope()->asm_function();
 }
 
-Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
-                                    ScopeInfo* scope_info,
+Scope* Scope::DeserializeScopeChain(Zone* zone, ScopeInfo* scope_info,
                                     DeclarationScope* script_scope,
                                     AstValueFactory* ast_value_factory,
                                     DeserializationMode deserialization_mode) {
@@ -430,8 +430,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
         outer_scope = new (zone) Scope(zone, BLOCK_SCOPE, handle(scope_info));
       }
     } else if (scope_info->scope_type() == MODULE_SCOPE) {
-      outer_scope = new (zone)
-          ModuleScope(isolate, handle(scope_info), ast_value_factory);
+      outer_scope =
+          new (zone) ModuleScope(handle(scope_info), ast_value_factory);
     } else {
       DCHECK_EQ(scope_info->scope_type(), CATCH_SCOPE);
       DCHECK_EQ(scope_info->LocalCount(), 1);
@@ -441,9 +441,9 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       String* name = scope_info->ContextLocalName(0);
       MaybeAssignedFlag maybe_assigned =
           scope_info->ContextLocalMaybeAssignedFlag(0);
-      outer_scope = new (zone)
-          Scope(zone, ast_value_factory->GetString(handle(name, isolate)),
-                maybe_assigned, handle(scope_info));
+      outer_scope =
+          new (zone) Scope(zone, ast_value_factory->GetString(handle(name)),
+                           maybe_assigned, handle(scope_info));
     }
     if (deserialization_mode == DeserializationMode::kScopesOnly) {
       outer_scope->scope_info_ = Handle<ScopeInfo>::null();
@@ -633,7 +633,7 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
           DeclarationScope(info->zone(), info->ast_value_factory());
       info->set_script_scope(script_scope);
       scope->ReplaceOuterScope(Scope::DeserializeScopeChain(
-          info->isolate(), info->zone(), *outer_scope_info, script_scope,
+          info->zone(), *outer_scope_info, script_scope,
           info->ast_value_factory(),
           Scope::DeserializationMode::kIncludingVariables));
     } else {
