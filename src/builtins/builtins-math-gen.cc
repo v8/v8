@@ -253,7 +253,7 @@ TF_BUILTIN(MathCbrt, MathBuiltinsAssembler) {
 
 // ES6 #sec-math.clz32
 TF_BUILTIN(MathClz32, CodeStubAssembler) {
-  Node* context = Parameter(4);
+  Node* context = Parameter(Descriptor::kContext);
 
   // Shared entry point for the clz32 operation.
   Variable var_clz32_x(this, MachineRepresentation::kWord32);
@@ -262,7 +262,7 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
   // We might need to loop once for ToNumber conversion.
   Variable var_x(this, MachineRepresentation::kTagged);
   Label loop(this, &var_x);
-  var_x.Bind(Parameter(1));
+  var_x.Bind(Parameter(Descriptor::kX));
   Goto(&loop);
   Bind(&loop);
   {

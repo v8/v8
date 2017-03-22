@@ -677,14 +677,15 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
   return copy;
 }
 
+template <typename Descriptor>
 void ConstructorBuiltinsAssembler::CreateFastCloneShallowObjectBuiltin(
     int properties_count) {
   DCHECK_GE(properties_count, 0);
   DCHECK_LE(properties_count,
             ConstructorBuiltins::kMaximumClonedShallowObjectProperties);
   Label call_runtime(this);
-  Node* closure = Parameter(0);
-  Node* literals_index = Parameter(1);
+  Node* closure = Parameter(Descriptor::kClosure);
+  Node* literals_index = Parameter(Descriptor::kLiteralIndex);
 
   Node* properties_count_node =
       IntPtrConstant(ConstructorBuiltins::FastCloneShallowObjectPropertiesCount(
@@ -694,16 +695,16 @@ void ConstructorBuiltinsAssembler::CreateFastCloneShallowObjectBuiltin(
   Return(copy);
 
   Bind(&call_runtime);
-  Node* constant_properties = Parameter(2);
-  Node* flags = Parameter(3);
-  Node* context = Parameter(4);
+  Node* constant_properties = Parameter(Descriptor::kConstantProperties);
+  Node* flags = Parameter(Descriptor::kFlags);
+  Node* context = Parameter(Descriptor::kContext);
   TailCallRuntime(Runtime::kCreateObjectLiteral, context, closure,
                   literals_index, constant_properties, flags);
 }
 
 #define SHALLOW_OBJECT_BUILTIN(props)                                       \
   TF_BUILTIN(FastCloneShallowObject##props, ConstructorBuiltinsAssembler) { \
-    CreateFastCloneShallowObjectBuiltin(props);                             \
+    CreateFastCloneShallowObjectBuiltin<Descriptor>(props);                 \
   }
 
 SHALLOW_OBJECT_BUILTIN(0);

@@ -50,9 +50,9 @@ void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
 }
 
 TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
-  Node* object = Parameter(0);
-  Node* key = Parameter(1);
-  Node* context = Parameter(4);
+  Node* object = Parameter(Descriptor::kReceiver);
+  Node* key = Parameter(Descriptor::kKey);
+  Node* context = Parameter(Descriptor::kContext);
 
   Label call_runtime(this), return_true(this), return_false(this);
 

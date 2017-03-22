@@ -239,10 +239,11 @@ TF_BUILTIN(ToBoolean, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ToLength, CodeStubAssembler) {
-  Node* context = Parameter(1);
+  Node* context = Parameter(Descriptor::kContext);
 
   // We might need to loop once for ToNumber conversion.
-  Variable var_len(this, MachineRepresentation::kTagged, Parameter(0));
+  Variable var_len(this, MachineRepresentation::kTagged,
+                   Parameter(Descriptor::kArgument));
   Label loop(this, &var_len);
   Goto(&loop);
   Bind(&loop);

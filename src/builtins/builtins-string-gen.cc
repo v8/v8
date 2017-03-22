@@ -98,8 +98,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
            arraysize(values));
   }
 
-  void GenerateStringEqual();
-  void GenerateStringRelationalComparison(RelationalComparisonMode mode);
+  void GenerateStringEqual(Node* context, Node* left, Node* right);
+  void GenerateStringRelationalComparison(Node* context, Node* left,
+                                          Node* right,
+                                          RelationalComparisonMode mode);
 
   Node* ToSmiBetweenZeroAnd(Node* context, Node* value, Node* limit);
 
@@ -137,7 +139,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                  const NodeFunction1& generic_call);
 };
 
-void StringBuiltinsAssembler::GenerateStringEqual() {
+void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
+                                                  Node* right) {
   // Here's pseudo-code for the algorithm below:
   //
   // if (lhs == rhs) return true;
@@ -156,11 +159,8 @@ void StringBuiltinsAssembler::GenerateStringEqual() {
   // }
   // return %StringEqual(lhs, rhs);
 
-  Variable var_left(this, MachineRepresentation::kTagged);
-  Variable var_right(this, MachineRepresentation::kTagged);
-  var_left.Bind(Parameter(0));
-  var_right.Bind(Parameter(1));
-  Node* context = Parameter(2);
+  Variable var_left(this, MachineRepresentation::kTagged, left);
+  Variable var_right(this, MachineRepresentation::kTagged, right);
 
   Variable* input_vars[2] = {&var_left, &var_right};
   Label if_equal(this), if_notequal(this), restart(this, 2, input_vars);
@@ -265,12 +265,9 @@ void StringBuiltinsAssembler::GenerateStringEqual() {
 }
 
 void StringBuiltinsAssembler::GenerateStringRelationalComparison(
-    RelationalComparisonMode mode) {
-  Variable var_left(this, MachineRepresentation::kTagged);
-  Variable var_right(this, MachineRepresentation::kTagged);
-  var_left.Bind(Parameter(0));
-  var_right.Bind(Parameter(1));
-  Node* context = Parameter(2);
+    Node* context, Node* left, Node* right, RelationalComparisonMode mode) {
+  Variable var_left(this, MachineRepresentation::kTagged, left);
+  Variable var_right(this, MachineRepresentation::kTagged, right);
 
   Variable* input_vars[2] = {&var_left, &var_right};
   Label if_less(this), if_equal(this), if_greater(this);
@@ -427,29 +424,48 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
   }
 }
 
-TF_BUILTIN(StringEqual, StringBuiltinsAssembler) { GenerateStringEqual(); }
+TF_BUILTIN(StringEqual, StringBuiltinsAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  GenerateStringEqual(context, left, right);
+}
 
 TF_BUILTIN(StringLessThan, StringBuiltinsAssembler) {
-  GenerateStringRelationalComparison(RelationalComparisonMode::kLessThan);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  GenerateStringRelationalComparison(context, left, right,
+                                     RelationalComparisonMode::kLessThan);
 }
 
 TF_BUILTIN(StringLessThanOrEqual, StringBuiltinsAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
   GenerateStringRelationalComparison(
-      RelationalComparisonMode::kLessThanOrEqual);
+      context, left, right, RelationalComparisonMode::kLessThanOrEqual);
 }
 
 TF_BUILTIN(StringGreaterThan, StringBuiltinsAssembler) {
-  GenerateStringRelationalComparison(RelationalComparisonMode::kGreaterThan);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  GenerateStringRelationalComparison(context, left, right,
+                                     RelationalComparisonMode::kGreaterThan);
 }
 
 TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
   GenerateStringRelationalComparison(
-      RelationalComparisonMode::kGreaterThanOrEqual);
+      context, left, right, RelationalComparisonMode::kGreaterThanOrEqual);
 }
 
 TF_BUILTIN(StringCharAt, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* position = Parameter(1);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* position = Parameter(Descriptor::kPosition);
 
   // Load the character code at the {position} from the {receiver}.
   Node* code = StringCharCodeAt(receiver, position, INTPTR_PARAMETERS);
@@ -460,8 +476,8 @@ TF_BUILTIN(StringCharAt, CodeStubAssembler) {
 }
 
 TF_BUILTIN(StringCharCodeAt, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* position = Parameter(1);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* position = Parameter(Descriptor::kPosition);
 
   // Load the character code at the {position} from the {receiver}.
   Node* code = StringCharCodeAt(receiver, position, INTPTR_PARAMETERS);
@@ -814,9 +830,9 @@ void StringBuiltinsAssembler::StringIndexOf(
 // #sec-string.prototype.indexof
 // Unchecked helper for builtins lowering.
 TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
-  Node* receiver = Parameter(0);
-  Node* search_string = Parameter(1);
-  Node* position = Parameter(2);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* search_string = Parameter(Descriptor::kSearchString);
+  Node* position = Parameter(Descriptor::kPosition);
 
   Node* instance_type = LoadInstanceType(receiver);
   Node* search_string_instance_type = LoadInstanceType(search_string);

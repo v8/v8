@@ -32,6 +32,8 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   Node* EmitFastCloneShallowObject(Label* call_runtime, Node* closure,
                                    Node* literals_index,
                                    Node* properties_count);
+
+  template <typename Descriptor>
   void CreateFastCloneShallowObjectBuiltin(int properties_count);
 
   Node* EmitFastNewObject(Node* context, Node* target, Node* new_target);
