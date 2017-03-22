@@ -60,19 +60,8 @@ class V8InspectorImpl : public V8Inspector {
   int contextGroupId(v8::Local<v8::Context>);
   int contextGroupId(int contextId);
 
-  v8::MaybeLocal<v8::Value> runCompiledScript(v8::Local<v8::Context>,
-                                              v8::Local<v8::Script>);
-  v8::MaybeLocal<v8::Value> callFunction(v8::Local<v8::Function>,
-                                         v8::Local<v8::Context>,
-                                         v8::Local<v8::Value> receiver,
-                                         int argc, v8::Local<v8::Value> info[]);
   v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
                                                         v8::Local<v8::String>);
-  v8::MaybeLocal<v8::Value> callInternalFunction(v8::Local<v8::Function>,
-                                                 v8::Local<v8::Context>,
-                                                 v8::Local<v8::Value> receiver,
-                                                 int argc,
-                                                 v8::Local<v8::Value> info[]);
   v8::MaybeLocal<v8::Script> compileScript(v8::Local<v8::Context>,
                                            const String16& code,
                                            const String16& fileName);
@@ -126,11 +115,6 @@ class V8InspectorImpl : public V8Inspector {
   V8ProfilerAgentImpl* enabledProfilerAgentForGroup(int contextGroupId);
 
  private:
-  v8::MaybeLocal<v8::Value> callFunction(
-      v8::Local<v8::Function>, v8::Local<v8::Context>,
-      v8::Local<v8::Value> receiver, int argc, v8::Local<v8::Value> info[],
-      v8::MicrotasksScope::Type runMicrotasks);
-
   v8::Isolate* m_isolate;
   V8InspectorClient* m_client;
   std::unique_ptr<V8Debugger> m_debugger;

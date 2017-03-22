@@ -3317,8 +3317,6 @@ void Isolate::FireCallCompletedCallback() {
           v8::MicrotasksPolicy::kAuto;
 
   if (run_microtasks) RunMicrotasks();
-  // Prevent stepping from spilling into the next call made by the embedder.
-  if (debug()->is_active()) debug()->ClearStepping();
 
   if (call_completed_callbacks_.is_empty()) return;
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.

@@ -198,10 +198,7 @@ V8DebuggerAgentImpl::V8DebuggerAgentImpl(
       m_state(state),
       m_frontend(frontendChannel),
       m_isolate(m_inspector->isolate()),
-      m_scheduledDebuggerStep(NoStep),
-      m_javaScriptPauseScheduled(false),
-      m_recursionLevelForStepOut(0) {
-}
+      m_javaScriptPauseScheduled(false) {}
 
 V8DebuggerAgentImpl::~V8DebuggerAgentImpl() {}
 
@@ -253,7 +250,6 @@ Response V8DebuggerAgentImpl::disable() {
   m_debugger->setAsyncCallStackDepth(this, 0);
   m_continueToLocationBreakpointId = String16();
   clearBreakDetails();
-  m_scheduledDebuggerStep = NoStep;
   m_javaScriptPauseScheduled = false;
   m_skipAllPauses = false;
   m_state->setBoolean(DebuggerAgentState::skipAllPauses, false);
@@ -688,26 +684,20 @@ void V8DebuggerAgentImpl::clearBreakDetails() {
 void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
     const String16& breakReason,
     std::unique_ptr<protocol::DictionaryValue> data) {
-  if (!enabled() || m_scheduledDebuggerStep == StepInto ||
-      m_javaScriptPauseScheduled || isPaused() ||
+  if (!enabled() || m_javaScriptPauseScheduled || isPaused() ||
       !m_debugger->breakpointsActivated())
     return;
-  if (m_breakReason.empty()) m_debugger->setPauseOnNextStatement(true);
+  if (m_breakReason.empty()) {
+    m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
+  }
   pushBreakDetails(breakReason, std::move(data));
-}
-
-void V8DebuggerAgentImpl::schedulePauseOnNextStatementIfSteppingInto() {
-  DCHECK(enabled());
-  if (m_scheduledDebuggerStep != StepInto || m_javaScriptPauseScheduled ||
-      isPaused())
-    return;
-  m_debugger->setPauseOnNextStatement(true);
 }
 
 void V8DebuggerAgentImpl::cancelPauseOnNextStatement() {
   if (m_javaScriptPauseScheduled || isPaused()) return;
   popBreakDetails();
-  if (m_breakReason.empty()) m_debugger->setPauseOnNextStatement(false);
+  if (m_breakReason.empty())
+    m_debugger->setPauseOnNextStatement(false, m_session->contextGroupId());
 }
 
 Response V8DebuggerAgentImpl::pause() {
@@ -715,14 +705,12 @@ Response V8DebuggerAgentImpl::pause() {
   if (m_javaScriptPauseScheduled || isPaused()) return Response::OK();
   clearBreakDetails();
   m_javaScriptPauseScheduled = true;
-  m_scheduledDebuggerStep = NoStep;
-  m_debugger->setPauseOnNextStatement(true);
+  m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
   return Response::OK();
 }
 
 Response V8DebuggerAgentImpl::resume() {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
-  m_scheduledDebuggerStep = NoStep;
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   m_debugger->continueProgram();
   return Response::OK();
@@ -730,30 +718,22 @@ Response V8DebuggerAgentImpl::resume() {
 
 Response V8DebuggerAgentImpl::stepOver() {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
-  // StepOver at function return point should fallback to StepInto.
-  JavaScriptCallFrame* frame =
-      !m_pausedCallFrames.empty() ? m_pausedCallFrames[0].get() : nullptr;
-  if (frame && frame->isAtReturn()) return stepInto();
-  m_scheduledDebuggerStep = StepOver;
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  m_debugger->stepOverStatement();
+  m_debugger->stepOverStatement(m_session->contextGroupId());
   return Response::OK();
 }
 
 Response V8DebuggerAgentImpl::stepInto() {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
-  m_scheduledDebuggerStep = StepInto;
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  m_debugger->stepIntoStatement();
+  m_debugger->stepIntoStatement(m_session->contextGroupId());
   return Response::OK();
 }
 
 Response V8DebuggerAgentImpl::stepOut() {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
-  m_scheduledDebuggerStep = StepOut;
-  m_recursionLevelForStepOut = 1;
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  m_debugger->stepOutOfFunction();
+  m_debugger->stepOutOfFunction(m_session->contextGroupId());
   return Response::OK();
 }
 
@@ -774,8 +754,6 @@ bool V8DebuggerAgentImpl::shouldBreakInScheduledAsyncTask() {
   if (!m_stepIntoAsyncCallback) return false;
   m_stepIntoAsyncCallback->sendSuccess();
   m_stepIntoAsyncCallback.reset();
-  m_scheduledDebuggerStep = NoStep;
-  v8::debug::ClearStepping(m_isolate);
   return true;
 }
 
@@ -945,33 +923,6 @@ Response V8DebuggerAgentImpl::setBlackboxedRanges(
   m_blackboxedPositions[scriptId] = positions;
   it->second->resetBlackboxedStateCache();
   return Response::OK();
-}
-
-void V8DebuggerAgentImpl::willExecuteScript(int scriptId) {
-  changeJavaScriptRecursionLevel(+1);
-  if (m_scheduledDebuggerStep != StepInto) return;
-  schedulePauseOnNextStatementIfSteppingInto();
-}
-
-void V8DebuggerAgentImpl::didExecuteScript() {
-  changeJavaScriptRecursionLevel(-1);
-}
-
-void V8DebuggerAgentImpl::changeJavaScriptRecursionLevel(int step) {
-  if (m_javaScriptPauseScheduled && !m_skipAllPauses && !isPaused()) {
-    // Do not ever loose user's pause request until we have actually paused.
-    m_debugger->setPauseOnNextStatement(true);
-  }
-  if (m_scheduledDebuggerStep == StepOut) {
-    m_recursionLevelForStepOut += step;
-    if (!m_recursionLevelForStepOut) {
-      // When StepOut crosses a task boundary (i.e. js -> c++) from where it was
-      // requested,
-      // switch stepping to step into a next JS task, as if we exited to a
-      // blackboxed framework.
-      m_scheduledDebuggerStep = StepInto;
-    }
-  }
 }
 
 Response V8DebuggerAgentImpl::currentCallFrames(
@@ -1287,7 +1238,6 @@ void V8DebuggerAgentImpl::didPause(int contextId,
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData), std::move(hitBreakpointIds),
                     currentAsyncStackTrace());
-  m_scheduledDebuggerStep = NoStep;
   m_javaScriptPauseScheduled = false;
 
   if (!m_continueToLocationBreakpointId.isEmpty()) {
@@ -1310,12 +1260,11 @@ void V8DebuggerAgentImpl::breakProgram(
   std::vector<BreakReason> currentScheduledReason;
   currentScheduledReason.swap(m_breakReason);
   pushBreakDetails(breakReason, std::move(data));
-  m_scheduledDebuggerStep = NoStep;
   m_debugger->breakProgram();
   popBreakDetails();
   m_breakReason.swap(currentScheduledReason);
   if (!m_breakReason.empty()) {
-    m_debugger->setPauseOnNextStatement(true);
+    m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
   }
 }
 
@@ -1347,7 +1296,6 @@ void V8DebuggerAgentImpl::removeBreakpointAt(const String16& scriptId,
 
 void V8DebuggerAgentImpl::reset() {
   if (!enabled()) return;
-  m_scheduledDebuggerStep = NoStep;
   m_blackboxedPositions.clear();
   resetBlackboxedStateCache();
   m_scripts.clear();

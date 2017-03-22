@@ -343,11 +343,7 @@ class SetTimeoutTask : public AsyncTask {
 
     v8::Local<v8::Function> function = function_.Get(isolate);
     v8::MaybeLocal<v8::Value> result;
-    v8_inspector::V8Inspector* inspector =
-        InspectorClientImpl::InspectorFromContext(context);
-    if (inspector) inspector->willExecuteScript(context, function->ScriptId());
     result = function->Call(context, context->Global(), 0, nullptr);
-    if (inspector) inspector->didExecuteScript(context);
   }
 
  private:

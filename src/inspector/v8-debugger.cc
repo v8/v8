@@ -328,8 +328,14 @@ void V8Debugger::setPauseOnExceptionsState(
   m_pauseOnExceptionsState = pauseOnExceptionsState;
 }
 
-void V8Debugger::setPauseOnNextStatement(bool pause) {
+void V8Debugger::setPauseOnNextStatement(bool pause, int targetContextGroupId) {
   if (isPaused()) return;
+  DCHECK(targetContextGroupId);
+  if (!pause && m_targetContextGroupId &&
+      m_targetContextGroupId != targetContextGroupId) {
+    return;
+  }
+  m_targetContextGroupId = targetContextGroupId;
   if (pause)
     v8::debug::DebugBreak(m_isolate);
   else
@@ -354,23 +360,29 @@ void V8Debugger::continueProgram() {
   m_executionState.Clear();
 }
 
-void V8Debugger::stepIntoStatement() {
+void V8Debugger::stepIntoStatement(int targetContextGroupId) {
   DCHECK(isPaused());
   DCHECK(!m_executionState.IsEmpty());
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
   v8::debug::PrepareStep(m_isolate, v8::debug::StepIn);
   continueProgram();
 }
 
-void V8Debugger::stepOverStatement() {
+void V8Debugger::stepOverStatement(int targetContextGroupId) {
   DCHECK(isPaused());
   DCHECK(!m_executionState.IsEmpty());
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
   v8::debug::PrepareStep(m_isolate, v8::debug::StepNext);
   continueProgram();
 }
 
-void V8Debugger::stepOutOfFunction() {
+void V8Debugger::stepOutOfFunction(int targetContextGroupId) {
   DCHECK(isPaused());
   DCHECK(!m_executionState.IsEmpty());
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
   v8::debug::PrepareStep(m_isolate, v8::debug::StepOut);
   continueProgram();
 }
@@ -504,6 +516,12 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   // Don't allow nested breaks.
   if (isPaused()) return;
 
+  int contextGroupId = m_inspector->contextGroupId(pausedContext);
+  if (m_targetContextGroupId && contextGroupId != m_targetContextGroupId) {
+    v8::debug::PrepareStep(m_isolate, v8::debug::StepOut);
+    return;
+  }
+  m_targetContextGroupId = 0;
   V8DebuggerAgentImpl* agent = m_inspector->enabledDebuggerAgentForGroup(
       m_inspector->contextGroupId(pausedContext));
   if (!agent || (agent->skipAllPauses() && !m_scheduledOOMBreak)) return;
@@ -549,7 +567,10 @@ void V8Debugger::v8OOMCallback(void* data) {
   V8Debugger* thisPtr = static_cast<V8Debugger*>(data);
   thisPtr->m_isolate->IncreaseHeapLimitForDebugging();
   thisPtr->m_scheduledOOMBreak = true;
-  thisPtr->setPauseOnNextStatement(true);
+  v8::Local<v8::Context> context = thisPtr->m_isolate->GetEnteredContext();
+  DCHECK(!context.IsEmpty());
+  thisPtr->setPauseOnNextStatement(
+      true, thisPtr->m_inspector->contextGroupId(context));
 }
 
 void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
@@ -660,6 +681,7 @@ void V8Debugger::handleAsyncTaskStepping(v8::Local<v8::Context> context,
   if (createdByUser && type == v8::debug::kDebugPromiseCreated) {
     if (agent->shouldBreakInScheduledAsyncTask()) {
       m_taskWithScheduledBreak = task;
+      v8::debug::ClearStepping(m_isolate);
     }
     return;
   }

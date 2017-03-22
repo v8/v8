@@ -740,9 +740,11 @@ v8::Local<v8::Object> V8Console::createConsole(
   if (inspector->compileAndRunInternalScript(context, assertSource)
           .ToLocal(&setupFunction) &&
       setupFunction->IsFunction()) {
-    inspector->callInternalFunction(
-        v8::Local<v8::Function>::Cast(setupFunction), context, console, 0,
-        nullptr);
+    v8::MicrotasksScope microtasksScope(
+        isolate, v8::MicrotasksScope::kDoNotRunMicrotasks);
+    v8::MaybeLocal<v8::Value> result;
+    result = v8::Local<v8::Function>::Cast(setupFunction)
+                 ->Call(context, console, 0, nullptr);
   }
 
   if (hasMemoryAttribute)

@@ -134,8 +134,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
                 bool isPromiseRejection, bool isUncaught, bool isOOMBreak);
   void didContinue();
   void didParseSource(std::unique_ptr<V8DebuggerScript>, bool success);
-  void willExecuteScript(int scriptId);
-  void didExecuteScript();
 
   bool isFunctionBlackboxed(const String16& scriptId,
                             const v8::debug::Location& start,
@@ -150,13 +148,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
  private:
   void enableImpl();
 
-  void schedulePauseOnNextStatementIfSteppingInto();
-
   Response currentCallFrames(
       std::unique_ptr<protocol::Array<protocol::Debugger::CallFrame>>*);
   std::unique_ptr<protocol::Runtime::StackTrace> currentAsyncStackTrace();
-
-  void changeJavaScriptRecursionLevel(int step);
 
   void setPauseOnExceptionsImpl(int);
 
@@ -182,8 +176,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       protocol::HashMap<String16, std::pair<String16, BreakpointSource>>;
   using MuteBreakpoins = protocol::HashMap<String16, std::pair<String16, int>>;
 
-  enum DebuggerStep { NoStep = 0, StepInto, StepOver, StepOut };
-
   V8InspectorImpl* m_inspector;
   V8Debugger* m_debugger;
   V8InspectorSessionImpl* m_session;
@@ -206,10 +198,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::unique_ptr<protocol::DictionaryValue> breakAuxData);
   void popBreakDetails();
 
-  DebuggerStep m_scheduledDebuggerStep;
   bool m_javaScriptPauseScheduled;
-
-  int m_recursionLevelForStepOut;
   bool m_skipAllPauses = false;
 
   std::unique_ptr<V8Regex> m_blackboxPattern;

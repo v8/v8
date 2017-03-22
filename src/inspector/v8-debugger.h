@@ -41,13 +41,14 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   v8::debug::ExceptionBreakState getPauseOnExceptionsState();
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
-  void setPauseOnNextStatement(bool);
   bool canBreakProgram();
   void breakProgram();
   void continueProgram();
-  void stepIntoStatement();
-  void stepOverStatement();
-  void stepOutOfFunction();
+
+  void setPauseOnNextStatement(bool, int targetContextGroupId);
+  void stepIntoStatement(int targetContextGroupId);
+  void stepOverStatement(int targetContextGroupId);
+  void stepOutOfFunction(int targetContextGroupId);
 
   Response setScriptSource(
       const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
@@ -162,6 +163,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   bool m_runningNestedMessageLoop;
   int m_ignoreScriptParsedEventsCounter;
   bool m_scheduledOOMBreak = false;
+  int m_targetContextGroupId = 0;
 
   using AsyncTaskToStackTrace =
       protocol::HashMap<void*, std::unique_ptr<V8StackTraceImpl>>;
