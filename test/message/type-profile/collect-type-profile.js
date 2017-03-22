@@ -46,6 +46,21 @@ function testReturnOfNonVariable() {
   return 32;
 }
 
+// Return statement is reached but its expression is never really returned.
+// TODO(franzih): The only return type should be 'string'.
+function try_finally() {
+  try {
+    return 23;
+  } finally {
+    return "nope, string is better"
+  }
+}
+
+try_finally();
+
+%PrintTypeProfile(try_finally);
+
+
 testReturnOfNonVariable();
 
 throw "throw otherwise test fails with --stress-opt";
