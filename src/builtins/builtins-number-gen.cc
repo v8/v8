@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
+#include "src/ic/binary-op-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -1390,6 +1391,28 @@ TF_BUILTIN(StrictEqual, CodeStubAssembler) {
   Node* rhs = Parameter(Descriptor::kRight);
 
   Return(StrictEqual(lhs, rhs));
+}
+
+TF_BUILTIN(AddWithFeedback, BinaryOpAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+
+  Return(Generate_AddWithFeedback(context, left, right,
+                                  ChangeUint32ToWord(slot), vector));
+}
+
+TF_BUILTIN(SubtractWithFeedback, BinaryOpAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+
+  Return(Generate_SubtractWithFeedback(context, left, right,
+                                       ChangeUint32ToWord(slot), vector));
 }
 
 }  // namespace internal

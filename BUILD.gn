@@ -937,6 +937,8 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-wasm-gen.cc",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",
+    "src/ic/binary-op-assembler.cc",
+    "src/ic/binary-op-assembler.h",
     "src/ic/keyed-store-generic.cc",
     "src/ic/keyed-store-generic.h",
     "src/interpreter/interpreter-assembler.cc",

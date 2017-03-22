@@ -635,6 +635,8 @@ class Isolate;
   TFS(GreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare, 1)                \
   TFS(Equal, BUILTIN, kNoExtraICState, Compare, 1)                             \
   TFS(StrictEqual, BUILTIN, kNoExtraICState, Compare, 1)                       \
+  TFS(AddWithFeedback, BUILTIN, kNoExtraICState, BinaryOpWithVector, 1)        \
+  TFS(SubtractWithFeedback, BUILTIN, kNoExtraICState, BinaryOpWithVector, 1)   \
                                                                                \
   /* Object */                                                                 \
   CPP(ObjectAssign)                                                            \

@@ -998,6 +998,8 @@
         'ic/access-compiler.h',
         'ic/accessor-assembler.cc',
         'ic/accessor-assembler.h',
+        'ic/binary-op-assembler.cc',
+        'ic/binary-op-assembler.h',
         'ic/call-optimization.cc',
         'ic/call-optimization.h',
         'ic/handler-compiler.cc',
