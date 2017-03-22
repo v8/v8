@@ -813,7 +813,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       info.set_allow_lazy_parsing(false);
       CHECK(i::parsing::ParseProgram(&info));
       CHECK(i::Rewriter::Rewrite(&info));
-      i::DeclarationScope::Analyze(&info, i::AnalyzeMode::kRegular);
+      i::DeclarationScope::Analyze(&info, isolate, i::AnalyzeMode::kRegular);
       CHECK(info.literal() != NULL);
 
       i::DeclarationScope* script_scope = info.literal()->scope();

@@ -115,7 +115,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
       CollectNonLocals(info.get(), scope);
     }
     if (!ignore_nested_scopes) {
-      DeclarationScope::Analyze(info.get(), AnalyzeMode::kDebugger);
+      DeclarationScope::Analyze(info.get(), isolate_, AnalyzeMode::kDebugger);
       RetrieveScopeChain(scope);
     }
   } else {

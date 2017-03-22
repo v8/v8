@@ -619,8 +619,9 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   }
 }
 
-void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
-  RuntimeCallTimerScope runtimeTimer(info->isolate(),
+void DeclarationScope::Analyze(ParseInfo* info, Isolate* isolate,
+                               AnalyzeMode mode) {
+  RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileScopeAnalysis);
   DCHECK(info->literal() != NULL);
   DeclarationScope* scope = info->literal()->scope();
@@ -667,13 +668,12 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
     info->preparsed_scope_data()->RestoreData(scope);
   }
 
-  scope->AllocateVariables(info, mode);
+  scope->AllocateVariables(info, isolate, mode);
 
   // Ensuring that the outer script scope has a scope info avoids having
   // special case for native contexts vs other contexts.
   if (info->script_scope()->scope_info_.is_null()) {
-    info->script_scope()->scope_info_ =
-        handle(ScopeInfo::Empty(info->isolate()));
+    info->script_scope()->scope_info_ = handle(ScopeInfo::Empty(isolate));
   }
 
 #ifdef DEBUG
@@ -1328,7 +1328,8 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
   return nullptr;
 }
 
-void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
+void DeclarationScope::AllocateVariables(ParseInfo* info, Isolate* isolate,
+                                         AnalyzeMode mode) {
   // Module variables must be allocated before variable resolution
   // to ensure that AccessNeedsHoleCheck() can detect import variables.
   if (is_module_scope()) AsModuleScope()->AllocateModuleVariables();
@@ -1339,16 +1340,16 @@ void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
   MaybeHandle<ScopeInfo> outer_scope;
   if (outer_scope_ != nullptr) outer_scope = outer_scope_->scope_info_;
 
-  AllocateScopeInfosRecursively(info->isolate(), outer_scope);
+  AllocateScopeInfosRecursively(isolate, outer_scope);
   if (mode == AnalyzeMode::kDebugger) {
-    AllocateDebuggerScopeInfos(info->isolate(), outer_scope);
+    AllocateDebuggerScopeInfos(isolate, outer_scope);
   }
   // The debugger expects all shared function infos to contain a scope info.
   // Since the top-most scope will end up in a shared function info, make sure
   // it has one, even if it doesn't need a scope info.
   // TODO(jochen|yangguo): Remove this requirement.
   if (scope_info_.is_null()) {
-    scope_info_ = ScopeInfo::Create(info->isolate(), zone(), this, outer_scope);
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
   }
 }
 
