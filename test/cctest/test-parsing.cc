@@ -7659,6 +7659,10 @@ TEST(DestructuringAssignmentPositiveTests) {
       {"var x, y, z; for (", " of {});"},
       {"'use strict'; var x, y, z; for (", " in {});"},
       {"'use strict'; var x, y, z; for (", " of {});"},
+      {"var x, y, z; m(['a']) ? ", " = {} : rhs"},
+      {"var x, y, z; m(['b']) ? lhs : ", " = {}"},
+      {"'use strict'; var x, y, z; m(['a']) ? ", " = {} : rhs"},
+      {"'use strict'; var x, y, z; m(['b']) ? lhs : ", " = {}"},
       {NULL, NULL}};
 
   const char* mixed_assignments_context_data[][2] = {

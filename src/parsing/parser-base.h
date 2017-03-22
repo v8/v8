@@ -1422,6 +1422,14 @@ class ParserBase {
     classifier_ = previous;
   }
 
+  V8_INLINE void AccumulateNonBindingPatternErrors() {
+    static const bool kMergeNonPatterns = true;
+    this->Accumulate(ExpressionClassifier::AllProductions &
+                         ~(ExpressionClassifier::BindingPatternProduction |
+                           ExpressionClassifier::LetPatternProduction),
+                     kMergeNonPatterns);
+  }
+
   // Pops and discards the classifier that is on top of the stack
   // without accumulating.
   V8_INLINE void Discard() {
@@ -1912,9 +1920,7 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
     }
     // No need to accumulate binding pattern-related errors, since
     // an Expression can't be a binding pattern anyway.
-    impl()->Accumulate(ExpressionClassifier::AllProductions &
-                       ~(ExpressionClassifier::BindingPatternProduction |
-                         ExpressionClassifier::LetPatternProduction));
+    impl()->AccumulateNonBindingPatternErrors();
     if (!impl()->IsIdentifier(right)) classifier()->RecordNonSimpleParameter();
     if (impl()->IsEmptyExpression(result)) {
       // First time through the loop.
@@ -2948,13 +2954,24 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
   BindingPatternUnexpectedToken();
   ArrowFormalParametersUnexpectedToken();
   Consume(Token::CONDITIONAL);
-  // In parsing the first assignment expression in conditional
-  // expressions we always accept the 'in' keyword; see ECMA-262,
-  // section 11.12, page 58.
-  ExpressionT left = ParseAssignmentExpression(true, CHECK_OK);
+
+  ExpressionT left;
+  {
+    ExpressionClassifier classifier(this);
+    // In parsing the first assignment expression in conditional
+    // expressions we always accept the 'in' keyword; see ECMA-262,
+    // section 11.12, page 58.
+    left = ParseAssignmentExpression(true, CHECK_OK);
+    impl()->AccumulateNonBindingPatternErrors();
+  }
   impl()->RewriteNonPattern(CHECK_OK);
   Expect(Token::COLON, CHECK_OK);
-  ExpressionT right = ParseAssignmentExpression(accept_IN, CHECK_OK);
+  ExpressionT right;
+  {
+    ExpressionClassifier classifier(this);
+    right = ParseAssignmentExpression(accept_IN, CHECK_OK);
+    impl()->AccumulateNonBindingPatternErrors();
+  }
   impl()->RewriteNonPattern(CHECK_OK);
   return factory()->NewConditional(expression, left, right, pos);
 }
