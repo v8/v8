@@ -416,7 +416,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     std::unique_ptr<ParseInfo> info(new ParseInfo(location.shared()));
-    if (parsing::ParseAny(info.get())) {
+    if (parsing::ParseAny(info.get(), isolate)) {
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());
       if (str->length() > 0) return str;

@@ -811,7 +811,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       i::ParseInfo info(script);
       // The information we're checking is only produced when eager parsing.
       info.set_allow_lazy_parsing(false);
-      CHECK(i::parsing::ParseProgram(&info));
+      CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Rewriter::Rewrite(&info, isolate));
       i::DeclarationScope::Analyze(&info, isolate, i::AnalyzeMode::kRegular);
       CHECK(info.literal() != NULL);
@@ -1164,7 +1164,7 @@ TEST(ScopePositions) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::ParseInfo info(script);
     info.set_language_mode(source_data[i].language_mode);
-    i::parsing::ParseProgram(&info);
+    i::parsing::ParseProgram(&info, isolate);
     CHECK_NOT_NULL(info.literal());
 
     // Check scope types and positions.
@@ -1209,7 +1209,7 @@ TEST(DiscardFunctionBody) {
         factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
     i::ParseInfo info(script);
-    i::parsing::ParseProgram(&info);
+    i::parsing::ParseProgram(&info, isolate);
     function = info.literal();
     CHECK_NOT_NULL(function);
     CHECK_NOT_NULL(function->body());
@@ -1348,7 +1348,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     info.set_allow_lazy_parsing(flags.Contains(kAllowLazy));
     SetGlobalFlags(flags);
     if (is_module) info.set_module();
-    i::parsing::ParseProgram(&info);
+    i::parsing::ParseProgram(&info, isolate);
     function = info.literal();
   }
 
@@ -2466,7 +2466,7 @@ TEST(DontRegressPreParserDataSizes) {
     i::ScriptData* sd = NULL;
     info.set_cached_data(&sd);
     info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
-    i::parsing::ParseProgram(&info);
+    i::parsing::ParseProgram(&info, CcTest::i_isolate());
     i::ParseData* pd = i::ParseData::FromCachedData(sd);
 
     if (pd->FunctionCount() != test_cases[i].functions) {
@@ -3357,7 +3357,7 @@ TEST(InnerAssignment) {
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
           i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
           info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
-          CHECK(i::parsing::ParseFunction(info.get()));
+          CHECK(i::parsing::ParseFunction(info.get(), isolate));
         } else {
           i::Handle<i::String> source =
               factory->InternalizeUtf8String(program.start());
@@ -3366,7 +3366,7 @@ TEST(InnerAssignment) {
           i::Handle<i::Script> script = factory->NewScript(source);
           info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(script));
           info->set_allow_lazy_parsing(false);
-          CHECK(i::parsing::ParseProgram(info.get()));
+          CHECK(i::parsing::ParseProgram(info.get(), isolate));
         }
         CHECK(i::Compiler::Analyze(info.get(), isolate));
         CHECK(info->literal() != NULL);
@@ -3471,7 +3471,7 @@ TEST(MaybeAssignedParameters) {
       i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
       info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
       info->set_allow_lazy_parsing(allow_lazy);
-      CHECK(i::parsing::ParseFunction(info.get()));
+      CHECK(i::parsing::ParseFunction(info.get(), isolate));
       CHECK(i::Compiler::Analyze(info.get(), isolate));
       CHECK_NOT_NULL(info->literal());
 
@@ -3510,7 +3510,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
   info->set_module(module);
   info->set_allow_lazy_parsing(allow_lazy_parsing);
 
-  CHECK(i::parsing::ParseProgram(info.get()));
+  CHECK(i::parsing::ParseProgram(info.get(), isolate));
   CHECK(i::Compiler::Analyze(info.get(), isolate));
 
   CHECK_NOT_NULL(info->literal());
@@ -6350,7 +6350,7 @@ TEST(BasicImportExportParsing) {
       i::Handle<i::Script> script = factory->NewScript(source);
       i::ParseInfo info(script);
       info.set_module();
-      if (!i::parsing::ParseProgram(&info)) {
+      if (!i::parsing::ParseProgram(&info, isolate)) {
         i::Handle<i::JSObject> exception_handle(
             i::JSObject::cast(isolate->pending_exception()));
         i::Handle<i::String> message_string = i::Handle<i::String>::cast(
@@ -6373,7 +6373,7 @@ TEST(BasicImportExportParsing) {
     {
       i::Handle<i::Script> script = factory->NewScript(source);
       i::ParseInfo info(script);
-      CHECK(!i::parsing::ParseProgram(&info));
+      CHECK(!i::parsing::ParseProgram(&info, isolate));
       isolate->clear_pending_exception();
     }
   }
@@ -6464,7 +6464,7 @@ TEST(ImportExportParsingErrors) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::ParseInfo info(script);
     info.set_module();
-    CHECK(!i::parsing::ParseProgram(&info));
+    CHECK(!i::parsing::ParseProgram(&info, isolate));
     isolate->clear_pending_exception();
   }
 }
@@ -6500,7 +6500,7 @@ TEST(ModuleTopLevelFunctionDecl) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::ParseInfo info(script);
     info.set_module();
-    CHECK(!i::parsing::ParseProgram(&info));
+    CHECK(!i::parsing::ParseProgram(&info, isolate));
     isolate->clear_pending_exception();
   }
 }
@@ -6697,7 +6697,7 @@ TEST(ModuleParsingInternals) {
   i::Handle<i::Script> script = factory->NewScript(source);
   i::ParseInfo info(script);
   info.set_module();
-  CHECK(i::parsing::ParseProgram(&info));
+  CHECK(i::parsing::ParseProgram(&info, isolate));
   CHECK(i::Compiler::Analyze(&info, isolate));
   i::FunctionLiteral* func = info.literal();
   i::ModuleScope* module_scope = func->scope()->AsModuleScope();
@@ -6955,7 +6955,7 @@ void TestLanguageMode(const char* source,
   i::Handle<i::Script> script =
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
   i::ParseInfo info(script);
-  i::parsing::ParseProgram(&info);
+  i::parsing::ParseProgram(&info, isolate);
   CHECK(info.literal() != NULL);
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
 }
@@ -9603,7 +9603,7 @@ TEST(NoPessimisticContextAllocation) {
       i::Handle<i::Script> script = factory->NewScript(source);
       i::ParseInfo info(script);
 
-      CHECK(i::parsing::ParseProgram(&info));
+      CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Compiler::Analyze(&info, isolate));
       CHECK(info.literal() != NULL);
 

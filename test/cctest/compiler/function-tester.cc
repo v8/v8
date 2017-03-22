@@ -189,7 +189,7 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
                        function);
 
-  CHECK(parsing::ParseFunction(info.parse_info()));
+  CHECK(parsing::ParseFunction(info.parse_info(), info.isolate()));
   info.SetOptimizing();
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);

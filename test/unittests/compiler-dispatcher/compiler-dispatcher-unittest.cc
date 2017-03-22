@@ -926,7 +926,7 @@ TEST_F(CompilerDispatcherTest, CompileParsedOutOfScope) {
     ASSERT_FALSE(shared->is_compiled());
     ParseInfo parse_info(shared);
 
-    ASSERT_TRUE(parsing::ParseAny(&parse_info));
+    ASSERT_TRUE(parsing::ParseAny(&parse_info, i_isolate()));
     DeferredHandleScope handles_scope(i_isolate());
     { ASSERT_TRUE(Compiler::Analyze(&parse_info, i_isolate())); }
     std::shared_ptr<DeferredHandles> compilation_handles(
@@ -993,7 +993,7 @@ TEST_F(CompilerDispatcherTestWithoutContext, CompileExtensionWithoutContext) {
     ParseInfo parse_info(script);
     parse_info.set_extension(&extension);
 
-    ASSERT_TRUE(parsing::ParseAny(&parse_info));
+    ASSERT_TRUE(parsing::ParseAny(&parse_info, i_isolate()));
     Handle<FixedArray> shared_infos_array(i_isolate()->factory()->NewFixedArray(
         parse_info.max_function_literal_id() + 1));
     parse_info.script()->set_shared_function_infos(*shared_infos_array);

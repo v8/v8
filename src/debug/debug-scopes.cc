@@ -109,7 +109,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     // Inner function.
     info.reset(new ParseInfo(shared_info));
   }
-  if (parsing::ParseAny(info.get()) && Rewriter::Rewrite(info.get(), isolate)) {
+  if (parsing::ParseAny(info.get(), isolate) &&
+      Rewriter::Rewrite(info.get(), isolate)) {
     DeclarationScope* scope = info->literal()->scope();
     if (!ignore_nested_scopes || collect_non_locals) {
       CollectNonLocals(info.get(), scope);

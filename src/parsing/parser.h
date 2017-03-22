@@ -231,8 +231,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
  private:
   friend class ParserBase<Parser>;
   friend class v8::internal::ExpressionClassifier<ParserTypes<Parser>>;
-  friend bool v8::internal::parsing::ParseProgram(ParseInfo*, bool);
-  friend bool v8::internal::parsing::ParseFunction(ParseInfo*, bool);
+  friend bool v8::internal::parsing::ParseProgram(ParseInfo*, Isolate*, bool);
+  friend bool v8::internal::parsing::ParseFunction(ParseInfo*, Isolate*, bool);
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const {
     return scope()->AllowsLazyParsingWithoutUnresolvedVariables(
