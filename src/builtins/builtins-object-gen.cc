@@ -352,8 +352,6 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
-  typedef CreateIterResultObjectDescriptor Descriptor;
-
   Node* const value = Parameter(Descriptor::kValue);
   Node* const done = Parameter(Descriptor::kDone);
   Node* const context = Parameter(Descriptor::kContext);
@@ -371,8 +369,6 @@ TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(HasProperty, ObjectBuiltinsAssembler) {
-  typedef HasPropertyDescriptor Descriptor;
-
   Node* key = Parameter(Descriptor::kKey);
   Node* object = Parameter(Descriptor::kObject);
   Node* context = Parameter(Descriptor::kContext);
@@ -381,8 +377,6 @@ TF_BUILTIN(HasProperty, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {
-  typedef CompareDescriptor Descriptor;
-
   Node* object = Parameter(Descriptor::kLeft);
   Node* callable = Parameter(Descriptor::kRight);
   Node* context = Parameter(Descriptor::kContext);
@@ -392,8 +386,6 @@ TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {
 
 // ES6 section 7.3.19 OrdinaryHasInstance ( C, O )
 TF_BUILTIN(OrdinaryHasInstance, ObjectBuiltinsAssembler) {
-  typedef CompareDescriptor Descriptor;
-
   Node* constructor = Parameter(Descriptor::kLeft);
   Node* object = Parameter(Descriptor::kRight);
   Node* context = Parameter(Descriptor::kContext);
@@ -402,8 +394,6 @@ TF_BUILTIN(OrdinaryHasInstance, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(GetSuperConstructor, ObjectBuiltinsAssembler) {
-  typedef TypeofDescriptor Descriptor;
-
   Node* object = Parameter(Descriptor::kObject);
   Node* context = Parameter(Descriptor::kContext);
 

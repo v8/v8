@@ -201,8 +201,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
 }
 
 TF_BUILTIN(FastNewRestParameter, ArgumentsBuiltinsAssembler) {
-  Node* function = Parameter(FastNewArgumentsDescriptor::kFunction);
-  Node* context = Parameter(FastNewArgumentsDescriptor::kContext);
+  Node* function = Parameter(Descriptor::kFunction);
+  Node* context = Parameter(Descriptor::kContext);
   Return(EmitFastNewRestParameter(context, function));
 }
 

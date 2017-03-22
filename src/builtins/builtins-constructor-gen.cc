@@ -178,7 +178,6 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 }
 
 TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
-  typedef FastNewObjectDescriptor Descriptor;
   Node* context = Parameter(Descriptor::kContext);
   Node* target = Parameter(Descriptor::kTarget);
   Node* new_target = Parameter(Descriptor::kNewTarget);

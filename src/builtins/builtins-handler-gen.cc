@@ -14,8 +14,6 @@ namespace v8 {
 namespace internal {
 
 TF_BUILTIN(KeyedLoadIC_IndexedString, CodeStubAssembler) {
-  typedef LoadWithVectorDescriptor Descriptor;
-
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* index = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
@@ -38,8 +36,6 @@ TF_BUILTIN(KeyedLoadIC_IndexedString, CodeStubAssembler) {
 }
 
 TF_BUILTIN(KeyedLoadIC_Miss, CodeStubAssembler) {
-  typedef LoadWithVectorDescriptor Descriptor;
-
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
@@ -51,8 +47,6 @@ TF_BUILTIN(KeyedLoadIC_Miss, CodeStubAssembler) {
 }
 
 TF_BUILTIN(KeyedLoadIC_Slow, CodeStubAssembler) {
-  typedef LoadWithVectorDescriptor Descriptor;
-
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* context = Parameter(Descriptor::kContext);
@@ -81,8 +75,6 @@ void Builtins::Generate_StoreICStrict_Uninitialized(
 }
 
 TF_BUILTIN(KeyedStoreIC_Miss, CodeStubAssembler) {
-  typedef StoreWithVectorDescriptor Descriptor;
-
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
@@ -95,8 +87,6 @@ TF_BUILTIN(KeyedStoreIC_Miss, CodeStubAssembler) {
 }
 
 TF_BUILTIN(KeyedStoreIC_Slow, CodeStubAssembler) {
-  typedef StoreWithVectorDescriptor Descriptor;
-
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
@@ -111,8 +101,6 @@ TF_BUILTIN(KeyedStoreIC_Slow, CodeStubAssembler) {
 }
 
 TF_BUILTIN(LoadGlobalIC_Miss, CodeStubAssembler) {
-  typedef LoadGlobalWithVectorDescriptor Descriptor;
-
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = Parameter(Descriptor::kVector);
@@ -122,8 +110,6 @@ TF_BUILTIN(LoadGlobalIC_Miss, CodeStubAssembler) {
 }
 
 TF_BUILTIN(LoadGlobalIC_Slow, CodeStubAssembler) {
-  typedef LoadGlobalWithVectorDescriptor Descriptor;
-
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = Parameter(Descriptor::kVector);
@@ -137,8 +123,6 @@ void Builtins::Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
 }
 
 TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
-  typedef LoadWithVectorDescriptor Descriptor;
-
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
@@ -166,8 +150,6 @@ TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
 }
 
 TF_BUILTIN(LoadIC_Miss, CodeStubAssembler) {
-  typedef LoadWithVectorDescriptor Descriptor;
-
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
@@ -178,8 +160,6 @@ TF_BUILTIN(LoadIC_Miss, CodeStubAssembler) {
 }
 
 TF_BUILTIN(LoadIC_Slow, CodeStubAssembler) {
-  typedef LoadWithVectorDescriptor Descriptor;
-
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* context = Parameter(Descriptor::kContext);
@@ -188,8 +168,6 @@ TF_BUILTIN(LoadIC_Slow, CodeStubAssembler) {
 }
 
 TF_BUILTIN(StoreIC_Miss, CodeStubAssembler) {
-  typedef StoreWithVectorDescriptor Descriptor;
-
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);

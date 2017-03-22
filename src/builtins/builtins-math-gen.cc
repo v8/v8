@@ -23,7 +23,8 @@ class MathBuiltinsAssembler : public CodeStubAssembler {
                              Node* (CodeStubAssembler::*float64op)(Node*));
   void MathUnaryOperation(Node* context, Node* x,
                           Node* (CodeStubAssembler::*float64op)(Node*));
-  void MathMaxMin(Node* (CodeStubAssembler::*float64op)(Node*, Node*),
+  void MathMaxMin(Node* context, Node* argc,
+                  Node* (CodeStubAssembler::*float64op)(Node*, Node*),
                   double default_val);
 };
 
@@ -161,12 +162,8 @@ void MathBuiltinsAssembler::MathUnaryOperation(
 }
 
 void MathBuiltinsAssembler::MathMaxMin(
+    Node* context, Node* argc,
     Node* (CodeStubAssembler::*float64op)(Node*, Node*), double default_val) {
-  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
-  // arguments are reordered.
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-
   CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
   argc = arguments.GetLength();
 
@@ -512,12 +509,20 @@ TF_BUILTIN(MathTrunc, MathBuiltinsAssembler) {
 
 // ES6 #sec-math.max
 TF_BUILTIN(MathMax, MathBuiltinsAssembler) {
-  MathMaxMin(&CodeStubAssembler::Float64Max, -1.0 * V8_INFINITY);
+  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
+  // arguments are reordered.
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  MathMaxMin(context, argc, &CodeStubAssembler::Float64Max, -1.0 * V8_INFINITY);
 }
 
 // ES6 #sec-math.min
 TF_BUILTIN(MathMin, MathBuiltinsAssembler) {
-  MathMaxMin(&CodeStubAssembler::Float64Min, V8_INFINITY);
+  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
+  // arguments are reordered.
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  MathMaxMin(context, argc, &CodeStubAssembler::Float64Min, V8_INFINITY);
 }
 
 }  // namespace internal

@@ -17,17 +17,16 @@ class ConversionBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  void Generate_NonPrimitiveToPrimitive(ToPrimitiveHint hint);
+  void Generate_NonPrimitiveToPrimitive(Node* context, Node* input,
+                                        ToPrimitiveHint hint);
 
-  void Generate_OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
+  void Generate_OrdinaryToPrimitive(Node* context, Node* input,
+                                    OrdinaryToPrimitiveHint hint);
 };
 
 // ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
 void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
-    ToPrimitiveHint hint) {
-  Node* input = Parameter(TypeConversionDescriptor::kArgument);
-  Node* context = Parameter(TypeConversionDescriptor::kContext);
-
+    Node* context, Node* input, ToPrimitiveHint hint) {
   // Lookup the @@toPrimitive property on the {input}.
   Node* exotic_to_prim =
       GetProperty(context, input, factory()->to_primitive_symbol());
@@ -81,49 +80,58 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
 }
 
 TF_BUILTIN(NonPrimitiveToPrimitive_Default, ConversionBuiltinsAssembler) {
-  Generate_NonPrimitiveToPrimitive(ToPrimitiveHint::kDefault);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+
+  Generate_NonPrimitiveToPrimitive(context, input, ToPrimitiveHint::kDefault);
 }
 
 TF_BUILTIN(NonPrimitiveToPrimitive_Number, ConversionBuiltinsAssembler) {
-  Generate_NonPrimitiveToPrimitive(ToPrimitiveHint::kNumber);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+
+  Generate_NonPrimitiveToPrimitive(context, input, ToPrimitiveHint::kNumber);
 }
 
 TF_BUILTIN(NonPrimitiveToPrimitive_String, ConversionBuiltinsAssembler) {
-  Generate_NonPrimitiveToPrimitive(ToPrimitiveHint::kString);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+
+  Generate_NonPrimitiveToPrimitive(context, input, ToPrimitiveHint::kString);
 }
 
 TF_BUILTIN(StringToNumber, CodeStubAssembler) {
-  Node* input = Parameter(TypeConversionDescriptor::kArgument);
-  Node* context = Parameter(TypeConversionDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
 
   Return(StringToNumber(context, input));
 }
 
 TF_BUILTIN(ToName, CodeStubAssembler) {
-  Node* input = Parameter(TypeConversionDescriptor::kArgument);
-  Node* context = Parameter(TypeConversionDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
 
   Return(ToName(context, input));
 }
 
 TF_BUILTIN(NonNumberToNumber, CodeStubAssembler) {
-  Node* input = Parameter(TypeConversionDescriptor::kArgument);
-  Node* context = Parameter(TypeConversionDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
 
   Return(NonNumberToNumber(context, input));
 }
 
 // ES6 section 7.1.3 ToNumber ( argument )
 TF_BUILTIN(ToNumber, CodeStubAssembler) {
-  Node* input = Parameter(TypeConversionDescriptor::kArgument);
-  Node* context = Parameter(TypeConversionDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
 
   Return(ToNumber(context, input));
 }
 
 TF_BUILTIN(ToString, CodeStubAssembler) {
-  Node* input = Parameter(TypeConversionDescriptor::kArgument);
-  Node* context = Parameter(TypeConversionDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
 
   Label is_number(this);
   Label runtime(this);
@@ -158,10 +166,7 @@ TF_BUILTIN(ToString, CodeStubAssembler) {
 
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )
 void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
-    OrdinaryToPrimitiveHint hint) {
-  Node* input = Parameter(TypeConversionDescriptor::kArgument);
-  Node* context = Parameter(TypeConversionDescriptor::kContext);
-
+    Node* context, Node* input, OrdinaryToPrimitiveHint hint) {
   Variable var_result(this, MachineRepresentation::kTagged);
   Label return_result(this, &var_result);
 
@@ -217,16 +222,22 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
 }
 
 TF_BUILTIN(OrdinaryToPrimitive_Number, ConversionBuiltinsAssembler) {
-  Generate_OrdinaryToPrimitive(OrdinaryToPrimitiveHint::kNumber);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+  Generate_OrdinaryToPrimitive(context, input,
+                               OrdinaryToPrimitiveHint::kNumber);
 }
 
 TF_BUILTIN(OrdinaryToPrimitive_String, ConversionBuiltinsAssembler) {
-  Generate_OrdinaryToPrimitive(OrdinaryToPrimitiveHint::kString);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+  Generate_OrdinaryToPrimitive(context, input,
+                               OrdinaryToPrimitiveHint::kString);
 }
 
 // ES6 section 7.1.2 ToBoolean ( argument )
 TF_BUILTIN(ToBoolean, CodeStubAssembler) {
-  Node* value = Parameter(TypeConversionDescriptor::kArgument);
+  Node* value = Parameter(Descriptor::kArgument);
 
   Label return_true(this), return_false(this);
   BranchIfToBooleanIsTrue(value, &return_true, &return_false);
@@ -307,8 +318,8 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ToInteger, CodeStubAssembler) {
-  Node* input = Parameter(TypeConversionDescriptor::kArgument);
-  Node* context = Parameter(TypeConversionDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
 
   Return(ToInteger(context, input));
 }
@@ -318,8 +329,8 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Label if_number(this, Label::kDeferred), if_notsmi(this), if_jsreceiver(this),
       if_noconstructor(this, Label::kDeferred), if_wrapjsvalue(this);
 
-  Node* object = Parameter(TypeConversionDescriptor::kArgument);
-  Node* context = Parameter(TypeConversionDescriptor::kContext);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* object = Parameter(Descriptor::kArgument);
 
   Variable constructor_function_index_var(this,
                                           MachineType::PointerRepresentation());

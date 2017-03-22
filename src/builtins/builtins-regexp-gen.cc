@@ -730,8 +730,6 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExpResult(Node* context, Node* map,
 
 // Slow path stub for RegExpPrototypeExec to decrease code size.
 TF_BUILTIN(RegExpPrototypeExecSlow, RegExpBuiltinsAssembler) {
-  typedef RegExpPrototypeExecSlowDescriptor Descriptor;
-
   Node* const regexp = Parameter(Descriptor::kReceiver);
   Node* const string = Parameter(Descriptor::kString);
   Node* const context = Parameter(Descriptor::kContext);
@@ -2172,8 +2170,6 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
 // Helper that skips a few initial checks.
 TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
-  typedef RegExpSplitDescriptor Descriptor;
-
   Node* const regexp = Parameter(Descriptor::kReceiver);
   Node* const string = Parameter(Descriptor::kString);
   Node* const maybe_limit = Parameter(Descriptor::kLimit);
@@ -2554,8 +2550,6 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
 
 // Helper that skips a few initial checks.
 TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
-  typedef RegExpReplaceDescriptor Descriptor;
-
   Node* const regexp = Parameter(Descriptor::kReceiver);
   Node* const string = Parameter(Descriptor::kString);
   Node* const replace_value = Parameter(Descriptor::kReplaceValue);

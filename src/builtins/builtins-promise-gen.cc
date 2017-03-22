@@ -1206,8 +1206,6 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
 }
 
 TF_BUILTIN(PromiseHandleReject, PromiseBuiltinsAssembler) {
-  typedef PromiseHandleRejectDescriptor Descriptor;
-
   Node* const promise = Parameter(Descriptor::kPromise);
   Node* const on_reject = Parameter(Descriptor::kOnReject);
   Node* const exception = Parameter(Descriptor::kException);

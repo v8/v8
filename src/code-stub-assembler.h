@@ -1447,15 +1447,13 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 #ifdef DEBUG
 #define CSA_ASSERT(csa, x) \
   (csa)->Assert([&] { return (x); }, #x, __FILE__, __LINE__)
-#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)               \
-  (csa)->Assert(                                                   \
-      [&] {                                                        \
-        const CodeAssemblerState* state = (csa)->state();          \
-        /* See Linkage::GetJSCallDescriptor(). */                  \
-        int argc_index = state->parameter_count() - 2;             \
-        compiler::Node* const argc = (csa)->Parameter(argc_index); \
-        return (csa)->Op(argc, (csa)->Int32Constant(expected));    \
-      },                                                           \
+#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)             \
+  (csa)->Assert(                                                 \
+      [&] {                                                      \
+        compiler::Node* const argc =                             \
+            (csa)->Parameter(Descriptor::kActualArgumentsCount); \
+        return (csa)->Op(argc, (csa)->Int32Constant(expected));  \
+      },                                                         \
       "argc " #op " " #expected, __FILE__, __LINE__)
 
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \

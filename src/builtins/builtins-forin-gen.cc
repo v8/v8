@@ -167,8 +167,6 @@ void ForInBuiltinsAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
 }
 
 TF_BUILTIN(ForInFilter, ForInBuiltinsAssembler) {
-  typedef ForInFilterDescriptor Descriptor;
-
   Node* key = Parameter(Descriptor::kKey);
   Node* object = Parameter(Descriptor::kObject);
   Node* context = Parameter(Descriptor::kContext);
@@ -177,8 +175,6 @@ TF_BUILTIN(ForInFilter, ForInBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ForInNext, ForInBuiltinsAssembler) {
-  typedef ForInNextDescriptor Descriptor;
-
   Label filter(this);
   Node* object = Parameter(Descriptor::kObject);
   Node* cache_array = Parameter(Descriptor::kCacheArray);
@@ -195,8 +191,6 @@ TF_BUILTIN(ForInNext, ForInBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ForInPrepare, ForInBuiltinsAssembler) {
-  typedef ForInPrepareDescriptor Descriptor;
-
   Label call_runtime(this), nothing_to_iterate(this);
   Node* object = Parameter(Descriptor::kObject);
   Node* context = Parameter(Descriptor::kContext);

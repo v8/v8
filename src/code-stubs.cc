@@ -502,7 +502,6 @@ void StringLengthStub::GenerateAssembly(
 
 #define BINARY_OP_STUB(Name)                                                  \
   void Name::GenerateAssembly(compiler::CodeAssemblerState* state) const {    \
-    typedef BinaryOpWithVectorDescriptor Descriptor;                          \
     CodeStubAssembler assembler(state);                                       \
     assembler.Return(Generate(                                                \
         &assembler, assembler.Parameter(Descriptor::kLeft),                   \

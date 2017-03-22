@@ -26,8 +26,6 @@ void Builtins::Generate_StackCheck(MacroAssembler* masm) {
 // TurboFan support builtins.
 
 TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
-  typedef CopyFastSmiOrObjectElementsDescriptor Descriptor;
-
   Node* object = Parameter(Descriptor::kObject);
 
   // Load the {object}s elements.
@@ -64,8 +62,6 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
 }
 
 TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
-  typedef GrowArrayElementsDescriptor Descriptor;
-
   Node* object = Parameter(Descriptor::kObject);
   Node* key = Parameter(Descriptor::kKey);
   Node* context = Parameter(Descriptor::kContext);
@@ -81,8 +77,6 @@ TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
 }
 
 TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
-  typedef GrowArrayElementsDescriptor Descriptor;
-
   Node* object = Parameter(Descriptor::kObject);
   Node* key = Parameter(Descriptor::kKey);
   Node* context = Parameter(Descriptor::kContext);
@@ -98,8 +92,6 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
 }
 
 TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
-  typedef NewArgumentsElementsDescriptor Descriptor;
-
   Node* frame = Parameter(Descriptor::kFrame);
   Node* length = SmiToWord(Parameter(Descriptor::kLength));
 
