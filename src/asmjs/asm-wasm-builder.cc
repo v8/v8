@@ -1068,7 +1068,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (as_init) UnLoadInitFunction();
   }
 
-  void VisitYield(Yield* expr) { UNREACHABLE(); }
+  void VisitSuspend(Suspend* expr) { UNREACHABLE(); }
 
   void VisitThrow(Throw* expr) { UNREACHABLE(); }
 

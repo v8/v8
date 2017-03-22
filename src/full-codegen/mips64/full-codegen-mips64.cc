@@ -1514,8 +1514,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   }
 }
 
-
-void FullCodeGenerator::VisitYield(Yield* expr) {
+void FullCodeGenerator::VisitSuspend(Suspend* expr) {
   // Resumable functions are not supported.
   UNREACHABLE();
 }

@@ -1334,6 +1334,52 @@ enum ExternalArrayType {
   kExternalUint8ClampedArray,
 };
 
+enum class SuspendGeneratorFlags {
+  kYield = 0,
+  kYieldStar = 1,
+  kAwait = 2,
+  kSuspendTypeMask = 3,
+
+  kBitWidth = 2,
+};
+
+inline constexpr SuspendGeneratorFlags operator&(SuspendGeneratorFlags lhs,
+                                                 SuspendGeneratorFlags rhs) {
+  return static_cast<SuspendGeneratorFlags>(static_cast<uint8_t>(lhs) &
+                                            static_cast<uint8_t>(rhs));
+}
+
+inline constexpr SuspendGeneratorFlags operator|(SuspendGeneratorFlags lhs,
+                                                 SuspendGeneratorFlags rhs) {
+  return static_cast<SuspendGeneratorFlags>(static_cast<uint8_t>(lhs) |
+                                            static_cast<uint8_t>(rhs));
+}
+
+inline SuspendGeneratorFlags& operator|=(SuspendGeneratorFlags& lhs,
+                                         SuspendGeneratorFlags rhs) {
+  lhs = lhs | rhs;
+  return lhs;
+}
+
+inline SuspendGeneratorFlags operator~(SuspendGeneratorFlags lhs) {
+  return static_cast<SuspendGeneratorFlags>(~static_cast<uint8_t>(lhs));
+}
+
+inline const char* SuspendTypeFor(SuspendGeneratorFlags flags) {
+  switch (flags & SuspendGeneratorFlags::kSuspendTypeMask) {
+    case SuspendGeneratorFlags::kYield:
+      return "yield";
+    case SuspendGeneratorFlags::kYieldStar:
+      return "yield*";
+    case SuspendGeneratorFlags::kAwait:
+      return "await";
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return "";
+}
+
 }  // namespace internal
 }  // namespace v8
 

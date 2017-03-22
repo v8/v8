@@ -254,9 +254,7 @@ void CallPrinter::VisitAssignment(Assignment* node) {
   Find(node->value());
 }
 
-
-void CallPrinter::VisitYield(Yield* node) { Find(node->expression()); }
-
+void CallPrinter::VisitSuspend(Suspend* node) { Find(node->expression()); }
 
 void CallPrinter::VisitThrow(Throw* node) { Find(node->exception()); }
 
@@ -649,8 +647,8 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
   { IndentedScope indent(this, "FUNC", program->position());
     PrintIndented("KIND");
     Print(" %d\n", program->kind());
-    PrintIndented("YIELD COUNT");
-    Print(" %d\n", program->yield_count());
+    PrintIndented("SUSPEND COUNT");
+    Print(" %d\n", program->suspend_count());
     PrintLiteralIndented("NAME", program->name(), true);
     PrintLiteralIndented("INFERRED NAME", program->inferred_name(), true);
     PrintParameters(program->scope());
@@ -801,8 +799,8 @@ void AstPrinter::VisitCaseClause(CaseClause* clause) {
 
 void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
   IndentedScope indent(this, "DO", node->position());
-  PrintIndented("YIELD COUNT");
-  Print(" %d\n", node->yield_count());
+  PrintIndented("SUSPEND COUNT");
+  Print(" %d\n", node->suspend_count());
   PrintLabelsIndented(node->labels());
   PrintIndentedVisit("BODY", node->body());
   PrintIndentedVisit("COND", node->cond());
@@ -811,8 +809,8 @@ void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
 
 void AstPrinter::VisitWhileStatement(WhileStatement* node) {
   IndentedScope indent(this, "WHILE", node->position());
-  PrintIndented("YIELD COUNT");
-  Print(" %d\n", node->yield_count());
+  PrintIndented("SUSPEND COUNT");
+  Print(" %d\n", node->suspend_count());
   PrintLabelsIndented(node->labels());
   PrintIndentedVisit("COND", node->cond());
   PrintIndentedVisit("BODY", node->body());
@@ -821,8 +819,8 @@ void AstPrinter::VisitWhileStatement(WhileStatement* node) {
 
 void AstPrinter::VisitForStatement(ForStatement* node) {
   IndentedScope indent(this, "FOR", node->position());
-  PrintIndented("YIELD COUNT");
-  Print(" %d\n", node->yield_count());
+  PrintIndented("SUSPEND COUNT");
+  Print(" %d\n", node->suspend_count());
   PrintLabelsIndented(node->labels());
   if (node->init()) PrintIndentedVisit("INIT", node->init());
   if (node->cond()) PrintIndentedVisit("COND", node->cond());
@@ -833,8 +831,8 @@ void AstPrinter::VisitForStatement(ForStatement* node) {
 
 void AstPrinter::VisitForInStatement(ForInStatement* node) {
   IndentedScope indent(this, "FOR IN", node->position());
-  PrintIndented("YIELD COUNT");
-  Print(" %d\n", node->yield_count());
+  PrintIndented("SUSPEND COUNT");
+  Print(" %d\n", node->suspend_count());
   PrintIndentedVisit("FOR", node->each());
   PrintIndentedVisit("IN", node->enumerable());
   PrintIndentedVisit("BODY", node->body());
@@ -843,8 +841,8 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
 
 void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
   IndentedScope indent(this, "FOR OF", node->position());
-  PrintIndented("YIELD COUNT");
-  Print(" %d\n", node->yield_count());
+  PrintIndented("SUSPEND COUNT");
+  Print(" %d\n", node->suspend_count());
   PrintIndentedVisit("INIT", node->assign_iterator());
   PrintIndentedVisit("NEXT", node->next_result());
   PrintIndentedVisit("DONE", node->result_done());
@@ -1094,10 +1092,9 @@ void AstPrinter::VisitAssignment(Assignment* node) {
   Visit(node->value());
 }
 
-
-void AstPrinter::VisitYield(Yield* node) {
+void AstPrinter::VisitSuspend(Suspend* node) {
   EmbeddedVector<char, 128> buf;
-  SNPrintF(buf, "YIELD id %d", node->yield_id());
+  SNPrintF(buf, "SUSPEND id %d", node->suspend_id());
   IndentedScope indent(this, buf.start(), node->position());
   Visit(node->expression());
 }

@@ -357,7 +357,7 @@ void AstTraversalVisitor<Subclass>::VisitAssignment(Assignment* expr) {
 }
 
 template <class Subclass>
-void AstTraversalVisitor<Subclass>::VisitYield(Yield* expr) {
+void AstTraversalVisitor<Subclass>::VisitSuspend(Suspend* expr) {
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(Visit(expr->generator_object()));
   RECURSE_EXPRESSION(Visit(expr->expression()));

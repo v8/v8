@@ -6806,8 +6806,7 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
   }
 }
 
-
-void HOptimizedGraphBuilder::VisitYield(Yield* expr) {
+void HOptimizedGraphBuilder::VisitSuspend(Suspend* expr) {
   // Generators are not optimized, so we should never get here.
   UNREACHABLE();
 }

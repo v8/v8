@@ -2864,8 +2864,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   expression = impl()->BuildIteratorResult(expression, false);
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
-  ExpressionT yield = factory()->NewYield(generator_object, expression, pos,
-                                          Yield::kOnExceptionThrow);
+  ExpressionT yield =
+      factory()->NewSuspend(generator_object, expression, pos,
+                            Suspend::kOnExceptionThrow, Suspend::kYield);
   return yield;
 }
 

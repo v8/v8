@@ -633,7 +633,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       execution_control_(nullptr),
       execution_context_(nullptr),
       execution_result_(nullptr),
-      generator_resume_points_(info->literal()->yield_count(), info->zone()),
+      generator_resume_points_(info->literal()->suspend_count(), info->zone()),
       generator_state_(),
       loop_depth_(0) {
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
@@ -793,17 +793,17 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
                                              LoopBuilder* loop_builder) {
   // Recall that stmt->yield_count() is always zero inside ordinary
   // (i.e. non-generator) functions.
-  if (stmt->yield_count() == 0) {
+  if (stmt->suspend_count() == 0) {
     loop_builder->LoopHeader();
   } else {
     // Collect all labels for generator resume points within the loop (if any)
     // so that they can be bound to the loop header below. Also create fresh
     // labels for these resume points, to be used inside the loop.
     ZoneVector<BytecodeLabel> resume_points_in_loop(zone());
-    size_t first_yield = stmt->first_yield_id();
-    DCHECK_LE(first_yield + stmt->yield_count(),
+    size_t first_yield = stmt->first_suspend_id();
+    DCHECK_LE(first_yield + stmt->suspend_count(),
               generator_resume_points_.size());
-    for (size_t id = first_yield; id < first_yield + stmt->yield_count();
+    for (size_t id = first_yield; id < first_yield + stmt->suspend_count();
          id++) {
       auto& label = generator_resume_points_[id];
       resume_points_in_loop.push_back(label);
@@ -819,8 +819,8 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
         ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
         .CompareOperation(Token::Value::EQ_STRICT, generator_state_)
         .JumpIfTrue(&not_resuming);
-    BuildIndexedJump(generator_state_, first_yield,
-        stmt->yield_count(), generator_resume_points_);
+    BuildIndexedJump(generator_state_, first_yield, stmt->suspend_count(),
+                     generator_resume_points_);
     builder()->Bind(&not_resuming);
   }
 }
@@ -2339,7 +2339,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   }
 }
 
-void BytecodeGenerator::VisitYield(Yield* expr) {
+void BytecodeGenerator::VisitSuspend(Suspend* expr) {
   builder()->SetExpressionPosition(expr);
   Register value = VisitForRegisterValue(expr->expression());
 
@@ -2347,12 +2347,12 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 
   // Save context, registers, and state. Then return.
   builder()
-      ->LoadLiteral(Smi::FromInt(expr->yield_id()))
+      ->LoadLiteral(Smi::FromInt(expr->suspend_id()))
       .SuspendGenerator(generator)
       .LoadAccumulatorWithRegister(value)
       .Return();  // Hard return (ignore any finally blocks).
 
-  builder()->Bind(&(generator_resume_points_[expr->yield_id()]));
+  builder()->Bind(&(generator_resume_points_[expr->suspend_id()]));
   // Upon resume, we continue here.
 
   {

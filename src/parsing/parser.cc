@@ -3155,8 +3155,8 @@ Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
   // The position of the yield is important for reporting the exception
   // caused by calling the .throw method on a generator suspended at the
   // initial yield (i.e. right after generator instantiation).
-  return factory()->NewYield(generator, assignment, scope()->start_position(),
-                             Yield::kOnExceptionThrow);
+  return factory()->NewSuspend(generator, assignment, scope()->start_position(),
+                               Suspend::kOnExceptionThrow, Suspend::kYield);
 }
 
 ZoneList<Statement*>* Parser::ParseFunction(
@@ -3921,9 +3921,8 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   // Wrap await to provide a break location between value evaluation and yield.
   Expression* do_expr = factory()->NewDoExpression(do_block, promise, nopos);
 
-  generator_object = factory()->NewVariableProxy(generator_object_variable);
-  return factory()->NewYield(generator_object, do_expr, nopos,
-                             Yield::kOnExceptionRethrow);
+  return factory()->NewSuspend(generator_object, do_expr, nopos,
+                               Suspend::kOnExceptionRethrow, Suspend::kAwait);
 }
 
 class NonPatternRewriter : public AstExpressionRewriter {
@@ -4479,8 +4478,9 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
   Statement* yield_output;
   {
     Expression* output_proxy = factory()->NewVariableProxy(var_output);
-    Yield* yield = factory()->NewYield(generator, output_proxy, nopos,
-                                       Yield::kOnExceptionThrow);
+    Suspend* yield =
+        factory()->NewSuspend(generator, output_proxy, nopos,
+                              Suspend::kOnExceptionThrow, Suspend::kYieldStar);
     yield_output = factory()->NewExpressionStatement(yield, nopos);
   }
 
