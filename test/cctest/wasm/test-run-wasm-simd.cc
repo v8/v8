@@ -391,9 +391,9 @@ T RecipSqrtRefine(T a, T b) {
 #define WASM_SIMD_I32x4_FROM_F32x4(x) x, WASM_SIMD_OP(kExprI32x4SConvertF32x4)
 #define WASM_SIMD_U32x4_FROM_F32x4(x) x, WASM_SIMD_OP(kExprI32x4UConvertF32x4)
 
-// Skip FP operations on extremely large or extremely small values, which may
-// cause tests to fail due to non-IEEE-754 arithmetic on some platforms.
-bool SkipFPTestInput(float x) {
+// Skip FP tests involving extremely large or extremely small values, which
+// may fail due to non-IEEE-754 SIMD arithmetic on some platforms.
+bool SkipFPValue(float x) {
   float abs_x = std::fabs(x);
   const float kSmallFloatThreshold = 1.0e-32f;
   const float kLargeFloatThreshold = 1.0e32f;
@@ -401,9 +401,9 @@ bool SkipFPTestInput(float x) {
          (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
 }
 
-// Skip tests where the expected value is a NaN. Our WASM test code can't
-// deal with NaNs.
-bool SkipFPExpectedValue(float x) { return std::isnan(x); }
+// Skip tests where the expected value is a NaN, since our WASM test code
+// doesn't handle NaNs. Also skip extreme values.
+bool SkipFPExpectedValue(float x) { return std::isnan(x) || SkipFPValue(x); }
 
 #if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(F32x4Splat) {
@@ -487,7 +487,7 @@ void RunF32x4UnOpTest(WasmOpcode simd_op, FloatUnOp expected_op,
         WASM_RETURN1(WASM_ONE));
 
   FOR_FLOAT32_INPUTS(i) {
-    if (SkipFPTestInput(*i)) continue;
+    if (SkipFPValue(*i)) continue;
     float expected = expected_op(*i);
     if (SkipFPExpectedValue(expected)) continue;
     float abs_error = std::abs(expected) * error;
@@ -531,9 +531,9 @@ void RunF32x4BinOpTest(WasmOpcode simd_op, FloatBinOp expected_op) {
         WASM_SIMD_CHECK_SPLAT_F32x4(simd1, expected), WASM_RETURN1(WASM_ONE));
 
   FOR_FLOAT32_INPUTS(i) {
-    if (SkipFPTestInput(*i)) continue;
+    if (SkipFPValue(*i)) continue;
     FOR_FLOAT32_INPUTS(j) {
-      if (SkipFPTestInput(*j)) continue;
+      if (SkipFPValue(*j)) continue;
       float expected = expected_op(*i, *j);
       if (SkipFPExpectedValue(expected)) continue;
       CHECK_EQ(1, r.Call(*i, *j, expected));
@@ -584,9 +584,9 @@ void RunF32x4CompareOpTest(WasmOpcode simd_op, FloatCompareOp expected_op) {
         WASM_SIMD_CHECK_SPLAT4(I32x4, simd1, I32, expected), WASM_ONE);
 
   FOR_FLOAT32_INPUTS(i) {
-    if (SkipFPTestInput(*i)) continue;
+    if (SkipFPValue(*i)) continue;
     FOR_FLOAT32_INPUTS(j) {
-      if (SkipFPTestInput(*j)) continue;
+      if (SkipFPValue(*j)) continue;
       float diff = *i - *j;
       if (SkipFPExpectedValue(diff)) continue;
       CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j)));
@@ -908,7 +908,7 @@ WASM_EXEC_COMPILED_TEST(I32x4FromFloat32x4) {
       WASM_SIMD_CHECK_SPLAT4(I32x4, simd2, I32, expected_unsigned), WASM_ONE);
 
   FOR_FLOAT32_INPUTS(i) {
-    if (SkipFPTestInput(*i)) continue;
+    if (SkipFPValue(*i)) continue;
     int32_t signed_value = ConvertToInt(*i, false);
     int32_t unsigned_value = ConvertToInt(*i, true);
     CHECK_EQ(1, r.Call(*i, signed_value, unsigned_value));
