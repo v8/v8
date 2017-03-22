@@ -341,13 +341,13 @@
       ]
     },
     {
-      "name": "Arrays",
-      "path": ["Arrays"],
+      "name": "Array",
+      "path": ["Array"],
       "main": "run.js",
       "resources": [
         "filter.js"
       ],
-      "results_regexp": "^Arrays\\-%s\\(Scope\\): (.+)$",
+      "results_regexp": "^Array\\-%s\\(Scope\\): (.+)$",
       "tests": [
         {"name": "Filter"}
       ]
