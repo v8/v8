@@ -2820,10 +2820,12 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
     MachineType load_rep = wasm::WasmOpcodes::MachineTypeFor(wasm::kWasmI32);
     Node* lower =
         graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
-                         Int32Constant(0), *effect_, *control_);
+                         Int32Constant(kInt64LowerHalfMemoryOffset), *effect_,
+                         *control_);
     Node* upper =
         graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
-                         Int32Constant(sizeof(int32_t)), lower, *control_);
+                         Int32Constant(kInt64UpperHalfMemoryOffset), lower,
+                         *control_);
     *effect_ = upper;
     Return(lower, upper);
   } else {
