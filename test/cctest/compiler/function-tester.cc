@@ -169,7 +169,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   if (info.shared_info()->HasBytecodeArray()) {
     info.MarkAsOptimizeFromBytecode();
   } else {
-    CHECK(Compiler::ParseAndAnalyze(info.parse_info()));
+    CHECK(Compiler::ParseAndAnalyze(&info));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
   }
   JSFunction::EnsureLiterals(function);

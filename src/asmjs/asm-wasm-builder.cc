@@ -172,7 +172,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       new_func_scope = new (info->zone()) DeclarationScope(
           info->zone(), decl->fun()->scope()->outer_scope(), FUNCTION_SCOPE);
       info->set_asm_function_scope(new_func_scope);
-      if (!Compiler::ParseAndAnalyze(info.get())) {
+      if (!Compiler::ParseAndAnalyze(info.get(), info_->isolate())) {
         decl->fun()->scope()->outer_scope()->RemoveInnerScope(new_func_scope);
         if (isolate_->has_pending_exception()) {
           isolate_->clear_pending_exception();

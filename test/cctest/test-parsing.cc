@@ -869,7 +869,7 @@ static void CheckParsesToNumber(const char* source, bool with_dot) {
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
 
-  CHECK(i::Compiler::ParseAndAnalyze(&info));
+  CHECK(i::Compiler::ParseAndAnalyze(&info, isolate));
 
   CHECK_EQ(1, info.scope()->declarations()->LengthForTest());
   i::Declaration* decl = info.scope()->declarations()->AtForTest(0);
@@ -3368,7 +3368,7 @@ TEST(InnerAssignment) {
           info->set_allow_lazy_parsing(false);
           CHECK(i::parsing::ParseProgram(info.get()));
         }
-        CHECK(i::Compiler::Analyze(info.get()));
+        CHECK(i::Compiler::Analyze(info.get(), isolate));
         CHECK(info->literal() != NULL);
 
         i::Scope* scope = info->literal()->scope();
@@ -3472,7 +3472,7 @@ TEST(MaybeAssignedParameters) {
       info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
       info->set_allow_lazy_parsing(allow_lazy);
       CHECK(i::parsing::ParseFunction(info.get()));
-      CHECK(i::Compiler::Analyze(info.get()));
+      CHECK(i::Compiler::Analyze(info.get(), isolate));
       CHECK_NOT_NULL(info->literal());
 
       i::Scope* scope = info->literal()->scope();
@@ -3497,7 +3497,8 @@ struct Input {
 
 static void TestMaybeAssigned(Input input, const char* variable, bool module,
                               bool allow_lazy_parsing) {
-  i::Factory* factory = CcTest::i_isolate()->factory();
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
   i::Handle<i::String> string =
       factory->InternalizeUtf8String(input.source.c_str());
   string->PrintOn(stdout);
@@ -3510,7 +3511,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
   info->set_allow_lazy_parsing(allow_lazy_parsing);
 
   CHECK(i::parsing::ParseProgram(info.get()));
-  CHECK(i::Compiler::Analyze(info.get()));
+  CHECK(i::Compiler::Analyze(info.get(), isolate));
 
   CHECK_NOT_NULL(info->literal());
   i::Scope* scope = info->literal()->scope();
@@ -6697,7 +6698,7 @@ TEST(ModuleParsingInternals) {
   i::ParseInfo info(script);
   info.set_module();
   CHECK(i::parsing::ParseProgram(&info));
-  CHECK(i::Compiler::Analyze(&info));
+  CHECK(i::Compiler::Analyze(&info, isolate));
   i::FunctionLiteral* func = info.literal();
   i::ModuleScope* module_scope = func->scope()->AsModuleScope();
   i::Scope* outer_scope = module_scope->outer_scope();
@@ -9603,7 +9604,7 @@ TEST(NoPessimisticContextAllocation) {
       i::ParseInfo info(script);
 
       CHECK(i::parsing::ParseProgram(&info));
-      CHECK(i::Compiler::Analyze(&info));
+      CHECK(i::Compiler::Analyze(&info, isolate));
       CHECK(info.literal() != NULL);
 
       i::Scope* scope = info.literal()->scope()->inner_scope();

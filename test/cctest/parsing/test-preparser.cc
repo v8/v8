@@ -624,7 +624,7 @@ TEST(PreParserScopeAnalysis) {
       eager_normal.set_allow_lazy_parsing(false);
 
       CHECK(i::parsing::ParseProgram(&eager_normal));
-      CHECK(i::Compiler::Analyze(&eager_normal));
+      CHECK(i::Compiler::Analyze(&eager_normal, isolate));
 
       i::Scope* normal_scope =
           eager_normal.literal()->scope()->inner_scope()->inner_scope();

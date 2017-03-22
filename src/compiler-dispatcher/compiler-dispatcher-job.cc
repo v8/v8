@@ -327,7 +327,7 @@ bool CompilerDispatcherJob::AnalyzeOnMainThread() {
 
   DeferredHandleScope scope(isolate_);
   {
-    if (Compiler::Analyze(parse_info_.get())) {
+    if (Compiler::Analyze(compile_info_.get())) {
       status_ = CompileJobStatus::kAnalyzed;
     } else {
       status_ = CompileJobStatus::kFailed;

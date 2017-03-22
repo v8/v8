@@ -614,7 +614,7 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
     if (inner_function_mode == Compiler::CONCURRENT) {
       compilation_handle_scope.reset(new CompilationHandleScope(info));
     }
-    if (!Compiler::Analyze(info->parse_info(), &inner_literals)) {
+    if (!Compiler::Analyze(info, &inner_literals)) {
       if (!isolate->has_pending_exception()) isolate->StackOverflow();
       return false;
     }
@@ -647,7 +647,7 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
   return true;
 }
 
-void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* info) {
+void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* info, Isolate* isolate) {
   DCHECK(info->is_toplevel());
   DCHECK(!info->script().is_null());
   if (info->script()->shared_function_infos()->length() > 0) {
@@ -655,10 +655,14 @@ void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* info) {
               info->max_function_literal_id() + 1);
     return;
   }
-  Isolate* isolate = info->isolate();
   Handle<FixedArray> infos(
       isolate->factory()->NewFixedArray(info->max_function_literal_id() + 1));
   info->script()->set_shared_function_infos(*infos);
+}
+
+void EnsureSharedFunctionInfosArrayOnScript(CompilationInfo* info) {
+  return EnsureSharedFunctionInfosArrayOnScript(info->parse_info(),
+                                                info->isolate());
 }
 
 MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(
@@ -683,7 +687,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(
   }
 
   if (info->parse_info()->is_toplevel()) {
-    EnsureSharedFunctionInfosArrayOnScript(info->parse_info());
+    EnsureSharedFunctionInfosArrayOnScript(info);
   }
   DCHECK_EQ(info->shared_info()->language_mode(),
             info->literal()->language_mode());
@@ -745,7 +749,7 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
 
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
-    if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
+    if (!Compiler::ParseAndAnalyze(info)) return false;
     EnsureFeedbackMetadata(info);
   }
 
@@ -810,7 +814,7 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
 
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
-    if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
+    if (!Compiler::ParseAndAnalyze(info)) return false;
     EnsureFeedbackMetadata(info);
   }
 
@@ -1133,7 +1137,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       }
     }
 
-    EnsureSharedFunctionInfosArrayOnScript(parse_info);
+    EnsureSharedFunctionInfosArrayOnScript(info);
 
     // Measure how long it takes to do the compilation; only take the
     // rest of the function into account to avoid overlap with the
@@ -1188,12 +1192,11 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 // ----------------------------------------------------------------------------
 // Implementation of Compiler
 
-bool Compiler::Analyze(ParseInfo* info,
+bool Compiler::Analyze(ParseInfo* info, Isolate* isolate,
                        EagerInnerFunctionLiterals* eager_literals) {
   DCHECK_NOT_NULL(info->literal());
-  RuntimeCallTimerScope runtimeTimer(info->runtime_call_stats(),
+  RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileAnalyse);
-  Isolate* isolate = info->isolate();
   if (!Rewriter::Rewrite(info, isolate)) return false;
   DeclarationScope::Analyze(info, isolate, AnalyzeMode::kRegular);
   if (!Renumber(info, eager_literals)) {
@@ -1203,13 +1206,24 @@ bool Compiler::Analyze(ParseInfo* info,
   return true;
 }
 
-bool Compiler::ParseAndAnalyze(ParseInfo* info) {
+bool Compiler::Analyze(CompilationInfo* info,
+                       EagerInnerFunctionLiterals* eager_literals) {
+  return Compiler::Analyze(info->parse_info(), info->isolate(), eager_literals);
+}
+
+bool Compiler::ParseAndAnalyze(ParseInfo* info, Isolate* isolate) {
   if (!parsing::ParseAny(info)) return false;
-  if (info->is_toplevel()) EnsureSharedFunctionInfosArrayOnScript(info);
-  if (!Compiler::Analyze(info)) return false;
+  if (info->is_toplevel()) {
+    EnsureSharedFunctionInfosArrayOnScript(info, isolate);
+  }
+  if (!Compiler::Analyze(info, isolate)) return false;
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
   return true;
+}
+
+bool Compiler::ParseAndAnalyze(CompilationInfo* info) {
+  return Compiler::ParseAndAnalyze(info->parse_info(), info->isolate());
 }
 
 bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
