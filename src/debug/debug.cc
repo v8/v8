@@ -389,6 +389,8 @@ void Debug::ThreadInit() {
   thread_local_.last_step_action_ = StepNone;
   thread_local_.last_statement_position_ = kNoSourcePosition;
   thread_local_.last_frame_count_ = -1;
+  thread_local_.fast_forward_to_return_ = false;
+  thread_local_.ignore_step_into_function_ = Smi::kZero;
   thread_local_.target_frame_count_ = -1;
   thread_local_.return_value_ = Smi::kZero;
   thread_local_.async_task_count_ = 0;
@@ -418,6 +420,7 @@ int Debug::ArchiveSpacePerThread() { return 0; }
 void Debug::Iterate(ObjectVisitor* v) {
   v->VisitPointer(&thread_local_.return_value_);
   v->VisitPointer(&thread_local_.suspended_generator_);
+  v->VisitPointer(&thread_local_.ignore_step_into_function_);
 }
 
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
@@ -526,6 +529,17 @@ void Debug::Break(JavaScriptFrame* frame) {
   int current_frame_count = CurrentFrameCount();
   int target_frame_count = thread_local_.target_frame_count_;
   int last_frame_count = thread_local_.last_frame_count_;
+
+  // StepOut at not return position was requested and return break locations
+  // were flooded with one shots.
+  if (thread_local_.fast_forward_to_return_) {
+    DCHECK(location.IsReturn());
+    // We have to ignore recursive calls to function.
+    if (current_frame_count > target_frame_count) return;
+    ClearStepping();
+    PrepareStep(StepOut);
+    return;
+  }
 
   bool step_break = false;
   switch (step_action) {
@@ -812,7 +826,8 @@ void Debug::ClearAllBreakPoints() {
   }
 }
 
-void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
+void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
+                             bool returns_only) {
   if (IsBlackboxed(shared)) return;
   // Make sure the function is compiled and has set up the debug info.
   if (!EnsureDebugInfo(shared)) return;
@@ -820,11 +835,13 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
   // Flood the function with break points.
   if (debug_info->HasDebugCode()) {
     for (CodeBreakIterator it(debug_info); !it.Done(); it.Next()) {
+      if (returns_only && !it.GetBreakLocation().IsReturn()) continue;
       it.SetDebugBreak();
     }
   }
   if (debug_info->HasDebugBytecodeArray()) {
     for (BytecodeArrayBreakIterator it(debug_info); !it.Done(); it.Next()) {
+      if (returns_only && !it.GetBreakLocation().IsReturn()) continue;
       it.SetDebugBreak();
     }
   }
@@ -878,6 +895,10 @@ void Debug::PrepareStepIn(Handle<JSFunction> function) {
   if (ignore_events()) return;
   if (in_debug_scope()) return;
   if (break_disabled()) return;
+  Handle<SharedFunctionInfo> shared(function->shared());
+  if (IsBlackboxed(shared)) return;
+  if (*function == thread_local_.ignore_step_into_function_) return;
+  thread_local_.ignore_step_into_function_ = Smi::kZero;
   FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared(), isolate_));
 }
 
@@ -983,7 +1004,6 @@ void Debug::PrepareStep(StepAction step_action) {
   feature_tracker()->Track(DebugFeatureTracker::kStepping);
 
   thread_local_.last_step_action_ = step_action;
-  UpdateHookOnFunctionCall();
 
   StackTraceFrameIterator frames_it(isolate_, frame_id);
   StandardFrame* frame = frames_it.frame();
@@ -1010,8 +1030,19 @@ void Debug::PrepareStep(StepAction step_action) {
 
   BreakLocation location = BreakLocation::FromFrame(debug_info, js_frame);
 
-  // Any step at a return is a step-out.
-  if (location.IsReturn()) step_action = StepOut;
+  // Any step at a return is a step-out and we need to schedule DebugOnFunction
+  // call callback.
+  if (location.IsReturn()) {
+    // On StepOut we'll ignore our further calls to current function in
+    // PrepareStepIn callback.
+    if (last_step_action() == StepOut) {
+      thread_local_.ignore_step_into_function_ = *function;
+    }
+    step_action = StepOut;
+    thread_local_.last_step_action_ = StepIn;
+  }
+  UpdateHookOnFunctionCall();
+
   // A step-next at a tail call is a step-out.
   if (location.IsTailCall() && step_action == StepNext) step_action = StepOut;
   // A step-next in blackboxed function is a step-out.
@@ -1032,6 +1063,14 @@ void Debug::PrepareStep(StepAction step_action) {
       // Clear last position info. For stepping out it does not matter.
       thread_local_.last_statement_position_ = kNoSourcePosition;
       thread_local_.last_frame_count_ = -1;
+      if (!location.IsReturn() && !IsBlackboxed(shared)) {
+        // At not return position we flood return positions with one shots and
+        // will repeat StepOut automatically at next break.
+        thread_local_.target_frame_count_ = current_frame_count;
+        thread_local_.fast_forward_to_return_ = true;
+        FloodWithOneShot(shared, true);
+        return;
+      }
       // Skip the current frame, find the first frame we want to step out to
       // and deoptimize every frame along the way.
       bool in_current_frame = true;
@@ -1122,6 +1161,8 @@ void Debug::ClearStepping() {
 
   thread_local_.last_step_action_ = StepNone;
   thread_local_.last_statement_position_ = kNoSourcePosition;
+  thread_local_.ignore_step_into_function_ = Smi::kZero;
+  thread_local_.fast_forward_to_return_ = false;
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
   UpdateHookOnFunctionCall();

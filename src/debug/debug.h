@@ -490,7 +490,8 @@ class Debug {
   // Clear all code from instrumentation.
   void ClearAllBreakPoints();
   // Instrument a function with one-shots.
-  void FloodWithOneShot(Handle<SharedFunctionInfo> function);
+  void FloodWithOneShot(Handle<SharedFunctionInfo> function,
+                        bool returns_only = false);
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
 
@@ -564,6 +565,12 @@ class Debug {
 
     // Step action for last step performed.
     StepAction last_step_action_;
+
+    // If set then this function will be ignored in PrepareStepIn call.
+    Object* ignore_step_into_function_;
+
+    // If set then we need to repeat StepOut action at return.
+    bool fast_forward_to_return_;
 
     // Source statement position from last step next action.
     int last_statement_position_;

@@ -6679,3 +6679,37 @@ TEST(BuiltinsExceptionPrediction) {
   }
   CHECK(!fail);
 }
+
+TEST(DebugGetPossibleBreakpointsReturnLocations) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::String> source = v8_str(
+      "function fib(x) {\n"
+      "  if (x < 0) return;\n"
+      "  if (x === 0) return 1;\n"
+      "  if (x === 1) return fib(0);\n"
+      "  return x > 2 ? fib(x - 1) + fib(x - 2) : fib(1) + fib(0);\n"
+      "}");
+  CompileRun(source);
+  v8::PersistentValueVector<v8::debug::Script> scripts(isolate);
+  v8::debug::GetLoadedScripts(isolate, scripts);
+  CHECK(scripts.Size() == 1);
+  std::vector<v8::debug::BreakLocation> locations;
+  CHECK(scripts.Get(0)->GetPossibleBreakpoints(
+      v8::debug::Location(0, 17), v8::debug::Location(), true, &locations));
+  int returns_count = 0;
+  for (size_t i = 0; i < locations.size(); ++i) {
+    if (locations[i].type() == v8::debug::kReturnBreakLocation) {
+      ++returns_count;
+    }
+  }
+  if (i::FLAG_turbo) {
+    // With turbofan we generate one return location per return statement,
+    // each has line = 5, column = 0 as statement position.
+    CHECK(returns_count == 4);
+  } else {
+    // Without turbofan we generate one return location.
+    CHECK(returns_count == 1);
+  }
+}

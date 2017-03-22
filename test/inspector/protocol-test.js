@@ -7,6 +7,7 @@ InspectorTest._dispatchTable = new Map();
 InspectorTest._requestId = 0;
 InspectorTest._dumpInspectorProtocolMessages = false;
 InspectorTest._eventHandler = {};
+InspectorTest._commandToLog = new Set();
 
 Protocol = new Proxy({}, {
   get: function(target, agentName, receiver) {
@@ -29,6 +30,8 @@ Protocol = new Proxy({}, {
     });
   }
 });
+
+InspectorTest.dumpProtocolCommand = (command) => InspectorTest._commandToLog.add(command);
 
 var utils = {};
 (function setupUtils() {
@@ -265,6 +268,9 @@ InspectorTest._sendCommandPromise = function(method, params, contextGroupId)
   var messageObject = { "id": requestId, "method": method, "params": params };
   var fulfillCallback;
   var promise = new Promise(fulfill => fulfillCallback = fulfill);
+  if (InspectorTest._commandToLog.has(method)) {
+    utils.print(method + ' called');
+  }
   InspectorTest.sendRawCommand(requestId, JSON.stringify(messageObject), fulfillCallback, contextGroupId);
   return promise;
 }
