@@ -347,7 +347,7 @@
       "resources": [
         "filter.js"
       ],
-      "results_regexp": "^Array\\-%s\\(Scope\\): (.+)$",
+      "results_regexp": "^%s\\-Array\\(Score\\): (.+)$",
       "tests": [
         {"name": "Filter"}
       ]
