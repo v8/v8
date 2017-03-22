@@ -44,8 +44,8 @@ namespace internal {
 // underlying DeferredHandleScope and stores them in info_ on destruction.
 class ParseHandleScope final {
  public:
-  explicit ParseHandleScope(ParseInfo* info)
-      : deferred_(info->isolate()), info_(info) {}
+  explicit ParseHandleScope(ParseInfo* info, Isolate* isolate)
+      : deferred_(isolate), info_(info) {}
   ~ParseHandleScope() { info_->set_deferred_handles(deferred_.Detach()); }
 
  private:
@@ -682,7 +682,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(
     }
 
     if (inner_function_mode == Compiler::CONCURRENT) {
-      ParseHandleScope parse_handles(info->parse_info());
+      ParseHandleScope parse_handles(info->parse_info(), info->isolate());
       info->parse_info()->ReopenHandlesInNewHandleScope();
       info->parse_info()->ast_value_factory()->Internalize(info->isolate());
     }
@@ -1211,7 +1211,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       }
 
       {
-        ParseHandleScope parse_handles(parse_info);
+        ParseHandleScope parse_handles(parse_info, info->isolate());
         parse_info->ReopenHandlesInNewHandleScope();
         parse_info->ast_value_factory()->Internalize(info->isolate());
       }
