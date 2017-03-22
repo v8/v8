@@ -1832,8 +1832,7 @@ static FILE* FOpen(const char* path, const char* mode) {
 #endif
 }
 
-
-static char* ReadChars(Isolate* isolate, const char* name, int* size_out) {
+static char* ReadChars(const char* name, int* size_out) {
   FILE* file = FOpen(name, "rb");
   if (file == NULL) return NULL;
 
@@ -1880,18 +1879,17 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   DCHECK(sizeof(char) == sizeof(uint8_t));  // NOLINT
   String::Utf8Value filename(args[0]);
   int length;
+  Isolate* isolate = args.GetIsolate();
   if (*filename == NULL) {
-    Throw(args.GetIsolate(), "Error loading file");
+    Throw(isolate, "Error loading file");
     return;
   }
 
-  Isolate* isolate = args.GetIsolate();
   DataAndPersistent* data = new DataAndPersistent;
-  data->data = reinterpret_cast<uint8_t*>(
-      ReadChars(args.GetIsolate(), *filename, &length));
+  data->data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
   if (data->data == NULL) {
     delete data;
-    Throw(args.GetIsolate(), "Error reading file");
+    Throw(isolate, "Error reading file");
     return;
   }
   data->byte_length = length;
@@ -1909,7 +1907,7 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // Reads a file into a v8 string.
 Local<String> Shell::ReadFile(Isolate* isolate, const char* name) {
   int size = 0;
-  char* chars = ReadChars(isolate, name, &size);
+  char* chars = ReadChars(name, &size);
   if (chars == NULL) return Local<String>();
   Local<String> result =
       String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size)
@@ -2143,7 +2141,7 @@ void SourceGroup::Execute(Isolate* isolate) {
 
 Local<String> SourceGroup::ReadFile(Isolate* isolate, const char* name) {
   int size;
-  char* chars = ReadChars(isolate, name, &size);
+  char* chars = ReadChars(name, &size);
   if (chars == NULL) return Local<String>();
   Local<String> result =
       String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size)
@@ -2981,8 +2979,7 @@ int Shell::Main(int argc, char* argv[]) {
       platform::tracing::TraceConfig* trace_config;
       if (options.trace_config) {
         int size = 0;
-        char* trace_config_json_str =
-            ReadChars(nullptr, options.trace_config, &size);
+        char* trace_config_json_str = ReadChars(options.trace_config, &size);
         trace_config =
             tracing::CreateTraceConfigFromJSON(isolate, trace_config_json_str);
         delete[] trace_config_json_str;
