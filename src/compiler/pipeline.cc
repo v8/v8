@@ -115,6 +115,7 @@ class PipelineData {
 
   // For WASM compile entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, JSGraph* jsgraph,
+               PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
                ZoneVector<trap_handler::ProtectedInstructionData>*
                    protected_instructions)
@@ -122,6 +123,7 @@ class PipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
+        pipeline_statistics_(pipeline_statistics),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
         graph_(jsgraph->graph()),
         source_positions_(source_positions),
@@ -648,7 +650,9 @@ class PipelineWasmCompilationJob final : public CompilationJob {
       : CompilationJob(info->isolate(), info, "TurboFan",
                        State::kReadyToExecute),
         zone_stats_(info->isolate()->allocator()),
-        data_(&zone_stats_, info, jsgraph, source_positions, protected_insts),
+        pipeline_statistics_(CreatePipelineStatistics(info, &zone_stats_)),
+        data_(&zone_stats_, info, jsgraph, pipeline_statistics_.get(),
+              source_positions, protected_insts),
         pipeline_(&data_),
         linkage_(descriptor),
         allow_signalling_nan_(allow_signalling_nan) {}
@@ -660,6 +664,7 @@ class PipelineWasmCompilationJob final : public CompilationJob {
 
  private:
   ZoneStats zone_stats_;
+  std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
   PipelineImpl pipeline_;
   Linkage linkage_;
