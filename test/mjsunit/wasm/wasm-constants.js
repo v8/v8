@@ -339,36 +339,34 @@ let kTrapMsgs = [
 ];
 
 function assertTraps(trap, code) {
-    var threwException = true;
-    try {
-      if (typeof code === 'function') {
-        code();
-      } else {
-        eval(code);
-      }
-      threwException = false;
-    } catch (e) {
-      assertEquals("object", typeof e);
-      assertEquals(kTrapMsgs[trap], e.message);
-      // Success.
-      return;
+  try {
+    if (typeof code === 'function') {
+      code();
+    } else {
+      eval(code);
     }
-    throw new MjsUnitAssertionError("Did not trap, expected: " + kTrapMsgs[trap]);
+  } catch (e) {
+    assertEquals('object', typeof e);
+    assertEquals(kTrapMsgs[trap], e.message);
+    // Success.
+    return;
+  }
+  throw new MjsUnitAssertionError('Did not trap, expected: ' + kTrapMsgs[trap]);
 }
 
 function assertWasmThrows(value, code) {
-    assertEquals("number", typeof(value));
-    try {
-      if (typeof code === 'function') {
-        code();
-      } else {
-        eval(code);
-      }
-    } catch (e) {
-      assertEquals("number", typeof e);
-      assertEquals(value, e);
-      // Success.
-      return;
+  assertEquals('number', typeof value);
+  try {
+    if (typeof code === 'function') {
+      code();
+    } else {
+      eval(code);
     }
-    throw new MjsUnitAssertionError("Did not throw at all, expected: " + value);
+  } catch (e) {
+    assertEquals('number', typeof e);
+    assertEquals(value, e);
+    // Success.
+    return;
+  }
+  throw new MjsUnitAssertionError('Did not throw, expected: ' + value);
 }

@@ -98,7 +98,8 @@ class WasmFunctionBuilder {
 
   addBody(body) {
     for (let b of body) {
-      if (typeof b != 'number') throw new Error('invalid body: ' + body);
+      if (typeof b != 'number')
+        throw new Error('invalid body (entries have to be numbers): ' + body);
     }
     this.body = body;
     // Automatically add the end for the function block to the body.
@@ -264,6 +265,10 @@ class WasmModuleBuilder {
   }
 
   appendToTable(array) {
+    for (let n of array) {
+      if (typeof n != 'number')
+        throw new Error('invalid table (entries have to be numbers): ' + array);
+    }
     return this.addFunctionTableInit(this.function_table.length, false, array);
   }
 
