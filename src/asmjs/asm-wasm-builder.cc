@@ -91,6 +91,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     FunctionSig::Builder b(zone(), 0, 0);
     init_function_ = builder_->AddFunction(b.Build());
     builder_->MarkStartFunction(init_function_);
+    // Record start of the function, used as position for the stack check.
+    init_function_->SetAsmFunctionStartPosition(literal_->start_position());
   }
 
   void BuildForeignInitFunction() {
