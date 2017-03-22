@@ -3873,6 +3873,7 @@ TEST(Regress165495) {
 
 TEST(Regress169209) {
   if (!i::FLAG_incremental_marking) return;
+  if (!i::FLAG_flush_code) return;
   i::FLAG_always_opt = false;
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
