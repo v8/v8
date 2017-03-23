@@ -154,7 +154,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_trace_ignition_codegen) {
     OFStream os(stdout);
-    code->Disassemble(nullptr, os);
+    code->Disassemble(Bytecodes::ToString(bytecode), os);
     os << std::flush;
   }
 #endif  // ENABLE_DISASSEMBLER
