@@ -104,7 +104,7 @@
       # original config also specified -O1, which we dropped because chromium
       # doesn't have it (anymore).
       'V8 Linux64 - cfi': 'gyp_release_x64_cfi_symbolized',
-      'V8 Linux - vtunejit': 'gyp_debug_x86_vtunejit',
+      'V8 Linux - vtunejit': 'gn_debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'gyp_release_x64_gcc_coverage',
       'V8 Linux - predictable': 'gyp_release_x86_predictable',
       'V8 Linux - full debug': 'gyp_full_debug_x86',
@@ -398,6 +398,8 @@
       'gn', 'debug_trybot', 'x86', 'swarming', 'v8_snapshot_none'],
     'gn_debug_x86_trybot': [
       'gn', 'debug_trybot', 'x86', 'swarming'],
+    'gn_debug_x86_vtunejit': [
+      'gn', 'debug_bot', 'x86', 'v8_enable_vtunejit'],
 
     # GN release configs for x86.
     'gn_release_x86': [
@@ -437,8 +439,6 @@
     # Gyp debug configs for x86.
     'gyp_debug_x86': [
       'gyp', 'debug_bot', 'x86', 'swarming'],
-    'gyp_debug_x86_vtunejit': [
-      'gyp', 'debug_bot', 'x86', 'v8_enable_vtunejit'],
     'gyp_full_debug_x86': [
       'gyp', 'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
       'v8_full_debug'],
