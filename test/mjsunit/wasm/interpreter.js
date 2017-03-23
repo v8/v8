@@ -225,3 +225,87 @@ function checkStack(stack, expected_lines) {
     }
   }
 })();
+
+(function testIndirectImports() {
+  var builder = new WasmModuleBuilder();
+
+  var sig_i_ii = builder.addType(kSig_i_ii);
+  var sig_i_i = builder.addType(kSig_i_i);
+  var mul = builder.addImport('q', 'mul', sig_i_ii);
+  var add = builder.addFunction('add', sig_i_ii).addBody([
+    kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add
+  ]);
+  var mismatch =
+      builder.addFunction('sig_mismatch', sig_i_i).addBody([kExprGetLocal, 0]);
+  var main = builder.addFunction('main', kSig_i_iii)
+                 .addBody([
+                   // Call indirect #0 with args <#1, #2>.
+                   kExprGetLocal, 1, kExprGetLocal, 2, kExprGetLocal, 0,
+                   kExprCallIndirect, sig_i_ii, kTableZero
+                 ])
+                 .exportFunc();
+  builder.appendToTable([mul, add.index, mismatch.index, main.index]);
+
+  var instance = builder.instantiate({q: {mul: (a, b) => a * b}});
+
+  // Call mul.
+  assertEquals(-6, instance.exports.main(0, -2, 3));
+  // Call add.
+  assertEquals(99, instance.exports.main(1, 22, 77));
+  // main and sig_mismatch have another signature.
+  assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(2, 12, 33));
+  assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(3, 12, 33));
+  // Function index 4 does not exist.
+  assertTraps(kTrapFuncInvalid, () => instance.exports.main(4, 12, 33));
+})();
+
+(function testIllegalImports() {
+  var builder = new WasmModuleBuilder();
+
+  var sig_l_v = builder.addType(kSig_l_v);
+  var imp = builder.addImport('q', 'imp', sig_l_v);
+  var direct = builder.addFunction('direct', kSig_l_v)
+                   .addBody([kExprCallFunction, imp])
+                   .exportFunc();
+  var indirect = builder.addFunction('indirect', kSig_l_v).addBody([
+    kExprI32Const, 0, kExprCallIndirect, sig_l_v, kTableZero
+  ]);
+  var main =
+      builder.addFunction('main', kSig_v_i)
+          .addBody([
+            // Call indirect #0 with arg #0, drop result.
+            kExprGetLocal, 0, kExprCallIndirect, sig_l_v, kTableZero, kExprDrop
+          ])
+          .exportFunc();
+  builder.appendToTable([imp, direct.index, indirect.index]);
+
+  var instance = builder.instantiate({q: {imp: () => 1}});
+
+  // Calling imported functions with i64 in signature should fail.
+  try {
+    // Via direct call.
+    instance.exports.main(1);
+  } catch (e) {
+    if (!(e instanceof TypeError)) throw e;
+    checkStack(stripPath(e.stack), [
+      'TypeError: invalid type',                                // -
+      '    at direct (<WASM>[1]+1)',                            // -
+      '    at main (<WASM>[3]+3)',                              // -
+      /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
+      /^    at interpreter.js:\d+:3$/
+    ]);
+  }
+  try {
+    // Via indirect call.
+    instance.exports.main(2);
+  } catch (e) {
+    if (!(e instanceof TypeError)) throw e;
+    checkStack(stripPath(e.stack), [
+      'TypeError: invalid type',                                // -
+      '    at indirect (<WASM>[2]+1)',                          // -
+      '    at main (<WASM>[3]+3)',                              // -
+      /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
+      /^    at interpreter.js:\d+:3$/
+    ]);
+  }
+})();

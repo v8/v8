@@ -24,39 +24,16 @@ using namespace v8::internal::wasm;
 
 namespace {
 
-// Unwrap a wasm to js wrapper, return the callable heap object.
-// Only call this method for proper wrappers that do not throw a type error.
-HeapObject* UnwrapJSWrapper(Code* js_wrapper) {
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(js_wrapper, mask);; it.next()) {
-    DCHECK(!it.done());
-    HeapObject* obj = it.rinfo()->target_object();
-    if (!obj->IsCallable()) continue;
-#ifdef DEBUG
-    // There should only be this reference to a callable object.
-    for (it.next(); !it.done(); it.next()) {
-      HeapObject* other = it.rinfo()->target_object();
-      DCHECK(!other->IsCallable());
-    }
-#endif
-    return obj;
-  }
-  UNREACHABLE();
-  return nullptr;
-}
-
 // Forward declaration.
 class InterpreterHandle;
 InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info);
 
 class InterpreterHandle {
-  AccountingAllocator allocator_;
   WasmInstance instance_;
   WasmInterpreter interpreter_;
   Isolate* isolate_;
   StepAction next_step_action_ = StepNone;
   int last_step_stack_depth_ = 0;
-  DeferredHandles* import_handles_ = nullptr;
   std::unordered_map<Address, uint32_t> activations_;
 
   uint32_t StartActivation(Address frame_pointer) {
@@ -93,10 +70,20 @@ class InterpreterHandle {
   // WasmInterpreter has to be allocated in place, since it is not movable.
   InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
       : instance_(debug_info->wasm_instance()->compiled_module()->module()),
-        interpreter_(GetBytesEnv(&instance_, debug_info), &allocator_),
+        interpreter_(isolate, GetBytesEnv(&instance_, debug_info)),
         isolate_(isolate) {
-    if (debug_info->wasm_instance()->has_memory_buffer()) {
-      JSArrayBuffer* mem_buffer = debug_info->wasm_instance()->memory_buffer();
+    DisallowHeapAllocation no_gc;
+
+    WasmInstanceObject* instance = debug_info->wasm_instance();
+
+    // Store a global handle to the wasm instance in the interpreter.
+    interpreter_.SetInstanceObject(instance);
+
+    // Set memory start pointer and size.
+    // TODO(wasm): Update this on grow_memory in both directions (compiled ->
+    // interpreter, interpreter -> compiles).
+    if (instance->has_memory_buffer()) {
+      JSArrayBuffer* mem_buffer = instance->memory_buffer();
       instance_.mem_start =
           reinterpret_cast<byte*>(mem_buffer->backing_store());
       CHECK(mem_buffer->byte_length()->ToUint32(&instance_.mem_size));
@@ -105,37 +92,16 @@ class InterpreterHandle {
       instance_.mem_start = nullptr;
       instance_.mem_size = 0;
     }
-    if (debug_info->wasm_instance()->has_globals_buffer()) {
-      instance_.globals_start = reinterpret_cast<byte*>(
-          debug_info->wasm_instance()->globals_buffer()->backing_store());
-    }
-    if (instance_.module->num_imported_functions > 0) {
-      int num_imported_functions =
-          static_cast<int>(instance_.module->num_imported_functions);
-      Handle<WasmCompiledModule> compiled_module(
-          debug_info->wasm_instance()->compiled_module(), isolate);
-      Handle<FixedArray> code_table = compiled_module->code_table();
-      DeferredHandleScope deferred_scope(isolate_);
-      instance_.context =
-          handle(compiled_module->ptr_to_native_context(), isolate_);
-      for (int i = 0; i < num_imported_functions; ++i) {
-        Code* code = Code::cast(code_table->get(i));
-        Handle<HeapObject> called_obj;
-        if (code->kind() == Code::WASM_FUNCTION) {
-          called_obj = handle(code, isolate_);
-        } else if (IsJSCompatibleSignature(
-                       instance_.module->functions[i].sig)) {
-          called_obj = handle(UnwrapJSWrapper(code), isolate_);
-        }
-        interpreter_.AddImportedFunction(called_obj);
-      }
-      import_handles_ = deferred_scope.Detach();
+
+    // Set pointer to globals storage.
+    if (instance->has_globals_buffer()) {
+      instance_.globals_start =
+          reinterpret_cast<byte*>(instance->globals_buffer()->backing_store());
     }
   }
 
   ~InterpreterHandle() {
     DCHECK_EQ(0, activations_.size());
-    delete import_handles_;  // might be nullptr, which is ok.
   }
 
   static ModuleBytesEnv GetBytesEnv(WasmInstance* instance,

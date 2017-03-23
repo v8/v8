@@ -139,7 +139,7 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
   instance.globals_start = nullptr;
 
   ModuleBytesEnv env(module, &instance, wire_bytes);
-  WasmInterpreter interpreter(env, isolate->allocator());
+  WasmInterpreter interpreter(isolate, env);
 
   WasmInterpreter::Thread* thread = interpreter.GetThread(0);
   thread->Reset();

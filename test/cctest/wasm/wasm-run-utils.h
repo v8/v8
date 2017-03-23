@@ -80,12 +80,12 @@ class TestingModule : public ModuleEnv {
         instance_(&module_),
         isolate_(CcTest::InitIsolateOnce()),
         global_offset(0),
-        interpreter_(mode == kExecuteInterpreted
-                         ? new WasmInterpreter(
-                               ModuleBytesEnv(&module_, &instance_,
-                                              Vector<const byte>::empty()),
-                               zone->allocator())
-                         : nullptr) {
+        interpreter_(
+            mode == kExecuteInterpreted
+                ? new WasmInterpreter(
+                      isolate_, ModuleBytesEnv(&module_, &instance_,
+                                               Vector<const byte>::empty()))
+                : nullptr) {
     WasmJs::Install(isolate_);
     instance->module = &module_;
     instance->globals_start = global_data;

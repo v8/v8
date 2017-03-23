@@ -14,6 +14,8 @@ class AccountingAllocator;
 }
 
 namespace internal {
+class WasmInstanceObject;
+
 namespace wasm {
 
 // forward declarations.
@@ -185,7 +187,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     uint32_t ActivationFrameBase(uint32_t activation_id);
   };
 
-  WasmInterpreter(const ModuleBytesEnv& env, AccountingAllocator* allocator);
+  WasmInterpreter(Isolate* isolate, const ModuleBytesEnv& env);
   ~WasmInterpreter();
 
   //==========================================================================
@@ -204,10 +206,12 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   // Enable or disable tracing for {function}. Return the previous state.
   bool SetTracing(const WasmFunction* function, bool enabled);
 
-  // Add an imported function.
-  // We store the passed Handle internally, so the caller must ensure that it
-  // stays valid at least as long as the WasmInterpreter.
-  void AddImportedFunction(Handle<HeapObject>);
+  // Set the associated wasm instance object.
+  // If the instance object has been set, some tables stored inside it are used
+  // instead of the tables stored in the WasmModule struct. This allows to call
+  // back and forth between the interpreter and outside code (JS or wasm
+  // compiled) without repeatedly copying information.
+  void SetInstanceObject(WasmInstanceObject*);
 
   //==========================================================================
   // Thread iteration and inspection.

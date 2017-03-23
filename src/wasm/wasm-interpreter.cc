@@ -6,7 +6,9 @@
 
 #include "src/wasm/wasm-interpreter.h"
 
+#include "src/assembler-inl.h"
 #include "src/conversions.h"
+#include "src/identity-map.h"
 #include "src/objects-inl.h"
 #include "src/utils.h"
 #include "src/wasm/decoder.h"
@@ -15,6 +17,7 @@
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone-containers.h"
@@ -170,7 +173,9 @@ namespace wasm {
   V(F32Sqrt, float)              \
   V(F64Sqrt, double)
 
-static inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
+namespace {
+
+inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -182,8 +187,7 @@ static inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
   return a / b;
 }
 
-static inline uint32_t ExecuteI32DivU(uint32_t a, uint32_t b,
-                                      TrapReason* trap) {
+inline uint32_t ExecuteI32DivU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -191,7 +195,7 @@ static inline uint32_t ExecuteI32DivU(uint32_t a, uint32_t b,
   return a / b;
 }
 
-static inline int32_t ExecuteI32RemS(int32_t a, int32_t b, TrapReason* trap) {
+inline int32_t ExecuteI32RemS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -200,8 +204,7 @@ static inline int32_t ExecuteI32RemS(int32_t a, int32_t b, TrapReason* trap) {
   return a % b;
 }
 
-static inline uint32_t ExecuteI32RemU(uint32_t a, uint32_t b,
-                                      TrapReason* trap) {
+inline uint32_t ExecuteI32RemU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -209,20 +212,19 @@ static inline uint32_t ExecuteI32RemU(uint32_t a, uint32_t b,
   return a % b;
 }
 
-static inline uint32_t ExecuteI32Shl(uint32_t a, uint32_t b, TrapReason* trap) {
+inline uint32_t ExecuteI32Shl(uint32_t a, uint32_t b, TrapReason* trap) {
   return a << (b & 0x1f);
 }
 
-static inline uint32_t ExecuteI32ShrU(uint32_t a, uint32_t b,
-                                      TrapReason* trap) {
+inline uint32_t ExecuteI32ShrU(uint32_t a, uint32_t b, TrapReason* trap) {
   return a >> (b & 0x1f);
 }
 
-static inline int32_t ExecuteI32ShrS(int32_t a, int32_t b, TrapReason* trap) {
+inline int32_t ExecuteI32ShrS(int32_t a, int32_t b, TrapReason* trap) {
   return a >> (b & 0x1f);
 }
 
-static inline int64_t ExecuteI64DivS(int64_t a, int64_t b, TrapReason* trap) {
+inline int64_t ExecuteI64DivS(int64_t a, int64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -234,8 +236,7 @@ static inline int64_t ExecuteI64DivS(int64_t a, int64_t b, TrapReason* trap) {
   return a / b;
 }
 
-static inline uint64_t ExecuteI64DivU(uint64_t a, uint64_t b,
-                                      TrapReason* trap) {
+inline uint64_t ExecuteI64DivU(uint64_t a, uint64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -243,7 +244,7 @@ static inline uint64_t ExecuteI64DivU(uint64_t a, uint64_t b,
   return a / b;
 }
 
-static inline int64_t ExecuteI64RemS(int64_t a, int64_t b, TrapReason* trap) {
+inline int64_t ExecuteI64RemS(int64_t a, int64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -252,8 +253,7 @@ static inline int64_t ExecuteI64RemS(int64_t a, int64_t b, TrapReason* trap) {
   return a % b;
 }
 
-static inline uint64_t ExecuteI64RemU(uint64_t a, uint64_t b,
-                                      TrapReason* trap) {
+inline uint64_t ExecuteI64RemU(uint64_t a, uint64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -261,65 +261,63 @@ static inline uint64_t ExecuteI64RemU(uint64_t a, uint64_t b,
   return a % b;
 }
 
-static inline uint64_t ExecuteI64Shl(uint64_t a, uint64_t b, TrapReason* trap) {
+inline uint64_t ExecuteI64Shl(uint64_t a, uint64_t b, TrapReason* trap) {
   return a << (b & 0x3f);
 }
 
-static inline uint64_t ExecuteI64ShrU(uint64_t a, uint64_t b,
-                                      TrapReason* trap) {
+inline uint64_t ExecuteI64ShrU(uint64_t a, uint64_t b, TrapReason* trap) {
   return a >> (b & 0x3f);
 }
 
-static inline int64_t ExecuteI64ShrS(int64_t a, int64_t b, TrapReason* trap) {
+inline int64_t ExecuteI64ShrS(int64_t a, int64_t b, TrapReason* trap) {
   return a >> (b & 0x3f);
 }
 
-static inline uint32_t ExecuteI32Ror(uint32_t a, uint32_t b, TrapReason* trap) {
+inline uint32_t ExecuteI32Ror(uint32_t a, uint32_t b, TrapReason* trap) {
   uint32_t shift = (b & 0x1f);
   return (a >> shift) | (a << (32 - shift));
 }
 
-static inline uint32_t ExecuteI32Rol(uint32_t a, uint32_t b, TrapReason* trap) {
+inline uint32_t ExecuteI32Rol(uint32_t a, uint32_t b, TrapReason* trap) {
   uint32_t shift = (b & 0x1f);
   return (a << shift) | (a >> (32 - shift));
 }
 
-static inline uint64_t ExecuteI64Ror(uint64_t a, uint64_t b, TrapReason* trap) {
+inline uint64_t ExecuteI64Ror(uint64_t a, uint64_t b, TrapReason* trap) {
   uint32_t shift = (b & 0x3f);
   return (a >> shift) | (a << (64 - shift));
 }
 
-static inline uint64_t ExecuteI64Rol(uint64_t a, uint64_t b, TrapReason* trap) {
+inline uint64_t ExecuteI64Rol(uint64_t a, uint64_t b, TrapReason* trap) {
   uint32_t shift = (b & 0x3f);
   return (a << shift) | (a >> (64 - shift));
 }
 
-static inline float ExecuteF32Min(float a, float b, TrapReason* trap) {
+inline float ExecuteF32Min(float a, float b, TrapReason* trap) {
   return JSMin(a, b);
 }
 
-static inline float ExecuteF32Max(float a, float b, TrapReason* trap) {
+inline float ExecuteF32Max(float a, float b, TrapReason* trap) {
   return JSMax(a, b);
 }
 
-static inline float ExecuteF32CopySign(float a, float b, TrapReason* trap) {
+inline float ExecuteF32CopySign(float a, float b, TrapReason* trap) {
   return copysignf(a, b);
 }
 
-static inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
+inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
   return JSMin(a, b);
 }
 
-static inline double ExecuteF64Max(double a, double b, TrapReason* trap) {
+inline double ExecuteF64Max(double a, double b, TrapReason* trap) {
   return JSMax(a, b);
 }
 
-static inline double ExecuteF64CopySign(double a, double b, TrapReason* trap) {
+inline double ExecuteF64CopySign(double a, double b, TrapReason* trap) {
   return copysign(a, b);
 }
 
-static inline int32_t ExecuteI32AsmjsDivS(int32_t a, int32_t b,
-                                          TrapReason* trap) {
+inline int32_t ExecuteI32AsmjsDivS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   if (b == -1 && a == std::numeric_limits<int32_t>::min()) {
     return std::numeric_limits<int32_t>::min();
@@ -327,131 +325,114 @@ static inline int32_t ExecuteI32AsmjsDivS(int32_t a, int32_t b,
   return a / b;
 }
 
-static inline uint32_t ExecuteI32AsmjsDivU(uint32_t a, uint32_t b,
-                                           TrapReason* trap) {
+inline uint32_t ExecuteI32AsmjsDivU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   return a / b;
 }
 
-static inline int32_t ExecuteI32AsmjsRemS(int32_t a, int32_t b,
-                                          TrapReason* trap) {
+inline int32_t ExecuteI32AsmjsRemS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   if (b == -1) return 0;
   return a % b;
 }
 
-static inline uint32_t ExecuteI32AsmjsRemU(uint32_t a, uint32_t b,
-                                           TrapReason* trap) {
+inline uint32_t ExecuteI32AsmjsRemU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   return a % b;
 }
 
-static inline int32_t ExecuteI32AsmjsSConvertF32(float a, TrapReason* trap) {
+inline int32_t ExecuteI32AsmjsSConvertF32(float a, TrapReason* trap) {
   return DoubleToInt32(a);
 }
 
-static inline uint32_t ExecuteI32AsmjsUConvertF32(float a, TrapReason* trap) {
+inline uint32_t ExecuteI32AsmjsUConvertF32(float a, TrapReason* trap) {
   return DoubleToUint32(a);
 }
 
-static inline int32_t ExecuteI32AsmjsSConvertF64(double a, TrapReason* trap) {
+inline int32_t ExecuteI32AsmjsSConvertF64(double a, TrapReason* trap) {
   return DoubleToInt32(a);
 }
 
-static inline uint32_t ExecuteI32AsmjsUConvertF64(double a, TrapReason* trap) {
+inline uint32_t ExecuteI32AsmjsUConvertF64(double a, TrapReason* trap) {
   return DoubleToUint32(a);
 }
 
-static int32_t ExecuteI32Clz(uint32_t val, TrapReason* trap) {
+int32_t ExecuteI32Clz(uint32_t val, TrapReason* trap) {
   return base::bits::CountLeadingZeros32(val);
 }
 
-static uint32_t ExecuteI32Ctz(uint32_t val, TrapReason* trap) {
+uint32_t ExecuteI32Ctz(uint32_t val, TrapReason* trap) {
   return base::bits::CountTrailingZeros32(val);
 }
 
-static uint32_t ExecuteI32Popcnt(uint32_t val, TrapReason* trap) {
+uint32_t ExecuteI32Popcnt(uint32_t val, TrapReason* trap) {
   return word32_popcnt_wrapper(&val);
 }
 
-static inline uint32_t ExecuteI32Eqz(uint32_t val, TrapReason* trap) {
+inline uint32_t ExecuteI32Eqz(uint32_t val, TrapReason* trap) {
   return val == 0 ? 1 : 0;
 }
 
-static int64_t ExecuteI64Clz(uint64_t val, TrapReason* trap) {
+int64_t ExecuteI64Clz(uint64_t val, TrapReason* trap) {
   return base::bits::CountLeadingZeros64(val);
 }
 
-static inline uint64_t ExecuteI64Ctz(uint64_t val, TrapReason* trap) {
+inline uint64_t ExecuteI64Ctz(uint64_t val, TrapReason* trap) {
   return base::bits::CountTrailingZeros64(val);
 }
 
-static inline int64_t ExecuteI64Popcnt(uint64_t val, TrapReason* trap) {
+inline int64_t ExecuteI64Popcnt(uint64_t val, TrapReason* trap) {
   return word64_popcnt_wrapper(&val);
 }
 
-static inline int32_t ExecuteI64Eqz(uint64_t val, TrapReason* trap) {
+inline int32_t ExecuteI64Eqz(uint64_t val, TrapReason* trap) {
   return val == 0 ? 1 : 0;
 }
 
-static inline float ExecuteF32Abs(float a, TrapReason* trap) {
+inline float ExecuteF32Abs(float a, TrapReason* trap) {
   return bit_cast<float>(bit_cast<uint32_t>(a) & 0x7fffffff);
 }
 
-static inline float ExecuteF32Neg(float a, TrapReason* trap) {
+inline float ExecuteF32Neg(float a, TrapReason* trap) {
   return bit_cast<float>(bit_cast<uint32_t>(a) ^ 0x80000000);
 }
 
-static inline float ExecuteF32Ceil(float a, TrapReason* trap) {
-  return ceilf(a);
-}
+inline float ExecuteF32Ceil(float a, TrapReason* trap) { return ceilf(a); }
 
-static inline float ExecuteF32Floor(float a, TrapReason* trap) {
-  return floorf(a);
-}
+inline float ExecuteF32Floor(float a, TrapReason* trap) { return floorf(a); }
 
-static inline float ExecuteF32Trunc(float a, TrapReason* trap) {
-  return truncf(a);
-}
+inline float ExecuteF32Trunc(float a, TrapReason* trap) { return truncf(a); }
 
-static inline float ExecuteF32NearestInt(float a, TrapReason* trap) {
+inline float ExecuteF32NearestInt(float a, TrapReason* trap) {
   return nearbyintf(a);
 }
 
-static inline float ExecuteF32Sqrt(float a, TrapReason* trap) {
+inline float ExecuteF32Sqrt(float a, TrapReason* trap) {
   float result = sqrtf(a);
   return result;
 }
 
-static inline double ExecuteF64Abs(double a, TrapReason* trap) {
+inline double ExecuteF64Abs(double a, TrapReason* trap) {
   return bit_cast<double>(bit_cast<uint64_t>(a) & 0x7fffffffffffffff);
 }
 
-static inline double ExecuteF64Neg(double a, TrapReason* trap) {
+inline double ExecuteF64Neg(double a, TrapReason* trap) {
   return bit_cast<double>(bit_cast<uint64_t>(a) ^ 0x8000000000000000);
 }
 
-static inline double ExecuteF64Ceil(double a, TrapReason* trap) {
-  return ceil(a);
-}
+inline double ExecuteF64Ceil(double a, TrapReason* trap) { return ceil(a); }
 
-static inline double ExecuteF64Floor(double a, TrapReason* trap) {
-  return floor(a);
-}
+inline double ExecuteF64Floor(double a, TrapReason* trap) { return floor(a); }
 
-static inline double ExecuteF64Trunc(double a, TrapReason* trap) {
-  return trunc(a);
-}
+inline double ExecuteF64Trunc(double a, TrapReason* trap) { return trunc(a); }
 
-static inline double ExecuteF64NearestInt(double a, TrapReason* trap) {
+inline double ExecuteF64NearestInt(double a, TrapReason* trap) {
   return nearbyint(a);
 }
 
-static inline double ExecuteF64Sqrt(double a, TrapReason* trap) {
-  return sqrt(a);
-}
+inline double ExecuteF64Sqrt(double a, TrapReason* trap) { return sqrt(a); }
 
-static int32_t ExecuteI32SConvertF32(float a, TrapReason* trap) {
+int32_t ExecuteI32SConvertF32(float a, TrapReason* trap) {
   // The upper bound is (INT32_MAX + 1), which is the lowest float-representable
   // number above INT32_MAX which cannot be represented as int32.
   float upper_bound = 2147483648.0f;
@@ -466,7 +447,7 @@ static int32_t ExecuteI32SConvertF32(float a, TrapReason* trap) {
   return 0;
 }
 
-static int32_t ExecuteI32SConvertF64(double a, TrapReason* trap) {
+int32_t ExecuteI32SConvertF64(double a, TrapReason* trap) {
   // The upper bound is (INT32_MAX + 1), which is the lowest double-
   // representable number above INT32_MAX which cannot be represented as int32.
   double upper_bound = 2147483648.0;
@@ -480,7 +461,7 @@ static int32_t ExecuteI32SConvertF64(double a, TrapReason* trap) {
   return 0;
 }
 
-static uint32_t ExecuteI32UConvertF32(float a, TrapReason* trap) {
+uint32_t ExecuteI32UConvertF32(float a, TrapReason* trap) {
   // The upper bound is (UINT32_MAX + 1), which is the lowest
   // float-representable number above UINT32_MAX which cannot be represented as
   // uint32.
@@ -493,7 +474,7 @@ static uint32_t ExecuteI32UConvertF32(float a, TrapReason* trap) {
   return 0;
 }
 
-static uint32_t ExecuteI32UConvertF64(double a, TrapReason* trap) {
+uint32_t ExecuteI32UConvertF64(double a, TrapReason* trap) {
   // The upper bound is (UINT32_MAX + 1), which is the lowest
   // double-representable number above UINT32_MAX which cannot be represented as
   // uint32.
@@ -506,11 +487,11 @@ static uint32_t ExecuteI32UConvertF64(double a, TrapReason* trap) {
   return 0;
 }
 
-static inline uint32_t ExecuteI32ConvertI64(int64_t a, TrapReason* trap) {
+inline uint32_t ExecuteI32ConvertI64(int64_t a, TrapReason* trap) {
   return static_cast<uint32_t>(a & 0xFFFFFFFF);
 }
 
-static int64_t ExecuteI64SConvertF32(float a, TrapReason* trap) {
+int64_t ExecuteI64SConvertF32(float a, TrapReason* trap) {
   int64_t output;
   if (!float32_to_int64_wrapper(&a, &output)) {
     *trap = kTrapFloatUnrepresentable;
@@ -518,7 +499,7 @@ static int64_t ExecuteI64SConvertF32(float a, TrapReason* trap) {
   return output;
 }
 
-static int64_t ExecuteI64SConvertF64(double a, TrapReason* trap) {
+int64_t ExecuteI64SConvertF64(double a, TrapReason* trap) {
   int64_t output;
   if (!float64_to_int64_wrapper(&a, &output)) {
     *trap = kTrapFloatUnrepresentable;
@@ -526,7 +507,7 @@ static int64_t ExecuteI64SConvertF64(double a, TrapReason* trap) {
   return output;
 }
 
-static uint64_t ExecuteI64UConvertF32(float a, TrapReason* trap) {
+uint64_t ExecuteI64UConvertF32(float a, TrapReason* trap) {
   uint64_t output;
   if (!float32_to_uint64_wrapper(&a, &output)) {
     *trap = kTrapFloatUnrepresentable;
@@ -534,7 +515,7 @@ static uint64_t ExecuteI64UConvertF32(float a, TrapReason* trap) {
   return output;
 }
 
-static uint64_t ExecuteI64UConvertF64(double a, TrapReason* trap) {
+uint64_t ExecuteI64UConvertF64(double a, TrapReason* trap) {
   uint64_t output;
   if (!float64_to_uint64_wrapper(&a, &output)) {
     *trap = kTrapFloatUnrepresentable;
@@ -542,80 +523,79 @@ static uint64_t ExecuteI64UConvertF64(double a, TrapReason* trap) {
   return output;
 }
 
-static inline int64_t ExecuteI64SConvertI32(int32_t a, TrapReason* trap) {
+inline int64_t ExecuteI64SConvertI32(int32_t a, TrapReason* trap) {
   return static_cast<int64_t>(a);
 }
 
-static inline int64_t ExecuteI64UConvertI32(uint32_t a, TrapReason* trap) {
+inline int64_t ExecuteI64UConvertI32(uint32_t a, TrapReason* trap) {
   return static_cast<uint64_t>(a);
 }
 
-static inline float ExecuteF32SConvertI32(int32_t a, TrapReason* trap) {
+inline float ExecuteF32SConvertI32(int32_t a, TrapReason* trap) {
   return static_cast<float>(a);
 }
 
-static inline float ExecuteF32UConvertI32(uint32_t a, TrapReason* trap) {
+inline float ExecuteF32UConvertI32(uint32_t a, TrapReason* trap) {
   return static_cast<float>(a);
 }
 
-static inline float ExecuteF32SConvertI64(int64_t a, TrapReason* trap) {
+inline float ExecuteF32SConvertI64(int64_t a, TrapReason* trap) {
   float output;
   int64_to_float32_wrapper(&a, &output);
   return output;
 }
 
-static inline float ExecuteF32UConvertI64(uint64_t a, TrapReason* trap) {
+inline float ExecuteF32UConvertI64(uint64_t a, TrapReason* trap) {
   float output;
   uint64_to_float32_wrapper(&a, &output);
   return output;
 }
 
-static inline float ExecuteF32ConvertF64(double a, TrapReason* trap) {
+inline float ExecuteF32ConvertF64(double a, TrapReason* trap) {
   return static_cast<float>(a);
 }
 
-static inline float ExecuteF32ReinterpretI32(int32_t a, TrapReason* trap) {
+inline float ExecuteF32ReinterpretI32(int32_t a, TrapReason* trap) {
   return bit_cast<float>(a);
 }
 
-static inline double ExecuteF64SConvertI32(int32_t a, TrapReason* trap) {
+inline double ExecuteF64SConvertI32(int32_t a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-static inline double ExecuteF64UConvertI32(uint32_t a, TrapReason* trap) {
+inline double ExecuteF64UConvertI32(uint32_t a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-static inline double ExecuteF64SConvertI64(int64_t a, TrapReason* trap) {
+inline double ExecuteF64SConvertI64(int64_t a, TrapReason* trap) {
   double output;
   int64_to_float64_wrapper(&a, &output);
   return output;
 }
 
-static inline double ExecuteF64UConvertI64(uint64_t a, TrapReason* trap) {
+inline double ExecuteF64UConvertI64(uint64_t a, TrapReason* trap) {
   double output;
   uint64_to_float64_wrapper(&a, &output);
   return output;
 }
 
-static inline double ExecuteF64ConvertF32(float a, TrapReason* trap) {
+inline double ExecuteF64ConvertF32(float a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-static inline double ExecuteF64ReinterpretI64(int64_t a, TrapReason* trap) {
+inline double ExecuteF64ReinterpretI64(int64_t a, TrapReason* trap) {
   return bit_cast<double>(a);
 }
 
-static inline int32_t ExecuteI32ReinterpretF32(WasmVal a) {
+inline int32_t ExecuteI32ReinterpretF32(WasmVal a) {
   return a.to_unchecked<int32_t>();
 }
 
-static inline int64_t ExecuteI64ReinterpretF64(WasmVal a) {
+inline int64_t ExecuteI64ReinterpretF64(WasmVal a) {
   return a.to_unchecked<int64_t>();
 }
 
-static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
-                                        WasmInstance* instance) {
+inline int32_t ExecuteGrowMemory(uint32_t delta_pages, WasmInstance* instance) {
   // TODO(ahaas): Move memory allocation to wasm-module.cc for better
   // encapsulation.
   if (delta_pages > FLAG_wasm_max_mem_pages ||
@@ -664,7 +644,7 @@ enum InternalOpcode {
 #undef DECL_INTERNAL_ENUM
 };
 
-static const char* OpcodeName(uint32_t val) {
+const char* OpcodeName(uint32_t val) {
   switch (val) {
 #define DECL_INTERNAL_CASE(name, value) \
   case kInternal##name:                 \
@@ -675,7 +655,31 @@ static const char* OpcodeName(uint32_t val) {
   return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(val));
 }
 
-static const int kRunSteps = 1000;
+constexpr int kRunSteps = 1000;
+
+// Unwrap a wasm to js wrapper, return the callable heap object.
+// If the wrapper would throw a TypeError, return a null handle.
+Handle<HeapObject> UnwrapWasmToJSWrapper(Isolate* isolate,
+                                         Handle<Code> js_wrapper) {
+  DCHECK_EQ(Code::WASM_TO_JS_FUNCTION, js_wrapper->kind());
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(*js_wrapper, mask); !it.done(); it.next()) {
+    HeapObject* obj = it.rinfo()->target_object();
+    if (!obj->IsCallable()) continue;
+#ifdef DEBUG
+    // There should only be this one reference to a callable object.
+    for (it.next(); !it.done(); it.next()) {
+      HeapObject* other = it.rinfo()->target_object();
+      DCHECK(!other->IsCallable());
+    }
+#endif
+    return handle(obj, isolate);
+  }
+  // If we did not find a callable object, then there must be a reference to
+  // the WasmThrowTypeError runtime function.
+  // TODO(clemensh): Check that this is the case.
+  return Handle<HeapObject>::null();
+}
 
 // A helper class to compute the control transfers for each bytecode offset.
 // Control transfers allow Br, BrIf, BrTable, If, Else, and End bytecodes to
@@ -845,20 +849,53 @@ struct InterpreterCode {
   const byte* at(pc_t pc) { return start + pc; }
 };
 
+struct ExternalCallResult {
+  enum Type {
+    // The function should be executed inside this interpreter.
+    INTERNAL,
+    // For indirect calls: Table or function does not exist.
+    INVALID_FUNC,
+    // For indirect calls: Signature does not match expected signature.
+    SIGNATURE_MISMATCH,
+    // The function was executed and returned normally.
+    EXTERNAL_RETURNED,
+    // The function was executed, threw an exception, and the stack was unwound.
+    EXTERNAL_UNWOUND
+  };
+  Type type;
+  // If type is INTERNAL, this field holds the function to call internally.
+  InterpreterCode* interpreter_code;
+
+  ExternalCallResult(Type type) : type(type) {  // NOLINT
+    DCHECK_NE(INTERNAL, type);
+  }
+  ExternalCallResult(Type type, InterpreterCode* code)
+      : type(type), interpreter_code(code) {
+    DCHECK_EQ(INTERNAL, type);
+  }
+};
+
 // The main storage for interpreter code. It maps {WasmFunction} to the
 // metadata needed to execute each function.
 class CodeMap {
- public:
   Zone* zone_;
   const WasmModule* module_;
   ZoneVector<InterpreterCode> interpreter_code_;
-  ZoneVector<Handle<HeapObject>> imported_functions_;  // callable objects
+  // Global handle to the wasm instance.
+  Handle<WasmInstanceObject> instance_;
+  // Global handle to array of unwrapped imports.
+  Handle<FixedArray> imported_functions_;
+  // Map from WASM_TO_JS wrappers to unwrapped imports (indexes into
+  // imported_functions_).
+  IdentityMap<int, ZoneAllocationPolicy> unwrapped_imports_;
 
-  CodeMap(const WasmModule* module, const uint8_t* module_start, Zone* zone)
+ public:
+  CodeMap(Isolate* isolate, const WasmModule* module,
+          const uint8_t* module_start, Zone* zone)
       : zone_(zone),
         module_(module),
         interpreter_code_(zone),
-        imported_functions_(zone) {
+        unwrapped_imports_(isolate->heap(), ZoneAllocationPolicy(zone)) {
     if (module == nullptr) return;
     interpreter_code_.reserve(module->functions.size());
     for (const WasmFunction& function : module->functions) {
@@ -871,18 +908,35 @@ class CodeMap {
         AddFunction(&function, code_start, code_end);
       }
     }
-    imported_functions_.reserve(module_->num_imported_functions);
   }
 
-  void AddImportedFunction(Handle<HeapObject> function) {
-    DCHECK_GT(module_->num_imported_functions, imported_functions_.size());
-    imported_functions_.emplace_back(function);
+  ~CodeMap() {
+    // Destroy the global handles (passing nullptr is ok).
+    GlobalHandles::Destroy(Handle<Object>::cast(instance_).location());
+    GlobalHandles::Destroy(
+        Handle<Object>::cast(imported_functions_).location());
   }
 
-  Handle<HeapObject> GetImportedFunction(uint32_t function_index) {
+  const WasmModule* module() const { return module_; }
+  bool has_instance() const { return !instance_.is_null(); }
+  Handle<WasmInstanceObject> instance() const {
+    DCHECK(has_instance());
+    return instance_;
+  }
+
+  void SetInstanceObject(WasmInstanceObject* instance) {
+    // Only set the instance once (otherwise we have to destroy the global
+    // handle first).
+    DCHECK(instance_.is_null());
+    DCHECK_EQ(instance->module(), module_);
+    instance_ = instance->GetIsolate()->global_handles()->Create(instance);
+  }
+
+  Code* GetImportedFunction(uint32_t function_index) {
+    DCHECK(!instance_.is_null());
     DCHECK_GT(module_->num_imported_functions, function_index);
-    DCHECK_EQ(module_->num_imported_functions, imported_functions_.size());
-    return imported_functions_[function_index];
+    FixedArray* code_table = instance_->compiled_module()->ptr_to_code_table();
+    return Code::cast(code_table->get(static_cast<int>(function_index)));
   }
 
   InterpreterCode* GetCode(const WasmFunction* function) {
@@ -940,9 +994,49 @@ class CodeMap {
     code->end = const_cast<byte*>(end);
     Preprocess(code);
   }
-};
 
-namespace {
+  // Returns a callable object if the imported function has a JS-compatible
+  // signature, or a null handle otherwise.
+  Handle<HeapObject> GetCallableObjectForJSImport(Isolate* isolate,
+                                                  Handle<Code> code) {
+    DCHECK_EQ(Code::WASM_TO_JS_FUNCTION, code->kind());
+    int* unwrapped_index = unwrapped_imports_.Find(code);
+    if (unwrapped_index) {
+      return handle(
+          HeapObject::cast(imported_functions_->get(*unwrapped_index)),
+          isolate);
+    }
+    Handle<HeapObject> called_obj = UnwrapWasmToJSWrapper(isolate, code);
+    if (!called_obj.is_null()) {
+      // Cache the unwrapped callable object.
+      if (imported_functions_.is_null()) {
+        // This is the first call to an imported function. Allocate the
+        // FixedArray to cache unwrapped objects.
+        constexpr int kInitialCacheSize = 8;
+        Handle<FixedArray> new_imported_functions =
+            isolate->factory()->NewFixedArray(kInitialCacheSize, TENURED);
+        // First entry: Number of occupied slots.
+        new_imported_functions->set(0, Smi::kZero);
+        imported_functions_ =
+            isolate->global_handles()->Create(*new_imported_functions);
+      }
+      int this_idx = Smi::cast(imported_functions_->get(0))->value() + 1;
+      if (this_idx == imported_functions_->length()) {
+        Handle<FixedArray> new_imported_functions =
+            isolate->factory()->CopyFixedArrayAndGrow(imported_functions_,
+                                                      this_idx / 2, TENURED);
+        // Update the existing global handle:
+        *imported_functions_.location() = *new_imported_functions;
+      }
+      DCHECK_GT(imported_functions_->length(), this_idx);
+      DCHECK(imported_functions_->get(this_idx)->IsUndefined(isolate));
+      imported_functions_->set(0, Smi::FromInt(this_idx));
+      imported_functions_->set(this_idx, *called_obj);
+      unwrapped_imports_.Set(code, this_idx);
+    }
+    return called_obj;
+  }
+};
 
 Handle<Object> WasmValToNumber(Factory* factory, WasmVal val,
                                wasm::ValueType type) {
@@ -1533,44 +1627,59 @@ class ThreadImpl {
           InterpreterCode* target = codemap()->GetCode(operand.index);
           if (target->function->imported) {
             CommitPc(pc);
-            if (!CallImportedFunction(target->function->func_index)) return;
-            PAUSE_IF_BREAK_FLAG(AfterCall);
-            len = 1 + operand.length;
-            break;  // bump pc
+            ExternalCallResult result =
+                CallImportedFunction(target->function->func_index);
+            switch (result.type) {
+              case ExternalCallResult::INTERNAL:
+                // The import is a function of this instance. Call it directly.
+                target = result.interpreter_code;
+                DCHECK(!target->function->imported);
+                break;
+              case ExternalCallResult::INVALID_FUNC:
+              case ExternalCallResult::SIGNATURE_MISMATCH:
+                // Direct calls are checked statically.
+                UNREACHABLE();
+              case ExternalCallResult::EXTERNAL_RETURNED:
+                PAUSE_IF_BREAK_FLAG(AfterCall);
+                len = 1 + operand.length;
+                break;
+              case ExternalCallResult::EXTERNAL_UNWOUND:
+                return;
+            }
+            if (result.type != ExternalCallResult::INTERNAL) break;
           }
+          // Execute an internal call.
           DoCall(&decoder, target, &pc, &limit);
           code = target;
           PAUSE_IF_BREAK_FLAG(AfterCall);
           continue;  // don't bump pc
-        }
+        } break;
         case kExprCallIndirect: {
           CallIndirectOperand operand(&decoder, code->at(pc));
           uint32_t entry_index = Pop().to<uint32_t>();
           // Assume only one table for now.
           DCHECK_LE(module()->function_tables.size(), 1u);
-          InterpreterCode* target = codemap()->GetIndirectCode(0, entry_index);
-          if (target == nullptr) return DoTrap(kTrapFuncInvalid, pc);
-          if (target->function->sig_index != operand.index) {
-            // If not an exact match, we have to do a canonical check.
-            // TODO(titzer): make this faster with some kind of caching?
-            const WasmIndirectFunctionTable* table =
-                &module()->function_tables[0];
-            int function_key = table->map.Find(target->function->sig);
-            if (function_key < 0 ||
-                (function_key !=
-                 table->map.Find(module()->signatures[operand.index]))) {
+          ExternalCallResult result =
+              CallIndirectFunction(0, entry_index, operand.index);
+          switch (result.type) {
+            case ExternalCallResult::INTERNAL:
+              // The import is a function of this instance. Call it directly.
+              DoCall(&decoder, result.interpreter_code, &pc, &limit);
+              code = result.interpreter_code;
+              PAUSE_IF_BREAK_FLAG(AfterCall);
+              continue;  // don't bump pc
+            case ExternalCallResult::INVALID_FUNC:
+              return DoTrap(kTrapFuncInvalid, pc);
+            case ExternalCallResult::SIGNATURE_MISMATCH:
               return DoTrap(kTrapFuncSigMismatch, pc);
-            }
+            case ExternalCallResult::EXTERNAL_RETURNED:
+              PAUSE_IF_BREAK_FLAG(AfterCall);
+              len = 1 + operand.length;
+              break;
+            case ExternalCallResult::EXTERNAL_UNWOUND:
+              return;
           }
-          if (target->function->imported) {
-            // TODO(clemensh): Call imported function.
-            UNREACHABLE();
-          }
-          DoCall(&decoder, target, &pc, &limit);
-          code = target;
-          PAUSE_IF_BREAK_FLAG(AfterCall);
-          continue;
-        }
+        } break;
         case kExprGetGlobal: {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
@@ -1881,30 +1990,49 @@ class ThreadImpl {
 #endif  // DEBUG
   }
 
-  // Call imported function. Return true if the function returned normally or a
-  // thrown exception was handled inside this wasm activation. Returns false if
-  // the stack was fully unwound. A pending exception will be set in the latter
-  // case.
-  bool CallImportedFunction(uint32_t function_index) {
-    Handle<HeapObject> target = codemap()->GetImportedFunction(function_index);
+  ExternalCallResult TryHandleException(Isolate* isolate) {
+    if (HandleException(isolate) == WasmInterpreter::Thread::UNWOUND) {
+      return {ExternalCallResult::EXTERNAL_UNWOUND};
+    }
+    return {ExternalCallResult::EXTERNAL_RETURNED};
+  }
+
+  ExternalCallResult CallCodeObject(Isolate* isolate, Handle<Code> code,
+                                    FunctionSig* signature) {
+    DCHECK(AllowHandleAllocation::IsAllowed());
+    DCHECK(AllowHeapAllocation::IsAllowed());
+
+    if (code->kind() == Code::WASM_FUNCTION) {
+      FixedArray* deopt_data = code->deoptimization_data();
+      DCHECK_EQ(2, deopt_data->length());
+      WasmInstanceObject* target_instance =
+          WasmInstanceObject::cast(WeakCell::cast(deopt_data->get(0))->value());
+      if (target_instance != *codemap()->instance()) {
+        // TODO(wasm): Implement calling functions of other instances/modules.
+        UNIMPLEMENTED();
+      }
+      int target_func_idx = Smi::cast(deopt_data->get(1))->value();
+      DCHECK_LE(0, target_func_idx);
+      return {ExternalCallResult::INTERNAL,
+              codemap()->GetCode(target_func_idx)};
+    }
+
+    Handle<HeapObject> target =
+        codemap()->GetCallableObjectForJSImport(isolate, code);
+
     if (target.is_null()) {
-      // The function does not have a js-compatible signature.
-      // TODO(clemensh): Throw type error.
-      UNIMPLEMENTED();
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kWasmTrapTypeError));
+      return TryHandleException(isolate);
     }
-    if (target->IsCode()) {
-      DCHECK_EQ(Code::WASM_FUNCTION, Code::cast(*target)->kind());
-      // TODO(clemensh): Call wasm code directly.
-      UNIMPLEMENTED();
-    }
+
+#if DEBUG
     std::ostringstream oss;
-    TRACE("  => CallImportedFunction #%u: %s\n", function_index,
-          (target->HeapObjectShortPrint(oss), oss.str().c_str()));
-    const WasmFunction* called_fun =
-        &codemap()->module_->functions[function_index];
-    int num_args = static_cast<int>(called_fun->sig->parameter_count());
-    DCHECK(!instance()->context.is_null());
-    Isolate* isolate = instance()->context->GetIsolate();
+    target->HeapObjectShortPrint(oss);
+    TRACE("  => Calling imported function %s\n", oss.str().c_str());
+#endif
+
+    int num_args = static_cast<int>(signature->parameter_count());
 
     // Get all arguments as JS values.
     std::vector<Handle<Object>> args;
@@ -1912,26 +2040,110 @@ class ThreadImpl {
     WasmVal* wasm_args = stack_.data() + (stack_.size() - num_args);
     for (int i = 0; i < num_args; ++i) {
       args.push_back(WasmValToNumber(isolate->factory(), wasm_args[i],
-                                     called_fun->sig->GetParam(i)));
+                                     signature->GetParam(i)));
     }
 
     MaybeHandle<Object> maybe_retval = Execution::Call(
         isolate, target, isolate->global_proxy(), num_args, args.data());
-    if (maybe_retval.is_null()) {
-      auto result = HandleException(isolate);
-      return result == WasmInterpreter::Thread::HANDLED;
-    }
+    if (maybe_retval.is_null()) return TryHandleException(isolate);
 
     Handle<Object> retval = maybe_retval.ToHandleChecked();
     // TODO(clemensh): Call ToNumber on retval.
-    // Pop arguments of the stack.
+    // Pop arguments off the stack.
     stack_.resize(stack_.size() - num_args);
-    if (called_fun->sig->return_count() > 0) {
+    if (signature->return_count() > 0) {
       // TODO(wasm): Handle multiple returns.
-      DCHECK_EQ(1, called_fun->sig->return_count());
-      stack_.push_back(NumberToWasmVal(retval, called_fun->sig->GetReturn()));
+      DCHECK_EQ(1, signature->return_count());
+      stack_.push_back(NumberToWasmVal(retval, signature->GetReturn()));
     }
-    return true;
+    return {ExternalCallResult::EXTERNAL_RETURNED};
+  }
+
+  ExternalCallResult CallImportedFunction(uint32_t function_index) {
+    // Use a new HandleScope to avoid leaking / accumulating handles in the
+    // outer scope.
+    Isolate* isolate = codemap()->instance()->GetIsolate();
+    HandleScope handle_scope(isolate);
+
+    Handle<Code> target(codemap()->GetImportedFunction(function_index),
+                        isolate);
+    return CallCodeObject(isolate, target,
+                          codemap()->module()->functions[function_index].sig);
+  }
+
+  ExternalCallResult CallIndirectFunction(uint32_t table_index,
+                                          uint32_t entry_index,
+                                          uint32_t sig_index) {
+    if (!codemap()->has_instance()) {
+      // No instance. Rely on the information stored in the WasmModule.
+      // TODO(wasm): This is only needed for testing. Refactor testing to use
+      // the same paths as production.
+      InterpreterCode* code =
+          codemap()->GetIndirectCode(table_index, entry_index);
+      if (!code) return {ExternalCallResult::INVALID_FUNC};
+      if (code->function->sig_index != sig_index) {
+        // If not an exact match, we have to do a canonical check.
+        // TODO(titzer): make this faster with some kind of caching?
+        const WasmIndirectFunctionTable* table =
+            &module()->function_tables[table_index];
+        int function_key = table->map.Find(code->function->sig);
+        if (function_key < 0 ||
+            (function_key !=
+             table->map.Find(module()->signatures[sig_index]))) {
+          return {ExternalCallResult::SIGNATURE_MISMATCH};
+        }
+      }
+      return {ExternalCallResult::INTERNAL, code};
+    }
+
+    WasmCompiledModule* compiled_module =
+        codemap()->instance()->compiled_module();
+    Isolate* isolate = compiled_module->GetIsolate();
+
+    Code* target;
+    {
+      DisallowHeapAllocation no_gc;
+      // Get function to be called directly from the live instance to see latest
+      // changes to the tables.
+
+      // Canonicalize signature index.
+      // TODO(titzer): make this faster with some kind of caching?
+      const WasmIndirectFunctionTable* table =
+          &module()->function_tables[table_index];
+      FunctionSig* sig = module()->signatures[sig_index];
+      uint32_t canonical_sig_index = table->map.Find(sig);
+
+      // Check signature.
+      FixedArray* sig_tables = compiled_module->ptr_to_signature_tables();
+      if (table_index >= static_cast<uint32_t>(sig_tables->length())) {
+        return {ExternalCallResult::INVALID_FUNC};
+      }
+      FixedArray* sig_table =
+          FixedArray::cast(sig_tables->get(static_cast<int>(table_index)));
+      if (entry_index >= static_cast<uint32_t>(sig_table->length())) {
+        return {ExternalCallResult::INVALID_FUNC};
+      }
+      int found_sig =
+          Smi::cast(sig_table->get(static_cast<int>(entry_index)))->value();
+      if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
+        return {ExternalCallResult::SIGNATURE_MISMATCH};
+      }
+
+      // Get code object.
+      FixedArray* fun_tables = compiled_module->ptr_to_function_tables();
+      DCHECK_EQ(sig_tables->length(), fun_tables->length());
+      FixedArray* fun_table =
+          FixedArray::cast(fun_tables->get(static_cast<int>(table_index)));
+      DCHECK_EQ(sig_table->length(), fun_table->length());
+      target = Code::cast(fun_table->get(static_cast<int>(entry_index)));
+    }
+
+    // Call the code object. Use a new HandleScope to avoid leaking /
+    // accumulating handles in the outer scope.
+    HandleScope handle_scope(isolate);
+    FunctionSig* signature =
+        &codemap()->module()->signatures[table_index][sig_index];
+    return CallCodeObject(isolate, handle(target, isolate), signature);
   }
 
   inline Activation current_activation() {
@@ -1946,9 +2158,10 @@ class ThreadImpl {
 WasmInterpreter::Thread* ToThread(ThreadImpl* impl) {
   return reinterpret_cast<WasmInterpreter::Thread*>(impl);
 }
-static ThreadImpl* ToImpl(WasmInterpreter::Thread* thread) {
+ThreadImpl* ToImpl(WasmInterpreter::Thread* thread) {
   return reinterpret_cast<ThreadImpl*>(thread);
 }
+
 }  // namespace
 
 //============================================================================
@@ -2036,10 +2249,12 @@ class WasmInterpreterInternals : public ZoneObject {
   CodeMap codemap_;
   ZoneVector<ThreadImpl> threads_;
 
-  WasmInterpreterInternals(Zone* zone, const ModuleBytesEnv& env)
+  WasmInterpreterInternals(Isolate* isolate, Zone* zone,
+                           const ModuleBytesEnv& env)
       : instance_(env.module_env.instance),
         module_bytes_(env.wire_bytes.start(), env.wire_bytes.end(), zone),
         codemap_(
+            isolate,
             env.module_env.instance ? env.module_env.instance->module : nullptr,
             module_bytes_.data(), zone),
         threads_(zone) {
@@ -2052,10 +2267,9 @@ class WasmInterpreterInternals : public ZoneObject {
 //============================================================================
 // Implementation of the public interface of the interpreter.
 //============================================================================
-WasmInterpreter::WasmInterpreter(const ModuleBytesEnv& env,
-                                 AccountingAllocator* allocator)
-    : zone_(allocator, ZONE_NAME),
-      internals_(new (&zone_) WasmInterpreterInternals(&zone_, env)) {}
+WasmInterpreter::WasmInterpreter(Isolate* isolate, const ModuleBytesEnv& env)
+    : zone_(isolate->allocator(), ZONE_NAME),
+      internals_(new (&zone_) WasmInterpreterInternals(isolate, &zone_, env)) {}
 
 WasmInterpreter::~WasmInterpreter() { internals_->Delete(); }
 
@@ -2098,8 +2312,8 @@ bool WasmInterpreter::SetTracing(const WasmFunction* function, bool enabled) {
   return false;
 }
 
-void WasmInterpreter::AddImportedFunction(Handle<HeapObject> code) {
-  internals_->codemap_.AddImportedFunction(code);
+void WasmInterpreter::SetInstanceObject(WasmInstanceObject* instance) {
+  internals_->codemap_.SetInstanceObject(instance);
 }
 
 int WasmInterpreter::GetThreadCount() {
