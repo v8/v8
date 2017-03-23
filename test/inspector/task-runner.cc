@@ -78,9 +78,10 @@ v8::Local<v8::Context> TaskRunner::GetContext(int context_group_id) {
 }
 
 int TaskRunner::GetContextGroupId(v8::Local<v8::Context> context) {
-  return reinterpret_cast<intptr_t>(
-             context->GetAlignedPointerFromEmbedderData(kContextGroupIdIndex)) /
-         2;
+  return static_cast<int>(
+      reinterpret_cast<intptr_t>(
+          context->GetAlignedPointerFromEmbedderData(kContextGroupIdIndex)) /
+      2);
 }
 
 void TaskRunner::Run() {

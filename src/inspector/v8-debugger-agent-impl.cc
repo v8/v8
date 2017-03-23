@@ -166,7 +166,8 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
     bestMatch = nextMatch - offset < offset - prevMatch ? nextMatch : prevMatch;
   }
   bestMatch += searchRegionOffset;
-  v8::debug::Location hintPosition = script.location(bestMatch);
+  v8::debug::Location hintPosition =
+      script.location(static_cast<int>(bestMatch));
   if (hintPosition.IsEmpty()) return;
   breakpoint->line_number = hintPosition.GetLineNumber();
   breakpoint->column_number = hintPosition.GetColumnNumber();
@@ -1096,14 +1097,15 @@ void V8DebuggerAgentImpl::didParseSource(
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
-        isModuleParam, scriptRef->source().length(), std::move(stackTrace));
+        isModuleParam, static_cast<int>(scriptRef->source().length()),
+        std::move(stackTrace));
   } else {
     m_frontend.scriptFailedToParse(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
-        scriptRef->source().length(), std::move(stackTrace));
+        static_cast<int>(scriptRef->source().length()), std::move(stackTrace));
   }
 
   if (scriptURL.isEmpty() || !success) return;
