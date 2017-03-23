@@ -2595,8 +2595,8 @@ class FunctionLiteral final : public Expression {
   enum EagerCompileHint { kShouldEagerCompile, kShouldLazyCompile };
 
   Handle<String> name() const { return raw_name_->string(); }
-  const AstString* raw_name() const { return raw_name_; }
-  void set_raw_name(const AstString* name) { raw_name_ = name; }
+  const AstConsString* raw_name() const { return raw_name_; }
+  void set_raw_name(const AstConsString* name) { raw_name_ = name; }
   DeclarationScope* scope() const { return scope_; }
   ZoneList<Statement*>* body() const { return body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
@@ -2658,7 +2658,7 @@ class FunctionLiteral final : public Expression {
     raw_inferred_name_ = NULL;
   }
 
-  void set_raw_inferred_name(const AstString* raw_inferred_name) {
+  void set_raw_inferred_name(const AstConsString* raw_inferred_name) {
     DCHECK(raw_inferred_name != NULL);
     raw_inferred_name_ = raw_inferred_name;
     DCHECK(inferred_name_.is_null());
@@ -2729,7 +2729,7 @@ class FunctionLiteral final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  FunctionLiteral(Zone* zone, const AstString* name,
+  FunctionLiteral(Zone* zone, const AstRawString* name,
                   AstValueFactory* ast_value_factory, DeclarationScope* scope,
                   ZoneList<Statement*>* body, int expected_property_count,
                   int parameter_count, int function_length,
@@ -2744,10 +2744,10 @@ class FunctionLiteral final : public Expression {
         function_token_position_(kNoSourcePosition),
         suspend_count_(0),
         has_braces_(has_braces),
-        raw_name_(name),
+        raw_name_(ast_value_factory->NewConsString(name)),
         scope_(scope),
         body_(body),
-        raw_inferred_name_(ast_value_factory->empty_string()),
+        raw_inferred_name_(ast_value_factory->empty_cons_string()),
         ast_properties_(zone),
         function_literal_id_(function_literal_id) {
     bit_field_ |= FunctionTypeBits::encode(function_type) |
@@ -2776,10 +2776,10 @@ class FunctionLiteral final : public Expression {
   int suspend_count_;
   bool has_braces_;
 
-  const AstString* raw_name_;
+  const AstConsString* raw_name_;
   DeclarationScope* scope_;
   ZoneList<Statement*>* body_;
-  const AstString* raw_inferred_name_;
+  const AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
   AstProperties ast_properties_;
   int function_literal_id_;

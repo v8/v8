@@ -3311,8 +3311,8 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     class_info->constructor = GetPropertyValue(property)->AsFunctionLiteral();
     DCHECK_NOT_NULL(class_info->constructor);
     class_info->constructor->set_raw_name(
-        class_name != nullptr ? class_name
-                              : ast_value_factory()->empty_string());
+        class_name != nullptr ? ast_value_factory()->NewConsString(class_name)
+                              : ast_value_factory()->empty_cons_string());
     return;
   }
 
@@ -4271,10 +4271,11 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
   if (!value->IsAnonymousFunctionDefinition()) return;
   auto function = value->AsFunctionLiteral();
   if (function != nullptr) {
-    function->set_raw_name(name);
+    function->set_raw_name(ast_value_factory()->NewConsString(name));
   } else {
     DCHECK(value->IsDoExpression());
-    value->AsDoExpression()->represented_function()->set_raw_name(name);
+    value->AsDoExpression()->represented_function()->set_raw_name(
+        ast_value_factory()->NewConsString(name));
   }
 }
 

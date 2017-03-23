@@ -164,7 +164,7 @@ void Expression::MarkTail() {
 bool DoExpression::IsAnonymousFunctionDefinition() const {
   // This is specifically to allow DoExpressions to represent ClassLiterals.
   return represented_function_ != nullptr &&
-         represented_function_->raw_name()->length() == 0;
+         represented_function_->raw_name()->IsEmpty();
 }
 
 bool Statement::IsJump() const {
