@@ -1051,12 +1051,6 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
                                          Handle<Object> receiver,
                                          bool* was_found) {
   *was_found = true;
-  if (receiver->IsJSGlobalObject()) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kReadGlobalReferenceThroughProxy, name),
-        Object);
-  }
 
   DCHECK(!name->IsPrivate());
   STACK_CHECK(isolate, MaybeHandle<Object>());

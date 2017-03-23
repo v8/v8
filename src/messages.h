@@ -450,7 +450,6 @@ class ErrorUtils : public AllStatic {
   T(ProxyTrapReturnedFalsish, "'%' on proxy: trap returned falsish")           \
   T(ProxyTrapReturnedFalsishFor,                                               \
     "'%' on proxy: trap returned falsish for property '%'")                    \
-  T(ReadGlobalReferenceThroughProxy, "Trying to access '%' through proxy")     \
   T(RedefineDisallowed, "Cannot redefine property: %")                         \
   T(RedefineExternalArray,                                                     \
     "Cannot redefine a property of an object with external array elements")    \
