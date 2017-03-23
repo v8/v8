@@ -863,8 +863,9 @@ int GetPrototypeCheckCount(Isolate* isolate, Handle<Map> receiver_map,
 }
 
 Handle<WeakCell> HolderCell(Isolate* isolate, Handle<JSObject> holder,
-                            Handle<Name> name) {
-  if (holder->IsJSGlobalObject()) {
+                            Handle<Name> name, Handle<Smi> smi_handler) {
+  if (holder->IsJSGlobalObject() &&
+      *smi_handler != *LoadHandler::LoadInterceptor(isolate)) {
     Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(holder);
     GlobalDictionary* dict = global->global_dictionary();
     int number = dict->FindEntry(name);
@@ -901,7 +902,8 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   DCHECK(!validity_cell.is_null());
 
-  Handle<WeakCell> holder_cell = HolderCell(isolate(), holder, name);
+  Handle<WeakCell> holder_cell =
+      HolderCell(isolate(), holder, name, smi_handler);
 
   if (checks_count == 0) {
     return isolate()->factory()->NewTuple3(holder_cell, smi_handler,
@@ -1160,14 +1162,14 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
       if (holder->GetNamedInterceptor()->non_masking()) {
         Handle<Object> holder_ref = isolate()->factory()->null_value();
-        if (!receiver_is_holder) {
+        if (!receiver_is_holder || IsLoadGlobalIC()) {
           holder_ref = Map::GetOrCreatePrototypeWeakCell(holder, isolate());
         }
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonMaskingInterceptorDH);
         return LoadFullChain(map, holder_ref, lookup->name(), smi_handler);
       }
 
-      if (receiver_is_holder) {
+      if (receiver_is_holder && !IsLoadGlobalIC()) {
         DCHECK(map->has_named_interceptor());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorDH);
         return smi_handler;
