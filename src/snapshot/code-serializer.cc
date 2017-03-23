@@ -302,16 +302,17 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
     case Code::WASM_FUNCTION:
     case Code::JS_TO_WASM_FUNCTION:
       // Just serialize the code_object.
+      SerializeGeneric(code_object, how_to_code, where_to_point);
       break;
+    case Code::WASM_INTERPRETER_ENTRY:
     case Code::WASM_TO_JS_FUNCTION:
       // Serialize the illegal builtin instead. On instantiation of a
       // deserialized module, these will be replaced again.
-      code_object = *isolate()->builtins()->Illegal();
+      SerializeBuiltin(Builtins::kIllegal, how_to_code, where_to_point);
       break;
     default:
       UNREACHABLE();
   }
-  SerializeGeneric(code_object, how_to_code, where_to_point);
 }
 
 bool WasmCompiledModuleSerializer::ElideObject(Object* obj) {
