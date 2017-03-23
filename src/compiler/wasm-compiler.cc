@@ -3016,11 +3016,8 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
   if (!FLAG_wasm_trap_handler || !V8_TRAP_HANDLER_SUPPORTED) {
     BoundsCheckMem(memtype, index, offset, position);
   }
-  bool aligned = static_cast<int>(alignment) >=
-                 ElementSizeLog2Of(memtype.representation());
 
-  if (aligned ||
-      jsgraph()->machine()->UnalignedLoadSupported(memtype, alignment)) {
+  if (jsgraph()->machine()->UnalignedLoadSupported(memtype, alignment)) {
     if (FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED) {
       DCHECK(FLAG_wasm_guard_pages);
       Node* position_node = jsgraph()->Int32Constant(position);
@@ -3070,17 +3067,12 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   if (!FLAG_wasm_trap_handler || !V8_TRAP_HANDLER_SUPPORTED) {
     BoundsCheckMem(memtype, index, offset, position);
   }
-  StoreRepresentation rep(memtype.representation(), kNoWriteBarrier);
-
-  bool aligned = static_cast<int>(alignment) >=
-                 ElementSizeLog2Of(memtype.representation());
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   val = BuildChangeEndianness(val, memtype);
 #endif
 
-  if (aligned ||
-      jsgraph()->machine()->UnalignedStoreSupported(memtype, alignment)) {
+  if (jsgraph()->machine()->UnalignedStoreSupported(memtype, alignment)) {
     if (FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED) {
       Node* position_node = jsgraph()->Int32Constant(position);
       store = graph()->NewNode(

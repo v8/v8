@@ -1092,6 +1092,54 @@ WASM_EXEC_TEST(LoadStoreLoad) {
   }
 }
 
+WASM_EXEC_TEST(UnalignedFloat32Load) {
+  WasmRunner<float> r(execution_mode);
+  r.module().AddMemoryElems<float>(8);
+  BUILD(r, WASM_LOAD_MEM_ALIGNMENT(MachineType::Float32(), WASM_ONE, 2));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedFloat64Load) {
+  WasmRunner<double> r(execution_mode);
+  r.module().AddMemoryElems<double>(8);
+  BUILD(r, WASM_LOAD_MEM_ALIGNMENT(MachineType::Float64(), WASM_ONE, 3));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedInt32Load) {
+  WasmRunner<uint32_t> r(execution_mode);
+  r.module().AddMemoryElems<uint32_t>(8);
+  BUILD(r, WASM_LOAD_MEM_ALIGNMENT(MachineType::Int32(), WASM_ONE, 2));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedInt32Store) {
+  WasmRunner<int32_t> r(execution_mode);
+  r.module().AddMemoryElems<uint32_t>(8);
+  BUILD(r, WASM_SEQ(WASM_STORE_MEM_ALIGNMENT(MachineType::Int32(), WASM_ONE, 2,
+                                             WASM_I32V_1(1)),
+                    WASM_I32V_1(12)));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedFloat32Store) {
+  WasmRunner<int32_t> r(execution_mode);
+  r.module().AddMemoryElems<float>(8);
+  BUILD(r, WASM_SEQ(WASM_STORE_MEM_ALIGNMENT(MachineType::Float32(), WASM_ONE,
+                                             2, WASM_F32(1.0)),
+                    WASM_I32V_1(12)));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedFloat64Store) {
+  WasmRunner<int32_t> r(execution_mode);
+  r.module().AddMemoryElems<double>(8);
+  BUILD(r, WASM_SEQ(WASM_STORE_MEM_ALIGNMENT(MachineType::Float64(), WASM_ONE,
+                                             3, WASM_F64(1.0)),
+                    WASM_I32V_1(12)));
+  r.Call();
+}
+
 WASM_EXEC_TEST(VoidReturn1) {
   const int32_t kExpected = -414444;
   WasmRunner<int32_t> r(execution_mode);

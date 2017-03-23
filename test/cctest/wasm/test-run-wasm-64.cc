@@ -1528,6 +1528,22 @@ WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
   }
 }
 
+WASM_EXEC_TEST(UnalignedInt64Load) {
+  WasmRunner<uint64_t> r(execution_mode);
+  r.module().AddMemoryElems<int64_t>(8);
+  BUILD(r, WASM_LOAD_MEM_ALIGNMENT(MachineType::Int64(), WASM_ONE, 3));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedInt64Store) {
+  WasmRunner<int32_t> r(execution_mode);
+  r.module().AddMemoryElems<uint64_t>(8);
+  BUILD(r, WASM_SEQ(WASM_STORE_MEM_ALIGNMENT(MachineType::Int64(), WASM_ONE, 3,
+                                             WASM_I64V_1(1)),
+                    WASM_I32V_1(12)));
+  r.Call();
+}
+
 #define ADD_CODE(vec, ...)                                              \
   do {                                                                  \
     byte __buf[] = {__VA_ARGS__};                                       \
