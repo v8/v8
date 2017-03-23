@@ -17,16 +17,6 @@ Running test: testPreciseCountBaseline
                             }
                         ]
                     }
-                    [1] : {
-                        functionName : is_optimized
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 175
-                                startOffset : 74
-                            }
-                        ]
-                    }
                 ]
                 scriptId : <scriptId>
                 url : testPreciseCountBaseline
@@ -38,32 +28,6 @@ Running test: testPreciseCountBaseline
     id : <messageId>
     result : {
         result : [
-            [0] : {
-                functions : [
-                    [0] : {
-                        functionName : fib
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 73
-                                startOffset : 1
-                            }
-                        ]
-                    }
-                    [1] : {
-                        functionName : is_optimized
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 175
-                                startOffset : 74
-                            }
-                        ]
-                    }
-                ]
-                scriptId : <scriptId>
-                url : testPreciseCountBaseline
-            }
         ]
     }
 }
@@ -72,6 +36,11 @@ Running test: testPreciseCountCoverage
 {
     id : <messageId>
     result : {
+        result : {
+            description : 8
+            type : number
+            value : 8
+        }
     }
 }
 {
@@ -147,68 +116,6 @@ Running test: testPreciseCountCoverage
     id : <messageId>
     result : {
         result : [
-            [0] : {
-                functions : [
-                    [0] : {
-                        functionName : 
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 221
-                                startOffset : 0
-                            }
-                        ]
-                    }
-                    [1] : {
-                        functionName : fib
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 73
-                                startOffset : 1
-                            }
-                        ]
-                    }
-                    [2] : {
-                        functionName : is_optimized
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 175
-                                startOffset : 74
-                            }
-                        ]
-                    }
-                    [3] : {
-                        functionName : iife
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 208
-                                startOffset : 177
-                            }
-                        ]
-                    }
-                ]
-                scriptId : <scriptId>
-                url : testPreciseCountCoverage
-            }
-            [1] : {
-                functions : [
-                    [0] : {
-                        functionName : 
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 38
-                                startOffset : 0
-                            }
-                        ]
-                    }
-                ]
-                scriptId : <scriptId>
-                url : 
-            }
         ]
     }
 }
@@ -736,42 +643,12 @@ Running test: testPreciseBinaryCoverage
             [0] : {
                 functions : [
                     [0] : {
-                        functionName : 
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 221
-                                startOffset : 0
-                            }
-                        ]
-                    }
-                    [1] : {
-                        functionName : fib
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 73
-                                startOffset : 1
-                            }
-                        ]
-                    }
-                    [2] : {
                         functionName : is_optimized
                         ranges : [
                             [0] : {
                                 count : 1
                                 endOffset : 175
                                 startOffset : 74
-                            }
-                        ]
-                    }
-                    [3] : {
-                        functionName : iife
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 208
-                                startOffset : 177
                             }
                         ]
                     }
@@ -803,6 +680,157 @@ Running test: testPreciseBinaryCoverage
                             [0] : {
                                 count : 1
                                 endOffset : 7
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+    }
+}
+
+Running test: testPreciseEmptyScriptCoverageEntries
+{
+    id : <messageId>
+    result : {
+        result : [
+        ]
+    }
+}
+
+Running test: testPreciseCountCoveragePartial
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 238
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : outer
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 224
+                                startOffset : 10
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : nested_0
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 176
+                                startOffset : 31
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : nested_1
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 172
+                                startOffset : 64
+                            }
+                        ]
+                    }
+                    [4] : {
+                        functionName : nested_2
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 166
+                                startOffset : 99
+                            }
+                        ]
+                    }
+                    [5] : {
+                        functionName : nested_3
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 158
+                                startOffset : 136
+                            }
+                        ]
+                    }
+                    [6] : {
+                        functionName : nested_4
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 201
+                                startOffset : 179
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testPreciseCountCoveragePartial
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : nested_1
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 172
+                                startOffset : 64
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : nested_2
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 166
+                                startOffset : 99
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testPreciseCountCoveragePartial
+            }
+            [1] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 3
                                 startOffset : 0
                             }
                         ]
