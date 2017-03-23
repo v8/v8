@@ -555,8 +555,6 @@ typedef uint32_t Instr;
   V(evlhhousplatx, EVLHHOUSPLATX, 0x1000030C)                                  \
   /* Vector Load Word into Two Half Words Even */                              \
   V(evlwhe, EVLWHE, 0x10000311)                                                \
-  /* Vector Load Word into Two Half Words Even Indexed */                      \
-  V(evlwhex, EVLWHEX, 0x10000310)                                              \
   /* Vector Load Word into Two Half Words Odd Signed (with sign extension) */  \
   V(evlwhos, EVLWHOS, 0x10000317)                                              \
   /* Vector Load Word into Two Half Words Odd Signed Indexed (with sign */     \
@@ -1332,8 +1330,6 @@ typedef uint32_t Instr;
   V(dcbi, DCBI, 0x7C0003AC)                                                    \
   /* Instruction Cache Block Touch */                                          \
   V(icbt, ICBT, 0x7C00002C)                                                    \
-  /* Memory Barrier */                                                         \
-  V(mbar, MBAR, 0x7C0006AC)                                                    \
   /* Move to Condition Register from XER */                                    \
   V(mcrxr, MCRXR, 0x7C000400)                                                  \
   /* TLB Invalidate Local Indexed */                                           \
@@ -1684,6 +1680,9 @@ typedef uint32_t Instr;
   /* Store Quadword */                                                         \
   V(stq, STQ, 0xF8000002)
 
+#define PPC_DQ_OPCODE_LIST(V)                                                  \
+  V(lsq, LSQ, 0xE0000000)
+
 #define PPC_D_OPCODE_LIST(V)                                                   \
   /* Trap Doubleword Immediate */                                              \
   V(tdi, TDI, 0x08000000)                                                      \
@@ -2025,87 +2024,40 @@ typedef uint32_t Instr;
   V(addg, ADDG, 0x7C000094)                                                    \
   /* Multiply Accumulate Cross Halfword to Word Modulo Signed */               \
   V(macchw, MACCHW, 0x10000158)                                                \
-  /* Multiply Accumulate Cross Halfword to Word Modulo Signed & record OV */   \
-  V(macchwo, MACCHWO, 0x10000158)                                              \
   /* Multiply Accumulate Cross Halfword to Word Saturate Signed */             \
   V(macchws, MACCHWS, 0x100001D8)                                              \
-  /* Multiply Accumulate Cross Halfword to Word Saturate Signed & record */    \
-  /* OV */                                                                     \
-  V(macchwso, MACCHWSO, 0x100001D8)                                            \
   /* Multiply Accumulate Cross Halfword to Word Saturate Unsigned */           \
   V(macchwsu, MACCHWSU, 0x10000198)                                            \
-  /* Multiply Accumulate Cross Halfword to Word Saturate Unsigned & record */  \
-  /* OV */                                                                     \
-  V(macchwsuo, MACCHWSUO, 0x10000198)                                          \
   /* Multiply Accumulate Cross Halfword to Word Modulo Unsigned */             \
   V(macchwu, MACCHWU, 0x10000118)                                              \
-  /* Multiply Accumulate Cross Halfword to Word Modulo Unsigned & record */    \
-  /* OV */                                                                     \
-  V(macchwuo, MACCHWUO, 0x10000118)                                            \
   /* Multiply Accumulate High Halfword to Word Modulo Signed */                \
   V(machhw, MACHHW, 0x10000058)                                                \
-  /* Multiply Accumulate High Halfword to Word Modulo Signed & record OV */    \
-  V(machhwo, MACHHWO, 0x10000058)                                              \
   /* Multiply Accumulate High Halfword to Word Saturate Signed */              \
   V(machhws, MACHHWS, 0x100000D8)                                              \
-  /* Multiply Accumulate High Halfword to Word Saturate Signed & record OV */  \
-  V(machhwso, MACHHWSO, 0x100000D8)                                            \
   /* Multiply Accumulate High Halfword to Word Saturate Unsigned */            \
   V(machhwsu, MACHHWSU, 0x10000098)                                            \
-  /* Multiply Accumulate High Halfword to Word Saturate Unsigned & record */   \
-  /* OV */                                                                     \
-  V(machhwsuo, MACHHWSUO, 0x10000098)                                          \
   /* Multiply Accumulate High Halfword to Word Modulo Unsigned */              \
   V(machhwu, MACHHWU, 0x10000018)                                              \
-  /* Multiply Accumulate High Halfword to Word Modulo Unsigned & record OV */  \
-  V(machhwuo, MACHHWUO, 0x10000018)                                            \
   /* Multiply Accumulate Low Halfword to Word Modulo Signed */                 \
   V(maclhw, MACLHW, 0x10000358)                                                \
-  /* Multiply Accumulate Low Halfword to Word Modulo Signed & record OV */     \
-  V(maclhwo, MACLHWO, 0x10000358)                                              \
   /* Multiply Accumulate Low Halfword to Word Saturate Signed */               \
   V(maclhws, MACLHWS, 0x100003D8)                                              \
-  /* Multiply Accumulate Low Halfword to Word Saturate Signed & record OV */   \
-  V(maclhwso, MACLHWSO, 0x100003D8)                                            \
   /* Multiply Accumulate Low Halfword to Word Saturate Unsigned */             \
   V(maclhwsu, MACLHWSU, 0x10000398)                                            \
-  /* Multiply Accumulate Low Halfword to Word Saturate Unsigned & record */    \
-  /* OV */                                                                     \
-  V(maclhwsuo, MACLHWSUO, 0x10000398)                                          \
   /* Multiply Accumulate Low Halfword to Word Modulo Unsigned */               \
   V(maclhwu, MACLHWU, 0x10000318)                                              \
-  /* Multiply Accumulate Low Halfword to Word Modulo Unsigned & record OV */   \
-  V(maclhwuo, MACLHWUO, 0x10000318)                                            \
   /* Negative Multiply Accumulate Cross Halfword to Word Modulo Signed */      \
   V(nmacchw, NMACCHW, 0x1000015C)                                              \
-  /* Negative Multiply Accumulate Cross Halfword to Word Modulo Signed & */    \
-  /* record OV */                                                              \
-  V(nmacchwo, NMACCHWO, 0x1000015C)                                            \
   /* Negative Multiply Accumulate Cross Halfword to Word Saturate Signed */    \
   V(nmacchws, NMACCHWS, 0x100001DC)                                            \
-  /* Negative Multiply Accumulate Cross Halfword to Word Saturate Signed & */  \
-  /* record OV */                                                              \
-  V(nmacchwso, NMACCHWSO, 0x100001DC)                                          \
   /* Negative Multiply Accumulate High Halfword to Word Modulo Signed */       \
   V(nmachhw, NMACHHW, 0x1000005C)                                              \
-  /* Negative Multiply Accumulate High Halfword to Word Modulo Signed & */     \
-  /* record OV */                                                              \
-  V(nmachhwo, NMACHHWO, 0x1000005C)                                            \
   /* Negative Multiply Accumulate High Halfword to Word Saturate Signed */     \
   V(nmachhws, NMACHHWS, 0x100000DC)                                            \
-  /* Negative Multiply Accumulate High Halfword to Word Saturate Signed & */   \
-  /* record OV */                                                              \
-  V(nmachhwso, NMACHHWSO, 0x100000DC)                                          \
   /* Negative Multiply Accumulate Low Halfword to Word Modulo Signed */        \
   V(nmaclhw, NMACLHW, 0x1000035C)                                              \
-  /* Negative Multiply Accumulate Low Halfword to Word Modulo Signed & */      \
-  /* record OV */                                                              \
-  V(nmaclhwo, NMACLHWO, 0x1000035C)                                            \
   /* Negative Multiply Accumulate Low Halfword to Word Saturate Signed */      \
   V(nmaclhws, NMACLHWS, 0x100003DC)                                            \
-  /* Negative Multiply Accumulate Low Halfword to Word Saturate Signed & */    \
-  /* record OV */                                                              \
-  V(nmaclhwso, NMACLHWSO, 0x100003DC)
 
 #define PPC_XL_OPCODE_LIST(V)                                                  \
   /* Branch Conditional to Count Register */                                   \
@@ -2538,6 +2490,7 @@ typedef uint32_t Instr;
   PPC_X_OPCODE_LIST(V)        \
   PPC_XO_OPCODE_LIST(V)       \
   PPC_DS_OPCODE_LIST(V)       \
+  PPC_DQ_OPCODE_LIST(V)       \
   PPC_MDS_OPCODE_LIST(V)      \
   PPC_MD_OPCODE_LIST(V)       \
   PPC_XS_OPCODE_LIST(V)       \
@@ -2817,9 +2770,117 @@ class Instruction {
   DECLARE_STATIC_ACCESSOR(RCValue);
 
   inline int OpcodeValue() const { return static_cast<Opcode>(Bits(31, 26)); }
-  inline Opcode OpcodeField() const {
+  inline uint32_t OpcodeField() const {
     return static_cast<Opcode>(BitField(31, 26));
   }
+
+#define OPCODE_CASES(name, opcode_name, opcode_value) \
+  case opcode_name:
+
+  inline Opcode OpcodeBase() const {
+    uint32_t opcode = OpcodeField();
+    uint32_t extcode = OpcodeField();
+    switch (opcode) {
+      PPC_D_OPCODE_LIST(OPCODE_CASES)
+      PPC_I_OPCODE_LIST(OPCODE_CASES)
+      PPC_B_OPCODE_LIST(OPCODE_CASES)
+      PPC_M_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+
+    opcode = extcode | BitField(10, 0);
+    switch (opcode) {
+      PPC_VX_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(9, 0);
+    switch (opcode) {
+      PPC_VC_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(10, 1) | BitField(20, 20);
+    switch (opcode) {
+      PPC_XFX_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(10, 1);
+    switch (opcode) {
+      PPC_X_OPCODE_LIST(OPCODE_CASES)
+      PPC_XL_OPCODE_LIST(OPCODE_CASES)
+      PPC_XFL_OPCODE_LIST(OPCODE_CASES)
+      PPC_XX1_OPCODE_LIST(OPCODE_CASES)
+      PPC_XX2_OPCODE_LIST(OPCODE_CASES)
+      PPC_EVX_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(9, 1);
+    switch (opcode) {
+      PPC_XO_OPCODE_LIST(OPCODE_CASES)
+      PPC_Z22_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(10, 2);
+    switch (opcode) {
+      PPC_XS_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(10, 3);
+    switch (opcode) {
+      PPC_EVS_OPCODE_LIST(OPCODE_CASES)
+      PPC_XX3_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(8, 1);
+    switch (opcode) {
+      PPC_Z23_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+     }
+    opcode = extcode | BitField(5, 0);
+    switch (opcode) {
+      PPC_VA_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(5, 1);
+    switch (opcode) {
+      PPC_A_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(4, 1);
+    switch (opcode) {
+      PPC_MDS_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(4, 2);
+    switch (opcode) {
+      PPC_MD_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(5, 4);
+    switch (opcode) {
+      PPC_XX4_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(2, 0);
+    switch (opcode) {
+      PPC_DQ_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(1, 0);
+    switch (opcode) {
+      PPC_DS_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(1, 1);
+    switch (opcode) {
+      PPC_SC_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+printf("opcode = %x\n", InstructionBits());
+    UNIMPLEMENTED();
+    return static_cast<Opcode>(0);
+  }
+
+#undef OPCODE_CASES
 
   // Fields used in Software interrupt instructions
   inline SoftwareInterruptCodes SvcValue() const {
