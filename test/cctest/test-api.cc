@@ -26369,3 +26369,28 @@ UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
   }
   isolate->Dispose();
 }
+
+TEST(DeterministicRandomNumberGeneration) {
+  v8::HandleScope scope(CcTest::isolate());
+
+  int previous_seed = v8::internal::FLAG_random_seed;
+  v8::internal::FLAG_random_seed = 1234;
+
+  double first_value;
+  double second_value;
+  {
+    v8::Local<Context> context = Context::New(CcTest::isolate());
+    Context::Scope context_scope(context);
+    v8::Local<Value> result = CompileRun("Math.random();");
+    first_value = result->ToNumber(context).ToLocalChecked()->Value();
+  }
+  {
+    v8::Local<Context> context = Context::New(CcTest::isolate());
+    Context::Scope context_scope(context);
+    v8::Local<Value> result = CompileRun("Math.random();");
+    second_value = result->ToNumber(context).ToLocalChecked()->Value();
+  }
+  CHECK_EQ(first_value, second_value);
+
+  v8::internal::FLAG_random_seed = previous_seed;
+}
