@@ -97,7 +97,8 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
 
   // clang-format off
   enum {
-    // [-10000 .. -10000-kMaxIdentifierCount)  :: Local identifiers
+    // [-10000-kMaxIdentifierCount, -10000)    :: Local identifiers (counting
+    //                                            backwards)
     // [-10000 .. -1)                          :: Builtin tokens like keywords
     //                                            (also includes some special
     //                                             ones like end of input)
