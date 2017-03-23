@@ -18,20 +18,8 @@
 namespace v8 {
 namespace internal {
 
-// ES7 sharedmem 6.3.4.1 get SharedArrayBuffer.prototype.byteLength
-BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSArrayBuffer, array_buffer,
-                 "get SharedArrayBuffer.prototype.byteLength");
-  if (!array_buffer->is_shared()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "get SharedArrayBuffer.prototype.byteLength"),
-                              args.receiver()));
-  }
-  return array_buffer->byte_length();
-}
+// See builtins-arraybuffer.cc for implementations of
+// SharedArrayBuffer.prototye.byteLength and SharedArrayBuffer.prototype.slice
 
 inline bool AtomicIsLockFree(uint32_t size) {
   return size == 1 || size == 2 || size == 4;

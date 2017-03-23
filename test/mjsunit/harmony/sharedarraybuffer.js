@@ -70,13 +70,6 @@ function TestByteLengthNotWritable() {
 
 TestByteLengthNotWritable();
 
-function TestArrayBufferNoSlice() {
-  var sab = new SharedArrayBuffer(10);
-  assertEquals(undefined, sab.slice);
-}
-
-TestArrayBufferNoSlice();
-
 // Typed arrays using SharedArrayBuffers
 
 // TODO(binji): how many of these tests are necessary if there are no new

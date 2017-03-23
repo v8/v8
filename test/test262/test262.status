@@ -515,9 +515,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5984
   'built-ins/SharedArrayBuffer/proto-from-ctor-realm': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5897
-  'built-ins/SharedArrayBuffer/prototype/slice/*': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6045
   'intl402/NumberFormat/prototype/format/11.3.2_TRF': [FAIL],
   'intl402/NumberFormat/prototype/format/11.3.2_TRP': [FAIL],

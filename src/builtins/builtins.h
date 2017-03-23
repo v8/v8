@@ -792,6 +792,7 @@ class Isolate;
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
+  CPP(SharedArrayBufferPrototypeSlice)                                         \
   TFJ(AtomicsLoad, 2, kArray, kIndex)                                          \
   TFJ(AtomicsStore, 3, kArray, kIndex, kValue)                                 \
   TFJ(AtomicsExchange, 3, kArray, kIndex, kValue)                              \

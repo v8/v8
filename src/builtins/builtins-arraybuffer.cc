@@ -11,8 +11,8 @@
 namespace v8 {
 namespace internal {
 
-#define CHECK_IS_NOT_SHARED_ARRAY_BUFFER(name, method)                      \
-  if (name->is_shared()) {                                                  \
+#define CHECK_SHARED(expected, name, method)                                \
+  if (name->is_shared() != expected) {                                      \
     THROW_NEW_ERROR_RETURN_FAILURE(                                         \
         isolate,                                                            \
         NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,          \
@@ -75,9 +75,19 @@ BUILTIN(ArrayBufferPrototypeGetByteLength) {
   const char* const kMethodName = "get ArrayBuffer.prototype.byteLength";
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);
-  CHECK_IS_NOT_SHARED_ARRAY_BUFFER(array_buffer, kMethodName);
+  CHECK_SHARED(false, array_buffer, kMethodName);
   // TODO(franzih): According to the ES6 spec, we should throw a TypeError
   // here if the JSArrayBuffer is detached.
+  return array_buffer->byte_length();
+}
+
+// ES7 sharedmem 6.3.4.1 get SharedArrayBuffer.prototype.byteLength
+BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
+  const char* const kMethodName = "get SharedArrayBuffer.prototype.byteLength";
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSArrayBuffer, array_buffer,
+                 "get SharedArrayBuffer.prototype.byteLength");
+  CHECK_SHARED(true, array_buffer, kMethodName);
   return array_buffer->byte_length();
 }
 
@@ -89,46 +99,46 @@ BUILTIN(ArrayBufferIsView) {
   return isolate->heap()->ToBoolean(arg->IsJSArrayBufferView());
 }
 
-// ES #sec-arraybuffer.prototype.slice
-// ArrayBuffer.prototype.slice ( start, end )
-BUILTIN(ArrayBufferPrototypeSlice) {
-  const char* const kMethodName = "ArrayBuffer.prototype.slice";
+static Object* SliceHelper(BuiltinArguments args, Isolate* isolate,
+                           const char* kMethodName, bool is_shared) {
   HandleScope scope(isolate);
   Handle<Object> start = args.at(1);
   Handle<Object> end = args.atOrUndefined(isolate, 2);
 
-  // 2. If Type(O) is not Object, throw a TypeError exception.
-  // 3. If O does not have an [[ArrayBufferData]] internal slot, throw a
-  //    TypeError exception.
+  // * If Type(O) is not Object, throw a TypeError exception.
+  // * If O does not have an [[ArrayBufferData]] internal slot, throw a
+  //   TypeError exception.
   CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);
-  // 4. If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
-  CHECK_IS_NOT_SHARED_ARRAY_BUFFER(array_buffer, kMethodName);
+  // * [AB] If IsSharedArrayBuffer(O) is true, throw a TypeError exception.
+  // * [SAB] If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
+  CHECK_SHARED(is_shared, array_buffer, kMethodName);
 
-  // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  if (array_buffer->was_neutered()) {
+  // * [AB] If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+  if (!is_shared && array_buffer->was_neutered()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   kMethodName)));
   }
 
-  // 6. Let len be O.[[ArrayBufferByteLength]].
+  // * [AB] Let len be O.[[ArrayBufferByteLength]].
+  // * [SAB] Let len be O.[[ArrayBufferByteLength]].
   double const len = array_buffer->byte_length()->Number();
 
-  // 7. Let relativeStart be ? ToInteger(start).
+  // * Let relativeStart be ? ToInteger(start).
   Handle<Object> relative_start;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, relative_start,
                                      Object::ToInteger(isolate, start));
 
-  // 8. If relativeStart < 0, let first be max((len + relativeStart), 0); else
-  //    let first be min(relativeStart, len).
+  // * If relativeStart < 0, let first be max((len + relativeStart), 0); else
+  //   let first be min(relativeStart, len).
   double const first = (relative_start->Number() < 0)
                            ? Max(len + relative_start->Number(), 0.0)
                            : Min(relative_start->Number(), len);
   Handle<Object> first_obj = isolate->factory()->NewNumber(first);
 
-  // 9. If end is undefined, let relativeEnd be len; else let relativeEnd be ?
-  //    ToInteger(end).
+  // * If end is undefined, let relativeEnd be len; else let relativeEnd be ?
+  //   ToInteger(end).
   double relative_end;
   if (end->IsUndefined(isolate)) {
     relative_end = len;
@@ -139,24 +149,27 @@ BUILTIN(ArrayBufferPrototypeSlice) {
     relative_end = relative_end_obj->Number();
   }
 
-  // 10. If relativeEnd < 0, let final be max((len + relativeEnd), 0); else let
-  //     final be min(relativeEnd, len).
+  // * If relativeEnd < 0, let final be max((len + relativeEnd), 0); else let
+  //   final be min(relativeEnd, len).
   double const final_ = (relative_end < 0) ? Max(len + relative_end, 0.0)
                                            : Min(relative_end, len);
 
-  // 11. Let newLen be max(final-first, 0).
+  // * Let newLen be max(final-first, 0).
   double const new_len = Max(final_ - first, 0.0);
   Handle<Object> new_len_obj = isolate->factory()->NewNumber(new_len);
 
-  // 12. Let ctor be ? SpeciesConstructor(O, %ArrayBuffer%).
-  Handle<JSFunction> arraybuffer_fun = isolate->array_buffer_fun();
+  // * [AB] Let ctor be ? SpeciesConstructor(O, %ArrayBuffer%).
+  // * [SAB] Let ctor be ? SpeciesConstructor(O, %SharedArrayBuffer%).
+  Handle<JSFunction> constructor_fun = is_shared
+                                           ? isolate->shared_array_buffer_fun()
+                                           : isolate->array_buffer_fun();
   Handle<Object> ctor;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, ctor,
       Object::SpeciesConstructor(
-          isolate, Handle<JSReceiver>::cast(args.receiver()), arraybuffer_fun));
+          isolate, Handle<JSReceiver>::cast(args.receiver()), constructor_fun));
 
-  // 13. Let new be ? Construct(ctor, newLen).
+  // * Let new be ? Construct(ctor, newLen).
   Handle<JSReceiver> new_;
   {
     const int argc = 1;
@@ -172,8 +185,8 @@ BUILTIN(ArrayBufferPrototypeSlice) {
     new_ = Handle<JSReceiver>::cast(new_obj);
   }
 
-  // 14. If new does not have an [[ArrayBufferData]] internal slot, throw a
-  //     TypeError exception.
+  // * If new does not have an [[ArrayBufferData]] internal slot, throw a
+  //   TypeError exception.
   if (!new_->IsJSArrayBuffer()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
@@ -182,42 +195,53 @@ BUILTIN(ArrayBufferPrototypeSlice) {
                      new_));
   }
 
-  // 15. If IsSharedArrayBuffer(new) is true, throw a TypeError exception.
+  // * [AB] If IsSharedArrayBuffer(new) is true, throw a TypeError exception.
+  // * [SAB] If IsSharedArrayBuffer(new) is false, throw a TypeError exception.
   Handle<JSArrayBuffer> new_array_buffer = Handle<JSArrayBuffer>::cast(new_);
-  CHECK_IS_NOT_SHARED_ARRAY_BUFFER(new_array_buffer, kMethodName);
+  CHECK_SHARED(is_shared, new_array_buffer, kMethodName);
 
-  // 16. If IsDetachedBuffer(new) is true, throw a TypeError exception.
-  if (new_array_buffer->was_neutered()) {
+  // * [AB] If IsDetachedBuffer(new) is true, throw a TypeError exception.
+  if (!is_shared && new_array_buffer->was_neutered()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   kMethodName)));
   }
 
-  // 17. If SameValue(new, O) is true, throw a TypeError exception.
-  if (new_->SameValue(*args.receiver())) {
+  // * [AB] If SameValue(new, O) is true, throw a TypeError exception.
+  if (!is_shared && new_->SameValue(*args.receiver())) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kArrayBufferSpeciesThis));
   }
 
-  // 18. If new.[[ArrayBufferByteLength]] < newLen, throw a TypeError exception.
-  if (new_array_buffer->byte_length()->Number() < new_len) {
+  // * [SAB] If new.[[ArrayBufferData]] and O.[[ArrayBufferData]] are the same
+  //         Shared Data Block values, throw a TypeError exception.
+  if (is_shared &&
+      new_array_buffer->backing_store() == array_buffer->backing_store()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kArrayBufferTooShort));
+        isolate, NewTypeError(MessageTemplate::kSharedArrayBufferSpeciesThis));
   }
 
-  // 19. NOTE: Side-effects of the above steps may have detached O.
-  // 20. If IsDetachedBuffer(O) is true, throw a TypeError exception.
-  if (array_buffer->was_neutered()) {
+  // * If new.[[ArrayBufferByteLength]] < newLen, throw a TypeError exception.
+  if (new_array_buffer->byte_length()->Number() < new_len) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(is_shared ? MessageTemplate::kSharedArrayBufferTooShort
+                               : MessageTemplate::kArrayBufferTooShort));
+  }
+
+  // * [AB] NOTE: Side-effects of the above steps may have detached O.
+  // * [AB] If IsDetachedBuffer(O) is true, throw a TypeError exception.
+  if (!is_shared && array_buffer->was_neutered()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   kMethodName)));
   }
 
-  // 21. Let fromBuf be O.[[ArrayBufferData]].
-  // 22. Let toBuf be new.[[ArrayBufferData]].
-  // 23. Perform CopyDataBlockBytes(toBuf, 0, fromBuf, first, newLen).
+  // * Let fromBuf be O.[[ArrayBufferData]].
+  // * Let toBuf be new.[[ArrayBufferData]].
+  // * Perform CopyDataBlockBytes(toBuf, 0, fromBuf, first, newLen).
   size_t first_size = 0, new_len_size = 0;
   CHECK(TryNumberToSize(*first_obj, &first_size));
   CHECK(TryNumberToSize(*new_len_obj, &new_len_size));
@@ -236,6 +260,19 @@ BUILTIN(ArrayBufferPrototypeSlice) {
   }
 
   return *new_;
+}
+
+// ES #sec-sharedarraybuffer.prototype.slice
+BUILTIN(SharedArrayBufferPrototypeSlice) {
+  const char* const kMethodName = "SharedArrayBuffer.prototype.slice";
+  return SliceHelper(args, isolate, kMethodName, true);
+}
+
+// ES #sec-arraybuffer.prototype.slice
+// ArrayBuffer.prototype.slice ( start, end )
+BUILTIN(ArrayBufferPrototypeSlice) {
+  const char* const kMethodName = "ArrayBuffer.prototype.slice";
+  return SliceHelper(args, isolate, kMethodName, false);
 }
 
 }  // namespace internal

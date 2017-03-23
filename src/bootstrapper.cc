@@ -221,8 +221,10 @@ class Genesis BASE_EMBEDDED {
   void InitializeGlobal_experimental_fast_array_builtins();
 
   Handle<JSFunction> InstallArrayBuffer(Handle<JSObject> target,
-                                        const char* name, Builtins::Name call,
-                                        BuiltinFunctionId id, bool is_shared);
+                                        const char* name,
+                                        Builtins::Name call_byteLength,
+                                        BuiltinFunctionId byteLength_id,
+                                        Builtins::Name call_slice);
   Handle<JSFunction> InstallInternalArray(Handle<JSObject> target,
                                           const char* name,
                                           ElementsKind elements_kind);
@@ -2562,7 +2564,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- A r r a y B u f f e r
     Handle<JSFunction> array_buffer_fun = InstallArrayBuffer(
         global, "ArrayBuffer", Builtins::kArrayBufferPrototypeGetByteLength,
-        BuiltinFunctionId::kArrayBufferByteLength, false);
+        BuiltinFunctionId::kArrayBufferByteLength,
+        Builtins::kArrayBufferPrototypeSlice);
     InstallWithIntrinsicDefaultProto(isolate, array_buffer_fun,
                                      Context::ARRAY_BUFFER_FUN_INDEX);
     InstallSpeciesGetter(array_buffer_fun);
@@ -3723,7 +3726,8 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   Handle<JSFunction> shared_array_buffer_fun =
       InstallArrayBuffer(global, "SharedArrayBuffer",
                          Builtins::kSharedArrayBufferPrototypeGetByteLength,
-                         BuiltinFunctionId::kSharedArrayBufferByteLength, true);
+                         BuiltinFunctionId::kSharedArrayBufferByteLength,
+                         Builtins::kSharedArrayBufferPrototypeSlice);
   native_context()->set_shared_array_buffer_fun(*shared_array_buffer_fun);
 
   Handle<String> name = factory->InternalizeUtf8String("Atomics");
@@ -3927,9 +3931,9 @@ void Genesis::InitializeGlobal_icu_case_mapping() {
 
 Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
                                                const char* name,
-                                               Builtins::Name call,
-                                               BuiltinFunctionId id,
-                                               bool is_shared) {
+                                               Builtins::Name call_byteLength,
+                                               BuiltinFunctionId byteLength_id,
+                                               Builtins::Name call_slice) {
   // Create the %ArrayBufferPrototype%
   // Setup the {prototype} with the given {name} for @@toStringTag.
   Handle<JSObject> prototype =
@@ -3956,14 +3960,10 @@ Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
                         Builtins::kArrayBufferIsView, 1, true);
 
   // Install the "byteLength" getter on the {prototype}.
-  SimpleInstallGetter(prototype, factory()->byte_length_string(), call, false,
-                      id);
+  SimpleInstallGetter(prototype, factory()->byte_length_string(),
+                      call_byteLength, false, byteLength_id);
 
-  // TODO(binji): support SharedArrayBuffer.prototype.slice as well.
-  if (!is_shared) {
-    SimpleInstallFunction(prototype, "slice",
-                          Builtins::kArrayBufferPrototypeSlice, 2, true);
-  }
+  SimpleInstallFunction(prototype, "slice", call_slice, 2, true);
 
   return array_buffer_fun;
 }
