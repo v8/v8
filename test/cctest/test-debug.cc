@@ -6620,7 +6620,7 @@ TEST(DebugCoverage) {
       "f();\n"
       "f();");
   CompileRun(source);
-  v8::debug::Coverage coverage = v8::debug::Coverage::Collect(isolate, false);
+  v8::debug::Coverage coverage = v8::debug::Coverage::CollectPrecise(isolate);
   CHECK_EQ(1u, coverage.ScriptCount());
   v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(0);
   v8::Local<v8::debug::Script> script = script_data.GetScript();

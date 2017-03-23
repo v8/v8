@@ -1,6 +1,6 @@
 Test collecting code coverage data with Profiler.collectCoverage.
 
-Running test: testPreciseBaseline
+Running test: testPreciseCountBaseline
 {
     id : <messageId>
     result : {
@@ -17,9 +17,19 @@ Running test: testPreciseBaseline
                             }
                         ]
                     }
+                    [1] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
                 ]
                 scriptId : <scriptId>
-                url : 0
+                url : testPreciseCountBaseline
             }
         ]
     }
@@ -40,15 +50,25 @@ Running test: testPreciseBaseline
                             }
                         ]
                     }
+                    [1] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
                 ]
                 scriptId : <scriptId>
-                url : 0
+                url : testPreciseCountBaseline
             }
         ]
     }
 }
 
-Running test: testPreciseCoverage
+Running test: testPreciseCountCoverage
 {
     id : <messageId>
     result : {
@@ -65,7 +85,7 @@ Running test: testPreciseCoverage
                         ranges : [
                             [0] : {
                                 count : 1
-                                endOffset : 119
+                                endOffset : 221
                                 startOffset : 0
                             }
                         ]
@@ -81,18 +101,28 @@ Running test: testPreciseCoverage
                         ]
                     }
                     [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
                         functionName : iife
                         ranges : [
                             [0] : {
                                 count : 1
-                                endOffset : 106
-                                startOffset : 75
+                                endOffset : 208
+                                startOffset : 177
                             }
                         ]
                     }
                 ]
                 scriptId : <scriptId>
-                url : 1
+                url : testPreciseCountCoverage
             }
             [1] : {
                 functions : [
@@ -101,7 +131,7 @@ Running test: testPreciseCoverage
                         ranges : [
                             [0] : {
                                 count : 1
-                                endOffset : 11
+                                endOffset : 38
                                 startOffset : 0
                             }
                         ]
@@ -124,7 +154,7 @@ Running test: testPreciseCoverage
                         ranges : [
                             [0] : {
                                 count : 0
-                                endOffset : 119
+                                endOffset : 221
                                 startOffset : 0
                             }
                         ]
@@ -140,18 +170,28 @@ Running test: testPreciseCoverage
                         ]
                     }
                     [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
                         functionName : iife
                         ranges : [
                             [0] : {
                                 count : 0
-                                endOffset : 106
-                                startOffset : 75
+                                endOffset : 208
+                                startOffset : 177
                             }
                         ]
                     }
                 ]
                 scriptId : <scriptId>
-                url : 1
+                url : testPreciseCountCoverage
             }
             [1] : {
                 functions : [
@@ -160,7 +200,7 @@ Running test: testPreciseCoverage
                         ranges : [
                             [0] : {
                                 count : 0
-                                endOffset : 11
+                                endOffset : 38
                                 startOffset : 0
                             }
                         ]
@@ -218,7 +258,7 @@ Running test: testBestEffortCoverage
     }
 }
 
-Running test: testBestEffortCoveragePrecise
+Running test: testBestEffortCoverageWithPreciseBinaryEnabled
 {
     id : <messageId>
     result : {
@@ -240,7 +280,7 @@ Running test: testBestEffortCoveragePrecise
                         ranges : [
                             [0] : {
                                 count : 1
-                                endOffset : 119
+                                endOffset : 221
                                 startOffset : 0
                             }
                         ]
@@ -249,25 +289,35 @@ Running test: testBestEffortCoveragePrecise
                         functionName : fib
                         ranges : [
                             [0] : {
-                                count : 15
+                                count : 1
                                 endOffset : 73
                                 startOffset : 1
                             }
                         ]
                     }
                     [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
                         functionName : iife
                         ranges : [
                             [0] : {
                                 count : 1
-                                endOffset : 106
-                                startOffset : 75
+                                endOffset : 208
+                                startOffset : 177
                             }
                         ]
                     }
                 ]
                 scriptId : <scriptId>
-                url : 4
+                url : testBestEffortCoverageWithPreciseBinaryEnabled
             }
             [1] : {
                 functions : [
@@ -276,7 +326,7 @@ Running test: testBestEffortCoveragePrecise
                         ranges : [
                             [0] : {
                                 count : 1
-                                endOffset : 11
+                                endOffset : 38
                                 startOffset : 0
                             }
                         ]
@@ -299,7 +349,7 @@ Running test: testBestEffortCoveragePrecise
                         ranges : [
                             [0] : {
                                 count : 1
-                                endOffset : 119
+                                endOffset : 221
                                 startOffset : 0
                             }
                         ]
@@ -308,25 +358,35 @@ Running test: testBestEffortCoveragePrecise
                         functionName : fib
                         ranges : [
                             [0] : {
-                                count : 15
+                                count : 1
                                 endOffset : 73
                                 startOffset : 1
                             }
                         ]
                     }
                     [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
                         functionName : iife
                         ranges : [
                             [0] : {
                                 count : 1
-                                endOffset : 106
-                                startOffset : 75
+                                endOffset : 208
+                                startOffset : 177
                             }
                         ]
                     }
                 ]
                 scriptId : <scriptId>
-                url : 4
+                url : testBestEffortCoverageWithPreciseBinaryEnabled
             }
             [1] : {
                 functions : [
@@ -335,7 +395,7 @@ Running test: testBestEffortCoveragePrecise
                         ranges : [
                             [0] : {
                                 count : 1
-                                endOffset : 11
+                                endOffset : 38
                                 startOffset : 0
                             }
                         ]
@@ -348,7 +408,157 @@ Running test: testBestEffortCoveragePrecise
     }
 }
 
-Running test: testEnablePreciseCoverageAtPause
+Running test: testBestEffortCoverageWithPreciseCountEnabled
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 8
+            type : number
+            value : 8
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 221
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : fib
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 73
+                                startOffset : 1
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : iife
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 208
+                                startOffset : 177
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testBestEffortCoverageWithPreciseCountEnabled
+            }
+            [1] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 38
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 221
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : fib
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 73
+                                startOffset : 1
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : iife
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 208
+                                startOffset : 177
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testBestEffortCoverageWithPreciseCountEnabled
+            }
+            [1] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 38
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+    }
+}
+
+Running test: testEnablePreciseCountCoverageAtPause
 {
     id : <messageId>
     result : {
@@ -405,7 +615,7 @@ Running test: testEnablePreciseCoverageAtPause
                     }
                 ]
                 scriptId : <scriptId>
-                url : 5
+                url : testEnablePreciseCountCoverageAtPause
             }
             [1] : {
                 functions : [
@@ -414,7 +624,185 @@ Running test: testEnablePreciseCoverageAtPause
                         ranges : [
                             [0] : {
                                 count : 1
-                                endOffset : 11
+                                endOffset : 38
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+        ]
+    }
+}
+
+Running test: testPreciseBinaryCoverage
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 8
+            type : number
+            value : 8
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 221
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : fib
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 73
+                                startOffset : 1
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : iife
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 208
+                                startOffset : 177
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testPreciseBinaryCoverage
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : unoptimized
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 10946
+            type : number
+            value : 10946
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : optimized
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 221
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                    [1] : {
+                        functionName : fib
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 73
+                                startOffset : 1
+                            }
+                        ]
+                    }
+                    [2] : {
+                        functionName : is_optimized
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 175
+                                startOffset : 74
+                            }
+                        ]
+                    }
+                    [3] : {
+                        functionName : iife
+                        ranges : [
+                            [0] : {
+                                count : 0
+                                endOffset : 208
+                                startOffset : 177
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : testPreciseBinaryCoverage
+            }
+            [1] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 17
+                                startOffset : 0
+                            }
+                        ]
+                    }
+                ]
+                scriptId : <scriptId>
+                url : 
+            }
+            [2] : {
+                functions : [
+                    [0] : {
+                        functionName : 
+                        ranges : [
+                            [0] : {
+                                count : 1
+                                endOffset : 7
                                 startOffset : 0
                             }
                         ]

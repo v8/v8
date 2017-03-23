@@ -902,6 +902,9 @@
             },
             {
                 "name": "startPreciseCoverage",
+                "parameters": [
+                    { "name": "callCount", "type": "boolean", "optional": true, "description": "Collect accurate call counts beyond simple 'covered' or 'not covered'." }
+                ],
                 "description": "Enable precise code coverage. Coverage data for JavaScript executed before enabling precise code coverage may be incomplete. Enabling prevents running optimized code and resets execution counters.",
                 "experimental": true
             },

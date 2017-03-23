@@ -6031,6 +6031,8 @@ BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, debug_is_blackboxed,
                kDebugIsBlackboxed)
 BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, computed_debug_is_blackboxed,
                kComputedDebugIsBlackboxed)
+BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, has_reported_binary_coverage,
+               kHasReportedBinaryCoverage)
 
 bool Script::HasValidSource() {
   Object* src = this->source();

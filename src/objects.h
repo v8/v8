@@ -7181,6 +7181,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that |debug_is_blackboxed| has been computed and set.
   DECL_BOOLEAN_ACCESSORS(computed_debug_is_blackboxed)
 
+  // Indicates that the function has been reported for binary code coverage.
+  DECL_BOOLEAN_ACCESSORS(has_reported_binary_coverage)
+
   // The function's name if it is non-empty, otherwise the inferred name.
   String* DebugName();
 
@@ -7581,6 +7584,7 @@ class SharedFunctionInfo: public HeapObject {
     kComputedHasNoSideEffect,
     kDebugIsBlackboxed,
     kComputedDebugIsBlackboxed,
+    kHasReportedBinaryCoverage
   };
 
   // kFunctionKind has to be byte-aligned

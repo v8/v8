@@ -217,20 +217,27 @@ class V8_EXPORT_PRIVATE Coverage {
  public:
   enum Mode {
     // Make use of existing information in feedback vectors on the heap.
+    // Only return a yes/no result. Optimization and GC are not affected.
+    // Collecting best effort coverage does not reset counters.
     kBestEffort,
     // Disable optimization and prevent feedback vectors from being garbage
-    // collected in order to get precise invocation counts.
+    // collected in order to preserve precise invocation counts. Collecting
+    // precise count coverage resets counters to get incremental updates.
     kPreciseCount,
+    // We are only interested in a yes/no result for the function. Optimization
+    // and GC can be allowed once a function has been invoked. Collecting
+    // precise binary coverage resets counters for incremental updates.
+    kPreciseBinary
   };
 
   class ScriptData;  // Forward declaration.
 
   class V8_EXPORT_PRIVATE FunctionData {
    public:
-    int StartOffset();
-    int EndOffset();
-    uint32_t Count();
-    MaybeLocal<String> Name();
+    int StartOffset() const;
+    int EndOffset() const;
+    uint32_t Count() const;
+    MaybeLocal<String> Name() const;
 
    private:
     explicit FunctionData(i::CoverageFunction* function)
@@ -242,9 +249,9 @@ class V8_EXPORT_PRIVATE Coverage {
 
   class V8_EXPORT_PRIVATE ScriptData {
    public:
-    Local<debug::Script> GetScript();
-    size_t FunctionCount();
-    FunctionData GetFunctionData(size_t i);
+    Local<debug::Script> GetScript() const;
+    size_t FunctionCount() const;
+    FunctionData GetFunctionData(size_t i) const;
 
    private:
     explicit ScriptData(i::CoverageScript* script) : script_(script) {}
@@ -253,13 +260,14 @@ class V8_EXPORT_PRIVATE Coverage {
     friend class v8::debug::Coverage;
   };
 
-  static Coverage Collect(Isolate* isolate, bool reset_count);
+  static Coverage CollectPrecise(Isolate* isolate);
+  static Coverage CollectBestEffort(Isolate* isolate);
 
   static void SelectMode(Isolate* isolate, Mode mode);
 
-  size_t ScriptCount();
-  ScriptData GetScriptData(size_t i);
-  bool IsEmpty() { return coverage_ == nullptr; }
+  size_t ScriptCount() const;
+  ScriptData GetScriptData(size_t i) const;
+  bool IsEmpty() const { return coverage_ == nullptr; }
 
   ~Coverage();
 

@@ -1904,7 +1904,12 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   // Collect coverage data.
-  std::unique_ptr<Coverage> coverage(Coverage::Collect(isolate, false));
+  std::unique_ptr<Coverage> coverage;
+  if (isolate->is_best_effort_code_coverage()) {
+    coverage.reset(Coverage::CollectBestEffort(isolate));
+  } else {
+    coverage.reset(Coverage::CollectPrecise(isolate));
+  }
   Factory* factory = isolate->factory();
   // Turn the returned data structure into JavaScript.
   // Create an array of scripts.

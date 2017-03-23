@@ -1692,7 +1692,7 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
 void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
   if (!file) return;
   HandleScope handle_scope(isolate);
-  debug::Coverage coverage = debug::Coverage::Collect(isolate, false);
+  debug::Coverage coverage = debug::Coverage::CollectPrecise(isolate);
   std::ofstream sink(file, std::ofstream::app);
   for (size_t i = 0; i < coverage.ScriptCount(); i++) {
     debug::Coverage::ScriptData script_data = coverage.GetScriptData(i);

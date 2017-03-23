@@ -59,13 +59,31 @@ bool CompareSharedFunctionInfo(SharedFunctionInfo* a, SharedFunctionInfo* b) {
 }
 }  // anonymous namespace
 
-Coverage* Coverage::Collect(Isolate* isolate, bool reset_count) {
+Coverage* Coverage::CollectPrecise(Isolate* isolate) {
+  DCHECK(!isolate->is_best_effort_code_coverage());
+  Coverage* result = Collect(isolate, isolate->code_coverage_mode());
+  if (isolate->is_precise_binary_code_coverage()) {
+    // We do not have to hold onto feedback vectors for invocations we already
+    // reported. So we can reset the list.
+    isolate->SetCodeCoverageList(*ArrayList::New(isolate, 0));
+  }
+  return result;
+}
+
+Coverage* Coverage::CollectBestEffort(Isolate* isolate) {
+  return Collect(isolate, v8::debug::Coverage::kBestEffort);
+}
+
+Coverage* Coverage::Collect(Isolate* isolate,
+                            v8::debug::Coverage::Mode collectionMode) {
   SharedToCounterMap counter_map;
 
-  // Feed invocation count into the counter map.
   switch (isolate->code_coverage_mode()) {
-    case debug::Coverage::kPreciseCount: {
+    case v8::debug::Coverage::kPreciseBinary:
+    case v8::debug::Coverage::kPreciseCount: {
+      bool reset_count = collectionMode != v8::debug::Coverage::kBestEffort;
       // Feedback vectors are already listed to prevent losing them to GC.
+      DCHECK(isolate->factory()->code_coverage_list()->IsArrayList());
       Handle<ArrayList> list =
           Handle<ArrayList>::cast(isolate->factory()->code_coverage_list());
       for (int i = 0; i < list->Length(); i++) {
@@ -78,9 +96,9 @@ Coverage* Coverage::Collect(Isolate* isolate, bool reset_count) {
       }
       break;
     }
-    case debug::Coverage::kBestEffort: {
-      // Iterate the heap to find all feedback vectors and accumulate the
-      // invocation counts into the map for each shared function info.
+    case v8::debug::Coverage::kBestEffort: {
+      DCHECK(!isolate->factory()->code_coverage_list()->IsArrayList());
+      DCHECK_EQ(v8::debug::Coverage::kBestEffort, collectionMode);
       HeapIterator heap_iterator(isolate->heap());
       while (HeapObject* current_obj = heap_iterator.next()) {
         if (!current_obj->IsFeedbackVector()) continue;
@@ -88,7 +106,6 @@ Coverage* Coverage::Collect(Isolate* isolate, bool reset_count) {
         SharedFunctionInfo* shared = vector->shared_function_info();
         if (!shared->IsSubjectToDebugging()) continue;
         uint32_t count = static_cast<uint32_t>(vector->invocation_count());
-        if (reset_count) vector->clear_invocation_count();
         counter_map.Add(shared, count);
       }
       break;
@@ -123,6 +140,19 @@ Coverage* Coverage::Collect(Isolate* isolate, bool reset_count) {
       int start = StartPosition(info);
       int end = info->end_position();
       uint32_t count = counter_map.Get(info);
+      if (count != 0) {
+        switch (collectionMode) {
+          case v8::debug::Coverage::kPreciseCount:
+            break;
+          case v8::debug::Coverage::kPreciseBinary:
+            count = info->has_reported_binary_coverage() ? 0 : 1;
+            info->set_has_reported_binary_coverage(true);
+            break;
+          case v8::debug::Coverage::kBestEffort:
+            count = 1;
+            break;
+        }
+      }
       Handle<String> name(info->DebugName(), isolate);
       functions->emplace_back(start, end, count, name);
     }
@@ -135,6 +165,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
     case debug::Coverage::kBestEffort:
       isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
       break;
+    case debug::Coverage::kPreciseBinary:
     case debug::Coverage::kPreciseCount: {
       HandleScope scope(isolate);
       // Remove all optimized function. Optimized and inlined functions do not
@@ -145,11 +176,15 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
       {
         HeapIterator heap_iterator(isolate->heap());
         while (HeapObject* current_obj = heap_iterator.next()) {
-          if (!current_obj->IsFeedbackVector()) continue;
-          FeedbackVector* vector = FeedbackVector::cast(current_obj);
-          SharedFunctionInfo* shared = vector->shared_function_info();
-          if (!shared->IsSubjectToDebugging()) continue;
-          vectors.emplace_back(vector, isolate);
+          if (current_obj->IsSharedFunctionInfo()) {
+            SharedFunctionInfo* shared = SharedFunctionInfo::cast(current_obj);
+            shared->set_has_reported_binary_coverage(false);
+          } else if (current_obj->IsFeedbackVector()) {
+            FeedbackVector* vector = FeedbackVector::cast(current_obj);
+            SharedFunctionInfo* shared = vector->shared_function_info();
+            if (!shared->IsSubjectToDebugging()) continue;
+            vectors.emplace_back(vector, isolate);
+          }
         }
       }
       // Add collected feedback vectors to the root list lest we lose them to

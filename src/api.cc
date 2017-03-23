@@ -9611,38 +9611,47 @@ Local<String> CpuProfileNode::GetFunctionName() const {
   }
 }
 
-int debug::Coverage::FunctionData::StartOffset() { return function_->start; }
-int debug::Coverage::FunctionData::EndOffset() { return function_->end; }
-uint32_t debug::Coverage::FunctionData::Count() { return function_->count; }
+int debug::Coverage::FunctionData::StartOffset() const {
+  return function_->start;
+}
+int debug::Coverage::FunctionData::EndOffset() const { return function_->end; }
+uint32_t debug::Coverage::FunctionData::Count() const {
+  return function_->count;
+}
 
-MaybeLocal<String> debug::Coverage::FunctionData::Name() {
+MaybeLocal<String> debug::Coverage::FunctionData::Name() const {
   return ToApiHandle<String>(function_->name);
 }
 
-Local<debug::Script> debug::Coverage::ScriptData::GetScript() {
+Local<debug::Script> debug::Coverage::ScriptData::GetScript() const {
   return ToApiHandle<debug::Script>(script_->script);
 }
 
-size_t debug::Coverage::ScriptData::FunctionCount() {
+size_t debug::Coverage::ScriptData::FunctionCount() const {
   return script_->functions.size();
 }
 
 debug::Coverage::FunctionData debug::Coverage::ScriptData::GetFunctionData(
-    size_t i) {
+    size_t i) const {
   return FunctionData(&script_->functions.at(i));
 }
 
 debug::Coverage::~Coverage() { delete coverage_; }
 
-size_t debug::Coverage::ScriptCount() { return coverage_->size(); }
+size_t debug::Coverage::ScriptCount() const { return coverage_->size(); }
 
-debug::Coverage::ScriptData debug::Coverage::GetScriptData(size_t i) {
+debug::Coverage::ScriptData debug::Coverage::GetScriptData(size_t i) const {
   return ScriptData(&coverage_->at(i));
 }
 
-debug::Coverage debug::Coverage::Collect(Isolate* isolate, bool reset_count) {
-  return Coverage(i::Coverage::Collect(reinterpret_cast<i::Isolate*>(isolate),
-                                       reset_count));
+debug::Coverage debug::Coverage::CollectPrecise(Isolate* isolate) {
+  return Coverage(
+      i::Coverage::CollectPrecise(reinterpret_cast<i::Isolate*>(isolate)));
+}
+
+debug::Coverage debug::Coverage::CollectBestEffort(Isolate* isolate) {
+  return Coverage(
+      i::Coverage::CollectBestEffort(reinterpret_cast<i::Isolate*>(isolate)));
 }
 
 void debug::Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
