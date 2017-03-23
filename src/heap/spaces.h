@@ -342,8 +342,8 @@ class MemoryChunk {
       + 2 * kPointerSize  // base::VirtualMemory reservation_
       + kPointerSize      // Address owner_
       + kPointerSize      // Heap* heap_
-      + kIntSize          // int progress_bar_
-      + kIntSize          // int live_bytes_count_
+      + kIntptrSize       // intptr_t progress_bar_
+      + kIntptrSize       // intptr_t live_byte_count_
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
       + kPointerSize                                   // SkipList* skip_list_
@@ -442,7 +442,7 @@ class MemoryChunk {
     switch (mode) {
       case MarkingMode::FULL:
         DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
-        return live_byte_count_;
+        return static_cast<int>(live_byte_count_);
       case MarkingMode::YOUNG_GENERATION:
         DCHECK_LE(static_cast<unsigned>(young_generation_live_byte_count_),
                   size_);
@@ -489,8 +489,8 @@ class MemoryChunk {
   void ReleaseTypedSlotSet();
   void AllocateLocalTracker();
   void ReleaseLocalTracker();
-  void AllocateExternalBitmap();
-  void ReleaseExternalBitmap();
+  void AllocateYoungGenerationBitmap();
+  void ReleaseYoungGenerationBitmap();
 
   Address area_start() { return area_start_; }
   Address area_end() { return area_end_; }
@@ -505,7 +505,7 @@ class MemoryChunk {
 
   int progress_bar() {
     DCHECK(IsFlagSet(HAS_PROGRESS_BAR));
-    return progress_bar_;
+    return static_cast<int>(progress_bar_);
   }
 
   void set_progress_bar(int progress_bar) {
@@ -527,11 +527,9 @@ class MemoryChunk {
   }
 
   template <MarkingMode mode = MarkingMode::FULL>
-  inline int* live_bytes_address() {
-    // TODO(mlippautz): Fix type of live_byte_count_.
-    return mode == MarkingMode::FULL
-               ? &live_byte_count_
-               : reinterpret_cast<int*>(&young_generation_live_byte_count_);
+  inline intptr_t* live_bytes_address() {
+    return mode == MarkingMode::FULL ? &live_byte_count_
+                                     : &young_generation_live_byte_count_;
   }
 
   inline uint32_t AddressToMarkbitIndex(Address addr) const {
@@ -542,6 +540,7 @@ class MemoryChunk {
     return this->address() + (index << kPointerSizeLog2);
   }
 
+  template <MarkingMode mode = MarkingMode::FULL>
   void ClearLiveness();
 
   void PrintMarkbits() { markbits()->Print(); }
@@ -651,10 +650,10 @@ class MemoryChunk {
 
   // Used by the incremental marker to keep track of the scanning progress in
   // large objects that have a progress bar and are scanned in increments.
-  int progress_bar_;
+  intptr_t progress_bar_;
 
   // Count of bytes marked black on page.
-  int live_byte_count_;
+  intptr_t live_byte_count_;
 
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array

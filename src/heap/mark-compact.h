@@ -45,7 +45,7 @@ class MarkingState {
         chunk->live_bytes_address<MarkingMode::YOUNG_GENERATION>());
   }
 
-  MarkingState(Bitmap* bitmap, int* live_bytes)
+  MarkingState(Bitmap* bitmap, intptr_t* live_bytes)
       : bitmap(bitmap), live_bytes(live_bytes) {}
 
   void IncrementLiveBytes(intptr_t by) const {
@@ -61,7 +61,7 @@ class MarkingState {
   }
 
   Bitmap* bitmap;
-  int* live_bytes;
+  intptr_t* live_bytes;
 };
 
 // TODO(mlippautz): Remove duplicate accessors once the architecture for

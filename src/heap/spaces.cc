@@ -538,7 +538,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->mutex_ = new base::Mutex();
   chunk->available_in_free_list_ = 0;
   chunk->wasted_memory_ = 0;
-  chunk->ResetLiveBytes();
   chunk->ClearLiveness();
   chunk->young_generation_bitmap_ = nullptr;
   chunk->set_next_chunk(nullptr);
@@ -1120,7 +1119,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   ReleaseTypedSlotSet<OLD_TO_NEW>();
   ReleaseTypedSlotSet<OLD_TO_OLD>();
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
-  if (young_generation_bitmap_ != nullptr) ReleaseExternalBitmap();
+  if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
 }
 
 static SlotSet* AllocateAndInitializeSlotSet(size_t size, Address page_start) {
@@ -1198,22 +1197,25 @@ void MemoryChunk::ReleaseLocalTracker() {
   local_tracker_ = nullptr;
 }
 
-void MemoryChunk::AllocateExternalBitmap() {
+void MemoryChunk::AllocateYoungGenerationBitmap() {
   DCHECK_NULL(young_generation_bitmap_);
   young_generation_bitmap_ = static_cast<Bitmap*>(calloc(1, Bitmap::kSize));
-  young_generation_live_byte_count_ = 0;
 }
 
-void MemoryChunk::ReleaseExternalBitmap() {
+void MemoryChunk::ReleaseYoungGenerationBitmap() {
   DCHECK_NOT_NULL(young_generation_bitmap_);
   free(young_generation_bitmap_);
   young_generation_bitmap_ = nullptr;
 }
 
+template <MarkingMode mode>
 void MemoryChunk::ClearLiveness() {
-  markbits()->Clear();
-  ResetLiveBytes();
+  markbits<mode>()->Clear();
+  ResetLiveBytes<mode>();
 }
+
+template void MemoryChunk::ClearLiveness<MarkingMode::FULL>();
+template void MemoryChunk::ClearLiveness<MarkingMode::YOUNG_GENERATION>();
 
 // -----------------------------------------------------------------------------
 // PagedSpace implementation

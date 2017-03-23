@@ -180,6 +180,10 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
   Page* page = static_cast<Page*>(chunk);
   heap->incremental_marking()->SetNewSpacePageFlags(page);
   page->AllocateLocalTracker();
+  if (FLAG_minor_mc) {
+    page->AllocateYoungGenerationBitmap();
+    page->ClearLiveness<MarkingMode::YOUNG_GENERATION>();
+  }
   return page;
 }
 

@@ -2336,9 +2336,6 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   RootMarkingVisitor root_visitor(this);
 
   marking_deque()->StartUsing();
-  for (Page* p : heap()->new_space()->to_space()) {
-    p->AllocateExternalBitmap();
-  }
 
   isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
       &Heap::IsUnmodifiedHeapObject);
@@ -2383,11 +2380,6 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
     ProcessMarkingDeque();
   }
 
-  // TODO(mlippautz): External bitmap should be deallocated after evacuation.
-  for (Page* p : PageRange(heap()->new_space()->FromSpaceStart(),
-                           heap()->new_space()->FromSpaceEnd())) {
-    p->ReleaseExternalBitmap();
-  }
   marking_deque()->StopUsing();
 }
 
@@ -2987,8 +2979,8 @@ static inline SlotCallbackResult UpdateSlot(Object** slot) {
           reinterpret_cast<base::AtomicWord*>(slot),
           reinterpret_cast<base::AtomicWord>(obj),
           reinterpret_cast<base::AtomicWord>(target));
-      DCHECK(!heap_obj->GetHeap()->InFromSpace(target) &&
-             !MarkCompactCollector::IsOnEvacuationCandidate(target));
+      DCHECK(!heap_obj->GetHeap()->InFromSpace(target));
+      DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
     }
   }
   return REMOVE_SLOT;
@@ -3047,8 +3039,9 @@ void MarkCompactCollector::EvacuatePrologue() {
   new_space->ResetAllocationInfo();
 
   // Old space.
-  CHECK(old_space_evacuation_pages_.is_empty());
+  DCHECK(old_space_evacuation_pages_.is_empty());
   old_space_evacuation_pages_.Swap(&evacuation_candidates_);
+  DCHECK(evacuation_candidates_.is_empty());
 }
 
 void MarkCompactCollector::EvacuateEpilogue() {
@@ -3170,7 +3163,7 @@ class FullEvacuator : public Evacuator {
 bool FullEvacuator::EvacuatePage(Page* page, const MarkingState& state) {
   bool success = false;
   DCHECK(page->SweepingDone());
-  int saved_live_bytes = *state.live_bytes;
+  intptr_t saved_live_bytes = *state.live_bytes;
   double evacuation_time = 0.0;
   {
     AlwaysAllocateScope always_allocate(heap()->isolate());
@@ -3232,7 +3225,7 @@ bool FullEvacuator::EvacuatePage(Page* page, const MarkingState& state) {
     PrintIsolate(heap()->isolate(),
                  "evacuation[%p]: page=%p new_space=%d "
                  "page_evacuation=%d executable=%d contains_age_mark=%d "
-                 "live_bytes=%d time=%f\n",
+                 "live_bytes=%" V8PRIdPTR " time=%f\n",
                  static_cast<void*>(this), static_cast<void*>(page),
                  page->InNewSpace(),
                  page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
