@@ -106,7 +106,7 @@
       'V8 Linux64 - cfi': 'gyp_release_x64_cfi_symbolized',
       'V8 Linux - vtunejit': 'gn_debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'gyp_release_x64_gcc_coverage',
-      'V8 Linux - predictable': 'gyp_release_x86_predictable',
+      'V8 Linux - predictable': 'gn_release_x86_predictable',
       'V8 Linux - full debug': 'gyp_full_debug_x86',
       'V8 Linux - interpreted regexp': 'gyp_release_x86_interpreted_regexp',
       'V8 Random Deopt Fuzzer - debug': 'gyp_debug_x86',
@@ -424,6 +424,8 @@
       'v8_snapshot_none'],
     'gn_release_x86_no_snap_trybot': [
       'gn', 'release_trybot', 'x86', 'swarming', 'v8_snapshot_none'],
+    'gn_release_x86_predictable': [
+      'gn', 'release_bot', 'x86', 'v8_enable_verify_predictable'],
     'gn_release_x86_shared_verify_heap': [
       'gn', 'release', 'x86', 'goma', 'shared', 'swarming', 'v8_verify_heap'],
     'gn_release_x86_trybot': [
@@ -474,8 +476,6 @@
       'gyp', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gyp_release_x86_interpreted_regexp': [
       'gyp', 'release_bot', 'x86', 'v8_interpreted_regexp'],
-    'gyp_release_x86_predictable': [
-      'gyp', 'release_bot', 'x86', 'v8_enable_verify_predictable'],
   },
 
   'mixins': {
