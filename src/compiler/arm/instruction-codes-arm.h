@@ -104,7 +104,9 @@ namespace compiler {
   V(ArmVldrF32)                    \
   V(ArmVstrF32)                    \
   V(ArmVldrF64)                    \
+  V(ArmVld1F64)                    \
   V(ArmVstrF64)                    \
+  V(ArmVst1F64)                    \
   V(ArmFloat32Max)                 \
   V(ArmFloat64Max)                 \
   V(ArmFloat32Min)                 \

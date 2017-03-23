@@ -560,7 +560,6 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
       return;
     }
     case MachineRepresentation::kFloat64: {
-      // TODO(arm): use vld1.8 for this when NEON is available.
       // Compute the address of the least-significant half of the FP value.
       // We assume that the base node is unlikely to be an encodable immediate
       // or the result of a shift operation, so only consider the addressing
@@ -572,8 +571,8 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
       size_t input_count;
       if (TryMatchImmediateOrShift(this, &add_opcode, index, &input_count,
                                    &inputs[1])) {
-        // input_count has been set by TryMatchImmediateOrShift(), so increment
-        // it to account for the base register in inputs[0].
+        // input_count has been set by TryMatchImmediateOrShift(), so
+        // increment it to account for the base register in inputs[0].
         input_count++;
       } else {
         add_opcode |= AddressingModeField::encode(kMode_Operand2_R);
@@ -584,13 +583,18 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
       InstructionOperand addr = g.TempRegister();
       Emit(add_opcode, 1, &addr, input_count, inputs);
 
-      // Load both halves and move to an FP register.
-      InstructionOperand fp_lo = g.TempRegister();
-      InstructionOperand fp_hi = g.TempRegister();
-      opcode |= AddressingModeField::encode(kMode_Offset_RI);
-      Emit(opcode, fp_lo, addr, g.TempImmediate(0));
-      Emit(opcode, fp_hi, addr, g.TempImmediate(4));
-      Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), fp_lo, fp_hi);
+      if (CpuFeatures::IsSupported(NEON)) {
+        // With NEON we can load directly from the calculated address.
+        Emit(kArmVld1F64, g.DefineAsRegister(node), addr);
+      } else {
+        // Load both halves and move to an FP register.
+        InstructionOperand fp_lo = g.TempRegister();
+        InstructionOperand fp_hi = g.TempRegister();
+        opcode |= AddressingModeField::encode(kMode_Offset_RI);
+        Emit(opcode, fp_lo, addr, g.TempImmediate(0));
+        Emit(opcode, fp_hi, addr, g.TempImmediate(4));
+        Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), fp_lo, fp_hi);
+      }
       return;
     }
     default:
@@ -624,30 +628,57 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
       return;
     }
     case MachineRepresentation::kFloat64: {
-      // TODO(arm): use vst1.8 for this when NEON is available.
-      // Store a 64-bit floating point value using two 32-bit integer stores.
-      // Computing the store address here would require three live temporary
-      // registers (fp<63:32>, fp<31:0>, address), so compute base + 4 after
-      // storing the least-significant half of the value.
+      if (CpuFeatures::IsSupported(NEON)) {
+        InstructionOperand address = g.TempRegister();
+        {
+          // First we have to calculate the actual address.
+          InstructionCode add_opcode = kArmAdd;
+          InstructionOperand inputs[3];
+          inputs[0] = g.UseRegister(base);
 
-      // First, move the 64-bit FP value into two temporary integer registers.
-      InstructionOperand fp[] = {g.TempRegister(), g.TempRegister()};
-      inputs[input_count++] = g.UseRegister(value);
-      Emit(kArmVmovU32U32F64, arraysize(fp), fp, input_count,
-           inputs);
+          size_t input_count;
+          if (TryMatchImmediateOrShift(this, &add_opcode, index, &input_count,
+                                       &inputs[1])) {
+            // input_count has been set by TryMatchImmediateOrShift(), so
+            // increment it to account for the base register in inputs[0].
+            input_count++;
+          } else {
+            add_opcode |= AddressingModeField::encode(kMode_Operand2_R);
+            inputs[1] = g.UseRegister(index);
+            input_count = 2;  // Base register and index.
+          }
 
-      // Store the least-significant half.
-      inputs[0] = fp[0];  // Low 32-bits of FP value.
-      inputs[input_count++] = g.UseRegister(base);  // First store base address.
-      EmitStore(this, kArmStr, input_count, inputs, index);
+          Emit(add_opcode, 1, &address, input_count, inputs);
+        }
 
-      // Store the most-significant half.
-      InstructionOperand base4 = g.TempRegister();
-      Emit(kArmAdd | AddressingModeField::encode(kMode_Operand2_I), base4,
-           g.UseRegister(base), g.TempImmediate(4));  // Compute base + 4.
-      inputs[0] = fp[1];  // High 32-bits of FP value.
-      inputs[1] = base4;  // Second store base + 4 address.
-      EmitStore(this, kArmStr, input_count, inputs, index);
+        inputs[input_count++] = g.UseRegister(value);
+        inputs[input_count++] = address;
+        Emit(kArmVst1F64, 0, nullptr, input_count, inputs);
+      } else {
+        // Store a 64-bit floating point value using two 32-bit integer stores.
+        // Computing the store address here would require three live temporary
+        // registers (fp<63:32>, fp<31:0>, address), so compute base + 4 after
+        // storing the least-significant half of the value.
+
+        // First, move the 64-bit FP value into two temporary integer registers.
+        InstructionOperand fp[] = {g.TempRegister(), g.TempRegister()};
+        inputs[input_count++] = g.UseRegister(value);
+        Emit(kArmVmovU32U32F64, arraysize(fp), fp, input_count, inputs);
+
+        // Store the least-significant half.
+        inputs[0] = fp[0];  // Low 32-bits of FP value.
+        inputs[input_count++] =
+            g.UseRegister(base);  // First store base address.
+        EmitStore(this, kArmStr, input_count, inputs, index);
+
+        // Store the most-significant half.
+        InstructionOperand base4 = g.TempRegister();
+        Emit(kArmAdd | AddressingModeField::encode(kMode_Operand2_I), base4,
+             g.UseRegister(base), g.TempImmediate(4));  // Compute base + 4.
+        inputs[0] = fp[1];  // High 32-bits of FP value.
+        inputs[1] = base4;  // Second store base + 4 address.
+        EmitStore(this, kArmStr, input_count, inputs, index);
+      }
       return;
     }
     default:

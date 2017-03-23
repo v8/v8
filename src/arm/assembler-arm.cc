@@ -468,7 +468,6 @@ NeonMemOperand::NeonMemOperand(Register rn, Register rm, int align) {
   SetAlignment(align);
 }
 
-
 void NeonMemOperand::SetAlignment(int align) {
   switch (align) {
     case 0:

@@ -1443,6 +1443,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vstr(i.InputFloatRegister(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArmVld1F64: {
+      __ vld1(NeonSize::Neon8, NeonListOperand(i.OutputDoubleRegister()),
+              NeonMemOperand(i.InputRegister(0)));
+      break;
+    }
+    case kArmVst1F64: {
+      __ vst1(Neon8, NeonListOperand(i.InputDoubleRegister(0)),
+              NeonMemOperand(i.InputRegister(1)));
+      break;
+    }
     case kArmVldrF64:
       __ vldr(i.OutputDoubleRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
