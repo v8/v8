@@ -664,25 +664,14 @@
   # need to re-enable these for the "new" validator.
   'code-coverage-precise': [SKIP],
   'object-freeze': [SKIP],
+  'es6/completion': [SKIP],
+  'es6/function-length-configurable': [SKIP],
+  'es6/object-assign': [SKIP],
+  'es6/proxies-cross-realm-exception': [SKIP],
+  'harmony/function-tostring': [SKIP],
   'regress/regress-599068-func-bindings': [SKIP],
   'regress/regress-619382': [SKIP],
   'regress/regress-632289': [SKIP],
-
-  # Skip stuff uninteresting for asm.js
-  'bugs/*': [SKIP],
-  'compiler/*': [SKIP],
-  'es6/*': [SKIP],
-  'es7/*': [SKIP],
-  'es8/*': [SKIP],
-  'harmony/*': [SKIP],
-  'ignition/*': [SKIP],
-  'lithium/*': [SKIP],
-  'third_party/*': [SKIP],
-  'tools/*': [SKIP],
-  'apply': [SKIP],
-  'math-*': [SKIP],
-  'unicode-test': [SKIP],
-  'whitespaces': [SKIP],
 }],  # variant == asm_wasm
 
 ['variant == wasm_traps', {
