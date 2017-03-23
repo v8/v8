@@ -1262,7 +1262,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             __ mov(StoreDescriptor::ValueRegister(), result_register());
             DCHECK(StoreDescriptor::ValueRegister().is(a0));
             __ lw(StoreDescriptor::ReceiverRegister(), MemOperand(sp));
-            CallStoreIC(property->GetSlot(0), key->value(), true);
+            CallStoreIC(property->GetSlot(0), key->value(), kStoreOwn);
             PrepareForBailoutForId(key->id(), BailoutState::NO_REGISTERS);
 
             if (NeedsHomeObject(value)) {
@@ -1733,7 +1733,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     // Global var, const, or let.
     __ mov(StoreDescriptor::ValueRegister(), result_register());
     __ LoadGlobalObject(StoreDescriptor::ReceiverRegister());
-    CallStoreIC(slot, var->name());
+    CallStoreIC(slot, var->name(), kStoreGlobal);
 
   } else if (IsLexicalVariableMode(var->mode()) && op != Token::INIT) {
     DCHECK(!var->IsLookupSlot());

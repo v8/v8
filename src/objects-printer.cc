@@ -722,7 +722,9 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
       }
       case FeedbackSlotKind::kStoreNamedSloppy:
       case FeedbackSlotKind::kStoreNamedStrict:
-      case FeedbackSlotKind::kStoreOwnNamed: {
+      case FeedbackSlotKind::kStoreOwnNamed:
+      case FeedbackSlotKind::kStoreGlobalSloppy:
+      case FeedbackSlotKind::kStoreGlobalStrict: {
         StoreICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;

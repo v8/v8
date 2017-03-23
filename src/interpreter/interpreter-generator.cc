@@ -388,7 +388,7 @@ void InterpreterGenerator::DoStaGlobal(Callable ic,
 // Store the value in the accumulator into the global with name in constant pool
 // entry <name_index> using FeedBackVector slot <slot> in sloppy mode.
 void InterpreterGenerator::DoStaGlobalSloppy(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY);
+  Callable ic = CodeFactory::StoreGlobalICInOptimizedCode(isolate_, SLOPPY);
   DoStaGlobal(ic, assembler);
 }
 
@@ -397,7 +397,7 @@ void InterpreterGenerator::DoStaGlobalSloppy(InterpreterAssembler* assembler) {
 // Store the value in the accumulator into the global with name in constant pool
 // entry <name_index> using FeedBackVector slot <slot> in strict mode.
 void InterpreterGenerator::DoStaGlobalStrict(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::StoreICInOptimizedCode(isolate_, STRICT);
+  Callable ic = CodeFactory::StoreGlobalICInOptimizedCode(isolate_, STRICT);
   DoStaGlobal(ic, assembler);
 }
 

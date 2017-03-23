@@ -55,7 +55,8 @@ class IC {
     return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
   bool IsAnyStore() const {
-    return IsStoreIC() || IsStoreOwnIC() || IsKeyedStoreIC();
+    return IsStoreIC() || IsStoreOwnIC() || IsStoreGlobalIC() ||
+           IsKeyedStoreIC();
   }
 
   // The ICs that don't pass slot and vector through the stack have to
@@ -140,6 +141,7 @@ class IC {
   bool IsLoadIC() const { return IsLoadICKind(kind_); }
   bool IsLoadGlobalIC() const { return IsLoadGlobalICKind(kind_); }
   bool IsKeyedLoadIC() const { return IsKeyedLoadICKind(kind_); }
+  bool IsStoreGlobalIC() const { return IsStoreGlobalICKind(kind_); }
   bool IsStoreIC() const { return IsStoreICKind(kind_); }
   bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
@@ -348,7 +350,7 @@ class StoreIC : public IC {
  protected:
   // Stub accessors.
   Handle<Code> slow_stub() const {
-    // StoreIC and KeyedStoreIC share the same slow stub.
+    // All StoreICs share the same slow stub.
     return isolate()->builtins()->KeyedStoreIC_Slow();
   }
 
@@ -367,6 +369,15 @@ class StoreIC : public IC {
   friend class IC;
 };
 
+class StoreGlobalIC : public StoreIC {
+ public:
+  StoreGlobalIC(Isolate* isolate, FeedbackNexus* nexus)
+      : StoreIC(isolate, nexus) {}
+
+  MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
+                                            Handle<Name> name,
+                                            Handle<Object> value);
+};
 
 enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };
 

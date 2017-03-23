@@ -1566,6 +1566,10 @@ void Logger::LogCodeObject(Object* object) {
       description = "A store IC from the snapshot";
       tag = CodeEventListener::STORE_IC_TAG;
       break;
+    case AbstractCode::STORE_GLOBAL_IC:
+      description = "A store global IC from the snapshot";
+      tag = CodeEventListener::STORE_GLOBAL_IC_TAG;
+      break;
     case AbstractCode::KEYED_STORE_IC:
       description = "A keyed store IC from the snapshot";
       tag = CodeEventListener::KEYED_STORE_IC_TAG;

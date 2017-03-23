@@ -116,43 +116,47 @@ bool FeedbackMetadata::SpecDiffersFrom(
 const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
   switch (kind) {
     case FeedbackSlotKind::kInvalid:
-      return "INVALID";
+      return "Invalid";
     case FeedbackSlotKind::kCall:
-      return "CALL_IC";
+      return "Call";
     case FeedbackSlotKind::kLoadProperty:
-      return "LOAD_IC";
+      return "LoadProperty";
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
-      return "LOAD_GLOBAL_INSIDE_TYPEOF_IC";
+      return "LoadGlobalInsideTypeof";
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
-      return "LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC";
+      return "LoadGlobalNotInsideTypeof";
     case FeedbackSlotKind::kLoadKeyed:
-      return "KEYED_LOAD_IC";
+      return "LoadKeyed";
     case FeedbackSlotKind::kStoreNamedSloppy:
-      return "STORE_SLOPPY_IC";
+      return "StoreNamedSloppy";
     case FeedbackSlotKind::kStoreNamedStrict:
-      return "STORE_STRICT_IC";
+      return "StoreNamedStrict";
     case FeedbackSlotKind::kStoreOwnNamed:
-      return "STORE_OWN_IC";
+      return "StoreOwnNamed";
+    case FeedbackSlotKind::kStoreGlobalSloppy:
+      return "StoreGlobalSloppy";
+    case FeedbackSlotKind::kStoreGlobalStrict:
+      return "StoreGlobalStrict";
     case FeedbackSlotKind::kStoreKeyedSloppy:
-      return "KEYED_STORE_SLOPPY_IC";
+      return "StoreKeyedSloppy";
     case FeedbackSlotKind::kStoreKeyedStrict:
-      return "KEYED_STORE_STRICT_IC";
+      return "StoreKeyedStrict";
     case FeedbackSlotKind::kBinaryOp:
-      return "INTERPRETER_BINARYOP_IC";
+      return "BinaryOp";
     case FeedbackSlotKind::kCompareOp:
-      return "INTERPRETER_COMPARE_IC";
+      return "CompareOp";
     case FeedbackSlotKind::kToBoolean:
-      return "TO_BOOLEAN_IC";
+      return "ToBoolean";
     case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-      return "STORE_DATA_PROPERTY_IN_LITERAL_IC";
+      return "StoreDataPropertyInLiteral";
     case FeedbackSlotKind::kCreateClosure:
       return "kCreateClosure";
     case FeedbackSlotKind::kLiteral:
-      return "LITERAL";
+      return "Literal";
     case FeedbackSlotKind::kTypeProfile:
-      return "TYPE_PROFILE";
+      return "TypeProfile";
     case FeedbackSlotKind::kGeneral:
-      return "STUB";
+      return "General";
     case FeedbackSlotKind::kKindsNumber:
       break;
   }
@@ -240,6 +244,8 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kStoreNamedSloppy:
       case FeedbackSlotKind::kStoreNamedStrict:
       case FeedbackSlotKind::kStoreOwnNamed:
+      case FeedbackSlotKind::kStoreGlobalSloppy:
+      case FeedbackSlotKind::kStoreGlobalStrict:
       case FeedbackSlotKind::kStoreKeyedSloppy:
       case FeedbackSlotKind::kStoreKeyedStrict:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
@@ -341,7 +347,9 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
         }
         case FeedbackSlotKind::kStoreNamedSloppy:
         case FeedbackSlotKind::kStoreNamedStrict:
-        case FeedbackSlotKind::kStoreOwnNamed: {
+        case FeedbackSlotKind::kStoreOwnNamed:
+        case FeedbackSlotKind::kStoreGlobalSloppy:
+        case FeedbackSlotKind::kStoreGlobalStrict: {
           StoreICNexus nexus(this, slot);
           if (!nexus.IsCleared()) {
             nexus.Clear();

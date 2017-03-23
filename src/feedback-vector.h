@@ -27,6 +27,8 @@ enum class FeedbackSlotKind {
   kLoadGlobalNotInsideTypeof,
   kLoadGlobalInsideTypeof,
   kLoadKeyed,
+  kStoreGlobalSloppy,
+  kStoreGlobalStrict,
   kStoreNamedSloppy,
   kStoreNamedStrict,
   kStoreOwnNamed,
@@ -62,6 +64,11 @@ inline bool IsKeyedLoadICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kLoadKeyed;
 }
 
+inline bool IsStoreGlobalICKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kStoreGlobalSloppy ||
+         kind == FeedbackSlotKind::kStoreGlobalStrict;
+}
+
 inline bool IsStoreICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kStoreNamedSloppy ||
          kind == FeedbackSlotKind::kStoreNamedStrict;
@@ -89,8 +96,9 @@ inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
 
 inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
   DCHECK(IsStoreICKind(kind) || IsStoreOwnICKind(kind) ||
-         IsKeyedStoreICKind(kind));
+         IsStoreGlobalICKind(kind) || IsKeyedStoreICKind(kind));
   return (kind == FeedbackSlotKind::kStoreNamedSloppy ||
+          kind == FeedbackSlotKind::kStoreGlobalSloppy ||
           kind == FeedbackSlotKind::kStoreKeyedSloppy)
              ? SLOPPY
              : STRICT;
@@ -130,6 +138,13 @@ class FeedbackVectorSpecBase {
 
   FeedbackSlot AddStoreOwnICSlot() {
     return AddSlot(FeedbackSlotKind::kStoreOwnNamed);
+  }
+
+  FeedbackSlot AddStoreGlobalICSlot(LanguageMode language_mode) {
+    STATIC_ASSERT(LANGUAGE_END == 2);
+    return AddSlot(is_strict(language_mode)
+                       ? FeedbackSlotKind::kStoreGlobalStrict
+                       : FeedbackSlotKind::kStoreGlobalSloppy);
   }
 
   FeedbackSlot AddKeyedStoreICSlot(LanguageMode language_mode) {
@@ -336,6 +351,7 @@ class FeedbackVector : public FixedArray {
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedLoadIC)
   DEFINE_SLOT_KIND_PREDICATE(IsStoreIC)
   DEFINE_SLOT_KIND_PREDICATE(IsStoreOwnIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsStoreGlobalIC)
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedStoreIC)
   DEFINE_SLOT_KIND_PREDICATE(IsTypeProfile)
 #undef DEFINE_SLOT_KIND_PREDICATE
@@ -616,11 +632,13 @@ class StoreICNexus : public FeedbackNexus {
  public:
   StoreICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
+    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot) ||
+           vector->IsStoreGlobalIC(slot));
   }
   StoreICNexus(FeedbackVector* vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
+    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot) ||
+           vector->IsStoreGlobalIC(slot));
   }
 
   void Clear() override { ConfigurePremonomorphic(); }

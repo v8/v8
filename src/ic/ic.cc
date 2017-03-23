@@ -1471,46 +1471,51 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
   return it->IsCacheableTransition();
 }
 
+MaybeHandle<Object> StoreGlobalIC::Store(Handle<Object> object,
+                                         Handle<Name> name,
+                                         Handle<Object> value) {
+  DCHECK(object->IsJSGlobalObject());
+  DCHECK(name->IsString());
+
+  // Look up in script context table.
+  Handle<String> str_name = Handle<String>::cast(name);
+  Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(object);
+  Handle<ScriptContextTable> script_contexts(
+      global->native_context()->script_context_table());
+
+  ScriptContextTable::LookupResult lookup_result;
+  if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
+    Handle<Context> script_context = ScriptContextTable::GetContext(
+        script_contexts, lookup_result.context_index);
+    if (lookup_result.mode == CONST) {
+      return TypeError(MessageTemplate::kConstAssign, object, name);
+    }
+
+    Handle<Object> previous_value =
+        FixedArray::get(*script_context, lookup_result.slot_index, isolate());
+
+    if (previous_value->IsTheHole(isolate())) {
+      // Do not install stubs and stay pre-monomorphic for
+      // uninitialized accesses.
+      return ReferenceError(name);
+    }
+
+    if (FLAG_use_ic && StoreScriptContextFieldStub::Accepted(&lookup_result)) {
+      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreScriptContextFieldStub);
+      StoreScriptContextFieldStub stub(isolate(), &lookup_result);
+      PatchCache(name, stub.GetCode());
+    }
+
+    script_context->set(lookup_result.slot_index, *value);
+    return value;
+  }
+
+  return StoreIC::Store(object, name, value);
+}
 
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    Handle<Object> value,
                                    JSReceiver::StoreFromKeyed store_mode) {
-  if (object->IsJSGlobalObject() && name->IsString()) {
-    // Look up in script context table.
-    Handle<String> str_name = Handle<String>::cast(name);
-    Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(object);
-    Handle<ScriptContextTable> script_contexts(
-        global->native_context()->script_context_table());
-
-    ScriptContextTable::LookupResult lookup_result;
-    if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
-      Handle<Context> script_context = ScriptContextTable::GetContext(
-          script_contexts, lookup_result.context_index);
-      if (lookup_result.mode == CONST) {
-        return TypeError(MessageTemplate::kConstAssign, object, name);
-      }
-
-      Handle<Object> previous_value =
-          FixedArray::get(*script_context, lookup_result.slot_index, isolate());
-
-      if (previous_value->IsTheHole(isolate())) {
-        // Do not install stubs and stay pre-monomorphic for
-        // uninitialized accesses.
-        return ReferenceError(name);
-      }
-
-      if (FLAG_use_ic &&
-          StoreScriptContextFieldStub::Accepted(&lookup_result)) {
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreScriptContextFieldStub);
-        StoreScriptContextFieldStub stub(isolate(), &lookup_result);
-        PatchCache(name, stub.GetCode());
-      }
-
-      script_context->set(lookup_result.slot_index, *value);
-      return value;
-    }
-  }
-
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(object) || object->IsJSProxy()) {
@@ -2359,6 +2364,11 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   if (IsStoreICKind(kind) || IsStoreOwnICKind(kind)) {
     StoreICNexus nexus(vector, vector_slot);
     StoreIC ic(isolate, &nexus);
+    ic.UpdateState(receiver, key);
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
+  } else if (IsStoreGlobalICKind(kind)) {
+    StoreICNexus nexus(vector, vector_slot);
+    StoreGlobalIC ic(isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   } else {

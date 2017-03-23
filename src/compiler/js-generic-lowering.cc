@@ -256,7 +256,7 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   const StoreGlobalParameters& p = StoreGlobalParametersOf(node->op());
   Callable callable =
-      CodeFactory::StoreICInOptimizedCode(isolate(), p.language_mode());
+      CodeFactory::StoreGlobalICInOptimizedCode(isolate(), p.language_mode());
   Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
   // Load global object from the context.
   Node* native_context = effect =

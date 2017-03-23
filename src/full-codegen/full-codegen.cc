@@ -217,7 +217,7 @@ void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {
 }
 
 void FullCodeGenerator::CallStoreIC(FeedbackSlot slot, Handle<Object> name,
-                                    bool store_own_property) {
+                                    StoreICKind store_ic_kind) {
   DCHECK(name->IsName());
   __ Move(StoreDescriptor::NameRegister(), name);
 
@@ -231,16 +231,26 @@ void FullCodeGenerator::CallStoreIC(FeedbackSlot slot, Handle<Object> name,
   }
 
   Handle<Code> code;
-  if (store_own_property) {
-    DCHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
-              feedback_vector_spec()->GetKind(slot));
-    code = CodeFactory::StoreOwnIC(isolate()).code();
-  } else {
-    // Ensure that language mode is in sync with the IC slot kind.
-    DCHECK_EQ(
-        GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
-        language_mode());
-    code = CodeFactory::StoreIC(isolate(), language_mode()).code();
+  switch (store_ic_kind) {
+    case kStoreOwn:
+      DCHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
+                feedback_vector_spec()->GetKind(slot));
+      code = CodeFactory::StoreOwnIC(isolate()).code();
+      break;
+    case kStoreGlobal:
+      // Ensure that language mode is in sync with the IC slot kind.
+      DCHECK_EQ(
+          GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
+          language_mode());
+      code = CodeFactory::StoreGlobalIC(isolate(), language_mode()).code();
+      break;
+    case kStoreNamed:
+      // Ensure that language mode is in sync with the IC slot kind.
+      DCHECK_EQ(
+          GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
+          language_mode());
+      code = CodeFactory::StoreIC(isolate(), language_mode()).code();
+      break;
   }
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();

@@ -65,6 +65,7 @@ class String;
   V(REG_EXP_TAG, "RegExp")                                               \
   V(SCRIPT_TAG, "Script")                                                \
   V(STORE_IC_TAG, "StoreIC")                                             \
+  V(STORE_GLOBAL_IC_TAG, "StoreGlobalIC")                                \
   V(STORE_POLYMORPHIC_IC_TAG, "StorePolymorphicIC")                      \
   V(STUB_TAG, "Stub")                                                    \
   V(NATIVE_FUNCTION_TAG, "Function")                                     \

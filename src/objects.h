@@ -4877,6 +4877,7 @@ class Code: public HeapObject {
   V(LOAD_GLOBAL_IC)     \
   V(KEYED_LOAD_IC)      \
   V(STORE_IC)           \
+  V(STORE_GLOBAL_IC)    \
   V(KEYED_STORE_IC)     \
   V(BINARY_OP_IC)       \
   V(COMPARE_IC)         \

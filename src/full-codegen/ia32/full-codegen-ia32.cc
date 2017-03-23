@@ -1193,7 +1193,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForAccumulatorValue(value);
             DCHECK(StoreDescriptor::ValueRegister().is(eax));
             __ mov(StoreDescriptor::ReceiverRegister(), Operand(esp, 0));
-            CallStoreIC(property->GetSlot(0), key->value(), true);
+            CallStoreIC(property->GetSlot(0), key->value(), kStoreOwn);
             PrepareForBailoutForId(key->id(), BailoutState::NO_REGISTERS);
             if (NeedsHomeObject(value)) {
               EmitSetHomeObjectAccumulator(value, 0, property->GetSlot(1));
@@ -1645,7 +1645,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     __ mov(StoreDescriptor::ReceiverRegister(),
            ContextOperand(StoreDescriptor::ReceiverRegister(),
                           Context::EXTENSION_INDEX));
-    CallStoreIC(slot, var->name());
+    CallStoreIC(slot, var->name(), kStoreGlobal);
 
   } else if (IsLexicalVariableMode(var->mode()) && op != Token::INIT) {
     DCHECK(!var->IsLookupSlot());

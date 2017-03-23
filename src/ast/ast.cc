@@ -250,16 +250,16 @@ static void AssignVectorSlots(Expression* expr, FeedbackVectorSpec* spec,
                               FeedbackSlot* out_slot) {
   Property* property = expr->AsProperty();
   LhsKind assign_type = Property::GetAssignType(property);
-  if ((assign_type == VARIABLE &&
-       expr->AsVariableProxy()->var()->IsUnallocated()) ||
-      assign_type == NAMED_PROPERTY || assign_type == KEYED_PROPERTY) {
-    // TODO(ishell): consider using ICSlotCache for variables here.
-    if (assign_type == KEYED_PROPERTY) {
-      *out_slot = spec->AddKeyedStoreICSlot(language_mode);
+  // TODO(ishell): consider using ICSlotCache for variables here.
+  if (assign_type == VARIABLE &&
+      expr->AsVariableProxy()->var()->IsUnallocated()) {
+    *out_slot = spec->AddStoreGlobalICSlot(language_mode);
 
-    } else {
-      *out_slot = spec->AddStoreICSlot(language_mode);
-    }
+  } else if (assign_type == NAMED_PROPERTY) {
+    *out_slot = spec->AddStoreICSlot(language_mode);
+
+  } else if (assign_type == KEYED_PROPERTY) {
+    *out_slot = spec->AddKeyedStoreICSlot(language_mode);
   }
 }
 

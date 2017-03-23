@@ -6573,13 +6573,15 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
     HValue* name = Add<HConstant>(var->name());
     HValue* vector_value = Add<HConstant>(vector);
     HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
+    DCHECK(vector->IsStoreGlobalIC(slot));
     DCHECK_EQ(vector->GetLanguageMode(slot), function_language_mode());
-    Callable callable = CodeFactory::StoreICInOptimizedCode(
+    Callable callable = CodeFactory::StoreGlobalICInOptimizedCode(
         isolate(), function_language_mode());
     HValue* stub = Add<HConstant>(callable.code());
     HValue* values[] = {global_object, name, value, slot_value, vector_value};
-    HCallWithDescriptor* instr = Add<HCallWithDescriptor>(
-        Code::STORE_IC, stub, 0, callable.descriptor(), ArrayVector(values));
+    HCallWithDescriptor* instr =
+        Add<HCallWithDescriptor>(Code::STORE_GLOBAL_IC, stub, 0,
+                                 callable.descriptor(), ArrayVector(values));
     USE(instr);
     DCHECK(instr->HasObservableSideEffects());
     Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
