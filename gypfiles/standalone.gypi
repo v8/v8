@@ -46,7 +46,7 @@
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.7',
     'release_extra_cflags%': '',
-    'v8_enable_inspector%': 0,
+    'v8_enable_inspector%': 1,
     'variables': {
       'variables': {
         'variables': {

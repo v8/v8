@@ -53,6 +53,11 @@
         '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
       ],
       'conditions': [
+        ['v8_enable_inspector == 0', {
+          'defines': [
+            'V8_INSPECTOR_ENABLED',
+          ],
+        }],
         [ 'want_separate_host_toolset==1', {
           'toolsets': [ 'target', ],
           'dependencies': [

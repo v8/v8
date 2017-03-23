@@ -34,7 +34,7 @@
     'warmup_script%': "",
     'v8_extra_library_files%': [],
     'v8_experimental_extra_library_files%': [],
-    'v8_enable_inspector%': 0,
+    'v8_enable_inspector%': 1,
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'mkpeephole_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkpeephole<(EXECUTABLE_SUFFIX)',
     'v8_os_page_size%': 0,
