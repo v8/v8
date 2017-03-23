@@ -136,6 +136,14 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   return ThrowRuntimeError(isolate, message_id, byte_offset, true);
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
+  SealHandleScope shs(isolate);
+  DCHECK_LE(0, args.length());
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
+  return isolate->StackOverflow();
+}
+
 RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());

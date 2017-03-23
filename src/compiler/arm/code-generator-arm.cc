@@ -2409,6 +2409,47 @@ void CodeGenerator::AssembleConstructFrame() {
 
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
   if (shrink_slots > 0) {
+    if (info()->IsWasm()) {
+      if (shrink_slots > 128) {
+        // For WebAssembly functions with big frames we have to do the stack
+        // overflow check before we construct the frame. Otherwise we may not
+        // have enough space on the stack to call the runtime for the stack
+        // overflow.
+        Label done;
+
+        // If the frame is bigger than the stack, we throw the stack overflow
+        // exception unconditionally. Thereby we can avoid the integer overflow
+        // check in the condition code.
+        if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
+          __ Move(kScratchReg,
+                  Operand(ExternalReference::address_of_real_stack_limit(
+                      isolate())));
+          __ ldr(kScratchReg, MemOperand(kScratchReg));
+          __ add(kScratchReg, kScratchReg,
+                 Operand(shrink_slots * kPointerSize));
+          __ cmp(sp, kScratchReg);
+          __ b(cs, &done);
+        }
+
+        if (!frame_access_state()->has_frame()) {
+          __ set_has_frame(true);
+          // There is no need to leave the frame, we will not return from the
+          // runtime call.
+          __ EnterFrame(StackFrame::WASM_COMPILED);
+        }
+        __ Move(cp, Smi::kZero);
+        __ CallRuntime(Runtime::kThrowWasmStackOverflow);
+        // We come from WebAssembly, there are no references for the GC.
+        ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+        RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                        Safepoint::kNoLazyDeopt);
+        if (FLAG_debug_code) {
+          __ stop(GetBailoutReason(kUnexpectedReturnFromThrow));
+        }
+
+        __ bind(&done);
+      }
+    }
     __ sub(sp, sp, Operand(shrink_slots * kPointerSize));
   }
 
