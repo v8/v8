@@ -1169,7 +1169,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         return LoadFullChain(map, holder_ref, lookup->name(), smi_handler);
       }
 
-      if (receiver_is_holder && !IsLoadGlobalIC()) {
+      if (receiver_is_holder) {
         DCHECK(map->has_named_interceptor());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorDH);
         return smi_handler;

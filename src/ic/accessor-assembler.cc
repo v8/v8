@@ -451,12 +451,8 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
   {
     Label load_from_cached_holder(this), done(this);
 
-    GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()),
+    Branch(WordEqual(maybe_holder_cell, NullConstant()), &done,
            &load_from_cached_holder);
-    {
-      var_holder->Bind(p->receiver);
-      Goto(&done);
-    }
 
     Bind(&load_from_cached_holder);
     {
@@ -553,7 +549,9 @@ void AccessorAssembler::HandleLoadGlobalICHandlerCase(
   Node* native_context = LoadNativeContext(p.context);
   p.receiver = LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
 
-  Variable var_holder(this, MachineRepresentation::kTagged);
+  Variable var_holder(
+      this, MachineRepresentation::kTagged,
+      LoadContextElement(native_context, Context::EXTENSION_INDEX));
   Variable var_smi_handler(this, MachineRepresentation::kTagged);
   Label if_smi_handler(this);
 
