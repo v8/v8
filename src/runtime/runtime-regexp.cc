@@ -1078,92 +1078,6 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   }
 }
 
-MUST_USE_RESULT MaybeHandle<String> StringReplaceNonGlobalRegExpWithFunction(
-    Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
-    Handle<Object> replace_obj) {
-  Factory* factory = isolate->factory();
-  Handle<RegExpMatchInfo> last_match_info = isolate->regexp_last_match_info();
-
-  const int flags = regexp->GetFlags();
-
-  DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));
-  DCHECK_EQ(flags & JSRegExp::kGlobal, 0);
-
-  // TODO(jgruber): This should be an easy port to CSA with massive payback.
-
-  const bool sticky = (flags & JSRegExp::kSticky) != 0;
-  uint32_t last_index = 0;
-  if (sticky) {
-    Handle<Object> last_index_obj(regexp->LastIndex(), isolate);
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
-                               Object::ToLength(isolate, last_index_obj),
-                               String);
-    last_index = PositiveNumberToUint32(*last_index_obj);
-
-    if (static_cast<int>(last_index) > subject->length()) last_index = 0;
-  }
-
-  Handle<Object> match_indices_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, match_indices_obj,
-      RegExpImpl::Exec(regexp, subject, last_index, last_match_info), String);
-
-  if (match_indices_obj->IsNull(isolate)) {
-    if (sticky) regexp->SetLastIndex(0);
-    return subject;
-  }
-
-  Handle<RegExpMatchInfo> match_indices =
-      Handle<RegExpMatchInfo>::cast(match_indices_obj);
-
-  const int index = match_indices->Capture(0);
-  const int end_of_match = match_indices->Capture(1);
-
-  if (sticky) regexp->SetLastIndex(end_of_match);
-
-  IncrementalStringBuilder builder(isolate);
-  builder.AppendString(factory->NewSubString(subject, 0, index));
-
-  // Compute the parameter list consisting of the match, captures, index,
-  // and subject for the replace function invocation.
-  // The number of captures plus one for the match.
-  const int m = match_indices->NumberOfCaptureRegisters() / 2;
-
-  const int argc = m + 2;
-  ScopedVector<Handle<Object>> argv(argc);
-
-  for (int j = 0; j < m; j++) {
-    bool ok;
-    Handle<String> capture =
-        RegExpUtils::GenericCaptureGetter(isolate, match_indices, j, &ok);
-    if (ok) {
-      argv[j] = capture;
-    } else {
-      argv[j] = factory->undefined_value();
-    }
-  }
-
-  argv[argc - 2] = handle(Smi::FromInt(index), isolate);
-  argv[argc - 1] = subject;
-
-  Handle<Object> replacement_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, replacement_obj,
-      Execution::Call(isolate, replace_obj, factory->undefined_value(), argc,
-                      argv.start()),
-      String);
-
-  Handle<String> replacement;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, replacement, Object::ToString(isolate, replacement_obj), String);
-
-  builder.AppendString(replacement);
-  builder.AppendString(
-      factory->NewSubString(subject, end_of_match, subject->length()));
-
-  return builder.Finish();
-}
-
 // Legacy implementation of RegExp.prototype[Symbol.replace] which
 // doesn't properly call the underlying exec method.
 MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
@@ -1293,15 +1207,89 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
 RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, replace, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, replace_obj, 2);
 
   DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));
 
-  RETURN_RESULT_OR_FAILURE(isolate, StringReplaceNonGlobalRegExpWithFunction(
-                                        isolate, subject, regexp, replace));
+  Factory* factory = isolate->factory();
+  Handle<RegExpMatchInfo> last_match_info = isolate->regexp_last_match_info();
+
+  const int flags = regexp->GetFlags();
+  DCHECK_EQ(flags & JSRegExp::kGlobal, 0);
+
+  // TODO(jgruber): This should be an easy port to CSA with massive payback.
+
+  const bool sticky = (flags & JSRegExp::kSticky) != 0;
+  uint32_t last_index = 0;
+  if (sticky) {
+    Handle<Object> last_index_obj(regexp->LastIndex(), isolate);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
+    last_index = PositiveNumberToUint32(*last_index_obj);
+
+    if (static_cast<int>(last_index) > subject->length()) last_index = 0;
+  }
+
+  Handle<Object> match_indices_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, match_indices_obj,
+      RegExpImpl::Exec(regexp, subject, last_index, last_match_info));
+
+  if (match_indices_obj->IsNull(isolate)) {
+    if (sticky) regexp->SetLastIndex(0);
+    return *subject;
+  }
+
+  Handle<RegExpMatchInfo> match_indices =
+      Handle<RegExpMatchInfo>::cast(match_indices_obj);
+
+  const int index = match_indices->Capture(0);
+  const int end_of_match = match_indices->Capture(1);
+
+  if (sticky) regexp->SetLastIndex(end_of_match);
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(factory->NewSubString(subject, 0, index));
+
+  // Compute the parameter list consisting of the match, captures, index,
+  // and subject for the replace function invocation.
+  // The number of captures plus one for the match.
+  const int m = match_indices->NumberOfCaptureRegisters() / 2;
+
+  const int argc = m + 2;
+  ScopedVector<Handle<Object>> argv(argc);
+
+  for (int j = 0; j < m; j++) {
+    bool ok;
+    Handle<String> capture =
+        RegExpUtils::GenericCaptureGetter(isolate, match_indices, j, &ok);
+    if (ok) {
+      argv[j] = capture;
+    } else {
+      argv[j] = factory->undefined_value();
+    }
+  }
+
+  argv[argc - 2] = handle(Smi::FromInt(index), isolate);
+  argv[argc - 1] = subject;
+
+  Handle<Object> replacement_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, replacement_obj,
+      Execution::Call(isolate, replace_obj, factory->undefined_value(), argc,
+                      argv.start()));
+
+  Handle<String> replacement;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, replacement, Object::ToString(isolate, replacement_obj));
+
+  builder.AppendString(replacement);
+  builder.AppendString(
+      factory->NewSubString(subject, end_of_match, subject->length()));
+
+  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
 }
 
 namespace {
