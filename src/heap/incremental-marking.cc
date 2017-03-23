@@ -153,6 +153,7 @@ class IncrementalMarkingMarkingVisitor
   static void Initialize() {
     StaticMarkingVisitor<IncrementalMarkingMarkingVisitor>::Initialize();
     table_.Register(kVisitFixedArray, &VisitFixedArrayIncremental);
+    table_.Register(kVisitNativeContext, &VisitNativeContextIncremental);
   }
 
   static const int kProgressBarScanningChunk = 32 * 1024;
@@ -196,6 +197,26 @@ class IncrementalMarkingMarkingVisitor
     } else {
       FixedArrayVisitor::Visit(map, object);
     }
+  }
+
+  static void VisitNativeContextIncremental(Map* map, HeapObject* object) {
+    Context* context = Context::cast(object);
+
+    // We will mark cache black with a separate pass when we finish marking.
+    // Note that GC can happen when the context is not fully initialized,
+    // so the cache can be undefined.
+    Object* cache = context->get(Context::NORMALIZED_MAP_CACHE_INDEX);
+    if (!cache->IsUndefined(map->GetIsolate())) {
+      if (cache->IsHeapObject()) {
+        HeapObject* heap_obj = HeapObject::cast(cache);
+        // Mark the object grey if it is white, do not enque it into the marking
+        // deque.
+        if (ObjectMarking::IsWhite(heap_obj)) {
+          ObjectMarking::WhiteToGrey(heap_obj);
+        }
+      }
+    }
+    VisitNativeContext(map, context);
   }
 
   INLINE(static void VisitPointer(Heap* heap, HeapObject* object, Object** p)) {

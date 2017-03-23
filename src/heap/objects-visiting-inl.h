@@ -295,13 +295,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitBytecodeArray(
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
     Map* map, HeapObject* object) {
-  // GC can happen when the context is not fully initialized,
-  // so the cache can be undefined.
-  Object* cache =
-      Context::cast(object)->get(Context::NORMALIZED_MAP_CACHE_INDEX);
-  if (cache->IsNormalizedMapCache()) {
-    NormalizedMapCache::cast(cache)->Clear();
-  }
   FixedBodyVisitor<StaticVisitor, Context::MarkCompactBodyDescriptor,
                    void>::Visit(map, object);
 }

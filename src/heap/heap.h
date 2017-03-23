@@ -862,6 +862,8 @@ class Heap {
   // scavenge operation.
   inline bool ShouldBePromoted(Address old_address, int object_size);
 
+  void ClearNormalizedMapCaches();
+
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
 
   // Completely clear the Instanceof cache (to stop it keeping objects alive
