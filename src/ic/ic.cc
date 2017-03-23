@@ -736,7 +736,7 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
 void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
   DCHECK(IsHandler(*handler));
   // Currently only load and store ICs support non-code handlers.
-  DCHECK(IsAnyLoad() || IsAnyStore());
+  DCHECK_IMPLIES(!handler->IsCode(), IsAnyLoad() || IsAnyStore());
   switch (state()) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
@@ -1015,17 +1015,69 @@ void IC::UpdateMegamorphicCache(Map* map, Name* name, Object* handler) {
 }
 
 void IC::TraceHandlerCacheHitStats(LookupIterator* lookup) {
-  DCHECK_EQ(LookupIterator::ACCESSOR, lookup->state());
-  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  if (!FLAG_runtime_call_stats) return;
+
   if (IsAnyLoad()) {
-    TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Accessor);
+    switch (lookup->state()) {
+      case LookupIterator::ACCESS_CHECK:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_AccessCheck);
+        break;
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Exotic);
+        break;
+      case LookupIterator::INTERCEPTOR:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Interceptor);
+        break;
+      case LookupIterator::JSPROXY:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_JSProxy);
+        break;
+      case LookupIterator::NOT_FOUND:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_NonExistent);
+        break;
+      case LookupIterator::ACCESSOR:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Accessor);
+        break;
+      case LookupIterator::DATA:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Data);
+        break;
+      case LookupIterator::TRANSITION:
+        TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Transition);
+        break;
+    }
+  } else if (IsAnyStore()) {
+    switch (lookup->state()) {
+      case LookupIterator::ACCESS_CHECK:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_AccessCheck);
+        break;
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Exotic);
+        break;
+      case LookupIterator::INTERCEPTOR:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Interceptor);
+        break;
+      case LookupIterator::JSPROXY:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_JSProxy);
+        break;
+      case LookupIterator::NOT_FOUND:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_NonExistent);
+        break;
+      case LookupIterator::ACCESSOR:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Accessor);
+        break;
+      case LookupIterator::DATA:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Data);
+        break;
+      case LookupIterator::TRANSITION:
+        TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Transition);
+        break;
+    }
   } else {
-    DCHECK(IsAnyStore());
-    TRACE_HANDLER_STATS(isolate(), StoreIC_HandlerCacheHit_Accessor);
+    TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
   }
 }
 
-Handle<Object> IC::ComputeHandler(LookupIterator* lookup) {
+Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
+                                  Handle<Object> value) {
   // Try to find a globally shared handler stub.
   Handle<Object> shared_handler = GetMapIndependentHandler(lookup);
   if (!shared_handler.is_null()) {
@@ -1033,7 +1085,7 @@ Handle<Object> IC::ComputeHandler(LookupIterator* lookup) {
     return shared_handler;
   }
 
-  Handle<Code> handler = PropertyHandlerCompiler::Find(
+  Handle<Object> handler = PropertyHandlerCompiler::Find(
       lookup->name(), receiver_map(), handler_kind());
   // Use the cached value if it exists, and if it is different from the
   // handler that just missed.
@@ -1063,21 +1115,25 @@ Handle<Object> IC::ComputeHandler(LookupIterator* lookup) {
     }
   }
 
-  handler = CompileHandler(lookup);
-  Map::UpdateCodeCache(receiver_map(), lookup->name(), handler);
+  handler = CompileHandler(lookup, value);
+  DCHECK(IC::IsHandler(*handler));
+  if (handler->IsCode()) {
+    Handle<Code> code = Handle<Code>::cast(handler);
+    Map::UpdateCodeCache(receiver_map(), lookup->name(), code);
+  }
   return handler;
 }
 
 Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
   if (receiver->IsString() &&
-      *lookup->name() == isolate()->heap()->length_string()) {
+      Name::Equals(isolate()->factory()->length_string(), lookup->name())) {
     FieldIndex index = FieldIndex::ForInObjectOffset(String::kLengthOffset);
     return SimpleFieldLoad(isolate(), index);
   }
 
   if (receiver->IsStringWrapper() &&
-      *lookup->name() == isolate()->heap()->length_string()) {
+      Name::Equals(isolate()->factory()->length_string(), lookup->name())) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_StringLengthStub);
     StringLengthStub string_length_stub(isolate());
     return string_length_stub.GetCode();
@@ -1085,7 +1141,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
   // Use specialized code for getting prototype of functions.
   if (receiver->IsJSFunction() &&
-      *lookup->name() == isolate()->heap()->prototype_string() &&
+      Name::Equals(isolate()->factory()->prototype_string(), lookup->name()) &&
       receiver->IsConstructor() &&
       !Handle<JSFunction>::cast(receiver)
            ->map()
@@ -1243,45 +1299,63 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
   return Handle<Code>::null();
 }
 
-Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup) {
-  DCHECK_EQ(LookupIterator::ACCESSOR, lookup->state());
+Handle<Object> LoadIC::CompileHandler(LookupIterator* lookup,
+                                      Handle<Object> unused) {
   Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-  Handle<Map> map = receiver_map();
 #ifdef DEBUG
   // Only used by DCHECKs below.
   Handle<Object> receiver = lookup->GetReceiver();
   // Non-map-specific handler stubs have already been selected.
   CHECK(!receiver->IsString() ||
-        *lookup->name() != isolate()->heap()->length_string());
+        !Name::Equals(isolate()->factory()->length_string(), lookup->name()));
   CHECK(!receiver->IsStringWrapper() ||
-        *lookup->name() != isolate()->heap()->length_string());
+        !Name::Equals(isolate()->factory()->length_string(), lookup->name()));
 
-  CHECK(!(receiver->IsJSFunction() &&
-          *lookup->name() != isolate()->heap()->prototype_string() &&
-          receiver->IsConstructor() &&
-          !Handle<JSFunction>::cast(receiver)
-               ->map()
-               ->has_non_instance_prototype()));
-
-  int object_offset;
-  DCHECK(
-      !Accessors::IsJSObjectFieldAccessor(map, lookup->name(), &object_offset));
+  CHECK(!(
+      receiver->IsJSFunction() &&
+      Name::Equals(isolate()->factory()->prototype_string(), lookup->name()) &&
+      receiver->IsConstructor() &&
+      !Handle<JSFunction>::cast(receiver)
+           ->map()
+           ->has_non_instance_prototype()));
 #endif
 
-  Handle<Object> accessors = lookup->GetAccessors();
-  DCHECK(accessors->IsAccessorPair());
-  DCHECK(holder->HasFastProperties());
-  DCHECK(!GetHostFunction()->shared()->HasDebugInfo());
-  Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
-                        isolate());
-  CallOptimization call_optimization(getter);
-  NamedLoadHandlerCompiler compiler(isolate(), map, holder);
-  DCHECK(call_optimization.is_simple_api_call());
-  TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
-  int index = lookup->GetAccessorIndex();
-  Handle<Code> code = compiler.CompileLoadCallback(
-      lookup->name(), call_optimization, index, slow_stub());
-  return code;
+  Handle<Map> map = receiver_map();
+  switch (lookup->state()) {
+    case LookupIterator::ACCESSOR: {
+#ifdef DEBUG
+      int object_offset;
+      DCHECK(!Accessors::IsJSObjectFieldAccessor(map, lookup->name(),
+                                                 &object_offset));
+#endif
+
+      Handle<Object> accessors = lookup->GetAccessors();
+      DCHECK(accessors->IsAccessorPair());
+      DCHECK(holder->HasFastProperties());
+      DCHECK(!GetHostFunction()->shared()->HasDebugInfo());
+      Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
+                            isolate());
+      CallOptimization call_optimization(getter);
+      NamedLoadHandlerCompiler compiler(isolate(), map, holder);
+      DCHECK(call_optimization.is_simple_api_call());
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
+      int index = lookup->GetAccessorIndex();
+      Handle<Code> code = compiler.CompileLoadCallback(
+          lookup->name(), call_optimization, index, slow_stub());
+      return code;
+    }
+
+    case LookupIterator::INTERCEPTOR:
+    case LookupIterator::DATA:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+    case LookupIterator::ACCESS_CHECK:
+    case LookupIterator::JSPROXY:
+    case LookupIterator::NOT_FOUND:
+    case LookupIterator::TRANSITION:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+  return slow_stub();
 }
 
 
@@ -1576,7 +1650,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
 
   Handle<Object> handler;
   if (LookupForWrite(lookup, value, store_mode)) {
-    handler = ComputeHandler(lookup);
+    handler = ComputeHandler(lookup, value);
   } else {
     TRACE_GENERIC_IC("LookupForWrite said 'false'");
     handler = slow_stub();
@@ -1789,55 +1863,72 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
   return Handle<Code>::null();
 }
 
-Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup) {
-  DCHECK_EQ(LookupIterator::ACCESSOR, lookup->state());
+Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
+                                       Handle<Object> value) {
+  DCHECK_NE(LookupIterator::JSPROXY, lookup->state());
 
   // This is currently guaranteed by checks in StoreIC::Store.
   Handle<JSObject> receiver = Handle<JSObject>::cast(lookup->GetReceiver());
   Handle<JSObject> holder = lookup->GetHolder<JSObject>();
   DCHECK(!receiver->IsAccessCheckNeeded() || lookup->name()->IsPrivate());
 
-  DCHECK(holder->HasFastProperties());
-  Handle<Object> accessors = lookup->GetAccessors();
+  switch (lookup->state()) {
+    case LookupIterator::ACCESSOR: {
+      DCHECK(holder->HasFastProperties());
+      Handle<Object> accessors = lookup->GetAccessors();
+      if (accessors->IsAccessorInfo()) {
+        Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
+        DCHECK(v8::ToCData<Address>(info->setter()) != 0);
+        DCHECK(!AccessorInfo::cast(*accessors)->is_special_data_property() ||
+               lookup->HolderIsReceiverOrHiddenPrototype());
+        DCHECK(AccessorInfo::IsCompatibleReceiverMap(isolate(), info,
+                                                     receiver_map()));
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
+        NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
+        // TODO(ishell): don't hard-code language mode into the handler because
+        // this handler can be re-used through megamorphic stub cache for wrong
+        // language mode.
+        // Better pass vector/slot to Runtime::kStoreCallbackProperty and
+        // let it decode the language mode from the IC kind.
+        Handle<Code> code = compiler.CompileStoreCallback(
+            receiver, lookup->name(), info, language_mode());
+        return code;
+      } else {
+        DCHECK(accessors->IsAccessorPair());
+        Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
+                              isolate());
+        DCHECK(setter->IsJSFunction() || setter->IsFunctionTemplateInfo());
+        CallOptimization call_optimization(setter);
+        NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
+        if (call_optimization.is_simple_api_call()) {
+          DCHECK(call_optimization.IsCompatibleReceiver(receiver, holder));
+          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
+          Handle<Code> code = compiler.CompileStoreCallback(
+              receiver, lookup->name(), call_optimization,
+              lookup->GetAccessorIndex(), slow_stub());
+          return code;
+        }
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreViaSetter);
+        int expected_arguments = JSFunction::cast(*setter)
+                                     ->shared()
+                                     ->internal_formal_parameter_count();
+        return compiler.CompileStoreViaSetter(receiver, lookup->name(),
+                                              lookup->GetAccessorIndex(),
+                                              expected_arguments);
+      }
+    }
 
-  if (accessors->IsAccessorInfo()) {
-    Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
-    DCHECK(v8::ToCData<Address>(info->setter()) != 0);
-    DCHECK(!AccessorInfo::cast(*accessors)->is_special_data_property() ||
-           lookup->HolderIsReceiverOrHiddenPrototype());
-    DCHECK(
-        AccessorInfo::IsCompatibleReceiverMap(isolate(), info, receiver_map()));
-    TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
-    NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-    // TODO(ishell): don't hard-code language mode into the handler because
-    // this handler can be re-used through megamorphic stub cache for wrong
-    // language mode.
-    // Better pass vector/slot to Runtime::kStoreCallbackProperty and
-    // let it decode the language mode from the IC kind.
-    Handle<Code> code = compiler.CompileStoreCallback(receiver, lookup->name(),
-                                                      info, language_mode());
-    return code;
+    case LookupIterator::DATA:
+    case LookupIterator::TRANSITION:
+    case LookupIterator::INTERCEPTOR:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+    case LookupIterator::ACCESS_CHECK:
+    case LookupIterator::JSPROXY:
+    case LookupIterator::NOT_FOUND:
+      UNREACHABLE();
   }
-
-  DCHECK(accessors->IsAccessorPair());
-  Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
-                        isolate());
-  DCHECK(setter->IsJSFunction() || setter->IsFunctionTemplateInfo());
-  CallOptimization call_optimization(setter);
-  NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-  if (call_optimization.is_simple_api_call()) {
-    DCHECK(call_optimization.IsCompatibleReceiver(receiver, holder));
-    TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
-    Handle<Code> code = compiler.CompileStoreCallback(
-        receiver, lookup->name(), call_optimization, lookup->GetAccessorIndex(),
-        slow_stub());
-    return code;
-  }
-  TRACE_HANDLER_STATS(isolate(), StoreIC_StoreViaSetter);
-  int expected_arguments =
-      JSFunction::cast(*setter)->shared()->internal_formal_parameter_count();
-  return compiler.CompileStoreViaSetter(
-      receiver, lookup->name(), lookup->GetAccessorIndex(), expected_arguments);
+  UNREACHABLE();
+  return slow_stub();
 }
 
 void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,

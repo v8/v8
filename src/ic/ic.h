@@ -117,14 +117,16 @@ class IC {
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
 
   // Compute the handler either by compiling or by retrieving a cached version.
-  Handle<Object> ComputeHandler(LookupIterator* lookup);
+  Handle<Object> ComputeHandler(LookupIterator* lookup,
+                                Handle<Object> value = Handle<Code>::null());
   virtual Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) {
     UNREACHABLE();
     return Handle<Code>::null();
   }
-  virtual Handle<Code> CompileHandler(LookupIterator* lookup) {
+  virtual Handle<Object> CompileHandler(LookupIterator* lookup,
+                                        Handle<Object> value) {
     UNREACHABLE();
-    return Handle<Code>::null();
+    return Handle<Object>::null();
   }
 
   void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);
@@ -271,7 +273,8 @@ class LoadIC : public IC {
 
   Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
 
-  Handle<Code> CompileHandler(LookupIterator* lookup) override;
+  Handle<Object> CompileHandler(LookupIterator* lookup,
+                                Handle<Object> unused) override;
 
  private:
   // Creates a data handler that represents a load of a field by given index.
@@ -357,7 +360,8 @@ class StoreIC : public IC {
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     JSReceiver::StoreFromKeyed store_mode);
   Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
-  Handle<Code> CompileHandler(LookupIterator* lookup) override;
+  Handle<Object> CompileHandler(LookupIterator* lookup,
+                                Handle<Object> value) override;
 
  private:
   Handle<Object> StoreTransition(Handle<Map> receiver_map,
