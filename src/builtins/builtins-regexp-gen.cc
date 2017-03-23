@@ -165,7 +165,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // Store it on the result as a 'group' property.
 
     {
-      Node* const name = HeapConstant(isolate()->factory()->group_string());
+      Node* const name = HeapConstant(isolate()->factory()->groups_string());
       CallRuntime(Runtime::kCreateDataProperty, context, result, name,
                   group_object);
     }

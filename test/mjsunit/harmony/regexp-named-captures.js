@@ -76,23 +76,23 @@ assertEquals(["bab", "b"], "bab".match(/\k<a>(?<a>b)\w\k<a>/u));
 assertEquals(["bab", "b", "a"], "bab".match(/(?<b>b)\k<a>(?<a>a)\k<b>/u));
 
 // Reference properties.
-assertEquals("a", /(?<a>a)(?<b>b)\k<a>/u.exec("aba").group.a);
-assertEquals("b", /(?<a>a)(?<b>b)\k<a>/u.exec("aba").group.b);
-assertEquals(undefined, /(?<a>a)(?<b>b)\k<a>/u.exec("aba").group.c);
-assertEquals(undefined, /(?<a>a)(?<b>b)\k<a>|(?<c>c)/u.exec("aba").group.c);
+assertEquals("a", /(?<a>a)(?<b>b)\k<a>/u.exec("aba").groups.a);
+assertEquals("b", /(?<a>a)(?<b>b)\k<a>/u.exec("aba").groups.b);
+assertEquals(undefined, /(?<a>a)(?<b>b)\k<a>/u.exec("aba").groups.c);
+assertEquals(undefined, /(?<a>a)(?<b>b)\k<a>|(?<c>c)/u.exec("aba").groups.c);
 
 // Unicode names.
-assertEquals("a", /(?<π>a)/u.exec("bab").group.π);
-assertEquals("a", /(?<\u{03C0}>a)/u.exec("bab").group.\u03C0);
-assertEquals("a", /(?<$>a)/u.exec("bab").group.$);
-assertEquals("a", /(?<_>a)/u.exec("bab").group._);
-assertEquals("a", /(?<$𐒤>a)/u.exec("bab").group.$𐒤);
-assertEquals("a", /(?<_\u200C>a)/u.exec("bab").group._\u200C);
-assertEquals("a", /(?<_\u200D>a)/u.exec("bab").group._\u200D);
-assertEquals("a", /(?<ಠ_ಠ>a)/u.exec("bab").group.ಠ_ಠ);
+assertEquals("a", /(?<π>a)/u.exec("bab").groups.π);
+assertEquals("a", /(?<\u{03C0}>a)/u.exec("bab").groups.\u03C0);
+assertEquals("a", /(?<$>a)/u.exec("bab").groups.$);
+assertEquals("a", /(?<_>a)/u.exec("bab").groups._);
+assertEquals("a", /(?<$𐒤>a)/u.exec("bab").groups.$𐒤);
+assertEquals("a", /(?<_\u200C>a)/u.exec("bab").groups._\u200C);
+assertEquals("a", /(?<_\u200D>a)/u.exec("bab").groups._\u200D);
+assertEquals("a", /(?<ಠ_ಠ>a)/u.exec("bab").groups.ಠ_ಠ);
 assertThrows('/(?<❤>a)/u', SyntaxError);
 assertThrows('/(?<𐒤>a)/u', SyntaxError);  // ID_Continue but not ID_Start.
 
 // The '__proto__' property on the groups object.
-assertEquals(undefined, /(?<a>.)/u.exec("a").group.__proto__);
-assertEquals("a", /(?<__proto__>a)/u.exec("a").group.__proto__);
+assertEquals(undefined, /(?<a>.)/u.exec("a").groups.__proto__);
+assertEquals("a", /(?<__proto__>a)/u.exec("a").groups.__proto__);
