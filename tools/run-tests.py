@@ -265,7 +265,7 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--enable-inspector",
                     help="Indicates a build with inspector support",
-                    default=False, action="store_true")
+                    default=True, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
