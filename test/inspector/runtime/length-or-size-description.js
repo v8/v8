@@ -4,6 +4,8 @@
 
 InspectorTest.log("Test that descriptions for arrays, maps, and sets include the correct length or size.")
 
+InspectorTest.setupInjectedScriptEnvironment();
+
 Promise.all([
   testExpression("new Set()"),
   testExpression("new Set([1,2])"),

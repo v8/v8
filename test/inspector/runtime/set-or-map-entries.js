@@ -22,6 +22,8 @@ InspectorTest.addScript(`
   }
 `);
 
+InspectorTest.setupInjectedScriptEnvironment();
+
 Protocol.Debugger.enable();
 Protocol.Runtime.enable();
 
