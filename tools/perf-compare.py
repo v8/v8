@@ -198,14 +198,14 @@ class ResultTableRenderer:
       print(string_data)
 
   def bold(self, data):
-    return "<b>" + data + "</b>"
+    return "<b>%s</b>" % data
 
   def red(self, data):
-    return "<font color=\"red\">" + data + "</font>"
+    return "<font color=\"red\">%s</font>" % data
 
 
   def green(self, data):
-    return "<font color=\"green\">" + data + "</font>"
+    return "<font color=\"green\">%s</font>" % data
 
   def PrintHeader(self):
     data = """<html>
@@ -304,9 +304,12 @@ table tr th {
 }
 table tr td {
   border: 1px solid #cccccc;
-  text-align: left;
+  text-align: right;
   margin: 0;
   padding: 6px 13px;
+}
+table tr td.name-column {
+  text-align: left;
 }
 table tr th :first-child, table tr td :first-child {
   margin-top: 0;
@@ -322,15 +325,15 @@ table tr th :last-child, table tr td :last-child {
 
   def StartSuite(self, suite_name, run_names):
     self.Print("<h2>")
-    self.Print("<a name=\"" + suite_name + "\">" +
-               suite_name + "</a> <a href=\"#top\">(top)</a>")
+    self.Print("<a name=\"%s\">%s</a> <a href=\"#top\">(top)</a>" %
+               (suite_name, suite_name))
     self.Print("</h2>");
     self.Print("<table class=\"benchmark\">")
     self.Print("<thead>")
     self.Print("  <th>Test</th>")
     main_run = None
     for run_name in run_names:
-      self.Print("  <th>" + run_name + "</th>")
+      self.Print("  <th>%s</th>" % run_name)
       if main_run == None:
         main_run = run_name
       else:
@@ -346,7 +349,7 @@ table tr th :last-child, table tr td :last-child {
 
   def StartBenchmark(self, benchmark_name):
     self.Print("  <tr>")
-    self.Print("    <td>" + benchmark_name + "</td>")
+    self.Print("    <td class=\"name-column\">%s</td>" % benchmark_name)
 
   def FinishBenchmark(self):
     self.Print("  </tr>")
@@ -356,7 +359,7 @@ table tr th :last-child, table tr td :last-child {
     if run == None:
       self.PrintEmptyCell()
       return
-    self.Print("    <td>" + str(run.result()) + "</td>")
+    self.Print("    <td>%3.1f</td>" % run.result())
 
 
   def PrintComparison(self, run, main_run):
@@ -371,7 +374,7 @@ table tr th :last-child, table tr td :last-child {
       res = self.green(res)
     elif diff.isNotablyNegative():
       res = self.red(res)
-    self.Print("    <td>" + res + "</td>")
+    self.Print("    <td>%s</td>" % res)
 
 
   def PrintEmptyCell(self):
@@ -379,7 +382,7 @@ table tr th :last-child, table tr td :last-child {
 
 
   def StartTOC(self, title):
-    self.Print("<h1>" + title + "</h1>")
+    self.Print("<h1>%s</h1>" % title)
     self.Print("<ul>")
 
   def FinishTOC(self):
@@ -399,33 +402,36 @@ def Render(args):
   benchmark_suites = {}
   run_names = OrderedDict()
 
-  for json_file in args.json_file:
-    if len(json_file) == 1:
-      filename = json_file[0]
-      run_name = os.path.splitext(filename)[0]
+  for json_file_list in args.json_file_list:
+    run_name = json_file_list[0]
+    if run_name.endswith(".json"):
+      # The first item in the list is also a file name
+      run_name = os.path.splitext(run_name)[0]
+      filenames = json_file_list
     else:
-      run_name = json_file[0]
-      filename = json_file[1]
+      filenames = json_file_list[1:]
 
-    with open(filename) as json_data:
-      data = json.load(json_data)
+    for filename in filenames:
+      print ("Processing result set \"%s\", file: %s" % (run_name, filename))
+      with open(filename) as json_data:
+        data = json.load(json_data)
 
-    run_names[run_name] = 0
+      run_names[run_name] = 0
 
-    for error in data["errors"]:
-      print "Error:", error
+      for error in data["errors"]:
+        print "Error:", error
 
-    for trace in data["traces"]:
-      suite_name = trace["graphs"][0]
-      benchmark_name = "/".join(trace["graphs"][1:])
+      for trace in data["traces"]:
+        suite_name = trace["graphs"][0]
+        benchmark_name = "/".join(trace["graphs"][1:])
 
-      benchmark_suite_object = benchmark_suites.get(suite_name)
-      if benchmark_suite_object == None:
-        benchmark_suite_object = BenchmarkSuite(suite_name)
-        benchmark_suites[suite_name] = benchmark_suite_object
+        benchmark_suite_object = benchmark_suites.get(suite_name)
+        if benchmark_suite_object == None:
+          benchmark_suite_object = BenchmarkSuite(suite_name)
+          benchmark_suites[suite_name] = benchmark_suite_object
 
-      benchmark_object = benchmark_suite_object.getBenchmark(benchmark_name)
-      benchmark_object.appendResult(run_name, trace);
+        benchmark_object = benchmark_suite_object.getBenchmark(benchmark_name)
+        benchmark_object.appendResult(run_name, trace);
 
 
   renderer = ResultTableRenderer(args.output)
@@ -460,7 +466,7 @@ def Render(args):
   renderer.PrintFooter()
   renderer.FlushOutput()
 
-def pair(arg):
+def CommaSeparatedList(arg):
   return [x for x in arg.split(',')]
 
 if __name__ == '__main__':
@@ -470,9 +476,9 @@ if __name__ == '__main__':
                       help="Optional title of the web page")
   parser.add_argument("-o", "--output", dest="output",
                       help="Write html output to this file rather than stdout")
-  parser.add_argument("json_file", nargs="+", type=pair,
+  parser.add_argument("json_file_list", nargs="+", type=CommaSeparatedList,
                       help="[column name,]./path-to/result.json - a comma-separated" +
-                      " pair of optional column name and path to json file")
+                      " list of optional column name and paths to json files")
 
   args = parser.parse_args()
   Render(args)
