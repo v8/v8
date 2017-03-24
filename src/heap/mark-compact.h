@@ -32,67 +32,18 @@ class MarkCompactCollector;
 class MinorMarkCompactCollector;
 class MarkingVisitor;
 
-class MarkingState {
- public:
-  static MarkingState FromPageInternal(MemoryChunk* chunk) {
-    return MarkingState(chunk->markbits<MarkingMode::FULL>(),
-                        chunk->live_bytes_address<MarkingMode::FULL>());
-  }
-
-  static MarkingState FromPageExternal(MemoryChunk* chunk) {
-    return MarkingState(
-        chunk->markbits<MarkingMode::YOUNG_GENERATION>(),
-        chunk->live_bytes_address<MarkingMode::YOUNG_GENERATION>());
-  }
-
-  MarkingState(Bitmap* bitmap, intptr_t* live_bytes)
-      : bitmap(bitmap), live_bytes(live_bytes) {}
-
-  void IncrementLiveBytes(intptr_t by) const {
-    *live_bytes += static_cast<int>(by);
-  }
-  void SetLiveBytes(intptr_t value) const {
-    *live_bytes = static_cast<int>(value);
-  }
-
-  void ClearLiveness() const {
-    bitmap->Clear();
-    *live_bytes = 0;
-  }
-
-  Bitmap* bitmap;
-  intptr_t* live_bytes;
-};
-
-// TODO(mlippautz): Remove duplicate accessors once the architecture for
-// different markers is fixed.
 class ObjectMarking : public AllStatic {
  public:
-  V8_INLINE static MarkBit MarkBitFrom(HeapObject* obj) {
-    const Address address = obj->address();
-    const MemoryChunk* p = MemoryChunk::FromAddress(address);
-    return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(address));
-  }
-
   V8_INLINE static MarkBit MarkBitFrom(HeapObject* obj,
                                        const MarkingState& state) {
     const Address address = obj->address();
     const MemoryChunk* p = MemoryChunk::FromAddress(address);
-    return state.bitmap->MarkBitFromIndex(p->AddressToMarkbitIndex(address));
-  }
-
-  static Marking::ObjectColor Color(HeapObject* obj) {
-    return Marking::Color(ObjectMarking::MarkBitFrom(obj));
+    return state.bitmap()->MarkBitFromIndex(p->AddressToMarkbitIndex(address));
   }
 
   static Marking::ObjectColor Color(HeapObject* obj,
                                     const MarkingState& state) {
     return Marking::Color(ObjectMarking::MarkBitFrom(obj, state));
-  }
-
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
-  V8_INLINE static bool IsImpossible(HeapObject* obj) {
-    return Marking::IsImpossible<access_mode>(MarkBitFrom(obj));
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
@@ -102,18 +53,8 @@ class ObjectMarking : public AllStatic {
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
-  V8_INLINE static bool IsBlack(HeapObject* obj) {
-    return Marking::IsBlack<access_mode>(MarkBitFrom(obj));
-  }
-
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
   V8_INLINE static bool IsBlack(HeapObject* obj, const MarkingState& state) {
     return Marking::IsBlack<access_mode>(MarkBitFrom(obj, state));
-  }
-
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
-  V8_INLINE static bool IsWhite(HeapObject* obj) {
-    return Marking::IsWhite<access_mode>(MarkBitFrom(obj));
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
@@ -122,33 +63,14 @@ class ObjectMarking : public AllStatic {
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
-  V8_INLINE static bool IsGrey(HeapObject* obj) {
-    return Marking::IsGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
   V8_INLINE static bool IsGrey(HeapObject* obj, const MarkingState& state) {
     return Marking::IsGrey<access_mode>(MarkBitFrom(obj, state));
-  }
-
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
-  V8_INLINE static bool IsBlackOrGrey(HeapObject* obj) {
-    return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
   V8_INLINE static bool IsBlackOrGrey(HeapObject* obj,
                                       const MarkingState& state) {
     return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj, state));
-  }
-
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
-  V8_INLINE static bool BlackToGrey(HeapObject* obj) {
-    DCHECK((access_mode == MarkBit::ATOMIC || IsBlack<access_mode>(obj)));
-    MarkBit markbit = MarkBitFrom(obj);
-    if (!Marking::BlackToGrey<access_mode>(markbit)) return false;
-    MemoryChunk::IncrementLiveBytes(obj, -obj->Size());
-    return true;
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
@@ -163,24 +85,11 @@ class ObjectMarking : public AllStatic {
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
-  V8_INLINE static bool WhiteToGrey(HeapObject* obj) {
-    DCHECK((access_mode == MarkBit::ATOMIC || IsWhite<access_mode>(obj)));
-    return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
   V8_INLINE static bool WhiteToGrey(HeapObject* obj,
                                     const MarkingState& state) {
     DCHECK(
         (access_mode == MarkBit::ATOMIC || IsWhite<access_mode>(obj, state)));
     return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj, state));
-  }
-
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
-  V8_INLINE static bool WhiteToBlack(HeapObject* obj) {
-    DCHECK((access_mode == MarkBit::ATOMIC || IsWhite<access_mode>(obj)));
-    if (!ObjectMarking::WhiteToGrey<access_mode>(obj)) return false;
-    return ObjectMarking::GreyToBlack<access_mode>(obj);
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
@@ -190,15 +99,6 @@ class ObjectMarking : public AllStatic {
         (access_mode == MarkBit::ATOMIC || IsWhite<access_mode>(obj, state)));
     if (!ObjectMarking::WhiteToGrey<access_mode>(obj, state)) return false;
     return ObjectMarking::GreyToBlack<access_mode>(obj, state);
-  }
-
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
-  V8_INLINE static bool GreyToBlack(HeapObject* obj) {
-    DCHECK((access_mode == MarkBit::ATOMIC || IsGrey<access_mode>(obj)));
-    MarkBit markbit = MarkBitFrom(obj);
-    if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
-    MemoryChunk::IncrementLiveBytes(obj, obj->Size());
-    return true;
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
@@ -413,7 +313,7 @@ class MarkBitCellIterator BASE_EMBEDDED {
     cell_base_ = chunk_->area_start();
     cell_index_ = Bitmap::IndexToCell(
         Bitmap::CellAlignIndex(chunk_->AddressToMarkbitIndex(cell_base_)));
-    cells_ = state.bitmap->cells();
+    cells_ = state.bitmap()->cells();
   }
 
   inline bool Done() { return cell_index_ == last_cell_index_; }
@@ -525,10 +425,6 @@ class MinorMarkCompactCollector {
 
  private:
   class RootMarkingVisitor;
-
-  static MarkingState StateForObject(HeapObject* object) {
-    return MarkingState::FromPageExternal(Page::FromAddress(object->address()));
-  }
 
   inline Heap* heap() { return heap_; }
   inline Isolate* isolate() { return heap()->isolate(); }

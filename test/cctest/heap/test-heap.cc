@@ -2416,8 +2416,9 @@ TEST(InstanceOfStubWriteBarrier) {
 
   CHECK(f->IsOptimized());
 
-  while (!Marking::IsBlack(ObjectMarking::MarkBitFrom(f->code())) &&
-         !marking->IsStopped()) {
+  while (
+      !ObjectMarking::IsBlack(f->code(), MarkingState::Internal(f->code())) &&
+      !marking->IsStopped()) {
     // Discard any pending GC requests otherwise we will get GC when we enter
     // code below.
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
@@ -5363,8 +5364,9 @@ TEST(Regress3631) {
   Handle<JSReceiver> obj =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj));
-  while (!Marking::IsBlack(
-             ObjectMarking::MarkBitFrom(HeapObject::cast(weak_map->table()))) &&
+  HeapObject* weak_map_table = HeapObject::cast(weak_map->table());
+  while (!ObjectMarking::IsBlack(weak_map_table,
+                                 MarkingState::Internal(weak_map_table)) &&
          !marking->IsStopped()) {
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
@@ -6114,10 +6116,10 @@ TEST(Regress598319) {
   }
 
   CHECK(heap->lo_space()->Contains(arr.get()));
-  CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(arr.get())));
+  CHECK(ObjectMarking::IsWhite(arr.get(), MarkingState::Internal(arr.get())));
   for (int i = 0; i < arr.get()->length(); i++) {
-    CHECK(Marking::IsWhite(
-        ObjectMarking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
+    HeapObject* arr_value = HeapObject::cast(arr.get()->get(i));
+    CHECK(ObjectMarking::IsWhite(arr_value, MarkingState::Internal(arr_value)));
   }
 
   // Start incremental marking.
@@ -6131,8 +6133,8 @@ TEST(Regress598319) {
 
   // Check that we have not marked the interesting array during root scanning.
   for (int i = 0; i < arr.get()->length(); i++) {
-    CHECK(Marking::IsWhite(
-        ObjectMarking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
+    HeapObject* arr_value = HeapObject::cast(arr.get()->get(i));
+    CHECK(ObjectMarking::IsWhite(arr_value, MarkingState::Internal(arr_value)));
   }
 
   // Now we search for a state where we are in incremental marking and have
@@ -6167,8 +6169,8 @@ TEST(Regress598319) {
   // All objects need to be black after marking. If a white object crossed the
   // progress bar, we would fail here.
   for (int i = 0; i < arr.get()->length(); i++) {
-    CHECK(Marking::IsBlack(
-        ObjectMarking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
+    HeapObject* arr_value = HeapObject::cast(arr.get()->get(i));
+    CHECK(ObjectMarking::IsBlack(arr_value, MarkingState::Internal(arr_value)));
   }
 }
 
@@ -6314,13 +6316,13 @@ TEST(LeftTrimFixedArrayInBlackArea) {
   isolate->factory()->NewFixedArray(4, TENURED);
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(50, TENURED);
   CHECK(heap->old_space()->Contains(*array));
-  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*array)));
+  CHECK(ObjectMarking::IsBlack(*array, MarkingState::Internal(*array)));
 
   // Now left trim the allocated black area. A filler has to be installed
   // for the trimmed area and all mark bits of the trimmed area have to be
   // cleared.
   FixedArrayBase* trimmed = heap->LeftTrimFixedArray(*array, 10);
-  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(trimmed)));
+  CHECK(ObjectMarking::IsBlack(trimmed, MarkingState::Internal(trimmed)));
 
   heap::GcAndSweep(heap, OLD_SPACE);
 }
@@ -6357,8 +6359,8 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
-  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*array)));
-  CHECK(page->markbits()->AllBitsSetInRange(
+  CHECK(ObjectMarking::IsBlack(*array, MarkingState::Internal(*array)));
+  CHECK(MarkingState::Internal(page).bitmap()->AllBitsSetInRange(
       page->AddressToMarkbitIndex(start_address),
       page->AddressToMarkbitIndex(end_address)));
   CHECK(heap->old_space()->Contains(*array));
@@ -6371,8 +6373,8 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
     trimmed = heap->LeftTrimFixedArray(previous, 1);
     HeapObject* filler = HeapObject::FromAddress(previous->address());
     CHECK(filler->IsFiller());
-    CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(trimmed)));
-    CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(previous)));
+    CHECK(ObjectMarking::IsBlack(trimmed, MarkingState::Internal(trimmed)));
+    CHECK(ObjectMarking::IsBlack(previous, MarkingState::Internal(previous)));
     previous = trimmed;
   }
 
@@ -6382,8 +6384,8 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
       trimmed = heap->LeftTrimFixedArray(previous, i);
       HeapObject* filler = HeapObject::FromAddress(previous->address());
       CHECK(filler->IsFiller());
-      CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(trimmed)));
-      CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(previous)));
+      CHECK(ObjectMarking::IsBlack(trimmed, MarkingState::Internal(trimmed)));
+      CHECK(ObjectMarking::IsBlack(previous, MarkingState::Internal(previous)));
       previous = trimmed;
     }
   }
@@ -6423,8 +6425,9 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
-  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*array)));
-  CHECK(page->markbits()->AllBitsSetInRange(
+  CHECK(ObjectMarking::IsBlack(*array, MarkingState::Internal(*array)));
+
+  CHECK(MarkingState::Internal(page).bitmap()->AllBitsSetInRange(
       page->AddressToMarkbitIndex(start_address),
       page->AddressToMarkbitIndex(end_address)));
   CHECK(heap->old_space()->Contains(*array));
@@ -6434,7 +6437,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   heap->RightTrimFixedArray(*array, 1);
   HeapObject* filler = HeapObject::FromAddress(previous);
   CHECK(filler->IsFiller());
-  CHECK(Marking::IsImpossible(ObjectMarking::MarkBitFrom(filler)));
+  CHECK(ObjectMarking::IsImpossible(filler, MarkingState::Internal(filler)));
 
   // Trim 10 times by one, two, and three word.
   for (int i = 1; i <= 3; i++) {
@@ -6443,7 +6446,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
       heap->RightTrimFixedArray(*array, i);
       HeapObject* filler = HeapObject::FromAddress(previous);
       CHECK(filler->IsFiller());
-      CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(filler)));
+      CHECK(ObjectMarking::IsWhite(filler, MarkingState::Internal(filler)));
     }
   }
 

@@ -200,8 +200,10 @@ class ScavengingVisitor : public StaticVisitorBase {
                                    reinterpret_cast<base::AtomicWord>(target));
 
       if (object_contents == POINTER_OBJECT) {
-        heap->promotion_queue()->insert(target, object_size,
-                                        ObjectMarking::IsBlack(object));
+        // TODO(mlippautz): Query collector for marking state.
+        heap->promotion_queue()->insert(
+            target, object_size,
+            ObjectMarking::IsBlack(object, MarkingState::Internal(object)));
       }
       heap->IncrementPromotedObjectsSize(object_size);
       return true;
@@ -245,7 +247,9 @@ class ScavengingVisitor : public StaticVisitorBase {
     DCHECK(map_word.IsForwardingAddress());
     HeapObject* target = map_word.ToForwardingAddress();
 
-    if (ObjectMarking::IsBlack(target)) {
+    // TODO(mlippautz): Notify collector of this object so we don't have to
+    // retrieve the state our of thin air.
+    if (ObjectMarking::IsBlack(target, MarkingState::Internal(target))) {
       // This object is black and it might not be rescanned by marker.
       // We should explicitly record code entry slot for compaction because
       // promotion queue processing (IteratePromotedObjectPointers) will

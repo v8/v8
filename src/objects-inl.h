@@ -2005,9 +2005,10 @@ void WeakCell::initialize(HeapObject* val) {
   // We just have to execute the generational barrier here because we never
   // mark through a weak cell and collect evacuation candidates when we process
   // all weak cells.
-  WriteBarrierMode mode = ObjectMarking::IsBlack(this)
-                              ? UPDATE_WRITE_BARRIER
-                              : UPDATE_WEAK_WRITE_BARRIER;
+  WriteBarrierMode mode =
+      ObjectMarking::IsBlack(this, MarkingState::Internal(this))
+          ? UPDATE_WRITE_BARRIER
+          : UPDATE_WEAK_WRITE_BARRIER;
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kValueOffset, val, mode);
 }
 

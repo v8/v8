@@ -13,37 +13,44 @@ namespace v8 {
 namespace internal {
 
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(obj)));
+  DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(
+      obj, MarkingState::Internal(obj))));
   if (!marking_deque()->Push(obj)) {
-    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC>(obj);
+    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC>(
+        obj, MarkingState::Internal(obj));
   }
 }
 
 void MinorMarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK(
-      (ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(obj, StateForObject(obj))));
+  DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(
+      obj, MarkingState::External(obj))));
   if (!marking_deque()->Push(obj)) {
-    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC>(obj, StateForObject(obj));
+    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC>(
+        obj, MarkingState::External(obj));
   }
 }
 
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
-  DCHECK(ObjectMarking::IsBlack(obj));
+  DCHECK(ObjectMarking::IsBlack(obj, MarkingState::Internal(obj)));
   if (!marking_deque()->Unshift(obj)) {
-    ObjectMarking::BlackToGrey(obj);
+    ObjectMarking::BlackToGrey(obj, MarkingState::Internal(obj));
   }
 }
 
 void MarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(obj)) {
-    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(obj);
+  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
+          obj, MarkingState::Internal(obj))) {
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+        obj, MarkingState::Internal(obj));
     PushBlack(obj);
   }
 }
 
 void MinorMarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(obj, StateForObject(obj))) {
-    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(obj, StateForObject(obj));
+  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
+          obj, MarkingState::External(obj))) {
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+        obj, MarkingState::External(obj));
     PushBlack(obj);
   }
 }
@@ -54,7 +61,8 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
   if (target_page->IsEvacuationCandidate() &&
       !ShouldSkipEvacuationSlotRecording(object)) {
-    DCHECK(ObjectMarking::IsBlackOrGrey(object));
+    DCHECK(
+        ObjectMarking::IsBlackOrGrey(object, MarkingState::Internal(object)));
     RememberedSet<OLD_TO_OLD>::Insert(source_page,
                                       reinterpret_cast<Address>(slot));
   }

@@ -65,7 +65,7 @@ UNINITIALIZED_TEST(PagePromotion_NewToOld) {
     // Sanity check that the page meets the requirements for promotion.
     const int threshold_bytes =
         FLAG_page_promotion_threshold * Page::kAllocatableMemory / 100;
-    CHECK_GE(first_page->LiveBytes(), threshold_bytes);
+    CHECK_GE(MarkingState::Internal(first_page).live_bytes(), threshold_bytes);
 
     // Actual checks: The page is in new space first, but is moved to old space
     // during a full GC.

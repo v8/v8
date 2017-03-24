@@ -3164,9 +3164,9 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by) {
     lo_space()->AdjustLiveBytes(by);
   } else if (!in_heap_iterator() &&
              !mark_compact_collector()->sweeping_in_progress() &&
-             ObjectMarking::IsBlack(object)) {
+             ObjectMarking::IsBlack(object, MarkingState::Internal(object))) {
     DCHECK(MemoryChunk::FromAddress(object->address())->SweepingDone());
-    MemoryChunk::IncrementLiveBytes(object, by);
+    MarkingState::Internal(object).IncrementLiveBytes(by);
   }
 }
 
@@ -3201,8 +3201,9 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // Transfer the mark bits to their new location if the object is not within
   // a black area.
   if (!incremental_marking()->black_allocation() ||
-      !Marking::IsBlack(
-          ObjectMarking::MarkBitFrom(HeapObject::FromAddress(new_start)))) {
+      !Marking::IsBlack(ObjectMarking::MarkBitFrom(
+          HeapObject::FromAddress(new_start),
+          MarkingState::Internal(HeapObject::FromAddress(new_start))))) {
     IncrementalMarking::TransferMark(this, object,
                                      HeapObject::FromAddress(new_start));
   }
@@ -3285,9 +3286,9 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
-        ObjectMarking::IsBlackOrGrey(filler)) {
+        ObjectMarking::IsBlackOrGrey(filler, MarkingState::Internal(filler))) {
       Page* page = Page::FromAddress(new_end);
-      page->markbits()->ClearRange(
+      MarkingState::Internal(page).bitmap()->ClearRange(
           page->AddressToMarkbitIndex(new_end),
           page->AddressToMarkbitIndex(new_end + bytes_to_trim));
     }
@@ -4274,8 +4275,9 @@ void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
           HeapObject* obj = HeapObject::FromAddress(addr);
           // There might be grey objects due to black to grey transitions in
           // incremental marking. E.g. see VisitNativeContextIncremental.
-          DCHECK(ObjectMarking::IsBlackOrGrey(obj));
-          if (ObjectMarking::IsBlack(obj)) {
+          DCHECK(
+              ObjectMarking::IsBlackOrGrey(obj, MarkingState::Internal(obj)));
+          if (ObjectMarking::IsBlack(obj, MarkingState::Internal(obj))) {
             incremental_marking()->IterateBlackObject(obj);
           }
           addr += obj->Size();
@@ -4873,7 +4875,8 @@ void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size,
   // it would be a violation of the invariant to record it's slots.
   bool record_slots = false;
   if (incremental_marking()->IsCompacting()) {
-    record_slots = ObjectMarking::IsBlack(target);
+    record_slots =
+        ObjectMarking::IsBlack(target, MarkingState::Internal(target));
   }
 
   IterateAndScavengePromotedObjectsVisitor visitor(this, target, record_slots);
@@ -6107,7 +6110,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   bool SkipObject(HeapObject* object) {
     if (object->IsFiller()) return true;
-    return ObjectMarking::IsWhite(object);
+    return ObjectMarking::IsWhite(object, MarkingState::Internal(object));
   }
 
  private:
@@ -6121,7 +6124,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
         HeapObject* obj = HeapObject::cast(*p);
         // Use Marking instead of ObjectMarking to avoid adjusting live bytes
         // counter.
-        MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
+        MarkBit mark_bit =
+            ObjectMarking::MarkBitFrom(obj, MarkingState::Internal(obj));
         if (Marking::IsWhite(mark_bit)) {
           Marking::WhiteToBlack(mark_bit);
           marking_stack_.Add(obj);
