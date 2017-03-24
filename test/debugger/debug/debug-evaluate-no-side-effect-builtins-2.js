@@ -8,6 +8,7 @@ Debug = debug.Debug
 
 var exception = null;
 var date = new Date();
+var map = new Map().set("a", "b").set("c", "d");
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
@@ -51,6 +52,23 @@ function listener(event, exec_state, event_data, data) {
     success("abc", `encodeURIComponent("abc")`);
     success("abc", `escape("abc")`);
     success("abc", `unescape("abc")`);
+    success(true, `isFinite(0)`);
+    success(true, `isNaN(0/0)`);
+
+    // Test Map functions.
+    success(undefined, `new Map()`);
+    success("[object Map]", `map.toString()`);
+    success("b", `map.get("a")`);
+    success(true, `map.get("x") === undefined`);
+    success(undefined, `map.entries()`);
+    success(undefined, `map.keys()`);
+    success(undefined, `map.values()`);
+    success(2, `map.size`);
+    fail(`map.has("c")`);  // This sets a hash on the object.
+    fail(`map.forEach(()=>1)`);
+    fail(`map.delete("a")`);
+    fail(`map.clear()`);
+    fail(`map.set("x", "y")`);
   } catch (e) {
     exception = e;
     print(e, e.stack);

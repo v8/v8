@@ -259,64 +259,68 @@ void DebugEvaluate::ContextBuilder::MaterializeReceiver(
 namespace {
 
 bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
+// Use macro to include both inlined and non-inlined version of an intrinsic.
+#define INTRINSIC_WHITELIST(V)      \
+  /* Conversions */                 \
+  V(ToInteger)                      \
+  V(ToObject)                       \
+  V(ToString)                       \
+  V(ToLength)                       \
+  V(ToNumber)                       \
+  /* Type checks */                 \
+  V(IsJSReceiver)                   \
+  V(IsSmi)                          \
+  V(IsArray)                        \
+  V(IsFunction)                     \
+  V(IsDate)                         \
+  V(IsJSProxy)                      \
+  V(IsRegExp)                       \
+  V(IsTypedArray)                   \
+  V(ClassOf)                        \
+  /* Loads */                       \
+  V(LoadLookupSlotForCall)          \
+  /* Arrays */                      \
+  V(ArraySpeciesConstructor)        \
+  V(NormalizeElements)              \
+  V(GetArrayKeys)                   \
+  V(HasComplexElements)             \
+  V(EstimateNumberOfElements)       \
+  /* Errors */                      \
+  V(ReThrow)                        \
+  V(ThrowReferenceError)            \
+  V(ThrowSymbolIteratorInvalid)     \
+  V(ThrowIteratorResultNotAnObject) \
+  V(NewTypeError)                   \
+  /* Strings */                     \
+  V(StringCharCodeAt)               \
+  V(StringIndexOf)                  \
+  V(StringReplaceOneCharWithString) \
+  V(SubString)                      \
+  V(RegExpInternalReplace)          \
+  /* Literals */                    \
+  V(CreateArrayLiteral)             \
+  V(CreateObjectLiteral)            \
+  V(CreateRegExpLiteral)            \
+  /* Collections */                 \
+  V(JSCollectionGetTable)           \
+  V(FixedArrayGet)                  \
+  V(StringGetRawHashField)          \
+  V(GenericHash)                    \
+  V(MapIteratorInitialize)          \
+  V(MapInitialize)                  \
+  /* Misc. */                       \
+  V(ForInPrepare)                   \
+  V(Call)                           \
+  V(MaxSmi)                         \
+  V(HasInPrototypeChain)
+
+#define CASE(Name)       \
+  case Runtime::k##Name: \
+  case Runtime::kInline##Name:
+
   switch (id) {
-    // Whitelist for intrinsics and runtime functions.
-    // Conversions.
-    case Runtime::kToInteger:
-    case Runtime::kInlineToInteger:
-    case Runtime::kToObject:
-    case Runtime::kInlineToObject:
-    case Runtime::kToString:
-    case Runtime::kInlineToString:
-    case Runtime::kToLength:
-    case Runtime::kInlineToLength:
-    case Runtime::kToNumber:
-    // Type checks.
-    case Runtime::kIsJSReceiver:
-    case Runtime::kInlineIsJSReceiver:
-    case Runtime::kIsSmi:
-    case Runtime::kInlineIsSmi:
-    case Runtime::kIsArray:
-    case Runtime::kInlineIsArray:
-    case Runtime::kIsFunction:
-    case Runtime::kIsDate:
-    case Runtime::kIsJSProxy:
-    case Runtime::kIsRegExp:
-    case Runtime::kIsTypedArray:
-    // Loads.
-    case Runtime::kLoadLookupSlotForCall:
-    // Arrays.
-    case Runtime::kArraySpeciesConstructor:
-    case Runtime::kNormalizeElements:
-    case Runtime::kGetArrayKeys:
-    case Runtime::kHasComplexElements:
-    case Runtime::kEstimateNumberOfElements:
-    // Errors.
-    case Runtime::kReThrow:
-    case Runtime::kThrowReferenceError:
-    case Runtime::kThrowSymbolIteratorInvalid:
-    case Runtime::kThrowIteratorResultNotAnObject:
-    case Runtime::kNewTypeError:
-    // Strings.
-    case Runtime::kInlineStringCharCodeAt:
-    case Runtime::kStringCharCodeAt:
-    case Runtime::kStringIndexOf:
-    case Runtime::kStringReplaceOneCharWithString:
-    case Runtime::kSubString:
-    case Runtime::kInlineSubString:
-    case Runtime::kRegExpInternalReplace:
-    // Literals.
-    case Runtime::kCreateArrayLiteral:
-    case Runtime::kCreateObjectLiteral:
-    case Runtime::kCreateRegExpLiteral:
-    // Misc.
-    case Runtime::kForInPrepare:
-    case Runtime::kInlineCall:
-    case Runtime::kCall:
-    case Runtime::kInlineMaxSmi:
-    case Runtime::kMaxSmi:
-    case Runtime::kHasInPrototypeChain:
-      return true;
+    INTRINSIC_WHITELIST(CASE)
+    return true;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] intrinsic %s may cause side effect.\n",
@@ -324,6 +328,9 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
       }
       return false;
   }
+
+#undef CASE
+#undef INTRINSIC_WHITELIST
 }
 
 bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
@@ -556,6 +563,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kGlobalEncodeURIComponent:
     case Builtins::kGlobalEscape:
     case Builtins::kGlobalUnescape:
+    case Builtins::kGlobalIsFinite:
+    case Builtins::kGlobalIsNaN:
     // Error builtins.
     case Builtins::kMakeError:
     case Builtins::kMakeTypeError:
