@@ -799,6 +799,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // ES6 7.1.17 ToIndex, but jumps to range_error if the result is not a Smi.
   Node* ToSmiIndex(Node* const input, Node* const context, Label* range_error);
 
+  // ES6 7.1.15 ToLength, but jumps to range_error if the result is not a Smi.
+  Node* ToSmiLength(Node* input, Node* const context, Label* range_error);
+
   // Convert any object to an Integer.
   Node* ToInteger(Node* context, Node* input,
                   ToIntegerTruncationMode mode = kNoTruncation);

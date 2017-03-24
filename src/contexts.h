@@ -70,6 +70,8 @@ enum ContextLookupFlags {
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                     \
   V(TYPED_ARRAY_CONSTRUCT_BY_ARRAY_BUFFER_INDEX, JSFunction,                \
     typed_array_construct_by_array_buffer)                                  \
+  V(TYPED_ARRAY_CONSTRUCT_BY_ARRAY_LIKE_INDEX, JSFunction,                  \
+    typed_array_construct_by_array_like)                                    \
   V(TYPED_ARRAY_CONSTRUCT_BY_LENGTH_INDEX, JSFunction,                      \
     typed_array_construct_by_length)                                        \
   V(TYPED_ARRAY_INITIALIZE_INDEX, JSFunction, typed_array_initialize)       \

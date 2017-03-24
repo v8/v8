@@ -2648,26 +2648,30 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> typed_array_initialize = SimpleCreateFunction(
         isolate, factory->NewStringFromAsciiChecked("typedArrayInitialize"),
         Builtins::kTypedArrayInitialize, 6, false);
-    InstallWithIntrinsicDefaultProto(isolate, typed_array_initialize,
-                                     Context::TYPED_ARRAY_INITIALIZE_INDEX);
+    native_context()->set_typed_array_initialize(*typed_array_initialize);
 
     // %typed_array_construct_by_length
     Handle<JSFunction> construct_by_length = SimpleCreateFunction(
         isolate,
         factory->NewStringFromAsciiChecked("typedArrayConstructByLength"),
         Builtins::kTypedArrayConstructByLength, 3, false);
-    InstallWithIntrinsicDefaultProto(
-        isolate, construct_by_length,
-        Context::TYPED_ARRAY_CONSTRUCT_BY_LENGTH_INDEX);
+    native_context()->set_typed_array_construct_by_length(*construct_by_length);
 
     // %typed_array_construct_by_array_buffer
     Handle<JSFunction> construct_by_buffer = SimpleCreateFunction(
         isolate,
         factory->NewStringFromAsciiChecked("typedArrayConstructByArrayBuffer"),
         Builtins::kTypedArrayConstructByArrayBuffer, 5, false);
-    InstallWithIntrinsicDefaultProto(
-        isolate, construct_by_buffer,
-        Context::TYPED_ARRAY_CONSTRUCT_BY_ARRAY_BUFFER_INDEX);
+    native_context()->set_typed_array_construct_by_array_buffer(
+        *construct_by_buffer);
+
+    // %typed_array_construct_by_array_like
+    Handle<JSFunction> construct_by_array_like = SimpleCreateFunction(
+        isolate,
+        factory->NewStringFromAsciiChecked("typedArrayConstructByArrayLike"),
+        Builtins::kTypedArrayConstructByArrayLike, 4, false);
+    native_context()->set_typed_array_construct_by_array_like(
+        *construct_by_array_like);
   }
 
   {  // -- D a t a V i e w

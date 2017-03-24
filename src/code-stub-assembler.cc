@@ -4149,12 +4149,12 @@ Node* CodeStubAssembler::JSReceiverToPrimitive(Node* context, Node* input) {
 Node* CodeStubAssembler::ToSmiIndex(Node* const input, Node* const context,
                                     Label* range_error) {
   Variable result(this, MachineRepresentation::kTagged, input);
-  Label check_undefined(this), undefined(this), defined(this),
+  Label check_undefined(this), return_zero(this), defined(this),
       negative_check(this), done(this);
   Branch(TaggedIsSmi(result.value()), &negative_check, &check_undefined);
 
   Bind(&check_undefined);
-  Branch(IsUndefined(result.value()), &undefined, &defined);
+  Branch(IsUndefined(result.value()), &return_zero, &defined);
 
   Bind(&defined);
   result.Bind(ToInteger(context, result.value(),
@@ -4164,10 +4164,33 @@ Node* CodeStubAssembler::ToSmiIndex(Node* const input, Node* const context,
   Goto(&negative_check);
 
   Bind(&negative_check);
-  GotoIf(SmiLessThan(result.value(), SmiConstant(0)), range_error);
+  Branch(SmiLessThan(result.value(), SmiConstant(0)), range_error, &done);
+
+  Bind(&return_zero);
+  result.Bind(SmiConstant(0));
   Goto(&done);
 
-  Bind(&undefined);
+  Bind(&done);
+  return result.value();
+}
+
+Node* CodeStubAssembler::ToSmiLength(Node* input, Node* const context,
+                                     Label* range_error) {
+  Variable result(this, MachineRepresentation::kTagged, input);
+  Label to_integer(this), negative_check(this), return_zero(this), done(this);
+  Branch(TaggedIsSmi(result.value()), &negative_check, &to_integer);
+
+  Bind(&to_integer);
+  result.Bind(ToInteger(context, result.value(),
+                        CodeStubAssembler::kTruncateMinusZero));
+  GotoIfNot(TaggedIsSmi(result.value()), range_error);
+  CSA_ASSERT(this, TaggedIsSmi(result.value()));
+  Goto(&negative_check);
+
+  Bind(&negative_check);
+  Branch(SmiLessThan(result.value(), SmiConstant(0)), &return_zero, &done);
+
+  Bind(&return_zero);
   result.Bind(SmiConstant(0));
   Goto(&done);
 

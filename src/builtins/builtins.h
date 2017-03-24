@@ -888,6 +888,8 @@ class Isolate;
   /* ES6 #sec-typedarray-buffer-byteoffset-length */                           \
   TFJ(TypedArrayConstructByArrayBuffer, 5, kHolder, kBuffer, kByteOffset,      \
       kLength, kElementSize)                                                   \
+  TFJ(TypedArrayConstructByArrayLike, 4, kHolder, kArrayLike, kLength,         \
+      kElementSize)                                                            \
   /* ES6 #sec-typedarray-length */                                             \
   TFJ(TypedArrayConstructByLength, 3, kHolder, kLength, kElementSize)          \
   TFJ(TypedArrayInitialize, 6, kHolder, kLength, kBuffer, kByteOffset,         \
