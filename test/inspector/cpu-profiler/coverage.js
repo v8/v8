@@ -34,6 +34,22 @@ function h() {
 f(3);
 `;
 
+var nested =
+`
+var f = (function outer() {
+  function nested_0() {
+    return function nested_1() {
+      return function nested_2() {
+        return function nested_3() {}
+      }
+    }
+  }
+  function nested_4() {}
+  return nested_0();
+})();
+f()()();
+`;
+
 InspectorTest.log("Test collecting code coverage data with Profiler.collectCoverage.");
 
 function ClearAndGC() {
@@ -78,8 +94,8 @@ InspectorTest.runTestSuite([
       .then(() => Protocol.Profiler.startPreciseCoverage({callCount: true}))
       .then(() => Protocol.Runtime.compileScript({ expression: source, sourceURL: arguments.callee.name, persistScript: true }))
       .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId }))
-      .then(ClearAndGC)
       .then(InspectorTest.logMessage)
+      .then(ClearAndGC)
       .then(Protocol.Profiler.takePreciseCoverage)
       .then(LogSorted)
       .then(Protocol.Profiler.takePreciseCoverage)
@@ -200,6 +216,46 @@ InspectorTest.runTestSuite([
       .then(message => InspectorTest.logMessage(message))
       .then(() => Protocol.Runtime.evaluate({ expression: "is_optimized(fib)" }))
       .then(message => InspectorTest.logMessage(message))
+      .then(Protocol.Profiler.takePreciseCoverage)
+      .then(LogSorted)
+      .then(Protocol.Profiler.stopPreciseCoverage)
+      .then(Protocol.Profiler.disable)
+      .then(Protocol.Runtime.disable)
+      .then(ClearAndGC)
+      .then(next);
+  },
+  function testPreciseEmptyScriptCoverageEntries(next)
+  {
+    // Enabling the debugger holds onto script objects even though its
+    // functions can be garbage collected. We would get empty ScriptCoverage
+    // entires unless we remove them.
+    Protocol.Debugger.enable()
+      .then(Protocol.Runtime.enable)
+      .then(() => Protocol.Runtime.compileScript({ expression: source, sourceURL: arguments.callee.name, persistScript: true }))
+      .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId }))
+      .then(ClearAndGC)
+      .then(Protocol.Profiler.enable)
+      .then(Protocol.Profiler.startPreciseCoverage)
+      .then(Protocol.Profiler.takePreciseCoverage)
+      .then(LogSorted)
+      .then(Protocol.Profiler.stopPreciseCoverage)
+      .then(Protocol.Profiler.disable)
+      .then(Protocol.Runtime.disable)
+      .then(Protocol.Debugger.disable)
+      .then(ClearAndGC)
+      .then(next);
+  },
+  function testPreciseCountCoveragePartial(next)
+  {
+    Protocol.Runtime.enable()
+      .then(Protocol.Profiler.enable)
+      .then(() => Protocol.Profiler.startPreciseCoverage({callCount: true}))
+      .then(() => Protocol.Runtime.compileScript({ expression: nested, sourceURL: arguments.callee.name, persistScript: true }))
+      .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId }))
+      .then(InspectorTest.logMessage)
+      .then(Protocol.Profiler.takePreciseCoverage)
+      .then(LogSorted)
+      .then(() => Protocol.Runtime.evaluate({ expression: "f()" }))
       .then(Protocol.Profiler.takePreciseCoverage)
       .then(LogSorted)
       .then(Protocol.Profiler.stopPreciseCoverage)

@@ -27,7 +27,7 @@ struct CoverageFunction {
 
 struct CoverageScript {
   // Initialize top-level function in case it has been garbage-collected.
-  CoverageScript(Isolate* isolate, Handle<Script> s) : script(s) {}
+  explicit CoverageScript(Handle<Script> s) : script(s) {}
   Handle<Script> script;
   // Functions are sorted by start position, from outer to inner function.
   std::vector<CoverageFunction> functions;

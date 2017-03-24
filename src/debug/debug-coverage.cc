@@ -121,7 +121,7 @@ Coverage* Coverage::Collect(Isolate* isolate,
 
     // Create and add new script data.
     Handle<Script> script_handle(script, isolate);
-    result->emplace_back(isolate, script_handle);
+    result->emplace_back(script_handle);
     std::vector<CoverageFunction>* functions = &result->back().functions;
 
     std::vector<SharedFunctionInfo*> sorted;
@@ -135,11 +135,18 @@ Coverage* Coverage::Collect(Isolate* isolate,
       std::sort(sorted.begin(), sorted.end(), CompareSharedFunctionInfo);
     }
 
+    // Stack to track nested functions, referring function by index.
+    std::vector<size_t> nesting;
+
     // Use sorted list to reconstruct function nesting.
     for (SharedFunctionInfo* info : sorted) {
       int start = StartPosition(info);
       int end = info->end_position();
       uint32_t count = counter_map.Get(info);
+      // Find the correct outer function based on start position.
+      while (!nesting.empty() && functions->at(nesting.back()).end <= start) {
+        nesting.pop_back();
+      }
       if (count != 0) {
         switch (collectionMode) {
           case v8::debug::Coverage::kPreciseCount:
@@ -152,10 +159,18 @@ Coverage* Coverage::Collect(Isolate* isolate,
             count = 1;
             break;
         }
+      } else if (nesting.empty() || functions->at(nesting.back()).count == 0) {
+        // Only include a function range if it has a non-0 count, or
+        // if it is directly nested inside a function with non-0 count.
+        continue;
       }
       Handle<String> name(info->DebugName(), isolate);
+      nesting.push_back(functions->size());
       functions->emplace_back(start, end, count, name);
     }
+
+    // Remove entries for scripts that have no coverage.
+    if (functions->empty()) result->pop_back();
   }
   return result;
 }
