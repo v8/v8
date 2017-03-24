@@ -10,6 +10,7 @@
 #include "src/execution.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
+#include "src/objects/frame-array-inl.h"
 #include "src/string-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"

@@ -40,6 +40,9 @@
 #include "src/transitions-inl.h"
 #include "src/v8memory.h"
 
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -599,16 +602,6 @@ bool Object::IsMinusZero() const {
 // ------------------------------------
 // Cast operations
 
-#define CAST_ACCESSOR(type)                       \
-  type* type::cast(Object* object) {              \
-    SLOW_DCHECK(object->Is##type());              \
-    return reinterpret_cast<type*>(object);       \
-  }                                               \
-  const type* type::cast(const Object* object) {  \
-    SLOW_DCHECK(object->Is##type());              \
-    return reinterpret_cast<const type*>(object); \
-  }
-
 CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(BoilerplateDescription)
@@ -631,7 +624,6 @@ CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(Foreign)
-CAST_ACCESSOR(FrameArray)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HandlerTable)
 CAST_ACCESSOR(HeapObject)
@@ -2661,40 +2653,6 @@ Object** FixedArray::data_start() {
 
 Object** FixedArray::RawFieldOfElementAt(int index) {
   return HeapObject::RawField(this, OffsetOfElementAt(index));
-}
-
-#define DEFINE_FRAME_ARRAY_ACCESSORS(name, type)                              \
-  type* FrameArray::name(int frame_ix) const {                                \
-    Object* obj =                                                             \
-        get(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset);    \
-    return type::cast(obj);                                                   \
-  }                                                                           \
-                                                                              \
-  void FrameArray::Set##name(int frame_ix, type* value) {                     \
-    set(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset, value); \
-  }
-FRAME_ARRAY_FIELD_LIST(DEFINE_FRAME_ARRAY_ACCESSORS)
-#undef DEFINE_FRAME_ARRAY_ACCESSORS
-
-bool FrameArray::IsWasmFrame(int frame_ix) const {
-  const int flags = Flags(frame_ix)->value();
-  return (flags & kIsWasmFrame) != 0;
-}
-
-bool FrameArray::IsWasmInterpretedFrame(int frame_ix) const {
-  const int flags = Flags(frame_ix)->value();
-  return (flags & kIsWasmInterpretedFrame) != 0;
-}
-
-bool FrameArray::IsAsmJsWasmFrame(int frame_ix) const {
-  const int flags = Flags(frame_ix)->value();
-  return (flags & kIsAsmJsWasmFrame) != 0;
-}
-
-int FrameArray::FrameCount() const {
-  const int frame_count = Smi::cast(get(kFrameCountIndex))->value();
-  DCHECK_LE(0, frame_count);
-  return frame_count;
 }
 
 bool DescriptorArray::IsEmpty() {
@@ -8283,5 +8241,7 @@ SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_INL_H_
