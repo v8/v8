@@ -4197,6 +4197,10 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
     // Install Array.prototype.reduce
     InstallArrayBuiltinFunction(proto, "reduce", Builtins::kArrayReduce, 2);
+
+    // Install Array.prototype.reduceRight
+    InstallArrayBuiltinFunction(proto, "reduceRight",
+                                Builtins::kArrayReduceRight, 2);
   }
 
   // Install InternalArray.prototype.concat

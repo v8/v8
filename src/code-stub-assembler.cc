@@ -7860,6 +7860,58 @@ Node* CodeStubAssembler::NumberInc(Node* value) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::NumberDec(Node* value) {
+  Variable var_result(this, MachineRepresentation::kTagged),
+      var_fdec_value(this, MachineRepresentation::kFloat64);
+  Label if_issmi(this), if_isnotsmi(this), do_fdec(this), end(this);
+  Branch(TaggedIsSmi(value), &if_issmi, &if_isnotsmi);
+
+  Bind(&if_issmi);
+  {
+    // Try fast Smi addition first.
+    Node* one = SmiConstant(Smi::FromInt(1));
+    Node* pair = IntPtrSubWithOverflow(BitcastTaggedToWord(value),
+                                       BitcastTaggedToWord(one));
+    Node* overflow = Projection(1, pair);
+
+    // Check if the Smi addition overflowed.
+    Label if_overflow(this), if_notoverflow(this);
+    Branch(overflow, &if_overflow, &if_notoverflow);
+
+    Bind(&if_notoverflow);
+    var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
+    Goto(&end);
+
+    Bind(&if_overflow);
+    {
+      var_fdec_value.Bind(SmiToFloat64(value));
+      Goto(&do_fdec);
+    }
+  }
+
+  Bind(&if_isnotsmi);
+  {
+    // Check if the value is a HeapNumber.
+    CSA_ASSERT(this, IsHeapNumberMap(LoadMap(value)));
+
+    // Load the HeapNumber value.
+    var_fdec_value.Bind(LoadHeapNumberValue(value));
+    Goto(&do_fdec);
+  }
+
+  Bind(&do_fdec);
+  {
+    Node* fdec_value = var_fdec_value.value();
+    Node* minus_one = Float64Constant(-1.0);
+    Node* fdec_result = Float64Add(fdec_value, minus_one);
+    var_result.Bind(AllocateHeapNumberWithValue(fdec_result));
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return var_result.value();
+}
+
 void CodeStubAssembler::GotoIfNotNumber(Node* input, Label* is_not_number) {
   Label is_number(this);
   GotoIf(TaggedIsSmi(input), &is_number);

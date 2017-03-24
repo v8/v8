@@ -1106,45 +1106,6 @@ function ArrayLastIndexOf(element, index) {
   return -1;
 }
 
-function InnerArrayReduceRight(callback, current, array, length,
-                               argumentsLength) {
-  if (!IS_CALLABLE(callback)) {
-    throw %make_type_error(kCalledNonCallable, callback);
-  }
-
-  var i = length - 1;
-  find_initial: if (argumentsLength < 2) {
-    for (; i >= 0; i--) {
-      if (i in array) {
-        current = array[i--];
-        break find_initial;
-      }
-    }
-    throw %make_type_error(kReduceNoInitial);
-  }
-
-  for (; i >= 0; i--) {
-    if (i in array) {
-      var element = array[i];
-      current = callback(current, element, i, array);
-    }
-  }
-  return current;
-}
-
-
-function ArrayReduceRight(callback, current) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reduceRight");
-
-  // Pull out the length so that side effects are visible before the
-  // callback function is checked.
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-  return InnerArrayReduceRight(callback, current, array, length,
-                               arguments.length);
-}
-
-
 // ES#sec-array.prototype.copywithin
 // (Array.prototype.copyWithin ( target, start [ , end ] )
 function ArrayCopyWithin(target, start, end) {
@@ -1425,7 +1386,6 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "map", getFunction("map", ArrayMap, 1),
   "indexOf", getFunction("indexOf", null, 1),
   "lastIndexOf", getFunction("lastIndexOf", ArrayLastIndexOf, 1),
-  "reduceRight", getFunction("reduceRight", ArrayReduceRight, 1),
   "copyWithin", getFunction("copyWithin", ArrayCopyWithin, 2),
   "find", getFunction("find", ArrayFind, 1),
   "findIndex", getFunction("findIndex", ArrayFindIndex, 1),
@@ -1484,7 +1444,6 @@ utils.Export(function(to) {
   to.InnerArrayFind = InnerArrayFind;
   to.InnerArrayFindIndex = InnerArrayFindIndex;
   to.InnerArrayJoin = InnerArrayJoin;
-  to.InnerArrayReduceRight = InnerArrayReduceRight;
   to.InnerArraySort = InnerArraySort;
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;
   to.PackedArrayReverse = PackedArrayReverse;

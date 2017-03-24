@@ -24,7 +24,6 @@ var InnerArrayFilter;
 var InnerArrayFind;
 var InnerArrayFindIndex;
 var InnerArrayJoin;
-var InnerArrayReduceRight;
 var InnerArraySort;
 var InnerArrayToLocaleString;
 var InternalArray = utils.InternalArray;
@@ -66,7 +65,6 @@ utils.Import(function(from) {
   InnerArrayFind = from.InnerArrayFind;
   InnerArrayFindIndex = from.InnerArrayFindIndex;
   InnerArrayJoin = from.InnerArrayJoin;
-  InnerArrayReduceRight = from.InnerArrayReduceRight;
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
   MaxSimple = from.MaxSimple;
@@ -572,6 +570,31 @@ function TypedArrayReduce(callback, current) {
 }
 %FunctionSetLength(TypedArrayReduce, 1);
 
+function InnerArrayReduceRight(callback, current, array, length,
+                               argumentsLength) {
+  if (!IS_CALLABLE(callback)) {
+    throw %make_type_error(kCalledNonCallable, callback);
+  }
+
+  var i = length - 1;
+  find_initial: if (argumentsLength < 2) {
+    for (; i >= 0; i--) {
+      if (i in array) {
+        current = array[i--];
+        break find_initial;
+      }
+    }
+    throw %make_type_error(kReduceNoInitial);
+  }
+
+  for (; i >= 0; i--) {
+    if (i in array) {
+      var element = array[i];
+      current = callback(current, element, i, array);
+    }
+  }
+  return current;
+}
 
 // ES6 draft 07-15-13, section 22.2.3.19
 function TypedArrayReduceRight(callback, current) {

@@ -308,6 +308,10 @@ class Isolate;
   TFJ(ArrayReduceLoopContinuation, 7, kCallbackFn, kThisArg, kAccumulator,     \
       kObject, kInitialK, kLength, kTo)                                        \
   TFJ(ArrayReduce, 2, kCallbackFn, kInitialValue)                              \
+  /* ES6 #sec-array.prototype.reduceRight */                                   \
+  TFJ(ArrayReduceRightLoopContinuation, 7, kCallbackFn, kThisArg,              \
+      kAccumulator, kObject, kInitialK, kLength, kTo)                          \
+  TFJ(ArrayReduceRight, 2, kCallbackFn, kInitialValue)                         \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0)                                                \
   /* ES6 #sec-array.prototype.keys */                                          \

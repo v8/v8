@@ -194,7 +194,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   void GenerateIteratingArrayBuiltinBody(
       const char* name, const BuiltinResultGenerator& generator,
       const CallResultProcessor& processor, const PostLoopAction& action,
-      const Callable& slow_case_continuation) {
+      const Callable& slow_case_continuation,
+      ForEachDirection direction = ForEachDirection::kForward) {
     Label non_array(this), slow(this, {&k_, &a_, &to_}),
         array_changes(this, {&k_, &a_, &to_});
 
@@ -256,12 +257,17 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     // 6. If thisArg was supplied, let T be thisArg; else let T be undefined.
     // [Already done by the arguments adapter]
 
-    // 7. Let k be 0.
-    // [Already done in code assembler initialization]
+    if (direction == ForEachDirection::kForward) {
+      // 7. Let k be 0.
+      k_.Bind(SmiConstant(0));
+    } else {
+      k_.Bind(len());
+      k_.Bind(NumberDec(k_.value()));
+    }
 
     a_.Bind(generator(this));
 
-    HandleFastElements(processor, action, &slow);
+    HandleFastElements(processor, action, &slow, direction);
 
     Bind(&slow);
 
@@ -290,14 +296,21 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   }
 
   void GenerateIteratingArrayBuiltinLoopContinuation(
-      const CallResultProcessor& processor, const PostLoopAction& action) {
-    // 8. Repeat, while k < len
+      const CallResultProcessor& processor, const PostLoopAction& action,
+      ForEachDirection direction = ForEachDirection::kForward) {
     Label loop(this, {&k_, &a_, &to_});
     Label after_loop(this);
     Goto(&loop);
     Bind(&loop);
     {
-      GotoUnlessNumberLessThan(k(), len_, &after_loop);
+      if (direction == ForEachDirection::kForward) {
+        // 8. Repeat, while k < len
+        GotoUnlessNumberLessThan(k(), len_, &after_loop);
+      } else {
+        // OR
+        // 10. Repeat, while k >= 0
+        GotoUnlessNumberLessThan(SmiConstant(-1), k(), &after_loop);
+      }
 
       Label done_element(this, &to_);
       // a. Let Pk be ToString(k).
@@ -321,8 +334,13 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
       Bind(&done_element);
 
-      // e. Increase k by 1.
-      k_.Bind(NumberInc(k_.value()));
+      if (direction == ForEachDirection::kForward) {
+        // e. Increase k by 1.
+        k_.Bind(NumberInc(k()));
+      } else {
+        // e. Decrease k by 1.
+        k_.Bind(NumberDec(k()));
+      }
       Goto(&loop);
     }
     Bind(&after_loop);
@@ -334,13 +352,20 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
  private:
   void VisitAllFastElementsOneKind(ElementsKind kind,
                                    const CallResultProcessor& processor,
-                                   Label* array_changed, ParameterMode mode) {
+                                   Label* array_changed, ParameterMode mode,
+                                   ForEachDirection direction) {
     Comment("begin VisitAllFastElementsOneKind");
     Variable original_map(this, MachineRepresentation::kTagged);
     original_map.Bind(LoadMap(o()));
     VariableList list({&original_map, &a_, &k_, &to_}, zone());
+    Node* start = IntPtrOrSmiConstant(0, mode);
+    Node* end = TaggedToParameter(len(), mode);
+    IndexAdvanceMode advance_mode = direction == ForEachDirection::kReverse
+                                        ? IndexAdvanceMode::kPre
+                                        : IndexAdvanceMode::kPost;
+    if (direction == ForEachDirection::kReverse) std::swap(start, end);
     BuildFastLoop(
-        list, IntPtrOrSmiConstant(0, mode), TaggedToParameter(len(), mode),
+        list, start, end,
         [=, &original_map](Node* index) {
           k_.Bind(ParameterToTagged(index, mode));
           Label one_element_done(this), hole_element(this);
@@ -386,12 +411,13 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
           Bind(&one_element_done);
         },
-        1, mode, IndexAdvanceMode::kPost);
+        1, mode, advance_mode);
     Comment("end VisitAllFastElementsOneKind");
   }
 
   void HandleFastElements(const CallResultProcessor& processor,
-                          const PostLoopAction& action, Label* slow) {
+                          const PostLoopAction& action, Label* slow,
+                          ForEachDirection direction) {
     Label switch_on_elements_kind(this), fast_elements(this),
         maybe_double_elements(this), fast_double_elements(this);
 
@@ -414,7 +440,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     ParameterMode mode = OptimalParameterMode();
     Bind(&fast_elements);
     {
-      VisitAllFastElementsOneKind(FAST_ELEMENTS, processor, slow, mode);
+      VisitAllFastElementsOneKind(FAST_ELEMENTS, processor, slow, mode,
+                                  direction);
 
       action(this);
 
@@ -428,7 +455,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
     Bind(&fast_double_elements);
     {
-      VisitAllFastElementsOneKind(FAST_DOUBLE_ELEMENTS, processor, slow, mode);
+      VisitAllFastElementsOneKind(FAST_DOUBLE_ELEMENTS, processor, slow, mode,
+                                  direction);
 
       action(this);
 
@@ -755,6 +783,46 @@ TF_BUILTIN(ArrayReduce, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
       &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction,
       CodeFactory::ArrayReduceLoopContinuation(isolate()));
+}
+
+TF_BUILTIN(ArrayReduceRightLoopContinuation, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* accumulator = Parameter(Descriptor::kAccumulator);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+  Node* to = Parameter(Descriptor::kTo);
+
+  InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
+                                            this_arg, accumulator, object,
+                                            initial_k, len, to);
+
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
+      &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction,
+      ForEachDirection::kReverse);
+}
+
+TF_BUILTIN(ArrayReduceRight, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* initial_value = Parameter(Descriptor::kInitialValue);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
+
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
+                                new_target);
+
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.reduceRight",
+      &ArrayBuiltinCodeStubAssembler::ReduceResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
+      &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction,
+      CodeFactory::ArrayReduceRightLoopContinuation(isolate()),
+      ForEachDirection::kReverse);
 }
 
 TF_BUILTIN(ArrayFilterLoopContinuation, ArrayBuiltinCodeStubAssembler) {

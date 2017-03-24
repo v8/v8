@@ -442,6 +442,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kArrayEvery:
     case Builtins::kArraySome:
     case Builtins::kArrayReduce:
+    case Builtins::kArrayReduceRight:
     // Boolean bulitins.
     case Builtins::kBooleanConstructor:
     case Builtins::kBooleanPrototypeToString:

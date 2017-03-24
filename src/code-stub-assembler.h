@@ -240,6 +240,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Smi | HeapNumber operations.
   Node* NumberInc(Node* value);
+  Node* NumberDec(Node* value);
   void GotoIfNotNumber(Node* value, Label* is_not_number);
   void GotoIfNumber(Node* value, Label* is_number);
 
