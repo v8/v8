@@ -547,6 +547,8 @@ DEFINE_BOOL(wasm_break_on_decoder_error, false,
             "debug break when wasm decoder encounters an error")
 
 DEFINE_BOOL(validate_asm, false, "validate asm.js modules before compiling")
+DEFINE_BOOL(fast_validate_asm, false,
+            "validate asm.js modules before compiling")
 DEFINE_BOOL(suppress_asm_messages, false,
             "don't emit asm.js related messages (for golden file testing)")
 DEFINE_BOOL(trace_asm_time, false, "log asm.js timing info to the console")

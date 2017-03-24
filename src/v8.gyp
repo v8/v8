@@ -418,6 +418,8 @@
         'asmjs/asm-js.cc',
         'asmjs/asm-js.h',
         'asmjs/asm-names.h',
+        'asmjs/asm-parser.cc',
+        'asmjs/asm-parser.h',
         'asmjs/asm-scanner.cc',
         'asmjs/asm-scanner.h',
         'asmjs/asm-typer.cc',
