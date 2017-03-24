@@ -2552,7 +2552,7 @@ class JSObject: public JSReceiver {
 
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
 
-  typedef FlexibleBodyDescriptor<JSReceiver::kPropertiesOffset> BodyDescriptor;
+  class BodyDescriptor;
 
   // Gets the number of currently used elements.
   int GetFastElementsUsage();
