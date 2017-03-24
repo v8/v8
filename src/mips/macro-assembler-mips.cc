@@ -4768,6 +4768,19 @@ void MacroAssembler::IsObjectJSStringType(Register object,
 // ---------------------------------------------------------------------------
 // Support functions.
 
+void MacroAssembler::GetMapConstructor(Register result, Register map,
+                                       Register temp, Register temp2) {
+  Label done, loop;
+  lw(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
+  bind(&loop);
+  JumpIfSmi(result, &done);
+  GetObjectType(result, temp, temp2);
+  Branch(&done, ne, temp2, Operand(MAP_TYPE));
+  lw(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
+  Branch(&loop);
+  bind(&done);
+}
+
 void MacroAssembler::GetObjectType(Register object,
                                    Register map,
                                    Register type_reg) {

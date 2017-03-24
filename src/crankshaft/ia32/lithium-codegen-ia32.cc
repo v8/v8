@@ -2187,6 +2187,62 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
   EmitBranch(instr, BranchCondition(instr->hydrogen()));
 }
 
+// Branches to a label or falls through with the answer in the z flag.  Trashes
+// the temp registers, but not the input.
+void LCodeGen::EmitClassOfTest(Label* is_true, Label* is_false,
+                               Handle<String> class_name, Register input,
+                               Register temp, Register temp2) {
+  DCHECK(!input.is(temp));
+  DCHECK(!input.is(temp2));
+  DCHECK(!temp.is(temp2));
+  __ JumpIfSmi(input, is_false);
+
+  __ CmpObjectType(input, FIRST_FUNCTION_TYPE, temp);
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
+  if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
+    __ j(above_equal, is_true);
+  } else {
+    __ j(above_equal, is_false);
+  }
+
+  // Now we are in the FIRST-LAST_NONCALLABLE_SPEC_OBJECT_TYPE range.
+  // Check if the constructor in the map is a function.
+  __ GetMapConstructor(temp, temp, temp2);
+  // Objects with a non-function constructor have class 'Object'.
+  __ CmpInstanceType(temp2, JS_FUNCTION_TYPE);
+  if (String::Equals(class_name, isolate()->factory()->Object_string())) {
+    __ j(not_equal, is_true);
+  } else {
+    __ j(not_equal, is_false);
+  }
+
+  // temp now contains the constructor function. Grab the
+  // instance class name from there.
+  __ mov(temp, FieldOperand(temp, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(temp,
+         FieldOperand(temp, SharedFunctionInfo::kInstanceClassNameOffset));
+  // The class name we are testing against is internalized since it's a literal.
+  // The name in the constructor is internalized because of the way the context
+  // is booted.  This routine isn't expected to work for random API-created
+  // classes and it doesn't have to because you can't access it with natives
+  // syntax.  Since both sides are internalized it is sufficient to use an
+  // identity comparison.
+  __ cmp(temp, class_name);
+  // End with the answer in the z flag.
+}
+
+void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
+  Register input = ToRegister(instr->value());
+  Register temp = ToRegister(instr->temp());
+  Register temp2 = ToRegister(instr->temp2());
+
+  Handle<String> class_name = instr->hydrogen()->class_name();
+
+  EmitClassOfTest(instr->TrueLabel(chunk_), instr->FalseLabel(chunk_),
+                  class_name, input, temp, temp2);
+
+  EmitBranch(instr, equal);
+}
 
 void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
   Register reg = ToRegister(instr->value());

@@ -606,6 +606,10 @@ class MacroAssembler: public Assembler {
   // Check a boolean-bit of a Smi field.
   void BooleanBitTest(Register object, int field_offset, int bit_index);
 
+  // Machine code version of Map::GetConstructor().
+  // |temp| holds |result|'s map when done.
+  void GetMapConstructor(Register result, Register map, Register temp);
+
   // ---------------------------------------------------------------------------
   // Runtime calls
 

@@ -212,6 +212,13 @@ void LHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
+void LClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
+  stream->Add("if class_of_test(");
+  value()->PrintTo(stream);
+  stream->Add(", \"%o\") then B%d else B%d", *hydrogen()->class_name(),
+              true_block_id(), false_block_id());
+}
+
 void LTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if typeof ");
   value()->PrintTo(stream);
@@ -1652,6 +1659,13 @@ LInstruction* LChunkBuilder::DoHasInstanceTypeAndBranch(
   DCHECK(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
   return new(zone()) LHasInstanceTypeAndBranch(value);
+}
+
+LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
+    HClassOfTestAndBranch* instr) {
+  DCHECK(instr->value()->representation().IsTagged());
+  return new (zone())
+      LClassOfTestAndBranch(UseRegister(instr->value()), TempRegister());
 }
 
 LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {

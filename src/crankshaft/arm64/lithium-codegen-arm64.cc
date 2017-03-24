@@ -2229,6 +2229,53 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   __ Bind(&done);
 }
 
+void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
+  Handle<String> class_name = instr->hydrogen()->class_name();
+  Label* true_label = instr->TrueLabel(chunk_);
+  Label* false_label = instr->FalseLabel(chunk_);
+  Register input = ToRegister(instr->value());
+  Register scratch1 = ToRegister(instr->temp1());
+  Register scratch2 = ToRegister(instr->temp2());
+
+  __ JumpIfSmi(input, false_label);
+
+  Register map = scratch2;
+  __ CompareObjectType(input, map, scratch1, FIRST_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
+  if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
+    __ B(hs, true_label);
+  } else {
+    __ B(hs, false_label);
+  }
+
+  // Check if the constructor in the map is a function.
+  {
+    UseScratchRegisterScope temps(masm());
+    Register instance_type = temps.AcquireX();
+    __ GetMapConstructor(scratch1, map, scratch2, instance_type);
+    __ Cmp(instance_type, JS_FUNCTION_TYPE);
+  }
+  // Objects with a non-function constructor have class 'Object'.
+  if (String::Equals(class_name, isolate()->factory()->Object_string())) {
+    __ B(ne, true_label);
+  } else {
+    __ B(ne, false_label);
+  }
+
+  // The constructor function is in scratch1. Get its instance class name.
+  __ Ldr(scratch1,
+         FieldMemOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(scratch1, FieldMemOperand(
+                       scratch1, SharedFunctionInfo::kInstanceClassNameOffset));
+
+  // The class name we are testing against is internalized since it's a literal.
+  // The name in the constructor is internalized because of the way the context
+  // is booted. This routine isn't expected to work for random API-created
+  // classes and it doesn't have to because you can't access it with natives
+  // syntax. Since both sides are internalized it is sufficient to use an
+  // identity comparison.
+  EmitCompareAndBranch(instr, eq, scratch1, Operand(class_name));
+}
 
 void LCodeGen::DoCmpHoleAndBranchD(LCmpHoleAndBranchD* instr) {
   DCHECK(instr->hydrogen()->representation().IsDouble());

@@ -2419,6 +2419,66 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
              Operand(TestType(instr->hydrogen())));
 }
 
+// Branches to a label or falls through with the answer in flags.  Trashes
+// the temp registers, but not the input.
+void LCodeGen::EmitClassOfTest(Label* is_true, Label* is_false,
+                               Handle<String> class_name, Register input,
+                               Register temp, Register temp2) {
+  DCHECK(!input.is(temp));
+  DCHECK(!input.is(temp2));
+  DCHECK(!temp.is(temp2));
+
+  __ JumpIfSmi(input, is_false);
+
+  __ GetObjectType(input, temp, temp2);
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
+  if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
+    __ Branch(is_true, hs, temp2, Operand(FIRST_FUNCTION_TYPE));
+  } else {
+    __ Branch(is_false, hs, temp2, Operand(FIRST_FUNCTION_TYPE));
+  }
+
+  // Now we are in the FIRST-LAST_NONCALLABLE_SPEC_OBJECT_TYPE range.
+  // Check if the constructor in the map is a function.
+  Register instance_type = scratch1();
+  DCHECK(!instance_type.is(temp));
+  __ GetMapConstructor(temp, temp, temp2, instance_type);
+
+  // Objects with a non-function constructor have class 'Object'.
+  if (String::Equals(class_name, isolate()->factory()->Object_string())) {
+    __ Branch(is_true, ne, instance_type, Operand(JS_FUNCTION_TYPE));
+  } else {
+    __ Branch(is_false, ne, instance_type, Operand(JS_FUNCTION_TYPE));
+  }
+
+  // temp now contains the constructor function. Grab the
+  // instance class name from there.
+  __ ld(temp, FieldMemOperand(temp, JSFunction::kSharedFunctionInfoOffset));
+  __ ld(temp,
+        FieldMemOperand(temp, SharedFunctionInfo::kInstanceClassNameOffset));
+  // The class name we are testing against is internalized since it's a literal.
+  // The name in the constructor is internalized because of the way the context
+  // is booted.  This routine isn't expected to work for random API-created
+  // classes and it doesn't have to because you can't access it with natives
+  // syntax.  Since both sides are internalized it is sufficient to use an
+  // identity comparison.
+
+  // End with the address of this class_name instance in temp register.
+  // On MIPS, the caller must do the comparison with Handle<String>class_name.
+}
+
+void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
+  Register input = ToRegister(instr->value());
+  Register temp = scratch0();
+  Register temp2 = ToRegister(instr->temp());
+  Handle<String> class_name = instr->hydrogen()->class_name();
+
+  EmitClassOfTest(instr->TrueLabel(chunk_), instr->FalseLabel(chunk_),
+                  class_name, input, temp, temp2);
+
+  EmitBranch(instr, eq, temp, Operand(class_name));
+}
+
 void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
   Register reg = ToRegister(instr->value());
   Register temp = ToRegister(instr->temp());

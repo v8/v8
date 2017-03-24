@@ -410,6 +410,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   F(IsJSReceiver)                       \
   F(GetSuperConstructor)                \
   F(DebugBreakInOptimizedCode)          \
+  F(ClassOf)                            \
   F(StringCharCodeAt)                   \
   F(SubString)                          \
   F(ToInteger)                          \

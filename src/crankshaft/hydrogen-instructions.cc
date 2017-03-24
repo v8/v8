@@ -811,6 +811,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kBlockEntry:
     case HValue::kCallNewArray:
     case HValue::kCapturedObject:
+    case HValue::kClassOfTestAndBranch:
     case HValue::kCompareGeneric:
     case HValue::kCompareHoleAndBranch:
     case HValue::kCompareMap:
@@ -1025,6 +1026,11 @@ std::ostream& HCallRuntime::PrintDataTo(std::ostream& os) const {  // NOLINT
   return os << "#" << argument_count();
 }
 
+std::ostream& HClassOfTestAndBranch::PrintDataTo(
+    std::ostream& os) const {  // NOLINT
+  return os << "class_of_test(" << NameOf(value()) << ", \""
+            << class_name()->ToCString().get() << "\")";
+}
 
 std::ostream& HWrapReceiver::PrintDataTo(std::ostream& os) const {  // NOLINT
   return os << NameOf(receiver()) << " " << NameOf(function());

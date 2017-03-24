@@ -42,6 +42,7 @@ class LCodeGen;
   V(ClampDToUint8)                           \
   V(ClampIToUint8)                           \
   V(ClampTToUint8)                           \
+  V(ClassOfTestAndBranch)                    \
   V(CompareNumericAndBranch)                 \
   V(CmpObjectEqAndBranch)                    \
   V(CmpHoleAndBranch)                        \
@@ -1039,6 +1040,22 @@ class LHasInstanceTypeAndBranch final : public LControlInstruction<1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(HasInstanceTypeAndBranch,
                                "has-instance-type-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(HasInstanceTypeAndBranch)
+
+  void PrintDataTo(StringStream* stream) override;
+};
+
+class LClassOfTestAndBranch final : public LControlInstruction<1, 1> {
+ public:
+  LClassOfTestAndBranch(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ClassOfTestAndBranch, "class-of-test-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(ClassOfTestAndBranch)
 
   void PrintDataTo(StringStream* stream) override;
 };
