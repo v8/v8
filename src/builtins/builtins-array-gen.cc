@@ -129,21 +129,39 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   }
 
   Node* FilterProcessor(Node* k_value, Node* k) {
-    Node* callback_result = CallJS(CodeFactory::Call(isolate()), context(),
-                                   callbackfn(), this_arg(), k_value, k, o());
+    // ii. Let selected be ToBoolean(? Call(callbackfn, T, kValue, k, O)).
+    Node* selected = CallJS(CodeFactory::Call(isolate()), context(),
+                            callbackfn(), this_arg(), k_value, k, o());
     Label true_continue(this, &to_), false_continue(this);
-    BranchIfToBooleanIsTrue(callback_result, &true_continue, &false_continue);
+    BranchIfToBooleanIsTrue(selected, &true_continue, &false_continue);
     Bind(&true_continue);
+    // iii. If selected is true, then...
+    {
+      // 1. Perform ? CreateDataPropertyOrThrow(A, ToString(to), kValue).
+      CallRuntime(Runtime::kCreateDataProperty, context(), a(), to_.value(),
+                  k_value);
 
-    // 1. let status be CreateDataPropertyOrThrow(A, ToString(to), kValue).
-    // 2. ReturnIfAbrupt(status)
-    Node* const p_to = ToString(context(), to_.value());
-    CallRuntime(Runtime::kCreateDataProperty, context(), a(), p_to, k_value);
-
-    // 3. Increase to by 1.
-    to_.Bind(NumberInc(to_.value()));
-    Goto(&false_continue);
+      // 2. Increase to by 1.
+      to_.Bind(NumberInc(to_.value()));
+      Goto(&false_continue);
+    }
     Bind(&false_continue);
+    return a();
+  }
+
+  Node* MapResultGenerator() {
+    // 5. Let A be ? ArraySpeciesCreate(O, len).
+    return ArraySpeciesCreate(context(), o(), len_);
+  }
+
+  Node* MapProcessor(Node* k_value, Node* k) {
+    //  i. Let kValue be ? Get(O, Pk). Performed by the caller of MapProcessor.
+    // ii. Let mappedValue be ? Call(callbackfn, T, kValue, k, O).
+    Node* mappedValue = CallJS(CodeFactory::Call(isolate()), context(),
+                               callbackfn(), this_arg(), k_value, k, o());
+
+    // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+    CallRuntime(Runtime::kCreateDataProperty, context(), a(), k, mappedValue);
     return a();
   }
 
@@ -770,11 +788,48 @@ TF_BUILTIN(ArrayFilter, ArrayBuiltinCodeStubAssembler) {
                                 new_target);
 
   GenerateIteratingArrayBuiltinBody(
-      "Array.prototype.reduce",
+      "Array.prototype.filter",
       &ArrayBuiltinCodeStubAssembler::FilterResultGenerator,
       &ArrayBuiltinCodeStubAssembler::FilterProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
       CodeFactory::ArrayFilterLoopContinuation(isolate()));
+}
+
+TF_BUILTIN(ArrayMapLoopContinuation, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+  Node* to = Parameter(Descriptor::kTo);
+
+  InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
+                                            this_arg, array, object, initial_k,
+                                            len, to);
+
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      &ArrayBuiltinCodeStubAssembler::MapProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
+}
+
+TF_BUILTIN(ArrayMap, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
+
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
+                                new_target);
+
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.map", &ArrayBuiltinCodeStubAssembler::MapResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::MapProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      CodeFactory::ArrayMapLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {

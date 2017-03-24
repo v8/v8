@@ -514,6 +514,12 @@ Callable CodeFactory::ArrayFilterLoopContinuation(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::ArrayMapLoopContinuation(Isolate* isolate) {
+  return Callable(isolate->builtins()->ArrayMapLoopContinuation(),
+                  IteratingArrayBuiltinLoopContinuationDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::ArrayForEachLoopContinuation(Isolate* isolate) {
   return Callable(isolate->builtins()->ArrayForEachLoopContinuation(),
                   IteratingArrayBuiltinLoopContinuationDescriptor(isolate));

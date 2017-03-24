@@ -3714,6 +3714,7 @@ void Genesis::InitializeGlobal_experimental_fast_array_builtins() {
 
   // Insert experimental fast array builtins here.
   InstallOneBuiltinFunction("Array", "filter", Builtins::kArrayFilter);
+  InstallOneBuiltinFunction("Array", "map", Builtins::kArrayMap);
 }
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
