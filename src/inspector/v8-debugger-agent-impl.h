@@ -198,7 +198,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::unique_ptr<protocol::DictionaryValue> breakAuxData);
   void popBreakDetails();
 
-  bool m_javaScriptPauseScheduled;
   bool m_skipAllPauses = false;
 
   std::unique_ptr<V8Regex> m_blackboxPattern;

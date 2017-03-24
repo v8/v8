@@ -152,7 +152,8 @@ InspectorTest.logSourceLocation = function(location)
   }
   var script = InspectorTest._scriptMap.get(scriptId);
   if (!script.scriptSource) {
-    return Protocol.Debugger.getScriptSource({ scriptId })
+    // TODO(kozyatinskiy): doesn't assume that contextId == contextGroupId.
+    return Protocol.Debugger.getScriptSource({ scriptId }, script.executionContextId)
       .then(message => script.scriptSource = message.result.scriptSource)
       .then(dumpSourceWithLocation);
   }

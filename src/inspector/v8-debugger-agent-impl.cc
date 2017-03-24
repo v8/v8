@@ -198,8 +198,7 @@ V8DebuggerAgentImpl::V8DebuggerAgentImpl(
       m_enabled(false),
       m_state(state),
       m_frontend(frontendChannel),
-      m_isolate(m_inspector->isolate()),
-      m_javaScriptPauseScheduled(false) {}
+      m_isolate(m_inspector->isolate()) {}
 
 V8DebuggerAgentImpl::~V8DebuggerAgentImpl() {}
 
@@ -251,7 +250,6 @@ Response V8DebuggerAgentImpl::disable() {
   m_debugger->setAsyncCallStackDepth(this, 0);
   m_continueToLocationBreakpointId = String16();
   clearBreakDetails();
-  m_javaScriptPauseScheduled = false;
   m_skipAllPauses = false;
   m_state->setBoolean(DebuggerAgentState::skipAllPauses, false);
   m_state->remove(DebuggerAgentState::blackboxPattern);
@@ -291,6 +289,10 @@ void V8DebuggerAgentImpl::restore() {
 Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
   m_debugger->setBreakpointsActivated(active);
+  if (!active && !m_breakReason.empty()) {
+    clearBreakDetails();
+    m_debugger->setPauseOnNextStatement(false, m_session->contextGroupId());
+  }
   return Response::OK();
 }
 
@@ -685,9 +687,7 @@ void V8DebuggerAgentImpl::clearBreakDetails() {
 void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
     const String16& breakReason,
     std::unique_ptr<protocol::DictionaryValue> data) {
-  if (!enabled() || m_javaScriptPauseScheduled || isPaused() ||
-      !m_debugger->breakpointsActivated())
-    return;
+  if (!enabled() || isPaused() || !m_debugger->breakpointsActivated()) return;
   if (m_breakReason.empty()) {
     m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
   }
@@ -695,18 +695,20 @@ void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
 }
 
 void V8DebuggerAgentImpl::cancelPauseOnNextStatement() {
-  if (m_javaScriptPauseScheduled || isPaused()) return;
-  popBreakDetails();
-  if (m_breakReason.empty())
+  if (!enabled() || isPaused() || !m_debugger->breakpointsActivated()) return;
+  if (m_breakReason.size() == 1) {
     m_debugger->setPauseOnNextStatement(false, m_session->contextGroupId());
+  }
+  popBreakDetails();
 }
 
 Response V8DebuggerAgentImpl::pause() {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
-  if (m_javaScriptPauseScheduled || isPaused()) return Response::OK();
-  clearBreakDetails();
-  m_javaScriptPauseScheduled = true;
-  m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
+  if (isPaused()) return Response::OK();
+  if (m_breakReason.empty()) {
+    m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
+  }
+  pushBreakDetails(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
   return Response::OK();
 }
 
@@ -1240,7 +1242,6 @@ void V8DebuggerAgentImpl::didPause(int contextId,
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData), std::move(hitBreakpointIds),
                     currentAsyncStackTrace());
-  m_javaScriptPauseScheduled = false;
 
   if (!m_continueToLocationBreakpointId.isEmpty()) {
     m_debugger->removeBreakpoint(m_continueToLocationBreakpointId);
