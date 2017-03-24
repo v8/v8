@@ -15,6 +15,7 @@
           './protocol-test.js',
           './runtime/',
           './testcfg.py',
+          '../../src/inspector/injected-script-source.js',
           '<(PRODUCT_DIR)/inspector-test<(EXECUTABLE_SUFFIX)',
         ],
       },

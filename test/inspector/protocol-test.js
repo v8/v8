@@ -317,3 +317,38 @@ InspectorTest._dispatchMessage = function(messageObject)
 InspectorTest.loadScript = function(fileName) {
   InspectorTest.addScript(utils.read(fileName));
 }
+
+InspectorTest.setupInjectedScriptEnvironment = function(debug) {
+  let scriptSource = '';
+  // First define all getters on Object.prototype.
+  let injectedScriptSource = utils.read('src/inspector/injected-script-source.js');
+  let getterRegex = /\.[a-zA-Z0-9]+/g;
+  let match;
+  let getters = new Set();
+  while (match = getterRegex.exec(injectedScriptSource)) {
+    getters.add(match[0].substr(1));
+  }
+  // TODO(kozyatinskiy): pass builtins to injected script source.
+  getters.delete('constructor');
+  scriptSource += `(function installSettersAndGetters() {
+    let defineProperty = Object.defineProperty;
+    let ObjectPrototype = Object.prototype;\n`;
+  scriptSource += Array.from(getters).map(getter => `
+    defineProperty(ObjectPrototype, '${getter}', {
+      set() { debugger; throw 42; }, get() { debugger; throw 42; },
+      __proto__: null
+    });
+  `).join('\n') + '})();';
+  InspectorTest.addScript(scriptSource);
+
+  if (debug) {
+    InspectorTest.log('WARNING: InspectorTest.setupInjectedScriptEnvironment with debug flag for debugging only and should not be landed.');
+    InspectorTest.log('WARNING: run test with --expose-inspector-scripts flag to get more details.');
+    InspectorTest.setupScriptMap();
+    Protocol.Debugger.enable();
+    Protocol.Debugger.onPaused(message => {
+      let callFrames = message.params.callFrames;
+      InspectorTest.logSourceLocations(callFrames.map(frame => frame.location));
+    })
+  }
+}
