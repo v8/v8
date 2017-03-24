@@ -1701,6 +1701,7 @@ v8_source_set("v8_base") {
     "src/objects-printer.cc",
     "src/objects.cc",
     "src/objects.h",
+    "src/objects/descriptor-array.h",
     "src/objects/literal-objects.cc",
     "src/objects/literal-objects.h",
     "src/objects/module-info.h",
