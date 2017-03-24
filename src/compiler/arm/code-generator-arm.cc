@@ -1444,12 +1444,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVld1F64: {
-      __ vld1(NeonSize::Neon8, NeonListOperand(i.OutputDoubleRegister()),
+      __ vld1(Neon8, NeonListOperand(i.OutputDoubleRegister()),
               NeonMemOperand(i.InputRegister(0)));
       break;
     }
     case kArmVst1F64: {
       __ vst1(Neon8, NeonListOperand(i.InputDoubleRegister(0)),
+              NeonMemOperand(i.InputRegister(1)));
+      break;
+    }
+    case kArmVld1S128: {
+      __ vld1(Neon8, NeonListOperand(i.OutputSimd128Register()),
+              NeonMemOperand(i.InputRegister(0)));
+      break;
+    }
+    case kArmVst1S128: {
+      __ vst1(Neon8, NeonListOperand(i.InputSimd128Register(0)),
               NeonMemOperand(i.InputRegister(1)));
       break;
     }
@@ -1990,18 +2000,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmSimd128Zero: {
       __ veor(i.OutputSimd128Register(), i.OutputSimd128Register(),
               i.OutputSimd128Register());
-      break;
-    }
-    case kArmSimd128Load: {
-      MemOperand src = i.InputOffset();
-      __ vld1(Neon8, NeonListOperand(i.OutputSimd128Register()),
-              NeonMemOperand(src.rn(), src.rm()));
-      break;
-    }
-    case kArmSimd128Store: {
-      MemOperand src = i.InputOffset(1);
-      __ vst1(Neon8, NeonListOperand(i.InputSimd128Register(0)),
-              NeonMemOperand(src.rn(), src.rm()));
       break;
     }
     case kArmSimd128And: {

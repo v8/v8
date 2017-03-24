@@ -199,8 +199,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmUint8x16LessThan:
     case kArmUint8x16LessThanOrEqual:
     case kArmSimd128Zero:
-    case kArmSimd128Load:
-    case kArmSimd128Store:
     case kArmSimd128And:
     case kArmSimd128Or:
     case kArmSimd128Xor:
@@ -217,6 +215,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmVldrF32:
     case kArmVldrF64:
     case kArmVld1F64:
+    case kArmVld1S128:
     case kArmLdrb:
     case kArmLdrsb:
     case kArmLdrh:
@@ -227,6 +226,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmVstrF32:
     case kArmVstrF64:
     case kArmVst1F64:
+    case kArmVst1S128:
     case kArmStrb:
     case kArmStrh:
     case kArmStr:

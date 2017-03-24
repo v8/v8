@@ -427,7 +427,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kArmLdr;
       break;
     case MachineRepresentation::kSimd128:
-      opcode = kArmSimd128Load;
+      opcode = kArmVld1S128;
       break;
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd1x4:  // Fall through.
@@ -517,7 +517,7 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kArmStr;
         break;
       case MachineRepresentation::kSimd128:
-        opcode = kArmSimd128Store;
+        opcode = kArmVst1S128;
         break;
       case MachineRepresentation::kWord64:   // Fall through.
       case MachineRepresentation::kSimd1x4:  // Fall through.
@@ -542,8 +542,8 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
 }
 
 void InstructionSelector::VisitUnalignedLoad(Node* node) {
-  UnalignedLoadRepresentation load_rep =
-      UnalignedLoadRepresentationOf(node->op());
+  MachineRepresentation load_rep =
+      UnalignedLoadRepresentationOf(node->op()).representation();
   ArmOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -551,16 +551,18 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
   InstructionCode opcode = kArmLdr;
   // Only floating point loads need to be specially handled; integer loads
   // support unaligned access. We support unaligned FP loads by loading to
-  // integer registers first, then moving to the destination FP register.
-  switch (load_rep.representation()) {
+  // integer registers first, then moving to the destination FP register. If
+  // NEON is supported, we use the vld1.8 instruction.
+  switch (load_rep) {
     case MachineRepresentation::kFloat32: {
       InstructionOperand temp = g.TempRegister();
       EmitLoad(this, opcode, &temp, base, index);
       Emit(kArmVmovF32U32, g.DefineAsRegister(node), temp);
       return;
     }
-    case MachineRepresentation::kFloat64: {
-      // Compute the address of the least-significant half of the FP value.
+    case MachineRepresentation::kFloat64:
+    case MachineRepresentation::kSimd128: {
+      // Compute the address of the least-significant byte of the FP value.
       // We assume that the base node is unlikely to be an encodable immediate
       // or the result of a shift operation, so only consider the addressing
       // mode that should be used for the index node.
@@ -585,8 +587,12 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
 
       if (CpuFeatures::IsSupported(NEON)) {
         // With NEON we can load directly from the calculated address.
-        Emit(kArmVld1F64, g.DefineAsRegister(node), addr);
+        ArchOpcode op = load_rep == MachineRepresentation::kFloat64
+                            ? kArmVld1F64
+                            : kArmVld1S128;
+        Emit(op, g.DefineAsRegister(node), addr);
       } else {
+        DCHECK_NE(MachineRepresentation::kSimd128, load_rep);
         // Load both halves and move to an FP register.
         InstructionOperand fp_lo = g.TempRegister();
         InstructionOperand fp_hi = g.TempRegister();
@@ -619,6 +625,7 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
   // Only floating point stores need to be specially handled; integer stores
   // support unaligned access. We support unaligned FP stores by moving the
   // value to integer registers first, then storing to the destination address.
+  // If NEON is supported, we use the vst1.8 instruction.
   switch (store_rep) {
     case MachineRepresentation::kFloat32: {
       inputs[input_count++] = g.TempRegister();
@@ -627,7 +634,8 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
       EmitStore(this, kArmStr, input_count, inputs, index);
       return;
     }
-    case MachineRepresentation::kFloat64: {
+    case MachineRepresentation::kFloat64:
+    case MachineRepresentation::kSimd128: {
       if (CpuFeatures::IsSupported(NEON)) {
         InstructionOperand address = g.TempRegister();
         {
@@ -653,8 +661,12 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
 
         inputs[input_count++] = g.UseRegister(value);
         inputs[input_count++] = address;
-        Emit(kArmVst1F64, 0, nullptr, input_count, inputs);
+        ArchOpcode op = store_rep == MachineRepresentation::kFloat64
+                            ? kArmVst1F64
+                            : kArmVst1S128;
+        Emit(op, 0, nullptr, input_count, inputs);
       } else {
+        DCHECK_NE(MachineRepresentation::kSimd128, store_rep);
         // Store a 64-bit floating point value using two 32-bit integer stores.
         // Computing the store address here would require three live temporary
         // registers (fp<63:32>, fp<31:0>, address), so compute base + 4 after

@@ -107,6 +107,8 @@ namespace compiler {
   V(ArmVld1F64)                    \
   V(ArmVstrF64)                    \
   V(ArmVst1F64)                    \
+  V(ArmVld1S128)                   \
+  V(ArmVst1S128)                   \
   V(ArmFloat32Max)                 \
   V(ArmFloat64Max)                 \
   V(ArmFloat32Min)                 \
@@ -213,8 +215,6 @@ namespace compiler {
   V(ArmUint8x16LessThan)           \
   V(ArmUint8x16LessThanOrEqual)    \
   V(ArmSimd128Zero)                \
-  V(ArmSimd128Load)                \
-  V(ArmSimd128Store)               \
   V(ArmSimd128And)                 \
   V(ArmSimd128Or)                  \
   V(ArmSimd128Xor)                 \
