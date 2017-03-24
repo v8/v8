@@ -2841,7 +2841,7 @@ void Message::PrintCurrentStackTrace(Isolate* isolate, FILE* out) {
 
 Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   auto self = Utils::OpenHandle(this);
   auto obj = i::JSReceiver::GetElement(isolate, self, index).ToHandleChecked();
@@ -2865,10 +2865,7 @@ Local<StackTrace> StackTrace::CurrentStackTrace(
     int frame_limit,
     StackTraceOptions options) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8(i_isolate);
-  // TODO(dcarney): remove when ScriptDebugServer is fixed.
-  options = static_cast<StackTraceOptions>(
-      static_cast<int>(options) | kExposeFramesAcrossSecurityOrigins);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::JSArray> stackTrace =
       i_isolate->CaptureCurrentStackTrace(frame_limit, options);
   return Utils::StackTraceToLocal(stackTrace);
@@ -2880,7 +2877,7 @@ Local<StackTrace> StackTrace::CurrentStackTrace(
 static int getIntProperty(const StackFrame* f, const char* propertyName,
                           int defaultValue) {
   i::Isolate* isolate = Utils::OpenHandle(f)->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(f);
   i::Handle<i::Object> obj =
@@ -2907,7 +2904,7 @@ int StackFrame::GetScriptId() const {
 static Local<String> getStringProperty(const StackFrame* f,
                                        const char* propertyName) {
   i::Isolate* isolate = Utils::OpenHandle(f)->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(f);
   i::Handle<i::Object> obj =
@@ -2935,7 +2932,7 @@ Local<String> StackFrame::GetFunctionName() const {
 
 static bool getBoolProperty(const StackFrame* f, const char* propertyName) {
   i::Isolate* isolate = Utils::OpenHandle(f)->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(f);
   i::Handle<i::Object> obj =
