@@ -693,6 +693,7 @@
 
   # BUG(v8:6132).
   'wasm/grow-memory': [PASS, ['gc_stress', SKIP]],
+  'wasm/import-memory': [PASS, ['gc_stress', SKIP]],
 }],  # variant == wasm_traps
 
 ]
