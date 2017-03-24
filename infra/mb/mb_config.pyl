@@ -108,7 +108,7 @@
       'V8 Linux64 - gcov coverage': 'gyp_release_x64_gcc_coverage',
       'V8 Linux - predictable': 'gn_release_x86_predictable',
       'V8 Linux - full debug': 'gyp_full_debug_x86',
-      'V8 Linux - interpreted regexp': 'gyp_release_x86_interpreted_regexp',
+      'V8 Linux - interpreted regexp': 'gn_release_x86_interpreted_regexp',
       'V8 Random Deopt Fuzzer - debug': 'gyp_debug_x86',
     },
 
@@ -412,6 +412,8 @@
       'gn', 'release_bot', 'x86', 'gcmole', 'swarming'],
     'gn_release_x86_gcmole_trybot': [
       'gn', 'release_trybot', 'x86', 'gcmole', 'swarming'],
+    'gn_release_x86_interpreted_regexp': [
+      'gn', 'release_bot', 'x86', 'v8_interpreted_regexp'],
     'gn_release_x86_minimal_symbols': [
       'gn', 'release_bot', 'x86', 'minimal_symbols', 'swarming'],
     'gn_release_x86_no_i18n_trybot': [
@@ -474,8 +476,6 @@
     # Gyp release configs for x86.
     'gyp_release_x86_disassembler': [
       'gyp', 'release_bot', 'x86', 'v8_enable_disassembler'],
-    'gyp_release_x86_interpreted_regexp': [
-      'gyp', 'release_bot', 'x86', 'v8_interpreted_regexp'],
   },
 
   'mixins': {
