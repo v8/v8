@@ -588,7 +588,9 @@ void Scheduler::BuildCFG() {
   control_flow_builder_->Run();
 
   // Initialize per-block data.
-  scheduled_nodes_.resize(schedule_->BasicBlockCount(), NodeVector(zone_));
+  // Reserve an extra 10% to avoid resizing vector when fusing floating control.
+  scheduled_nodes_.reserve(schedule_->BasicBlockCount() * 1.1);
+  scheduled_nodes_.resize(schedule_->BasicBlockCount());
 }
 
 
@@ -1328,7 +1330,8 @@ void Scheduler::ScheduleEarly() {
 class ScheduleLateNodeVisitor {
  public:
   ScheduleLateNodeVisitor(Zone* zone, Scheduler* scheduler)
-      : scheduler_(scheduler),
+      : zone_(zone),
+        scheduler_(scheduler),
         schedule_(scheduler_->schedule_),
         marked_(scheduler->zone_),
         marking_queue_(scheduler->zone_) {}
@@ -1621,7 +1624,12 @@ class ScheduleLateNodeVisitor {
 
   void ScheduleNode(BasicBlock* block, Node* node) {
     schedule_->PlanNode(block, node);
-    scheduler_->scheduled_nodes_[block->id().ToSize()].push_back(node);
+    size_t block_id = block->id().ToSize();
+    if (!scheduler_->scheduled_nodes_[block_id]) {
+      scheduler_->scheduled_nodes_[block_id] =
+          new (zone_->New(sizeof(NodeVector))) NodeVector(zone_);
+    }
+    scheduler_->scheduled_nodes_[block_id]->push_back(node);
     scheduler_->UpdatePlacement(node, Scheduler::kScheduled);
   }
 
@@ -1640,6 +1648,7 @@ class ScheduleLateNodeVisitor {
     return copy;
   }
 
+  Zone* zone_;
   Scheduler* scheduler_;
   Schedule* schedule_;
   BoolVector marked_;
@@ -1676,11 +1685,13 @@ void Scheduler::SealFinalSchedule() {
 
   // Add collected nodes for basic blocks to their blocks in the right order.
   int block_num = 0;
-  for (NodeVector& nodes : scheduled_nodes_) {
+  for (NodeVector* nodes : scheduled_nodes_) {
     BasicBlock::Id id = BasicBlock::Id::FromInt(block_num++);
     BasicBlock* block = schedule_->GetBlockById(id);
-    for (Node* node : base::Reversed(nodes)) {
-      schedule_->AddNode(block, node);
+    if (nodes) {
+      for (Node* node : base::Reversed(*nodes)) {
+        schedule_->AddNode(block, node);
+      }
     }
   }
 }
@@ -1730,7 +1741,7 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
 
   // Move previously planned nodes.
   // TODO(mstarzinger): Improve that by supporting bulk moves.
-  scheduled_nodes_.resize(schedule_->BasicBlockCount(), NodeVector(zone_));
+  scheduled_nodes_.resize(schedule_->BasicBlockCount());
   MovePlannedNodes(block, schedule_->block(node));
 
   if (FLAG_trace_turbo_scheduler) {
@@ -1743,12 +1754,20 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
 void Scheduler::MovePlannedNodes(BasicBlock* from, BasicBlock* to) {
   TRACE("Move planned nodes from id:%d to id:%d\n", from->id().ToInt(),
         to->id().ToInt());
-  NodeVector* nodes = &(scheduled_nodes_[from->id().ToSize()]);
-  for (Node* const node : *nodes) {
+  NodeVector* from_nodes = scheduled_nodes_[from->id().ToSize()];
+  NodeVector* to_nodes = scheduled_nodes_[to->id().ToSize()];
+  if (!from_nodes) return;
+
+  for (Node* const node : *from_nodes) {
     schedule_->SetBlockForNode(to, node);
-    scheduled_nodes_[to->id().ToSize()].push_back(node);
   }
-  nodes->clear();
+  if (to_nodes) {
+    to_nodes->insert(to_nodes->end(), from_nodes->begin(), from_nodes->end());
+    from_nodes->clear();
+  } else {
+    std::swap(scheduled_nodes_[from->id().ToSize()],
+              scheduled_nodes_[to->id().ToSize()]);
+  }
 }
 
 }  // namespace compiler

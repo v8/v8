@@ -65,7 +65,8 @@ class V8_EXPORT_PRIVATE Scheduler {
   Graph* graph_;
   Schedule* schedule_;
   Flags flags_;
-  NodeVectorVector scheduled_nodes_;     // Per-block list of nodes in reverse.
+  ZoneVector<NodeVector*>
+      scheduled_nodes_;                  // Per-block list of nodes in reverse.
   NodeVector schedule_root_nodes_;       // Fixed root nodes seed the worklist.
   ZoneQueue<Node*> schedule_queue_;      // Worklist of schedulable nodes.
   ZoneVector<SchedulerData> node_data_;  // Per-node data for all nodes.
