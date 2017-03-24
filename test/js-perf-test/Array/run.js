@@ -6,6 +6,7 @@
 load('../base.js');
 
 load('filter.js');
+load('map.js');
 
 var success = true;
 
@@ -13,10 +14,7 @@ function PrintResult(name, result) {
   print(name + '-Array(Score): ' + result);
 }
 
-function PrintStep(name) {
-  print('Completed ' + name + '-Array...');
-}
-
+function PrintStep(name) {}
 
 function PrintError(name, error) {
   PrintResult(name, error);

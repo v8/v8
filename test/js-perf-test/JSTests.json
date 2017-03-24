@@ -345,11 +345,20 @@
       "path": ["Array"],
       "main": "run.js",
       "resources": [
-        "filter.js"
+        "filter.js", "map.js"
       ],
       "results_regexp": "^%s\\-Array\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Filter"}
+        {"name": "NaiveFilterReplacement"},
+        {"name": "DoubleFilter"},
+        {"name": "SmiFilter"},
+        {"name": "FastFilter"},
+        {"name": "ObjectFilter"},
+        {"name": "NaiveMapReplacement"},
+        {"name": "DoubleMap"},
+        {"name": "SmiMap"},
+        {"name": "FastMap"},
+        {"name": "ObjectMap"}
       ]
     }
   ]
