@@ -197,6 +197,16 @@ v8::MaybeLocal<v8::Array> EntriesPreview(Isolate* isolate,
                                          v8::Local<v8::Value> value,
                                          bool* is_key_value);
 
+enum Builtin {
+  kObjectKeys,
+  kObjectGetPrototypeOf,
+  kObjectGetOwnPropertyDescriptor,
+  kObjectGetOwnPropertyNames,
+  kObjectGetOwnPropertySymbols,
+};
+
+Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
+
 /**
  * Native wrapper around v8::internal::JSGeneratorObject object.
  */

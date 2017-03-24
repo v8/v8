@@ -9568,6 +9568,36 @@ v8::MaybeLocal<v8::Array> debug::EntriesPreview(Isolate* v8_isolate,
   return v8::MaybeLocal<v8::Array>();
 }
 
+Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  i::HandleScope handle_scope(isolate);
+  i::Builtins::Name name;
+  switch (builtin) {
+    case kObjectKeys:
+      name = i::Builtins::kObjectKeys;
+      break;
+    case kObjectGetPrototypeOf:
+      name = i::Builtins::kObjectGetPrototypeOf;
+      break;
+    case kObjectGetOwnPropertyDescriptor:
+      name = i::Builtins::kObjectGetOwnPropertyDescriptor;
+      break;
+    case kObjectGetOwnPropertyNames:
+      name = i::Builtins::kObjectGetOwnPropertyNames;
+      break;
+    case kObjectGetOwnPropertySymbols:
+      name = i::Builtins::kObjectGetOwnPropertySymbols;
+      break;
+  }
+  i::Handle<i::Code> call_code(isolate->builtins()->builtin(name));
+  i::Handle<i::JSFunction> fun =
+      isolate->factory()->NewFunctionWithoutPrototype(
+          isolate->factory()->empty_string(), call_code, false);
+  fun->shared()->DontAdaptArguments();
+  return Utils::ToLocal(handle_scope.CloseAndEscape(fun));
+}
+
 MaybeLocal<debug::Script> debug::GeneratorObject::Script() {
   i::Handle<i::JSGeneratorObject> obj = Utils::OpenHandle(this);
   i::Object* maybe_script = obj->function()->shared()->script();

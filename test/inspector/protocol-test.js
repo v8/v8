@@ -329,8 +329,6 @@ InspectorTest.setupInjectedScriptEnvironment = function(debug) {
   while (match = getterRegex.exec(injectedScriptSource)) {
     getters.add(match[0].substr(1));
   }
-  // TODO(kozyatinskiy): pass builtins to injected script source.
-  getters.delete('constructor');
   scriptSource += `(function installSettersAndGetters() {
     let defineProperty = Object.defineProperty;
     let ObjectPrototype = Object.prototype;\n`;

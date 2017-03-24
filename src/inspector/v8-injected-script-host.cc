@@ -80,6 +80,26 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(
   setFunctionProperty(context, injectedScriptHost, "proxyTargetValue",
                       V8InjectedScriptHost::proxyTargetValueCallback,
                       debuggerExternal);
+  createDataProperty(context, injectedScriptHost,
+                     toV8StringInternalized(isolate, "keys"),
+                     v8::debug::GetBuiltin(isolate, v8::debug::kObjectKeys));
+  createDataProperty(
+      context, injectedScriptHost,
+      toV8StringInternalized(isolate, "getPrototypeOf"),
+      v8::debug::GetBuiltin(isolate, v8::debug::kObjectGetPrototypeOf));
+  createDataProperty(
+      context, injectedScriptHost,
+      toV8StringInternalized(isolate, "getOwnPropertyDescriptor"),
+      v8::debug::GetBuiltin(isolate,
+                            v8::debug::kObjectGetOwnPropertyDescriptor));
+  createDataProperty(
+      context, injectedScriptHost,
+      toV8StringInternalized(isolate, "getOwnPropertyNames"),
+      v8::debug::GetBuiltin(isolate, v8::debug::kObjectGetOwnPropertyNames));
+  createDataProperty(
+      context, injectedScriptHost,
+      toV8StringInternalized(isolate, "getOwnPropertySymbols"),
+      v8::debug::GetBuiltin(isolate, v8::debug::kObjectGetOwnPropertySymbols));
   return injectedScriptHost;
 }
 
