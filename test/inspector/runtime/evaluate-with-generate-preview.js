@@ -65,6 +65,8 @@ var objInheritsGetterProperty = {__proto__: parentObj};
 allowAccessorFormatting(objInheritsGetterProperty);
 `);
 
+InspectorTest.setupInjectedScriptEnvironment();
+
 InspectorTest.runTestSuite([
   function testObjectPropertiesPreview(next)
   {
@@ -132,6 +134,13 @@ InspectorTest.runTestSuite([
   function testObjInheritsGetterProperty(next)
   {
     Protocol.Runtime.evaluate({ "expression": "objInheritsGetterProperty", "generatePreview": true })
+        .then(result => InspectorTest.logMessage(result.result.result.preview))
+        .then(next);
+  },
+
+  function testObjWithArrayAsProto(next)
+  {
+    Protocol.Runtime.evaluate({ "expression": "Object.create([1,2])", "generatePreview": true })
         .then(result => InspectorTest.logMessage(result.result.result.preview))
         .then(next);
   }

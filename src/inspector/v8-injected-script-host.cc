@@ -58,6 +58,9 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(
   setFunctionProperty(context, injectedScriptHost, "nullifyPrototype",
                       V8InjectedScriptHost::nullifyPrototypeCallback,
                       debuggerExternal);
+  setFunctionProperty(context, injectedScriptHost, "getProperty",
+                      V8InjectedScriptHost::getPropertyCallback,
+                      debuggerExternal);
   setFunctionProperty(context, injectedScriptHost, "internalConstructorName",
                       V8InjectedScriptHost::internalConstructorNameCallback,
                       debuggerExternal);
@@ -88,6 +91,24 @@ void V8InjectedScriptHost::nullifyPrototypeCallback(
       .As<v8::Object>()
       ->SetPrototype(isolate->GetCurrentContext(), v8::Null(isolate))
       .ToChecked();
+}
+
+void V8InjectedScriptHost::getPropertyCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(info.Length() == 2 && info[1]->IsString());
+  if (!info[0]->IsObject()) return;
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::TryCatch tryCatch(isolate);
+  v8::Isolate::DisallowJavascriptExecutionScope throwJs(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+  v8::Local<v8::Value> property;
+  if (info[0]
+          .As<v8::Object>()
+          ->Get(context, v8::Local<v8::String>::Cast(info[1]))
+          .ToLocal(&property)) {
+    info.GetReturnValue().Set(property);
+  }
 }
 
 void V8InjectedScriptHost::internalConstructorNameCallback(

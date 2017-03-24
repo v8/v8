@@ -14,6 +14,13 @@ InjectedScriptHostClass.prototype.nullifyPrototype = function(obj) {}
 
 /**
  * @param {*} obj
+ * @param {string} name
+ * @return {*}
+ */
+InjectedScriptHostClass.prototype.getProperty = function(obj, name) {}
+
+/**
+ * @param {*} obj
  * @return {string}
  */
 InjectedScriptHostClass.prototype.internalConstructorName = function(obj) {}

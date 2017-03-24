@@ -827,3 +827,12 @@ Running test: testObjInheritsGetterProperty
     ]
     type : object
 }
+
+Running test: testObjWithArrayAsProto
+{
+    description : Array
+    overflow : false
+    properties : [
+    ]
+    type : object
+}

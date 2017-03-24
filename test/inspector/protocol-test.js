@@ -345,6 +345,7 @@ InspectorTest.setupInjectedScriptEnvironment = function(debug) {
   if (debug) {
     InspectorTest.log('WARNING: InspectorTest.setupInjectedScriptEnvironment with debug flag for debugging only and should not be landed.');
     InspectorTest.log('WARNING: run test with --expose-inspector-scripts flag to get more details.');
+    InspectorTest.log('WARNING: you can additionally comment rjsmin in xxd.py to get unminified injected-script-source.js.');
     InspectorTest.setupScriptMap();
     Protocol.Debugger.enable();
     Protocol.Debugger.onPaused(message => {

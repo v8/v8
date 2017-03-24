@@ -114,14 +114,12 @@ function isArrayLike(obj)
 {
     if (typeof obj !== "object")
         return false;
-    try {
-        if (typeof obj.splice === "function") {
-            if (!InjectedScriptHost.objectHasOwnProperty(/** @type {!Object} */ (obj), "length"))
-                return false;
-            var len = obj.length;
-            return typeof len === "number" && isUInt32(len);
-        }
-    } catch (e) {
+    var splice = InjectedScriptHost.getProperty(obj, "splice");
+    if (typeof splice === "function") {
+        if (!InjectedScriptHost.objectHasOwnProperty(/** @type {!Object} */ (obj), "length"))
+            return false;
+        var len = InjectedScriptHost.getProperty(obj, "length");
+        return typeof len === "number" && isUInt32(len);
     }
     return false;
 }
@@ -392,7 +390,7 @@ InjectedScript.prototype = {
     _propertyDescriptors: function(object, addPropertyIfNeeded, ownProperties, accessorPropertiesOnly, propertyNamesOnly)
     {
         var descriptors = [];
-        descriptors.__proto__ = null;
+        InjectedScriptHost.nullifyPrototype(descriptors);
         var propertyProcessed = { __proto__: null };
         var subtype = InjectedScriptHost.subtype(object);
 
@@ -423,6 +421,7 @@ InjectedScript.prototype = {
                 var descriptor;
                 try {
                     descriptor = Object.getOwnPropertyDescriptor(o, property);
+                    InjectedScriptHost.nullifyPrototype(descriptor);
                     var isAccessorProperty = descriptor && ("get" in descriptor || "set" in descriptor);
                     if (accessorPropertiesOnly && !isAccessorProperty)
                         continue;
@@ -437,14 +436,14 @@ InjectedScript.prototype = {
                 } catch (e) {
                     if (accessorPropertiesOnly)
                         continue;
-                    descriptor = { value: e, wasThrown: true };
+                    descriptor = { value: e, wasThrown: true, __proto__: null };
                 }
 
                 // Not all bindings provide proper descriptors. Fall back to the non-configurable, non-enumerable,
                 // non-writable property.
                 if (!descriptor) {
                     try {
-                        descriptor = { value: o[property], writable: false };
+                        descriptor = { value: o[property], writable: false, __proto__: null };
                     } catch (e) {
                         // Silent catch.
                         continue;
