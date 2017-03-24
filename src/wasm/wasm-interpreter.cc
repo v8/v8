@@ -1114,7 +1114,8 @@ class ThreadImpl {
       TRACE("  => Run()\n");
       state_ = WasmInterpreter::RUNNING;
       Execute(frames_.back().code, frames_.back().pc, kRunSteps);
-    } while (state_ == WasmInterpreter::STOPPED && !frames_.empty());
+    } while (state_ == WasmInterpreter::PAUSED && !frames_.empty() &&
+             !PausedAtBreakpoint());
     return state_;
   }
 
@@ -1169,6 +1170,12 @@ class ThreadImpl {
   TrapReason GetTrapReason() { return trap_reason_; }
 
   pc_t GetBreakpointPc() { return break_pc_; }
+
+  bool PausedAtBreakpoint() {
+    DCHECK_IMPLIES(break_pc_ != kInvalidPc,
+                   !frames_.empty() && break_pc_ == frames_.back().pc);
+    return break_pc_ != kInvalidPc;
+  }
 
   bool PossibleNondeterminism() { return possible_nondeterminism_; }
 
@@ -1453,9 +1460,14 @@ class ThreadImpl {
   void Execute(InterpreterCode* code, pc_t pc, int max) {
     Decoder decoder(code->start, code->end);
     pc_t limit = code->end - code->start;
-    while (--max >= 0) {
-#define PAUSE_IF_BREAK_FLAG(flag) \
-  if (V8_UNLIKELY(break_flags_ & WasmInterpreter::BreakFlag::flag)) max = 0;
+    bool hit_break = false;
+
+    while (true) {
+#define PAUSE_IF_BREAK_FLAG(flag)                                     \
+  if (V8_UNLIKELY(break_flags_ & WasmInterpreter::BreakFlag::flag)) { \
+    hit_break = true;                                                 \
+    max = 0;                                                          \
+  }
 
       DCHECK_GT(limit, pc);
       DCHECK_NOT_NULL(code->start);
@@ -1474,9 +1486,13 @@ class ThreadImpl {
                 WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(orig)));
           TraceValueStack();
           TRACE("\n");
+          hit_break = true;
           break;
         }
       }
+
+      // If max == 0, do only break after setting hit_break correctly.
+      if (--max < 0) break;
 
       USE(skip);
       TRACE("@%-3zu: %s%-24s:", pc, skip,
@@ -1906,10 +1922,9 @@ class ThreadImpl {
         PAUSE_IF_BREAK_FLAG(AfterReturn);
       }
     }
-    // Set break_pc_, even though we might have stopped because max was reached.
-    // We don't want to stop after executing zero instructions next time.
-    break_pc_ = pc;
+
     state_ = WasmInterpreter::PAUSED;
+    break_pc_ = hit_break ? pc : kInvalidPc;
     CommitPc(pc);
   }
 
