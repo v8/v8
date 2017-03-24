@@ -29,8 +29,11 @@ function listener(event, exec_state, event_data, data) {
     success(undefined, `Date.parse(1)`);
     for (f of Object.getOwnPropertyNames(Date.prototype)) {
       if (typeof Date.prototype[f] === "function") {
-        if (f.startsWith("set") || f.startsWith("toLocale")) {
+        if (f.startsWith("set")) {
           fail(`date.${f}(5);`, true);
+        } else if (f.startsWith("toLocale")) {
+          if (typeof Intl === "undefined") continue;
+          fail(`date.${f}();`, true);
         } else {
           success(undefined, `date.${f}();`, true);
         }
