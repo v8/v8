@@ -1154,28 +1154,46 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
           return slow_stub();
         }
 
+        CallOptimization call_optimization(getter);
+        if (call_optimization.is_simple_api_call()) {
+          if (!call_optimization.IsCompatibleReceiverMap(map, holder) ||
+              !holder->HasFastProperties()) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
+            return slow_stub();
+          }
+          break;
+        }
+
+        // FunctionTemplate isn't yet supported as smi-handler.
+        if (getter->IsFunctionTemplateInfo()) {
+          if (!holder->HasFastProperties()) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
+            return slow_stub();
+          }
+          break;
+        }
+
         Handle<Smi> smi_handler;
         if (holder->HasFastProperties()) {
-          CallOptimization call_optimization(getter);
-          if (call_optimization.is_simple_api_call()) {
-            if (!call_optimization.IsCompatibleReceiverMap(map, holder)) {
-              return slow_stub();
-            }
-            break;
-          }
           smi_handler =
               LoadHandler::LoadAccessor(isolate(), lookup->GetAccessorIndex());
 
-          if (receiver_is_holder) return smi_handler;
-        } else if (receiver_is_holder && !holder->IsJSGlobalObject()) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
-          return LoadHandler::LoadNormal(isolate());
+          if (receiver_is_holder) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadAccessorDH);
+            return smi_handler;
+          }
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadAccessorFromPrototypeDH);
         } else if (holder->IsJSGlobalObject()) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobalFromPrototypeDH);
           smi_handler = LoadHandler::LoadGlobal(isolate());
         } else {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
           smi_handler = LoadHandler::LoadNormal(isolate());
+
+          if (receiver_is_holder) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
+            return smi_handler;
+          }
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
         }
 
         return LoadFromPrototype(map, holder, lookup->name(), smi_handler);

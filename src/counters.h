@@ -774,6 +774,8 @@ class RuntimeCallTimer final {
   V(KeyedStoreIC_StoreElementStub)               \
   V(LoadIC_FunctionPrototypeStub)                \
   V(LoadIC_HandlerCacheHit_Accessor)             \
+  V(LoadIC_LoadAccessorDH)                       \
+  V(LoadIC_LoadAccessorFromPrototypeDH)          \
   V(LoadIC_LoadApiGetterDH)                      \
   V(LoadIC_LoadApiGetterFromPrototypeDH)         \
   V(LoadIC_LoadCallback)                         \
