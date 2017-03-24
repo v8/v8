@@ -1027,23 +1027,27 @@ TEST(TryLookupElement) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  enum Result { kFound, kNotFound, kBailout };
+  enum Result { kFound, kAbsent, kNotFound, kBailout };
   {
     Node* object = m.Parameter(0);
     Node* index = m.SmiUntag(m.Parameter(1));
     Node* expected_result = m.Parameter(2);
 
     Label passed(&m), failed(&m);
-    Label if_found(&m), if_not_found(&m), if_bailout(&m);
+    Label if_found(&m), if_not_found(&m), if_bailout(&m), if_absent(&m);
 
     Node* map = m.LoadMap(object);
     Node* instance_type = m.LoadMapInstanceType(map);
 
-    m.TryLookupElement(object, map, instance_type, index, &if_found,
+    m.TryLookupElement(object, map, instance_type, index, &if_found, &if_absent,
                        &if_not_found, &if_bailout);
 
     m.Bind(&if_found);
     m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+             &passed, &failed);
+
+    m.Bind(&if_absent);
+    m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kAbsent))),
              &passed, &failed);
 
     m.Bind(&if_not_found);
@@ -1074,6 +1078,7 @@ TEST(TryLookupElement) {
   Handle<Object> smi42(Smi::FromInt(42), isolate);
 
   Handle<Object> expect_found(Smi::FromInt(kFound), isolate);
+  Handle<Object> expect_absent(Smi::FromInt(kAbsent), isolate);
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
   Handle<Object> expect_bailout(Smi::FromInt(kBailout), isolate);
 
@@ -1084,6 +1089,17 @@ TEST(TryLookupElement) {
 #define CHECK_NOT_FOUND(object, index)                      \
   CHECK(!JSReceiver::HasElement(object, index).FromJust()); \
   ft.CheckTrue(object, smi##index, expect_not_found);
+
+#define CHECK_ABSENT(object, index)                                        \
+  {                                                                        \
+    bool success;                                                          \
+    Handle<Smi> smi(Smi::FromInt(index), isolate);                         \
+    LookupIterator it =                                                    \
+        LookupIterator::PropertyOrElement(isolate, object, smi, &success); \
+    CHECK(success);                                                        \
+    CHECK(!JSReceiver::HasProperty(&it).FromJust());                       \
+    ft.CheckTrue(object, smi, expect_absent);                              \
+  }
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, FAST_SMI_ELEMENTS);
@@ -1135,6 +1151,30 @@ TEST(TryLookupElement) {
     CHECK_NOT_FOUND(object, 7);
     CHECK_FOUND(object, 13);
     CHECK_NOT_FOUND(object, 42);
+  }
+
+  {
+    Handle<JSTypedArray> object = factory->NewJSTypedArray(INT32_ELEMENTS, 2);
+    Local<v8::ArrayBuffer> buffer = Utils::ToLocal(object->GetBuffer());
+
+    CHECK_EQ(INT32_ELEMENTS, object->map()->elements_kind());
+
+    CHECK_FOUND(object, 0);
+    CHECK_FOUND(object, 1);
+    CHECK_ABSENT(object, -10);
+    CHECK_ABSENT(object, 13);
+    CHECK_ABSENT(object, 42);
+
+    v8::ArrayBuffer::Contents contents = buffer->Externalize();
+    buffer->Neuter();
+    isolate->array_buffer_allocator()->Free(contents.Data(),
+                                            contents.ByteLength());
+
+    CHECK_ABSENT(object, 0);
+    CHECK_ABSENT(object, 1);
+    CHECK_ABSENT(object, -10);
+    CHECK_ABSENT(object, 13);
+    CHECK_ABSENT(object, 42);
   }
 
   {
