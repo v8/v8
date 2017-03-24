@@ -397,6 +397,10 @@ typedef List<HeapObject*> DebugObjectCache;
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
   V(AllowWasmCompileCallback, allow_wasm_compile_callback, nullptr)           \
   V(AllowWasmInstantiateCallback, allow_wasm_instantiate_callback, nullptr)   \
+  V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
+  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
+  V(ExtensionCallback, wasm_compile_callback, &NoExtension)                   \
+  V(ExtensionCallback, wasm_instantiate_callback, &NoExtension)               \
   V(ExternalReferenceRedirectorPointer*, external_reference_redirector,       \
     nullptr)                                                                  \
   /* State for Relocatable. */                                                \

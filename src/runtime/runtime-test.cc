@@ -45,7 +45,7 @@ bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
 // Use the compile controls for instantiation, too
 bool IsWasmInstantiateAllowed(v8::Isolate* isolate,
                               v8::Local<v8::Value> module_or_bytes,
-                              v8::MaybeLocal<v8::Value> ffi, bool is_async) {
+                              bool is_async) {
   DCHECK_GT(g_PerIsolateWasmControls.Get().count(isolate), 0);
   const WasmCompileControls& ctrls = g_PerIsolateWasmControls.Get().at(isolate);
   if (is_async && ctrls.AllowAnySizeForAsync) return true;
@@ -57,6 +57,60 @@ bool IsWasmInstantiateAllowed(v8::Isolate* isolate,
   return static_cast<uint32_t>(module->GetWasmWireBytes()->Length()) <=
          ctrls.MaxWasmBufferSize;
 }
+
+v8::Local<v8::Value> NewRangeException(v8::Isolate* isolate,
+                                       const char* message) {
+  return v8::Exception::RangeError(
+      v8::String::NewFromOneByte(isolate,
+                                 reinterpret_cast<const uint8_t*>(message),
+                                 v8::NewStringType::kNormal)
+          .ToLocalChecked());
+}
+
+void ThrowRangeException(v8::Isolate* isolate, const char* message) {
+  isolate->ThrowException(NewRangeException(isolate, message));
+}
+
+void RejectPromiseWithRangeError(
+    const v8::FunctionCallbackInfo<v8::Value>& args, const char* message) {
+  v8::Isolate* isolate = args.GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Promise::Resolver> resolver;
+  if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) return;
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(resolver->GetPromise());
+
+  auto maybe = resolver->Reject(context, NewRangeException(isolate, message));
+  CHECK(!maybe.IsNothing());
+  return;
+}
+
+bool WasmModuleOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  if (IsWasmCompileAllowed(args.GetIsolate(), args[0], false)) return false;
+  ThrowRangeException(args.GetIsolate(), "Sync compile not allowed");
+  return true;
+}
+
+bool WasmCompileOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  if (IsWasmCompileAllowed(args.GetIsolate(), args[0], true)) return false;
+  RejectPromiseWithRangeError(args, "Async compile not allowed");
+  return true;
+}
+
+bool WasmInstanceOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  if (IsWasmInstantiateAllowed(args.GetIsolate(), args[0], false)) return false;
+  ThrowRangeException(args.GetIsolate(), "Sync instantiate not allowed");
+  return true;
+}
+
+bool WasmInstantiateOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  if (IsWasmInstantiateAllowed(args.GetIsolate(), args[0], true)) return false;
+  RejectPromiseWithRangeError(args, "Async instantiate not allowed");
+  return true;
+}
+
 }  // namespace
 
 namespace v8 {
@@ -516,14 +570,17 @@ RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
   WasmCompileControls& ctrl = (*g_PerIsolateWasmControls.Pointer())[v8_isolate];
   ctrl.AllowAnySizeForAsync = allow_async;
   ctrl.MaxWasmBufferSize = static_cast<uint32_t>(block_size->value());
-  isolate->set_allow_wasm_compile_callback(IsWasmCompileAllowed);
+  v8_isolate->SetWasmModuleCallback(WasmModuleOverride);
+  v8_isolate->SetWasmCompileCallback(WasmCompileOverride);
   return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_SetWasmInstantiateControls) {
   HandleScope scope(isolate);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   CHECK(args.length() == 0);
-  isolate->set_allow_wasm_instantiate_callback(IsWasmInstantiateAllowed);
+  v8_isolate->SetWasmInstanceCallback(WasmInstanceOverride);
+  v8_isolate->SetWasmInstantiateCallback(WasmInstantiateOverride);
   return isolate->heap()->undefined_value();
 }
 

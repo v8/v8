@@ -434,6 +434,7 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
   return true;
 }
 
+bool NoExtension(const v8::FunctionCallbackInfo<v8::Value>&) { return false; }
 }  // namespace
 
 Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,

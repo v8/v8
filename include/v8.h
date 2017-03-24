@@ -6008,6 +6008,8 @@ typedef bool (*AllowWasmInstantiateCallback)(Isolate* isolate,
                                              MaybeLocal<Value> ffi,
                                              bool as_promise);
 
+typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
+
 // --- Garbage Collection Callbacks ---
 
 /**
@@ -7250,6 +7252,11 @@ class V8_EXPORT Isolate {
    */
   void SetAllowWasmCompileCallback(AllowWasmCompileCallback callback);
   void SetAllowWasmInstantiateCallback(AllowWasmInstantiateCallback callback);
+
+  void SetWasmModuleCallback(ExtensionCallback callback);
+  void SetWasmCompileCallback(ExtensionCallback callback);
+  void SetWasmInstanceCallback(ExtensionCallback callback);
+  void SetWasmInstantiateCallback(ExtensionCallback callback);
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after

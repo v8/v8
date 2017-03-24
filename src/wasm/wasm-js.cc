@@ -178,6 +178,8 @@ i::MaybeHandle<i::JSReceiver> GetSecondArgumentAsImports(
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i_isolate->wasm_compile_callback()(args)) return;
+
   HandleScope scope(isolate);
   ErrorThrower thrower(i_isolate, "WebAssembly.compile()");
 
@@ -222,6 +224,8 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i_isolate->wasm_module_callback()(args)) return;
+
   HandleScope scope(isolate);
   ErrorThrower thrower(i_isolate, "WebAssembly.Module()");
 
@@ -297,6 +301,8 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i_isolate->wasm_instance_callback()(args)) return;
+
   ErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
 
   auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
@@ -322,6 +328,8 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i_isolate->wasm_instantiate_callback()(args)) return;
+
   ErrorThrower thrower(i_isolate, "WebAssembly.instantiate()");
 
   HandleScope scope(isolate);

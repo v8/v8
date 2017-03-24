@@ -8735,6 +8735,18 @@ void Isolate::SetAllowWasmInstantiateCallback(
   isolate->set_allow_wasm_instantiate_callback(callback);
 }
 
+#define CALLBACK_SETTER(ExternalName, Type, InternalName)      \
+  void Isolate::Set##ExternalName(Type callback) {             \
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this); \
+    isolate->set_##InternalName(callback);                     \
+  }
+
+CALLBACK_SETTER(WasmModuleCallback, ExtensionCallback, wasm_module_callback)
+CALLBACK_SETTER(WasmCompileCallback, ExtensionCallback, wasm_compile_callback)
+CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback, wasm_instance_callback)
+CALLBACK_SETTER(WasmInstantiateCallback, ExtensionCallback,
+                wasm_instantiate_callback)
+
 bool Isolate::IsDead() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return isolate->IsDead();
