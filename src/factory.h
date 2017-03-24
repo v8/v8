@@ -671,7 +671,14 @@ class V8_EXPORT_PRIVATE Factory final {
                                 bool check_number_string_cache = true);
 
   Handle<String> Uint32ToString(uint32_t value) {
-    return NumberToString(NewNumberFromUint(value));
+    Handle<String> result = NumberToString(NewNumberFromUint(value));
+
+    if (result->length() <= String::kMaxArrayIndexSize) {
+      uint32_t field =
+          StringHasher::MakeArrayIndexHash(value, result->length());
+      result->set_hash_field(field);
+    }
+    return result;
   }
 
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);

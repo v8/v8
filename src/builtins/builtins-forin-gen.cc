@@ -21,28 +21,18 @@ typedef compiler::Node Node;
 
 Node* ForInBuiltinsAssembler::ForInFilter(Node* key, Node* object,
                                           Node* context) {
-  Label return_undefined(this, Label::kDeferred), return_to_name(this),
-      end(this);
+  CSA_ASSERT(this, IsName(key));
 
-  Variable var_result(this, MachineRepresentation::kTagged);
+  Variable var_result(this, MachineRepresentation::kTagged, key);
 
   Node* has_property =
       HasProperty(object, key, context, Runtime::kForInHasProperty);
 
-  Branch(WordEqual(has_property, BooleanConstant(true)), &return_to_name,
-         &return_undefined);
+  Label end(this);
+  GotoIf(WordEqual(has_property, BooleanConstant(true)), &end);
 
-  Bind(&return_to_name);
-  {
-    var_result.Bind(ToName(context, key));
-    Goto(&end);
-  }
-
-  Bind(&return_undefined);
-  {
-    var_result.Bind(UndefinedConstant());
-    Goto(&end);
-  }
+  var_result.Bind(UndefinedConstant());
+  Goto(&end);
 
   Bind(&end);
   return var_result.value();
