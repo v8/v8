@@ -1153,8 +1153,11 @@ class InstantiationHelper {
       return {};
     }
 
+    // Record build time into correct bucket, then build instance.
     HistogramTimerScope wasm_instantiate_module_time_scope(
-        isolate_->counters()->wasm_instantiate_module_time());
+        module_->origin == ModuleOrigin::kWasmOrigin
+            ? isolate_->counters()->wasm_instantiate_wasm_module_time()
+            : isolate_->counters()->wasm_instantiate_asm_module_time());
     Factory* factory = isolate_->factory();
 
     //--------------------------------------------------------------------------

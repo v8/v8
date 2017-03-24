@@ -957,7 +957,10 @@ class RuntimeCallTimerScope {
   /* Total JavaScript execution time (including callbacks and runtime calls */ \
   HT(execute, V8.Execute, 1000000, MICROSECOND)                                \
   /* Asm/Wasm */                                                               \
-  HT(wasm_instantiate_module_time, V8.WasmInstantiateModuleMicroSeconds,       \
+  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
+  HT(wasm_instantiate_asm_module_time, V8.WasmInstantiateModuleMicroSeconds,   \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_instantiate_wasm_module_time, V8.WasmInstantiateModuleMicroSeconds,  \
      1000000, MICROSECOND)                                                     \
   HT(wasm_decode_module_time, V8.WasmDecodeModuleMicroSeconds, 1000000,        \
      MICROSECOND)                                                              \
