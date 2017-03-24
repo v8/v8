@@ -881,6 +881,7 @@ void EscapeStatusAnalysis::ProcessFinishRegion(Node* node) {
   }
   if (CheckUsesForEscape(node, true)) {
     RevisitInputs(node);
+    RevisitUses(node);
   }
 }
 
