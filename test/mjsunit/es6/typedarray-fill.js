@@ -2,16 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var typedArrayConstructors = [
+var intArrayConstructors = [
   Uint8Array,
   Int8Array,
   Uint16Array,
   Int16Array,
   Uint32Array,
   Int32Array,
-  Uint8ClampedArray,
+  Uint8ClampedArray
+];
+
+var floatArrayConstructors = [
   Float32Array,
-  Float64Array];
+  Float64Array
+];
+
+var typedArrayConstructors = [...intArrayConstructors, ...floatArrayConstructors];
 
 for (var constructor of typedArrayConstructors) {
   assertEquals(1, constructor.prototype.fill.length);
@@ -40,6 +46,11 @@ for (var constructor of typedArrayConstructors) {
   assertThrows('constructor.prototype.fill.call(undefined)', TypeError);
   assertThrows('constructor.prototype.fill.call([])', TypeError);
 
+  assertArrayEquals([0, 0, 0, 0, 0], new constructor([0, 0, 0, 0, 0]).fill(false));
+  assertArrayEquals([1, 1, 1, 1, 1], new constructor([0, 0, 0, 0, 0]).fill(true));
+  assertArrayEquals([0, 0, 0, 0, 0], new constructor([0, 0, 0, 0, 0]).fill(null));
+  assertArrayEquals([8, 8, 8, 8, 8], new constructor([0, 0, 0, 0, 0]).fill("8"));
+
   // Test ToNumber
   var s = "";
   var p = new Proxy({}, {get(t,k) { s += k.toString() + '\n'; return Reflect.get(t, k)}})
@@ -67,9 +78,17 @@ Symbol(Symbol.toStringTag)
   assertArrayEquals([4, 3], [a[0], a[1]]);
 }
 
-// Empty args
-assertArrayEquals([0], new Uint8Array([0]).fill());
-assertArrayEquals([NaN], new Float32Array([0]).fill());
+for (var constructor of intArrayConstructors) {
+  assertArrayEquals([0, 0, 0, 0, 0], new constructor([0, 0, 0, 0, 0]).fill(undefined));
+  assertArrayEquals([0, 0, 0, 0, 0], new constructor([0, 0, 0, 0, 0]).fill());
+  assertArrayEquals([0, 0, 0, 0, 0], new constructor([0, 0, 0, 0, 0]).fill("abcd"));
+}
+
+for (var constructor of floatArrayConstructors) {
+  assertArrayEquals([NaN, NaN, NaN, NaN, NaN], new constructor([0, 0, 0, 0, 0]).fill(undefined));
+  assertArrayEquals([NaN, NaN, NaN, NaN, NaN], new constructor([0, 0, 0, 0, 0]).fill());
+  assertArrayEquals([NaN, NaN, NaN, NaN, NaN], new constructor([0, 0, 0, 0, 0]).fill("abcd"));
+}
 
 // Clamping
 assertArrayEquals([0, 0, 0, 0, 0], new Uint8ClampedArray([0, 0, 0, 0, 0]).fill(-10));

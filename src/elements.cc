@@ -2863,16 +2863,23 @@ class TypedElementsAccessor
     Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
     DCHECK(!array->WasNeutered());
 
-    if (!obj_value->IsNumber()) {
-      return FillNumberSlowPath(isolate, array, obj_value, start, end);
-    }
-
-    ctype value = 0;
+    ctype value;
     if (obj_value->IsSmi()) {
       value = BackingStore::from_int(Smi::cast(*obj_value)->value());
     } else {
-      DCHECK(obj_value->IsHeapNumber());
-      value = BackingStore::from_double(HeapNumber::cast(*obj_value)->value());
+      Handle<HeapObject> heap_obj_value = Handle<HeapObject>::cast(obj_value);
+      if (heap_obj_value->IsHeapNumber()) {
+        value = BackingStore::from_double(
+            HeapNumber::cast(*heap_obj_value)->value());
+      } else if (heap_obj_value->IsOddball()) {
+        value = BackingStore::from_double(
+            Oddball::ToNumber(Handle<Oddball>::cast(heap_obj_value))->Number());
+      } else if (heap_obj_value->IsString()) {
+        value = BackingStore::from_double(
+            String::ToNumber(Handle<String>::cast(heap_obj_value))->Number());
+      } else {
+        return FillNumberSlowPath(isolate, array, obj_value, start, end);
+      }
     }
 
     // Ensure indexes are within array bounds
