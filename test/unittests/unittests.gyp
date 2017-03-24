@@ -136,6 +136,7 @@
       'unicode-unittest.cc',
       'value-serializer-unittest.cc',
       'zone/segmentpool-unittest.cc',
+      'zone/zone-allocator-unittest.cc',
       'zone/zone-chunk-list-unittest.cc',
       'zone/zone-unittest.cc',
       'wasm/asm-types-unittest.cc',

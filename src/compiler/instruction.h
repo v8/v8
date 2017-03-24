@@ -1469,7 +1469,8 @@ std::ostream& operator<<(std::ostream& os,
 
 typedef ZoneDeque<Constant> ConstantDeque;
 typedef std::map<int, Constant, std::less<int>,
-                 zone_allocator<std::pair<const int, Constant> > > ConstantMap;
+                 ZoneAllocator<std::pair<const int, Constant> > >
+    ConstantMap;
 
 typedef ZoneDeque<Instruction*> InstructionDeque;
 typedef ZoneDeque<ReferenceMap*> ReferenceMapDeque;

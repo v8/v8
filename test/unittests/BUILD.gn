@@ -149,6 +149,7 @@ v8_executable("unittests") {
     "wasm/wasm-module-builder-unittest.cc",
     "wasm/wasm-opcodes-unittest.cc",
     "zone/segmentpool-unittest.cc",
+    "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
   ]

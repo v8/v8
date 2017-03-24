@@ -19686,38 +19686,38 @@ struct StringHandleEqual {
 class UnorderedStringSet
     : public std::unordered_set<Handle<String>, StringHandleHash,
                                 StringHandleEqual,
-                                zone_allocator<Handle<String>>> {
+                                ZoneAllocator<Handle<String>>> {
  public:
   explicit UnorderedStringSet(Zone* zone)
       : std::unordered_set<Handle<String>, StringHandleHash, StringHandleEqual,
-                           zone_allocator<Handle<String>>>(
+                           ZoneAllocator<Handle<String>>>(
             2 /* bucket count */, StringHandleHash(), StringHandleEqual(),
-            zone_allocator<Handle<String>>(zone)) {}
+            ZoneAllocator<Handle<String>>(zone)) {}
 };
 
 class UnorderedModuleSet
     : public std::unordered_set<Handle<Module>, ModuleHandleHash,
                                 ModuleHandleEqual,
-                                zone_allocator<Handle<Module>>> {
+                                ZoneAllocator<Handle<Module>>> {
  public:
   explicit UnorderedModuleSet(Zone* zone)
       : std::unordered_set<Handle<Module>, ModuleHandleHash, ModuleHandleEqual,
-                           zone_allocator<Handle<Module>>>(
+                           ZoneAllocator<Handle<Module>>>(
             2 /* bucket count */, ModuleHandleHash(), ModuleHandleEqual(),
-            zone_allocator<Handle<Module>>(zone)) {}
+            ZoneAllocator<Handle<Module>>(zone)) {}
 };
 
 class UnorderedStringMap
     : public std::unordered_map<
           Handle<String>, Handle<Object>, StringHandleHash, StringHandleEqual,
-          zone_allocator<std::pair<const Handle<String>, Handle<Object>>>> {
+          ZoneAllocator<std::pair<const Handle<String>, Handle<Object>>>> {
  public:
   explicit UnorderedStringMap(Zone* zone)
       : std::unordered_map<
             Handle<String>, Handle<Object>, StringHandleHash, StringHandleEqual,
-            zone_allocator<std::pair<const Handle<String>, Handle<Object>>>>(
+            ZoneAllocator<std::pair<const Handle<String>, Handle<Object>>>>(
             2 /* bucket count */, StringHandleHash(), StringHandleEqual(),
-            zone_allocator<std::pair<const Handle<String>, Handle<Object>>>(
+            ZoneAllocator<std::pair<const Handle<String>, Handle<Object>>>(
                 zone)) {}
 };
 
@@ -19726,17 +19726,17 @@ class UnorderedStringMap
 class Module::ResolveSet
     : public std::unordered_map<
           Handle<Module>, UnorderedStringSet*, ModuleHandleHash,
-          ModuleHandleEqual, zone_allocator<std::pair<const Handle<Module>,
-                                                      UnorderedStringSet*>>> {
+          ModuleHandleEqual,
+          ZoneAllocator<std::pair<const Handle<Module>, UnorderedStringSet*>>> {
  public:
   explicit ResolveSet(Zone* zone)
       : std::unordered_map<Handle<Module>, UnorderedStringSet*,
                            ModuleHandleHash, ModuleHandleEqual,
-                           zone_allocator<std::pair<const Handle<Module>,
-                                                    UnorderedStringSet*>>>(
+                           ZoneAllocator<std::pair<const Handle<Module>,
+                                                   UnorderedStringSet*>>>(
             2 /* bucket count */, ModuleHandleHash(), ModuleHandleEqual(),
-            zone_allocator<
-                std::pair<const Handle<Module>, UnorderedStringSet*>>(zone)),
+            ZoneAllocator<std::pair<const Handle<Module>, UnorderedStringSet*>>(
+                zone)),
         zone_(zone) {}
 
   Zone* zone() const { return zone_; }
