@@ -514,7 +514,9 @@ class CompilationHelper {
     }
 
     HistogramTimerScope wasm_compile_module_time_scope(
-        isolate_->counters()->wasm_compile_module_time());
+        module_->origin == ModuleOrigin::kWasmOrigin
+            ? isolate_->counters()->wasm_compile_wasm_module_time()
+            : isolate_->counters()->wasm_compile_asm_module_time());
 
     ModuleBytesEnv module_env(module_, &temp_instance, wire_bytes);
 
