@@ -84,9 +84,6 @@
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
   'language/statements/variable/binding-resolution': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4253
-  'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
