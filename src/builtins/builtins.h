@@ -915,8 +915,10 @@ class Isolate;
   CPP(TypedArrayPrototypeIncludes)                                             \
   /* ES6 #sec-%typedarray%.prototype.indexof */                                \
   CPP(TypedArrayPrototypeIndexOf)                                              \
-  /* ES6 #sec-%typedarray%.prototype.indexof */                                \
+  /* ES6 #sec-%typedarray%.prototype.lastindexof */                            \
   CPP(TypedArrayPrototypeLastIndexOf)                                          \
+  /* ES6 #sec-%typedarray%.prototype.reverse */                                \
+  CPP(TypedArrayPrototypeReverse)                                              \
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \

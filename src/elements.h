@@ -180,6 +180,8 @@ class ElementsAccessor {
                                           Handle<Object> value,
                                           uint32_t start) = 0;
 
+  virtual void Reverse(JSObject* receiver) = 0;
+
   virtual void CopyElements(Handle<FixedArrayBase> source,
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;

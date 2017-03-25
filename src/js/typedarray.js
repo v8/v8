@@ -29,7 +29,6 @@ var InnerArrayToLocaleString;
 var InternalArray = utils.InternalArray;
 var MaxSimple;
 var MinSimple;
-var PackedArrayReverse;
 var SpeciesConstructor;
 var ToPositiveInteger;
 var ToIndex;
@@ -69,7 +68,6 @@ utils.Import(function(from) {
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  PackedArrayReverse = from.PackedArrayReverse;
   SpeciesConstructor = from.SpeciesConstructor;
   ToPositiveInteger = from.ToPositiveInteger;
   ToIndex = from.ToIndex;
@@ -432,15 +430,6 @@ function TypedArrayFindIndex(predicate, thisArg) {
 %FunctionSetLength(TypedArrayFindIndex, 1);
 
 
-// ES6 draft 05-18-15, section 22.2.3.21
-function TypedArrayReverse() {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
-
-  var length = %_TypedArrayGetLength(this);
-
-  return PackedArrayReverse(this, length);
-}
-
 // ES6 draft 05-18-15, section 22.2.3.25
 function TypedArraySort(comparefn) {
   if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
@@ -712,7 +701,6 @@ utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
   "map", TypedArrayMap,
   "reduce", TypedArrayReduce,
   "reduceRight", TypedArrayReduceRight,
-  "reverse", TypedArrayReverse,
   "slice", TypedArraySlice,
   "some", TypedArraySome,
   "sort", TypedArraySort,

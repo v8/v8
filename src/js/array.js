@@ -1446,7 +1446,6 @@ utils.Export(function(to) {
   to.InnerArrayJoin = InnerArrayJoin;
   to.InnerArraySort = InnerArraySort;
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;
-  to.PackedArrayReverse = PackedArrayReverse;
 });
 
 %InstallToContext([

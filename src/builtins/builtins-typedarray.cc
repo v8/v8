@@ -255,5 +255,20 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
   return *isolate->factory()->NewNumberFromInt64(result.FromJust());
 }
 
+BUILTIN(TypedArrayPrototypeReverse) {
+  HandleScope scope(isolate);
+
+  Handle<JSTypedArray> array;
+  const char* method = "%TypedArray%.prototype.reverse";
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+
+  if (V8_UNLIKELY(array->WasNeutered())) return *array;
+
+  ElementsAccessor* elements = array->GetElementsAccessor();
+  elements->Reverse(*array);
+  return *array;
+}
+
 }  // namespace internal
 }  // namespace v8
