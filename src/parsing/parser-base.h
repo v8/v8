@@ -5068,7 +5068,11 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseContinueStatement(
   if (impl()->IsNullStatement(target)) {
     // Illegal continue statement.
     MessageTemplate::Template message = MessageTemplate::kIllegalContinue;
-    if (!impl()->IsEmptyIdentifier(label)) {
+    typename Types::BreakableStatement breakable_target =
+        impl()->LookupBreakTarget(label, CHECK_OK);
+    if (impl()->IsEmptyIdentifier(label)) {
+      message = MessageTemplate::kNoIterationStatement;
+    } else if (impl()->IsNullStatement(breakable_target)) {
       message = MessageTemplate::kUnknownLabel;
     }
     ReportMessage(message, label);

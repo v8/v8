@@ -556,7 +556,10 @@ class ErrorUtils : public AllStatic {
   T(GeneratorInLegacyContext,                                                  \
     "Generator declarations are not allowed in legacy contexts.")              \
   T(IllegalBreak, "Illegal break statement")                                   \
-  T(IllegalContinue, "Illegal continue statement")                             \
+  T(NoIterationStatement,                                                      \
+    "Illegal continue statement: no surrounding iteration statement")          \
+  T(IllegalContinue,                                                           \
+    "Illegal continue statement: '%' does not denote an iteration statement")  \
   T(IllegalLanguageModeDirective,                                              \
     "Illegal '%' directive in function with non-simple parameter list")        \
   T(IllegalReturn, "Illegal return statement")                                 \
