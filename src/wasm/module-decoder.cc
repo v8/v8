@@ -259,7 +259,7 @@ class ModuleDecoder : public Decoder {
     module->min_mem_pages = 0;
     module->max_mem_pages = 0;
     module->mem_export = false;
-    module->origin = origin_;
+    module->set_origin(origin_);
 
     const byte* pos = pc_;
     uint32_t magic_word = consume_u32("wasm magic");

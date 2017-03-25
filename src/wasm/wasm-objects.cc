@@ -221,10 +221,9 @@ bool IsBreakablePosition(Handle<WasmCompiledModule> compiled_module,
 
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  ModuleOrigin origin = compiled_module->module()->origin;
-
+  WasmModule* module = compiled_module->module();
   Handle<JSObject> module_object;
-  if (origin == ModuleOrigin::kWasmOrigin) {
+  if (module->is_wasm()) {
     Handle<JSFunction> module_cons(
         isolate->native_context()->wasm_module_constructor());
     module_object = isolate->factory()->NewJSObject(module_cons);
@@ -232,7 +231,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     Object::SetProperty(module_object, module_sym, module_object, STRICT)
         .Check();
   } else {
-    DCHECK(origin == ModuleOrigin::kAsmJsOrigin);
+    DCHECK(module->is_asm_js());
     Handle<Map> map = isolate->factory()->NewMap(
         JS_OBJECT_TYPE,
         JSObject::kHeaderSize + WasmModuleObject::kFieldCount * kPointerSize);
@@ -584,7 +583,7 @@ Handle<WasmSharedModuleData> WasmSharedModuleData::New(
 }
 
 bool WasmSharedModuleData::is_asm_js() {
-  bool asm_js = module()->origin == wasm::ModuleOrigin::kAsmJsOrigin;
+  bool asm_js = module()->is_asm_js();
   DCHECK_EQ(asm_js, script()->IsUserJavaScript());
   DCHECK_EQ(asm_js, has_asm_js_offset_table());
   return asm_js;

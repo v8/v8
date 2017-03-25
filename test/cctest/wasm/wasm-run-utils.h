@@ -98,7 +98,7 @@ class TestingModule : public ModuleEnv {
 
   ~TestingModule() {
     if (instance->mem_start) {
-      if (EnableGuardRegions() && module_.origin == kWasmOrigin) {
+      if (EnableGuardRegions() && module_.is_wasm()) {
         // See the corresponding code in AddMemory. We use a different
         // allocation path when guard regions are enabled, which means we have
         // to free it differently too.
@@ -112,14 +112,14 @@ class TestingModule : public ModuleEnv {
     if (interpreter_) delete interpreter_;
   }
 
-  void ChangeOriginToAsmjs() { module_.origin = kAsmJsOrigin; }
+  void ChangeOriginToAsmjs() { module_.set_origin(kAsmJsOrigin); }
 
   byte* AddMemory(uint32_t size) {
     CHECK(!module_.has_memory);
     CHECK_NULL(instance->mem_start);
     CHECK_EQ(0, instance->mem_size);
     module_.has_memory = true;
-    if (EnableGuardRegions() && module_.origin == kWasmOrigin) {
+    if (EnableGuardRegions() && module_.is_wasm()) {
       const size_t alloc_size =
           RoundUp(kWasmMaxHeapOffset, v8::base::OS::CommitPageSize());
       instance->mem_start = reinterpret_cast<byte*>(
@@ -235,7 +235,7 @@ class TestingModule : public ModuleEnv {
     uint32_t index = AddFunction(sig, Handle<Code>::null(), nullptr);
     Handle<Code> code = CompileWasmToJSWrapper(
         isolate_, jsfunc, sig, index, Handle<String>::null(),
-        Handle<String>::null(), module->origin);
+        Handle<String>::null(), module->get_origin());
     instance->function_code[index] = code;
     return index;
   }

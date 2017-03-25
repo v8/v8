@@ -290,8 +290,8 @@ Handle<Code> EnsureTableExportLazyDeoptData(
 }
 
 bool compile_lazy(const WasmModule* module) {
-  return FLAG_wasm_lazy_compilation || (FLAG_asm_wasm_lazy_compilation &&
-                                        module->origin == wasm::kAsmJsOrigin);
+  return FLAG_wasm_lazy_compilation ||
+         (FLAG_asm_wasm_lazy_compilation && module->is_asm_js());
 }
 
 // A helper for compiling an entire module.
@@ -514,7 +514,7 @@ class CompilationHelper {
     }
 
     HistogramTimerScope wasm_compile_module_time_scope(
-        module_->origin == ModuleOrigin::kWasmOrigin
+        module_->is_wasm()
             ? isolate_->counters()->wasm_compile_wasm_module_time()
             : isolate_->counters()->wasm_compile_asm_module_time());
 
@@ -1157,7 +1157,7 @@ class InstantiationHelper {
 
     // Record build time into correct bucket, then build instance.
     HistogramTimerScope wasm_instantiate_module_time_scope(
-        module_->origin == ModuleOrigin::kWasmOrigin
+        module_->is_wasm()
             ? isolate_->counters()->wasm_instantiate_wasm_module_time()
             : isolate_->counters()->wasm_instantiate_asm_module_time());
     Factory* factory = isolate_->factory();
@@ -1319,8 +1319,8 @@ class InstantiationHelper {
       // Set externally passed ArrayBuffer non neuterable.
       memory_->set_is_neuterable(false);
 
-      DCHECK_IMPLIES(EnableGuardRegions(), module_->origin == kAsmJsOrigin ||
-                                               memory_->has_guard_region());
+      DCHECK_IMPLIES(EnableGuardRegions(),
+                     module_->is_asm_js() || memory_->has_guard_region());
     } else if (min_mem_pages > 0) {
       memory_ = AllocateMemory(min_mem_pages);
       if (memory_.is_null()) return {};  // failed to allocate memory
@@ -1706,7 +1706,7 @@ class InstantiationHelper {
           Handle<Code> import_wrapper = CompileImportWrapper(
               isolate_, index, module_->functions[import.index].sig,
               Handle<JSReceiver>::cast(value), module_name, import_name,
-              module_->origin);
+              module_->get_origin());
           if (import_wrapper.is_null()) {
             ReportLinkError(
                 "imported function does not match the expected type", index,
@@ -1940,10 +1940,10 @@ class InstantiationHelper {
     }
 
     Handle<JSObject> exports_object;
-    if (module_->origin == kWasmOrigin) {
+    if (module_->is_wasm()) {
       // Create the "exports" object.
       exports_object = isolate_->factory()->NewJSObjectWithNullProto();
-    } else if (module_->origin == kAsmJsOrigin) {
+    } else if (module_->is_asm_js()) {
       Handle<JSFunction> object_function = Handle<JSFunction>(
           isolate_->native_context()->object_function(), isolate_);
       exports_object = isolate_->factory()->NewJSObject(object_function);
@@ -1962,7 +1962,7 @@ class InstantiationHelper {
             wasm::AsmWasmBuilder::single_function_name);
 
     PropertyDescriptor desc;
-    desc.set_writable(module_->origin == kAsmJsOrigin);
+    desc.set_writable(module_->is_asm_js());
     desc.set_enumerable(true);
 
     // Count up export indexes.
@@ -1992,7 +1992,7 @@ class InstantiationHelper {
               isolate_, compiled_module_, exp.name_offset, exp.name_length)
               .ToHandleChecked();
       Handle<JSObject> export_to;
-      if (module_->origin == kAsmJsOrigin && exp.kind == kExternalFunction &&
+      if (module_->is_asm_js() && exp.kind == kExternalFunction &&
           (String::Equals(name, foreign_init_name) ||
            String::Equals(name, single_function_name))) {
         export_to = instance;
@@ -2012,7 +2012,7 @@ class InstantiationHelper {
             Handle<Code> export_code =
                 code_table->GetValueChecked<Code>(isolate_, func_index);
             MaybeHandle<String> func_name;
-            if (module_->origin == kAsmJsOrigin) {
+            if (module_->is_asm_js()) {
               // For modules arising from asm.js, honor the names section.
               func_name = WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
                               isolate_, compiled_module_, function.name_offset,
@@ -2095,7 +2095,7 @@ class InstantiationHelper {
       }
 
       // Skip duplicates for asm.js.
-      if (module_->origin == kAsmJsOrigin) {
+      if (module_->is_asm_js()) {
         v8::Maybe<bool> status = JSReceiver::HasOwnProperty(export_to, name);
         if (status.FromMaybe(false)) {
           continue;
@@ -2110,7 +2110,7 @@ class InstantiationHelper {
       }
     }
 
-    if (module_->origin == kWasmOrigin) {
+    if (module_->is_wasm()) {
       v8::Maybe<bool> success = JSReceiver::SetIntegrityLevel(
           exports_object, FROZEN, Object::DONT_THROW);
       DCHECK(success.FromMaybe(false));
@@ -2245,7 +2245,7 @@ class InstantiationHelper {
                   js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
                       isolate_, module_, wasm_code, func_index);
               MaybeHandle<String> func_name;
-              if (module_->origin == kAsmJsOrigin) {
+              if (module_->is_asm_js()) {
                 // For modules arising from asm.js, honor the names section.
                 func_name =
                     WasmCompiledModule::ExtractUtf8StringFromModuleBytes(

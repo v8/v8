@@ -2856,7 +2856,7 @@ Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
 Node* WasmGraphBuilder::CurrentMemoryPages() {
   // CurrentMemoryPages will not be called from asm.js, hence we cannot be in
   // lazy-compilation mode, hence the instance will be set.
-  DCHECK_EQ(wasm::kWasmOrigin, module_->module->origin);
+  DCHECK_EQ(wasm::kWasmOrigin, module_->module->get_origin());
   DCHECK_NOT_NULL(module_);
   DCHECK_NOT_NULL(module_->instance);
 
@@ -3967,7 +3967,7 @@ void WasmCompilationUnit::ExecuteCompilation() {
   }
   job_.reset(Pipeline::NewWasmCompilationJob(
       &info_, jsgraph_, descriptor, source_positions, &protected_instructions_,
-      module_env_->module->origin != wasm::kWasmOrigin));
+      !module_env_->module->is_wasm()));
   ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
   // TODO(bradnelson): Improve histogram handling of size_t.
   // TODO(ahaas): The counters are not thread-safe at the moment.

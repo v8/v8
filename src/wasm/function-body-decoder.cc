@@ -35,13 +35,13 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-#define CHECK_PROTOTYPE_OPCODE(flag)                           \
-  if (module_ != nullptr && module_->origin == kAsmJsOrigin) { \
-    error("Opcode not supported for asmjs modules");           \
-  }                                                            \
-  if (!FLAG_##flag) {                                          \
-    error("Invalid opcode (enable with --" #flag ")");         \
-    break;                                                     \
+#define CHECK_PROTOTYPE_OPCODE(flag)                   \
+  if (module_ != nullptr && module_->is_asm_js()) {    \
+    error("Opcode not supported for asmjs modules");   \
+  }                                                    \
+  if (!FLAG_##flag) {                                  \
+    error("Invalid opcode (enable with --" #flag ")"); \
+    break;                                             \
   }
 
 // An SsaEnv environment carries the current local variable renaming
@@ -1194,7 +1194,7 @@ class WasmFullDecoder : public WasmDecoder {
             if (!CheckHasMemory()) break;
             MemoryIndexOperand operand(this, pc_);
             DCHECK_NOT_NULL(module_);
-            if (module_->origin != kAsmJsOrigin) {
+            if (module_->is_wasm()) {
               Value val = Pop(0, kWasmI32);
               Push(kWasmI32, BUILD(GrowMemory, val.node));
             } else {
@@ -1245,7 +1245,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kAtomicPrefix: {
-            if (module_ == nullptr || module_->origin != kAsmJsOrigin) {
+            if (module_ == nullptr || !module_->is_asm_js()) {
               error("Atomics are allowed only in AsmJs modules");
               break;
             }
@@ -1264,7 +1264,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           default: {
             // Deal with special asmjs opcodes.
-            if (module_ != nullptr && module_->origin == kAsmJsOrigin) {
+            if (module_ != nullptr && module_->is_asm_js()) {
               sig = WasmOpcodes::AsmjsSignature(opcode);
               if (sig) {
                 BuildSimpleOperator(opcode, sig);

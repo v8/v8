@@ -211,7 +211,7 @@ class TestModuleEnv : public ModuleEnv {
  public:
   explicit TestModuleEnv(ModuleOrigin origin = kWasmOrigin)
       : ModuleEnv(&mod, nullptr) {
-    mod.origin = origin;
+    mod.set_origin(origin);
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
     mod.globals.push_back({type, mutability, WasmInitExpr(), 0, false, false});

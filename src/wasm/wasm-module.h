@@ -154,7 +154,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // the fact that we index on uint32_t, so we may technically not be
   // able to represent some start_function_index -es.
   int start_function_index = -1;      // start function, if any
-  ModuleOrigin origin = kWasmOrigin;  // origin of the module
 
   std::vector<WasmGlobal> globals;             // globals in this module.
   uint32_t globals_size = 0;                   // size of globals table.
@@ -182,6 +181,15 @@ struct V8_EXPORT_PRIVATE WasmModule {
   ~WasmModule() {
     if (owned_zone) delete owned_zone;
   }
+
+  ModuleOrigin get_origin() const { return origin_; }
+  void set_origin(ModuleOrigin new_value) { origin_ = new_value; }
+  bool is_wasm() const { return origin_ == kWasmOrigin; }
+  bool is_asm_js() const { return origin_ == kAsmJsOrigin; }
+
+ private:
+  // TODO(kschimpf) - Encapsulate more fields.
+  ModuleOrigin origin_ = kWasmOrigin;  // origin of the module
 };
 
 typedef Managed<WasmModule> WasmModuleWrapper;
@@ -318,7 +326,7 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
     return &module->function_tables[index];
   }
 
-  bool asm_js() { return module->origin == kAsmJsOrigin; }
+  bool asm_js() { return module->is_asm_js(); }
 
   // Only used for testing.
   Handle<Code> GetFunctionCode(uint32_t index) {
