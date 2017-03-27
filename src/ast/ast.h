@@ -2618,10 +2618,7 @@ class FunctionLiteral final : public Expression {
     literal_feedback_slot_ = spec->AddCreateClosureSlot();
   }
 
-  void SetTypeProfileSlot(FeedbackSlot slot) { type_profile_slot_ = slot; }
-
   FeedbackSlot LiteralFeedbackSlot() const { return literal_feedback_slot_; }
-  FeedbackSlot TypeProfileSlot() const { return type_profile_slot_; }
 
   static bool NeedsHomeObject(Expression* expr);
 
@@ -2784,7 +2781,6 @@ class FunctionLiteral final : public Expression {
   AstProperties ast_properties_;
   int function_literal_id_;
   FeedbackSlot literal_feedback_slot_;
-  FeedbackSlot type_profile_slot_;
 };
 
 // Property is used for passing information

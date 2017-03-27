@@ -23,6 +23,15 @@ FeedbackSlot FeedbackVectorSpecBase<Derived>::AddSlot(FeedbackSlotKind kind) {
   return FeedbackSlot(slot);
 }
 
+template <typename Derived>
+FeedbackSlot FeedbackVectorSpecBase<Derived>::AddTypeProfileSlot() {
+  DCHECK(FLAG_type_profile);
+  FeedbackSlot slot = AddSlot(FeedbackSlotKind::kTypeProfile);
+  CHECK_EQ(FeedbackVectorSpec::kTypeProfileSlotIndex,
+           FeedbackVector::GetIndex(slot));
+  return slot;
+}
+
 // static
 FeedbackMetadata* FeedbackMetadata::cast(Object* obj) {
   DCHECK(obj->IsFeedbackMetadata());

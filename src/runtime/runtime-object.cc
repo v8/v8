@@ -700,11 +700,10 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
 
 RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Smi, position, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 2);
-  CONVERT_SMI_ARG_CHECKED(index, 3);
 
   DCHECK(FLAG_type_profile);
 
@@ -714,8 +713,8 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
     type = JSReceiver::GetConstructorName(object);
   }
 
-  DCHECK(!vector->ToSlot(index).IsInvalid());
-  CollectTypeProfileNexus nexus(vector, vector->ToSlot(index));
+  DCHECK(vector->metadata()->HasTypeProfileSlot());
+  CollectTypeProfileNexus nexus(vector, vector->GetTypeProfileSlot());
   nexus.Collect(type, position->value());
 
   return isolate->heap()->undefined_value();

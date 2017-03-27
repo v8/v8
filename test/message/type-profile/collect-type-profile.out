@@ -21,6 +21,6 @@ Function: try_finally
 Function: fall_off
 1105: undefined
 
-*%(basename)s:60: throw otherwise test fails with --stress-opt
+*%(basename)s:63: throw otherwise test fails with --stress-opt
 throw "throw otherwise test fails with --stress-opt";
 ^

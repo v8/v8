@@ -697,7 +697,7 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   LanguageModeScope language_mode_scope(this, node->language_mode());
 
   if (collect_type_profile_) {
-    node->SetTypeProfileSlot(properties_.get_spec()->AddTypeProfileSlot());
+    properties_.get_spec()->AddTypeProfileSlot();
   }
 
   VisitDeclarations(scope->declarations());

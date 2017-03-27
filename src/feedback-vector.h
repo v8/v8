@@ -170,10 +170,7 @@ class FeedbackVectorSpecBase {
     return AddSlot(FeedbackSlotKind::kStoreDataPropertyInLiteral);
   }
 
-  FeedbackSlot AddTypeProfileSlot() {
-    DCHECK(FLAG_type_profile);
-    return AddSlot(FeedbackSlotKind::kTypeProfile);
-  }
+  FeedbackSlot AddTypeProfileSlot();
 
 #ifdef OBJECT_PRINT
   // For gdb debugging.
@@ -226,6 +223,13 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
     return static_cast<FeedbackSlotKind>(slot_kinds_.at(slot.ToInt()));
   }
 
+  bool HasTypeProfileSlot() const;
+
+  // If used, the TypeProfileSlot is always added as the first slot and its
+  // index is constant. If other slots are added before the TypeProfileSlot,
+  // this number changes.
+  static const int kTypeProfileSlotIndex = 2;
+
  private:
   friend class FeedbackVectorSpecBase<FeedbackVectorSpec>;
 
@@ -274,8 +278,7 @@ class FeedbackMetadata : public FixedArray {
   DECLARE_PRINTER(FeedbackMetadata)
 
   static const char* Kind2String(FeedbackSlotKind kind);
-
-  bool HasTypeProfileSlot();
+  bool HasTypeProfileSlot() const;
 
  private:
   static const int kFeedbackSlotKindBits = 5;

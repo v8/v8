@@ -809,13 +809,11 @@ void BytecodeGraphBuilder::VisitCollectTypeProfile() {
   Node* position =
       jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
   Node* value = environment()->LookupAccumulator();
-  Node* index = jsgraph()->Constant(bytecode_iterator().GetIndexOperand(1));
-
   Node* vector = jsgraph()->Constant(feedback_vector());
 
   const Operator* op = javascript()->CallRuntime(Runtime::kCollectTypeProfile);
 
-  Node* node = NewNode(op, position, value, vector, index);
+  Node* node = NewNode(op, position, value, vector);
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 

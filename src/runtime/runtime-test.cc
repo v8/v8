@@ -225,8 +225,8 @@ RUNTIME_FUNCTION(Runtime_PrintTypeProfile) {
     Object* function_name = vector->shared_function_info()->name();
     PrintF("Function: %s\n", String::cast(function_name)->ToCString().get());
 
-    FeedbackSlot slot = vector->GetTypeProfileSlot();
-    if (!slot.IsInvalid()) {
+    if (vector->metadata()->HasTypeProfileSlot()) {
+      FeedbackSlot slot = vector->GetTypeProfileSlot();
       CollectTypeProfileNexus nexus(vector, slot);
       nexus.Print();
       PrintF("\n");

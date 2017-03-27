@@ -12,6 +12,15 @@
 namespace v8 {
 namespace internal {
 
+bool FeedbackVectorSpec::HasTypeProfileSlot() const {
+  FeedbackSlot slot =
+      FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
+  if (slots() <= slot.ToInt()) {
+    return false;
+  }
+  return GetKind(slot) == FeedbackSlotKind::kTypeProfile;
+}
+
 static bool IsPropertyNameFeedback(Object* feedback) {
   if (feedback->IsString()) return true;
   if (!feedback->IsSymbol()) return false;
@@ -164,16 +173,10 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
   return "?";
 }
 
-bool FeedbackMetadata::HasTypeProfileSlot() {
-  FeedbackMetadataIterator iter(this);
-  while (iter.HasNext()) {
-    iter.Next();
-    FeedbackSlotKind kind = iter.kind();
-    if (kind == FeedbackSlotKind::kTypeProfile) {
-      return true;
-    }
-  }
-  return false;
+bool FeedbackMetadata::HasTypeProfileSlot() const {
+  FeedbackSlot slot =
+      FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
+  return GetKind(slot) == FeedbackSlotKind::kTypeProfile;
 }
 
 FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
@@ -182,14 +185,11 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
 }
 
 FeedbackSlot FeedbackVector::GetTypeProfileSlot() const {
-  FeedbackMetadataIterator iter(metadata());
-  while (iter.HasNext()) {
-    FeedbackSlot slot = iter.Next();
-    if (IsTypeProfile(slot)) {
-      return slot;
-    }
-  }
-  return FeedbackSlot();
+  DCHECK(metadata()->HasTypeProfileSlot());
+  FeedbackSlot slot =
+      FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
+  DCHECK_EQ(FeedbackSlotKind::kTypeProfile, GetKind(slot));
+  return slot;
 }
 
 // static

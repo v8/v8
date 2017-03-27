@@ -57,4 +57,7 @@ fall_off();
 
 testReturnOfNonVariable();
 
+function never_call() {}
+%PrintTypeProfile(never_call);
+
 throw "throw otherwise test fails with --stress-opt";

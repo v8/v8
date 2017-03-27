@@ -2023,10 +2023,8 @@ void BytecodeGenerator::BuildReturn() {
     builder()->StoreAccumulatorInRegister(result).CallRuntime(
         Runtime::kTraceExit, result);
   }
-  if (!info()->literal()->TypeProfileSlot().IsInvalid()) {
-    builder()->CollectTypeProfile(
-        info()->literal()->position(),
-        feedback_index(info()->literal()->TypeProfileSlot()));
+  if (info()->literal()->feedback_vector_spec()->HasTypeProfileSlot()) {
+    builder()->CollectTypeProfile(info()->literal()->position());
   }
   builder()->Return();
 }
