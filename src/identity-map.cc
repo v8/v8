@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 
 static const int kInitialIdentityMapSize = 4;
-static const int kResizeFactor = 2;
+static const int kResizeFactor = 4;
 
 IdentityMapBase::~IdentityMapBase() {
   // Clear must be called by the subclass to avoid calling the virtual
@@ -86,8 +86,7 @@ void* IdentityMapBase::DeleteIndex(int index) {
   size_--;
   DCHECK_GE(size_, 0);
 
-  if (capacity_ > kInitialIdentityMapSize &&
-      size_ * kResizeFactor < capacity_ / kResizeFactor) {
+  if (size_ * kResizeFactor < capacity_ / kResizeFactor) {
     Resize(capacity_ / kResizeFactor);
     return ret_value;  // No need to fix collisions as resize reinserts keys.
   }
