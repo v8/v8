@@ -8272,6 +8272,7 @@ class JSRegExp: public JSObject {
   inline int CaptureCount();
   inline Flags GetFlags();
   inline String* Pattern();
+  inline Object* CaptureNameMap();
   inline Object* DataAt(int index);
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object* value);

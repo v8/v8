@@ -6954,6 +6954,13 @@ String* JSRegExp::Pattern() {
   return pattern;
 }
 
+Object* JSRegExp::CaptureNameMap() {
+  DCHECK(this->data()->IsFixedArray());
+  DCHECK_EQ(TypeTag(), IRREGEXP);
+  Object* value = DataAt(kIrregexpCaptureNameMapIndex);
+  DCHECK_NE(value, Smi::FromInt(JSRegExp::kUninitializedValue));
+  return value;
+}
 
 Object* JSRegExp::DataAt(int index) {
   DCHECK(TypeTag() != NOT_COMPILED);

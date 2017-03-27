@@ -4,6 +4,8 @@
 
 #include "src/runtime/runtime-utils.h"
 
+#include <functional>
+
 #include "src/arguments.h"
 #include "src/conversions-inl.h"
 #include "src/isolate-inl.h"
@@ -885,7 +887,7 @@ class VectorBackedMatch : public String::Match {
  public:
   VectorBackedMatch(Isolate* isolate, Handle<String> subject,
                     Handle<String> match, int match_position,
-                    ZoneVector<Handle<Object>>* captures)
+                    std::vector<Handle<Object>>* captures)
       : isolate_(isolate),
         match_(match),
         match_position_(match_position),
@@ -924,8 +926,33 @@ class VectorBackedMatch : public String::Match {
   Handle<String> subject_;
   Handle<String> match_;
   const int match_position_;
-  ZoneVector<Handle<Object>>* captures_;
+  std::vector<Handle<Object>>* captures_;
 };
+
+// Create the groups object (see also the RegExp result creation in
+// RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo).
+Handle<JSObject> ConstructNamedCaptureGroupsObject(
+    Isolate* isolate, Handle<FixedArray> capture_map,
+    std::function<Object*(int)> f_get_capture) {
+  Handle<JSObject> groups = isolate->factory()->NewJSObjectWithNullProto();
+
+  const int capture_count = capture_map->length() >> 1;
+  for (int i = 0; i < capture_count; i++) {
+    const int name_ix = i * 2;
+    const int index_ix = i * 2 + 1;
+
+    Handle<String> capture_name(String::cast(capture_map->get(name_ix)));
+    const int capture_ix = Smi::cast(capture_map->get(index_ix))->value();
+    DCHECK(1 <= capture_ix && capture_ix <= capture_count);
+
+    Handle<Object> capture_value(f_get_capture(capture_ix), isolate);
+    DCHECK(capture_value->IsString());
+
+    JSObject::AddProperty(groups, capture_name, capture_value, NONE);
+  }
+
+  return groups;
+}
 
 // Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
 // separate last match info.  See comment on that function.
@@ -934,8 +961,9 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
                                     Handle<JSRegExp> regexp,
                                     Handle<RegExpMatchInfo> last_match_array,
                                     Handle<JSArray> result_array) {
-  DCHECK(subject->IsFlat());
+  DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));
   DCHECK_NE(has_capture, regexp->CaptureCount() == 0);
+  DCHECK(subject->IsFlat());
 
   int capture_count = regexp->CaptureCount();
   int subject_length = subject->length();
@@ -1013,11 +1041,19 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
 
       if (has_capture) {
         // Arguments array to replace function is match, captures, index and
-        // subject, i.e., 3 + capture count in total.
-        Handle<FixedArray> elements =
-            isolate->factory()->NewFixedArray(3 + capture_count);
+        // subject, i.e., 3 + capture count in total. If the RegExp contains
+        // named captures, they are also passed as the last argument.
 
-        elements->set(0, *match);
+        Handle<Object> maybe_capture_map(regexp->CaptureNameMap(), isolate);
+        const bool has_named_captures = maybe_capture_map->IsFixedArray();
+
+        const int argc =
+            has_named_captures ? 4 + capture_count : 3 + capture_count;
+
+        Handle<FixedArray> elements = isolate->factory()->NewFixedArray(argc);
+        int cursor = 0;
+
+        elements->set(cursor++, *match);
         for (int i = 1; i <= capture_count; i++) {
           int start = current_match[i * 2];
           if (start >= 0) {
@@ -1025,14 +1061,25 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
             DCHECK(start <= end);
             Handle<String> substring =
                 isolate->factory()->NewSubString(subject, start, end);
-            elements->set(i, *substring);
+            elements->set(cursor++, *substring);
           } else {
             DCHECK(current_match[i * 2 + 1] < 0);
-            elements->set(i, isolate->heap()->undefined_value());
+            elements->set(cursor++, isolate->heap()->undefined_value());
           }
         }
-        elements->set(capture_count + 1, Smi::FromInt(match_start));
-        elements->set(capture_count + 2, *subject);
+
+        elements->set(cursor++, Smi::FromInt(match_start));
+        elements->set(cursor++, *subject);
+
+        if (has_named_captures) {
+          Handle<FixedArray> capture_map =
+              Handle<FixedArray>::cast(maybe_capture_map);
+          Handle<JSObject> groups = ConstructNamedCaptureGroupsObject(
+              isolate, capture_map, [=](int ix) { return elements->get(ix); });
+          elements->set(cursor++, *groups);
+        }
+
+        DCHECK_EQ(cursor, argc);
         builder.Add(*isolate->factory()->NewJSArrayWithElements(elements));
       } else {
         builder.Add(*match);
@@ -1084,14 +1131,15 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
                                                   Handle<JSRegExp> regexp,
                                                   Handle<String> string,
                                                   Handle<Object> replace_obj) {
+  // Functional fast-paths are dispatched directly by replace builtin.
+  DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));
+  DCHECK(!replace_obj->IsCallable());
+
   Factory* factory = isolate->factory();
 
   const int flags = regexp->GetFlags();
   const bool global = (flags & JSRegExp::kGlobal) != 0;
   const bool sticky = (flags & JSRegExp::kSticky) != 0;
-
-  // Functional fast-paths are dispatched directly by replace builtin.
-  DCHECK(!replace_obj->IsCallable());
 
   Handle<String> replace;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, replace,
@@ -1254,26 +1302,49 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   builder.AppendString(factory->NewSubString(subject, 0, index));
 
   // Compute the parameter list consisting of the match, captures, index,
-  // and subject for the replace function invocation.
+  // and subject for the replace function invocation. If the RegExp contains
+  // named captures, they are also passed as the last argument.
+
   // The number of captures plus one for the match.
   const int m = match_indices->NumberOfCaptureRegisters() / 2;
 
-  const int argc = m + 2;
+  bool has_named_captures = false;
+  Handle<FixedArray> capture_map;
+  if (m > 1) {
+    // The existence of capture groups implies IRREGEXP kind.
+    DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
+
+    Object* maybe_capture_map = regexp->CaptureNameMap();
+    if (maybe_capture_map->IsFixedArray()) {
+      has_named_captures = true;
+      capture_map = handle(FixedArray::cast(maybe_capture_map));
+    }
+  }
+
+  const int argc = has_named_captures ? m + 3 : m + 2;
   ScopedVector<Handle<Object>> argv(argc);
 
+  int cursor = 0;
   for (int j = 0; j < m; j++) {
     bool ok;
     Handle<String> capture =
         RegExpUtils::GenericCaptureGetter(isolate, match_indices, j, &ok);
     if (ok) {
-      argv[j] = capture;
+      argv[cursor++] = capture;
     } else {
-      argv[j] = factory->undefined_value();
+      argv[cursor++] = factory->undefined_value();
     }
   }
 
-  argv[argc - 2] = handle(Smi::FromInt(index), isolate);
-  argv[argc - 1] = subject;
+  argv[cursor++] = handle(Smi::FromInt(index), isolate);
+  argv[cursor++] = subject;
+
+  if (has_named_captures) {
+    argv[cursor++] = ConstructNamedCaptureGroupsObject(
+        isolate, capture_map, [&argv](int ix) { return *argv[ix]; });
+  }
+
+  DCHECK_EQ(cursor, argc);
 
   Handle<Object> replacement_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -1578,14 +1649,14 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
         isolate, position_obj,
         Object::GetProperty(result, factory->index_string()));
 
-    // TODO(jgruber): Extract and correct error handling. Since we can go up to
-    // 2^53 - 1 (at least for ToLength), we might actually need uint64_t here?
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, position_obj, Object::ToInteger(isolate, position_obj));
     const uint32_t position =
         std::min(PositiveNumberToUint32(*position_obj), length);
 
-    ZoneVector<Handle<Object>> captures(&zone);
+    std::vector<Handle<Object>> captures;
+    captures.reserve(captures_length);
+
     for (int n = 0; n < captures_length; n++) {
       Handle<Object> capture;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -1598,17 +1669,29 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
       captures.push_back(capture);
     }
 
+    Handle<Object> groups_obj;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, groups_obj,
+        Object::GetProperty(result, factory->groups_string()));
+
+    const bool has_named_captures = !groups_obj->IsUndefined(isolate);
+
     Handle<String> replacement;
     if (functional_replace) {
-      const int argc = captures_length + 2;
+      const int argc =
+          has_named_captures ? captures_length + 3 : captures_length + 2;
       ScopedVector<Handle<Object>> argv(argc);
 
+      int cursor = 0;
       for (int j = 0; j < captures_length; j++) {
-        argv[j] = captures[j];
+        argv[cursor++] = captures[j];
       }
 
-      argv[captures_length] = handle(Smi::FromInt(position), isolate);
-      argv[captures_length + 1] = string;
+      argv[cursor++] = handle(Smi::FromInt(position), isolate);
+      argv[cursor++] = string;
+      if (has_named_captures) argv[cursor++] = groups_obj;
+
+      DCHECK_EQ(cursor, argc);
 
       Handle<Object> replacement_obj;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -1619,6 +1702,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, replacement, Object::ToString(isolate, replacement_obj));
     } else {
+      DCHECK(!functional_replace);
       VectorBackedMatch m(isolate, string, match, position, &captures);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, replacement, String::GetSubstitution(isolate, &m, replace));

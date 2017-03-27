@@ -96,3 +96,115 @@ assertThrows('/(?<𐒤>a)/u', SyntaxError);  // ID_Continue but not ID_Start.
 // The '__proto__' property on the groups object.
 assertEquals(undefined, /(?<a>.)/u.exec("a").groups.__proto__);
 assertEquals("a", /(?<__proto__>a)/u.exec("a").groups.__proto__);
+
+// @@replace with a callable replacement argument (no named captures).
+{
+  let result = "abcd".replace(/(.)(.)/u, (match, fst, snd, offset, str) => {
+    assertEquals("ab", match);
+    assertEquals("a", fst);
+    assertEquals("b", snd);
+    assertEquals(0, offset);
+    assertEquals("abcd", str);
+    return `${snd}${fst}`;
+  });
+  assertEquals("bacd", result);
+}
+
+// @@replace with a callable replacement argument (global, named captures).
+{
+  let i = 0;
+  let result = "abcd".replace(/(?<fst>.)(?<snd>.)/gu,
+      (match, fst, snd, offset, str, groups) => {
+    if (i == 0) {
+      assertEquals("ab", match);
+      assertEquals("a", groups.fst);
+      assertEquals("b", groups.snd);
+      assertEquals("a", fst);
+      assertEquals("b", snd);
+      assertEquals(0, offset);
+      assertEquals("abcd", str);
+    } else if (i == 1) {
+      assertEquals("cd", match);
+      assertEquals("c", groups.fst);
+      assertEquals("d", groups.snd);
+      assertEquals("c", fst);
+      assertEquals("d", snd);
+      assertEquals(2, offset);
+      assertEquals("abcd", str);
+    } else {
+      assertUnreachable();
+    }
+    i++;
+    return `${groups.snd}${groups.fst}`;
+  });
+  assertEquals("badc", result);
+}
+
+// @@replace with a callable replacement argument (non-global, named captures).
+{
+  let result = "abcd".replace(/(?<fst>.)(?<snd>.)/u,
+      (match, fst, snd, offset, str, groups) => {
+    assertEquals("ab", match);
+    assertEquals("a", groups.fst);
+    assertEquals("b", groups.snd);
+    assertEquals("a", fst);
+    assertEquals("b", snd);
+    assertEquals(0, offset);
+    assertEquals("abcd", str);
+    return `${groups.snd}${groups.fst}`;
+  });
+  assertEquals("bacd", result);
+}
+
+function toSlowMode(re) {
+  re.exec = (str) => RegExp.prototype.exec.call(re, str);
+  return re;
+}
+
+// @@replace with a callable replacement argument (slow, global,
+// named captures).
+{
+  let i = 0;
+  let re = toSlowMode(/(?<fst>.)(?<snd>.)/gu);
+  let result = "abcd".replace(re, (match, fst, snd, offset, str, groups) => {
+    if (i == 0) {
+      assertEquals("ab", match);
+      assertEquals("a", groups.fst);
+      assertEquals("b", groups.snd);
+      assertEquals("a", fst);
+      assertEquals("b", snd);
+      assertEquals(0, offset);
+      assertEquals("abcd", str);
+    } else if (i == 1) {
+      assertEquals("cd", match);
+      assertEquals("c", groups.fst);
+      assertEquals("d", groups.snd);
+      assertEquals("c", fst);
+      assertEquals("d", snd);
+      assertEquals(2, offset);
+      assertEquals("abcd", str);
+    } else {
+      assertUnreachable();
+    }
+    i++;
+    return `${groups.snd}${groups.fst}`;
+  });
+  assertEquals("badc", result);
+}
+
+// @@replace with a callable replacement argument (slow, non-global,
+// named captures).
+{
+  let re = toSlowMode(/(?<fst>.)(?<snd>.)/u);
+  let result = "abcd".replace(re, (match, fst, snd, offset, str, groups) => {
+    assertEquals("ab", match);
+    assertEquals("a", groups.fst);
+    assertEquals("b", groups.snd);
+    assertEquals("a", fst);
+    assertEquals("b", snd);
+    assertEquals(0, offset);
+    assertEquals("abcd", str);
+    return `${groups.snd}${groups.fst}`;
+  });
+  assertEquals("bacd", result);
+}
