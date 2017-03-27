@@ -7,12 +7,14 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/deoptimize-reason.h"
 #include "src/handles.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class FeedbackNexus;
 class FeedbackSlot;
 
 namespace compiler {
@@ -31,6 +33,13 @@ class Operator;
 // the JavaScript-level operators and directly emit simplified-level operators
 // even during initial graph building. This is the reason this lowering doesn't
 // follow the interface of the reducer framework used after graph construction.
+//
+// Also note that all reductions returned by this lowering will not produce any
+// control-output, but might very well produce an effect-output. The one node
+// returned as a replacement must fully describe the effect (i.e. produce the
+// effect and carry {Operator::Property} for the entire lowering). Use-sites
+// rely on this invariant, if it ever changes we need to switch the interface
+// away from using the {Reduction} class.
 class JSTypeHintLowering {
  public:
   // Flags that control the mode of operation.
@@ -47,11 +56,17 @@ class JSTypeHintLowering {
                                   FeedbackSlot slot) const;
 
   // Potential reduction of property access operations.
-  Reduction ReduceLoadNamedOperation(Node* effect, Node* control,
+  Reduction ReduceLoadNamedOperation(const Operator* op, Node* obj,
+                                     Node* effect, Node* control,
+                                     FeedbackSlot slot) const;
+  Reduction ReduceLoadKeyedOperation(const Operator* op, Node* obj, Node* key,
+                                     Node* effect, Node* control,
                                      FeedbackSlot slot) const;
 
  private:
   friend class JSSpeculativeBinopBuilder;
+  Node* TryBuildSoftDeopt(FeedbackNexus& nexus, Node* effect, Node* control,
+                          DeoptimizeReason reson) const;
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Flags flags() const { return flags_; }
