@@ -2302,9 +2302,7 @@ int ActionNode::EatsAtLeast(int still_to_find,
 
 void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
                               BoyerMooreLookahead* bm, bool not_at_start) {
-  if (action_type_ == BEGIN_SUBMATCH) {
-    bm->SetRest(offset);
-  } else if (action_type_ != POSITIVE_SUBMATCH_SUCCESS) {
+  if (action_type_ != POSITIVE_SUBMATCH_SUCCESS) {
     on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
   }
   SaveBMInfo(bm, not_at_start, offset);
