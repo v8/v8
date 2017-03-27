@@ -11412,40 +11412,59 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
 
   Handle<String> dollar_string =
       factory->LookupSingleCharacterStringFromCode('$');
-  int next = String::IndexOf(isolate, replacement, dollar_string, 0);
-  if (next < 0) {
+  int next_dollar_ix = String::IndexOf(isolate, replacement, dollar_string, 0);
+  if (next_dollar_ix < 0) {
     return replacement;
   }
 
   IncrementalStringBuilder builder(isolate);
 
-  if (next > 0) {
-    builder.AppendString(factory->NewSubString(replacement, 0, next));
+  if (next_dollar_ix > 0) {
+    builder.AppendString(factory->NewSubString(replacement, 0, next_dollar_ix));
   }
 
   while (true) {
-    int pos = next + 1;
-    if (pos < replacement_length) {
-      const uint16_t peek = replacement->Get(pos);
-      if (peek == '$') {  // $$
-        pos++;
+    const int peek_ix = next_dollar_ix + 1;
+    if (peek_ix >= replacement_length) {
+      builder.AppendCharacter('$');
+      return builder.Finish();
+    }
+
+    int continue_from_ix = -1;
+    const uint16_t peek = replacement->Get(peek_ix);
+    switch (peek) {
+      case '$':  // $$
         builder.AppendCharacter('$');
-      } else if (peek == '&') {  // $& - match
-        pos++;
+        continue_from_ix = peek_ix + 1;
+        break;
+      case '&':  // $& - match
         builder.AppendString(match->GetMatch());
-      } else if (peek == '`') {  // $` - prefix
-        pos++;
+        continue_from_ix = peek_ix + 1;
+        break;
+      case '`':  // $` - prefix
         builder.AppendString(match->GetPrefix());
-      } else if (peek == '\'') {  // $' - suffix
-        pos++;
+        continue_from_ix = peek_ix + 1;
+        break;
+      case '\'':  // $' - suffix
         builder.AppendString(match->GetSuffix());
-      } else if (peek >= '0' && peek <= '9') {
+        continue_from_ix = peek_ix + 1;
+        break;
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9': {
         // Valid indices are $1 .. $9, $01 .. $09 and $10 .. $99
         int scaled_index = (peek - '0');
         int advance = 1;
 
-        if (pos + 1 < replacement_length) {
-          const uint16_t next_peek = replacement->Get(pos + 1);
+        if (peek_ix + 1 < replacement_length) {
+          const uint16_t next_peek = replacement->Get(peek_ix + 1);
           if (next_peek >= '0' && next_peek <= '9') {
             const int new_scaled_index = scaled_index * 10 + (next_peek - '0');
             if (new_scaled_index < captures_length) {
@@ -11455,40 +11474,47 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
           }
         }
 
-        if (scaled_index != 0 && scaled_index < captures_length) {
-          bool capture_exists;
-          Handle<String> capture;
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, capture,
-              match->GetCapture(scaled_index, &capture_exists), String);
-          if (capture_exists) builder.AppendString(capture);
-          pos += advance;
-        } else {
+        if (scaled_index == 0 || scaled_index >= captures_length) {
           builder.AppendCharacter('$');
+          continue_from_ix = peek_ix;
+          break;
         }
-      } else {
-        builder.AppendCharacter('$');
+
+        bool capture_exists;
+        Handle<String> capture;
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, capture, match->GetCapture(scaled_index, &capture_exists),
+            String);
+        if (capture_exists) builder.AppendString(capture);
+        continue_from_ix = peek_ix + advance;
+        break;
       }
-    } else {
-      builder.AppendCharacter('$');
+      default:
+        builder.AppendCharacter('$');
+        continue_from_ix = peek_ix;
+        break;
     }
 
     // Go the the next $ in the replacement.
-    next = String::IndexOf(isolate, replacement, dollar_string, pos);
+    // TODO(jgruber): Single-char lookups could be much more efficient.
+    DCHECK_NE(continue_from_ix, -1);
+    next_dollar_ix =
+        String::IndexOf(isolate, replacement, dollar_string, continue_from_ix);
 
     // Return if there are no more $ characters in the replacement. If we
     // haven't reached the end, we need to append the suffix.
-    if (next < 0) {
-      if (pos < replacement_length) {
-        builder.AppendString(
-            factory->NewSubString(replacement, pos, replacement_length));
+    if (next_dollar_ix < 0) {
+      if (continue_from_ix < replacement_length) {
+        builder.AppendString(factory->NewSubString(
+            replacement, continue_from_ix, replacement_length));
       }
       return builder.Finish();
     }
 
     // Append substring between the previous and the next $ character.
-    if (next > pos) {
-      builder.AppendString(factory->NewSubString(replacement, pos, next));
+    if (next_dollar_ix > continue_from_ix) {
+      builder.AppendString(
+          factory->NewSubString(replacement, continue_from_ix, next_dollar_ix));
     }
   }
 
