@@ -542,8 +542,10 @@ class CompilationHelper {
       temp_instance.function_code[i] = init_builtin;
     }
 
-    isolate_->counters()->wasm_functions_per_module()->AddSample(
-        static_cast<int>(module_->functions.size()));
+    (module_->is_wasm() ? isolate_->counters()->wasm_functions_per_wasm_module()
+                        : isolate_->counters()->wasm_functions_per_asm_module())
+        ->AddSample(static_cast<int>(module_->functions.size()));
+
     if (!lazy_compile) {
       CompilationHelper helper(isolate_, module_);
       size_t funcs_to_compile =
