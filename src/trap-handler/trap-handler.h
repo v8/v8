@@ -75,6 +75,7 @@ inline void SetThreadInWasm() {
     g_thread_in_wasm_code = true;
   }
 }
+
 inline void ClearThreadInWasm() {
   if (UseTrapHandler()) {
     DCHECK(IsThreadInWasm());

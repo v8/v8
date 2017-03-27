@@ -221,10 +221,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
     frame_pointer = it.frame()->fp();
   }
 
-  trap_handler::ClearThreadInWasm();
   bool success = instance->debug_info()->RunInterpreter(frame_pointer,
                                                         func_index, arg_buffer);
-  trap_handler::SetThreadInWasm();
 
   if (!success) {
     DCHECK(isolate->has_pending_exception());
@@ -236,6 +234,13 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
+  DCHECK(!trap_handler::UseTrapHandler() || trap_handler::IsThreadInWasm());
+
+  struct ClearAndRestoreThreadInWasm {
+    ClearAndRestoreThreadInWasm() { trap_handler::ClearThreadInWasm(); }
+
+    ~ClearAndRestoreThreadInWasm() { trap_handler::SetThreadInWasm(); }
+  } restore_thread_in_wasm;
 
   // Set the current isolate's context.
   DCHECK_NULL(isolate->context());
