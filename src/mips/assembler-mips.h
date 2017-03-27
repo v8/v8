@@ -64,7 +64,11 @@ namespace internal {
   V(f24) V(f25) V(f26) V(f27) V(f28) V(f29) V(f30) V(f31)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
-#define SIMD128_REGISTERS DOUBLE_REGISTERS
+#define SIMD128_REGISTERS(V)                              \
+  V(w0)  V(w1)  V(w2)  V(w3)  V(w4)  V(w5)  V(w6)  V(w7)  \
+  V(w8)  V(w9)  V(w10) V(w11) V(w12) V(w13) V(w14) V(w15) \
+  V(w16) V(w17) V(w18) V(w19) V(w20) V(w21) V(w22) V(w23) \
+  V(w24) V(w25) V(w26) V(w27) V(w28) V(w29) V(w30) V(w31)
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f14) \
@@ -162,7 +166,7 @@ struct FPURegister {
     DOUBLE_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
         kAfterLast,
-    kCode_no_reg = -1
+    kCode_no_reg = kInvalidFPURegister
   };
 
   static constexpr int kMaxNumRegisters = Code::kAfterLast;
@@ -213,6 +217,44 @@ struct FPURegister {
   int reg_code;
 };
 
+// MIPS SIMD (MSA) register
+struct MSARegister {
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    SIMD128_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = kInvalidMSARegister
+  };
+
+  static const int kMaxNumRegisters = Code::kAfterLast;
+
+  inline static int NumRegisters();
+
+  bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
+  bool is(MSARegister reg) const { return reg_code == reg.reg_code; }
+
+  int code() const {
+    DCHECK(is_valid());
+    return reg_code;
+  }
+  int bit() const {
+    DCHECK(is_valid());
+    return 1 << reg_code;
+  }
+
+  static MSARegister from_code(int code) {
+    MSARegister r = {code};
+    return r;
+  }
+  void setcode(int f) {
+    reg_code = f;
+    DCHECK(is_valid());
+  }
+  // Unfortunately we can't make this private in a struct.
+  int reg_code;
+};
+
 // A few double registers are reserved: one as a scratch register and one to
 // hold 0.0.
 //  f28: 0.0
@@ -231,10 +273,7 @@ typedef FPURegister FloatRegister;
 
 typedef FPURegister DoubleRegister;
 
-// TODO(mips) Define SIMD registers.
-typedef FPURegister Simd128Register;
-
-constexpr DoubleRegister no_freg = {-1};
+constexpr DoubleRegister no_freg = {kInvalidFPURegister};
 
 constexpr DoubleRegister f0 = {0};  // Return value in hard float mode.
 constexpr DoubleRegister f1 = {1};
@@ -268,6 +307,44 @@ constexpr DoubleRegister f28 = {28};
 constexpr DoubleRegister f29 = {29};
 constexpr DoubleRegister f30 = {30};
 constexpr DoubleRegister f31 = {31};
+
+// SIMD registers.
+typedef MSARegister Simd128Register;
+
+const Simd128Register no_msareg = {kInvalidMSARegister};
+
+constexpr Simd128Register w0 = {0};
+constexpr Simd128Register w1 = {1};
+constexpr Simd128Register w2 = {2};
+constexpr Simd128Register w3 = {3};
+constexpr Simd128Register w4 = {4};
+constexpr Simd128Register w5 = {5};
+constexpr Simd128Register w6 = {6};
+constexpr Simd128Register w7 = {7};
+constexpr Simd128Register w8 = {8};
+constexpr Simd128Register w9 = {9};
+constexpr Simd128Register w10 = {10};
+constexpr Simd128Register w11 = {11};
+constexpr Simd128Register w12 = {12};
+constexpr Simd128Register w13 = {13};
+constexpr Simd128Register w14 = {14};
+constexpr Simd128Register w15 = {15};
+constexpr Simd128Register w16 = {16};
+constexpr Simd128Register w17 = {17};
+constexpr Simd128Register w18 = {18};
+constexpr Simd128Register w19 = {19};
+constexpr Simd128Register w20 = {20};
+constexpr Simd128Register w21 = {21};
+constexpr Simd128Register w22 = {22};
+constexpr Simd128Register w23 = {23};
+constexpr Simd128Register w24 = {24};
+constexpr Simd128Register w25 = {25};
+constexpr Simd128Register w26 = {26};
+constexpr Simd128Register w27 = {27};
+constexpr Simd128Register w28 = {28};
+constexpr Simd128Register w29 = {29};
+constexpr Simd128Register w30 = {30};
+constexpr Simd128Register w31 = {31};
 
 // Register aliases.
 // cp is assumed to be a callee saved register.
@@ -303,6 +380,32 @@ struct FPUControlRegister {
 
 constexpr FPUControlRegister no_fpucreg = {kInvalidFPUControlRegister};
 constexpr FPUControlRegister FCSR = {kFCSRRegister};
+
+// MSA control registers
+struct MSAControlRegister {
+  bool is_valid() const {
+    return (reg_code == kMSAIRRegister) || (reg_code == kMSACSRRegister);
+  }
+  bool is(MSAControlRegister creg) const { return reg_code == creg.reg_code; }
+  int code() const {
+    DCHECK(is_valid());
+    return reg_code;
+  }
+  int bit() const {
+    DCHECK(is_valid());
+    return 1 << reg_code;
+  }
+  void setcode(int f) {
+    reg_code = f;
+    DCHECK(is_valid());
+  }
+  // Unfortunately we can't make this private in a struct.
+  int reg_code;
+};
+
+constexpr MSAControlRegister no_msacreg = {kInvalidMSAControlRegister};
+constexpr MSAControlRegister MSAIR = {kMSAIRRegister};
+constexpr MSAControlRegister MSACSR = {kMSACSRRegister};
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.
@@ -981,6 +1084,563 @@ class Assembler : public AssemblerBase {
   }
   void fcmp(FPURegister src1, const double src2, FPUCondition cond);
 
+  // MSA instructions
+  void bz_v(MSARegister wt, int16_t offset);
+  void bz_b(MSARegister wt, int16_t offset);
+  void bz_h(MSARegister wt, int16_t offset);
+  void bz_w(MSARegister wt, int16_t offset);
+  void bz_d(MSARegister wt, int16_t offset);
+  void bnz_v(MSARegister wt, int16_t offset);
+  void bnz_b(MSARegister wt, int16_t offset);
+  void bnz_h(MSARegister wt, int16_t offset);
+  void bnz_w(MSARegister wt, int16_t offset);
+  void bnz_d(MSARegister wt, int16_t offset);
+
+  void ld_b(MSARegister wd, const MemOperand& rs);
+  void ld_h(MSARegister wd, const MemOperand& rs);
+  void ld_w(MSARegister wd, const MemOperand& rs);
+  void ld_d(MSARegister wd, const MemOperand& rs);
+  void st_b(MSARegister wd, const MemOperand& rs);
+  void st_h(MSARegister wd, const MemOperand& rs);
+  void st_w(MSARegister wd, const MemOperand& rs);
+  void st_d(MSARegister wd, const MemOperand& rs);
+
+  void ldi_b(MSARegister wd, int32_t imm10);
+  void ldi_h(MSARegister wd, int32_t imm10);
+  void ldi_w(MSARegister wd, int32_t imm10);
+  void ldi_d(MSARegister wd, int32_t imm10);
+
+  void addvi_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void addvi_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void addvi_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void addvi_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void subvi_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void subvi_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void subvi_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void subvi_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void maxi_s_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void maxi_s_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void maxi_s_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void maxi_s_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void maxi_u_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void maxi_u_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void maxi_u_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void maxi_u_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void mini_s_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void mini_s_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void mini_s_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void mini_s_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void mini_u_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void mini_u_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void mini_u_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void mini_u_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void ceqi_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void ceqi_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void ceqi_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void ceqi_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clti_s_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clti_s_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clti_s_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clti_s_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clti_u_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clti_u_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clti_u_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clti_u_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clei_s_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clei_s_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clei_s_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clei_s_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clei_u_b(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clei_u_h(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clei_u_w(MSARegister wd, MSARegister ws, uint32_t imm5);
+  void clei_u_d(MSARegister wd, MSARegister ws, uint32_t imm5);
+
+  void andi_b(MSARegister wd, MSARegister ws, uint32_t imm8);
+  void ori_b(MSARegister wd, MSARegister ws, uint32_t imm8);
+  void nori_b(MSARegister wd, MSARegister ws, uint32_t imm8);
+  void xori_b(MSARegister wd, MSARegister ws, uint32_t imm8);
+  void bmnzi_b(MSARegister wd, MSARegister ws, uint32_t imm8);
+  void bmzi_b(MSARegister wd, MSARegister ws, uint32_t imm8);
+  void bseli_b(MSARegister wd, MSARegister ws, uint32_t imm8);
+  void shf_b(MSARegister wd, MSARegister ws, uint32_t imm8);
+  void shf_h(MSARegister wd, MSARegister ws, uint32_t imm8);
+  void shf_w(MSARegister wd, MSARegister ws, uint32_t imm8);
+
+  void and_v(MSARegister wd, MSARegister ws, MSARegister wt);
+  void or_v(MSARegister wd, MSARegister ws, MSARegister wt);
+  void nor_v(MSARegister wd, MSARegister ws, MSARegister wt);
+  void xor_v(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bmnz_v(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bmz_v(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bsel_v(MSARegister wd, MSARegister ws, MSARegister wt);
+
+  void fill_b(MSARegister wd, Register rs);
+  void fill_h(MSARegister wd, Register rs);
+  void fill_w(MSARegister wd, Register rs);
+  void pcnt_b(MSARegister wd, MSARegister ws);
+  void pcnt_h(MSARegister wd, MSARegister ws);
+  void pcnt_w(MSARegister wd, MSARegister ws);
+  void pcnt_d(MSARegister wd, MSARegister ws);
+  void nloc_b(MSARegister wd, MSARegister ws);
+  void nloc_h(MSARegister wd, MSARegister ws);
+  void nloc_w(MSARegister wd, MSARegister ws);
+  void nloc_d(MSARegister wd, MSARegister ws);
+  void nlzc_b(MSARegister wd, MSARegister ws);
+  void nlzc_h(MSARegister wd, MSARegister ws);
+  void nlzc_w(MSARegister wd, MSARegister ws);
+  void nlzc_d(MSARegister wd, MSARegister ws);
+
+  void fclass_w(MSARegister wd, MSARegister ws);
+  void fclass_d(MSARegister wd, MSARegister ws);
+  void ftrunc_s_w(MSARegister wd, MSARegister ws);
+  void ftrunc_s_d(MSARegister wd, MSARegister ws);
+  void ftrunc_u_w(MSARegister wd, MSARegister ws);
+  void ftrunc_u_d(MSARegister wd, MSARegister ws);
+  void fsqrt_w(MSARegister wd, MSARegister ws);
+  void fsqrt_d(MSARegister wd, MSARegister ws);
+  void frsqrt_w(MSARegister wd, MSARegister ws);
+  void frsqrt_d(MSARegister wd, MSARegister ws);
+  void frcp_w(MSARegister wd, MSARegister ws);
+  void frcp_d(MSARegister wd, MSARegister ws);
+  void frint_w(MSARegister wd, MSARegister ws);
+  void frint_d(MSARegister wd, MSARegister ws);
+  void flog2_w(MSARegister wd, MSARegister ws);
+  void flog2_d(MSARegister wd, MSARegister ws);
+  void fexupl_w(MSARegister wd, MSARegister ws);
+  void fexupl_d(MSARegister wd, MSARegister ws);
+  void fexupr_w(MSARegister wd, MSARegister ws);
+  void fexupr_d(MSARegister wd, MSARegister ws);
+  void ffql_w(MSARegister wd, MSARegister ws);
+  void ffql_d(MSARegister wd, MSARegister ws);
+  void ffqr_w(MSARegister wd, MSARegister ws);
+  void ffqr_d(MSARegister wd, MSARegister ws);
+  void ftint_s_w(MSARegister wd, MSARegister ws);
+  void ftint_s_d(MSARegister wd, MSARegister ws);
+  void ftint_u_w(MSARegister wd, MSARegister ws);
+  void ftint_u_d(MSARegister wd, MSARegister ws);
+  void ffint_s_w(MSARegister wd, MSARegister ws);
+  void ffint_s_d(MSARegister wd, MSARegister ws);
+  void ffint_u_w(MSARegister wd, MSARegister ws);
+  void ffint_u_d(MSARegister wd, MSARegister ws);
+
+  void sll_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void sll_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void sll_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void sll_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void sra_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void sra_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void sra_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void sra_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srl_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srl_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srl_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srl_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bclr_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bclr_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bclr_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bclr_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bset_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bset_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bset_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bset_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bneg_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bneg_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bneg_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void bneg_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void binsl_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void binsl_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void binsl_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void binsl_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void binsr_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void binsr_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void binsr_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void binsr_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void addv_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void addv_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void addv_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void addv_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subv_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subv_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subv_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subv_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_a_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_a_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_a_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void max_a_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_a_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_a_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_a_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void min_a_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ceq_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ceq_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ceq_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ceq_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void clt_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void clt_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void clt_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void clt_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void clt_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void clt_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void clt_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void clt_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void cle_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void cle_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void cle_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void cle_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void cle_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void cle_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void cle_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void cle_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void add_a_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void add_a_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void add_a_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void add_a_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_a_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_a_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_a_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_a_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void adds_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ave_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ave_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ave_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ave_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ave_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ave_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ave_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ave_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void aver_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void aver_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void aver_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void aver_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void aver_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void aver_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void aver_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void aver_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subs_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subs_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subs_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subs_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subs_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subs_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subs_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subs_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsus_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsus_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsus_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsus_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsus_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsus_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsus_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsus_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsuu_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsuu_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsuu_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsuu_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsuu_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsuu_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsuu_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void subsuu_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void asub_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void asub_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void asub_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void asub_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void asub_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void asub_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void asub_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void asub_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mulv_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mulv_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mulv_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mulv_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void maddv_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void maddv_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void maddv_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void maddv_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void msubv_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void msubv_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void msubv_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void msubv_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void div_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void div_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void div_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void div_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void div_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void div_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void div_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void div_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mod_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mod_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mod_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mod_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mod_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mod_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mod_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mod_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dotp_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dotp_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dotp_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dotp_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dotp_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dotp_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dotp_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dotp_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpadd_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpadd_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpadd_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpadd_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpadd_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpadd_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpadd_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpadd_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpsub_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpsub_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpsub_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpsub_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpsub_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpsub_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpsub_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void dpsub_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void sld_b(MSARegister wd, MSARegister ws, Register rt);
+  void sld_h(MSARegister wd, MSARegister ws, Register rt);
+  void sld_w(MSARegister wd, MSARegister ws, Register rt);
+  void sld_d(MSARegister wd, MSARegister ws, Register rt);
+  void splat_b(MSARegister wd, MSARegister ws, Register rt);
+  void splat_h(MSARegister wd, MSARegister ws, Register rt);
+  void splat_w(MSARegister wd, MSARegister ws, Register rt);
+  void splat_d(MSARegister wd, MSARegister ws, Register rt);
+  void pckev_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void pckev_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void pckev_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void pckev_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void pckod_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void pckod_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void pckod_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void pckod_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvl_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvl_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvl_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvl_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvr_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvr_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvr_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvr_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvev_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvev_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvev_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvev_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvod_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvod_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvod_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ilvod_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void vshf_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void vshf_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void vshf_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void vshf_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srar_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srar_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srar_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srar_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srlr_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srlr_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srlr_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void srlr_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hadd_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hadd_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hadd_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hadd_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hadd_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hadd_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hadd_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hadd_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hsub_s_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hsub_s_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hsub_s_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hsub_s_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hsub_u_b(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hsub_u_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hsub_u_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void hsub_u_d(MSARegister wd, MSARegister ws, MSARegister wt);
+
+  void fcaf_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcaf_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcun_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcun_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fceq_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fceq_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcueq_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcueq_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fclt_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fclt_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcult_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcult_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcle_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcle_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcule_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcule_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsaf_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsaf_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsun_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsun_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fseq_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fseq_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsueq_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsueq_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fslt_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fslt_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsult_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsult_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsle_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsle_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsule_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsule_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fadd_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fadd_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsub_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsub_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmul_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmul_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fdiv_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fdiv_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmadd_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmadd_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmsub_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmsub_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fexp2_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fexp2_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fexdo_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fexdo_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ftq_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void ftq_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmin_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmin_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmin_a_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmin_a_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmax_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmax_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmax_a_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fmax_a_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcor_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcor_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcune_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcune_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcne_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fcne_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mul_q_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mul_q_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void madd_q_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void madd_q_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void msub_q_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void msub_q_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsor_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsor_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsune_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsune_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsne_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void fsne_d(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mulr_q_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void mulr_q_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void maddr_q_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void maddr_q_w(MSARegister wd, MSARegister ws, MSARegister wt);
+  void msubr_q_h(MSARegister wd, MSARegister ws, MSARegister wt);
+  void msubr_q_w(MSARegister wd, MSARegister ws, MSARegister wt);
+
+  void sldi_b(MSARegister wd, MSARegister ws, uint32_t n);
+  void sldi_h(MSARegister wd, MSARegister ws, uint32_t n);
+  void sldi_w(MSARegister wd, MSARegister ws, uint32_t n);
+  void sldi_d(MSARegister wd, MSARegister ws, uint32_t n);
+  void splati_b(MSARegister wd, MSARegister ws, uint32_t n);
+  void splati_h(MSARegister wd, MSARegister ws, uint32_t n);
+  void splati_w(MSARegister wd, MSARegister ws, uint32_t n);
+  void splati_d(MSARegister wd, MSARegister ws, uint32_t n);
+  void copy_s_b(Register rd, MSARegister ws, uint32_t n);
+  void copy_s_h(Register rd, MSARegister ws, uint32_t n);
+  void copy_s_w(Register rd, MSARegister ws, uint32_t n);
+  void copy_u_b(Register rd, MSARegister ws, uint32_t n);
+  void copy_u_h(Register rd, MSARegister ws, uint32_t n);
+  void copy_u_w(Register rd, MSARegister ws, uint32_t n);
+  void insert_b(MSARegister wd, uint32_t n, Register rs);
+  void insert_h(MSARegister wd, uint32_t n, Register rs);
+  void insert_w(MSARegister wd, uint32_t n, Register rs);
+  void insve_b(MSARegister wd, uint32_t n, MSARegister ws);
+  void insve_h(MSARegister wd, uint32_t n, MSARegister ws);
+  void insve_w(MSARegister wd, uint32_t n, MSARegister ws);
+  void insve_d(MSARegister wd, uint32_t n, MSARegister ws);
+  void move_v(MSARegister wd, MSARegister ws);
+  void ctcmsa(MSAControlRegister cd, Register rs);
+  void cfcmsa(Register rd, MSAControlRegister cs);
+
+  void slli_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void slli_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void slli_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void slli_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void srai_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void srai_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void srai_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void srai_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void srli_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void srli_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void srli_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void srli_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void bclri_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void bclri_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void bclri_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void bclri_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void bseti_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void bseti_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void bseti_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void bseti_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void bnegi_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void bnegi_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void bnegi_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void bnegi_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void binsli_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void binsli_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void binsli_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void binsli_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void binsri_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void binsri_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void binsri_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void binsri_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void sat_s_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void sat_s_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void sat_s_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void sat_s_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void sat_u_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void sat_u_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void sat_u_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void sat_u_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void srari_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void srari_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void srari_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void srari_d(MSARegister wd, MSARegister ws, uint32_t m);
+  void srlri_b(MSARegister wd, MSARegister ws, uint32_t m);
+  void srlri_h(MSARegister wd, MSARegister ws, uint32_t m);
+  void srlri_w(MSARegister wd, MSARegister ws, uint32_t m);
+  void srlri_d(MSARegister wd, MSARegister ws, uint32_t m);
+
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();
@@ -1377,6 +2037,74 @@ class Assembler : public AssemblerBase {
   void GenInstrJump(Opcode opcode,
                      uint32_t address);
 
+  // MSA
+  void GenInstrMsaI8(SecondaryField operation, uint32_t imm8, MSARegister ws,
+                     MSARegister wd);
+
+  void GenInstrMsaI5(SecondaryField operation, SecondaryField df, int32_t imm5,
+                     MSARegister ws, MSARegister wd);
+
+  void GenInstrMsaBit(SecondaryField operation, SecondaryField df, uint32_t m,
+                      MSARegister ws, MSARegister wd);
+
+  void GenInstrMsaI10(SecondaryField operation, SecondaryField df,
+                      int32_t imm10, MSARegister wd);
+
+  template <typename RegType>
+  void GenInstrMsa3R(SecondaryField operation, SecondaryField df, RegType t,
+                     MSARegister ws, MSARegister wd);
+
+  template <typename DstType, typename SrcType>
+  void GenInstrMsaElm(SecondaryField operation, SecondaryField df, uint32_t n,
+                      SrcType src, DstType dst);
+
+  void GenInstrMsa3RF(SecondaryField operation, uint32_t df, MSARegister wt,
+                      MSARegister ws, MSARegister wd);
+
+  void GenInstrMsaVec(SecondaryField operation, MSARegister wt, MSARegister ws,
+                      MSARegister wd);
+
+  void GenInstrMsaMI10(SecondaryField operation, int32_t s10, Register rs,
+                       MSARegister wd);
+
+  void GenInstrMsa2R(SecondaryField operation, SecondaryField df,
+                     MSARegister ws, MSARegister wd);
+
+  void GenInstrMsa2RF(SecondaryField operation, SecondaryField df,
+                      MSARegister ws, MSARegister wd);
+
+  void GenInstrMsaBranch(SecondaryField operation, MSARegister wt,
+                         int32_t offset16);
+
+  inline bool is_valid_msa_df_m(SecondaryField bit_df, uint32_t m) {
+    switch (bit_df) {
+      case BIT_DF_b:
+        return is_uint3(m);
+      case BIT_DF_h:
+        return is_uint4(m);
+      case BIT_DF_w:
+        return is_uint5(m);
+      case BIT_DF_d:
+        return is_uint6(m);
+      default:
+        return false;
+    }
+  }
+
+  inline bool is_valid_msa_df_n(SecondaryField elm_df, uint32_t n) {
+    switch (elm_df) {
+      case ELM_DF_B:
+        return is_uint4(n);
+      case ELM_DF_H:
+        return is_uint3(n);
+      case ELM_DF_W:
+        return is_uint2(n);
+      case ELM_DF_D:
+        return is_uint1(n);
+      default:
+        return false;
+    }
+  }
 
   // Labels.
   void print(Label* L);

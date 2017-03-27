@@ -778,6 +778,7 @@ enum CpuFeature {
   MIPSr1,
   MIPSr2,
   MIPSr6,
+  MIPS_SIMD,  // MSA instructions
   // ARM64
   ALWAYS_ALIGN_CSP,
   // PPC
