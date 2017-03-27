@@ -1550,7 +1550,7 @@ void MacroAssembler::MaybeDropFrames() {
   ExternalReference restart_fp =
       ExternalReference::debug_restart_fp_address(isolate());
   mov(r4, Operand(restart_fp));
-  LoadWordArith(r4, MemOperand(r4));
+  LoadP(r4, MemOperand(r4));
   cmpi(r4, Operand::Zero());
   Jump(isolate()->builtins()->FrameDropperTrampoline(), RelocInfo::CODE_TARGET,
        ne);
