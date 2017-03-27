@@ -137,6 +137,14 @@ struct WasmExport {
 };
 
 enum ModuleOrigin : uint8_t { kWasmOrigin, kAsmJsOrigin };
+
+inline bool IsWasm(ModuleOrigin Origin) {
+  return Origin == ModuleOrigin::kWasmOrigin;
+}
+inline bool IsAsmJs(ModuleOrigin Origin) {
+  return Origin == ModuleOrigin::kAsmJsOrigin;
+}
+
 struct ModuleWireBytes;
 
 // Static representation of a module.
@@ -184,8 +192,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   ModuleOrigin get_origin() const { return origin_; }
   void set_origin(ModuleOrigin new_value) { origin_ = new_value; }
-  bool is_wasm() const { return origin_ == kWasmOrigin; }
-  bool is_asm_js() const { return origin_ == kAsmJsOrigin; }
+  bool is_wasm() const { return wasm::IsWasm(origin_); }
+  bool is_asm_js() const { return wasm::IsAsmJs(origin_); }
 
  private:
   // TODO(kschimpf) - Encapsulate more fields.

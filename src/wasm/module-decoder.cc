@@ -1155,7 +1155,8 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
                               const byte* module_end, bool verify_functions,
                               ModuleOrigin origin) {
   HistogramTimerScope wasm_decode_module_time_scope(
-      isolate->counters()->wasm_decode_module_time());
+      IsWasm(origin) ? isolate->counters()->wasm_decode_wasm_module_time()
+                     : isolate->counters()->wasm_decode_asm_module_time());
   size_t size = module_end - module_start;
   if (module_start > module_end) return ModuleError("start > end");
   if (size >= kV8MaxWasmModuleSize)
