@@ -393,7 +393,7 @@
   'language/module-code/comment-single-line-html*': [FAIL],
   # v8:5487
   'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
-  # v8:5401
+  # https://github.com/tc39/ecma262/pull/858
   'language/module-code/namespace/internals/set': [FAIL],
   'language/module-code/namespace/internals/define-own-property': [FAIL],
 
@@ -593,14 +593,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5449
   'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
   'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
-
-  # Symbol.iterator on namespace objects was removed, tests need to be updated.
-  'language/module-code/namespace/Symbol.iterator/*': [SKIP],
-  'language/module-code/namespace/internals/get-own-property-sym': [SKIP],
-  'language/module-code/namespace/internals/get-sym-found': [SKIP],
-  'language/module-code/namespace/internals/has-property-sym-found': [SKIP],
-  'language/module-code/namespace/internals/own-property-keys-binding-types': [SKIP],
-  'language/module-code/namespace/internals/own-property-keys-sort': [SKIP],
 
   # Symbol.toStringTag on namespace objects was made non-configurable, tests
   # need to be updated.
