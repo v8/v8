@@ -1473,6 +1473,14 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
       Format(instr, "dext    'rt, 'rs, 'sa, 'ss1");
       break;
     }
+    case DEXTM: {
+      Format(instr, "dextm   'rt, 'rs, 'sa, 'ss1");
+      break;
+    }
+    case DEXTU: {
+      Format(instr, "dextu   'rt, 'rs, 'sa, 'ss1");
+      break;
+    }
     case BSHFL: {
       int sa = instr->SaFieldRaw() >> kSaShift;
       switch (sa) {

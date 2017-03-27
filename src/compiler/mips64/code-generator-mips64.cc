@@ -1221,7 +1221,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (size > 0 && size <= 32 && pos >= 0 && pos < 32) {
         __ Dext(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
                 i.InputInt8(2));
-      } else if (size > 32 && size <= 64 && pos > 0 && pos < 32) {
+      } else if (size > 32 && size <= 64 && pos >= 0 && pos < 32) {
         __ Dextm(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
                  i.InputInt8(2));
       } else {

@@ -4072,7 +4072,7 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
       // Interpret sa field as 5-bit lsb of extract.
       uint16_t lsb = sa();
       uint16_t size = msb + 1;
-      uint64_t mask = (1ULL << size) - 1;
+      uint64_t mask = (size == 64) ? UINT64_MAX : (1ULL << size) - 1;
       alu_out = static_cast<int64_t>((rs_u() & (mask << lsb)) >> lsb);
       SetResult(rt_reg(), alu_out);
       break;
@@ -4083,7 +4083,7 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
       // Interpret sa field as 5-bit lsb of extract.
       uint16_t lsb = sa();
       uint16_t size = msb + 33;
-      uint64_t mask = (1ULL << size) - 1;
+      uint64_t mask = (size == 64) ? UINT64_MAX : (1ULL << size) - 1;
       alu_out = static_cast<int64_t>((rs_u() & (mask << lsb)) >> lsb);
       SetResult(rt_reg(), alu_out);
       break;
@@ -4094,7 +4094,7 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
       // Interpret sa field as 5-bit lsb of extract.
       uint16_t lsb = sa() + 32;
       uint16_t size = msb + 1;
-      uint64_t mask = (1ULL << size) - 1;
+      uint64_t mask = (size == 64) ? UINT64_MAX : (1ULL << size) - 1;
       alu_out = static_cast<int64_t>((rs_u() & (mask << lsb)) >> lsb);
       SetResult(rt_reg(), alu_out);
       break;
