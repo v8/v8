@@ -78,25 +78,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   return CopyElements(isolate, holder, source, length);
 }
 
-void Runtime::ArrayIdToTypeAndSize(int arrayId, ExternalArrayType* array_type,
-                                   ElementsKind* fixed_elements_kind,
-                                   size_t* element_size) {
-  switch (arrayId) {
-#define ARRAY_ID_CASE(Type, type, TYPE, ctype, size)      \
-  case ARRAY_ID_##TYPE:                                   \
-    *array_type = kExternal##Type##Array;                 \
-    *fixed_elements_kind = TYPE##_ELEMENTS;               \
-    *element_size = size;                                 \
-    break;
-
-    TYPED_ARRAYS(ARRAY_ID_CASE)
-#undef ARRAY_ID_CASE
-
-    default:
-      UNREACHABLE();
-  }
-}
-
 const char* Runtime::ElementsKindToType(ElementsKind fixed_elements_kind) {
   switch (fixed_elements_kind) {
 #define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype, size) \

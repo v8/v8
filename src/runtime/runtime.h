@@ -778,25 +778,6 @@ class Runtime : public AllStatic {
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       bool* is_found_out = nullptr);
 
-  enum TypedArrayId {
-    // arrayIds below should be synchronized with typedarray.js natives.
-    ARRAY_ID_UINT8 = 1,
-    ARRAY_ID_INT8 = 2,
-    ARRAY_ID_UINT16 = 3,
-    ARRAY_ID_INT16 = 4,
-    ARRAY_ID_UINT32 = 5,
-    ARRAY_ID_INT32 = 6,
-    ARRAY_ID_FLOAT32 = 7,
-    ARRAY_ID_FLOAT64 = 8,
-    ARRAY_ID_UINT8_CLAMPED = 9,
-    ARRAY_ID_FIRST = ARRAY_ID_UINT8,
-    ARRAY_ID_LAST = ARRAY_ID_UINT8_CLAMPED
-  };
-
-  static void ArrayIdToTypeAndSize(int array_id, ExternalArrayType* type,
-                                   ElementsKind* fixed_elements_kind,
-                                   size_t* element_size);
-
   static const char* ElementsKindToType(ElementsKind fixed_elements_kind);
 
   static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,
