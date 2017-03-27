@@ -2196,6 +2196,9 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  // We don't support lowering JSForInNext inside try blocks.
+  if (NodeProperties::IsExceptionalCall(node)) return NoChange();
+
   // We know that the {index} is in Unsigned32 range here, otherwise executing
   // the JSForInNext wouldn't be valid. Unfortunately due to OSR and generators
   // this is not always reflected in the types, hence we might need to rename
