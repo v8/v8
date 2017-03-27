@@ -6705,9 +6705,8 @@ class SharedFunctionInfo: public HeapObject {
   // Tells whether or not this shared function info is interpreted.
   //
   // Note: function->IsInterpreted() does not necessarily return the same value
-  // as function->shared()->IsInterpreted() because the shared function info
-  // could tier up to baseline via a different function closure. The interpreter
-  // entry stub will "self-heal" this divergence when the function is executed.
+  // as function->shared()->IsInterpreted() because the closure might have been
+  // optimized.
   inline bool IsInterpreted() const;
 
   inline void ReplaceCode(Code* code);
@@ -7713,9 +7712,8 @@ class JSFunction: public JSObject {
   // Tells whether or not this function is interpreted.
   //
   // Note: function->IsInterpreted() does not necessarily return the same value
-  // as function->shared()->IsInterpreted() because the shared function info
-  // could tier up to baseline via a different function closure. The interpreter
-  // entry stub will "self-heal" this divergence when the function is executed.
+  // as function->shared()->IsInterpreted() because the closure might have been
+  // optimized.
   inline bool IsInterpreted();
 
   // Tells whether or not this function has been optimized.
@@ -7723,12 +7721,10 @@ class JSFunction: public JSObject {
 
   // Mark this function for lazy recompilation. The function will be recompiled
   // the next time it is executed.
-  void MarkForBaseline();
   void MarkForOptimization();
   void AttemptConcurrentOptimization();
 
   // Tells whether or not the function is already marked for lazy recompilation.
-  inline bool IsMarkedForBaseline();
   inline bool IsMarkedForOptimization();
   inline bool IsMarkedForConcurrentOptimization();
 

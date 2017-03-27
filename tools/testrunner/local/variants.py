@@ -11,7 +11,9 @@ ALL_VARIANT_FLAGS = {
   "noturbofan": [["--no-turbo"]],
   "noturbofan_stress": [["--no-turbo", "--stress-opt", "--always-opt"]],
   "fullcode": [["--nocrankshaft", "--no-turbo"]],
-  "nooptimization": [["--nocrankshaft", "--turbo-filter=~"]],
+  # No optimization actually means no profile guided optimization -
+  # %OptimizeFunctionOnNextCall still works.
+  "nooptimization": [["--nocrankshaft"]],
   "asm_wasm": [["--validate-asm", "--fast-validate-asm", "--stress-validate-asm"]],
   "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
@@ -24,7 +26,9 @@ FAST_VARIANT_FLAGS = {
   "noturbofan": [["--no-turbo"]],
   "noturbofan_stress": [["--no-turbo", "--stress-opt"]],
   "fullcode": [["--nocrankshaft", "--no-turbo"]],
-  "nooptimization": [["--nocrankshaft", "--turbo-filter=~"]],
+  # No optimization actually means no profile guided optimization -
+  # %OptimizeFunctionOnNextCall still works.
+  "nooptimization": [["--nocrankshaft"]],
   "asm_wasm": [["--validate-asm", "--fast-validate-asm", "--stress-validate-asm"]],
   "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }

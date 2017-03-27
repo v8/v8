@@ -542,6 +542,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&bytecode_array_loaded);
 
   // Check whether we should continue to use the interpreter.
+  // TODO(rmcilroy) Remove self healing once liveedit only has to deal with
+  // Ignition bytecode.
   Label switch_to_different_code_kind;
   __ Move(ecx, masm->CodeObject());  // Self-reference to this code.
   __ cmp(ecx, FieldOperand(eax, SharedFunctionInfo::kCodeOffset));
@@ -1137,10 +1139,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ bind(&gotta_call_runtime_no_stack);
 
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
-}
-
-void Builtins::Generate_CompileBaseline(MacroAssembler* masm) {
-  GenerateTailCallToReturnedCode(masm, Runtime::kCompileBaseline);
 }
 
 void Builtins::Generate_CompileOptimized(MacroAssembler* masm) {

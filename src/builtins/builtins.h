@@ -164,7 +164,6 @@ class Isolate;
   ASM(InterpreterOnStackReplacement)                                           \
                                                                                \
   /* Code life-cycle */                                                        \
-  ASM(CompileBaseline)                                                         \
   ASM(CompileOptimized)                                                        \
   ASM(CompileOptimizedConcurrent)                                              \
   ASM(InOptimizationQueue)                                                     \

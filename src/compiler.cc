@@ -363,12 +363,6 @@ bool ShouldUseIgnition(Handle<SharedFunctionInfo> shared,
     return false;
   }
 
-  // When requesting debug code as a replacement for existing code, we provide
-  // the same kind as the existing code (to prevent implicit tier-change).
-  if (marked_as_debug && shared->is_compiled()) {
-    return !shared->HasBaselineCode();
-  }
-
   // Code destined for TurboFan should be compiled with Ignition first.
   if (UseTurboFan(shared)) return true;
 
@@ -1033,70 +1027,6 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
   return CompilationJob::FAILED;
 }
 
-MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
-  Isolate* isolate = function->GetIsolate();
-  VMState<COMPILER> state(isolate);
-  PostponeInterruptsScope postpone(isolate);
-  ParseInfo parse_info(handle(function->shared()));
-  CompilationInfo info(parse_info.zone(), &parse_info, isolate, function);
-
-  DCHECK(function->shared()->is_compiled());
-
-  // Function no longer needs to be tiered up
-  function->shared()->set_marked_for_tier_up(false);
-
-  // Reset profiler ticks, function is no longer considered hot.
-  if (function->shared()->HasBytecodeArray()) {
-    function->shared()->set_profiler_ticks(0);
-  }
-
-  // Nothing left to do if the function already has baseline code.
-  if (function->shared()->code()->kind() == Code::FUNCTION) {
-    return Handle<Code>(function->shared()->code());
-  }
-
-  // We do not switch to baseline code when the debugger might have created a
-  // copy of the bytecode with break slots to be able to set break points.
-  if (function->shared()->HasDebugInfo()) {
-    return MaybeHandle<Code>();
-  }
-
-  // Don't generate full-codegen code for functions it can't support.
-  if (function->shared()->must_use_ignition_turbo()) {
-    return MaybeHandle<Code>();
-  }
-  DCHECK(!IsResumableFunction(function->shared()->kind()));
-
-  if (FLAG_trace_opt) {
-    OFStream os(stdout);
-    os << "[switching method " << Brief(*function) << " to baseline code]"
-       << std::endl;
-  }
-
-  // Parse and update CompilationInfo with the results.
-  if (!parsing::ParseFunction(info.parse_info())) return MaybeHandle<Code>();
-  Handle<SharedFunctionInfo> shared = info.shared_info();
-  DCHECK_EQ(shared->language_mode(), info.literal()->language_mode());
-
-  // Compile baseline code using the full code generator.
-  if (!Compiler::Analyze(info.parse_info()) ||
-      !FullCodeGenerator::MakeCode(&info)) {
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return MaybeHandle<Code>();
-  }
-
-  // Update the shared function info with the scope info.
-  InstallSharedScopeInfo(&info, shared);
-
-  // Install compilation result on the shared function info
-  InstallSharedCompilationResult(&info, shared);
-
-  // Record the function compilation event.
-  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, &info);
-
-  return info.code();
-}
-
 MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   DCHECK(!isolate->has_pending_exception());
@@ -1125,29 +1055,15 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 
     function->shared()->set_marked_for_tier_up(false);
 
-    switch (Compiler::NextCompilationTier(*function)) {
-      case Compiler::BASELINE: {
-        // We don't try to handle baseline here because GetBaselineCode()
-        // doesn't handle top-level code. We aren't supporting
-        // the hybrid pipeline going forward (where Ignition is a first
-        // tier followed by full-code).
-        break;
-      }
-      case Compiler::OPTIMIZED: {
-        if (FLAG_trace_opt) {
-          PrintF("[optimizing method ");
-          function->ShortPrint();
-          PrintF(" eagerly (shared function marked for tier up)]\n");
-        }
+    if (FLAG_trace_opt) {
+      PrintF("[optimizing method ");
+      function->ShortPrint();
+      PrintF(" eagerly (shared function marked for tier up)]\n");
+    }
 
-        Handle<Code> code;
-        if (GetOptimizedCodeMaybeLater(function).ToHandle(&code)) {
-          return code;
-        }
-        break;
-      }
-      default:
-        UNREACHABLE();
+    Handle<Code> code;
+    if (GetOptimizedCodeMaybeLater(function).ToHandle(&code)) {
+      return code;
     }
   }
 
@@ -1333,30 +1249,6 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   return true;
 }
 
-bool Compiler::CompileBaseline(Handle<JSFunction> function) {
-  Isolate* isolate = function->GetIsolate();
-  DCHECK(AllowCompilation::IsAllowed(isolate));
-
-  // Start a compilation.
-  Handle<Code> code;
-  if (!GetBaselineCode(function).ToHandle(&code)) {
-    // Baseline generation failed, get unoptimized code.
-    DCHECK(function->shared()->is_compiled());
-    code = handle(function->shared()->code());
-    isolate->clear_pending_exception();
-  }
-
-  // Install code on closure.
-  function->ReplaceCode(*code);
-  JSFunction::EnsureLiterals(function);
-
-  // Check postconditions on success.
-  DCHECK(!isolate->has_pending_exception());
-  DCHECK(function->shared()->is_compiled());
-  DCHECK(function->is_compiled());
-  return true;
-}
-
 bool Compiler::CompileOptimized(Handle<JSFunction> function,
                                 ConcurrencyMode mode) {
   if (function->IsOptimized()) return true;
@@ -1471,14 +1363,16 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
   }
 
   if (!shared->has_deoptimization_support()) {
+    // Don't generate full-codegen code for functions which should use Ignition.
+    if (ShouldUseIgnition(info)) return false;
+
+    DCHECK(!shared->must_use_ignition_turbo());
+    DCHECK(!IsResumableFunction(shared->kind()));
+
     Zone compile_zone(info->isolate()->allocator(), ZONE_NAME);
     CompilationInfo unoptimized(&compile_zone, info->parse_info(),
                                 info->isolate(), info->closure());
     unoptimized.EnableDeoptimizationSupport();
-
-    // Don't generate full-codegen code for functions it can't support.
-    if (shared->must_use_ignition_turbo()) return false;
-    DCHECK(!IsResumableFunction(shared->kind()));
 
     // When we call PrepareForSerializing below, we will change the shared
     // ParseInfo. Make sure to reset it.
@@ -1492,13 +1386,6 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
       unoptimized.PrepareForSerializing();
     }
     EnsureFeedbackMetadata(&unoptimized);
-
-    // Ensure we generate and install bytecode first if the function should use
-    // Ignition to avoid implicit tier-down.
-    if (!shared->is_compiled() && ShouldUseIgnition(info) &&
-        !GenerateUnoptimizedCode(info)) {
-      return false;
-    }
 
     if (!FullCodeGenerator::MakeCode(&unoptimized)) return false;
 
@@ -1518,20 +1405,6 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
                               &unoptimized);
   }
   return true;
-}
-
-// static
-Compiler::CompilationTier Compiler::NextCompilationTier(JSFunction* function) {
-  Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
-  if (shared->IsInterpreted()) {
-    if (UseTurboFan(shared)) {
-      return OPTIMIZED;
-    } else {
-      return BASELINE;
-    }
-  } else {
-    return OPTIMIZED;
-  }
 }
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(

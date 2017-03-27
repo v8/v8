@@ -116,7 +116,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_COMPILER(F)    \
   F(CompileLazy, 1, 1)                    \
-  F(CompileBaseline, 1, 1)                \
   F(CompileOptimized_Concurrent, 1, 1)    \
   F(CompileOptimized_NotConcurrent, 1, 1) \
   F(NotifyStubFailure, 0, 1)              \
@@ -554,8 +553,6 @@ namespace internal {
   F(IsConcurrentRecompilationSupported, 0, 1) \
   F(OptimizeFunctionOnNextCall, -1, 1)        \
   F(PrintTypeProfile, 1, 1)                   \
-  F(InterpretFunctionOnNextCall, 1, 1)        \
-  F(BaselineFunctionOnNextCall, 1, 1)         \
   F(OptimizeOsr, -1, 1)                       \
   F(NeverOptimizeFunction, 1, 1)              \
   F(GetOptimizationStatus, -1, 1)             \

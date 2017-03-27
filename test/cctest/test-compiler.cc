@@ -621,38 +621,6 @@ TEST(SplitConstantsInFullCompiler) {
 }
 #endif
 
-TEST(IgnitionEntryTrampolineSelfHealing) {
-  FLAG_allow_natives_syntax = true;
-  FLAG_always_opt = false;
-  CcTest::InitializeVM();
-  FLAG_ignition = true;
-  Isolate* isolate = CcTest::i_isolate();
-  v8::HandleScope scope(CcTest::isolate());
-
-  CompileRun(
-      "function MkFun() {"
-      "  function f() { return 23 }"
-      "  return f"
-      "}"
-      "var f1 = MkFun(); f1();"
-      "var f2 = MkFun(); f2();"
-      "%BaselineFunctionOnNextCall(f1);");
-  Handle<JSFunction> f1 = Handle<JSFunction>::cast(GetGlobalProperty("f1"));
-  Handle<JSFunction> f2 = Handle<JSFunction>::cast(GetGlobalProperty("f2"));
-
-  // Function {f1} is marked for baseline.
-  CompileRun("var result1 = f1()");
-  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f1->code());
-  CHECK_EQ(*isolate->builtins()->InterpreterEntryTrampoline(), f2->code());
-  CHECK_EQ(23.0, GetGlobalProperty("result1")->Number());
-
-  // Function {f2} will self-heal now.
-  CompileRun("var result2 = f2()");
-  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f1->code());
-  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f2->code());
-  CHECK_EQ(23.0, GetGlobalProperty("result2")->Number());
-}
-
 TEST(InvocationCount) {
   FLAG_allow_natives_syntax = true;
   FLAG_always_opt = false;
@@ -671,7 +639,4 @@ TEST(InvocationCount) {
   CHECK_EQ(2, foo->feedback_vector()->invocation_count());
   CompileRun("foo(); foo()");
   CHECK_EQ(4, foo->feedback_vector()->invocation_count());
-  CompileRun("%BaselineFunctionOnNextCall(foo);");
-  CompileRun("foo();");
-  CHECK_EQ(5, foo->feedback_vector()->invocation_count());
 }

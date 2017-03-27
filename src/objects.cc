@@ -11931,16 +11931,6 @@ bool JSFunction::Inlines(SharedFunctionInfo* candidate) {
   return false;
 }
 
-void JSFunction::MarkForBaseline() {
-  Isolate* isolate = GetIsolate();
-  set_code_no_write_barrier(
-      isolate->builtins()->builtin(Builtins::kCompileBaseline));
-  // No write barrier required, since the builtin is part of the root set.
-  if (FLAG_mark_shared_functions_for_tier_up) {
-    shared()->set_marked_for_tier_up(true);
-  }
-}
-
 void JSFunction::MarkForOptimization() {
   Isolate* isolate = GetIsolate();
   DCHECK(!IsOptimized());

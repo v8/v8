@@ -2470,8 +2470,6 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
         "  return s;"
         "}"
         "f(); f();"
-        "%BaselineFunctionOnNextCall(f);"
-        "f(); f();"
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
   }
@@ -2516,8 +2514,6 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
         "  for (var i = 0; i < 100; i++)  s += i;"
         "  return s;"
         "}"
-        "f(); f();"
-        "%BaselineFunctionOnNextCall(f);"
         "f(); f();"
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
@@ -3875,6 +3871,7 @@ TEST(Regress165495) {
 TEST(Regress169209) {
   if (!i::FLAG_incremental_marking) return;
   if (!i::FLAG_flush_code) return;
+  if (i::FLAG_turbo) return;  // No code flushing in Ignition + TurboFan.
   i::FLAG_always_opt = false;
   i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
@@ -3897,10 +3894,6 @@ TEST(Regress169209) {
         "function f() { return 'foobar'; }"
         "function g(x) { if (x) f(); }"
         "f();"
-        "%BaselineFunctionOnNextCall(f);"
-        "f();"
-        "g(false);"
-        "%BaselineFunctionOnNextCall(g);"
         "g(false);");
 
     Handle<JSFunction> f = Handle<JSFunction>::cast(
@@ -3923,8 +3916,6 @@ TEST(Regress169209) {
     LocalContext env;
     CompileRun(
         "function flushMe() { return 0; }"
-        "flushMe(1);"
-        "%BaselineFunctionOnNextCall(flushMe);"
         "flushMe(1);");
 
     Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(

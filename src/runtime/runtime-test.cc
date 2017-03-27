@@ -270,59 +270,11 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
 
   function->MarkForOptimization();
 
-  Code* unoptimized = function->shared()->code();
-  if (args.length() == 2 && unoptimized->kind() == Code::FUNCTION) {
+  if (args.length() == 2) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
     if (type->IsOneByteEqualTo(STATIC_CHAR_VECTOR("concurrent")) &&
         isolate->concurrent_recompilation_enabled()) {
       function->AttemptConcurrentOptimization();
-    }
-  }
-
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_InterpretFunctionOnNextCall) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
-  if (!function_object->IsJSFunction()) {
-    return isolate->heap()->undefined_value();
-  }
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-
-  // Do not tier down if we are already on optimized code. Replacing optimized
-  // code without actual deoptimization can lead to funny bugs.
-  if (function->code()->kind() != Code::OPTIMIZED_FUNCTION &&
-      function->shared()->HasBytecodeArray()) {
-    function->ReplaceCode(*isolate->builtins()->InterpreterEntryTrampoline());
-  }
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_BaselineFunctionOnNextCall) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
-  if (!function_object->IsJSFunction()) {
-    return isolate->heap()->undefined_value();
-  }
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-
-  // If function isn't compiled, compile it now.
-  if (!function->shared()->is_compiled() &&
-      !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION)) {
-    return isolate->heap()->undefined_value();
-  }
-
-  // Do not tier down if we are already on optimized code. Replacing optimized
-  // code without actual deoptimization can lead to funny bugs.
-  if (function->code()->kind() != Code::OPTIMIZED_FUNCTION &&
-      function->code()->kind() != Code::FUNCTION) {
-    if (function->shared()->HasBaselineCode()) {
-      function->ReplaceCode(function->shared()->code());
-    } else {
-      function->MarkForBaseline();
     }
   }
 
