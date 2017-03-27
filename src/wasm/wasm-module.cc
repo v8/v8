@@ -2875,7 +2875,7 @@ void RejectPromise(Isolate* isolate, ErrorThrower* thrower,
   Handle<Context> context(isolate->context(), isolate);
   auto maybe = resolver->Reject(v8::Utils::ToLocal(context),
                    v8::Utils::ToLocal(thrower->Reify()));
-  CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
+  CHECK(!maybe.IsNothing());
 }
 
 void ResolvePromise(Isolate* isolate, Handle<JSPromise> promise,
@@ -2885,7 +2885,7 @@ void ResolvePromise(Isolate* isolate, Handle<JSPromise> promise,
   Handle<Context> context(isolate->context(), isolate);
   auto maybe = resolver->Resolve(v8::Utils::ToLocal(context),
                                  v8::Utils::ToLocal(result));
-  CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
+  CHECK(!maybe.IsNothing());
 }
 
 }  // namespace
