@@ -779,10 +779,8 @@ class Runtime : public AllStatic {
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       bool* is_found_out = nullptr);
 
-  static const char* ElementsKindToType(ElementsKind fixed_elements_kind);
-
-  static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,
-                                                    Handle<Object>);
+  MUST_USE_RESULT static MaybeHandle<JSArray> GetInternalProperties(
+      Isolate* isolate, Handle<Object>);
 };
 
 

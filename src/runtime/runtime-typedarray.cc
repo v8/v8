@@ -78,21 +78,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   return CopyElements(isolate, holder, source, length);
 }
 
-const char* Runtime::ElementsKindToType(ElementsKind fixed_elements_kind) {
-  switch (fixed_elements_kind) {
-#define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                   \
-    return #Type "Array";
-
-    TYPED_ARRAYS(ELEMENTS_KIND_CASE)
-#undef ELEMENTS_KIND_CASE
-
-    default:
-      UNREACHABLE();
-      return "";
-  }
-}
-
 // Initializes a typed array from an array-like object, and its backing store as
 // well.
 RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {

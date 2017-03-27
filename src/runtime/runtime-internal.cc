@@ -120,6 +120,25 @@ RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
 
 #undef THROW_ERROR
 
+namespace {
+
+const char* ElementsKindToType(ElementsKind fixed_elements_kind) {
+  switch (fixed_elements_kind) {
+#define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype, size) \
+  case TYPE##_ELEMENTS:                                   \
+    return #Type "Array";
+
+    TYPED_ARRAYS(ELEMENTS_KIND_CASE)
+#undef ELEMENTS_KIND_CASE
+
+    default:
+      UNREACHABLE();
+      return "";
+  }
+}
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_ThrowInvalidTypedArrayAlignment) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -128,8 +147,8 @@ RUNTIME_FUNCTION(Runtime_ThrowInvalidTypedArrayAlignment) {
 
   ElementsKind kind = map->elements_kind();
 
-  Handle<String> type = isolate->factory()->NewStringFromAsciiChecked(
-      Runtime::ElementsKindToType(kind));
+  Handle<String> type =
+      isolate->factory()->NewStringFromAsciiChecked(ElementsKindToType(kind));
 
   ExternalArrayType external_type =
       isolate->factory()->GetArrayTypeFromElementsKind(kind);
