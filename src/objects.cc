@@ -13656,7 +13656,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
   shared_info->set_kind(lit->kind());
-  if (!IsConstructable(lit->kind(), lit->language_mode())) {
+  if (!IsConstructable(lit->kind())) {
     shared_info->SetConstructStub(
         *shared_info->GetIsolate()->builtins()->ConstructedNonConstructable());
   }

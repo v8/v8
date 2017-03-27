@@ -1204,8 +1204,7 @@ inline bool IsClassConstructor(FunctionKind kind) {
   return (kind & FunctionKind::kClassConstructor) != 0;
 }
 
-
-inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
+inline bool IsConstructable(FunctionKind kind) {
   if (IsAccessorFunction(kind)) return false;
   if (IsConciseMethod(kind)) return false;
   if (IsArrowFunction(kind)) return false;

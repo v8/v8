@@ -2378,8 +2378,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name, FunctionKind kind, Handle<Code> code,
     Handle<ScopeInfo> scope_info) {
   DCHECK(IsValidFunctionKind(kind));
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      name, code, IsConstructable(kind, scope_info->language_mode()));
+  Handle<SharedFunctionInfo> shared =
+      NewSharedFunctionInfo(name, code, IsConstructable(kind));
   shared->set_scope_info(*scope_info);
   shared->set_outer_scope_info(*the_hole_value());
   shared->set_kind(kind);
