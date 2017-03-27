@@ -97,13 +97,11 @@ int MacroAssembler::CallStubSize(
   return CallSize(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id, cond);
 }
 
-
-void MacroAssembler::Call(Address target,
-                          RelocInfo::Mode rmode,
-                          Condition cond,
-                          TargetAddressStorageMode mode) {
+void MacroAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
+                          TargetAddressStorageMode mode,
+                          bool check_constant_pool) {
   // Check if we have to emit the constant pool before we block it.
-  MaybeCheckConstPool();
+  if (check_constant_pool) MaybeCheckConstPool();
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
   Label start;
@@ -151,7 +149,8 @@ int MacroAssembler::CallSize(Handle<Code> code,
 
 void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           TypeFeedbackId ast_id, Condition cond,
-                          TargetAddressStorageMode mode) {
+                          TargetAddressStorageMode mode,
+                          bool check_constant_pool) {
   Label start;
   bind(&start);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
@@ -2412,7 +2411,8 @@ void MacroAssembler::CallStub(CodeStub* stub,
                               TypeFeedbackId ast_id,
                               Condition cond) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id, cond);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id, cond,
+       CAN_INLINE_TARGET_ADDRESS, false);
 }
 
 

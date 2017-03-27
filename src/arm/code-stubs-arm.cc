@@ -2333,6 +2333,7 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     ProfileEntryHookStub stub(masm->isolate());
+    masm->MaybeCheckConstPool();
     PredictableCodeSizeScope predictable(masm);
     predictable.ExpectSize(masm->CallStubSize(&stub) +
                            2 * Assembler::kInstrSize);

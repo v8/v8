@@ -111,12 +111,13 @@ class MacroAssembler: public Assembler {
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Call(Register target, Condition cond = al);
-  void Call(Address target, RelocInfo::Mode rmode,
-            Condition cond = al,
-            TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS);
+  void Call(Address target, RelocInfo::Mode rmode, Condition cond = al,
+            TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS,
+            bool check_constant_pool = true);
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             TypeFeedbackId ast_id = TypeFeedbackId::None(), Condition cond = al,
-            TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS);
+            TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS,
+            bool check_constant_pool = true);
   int CallSize(Handle<Code> code,
                RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
                TypeFeedbackId ast_id = TypeFeedbackId::None(),
