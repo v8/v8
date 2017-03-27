@@ -605,6 +605,9 @@ class ErrorUtils : public AllStatic {
     "Arg string terminates parameters early")                                  \
   T(UnexpectedEndOfArgString, "Unexpected end of arg string")                  \
   T(RuntimeWrongNumArgs, "Runtime function given wrong number of arguments")   \
+  T(SuperNotCalled,                                                            \
+    "Must call super constructor in derived class before accessing 'this' or " \
+    "returning from derived constructor")                                      \
   T(SingleFunctionLiteral, "Single function literal required")                 \
   T(SloppyFunction,                                                            \
     "In non-strict mode code, functions can only be declared at top level, "   \

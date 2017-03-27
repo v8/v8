@@ -114,7 +114,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildAsyncReturn();
   void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);
-  void BuildThrowIfHole(const AstRawString* name);
+  void BuildThrowIfHole(Variable* variable);
   void BuildThrowReferenceError(const AstRawString* name);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 

@@ -53,7 +53,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 65
+bytecode array length: 61
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
@@ -78,14 +78,11 @@ bytecodes: [
   /*  140 E> */ B(CallRuntime), U16(Runtime::kThrowSuperAlreadyCalledError), R(0), U8(0),
                 B(Mov), R(4), R(this),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
+                B(JumpIfNotHole), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSuperNotCalled), R(0), U8(0),
   /*  159 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["this"],
 ]
 handlers: [
 ]
@@ -105,7 +102,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 98
+bytecode array length: 94
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
@@ -142,16 +139,13 @@ bytecodes: [
   /*  140 E> */ B(CallRuntime), U16(Runtime::kThrowSuperAlreadyCalledError), R(0), U8(0),
                 B(Mov), R(4), R(this),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(2),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
+                B(JumpIfNotHole), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSuperNotCalled), R(0), U8(0),
   /*  162 S> */ B(Return),
 ]
 constant pool: [
   CONSTANT_ELEMENTS_PAIR_TYPE,
   CONSTANT_ELEMENTS_PAIR_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["this"],
 ]
 handlers: [
 ]
