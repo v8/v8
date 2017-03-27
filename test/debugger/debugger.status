@@ -73,7 +73,9 @@
 
 ##############################################################################
 ['variant == asm_wasm', {
-  '*': [SKIP],
+  # Issue 6127: We won't fix these in the "old" validator. But we definitely
+  # need to re-enable these for the "new" validator.
+  'debug/wasm/asm-debug': [SKIP],
 }],  # variant == asm_wasm
 
 ##############################################################################

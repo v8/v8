@@ -686,10 +686,6 @@
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
 }],  # asan == True or msan == True or tsan == True
 
-['variant == asm_wasm', {
-  '*': [SKIP],
-}],  # variant == asm_wasm
-
 ['variant == wasm_traps', {
   '*': [SKIP],
 }],  # variant == wasm_traps
