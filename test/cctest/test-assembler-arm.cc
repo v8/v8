@@ -1281,16 +1281,14 @@ TEST(15) {
     uint32_t dstA1;
     uint32_t dstA2;
     uint32_t dstA3;
-    uint32_t dstA4;
-    uint32_t dstA5;
-    uint32_t dstA6;
-    uint32_t dstA7;
     uint32_t lane_test[4];
     uint64_t vmov_to_scalar1, vmov_to_scalar2;
     uint32_t vmov_from_scalar_s8, vmov_from_scalar_u8;
     uint32_t vmov_from_scalar_s16, vmov_from_scalar_u16;
     uint32_t vmov_from_scalar_32;
     uint32_t vmov[4], vmvn[4];
+    uint32_t vmovl_s8[4], vmovl_u16[4], vmovl_s32[4];
+    uint32_t vqmovn_s8[2], vqmovn_u16[2], vqmovn_s32[2];
     int32_t vcvt_s32_f32[4];
     uint32_t vcvt_u32_f32[4];
     float vcvt_f32_s32[4], vcvt_f32_u32[4];
@@ -1354,9 +1352,23 @@ TEST(15) {
     // The same expansion, but with different source and destination registers.
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, srcA0))));
     __ vld1(Neon8, NeonListOperand(d1), NeonMemOperand(r4));
-    __ vmovl(NeonU8, q1, d1);
-    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, dstA4))));
-    __ vst1(Neon8, NeonListOperand(d2, 2), NeonMemOperand(r4));
+    __ vmovl(NeonS8, q1, d1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmovl_s8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vmovl(NeonU16, q2, d3);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmovl_u16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vmovl(NeonS32, q3, d4);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmovl_s32))));
+    __ vst1(Neon8, NeonListOperand(q3), NeonMemOperand(r4));
+    // Narrow what we widened.
+    __ vqmovn(NeonU16, d0, q2);
+    __ vstr(d0, r0, offsetof(T, vqmovn_u16));
+    __ vmov(d1, d0);
+    __ vqmovn(NeonS8, d2, q0);
+    __ vstr(d2, r0, offsetof(T, vqmovn_s8));
+    __ vqmovn(NeonS32, d4, q3);
+    __ vstr(d4, r0, offsetof(T, vqmovn_s32));
 
     // ARM core register to scalar.
     __ mov(r4, Operand(0xfffffff8));
@@ -1987,10 +1999,6 @@ TEST(15) {
     t.dstA1 = 0;
     t.dstA2 = 0;
     t.dstA3 = 0;
-    t.dstA4 = 0;
-    t.dstA5 = 0;
-    t.dstA6 = 0;
-    t.dstA7 = 0;
     t.lane_test[0] = 0x03020100;
     t.lane_test[1] = 0x07060504;
     t.lane_test[2] = 0x0b0a0908;
@@ -2010,10 +2018,13 @@ TEST(15) {
     CHECK_EQ(0x00410042u, t.dstA1);
     CHECK_EQ(0x00830084u, t.dstA2);
     CHECK_EQ(0x00810082u, t.dstA3);
-    CHECK_EQ(0x00430044u, t.dstA4);
-    CHECK_EQ(0x00410042u, t.dstA5);
-    CHECK_EQ(0x00830084u, t.dstA6);
-    CHECK_EQ(0x00810082u, t.dstA7);
+
+    CHECK_EQ_32X4(vmovl_s8, 0x00430044u, 0x00410042u, 0xff83ff84u, 0xff81ff82u);
+    CHECK_EQ_32X4(vmovl_u16, 0xff84u, 0xff83u, 0xff82u, 0xff81u);
+    CHECK_EQ_32X4(vmovl_s32, 0xff84u, 0x0u, 0xff83u, 0x0u);
+    CHECK_EQ_32X2(vqmovn_u16, 0xff83ff84u, 0xff81ff82u);
+    CHECK_EQ_32X2(vqmovn_s8, 0x81828384u, 0x81828384u);
+    CHECK_EQ_32X2(vqmovn_s32, 0xff84u, 0xff83u);
 
     CHECK_EQ(0xfffffff8fff8f800u, t.vmov_to_scalar1);
     CHECK_EQ(0xfff80000f8000000u, t.vmov_to_scalar2);
