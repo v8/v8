@@ -25,7 +25,8 @@ namespace compiler {
     if (FLAG_trace_turbo_scheduler) PrintF(__VA_ARGS__); \
   } while (false)
 
-Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags)
+Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
+                     size_t node_count_hint)
     : zone_(zone),
       graph_(graph),
       schedule_(schedule),
@@ -33,15 +34,23 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags)
       scheduled_nodes_(zone),
       schedule_root_nodes_(zone),
       schedule_queue_(zone),
-      node_data_(graph_->NodeCount(), DefaultSchedulerData(), zone) {}
-
+      node_data_(zone) {
+  node_data_.reserve(node_count_hint);
+  node_data_.resize(graph->NodeCount(), DefaultSchedulerData());
+}
 
 Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags) {
   Zone* schedule_zone =
       (flags & Scheduler::kTempSchedule) ? zone : graph->zone();
-  Schedule* schedule = new (schedule_zone)
-      Schedule(schedule_zone, static_cast<size_t>(graph->NodeCount()));
-  Scheduler scheduler(zone, graph, schedule, flags);
+
+  // Reserve 10% more space for nodes if node splitting is enabled to try to
+  // avoid resizing the vector since that would triple its zone memory usage.
+  float node_hint_multiplier = (flags & Scheduler::kSplitNodes) ? 1.1 : 1;
+  size_t node_count_hint = node_hint_multiplier * graph->NodeCount();
+
+  Schedule* schedule =
+      new (schedule_zone) Schedule(schedule_zone, node_count_hint);
+  Scheduler scheduler(zone, graph, schedule, flags, node_count_hint);
 
   scheduler.BuildCFG();
   scheduler.ComputeSpecialRPONumbering();
