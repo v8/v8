@@ -132,6 +132,10 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Node* BuildCheckMaps(Node* receiver, Node* effect, Node* control,
                        std::vector<Handle<Map>> const& maps);
 
+  // Construct appropriate subgraph to extend properties backing store.
+  Node* BuildExtendPropertiesBackingStore(Handle<Map> map, Node* properties,
+                                          Node* effect, Node* control);
+
   // Adds stability dependencies on all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
   void AssumePrototypesStable(std::vector<Handle<Map>> const& receiver_maps,

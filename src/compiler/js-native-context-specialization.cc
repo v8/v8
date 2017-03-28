@@ -1623,19 +1623,42 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           UNREACHABLE();
           break;
       }
+      // Check if we need to perform a transitioning store.
       Handle<Map> transition_map;
       if (access_info.transition_map().ToHandle(&transition_map)) {
+        // Check if we need to grow the properties backing store
+        // with this transitioning store.
+        Handle<Map> original_map(Map::cast(transition_map->GetBackPointer()),
+                                 isolate());
+        if (original_map->unused_property_fields() == 0) {
+          DCHECK(!field_index.is_inobject());
+
+          // Reallocate the properties {storage}.
+          storage = effect = BuildExtendPropertiesBackingStore(
+              original_map, storage, effect, control);
+
+          // Perform the actual store.
+          effect = graph()->NewNode(simplified()->StoreField(field_access),
+                                    storage, value, effect, control);
+
+          // Atomically switch to the new properties below.
+          field_access = AccessBuilder::ForJSObjectProperties();
+          value = storage;
+          storage = receiver;
+        }
         effect = graph()->NewNode(
             common()->BeginRegion(RegionObservability::kObservable), effect);
         effect = graph()->NewNode(
             simplified()->StoreField(AccessBuilder::ForMap()), receiver,
             jsgraph()->Constant(transition_map), effect, control);
-      }
-      effect = graph()->NewNode(simplified()->StoreField(field_access), storage,
-                                value, effect, control);
-      if (access_info.HasTransitionMap()) {
+        effect = graph()->NewNode(simplified()->StoreField(field_access),
+                                  storage, value, effect, control);
         effect = graph()->NewNode(common()->FinishRegion(),
                                   jsgraph()->UndefinedConstant(), effect);
+      } else {
+        // Regular non-transitioning field store.
+        effect = graph()->NewNode(simplified()->StoreField(field_access),
+                                  storage, value, effect, control);
       }
     }
   } else {
@@ -2161,6 +2184,46 @@ Node* JSNativeContextSpecialization::BuildCheckMaps(
   }
   return graph()->NewNode(simplified()->CheckMaps(flags, maps), receiver,
                           effect, control);
+}
+
+Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
+    Handle<Map> map, Node* properties, Node* effect, Node* control) {
+  DCHECK_EQ(0, map->unused_property_fields());
+  // Compute the length of the old {properties} and the new properties.
+  int length = map->NextFreePropertyIndex() - map->GetInObjectProperties();
+  int new_length = length + JSObject::kFieldsAdded;
+  // Collect the field values from the {properties}.
+  ZoneVector<Node*> values(zone());
+  values.reserve(new_length);
+  for (int i = 0; i < length; ++i) {
+    Node* value = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForFixedArraySlot(i)),
+        properties, effect, control);
+    values.push_back(value);
+  }
+  // Initialize the new fields to undefined.
+  for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
+    values.push_back(jsgraph()->UndefinedConstant());
+  }
+  // Allocate and initialize the new properties.
+  effect = graph()->NewNode(
+      common()->BeginRegion(RegionObservability::kNotObservable), effect);
+  Node* new_properties = effect = graph()->NewNode(
+      simplified()->Allocate(NOT_TENURED),
+      jsgraph()->Constant(FixedArray::SizeFor(new_length)), effect, control);
+  effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                            new_properties, jsgraph()->FixedArrayMapConstant(),
+                            effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForFixedArrayLength()),
+      new_properties, jsgraph()->Constant(new_length), effect, control);
+  for (int i = 0; i < new_length; ++i) {
+    effect = graph()->NewNode(
+        simplified()->StoreField(
+            AccessBuilder::ForFixedArraySlot(i, kNoWriteBarrier)),
+        new_properties, values[i], effect, control);
+  }
+  return graph()->NewNode(common()->FinishRegion(), new_properties, effect);
 }
 
 void JSNativeContextSpecialization::AssumePrototypesStable(
