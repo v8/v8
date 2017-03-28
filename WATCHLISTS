@@ -70,6 +70,9 @@
       'filepath': 'src/wasm/' \
                   '|src/compiler/wasm',
     },
+    'value_serializer': {
+      'filepath': 'src/value-serializer',
+    }
   },
 
   'WATCHLISTS': {
@@ -108,6 +111,9 @@
     ],
     'wasm': [
       'wasm-v8@google.com',
+    ],
+    'value_serializer': [
+      'jbroman+watch@chromium.org',
     ],
   },
 }
