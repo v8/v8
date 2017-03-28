@@ -238,25 +238,21 @@ uint32_t AsmJsParser::VarIndex(VarInfo* info) {
 void AsmJsParser::AddGlobalImport(std::string name, AsmType* type,
                                   ValueType vtype, bool mutable_variable,
                                   VarInfo* info) {
-  // TODO(bradnelson): Refactor memory management here.
-  // AsmModuleBuilder should really own import names.
-  char* name_data = zone()->NewArray<char>(name.size());
-  memcpy(name_data, name.data(), name.size());
   if (mutable_variable) {
     // Allocate a separate variable for the import.
     DeclareGlobal(info, true, type, vtype);
     // Record the need to initialize the global from the import.
-    global_imports_.push_back({name_data, name.size(), 0, info->index, true});
+    global_imports_.push_back({name, 0, info->index, true});
   } else {
     // Just use the import directly.
-    global_imports_.push_back({name_data, name.size(), 0, info->index, false});
+    global_imports_.push_back({name, 0, info->index, false});
   }
   GlobalImport& gi = global_imports_.back();
   // TODO(bradnelson): Reuse parse buffer memory / make wasm-module-builder
   // managed the memory for the import name (currently have to keep our
   // own memory for it).
   gi.import_index = module_builder_->AddGlobalImport(
-      name_data, static_cast<int>(name.size()), vtype);
+      name.data(), static_cast<int>(name.size()), vtype);
   if (!mutable_variable) {
     info->DeclareGlobalImport(type, gi.import_index);
   }
@@ -366,16 +362,6 @@ void AsmJsParser::ValidateModule() {
   }
   RECURSE(ValidateExport());
 
-  // Check that all functions were eventually defined.
-  for (auto info : global_var_info_) {
-    if (info.kind != VarKind::kFunction) {
-      continue;
-    }
-    if (!info.function_defined) {
-      FAIL("Undefined function");
-    }
-  }
-
   // Add start function to init things.
   WasmFunctionBuilder* start = module_builder_->AddFunction();
   module_builder_->MarkStartFunction(start);
@@ -461,9 +447,8 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
     if (uvalue > 0x7fffffff) {
       FAIL("Numeric literal out of range");
     }
-    DeclareGlobal(info, mutable_variable,
-                  mutable_variable ? AsmType::Int() : AsmType::Signed(),
-                  kWasmI32, WasmInitExpr(static_cast<int32_t>(uvalue)));
+    DeclareGlobal(info, mutable_variable, AsmType::Int(), kWasmI32,
+                  WasmInitExpr(static_cast<int32_t>(uvalue)));
   } else if (Check('-')) {
     if (CheckForDouble(&dvalue)) {
       DeclareGlobal(info, mutable_variable, AsmType::Double(), kWasmF64,
@@ -472,9 +457,8 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
       if (uvalue > 0x7fffffff) {
         FAIL("Numeric literal out of range");
       }
-      DeclareGlobal(info, mutable_variable,
-                    mutable_variable ? AsmType::Int() : AsmType::Signed(),
-                    kWasmI32, WasmInitExpr(-static_cast<int32_t>(uvalue)));
+      DeclareGlobal(info, mutable_variable, AsmType::Int(), kWasmI32,
+                    WasmInitExpr(-static_cast<int32_t>(uvalue)));
     } else {
       FAIL("Expected numeric literal");
     }
@@ -486,33 +470,16 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
   } else if (ValidateModuleVarImport(info, mutable_variable)) {
     // Handled inside.
   } else if (scanner_.IsGlobal()) {
-    RECURSE(ValidateModuleVarFromGlobal(info, mutable_variable));
+    RECURSE(ValidateModuleVarFloat(info, mutable_variable));
   } else {
     FAIL("Bad variable declaration");
   }
 }
 
 // 6.1 ValidateModule - global float declaration
-void AsmJsParser::ValidateModuleVarFromGlobal(VarInfo* info,
-                                              bool mutable_variable) {
-  VarInfo* src_info = GetVarInfo(Consume());
-  if (!src_info->type->IsA(stdlib_fround_)) {
-    if (src_info->mutable_variable) {
-      FAIL("Can only use immutable variables in global definition");
-    }
-    if (mutable_variable) {
-      FAIL("Can only define immutable variables with other immutables");
-    }
-    if (!src_info->type->IsA(AsmType::Int()) &&
-        !src_info->type->IsA(AsmType::Float()) &&
-        !src_info->type->IsA(AsmType::Double())) {
-      FAIL("Expected int, float, double, or fround for global definition");
-    }
-    info->kind = VarKind::kGlobal;
-    info->type = src_info->type;
-    info->index = src_info->index;
-    info->mutable_variable = false;
-    return;
+void AsmJsParser::ValidateModuleVarFloat(VarInfo* info, bool mutable_variable) {
+  if (!GetVarInfo(Consume())->type->IsA(stdlib_fround_)) {
+    FAIL("Expected fround");
   }
   EXPECT_TOKEN('(');
   bool negate = false;
@@ -565,11 +532,7 @@ bool AsmJsParser::ValidateModuleVarImport(VarInfo* info,
     info->kind = VarKind::kImportedFunction;
     function_import_info_.resize(function_import_info_.size() + 1);
     info->import = &function_import_info_.back();
-    // TODO(bradnelson): Refactor memory management here.
-    // AsmModuleBuilder should really own import names.
-    info->import->function_name = zone()->NewArray<char>(import_name.size());
-    memcpy(info->import->function_name, import_name.data(), import_name.size());
-    info->import->function_name_size = import_name.size();
+    info->import->name = import_name;
     return true;
   }
   return false;
@@ -606,7 +569,6 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   case TOK(name):                                           \
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64, \
                   WasmInitExpr(M_##name));                  \
-    stdlib_uses_.insert(AsmTyper::kMath##name);             \
     break;
       STDLIB_MATH_VALUE_LIST(V)
 #undef V
@@ -623,11 +585,9 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   } else if (Check(TOK(Infinity))) {
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64,
                   WasmInitExpr(std::numeric_limits<double>::infinity()));
-    stdlib_uses_.insert(AsmTyper::kInfinity);
   } else if (Check(TOK(NaN))) {
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64,
                   WasmInitExpr(std::numeric_limits<double>::quiet_NaN()));
-    stdlib_uses_.insert(AsmTyper::kNaN);
   } else {
     FAIL("Invalid member of stdlib");
   }
@@ -735,18 +695,13 @@ void AsmJsParser::ValidateFunction() {
   if (function_info->kind == VarKind::kUnused) {
     function_info->kind = VarKind::kFunction;
     function_info->function_builder = module_builder_->AddFunction();
-    // TODO(bradnelson): Cleanup memory management here.
-    // WasmModuleBuilder should own these.
-    char* function_name = zone()->NewArray<char>(function_name_raw.size());
-    memcpy(function_name, function_name_raw.data(), function_name_raw.size());
     function_info->function_builder->SetName(
-        {function_name, static_cast<int>(function_name_raw.size())});
+        {function_name_raw.c_str(),
+         static_cast<int>(function_name_raw.size())});
     function_info->index = function_info->function_builder->func_index();
     function_info->function_defined = true;
   } else if (function_info->function_defined) {
     FAIL("Function redefined");
-  } else {
-    function_info->function_defined = true;
   }
   current_function_builder_ = function_info->function_builder;
   return_type_ = nullptr;
@@ -900,7 +855,7 @@ void AsmJsParser::ValidateFunctionLocals(
           info->type = AsmType::Double();
           info->index = static_cast<uint32_t>(param_count + locals->size());
           locals->push_back(kWasmF64);
-          byte code[] = {WASM_F64(-dvalue)};
+          byte code[] = {WASM_F64(dvalue)};
           current_function_builder_->EmitCode(code, sizeof(code));
           current_function_builder_->EmitSetLocal(info->index);
         } else if (CheckForUnsigned(&uvalue)) {
@@ -2108,9 +2063,8 @@ AsmType* AsmJsParser::ValidateCall() {
     uint32_t index;
     if (cache_index >= function_info->import->cache_index.size()) {
       index = module_builder_->AddImport(
-          function_info->import->function_name,
-          static_cast<uint32_t>(function_info->import->function_name_size),
-          sig);
+          function_info->import->name.data(),
+          static_cast<uint32_t>(function_info->import->name.size()), sig);
       function_info->import->cache_index.push_back(index);
     } else {
       index = function_info->import->cache_index[cache_index];

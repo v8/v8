@@ -190,10 +190,9 @@ void WasmFunctionBuilder::StashCode(std::vector<byte>* dst, size_t position) {
     body_.resize(position);
     return;
   }
-  DCHECK_LE(position, body_.size());
   size_t len = body_.size() - position;
   dst->resize(len);
-  memcpy(dst->data(), body_.data() + position, len);
+  memcpy(dst->data(), &body_[position], len);
   body_.resize(position);
 }
 
