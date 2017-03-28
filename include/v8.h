@@ -5994,20 +5994,6 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
 typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context);
 
 // --- WASM compilation callbacks ---
-
-/**
- * Callback to check if a buffer source may be compiled to WASM, given
- * the compilation is attempted as a promise or not.
- */
-
-typedef bool (*AllowWasmCompileCallback)(Isolate* isolate, Local<Value> source,
-                                         bool as_promise);
-
-typedef bool (*AllowWasmInstantiateCallback)(Isolate* isolate,
-                                             Local<Value> module_or_bytes,
-                                             MaybeLocal<Value> ffi,
-                                             bool as_promise);
-
 typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
 
 // --- Garbage Collection Callbacks ---
@@ -7244,15 +7230,8 @@ class V8_EXPORT Isolate {
       AllowCodeGenerationFromStringsCallback callback);
 
   /**
-   * Set the callback to invoke to check if wasm compilation from
-   * the specified object is allowed. By default, wasm compilation
-   * is allowed.
-   *
-   * Similar for instantiate.
+   * Embedder over{ride|load} injection points for wasm APIs.
    */
-  void SetAllowWasmCompileCallback(AllowWasmCompileCallback callback);
-  void SetAllowWasmInstantiateCallback(AllowWasmInstantiateCallback callback);
-
   void SetWasmModuleCallback(ExtensionCallback callback);
   void SetWasmCompileCallback(ExtensionCallback callback);
   void SetWasmInstanceCallback(ExtensionCallback callback);

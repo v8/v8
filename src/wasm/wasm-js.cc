@@ -74,50 +74,6 @@ i::MaybeHandle<i::WasmModuleObject> GetFirstArgumentAsModule(
       v8::Utils::OpenHandle(*module_obj));
 }
 
-bool IsCompilationAllowed(i::Isolate* isolate, ErrorThrower* thrower,
-                          v8::Local<v8::Value> source, bool is_async) {
-  // Allow caller to do one final check on thrower state, rather than
-  // one at each step. No information is lost - failure reason is captured
-  // in the thrower state.
-  if (thrower->error()) return false;
-
-  AllowWasmCompileCallback callback = isolate->allow_wasm_compile_callback();
-  if (callback != nullptr &&
-      !callback(reinterpret_cast<v8::Isolate*>(isolate), source, is_async)) {
-    thrower->RangeError(
-        "%ssynchronous compilation disallowed due to module size limit set by "
-        "embedder",
-        is_async ? "a" : "");
-    return false;
-  }
-  return true;
-}
-
-bool IsInstantiationAllowed(i::Isolate* isolate, ErrorThrower* thrower,
-                            v8::Local<v8::Value> module_or_bytes,
-                            i::MaybeHandle<i::JSReceiver> ffi, bool is_async) {
-  // Allow caller to do one final check on thrower state, rather than
-  // one at each step. No information is lost - failure reason is captured
-  // in the thrower state.
-  if (thrower->error()) return false;
-  v8::MaybeLocal<v8::Value> v8_ffi;
-  if (!ffi.is_null()) {
-    v8_ffi = v8::Local<v8::Value>::Cast(Utils::ToLocal(ffi.ToHandleChecked()));
-  }
-  AllowWasmInstantiateCallback callback =
-      isolate->allow_wasm_instantiate_callback();
-  if (callback != nullptr &&
-      !callback(reinterpret_cast<v8::Isolate*>(isolate), module_or_bytes,
-                v8_ffi, is_async)) {
-    thrower->RangeError(
-        "%ssynchronous instantiation disallowed due to module size limit set "
-        "by embedder",
-        is_async ? "a" : "");
-    return false;
-  }
-  return true;
-}
-
 i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
   if (args.Length() < 1) {
@@ -190,12 +146,11 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return_value.Set(resolver->GetPromise());
 
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
-  if (!IsCompilationAllowed(i_isolate, &thrower, args[0], true)) {
+  if (thrower.error()) {
     auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     CHECK(!maybe.IsNothing());
     return;
   }
-  DCHECK(!thrower.error());
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*resolver->GetPromise());
   i::wasm::AsyncCompile(i_isolate, promise, bytes);
 }
@@ -230,9 +185,10 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ErrorThrower thrower(i_isolate, "WebAssembly.Module()");
 
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
-  if (!IsCompilationAllowed(i_isolate, &thrower, args[0], false)) return;
 
-  DCHECK(!thrower.error());
+  if (thrower.error()) {
+    return;
+  }
   i::MaybeHandle<i::Object> module_obj =
       i::wasm::SyncCompile(i_isolate, &thrower, bytes);
   if (module_obj.is_null()) return;
@@ -309,11 +265,7 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (thrower.error()) return;
 
   auto maybe_imports = GetSecondArgumentAsImports(args, &thrower);
-  if (!IsInstantiationAllowed(i_isolate, &thrower, args[0], maybe_imports,
-                              false)) {
-    return;
-  }
-  DCHECK(!thrower.error());
+  if (thrower.error()) return;
 
   i::MaybeHandle<i::Object> instance_object = i::wasm::SyncInstantiate(
       i_isolate, &thrower, maybe_module.ToHandleChecked(), maybe_imports,
@@ -362,12 +314,6 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   auto maybe_imports = GetSecondArgumentAsImports(args, &thrower);
   if (thrower.error()) {
-    auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-    CHECK(!maybe.IsNothing());
-    return;
-  }
-  if (!IsInstantiationAllowed(i_isolate, &thrower, args[0], maybe_imports,
-                              true)) {
     auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     CHECK(!maybe.IsNothing());
     return;

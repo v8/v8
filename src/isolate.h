@@ -395,8 +395,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(OOMErrorCallback, oom_behavior, nullptr)                                  \
   V(LogEventCallback, event_logger, nullptr)                                  \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
-  V(AllowWasmCompileCallback, allow_wasm_compile_callback, nullptr)           \
-  V(AllowWasmInstantiateCallback, allow_wasm_instantiate_callback, nullptr)   \
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
   V(ExtensionCallback, wasm_compile_callback, &NoExtension)                   \
