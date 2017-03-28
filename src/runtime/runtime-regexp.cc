@@ -1125,7 +1125,7 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     DCHECK(1 <= capture_ix && capture_ix <= capture_count);
 
     Handle<Object> capture_value(f_get_capture(capture_ix), isolate);
-    DCHECK(capture_value->IsString());
+    DCHECK(capture_value->IsUndefined(isolate) || capture_value->IsString());
 
     JSObject::AddProperty(groups, capture_name, capture_value, NONE);
   }

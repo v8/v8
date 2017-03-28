@@ -108,6 +108,9 @@ assertEquals("a", /(?<__proto__>a)/u.exec("a").groups.__proto__);
     return `${snd}${fst}`;
   });
   assertEquals("bacd", result);
+
+  assertEquals("undefinedbcd", "abcd".replace(/(.)|(.)/u,
+      (match, fst, snd, offset, str) => snd));
 }
 
 // @@replace with a callable replacement argument (global, named captures).
@@ -138,6 +141,10 @@ assertEquals("a", /(?<__proto__>a)/u.exec("a").groups.__proto__);
     return `${groups.snd}${groups.fst}`;
   });
   assertEquals("badc", result);
+
+  assertEquals("undefinedundefinedundefinedundefined",
+      "abcd".replace(/(?<fst>.)|(?<snd>.)/gu,
+            (match, fst, snd, offset, str, groups) => groups.snd));
 }
 
 // @@replace with a callable replacement argument (non-global, named captures).
@@ -154,6 +161,10 @@ assertEquals("a", /(?<__proto__>a)/u.exec("a").groups.__proto__);
     return `${groups.snd}${groups.fst}`;
   });
   assertEquals("bacd", result);
+
+  assertEquals("undefinedbcd",
+      "abcd".replace(/(?<fst>.)|(?<snd>.)/u,
+            (match, fst, snd, offset, str, groups) => groups.snd));
 }
 
 function toSlowMode(re) {
@@ -190,6 +201,10 @@ function toSlowMode(re) {
     return `${groups.snd}${groups.fst}`;
   });
   assertEquals("badc", result);
+
+  assertEquals("undefinedundefinedundefinedundefined",
+      "abcd".replace(toSlowMode(/(?<fst>.)|(?<snd>.)/gu),
+            (match, fst, snd, offset, str, groups) => groups.snd));
 }
 
 // @@replace with a callable replacement argument (slow, non-global,
@@ -207,6 +222,10 @@ function toSlowMode(re) {
     return `${groups.snd}${groups.fst}`;
   });
   assertEquals("bacd", result);
+
+  assertEquals("undefinedbcd",
+      "abcd".replace(toSlowMode(/(?<fst>.)|(?<snd>.)/u),
+            (match, fst, snd, offset, str, groups) => groups.snd));
 }
 
 // @@replace with a string replacement argument (no named captures).
