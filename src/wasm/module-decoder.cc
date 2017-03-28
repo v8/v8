@@ -1195,16 +1195,17 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
                                   ModuleBytesEnv* module_env,
                                   const byte* function_start,
                                   const byte* function_end) {
+  bool is_wasm = module_env->module_env.is_wasm();
   HistogramTimerScope wasm_decode_function_time_scope(
-      module_env->module_env.is_wasm()
-          ? isolate->counters()->wasm_decode_wasm_function_time()
-          : isolate->counters()->wasm_decode_asm_function_time());
+      is_wasm ? isolate->counters()->wasm_decode_wasm_function_time()
+              : isolate->counters()->wasm_decode_asm_function_time());
   size_t size = function_end - function_start;
   if (function_start > function_end) return FunctionError("start > end");
   if (size > kV8MaxWasmFunctionSize)
     return FunctionError("size > maximum function size");
-  isolate->counters()->wasm_function_size_bytes()->AddSample(
-      static_cast<int>(size));
+  (is_wasm ? isolate->counters()->wasm_wasm_function_size_bytes()
+           : isolate->counters()->wasm_asm_function_size_bytes())
+      ->AddSample(static_cast<int>(size));
   WasmFunction* function = new WasmFunction();
   ModuleDecoder decoder(zone, function_start, function_end, kWasmOrigin);
   return decoder.DecodeSingleFunction(module_env, function);
