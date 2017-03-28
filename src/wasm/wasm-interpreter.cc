@@ -38,7 +38,7 @@ namespace wasm {
 #define FOREACH_INTERNAL_OPCODE(V) V(Breakpoint, 0xFF)
 
 #define WASM_CTYPES(V) \
-  V(I32, uint32_t) V(I64, uint64_t) V(F32, float) V(F64, double)
+  V(I32, int32_t) V(I64, int64_t) V(F32, float) V(F64, double)
 
 #define FOREACH_SIMPLE_BINOP(V) \
   V(I32Add, uint32_t, +)        \
@@ -1058,14 +1058,32 @@ Handle<Object> WasmValToNumber(Factory* factory, WasmVal val,
   }
 }
 
-WasmVal NumberToWasmVal(Handle<Object> number, wasm::ValueType type) {
-  double val = number->Number();
+// Convert JS value to WebAssembly, spec here:
+// https://github.com/WebAssembly/design/blob/master/JS.md#towebassemblyvalue
+WasmVal ToWebAssemblyValue(Isolate* isolate, Handle<Object> value,
+                           wasm::ValueType type) {
   switch (type) {
-#define CASE_TYPE(wasm, ctype) \
-  case kWasm##wasm:            \
-    return WasmVal(static_cast<ctype>(val));
-    WASM_CTYPES(CASE_TYPE)
-#undef CASE_TYPE
+    case kWasmI32: {
+      MaybeHandle<Object> maybe_i32 = Object::ToInt32(isolate, value);
+      // TODO(clemensh): Handle failure here (unwind).
+      int32_t value;
+      CHECK(maybe_i32.ToHandleChecked()->ToInt32(&value));
+      return WasmVal(value);
+    }
+    case kWasmI64:
+      // If the signature contains i64, a type error was thrown before.
+      UNREACHABLE();
+    case kWasmF32: {
+      MaybeHandle<Object> maybe_number = Object::ToNumber(value);
+      // TODO(clemensh): Handle failure here (unwind).
+      return WasmVal(
+          static_cast<float>(maybe_number.ToHandleChecked()->Number()));
+    }
+    case kWasmF64: {
+      MaybeHandle<Object> maybe_number = Object::ToNumber(value);
+      // TODO(clemensh): Handle failure here (unwind).
+      return WasmVal(maybe_number.ToHandleChecked()->Number());
+    }
     default:
       // TODO(wasm): Handle simd.
       UNIMPLEMENTED();
@@ -2063,13 +2081,13 @@ class ThreadImpl {
     if (maybe_retval.is_null()) return TryHandleException(isolate);
 
     Handle<Object> retval = maybe_retval.ToHandleChecked();
-    // TODO(clemensh): Call ToNumber on retval.
     // Pop arguments off the stack.
     stack_.resize(stack_.size() - num_args);
     if (signature->return_count() > 0) {
       // TODO(wasm): Handle multiple returns.
       DCHECK_EQ(1, signature->return_count());
-      stack_.push_back(NumberToWasmVal(retval, signature->GetReturn()));
+      stack_.push_back(
+          ToWebAssemblyValue(isolate, retval, signature->GetReturn()));
     }
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }
