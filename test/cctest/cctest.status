@@ -376,19 +376,6 @@
 }],  # variant == turbofan
 
 ##############################################################################
-['variant == asm_wasm', {
-  # Issue 6127: We won't fix these in the "old" validator. But we definitely
-  # need to re-enable these for the "new" validator.
-  'test-serialize/PartialSerializerContext': [SKIP],
-  'test-serialize/PartialSerializerCustomContext': [SKIP],
-  'test-serialize/PartialSerializerObject': [SKIP],
-  'test-serialize/StartupSerializerOnce': [SKIP],
-  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
-  'test-serialize/StartupSerializerTwice': [SKIP],
-  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-}],  # variant == asm_wasm
-
-##############################################################################
 ['variant == wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],

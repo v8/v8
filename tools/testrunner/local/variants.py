@@ -14,7 +14,7 @@ ALL_VARIANT_FLAGS = {
   # No optimization actually means no profile guided optimization -
   # %OptimizeFunctionOnNextCall still works.
   "nooptimization": [["--nocrankshaft"]],
-  "asm_wasm": [["--validate-asm", "--fast-validate-asm", "--stress-validate-asm"]],
+  "asm_wasm": [["--validate-asm", "--fast-validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
   "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 
@@ -29,7 +29,7 @@ FAST_VARIANT_FLAGS = {
   # No optimization actually means no profile guided optimization -
   # %OptimizeFunctionOnNextCall still works.
   "nooptimization": [["--nocrankshaft"]],
-  "asm_wasm": [["--validate-asm", "--fast-validate-asm", "--stress-validate-asm"]],
+  "asm_wasm": [["--validate-asm", "--fast-validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
   "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 

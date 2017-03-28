@@ -17029,6 +17029,7 @@ static void AsmJsWarningListener(v8::Local<v8::Message> message,
 
 TEST(AsmJsWarning) {
   i::FLAG_validate_asm = true;
+  if (i::FLAG_suppress_asm_messages) return;
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
