@@ -64,10 +64,9 @@ TEST(ScanKeywords) {
 
   static const KeywordToken keywords[] = {
 #define KEYWORD(t, s, d) { s, i::Token::t },
-      TOKEN_LIST(IGNORE_TOKEN, KEYWORD)
+      TOKEN_LIST(IGNORE_TOKEN, KEYWORD, IGNORE_TOKEN)
 #undef KEYWORD
-      { NULL, i::Token::IDENTIFIER }
-  };
+          {NULL, i::Token::IDENTIFIER}};
 
   KeywordToken key_token;
   i::UnicodeCache unicode_cache;
@@ -9625,13 +9624,16 @@ TEST(EscapedStrictReservedWord) {
   // strict mode are accepted in non-strict mode.
   const char* context_data[][2] = {{"", ""}, {NULL, NULL}};
 
-  const char* statement_data[] = {"if (true) l\u0065t: ;",
-                                  "function l\u0065t() { }",
-                                  "(function l\u0065t() { })",
-                                  "async function l\u0065t() { }",
-                                  "(async function l\u0065t() { })",
-                                  "l\u0065t => 42",
-                                  "async l\u0065t => 42",
+  const char* statement_data[] = {"if (true) l\\u0065t: ;",
+                                  "function l\\u0065t() { }",
+                                  "(function l\\u0065t() { })",
+                                  "async function l\\u0065t() { }",
+                                  "(async function l\\u0065t() { })",
+                                  "l\\u0065t => 42",
+                                  "async l\\u0065t => 42",
+                                  "function packag\\u0065() {}",
+                                  "function impl\\u0065ments() {}",
+                                  "function privat\\u0065() {}",
                                   NULL};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);

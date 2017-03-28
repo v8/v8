@@ -1531,7 +1531,7 @@ class PreParser : public ParserBase<PreParser> {
       InferName infer = InferName::kYes);
 
   V8_INLINE PreParserExpression ExpressionFromString(int pos) {
-    if (scanner()->UnescapedLiteralMatches("use strict", 10)) {
+    if (scanner()->IsUseStrict()) {
       return PreParserExpression::UseStrictStringLiteral();
     }
     return PreParserExpression::StringLiteral();

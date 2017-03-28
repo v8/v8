@@ -1051,7 +1051,7 @@ void Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
     const AstRawString* local_name = ParseIdentifierName(CHECK_OK_VOID);
     const AstRawString* export_name = NULL;
     Scanner::Location location = scanner()->location();
-    if (CheckContextualKeyword(CStrVector("as"))) {
+    if (CheckContextualKeyword(Token::AS)) {
       export_name = ParseIdentifierName(CHECK_OK_VOID);
       // Set the location to the whole "a as b" string, so that it makes sense
       // both for errors due to "a" and for errors due to "b".
@@ -1096,7 +1096,7 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
     // In the presence of 'as', the left-side of the 'as' can
     // be any IdentifierName. But without 'as', it must be a valid
     // BindingIdentifier.
-    if (CheckContextualKeyword(CStrVector("as"))) {
+    if (CheckContextualKeyword(Token::AS)) {
       local_name = ParseIdentifierName(CHECK_OK);
     }
     if (!Token::IsIdentifier(scanner()->current_token(), STRICT, false,
@@ -1173,7 +1173,7 @@ void Parser::ParseImportDeclaration(bool* ok) {
     switch (peek()) {
       case Token::MUL: {
         Consume(Token::MUL);
-        ExpectContextualKeyword(CStrVector("as"), CHECK_OK_VOID);
+        ExpectContextualKeyword(Token::AS, CHECK_OK_VOID);
         module_namespace_binding =
             ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK_VOID);
         module_namespace_binding_loc = scanner()->location();
@@ -1193,7 +1193,7 @@ void Parser::ParseImportDeclaration(bool* ok) {
     }
   }
 
-  ExpectContextualKeyword(CStrVector("from"), CHECK_OK_VOID);
+  ExpectContextualKeyword(Token::FROM, CHECK_OK_VOID);
   const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK_VOID);
   ExpectSemicolon(CHECK_OK_VOID);
 
@@ -1316,7 +1316,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
     case Token::MUL: {
       Consume(Token::MUL);
       loc = scanner()->location();
-      ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
+      ExpectContextualKeyword(Token::FROM, CHECK_OK);
       const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
       ExpectSemicolon(CHECK_OK);
       module()->AddStarExport(module_specifier, loc, zone());
@@ -1342,7 +1342,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       ParseExportClause(&export_names, &export_locations, &original_names,
                         &reserved_loc, CHECK_OK);
       const AstRawString* module_specifier = nullptr;
-      if (CheckContextualKeyword(CStrVector("from"))) {
+      if (CheckContextualKeyword(Token::FROM)) {
         module_specifier = ParseModuleSpecifier(CHECK_OK);
       } else if (reserved_loc.IsValid()) {
         // No FromClause, so reserved words are invalid in ExportClause.

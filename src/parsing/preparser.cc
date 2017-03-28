@@ -41,6 +41,10 @@ namespace internal {
 namespace {
 
 PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
+  // These symbols require slightly different treatement:
+  // - regular keywords (enum, await, etc.; treated in 1st switch.)
+  // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
+  // - 'contextual' keywords, but may not be escaped (3rd switch).
   switch (scanner->current_token()) {
     case Token::ENUM:
       return PreParserIdentifier::Enum();
@@ -57,20 +61,31 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
     case Token::ASYNC:
       return PreParserIdentifier::Async();
     default:
-      if (scanner->UnescapedLiteralMatches("eval", 4))
-        return PreParserIdentifier::Eval();
-      if (scanner->UnescapedLiteralMatches("arguments", 9))
-        return PreParserIdentifier::Arguments();
-      if (scanner->UnescapedLiteralMatches("undefined", 9))
-        return PreParserIdentifier::Undefined();
-      if (scanner->LiteralMatches("prototype", 9))
-        return PreParserIdentifier::Prototype();
-      if (scanner->LiteralMatches("constructor", 11))
-        return PreParserIdentifier::Constructor();
-      if (scanner->LiteralMatches("name", 4))
-        return PreParserIdentifier::Name();
-      return PreParserIdentifier::Default();
+      break;
   }
+  switch (scanner->current_contextual_token()) {
+    case Token::PROTOTYPE:
+      return PreParserIdentifier::Prototype();
+    case Token::CONSTRUCTOR:
+      return PreParserIdentifier::Constructor();
+    case Token::NAME:
+      return PreParserIdentifier::Name();
+    default:
+      break;
+  }
+  if (scanner->literal_contains_escapes())
+    return PreParserIdentifier::Default();
+  switch (scanner->current_contextual_token()) {
+    case Token::EVAL:
+      return PreParserIdentifier::Eval();
+    case Token::ARGUMENTS:
+      return PreParserIdentifier::Arguments();
+    case Token::UNDEFINED:
+      return PreParserIdentifier::Undefined();
+    default:
+      break;
+  }
+  return PreParserIdentifier::Default();
 }
 
 }  // unnamed namespace

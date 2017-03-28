@@ -742,25 +742,27 @@ class ParserBase {
   }
   bool peek_any_identifier() { return is_any_identifier(peek()); }
 
-  bool CheckContextualKeyword(Vector<const char> keyword) {
-    if (PeekContextualKeyword(keyword)) {
+  bool CheckContextualKeyword(Token::Value token) {
+    if (PeekContextualKeyword(token)) {
       Consume(Token::IDENTIFIER);
       return true;
     }
     return false;
   }
 
-  bool PeekContextualKeyword(Vector<const char> keyword) {
+  bool PeekContextualKeyword(Token::Value token) {
+    DCHECK(Token::IsContextualKeyword(token));
     return peek() == Token::IDENTIFIER &&
-           scanner()->is_next_contextual_keyword(keyword);
+           scanner()->next_contextual_token() == token;
   }
 
-  void ExpectMetaProperty(Vector<const char> property_name,
-                          const char* full_name, int pos, bool* ok);
+  void ExpectMetaProperty(Token::Value property_name, const char* full_name,
+                          int pos, bool* ok);
 
-  void ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {
+  void ExpectContextualKeyword(Token::Value token, bool* ok) {
+    DCHECK(Token::IsContextualKeyword(token));
     Expect(Token::IDENTIFIER, CHECK_OK_CUSTOM(Void));
-    if (!scanner()->is_literal_contextual_keyword(keyword)) {
+    if (scanner()->current_contextual_token() != token) {
       ReportUnexpectedToken(scanner()->current_token());
       *ok = false;
     }
@@ -770,7 +772,7 @@ class ParserBase {
     if (Check(Token::IN)) {
       *visit_mode = ForEachStatement::ENUMERATE;
       return true;
-    } else if (CheckContextualKeyword(CStrVector("of"))) {
+    } else if (CheckContextualKeyword(Token::OF)) {
       *visit_mode = ForEachStatement::ITERATE;
       return true;
     }
@@ -778,7 +780,7 @@ class ParserBase {
   }
 
   bool PeekInOrOf() {
-    return peek() == Token::IN || PeekContextualKeyword(CStrVector("of"));
+    return peek() == Token::IN || PeekContextualKeyword(Token::OF);
   }
 
   // Checks whether an octal literal was last seen between beg_pos and end_pos.
@@ -1365,7 +1367,10 @@ class ParserBase {
     void CheckDuplicateProto(Token::Value property);
 
    private:
-    bool IsProto() { return this->scanner()->LiteralMatches("__proto__", 9); }
+    bool IsProto() const {
+      return this->scanner()->CurrentMatchesContextualEscaped(
+          Token::PROTO_UNDERSCORED);
+    }
 
     ParserBase* parser() const { return parser_; }
     Scanner* scanner() const { return parser_->scanner(); }
@@ -1386,10 +1391,11 @@ class ParserBase {
 
    private:
     bool IsConstructor() {
-      return this->scanner()->LiteralMatches("constructor", 11);
+      return this->scanner()->CurrentMatchesContextualEscaped(
+          Token::CONSTRUCTOR);
     }
     bool IsPrototype() {
-      return this->scanner()->LiteralMatches("prototype", 9);
+      return this->scanner()->CurrentMatchesContextualEscaped(Token::PROTOTYPE);
     }
 
     ParserBase* parser() const { return parser_; }
@@ -1653,9 +1659,7 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(bool* ok) {
       *ok = false;
       return impl()->EmptyIdentifier();
     }
-    if (next == Token::LET ||
-        (next == Token::ESCAPED_STRICT_RESERVED_WORD &&
-         scanner()->is_literal_contextual_keyword(CStrVector("let")))) {
+    if (scanner()->IsLet()) {
       classifier()->RecordLetPatternError(
           scanner()->location(), MessageTemplate::kLetInLexicalBinding);
     }
@@ -3369,7 +3373,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
     if (allow_harmony_function_sent() && peek() == Token::PERIOD) {
       // function.sent
       int pos = position();
-      ExpectMetaProperty(CStrVector("sent"), "function.sent", pos, CHECK_OK);
+      ExpectMetaProperty(Token::SENT, "function.sent", pos, CHECK_OK);
 
       if (!is_generator()) {
         // TODO(neis): allow escaping into closures?
@@ -3394,7 +3398,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
       // We don't want dynamic functions to actually declare their name
       // "anonymous". We just want that name in the toString().
       Consume(Token::IDENTIFIER);
-      DCHECK(scanner()->UnescapedLiteralMatches("anonymous", 9));
+      DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
     } else if (peek_any_identifier()) {
       name = ParseIdentifierOrStrictReservedWord(
           function_kind, &is_strict_reserved_name, CHECK_OK);
@@ -3464,7 +3468,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
 }
 
 template <typename Impl>
-void ParserBase<Impl>::ExpectMetaProperty(Vector<const char> property_name,
+void ParserBase<Impl>::ExpectMetaProperty(Token::Value property_name,
                                           const char* full_name, int pos,
                                           bool* ok) {
   Consume(Token::PERIOD);
@@ -3481,7 +3485,7 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseNewTargetExpression(bool* ok) {
   int pos = position();
-  ExpectMetaProperty(CStrVector("target"), "new.target", pos, CHECK_OK);
+  ExpectMetaProperty(Token::TARGET, "new.target", pos, CHECK_OK);
 
   if (!GetReceiverScope()->is_function_scope()) {
     impl()->ReportMessageAt(scanner()->location(),
@@ -4419,7 +4423,7 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
     // We don't want dynamic functions to actually declare their name
     // "anonymous". We just want that name in the toString().
     Consume(Token::IDENTIFIER);
-    DCHECK(scanner()->UnescapedLiteralMatches("anonymous", 9));
+    DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
   } else if (peek_any_identifier()) {
     type = FunctionLiteral::kNamedExpression;
     name = ParseIdentifierOrStrictReservedWord(kind, &is_strict_reserved,
@@ -5781,7 +5785,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     }
   }
 
-  ExpectContextualKeyword(CStrVector("of"), CHECK_OK);
+  ExpectContextualKeyword(Token::OF, CHECK_OK);
   int each_keyword_pos = scanner()->location().beg_pos;
 
   const bool kAllowIn = true;
