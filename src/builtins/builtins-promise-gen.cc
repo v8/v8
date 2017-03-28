@@ -27,9 +27,10 @@ Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
 }
 
 void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
-  StoreObjectField(promise, JSPromise::kStatusOffset,
-                   SmiConstant(v8::Promise::kPending));
-  StoreObjectField(promise, JSPromise::kFlagsOffset, SmiConstant(0));
+  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kStatusOffset,
+                                 SmiConstant(v8::Promise::kPending));
+  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
+                                 SmiConstant(0));
 }
 
 Node* PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Node* context) {
@@ -123,8 +124,7 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
   {
     Node* promise = AllocateJSPromise(context);
     PromiseInit(promise);
-    StoreObjectFieldNoWriteBarrier(
-        capability, JSPromiseCapability::kPromiseOffset, promise);
+    StoreObjectField(capability, JSPromiseCapability::kPromiseOffset, promise);
 
     Node* resolve = nullptr;
     Node* reject = nullptr;
