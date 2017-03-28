@@ -3049,7 +3049,6 @@ class HashTableBase : public FixedArray {
 
   // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
-  inline bool IsKey(Object* k);
   inline bool IsKey(Isolate* isolate, Object* k);
 
   // Compute the probe offset (quadratic probing).
@@ -3430,10 +3429,6 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   // Add entry to dictionary. Returns entry value.
   static int AddEntry(Handle<Derived> dictionary, Key key, Handle<Object> value,
                       PropertyDetails details, uint32_t hash);
-  // Generate new enumeration indices to avoid enumeration index overflow.
-  // Returns iteration indices array for the |dictionary|.
-  static Handle<FixedArray> GenerateNewEnumerationIndices(
-      Handle<Derived> dictionary);
 };
 
 
@@ -3499,9 +3494,6 @@ class NameDictionary
 
  public:
   DECLARE_CAST(NameDictionary)
-
-  inline static Handle<FixedArray> DoGenerateNewEnumerationIndices(
-      Handle<NameDictionary> dictionary);
 
   static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;

@@ -3076,12 +3076,6 @@ bool HashTableBase::IsKey(Isolate* isolate, Object* k) {
   return k != heap->the_hole_value() && k != heap->undefined_value();
 }
 
-bool HashTableBase::IsKey(Object* k) {
-  Isolate* isolate = this->GetIsolate();
-  return !k->IsTheHole(isolate) && !k->IsUndefined(isolate);
-}
-
-
 void HashTableBase::SetNumberOfElements(int nof) {
   set(kNumberOfElementsIndex, Smi::FromInt(nof));
 }
@@ -7781,12 +7775,6 @@ Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
                                              Handle<Name> key) {
   DCHECK(key->IsUniqueName());
   return key;
-}
-
-
-Handle<FixedArray> NameDictionary::DoGenerateNewEnumerationIndices(
-    Handle<NameDictionary> dictionary) {
-  return DerivedDictionary::GenerateNewEnumerationIndices(dictionary);
 }
 
 
