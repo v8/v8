@@ -1987,17 +1987,9 @@ TEST(InterpreterMixedComparisons) {
                      CompareC(comparison, lhs, rhs, true));
             Object* feedback = callable.vector()->Get(slot);
             CHECK(feedback->IsSmi());
-            int expected_feedback = CompareOperationFeedback::kNumber;
-            if (string_type == kInternalizedStringConstant &&
-                !Token::IsOrderedRelationalCompareOp(comparison)) {
-              // Non-ordering compares (i.e. equality/strict equality) have
-              // special type feedback specifically for internalized strings.
-              expected_feedback |=
-                  CompareOperationFeedback::kInternalizedString;
-            } else {
-              expected_feedback |= CompareOperationFeedback::kString;
-            }
-            CHECK_EQ(expected_feedback, static_cast<Smi*>(feedback)->value());
+            // Comparison with a number and string collects kAny feedback.
+            CHECK_EQ(CompareOperationFeedback::kAny,
+                     static_cast<Smi*>(feedback)->value());
           }
         }
       }
