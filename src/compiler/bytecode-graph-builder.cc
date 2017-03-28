@@ -1118,7 +1118,16 @@ void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode,
               language_mode);
     op = javascript()->StoreNamed(language_mode, name, feedback);
   }
-  Node* node = NewNode(op, object, value);
+
+  Node* node = nullptr;
+  if (Node* simplified =
+          TryBuildSimplifiedStoreNamed(op, object, value, feedback.slot())) {
+    if (environment() == nullptr) return;
+    node = simplified;
+  } else {
+    node = NewNode(op, object, value);
+  }
+
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
@@ -1143,10 +1152,18 @@ void BytecodeGraphBuilder::BuildKeyedStore(LanguageMode language_mode) {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
-
   DCHECK_EQ(feedback.vector()->GetLanguageMode(feedback.slot()), language_mode);
   const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-  Node* node = NewNode(op, object, key, value);
+
+  Node* node = nullptr;
+  if (Node* simplified = TryBuildSimplifiedStoreKeyed(op, object, key, value,
+                                                      feedback.slot())) {
+    if (environment() == nullptr) return;
+    node = simplified;
+  } else {
+    node = NewNode(op, object, key, value);
+  }
+
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
@@ -2439,6 +2456,44 @@ Node* BytecodeGraphBuilder::TryBuildSimplifiedLoadKeyed(const Operator* op,
   Node* control = environment()->GetControlDependency();
   Reduction early_reduction = type_hint_lowering().ReduceLoadKeyedOperation(
       op, receiver, key, effect, control, slot);
+  if (early_reduction.Changed()) {
+    ApplyEarlyReduction(early_reduction);
+    return early_reduction.replacement();
+  }
+  return nullptr;
+}
+
+Node* BytecodeGraphBuilder::TryBuildSimplifiedStoreNamed(const Operator* op,
+                                                         Node* receiver,
+                                                         Node* value,
+                                                         FeedbackSlot slot) {
+  // TODO(mstarzinger,6112): This is a workaround for OSR loop entries being
+  // pruned from the graph by a soft-deopt. It can happen that a LoadIC that
+  // control-dominates the OSR entry is still in "uninitialized" state.
+  if (!osr_ast_id_.IsNone()) return nullptr;
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  Reduction early_reduction = type_hint_lowering().ReduceStoreNamedOperation(
+      op, receiver, value, effect, control, slot);
+  if (early_reduction.Changed()) {
+    ApplyEarlyReduction(early_reduction);
+    return early_reduction.replacement();
+  }
+  return nullptr;
+}
+
+Node* BytecodeGraphBuilder::TryBuildSimplifiedStoreKeyed(const Operator* op,
+                                                         Node* receiver,
+                                                         Node* key, Node* value,
+                                                         FeedbackSlot slot) {
+  // TODO(mstarzinger,6112): This is a workaround for OSR loop entries being
+  // pruned from the graph by a soft-deopt. It can happen that a LoadIC that
+  // control-dominates the OSR entry is still in "uninitialized" state.
+  if (!osr_ast_id_.IsNone()) return nullptr;
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  Reduction early_reduction = type_hint_lowering().ReduceStoreKeyedOperation(
+      op, receiver, key, value, effect, control, slot);
   if (early_reduction.Changed()) {
     ApplyEarlyReduction(early_reduction);
     return early_reduction.replacement();

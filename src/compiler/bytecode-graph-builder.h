@@ -184,6 +184,10 @@ class BytecodeGraphBuilder {
                                     FeedbackSlot slot);
   Node* TryBuildSimplifiedLoadKeyed(const Operator* op, Node* receiver,
                                     Node* key, FeedbackSlot slot);
+  Node* TryBuildSimplifiedStoreNamed(const Operator* op, Node* receiver,
+                                     Node* value, FeedbackSlot slot);
+  Node* TryBuildSimplifiedStoreKeyed(const Operator* op, Node* receiver,
+                                     Node* key, Node* value, FeedbackSlot slot);
 
   // Applies the given early reduction onto the current environment.
   void ApplyEarlyReduction(Reduction reduction);

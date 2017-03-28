@@ -62,6 +62,12 @@ class JSTypeHintLowering {
   Reduction ReduceLoadKeyedOperation(const Operator* op, Node* obj, Node* key,
                                      Node* effect, Node* control,
                                      FeedbackSlot slot) const;
+  Reduction ReduceStoreNamedOperation(const Operator* op, Node* obj, Node* val,
+                                      Node* effect, Node* control,
+                                      FeedbackSlot slot) const;
+  Reduction ReduceStoreKeyedOperation(const Operator* op, Node* obj, Node* key,
+                                      Node* val, Node* effect, Node* control,
+                                      FeedbackSlot slot) const;
 
  private:
   friend class JSSpeculativeBinopBuilder;

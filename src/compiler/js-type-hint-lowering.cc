@@ -256,6 +256,35 @@ Reduction JSTypeHintLowering::ReduceLoadKeyedOperation(
   return Reduction();
 }
 
+Reduction JSTypeHintLowering::ReduceStoreNamedOperation(
+    const Operator* op, Node* obj, Node* val, Node* effect, Node* control,
+    FeedbackSlot slot) const {
+  DCHECK(op->opcode() == IrOpcode::kJSStoreNamed ||
+         op->opcode() == IrOpcode::kJSStoreNamedOwn);
+  DCHECK(!slot.IsInvalid());
+  StoreICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess)) {
+    return Reduction(node);
+  }
+  return Reduction();
+}
+
+Reduction JSTypeHintLowering::ReduceStoreKeyedOperation(
+    const Operator* op, Node* obj, Node* key, Node* val, Node* effect,
+    Node* control, FeedbackSlot slot) const {
+  DCHECK_EQ(IrOpcode::kJSStoreProperty, op->opcode());
+  DCHECK(!slot.IsInvalid());
+  KeyedStoreICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess)) {
+    return Reduction(node);
+  }
+  return Reduction();
+}
+
 Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackNexus& nexus, Node* effect,
                                             Node* control,
                                             DeoptimizeReason reason) const {
