@@ -31,13 +31,20 @@ RUNTIME_FUNCTION(Runtime_GetSubstitution) {
         : match_(match), prefix_(prefix), suffix_(suffix) {}
 
     Handle<String> GetMatch() override { return match_; }
+    Handle<String> GetPrefix() override { return prefix_; }
+    Handle<String> GetSuffix() override { return suffix_; }
+
+    int CaptureCount() override { return 0; }
+    bool HasNamedCaptures() override { return false; }
     MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
       *capture_exists = false;
       return match_;  // Return arbitrary string handle.
     }
-    Handle<String> GetPrefix() override { return prefix_; }
-    Handle<String> GetSuffix() override { return suffix_; }
-    int CaptureCount() override { return 0; }
+    MaybeHandle<String> GetNamedCapture(Handle<String> name,
+                                        bool* capture_exists) override {
+      UNREACHABLE();
+      return MaybeHandle<String>();
+    }
 
    private:
     Handle<String> match_, prefix_, suffix_;
