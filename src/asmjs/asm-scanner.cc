@@ -145,12 +145,14 @@ void AsmJsScanner::Next() {
 }
 
 void AsmJsScanner::Rewind() {
+  // TODO(bradnelson): Currently rewinding needs to leave in place the
+  // preceding newline state (in case a |0 ends a line).
+  // This is weird and stateful, fix me.
   DCHECK(!rewind_);
   next_token_ = token_;
   token_ = preceding_token_;
   preceding_token_ = kUninitialized;
   rewind_ = true;
-  preceded_by_newline_ = false;
   identifier_string_.clear();
 }
 

@@ -1835,7 +1835,7 @@ class InstantiationHelper {
                             module_name, import_name);
             return -1;
           }
-          if (FLAG_fast_validate_asm) {
+          if (module_->is_asm_js() && FLAG_fast_validate_asm) {
             if (module_->globals[import.index].type == kWasmI32) {
               value = Object::ToInt32(isolate_, value).ToHandleChecked();
             } else {
