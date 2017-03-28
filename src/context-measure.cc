@@ -19,6 +19,8 @@ ContextMeasure::ContextMeasure(Context* context)
       size_(0) {
   DCHECK(context_->IsNativeContext());
   Object* next_link = context_->next_context_link();
+  context_->set(Context::NEXT_CONTEXT_LINK,
+                context->GetIsolate()->heap()->undefined_value());
   MeasureObject(context_);
   MeasureDeferredObjects();
   context_->set(Context::NEXT_CONTEXT_LINK, next_link);
@@ -40,6 +42,9 @@ void ContextMeasure::MeasureObject(HeapObject* object) {
   if (reference_map_.Lookup(object).is_valid()) return;
   if (root_index_map_.Lookup(object) != RootIndexMap::kInvalidRootIndex) return;
   if (IsShared(object)) return;
+  if (object->IsJSReceiver() &&
+      *JSReceiver::cast(object)->GetCreationContext() != context_)
+    return;
   reference_map_.Add(object, SerializerReference::DummyReference());
   recursion_depth_++;
   if (recursion_depth_ > kMaxRecursion) {

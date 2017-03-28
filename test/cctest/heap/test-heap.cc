@@ -5893,6 +5893,26 @@ TEST(ContextMeasure) {
   CHECK_LE(measure.Size(), size_upper_limit);
 }
 
+TEST(ContextMeasureNoMap) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  Local<v8::Context> current_context = CcTest::isolate()->GetCurrentContext();
+  Local<v8::Context> other_context = v8::Context::New(CcTest::isolate());
+
+  CompileRun(current_context, "var x = []");
+
+  size_t original_size_current = current_context->EstimatedSize();
+  size_t original_size_other = other_context->EstimatedSize();
+
+  CompileRun(current_context, "x.a = 1;");
+
+  size_t new_size_current = current_context->EstimatedSize();
+  size_t new_size_other = other_context->EstimatedSize();
+
+  CHECK_LT(original_size_current, new_size_current);
+  CHECK_EQ(original_size_other, new_size_other);
+}
 
 TEST(ScriptIterator) {
   CcTest::InitializeVM();
