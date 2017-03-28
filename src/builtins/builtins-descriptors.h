@@ -25,14 +25,22 @@ namespace internal {
   };
 
 // Define interface descriptors for builtins with StubCall linkage.
-#define DEFINE_TFS_INTERFACE_DESCRIPTOR(Name, Kind, Extra,                \
-                                        InterfaceDescriptor, result_size) \
+#define DEFINE_TFS_INTERFACE_DESCRIPTOR(Name, InterfaceDescriptor, \
+                                        result_size)               \
+  typedef InterfaceDescriptor##Descriptor Builtin_##Name##_InterfaceDescriptor;
+
+// Define interface descriptors for IC handlers/dispatchers.
+#define DEFINE_TFH_INTERFACE_DESCRIPTOR(Name, Kind, Extra,   \
+                                        InterfaceDescriptor) \
   typedef InterfaceDescriptor##Descriptor Builtin_##Name##_InterfaceDescriptor;
 
 BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DEFINE_TFJ_INTERFACE_DESCRIPTOR,
-             DEFINE_TFS_INTERFACE_DESCRIPTOR, IGNORE_BUILTIN, IGNORE_BUILTIN)
+             DEFINE_TFS_INTERFACE_DESCRIPTOR, DEFINE_TFH_INTERFACE_DESCRIPTOR,
+             IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #undef DEFINE_TFJ_INTERFACE_DESCRIPTOR
+#undef DEFINE_TFS_INTERFACE_DESCRIPTOR
+#undef DEFINE_TFH_INTERFACE_DESCRIPTOR
 
 }  // namespace internal
 }  // namespace v8
