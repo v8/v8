@@ -10441,6 +10441,9 @@ class JSArrayBuffer: public JSObject {
   inline uint32_t bit_field() const;
   inline void set_bit_field(uint32_t bits);
 
+  // [is_external]: true indicates that the embedder is in charge of freeing the
+  // backing_store, while is_external == false means that v8 will free the
+  // memory block once all ArrayBuffers referencing it are collected by the GC.
   inline bool is_external();
   inline void set_is_external(bool value);
 
