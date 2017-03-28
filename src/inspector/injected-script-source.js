@@ -77,18 +77,6 @@ function toStringDescription(obj)
 }
 
 /**
- * @param {T} obj
- * @return {T}
- * @template T
- */
-function nullifyObjectProto(obj)
-{
-    if (obj && typeof obj === "object")
-        obj.__proto__ = null;
-    return obj;
-}
-
-/**
  * @param {number|string} obj
  * @return {boolean}
  */
@@ -449,7 +437,6 @@ InjectedScript.prototype = {
                     descriptor.isOwn = true;
                 if (isSymbol(property))
                     descriptor.symbol = property;
-                descriptor = nullifyObjectProto(descriptor);
                 if (!addPropertyIfNeeded(descriptors, descriptor))
                     return false;
             }
@@ -1039,7 +1026,8 @@ InjectedScript.RemoteObject.prototype = {
                 preview.overflow = true;
                 break;
             }
-            var entry = nullifyObjectProto(entries[i]);
+            var entry = entries[i];
+            InjectedScriptHost.nullifyPrototype(entry);
             var previewEntry = {
                 value: generateValuePreview(entry.value),
                 __proto__: null
