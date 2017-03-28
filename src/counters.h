@@ -1017,7 +1017,9 @@ class RuntimeCallTimerScope {
   HM(wasm_decode_module_peak_memory_bytes, V8.WasmDecodeModulePeakMemoryBytes) \
   HM(wasm_compile_function_peak_memory_bytes,                                  \
      V8.WasmCompileFunctionPeakMemoryBytes)                                    \
-  HM(wasm_min_mem_pages_count, V8.WasmMinMemPagesCount)                        \
+  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
+  HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount)                    \
+  HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount)                   \
   HM(wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount)                        \
   HM(wasm_function_size_bytes, V8.WasmFunctionSizeBytes)                       \
   HM(wasm_module_size_bytes, V8.WasmModuleSizeBytes)
