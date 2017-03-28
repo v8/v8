@@ -2347,9 +2347,12 @@ uint32_t GetMaxInstanceMemoryPages(Isolate* isolate,
       if (maximum < FLAG_wasm_max_mem_pages) return maximum;
     }
   }
-  uint32_t compiled_max_pages = instance->compiled_module()->max_mem_pages();
-  isolate->counters()->wasm_max_mem_pages_count()->AddSample(
-      compiled_max_pages);
+  WasmCompiledModule* compiled_module = instance->compiled_module();
+  uint32_t compiled_max_pages = compiled_module->max_mem_pages();
+  (compiled_module->module()->is_wasm()
+       ? isolate->counters()->wasm_wasm_max_mem_pages_count()
+       : isolate->counters()->wasm_asm_max_mem_pages_count())
+      ->AddSample(compiled_max_pages);
   if (compiled_max_pages != 0) return compiled_max_pages;
   return FLAG_wasm_max_mem_pages;
 }
