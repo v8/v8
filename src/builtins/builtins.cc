@@ -151,20 +151,15 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   code =                                                                       \
       BuildWithMacroAssembler(isolate, Generate_##Name, kBuiltinFlags, #Name); \
   builtins_[index++] = code;
-#define BUILD_ASH(Name, Kind, Extra)                                           \
-  code = BuildWithMacroAssembler(                                              \
-      isolate, Generate_##Name, Code::ComputeFlags(Code::Kind, Extra), #Name); \
-  builtins_[index++] = code;
 
     BUILTIN_LIST(BUILD_CPP, BUILD_API, BUILD_TFJ, BUILD_TFS, BUILD_ASM,
-                 BUILD_ASH, BUILD_ASM);
+                 BUILD_ASM);
 
 #undef BUILD_CPP
 #undef BUILD_API
 #undef BUILD_TFJ
 #undef BUILD_TFS
 #undef BUILD_ASM
-#undef BUILD_ASH
     CHECK_EQ(builtin_count, index);
     for (int i = 0; i < builtin_count; i++) {
       Code::cast(builtins_[i])->set_builtin_index(i);
@@ -336,7 +331,7 @@ bool Builtins::IsCpp(int index) {
     return true;
 #define BUILTIN_LIST_CPP(V)                                       \
   BUILTIN_LIST(V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
     BUILTIN_LIST_CPP(CASE)
 #undef BUILTIN_LIST_CPP
 #undef CASE
@@ -355,7 +350,7 @@ bool Builtins::IsApi(int index) {
     return true;
 #define BUILTIN_LIST_API(V)                                       \
   BUILTIN_LIST(IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
     BUILTIN_LIST_API(CASE);
 #undef BUILTIN_LIST_API
 #undef CASE

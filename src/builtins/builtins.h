@@ -46,12 +46,10 @@ class Isolate;
 //      Args: name, code kind, extra IC state, interface descriptor, return_size
 // ASM: Builtin in platform-dependent assembly.
 //      Args: name
-// ASH: Handlers implemented in platform-dependent assembly.
-//      Args: name, code kind, extra IC state
 // DBG: Builtin in platform-dependent assembly, used by the debugger.
 //      Args: name
 
-#define BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, ASM, ASH, DBG)                   \
+#define BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, ASM, DBG)                        \
   ASM(Abort)                                                                   \
   /* Code aging */                                                             \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                        \
@@ -241,12 +239,12 @@ class Isolate;
       1)                                                                       \
   TFS(LoadField, BUILTIN, kNoExtraICState, LoadField, 1)                       \
   TFS(LoadIC_FunctionPrototype, HANDLER, Code::LOAD_IC, LoadWithVector, 1)     \
-  ASH(LoadIC_Getter_ForDeopt, BUILTIN, kNoExtraICState)                        \
+  ASM(LoadIC_Getter_ForDeopt)                                                  \
   TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector, 1)                \
   TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector, 1)                  \
   TFS(LoadIC_Uninitialized, BUILTIN, kNoExtraICState, LoadWithVector, 1)       \
   TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector, 1)              \
-  ASH(StoreIC_Setter_ForDeopt, BUILTIN, kNoExtraICState)                       \
+  ASM(StoreIC_Setter_ForDeopt)                                                 \
   TFS(StoreIC_Uninitialized, BUILTIN, kNoExtraICState, StoreWithVector, 1)     \
   TFS(StoreICStrict_Uninitialized, BUILTIN, kNoExtraICState, StoreWithVector,  \
       1)                                                                       \
@@ -949,16 +947,16 @@ class Isolate;
   TFJ(AsyncIteratorValueUnwrap, 1, kValue)
 
 #ifdef V8_I18N_SUPPORT
-#define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG) \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, ASM, ASH, DBG)  \
-                                                        \
-  /* ES #sec-string.prototype.tolowercase */            \
-  CPP(StringPrototypeToLowerCaseI18N)                   \
-  /* ES #sec-string.prototype.touppercase */            \
+#define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, DBG) \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, ASM, DBG)  \
+                                                   \
+  /* ES #sec-string.prototype.tolowercase */       \
+  CPP(StringPrototypeToLowerCaseI18N)              \
+  /* ES #sec-string.prototype.touppercase */       \
   CPP(StringPrototypeToUpperCaseI18N)
 #else
-#define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG) \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, ASM, ASH, DBG)
+#define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, DBG) \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, ASM, DBG)
 #endif  // V8_I18N_SUPPORT
 
 #define BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(V) \
@@ -977,23 +975,23 @@ class Isolate;
 
 #define IGNORE_BUILTIN(...)
 
-#define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V, V)
+#define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V)
 
 #define BUILTIN_LIST_TFS(V)                                       \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_C(V)                                            \
   BUILTIN_LIST(V, V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_A(V)                                                      \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               V, V, V)
+               V, V)
 
 #define BUILTIN_LIST_DBG(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, V)
+               IGNORE_BUILTIN, V)
 
 #define BUILTINS_WITH_UNTAGGED_PARAMS(V) V(WasmCompileLazy)
 
@@ -1113,7 +1111,7 @@ class Builtins {
   static void Generate_##Name(compiler::CodeAssemblerState* state);
 
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF,
-               DECLARE_ASM, DECLARE_ASM, DECLARE_ASM)
+               DECLARE_ASM, DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF
