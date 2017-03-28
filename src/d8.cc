@@ -2856,7 +2856,7 @@ static void DumpHeapConstants(i::Isolate* isolate) {
   for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
     i::Map* m = i::Map::cast(o);
     const char* n = NULL;
-    intptr_t p = reinterpret_cast<intptr_t>(m) & 0xfffff;
+    intptr_t p = reinterpret_cast<intptr_t>(m) & 0x7ffff;
     int t = m->instance_type();
     ROOT_LIST(ROOT_LIST_CASE)
     STRUCT_LIST(STRUCT_LIST_CASE)
@@ -2878,7 +2878,7 @@ static void DumpHeapConstants(i::Isolate* isolate) {
     const char* sname = AllocationSpaceName(s->identity());
     for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
       const char* n = NULL;
-      intptr_t p = reinterpret_cast<intptr_t>(o) & 0xfffff;
+      intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7ffff;
       ROOT_LIST(ROOT_LIST_CASE)
       if (n == NULL) continue;
       printf("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", sname, p, n);

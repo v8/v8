@@ -697,29 +697,23 @@ class MinidumpReader(object):
     location = self.FindLocation(address)
     return ctypes.c_uint64.from_buffer(self.minidump, location).value
 
+  def Is64(self):
+    return (self.arch == MD_CPU_ARCHITECTURE_ARM64 or
+            self.arch == MD_CPU_ARCHITECTURE_AMD64)
+
   def ReadUIntPtr(self, address):
-    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+    if self.Is64():
       return self.ReadU64(address)
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
-      return self.ReadU32(address)
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
-      return self.ReadU64(address)
-    elif self.arch == MD_CPU_ARCHITECTURE_X86:
-      return self.ReadU32(address)
+    return self.ReadU32(address)
 
   def ReadBytes(self, address, size):
     location = self.FindLocation(address)
     return self.minidump[location:location + size]
 
   def _ReadWord(self, location):
-    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+    if self.Is64():
       return ctypes.c_uint64.from_buffer(self.minidump, location).value
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
-      return ctypes.c_uint32.from_buffer(self.minidump, location).value
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
-      return ctypes.c_uint64.from_buffer(self.minidump, location).value
-    elif self.arch == MD_CPU_ARCHITECTURE_X86:
-      return ctypes.c_uint32.from_buffer(self.minidump, location).value
+    return ctypes.c_uint32.from_buffer(self.minidump, location).value
 
   def IsProbableASCIIRegion(self, location, length):
     ascii_bytes = 0
@@ -745,7 +739,7 @@ class MinidumpReader(object):
 
   def IsProbableExecutableRegion(self, location, length):
     opcode_bytes = 0
-    sixty_four = self.arch == MD_CPU_ARCHITECTURE_AMD64
+    sixty_four = self.Is64()
     for i in xrange(length):
       loc = location + i
       byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
@@ -895,24 +889,14 @@ class MinidumpReader(object):
       return self.exception_context.ebp
 
   def FormatIntPtr(self, value):
-    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+    if self.Is64():
       return "%016x" % value
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
-      return "%08x" % value
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
-      return "%016x" % value
-    elif self.arch == MD_CPU_ARCHITECTURE_X86:
-      return "%08x" % value
+    return "%08x" % value
 
   def PointerSize(self):
-    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+    if self.Is64():
       return 8
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
-      return 4
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
-      return 8
-    elif self.arch == MD_CPU_ARCHITECTURE_X86:
-      return 4
+    return 4
 
   def Register(self, name):
     return self.exception_context.__getattribute__(name)
@@ -1082,11 +1066,11 @@ class Map(HeapObject):
   def InObjectProperties(self):
     return self.InstanceSizeOffset() + 1
 
-  def PreAllocatedPropertyFields(self):
+  def UnusedByte(self):
     return self.InObjectProperties() + 1
 
   def VisitorId(self):
-    return self.PreAllocatedPropertyFields() + 1
+    return self.UnusedByte() + 1
 
   # Instance Attributes
   def InstanceAttributesOffset(self):
@@ -1095,78 +1079,93 @@ class Map(HeapObject):
   def InstanceTypeOffset(self):
     return self.InstanceAttributesOffset()
 
-  def UnusedPropertyFieldsOffset(self):
-    return self.InstanceTypeOffset() + 1
-
   def BitFieldOffset(self):
-    return self.UnusedPropertyFieldsOffset() + 1
+    return self.InstanceTypeOffset() + 1
 
   def BitField2Offset(self):
     return self.BitFieldOffset() + 1
 
+  def UnusedPropertyFieldsOffset(self):
+    return self.BitField2Offset() + 1
+
   # Other fields
-  def PrototypeOffset(self):
+  def BitField3Offset(self):
     return self.InstanceAttributesOffset() + self.heap.IntSize()
 
-  def ConstructorOffset(self):
+  def PrototypeOffset(self):
+    return self.BitField3Offset() + self.heap.PointerSize()
+
+  def ConstructorOrBackPointerOffset(self):
     return self.PrototypeOffset() + self.heap.PointerSize()
 
-  def TransitionsOrBackPointerOffset(self):
-    return self.ConstructorOffset() + self.heap.PointerSize()
+  def TransitionsOrPrototypeInfoOffset(self):
+    return self.ConstructorOrBackPointerOffset() + self.heap.PointerSize()
 
   def DescriptorsOffset(self):
-    return self.TransitionsOrBackPointerOffset() + self.heap.PointerSize()
+    return self.TransitionsOrPrototypeInfoOffset() + self.heap.PointerSize()
+
+  def LayoutDescriptorOffset(self):
+    return self.DescriptorsOffset() + self.heap.PointerSize()
 
   def CodeCacheOffset(self):
+    if (self.heap.reader.Is64()):
+      return self.LayoutDescriptorOffset() + self.heap.PointerSize()
     return self.DescriptorsOffset() + self.heap.PointerSize()
 
   def DependentCodeOffset(self):
     return self.CodeCacheOffset() + self.heap.PointerSize()
 
-  def BitField3Offset(self):
+  def WeakCellCacheOffset(self):
     return self.DependentCodeOffset() + self.heap.PointerSize()
 
   def ReadByte(self, offset):
     return self.heap.reader.ReadU8(self.address + offset)
 
+  def ReadWord(self, offset):
+    return self.heap.reader.ReadUIntPtr(self.address + offset)
+
   def Print(self, p):
     p.Print("Map(%08x)" % (self.address))
-    p.Print("- size: %d, inobject: %d, preallocated: %d, visitor: %d" % (
+    p.Print("  - size: %d, inobject: %d, (unused: %d), visitor: %d" % (
         self.ReadByte(self.InstanceSizeOffset()),
         self.ReadByte(self.InObjectProperties()),
-        self.ReadByte(self.PreAllocatedPropertyFields()),
+        self.ReadByte(self.UnusedByte()),
         self.VisitorId()))
 
+    instance_type = INSTANCE_TYPES[self.ReadByte(self.InstanceTypeOffset())]
     bitfield = self.ReadByte(self.BitFieldOffset())
     bitfield2 = self.ReadByte(self.BitField2Offset())
-    p.Print("- %s, unused: %d, bf: %d, bf2: %d" % (
-        INSTANCE_TYPES[self.ReadByte(self.InstanceTypeOffset())],
-        self.ReadByte(self.UnusedPropertyFieldsOffset()),
-        bitfield, bitfield2))
+    unused = self.ReadByte(self.UnusedPropertyFieldsOffset())
+    p.Print("  - %s, bf: %d, bf2: %d, unused: %d" % (
+        instance_type, bitfield, bitfield2, unused))
 
-    p.Print("- kind: %s" % (self.Decode(3, 5, bitfield2)))
+    p.Print("  - kind: %s" % (self.Decode(3, 5, bitfield2)))
 
-    bitfield3 = self.ObjectField(self.BitField3Offset())
+    bitfield3 = self.ReadWord(self.BitField3Offset())
+
     p.Print(
-        "- EnumLength: %d NumberOfOwnDescriptors: %d OwnsDescriptors: %s" % (
-            self.Decode(0, 11, bitfield3),
-            self.Decode(11, 11, bitfield3),
-            self.Decode(25, 1, bitfield3)))
-    p.Print("- IsShared: %s" % (self.Decode(22, 1, bitfield3)))
-    p.Print("- FunctionWithPrototype: %s" % (self.Decode(23, 1, bitfield3)))
-    p.Print("- DictionaryMap: %s" % (self.Decode(24, 1, bitfield3)))
+        "  - EnumLength: %d NumberOfOwnDescriptors: %d OwnsDescriptors: %s" % (
+            self.Decode(0, 10, bitfield3),
+            self.Decode(10, 10, bitfield3),
+            self.Decode(21, 1, bitfield3)))
+    p.Print("  - DictionaryMap: %s" % (self.Decode(20, 1, bitfield3)))
+    p.Print("  - Deprecated: %s" % (self.Decode(23, 1, bitfield3)))
+    p.Print("  - IsUnstable: %s" % (self.Decode(24, 1, bitfield3)))
+    p.Print("  - NewTargetIsBase: %s" % (self.Decode(27, 1, bitfield3)))
 
     descriptors = self.ObjectField(self.DescriptorsOffset())
     if descriptors.__class__ == FixedArray:
       DescriptorArray(descriptors).Print(p)
     else:
-      p.Print("Descriptors: %s" % (descriptors))
+      p.Print("  - Descriptors: %s" % (descriptors))
 
-    transitions = self.ObjectField(self.TransitionsOrBackPointerOffset())
+    transitions = self.ObjectField(self.TransitionsOrPrototypeInfoOffset())
     if transitions.__class__ == FixedArray:
       TransitionArray(transitions).Print(p)
     else:
-      p.Print("TransitionsOrBackPointer: %s" % (transitions))
+      p.Print("  - TransitionsOrPrototypeInfo: %s" % (transitions))
+
+    p.Print("  - Prototype: %s" % self.ObjectField(self.PrototypeOffset()))
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
@@ -1680,7 +1679,7 @@ class V8Heap(object):
       return (1 << 5) - 1
 
   def PageAlignmentMask(self):
-    return (1 << 20) - 1
+    return (1 << 19) - 1
 
 
 class KnownObject(HeapObject):
