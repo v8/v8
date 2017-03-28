@@ -108,10 +108,12 @@ class Descriptor(object):
   def _GetCtype(fields):
     class Raw(ctypes.Structure):
       _fields_ = fields
+      _maxWidth = max(map(lambda s: len(s), fields))
       _pack_ = 1
 
       def __str__(self):
-        return "{" + ", ".join("%s: %s" % (field, self.__getattribute__(field))
+        return "{" + ", ".join("%s: %s" % (str(field).ljust(_maxWidth),
+                                           self.__getattribute__(field))
                                for field, _ in Raw._fields_) + "}"
     return Raw
 
@@ -1047,8 +1049,8 @@ class HeapObject(object):
 
   def SmiField(self, offset):
     field_value = self.heap.reader.ReadUIntPtr(self.address + offset)
-    if (field_value & 1) == 0:
-      return field_value / 2
+    if self.heap.IsSmi(field_value):
+      return self.heap.SmiUntag(field_value)
     return None
 
 
@@ -1625,7 +1627,7 @@ class V8Heap(object):
     self.objects = {}
 
   def FindObjectOrSmi(self, tagged_address):
-    if (tagged_address & 1) == 0: return tagged_address / 2
+    if self.IsSmi(tagged_address): return self.SmiUntag(tagged_address)
     return self.FindObject(tagged_address)
 
   def FindObject(self, tagged_address):
@@ -1680,6 +1682,15 @@ class V8Heap(object):
 
   def PageAlignmentMask(self):
     return (1 << 19) - 1
+
+  def IsSmi(self, tagged_address):
+    if self.reader.Is64():
+      return (tagged_address & 0xFFFFFFFF) == 0
+    return (tagged_address & 1) == 0
+
+  def SmiUntag(self, tagged_address):
+    if self.reader.Is64(): return tagged_address >> 32
+    return tagged_address >> 1
 
 
 class KnownObject(HeapObject):
@@ -1805,7 +1816,12 @@ class InspectionPadawan(object):
     if page_address == self.known_first_old_page: return "OLD_SPACE"
     return None
 
+  def FormatSmi(self, tagged_address):
+    return "Smi(%d)" % self.SmiUntag(tagged_address)
+
   def SenseObject(self, tagged_address):
+    if self.heap.IsSmi(tagged_address):
+      return self.FormatSmi(tagged_address)
     if self.IsInKnownOldSpace(tagged_address):
       offset = self.GetPageOffset(tagged_address)
       lookup_key = (self.ContainingKnownOldSpaceName(tagged_address), offset)
@@ -1844,8 +1860,8 @@ class InspectionPadawan(object):
     """When used as a mixin in place of V8Heap."""
     found_obj = self.SenseObject(tagged_address)
     if found_obj: return found_obj
-    if (tagged_address & 1) == 0:
-      return "Smi(%d)" % (tagged_address / 2)
+    if self.IsSmi(tagged_address):
+      return self.FormatSmi(tagged_address)
     else:
       return "Unknown(%s)" % self.reader.FormatIntPtr(tagged_address)
 
@@ -2933,29 +2949,57 @@ class InspectionShell(cmd.Cmd):
     else:
       print "%s\n" % string
 
+  def ParseAddressExpr(self, expr):
+    """
+    Support parsing simple expressions of the form:
+    (ADDR|$REGISTER)[+|-ADDR]
+    """
+    address = 0;
+    expr = expr.split("+")
+    sign = 1
+    if len(expr) == 1:
+      expr = expr[0].split("-")
+      sign = -1
+    maybe_addr = expr[0]
+    if maybe_addr[0] == "$":
+      # Referring to a register
+      address = self.reader.Register(maybe_addr[1:])
+    else:
+      address = int(maybe_addr, 16)
+    if len(expr) > 1:
+      address += sign * int(expr[1], 16)
+    return address
+
+
   def do_dd(self, args):
     """
      Interpret memory in the given region [address, address + num * word_size)
      (if available) as a sequence of words. Automatic alignment is not performed.
      If the num is not specified, a default value of 16 words is used.
-     Synopsis: dd 0x<address> 0x<num>
+     If no address is given, dd continues printing at the next word.
+     Synopsis: dd 0x<address>|$register [0x<num>]
     """
-    args = args.split(' ')
-    start = int(args[0], 16)
-    num = int(args[1], 16) if len(args) > 1 else 0x10
-    if (start & self.heap.ObjectAlignmentMask()) != 0:
+    if len(args) != 0:
+      args = args.split(' ')
+      self.dd_start = self.ParseAddressExpr(args[0])
+      self.dd_num = int(args[1], 16) if len(args) > 1 else 0x10
+    else:
+      self.dd_start += self.dd_num * self.reader.PointerSize()
+    if (self.dd_start & self.heap.ObjectAlignmentMask()) != 0:
       print "Warning: Dumping un-aligned memory, is this what you had in mind?"
     for i in xrange(0,
-                    self.reader.PointerSize() * num,
+                    self.reader.PointerSize() * self.dd_num,
                     self.reader.PointerSize()):
-      slot = start + i
+      slot = self.dd_start + i
       if not self.reader.IsValidAddress(slot):
         print "Address is not contained within the minidump!"
         return
       maybe_address = self.reader.ReadUIntPtr(slot)
       heap_object = self.padawan.SenseObject(maybe_address)
-      print "%s: %s %s" % (self.reader.FormatIntPtr(slot),
+      valid_address = "*" if self.reader.IsValidAddress(maybe_address) else " "
+      print "%s: %s %s %s" % (self.reader.FormatIntPtr(slot),
                            self.reader.FormatIntPtr(maybe_address),
+                           valid_address,
                            heap_object or '')
 
   def do_do(self, address):
@@ -2964,7 +3008,7 @@ class InspectionShell(cmd.Cmd):
      alignment makes sure that you can pass tagged as well as un-tagged
      addresses.
     """
-    address = int(address, 16)
+    address = self.ParseAddressExpr(address)
     if (address & self.heap.ObjectAlignmentMask()) == 0:
       address = address + 1
     elif (address & self.heap.ObjectAlignmentMask()) != 1:
@@ -2980,7 +3024,7 @@ class InspectionShell(cmd.Cmd):
     """
       Print a descriptor array in a readable format.
     """
-    start = int(address, 16)
+    start = self.ParseAddressExpr(address)
     if ((start & 1) == 1): start = start - 1
     DescriptorArray(FixedArray(self.heap, None, start)).Print(Printer())
 
@@ -2988,7 +3032,7 @@ class InspectionShell(cmd.Cmd):
     """
       Print a descriptor array in a readable format.
     """
-    start = int(address, 16)
+    start = self.ParseAddressExpr(address)
     if ((start & 1) == 1): start = start - 1
     Map(self.heap, None, start).Print(Printer())
 
@@ -2996,7 +3040,7 @@ class InspectionShell(cmd.Cmd):
     """
       Print a transition array in a readable format.
     """
-    start = int(address, 16)
+    start = self.ParseAddressExpr(address)
     if ((start & 1) == 1): start = start - 1
     TransitionArray(FixedArray(self.heap, None, start)).Print(Printer())
 
@@ -3005,7 +3049,7 @@ class InspectionShell(cmd.Cmd):
      Interpret memory at the given address as being on a V8 heap page
      and print information about the page header (if available).
     """
-    address = int(address, 16)
+    address = self.ParseAddressExpr(address)
     page_address = address & ~self.heap.PageAlignmentMask()
     if self.reader.IsValidAddress(page_address):
       raise NotImplementedError
@@ -3026,7 +3070,7 @@ class InspectionShell(cmd.Cmd):
      Teach V8 heap layout information to the inspector. Set the first
      old space page by passing any pointer into that page.
     """
-    address = int(address, 16)
+    address = self.ParseAddressExpr(address)
     page_address = address & ~self.heap.PageAlignmentMask()
     self.padawan.known_first_old_page = page_address
 
@@ -3035,7 +3079,7 @@ class InspectionShell(cmd.Cmd):
      Teach V8 heap layout information to the inspector. Set the first
      map-space page by passing any pointer into that page.
     """
-    address = int(address, 16)
+    address = self.ParseAddressExpr(address)
     page_address = address & ~self.heap.PageAlignmentMask()
     self.padawan.known_first_map_page = page_address
 
@@ -3095,8 +3139,8 @@ class InspectionShell(cmd.Cmd):
      Synopsis: u 0x<address> 0x<size>
     """
     args = args.split(' ')
-    start = int(args[0], 16)
-    size = int(args[1], 16) if len(args) > 1 else 0x20
+    start = self.ParseAddressExpr(args[0])
+    size = self.ParseAddressExpr(args[1]) if len(args) > 1 else 0x20
     if not self.reader.IsValidAddress(start):
       print "Address is not contained within the minidump!"
       return
@@ -3166,8 +3210,11 @@ def AnalyzeMinidump(options, minidump_name):
     print "  thread id: %d" % exception_thread.id
     print "  code: %08X" % reader.exception.exception.code
     print "  context:"
-    for r in CONTEXT_FOR_ARCH[reader.arch]:
-      print "    %s: %s" % (r, reader.FormatIntPtr(reader.Register(r)))
+    context = CONTEXT_FOR_ARCH[reader.arch]
+    maxWidth = max(map(lambda s: len(s), context))
+    for r in context:
+      print "    %s: %s" % (r.rjust(maxWidth),
+                            reader.FormatIntPtr(reader.Register(r)))
     # TODO(vitalyr): decode eflags.
     if reader.arch in [MD_CPU_ARCHITECTURE_ARM, MD_CPU_ARCHITECTURE_ARM64]:
       print "    cpsr: %s" % bin(reader.exception_context.cpsr)[2:]
