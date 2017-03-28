@@ -8269,7 +8269,6 @@ class JSRegExp: public JSObject {
                                           Handle<String> flags_string);
 
   inline Type TypeTag();
-  // Number of captures (without the match itself).
   inline int CaptureCount();
   inline Flags GetFlags();
   inline String* Pattern();
@@ -8342,7 +8341,7 @@ class JSRegExp: public JSObject {
   // Number of captures in the compiled regexp.
   static const int kIrregexpCaptureCountIndex = kDataIndex + 5;
   // Maps names of named capture groups (at indices 2i) to their corresponding
-  // (1-based) capture group indices (at indices 2i + 1).
+  // capture group indices (at indices 2i + 1).
   static const int kIrregexpCaptureNameMapIndex = kDataIndex + 6;
 
   static const int kIrregexpDataSize = kIrregexpCaptureNameMapIndex + 1;
@@ -9197,15 +9196,10 @@ class String: public Name {
   class Match {
    public:
     virtual Handle<String> GetMatch() = 0;
+    virtual MaybeHandle<String> GetCapture(int i, bool* capture_exists) = 0;
     virtual Handle<String> GetPrefix() = 0;
     virtual Handle<String> GetSuffix() = 0;
-
     virtual int CaptureCount() = 0;
-    virtual bool HasNamedCaptures() = 0;
-    virtual MaybeHandle<String> GetCapture(int i, bool* capture_exists) = 0;
-    virtual MaybeHandle<String> GetNamedCapture(Handle<String> name,
-                                                bool* capture_exists) = 0;
-
     virtual ~Match() {}
   };
 
@@ -9220,11 +9214,6 @@ class String: public Name {
   inline bool Equals(String* other);
   inline static bool Equals(Handle<String> one, Handle<String> two);
   bool IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match = false);
-
-  // Dispatches to Is{One,Two}ByteEqualTo.
-  template <typename Char>
-  bool IsEqualTo(Vector<const Char> str);
-
   bool IsOneByteEqualTo(Vector<const uint8_t> str);
   bool IsTwoByteEqualTo(Vector<const uc16> str);
 
