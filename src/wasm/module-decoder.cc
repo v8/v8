@@ -1162,8 +1162,9 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
   if (size >= kV8MaxWasmModuleSize)
     return ModuleError("size > maximum module size");
   // TODO(bradnelson): Improve histogram handling of size_t.
-  isolate->counters()->wasm_module_size_bytes()->AddSample(
-      static_cast<int>(size));
+  (IsWasm(origin) ? isolate->counters()->wasm_wasm_module_size_bytes()
+                  : isolate->counters()->wasm_asm_module_size_bytes())
+      ->AddSample(static_cast<int>(size));
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
   Zone* zone = new Zone(isolate->allocator(), ZONE_NAME);

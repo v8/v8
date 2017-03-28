@@ -1030,7 +1030,9 @@ class RuntimeCallTimerScope {
   /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
   HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes)             \
   HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes)            \
-  HM(wasm_module_size_bytes, V8.WasmModuleSizeBytes)
+  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
+  HM(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes)                 \
+  HM(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes)
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40
