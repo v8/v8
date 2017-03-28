@@ -63,6 +63,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
 
   Context* context() { return *context_; }
 
+  Handle<SharedFunctionInfo> shared() const { return shared_; }
+
   // Returns true if this CompilerDispatcherJob was created for the given
   // function.
   bool IsAssociatedWith(Handle<SharedFunctionInfo> shared) const;
