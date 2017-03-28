@@ -937,6 +937,10 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
             // must produce a FunctionLiteral.
             DCHECK(expression->IsFunctionLiteral());
             result = expression->AsFunctionLiteral();
+            // Rewrite destructuring assignments in the parameters. (The ones
+            // inside the function body are rewritten by
+            // ParseArrowFunctionLiteral.)
+            RewriteDestructuringAssignments();
           } else {
             ok = false;
           }
