@@ -59,7 +59,8 @@ class AsmJsParser {
   // clang-format on
 
   struct FunctionImportInfo {
-    std::string name;
+    char* function_name;
+    size_t function_name_size;
     SignatureMap cache;
     std::vector<uint32_t> cache_index;
   };
@@ -80,7 +81,8 @@ class AsmJsParser {
   };
 
   struct GlobalImport {
-    std::string import_name;
+    char* import_name;
+    size_t import_name_size;
     uint32_t import_index;
     uint32_t global_index;
     bool needs_init;
@@ -248,7 +250,7 @@ class AsmJsParser {
   bool ValidateModuleVarImport(VarInfo* info, bool mutable_variable);
   void ValidateModuleVarStdlib(VarInfo* info);
   void ValidateModuleVarNewStdlib(VarInfo* info);
-  void ValidateModuleVarFloat(VarInfo* info, bool mutable_variable);
+  void ValidateModuleVarFromGlobal(VarInfo* info, bool mutable_variable);
 
   void ValidateExport();         // 6.2 ValidateExport
   void ValidateFunctionTable();  // 6.3 ValidateFunctionTable
