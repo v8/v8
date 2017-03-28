@@ -1173,8 +1173,10 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
   // TODO(titzer): this isn't accurate, since it doesn't count the data
   // allocated on the C++ heap.
   // https://bugs.chromium.org/p/chromium/issues/detail?id=657320
-  isolate->counters()->wasm_decode_module_peak_memory_bytes()->AddSample(
-      static_cast<int>(zone->allocation_size()));
+  (IsWasm(origin)
+       ? isolate->counters()->wasm_decode_wasm_module_peak_memory_bytes()
+       : isolate->counters()->wasm_decode_asm_module_peak_memory_bytes())
+      ->AddSample(static_cast<int>(zone->allocation_size()));
   return result;
 }
 

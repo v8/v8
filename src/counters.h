@@ -1010,20 +1010,24 @@ class RuntimeCallTimerScope {
   HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
   HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
 
-#define HISTOGRAM_MEMORY_LIST(HM)                                              \
-  HM(memory_heap_committed, V8.MemoryHeapCommitted)                            \
-  HM(memory_heap_used, V8.MemoryHeapUsed)                                      \
-  /* Asm/Wasm */                                                               \
-  HM(wasm_decode_module_peak_memory_bytes, V8.WasmDecodeModulePeakMemoryBytes) \
-  HM(wasm_compile_function_peak_memory_bytes,                                  \
-     V8.WasmCompileFunctionPeakMemoryBytes)                                    \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
-  HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount)                    \
-  HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount)                   \
-  HM(wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount)                        \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
-  HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes)                   \
-  HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes)                  \
+#define HISTOGRAM_MEMORY_LIST(HM)                                        \
+  HM(memory_heap_committed, V8.MemoryHeapCommitted)                      \
+  HM(memory_heap_used, V8.MemoryHeapUsed)                                \
+  /* Asm/Wasm */                                                         \
+  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
+  HM(wasm_decode_asm_module_peak_memory_bytes,                           \
+     V8.WasmDecodeModulePeakMemoryBytes)                                 \
+  HM(wasm_decode_wasm_module_peak_memory_bytes,                          \
+     V8.WasmDecodeModulePeakMemoryBytes)                                 \
+  HM(wasm_compile_function_peak_memory_bytes,                            \
+     V8.WasmCompileFunctionPeakMemoryBytes)                              \
+  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
+  HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount)              \
+  HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount)             \
+  HM(wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount)                  \
+  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
+  HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes)             \
+  HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes)            \
   HM(wasm_module_size_bytes, V8.WasmModuleSizeBytes)
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
@@ -1031,46 +1035,46 @@ class RuntimeCallTimerScope {
 // lines) rather than one macro (of length about 80 lines) to work around
 // this problem.  Please avoid using recursive macros of this length when
 // possible.
-#define STATS_COUNTER_LIST_1(SC)                                      \
-  /* Global Handle Count*/                                            \
-  SC(global_handles, V8.GlobalHandles)                                \
-  /* OS Memory allocated */                                           \
-  SC(memory_allocated, V8.OsMemoryAllocated)                          \
+#define STATS_COUNTER_LIST_1(SC)                                    \
+  /* Global Handle Count*/                                          \
+  SC(global_handles, V8.GlobalHandles)                              \
+  /* OS Memory allocated */                                         \
+  SC(memory_allocated, V8.OsMemoryAllocated)                        \
   SC(maps_normalized, V8.MapsNormalized)                            \
   SC(maps_created, V8.MapsCreated)                                  \
   SC(elements_transitions, V8.ObjectElementsTransitions)            \
-  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)            \
-  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)           \
-  SC(alive_after_last_gc, V8.AliveAfterLastGC)                        \
-  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                    \
-  SC(objs_since_last_full, V8.ObjsSinceLastFull)                      \
-  SC(string_table_capacity, V8.StringTableCapacity)                   \
-  SC(number_of_symbols, V8.NumberOfSymbols)                           \
-  SC(script_wrappers, V8.ScriptWrappers)                              \
-  SC(inlined_copied_elements, V8.InlinedCopiedElements)               \
-  SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
-  SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
-  SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
-  /* Amount of evaled source code. */                                 \
-  SC(total_eval_size, V8.TotalEvalSize)                               \
-  /* Amount of loaded source code. */                                 \
-  SC(total_load_size, V8.TotalLoadSize)                               \
-  /* Amount of parsed source code. */                                 \
-  SC(total_parse_size, V8.TotalParseSize)                             \
-  /* Amount of source code skipped over using preparsing. */          \
-  SC(total_preparse_skipped, V8.TotalPreparseSkipped)                 \
-  /* Amount of compiled source code. */                               \
-  SC(total_compile_size, V8.TotalCompileSize)                         \
-  /* Amount of source code compiled with the full codegen. */         \
-  SC(total_full_codegen_source_size, V8.TotalFullCodegenSourceSize)   \
-  /* Number of contexts created from scratch. */                      \
-  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)    \
-  /* Number of contexts created by partial snapshot. */               \
-  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)      \
-  /* Number of code objects found from pc. */                         \
-  SC(pc_to_code, V8.PcToCode)                                         \
-  SC(pc_to_code_cached, V8.PcToCodeCached)                            \
-  /* The store-buffer implementation of the write barrier. */         \
+  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)          \
+  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)         \
+  SC(alive_after_last_gc, V8.AliveAfterLastGC)                      \
+  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                  \
+  SC(objs_since_last_full, V8.ObjsSinceLastFull)                    \
+  SC(string_table_capacity, V8.StringTableCapacity)                 \
+  SC(number_of_symbols, V8.NumberOfSymbols)                         \
+  SC(script_wrappers, V8.ScriptWrappers)                            \
+  SC(inlined_copied_elements, V8.InlinedCopiedElements)             \
+  SC(arguments_adaptors, V8.ArgumentsAdaptors)                      \
+  SC(compilation_cache_hits, V8.CompilationCacheHits)               \
+  SC(compilation_cache_misses, V8.CompilationCacheMisses)           \
+  /* Amount of evaled source code. */                               \
+  SC(total_eval_size, V8.TotalEvalSize)                             \
+  /* Amount of loaded source code. */                               \
+  SC(total_load_size, V8.TotalLoadSize)                             \
+  /* Amount of parsed source code. */                               \
+  SC(total_parse_size, V8.TotalParseSize)                           \
+  /* Amount of source code skipped over using preparsing. */        \
+  SC(total_preparse_skipped, V8.TotalPreparseSkipped)               \
+  /* Amount of compiled source code. */                             \
+  SC(total_compile_size, V8.TotalCompileSize)                       \
+  /* Amount of source code compiled with the full codegen. */       \
+  SC(total_full_codegen_source_size, V8.TotalFullCodegenSourceSize) \
+  /* Number of contexts created from scratch. */                    \
+  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)  \
+  /* Number of contexts created by partial snapshot. */             \
+  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)    \
+  /* Number of code objects found from pc. */                       \
+  SC(pc_to_code, V8.PcToCode)                                       \
+  SC(pc_to_code_cached, V8.PcToCodeCached)                          \
+  /* The store-buffer implementation of the write barrier. */       \
   SC(store_buffer_overflows, V8.StoreBufferOverflows)
 
 #define STATS_COUNTER_LIST_2(SC)                                               \
