@@ -1953,36 +1953,40 @@ Simulator::TransactionSize Simulator::get_transaction_size(unsigned size) {
 }
 
 void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
-  unsigned rs = instr->Rs();
   unsigned rt = instr->Rt();
   unsigned rn = instr->Rn();
   LoadStoreAcquireReleaseOp op = static_cast<LoadStoreAcquireReleaseOp>(
       instr->Mask(LoadStoreAcquireReleaseMask));
   int32_t is_acquire_release = instr->LoadStoreXAcquireRelease();
-  int32_t is_not_exclusive = instr->LoadStoreXNotExclusive();
+  int32_t is_exclusive = (instr->LoadStoreXNotExclusive() == 0);
   int32_t is_load = instr->LoadStoreXLoad();
   int32_t is_pair = instr->LoadStoreXPair();
   USE(is_acquire_release);
-  USE(is_not_exclusive);
   USE(is_pair);
-  DCHECK_NE(is_acquire_release, 0);
-  DCHECK_EQ(is_not_exclusive, 0);  // Non exclusive unimplemented.
-  DCHECK_EQ(is_pair, 0);           // Pair unimplemented.
+  DCHECK_NE(is_acquire_release, 0);  // Non-acquire/release unimplemented.
+  DCHECK_EQ(is_pair, 0);             // Pair unimplemented.
   unsigned access_size = 1 << instr->LoadStoreXSizeLog2();
   uintptr_t address = LoadStoreAddress(rn, 0, AddrMode::Offset);
-  DCHECK(address % access_size == 0);
+  DCHECK_EQ(address % access_size, 0);
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
   if (is_load != 0) {
-    local_monitor_.NotifyLoadExcl(address, get_transaction_size(access_size));
-    global_monitor_.Pointer()->NotifyLoadExcl_Locked(
-        address, &global_monitor_processor_);
+    if (is_exclusive) {
+      local_monitor_.NotifyLoadExcl(address, get_transaction_size(access_size));
+      global_monitor_.Pointer()->NotifyLoadExcl_Locked(
+          address, &global_monitor_processor_);
+    } else {
+      local_monitor_.NotifyLoad(address);
+    }
     switch (op) {
+      case LDAR_b:
       case LDAXR_b:
         set_wreg_no_log(rt, MemoryRead<uint8_t>(address));
         break;
+      case LDAR_h:
       case LDAXR_h:
         set_wreg_no_log(rt, MemoryRead<uint16_t>(address));
         break;
+      case LDAR_w:
       case LDAXR_w:
         set_wreg_no_log(rt, MemoryRead<uint32_t>(address));
         break;
@@ -1991,27 +1995,47 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
     }
     LogRead(address, access_size, rt);
   } else {
-    if (local_monitor_.NotifyStoreExcl(address,
-                                       get_transaction_size(access_size)) &&
-        global_monitor_.Pointer()->NotifyStoreExcl_Locked(
-            address, &global_monitor_processor_)) {
+    if (is_exclusive) {
+      unsigned rs = instr->Rs();
+      if (local_monitor_.NotifyStoreExcl(address,
+                                         get_transaction_size(access_size)) &&
+          global_monitor_.Pointer()->NotifyStoreExcl_Locked(
+              address, &global_monitor_processor_)) {
+        switch (op) {
+          case STLXR_b:
+            MemoryWrite<uint8_t>(address, wreg(rt));
+            break;
+          case STLXR_h:
+            MemoryWrite<uint16_t>(address, wreg(rt));
+            break;
+          case STLXR_w:
+            MemoryWrite<uint32_t>(address, wreg(rt));
+            break;
+          default:
+            UNIMPLEMENTED();
+        }
+        LogWrite(address, access_size, rt);
+        set_wreg(rs, 0);
+      } else {
+        set_wreg(rs, 1);
+      }
+    } else {
+      local_monitor_.NotifyStore(address);
+      global_monitor_.Pointer()->NotifyStore_Locked(address,
+                                                    &global_monitor_processor_);
       switch (op) {
-        case STLXR_b:
+        case STLR_b:
           MemoryWrite<uint8_t>(address, wreg(rt));
           break;
-        case STLXR_h:
+        case STLR_h:
           MemoryWrite<uint16_t>(address, wreg(rt));
           break;
-        case STLXR_w:
+        case STLR_w:
           MemoryWrite<uint32_t>(address, wreg(rt));
           break;
         default:
           UNIMPLEMENTED();
       }
-      LogWrite(address, access_size, rt);
-      set_wreg(rs, 0);
-    } else {
-      set_wreg(rs, 1);
     }
   }
 }

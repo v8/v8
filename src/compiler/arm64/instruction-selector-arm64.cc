@@ -2667,8 +2667,12 @@ void InstructionSelector::VisitAtomicLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  Emit(opcode | AddressingModeField::encode(kMode_MRR),
-       g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index)};
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand temps[] = {g.TempRegister()};
+  InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR);
+  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+       arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitAtomicStore(Node* node) {
@@ -2700,7 +2704,8 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   inputs[input_count++] = g.UseUniqueRegister(index);
   inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 0, nullptr, input_count, inputs);
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(code, 0, nullptr, input_count, inputs, arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitAtomicExchange(Node* node) {
@@ -2733,10 +2738,9 @@ void InstructionSelector::VisitAtomicExchange(Node* node) {
   inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionOperand outputs[1];
   outputs[0] = g.UseUniqueRegister(node);
-  InstructionOperand temp[2];
-  temp[0] = g.TempRegister();
+  InstructionOperand temps[] = {g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 1, outputs, input_count, inputs, 1, temp);
+  Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitAtomicCompareExchange(Node* node) {

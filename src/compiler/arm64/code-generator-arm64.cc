@@ -518,19 +518,16 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     }                                                                       \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                       \
-  do {                                                                \
-    __ asm_instr(i.OutputRegister(),                                  \
-                 MemOperand(i.InputRegister(0), i.InputRegister(1))); \
-    __ Dmb(InnerShareable, BarrierAll);                               \
+#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                        \
+  do {                                                                 \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ asm_instr(i.OutputRegister32(), i.TempRegister(0));             \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)                      \
-  do {                                                                \
-    __ Dmb(InnerShareable, BarrierAll);                               \
-    __ asm_instr(i.InputRegister(2),                                  \
-                 MemOperand(i.InputRegister(0), i.InputRegister(1))); \
-    __ Dmb(InnerShareable, BarrierAll);                               \
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)                       \
+  do {                                                                 \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ asm_instr(i.InputRegister32(2), i.TempRegister(0));             \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)      \
@@ -1635,33 +1632,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_CHECKED_STORE_FLOAT(64);
       break;
     case kAtomicLoadInt8:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldrsb);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb);
+      __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicLoadUint8:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldrb);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb);
       break;
     case kAtomicLoadInt16:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldrsh);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarh);
+      __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicLoadUint16:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldrh);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarh);
       break;
     case kAtomicLoadWord32:
-      __ Ldr(i.OutputRegister32(),
-             MemOperand(i.InputRegister(0), i.InputRegister(1)));
-      __ Dmb(InnerShareable, BarrierAll);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldar);
       break;
     case kAtomicStoreWord8:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(Strb);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Stlrb);
       break;
     case kAtomicStoreWord16:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(Strh);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Stlrh);
       break;
     case kAtomicStoreWord32:
-      __ Dmb(InnerShareable, BarrierAll);
-      __ Str(i.InputRegister32(2),
-             MemOperand(i.InputRegister(0), i.InputRegister(1)));
-      __ Dmb(InnerShareable, BarrierAll);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Stlr);
       break;
     case kAtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrb, stlxrb);

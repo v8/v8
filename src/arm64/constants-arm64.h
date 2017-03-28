@@ -864,7 +864,7 @@ enum LoadStoreRegisterOffset {
   #undef LOAD_STORE_REGISTER_OFFSET
 };
 
-// Load/store acquire/release
+// Load/store acquire/release.
 enum LoadStoreAcquireReleaseOp {
   LoadStoreAcquireReleaseFixed = 0x08000000,
   LoadStoreAcquireReleaseFMask = 0x3F000000,
