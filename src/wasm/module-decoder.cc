@@ -1196,7 +1196,9 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
                                   const byte* function_start,
                                   const byte* function_end) {
   HistogramTimerScope wasm_decode_function_time_scope(
-      isolate->counters()->wasm_decode_function_time());
+      module_env->module_env.is_wasm()
+          ? isolate->counters()->wasm_decode_wasm_function_time()
+          : isolate->counters()->wasm_decode_asm_function_time());
   size_t size = function_end - function_start;
   if (function_start > function_end) return FunctionError("start > end");
   if (size > kV8MaxWasmFunctionSize)

@@ -968,8 +968,11 @@ class RuntimeCallTimerScope {
      MICROSECOND)                                                              \
   HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds, 1000000,   \
      MICROSECOND)                                                              \
-  HT(wasm_decode_function_time, V8.WasmDecodeFunctionMicroSeconds, 1000000,    \
-     MICROSECOND)                                                              \
+  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
+  HT(wasm_decode_asm_function_time, V8.WasmDecodeFunctionMicroSeconds,         \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds,        \
+     1000000, MICROSECOND)                                                     \
   /* TODO(kschimpf) Update chrome flags to reflect asm/wasm split. */          \
   HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds, 1000000,  \
      MICROSECOND)                                                              \

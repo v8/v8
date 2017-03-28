@@ -334,7 +334,8 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
     return &module->function_tables[index];
   }
 
-  bool asm_js() { return module->is_asm_js(); }
+  bool is_asm_js() const { return module->is_asm_js(); }
+  bool is_wasm() const { return module->is_wasm(); }
 
   // Only used for testing.
   Handle<Code> GetFunctionCode(uint32_t index) {
