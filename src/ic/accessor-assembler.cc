@@ -1055,11 +1055,12 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
 }
 
 void AccessorAssembler::ExtendPropertiesBackingStore(Node* object) {
-  Node* properties = LoadProperties(object);
-  Node* length = LoadFixedArrayBaseLength(properties);
-
   ParameterMode mode = OptimalParameterMode();
-  length = TaggedToParameter(length, mode);
+
+  Node* properties = LoadProperties(object);
+  Node* length = (mode == INTPTR_PARAMETERS)
+                     ? LoadAndUntagFixedArrayBaseLength(properties)
+                     : LoadFixedArrayBaseLength(properties);
 
   Node* delta = IntPtrOrSmiConstant(JSObject::kFieldsAdded, mode);
   Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
