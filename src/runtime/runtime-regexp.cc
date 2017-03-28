@@ -19,14 +19,45 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+// Looks up the capture of the given name. Returns the (1-based) numbered
+// capture index or -1 on failure.
+int LookupNamedCapture(std::function<bool(String*)> name_matches,
+                       FixedArray* capture_name_map) {
+  // TODO(jgruber): Sort capture_name_map and do binary search via
+  // internalized strings.
+
+  int maybe_capture_index = -1;
+  const int named_capture_count = capture_name_map->length() >> 1;
+  for (int j = 0; j < named_capture_count; j++) {
+    // The format of {capture_name_map} is documented at
+    // JSRegExp::kIrregexpCaptureNameMapIndex.
+    const int name_ix = j * 2;
+    const int index_ix = j * 2 + 1;
+
+    String* capture_name = String::cast(capture_name_map->get(name_ix));
+    if (!name_matches(capture_name)) continue;
+
+    maybe_capture_index = Smi::cast(capture_name_map->get(index_ix))->value();
+    break;
+  }
+
+  return maybe_capture_index;
+}
+
+}  // namespace
+
 class CompiledReplacement {
  public:
   explicit CompiledReplacement(Zone* zone)
       : parts_(1, zone), replacement_substrings_(0, zone), zone_(zone) {}
 
-  // Return whether the replacement is simple.
-  bool Compile(Handle<String> replacement, int capture_count,
-               int subject_length);
+  // Return whether the replacement is simple. Can also fail and return Nothing
+  // if the given replacement string is invalid (and requires throwing a
+  // SyntaxError).
+  Maybe<bool> Compile(Handle<JSRegExp> regexp, Handle<String> replacement,
+                      int capture_count, int subject_length);
 
   // Use Apply only if Compile returned false.
   void Apply(ReplacementStringBuilder* builder, int match_from, int match_to,
@@ -44,6 +75,7 @@ class CompiledReplacement {
     SUBJECT_CAPTURE,
     REPLACEMENT_SUBSTRING,
     REPLACEMENT_STRING,
+    EMPTY,
     NUMBER_OF_PART_TYPES
   };
 
@@ -68,6 +100,7 @@ class CompiledReplacement {
       DCHECK(to > from);
       return ReplacementPart(-from, to);
     }
+    static inline ReplacementPart Empty() { return ReplacementPart(EMPTY, 0); }
 
     // If tag <= 0 then it is the negation of a start index of a substring of
     // the replacement pattern, otherwise it's a value from PartType.
@@ -80,7 +113,8 @@ class CompiledReplacement {
     int tag;
     // The data value's interpretation depends on the value of tag:
     // tag == SUBJECT_PREFIX ||
-    // tag == SUBJECT_SUFFIX:  data is unused.
+    // tag == SUBJECT_SUFFIX ||
+    // tag == EMPTY:  data is unused.
     // tag == SUBJECT_CAPTURE: data is the number of the capture.
     // tag == REPLACEMENT_SUBSTRING ||
     // tag == REPLACEMENT_STRING:    data is index into array of substrings
@@ -93,9 +127,17 @@ class CompiledReplacement {
   };
 
   template <typename Char>
-  bool ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
-                               Vector<Char> characters, int capture_count,
-                               int subject_length, Zone* zone) {
+  Maybe<bool> ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
+                                      Vector<Char> characters,
+                                      FixedArray* capture_name_map,
+                                      int capture_count, int subject_length,
+                                      Zone* zone) {
+    // Equivalent to String::GetSubstitution, except that this method converts
+    // the replacement string into an internal representation that avoids
+    // repeated parsing when used repeatedly.
+    DCHECK_IMPLIES(capture_name_map != nullptr,
+                   FLAG_harmony_regexp_named_captures);
+
     int length = characters.length();
     int last = 0;
     for (int i = 0; i < length; i++) {
@@ -183,6 +225,60 @@ class CompiledReplacement {
             i = next_index;
             break;
           }
+          case '<': {
+            if (capture_name_map == nullptr) {
+              i = next_index;
+              break;
+            }
+
+            // Scan until the next '>', throwing a SyntaxError exception if one
+            // is not found, and let the enclosed substring be groupName.
+
+            const int name_start_index = next_index + 1;
+            int closing_bracket_index = -1;
+            for (int j = name_start_index; j < length; j++) {
+              if (characters[j] == '>') {
+                closing_bracket_index = j;
+                break;
+              }
+            }
+
+            // Throw a SyntaxError for invalid replacement strings.
+            if (closing_bracket_index == -1) return Nothing<bool>();
+
+            Vector<Char> requested_name =
+                characters.SubVector(name_start_index, closing_bracket_index);
+
+            // Let capture be ? Get(namedCaptures, groupName).
+
+            int capture_index = LookupNamedCapture(
+                [=](String* capture_name) {
+                  return capture_name->IsEqualTo(requested_name);
+                },
+                capture_name_map);
+
+            // If capture is undefined, replace the text through the following
+            // '>' with the empty string.
+            // Otherwise, replace the text through the following '>' with
+            // ? ToString(capture).
+
+            DCHECK_IMPLIES(
+                capture_index != -1,
+                1 <= capture_index && capture_index <= capture_count);
+
+            ReplacementPart replacement =
+                (capture_index == -1)
+                    ? ReplacementPart::Empty()
+                    : ReplacementPart::SubjectCapture(capture_index);
+
+            if (i > last) {
+              parts->Add(ReplacementPart::ReplacementSubString(last, i), zone);
+            }
+            parts->Add(replacement, zone);
+            last = closing_bracket_index + 1;
+            i = closing_bracket_index;
+            break;
+          }
           default:
             i = next_index;
             break;
@@ -192,12 +288,12 @@ class CompiledReplacement {
     if (length > last) {
       if (last == 0) {
         // Replacement is simple.  Do not use Apply to do the replacement.
-        return true;
+        return Just(true);
       } else {
         parts->Add(ReplacementPart::ReplacementSubString(last, length), zone);
       }
     }
-    return false;
+    return Just(false);
   }
 
   ZoneList<ReplacementPart> parts_;
@@ -205,23 +301,37 @@ class CompiledReplacement {
   Zone* zone_;
 };
 
-
-bool CompiledReplacement::Compile(Handle<String> replacement, int capture_count,
-                                  int subject_length) {
+Maybe<bool> CompiledReplacement::Compile(Handle<JSRegExp> regexp,
+                                         Handle<String> replacement,
+                                         int capture_count,
+                                         int subject_length) {
   {
     DisallowHeapAllocation no_gc;
     String::FlatContent content = replacement->GetFlatContent();
     DCHECK(content.IsFlat());
-    bool simple = false;
+
+    FixedArray* capture_name_map = nullptr;
+    if (capture_count > 0) {
+      DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
+      Object* maybe_capture_name_map = regexp->CaptureNameMap();
+      if (maybe_capture_name_map->IsFixedArray()) {
+        DCHECK(FLAG_harmony_regexp_named_captures);
+        capture_name_map = FixedArray::cast(maybe_capture_name_map);
+      }
+    }
+
+    Maybe<bool> simple = Nothing<bool>();
     if (content.IsOneByte()) {
       simple = ParseReplacementPattern(&parts_, content.ToOneByteVector(),
-                                       capture_count, subject_length, zone());
+                                       capture_name_map, capture_count,
+                                       subject_length, zone());
     } else {
       DCHECK(content.IsTwoByte());
       simple = ParseReplacementPattern(&parts_, content.ToUC16Vector(),
-                                       capture_count, subject_length, zone());
+                                       capture_name_map, capture_count,
+                                       subject_length, zone());
     }
-    if (simple) return true;
+    if (simple.IsNothing() || simple.FromJust()) return simple;
   }
 
   Isolate* isolate = replacement->GetIsolate();
@@ -243,7 +353,7 @@ bool CompiledReplacement::Compile(Handle<String> replacement, int capture_count,
       substring_index++;
     }
   }
-  return false;
+  return Just(false);
 }
 
 
@@ -275,6 +385,8 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
       case REPLACEMENT_SUBSTRING:
       case REPLACEMENT_STRING:
         builder->AddString(replacement_substrings_[part.data]);
+        break;
+      case EMPTY:
         break;
       default:
         UNREACHABLE();
@@ -491,14 +603,27 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   int capture_count = regexp->CaptureCount();
   int subject_length = subject->length();
 
+  JSRegExp::Type typeTag = regexp->TypeTag();
+  if (typeTag == JSRegExp::IRREGEXP) {
+    // Ensure the RegExp is compiled so we can access the capture-name map.
+    RegExpImpl::IrregexpPrepare(regexp, subject);
+  }
+
   // CompiledReplacement uses zone allocation.
   Zone zone(isolate->allocator(), ZONE_NAME);
   CompiledReplacement compiled_replacement(&zone);
-  bool simple_replace =
-      compiled_replacement.Compile(replacement, capture_count, subject_length);
+  Maybe<bool> maybe_simple_replace = compiled_replacement.Compile(
+      regexp, replacement, capture_count, subject_length);
+  if (maybe_simple_replace.IsNothing()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(MessageTemplate::kRegExpInvalidReplaceString,
+                                replacement));
+  }
+
+  const bool simple_replace = maybe_simple_replace.FromJust();
 
   // Shortcut for simple non-regexp global replacements
-  if (regexp->TypeTag() == JSRegExp::ATOM && simple_replace) {
+  if (typeTag == JSRegExp::ATOM && simple_replace) {
     if (subject->HasOnlyOneByteChars() && replacement->HasOnlyOneByteChars()) {
       return StringReplaceGlobalAtomRegExpWithString<SeqOneByteString>(
           isolate, subject, regexp, replacement, last_match_info);
@@ -649,7 +774,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   Heap* heap = isolate->heap();
 
   // The trimming is performed on a newly allocated object, which is on a
-  // fresly allocated page or on an already swept page. Hence, the sweeper
+  // freshly allocated page or on an already swept page. Hence, the sweeper
   // thread can not get confused with the filler creation. No synchronization
   // needed.
   // TODO(hpayer): We should shrink the large object page if the size
@@ -843,21 +968,26 @@ namespace {
 
 class MatchInfoBackedMatch : public String::Match {
  public:
-  MatchInfoBackedMatch(Isolate* isolate, Handle<String> subject,
+  MatchInfoBackedMatch(Isolate* isolate, Handle<JSRegExp> regexp,
+                       Handle<String> subject,
                        Handle<RegExpMatchInfo> match_info)
       : isolate_(isolate), match_info_(match_info) {
     subject_ = String::Flatten(subject);
+
+    if (regexp->TypeTag() == JSRegExp::IRREGEXP) {
+      Object* o = regexp->CaptureNameMap();
+      has_named_captures_ = o->IsFixedArray();
+      if (has_named_captures_) {
+        DCHECK(FLAG_harmony_regexp_named_captures);
+        capture_name_map_ = handle(FixedArray::cast(o));
+      }
+    } else {
+      has_named_captures_ = false;
+    }
   }
 
   Handle<String> GetMatch() override {
     return RegExpUtils::GenericCaptureGetter(isolate_, match_info_, 0, nullptr);
-  }
-
-  MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
-    Handle<Object> capture_obj = RegExpUtils::GenericCaptureGetter(
-        isolate_, match_info_, i, capture_exists);
-    return (*capture_exists) ? Object::ToString(isolate_, capture_obj)
-                             : isolate_->factory()->empty_string();
   }
 
   Handle<String> GetPrefix() override {
@@ -871,41 +1001,62 @@ class MatchInfoBackedMatch : public String::Match {
                                              subject_->length());
   }
 
+  bool HasNamedCaptures() override { return has_named_captures_; }
+
   int CaptureCount() override {
     return match_info_->NumberOfCaptureRegisters() / 2;
   }
 
-  virtual ~MatchInfoBackedMatch() {}
+  MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
+    Handle<Object> capture_obj = RegExpUtils::GenericCaptureGetter(
+        isolate_, match_info_, i, capture_exists);
+    return (*capture_exists) ? Object::ToString(isolate_, capture_obj)
+                             : isolate_->factory()->empty_string();
+  }
+
+  MaybeHandle<String> GetNamedCapture(Handle<String> name,
+                                      bool* capture_exists) override {
+    DCHECK(has_named_captures_);
+    const int capture_index = LookupNamedCapture(
+        [=](String* capture_name) { return capture_name->Equals(*name); },
+        *capture_name_map_);
+
+    if (capture_index == -1) {
+      *capture_exists = false;
+      return name;  // Arbitrary string handle.
+    }
+
+    DCHECK(1 <= capture_index && capture_index <= CaptureCount());
+    return GetCapture(capture_index, capture_exists);
+  }
 
  private:
   Isolate* isolate_;
   Handle<String> subject_;
   Handle<RegExpMatchInfo> match_info_;
+
+  bool has_named_captures_;
+  Handle<FixedArray> capture_name_map_;
 };
 
 class VectorBackedMatch : public String::Match {
  public:
   VectorBackedMatch(Isolate* isolate, Handle<String> subject,
                     Handle<String> match, int match_position,
-                    std::vector<Handle<Object>>* captures)
+                    std::vector<Handle<Object>>* captures,
+                    Handle<Object> groups_obj)
       : isolate_(isolate),
         match_(match),
         match_position_(match_position),
         captures_(captures) {
     subject_ = String::Flatten(subject);
+
+    DCHECK(groups_obj->IsUndefined(isolate) || groups_obj->IsJSReceiver());
+    has_named_captures_ = !groups_obj->IsUndefined(isolate);
+    if (has_named_captures_) groups_obj_ = Handle<JSReceiver>::cast(groups_obj);
   }
 
   Handle<String> GetMatch() override { return match_; }
-
-  MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
-    Handle<Object> capture_obj = captures_->at(i);
-    if (capture_obj->IsUndefined(isolate_)) {
-      *capture_exists = false;
-      return isolate_->factory()->empty_string();
-    }
-    *capture_exists = true;
-    return Object::ToString(isolate_, capture_obj);
-  }
 
   Handle<String> GetPrefix() override {
     return isolate_->factory()->NewSubString(subject_, 0, match_position_);
@@ -917,9 +1068,34 @@ class VectorBackedMatch : public String::Match {
                                              subject_->length());
   }
 
+  bool HasNamedCaptures() override { return has_named_captures_; }
+
   int CaptureCount() override { return static_cast<int>(captures_->size()); }
 
-  virtual ~VectorBackedMatch() {}
+  MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
+    Handle<Object> capture_obj = captures_->at(i);
+    if (capture_obj->IsUndefined(isolate_)) {
+      *capture_exists = false;
+      return isolate_->factory()->empty_string();
+    }
+    *capture_exists = true;
+    return Object::ToString(isolate_, capture_obj);
+  }
+
+  MaybeHandle<String> GetNamedCapture(Handle<String> name,
+                                      bool* capture_exists) override {
+    DCHECK(has_named_captures_);
+    Handle<Object> capture_obj;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_obj,
+                               Object::GetProperty(groups_obj_, name), String);
+    if (capture_obj->IsUndefined(isolate_)) {
+      *capture_exists = false;
+      return name;
+    } else {
+      *capture_exists = true;
+      return Object::ToString(isolate_, capture_obj);
+    }
+  }
 
  private:
   Isolate* isolate_;
@@ -927,6 +1103,9 @@ class VectorBackedMatch : public String::Match {
   Handle<String> match_;
   const int match_position_;
   std::vector<Handle<Object>>* captures_;
+
+  bool has_named_captures_;
+  Handle<JSReceiver> groups_obj_;
 };
 
 // Create the groups object (see also the RegExp result creation in
@@ -1072,6 +1251,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
         elements->set(cursor++, *subject);
 
         if (has_named_captures) {
+          DCHECK(FLAG_harmony_regexp_named_captures);
           Handle<FixedArray> capture_map =
               Handle<FixedArray>::cast(maybe_capture_map);
           Handle<JSObject> groups = ConstructNamedCaptureGroupsObject(
@@ -1183,7 +1363,7 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
     builder.AppendString(factory->NewSubString(string, 0, start_index));
 
     if (replace->length() > 0) {
-      MatchInfoBackedMatch m(isolate, string, match_indices);
+      MatchInfoBackedMatch m(isolate, regexp, string, match_indices);
       Handle<String> replacement;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, replacement,
                                  String::GetSubstitution(isolate, &m, replace),
@@ -1316,6 +1496,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
 
     Object* maybe_capture_map = regexp->CaptureNameMap();
     if (maybe_capture_map->IsFixedArray()) {
+      DCHECK(FLAG_harmony_regexp_named_captures);
       has_named_captures = true;
       capture_map = handle(FixedArray::cast(maybe_capture_map));
     }
@@ -1703,7 +1884,13 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
           isolate, replacement, Object::ToString(isolate, replacement_obj));
     } else {
       DCHECK(!functional_replace);
-      VectorBackedMatch m(isolate, string, match, position, &captures);
+      if (!groups_obj->IsUndefined(isolate)) {
+        // TODO(jgruber): Behavior in this case is not yet specced.
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+            isolate, groups_obj, JSReceiver::ToObject(isolate, groups_obj));
+      }
+      VectorBackedMatch m(isolate, string, match, position, &captures,
+                          groups_obj);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, replacement, String::GetSubstitution(isolate, &m, replace));
     }
