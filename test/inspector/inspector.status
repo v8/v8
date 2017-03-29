@@ -3,10 +3,6 @@
 # found in the LICENSE file.
 
 [
-['mode == debug', {
-  # Issue 6168. Crash.
-  'runtime/await-promise': [SKIP],
-}],
 
 ##############################################################################
 ['variant != default', {

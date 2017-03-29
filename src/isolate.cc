@@ -1930,11 +1930,18 @@ bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
   Handle<FixedArray> deferred_promise_arr =
       Handle<FixedArray>::cast(deferred_promise);
   for (int i = 0; i < deferred_promise_arr->length(); i++) {
-    Handle<JSReceiver> queue_item(JSReceiver::cast(queue_arr->get(i)));
     Handle<JSReceiver> deferred_promise_item(
         JSReceiver::cast(deferred_promise_arr->get(i)));
-    if (PromiseHandlerCheck(isolate, queue_item, deferred_promise_item)) {
-      return true;
+    if (queue_arr->get(i)->IsSymbol()) {
+      if (InternalPromiseHasUserDefinedRejectHandler(
+              isolate, Handle<JSPromise>::cast(deferred_promise_item))) {
+        return true;
+      }
+    } else {
+      Handle<JSReceiver> queue_item(JSReceiver::cast(queue_arr->get(i)));
+      if (PromiseHandlerCheck(isolate, queue_item, deferred_promise_item)) {
+        return true;
+      }
     }
   }
 
