@@ -686,7 +686,8 @@ int main(int argc, char* argv[]) {
   task_runners.push_back(&backend_runner);
 
   for (int i = 1; i < argc; ++i) {
-    if (argv[i][0] == '-') break;
+    // Ignore unknown flags.
+    if (argv[i][0] == '-') continue;
 
     bool exists = false;
     v8::internal::Vector<const char> chars =
