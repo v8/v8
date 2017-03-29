@@ -157,107 +157,122 @@ void JSGenericLowering::LowerJSTypeOf(Node* node) {
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   const PropertyAccess& p = PropertyAccessOf(node->op());
-  Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
-  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-  node->InsertInput(zone(), 3, vector);
-  ReplaceWithStubCall(node, callable, flags);
+  if (outer_state->opcode() != IrOpcode::kFrameState) {
+    Callable callable = CodeFactory::KeyedLoadIC(isolate());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+    node->InsertInput(zone(), 3, vector);
+    ReplaceWithStubCall(node, callable, flags);
+  }
 }
 
 
 void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   NamedAccess const& p = NamedAccessOf(node->op());
-  Callable callable = CodeFactory::LoadICInOptimizedCode(isolate());
-  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-  node->InsertInput(zone(), 3, vector);
-  ReplaceWithStubCall(node, callable, flags);
+  if (outer_state->opcode() != IrOpcode::kFrameState) {
+    Callable callable = CodeFactory::LoadIC(isolate());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    Callable callable = CodeFactory::LoadICInOptimizedCode(isolate());
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+    node->InsertInput(zone(), 3, vector);
+    ReplaceWithStubCall(node, callable, flags);
+  }
 }
 
 
 void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   const LoadGlobalParameters& p = LoadGlobalParametersOf(node->op());
-  Callable callable =
-      CodeFactory::LoadGlobalICInOptimizedCode(isolate(), p.typeof_mode());
-  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
-  node->InsertInput(zone(), 2, vector);
-  ReplaceWithStubCall(node, callable, flags);
+  if (outer_state->opcode() != IrOpcode::kFrameState) {
+    Callable callable = CodeFactory::LoadGlobalIC(isolate(), p.typeof_mode());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    Callable callable =
+        CodeFactory::LoadGlobalICInOptimizedCode(isolate(), p.typeof_mode());
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+    node->InsertInput(zone(), 2, vector);
+    ReplaceWithStubCall(node, callable, flags);
+  }
 }
-
 
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* key = NodeProperties::GetValueInput(node, 1);
-  Node* value = NodeProperties::GetValueInput(node, 2);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   PropertyAccess const& p = PropertyAccessOf(node->op());
-  Callable callable =
-      CodeFactory::KeyedStoreICInOptimizedCode(isolate(), p.language_mode());
-  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
-  typedef StoreWithVectorDescriptor Descriptor;
-  node->InsertInputs(zone(), 0, 2);
-  node->ReplaceInput(Descriptor::kReceiver, receiver);
-  node->ReplaceInput(Descriptor::kName, key);
-  node->ReplaceInput(Descriptor::kValue, value);
-  node->ReplaceInput(Descriptor::kSlot,
-                     jsgraph()->SmiConstant(p.feedback().index()));
-  node->ReplaceInput(Descriptor::kVector, vector);
-  ReplaceWithStubCall(node, callable, flags);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  if (outer_state->opcode() != IrOpcode::kFrameState) {
+    Callable callable = CodeFactory::KeyedStoreIC(isolate(), p.language_mode());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    Callable callable =
+        CodeFactory::KeyedStoreICInOptimizedCode(isolate(), p.language_mode());
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+    node->InsertInput(zone(), 4, vector);
+    ReplaceWithStubCall(node, callable, flags);
+  }
 }
 
-
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* value = NodeProperties::GetValueInput(node, 1);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   NamedAccess const& p = NamedAccessOf(node->op());
-  Callable callable =
-      CodeFactory::StoreICInOptimizedCode(isolate(), p.language_mode());
-  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
-  typedef StoreWithVectorDescriptor Descriptor;
-  node->InsertInputs(zone(), 0, 3);
-  node->ReplaceInput(Descriptor::kReceiver, receiver);
-  node->ReplaceInput(Descriptor::kName, jsgraph()->HeapConstant(p.name()));
-  node->ReplaceInput(Descriptor::kValue, value);
-  node->ReplaceInput(Descriptor::kSlot,
-                     jsgraph()->SmiConstant(p.feedback().index()));
-  node->ReplaceInput(Descriptor::kVector, vector);
-  ReplaceWithStubCall(node, callable, flags);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  if (outer_state->opcode() != IrOpcode::kFrameState) {
+    Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    Callable callable =
+        CodeFactory::StoreICInOptimizedCode(isolate(), p.language_mode());
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+    node->InsertInput(zone(), 4, vector);
+    ReplaceWithStubCall(node, callable, flags);
+  }
 }
 
 void JSGenericLowering::LowerJSStoreNamedOwn(Node* node) {
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* value = NodeProperties::GetValueInput(node, 1);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   StoreNamedOwnParameters const& p = StoreNamedOwnParametersOf(node->op());
-  Callable callable = CodeFactory::StoreOwnICInOptimizedCode(isolate());
-  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
-  typedef StoreWithVectorDescriptor Descriptor;
-  node->InsertInputs(zone(), 0, 3);
-  node->ReplaceInput(Descriptor::kReceiver, receiver);
-  node->ReplaceInput(Descriptor::kName, jsgraph()->HeapConstant(p.name()));
-  node->ReplaceInput(Descriptor::kValue, value);
-  node->ReplaceInput(Descriptor::kSlot,
-                     jsgraph()->SmiConstant(p.feedback().index()));
-  node->ReplaceInput(Descriptor::kVector, vector);
-  ReplaceWithStubCall(node, callable, flags);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  if (outer_state->opcode() != IrOpcode::kFrameState) {
+    Callable callable = CodeFactory::StoreOwnIC(isolate());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    Callable callable = CodeFactory::StoreOwnICInOptimizedCode(isolate());
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+    node->InsertInput(zone(), 4, vector);
+    ReplaceWithStubCall(node, callable, flags);
+  }
 }
 
 void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
-  Node* value = NodeProperties::GetValueInput(node, 0);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  const StoreGlobalParameters& p = StoreGlobalParametersOf(node->op());
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  const StoreGlobalParameters& p = StoreGlobalParametersOf(node->op());
-  Callable callable =
-      CodeFactory::StoreGlobalICInOptimizedCode(isolate(), p.language_mode());
-  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
   // Load global object from the context.
   Node* native_context = effect =
       graph()->NewNode(machine()->Load(MachineType::AnyTagged()), context,
@@ -268,16 +283,21 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
       machine()->Load(MachineType::AnyTagged()), native_context,
       jsgraph()->IntPtrConstant(Context::SlotOffset(Context::EXTENSION_INDEX)),
       effect, control);
-  typedef StoreWithVectorDescriptor Descriptor;
-  node->InsertInputs(zone(), 0, 4);
-  node->ReplaceInput(Descriptor::kReceiver, global);
-  node->ReplaceInput(Descriptor::kName, jsgraph()->HeapConstant(p.name()));
-  node->ReplaceInput(Descriptor::kValue, value);
-  node->ReplaceInput(Descriptor::kSlot,
-                     jsgraph()->SmiConstant(p.feedback().index()));
-  node->ReplaceInput(Descriptor::kVector, vector);
-  node->ReplaceInput(7, effect);
-  ReplaceWithStubCall(node, callable, flags);
+  NodeProperties::ReplaceEffectInput(node, effect);
+  node->InsertInput(zone(), 0, global);
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  if (outer_state->opcode() != IrOpcode::kFrameState) {
+    Callable callable =
+        CodeFactory::StoreGlobalIC(isolate(), p.language_mode());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    Callable callable =
+        CodeFactory::StoreGlobalICInOptimizedCode(isolate(), p.language_mode());
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+    node->InsertInput(zone(), 4, vector);
+    ReplaceWithStubCall(node, callable, flags);
+  }
 }
 
 void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
