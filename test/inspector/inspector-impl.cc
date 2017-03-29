@@ -174,8 +174,10 @@ void InspectorClientImpl::connect(v8::Local<v8::Context> context) {
     sessions_[context_group_id] =
         inspector_->connect(context_group_id, channel_.get(), state);
     context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this);
-    inspector_->contextCreated(v8_inspector::V8ContextInfo(
-        context, context_group_id, v8_inspector::StringView()));
+    v8_inspector::V8ContextInfo info(context, context_group_id,
+                                     v8_inspector::StringView());
+    info.hasMemoryOnConsole = true;
+    inspector_->contextCreated(info);
   } else {
     for (const auto& it : states_) {
       int context_group_id = it.first;
@@ -185,8 +187,10 @@ void InspectorClientImpl::connect(v8::Local<v8::Context> context) {
       sessions_[context_group_id] =
           inspector_->connect(context_group_id, channel_.get(), state);
       context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this);
-      inspector_->contextCreated(v8_inspector::V8ContextInfo(
-          context, context_group_id, v8_inspector::StringView()));
+      v8_inspector::V8ContextInfo info(context, context_group_id,
+                                       v8_inspector::StringView());
+      info.hasMemoryOnConsole = true;
+      inspector_->contextCreated(info);
     }
   }
   states_.clear();
@@ -254,6 +258,17 @@ void InspectorClientImpl::setCurrentTimeMSForTest(double time) {
 double InspectorClientImpl::currentTimeMS() {
   if (current_time_set_for_test_) return current_time_;
   return v8::base::OS::TimeCurrentMillis();
+}
+
+void InspectorClientImpl::setMemoryInfoForTest(
+    v8::Local<v8::Value> memory_info) {
+  memory_info_.Reset(isolate_, memory_info);
+}
+
+v8::MaybeLocal<v8::Value> InspectorClientImpl::memoryInfo(
+    v8::Isolate* isolate, v8::Local<v8::Context>) {
+  if (memory_info_.IsEmpty()) return v8::MaybeLocal<v8::Value>();
+  return memory_info_.Get(isolate);
 }
 
 void InspectorClientImpl::runMessageLoopOnPause(int) {

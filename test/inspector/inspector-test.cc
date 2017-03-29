@@ -57,6 +57,7 @@ class UtilsExtension : public v8::Extension {
                       "native function load();"
                       "native function compileAndRunWithOrigin();"
                       "native function setCurrentTimeMSForTest();"
+                      "native function setMemoryInfoForTest();"
                       "native function schedulePauseOnNextStatement();"
                       "native function cancelPauseOnNextStatement();"
                       "native function reconnect();"
@@ -107,6 +108,13 @@ class UtilsExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate,
                                        UtilsExtension::SetCurrentTimeMSForTest);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "setMemoryInfoForTest",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate,
+                                       UtilsExtension::SetMemoryInfoForTest);
     } else if (name->Equals(context,
                             v8::String::NewFromUtf8(
                                 isolate, "schedulePauseOnNextStatement",
@@ -264,6 +272,15 @@ class UtilsExtension : public v8::Extension {
     }
     inspector_client_->setCurrentTimeMSForTest(
         args[0].As<v8::Number>()->Value());
+  }
+
+  static void SetMemoryInfoForTest(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1) {
+      fprintf(stderr, "Internal error: setMemoryInfoForTest(value).");
+      Exit();
+    }
+    inspector_client_->setMemoryInfoForTest(args[0]);
   }
 
   static void SchedulePauseOnNextStatement(

@@ -49,6 +49,8 @@ var utils = {};
   this.setlocale = null;
   utils.setCurrentTimeMSForTest = setCurrentTimeMSForTest;
   this.setCurrentTimeMSForTest = null;
+  utils.setMemoryInfoForTest = setMemoryInfoForTest;
+  this.setMemoryInfoForTest = null;
   utils.schedulePauseOnNextStatement = schedulePauseOnNextStatement;
   this.schedulePauseOnNextStatement = null;
   utils.cancelPauseOnNextStatement = cancelPauseOnNextStatement;
@@ -75,6 +77,8 @@ InspectorTest.logMessage = function(originalMessage)
     for (var key in object) {
       if (nonStableFields.has(key))
         object[key] = `<${key}>`;
+      else if (typeof object[key] === "string" && object[key].match(/\d+:\d+:\d+:debug/))
+        object[key] = object[key].replace(/\d+/, '<scriptId>');
       else if (typeof object[key] === "object")
         objects.push(object[key]);
     }
