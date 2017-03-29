@@ -1677,7 +1677,8 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
         current_function_builder_->Emit(kExprI32Mul);
         return AsmType::Intish();
       }
-      AsmType* b = UnaryExpression();
+      AsmType* b;
+      RECURSEn(b = UnaryExpression());
       if (a->IsA(AsmType::DoubleQ()) && b->IsA(AsmType::DoubleQ())) {
         current_function_builder_->Emit(kExprF64Mul);
         a = AsmType::Double();
@@ -1688,7 +1689,8 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
         FAILn("expected doubles or floats");
       }
     } else if (Check('/')) {
-      AsmType* b = MultiplicativeExpression();
+      AsmType* b;
+      RECURSEn(b = MultiplicativeExpression());
       if (a->IsA(AsmType::DoubleQ()) && b->IsA(AsmType::DoubleQ())) {
         current_function_builder_->Emit(kExprF64Div);
         a = AsmType::Double();
@@ -1705,7 +1707,8 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
         FAILn("expected doubles or floats");
       }
     } else if (Check('%')) {
-      AsmType* b = MultiplicativeExpression();
+      AsmType* b;
+      RECURSEn(b = MultiplicativeExpression());
       if (a->IsA(AsmType::DoubleQ()) && b->IsA(AsmType::DoubleQ())) {
         current_function_builder_->Emit(kExprF64Mod);
         a = AsmType::Double();
@@ -1727,11 +1730,13 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
 
 // 6.8.9 AdditiveExpression
 AsmType* AsmJsParser::AdditiveExpression() {
-  AsmType* a = MultiplicativeExpression();
+  AsmType* a;
+  RECURSEn(a = MultiplicativeExpression());
   int n = 0;
   for (;;) {
     if (Check('+')) {
-      AsmType* b = MultiplicativeExpression();
+      AsmType* b;
+      RECURSEn(b = MultiplicativeExpression());
       if (a->IsA(AsmType::Double()) && b->IsA(AsmType::Double())) {
         current_function_builder_->Emit(kExprF64Add);
         a = AsmType::Double();
@@ -1754,7 +1759,8 @@ AsmType* AsmJsParser::AdditiveExpression() {
         FAILn("illegal types for +");
       }
     } else if (Check('-')) {
-      AsmType* b = MultiplicativeExpression();
+      AsmType* b;
+      RECURSEn(b = MultiplicativeExpression());
       if (a->IsA(AsmType::Double()) && b->IsA(AsmType::Double())) {
         current_function_builder_->Emit(kExprF64Sub);
         a = AsmType::Double();

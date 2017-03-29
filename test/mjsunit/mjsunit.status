@@ -662,19 +662,12 @@
 ['variant == asm_wasm', {
   # Issue 6127: We won't fix these in the "old" validator. But we definitely
   # need to re-enable these for the "new" validator.
-  'compiler/regress-445859': [SKIP],
   'compiler/regress-452427': [SKIP],
-  'regress/regress-458987': [SKIP],
   'regress/regress-599719': [SKIP],
   'regress/regress-618608': [SKIP],
   'regress/regress-670808': [SKIP],
   'wasm/asm-wasm-exception-in-tonumber': [SKIP],
   'wasm/asm-wasm-stack': [SKIP],
-
-  # Issue 6127: Tiggers ASAN reports with "new" validator.
-  'asm/b5528-comma': [SKIP],
-  'asm/if-folding': [SKIP],
-  'asm/if-reduction': [SKIP],
 
   # Issue 6127: Breaks on no-snap bots.
   'es8/regress/regress-624300': [SKIP],
