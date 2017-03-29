@@ -1579,12 +1579,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_FLOAT_UNOP_RC(fneg, 0);
       break;
     case kPPC_Cntlz32:
-      __ cntlzw_(i.OutputRegister(), i.InputRegister(0));
+      __ cntlzw(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_Cntlz64:
-      __ cntlzd_(i.OutputRegister(), i.InputRegister(0));
+      __ cntlzd(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
 #endif

@@ -3736,7 +3736,7 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
 void LCodeGen::DoMathClz32(LMathClz32* instr) {
   Register input = ToRegister(instr->value());
   Register result = ToRegister(instr->result());
-  __ cntlzw_(result, input);
+  __ cntlzw(result, input);
 }
 
 void LCodeGen::PrepareForTailCall(const ParameterCount& actual,

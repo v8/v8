@@ -552,6 +552,106 @@ class Assembler : public AssemblerBase {
     return ((cr.code() * CRWIDTH) + crbit);
   }
 
+#define DECLARE_PPC_X_INSTRUCTIONS_A_FORM(name, instr_name, instr_value)    \
+  inline void name(const Register rt, const Register ra,                    \
+                   const Register rb, const RCBit rc = LeaveRC) {           \
+    x_form(instr_name, rt, ra, rb, rc);                                     \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_B_FORM(name, instr_name, instr_value)    \
+  inline void name(const Register ra, const Register rs,                    \
+                   const Register rb, const RCBit rc = LeaveRC) {           \
+    x_form(instr_name, rs, ra, rb, rc);                                     \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_C_FORM(name, instr_name, instr_value)    \
+  inline void name(const Register dst, const Register src,                  \
+                   const RCBit rc = LeaveRC) {                              \
+    x_form(instr_name, src, dst, r0, rc);                                   \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_D_FORM(name, instr_name, instr_value)    \
+  template <class R>                                                        \
+  inline void name(const R rt, const Register ra,                           \
+                   const Register rb, const RCBit rc = LeaveRC) {           \
+    DCHECK(!ra.is(r0));                                                     \
+    x_form(instr_name, rt.code(), ra.code(), rb.code(), rc);                \
+  }                                                                         \
+  template <class R>                                                        \
+  inline void name(const R dst, const MemOperand& src) {                    \
+    name(dst, src.ra(), src.rb());                                          \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_E_FORM(name, instr_name, instr_value)    \
+  inline void name(const Register dst, const Register src,                  \
+                   const int sh, const RCBit rc = LeaveRC) {                \
+    x_form(instr_name, src.code(), dst.code(), sh, rc);                     \
+  }
+
+#define DECLARE_PPC_X_INSTRUCTIONS_F_FORM(name, instr_name, instr_value)    \
+  inline void name(const Register src1, const Register src2,                \
+                   const CRegister cr = cr7, const RCBit rc = LeaveRC) {    \
+    x_form(instr_name, cr, src1, src2, rc);                                 \
+  }                                                                         \
+  inline void name##w(const Register src1, const Register src2,             \
+                      const CRegister cr = cr7, const RCBit rc = LeaveRC) { \
+    x_form(instr_name, cr.code() * B2, src1.code(), src2.code(), LeaveRC);  \
+  }
+
+  inline void x_form(Instr instr, int f1, int f2, int f3, int rc) {
+    emit(instr | f1 * B21 | f2 * B16 | f3 * B11 | rc);
+  }
+  inline void x_form(Instr instr, Register rs, Register ra, Register rb,
+                     RCBit rc) {
+    emit(instr | rs.code() * B21 | ra.code() * B16 | rb.code() * B11 | rc);
+  }
+  inline void x_form(Instr instr, CRegister cr, Register s1, Register s2,
+                     RCBit rc) {
+#if V8_TARGET_ARCH_PPC64
+    int L = 1;
+#else
+    int L = 0;
+#endif
+    emit(instr | cr.code() * B23 | L * B21 | s1.code() * B16 |
+         s2.code() * B11 | rc);
+  }
+
+  PPC_X_OPCODE_A_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_A_FORM)
+  PPC_X_OPCODE_B_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_B_FORM)
+  PPC_X_OPCODE_C_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_C_FORM)
+  PPC_X_OPCODE_D_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_D_FORM)
+  PPC_X_OPCODE_E_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_E_FORM)
+  PPC_X_OPCODE_F_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_F_FORM)
+
+  inline void notx(Register dst, Register src, RCBit rc = LeaveRC) {
+    nor(dst, src, src, rc);
+  }
+  inline void lwax(Register rt, const MemOperand& src) {
+#if V8_TARGET_ARCH_PPC64
+    Register ra = src.ra();
+    Register rb = src.rb();
+    DCHECK(!ra.is(r0));
+    x_form(LWAX, rt, ra, rb, LeaveRC);
+#else
+    lwzx(rt, src);
+#endif
+  }
+  inline void extsw(Register rs, Register ra, RCBit rc = LeaveRC) {
+#if V8_TARGET_ARCH_PPC64
+    emit(EXT2 | EXTSW | ra.code() * B21 | rs.code() * B16 | rc);
+#else
+    // nop on 32-bit
+    DCHECK(rs.is(ra) && rc == LeaveRC);
+#endif
+  }
+
+#undef DECLARE_PPC_X_INSTRUCTIONS_A_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_B_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_C_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_D_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_E_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_F_FORM
+
 #define DECLARE_PPC_XX3_INSTRUCTIONS(name, instr_name, instr_value)  \
   inline void name(const DoubleRegister rt, const DoubleRegister ra, \
                    const DoubleRegister rb) {                        \
@@ -849,26 +949,17 @@ class Assembler : public AssemblerBase {
             RCBit r = LeaveRC);
   void divwu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
-  void modsw(Register rt, Register ra, Register rb);
-  void moduw(Register rt, Register ra, Register rb);
 
   void addi(Register dst, Register src, const Operand& imm);
   void addis(Register dst, Register src, const Operand& imm);
   void addic(Register dst, Register src, const Operand& imm);
 
-  void and_(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
-  void andc(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
   void andi(Register ra, Register rs, const Operand& imm);
   void andis(Register ra, Register rs, const Operand& imm);
-  void nor(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
-  void notx(Register dst, Register src, RCBit r = LeaveRC);
   void ori(Register dst, Register src, const Operand& imm);
   void oris(Register dst, Register src, const Operand& imm);
-  void orx(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
-  void orc(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
   void xori(Register dst, Register src, const Operand& imm);
   void xoris(Register ra, Register rs, const Operand& imm);
-  void xor_(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
   void cmpi(Register src1, const Operand& src2, CRegister cr = cr7);
   void cmpli(Register src1, const Operand& src2, CRegister cr = cr7);
   void cmpwi(Register src1, const Operand& src2, CRegister cr = cr7);
@@ -878,48 +969,23 @@ class Assembler : public AssemblerBase {
   void mr(Register dst, Register src);
 
   void lbz(Register dst, const MemOperand& src);
-  void lbzx(Register dst, const MemOperand& src);
-  void lbzux(Register dst, const MemOperand& src);
   void lhz(Register dst, const MemOperand& src);
-  void lhzx(Register dst, const MemOperand& src);
-  void lhzux(Register dst, const MemOperand& src);
   void lha(Register dst, const MemOperand& src);
-  void lhax(Register dst, const MemOperand& src);
   void lwz(Register dst, const MemOperand& src);
   void lwzu(Register dst, const MemOperand& src);
-  void lwzx(Register dst, const MemOperand& src);
-  void lwzux(Register dst, const MemOperand& src);
   void lwa(Register dst, const MemOperand& src);
-  void lwax(Register dst, const MemOperand& src);
-  void ldbrx(Register dst, const MemOperand& src);
-  void lwbrx(Register dst, const MemOperand& src);
-  void lhbrx(Register dst, const MemOperand& src);
   void stb(Register dst, const MemOperand& src);
-  void stbx(Register dst, const MemOperand& src);
-  void stbux(Register dst, const MemOperand& src);
   void sth(Register dst, const MemOperand& src);
-  void sthx(Register dst, const MemOperand& src);
-  void sthux(Register dst, const MemOperand& src);
   void stw(Register dst, const MemOperand& src);
   void stwu(Register dst, const MemOperand& src);
-  void stwx(Register rs, const MemOperand& src);
-  void stwux(Register rs, const MemOperand& src);
-
-  void extsb(Register rs, Register ra, RCBit r = LeaveRC);
-  void extsh(Register rs, Register ra, RCBit r = LeaveRC);
-  void extsw(Register rs, Register ra, RCBit r = LeaveRC);
 
   void neg(Register rt, Register ra, OEBit o = LeaveOE, RCBit c = LeaveRC);
 
 #if V8_TARGET_ARCH_PPC64
   void ld(Register rd, const MemOperand& src);
-  void ldx(Register rd, const MemOperand& src);
   void ldu(Register rd, const MemOperand& src);
-  void ldux(Register rd, const MemOperand& src);
   void std(Register rs, const MemOperand& src);
-  void stdx(Register rs, const MemOperand& src);
   void stdu(Register rs, const MemOperand& src);
-  void stdux(Register rs, const MemOperand& src);
   void rldic(Register dst, Register src, int sh, int mb, RCBit r = LeaveRC);
   void rldicl(Register dst, Register src, int sh, int mb, RCBit r = LeaveRC);
   void rldcl(Register ra, Register rs, Register rb, int mb, RCBit r = LeaveRC);
@@ -932,22 +998,15 @@ class Assembler : public AssemblerBase {
   void clrldi(Register dst, Register src, const Operand& val,
               RCBit rc = LeaveRC);
   void sradi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
-  void srd(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
-  void sld(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
-  void srad(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void rotld(Register ra, Register rs, Register rb, RCBit r = LeaveRC);
   void rotldi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
   void rotrdi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
-  void cntlzd_(Register dst, Register src, RCBit rc = LeaveRC);
-  void popcntd(Register dst, Register src);
   void mulld(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
   void divd(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
             RCBit r = LeaveRC);
   void divdu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
-  void modsd(Register rt, Register ra, Register rb);
-  void modud(Register rt, Register ra, Register rb);
 #endif
 
   void rlwinm(Register ra, Register rs, int sh, int mb, int me,
@@ -962,23 +1021,11 @@ class Assembler : public AssemblerBase {
               RCBit rc = LeaveRC);
   void clrlwi(Register dst, Register src, const Operand& val,
               RCBit rc = LeaveRC);
-  void srawi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
-  void srw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
-  void slw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
-  void sraw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void rotlw(Register ra, Register rs, Register rb, RCBit r = LeaveRC);
   void rotlwi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
   void rotrwi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
 
-  void cntlzw_(Register dst, Register src, RCBit rc = LeaveRC);
-  void popcntw(Register dst, Register src);
-
   void subi(Register dst, Register src1, const Operand& src2);
-
-  void cmp(Register src1, Register src2, CRegister cr = cr7);
-  void cmpl(Register src1, Register src2, CRegister cr = cr7);
-  void cmpw(Register src1, Register src2, CRegister cr = cr7);
-  void cmplw(Register src1, Register src2, CRegister cr = cr7);
 
   void mov(Register dst, const Operand& src);
   void bitwise_mov(Register dst, intptr_t value);
@@ -1043,20 +1090,12 @@ class Assembler : public AssemblerBase {
   // Support for floating point
   void lfd(const DoubleRegister frt, const MemOperand& src);
   void lfdu(const DoubleRegister frt, const MemOperand& src);
-  void lfdx(const DoubleRegister frt, const MemOperand& src);
-  void lfdux(const DoubleRegister frt, const MemOperand& src);
   void lfs(const DoubleRegister frt, const MemOperand& src);
   void lfsu(const DoubleRegister frt, const MemOperand& src);
-  void lfsx(const DoubleRegister frt, const MemOperand& src);
-  void lfsux(const DoubleRegister frt, const MemOperand& src);
   void stfd(const DoubleRegister frs, const MemOperand& src);
   void stfdu(const DoubleRegister frs, const MemOperand& src);
-  void stfdx(const DoubleRegister frs, const MemOperand& src);
-  void stfdux(const DoubleRegister frs, const MemOperand& src);
   void stfs(const DoubleRegister frs, const MemOperand& src);
   void stfsu(const DoubleRegister frs, const MemOperand& src);
-  void stfsx(const DoubleRegister frs, const MemOperand& src);
-  void stfsux(const DoubleRegister frs, const MemOperand& src);
 
   void fadd(const DoubleRegister frt, const DoubleRegister fra,
             const DoubleRegister frb, RCBit rc = LeaveRC);
@@ -1420,7 +1459,6 @@ class Assembler : public AssemblerBase {
               DoubleRegister frb, RCBit r);
   void d_form(Instr instr, Register rt, Register ra, const intptr_t val,
               bool signed_disp);
-  void x_form(Instr instr, Register ra, Register rs, Register rb, RCBit r);
   void xo_form(Instr instr, Register rt, Register ra, Register rb, OEBit o,
                RCBit r);
   void md_form(Instr instr, Register ra, Register rs, int shift, int maskbit,
