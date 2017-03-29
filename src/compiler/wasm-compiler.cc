@@ -3890,6 +3890,23 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   return source_position_table;
 }
 
+namespace {
+Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
+  if (!name.is_empty()) {
+    return name;
+  }
+  constexpr int kBufferLength = 15;
+
+  EmbeddedVector<char, kBufferLength> name_vector;
+  int name_len = SNPrintF(name_vector, "wasm#%d", index);
+  DCHECK(name_len > 0 && name_len < name_vector.length());
+
+  char* index_name = zone->NewArray<char>(name_len);
+  memcpy(index_name, name_vector.start(), name_len);
+  return Vector<const char>(index_name, name_len);
+}
+}  // namespace
+
 WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
                                          wasm::ModuleBytesEnv* module_env,
                                          const wasm::WasmFunction* function)
@@ -3920,8 +3937,8 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
               InstructionSelector::SupportedMachineOperatorFlags(),
               InstructionSelector::AlignmentRequirements()))),
       compilation_zone_(isolate->allocator(), ZONE_NAME),
-      info_(name, isolate, &compilation_zone_,
-            Code::ComputeFlags(Code::WASM_FUNCTION)),
+      info_(GetDebugName(&compilation_zone_, name, index), isolate,
+            &compilation_zone_, Code::ComputeFlags(Code::WASM_FUNCTION)),
       func_index_(index),
       protected_instructions_(&compilation_zone_) {
   // Create and cache this node in the main thread.
