@@ -7541,6 +7541,12 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
                              should_throw);
   }
 
+  if (object->map()->has_named_interceptor() ||
+      object->map()->has_indexed_interceptor()) {
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kCannotPreventExt));
+  }
+
   if (!object->HasFixedTypedArrayElements()) {
     // If there are fast elements we normalize.
     Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
@@ -7699,6 +7705,25 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
     return PreventExtensionsWithTransition<attrs>(
         PrototypeIterator::GetCurrent<JSObject>(iter), should_throw);
+  }
+
+  if (object->map()->has_named_interceptor() ||
+      object->map()->has_indexed_interceptor()) {
+    MessageTemplate::Template message = MessageTemplate::kNone;
+    switch (attrs) {
+      case NONE:
+        message = MessageTemplate::kCannotPreventExt;
+        break;
+
+      case SEALED:
+        message = MessageTemplate::kCannotSeal;
+        break;
+
+      case FROZEN:
+        message = MessageTemplate::kCannotFreeze;
+        break;
+    }
+    RETURN_FAILURE(isolate, should_throw, NewTypeError(message));
   }
 
   Handle<SeededNumberDictionary> new_element_dictionary;

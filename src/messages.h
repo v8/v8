@@ -280,8 +280,10 @@ class ErrorUtils : public AllStatic {
   T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \
+  T(CannotFreeze, "Cannot freeze")                                             \
   T(CannotFreezeArrayBufferView,                                               \
     "Cannot freeze array buffer views with elements")                          \
+  T(CannotSeal, "Cannot seal")                                                 \
   T(CircularStructure, "Converting circular structure to JSON")                \
   T(ConstructAbstractClass, "Abstract class % not directly constructable")     \
   T(ConstAssign, "Assignment to constant variable.")                           \

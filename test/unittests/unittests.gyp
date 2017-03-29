@@ -10,6 +10,7 @@
     'unittests_sources': [  ### gcmole(all) ###
       'api/access-check-unittest.cc',
       'api/exception-unittest.cc',
+      'api/interceptor-unittest.cc',
       'api/isolate-unittest.cc',
       'api/remote-object-unittest.cc',
       'api/v8-object-unittest.cc',

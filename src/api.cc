@@ -4599,8 +4599,8 @@ Maybe<bool> v8::Object::SetIntegrityLevel(Local<Context> context,
   auto self = Utils::OpenHandle(this);
   i::JSReceiver::IntegrityLevel i_level =
       level == IntegrityLevel::kFrozen ? i::FROZEN : i::SEALED;
-  Maybe<bool> result =
-      i::JSReceiver::SetIntegrityLevel(self, i_level, i::Object::DONT_THROW);
+  Maybe<bool> result = i::JSReceiver::SetIntegrityLevel(
+      self, i_level, i::Object::THROW_ON_ERROR);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
