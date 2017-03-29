@@ -278,10 +278,13 @@ void Int64Lowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kReturn: {
+      int input_count = node->InputCount();
       DefaultLowering(node);
-      int new_return_count = GetReturnCountAfterLowering(signature());
-      if (static_cast<int>(signature()->return_count()) != new_return_count) {
-        NodeProperties::ChangeOp(node, common()->Return(new_return_count));
+      if (input_count != node->InputCount()) {
+        int new_return_count = GetReturnCountAfterLowering(signature());
+        if (static_cast<int>(signature()->return_count()) != new_return_count) {
+          NodeProperties::ChangeOp(node, common()->Return(new_return_count));
+        }
       }
       break;
     }
