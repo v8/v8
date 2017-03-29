@@ -131,6 +131,12 @@ enum FreeListCategoryType {
 
 enum FreeMode { kLinkCategory, kDoNotLinkCategory };
 
+enum RememberedSetType {
+  OLD_TO_NEW,
+  OLD_TO_OLD,
+  NUMBER_OF_REMEMBERED_SET_TYPES = OLD_TO_OLD + 1
+};
+
 // A free list category maintains a linked list of free memory blocks.
 class FreeListCategory {
  public:
@@ -334,17 +340,15 @@ class MemoryChunk {
       + kPointerSize      // Heap* heap_
       + kIntptrSize       // intptr_t progress_bar_
       + kIntptrSize       // intptr_t live_byte_count_
-      + kPointerSize      // SlotSet* old_to_new_slots_
-      + kPointerSize      // SlotSet* old_to_old_slots_
-      + kPointerSize      // TypedSlotSet* typed_old_to_new_slots_
-      + kPointerSize      // TypedSlotSet* typed_old_to_old_slots_
-      + kPointerSize      // SkipList* skip_list_
-      + kPointerSize      // AtomicValue high_water_mark_
-      + kPointerSize      // base::Mutex* mutex_
-      + kPointerSize      // base::AtomicWord concurrent_sweeping_
-      + 2 * kSizetSize    // AtomicNumber free-list statistics
-      + kPointerSize      // AtomicValue next_chunk_
-      + kPointerSize      // AtomicValue prev_chunk_
+      + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
+      + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
+      + kPointerSize                                   // SkipList* skip_list_
+      + kPointerSize    // AtomicValue high_water_mark_
+      + kPointerSize    // base::Mutex* mutex_
+      + kPointerSize    // base::AtomicWord concurrent_sweeping_
+      + 2 * kSizetSize  // AtomicNumber free-list statistics
+      + kPointerSize    // AtomicValue next_chunk_
+      + kPointerSize    // AtomicValue prev_chunk_
       + FreeListCategory::kSize * kNumberOfCategories
       // FreeListCategory categories_[kNumberOfCategories]
       + kPointerSize   // LocalArrayBufferTracker* local_tracker_
@@ -429,24 +433,26 @@ class MemoryChunk {
 
   inline void set_skip_list(SkipList* skip_list) { skip_list_ = skip_list; }
 
-  inline SlotSet* old_to_new_slots() { return old_to_new_slots_.Value(); }
-  inline SlotSet* old_to_old_slots() { return old_to_old_slots_; }
-  inline TypedSlotSet* typed_old_to_new_slots() {
-    return typed_old_to_new_slots_.Value();
+  template <RememberedSetType type>
+  SlotSet* slot_set() {
+    return slot_set_[type].Value();
   }
-  inline TypedSlotSet* typed_old_to_old_slots() {
-    return typed_old_to_old_slots_;
+
+  template <RememberedSetType type>
+  TypedSlotSet* typed_slot_set() {
+    return typed_slot_set_[type].Value();
   }
+
   inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
 
-  V8_EXPORT_PRIVATE void AllocateOldToNewSlots();
-  void ReleaseOldToNewSlots();
-  V8_EXPORT_PRIVATE void AllocateOldToOldSlots();
-  void ReleaseOldToOldSlots();
-  void AllocateTypedOldToNewSlots();
-  void ReleaseTypedOldToNewSlots();
-  void AllocateTypedOldToOldSlots();
-  void ReleaseTypedOldToOldSlots();
+  template <RememberedSetType type>
+  SlotSet* AllocateSlotSet();
+  template <RememberedSetType type>
+  void ReleaseSlotSet();
+  template <RememberedSetType type>
+  TypedSlotSet* AllocateTypedSlotSet();
+  template <RememberedSetType type>
+  void ReleaseTypedSlotSet();
   void AllocateLocalTracker();
   void ReleaseLocalTracker();
   void AllocateYoungGenerationBitmap();
@@ -597,10 +603,9 @@ class MemoryChunk {
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
-  base::AtomicValue<SlotSet*> old_to_new_slots_;
-  SlotSet* old_to_old_slots_;
-  base::AtomicValue<TypedSlotSet*> typed_old_to_new_slots_;
-  TypedSlotSet* typed_old_to_old_slots_;
+  base::AtomicValue<SlotSet*> slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
+  base::AtomicValue<TypedSlotSet*>
+      typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
 
   SkipList* skip_list_;
 

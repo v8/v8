@@ -282,16 +282,16 @@ void Page::MarkNeverAllocateForTesting() {
 
 void Page::MarkEvacuationCandidate() {
   DCHECK(!IsFlagSet(NEVER_EVACUATE));
-  DCHECK_NULL(old_to_old_slots_);
-  DCHECK_NULL(typed_old_to_old_slots_);
+  DCHECK_NULL(slot_set<OLD_TO_OLD>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
   SetFlag(EVACUATION_CANDIDATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 
 void Page::ClearEvacuationCandidate() {
   if (!IsFlagSet(COMPACTION_WAS_ABORTED)) {
-    DCHECK_NULL(old_to_old_slots_);
-    DCHECK_NULL(typed_old_to_old_slots_);
+    DCHECK_NULL(slot_set<OLD_TO_OLD>());
+    DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
   }
   ClearFlag(EVACUATION_CANDIDATE);
   InitializeFreeListCategories();
