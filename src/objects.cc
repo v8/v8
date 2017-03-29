@@ -11959,14 +11959,15 @@ Handle<LiteralsArray> SharedFunctionInfo::FindOrCreateLiterals(
     return handle(result.literals, isolate);
   }
 
-  Handle<TypeFeedbackVector> feedback_vector =
-      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<LiteralsArray> literals =
-      LiteralsArray::New(isolate, feedback_vector, shared->num_literals());
   Handle<Code> code;
   if (result.code != nullptr) {
     code = Handle<Code>(result.code, isolate);
   }
+
+  Handle<TypeFeedbackVector> feedback_vector =
+      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+  Handle<LiteralsArray> literals =
+      LiteralsArray::New(isolate, feedback_vector, shared->num_literals());
   AddToOptimizedCodeMap(shared, native_context, code, literals,
                         BailoutId::None());
   return literals;
