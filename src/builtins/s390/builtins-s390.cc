@@ -653,40 +653,40 @@ void Builtins::Generate_JSBuiltinsConstructStubForDerived(
 
 // static
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
-  Generate_ResumeGenerator(masm, ResumeGeneratorType::kGenerator);
-}
-
-// static
-void Builtins::Generate_ResumeAsyncGeneratorTrampoline(MacroAssembler* masm) {
-  Generate_ResumeGenerator(masm, ResumeGeneratorType::kAsyncGenerator);
-}
-
-// static
-void Builtins::Generate_ResumeAwaitedAsyncGeneratorTrampoline(
-    MacroAssembler* masm) {
-  Generate_ResumeGenerator(masm, ResumeGeneratorType::kAwaitedAsyncGenerator);
-}
-
-void Builtins::Generate_ResumeGenerator(MacroAssembler* masm,
-                                        ResumeGeneratorType type) {
   // ----------- S t a t e -------------
   //  -- r2 : the value to pass to the generator
   //  -- r3 : the JSGeneratorObject to resume
   //  -- r4 : the resume mode (tagged)
+  //  -- r5 : the SuspendFlags of the earlier suspend call (tagged)
   //  -- lr : return address
   // -----------------------------------
-  if (type == ResumeGeneratorType::kGenerator) {
-    __ AssertGeneratorObject(r3);
-  } else {
-    __ AssertAsyncGeneratorObject(r3);
-  }
+  __ SmiUntag(r5);
+  __ AssertGeneratorObject(r3, r5);
 
   // Store input value into generator object.
-  int offset = type == ResumeGeneratorType::kAwaitedAsyncGenerator
-                   ? JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset
-                   : JSGeneratorObject::kInputOrDebugPosOffset;
-  __ StoreP(r2, FieldMemOperand(r3, offset), r0);
-  __ RecordWriteField(r3, offset, r2, r5, kLRHasNotBeenSaved, kDontSaveFPRegs);
+  Label async_await, done_store_input;
+
+  __ And(r5, r5, Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
+  __ CmpP(r5, Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
+  __ beq(&async_await);
+
+  __ StoreP(r2, FieldMemOperand(r3, JSGeneratorObject::kInputOrDebugPosOffset),
+            r0);
+  __ RecordWriteField(r3, JSGeneratorObject::kInputOrDebugPosOffset, r2, r5,
+                      kLRHasNotBeenSaved, kDontSaveFPRegs);
+  __ b(&done_store_input);
+
+  __ bind(&async_await);
+  __ StoreP(
+      r2,
+      FieldMemOperand(r3, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset),
+      r0);
+  __ RecordWriteField(r3, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset,
+                      r2, r5, kLRHasNotBeenSaved, kDontSaveFPRegs);
+  __ b(&done_store_input);
+
+  __ bind(&done_store_input);
+  // `r5` no longer holds SuspendFlags
 
   // Store resume mode into generator object.
   __ StoreP(r4, FieldMemOperand(r3, JSGeneratorObject::kResumeModeOffset));
