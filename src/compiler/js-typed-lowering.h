@@ -57,7 +57,6 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSStoreContext(Node* node);
   Reduction ReduceJSLoadModule(Node* node);
   Reduction ReduceJSStoreModule(Node* node);
-  Reduction ReduceJSEqualTypeOf(Node* node);
   Reduction ReduceJSEqual(Node* node);
   Reduction ReduceJSStrictEqual(Node* node);
   Reduction ReduceJSToBoolean(Node* node);
