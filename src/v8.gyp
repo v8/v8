@@ -787,8 +787,6 @@
         'compiler-dispatcher/optimizing-compile-dispatcher.h',
         'compiler.cc',
         'compiler.h',
-        'context-measure.cc',
-        'context-measure.h',
         'contexts-inl.h',
         'contexts.cc',
         'contexts.h',

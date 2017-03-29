@@ -29,7 +29,6 @@
 #include "src/code-stubs.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler.h"
-#include "src/context-measure.h"
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
 #include "src/counters.h"
@@ -6506,12 +6505,7 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(Local<String> error) {
   context->set_error_message_for_code_gen_from_strings(*error_handle);
 }
 
-
-size_t Context::EstimatedSize() {
-  return static_cast<size_t>(
-      i::ContextMeasure(*Utils::OpenHandle(this)).Size());
-}
-
+size_t Context::EstimatedSize() { return 0; }
 
 MaybeLocal<v8::Object> ObjectTemplate::NewInstance(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, ObjectTemplate, NewInstance, Object);

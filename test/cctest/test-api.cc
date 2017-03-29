@@ -25778,14 +25778,6 @@ TEST(FutexInterruption) {
 }
 
 
-TEST(EstimatedContextSize) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  CHECK(50000 < env->EstimatedSize());
-}
-
-
 static int nb_uncaught_exception_callback_calls = 0;
 
 

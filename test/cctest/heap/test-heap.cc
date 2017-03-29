@@ -32,7 +32,6 @@
 #include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
-#include "src/context-measure.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
@@ -5865,53 +5864,6 @@ TEST(RemoveCodeFromSharedFunctionInfoButNotFromClosure) {
       "remove(g1);"
       "g2();"
       "check(g1, g2);");
-}
-
-TEST(ContextMeasure) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  LocalContext context;
-
-  int size_upper_limit = 0;
-  int count_upper_limit = 0;
-  HeapIterator it(CcTest::heap());
-  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
-    size_upper_limit += obj->Size();
-    count_upper_limit++;
-  }
-
-  ContextMeasure measure(*isolate->native_context());
-
-  PrintF("Context size        : %d bytes\n", measure.Size());
-  PrintF("Context object count: %d\n", measure.Count());
-
-  CHECK_LE(1000, measure.Count());
-  CHECK_LE(50000, measure.Size());
-
-  CHECK_LE(measure.Count(), count_upper_limit);
-  CHECK_LE(measure.Size(), size_upper_limit);
-}
-
-TEST(ContextMeasureNoMap) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-
-  Local<v8::Context> current_context = CcTest::isolate()->GetCurrentContext();
-  Local<v8::Context> other_context = v8::Context::New(CcTest::isolate());
-
-  CompileRun(current_context, "var x = []");
-
-  size_t original_size_current = current_context->EstimatedSize();
-  size_t original_size_other = other_context->EstimatedSize();
-
-  CompileRun(current_context, "x.a = 1;");
-
-  size_t new_size_current = current_context->EstimatedSize();
-  size_t new_size_other = other_context->EstimatedSize();
-
-  CHECK_LT(original_size_current, new_size_current);
-  CHECK_EQ(original_size_other, new_size_other);
 }
 
 TEST(ScriptIterator) {
