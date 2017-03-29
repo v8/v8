@@ -606,7 +606,10 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   JSRegExp::Type typeTag = regexp->TypeTag();
   if (typeTag == JSRegExp::IRREGEXP) {
     // Ensure the RegExp is compiled so we can access the capture-name map.
-    RegExpImpl::IrregexpPrepare(regexp, subject);
+    if (RegExpImpl::IrregexpPrepare(regexp, subject) == -1) {
+      DCHECK(isolate->has_pending_exception());
+      return isolate->heap()->exception();
+    }
   }
 
   // CompiledReplacement uses zone allocation.
