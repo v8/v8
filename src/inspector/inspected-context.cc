@@ -28,8 +28,10 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
   info.context->SetEmbedderData(static_cast<int>(v8::Context::kDebugIdIndex),
                                 v8::Int32::New(isolate, contextId));
   v8::Local<v8::Object> global = info.context->Global();
-  v8::Local<v8::Object> console =
-      V8Console::createConsole(this, info.hasMemoryOnConsole);
+  v8::Local<v8::Object> console = V8Console::createConsole(this);
+  if (info.hasMemoryOnConsole) {
+    V8Console::installMemoryGetter(m_inspector, info.context, console);
+  }
   if (!global
            ->Set(info.context, toV8StringInternalized(isolate, "console"),
                  console)

@@ -557,7 +557,7 @@ void V8Console::inspectedObject(const v8::FunctionCallbackInfo<v8::Value>& info,
 }
 
 v8::Local<v8::Object> V8Console::createConsole(
-    InspectedContext* inspectedContext, bool hasMemoryAttribute) {
+    InspectedContext* inspectedContext) {
   v8::Local<v8::Context> context = inspectedContext->context();
   v8::Context::Scope contextScope(context);
   v8::Isolate* isolate = context->GetIsolate();
@@ -618,45 +618,23 @@ v8::Local<v8::Object> V8Console::createConsole(
                               V8Console::timeEndCallback);
   createBoundFunctionProperty(context, console, data, "timeStamp",
                               V8Console::timeStampCallback);
-
-  const char* jsConsoleAssert =
-      "(function(){\n"
-      "  var originAssert = this.assert;\n"
-      "  originAssert.apply = Function.prototype.apply;\n"
-      "  this.assert = assertWrapper;\n"
-      "  assertWrapper.toString = () => originAssert.toString();\n"
-      "  function assertWrapper(){\n"
-      "    if (!!arguments[0]) return;\n"
-      "    originAssert.apply(null, arguments);\n"
-      "  }\n"
-      "})";
-
-  v8::Local<v8::String> assertSource = toV8String(isolate, jsConsoleAssert);
-  V8InspectorImpl* inspector = inspectedContext->inspector();
-  v8::Local<v8::Value> setupFunction;
-  if (inspector->compileAndRunInternalScript(context, assertSource)
-          .ToLocal(&setupFunction) &&
-      setupFunction->IsFunction()) {
-    v8::MicrotasksScope microtasksScope(
-        isolate, v8::MicrotasksScope::kDoNotRunMicrotasks);
-    v8::MaybeLocal<v8::Value> result;
-    result = v8::Local<v8::Function>::Cast(setupFunction)
-                 ->Call(context, console, 0, nullptr);
-  }
-
-  if (hasMemoryAttribute) {
-    console->SetAccessorProperty(
-        toV8StringInternalized(isolate, "memory"),
-        v8::Function::New(context, V8Console::memoryGetterCallback, data, 0,
-                          v8::ConstructorBehavior::kThrow)
-            .ToLocalChecked(),
-        v8::Function::New(context, V8Console::memorySetterCallback, data, 0,
-                          v8::ConstructorBehavior::kThrow)
-            .ToLocalChecked(),
-        static_cast<v8::PropertyAttribute>(v8::None), v8::DEFAULT);
-  }
-
   return console;
+}
+
+void V8Console::installMemoryGetter(V8InspectorImpl* inspector,
+                                    v8::Local<v8::Context> context,
+                                    v8::Local<v8::Object> console) {
+  v8::Local<v8::External> data =
+      v8::External::New(inspector->isolate(), inspector);
+  console->SetAccessorProperty(
+      toV8StringInternalized(inspector->isolate(), "memory"),
+      v8::Function::New(context, V8Console::memoryGetterCallback, data, 0,
+                        v8::ConstructorBehavior::kThrow)
+          .ToLocalChecked(),
+      v8::Function::New(context, V8Console::memorySetterCallback, data, 0,
+                        v8::ConstructorBehavior::kThrow)
+          .ToLocalChecked(),
+      static_cast<v8::PropertyAttribute>(v8::None), v8::DEFAULT);
 }
 
 v8::Local<v8::Object> V8Console::createCommandLineAPI(
