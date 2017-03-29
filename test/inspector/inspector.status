@@ -25,7 +25,6 @@
   'cpu-profiler/console-profile-end-parameterless-crash': [SKIP],
   # Issue 6171. Timeout.
   'debugger/set-blackbox-patterns': [SKIP],
-  'debugger/suspended-generator-scopes': [SKIP],
 }],  # variant != default
 
 ##############################################################################
