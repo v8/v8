@@ -520,14 +520,14 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
 
   if (FLAG_trace_turbo) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
-    Handle<Script> script = info->script();
     std::unique_ptr<char[]> function_name = info->GetDebugName();
-    int pos = info->shared_info()->start_position();
+    int pos = info->parse_info() ? info->shared_info()->start_position() : 0;
     json_of << "{\"function\":\"" << function_name.get()
             << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
     Isolate* isolate = info->isolate();
-    if (!script->IsUndefined(isolate) &&
-        !script->source()->IsUndefined(isolate)) {
+    Handle<Script> script =
+        info->parse_info() ? info->script() : Handle<Script>::null();
+    if (!script.is_null() && !script->source()->IsUndefined(isolate)) {
       DisallowHeapAllocation no_allocation;
       int start = info->shared_info()->start_position();
       int len = info->shared_info()->end_position() - start;
