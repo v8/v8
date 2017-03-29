@@ -39,7 +39,6 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   v8_inspector::V8InspectorSession* session(int context_group_id = 0);
 
   void setCurrentTimeMSForTest(double time);
-  void setMemoryInfoForTest(v8::Local<v8::Value> memory_info);
 
  private:
   // V8InspectorClient implementation.
@@ -47,8 +46,6 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   v8::Local<v8::Context> ensureDefaultContextInGroup(
       int context_group_id) override;
   double currentTimeMS() override;
-  v8::MaybeLocal<v8::Value> memoryInfo(v8::Isolate* isolate,
-                                       v8::Local<v8::Context>) override;
   void runMessageLoopOnPause(int context_group_id) override;
   void quitMessageLoopOnPause() override;
 
@@ -68,7 +65,6 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   std::map<int, std::unique_ptr<v8_inspector::StringBuffer>> states_;
 
   v8::Isolate* isolate_;
-  v8::Global<v8::Value> memory_info_;
 
   TaskRunner* task_runner_;
   FrontendChannel* frontend_channel_;

@@ -53,6 +53,7 @@ class InspectedContext {
   const String16 m_auxData;
   bool m_reported;
   std::unique_ptr<InjectedScript> m_injectedScript;
+  v8::Global<v8::Object> m_console;
 
   DISALLOW_COPY_AND_ASSIGN(InspectedContext);
 };
