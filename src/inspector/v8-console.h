@@ -19,6 +19,8 @@ class V8Console {
  public:
   static v8::Local<v8::Object> createConsole(InspectedContext*,
                                              bool hasMemoryAttribute);
+  static void clearInspectedContextIfNeeded(v8::Local<v8::Context>,
+                                            v8::Local<v8::Object> console);
   static v8::Local<v8::Object> createCommandLineAPI(InspectedContext*);
 
   class CommandLineAPIScope {
