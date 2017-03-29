@@ -893,8 +893,8 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(Float64Mul, kAVXFloat64Mul, kSSEFloat64Mul) \
   V(Float32Div, kAVXFloat32Div, kSSEFloat32Div) \
   V(Float64Div, kAVXFloat64Div, kSSEFloat64Div) \
-  V(Int32x4Add, kAVXInt32x4Add, kSSEInt32x4Add) \
-  V(Int32x4Sub, kAVXInt32x4Sub, kSSEInt32x4Sub)
+  V(I32x4Add, kAVXI32x4Add, kSSEI32x4Add)       \
+  V(I32x4Sub, kAVXI32x4Sub, kSSEI32x4Sub)
 
 #define FLOAT_UNOP_LIST(V)                      \
   V(Float32Abs, kAVXFloat32Abs, kSSEFloat32Abs) \
@@ -1819,21 +1819,21 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   Emit(code, 1, outputs, input_count, inputs);
 }
 
-void InstructionSelector::VisitInt32x4Splat(Node* node) {
-  VisitRO(this, node, kIA32Int32x4Splat);
+void InstructionSelector::VisitI32x4Splat(Node* node) {
+  VisitRO(this, node, kIA32I32x4Splat);
 }
 
-void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
+void InstructionSelector::VisitI32x4ExtractLane(Node* node) {
   IA32OperandGenerator g(this);
   int32_t lane = OpParameter<int32_t>(node);
-  Emit(kIA32Int32x4ExtractLane, g.DefineAsRegister(node),
+  Emit(kIA32I32x4ExtractLane, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
 }
 
-void InstructionSelector::VisitInt32x4ReplaceLane(Node* node) {
+void InstructionSelector::VisitI32x4ReplaceLane(Node* node) {
   IA32OperandGenerator g(this);
   int32_t lane = OpParameter<int32_t>(node);
-  Emit(kIA32Int32x4ReplaceLane, g.DefineSameAsFirst(node),
+  Emit(kIA32I32x4ReplaceLane, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
        g.Use(node->InputAt(1)));
 }

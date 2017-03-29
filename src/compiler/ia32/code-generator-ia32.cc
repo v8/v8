@@ -1883,35 +1883,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kIA32Int32x4Splat: {
+    case kIA32I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ movd(dst, i.InputOperand(0));
       __ pshufd(dst, dst, 0x0);
       break;
     }
-    case kIA32Int32x4ExtractLane: {
+    case kIA32I32x4ExtractLane: {
       __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
-    case kIA32Int32x4ReplaceLane: {
+    case kIA32I32x4ReplaceLane: {
       __ Pinsrd(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
       break;
     }
-    case kSSEInt32x4Add: {
+    case kSSEI32x4Add: {
       __ paddd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kSSEInt32x4Sub: {
+    case kSSEI32x4Sub: {
       __ psubd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kAVXInt32x4Add: {
+    case kAVXI32x4Add: {
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vpaddd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
       break;
     }
-    case kAVXInt32x4Sub: {
+    case kAVXI32x4Sub: {
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vpsubd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));

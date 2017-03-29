@@ -67,58 +67,58 @@ void SimdScalarLowering::LowerGraph() {
 }
 
 #define FOREACH_INT32X4_OPCODE(V) \
-  V(Int32x4Splat)                 \
-  V(Int32x4ExtractLane)           \
-  V(Int32x4ReplaceLane)           \
-  V(Int32x4Neg)                   \
-  V(Simd128Not)                   \
-  V(Int32x4Add)                   \
-  V(Int32x4Sub)                   \
-  V(Int32x4Mul)                   \
-  V(Int32x4Min)                   \
-  V(Int32x4Max)                   \
-  V(Uint32x4Min)                  \
-  V(Uint32x4Max)                  \
-  V(Simd128And)                   \
-  V(Simd128Or)                    \
-  V(Simd128Xor)                   \
-  V(Int32x4FromFloat32x4)         \
-  V(Uint32x4FromFloat32x4)
+  V(I32x4Splat)                   \
+  V(I32x4ExtractLane)             \
+  V(I32x4ReplaceLane)             \
+  V(I32x4SConvertF32x4)           \
+  V(I32x4UConvertF32x4)           \
+  V(I32x4Neg)                     \
+  V(I32x4Add)                     \
+  V(I32x4Sub)                     \
+  V(I32x4Mul)                     \
+  V(I32x4MinS)                    \
+  V(I32x4MaxS)                    \
+  V(I32x4MinU)                    \
+  V(I32x4MaxU)                    \
+  V(S128And)                      \
+  V(S128Or)                       \
+  V(S128Xor)                      \
+  V(S128Not)
 
 #define FOREACH_FLOAT32X4_OPCODE(V) \
-  V(Float32x4Splat)                 \
-  V(Float32x4ExtractLane)           \
-  V(Float32x4ReplaceLane)           \
-  V(Float32x4Abs)                   \
-  V(Float32x4Neg)                   \
-  V(Float32x4Add)                   \
-  V(Float32x4Sub)                   \
-  V(Float32x4Mul)                   \
-  V(Float32x4Div)                   \
-  V(Float32x4Min)                   \
-  V(Float32x4Max)                   \
-  V(Float32x4FromInt32x4)           \
-  V(Float32x4FromUint32x4)
+  V(F32x4Splat)                     \
+  V(F32x4ExtractLane)               \
+  V(F32x4ReplaceLane)               \
+  V(F32x4SConvertI32x4)             \
+  V(F32x4UConvertI32x4)             \
+  V(F32x4Abs)                       \
+  V(F32x4Neg)                       \
+  V(F32x4Add)                       \
+  V(F32x4Sub)                       \
+  V(F32x4Mul)                       \
+  V(F32x4Div)                       \
+  V(F32x4Min)                       \
+  V(F32x4Max)
 
 #define FOREACH_FLOAT32X4_TO_SIMD1X4OPCODE(V) \
-  V(Float32x4Equal)                           \
-  V(Float32x4NotEqual)                        \
-  V(Float32x4LessThan)                        \
-  V(Float32x4LessThanOrEqual)                 \
-  V(Float32x4GreaterThan)                     \
-  V(Float32x4GreaterThanOrEqual)
+  V(F32x4Eq)                                  \
+  V(F32x4Ne)                                  \
+  V(F32x4Lt)                                  \
+  V(F32x4Le)                                  \
+  V(F32x4Gt)                                  \
+  V(F32x4Ge)
 
 #define FOREACH_INT32X4_TO_SIMD1X4OPCODE(V) \
-  V(Int32x4Equal)                           \
-  V(Int32x4NotEqual)                        \
-  V(Int32x4LessThan)                        \
-  V(Int32x4LessThanOrEqual)                 \
-  V(Int32x4GreaterThan)                     \
-  V(Int32x4GreaterThanOrEqual)              \
-  V(Uint32x4LessThan)                       \
-  V(Uint32x4LessThanOrEqual)                \
-  V(Uint32x4GreaterThan)                    \
-  V(Uint32x4GreaterThanOrEqual)
+  V(I32x4Eq)                                \
+  V(I32x4Ne)                                \
+  V(I32x4LtS)                               \
+  V(I32x4LeS)                               \
+  V(I32x4GtS)                               \
+  V(I32x4GeS)                               \
+  V(I32x4LtU)                               \
+  V(I32x4LeU)                               \
+  V(I32x4GtU)                               \
+  V(I32x4GeU)
 
 void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
   switch (node->opcode()) {
@@ -142,18 +142,18 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
     default: {
       switch (output->opcode()) {
         FOREACH_FLOAT32X4_TO_SIMD1X4OPCODE(CASE_STMT)
-        case IrOpcode::kFloat32x4FromInt32x4:
-        case IrOpcode::kFloat32x4FromUint32x4: {
+        case IrOpcode::kF32x4SConvertI32x4:
+        case IrOpcode::kF32x4UConvertI32x4: {
           replacements_[node->id()].type = SimdType::kInt32;
           break;
         }
           FOREACH_INT32X4_TO_SIMD1X4OPCODE(CASE_STMT)
-        case IrOpcode::kInt32x4FromFloat32x4:
-        case IrOpcode::kUint32x4FromFloat32x4: {
+        case IrOpcode::kI32x4SConvertF32x4:
+        case IrOpcode::kI32x4UConvertF32x4: {
           replacements_[node->id()].type = SimdType::kFloat32;
           break;
         }
-        case IrOpcode::kSimd32x4Select: {
+        case IrOpcode::kS32x4Select: {
           replacements_[node->id()].type = SimdType::kSimd1x4;
           break;
         }
@@ -573,30 +573,30 @@ void SimdScalarLowering::LowerNode(Node* node) {
     LowerBinaryOp(node, rep_type, machine()->instruction()); \
     break;                                                   \
   }
-      I32X4_BINOP_CASE(kInt32x4Add, Int32Add)
-      I32X4_BINOP_CASE(kInt32x4Sub, Int32Sub)
-      I32X4_BINOP_CASE(kInt32x4Mul, Int32Mul)
-      I32X4_BINOP_CASE(kSimd128And, Word32And)
-      I32X4_BINOP_CASE(kSimd128Or, Word32Or)
-      I32X4_BINOP_CASE(kSimd128Xor, Word32Xor)
+      I32X4_BINOP_CASE(kI32x4Add, Int32Add)
+      I32X4_BINOP_CASE(kI32x4Sub, Int32Sub)
+      I32X4_BINOP_CASE(kI32x4Mul, Int32Mul)
+      I32X4_BINOP_CASE(kS128And, Word32And)
+      I32X4_BINOP_CASE(kS128Or, Word32Or)
+      I32X4_BINOP_CASE(kS128Xor, Word32Xor)
 #undef I32X4_BINOP_CASE
-    case IrOpcode::kInt32x4Max: {
+    case IrOpcode::kI32x4MaxS: {
       LowerIntMinMax(node, machine()->Int32LessThan(), true);
       break;
     }
-    case IrOpcode::kInt32x4Min: {
+    case IrOpcode::kI32x4MinS: {
       LowerIntMinMax(node, machine()->Int32LessThan(), false);
       break;
     }
-    case IrOpcode::kUint32x4Max: {
+    case IrOpcode::kI32x4MaxU: {
       LowerIntMinMax(node, machine()->Uint32LessThan(), true);
       break;
     }
-    case IrOpcode::kUint32x4Min: {
+    case IrOpcode::kI32x4MinU: {
       LowerIntMinMax(node, machine()->Uint32LessThan(), false);
       break;
     }
-    case IrOpcode::kInt32x4Neg: {
+    case IrOpcode::kI32x4Neg: {
       DCHECK(node->InputCount() == 1);
       Node** rep = GetReplacementsWithType(node->InputAt(0), rep_type);
       Node* rep_node[kMaxLanes];
@@ -607,7 +607,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node);
       break;
     }
-    case IrOpcode::kSimd128Not: {
+    case IrOpcode::kS128Not: {
       DCHECK(node->InputCount() == 1);
       Node** rep = GetReplacementsWithType(node->InputAt(0), rep_type);
       Node* rep_node[kMaxLanes];
@@ -618,28 +618,28 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node);
       break;
     }
-    case IrOpcode::kInt32x4FromFloat32x4: {
+    case IrOpcode::kI32x4SConvertF32x4: {
       LowerConvertFromFloat(node, true);
       break;
     }
-    case IrOpcode::kUint32x4FromFloat32x4: {
+    case IrOpcode::kI32x4UConvertF32x4: {
       LowerConvertFromFloat(node, false);
       break;
     }
-    case IrOpcode::kInt32x4ShiftLeftByScalar: {
+    case IrOpcode::kI32x4Shl: {
       LowerShiftOp(node, machine()->Word32Shl());
       break;
     }
-    case IrOpcode::kInt32x4ShiftRightByScalar: {
+    case IrOpcode::kI32x4ShrS: {
       LowerShiftOp(node, machine()->Word32Sar());
       break;
     }
-    case IrOpcode::kUint32x4ShiftRightByScalar: {
+    case IrOpcode::kI32x4ShrU: {
       LowerShiftOp(node, machine()->Word32Shr());
       break;
     }
 #define F32X4_BINOP_CASE(name)                                 \
-  case IrOpcode::kFloat32x4##name: {                           \
+  case IrOpcode::kF32x4##name: {                               \
     LowerBinaryOp(node, rep_type, machine()->Float32##name()); \
     break;                                                     \
   }
@@ -651,7 +651,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       F32X4_BINOP_CASE(Max)
 #undef F32X4_BINOP_CASE
 #define F32X4_UNOP_CASE(name)                                 \
-  case IrOpcode::kFloat32x4##name: {                          \
+  case IrOpcode::kF32x4##name: {                              \
     LowerUnaryOp(node, rep_type, machine()->Float32##name()); \
     break;                                                    \
   }
@@ -659,16 +659,16 @@ void SimdScalarLowering::LowerNode(Node* node) {
       F32X4_UNOP_CASE(Neg)
       F32X4_UNOP_CASE(Sqrt)
 #undef F32x4_UNOP_CASE
-    case IrOpcode::kFloat32x4FromInt32x4: {
+    case IrOpcode::kF32x4SConvertI32x4: {
       LowerUnaryOp(node, SimdType::kInt32, machine()->RoundInt32ToFloat32());
       break;
     }
-    case IrOpcode::kFloat32x4FromUint32x4: {
+    case IrOpcode::kF32x4UConvertI32x4: {
       LowerUnaryOp(node, SimdType::kInt32, machine()->RoundUint32ToFloat32());
       break;
     }
-    case IrOpcode::kInt32x4Splat:
-    case IrOpcode::kFloat32x4Splat: {
+    case IrOpcode::kI32x4Splat:
+    case IrOpcode::kF32x4Splat: {
       Node* rep_node[kMaxLanes];
       for (int i = 0; i < kMaxLanes; ++i) {
         if (HasReplacement(0, node->InputAt(0))) {
@@ -680,8 +680,8 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node);
       break;
     }
-    case IrOpcode::kInt32x4ExtractLane:
-    case IrOpcode::kFloat32x4ExtractLane: {
+    case IrOpcode::kI32x4ExtractLane:
+    case IrOpcode::kF32x4ExtractLane: {
       int32_t lane = OpParameter<int32_t>(node);
       Node* rep_node[kMaxLanes] = {
           GetReplacementsWithType(node->InputAt(0), rep_type)[lane], nullptr,
@@ -689,8 +689,8 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node);
       break;
     }
-    case IrOpcode::kInt32x4ReplaceLane:
-    case IrOpcode::kFloat32x4ReplaceLane: {
+    case IrOpcode::kI32x4ReplaceLane:
+    case IrOpcode::kF32x4ReplaceLane: {
       DCHECK_EQ(2, node->InputCount());
       Node* repNode = node->InputAt(1);
       int32_t lane = OpParameter<int32_t>(node);
@@ -709,36 +709,30 @@ void SimdScalarLowering::LowerNode(Node* node) {
     LowerBinaryOp(node, SimdType::k##type, machine()->lowering_op(), invert); \
     break;                                                                    \
   }
-      COMPARISON_CASE(Float32, kFloat32x4Equal, Float32Equal, false)
-      COMPARISON_CASE(Float32, kFloat32x4LessThan, Float32LessThan, false)
-      COMPARISON_CASE(Float32, kFloat32x4LessThanOrEqual,
-                      Float32LessThanOrEqual, false)
-      COMPARISON_CASE(Float32, kFloat32x4GreaterThan, Float32LessThan, true)
-      COMPARISON_CASE(Float32, kFloat32x4GreaterThanOrEqual,
-                      Float32LessThanOrEqual, true)
-      COMPARISON_CASE(Int32, kInt32x4Equal, Word32Equal, false)
-      COMPARISON_CASE(Int32, kInt32x4LessThan, Int32LessThan, false)
-      COMPARISON_CASE(Int32, kInt32x4LessThanOrEqual, Int32LessThanOrEqual,
-                      false)
-      COMPARISON_CASE(Int32, kInt32x4GreaterThan, Int32LessThan, true)
-      COMPARISON_CASE(Int32, kInt32x4GreaterThanOrEqual, Int32LessThanOrEqual,
-                      true)
-      COMPARISON_CASE(Int32, kUint32x4LessThan, Uint32LessThan, false)
-      COMPARISON_CASE(Int32, kUint32x4LessThanOrEqual, Uint32LessThanOrEqual,
-                      false)
-      COMPARISON_CASE(Int32, kUint32x4GreaterThan, Uint32LessThan, true)
-      COMPARISON_CASE(Int32, kUint32x4GreaterThanOrEqual, Uint32LessThanOrEqual,
-                      true)
+      COMPARISON_CASE(Float32, kF32x4Eq, Float32Equal, false)
+      COMPARISON_CASE(Float32, kF32x4Lt, Float32LessThan, false)
+      COMPARISON_CASE(Float32, kF32x4Le, Float32LessThanOrEqual, false)
+      COMPARISON_CASE(Float32, kF32x4Gt, Float32LessThan, true)
+      COMPARISON_CASE(Float32, kF32x4Ge, Float32LessThanOrEqual, true)
+      COMPARISON_CASE(Int32, kI32x4Eq, Word32Equal, false)
+      COMPARISON_CASE(Int32, kI32x4LtS, Int32LessThan, false)
+      COMPARISON_CASE(Int32, kI32x4LeS, Int32LessThanOrEqual, false)
+      COMPARISON_CASE(Int32, kI32x4GtS, Int32LessThan, true)
+      COMPARISON_CASE(Int32, kI32x4GeS, Int32LessThanOrEqual, true)
+      COMPARISON_CASE(Int32, kI32x4LtU, Uint32LessThan, false)
+      COMPARISON_CASE(Int32, kI32x4LeU, Uint32LessThanOrEqual, false)
+      COMPARISON_CASE(Int32, kI32x4GtU, Uint32LessThan, true)
+      COMPARISON_CASE(Int32, kI32x4GeU, Uint32LessThanOrEqual, true)
 #undef COMPARISON_CASE
-    case IrOpcode::kFloat32x4NotEqual: {
+    case IrOpcode::kF32x4Ne: {
       LowerNotEqual(node, SimdType::kFloat32, machine()->Float32Equal());
       break;
     }
-    case IrOpcode::kInt32x4NotEqual: {
+    case IrOpcode::kI32x4Ne: {
       LowerNotEqual(node, SimdType::kInt32, machine()->Word32Equal());
       break;
     }
-    case IrOpcode::kSimd32x4Select: {
+    case IrOpcode::kS32x4Select: {
       DCHECK(node->InputCount() == 3);
       DCHECK(ReplacementType(node->InputAt(0)) == SimdType::kSimd1x4);
       Node** boolean_input = GetReplacements(node->InputAt(0));

@@ -235,10 +235,10 @@ class WasmGraphBuilder {
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
-  Node* Simd128Zero();
-  Node* Simd1x4Zero();
-  Node* Simd1x8Zero();
-  Node* Simd1x16Zero();
+  Node* S128Zero();
+  Node* S1x4Zero();
+  Node* S1x8Zero();
+  Node* S1x16Zero();
 
   Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
 

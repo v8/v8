@@ -3150,24 +3150,24 @@ void WasmGraphBuilder::SetSourcePosition(Node* node,
     source_position_table_->SetSourcePosition(node, SourcePosition(position));
 }
 
-Node* WasmGraphBuilder::Simd128Zero() {
+Node* WasmGraphBuilder::S128Zero() {
   has_simd_ = true;
-  return graph()->NewNode(jsgraph()->machine()->Simd128Zero());
+  return graph()->NewNode(jsgraph()->machine()->S128Zero());
 }
 
-Node* WasmGraphBuilder::Simd1x4Zero() {
+Node* WasmGraphBuilder::S1x4Zero() {
   has_simd_ = true;
-  return graph()->NewNode(jsgraph()->machine()->Simd1x4Zero());
+  return graph()->NewNode(jsgraph()->machine()->S1x4Zero());
 }
 
-Node* WasmGraphBuilder::Simd1x8Zero() {
+Node* WasmGraphBuilder::S1x8Zero() {
   has_simd_ = true;
-  return graph()->NewNode(jsgraph()->machine()->Simd1x8Zero());
+  return graph()->NewNode(jsgraph()->machine()->S1x8Zero());
 }
 
-Node* WasmGraphBuilder::Simd1x16Zero() {
+Node* WasmGraphBuilder::S1x16Zero() {
   has_simd_ = true;
-  return graph()->NewNode(jsgraph()->machine()->Simd1x16Zero());
+  return graph()->NewNode(jsgraph()->machine()->S1x16Zero());
 }
 
 Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
@@ -3175,334 +3175,327 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
   has_simd_ = true;
   switch (opcode) {
     case wasm::kExprF32x4Splat:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Splat(),
-                              inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->F32x4Splat(), inputs[0]);
     case wasm::kExprF32x4SConvertI32x4:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4FromInt32x4(),
+      return graph()->NewNode(jsgraph()->machine()->F32x4SConvertI32x4(),
                               inputs[0]);
     case wasm::kExprF32x4UConvertI32x4:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4FromUint32x4(),
+      return graph()->NewNode(jsgraph()->machine()->F32x4UConvertI32x4(),
                               inputs[0]);
     case wasm::kExprF32x4Abs:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Abs(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->F32x4Abs(), inputs[0]);
     case wasm::kExprF32x4Neg:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Neg(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->F32x4Neg(), inputs[0]);
     case wasm::kExprF32x4Sqrt:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Sqrt(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->F32x4Sqrt(), inputs[0]);
     case wasm::kExprF32x4RecipApprox:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4RecipApprox(),
+      return graph()->NewNode(jsgraph()->machine()->F32x4RecipApprox(),
                               inputs[0]);
     case wasm::kExprF32x4RecipSqrtApprox:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4RecipSqrtApprox(),
+      return graph()->NewNode(jsgraph()->machine()->F32x4RecipSqrtApprox(),
                               inputs[0]);
     case wasm::kExprF32x4Add:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Add(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->F32x4Add(), inputs[0],
                               inputs[1]);
     case wasm::kExprF32x4Sub:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Sub(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->F32x4Sub(), inputs[0],
                               inputs[1]);
     case wasm::kExprF32x4Mul:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Mul(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->F32x4Mul(), inputs[0],
                               inputs[1]);
     case wasm::kExprF32x4Div:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Div(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->F32x4Div(), inputs[0],
                               inputs[1]);
     case wasm::kExprF32x4Min:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Min(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->F32x4Min(), inputs[0],
                               inputs[1]);
     case wasm::kExprF32x4Max:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Max(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->F32x4Max(), inputs[0],
                               inputs[1]);
     case wasm::kExprF32x4RecipRefine:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4RecipRefine(),
+      return graph()->NewNode(jsgraph()->machine()->F32x4RecipRefine(),
                               inputs[0], inputs[1]);
     case wasm::kExprF32x4RecipSqrtRefine:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4RecipSqrtRefine(),
+      return graph()->NewNode(jsgraph()->machine()->F32x4RecipSqrtRefine(),
                               inputs[0], inputs[1]);
     case wasm::kExprF32x4Eq:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4Equal(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->F32x4Eq(), inputs[0],
                               inputs[1]);
     case wasm::kExprF32x4Ne:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4NotEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->F32x4Ne(), inputs[0],
+                              inputs[1]);
     case wasm::kExprF32x4Lt:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4LessThan(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->F32x4Lt(), inputs[0],
+                              inputs[1]);
     case wasm::kExprF32x4Le:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4LessThanOrEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->F32x4Le(), inputs[0],
+                              inputs[1]);
     case wasm::kExprF32x4Gt:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4LessThan(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->F32x4Lt(), inputs[1],
+                              inputs[0]);
     case wasm::kExprF32x4Ge:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4LessThanOrEqual(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->F32x4Le(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI32x4Splat:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4Splat(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4Splat(), inputs[0]);
     case wasm::kExprI32x4SConvertF32x4:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4FromFloat32x4(),
+      return graph()->NewNode(jsgraph()->machine()->I32x4SConvertF32x4(),
                               inputs[0]);
     case wasm::kExprI32x4UConvertF32x4:
-      return graph()->NewNode(jsgraph()->machine()->Uint32x4FromFloat32x4(),
+      return graph()->NewNode(jsgraph()->machine()->I32x4UConvertF32x4(),
                               inputs[0]);
     case wasm::kExprI32x4Neg:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4Neg(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4Neg(), inputs[0]);
     case wasm::kExprI32x4Add:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4Add(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I32x4Add(), inputs[0],
                               inputs[1]);
     case wasm::kExprI32x4Sub:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4Sub(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I32x4Sub(), inputs[0],
                               inputs[1]);
     case wasm::kExprI32x4Mul:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4Mul(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I32x4Mul(), inputs[0],
                               inputs[1]);
     case wasm::kExprI32x4MinS:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4Min(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I32x4MinS(), inputs[0],
                               inputs[1]);
     case wasm::kExprI32x4MaxS:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4Max(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I32x4MaxS(), inputs[0],
                               inputs[1]);
     case wasm::kExprI32x4Eq:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4Equal(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I32x4Eq(), inputs[0],
                               inputs[1]);
     case wasm::kExprI32x4Ne:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4NotEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4Ne(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI32x4LtS:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4LessThan(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4LtS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI32x4LeS:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4LessThanOrEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4LeS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI32x4GtS:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4LessThan(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4LtS(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI32x4GeS:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4LessThanOrEqual(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4LeS(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI32x4MinU:
-      return graph()->NewNode(jsgraph()->machine()->Uint32x4Min(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I32x4MinU(), inputs[0],
                               inputs[1]);
     case wasm::kExprI32x4MaxU:
-      return graph()->NewNode(jsgraph()->machine()->Uint32x4Max(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I32x4MaxU(), inputs[0],
                               inputs[1]);
     case wasm::kExprI32x4LtU:
-      return graph()->NewNode(jsgraph()->machine()->Uint32x4LessThan(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4LtU(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI32x4LeU:
-      return graph()->NewNode(jsgraph()->machine()->Uint32x4LessThanOrEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4LeU(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI32x4GtU:
-      return graph()->NewNode(jsgraph()->machine()->Uint32x4LessThan(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4LtU(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI32x4GeU:
-      return graph()->NewNode(jsgraph()->machine()->Uint32x4LessThanOrEqual(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4LeU(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI16x8Splat:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8Splat(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8Splat(), inputs[0]);
     case wasm::kExprI16x8Neg:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8Neg(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8Neg(), inputs[0]);
     case wasm::kExprI16x8Add:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8Add(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I16x8Add(), inputs[0],
                               inputs[1]);
     case wasm::kExprI16x8AddSaturateS:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8AddSaturate(),
+      return graph()->NewNode(jsgraph()->machine()->I16x8AddSaturateS(),
                               inputs[0], inputs[1]);
     case wasm::kExprI16x8Sub:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8Sub(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I16x8Sub(), inputs[0],
                               inputs[1]);
     case wasm::kExprI16x8SubSaturateS:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8SubSaturate(),
+      return graph()->NewNode(jsgraph()->machine()->I16x8SubSaturateS(),
                               inputs[0], inputs[1]);
     case wasm::kExprI16x8Mul:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8Mul(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I16x8Mul(), inputs[0],
                               inputs[1]);
     case wasm::kExprI16x8MinS:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8Min(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I16x8MinS(), inputs[0],
                               inputs[1]);
     case wasm::kExprI16x8MaxS:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8Max(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I16x8MaxS(), inputs[0],
                               inputs[1]);
     case wasm::kExprI16x8Eq:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8Equal(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I16x8Eq(), inputs[0],
                               inputs[1]);
     case wasm::kExprI16x8Ne:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8NotEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8Ne(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8LtS:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8LessThan(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8LtS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8LeS:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8LessThanOrEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8LeS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8GtS:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8LessThan(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8LtS(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI16x8GeS:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8LessThanOrEqual(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8LeS(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI16x8AddSaturateU:
-      return graph()->NewNode(jsgraph()->machine()->Uint16x8AddSaturate(),
+      return graph()->NewNode(jsgraph()->machine()->I16x8AddSaturateU(),
                               inputs[0], inputs[1]);
     case wasm::kExprI16x8SubSaturateU:
-      return graph()->NewNode(jsgraph()->machine()->Uint16x8SubSaturate(),
+      return graph()->NewNode(jsgraph()->machine()->I16x8SubSaturateU(),
                               inputs[0], inputs[1]);
     case wasm::kExprI16x8MinU:
-      return graph()->NewNode(jsgraph()->machine()->Uint16x8Min(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I16x8MinU(), inputs[0],
                               inputs[1]);
     case wasm::kExprI16x8MaxU:
-      return graph()->NewNode(jsgraph()->machine()->Uint16x8Max(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I16x8MaxU(), inputs[0],
                               inputs[1]);
     case wasm::kExprI16x8LtU:
-      return graph()->NewNode(jsgraph()->machine()->Uint16x8LessThan(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8LtU(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8LeU:
-      return graph()->NewNode(jsgraph()->machine()->Uint16x8LessThanOrEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8LeU(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8GtU:
-      return graph()->NewNode(jsgraph()->machine()->Uint16x8LessThan(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8LtU(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI16x8GeU:
-      return graph()->NewNode(jsgraph()->machine()->Uint16x8LessThanOrEqual(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8LeU(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI8x16Splat:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16Splat(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16Splat(), inputs[0]);
     case wasm::kExprI8x16Neg:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16Neg(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16Neg(), inputs[0]);
     case wasm::kExprI8x16Add:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16Add(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I8x16Add(), inputs[0],
                               inputs[1]);
     case wasm::kExprI8x16AddSaturateS:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16AddSaturate(),
+      return graph()->NewNode(jsgraph()->machine()->I8x16AddSaturateS(),
                               inputs[0], inputs[1]);
     case wasm::kExprI8x16Sub:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16Sub(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I8x16Sub(), inputs[0],
                               inputs[1]);
     case wasm::kExprI8x16SubSaturateS:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16SubSaturate(),
+      return graph()->NewNode(jsgraph()->machine()->I8x16SubSaturateS(),
                               inputs[0], inputs[1]);
     case wasm::kExprI8x16Mul:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16Mul(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I8x16Mul(), inputs[0],
                               inputs[1]);
     case wasm::kExprI8x16MinS:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16Min(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I8x16MinS(), inputs[0],
                               inputs[1]);
     case wasm::kExprI8x16MaxS:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16Max(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I8x16MaxS(), inputs[0],
                               inputs[1]);
     case wasm::kExprI8x16Eq:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16Equal(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I8x16Eq(), inputs[0],
                               inputs[1]);
     case wasm::kExprI8x16Ne:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16NotEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16Ne(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI8x16LtS:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16LessThan(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16LtS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI8x16LeS:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16LessThanOrEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16LeS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI8x16GtS:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16LessThan(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16LtS(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI8x16GeS:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16LessThanOrEqual(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16LeS(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI8x16AddSaturateU:
-      return graph()->NewNode(jsgraph()->machine()->Uint8x16AddSaturate(),
+      return graph()->NewNode(jsgraph()->machine()->I8x16AddSaturateU(),
                               inputs[0], inputs[1]);
     case wasm::kExprI8x16SubSaturateU:
-      return graph()->NewNode(jsgraph()->machine()->Uint8x16SubSaturate(),
+      return graph()->NewNode(jsgraph()->machine()->I8x16SubSaturateU(),
                               inputs[0], inputs[1]);
     case wasm::kExprI8x16MinU:
-      return graph()->NewNode(jsgraph()->machine()->Uint8x16Min(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I8x16MinU(), inputs[0],
                               inputs[1]);
     case wasm::kExprI8x16MaxU:
-      return graph()->NewNode(jsgraph()->machine()->Uint8x16Max(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->I8x16MaxU(), inputs[0],
                               inputs[1]);
     case wasm::kExprI8x16LtU:
-      return graph()->NewNode(jsgraph()->machine()->Uint8x16LessThan(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16LtU(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI8x16LeU:
-      return graph()->NewNode(jsgraph()->machine()->Uint8x16LessThanOrEqual(),
-                              inputs[0], inputs[1]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16LeU(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI8x16GtU:
-      return graph()->NewNode(jsgraph()->machine()->Uint8x16LessThan(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16LtU(), inputs[1],
+                              inputs[0]);
     case wasm::kExprI8x16GeU:
-      return graph()->NewNode(jsgraph()->machine()->Uint8x16LessThanOrEqual(),
-                              inputs[1], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16LeU(), inputs[1],
+                              inputs[0]);
     case wasm::kExprS128And:
-      return graph()->NewNode(jsgraph()->machine()->Simd128And(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S128And(), inputs[0],
                               inputs[1]);
     case wasm::kExprS128Or:
-      return graph()->NewNode(jsgraph()->machine()->Simd128Or(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S128Or(), inputs[0],
                               inputs[1]);
     case wasm::kExprS128Xor:
-      return graph()->NewNode(jsgraph()->machine()->Simd128Xor(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S128Xor(), inputs[0],
                               inputs[1]);
     case wasm::kExprS128Not:
-      return graph()->NewNode(jsgraph()->machine()->Simd128Not(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->S128Not(), inputs[0]);
     case wasm::kExprS32x4Select:
-      return graph()->NewNode(jsgraph()->machine()->Simd32x4Select(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S32x4Select(), inputs[0],
                               inputs[1], inputs[2]);
     case wasm::kExprS16x8Select:
-      return graph()->NewNode(jsgraph()->machine()->Simd16x8Select(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S16x8Select(), inputs[0],
                               inputs[1], inputs[2]);
     case wasm::kExprS8x16Select:
-      return graph()->NewNode(jsgraph()->machine()->Simd8x16Select(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S8x16Select(), inputs[0],
                               inputs[1], inputs[2]);
     case wasm::kExprS1x4And:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x4And(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S1x4And(), inputs[0],
                               inputs[1]);
     case wasm::kExprS1x4Or:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x4Or(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S1x4Or(), inputs[0],
                               inputs[1]);
     case wasm::kExprS1x4Xor:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x4Xor(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S1x4Xor(), inputs[0],
                               inputs[1]);
     case wasm::kExprS1x4Not:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x4Not(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->S1x4Not(), inputs[0]);
     case wasm::kExprS1x4AnyTrue:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x4AnyTrue(),
-                              inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->S1x4AnyTrue(), inputs[0]);
     case wasm::kExprS1x4AllTrue:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x4AllTrue(),
-                              inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->S1x4AllTrue(), inputs[0]);
     case wasm::kExprS1x8And:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x8And(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S1x8And(), inputs[0],
                               inputs[1]);
     case wasm::kExprS1x8Or:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x8Or(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S1x8Or(), inputs[0],
                               inputs[1]);
     case wasm::kExprS1x8Xor:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x8Xor(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S1x8Xor(), inputs[0],
                               inputs[1]);
     case wasm::kExprS1x8Not:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x8Not(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->S1x8Not(), inputs[0]);
     case wasm::kExprS1x8AnyTrue:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x8AnyTrue(),
-                              inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->S1x8AnyTrue(), inputs[0]);
     case wasm::kExprS1x8AllTrue:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x8AllTrue(),
-                              inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->S1x8AllTrue(), inputs[0]);
     case wasm::kExprS1x16And:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x16And(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S1x16And(), inputs[0],
                               inputs[1]);
     case wasm::kExprS1x16Or:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x16Or(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S1x16Or(), inputs[0],
                               inputs[1]);
     case wasm::kExprS1x16Xor:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x16Xor(), inputs[0],
+      return graph()->NewNode(jsgraph()->machine()->S1x16Xor(), inputs[0],
                               inputs[1]);
     case wasm::kExprS1x16Not:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x16Not(), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->S1x16Not(), inputs[0]);
     case wasm::kExprS1x16AnyTrue:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x16AnyTrue(),
-                              inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->S1x16AnyTrue(), inputs[0]);
     case wasm::kExprS1x16AllTrue:
-      return graph()->NewNode(jsgraph()->machine()->Simd1x16AllTrue(),
-                              inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->S1x16AllTrue(), inputs[0]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }
@@ -3513,28 +3506,28 @@ Node* WasmGraphBuilder::SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
   has_simd_ = true;
   switch (opcode) {
     case wasm::kExprF32x4ExtractLane:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4ExtractLane(lane),
+      return graph()->NewNode(jsgraph()->machine()->F32x4ExtractLane(lane),
                               inputs[0]);
     case wasm::kExprF32x4ReplaceLane:
-      return graph()->NewNode(jsgraph()->machine()->Float32x4ReplaceLane(lane),
+      return graph()->NewNode(jsgraph()->machine()->F32x4ReplaceLane(lane),
                               inputs[0], inputs[1]);
     case wasm::kExprI32x4ExtractLane:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4ExtractLane(lane),
+      return graph()->NewNode(jsgraph()->machine()->I32x4ExtractLane(lane),
                               inputs[0]);
     case wasm::kExprI32x4ReplaceLane:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4ReplaceLane(lane),
+      return graph()->NewNode(jsgraph()->machine()->I32x4ReplaceLane(lane),
                               inputs[0], inputs[1]);
     case wasm::kExprI16x8ExtractLane:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8ExtractLane(lane),
+      return graph()->NewNode(jsgraph()->machine()->I16x8ExtractLane(lane),
                               inputs[0]);
     case wasm::kExprI16x8ReplaceLane:
-      return graph()->NewNode(jsgraph()->machine()->Int16x8ReplaceLane(lane),
+      return graph()->NewNode(jsgraph()->machine()->I16x8ReplaceLane(lane),
                               inputs[0], inputs[1]);
     case wasm::kExprI8x16ExtractLane:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16ExtractLane(lane),
+      return graph()->NewNode(jsgraph()->machine()->I8x16ExtractLane(lane),
                               inputs[0]);
     case wasm::kExprI8x16ReplaceLane:
-      return graph()->NewNode(jsgraph()->machine()->Int8x16ReplaceLane(lane),
+      return graph()->NewNode(jsgraph()->machine()->I8x16ReplaceLane(lane),
                               inputs[0], inputs[1]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
@@ -3546,32 +3539,29 @@ Node* WasmGraphBuilder::SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
   has_simd_ = true;
   switch (opcode) {
     case wasm::kExprI32x4Shl:
-      return graph()->NewNode(
-          jsgraph()->machine()->Int32x4ShiftLeftByScalar(shift), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4Shl(shift), inputs[0]);
     case wasm::kExprI32x4ShrS:
-      return graph()->NewNode(
-          jsgraph()->machine()->Int32x4ShiftRightByScalar(shift), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4ShrS(shift),
+                              inputs[0]);
     case wasm::kExprI32x4ShrU:
-      return graph()->NewNode(
-          jsgraph()->machine()->Uint32x4ShiftRightByScalar(shift), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I32x4ShrU(shift),
+                              inputs[0]);
     case wasm::kExprI16x8Shl:
-      return graph()->NewNode(
-          jsgraph()->machine()->Int16x8ShiftLeftByScalar(shift), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8Shl(shift), inputs[0]);
     case wasm::kExprI16x8ShrS:
-      return graph()->NewNode(
-          jsgraph()->machine()->Int16x8ShiftRightByScalar(shift), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8ShrS(shift),
+                              inputs[0]);
     case wasm::kExprI16x8ShrU:
-      return graph()->NewNode(
-          jsgraph()->machine()->Uint16x8ShiftRightByScalar(shift), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I16x8ShrU(shift),
+                              inputs[0]);
     case wasm::kExprI8x16Shl:
-      return graph()->NewNode(
-          jsgraph()->machine()->Int8x16ShiftLeftByScalar(shift), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16Shl(shift), inputs[0]);
     case wasm::kExprI8x16ShrS:
-      return graph()->NewNode(
-          jsgraph()->machine()->Int8x16ShiftRightByScalar(shift), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16ShrS(shift),
+                              inputs[0]);
     case wasm::kExprI8x16ShrU:
-      return graph()->NewNode(
-          jsgraph()->machine()->Uint8x16ShiftRightByScalar(shift), inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->I8x16ShrU(shift),
+                              inputs[0]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }
@@ -3582,13 +3572,13 @@ Node* WasmGraphBuilder::SimdSwizzleOp(wasm::WasmOpcode opcode, uint32_t swizzle,
   has_simd_ = true;
   switch (opcode) {
     case wasm::kExprS32x4Swizzle:
-      return graph()->NewNode(jsgraph()->machine()->Simd32x4Swizzle(swizzle),
+      return graph()->NewNode(jsgraph()->machine()->S32x4Swizzle(swizzle),
                               inputs[0]);
     case wasm::kExprS16x8Swizzle:
-      return graph()->NewNode(jsgraph()->machine()->Simd16x8Swizzle(swizzle),
+      return graph()->NewNode(jsgraph()->machine()->S16x8Swizzle(swizzle),
                               inputs[0]);
     case wasm::kExprS8x16Swizzle:
-      return graph()->NewNode(jsgraph()->machine()->Simd8x16Swizzle(swizzle),
+      return graph()->NewNode(jsgraph()->machine()->S8x16Swizzle(swizzle),
                               inputs[0]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);

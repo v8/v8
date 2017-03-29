@@ -1556,479 +1556,479 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
-    case kArmFloat32x4Splat: {
+    case kArmF32x4Splat: {
       __ vdup(i.OutputSimd128Register(), i.InputFloatRegister(0));
       break;
     }
-    case kArmFloat32x4ExtractLane: {
+    case kArmF32x4ExtractLane: {
       __ ExtractLane(i.OutputFloatRegister(), i.InputSimd128Register(0),
                      kScratchReg, i.InputInt8(1));
       break;
     }
-    case kArmFloat32x4ReplaceLane: {
+    case kArmF32x4ReplaceLane: {
       __ ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
                      i.InputFloatRegister(2), kScratchReg, i.InputInt8(1));
       break;
     }
-    case kArmFloat32x4FromInt32x4: {
+    case kArmF32x4SConvertI32x4: {
       __ vcvt_f32_s32(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmFloat32x4FromUint32x4: {
+    case kArmF32x4UConvertI32x4: {
       __ vcvt_f32_u32(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmFloat32x4Abs: {
+    case kArmF32x4Abs: {
       __ vabs(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmFloat32x4Neg: {
+    case kArmF32x4Neg: {
       __ vneg(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmFloat32x4RecipApprox: {
+    case kArmF32x4RecipApprox: {
       __ vrecpe(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmFloat32x4RecipSqrtApprox: {
+    case kArmF32x4RecipSqrtApprox: {
       __ vrsqrte(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmFloat32x4Add: {
+    case kArmF32x4Add: {
       __ vadd(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmFloat32x4Sub: {
+    case kArmF32x4Sub: {
       __ vsub(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmFloat32x4Mul: {
+    case kArmF32x4Mul: {
       __ vmul(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmFloat32x4Min: {
+    case kArmF32x4Min: {
       __ vmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmFloat32x4Max: {
+    case kArmF32x4Max: {
       __ vmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmFloat32x4RecipRefine: {
+    case kArmF32x4RecipRefine: {
       __ vrecps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputSimd128Register(1));
       break;
     }
-    case kArmFloat32x4RecipSqrtRefine: {
+    case kArmF32x4RecipSqrtRefine: {
       __ vrsqrts(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kArmFloat32x4Equal: {
+    case kArmF32x4Eq: {
       __ vceq(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmFloat32x4NotEqual: {
+    case kArmF32x4Ne: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vceq(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
       __ vmvn(dst, dst);
       break;
     }
-    case kArmFloat32x4LessThan: {
+    case kArmF32x4Lt: {
       __ vcgt(i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmFloat32x4LessThanOrEqual: {
+    case kArmF32x4Le: {
       __ vcge(i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmInt32x4Splat: {
+    case kArmI32x4Splat: {
       __ vdup(Neon32, i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kArmInt32x4ExtractLane: {
+    case kArmI32x4ExtractLane: {
       __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonS32,
                      i.InputInt8(1));
       break;
     }
-    case kArmInt32x4ReplaceLane: {
+    case kArmI32x4ReplaceLane: {
       __ ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
                      i.InputRegister(2), NeonS32, i.InputInt8(1));
       break;
     }
-    case kArmInt32x4FromFloat32x4: {
+    case kArmI32x4SConvertF32x4: {
       __ vcvt_s32_f32(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmUint32x4FromFloat32x4: {
-      __ vcvt_u32_f32(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kArmInt32x4Neg: {
+    case kArmI32x4Neg: {
       __ vneg(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmInt32x4ShiftLeftByScalar: {
+    case kArmI32x4Shl: {
       __ vshl(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt5(1));
       break;
     }
-    case kArmInt32x4ShiftRightByScalar: {
+    case kArmI32x4ShrS: {
       __ vshr(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt5(1));
       break;
     }
-    case kArmInt32x4Add: {
+    case kArmI32x4Add: {
       __ vadd(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt32x4Sub: {
+    case kArmI32x4Sub: {
       __ vsub(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt32x4Mul: {
+    case kArmI32x4Mul: {
       __ vmul(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt32x4Min: {
+    case kArmI32x4MinS: {
       __ vmin(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt32x4Max: {
+    case kArmI32x4MaxS: {
       __ vmax(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt32x4Equal: {
+    case kArmI32x4Eq: {
       __ vceq(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt32x4NotEqual: {
+    case kArmI32x4Ne: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vceq(Neon32, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt32x4LessThan: {
+    case kArmI32x4LtS: {
       __ vcgt(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmInt32x4LessThanOrEqual: {
+    case kArmI32x4LeS: {
       __ vcge(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmUint32x4ShiftRightByScalar: {
+    case kArmI32x4UConvertF32x4: {
+      __ vcvt_u32_f32(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmI32x4ShrU: {
       __ vshr(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt5(1));
       break;
     }
-    case kArmUint32x4Min: {
+    case kArmI32x4MinU: {
       __ vmin(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint32x4Max: {
+    case kArmI32x4MaxU: {
       __ vmax(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint32x4LessThan: {
+    case kArmI32x4LtU: {
       __ vcgt(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmUint32x4LessThanOrEqual: {
+    case kArmI32x4LeU: {
       __ vcge(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmInt16x8Splat: {
+    case kArmI16x8Splat: {
       __ vdup(Neon16, i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kArmInt16x8ExtractLane: {
+    case kArmI16x8ExtractLane: {
       __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonS16,
                      i.InputInt8(1));
       break;
     }
-    case kArmInt16x8ReplaceLane: {
+    case kArmI16x8ReplaceLane: {
       __ ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
                      i.InputRegister(2), NeonS16, i.InputInt8(1));
       break;
     }
-    case kArmInt16x8Neg: {
+    case kArmI16x8Neg: {
       __ vneg(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmInt16x8ShiftLeftByScalar: {
+    case kArmI16x8Shl: {
       __ vshl(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt4(1));
       break;
     }
-    case kArmInt16x8ShiftRightByScalar: {
+    case kArmI16x8ShrS: {
       __ vshr(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt4(1));
       break;
     }
-    case kArmInt16x8Add: {
+    case kArmI16x8Add: {
       __ vadd(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8AddSaturate: {
+    case kArmI16x8AddSaturateS: {
       __ vqadd(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8Sub: {
+    case kArmI16x8Sub: {
       __ vsub(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8SubSaturate: {
+    case kArmI16x8SubSaturateS: {
       __ vqsub(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8Mul: {
+    case kArmI16x8Mul: {
       __ vmul(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8Min: {
+    case kArmI16x8MinS: {
       __ vmin(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8Max: {
+    case kArmI16x8MaxS: {
       __ vmax(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8Equal: {
+    case kArmI16x8Eq: {
       __ vceq(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8NotEqual: {
+    case kArmI16x8Ne: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vceq(Neon16, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt16x8LessThan: {
+    case kArmI16x8LtS: {
       __ vcgt(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmInt16x8LessThanOrEqual: {
+    case kArmI16x8LeS: {
       __ vcge(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmUint16x8ShiftRightByScalar: {
+    case kArmI16x8ShrU: {
       __ vshr(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt4(1));
       break;
     }
-    case kArmUint16x8AddSaturate: {
+    case kArmI16x8AddSaturateU: {
       __ vqadd(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
     }
-    case kArmUint16x8SubSaturate: {
+    case kArmI16x8SubSaturateU: {
       __ vqsub(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
     }
-    case kArmUint16x8Min: {
+    case kArmI16x8MinU: {
       __ vmin(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint16x8Max: {
+    case kArmI16x8MaxU: {
       __ vmax(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint16x8LessThan: {
+    case kArmI16x8LtU: {
       __ vcgt(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmUint16x8LessThanOrEqual: {
+    case kArmI16x8LeU: {
       __ vcge(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmInt8x16Splat: {
+    case kArmI8x16Splat: {
       __ vdup(Neon8, i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kArmInt8x16ExtractLane: {
+    case kArmI8x16ExtractLane: {
       __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonS8,
                      i.InputInt8(1));
       break;
     }
-    case kArmInt8x16ReplaceLane: {
+    case kArmI8x16ReplaceLane: {
       __ ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
                      i.InputRegister(2), NeonS8, i.InputInt8(1));
       break;
     }
-    case kArmInt8x16Neg: {
+    case kArmI8x16Neg: {
       __ vneg(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmInt8x16ShiftLeftByScalar: {
+    case kArmI8x16Shl: {
       __ vshl(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt3(1));
       break;
     }
-    case kArmInt8x16ShiftRightByScalar: {
+    case kArmI8x16ShrS: {
       __ vshr(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt3(1));
       break;
     }
-    case kArmInt8x16Add: {
+    case kArmI8x16Add: {
       __ vadd(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16AddSaturate: {
+    case kArmI8x16AddSaturateS: {
       __ vqadd(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16Sub: {
+    case kArmI8x16Sub: {
       __ vsub(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16SubSaturate: {
+    case kArmI8x16SubSaturateS: {
       __ vqsub(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16Mul: {
+    case kArmI8x16Mul: {
       __ vmul(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16Min: {
+    case kArmI8x16MinS: {
       __ vmin(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16Max: {
+    case kArmI8x16MaxS: {
       __ vmax(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16Equal: {
+    case kArmI8x16Eq: {
       __ vceq(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16NotEqual: {
+    case kArmI8x16Ne: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vceq(Neon8, dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt8x16LessThan: {
+    case kArmI8x16LtS: {
       __ vcgt(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmInt8x16LessThanOrEqual: {
+    case kArmI8x16LeS: {
       __ vcge(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmUint8x16ShiftRightByScalar: {
+    case kArmI8x16ShrU: {
       __ vshr(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt3(1));
       break;
     }
-    case kArmUint8x16AddSaturate: {
+    case kArmI8x16AddSaturateU: {
       __ vqadd(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
     }
-    case kArmUint8x16SubSaturate: {
+    case kArmI8x16SubSaturateU: {
       __ vqsub(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
     }
-    case kArmUint8x16Min: {
+    case kArmI8x16MinU: {
       __ vmin(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint8x16Max: {
+    case kArmI8x16MaxU: {
       __ vmax(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint8x16LessThan: {
+    case kArmI8x16LtU: {
       __ vcgt(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmUint8x16LessThanOrEqual: {
+    case kArmI8x16LeU: {
       __ vcge(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
       break;
     }
-    case kArmSimd128Zero: {
+    case kArmS128Zero: {
       __ veor(i.OutputSimd128Register(), i.OutputSimd128Register(),
               i.OutputSimd128Register());
       break;
     }
-    case kArmSimd128And: {
+    case kArmS128And: {
       __ vand(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmSimd128Or: {
+    case kArmS128Or: {
       __ vorr(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmSimd128Xor: {
+    case kArmS128Xor: {
       __ veor(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmSimd128Not: {
+    case kArmS128Not: {
       __ vmvn(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmSimd128Select: {
+    case kArmS128Select: {
       // vbsl clobbers the mask input so make sure it was DefineSameAsFirst.
       DCHECK(i.OutputSimd128Register().is(i.InputSimd128Register(0)));
       __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(2));
       break;
     }
-    case kArmSimd1x4AnyTrue: {
+    case kArmS1x4AnyTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       __ vpmax(NeonU32, kScratchDoubleReg, src.low(), src.high());
       __ vpmax(NeonU32, kScratchDoubleReg, kScratchDoubleReg,
@@ -2036,7 +2036,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS32, 0);
       break;
     }
-    case kArmSimd1x4AllTrue: {
+    case kArmS1x4AllTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       __ vpmin(NeonU32, kScratchDoubleReg, src.low(), src.high());
       __ vpmin(NeonU32, kScratchDoubleReg, kScratchDoubleReg,
@@ -2044,7 +2044,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS32, 0);
       break;
     }
-    case kArmSimd1x8AnyTrue: {
+    case kArmS1x8AnyTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       __ vpmax(NeonU16, kScratchDoubleReg, src.low(), src.high());
       __ vpmax(NeonU16, kScratchDoubleReg, kScratchDoubleReg,
@@ -2054,7 +2054,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS16, 0);
       break;
     }
-    case kArmSimd1x8AllTrue: {
+    case kArmS1x8AllTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       __ vpmin(NeonU16, kScratchDoubleReg, src.low(), src.high());
       __ vpmin(NeonU16, kScratchDoubleReg, kScratchDoubleReg,
@@ -2064,7 +2064,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS16, 0);
       break;
     }
-    case kArmSimd1x16AnyTrue: {
+    case kArmS1x16AnyTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       __ vpmax(NeonU8, kScratchDoubleReg, src.low(), src.high());
       __ vpmax(NeonU8, kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
@@ -2075,7 +2075,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS32, 0);
       break;
     }
-    case kArmSimd1x16AllTrue: {
+    case kArmS1x16AllTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       __ vpmin(NeonU8, kScratchDoubleReg, src.low(), src.high());
       __ vpmin(NeonU8, kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);

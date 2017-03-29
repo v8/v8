@@ -2381,29 +2381,29 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   Emit(code, 1, outputs, input_count, inputs);
 }
 
-#define SIMD_TYPES(V) V(Int32x4)
+#define SIMD_TYPES(V) V(I32x4)
 
 #define SIMD_ZERO_OP_LIST(V) \
-  V(Simd128Zero)             \
-  V(Simd1x4Zero)             \
-  V(Simd1x8Zero)             \
-  V(Simd1x16Zero)
+  V(S128Zero)                \
+  V(S1x4Zero)                \
+  V(S1x8Zero)                \
+  V(S1x16Zero)
+
+#define SIMD_SHIFT_OPCODES(V) \
+  V(I32x4Shl)                 \
+  V(I32x4ShrS)                \
+  V(I32x4ShrU)
 
 #define SIMD_BINOP_LIST(V) \
-  V(Int32x4Add)            \
-  V(Int32x4Sub)            \
-  V(Int32x4Mul)            \
-  V(Int32x4Min)            \
-  V(Int32x4Max)            \
-  V(Int32x4Equal)          \
-  V(Int32x4NotEqual)       \
-  V(Uint32x4Min)           \
-  V(Uint32x4Max)
-
-#define SIMD_SHIFT_OPCODES(V)  \
-  V(Int32x4ShiftLeftByScalar)  \
-  V(Int32x4ShiftRightByScalar) \
-  V(Uint32x4ShiftRightByScalar)
+  V(I32x4Add)              \
+  V(I32x4Sub)              \
+  V(I32x4Mul)              \
+  V(I32x4MinS)             \
+  V(I32x4MaxS)             \
+  V(I32x4Eq)               \
+  V(I32x4Ne)               \
+  V(I32x4MinU)             \
+  V(I32x4MaxU)
 
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -2435,22 +2435,13 @@ SIMD_TYPES(VISIT_SIMD_EXTRACT_LANE)
 SIMD_TYPES(VISIT_SIMD_REPLACE_LANE)
 #undef VISIT_SIMD_REPLACE_LANE
 
-#define SIMD_VISIT_ZERO_OP(Name)                                               \
-  void InstructionSelector::Visit##Name(Node* node) {                          \
-    X64OperandGenerator g(this);                                               \
-    Emit(kX64Simd128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node)); \
+#define SIMD_VISIT_ZERO_OP(Name)                                            \
+  void InstructionSelector::Visit##Name(Node* node) {                       \
+    X64OperandGenerator g(this);                                            \
+    Emit(kX64S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node)); \
   }
 SIMD_ZERO_OP_LIST(SIMD_VISIT_ZERO_OP)
 #undef SIMD_VISIT_ZERO_OP
-
-#define VISIT_SIMD_BINOP(Opcode)                                            \
-  void InstructionSelector::Visit##Opcode(Node* node) {                     \
-    X64OperandGenerator g(this);                                            \
-    Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
-  }
-SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
-#undef VISIT_SIMD_BINOP
 
 #define VISIT_SIMD_SHIFT(Opcode)                                  \
   void InstructionSelector::Visit##Opcode(Node* node) {           \
@@ -2462,9 +2453,18 @@ SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
 
-void InstructionSelector::VisitSimd32x4Select(Node* node) {
+#define VISIT_SIMD_BINOP(Opcode)                                            \
+  void InstructionSelector::Visit##Opcode(Node* node) {                     \
+    X64OperandGenerator g(this);                                            \
+    Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
+  }
+SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
+#undef VISIT_SIMD_BINOP
+
+void InstructionSelector::VisitS32x4Select(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64Simd32x4Select, g.DefineSameAsFirst(node),
+  Emit(kX64S32x4Select, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        g.UseRegister(node->InputAt(2)));
 }

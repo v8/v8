@@ -2142,18 +2142,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64Int32x4Splat: {
+    case kX64I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ movd(dst, i.InputRegister(0));
       __ pshufd(dst, dst, 0x0);
       break;
     }
-    case kX64Int32x4ExtractLane: {
+    case kX64I32x4ExtractLane: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
       __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
-    case kX64Int32x4ReplaceLane: {
+    case kX64I32x4ReplaceLane: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
       if (instr->InputAt(2)->IsRegister()) {
         __ Pinsrd(i.OutputSimd128Register(), i.InputRegister(2),
@@ -2163,73 +2163,73 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64Int32x4Add: {
+    case kX64I32x4Shl: {
+      __ pslld(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kX64I32x4ShrS: {
+      __ psrad(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kX64I32x4Add: {
       __ paddd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
-    case kX64Int32x4Sub: {
+    case kX64I32x4Sub: {
       __ psubd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
-    case kX64Int32x4Mul: {
+    case kX64I32x4Mul: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
       __ pmulld(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
-    case kX64Int32x4Min: {
+    case kX64I32x4MinS: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
       __ pminsd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
-    case kX64Int32x4Max: {
+    case kX64I32x4MaxS: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
       __ pmaxsd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
-    case kX64Uint32x4Min: {
-      CpuFeatureScope sse_scope(masm(), SSE4_1);
-      __ pminud(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      break;
-    }
-    case kX64Uint32x4Max: {
-      CpuFeatureScope sse_scope(masm(), SSE4_1);
-      __ pmaxud(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      break;
-    }
-    case kX64Int32x4Equal: {
+    case kX64I32x4Eq: {
       __ pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
-    case kX64Int32x4NotEqual: {
+    case kX64I32x4Ne: {
       __ pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
       __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
-    case kX64Int32x4ShiftLeftByScalar: {
-      __ pslld(i.OutputSimd128Register(), i.InputInt8(1));
-      break;
-    }
-    case kX64Int32x4ShiftRightByScalar: {
-      __ psrad(i.OutputSimd128Register(), i.InputInt8(1));
-      break;
-    }
-    case kX64Uint32x4ShiftRightByScalar: {
+    case kX64I32x4ShrU: {
       __ psrld(i.OutputSimd128Register(), i.InputInt8(1));
       break;
     }
-    case kX64Simd32x4Select: {
+    case kX64I32x4MinU: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ pminud(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I32x4MaxU: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ pmaxud(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64S128Zero: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ xorps(dst, dst);
+      break;
+    }
+    case kX64S32x4Select: {
       // Mask used here is stored in dst.
       XMMRegister dst = i.OutputSimd128Register();
       __ movaps(kScratchDoubleReg, i.InputSimd128Register(1));
       __ xorps(kScratchDoubleReg, i.InputSimd128Register(2));
       __ andps(dst, kScratchDoubleReg);
       __ xorps(dst, i.InputSimd128Register(2));
-      break;
-    }
-    case kX64Simd128Zero: {
-      XMMRegister dst = i.OutputSimd128Register();
-      __ xorps(dst, dst);
       break;
     }
     case kCheckedLoadInt8:

@@ -450,7 +450,7 @@ WASM_EXEC_COMPILED_TEST(F32x4ReplaceLane) {
 }
 
 // Tests both signed and unsigned conversion.
-WASM_EXEC_COMPILED_TEST(F32x4FromInt32x4) {
+WASM_EXEC_COMPILED_TEST(F32x4ConvertI32x4) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, float, float> r(kExecuteCompiled);
   byte a = 0;
@@ -891,7 +891,7 @@ int32_t ConvertToInt(double val, bool unsigned_integer) {
 }
 
 // Tests both signed and unsigned conversion.
-WASM_EXEC_COMPILED_TEST(I32x4FromFloat32x4) {
+WASM_EXEC_COMPILED_TEST(I32x4Convert32x4) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, float, int32_t, int32_t> r(kExecuteCompiled);
   byte a = 0;

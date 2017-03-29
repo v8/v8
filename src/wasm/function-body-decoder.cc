@@ -657,13 +657,13 @@ class WasmFullDecoder : public WasmDecoder {
       case kWasmF64:
         return builder_->Float64Constant(0);
       case kWasmS128:
-        return builder_->Simd128Zero();
+        return builder_->S128Zero();
       case kWasmS1x4:
-        return builder_->Simd1x4Zero();
+        return builder_->S1x4Zero();
       case kWasmS1x8:
-        return builder_->Simd1x8Zero();
+        return builder_->S1x8Zero();
       case kWasmS1x16:
-        return builder_->Simd1x16Zero();
+        return builder_->S1x16Zero();
       default:
         UNREACHABLE();
         return nullptr;
