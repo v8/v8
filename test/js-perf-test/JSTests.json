@@ -334,6 +334,11 @@
           "test_flags": ["construct-typedarray"]
         },
         {
+          "name": "ConstructBySameTypedArray",
+          "main": "run.js",
+          "test_flags": ["construct-same-typedarray"]
+        },
+        {
           "name": "Sort",
           "main": "run.js",
           "test_flags": ["sort"]
