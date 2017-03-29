@@ -221,6 +221,30 @@ class WasmSharedModuleData : public FixedArray {
   friend class WasmCompiledModule;
 };
 
+// This represents the set of wasm compiled functions, together
+// with all the information necessary for re-specializing them.
+//
+// We specialize wasm functions to their instance by embedding:
+//   - raw interior pointers into the backing store of the array buffer
+//     used as memory of a particular WebAssembly.Instance object.
+//   - bounds check limits, computed at compile time, relative to the
+//     size of the memory.
+//   - the objects representing the function tables and signature tables
+//   - raw pointer to the globals buffer.
+//
+// Even without instantiating, we need values for all of these parameters.
+// We need to track these values to be able to create new instances and
+// to be able to serialize/deserialize.
+// The design decisions for how we track these values is not too immediate,
+// and it deserves a summary. The "tricky" ones are: memory, globals, and
+// the tables (signature and functions).
+// The first 2 (memory & globals) are embedded as raw pointers to native
+// buffers. All we need to track them is the start addresses and, in the
+// case of memory, the size. We model all of them as HeapNumbers, because
+// we need to store size_t values (for addresses), and potentially full
+// 32 bit unsigned values for the size. Smis are 31 bits.
+// For tables, we need to hold a reference to the JS Heap object, because
+// we embed them as objects, and they may move.
 class WasmCompiledModule : public FixedArray {
  public:
   enum Fields { kFieldCount };
@@ -267,11 +291,18 @@ class WasmCompiledModule : public FixedArray {
 #define WCM_WASM_OBJECT(TYPE, NAME) \
   WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, TYPE::Is##TYPE(obj))
 
-#define WCM_SMALL_NUMBER(TYPE, NAME)                               \
+#define WCM_SMALL_FIXED_NUMBER(TYPE, NAME)                         \
   TYPE NAME() const {                                              \
     return static_cast<TYPE>(Smi::cast(get(kID_##NAME))->value()); \
   }                                                                \
   void set_##NAME(TYPE value) { set(kID_##NAME, Smi::FromInt(value)); }
+
+#define WCM_SMALL_NUMBER(TYPE, NAME)                                    \
+  TYPE NAME() const {                                                   \
+    return static_cast<TYPE>(Smi::cast(get(kID_##NAME))->value());      \
+  }                                                                     \
+  void set_##NAME(TYPE value) { set(kID_##NAME, Smi::FromInt(value)); } \
+  bool has_##NAME() const { return get(kID_##NAME)->IsSmi(); }
 
 #define WCM_WEAK_LINK(TYPE, NAME)                                           \
   WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME, obj->IsWeakCell()); \
@@ -280,21 +311,44 @@ class WasmCompiledModule : public FixedArray {
     return handle(TYPE::cast(weak_##NAME()->value()));                      \
   }
 
-#define CORE_WCM_PROPERTY_TABLE(MACRO)                  \
-  MACRO(WASM_OBJECT, WasmSharedModuleData, shared)      \
-  MACRO(OBJECT, Context, native_context)                \
-  MACRO(SMALL_NUMBER, uint32_t, num_imported_functions) \
-  MACRO(OBJECT, FixedArray, code_table)                 \
-  MACRO(OBJECT, FixedArray, weak_exported_functions)    \
-  MACRO(OBJECT, FixedArray, function_tables)            \
-  MACRO(OBJECT, FixedArray, signature_tables)           \
-  MACRO(OBJECT, FixedArray, empty_function_tables)      \
-  MACRO(OBJECT, JSArrayBuffer, memory)                  \
-  MACRO(SMALL_NUMBER, uint32_t, min_mem_pages)          \
-  MACRO(SMALL_NUMBER, uint32_t, max_mem_pages)          \
-  MACRO(WEAK_LINK, WasmCompiledModule, next_instance)   \
-  MACRO(WEAK_LINK, WasmCompiledModule, prev_instance)   \
-  MACRO(WEAK_LINK, JSObject, owning_instance)           \
+#define WCM_LARGE_NUMBER(TYPE, NAME)                                   \
+  TYPE NAME() const {                                                  \
+    Object* value = get(kID_##NAME);                                   \
+    DCHECK(value->IsMutableHeapNumber());                              \
+    return static_cast<TYPE>(HeapNumber::cast(value)->value());        \
+  }                                                                    \
+                                                                       \
+  void set_##NAME(TYPE value) {                                        \
+    Object* number = get(kID_##NAME);                                  \
+    DCHECK(number->IsMutableHeapNumber());                             \
+    HeapNumber::cast(number)->set_value(static_cast<double>(value));   \
+  }                                                                    \
+                                                                       \
+  static void recreate_##NAME(Handle<WasmCompiledModule> obj,          \
+                              Factory* factory, TYPE init_val) {       \
+    Handle<HeapNumber> number = factory->NewHeapNumber(                \
+        static_cast<double>(init_val), MutableMode::MUTABLE, TENURED); \
+    obj->set(kID_##NAME, *number);                                     \
+  }                                                                    \
+  bool has_##NAME() const { return get(kID_##NAME)->IsMutableHeapNumber(); }
+
+#define CORE_WCM_PROPERTY_TABLE(MACRO)                        \
+  MACRO(WASM_OBJECT, WasmSharedModuleData, shared)            \
+  MACRO(OBJECT, Context, native_context)                      \
+  MACRO(SMALL_FIXED_NUMBER, uint32_t, num_imported_functions) \
+  MACRO(OBJECT, FixedArray, code_table)                       \
+  MACRO(OBJECT, FixedArray, weak_exported_functions)          \
+  MACRO(OBJECT, FixedArray, function_tables)                  \
+  MACRO(OBJECT, FixedArray, signature_tables)                 \
+  MACRO(OBJECT, FixedArray, empty_function_tables)            \
+  MACRO(LARGE_NUMBER, size_t, embedded_mem_start)             \
+  MACRO(LARGE_NUMBER, size_t, globals_start)                  \
+  MACRO(LARGE_NUMBER, uint32_t, embedded_mem_size)            \
+  MACRO(SMALL_FIXED_NUMBER, uint32_t, min_mem_pages)          \
+  MACRO(SMALL_FIXED_NUMBER, uint32_t, max_mem_pages)          \
+  MACRO(WEAK_LINK, WasmCompiledModule, next_instance)         \
+  MACRO(WEAK_LINK, WasmCompiledModule, prev_instance)         \
+  MACRO(WEAK_LINK, JSObject, owning_instance)                 \
   MACRO(WEAK_LINK, WasmModuleObject, wasm_module)
 
 #if DEBUG
@@ -320,19 +374,35 @@ class WasmCompiledModule : public FixedArray {
                                         Handle<WasmSharedModuleData> shared);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
-                                          Handle<WasmCompiledModule> module) {
-    Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
-        isolate->factory()->CopyFixedArray(module));
-    ret->InitId();
-    ret->reset_weak_owning_instance();
-    ret->reset_weak_next_instance();
-    ret->reset_weak_prev_instance();
-    ret->reset_weak_exported_functions();
-    return ret;
+                                          Handle<WasmCompiledModule> module);
+  static void Reset(Isolate* isolate, WasmCompiledModule* module);
+
+  Address GetEmbeddedMemStartOrNull() const {
+    DisallowHeapAllocation no_gc;
+    if (has_embedded_mem_start()) {
+      return reinterpret_cast<Address>(embedded_mem_start());
+    }
+    return nullptr;
+  }
+
+  Address GetGlobalsStartOrNull() const {
+    DisallowHeapAllocation no_gc;
+    if (has_globals_start()) {
+      return reinterpret_cast<Address>(globals_start());
+    }
+    return nullptr;
   }
 
   uint32_t mem_size() const;
   uint32_t default_mem_size() const;
+
+  void ResetSpecializationMemInfoIfNeeded();
+  static void SetSpecializationMemInfoFrom(
+      Factory* factory, Handle<WasmCompiledModule> compiled_module,
+      Handle<JSArrayBuffer> buffer);
+  static void SetGlobalsStartAddressFrom(
+      Factory* factory, Handle<WasmCompiledModule> compiled_module,
+      Handle<JSArrayBuffer> buffer);
 
 #define DECLARATION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
   WCM_PROPERTY_TABLE(DECLARATION)

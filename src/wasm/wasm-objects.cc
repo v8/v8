@@ -772,12 +772,147 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   return compiled_module;
 }
 
+Handle<WasmCompiledModule> WasmCompiledModule::Clone(
+    Isolate* isolate, Handle<WasmCompiledModule> module) {
+  Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
+      isolate->factory()->CopyFixedArray(module));
+  ret->InitId();
+  ret->reset_weak_owning_instance();
+  ret->reset_weak_next_instance();
+  ret->reset_weak_prev_instance();
+  ret->reset_weak_exported_functions();
+  if (ret->has_embedded_mem_start()) {
+    WasmCompiledModule::recreate_embedded_mem_start(ret, isolate->factory(),
+                                                    ret->embedded_mem_start());
+  }
+  if (ret->has_globals_start()) {
+    WasmCompiledModule::recreate_globals_start(ret, isolate->factory(),
+                                               ret->globals_start());
+  }
+  if (ret->has_embedded_mem_size()) {
+    WasmCompiledModule::recreate_embedded_mem_size(ret, isolate->factory(),
+                                                   ret->embedded_mem_size());
+  }
+  return ret;
+}
+
+void WasmCompiledModule::Reset(Isolate* isolate,
+                               WasmCompiledModule* compiled_module) {
+  DisallowHeapAllocation no_gc;
+  TRACE("Resetting %d\n", compiled_module->instance_id());
+  Object* undefined = *isolate->factory()->undefined_value();
+  Object* fct_obj = compiled_module->ptr_to_code_table();
+  if (fct_obj != nullptr && fct_obj != undefined) {
+    uint32_t old_mem_size = compiled_module->mem_size();
+    uint32_t default_mem_size = compiled_module->default_mem_size();
+    Address old_mem_start = compiled_module->GetEmbeddedMemStartOrNull();
+
+    // Patch code to update memory references, global references, and function
+    // table references.
+    Zone specialization_zone(isolate->allocator(), ZONE_NAME);
+    CodeSpecialization code_specialization(isolate, &specialization_zone);
+
+    if (old_mem_size > 0 && old_mem_start != nullptr) {
+      code_specialization.RelocateMemoryReferences(old_mem_start, old_mem_size,
+                                                   nullptr, default_mem_size);
+    }
+
+    if (compiled_module->has_globals_start()) {
+      Address globals_start =
+          reinterpret_cast<Address>(compiled_module->globals_start());
+      code_specialization.RelocateGlobals(globals_start, nullptr);
+      compiled_module->set_globals_start(0);
+    }
+
+    // Reset function tables.
+    if (compiled_module->has_function_tables()) {
+      FixedArray* function_tables = compiled_module->ptr_to_function_tables();
+      FixedArray* empty_function_tables =
+          compiled_module->ptr_to_empty_function_tables();
+      if (function_tables != empty_function_tables) {
+        DCHECK_EQ(function_tables->length(), empty_function_tables->length());
+        for (int i = 0, e = function_tables->length(); i < e; ++i) {
+          code_specialization.RelocateObject(
+              handle(function_tables->get(i), isolate),
+              handle(empty_function_tables->get(i), isolate));
+        }
+        compiled_module->set_ptr_to_function_tables(empty_function_tables);
+      }
+    }
+
+    FixedArray* functions = FixedArray::cast(fct_obj);
+    for (int i = compiled_module->num_imported_functions(),
+             end = functions->length();
+         i < end; ++i) {
+      Code* code = Code::cast(functions->get(i));
+      // Skip lazy compile stubs.
+      if (code->builtin_index() == Builtins::kWasmCompileLazy) continue;
+      if (code->kind() != Code::WASM_FUNCTION) {
+        // From here on, there should only be wrappers for exported functions.
+        for (; i < end; ++i) {
+          DCHECK_EQ(Code::JS_TO_WASM_FUNCTION,
+                    Code::cast(functions->get(i))->kind());
+        }
+        break;
+      }
+      bool changed =
+          code_specialization.ApplyToWasmCode(code, SKIP_ICACHE_FLUSH);
+      // TODO(wasm): Check if this is faster than passing FLUSH_ICACHE_IF_NEEDED
+      // above.
+      if (changed) {
+        Assembler::FlushICache(isolate, code->instruction_start(),
+                               code->instruction_size());
+      }
+    }
+  }
+  compiled_module->ResetSpecializationMemInfoIfNeeded();
+}
+
 void WasmCompiledModule::InitId() {
 #if DEBUG
   static uint32_t instance_id_counter = 0;
   set(kID_instance_id, Smi::FromInt(instance_id_counter++));
   TRACE("New compiled module id: %d\n", instance_id());
 #endif
+}
+
+void WasmCompiledModule::ResetSpecializationMemInfoIfNeeded() {
+  DisallowHeapAllocation no_gc;
+  if (has_embedded_mem_start()) {
+    set_embedded_mem_size(0);
+    set_embedded_mem_start(0);
+  }
+}
+
+void WasmCompiledModule::SetSpecializationMemInfoFrom(
+    Factory* factory, Handle<WasmCompiledModule> compiled_module,
+    Handle<JSArrayBuffer> buffer) {
+  DCHECK(!buffer.is_null());
+  size_t start_address = reinterpret_cast<size_t>(buffer->backing_store());
+  uint32_t size = static_cast<uint32_t>(buffer->byte_length()->Number());
+  if (!compiled_module->has_embedded_mem_start()) {
+    DCHECK(!compiled_module->has_embedded_mem_size());
+    WasmCompiledModule::recreate_embedded_mem_start(compiled_module, factory,
+                                                    start_address);
+    WasmCompiledModule::recreate_embedded_mem_size(compiled_module, factory,
+                                                   size);
+  } else {
+    compiled_module->set_embedded_mem_start(start_address);
+    compiled_module->set_embedded_mem_size(size);
+  }
+}
+
+void WasmCompiledModule::SetGlobalsStartAddressFrom(
+    Factory* factory, Handle<WasmCompiledModule> compiled_module,
+    Handle<JSArrayBuffer> buffer) {
+  DCHECK(!buffer.is_null());
+  size_t start_address = reinterpret_cast<size_t>(buffer->backing_store());
+  if (!compiled_module->has_globals_start()) {
+    WasmCompiledModule::recreate_globals_start(compiled_module, factory,
+                                               start_address);
+  } else {
+    compiled_module->set_globals_start(start_address);
+  }
 }
 
 MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
@@ -807,13 +942,23 @@ bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
     Object* obj = arr->get(kID_##NAME);  \
     if (!(TYPE_CHECK)) return false;     \
   } while (false);
+// We're OK with undefined, generally, because maybe we don't
+// have a value for that item. For example, we may not have a
+// memory, or globals.
+// We're not OK with the fixed numbers being undefined. We want
+// to set once all of them.
 #define WCM_CHECK_OBJECT(TYPE, NAME) \
   WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->Is##TYPE())
 #define WCM_CHECK_WASM_OBJECT(TYPE, NAME) \
   WCM_CHECK_TYPE(NAME, TYPE::Is##TYPE(obj))
 #define WCM_CHECK_WEAK_LINK(TYPE, NAME) WCM_CHECK_OBJECT(WeakCell, NAME)
-#define WCM_CHECK_SMALL_NUMBER(TYPE, NAME) WCM_CHECK_TYPE(NAME, obj->IsSmi())
+#define WCM_CHECK_SMALL_NUMBER(TYPE, NAME) \
+  WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->IsSmi())
 #define WCM_CHECK(KIND, TYPE, NAME) WCM_CHECK_##KIND(TYPE, NAME)
+#define WCM_CHECK_SMALL_FIXED_NUMBER(TYPE, NAME) \
+  WCM_CHECK_TYPE(NAME, obj->IsSmi())
+#define WCM_CHECK_LARGE_NUMBER(TYPE, NAME) \
+  WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->IsMutableHeapNumber())
   WCM_PROPERTY_TABLE(WCM_CHECK)
 #undef WCM_CHECK
 
@@ -845,11 +990,13 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
       isolate);
   DCHECK(!WasmSharedModuleData::IsWasmSharedModuleData(*shared));
   WasmSharedModuleData::ReinitializeAfterDeserialization(isolate, shared);
+  WasmCompiledModule::Reset(isolate, *compiled_module);
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
 }
 
 uint32_t WasmCompiledModule::mem_size() const {
-  return has_memory() ? memory()->byte_length()->Number() : default_mem_size();
+  DCHECK(has_embedded_mem_size() == has_embedded_mem_start());
+  return has_embedded_mem_start() ? embedded_mem_size() : default_mem_size();
 }
 
 uint32_t WasmCompiledModule::default_mem_size() const {

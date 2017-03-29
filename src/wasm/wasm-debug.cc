@@ -94,10 +94,8 @@ class InterpreterHandle {
     }
 
     // Set pointer to globals storage.
-    if (instance->has_globals_buffer()) {
-      instance_.globals_start =
-          reinterpret_cast<byte*>(instance->globals_buffer()->backing_store());
-    }
+    instance_.globals_start =
+        debug_info->wasm_instance()->compiled_module()->GetGlobalsStartOrNull();
   }
 
   ~InterpreterHandle() {
