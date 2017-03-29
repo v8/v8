@@ -95,18 +95,15 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitJSRegExp, &JSObjectVisitor::Visit);
 
-  table_.template RegisterSpecializations<DataObjectVisitor, kVisitDataObject,
-                                          kVisitDataObjectGeneric>();
+  table_.Register(kVisitDataObject, &DataObjectVisitor::Visit);
 
-  table_.template RegisterSpecializations<JSObjectVisitor, kVisitJSObject,
-                                          kVisitJSObjectGeneric>();
+  table_.Register(kVisitJSObjectFast, &JSObjectFastVisitor::Visit);
+  table_.Register(kVisitJSObject, &JSObjectVisitor::Visit);
 
   // Not using specialized Api object visitor for newspace.
-  table_.template RegisterSpecializations<JSObjectVisitor, kVisitJSApiObject,
-                                          kVisitJSApiObjectGeneric>();
+  table_.Register(kVisitJSApiObject, &JSObjectVisitor::Visit);
 
-  table_.template RegisterSpecializations<StructVisitor, kVisitStruct,
-                                          kVisitStructGeneric>();
+  table_.Register(kVisitStruct, &StructVisitor::Visit);
 
   table_.Register(kVisitBytecodeArray, &UnreachableVisitor);
   table_.Register(kVisitSharedFunctionInfo, &UnreachableVisitor);
@@ -198,17 +195,14 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitTransitionArray, &VisitTransitionArray);
 
-  table_.template RegisterSpecializations<DataObjectVisitor, kVisitDataObject,
-                                          kVisitDataObjectGeneric>();
+  table_.Register(kVisitDataObject, &DataObjectVisitor::Visit);
 
-  table_.template RegisterSpecializations<JSObjectVisitor, kVisitJSObject,
-                                          kVisitJSObjectGeneric>();
+  table_.Register(kVisitJSObjectFast, &JSObjectFastVisitor::Visit);
+  table_.Register(kVisitJSObject, &JSObjectVisitor::Visit);
 
-  table_.template RegisterSpecializations<JSApiObjectVisitor, kVisitJSApiObject,
-                                          kVisitJSApiObjectGeneric>();
+  table_.Register(kVisitJSApiObject, &JSApiObjectVisitor::Visit);
 
-  table_.template RegisterSpecializations<StructObjectVisitor, kVisitStruct,
-                                          kVisitStructGeneric>();
+  table_.Register(kVisitStruct, &StructObjectVisitor::Visit);
 }
 
 
