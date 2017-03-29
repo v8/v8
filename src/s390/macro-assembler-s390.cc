@@ -2413,6 +2413,18 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   }
 }
 
+void MacroAssembler::AssertAsyncGeneratorObject(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    TestIfSmi(object);
+    Check(ne, kOperandIsASmiAndNotAGeneratorObject);
+    push(object);
+    CompareObjectType(object, object, object, JS_ASYNC_GENERATOR_OBJECT_TYPE);
+    pop(object);
+    Check(eq, kOperandIsNotAGeneratorObject);
+  }
+}
+
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
   if (emit_debug_code()) {
