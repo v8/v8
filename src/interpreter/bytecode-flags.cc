@@ -83,6 +83,16 @@ TestTypeOfFlags::LiteralFlag TestTypeOfFlags::Decode(uint8_t raw_flag) {
   return static_cast<LiteralFlag>(raw_flag);
 }
 
+// static
+uint8_t SuspendGeneratorBytecodeFlags::Encode(SuspendFlags flags) {
+  return FlagsBits::encode(flags);
+}
+
+// static
+SuspendFlags SuspendGeneratorBytecodeFlags::Decode(uint8_t flags) {
+  return FlagsBits::decode(flags);
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

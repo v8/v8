@@ -237,6 +237,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Return(Node* value1, Node* value2, Node* value3);
   void PopAndReturn(Node* pop, Node* value);
 
+  void ReturnIf(Node* condition, Node* value);
+
   void DebugBreak();
   void Unreachable();
   void Comment(const char* format, ...);
@@ -475,6 +477,8 @@ class CodeAssemblerLabel {
       CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
       : CodeAssemblerLabel(assembler, 1, &merged_variable, type) {}
   ~CodeAssemblerLabel();
+
+  inline bool is_bound() const { return bound_; }
 
  private:
   friend class CodeAssembler;

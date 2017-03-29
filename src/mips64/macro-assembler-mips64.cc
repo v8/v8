@@ -6033,6 +6033,16 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   }
 }
 
+void MacroAssembler::AssertAsyncGeneratorObject(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    SmiTst(object, t8);
+    Check(ne, kOperandIsASmiAndNotAGeneratorObject, t8, Operand(zero_reg));
+    GetObjectType(object, t8, t8);
+    Check(eq, kOperandIsNotAGeneratorObject, t8,
+          Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
+  }
+}
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {

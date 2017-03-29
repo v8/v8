@@ -208,6 +208,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
@@ -286,6 +287,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
+    case ASYNC_GENERATOR_REQUEST_TYPE:
       return kOtherInternal & kTaggedPointer;
 
     // Remaining instance types are unsupported for now. If any of them do

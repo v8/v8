@@ -38,6 +38,7 @@ class IntrinsicsGenerator {
   Node* CompareInstanceType(Node* map, int type, InstanceTypeCompareMode mode);
   Node* IntrinsicAsStubCall(Node* input, Node* context,
                             Callable const& callable);
+  Node* IntrinsicAsBuiltinCall(Node* input, Node* context, Builtins::Name name);
   void AbortIfArgCountMismatch(int expected, compiler::Node* actual);
 
 #define DECLARE_INTRINSIC_HELPER(name, lower_case, count) \
@@ -237,6 +238,12 @@ Node* IntrinsicsGenerator::IntrinsicAsStubCall(Node* args_reg, Node* context,
   return __ CallStubN(callable.descriptor(), 1, input_count, args);
 }
 
+Node* IntrinsicsGenerator::IntrinsicAsBuiltinCall(Node* input, Node* context,
+                                                  Builtins::Name name) {
+  Callable callable = Builtins::CallableFor(isolate_, name);
+  return IntrinsicAsStubCall(input, context, callable);
+}
+
 Node* IntrinsicsGenerator::CreateIterResultObject(Node* input, Node* arg_count,
                                                   Node* context) {
   return IntrinsicAsStubCall(input, context,
@@ -348,6 +355,30 @@ Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(Node* args_reg,
 
   __ Bind(&done);
   return return_value.value();
+}
+
+Node* IntrinsicsGenerator::AsyncGeneratorGetAwaitInputOrDebugPos(
+    Node* args_reg, Node* arg_count, Node* context) {
+  Node* generator = __ LoadRegister(args_reg);
+  CSA_SLOW_ASSERT(assembler_, __ HasInstanceType(
+                                  generator, JS_ASYNC_GENERATOR_OBJECT_TYPE));
+
+  Node* const value = __ LoadObjectField(
+      generator, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset);
+
+  return value;
+}
+
+Node* IntrinsicsGenerator::AsyncGeneratorReject(Node* input, Node* arg_count,
+                                                Node* context) {
+  return IntrinsicAsBuiltinCall(input, context,
+                                Builtins::kAsyncGeneratorReject);
+}
+
+Node* IntrinsicsGenerator::AsyncGeneratorResolve(Node* input, Node* arg_count,
+                                                 Node* context) {
+  return IntrinsicAsBuiltinCall(input, context,
+                                Builtins::kAsyncGeneratorResolve);
 }
 
 void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected, Node* actual) {

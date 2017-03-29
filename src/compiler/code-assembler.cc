@@ -282,6 +282,14 @@ void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
   return raw_assembler()->PopAndReturn(pop, value);
 }
 
+void CodeAssembler::ReturnIf(Node* condition, Node* value) {
+  Label if_return(this), if_continue(this);
+  Branch(condition, &if_return, &if_continue);
+  Bind(&if_return);
+  Return(value);
+  Bind(&if_continue);
+}
+
 void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
 
 void CodeAssembler::Unreachable() {

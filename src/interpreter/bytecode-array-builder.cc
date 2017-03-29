@@ -985,8 +985,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadModuleVariable(int cell_index,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::SuspendGenerator(
-    Register generator) {
-  OutputSuspendGenerator(generator);
+    Register generator, SuspendFlags flags) {
+  OutputSuspendGenerator(generator,
+                         SuspendGeneratorBytecodeFlags::Encode(flags));
   return *this;
 }
 

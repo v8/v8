@@ -150,13 +150,13 @@ TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
 TYPE_CHECKER(JSArgumentsObject, JS_ARGUMENTS_TYPE)
 TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
 TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
+TYPE_CHECKER(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)
 TYPE_CHECKER(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)
 TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
 TYPE_CHECKER(JSDataView, JS_DATA_VIEW_TYPE)
 TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSError, JS_ERROR_TYPE)
 TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
-TYPE_CHECKER(JSGeneratorObject, JS_GENERATOR_OBJECT_TYPE)
 TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
 TYPE_CHECKER(JSMap, JS_MAP_TYPE)
 TYPE_CHECKER(JSMapIterator, JS_MAP_ITERATOR_TYPE)
@@ -198,6 +198,11 @@ bool HeapObject::IsFixedArray() const {
   InstanceType instance_type = map()->instance_type();
   return instance_type == FIXED_ARRAY_TYPE ||
          instance_type == TRANSITION_ARRAY_TYPE;
+}
+
+bool HeapObject::IsJSGeneratorObject() const {
+  return map()->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
+         IsJSAsyncGeneratorObject();
 }
 
 bool HeapObject::IsBoilerplateDescription() const { return IsFixedArray(); }
@@ -635,6 +640,7 @@ CAST_ACCESSOR(JSDataView)
 CAST_ACCESSOR(JSDate)
 CAST_ACCESSOR(JSFunction)
 CAST_ACCESSOR(JSGeneratorObject)
+CAST_ACCESSOR(JSAsyncGeneratorObject)
 CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSMap)
@@ -2046,6 +2052,8 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSObject::kHeaderSize;
     case JS_GENERATOR_OBJECT_TYPE:
       return JSGeneratorObject::kSize;
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
+      return JSAsyncGeneratorObject::kSize;
     case JS_GLOBAL_PROXY_TYPE:
       return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
@@ -5506,6 +5514,11 @@ ACCESSORS(PromiseReactionJobInfo, deferred_on_reject, Object,
           kDeferredOnRejectOffset);
 ACCESSORS(PromiseReactionJobInfo, context, Context, kContextOffset);
 
+ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
+SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
+ACCESSORS(AsyncGeneratorRequest, value, Object, kValueOffset)
+ACCESSORS(AsyncGeneratorRequest, promise, Object, kPromiseOffset)
+
 Map* PrototypeInfo::ObjectCreateMap() {
   return Map::cast(WeakCell::cast(object_create_map())->value());
 }
@@ -6560,6 +6573,12 @@ bool JSGeneratorObject::is_closed() const {
 bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
+
+ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
+ACCESSORS(JSAsyncGeneratorObject, await_input_or_debug_pos, Object,
+          kAwaitInputOrDebugPosOffset)
+ACCESSORS(JSAsyncGeneratorObject, awaited_promise, HeapObject,
+          kAwaitedPromiseOffset)
 
 ACCESSORS(JSValue, value, Object, kValueOffset)
 

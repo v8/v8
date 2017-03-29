@@ -1656,6 +1656,18 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   }
 }
 
+void MacroAssembler::AssertAsyncGeneratorObject(Register object) {
+  if (emit_debug_code()) {
+    AssertNotSmi(object, kOperandIsASmiAndNotAGeneratorObject);
+
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.AcquireX();
+
+    CompareObjectType(object, temp, temp, JS_ASYNC_GENERATOR_OBJECT_TYPE);
+    Check(eq, kOperandIsNotAGeneratorObject);
+  }
+}
+
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
   if (emit_debug_code()) {

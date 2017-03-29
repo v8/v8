@@ -147,6 +147,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
     case JS_PROMISE_CAPABILITY_TYPE:
@@ -1225,6 +1226,27 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoPrint(
   os << "\n - deferred_on_resolve: " << Brief(deferred_on_resolve());
   os << "\n - deferred_on_reject: " << Brief(deferred_on_reject());
   os << "\n - reaction context: " << Brief(context());
+  os << "\n";
+}
+
+void AsyncGeneratorRequest::AsyncGeneratorRequestPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "AsyncGeneratorRequest");
+  const char* mode = "Invalid!";
+  switch (resume_mode()) {
+    case JSGeneratorObject::kNext:
+      mode = ".next()";
+      break;
+    case JSGeneratorObject::kReturn:
+      mode = ".return()";
+      break;
+    case JSGeneratorObject::kThrow:
+      mode = ".throw()";
+      break;
+  }
+  os << "\n - resume mode: " << mode;
+  os << "\n - value: " << Brief(value());
+  os << "\n - next: " << Brief(next());
   os << "\n";
 }
 

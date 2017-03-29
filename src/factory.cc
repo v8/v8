@@ -1531,7 +1531,9 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // can be from a different context.
   Handle<Context> native_context(function->context()->native_context());
   Handle<Map> new_map;
-  if (IsResumableFunction(function->shared()->kind())) {
+  if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared()->kind()))) {
+    new_map = handle(native_context->async_generator_object_prototype_map());
+  } else if (IsResumableFunction(function->shared()->kind())) {
     // Generator and async function prototypes can share maps since they
     // don't have "constructor" properties.
     new_map = handle(native_context->generator_object_prototype_map());
@@ -1932,7 +1934,10 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
   DCHECK(IsResumableFunction(function->shared()->kind()));
   JSFunction::EnsureHasInitialMap(function);
   Handle<Map> map(function->initial_map());
-  DCHECK_EQ(JS_GENERATOR_OBJECT_TYPE, map->instance_type());
+
+  DCHECK(map->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
+         map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
+
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObjectFromMap(*map),

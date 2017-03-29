@@ -2741,6 +2741,11 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JSGenerator>");
       break;
     }
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE: {
+      accumulator->Add("<JS AsyncGenerator>");
+      break;
+    }
+
     // All other JSObjects are rather similar to each other (JSObject,
     // JSGlobalProxy, JSGlobalObject, JSUndetectable, JSValue).
     default: {
@@ -12664,13 +12669,16 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     new_map->set_non_instance_prototype(true);
     Isolate* isolate = new_map->GetIsolate();
 
-    construct_prototype = handle(
-        IsGeneratorFunction(function->shared()->kind())
-            ? function->context()
-                  ->native_context()
-                  ->initial_generator_prototype()
-            : function->context()->native_context()->initial_object_prototype(),
-        isolate);
+    FunctionKind kind = function->shared()->kind();
+    Handle<Context> native_context(function->context()->native_context());
+
+    construct_prototype =
+        handle(IsGeneratorFunction(kind)
+                   ? IsAsyncFunction(kind)
+                         ? native_context->initial_async_generator_prototype()
+                         : native_context->initial_generator_prototype()
+                   : native_context->initial_object_prototype(),
+               isolate);
   } else {
     function->map()->set_non_instance_prototype(false);
   }
@@ -12733,6 +12741,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_DATE_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MAP_ITERATOR_TYPE:
     case JS_MAP_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
@@ -12805,7 +12814,9 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   // suggested by the function.
   InstanceType instance_type;
   if (IsResumableFunction(function->shared()->kind())) {
-    instance_type = JS_GENERATOR_OBJECT_TYPE;
+    instance_type = IsAsyncGeneratorFunction(function->shared()->kind())
+                        ? JS_ASYNC_GENERATOR_OBJECT_TYPE
+                        : JS_GENERATOR_OBJECT_TYPE;
   } else {
     instance_type = JS_OBJECT_TYPE;
   }
@@ -19655,7 +19666,16 @@ int JSGeneratorObject::source_position() const {
   CHECK(is_suspended());
   DCHECK(function()->shared()->HasBytecodeArray());
   DCHECK(!function()->shared()->HasBaselineCode());
-  int code_offset = Smi::cast(input_or_debug_pos())->value();
+
+  int code_offset;
+  const JSAsyncGeneratorObject* async =
+      IsJSAsyncGeneratorObject() ? JSAsyncGeneratorObject::cast(this) : nullptr;
+  if (async != nullptr && async->awaited_promise()->IsJSPromise()) {
+    code_offset = Smi::cast(async->await_input_or_debug_pos())->value();
+  } else {
+    code_offset = Smi::cast(input_or_debug_pos())->value();
+  }
+
   // The stored bytecode offset is relative to a different base than what
   // is used in the source position table, hence the subtraction.
   code_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;

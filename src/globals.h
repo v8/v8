@@ -1346,7 +1346,9 @@ enum ExternalArrayType {
   kExternalUint8ClampedArray,
 };
 
-enum class SuspendGeneratorFlags {
+// Static information used by SuspendGenerator bytecode & GeneratorStore, in
+// order to determine where to store bytecode offset in generator.
+enum class SuspendFlags {
   kYield = 0,
   kYieldStar = 1,
   kAwait = 2,
@@ -1357,37 +1359,42 @@ enum class SuspendGeneratorFlags {
   kGeneratorTypeMask = 1 << 2,
 
   kBitWidth = 3,
+
+  // Aliases
+  kGeneratorYield = kGenerator | kYield,
+  kGeneratorYieldStar = kGenerator | kYieldStar,
+  kGeneratorAwait = kGenerator | kAwait,
+  kAsyncGeneratorYield = kAsyncGenerator | kYield,
+  kAsyncGeneratorYieldStar = kAsyncGenerator | kYieldStar,
+  kAsyncGeneratorAwait = kAsyncGenerator | kAwait
 };
 
-inline constexpr SuspendGeneratorFlags operator&(SuspendGeneratorFlags lhs,
-                                                 SuspendGeneratorFlags rhs) {
-  return static_cast<SuspendGeneratorFlags>(static_cast<uint8_t>(lhs) &
-                                            static_cast<uint8_t>(rhs));
+inline constexpr SuspendFlags operator&(SuspendFlags lhs, SuspendFlags rhs) {
+  return static_cast<SuspendFlags>(static_cast<uint8_t>(lhs) &
+                                   static_cast<uint8_t>(rhs));
 }
 
-inline constexpr SuspendGeneratorFlags operator|(SuspendGeneratorFlags lhs,
-                                                 SuspendGeneratorFlags rhs) {
-  return static_cast<SuspendGeneratorFlags>(static_cast<uint8_t>(lhs) |
-                                            static_cast<uint8_t>(rhs));
+inline constexpr SuspendFlags operator|(SuspendFlags lhs, SuspendFlags rhs) {
+  return static_cast<SuspendFlags>(static_cast<uint8_t>(lhs) |
+                                   static_cast<uint8_t>(rhs));
 }
 
-inline SuspendGeneratorFlags& operator|=(SuspendGeneratorFlags& lhs,
-                                         SuspendGeneratorFlags rhs) {
+inline SuspendFlags& operator|=(SuspendFlags& lhs, SuspendFlags rhs) {
   lhs = lhs | rhs;
   return lhs;
 }
 
-inline SuspendGeneratorFlags operator~(SuspendGeneratorFlags lhs) {
-  return static_cast<SuspendGeneratorFlags>(~static_cast<uint8_t>(lhs));
+inline SuspendFlags operator~(SuspendFlags lhs) {
+  return static_cast<SuspendFlags>(~static_cast<uint8_t>(lhs));
 }
 
-inline const char* SuspendTypeFor(SuspendGeneratorFlags flags) {
-  switch (flags & SuspendGeneratorFlags::kSuspendTypeMask) {
-    case SuspendGeneratorFlags::kYield:
+inline const char* SuspendTypeFor(SuspendFlags flags) {
+  switch (flags & SuspendFlags::kSuspendTypeMask) {
+    case SuspendFlags::kYield:
       return "yield";
-    case SuspendGeneratorFlags::kYieldStar:
+    case SuspendFlags::kYieldStar:
       return "yield*";
-    case SuspendGeneratorFlags::kAwait:
+    case SuspendFlags::kAwait:
       return "await";
     default:
       break;

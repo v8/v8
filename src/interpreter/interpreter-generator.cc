@@ -3489,6 +3489,7 @@ void InterpreterGenerator::DoNop(InterpreterAssembler* assembler) {
 // offset (for debugging purposes) into the generator.
 void InterpreterGenerator::DoSuspendGenerator(InterpreterAssembler* assembler) {
   Node* generator_reg = __ BytecodeOperandReg(0);
+  Node* flags = __ BytecodeOperandFlag(1);
   Node* generator = __ LoadRegister(generator_reg);
 
   Label if_stepping(assembler, Label::kDeferred), ok(assembler);
@@ -3510,10 +3511,41 @@ void InterpreterGenerator::DoSuspendGenerator(InterpreterAssembler* assembler) {
   __ StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
   __ StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
 
-  Node* offset = __ SmiTag(__ BytecodeOffset());
-  __ StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
-                      offset);
+  Label if_asyncgeneratorawait(assembler), if_notasyncgeneratorawait(assembler),
+      merge(assembler);
 
+  // Calculate bytecode offset to store in the [input_or_debug_pos] or
+  // [await_input_or_debug_pos] fields, to be used by the inspector.
+  Node* offset = __ SmiTag(__ BytecodeOffset());
+
+  using AsyncGeneratorAwaitBits = SuspendGeneratorBytecodeFlags::FlagsBits;
+  __ Branch(__ Word32Equal(__ DecodeWord32<AsyncGeneratorAwaitBits>(flags),
+                           __ Int32Constant(static_cast<int>(
+                               SuspendFlags::kAsyncGeneratorAwait))),
+            &if_asyncgeneratorawait, &if_notasyncgeneratorawait);
+
+  __ Bind(&if_notasyncgeneratorawait);
+  {
+    // For ordinary yields (and for AwaitExpressions in Async Functions, which
+    // are implemented as ordinary yields), it is safe to write over the
+    // [input_or_debug_pos] field.
+    __ StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
+                        offset);
+    __ Goto(&merge);
+  }
+
+  __ Bind(&if_asyncgeneratorawait);
+  {
+    // An AwaitExpression in an Async Generator requires writing to the
+    // [await_input_or_debug_pos] field.
+    CSA_ASSERT(assembler,
+               __ HasInstanceType(generator, JS_ASYNC_GENERATOR_OBJECT_TYPE));
+    __ StoreObjectField(
+        generator, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset, offset);
+    __ Goto(&merge);
+  }
+
+  __ Bind(&merge);
   __ Dispatch();
 
   __ Bind(&if_stepping);

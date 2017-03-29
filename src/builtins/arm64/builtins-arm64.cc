@@ -670,18 +670,40 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
+  Generate_ResumeGenerator(masm, ResumeGeneratorType::kGenerator);
+}
+
+// static
+void Builtins::Generate_ResumeAsyncGeneratorTrampoline(MacroAssembler* masm) {
+  Generate_ResumeGenerator(masm, ResumeGeneratorType::kAsyncGenerator);
+}
+
+// static
+void Builtins::Generate_ResumeAwaitedAsyncGeneratorTrampoline(
+    MacroAssembler* masm) {
+  Generate_ResumeGenerator(masm, ResumeGeneratorType::kAwaitedAsyncGenerator);
+}
+
+void Builtins::Generate_ResumeGenerator(MacroAssembler* masm,
+                                        ResumeGeneratorType type) {
   // ----------- S t a t e -------------
   //  -- x0 : the value to pass to the generator
   //  -- x1 : the JSGeneratorObject to resume
   //  -- x2 : the resume mode (tagged)
   //  -- lr : return address
   // -----------------------------------
-  __ AssertGeneratorObject(x1);
+  if (type == ResumeGeneratorType::kGenerator) {
+    __ AssertGeneratorObject(x1);
+  } else {
+    __ AssertAsyncGeneratorObject(x1);
+  }
 
   // Store input value into generator object.
-  __ Str(x0, FieldMemOperand(x1, JSGeneratorObject::kInputOrDebugPosOffset));
-  __ RecordWriteField(x1, JSGeneratorObject::kInputOrDebugPosOffset, x0, x3,
-                      kLRHasNotBeenSaved, kDontSaveFPRegs);
+  int offset = type == ResumeGeneratorType::kAwaitedAsyncGenerator
+                   ? JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset
+                   : JSGeneratorObject::kInputOrDebugPosOffset;
+  __ Str(x0, FieldMemOperand(x1, offset));
+  __ RecordWriteField(x1, offset, x0, x3, kLRHasNotBeenSaved, kDontSaveFPRegs);
 
   // Store resume mode into generator object.
   __ Str(x2, FieldMemOperand(x1, JSGeneratorObject::kResumeModeOffset));

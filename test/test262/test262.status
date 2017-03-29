@@ -416,8 +416,8 @@
   'intl402/PluralRules/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5855
-  'language/expressions/async-generators/*': [SKIP],
-  'language/statements/async-generator/*': [SKIP],
+  'language/expressions/async-generators/*': ['--harmony-async-iteration'],
+  'language/statements/async-generator/*': ['--harmony-async-iteration'],
 
   # SharedArrayBuffer tests that require flags
   'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],

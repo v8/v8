@@ -15,13 +15,6 @@ namespace internal {
 using compiler::Node;
 
 namespace {
-
-// Describe fields of Context associated with the AsyncIterator unwrap closure.
-class ValueUnwrapContext {
- public:
-  enum Fields { kDoneSlot = Context::MIN_CONTEXT_SLOTS, kLength };
-};
-
 class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
  public:
   explicit AsyncFromSyncBuiltinsAssembler(compiler::CodeAssemblerState* state)
@@ -42,9 +35,6 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
       Label::Type reject_label_type = Label::kDeferred,
       Node* const initial_exception_value = nullptr);
 
-  Node* AllocateAsyncIteratorValueUnwrapContext(Node* native_context,
-                                                Node* done);
-
   // Load "value" and "done" from an iterator result object. If an exception
   // is thrown at any point, jumps to te `if_exception` label with exception
   // stored in `var_exception`.
@@ -57,8 +47,6 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
                                              Node* const iter_result,
                                              Label* if_exception,
                                              Variable* var_exception);
-
-  Node* CreateUnwrapClosure(Node* const native_context, Node* const done);
 };
 
 void AsyncFromSyncBuiltinsAssembler::ThrowIfNotAsyncFromSyncIterator(
@@ -226,32 +214,6 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   Bind(&done);
   return std::make_pair(var_value.value(), var_done.value());
 }
-
-Node* AsyncFromSyncBuiltinsAssembler::CreateUnwrapClosure(Node* native_context,
-                                                          Node* done) {
-  Node* const map = LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  Node* const on_fulfilled_shared = LoadContextElement(
-      native_context, Context::ASYNC_ITERATOR_VALUE_UNWRAP_SHARED_FUN);
-  CSA_ASSERT(this,
-             HasInstanceType(on_fulfilled_shared, SHARED_FUNCTION_INFO_TYPE));
-  Node* const closure_context =
-      AllocateAsyncIteratorValueUnwrapContext(native_context, done);
-  return AllocateFunctionWithMapAndContext(map, on_fulfilled_shared,
-                                           closure_context);
-}
-
-Node* AsyncFromSyncBuiltinsAssembler::AllocateAsyncIteratorValueUnwrapContext(
-    Node* native_context, Node* done) {
-  CSA_ASSERT(this, IsNativeContext(native_context));
-  CSA_ASSERT(this, IsBoolean(done));
-
-  Node* const context =
-      CreatePromiseContext(native_context, ValueUnwrapContext::kLength);
-  StoreContextElementNoWriteBarrier(context, ValueUnwrapContext::kDoneSlot,
-                                    done);
-  return context;
-}
 }  // namespace
 
 // https://tc39.github.io/proposal-async-iteration/
@@ -309,19 +271,6 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrow,
       context, iterator, reason, factory()->throw_string(), if_throw_undefined,
       "[Async-from-Sync Iterator].prototype.throw", Label::kNonDeferred,
       reason);
-}
-
-TF_BUILTIN(AsyncIteratorValueUnwrap, AsyncFromSyncBuiltinsAssembler) {
-  Node* const value = Parameter(Descriptor::kValue);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  Node* const done = LoadContextElement(context, ValueUnwrapContext::kDoneSlot);
-  CSA_ASSERT(this, IsBoolean(done));
-
-  Node* const unwrapped_value = CallStub(
-      CodeFactory::CreateIterResultObject(isolate()), context, value, done);
-
-  Return(unwrapped_value);
 }
 
 }  // namespace internal

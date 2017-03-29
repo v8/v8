@@ -294,7 +294,8 @@ namespace interpreter {
   V(Return, AccumulatorUse::kRead)                                             \
                                                                                \
   /* Generators */                                                             \
-  V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg)                \
+  V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg,                \
+    OperandType::kFlag8)                                                       \
   V(ResumeGenerator, AccumulatorUse::kWrite, OperandType::kReg)                \
                                                                                \
   /* Debugger */                                                               \

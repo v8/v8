@@ -305,6 +305,9 @@ TFS_BUILTIN(StringLessThan)
 TFS_BUILTIN(StringLessThanOrEqual)
 TFS_BUILTIN(StringGreaterThan)
 TFS_BUILTIN(StringGreaterThanOrEqual)
+TFS_BUILTIN(AsyncGeneratorResolve)
+TFS_BUILTIN(AsyncGeneratorReject)
+TFS_BUILTIN(AsyncGeneratorResumeNext)
 
 #undef TFS_BUILTIN
 
@@ -351,6 +354,18 @@ Callable CodeFactory::SubString(Isolate* isolate) {
 // static
 Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
   return Callable(isolate->builtins()->ResumeGeneratorTrampoline(),
+                  ResumeGeneratorDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::ResumeAsyncGenerator(Isolate* isolate) {
+  return Callable(isolate->builtins()->ResumeAsyncGeneratorTrampoline(),
+                  ResumeGeneratorDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::ResumeAwaitedAsyncGenerator(Isolate* isolate) {
+  return Callable(isolate->builtins()->ResumeAwaitedAsyncGeneratorTrampoline(),
                   ResumeGeneratorDescriptor(isolate));
 }
 

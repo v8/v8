@@ -87,7 +87,13 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   Bind(&if_generator);
   {
-    map_index.Bind(IntPtrConstant(Context::GENERATOR_FUNCTION_MAP_INDEX));
+    Node* is_async =
+        Word32And(compiler_hints,
+                  Int32Constant(FunctionKind::kAsyncFunction
+                                << SharedFunctionInfo::kFunctionKindShift));
+    map_index.Bind(SelectIntPtrConstant(
+        is_async, Context::ASYNC_GENERATOR_FUNCTION_MAP_INDEX,
+        Context::GENERATOR_FUNCTION_MAP_INDEX));
     Goto(&load_map);
   }
 

@@ -2501,14 +2501,6 @@ class RewritableExpression final : public Expression {
 class Suspend final : public Expression {
  public:
   enum OnException { kOnExceptionThrow, kOnExceptionRethrow };
-  using Flags = SuspendGeneratorFlags;
-
-  // Convenient aliases
-  static constexpr Flags kYield = Flags::kYield;
-  static constexpr Flags kYieldStar = Flags::kYieldStar;
-  static constexpr Flags kAwait = Flags::kAwait;
-
-  static constexpr Flags kAsyncGenerator = Flags::kAsyncGenerator;
 
   Expression* generator_object() const { return generator_object_; }
   Expression* expression() const { return expression_; }
@@ -2520,22 +2512,32 @@ class Suspend final : public Expression {
   }
 
   int suspend_id() const { return suspend_id_; }
-  Flags suspend_type() const {
-    return static_cast<Flags>(FlagsField::decode(bit_field_) &
-                              Flags::kSuspendTypeMask);
+  SuspendFlags flags() const { return FlagsField::decode(bit_field_); }
+  SuspendFlags suspend_type() const {
+    return flags() & SuspendFlags::kSuspendTypeMask;
   }
-  bool is_yield() const { return suspend_type() == Flags::kYield; }
-  bool is_yield_star() const { return suspend_type() == Flags::kYieldStar; }
-  bool is_await() const { return suspend_type() == Flags::kAwait; }
+  SuspendFlags generator_type() const {
+    return flags() & SuspendFlags::kGeneratorTypeMask;
+  }
+  bool is_yield() const { return suspend_type() == SuspendFlags::kYield; }
+  bool is_yield_star() const {
+    return suspend_type() == SuspendFlags::kYieldStar;
+  }
+  bool is_await() const { return suspend_type() == SuspendFlags::kAwait; }
   bool is_async_generator() const {
-    return (suspend_type() & Flags::kGeneratorTypeMask) == kAsyncGenerator;
+    return generator_type() == SuspendFlags::kAsyncGenerator;
+  }
+  inline bool IsNonInitialAsyncGeneratorYield() const {
+    // Return true if is_async_generator() && !is_await() && yield_id() > 0
+    return suspend_id() > 0 && (flags() & SuspendFlags::kAsyncGeneratorAwait) ==
+                                   SuspendFlags::kAsyncGenerator;
   }
 
   void set_generator_object(Expression* e) { generator_object_ = e; }
   void set_expression(Expression* e) { expression_ = e; }
   void set_suspend_id(int id) { suspend_id_ = id; }
-  void set_suspend_type(Flags type) {
-    DCHECK_EQ(0, static_cast<int>(type & ~Flags::kSuspendTypeMask));
+  void set_suspend_type(SuspendFlags type) {
+    DCHECK_EQ(0, static_cast<int>(type & ~SuspendFlags::kSuspendTypeMask));
     bit_field_ = FlagsField::update(bit_field_, type);
   }
 
@@ -2543,7 +2545,7 @@ class Suspend final : public Expression {
   friend class AstNodeFactory;
 
   Suspend(Expression* generator_object, Expression* expression, int pos,
-          OnException on_exception, Flags flags)
+          OnException on_exception, SuspendFlags flags)
       : Expression(pos, kSuspend),
         suspend_id_(-1),
         generator_object_(generator_object),
@@ -2558,9 +2560,9 @@ class Suspend final : public Expression {
 
   class OnExceptionField
       : public BitField<OnException, Expression::kNextBitFieldIndex, 1> {};
-  static constexpr int kFlagsBitWidth = static_cast<int>(Flags::kBitWidth);
   class FlagsField
-      : public BitField<Flags, OnExceptionField::kNext, kFlagsBitWidth> {};
+      : public BitField<SuspendFlags, OnExceptionField::kNext,
+                        static_cast<int>(SuspendFlags::kBitWidth)> {};
 };
 
 
@@ -3509,7 +3511,7 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   Suspend* NewSuspend(Expression* generator_object, Expression* expression,
                       int pos, Suspend::OnException on_exception,
-                      Suspend::Flags flags) {
+                      SuspendFlags flags) {
     if (!expression) expression = NewUndefinedLiteral(pos);
     return new (zone_)
         Suspend(generator_object, expression, pos, on_exception, flags);

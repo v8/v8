@@ -78,6 +78,19 @@ class TestTypeOfFlags {
   DISALLOW_IMPLICIT_CONSTRUCTORS(TestTypeOfFlags);
 };
 
+class SuspendGeneratorBytecodeFlags {
+ public:
+  class FlagsBits
+      : public BitField8<SuspendFlags, 0,
+                         static_cast<int>(SuspendFlags::kBitWidth)> {};
+
+  static uint8_t Encode(SuspendFlags suspend_type);
+  static SuspendFlags Decode(uint8_t flags);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SuspendGeneratorBytecodeFlags);
+};
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

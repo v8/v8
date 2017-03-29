@@ -1347,12 +1347,12 @@ class ParserBase {
   inline SuspendExpressionT BuildSuspend(ExpressionT generator,
                                          ExpressionT expr, int pos,
                                          Suspend::OnException on_exception,
-                                         Suspend::Flags suspend_type) {
-    DCHECK_EQ(
-        0, static_cast<int>(suspend_type & ~Suspend::Flags::kSuspendTypeMask));
+                                         SuspendFlags suspend_type) {
+    DCHECK_EQ(0,
+              static_cast<int>(suspend_type & ~SuspendFlags::kSuspendTypeMask));
     if (V8_UNLIKELY(is_async_generator())) {
-      suspend_type =
-          static_cast<Suspend::Flags>(suspend_type | Suspend::kAsyncGenerator);
+      suspend_type = static_cast<SuspendFlags>(suspend_type |
+                                               SuspendFlags::kAsyncGenerator);
     }
     return factory()->NewSuspend(generator, expr, pos, on_exception,
                                  suspend_type);
@@ -2936,8 +2936,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
 
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
-  ExpressionT yield = BuildSuspend(generator_object, expression, pos,
-                                   Suspend::kOnExceptionThrow, Suspend::kYield);
+  ExpressionT yield =
+      BuildSuspend(generator_object, expression, pos,
+                   Suspend::kOnExceptionThrow, SuspendFlags::kYield);
   return yield;
 }
 

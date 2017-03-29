@@ -2177,6 +2177,8 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   Node* state = environment()->LookupAccumulator();
   Node* generator = environment()->LookupRegister(
       bytecode_iterator().GetRegisterOperand(0));
+  SuspendFlags flags = interpreter::SuspendGeneratorBytecodeFlags::Decode(
+      bytecode_iterator().GetFlagOperand(1));
   // The offsets used by the bytecode iterator are relative to a different base
   // than what is used in the interpreter, hence the addition.
   Node* offset =
@@ -2195,8 +2197,8 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
         environment()->LookupRegister(interpreter::Register(i));
   }
 
-  MakeNode(javascript()->GeneratorStore(register_count), value_input_count,
-           value_inputs, false);
+  MakeNode(javascript()->GeneratorStore(register_count, flags),
+           value_input_count, value_inputs, false);
 }
 
 void BytecodeGraphBuilder::VisitResumeGenerator() {

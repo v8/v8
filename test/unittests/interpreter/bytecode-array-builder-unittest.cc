@@ -374,8 +374,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreModuleVariable(1, 42);
 
   // Emit generator operations.
-  builder.SuspendGenerator(reg)
-      .ResumeGenerator(reg);
+  builder.SuspendGenerator(reg, SuspendFlags::kYield).ResumeGenerator(reg);
 
   // Intrinsics handled by the interpreter.
   builder.CallRuntime(Runtime::kInlineIsArray, reg_list);

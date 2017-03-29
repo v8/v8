@@ -27,6 +27,14 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
               const NodeGenerator1& create_closure_context,
               int on_resolve_context_index, int on_reject_context_index,
               bool is_predicted_as_caught);
+
+  // Return a new built-in function object as defined in
+  // Async Iterator Value Unwrap Functions
+  Node* CreateUnwrapClosure(Node* const native_context, Node* const done);
+
+ private:
+  Node* AllocateAsyncIteratorValueUnwrapContext(Node* native_context,
+                                                Node* done);
 };
 
 }  // namespace internal

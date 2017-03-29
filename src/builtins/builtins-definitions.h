@@ -114,6 +114,8 @@ namespace internal {
   ASM(JSEntryTrampoline)                                                       \
   ASM(JSConstructEntryTrampoline)                                              \
   ASM(ResumeGeneratorTrampoline)                                               \
+  ASM(ResumeAsyncGeneratorTrampoline)                                          \
+  ASM(ResumeAwaitedAsyncGeneratorTrampoline)                                   \
                                                                                \
   /* Stack and interrupt check */                                              \
   ASM(InterruptCheck)                                                          \
@@ -902,6 +904,38 @@ namespace internal {
   TFS(ThrowWasmTrapFuncInvalid, WasmRuntimeCall, 1)                            \
   TFS(ThrowWasmTrapFuncSigMismatch, WasmRuntimeCall, 1)                        \
                                                                                \
+  /* AsyncGenerator */                                                         \
+                                                                               \
+  TFS(AsyncGeneratorResolve, AsyncGeneratorResolve, 1)                         \
+  TFS(AsyncGeneratorReject, AsyncGeneratorReject, 1)                           \
+  TFS(AsyncGeneratorResumeNext, AsyncGeneratorResumeNext, 1)                   \
+                                                                               \
+  /* AsyncGeneratorFunction( p1, p2, ... pn, body ) */                         \
+  /* proposal-async-iteration/#sec-asyncgeneratorfunction-constructor */       \
+  CPP(AsyncGeneratorFunctionConstructor)                                       \
+  /* AsyncGenerator.prototype.next ( value ) */                                \
+  /* proposal-async-iteration/#sec-asyncgenerator-prototype-next */            \
+  TFJ(AsyncGeneratorPrototypeNext, 1, kValue)                                  \
+  /* AsyncGenerator.prototype.return ( value ) */                              \
+  /* proposal-async-iteration/#sec-asyncgenerator-prototype-return */          \
+  TFJ(AsyncGeneratorPrototypeReturn, 1, kValue)                                \
+  /* AsyncGenerator.prototype.throw ( exception ) */                           \
+  /* proposal-async-iteration/#sec-asyncgenerator-prototype-throw */           \
+  TFJ(AsyncGeneratorPrototypeThrow, 1, kValue)                                 \
+                                                                               \
+  /* Await (proposal-async-iteration/#await), with resume behaviour */         \
+  /* specific to Async Generators. Internal / Not exposed to JS code. */       \
+  TFJ(AsyncGeneratorAwaitCaught, 2, kGenerator, kAwaited)                      \
+  TFJ(AsyncGeneratorAwaitUncaught, 2, kGenerator, kAwaited)                    \
+  TFJ(AsyncGeneratorAwaitResolveClosure, 1, kValue)                            \
+  TFJ(AsyncGeneratorAwaitRejectClosure, 1, kValue)                             \
+                                                                               \
+  /* GeneratorYield (proposal-async-iteration/#sec-generatoryield) with */     \
+  /* resume behaviour specific to Async Generators. Internal / not exposed */  \
+  /* to JS code. */                                                            \
+  TFJ(AsyncGeneratorYield, 1, kValue)                                          \
+  TFJ(AsyncGeneratorRawYield, 1, kValue)                                       \
+                                                                               \
   /* Async-from-Sync Iterator */                                               \
                                                                                \
   /* %AsyncFromSyncIteratorPrototype% */                                       \
@@ -934,6 +968,9 @@ namespace internal {
   V(AsyncFromSyncIteratorPrototypeThrow)             \
   V(AsyncFunctionAwaitCaught)                        \
   V(AsyncFunctionAwaitUncaught)                      \
+  V(AsyncGeneratorResolve)                           \
+  V(AsyncGeneratorAwaitCaught)                       \
+  V(AsyncGeneratorAwaitUncaught)                     \
   V(PromiseConstructor)                              \
   V(PromiseHandle)                                   \
   V(PromiseResolve)                                  \

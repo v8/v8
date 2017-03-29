@@ -172,7 +172,7 @@ class Genesis BASE_EMBEDDED {
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
   void CreateIteratorMaps(Handle<JSFunction> empty);
-  void CreateAsyncIteratorMaps();
+  void CreateAsyncIteratorMaps(Handle<JSFunction> empty);
   void CreateAsyncFunctionMaps(Handle<JSFunction> empty);
   void CreateJSProxyMaps();
 
@@ -808,7 +808,7 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
       *generator_object_prototype_map);
 }
 
-void Genesis::CreateAsyncIteratorMaps() {
+void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
   // %AsyncIteratorPrototype%
   // proposal-async-iteration/#sec-asynciteratorprototype
   Handle<JSObject> async_iterator_prototype =
@@ -850,6 +850,67 @@ void Genesis::CreateAsyncIteratorMaps() {
                     async_from_sync_iterator_prototype);
   native_context()->set_async_from_sync_iterator_map(
       *async_from_sync_iterator_map);
+
+  // Async Generators
+  Handle<String> AsyncGeneratorFunction_string =
+      factory()->NewStringFromAsciiChecked("AsyncGeneratorFunction", TENURED);
+
+  Handle<JSObject> async_generator_object_prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> async_generator_function_prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+
+  // %AsyncGenerator% / %AsyncGeneratorFunction%.prototype
+  JSObject::ForceSetPrototype(async_generator_function_prototype, empty);
+
+  // The value of AsyncGeneratorFunction.prototype.prototype is the
+  //     %AsyncGeneratorPrototype% intrinsic object.
+  // This property has the attributes
+  //     { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }.
+  JSObject::AddProperty(async_generator_function_prototype,
+                        factory()->prototype_string(),
+                        async_generator_object_prototype,
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+  JSObject::AddProperty(async_generator_function_prototype,
+                        factory()->to_string_tag_symbol(),
+                        AsyncGeneratorFunction_string,
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  // %AsyncGeneratorPrototype%
+  JSObject::ForceSetPrototype(async_generator_object_prototype,
+                              async_iterator_prototype);
+
+  JSObject::AddProperty(async_generator_object_prototype,
+                        factory()->to_string_tag_symbol(),
+                        factory()->NewStringFromAsciiChecked("AsyncGenerator"),
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+  SimpleInstallFunction(async_generator_object_prototype, "next",
+                        Builtins::kAsyncGeneratorPrototypeNext, 1, true);
+  SimpleInstallFunction(async_generator_object_prototype, "return",
+                        Builtins::kAsyncGeneratorPrototypeReturn, 1, true);
+  SimpleInstallFunction(async_generator_object_prototype, "throw",
+                        Builtins::kAsyncGeneratorPrototypeThrow, 1, true);
+
+  // Create maps for generator functions and their prototypes.  Store those
+  // maps in the native context. The "prototype" property descriptor is
+  // writable, non-enumerable, and non-configurable (as per ES6 draft
+  // 04-14-15, section 25.2.4.3).
+  Handle<Map> strict_function_map(strict_function_map_writable_prototype_);
+  // Async Generator functions do not have "caller" or "arguments" accessors.
+  Handle<Map> async_generator_function_map =
+      Map::Copy(strict_function_map, "AsyncGeneratorFunction");
+  async_generator_function_map->set_is_constructor(false);
+  Map::SetPrototype(async_generator_function_map,
+                    async_generator_function_prototype);
+  native_context()->set_async_generator_function_map(
+      *async_generator_function_map);
+
+  Handle<JSFunction> object_function(native_context()->object_function());
+  Handle<Map> async_generator_object_prototype_map = Map::Create(isolate(), 0);
+  Map::SetPrototype(async_generator_object_prototype_map,
+                    async_generator_object_prototype);
+  native_context()->set_async_generator_object_prototype_map(
+      *async_generator_object_prototype_map);
 }
 
 void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
@@ -1374,6 +1435,48 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     info->set_internal_formal_parameter_count(1);
     info->set_length(1);
     native_context()->set_async_iterator_value_unwrap_shared_fun(*info);
+  }
+
+  {  // --- A s y n c G e n e r a t o r ---
+    Handle<JSFunction> await_caught =
+        SimpleCreateFunction(isolate, factory->empty_string(),
+                             Builtins::kAsyncGeneratorAwaitCaught, 2, false);
+    InstallWithIntrinsicDefaultProto(isolate, await_caught,
+                                     Context::ASYNC_GENERATOR_AWAIT_CAUGHT);
+
+    Handle<JSFunction> await_uncaught =
+        SimpleCreateFunction(isolate, factory->empty_string(),
+                             Builtins::kAsyncGeneratorAwaitUncaught, 2, false);
+    InstallWithIntrinsicDefaultProto(isolate, await_uncaught,
+                                     Context::ASYNC_GENERATOR_AWAIT_UNCAUGHT);
+
+    Handle<JSFunction> yield =
+        SimpleCreateFunction(isolate, factory->empty_string(),
+                             Builtins::kAsyncGeneratorYield, 2, false);
+    InstallWithIntrinsicDefaultProto(isolate, yield,
+                                     Context::ASYNC_GENERATOR_YIELD);
+
+    Handle<JSFunction> raw_yield =
+        SimpleCreateFunction(isolate, factory->empty_string(),
+                             Builtins::kAsyncGeneratorRawYield, 2, false);
+    InstallWithIntrinsicDefaultProto(isolate, raw_yield,
+                                     Context::ASYNC_GENERATOR_RAW_YIELD);
+
+    Handle<Code> code =
+        isolate->builtins()->AsyncGeneratorAwaitResolveClosure();
+    Handle<SharedFunctionInfo> info =
+        factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
+    info->set_internal_formal_parameter_count(1);
+    info->set_length(1);
+    native_context()->set_async_generator_await_resolve_shared_fun(*info);
+
+    code = handle(isolate->builtins()->builtin(
+                      Builtins::kAsyncGeneratorAwaitRejectClosure),
+                  isolate);
+    info = factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
+    info->set_internal_formal_parameter_count(1);
+    info->set_length(1);
+    native_context()->set_async_generator_await_reject_shared_fun(*info);
   }
 
   {  // --- A r r a y ---
@@ -3374,6 +3477,38 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         *generator_function_function);
   }
 
+  {
+    PrototypeIterator iter(native_context->async_generator_function_map());
+    Handle<JSObject> async_generator_function_prototype(
+        iter.GetCurrent<JSObject>());
+
+    static const bool kUseStrictFunctionMap = true;
+    Handle<JSFunction> async_generator_function_function = InstallFunction(
+        container, "AsyncGeneratorFunction", JS_FUNCTION_TYPE,
+        JSFunction::kSize, async_generator_function_prototype,
+        Builtins::kAsyncGeneratorFunctionConstructor, kUseStrictFunctionMap);
+    async_generator_function_function->set_prototype_or_initial_map(
+        native_context->async_generator_function_map());
+    async_generator_function_function->shared()->DontAdaptArguments();
+    async_generator_function_function->shared()->SetConstructStub(
+        *isolate->builtins()->AsyncGeneratorFunctionConstructor());
+    async_generator_function_function->shared()->set_length(1);
+    InstallWithIntrinsicDefaultProto(
+        isolate, async_generator_function_function,
+        Context::ASYNC_GENERATOR_FUNCTION_FUNCTION_INDEX);
+
+    JSObject::ForceSetPrototype(async_generator_function_function,
+                                isolate->function_function());
+
+    JSObject::AddProperty(
+        async_generator_function_prototype, factory->constructor_string(),
+        async_generator_function_function,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    native_context->async_generator_function_map()->SetConstructor(
+        *async_generator_function_function);
+  }
+
   {  // -- S e t I t e r a t o r
     Handle<JSObject> set_iterator_prototype =
         isolate->factory()->NewJSObject(isolate->object_function(), TENURED);
@@ -4968,7 +5103,7 @@ Genesis::Genesis(
     Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
     CreateStrictModeFunctionMaps(empty_function);
     CreateIteratorMaps(empty_function);
-    CreateAsyncIteratorMaps();
+    CreateAsyncIteratorMaps(empty_function);
     CreateAsyncFunctionMaps(empty_function);
     Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);

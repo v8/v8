@@ -637,7 +637,7 @@ class PreParserFactory {
   PreParserExpression NewSuspend(PreParserExpression generator_object,
                                  PreParserExpression expression, int pos,
                                  Suspend::OnException on_exception,
-                                 Suspend::Flags flags) {
+                                 SuspendFlags flags) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewConditional(PreParserExpression condition,

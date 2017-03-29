@@ -2030,24 +2030,44 @@ void BytecodeGenerator::BuildReturn() {
 }
 
 void BytecodeGenerator::BuildAsyncReturn() {
-  DCHECK(IsAsyncFunction(info()->literal()->kind()));
   RegisterAllocationScope register_scope(this);
-  RegisterList args = register_allocator()->NewRegisterList(3);
-  Register receiver = args[0];
-  Register promise = args[1];
-  Register return_value = args[2];
-  builder()->StoreAccumulatorInRegister(return_value);
 
-  Variable* var_promise = closure_scope()->promise_var();
-  DCHECK_NOT_NULL(var_promise);
-  BuildVariableLoad(var_promise, FeedbackSlot::Invalid(),
-                    HoleCheckMode::kElided);
-  builder()
-      ->StoreAccumulatorInRegister(promise)
-      .LoadUndefined()
-      .StoreAccumulatorInRegister(receiver)
-      .CallJSRuntime(Context::PROMISE_RESOLVE_INDEX, args)
-      .LoadAccumulatorWithRegister(promise);
+  if (IsAsyncGeneratorFunction(info()->literal()->kind())) {
+    RegisterList args = register_allocator()->NewRegisterList(3);
+    Register generator = args[0];
+    Register result = args[1];
+    Register done = args[2];
+
+    builder()->StoreAccumulatorInRegister(result);
+    Variable* var_generator_object = closure_scope()->generator_object_var();
+    DCHECK_NOT_NULL(var_generator_object);
+    BuildVariableLoad(var_generator_object, FeedbackSlot::Invalid(),
+                      HoleCheckMode::kElided);
+    builder()
+        ->StoreAccumulatorInRegister(generator)
+        .LoadTrue()
+        .StoreAccumulatorInRegister(done)
+        .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
+  } else {
+    DCHECK(IsAsyncFunction(info()->literal()->kind()));
+    RegisterList args = register_allocator()->NewRegisterList(3);
+    Register receiver = args[0];
+    Register promise = args[1];
+    Register return_value = args[2];
+    builder()->StoreAccumulatorInRegister(return_value);
+
+    Variable* var_promise = closure_scope()->promise_var();
+    DCHECK_NOT_NULL(var_promise);
+    BuildVariableLoad(var_promise, FeedbackSlot::Invalid(),
+                      HoleCheckMode::kElided);
+    builder()
+        ->StoreAccumulatorInRegister(promise)
+        .LoadUndefined()
+        .StoreAccumulatorInRegister(receiver)
+        .CallJSRuntime(Context::PROMISE_RESOLVE_INDEX, args)
+        .LoadAccumulatorWithRegister(promise);
+  }
+
   BuildReturn();
 }
 
@@ -2353,9 +2373,27 @@ void BytecodeGenerator::VisitSuspend(Suspend* expr) {
   // Save context, registers, and state. Then return.
   builder()
       ->LoadLiteral(Smi::FromInt(expr->suspend_id()))
-      .SuspendGenerator(generator)
-      .LoadAccumulatorWithRegister(value)
-      .Return();  // Hard return (ignore any finally blocks).
+      .SuspendGenerator(generator, expr->flags());
+
+  if (expr->IsNonInitialAsyncGeneratorYield()) {
+    // AsyncGenerator yields (with the exception of the initial yield) delegate
+    // to AsyncGeneratorResolve(), implemented via the runtime call below.
+    RegisterList args = register_allocator()->NewRegisterList(2);
+
+    int context_index = expr->is_yield_star()
+                            ? Context::ASYNC_GENERATOR_RAW_YIELD
+                            : Context::ASYNC_GENERATOR_YIELD;
+
+    // Async GeneratorYield:
+    // perform AsyncGeneratorResolve(<generator>, <value>, false).
+    builder()
+        ->MoveRegister(generator, args[0])
+        .MoveRegister(value, args[1])
+        .CallJSRuntime(context_index, args);
+  } else {
+    builder()->LoadAccumulatorWithRegister(value);
+  }
+  builder()->Return();  // Hard return (ignore any finally blocks).
 
   builder()->Bind(&(generator_resume_points_[expr->suspend_id()]));
   // Upon resume, we continue here.
@@ -2370,8 +2408,17 @@ void BytecodeGenerator::VisitSuspend(Suspend* expr) {
         .StoreAccumulatorInRegister(generator_state_);
 
     Register input = register_allocator()->NewRegister();
+
+    // When resuming an Async Generator from an Await expression, the sent
+    // value is in the [[await_input_or_debug_pos]] slot. Otherwise, the sent
+    // value is in the [[input_or_debug_pos]] slot.
+    Runtime::FunctionId get_generator_input =
+        expr->is_async_generator() && expr->is_await()
+            ? Runtime::kInlineAsyncGeneratorGetAwaitInputOrDebugPos
+            : Runtime::kInlineGeneratorGetInputOrDebugPos;
+
     builder()
-        ->CallRuntime(Runtime::kInlineGeneratorGetInputOrDebugPos, generator)
+        ->CallRuntime(get_generator_input, generator)
         .StoreAccumulatorInRegister(input);
 
     Register resume_mode = register_allocator()->NewRegister();
@@ -2396,13 +2443,19 @@ void BytecodeGenerator::VisitSuspend(Suspend* expr) {
 
     builder()->Bind(&resume_with_return);
     {
-      RegisterList args = register_allocator()->NewRegisterList(2);
-      builder()
-          ->MoveRegister(input, args[0])
-          .LoadTrue()
-          .StoreAccumulatorInRegister(args[1])
-          .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
-      execution_control()->ReturnAccumulator();
+      if (expr->is_async_generator()) {
+        // Async generator methods will produce the iter result object.
+        builder()->LoadAccumulatorWithRegister(input);
+        execution_control()->AsyncReturnAccumulator();
+      } else {
+        RegisterList args = register_allocator()->NewRegisterList(2);
+        builder()
+            ->MoveRegister(input, args[0])
+            .LoadTrue()
+            .StoreAccumulatorInRegister(args[1])
+            .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
+        execution_control()->ReturnAccumulator();
+      }
     }
 
     builder()->Bind(&resume_with_throw);

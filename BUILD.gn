@@ -907,6 +907,7 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-async-function-gen.cc",
     "src/builtins/builtins-async-gen.cc",
     "src/builtins/builtins-async-gen.h",
+    "src/builtins/builtins-async-generator-gen.cc",
     "src/builtins/builtins-async-iterator-gen.cc",
     "src/builtins/builtins-boolean-gen.cc",
     "src/builtins/builtins-constructor-gen.cc",

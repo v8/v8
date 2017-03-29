@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 143
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -23,7 +23,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(1),
-                B(JumpIfTrue), U8(63),
+                B(JumpIfTrue), U8(64),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kAbort), R(3), U8(1),
@@ -47,7 +47,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(4),
                 B(LdaZero),
-                B(SuspendGenerator), R(4),
+                B(SuspendGenerator), R(4), U8(0),
                 B(Ldar), R(3),
   /*   13 S> */ B(Return),
                 B(LdaSmi), I8(-2),
@@ -91,7 +91,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 143
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -101,7 +101,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(1),
-                B(JumpIfTrue), U8(63),
+                B(JumpIfTrue), U8(64),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kAbort), R(3), U8(1),
@@ -125,7 +125,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(4),
                 B(LdaZero),
-                B(SuspendGenerator), R(4),
+                B(SuspendGenerator), R(4), U8(0),
                 B(Ldar), R(3),
   /*   24 S> */ B(Return),
                 B(LdaSmi), I8(-2),
@@ -171,7 +171,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 212
+bytecode array length: 213
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -181,7 +181,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(2),
-                B(JumpIfTrue), U8(63),
+                B(JumpIfTrue), U8(64),
                 B(LdaSmi), I8(78),
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kAbort), R(4), U8(1),
@@ -205,7 +205,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(5),
                 B(LdaZero),
-                B(SuspendGenerator), R(5),
+                B(SuspendGenerator), R(5), U8(0),
                 B(Ldar), R(4),
   /*   64 S> */ B(Return),
                 B(LdaSmi), I8(-2),
@@ -282,7 +282,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 183
+bytecode array length: 184
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -292,7 +292,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(2),
-                B(JumpIfTrue), U8(63),
+                B(JumpIfTrue), U8(64),
                 B(LdaSmi), I8(78),
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kAbort), R(4), U8(1),
@@ -316,7 +316,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(5),
                 B(LdaZero),
-                B(SuspendGenerator), R(5),
+                B(SuspendGenerator), R(5), U8(0),
                 B(Ldar), R(4),
   /*   49 S> */ B(Return),
                 B(LdaSmi), I8(-2),
@@ -381,7 +381,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 187
+bytecode array length: 188
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -391,7 +391,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(2),
-                B(JumpIfTrue), U8(67),
+                B(JumpIfTrue), U8(68),
                 B(LdaSmi), I8(78),
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kAbort), R(4), U8(1),
@@ -417,7 +417,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(5),
                 B(LdaZero),
-                B(SuspendGenerator), R(5),
+                B(SuspendGenerator), R(5), U8(0),
                 B(Ldar), R(4),
   /*   49 S> */ B(Return),
                 B(LdaSmi), I8(-2),
@@ -482,7 +482,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 191
+bytecode array length: 192
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -492,7 +492,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(2),
-                B(JumpIfTrue), U8(67),
+                B(JumpIfTrue), U8(68),
                 B(LdaSmi), I8(78),
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kAbort), R(4), U8(1),
@@ -518,7 +518,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(5),
                 B(LdaZero),
-                B(SuspendGenerator), R(5),
+                B(SuspendGenerator), R(5), U8(0),
                 B(Ldar), R(4),
   /*   51 S> */ B(Return),
                 B(LdaSmi), I8(-2),
@@ -581,7 +581,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 153
+bytecode array length: 154
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -591,7 +591,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(1),
-                B(JumpIfTrue), U8(67),
+                B(JumpIfTrue), U8(68),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kAbort), R(3), U8(1),
@@ -617,7 +617,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(4),
                 B(LdaZero),
-                B(SuspendGenerator), R(4),
+                B(SuspendGenerator), R(4), U8(0),
                 B(Ldar), R(3),
   /*   32 S> */ B(Return),
                 B(LdaSmi), I8(-2),
@@ -664,7 +664,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 190
+bytecode array length: 191
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -674,7 +674,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(1),
-                B(JumpIfTrue), U8(67),
+                B(JumpIfTrue), U8(68),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kAbort), R(3), U8(1),
@@ -700,7 +700,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(4),
                 B(LdaZero),
-                B(SuspendGenerator), R(4),
+                B(SuspendGenerator), R(4), U8(0),
                 B(Ldar), R(3),
   /*   26 S> */ B(Return),
                 B(LdaSmi), I8(-2),
@@ -761,7 +761,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 143
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -771,7 +771,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(1),
-                B(JumpIfTrue), U8(63),
+                B(JumpIfTrue), U8(64),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kAbort), R(3), U8(1),
@@ -795,7 +795,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(4),
                 B(LdaZero),
-                B(SuspendGenerator), R(4),
+                B(SuspendGenerator), R(4), U8(0),
                 B(Ldar), R(3),
   /*   30 S> */ B(Return),
                 B(LdaSmi), I8(-2),
@@ -839,7 +839,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 143
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -849,7 +849,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(1),
-                B(JumpIfTrue), U8(63),
+                B(JumpIfTrue), U8(64),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kAbort), R(3), U8(1),
@@ -873,7 +873,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(4),
                 B(LdaZero),
-                B(SuspendGenerator), R(4),
+                B(SuspendGenerator), R(4), U8(0),
                 B(Ldar), R(3),
   /*   19 S> */ B(Return),
                 B(LdaSmi), I8(-2),
@@ -918,7 +918,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 180
+bytecode array length: 181
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -928,7 +928,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(1),
-                B(JumpIfTrue), U8(73),
+                B(JumpIfTrue), U8(74),
                 B(LdaSmi), I8(78),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kAbort), R(3), U8(1),
@@ -956,7 +956,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(4),
                 B(LdaZero),
-                B(SuspendGenerator), R(4),
+                B(SuspendGenerator), R(4), U8(0),
                 B(Ldar), R(3),
   /*   45 S> */ B(Return),
                 B(LdaSmi), I8(-2),

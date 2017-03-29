@@ -77,21 +77,20 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
   return generator->input_or_debug_pos();
 }
 
-RUNTIME_FUNCTION(Runtime_AsyncGeneratorGetAwaitInput) {
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorGetAwaitInputOrDebugPos) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSAsyncGeneratorObject, generator, 0);
 
-  // To be implemented in a followup CL
-  UNREACHABLE();
-
-  return isolate->heap()->undefined_value();
+  return generator->await_input_or_debug_pos();
 }
 
-RUNTIME_FUNCTION(Runtime_AsyncGeneratorReturn) {
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorResolve) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
 
-  // To be implemented in a followup CL
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
   UNREACHABLE();
 
   return isolate->heap()->undefined_value();
@@ -101,7 +100,8 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorReject) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  // To be implemented in a followup CL
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
   UNREACHABLE();
 
   return isolate->heap()->undefined_value();

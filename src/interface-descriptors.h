@@ -98,6 +98,9 @@ class PlatformInterfaceDescriptor;
   V(ResumeGenerator)                       \
   V(FrameDropperTrampoline)                \
   V(PromiseHandleReject)                   \
+  V(AsyncGeneratorResolve)                 \
+  V(AsyncGeneratorReject)                  \
+  V(AsyncGeneratorResumeNext)              \
   V(WasmRuntimeCall)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -980,6 +983,28 @@ class PromiseHandleRejectDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kPromise, kOnReject, kException)
   DECLARE_DEFAULT_DESCRIPTOR(PromiseHandleRejectDescriptor,
+                             CallInterfaceDescriptor, kParameterCount)
+};
+
+class AsyncGeneratorResolveDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kGenerator, kValue, kDone)
+  DECLARE_DEFAULT_DESCRIPTOR(AsyncGeneratorResolveDescriptor,
+                             CallInterfaceDescriptor, kParameterCount)
+};
+
+class AsyncGeneratorRejectDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kGenerator, kValue)
+  DECLARE_DEFAULT_DESCRIPTOR(AsyncGeneratorRejectDescriptor,
+                             CallInterfaceDescriptor, kParameterCount)
+};
+
+class AsyncGeneratorResumeNextDescriptor final
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kGenerator)
+  DECLARE_DEFAULT_DESCRIPTOR(AsyncGeneratorResumeNextDescriptor,
                              CallInterfaceDescriptor, kParameterCount)
 };
 

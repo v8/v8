@@ -40,6 +40,12 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGeneratorClose(node);
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
       return ReduceGeneratorGetInputOrDebugPos(node);
+    case Runtime::kInlineAsyncGeneratorGetAwaitInputOrDebugPos:
+      return ReduceAsyncGeneratorGetAwaitInputOrDebugPos(node);
+    case Runtime::kInlineAsyncGeneratorReject:
+      return ReduceAsyncGeneratorReject(node);
+    case Runtime::kInlineAsyncGeneratorResolve:
+      return ReduceAsyncGeneratorResolve(node);
     case Runtime::kInlineGeneratorGetResumeMode:
       return ReduceGeneratorGetResumeMode(node);
     case Runtime::kInlineGeneratorGetContext:
@@ -161,6 +167,25 @@ Reduction JSIntrinsicLowering::ReduceGeneratorGetInputOrDebugPos(Node* node) {
       AccessBuilder::ForJSGeneratorObjectInputOrDebugPos());
 
   return Change(node, op, generator, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorGetAwaitInputOrDebugPos(
+    Node* node) {
+  Node* const generator = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  Operator const* const op = simplified()->LoadField(
+      AccessBuilder::ForJSAsyncGeneratorObjectAwaitInputOrDebugPos());
+
+  return Change(node, op, generator, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorReject(Node* node) {
+  return Change(node, CodeFactory::AsyncGeneratorReject(isolate()), 0);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorResolve(Node* node) {
+  return Change(node, CodeFactory::AsyncGeneratorResolve(isolate()), 0);
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorGetContext(Node* node) {

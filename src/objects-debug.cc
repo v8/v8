@@ -114,6 +114,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_GENERATOR_OBJECT_TYPE:
       JSGeneratorObject::cast(this)->JSGeneratorObjectVerify();
       break;
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
+      JSAsyncGeneratorObject::cast(this)->JSAsyncGeneratorObjectVerify();
+      break;
     case JS_VALUE_TYPE:
       JSValue::cast(this)->JSValueVerify();
       break;
@@ -483,6 +486,12 @@ void JSGeneratorObject::JSGeneratorObjectVerify() {
   VerifyObjectField(kContinuationOffset);
 }
 
+void JSAsyncGeneratorObject::JSAsyncGeneratorObjectVerify() {
+  // Check inherited fields
+  JSGeneratorObjectVerify();
+  VerifyObjectField(kQueueOffset);
+  queue()->HeapObjectVerify();
+}
 
 void JSValue::JSValueVerify() {
   Object* v = value();
@@ -1065,6 +1074,17 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
         deferred_on_reject()->IsCallable() ||
         deferred_on_reject()->IsFixedArray());
   CHECK(context()->IsContext());
+}
+
+void AsyncGeneratorRequest::AsyncGeneratorRequestVerify() {
+  CHECK(IsAsyncGeneratorRequest());
+  VerifySmiField(kResumeModeOffset);
+  CHECK_GE(resume_mode(), JSGeneratorObject::kNext);
+  CHECK_LE(resume_mode(), JSGeneratorObject::kThrow);
+  CHECK(promise()->IsJSPromise());
+  VerifyPointer(value());
+  VerifyPointer(next());
+  next()->ObjectVerify();
 }
 
 void JSModuleNamespace::JSModuleNamespaceVerify() {

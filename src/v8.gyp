@@ -482,6 +482,7 @@
         'builtins/builtins-array.cc',
         'builtins/builtins-array-gen.cc',
         'builtins/builtins-async-function-gen.cc',
+        'builtins/builtins-async-generator-gen.cc',
         'builtins/builtins-async-iterator-gen.cc',
         'builtins/builtins-async-gen.cc',
         'builtins/builtins-async-gen.h',
