@@ -34,7 +34,6 @@
     'warmup_script%': "",
     'v8_extra_library_files%': [],
     'v8_experimental_extra_library_files%': [],
-    'v8_enable_inspector%': 1,
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'mkpeephole_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkpeephole<(EXECUTABLE_SUFFIX)',
     'v8_os_page_size%': 0,
@@ -371,6 +370,9 @@
       'dependencies': [
         'v8_libbase',
         'v8_libsampler',
+        'inspector/inspector.gyp:protocol_generated_sources',
+        'inspector/inspector.gyp:inspector_injected_script',
+        'inspector/inspector.gyp:inspector_debugger_script',
       ],
       'objs': ['foo.o'],
       'variables': {
@@ -389,6 +391,7 @@
         'process_outputs_as_sources': 1,
       }],
       'sources': [  ### gcmole(all) ###
+        '<@(inspector_all_sources)',
         '../include/v8-debug.h',
         '../include/v8-platform.h',
         '../include/v8-profiler.h',
@@ -1827,16 +1830,6 @@
           'sources!': [
             'i18n.cc',
             'i18n.h',
-          ],
-        }],
-        ['v8_enable_inspector==1', {
-          'sources': [
-            '<@(inspector_all_sources)'
-          ],
-          'dependencies': [
-            'inspector/inspector.gyp:protocol_generated_sources',
-            'inspector/inspector.gyp:inspector_injected_script',
-            'inspector/inspector.gyp:inspector_debugger_script',
           ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {

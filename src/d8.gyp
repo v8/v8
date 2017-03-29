@@ -42,6 +42,9 @@
         'v8.gyp:v8_libbase',
         'v8.gyp:v8_libplatform',
       ],
+      'defines': [
+        'V8_INSPECTOR_ENABLED',
+      ],
       # Generated source files need this explicitly:
       'include_dirs+': [
         '..',
@@ -53,11 +56,6 @@
         '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
       ],
       'conditions': [
-        ['v8_enable_inspector == 1', {
-          'defines': [
-            'V8_INSPECTOR_ENABLED',
-          ],
-        }],
         [ 'want_separate_host_toolset==1', {
           'toolsets': [ 'target', ],
           'dependencies': [
