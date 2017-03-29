@@ -630,8 +630,6 @@
         'compiler/graph-assembler.h',
         'compiler/graph-reducer.cc',
         'compiler/graph-reducer.h',
-        'compiler/graph-replay.cc',
-        'compiler/graph-replay.h',
         'compiler/graph-trimmer.cc',
         'compiler/graph-trimmer.h',
         'compiler/graph-visualizer.cc',

@@ -1235,8 +1235,6 @@ v8_source_set("v8_base") {
     "src/compiler/graph-assembler.h",
     "src/compiler/graph-reducer.cc",
     "src/compiler/graph-reducer.h",
-    "src/compiler/graph-replay.cc",
-    "src/compiler/graph-replay.h",
     "src/compiler/graph-trimmer.cc",
     "src/compiler/graph-trimmer.h",
     "src/compiler/graph-visualizer.cc",

@@ -1098,8 +1098,6 @@ DEFINE_BOOL(check_handle_count, false,
 DEFINE_BOOL(print_global_handles, false, "report global handles after GC")
 
 // TurboFan debug-only flags.
-DEFINE_BOOL(print_turbo_replay, false,
-            "print C++ code to recreate TurboFan graphs")
 DEFINE_BOOL(trace_turbo_escape, false, "enable tracing in escape analysis")
 
 // objects.cc

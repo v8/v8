@@ -26,7 +26,6 @@
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/escape-analysis.h"
 #include "src/compiler/frame-elider.h"
-#include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-trimmer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/instruction-selector.h"
@@ -1519,11 +1518,6 @@ bool PipelineImpl::CreateGraph() {
   // Remove dead->live edges from the graph.
   Run<EarlyGraphTrimmingPhase>();
   RunPrintAndVerify("Early trimmed", true);
-
-  if (FLAG_print_turbo_replay) {
-    // Print a replay of the initial graph.
-    GraphReplayPrinter::PrintReplay(data->graph());
-  }
 
   // Run the type-sensitive lowerings and optimizations on the graph.
   {
