@@ -10,7 +10,6 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
-#include "src/builtins/builtins.h"
 #include "src/globals.h"
 #include "src/isolate.h"
 #include "src/objects.h"

@@ -1111,6 +1111,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-dataview.cc",
     "src/builtins/builtins-date.cc",
     "src/builtins/builtins-debug.cc",
+    "src/builtins/builtins-definitions.h",
     "src/builtins/builtins-descriptors.h",
     "src/builtins/builtins-error.cc",
     "src/builtins/builtins-function.cc",
