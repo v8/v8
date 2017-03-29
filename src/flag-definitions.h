@@ -554,6 +554,7 @@ DEFINE_BOOL(suppress_asm_messages, false,
 DEFINE_BOOL(trace_asm_time, false, "log asm.js timing info to the console")
 DEFINE_BOOL(trace_asm_scanner, false,
             "log tokens encountered by asm.js scanner")
+DEFINE_BOOL(trace_asm_parser, false, "verbose logging of asm.js parse failures")
 DEFINE_BOOL(stress_validate_asm, false, "try to validate everything as asm.js")
 
 DEFINE_BOOL(dump_wasm_module, false, "dump WASM module bytes")

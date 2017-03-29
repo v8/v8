@@ -26,12 +26,14 @@ namespace internal {
 namespace wasm {
 
 #ifdef DEBUG
-#define FAIL_AND_RETURN(ret, msg)                                          \
-  failed_ = true;                                                          \
-  failure_message_ = std::string(msg) +                                    \
-                     " token: " + scanner_.Name(scanner_.Token()) +        \
-                     " see: " + __FILE__ + ":" + std::to_string(__LINE__); \
-  failure_location_ = scanner_.GetPosition();                              \
+#define FAIL_AND_RETURN(ret, msg)                                        \
+  failed_ = true;                                                        \
+  failure_message_ = msg;                                                \
+  failure_location_ = scanner_.GetPosition();                            \
+  if (FLAG_trace_asm_parser) {                                           \
+    PrintF("[asm.js failure: %s, token: '%s', see: %s:%d]\n", msg,       \
+           scanner_.Name(scanner_.Token()).c_str(), __FILE__, __LINE__); \
+  }                                                                      \
   return ret;
 #else
 #define FAIL_AND_RETURN(ret, msg)             \
@@ -45,25 +47,13 @@ namespace wasm {
 #define FAILn(msg) FAIL_AND_RETURN(nullptr, msg)
 #define FAILf(msg) FAIL_AND_RETURN(false, msg)
 
-#ifdef DEBUG
-#define EXPECT_TOKEN_OR_RETURN(ret, token)                            \
-  do {                                                                \
-    if (scanner_.Token() != token) {                                  \
-      FAIL_AND_RETURN(ret, std::string("expected token ") +           \
-                               scanner_.Name(token) + " but found " + \
-                               scanner_.Name(scanner_.Token()));      \
-    }                                                                 \
-    scanner_.Next();                                                  \
-  } while (false);
-#else
 #define EXPECT_TOKEN_OR_RETURN(ret, token)      \
   do {                                          \
     if (scanner_.Token() != token) {            \
-      FAIL_AND_RETURN(ret, "unexpected token"); \
+      FAIL_AND_RETURN(ret, "Unexpected token"); \
     }                                           \
     scanner_.Next();                            \
-  } while (false);
-#endif
+  } while (false)
 
 #define EXPECT_TOKEN(token) EXPECT_TOKEN_OR_RETURN(, token)
 #define EXPECT_TOKENn(token) EXPECT_TOKEN_OR_RETURN(nullptr, token)
@@ -77,7 +67,7 @@ namespace wasm {
     }                                                                      \
     call;                                                                  \
     if (failed_) return ret;                                               \
-  } while (false);
+  } while (false)
 
 #define RECURSE(call) RECURSE_OR_RETURN(, call)
 #define RECURSEn(call) RECURSE_OR_RETURN(nullptr, call)
