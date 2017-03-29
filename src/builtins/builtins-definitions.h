@@ -114,8 +114,6 @@ namespace internal {
   ASM(JSEntryTrampoline)                                                       \
   ASM(JSConstructEntryTrampoline)                                              \
   ASM(ResumeGeneratorTrampoline)                                               \
-  ASM(ResumeAsyncGeneratorTrampoline)                                          \
-  ASM(ResumeAwaitedAsyncGeneratorTrampoline)                                   \
                                                                                \
   /* Stack and interrupt check */                                              \
   ASM(InterruptCheck)                                                          \

@@ -229,8 +229,9 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
 
   CSA_SLOW_ASSERT(this, IsGeneratorSuspended(generator));
 
-  CallStub(CodeFactory::ResumeAwaitedAsyncGenerator(isolate()), context, value,
-           generator, SmiConstant(resume_mode));
+  CallStub(CodeFactory::ResumeGenerator(isolate()), context, value, generator,
+           SmiConstant(resume_mode),
+           SmiConstant(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
 
   TailCallStub(CodeFactory::AsyncGeneratorResumeNext(isolate()), context,
                generator);
@@ -520,8 +521,9 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
 
   Bind(&resume_generator);
   {
-    CallStub(CodeFactory::ResumeAsyncGenerator(isolate()), context,
-             LoadValueFromAsyncGeneratorRequest(next), generator, resume_type);
+    CallStub(CodeFactory::ResumeGenerator(isolate()), context,
+             LoadValueFromAsyncGeneratorRequest(next), generator, resume_type,
+             SmiConstant(static_cast<int>(SuspendFlags::kAsyncGeneratorYield)));
     var_state.Bind(LoadGeneratorState(generator));
     var_next.Bind(LoadFirstAsyncGeneratorRequestFromQueue(generator));
     Goto(&start);

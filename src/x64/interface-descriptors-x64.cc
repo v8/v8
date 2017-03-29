@@ -391,8 +391,9 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       rax,  // the value to pass to the generator
-      rbx,  // the JSGeneratorObject to resume
-      rdx   // the resume mode (tagged)
+      rbx,  // the JSGeneratorObject / JSAsyncGeneratorObject to resume
+      rdx,  // the resume mode (tagged)
+      rcx   // SuspendFlags (tagged)
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

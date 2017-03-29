@@ -3727,26 +3727,33 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
-void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (emit_debug_code()) {
-    testb(object, Immediate(kSmiTagMask));
-    Check(not_equal, kOperandIsASmiAndNotAGeneratorObject);
-    Push(object);
-    CmpObjectType(object, JS_GENERATOR_OBJECT_TYPE, object);
-    Pop(object);
-    Check(equal, kOperandIsNotAGeneratorObject);
-  }
-}
+void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
+  // `flags` should be an untagged integer. See `SuspendFlags` in src/globals.h
+  if (!emit_debug_code()) return;
+  testb(object, Immediate(kSmiTagMask));
+  Check(not_equal, kOperandIsASmiAndNotAGeneratorObject);
 
-void MacroAssembler::AssertAsyncGeneratorObject(Register object) {
-  if (emit_debug_code()) {
-    testb(object, Immediate(kSmiTagMask));
-    Check(not_equal, kOperandIsASmiAndNotAGeneratorObject);
-    Push(object);
-    CmpObjectType(object, JS_ASYNC_GENERATOR_OBJECT_TYPE, object);
-    Pop(object);
-    Check(equal, kOperandIsNotAGeneratorObject);
-  }
+  // Load map
+  Register map = object;
+  Push(object);
+  movp(map, FieldOperand(object, HeapObject::kMapOffset));
+
+  Label async, do_check;
+  testb(flags, Immediate(static_cast<int>(SuspendFlags::kGeneratorTypeMask)));
+  j(not_zero, &async);
+
+  // Check if JSGeneratorObject
+  CmpInstanceType(map, JS_GENERATOR_OBJECT_TYPE);
+  jmp(&do_check);
+
+  bind(&async);
+  // Check if JSAsyncGeneratorObject
+  CmpInstanceType(map, JS_ASYNC_GENERATOR_OBJECT_TYPE);
+
+  bind(&do_check);
+  // Restore generator object to register and perform assertion
+  Pop(object);
+  Check(equal, kOperandIsNotAGeneratorObject);
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {

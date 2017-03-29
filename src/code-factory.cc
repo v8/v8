@@ -358,18 +358,6 @@ Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::ResumeAsyncGenerator(Isolate* isolate) {
-  return Callable(isolate->builtins()->ResumeAsyncGeneratorTrampoline(),
-                  ResumeGeneratorDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ResumeAwaitedAsyncGenerator(Isolate* isolate) {
-  return Callable(isolate->builtins()->ResumeAwaitedAsyncGeneratorTrampoline(),
-                  ResumeGeneratorDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::FrameDropperTrampoline(Isolate* isolate) {
   return Callable(isolate->builtins()->FrameDropperTrampoline(),
                   FrameDropperTrampolineDescriptor(isolate));

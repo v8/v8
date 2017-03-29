@@ -5682,26 +5682,32 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
-void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    SmiTst(object, t8);
-    Check(ne, kOperandIsASmiAndNotAGeneratorObject, t8, Operand(zero_reg));
-    GetObjectType(object, t8, t8);
-    Check(eq, kOperandIsNotAGeneratorObject, t8,
-          Operand(JS_GENERATOR_OBJECT_TYPE));
-  }
-}
+void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
+  // `flags` should be an untagged integer. See `SuspendFlags` in src/globals.h
+  if (!emit_debug_code()) return;
+  STATIC_ASSERT(kSmiTag == 0);
+  SmiTst(object, t8);
+  Check(ne, kOperandIsASmiAndNotAGeneratorObject, t8, Operand(zero_reg));
 
-void MacroAssembler::AssertAsyncGeneratorObject(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    SmiTst(object, t8);
-    Check(ne, kOperandIsASmiAndNotAGeneratorObject, t8, Operand(zero_reg));
-    GetObjectType(object, t8, t8);
-    Check(eq, kOperandIsNotAGeneratorObject, t8,
-          Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
-  }
+  GetObjectType(object, t8, t8);
+
+  Label async, abort, done;
+  And(t9, flags, Operand(static_cast<int>(SuspendFlags::kGeneratorTypeMask)));
+  Branch(&async, equal, t9,
+         Operand(static_cast<int>(SuspendFlags::kAsyncGenerator)));
+
+  // Check if JSGeneratorObject
+  Branch(&done, eq, t8, Operand(JS_GENERATOR_OBJECT_TYPE));
+  jmp(&abort);
+
+  bind(&async);
+  // Check if JSAsyncGeneratorObject
+  Branch(&done, eq, t8, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
+
+  bind(&abort);
+  Abort(kOperandIsASmiAndNotAGeneratorObject);
+
+  bind(&done);
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,

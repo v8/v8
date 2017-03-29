@@ -845,26 +845,38 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
-void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (emit_debug_code()) {
-    test(object, Immediate(kSmiTagMask));
-    Check(not_equal, kOperandIsASmiAndNotAGeneratorObject);
-    Push(object);
-    CmpObjectType(object, JS_GENERATOR_OBJECT_TYPE, object);
-    Pop(object);
-    Check(equal, kOperandIsNotAGeneratorObject);
-  }
-}
+void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
+  // `flags` should be an untagged integer. See `SuspendFlags` in src/globals.h
+  if (!emit_debug_code()) return;
 
-void MacroAssembler::AssertAsyncGeneratorObject(Register object) {
-  if (emit_debug_code()) {
-    test(object, Immediate(kSmiTagMask));
-    Check(not_equal, kOperandIsASmiAndNotAGeneratorObject);
+  test(object, Immediate(kSmiTagMask));
+  Check(not_equal, kOperandIsASmiAndNotAGeneratorObject);
+
+  {
     Push(object);
-    CmpObjectType(object, JS_ASYNC_GENERATOR_OBJECT_TYPE, object);
+    Register map = object;
+
+    // Load map
+    mov(map, FieldOperand(object, HeapObject::kMapOffset));
+
+    Label async, do_check;
+    test(flags, Immediate(static_cast<int>(SuspendFlags::kGeneratorTypeMask)));
+    j(not_zero, &async, Label::kNear);
+
+    // Check if JSGeneratorObject
+    CmpInstanceType(map, JS_GENERATOR_OBJECT_TYPE);
+    jmp(&do_check, Label::kNear);
+
+    bind(&async);
+    // Check if JSAsyncGeneratorObject
+    CmpInstanceType(map, JS_ASYNC_GENERATOR_OBJECT_TYPE);
+    jmp(&do_check, Label::kNear);
+
+    bind(&do_check);
     Pop(object);
-    Check(equal, kOperandIsNotAGeneratorObject);
   }
+
+  Check(equal, kOperandIsNotAGeneratorObject);
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {

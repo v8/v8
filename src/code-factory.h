@@ -55,8 +55,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable KeyedStoreIC_Megamorphic(Isolate* isolate, LanguageMode mode);
 
   static Callable ResumeGenerator(Isolate* isolate);
-  static Callable ResumeAsyncGenerator(Isolate* isolate);
-  static Callable ResumeAwaitedAsyncGenerator(Isolate* isolate);
 
   static Callable FrameDropperTrampoline(Isolate* isolate);
   static Callable HandleDebuggerStatement(Isolate* isolate);

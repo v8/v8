@@ -478,40 +478,38 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
-  Generate_ResumeGenerator(masm, ResumeGeneratorType::kGenerator);
-}
-
-// static
-void Builtins::Generate_ResumeAsyncGeneratorTrampoline(MacroAssembler* masm) {
-  Generate_ResumeGenerator(masm, ResumeGeneratorType::kAsyncGenerator);
-}
-
-// static
-void Builtins::Generate_ResumeAwaitedAsyncGeneratorTrampoline(
-    MacroAssembler* masm) {
-  Generate_ResumeGenerator(masm, ResumeGeneratorType::kAwaitedAsyncGenerator);
-}
-
-void Builtins::Generate_ResumeGenerator(MacroAssembler* masm,
-                                        ResumeGeneratorType type) {
   // ----------- S t a t e -------------
   //  -- rax    : the value to pass to the generator
   //  -- rbx    : the JSGeneratorObject to resume
   //  -- rdx    : the resume mode (tagged)
+  //  -- rcx    : the SuspendFlags of the earlier suspend call (tagged)
   //  -- rsp[0] : return address
   // -----------------------------------
-  if (type == ResumeGeneratorType::kGenerator) {
-    __ AssertGeneratorObject(rbx);
-  } else {
-    __ AssertAsyncGeneratorObject(rbx);
-  }
+  // Untag rcx
+  __ shrq(rcx, Immediate(kSmiTagSize + kSmiShiftSize));
+  __ AssertGeneratorObject(rbx, rcx);
 
   // Store input value into generator object.
-  int offset = type == ResumeGeneratorType::kAwaitedAsyncGenerator
-                   ? JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset
-                   : JSGeneratorObject::kInputOrDebugPosOffset;
-  __ movp(FieldOperand(rbx, offset), rax);
-  __ RecordWriteField(rbx, offset, rax, rcx, kDontSaveFPRegs);
+  Label async_await, done_store_input;
+
+  __ andb(rcx, Immediate(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
+  __ cmpb(rcx, Immediate(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
+  __ j(equal, &async_await);
+
+  __ movp(FieldOperand(rbx, JSGeneratorObject::kInputOrDebugPosOffset), rax);
+  __ RecordWriteField(rbx, JSGeneratorObject::kInputOrDebugPosOffset, rax, rcx,
+                      kDontSaveFPRegs);
+  __ j(always, &done_store_input, Label::kNear);
+
+  __ bind(&async_await);
+  __ movp(
+      FieldOperand(rbx, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset),
+      rax);
+  __ RecordWriteField(rbx, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset,
+                      rax, rcx, kDontSaveFPRegs);
+
+  __ bind(&done_store_input);
+  // `rcx` no longer holds SuspendFlags
 
   // Store resume mode into generator object.
   __ movp(FieldOperand(rbx, JSGeneratorObject::kResumeModeOffset), rdx);

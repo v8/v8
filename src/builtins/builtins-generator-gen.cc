@@ -47,8 +47,10 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   GotoIf(SmiLessThan(receiver_continuation, closed), &if_receiverisrunning);
 
   // Resume the {receiver} using our trampoline.
-  Node* result = CallStub(CodeFactory::ResumeGenerator(isolate()), context,
-                          value, receiver, SmiConstant(resume_mode));
+  Node* result =
+      CallStub(CodeFactory::ResumeGenerator(isolate()), context, value,
+               receiver, SmiConstant(resume_mode),
+               SmiConstant(static_cast<int>(SuspendFlags::kGeneratorYield)));
   Return(result);
 
   Bind(&if_receiverisincompatible);

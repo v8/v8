@@ -441,7 +441,8 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
   Register registers[] = {
       x0,  // the value to pass to the generator
       x1,  // the JSGeneratorObject to resume
-      x2   // the resume mode (tagged)
+      x2,  // the resume mode (tagged)
+      x3   // SuspendFlags (tagged)
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
