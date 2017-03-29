@@ -910,23 +910,25 @@ class RuntimeCallTimerScope {
   RuntimeCallTimer timer_;
 };
 
-#define HISTOGRAM_RANGE_LIST(HR)                                              \
-  /* Generic range histograms */                                              \
-  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)        \
-  HR(gc_idle_time_allotted_in_ms, V8.GCIdleTimeAllottedInMS, 0, 10000, 101)   \
-  HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101) \
-  HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000,    \
-     101)                                                                     \
-  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
-  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
-  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                      \
-  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)    \
-  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                  \
-  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
-  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)        \
-  /* Asm/Wasm. */                                                             \
-  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule, 1, 10000, 51)  \
-  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule, 1, 10000, 51)
+#define HISTOGRAM_RANGE_LIST(HR)                                               \
+  /* Generic range histograms */                                               \
+  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)         \
+  HR(gc_idle_time_allotted_in_ms, V8.GCIdleTimeAllottedInMS, 0, 10000, 101)    \
+  HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101)  \
+  HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000,     \
+     101)                                                                      \
+  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
+  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
+  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)     \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                   \
+  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                          \
+  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
+  /* Asm/Wasm. */                                                              \
+  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 10000,   \
+     51)                                                                       \
+  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1, 10000, \
+     51)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
@@ -958,25 +960,25 @@ class RuntimeCallTimerScope {
   HT(execute, V8.Execute, 1000000, MICROSECOND)                                \
   /* Asm/Wasm */                                                               \
   /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
-  HT(wasm_instantiate_asm_module_time, V8.WasmInstantiateModuleMicroSeconds,   \
+  HT(wasm_instantiate_asm_module_time,                                         \
+     V8.WasmInstantiateModuleMicroSeconds.asm, 1000000, MICROSECOND)           \
+  HT(wasm_instantiate_wasm_module_time,                                        \
+     V8.WasmInstantiateModuleMicroSeconds.wasm, 1000000, MICROSECOND)          \
+  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
+  HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds.asm,         \
      1000000, MICROSECOND)                                                     \
-  HT(wasm_instantiate_wasm_module_time, V8.WasmInstantiateModuleMicroSeconds,  \
+  HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds.wasm,       \
      1000000, MICROSECOND)                                                     \
   /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
-  HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds, 1000000,    \
-     MICROSECOND)                                                              \
-  HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds, 1000000,   \
-     MICROSECOND)                                                              \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
-  HT(wasm_decode_asm_function_time, V8.WasmDecodeFunctionMicroSeconds,         \
+  HT(wasm_decode_asm_function_time, V8.WasmDecodeFunctionMicroSeconds.asm,     \
      1000000, MICROSECOND)                                                     \
-  HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds,        \
+  HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds.wasm,   \
      1000000, MICROSECOND)                                                     \
   /* TODO(kschimpf) Update chrome flags to reflect asm/wasm split. */          \
-  HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds, 1000000,  \
-     MICROSECOND)                                                              \
-  HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds, 1000000, \
-     MICROSECOND)                                                              \
+  HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds.asm,       \
+     1000000, MICROSECOND)                                                     \
+  HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds.wasm,     \
+     1000000, MICROSECOND)                                                     \
   HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000,  \
      MICROSECOND)                                                              \
   HT(asm_wasm_translation_time, V8.AsmWasmTranslationMicroSeconds, 1000000,    \
@@ -1015,23 +1017,23 @@ class RuntimeCallTimerScope {
   /* Asm/Wasm */                                                         \
   /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
   HM(wasm_decode_asm_module_peak_memory_bytes,                           \
-     V8.WasmDecodeModulePeakMemoryBytes)                                 \
+     V8.WasmDecodeModulePeakMemoryBytes.asm)                             \
   HM(wasm_decode_wasm_module_peak_memory_bytes,                          \
-     V8.WasmDecodeModulePeakMemoryBytes)                                 \
+     V8.WasmDecodeModulePeakMemoryBytes.wasm)                            \
   HM(wasm_compile_function_peak_memory_bytes,                            \
      V8.WasmCompileFunctionPeakMemoryBytes)                              \
   /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
-  HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount)              \
-  HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount)             \
+  HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm)          \
+  HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm)        \
   /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
-  HM(wasm_asm_max_mem_pages_count, V8.WasmMaxMemPagesCount)              \
-  HM(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount)             \
+  HM(wasm_asm_max_mem_pages_count, V8.WasmMaxMemPagesCount.asm)          \
+  HM(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm)        \
   /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
-  HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes)             \
-  HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes)            \
+  HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm)         \
+  HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm)       \
   /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
-  HM(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes)                 \
-  HM(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes)
+  HM(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm)             \
+  HM(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm)
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40
