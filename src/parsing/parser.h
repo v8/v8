@@ -52,16 +52,12 @@ class FunctionEntry BASE_EMBEDDED {
       : public BitField<bool, LanguageModeField::kNext, 1> {};
   class CallsEvalField
       : public BitField<bool, UsesSuperPropertyField::kNext, 1> {};
-  class HasDuplicateParametersField
-      : public BitField<bool, CallsEvalField::kNext, 1> {};
 
   static uint32_t EncodeFlags(LanguageMode language_mode,
-                              bool uses_super_property, bool calls_eval,
-                              bool has_duplicate_parameters) {
+                              bool uses_super_property, bool calls_eval) {
     return LanguageModeField::encode(language_mode) |
            UsesSuperPropertyField::encode(uses_super_property) |
-           CallsEvalField::encode(calls_eval) |
-           HasDuplicateParametersField::encode(has_duplicate_parameters);
+           CallsEvalField::encode(calls_eval);
   }
 
   int start_pos() const { return backing_[kStartPositionIndex]; }
@@ -77,9 +73,6 @@ class FunctionEntry BASE_EMBEDDED {
   }
   bool calls_eval() const {
     return CallsEvalField::decode(backing_[kFlagsIndex]);
-  }
-  bool has_duplicate_parameters() const {
-    return HasDuplicateParametersField::decode(backing_[kFlagsIndex]);
   }
   int num_inner_functions() const { return backing_[kNumInnerFunctionsIndex]; }
 
@@ -570,7 +563,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   LazyParsingResult SkipFunction(FunctionKind kind,
                                  DeclarationScope* function_scope,
                                  int* num_parameters, int* function_length,
-                                 bool* has_duplicate_parameters,
                                  int* expected_property_count,
                                  bool is_inner_function, bool may_abort,
                                  bool* ok);

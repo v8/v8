@@ -14,8 +14,7 @@ namespace v8 {
 namespace internal {
 
 void ParserLogger::LogFunction(int start, int end, int num_parameters,
-                               int function_length,
-                               bool has_duplicate_parameters, int properties,
+                               int function_length, int properties,
                                LanguageMode language_mode,
                                bool uses_super_property, bool calls_eval,
                                int num_inner_functions) {
@@ -24,9 +23,8 @@ void ParserLogger::LogFunction(int start, int end, int num_parameters,
   function_store_.Add(num_parameters);
   function_store_.Add(function_length);
   function_store_.Add(properties);
-  function_store_.Add(
-      FunctionEntry::EncodeFlags(language_mode, uses_super_property, calls_eval,
-                                 has_duplicate_parameters));
+  function_store_.Add(FunctionEntry::EncodeFlags(
+      language_mode, uses_super_property, calls_eval));
   function_store_.Add(num_inner_functions);
 }
 

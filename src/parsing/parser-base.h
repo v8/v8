@@ -4198,12 +4198,11 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // parameters.
         int dummy_num_parameters = -1;
         int dummy_function_length = -1;
-        bool dummy_has_duplicate_parameters = false;
         DCHECK((kind & FunctionKind::kArrowFunction) != 0);
         LazyParsingResult result = impl()->SkipFunction(
             kind, formal_parameters.scope, &dummy_num_parameters,
-            &dummy_function_length, &dummy_has_duplicate_parameters,
-            &expected_property_count, false, true, CHECK_OK);
+            &dummy_function_length, &expected_property_count, false, true,
+            CHECK_OK);
         formal_parameters.scope->ResetAfterPreparsing(
             ast_value_factory_, result == kLazyParsingAborted);
 

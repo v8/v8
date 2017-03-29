@@ -472,6 +472,8 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
 void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
                                        Handle<SharedFunctionInfo> shared_info) {
   shared_info->set_ast_node_count(literal->ast_node_count());
+  shared_info->set_has_duplicate_parameters(
+      literal->has_duplicate_parameters());
   if (literal->dont_optimize_reason() != kNoReason) {
     shared_info->DisableOptimization(literal->dont_optimize_reason());
   }

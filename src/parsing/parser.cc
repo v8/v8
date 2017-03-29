@@ -2705,10 +2705,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_lazy_top_level_function || is_lazy_inner_function) {
       Scanner::BookmarkScope bookmark(scanner());
       bookmark.Set();
-      LazyParsingResult result = SkipFunction(
-          kind, scope, &num_parameters, &function_length,
-          &has_duplicate_parameters, &expected_property_count,
-          is_lazy_inner_function, is_lazy_top_level_function, CHECK_OK);
+      LazyParsingResult result =
+          SkipFunction(kind, scope, &num_parameters, &function_length,
+                       &expected_property_count, is_lazy_inner_function,
+                       is_lazy_top_level_function, CHECK_OK);
 
       if (result == kLazyParsingAborted) {
         DCHECK(is_lazy_top_level_function);
@@ -2803,9 +2803,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
 Parser::LazyParsingResult Parser::SkipFunction(
     FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
-    int* function_length, bool* has_duplicate_parameters,
-    int* expected_property_count, bool is_inner_function, bool may_abort,
-    bool* ok) {
+    int* function_length, int* expected_property_count, bool is_inner_function,
+    bool may_abort, bool* ok) {
   DCHECK_NE(kNoSourcePosition, function_scope->start_position());
   DCHECK_EQ(kNoSourcePosition, parameters_end_pos_);
   if (produce_cached_parse_data()) CHECK(log_);
@@ -2831,7 +2830,6 @@ Parser::LazyParsingResult Parser::SkipFunction(
       Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
       *num_parameters = entry.num_parameters();
       *function_length = entry.function_length();
-      *has_duplicate_parameters = entry.has_duplicate_parameters();
       *expected_property_count = entry.property_count();
       SetLanguageMode(function_scope, entry.language_mode());
       if (entry.uses_super_property())
@@ -2861,7 +2859,6 @@ Parser::LazyParsingResult Parser::SkipFunction(
       Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
       *num_parameters = data.num_parameters;
       *function_length = data.function_length;
-      *has_duplicate_parameters = data.has_duplicate_parameters;
       *expected_property_count = data.expected_property_count;
       SetLanguageMode(function_scope, data.language_mode);
       if (data.uses_super_property) {
@@ -2922,17 +2919,15 @@ Parser::LazyParsingResult Parser::SkipFunction(
       function_scope->end_position() - function_scope->start_position();
   *num_parameters = logger->num_parameters();
   *function_length = logger->function_length();
-  *has_duplicate_parameters = logger->has_duplicate_parameters();
   *expected_property_count = logger->properties();
   SkipFunctionLiterals(logger->num_inner_functions());
   if (!is_inner_function && produce_cached_parse_data()) {
     DCHECK(log_);
     log_->LogFunction(
         function_scope->start_position(), function_scope->end_position(),
-        *num_parameters, *function_length, *has_duplicate_parameters,
-        *expected_property_count, language_mode(),
-        function_scope->uses_super_property(), function_scope->calls_eval(),
-        logger->num_inner_functions());
+        *num_parameters, *function_length, *expected_property_count,
+        language_mode(), function_scope->uses_super_property(),
+        function_scope->calls_eval(), logger->num_inner_functions());
   }
   return kLazyParsingComplete;
 }

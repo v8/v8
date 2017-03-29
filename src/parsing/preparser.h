@@ -936,11 +936,10 @@ class PreParser : public ParserBase<PreParser> {
   bool AllowsLazyParsingWithoutUnresolvedVariables() const { return false; }
   bool parse_lazily() const { return false; }
 
-  V8_INLINE LazyParsingResult
-  SkipFunction(FunctionKind kind, DeclarationScope* function_scope,
-               int* num_parameters, int* function_length,
-               bool* has_duplicate_parameters, int* expected_property_count,
-               bool is_inner_function, bool may_abort, bool* ok) {
+  V8_INLINE LazyParsingResult SkipFunction(
+      FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
+      int* function_length, int* expected_property_count,
+      bool is_inner_function, bool may_abort, bool* ok) {
     UNREACHABLE();
     return kLazyParsingComplete;
   }
@@ -950,8 +949,7 @@ class PreParser : public ParserBase<PreParser> {
       int function_token_pos, FunctionLiteral::FunctionType function_type,
       LanguageMode language_mode, bool* ok);
   LazyParsingResult ParseStatementListAndLogFunction(
-      PreParserFormalParameters* formals, bool has_duplicate_parameters,
-      bool maybe_abort, bool* ok);
+      PreParserFormalParameters* formals, bool maybe_abort, bool* ok);
 
   struct TemplateLiteralState {};
 
