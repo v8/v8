@@ -2836,7 +2836,10 @@ void Shell::CleanupWorkers() {
 
 static void DumpHeapConstants(i::Isolate* isolate) {
   i::Heap* heap = isolate->heap();
-
+  printf(
+      "# Copyright 2017 the V8 project authors. All rights reserved.\n"
+      "# Use of this source code is governed by a BSD-style license that can\n"
+      "# be found in the LICENSE file.\n\n");
   // Dump the INSTANCE_TYPES table to the console.
   printf("# List of known V8 instance types.\n");
 #define DUMP_TYPE(T) printf("  %d: \"%s\",\n", i::T, #T);
@@ -2886,6 +2889,14 @@ static void DumpHeapConstants(i::Isolate* isolate) {
   }
   printf("}\n");
 #undef ROOT_LIST_CASE
+
+  // Dump frame markers
+  printf("\n# List of known V8 Frame Markers.\n");
+#define DUMP_MARKER(T, class) printf("  \"%s\",\n", #T);
+  printf("FRAME_MARKERS = (\n");
+  STACK_FRAME_TYPE_LIST(DUMP_MARKER)
+  printf(")\n");
+#undef DUMP_TYPE
 }
 
 

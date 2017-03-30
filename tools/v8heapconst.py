@@ -1,6 +1,6 @@
 # Copyright 2017 the V8 project authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+# Use of this source code is governed by a BSD-style license that can
+# be found in the LICENSE file.
 
 # List of known V8 instance types.
 INSTANCE_TYPES = {
@@ -309,13 +309,34 @@ KNOWN_OBJECTS = {
   ("OLD_SPACE", 0x07969): "ExperimentalExtraNativesSourceCache",
   ("OLD_SPACE", 0x07981): "EmptyPropertiesDictionary",
   ("OLD_SPACE", 0x079d1): "ScriptList",
-  ("OLD_SPACE", 0x23709): "CodeStubs",
-  ("OLD_SPACE", 0x30781): "WeakObjectToCodeTable",
-  ("OLD_SPACE", 0x309a9): "WeakNewSpaceObjectToCodeList",
-  ("OLD_SPACE", 0x30a39): "NoScriptSharedFunctionInfos",
-  ("OLD_SPACE", 0x4cb11): "MessageListeners",
-  ("OLD_SPACE", 0x4cb31): "NoOpInterceptorInfo",
-  ("OLD_SPACE", 0x550e1): "StringTable",
-  ("CODE_SPACE", 0x2c4e1): "JsEntryCode",
-  ("CODE_SPACE", 0x30941): "JsConstructEntryCode",
+  ("OLD_SPACE", 0x22019): "CodeStubs",
+  ("OLD_SPACE", 0x2f199): "WeakObjectToCodeTable",
+  ("OLD_SPACE", 0x2f3c1): "WeakNewSpaceObjectToCodeList",
+  ("OLD_SPACE", 0x2f451): "NoScriptSharedFunctionInfos",
+  ("OLD_SPACE", 0x4abd9): "MessageListeners",
+  ("OLD_SPACE", 0x4abf9): "NoOpInterceptorInfo",
+  ("OLD_SPACE", 0x531d1): "StringTable",
+  ("CODE_SPACE", 0x2cde1): "JsEntryCode",
+  ("CODE_SPACE", 0x31241): "JsConstructEntryCode",
 }
+
+# List of known V8 Frame Markers.
+FRAME_MARKERS = (
+  "ENTRY",
+  "ENTRY_CONSTRUCT",
+  "EXIT",
+  "JAVA_SCRIPT",
+  "OPTIMIZED",
+  "WASM_COMPILED",
+  "WASM_TO_JS",
+  "JS_TO_WASM",
+  "WASM_INTERPRETER_ENTRY",
+  "INTERPRETED",
+  "STUB",
+  "STUB_FAILURE_TRAMPOLINE",
+  "INTERNAL",
+  "CONSTRUCT",
+  "ARGUMENTS_ADAPTOR",
+  "BUILTIN",
+  "BUILTIN_EXIT",
+)
