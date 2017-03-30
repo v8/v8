@@ -25,6 +25,10 @@ namespace internal {
 
 const auto GetRegConfig = RegisterConfiguration::Crankshaft;
 
+// static
+base::LazyInstance<Simulator::GlobalMonitor>::type Simulator::global_monitor_ =
+    LAZY_INSTANCE_INITIALIZER;
+
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent way through
 // ::v8::internal::OS in the same way as SNPrintF is that the
@@ -781,9 +785,10 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   last_debugger_input_ = NULL;
 }
 
-
-Simulator::~Simulator() { free(stack_); }
-
+Simulator::~Simulator() {
+  global_monitor_.Pointer()->RemoveProcessor(&global_monitor_processor_);
+  free(stack_);
+}
 
 // When the generated code calls an external reference we need to catch that in
 // the simulator.  The external reference will be a function compiled for the
@@ -987,44 +992,105 @@ void Simulator::TrashCallerSaveRegisters() {
 
 
 uint32_t Simulator::ReadWU(intptr_t addr, Instruction* instr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoad(addr);
   uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
   return *ptr;
 }
 
+uint32_t Simulator::ReadExWU(intptr_t addr, Instruction* instr) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoadExcl(addr, TransactionSize::Word);
+  global_monitor_.Pointer()->NotifyLoadExcl_Locked(addr,
+                                                   &global_monitor_processor_);
+  uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
+  return *ptr;
+}
 
 int32_t Simulator::ReadW(intptr_t addr, Instruction* instr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoad(addr);
   int32_t* ptr = reinterpret_cast<int32_t*>(addr);
   return *ptr;
 }
 
 
 void Simulator::WriteW(intptr_t addr, uint32_t value, Instruction* instr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyStore(addr);
+  global_monitor_.Pointer()->NotifyStore_Locked(addr,
+                                                &global_monitor_processor_);
   uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
   *ptr = value;
   return;
 }
 
+int Simulator::WriteExW(intptr_t addr, uint32_t value, Instruction* instr) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::Word) &&
+      global_monitor_.Pointer()->NotifyStoreExcl_Locked(
+          addr, &global_monitor_processor_)) {
+    uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
+    *ptr = value;
+    return 0;
+  } else {
+    return 1;
+  }
+}
 
 void Simulator::WriteW(intptr_t addr, int32_t value, Instruction* instr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyStore(addr);
+  global_monitor_.Pointer()->NotifyStore_Locked(addr,
+                                                &global_monitor_processor_);
   int32_t* ptr = reinterpret_cast<int32_t*>(addr);
   *ptr = value;
   return;
 }
 
-
 uint16_t Simulator::ReadHU(intptr_t addr, Instruction* instr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoad(addr);
   uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
   return *ptr;
 }
 
+uint16_t Simulator::ReadExHU(intptr_t addr, Instruction* instr) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoadExcl(addr, TransactionSize::HalfWord);
+  global_monitor_.Pointer()->NotifyLoadExcl_Locked(addr,
+                                                   &global_monitor_processor_);
+  uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
+  return *ptr;
+}
 
 int16_t Simulator::ReadH(intptr_t addr, Instruction* instr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoad(addr);
   int16_t* ptr = reinterpret_cast<int16_t*>(addr);
   return *ptr;
 }
 
 
 void Simulator::WriteH(intptr_t addr, uint16_t value, Instruction* instr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyStore(addr);
+  global_monitor_.Pointer()->NotifyStore_Locked(addr,
+                                                &global_monitor_processor_);
   uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
   *ptr = value;
   return;
@@ -1032,43 +1098,111 @@ void Simulator::WriteH(intptr_t addr, uint16_t value, Instruction* instr) {
 
 
 void Simulator::WriteH(intptr_t addr, int16_t value, Instruction* instr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyStore(addr);
+  global_monitor_.Pointer()->NotifyStore_Locked(addr,
+                                                &global_monitor_processor_);
   int16_t* ptr = reinterpret_cast<int16_t*>(addr);
   *ptr = value;
   return;
 }
 
+int Simulator::WriteExH(intptr_t addr, uint16_t value, Instruction* instr) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::HalfWord) &&
+      global_monitor_.Pointer()->NotifyStoreExcl_Locked(
+          addr, &global_monitor_processor_)) {
+    uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
+    *ptr = value;
+    return 0;
+  } else {
+    return 1;
+  }
+}
 
 uint8_t Simulator::ReadBU(intptr_t addr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoad(addr);
   uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
   return *ptr;
 }
 
 
 int8_t Simulator::ReadB(intptr_t addr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoad(addr);
   int8_t* ptr = reinterpret_cast<int8_t*>(addr);
   return *ptr;
 }
 
+uint8_t Simulator::ReadExBU(intptr_t addr) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoadExcl(addr, TransactionSize::Byte);
+  global_monitor_.Pointer()->NotifyLoadExcl_Locked(addr,
+                                                   &global_monitor_processor_);
+  uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
+  return *ptr;
+}
 
 void Simulator::WriteB(intptr_t addr, uint8_t value) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyStore(addr);
+  global_monitor_.Pointer()->NotifyStore_Locked(addr,
+                                                &global_monitor_processor_);
   uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
   *ptr = value;
 }
 
 
 void Simulator::WriteB(intptr_t addr, int8_t value) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyStore(addr);
+  global_monitor_.Pointer()->NotifyStore_Locked(addr,
+                                                &global_monitor_processor_);
   int8_t* ptr = reinterpret_cast<int8_t*>(addr);
   *ptr = value;
 }
 
+int Simulator::WriteExB(intptr_t addr, uint8_t value) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::Byte) &&
+      global_monitor_.Pointer()->NotifyStoreExcl_Locked(
+          addr, &global_monitor_processor_)) {
+    uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
+    *ptr = value;
+    return 0;
+  } else {
+    return 1;
+  }
+}
 
 intptr_t* Simulator::ReadDW(intptr_t addr) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoad(addr);
   intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
   return ptr;
 }
 
 
 void Simulator::WriteDW(intptr_t addr, int64_t value) {
+  // All supported PPC targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyStore(addr);
+  global_monitor_.Pointer()->NotifyStore_Locked(addr,
+                                                &global_monitor_processor_);
   int64_t* ptr = reinterpret_cast<int64_t*>(addr);
   *ptr = value;
   return;
@@ -2262,6 +2396,36 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
+    case STBCX: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      int8_t rs_val = get_register(rs);
+      intptr_t rb_val = get_register(rb);
+      SetCR0(WriteExB(ra_val + rb_val, rs_val));
+      break;
+    }
+    case STHCX: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      int16_t rs_val = get_register(rs);
+      intptr_t rb_val = get_register(rb);
+      SetCR0(WriteExH(ra_val + rb_val, rs_val, instr));
+      break;
+    }
+    case STWCX: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      int32_t rs_val = get_register(rs);
+      intptr_t rb_val = get_register(rb);
+      SetCR0(WriteExW(ra_val + rb_val, rs_val, instr));
+      break;
+    }
     case TW: {
       // used for call redirection in simulation mode
       SoftwareInterrupt(instr);
@@ -2993,18 +3157,40 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
-    case LHAX:
-    case LHAUX: {
+    case LHAX: {
       int rt = instr->RTValue();
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       intptr_t rb_val = get_register(rb);
       set_register(rt, ReadH(ra_val + rb_val, instr));
-      if (opcode == LHAUX) {
-        DCHECK(ra != 0 && ra != rt);
-        set_register(ra, ra_val + rb_val);
-      }
+      break;
+    }
+    case LBARX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      set_register(rt, ReadExBU(ra_val + rb_val) & 0xFF);
+      break;
+    }
+    case LHARX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      set_register(rt, ReadExHU(ra_val + rb_val, instr));
+      break;
+    }
+    case LWARX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      set_register(rt, ReadExWU(ra_val + rb_val, instr));
       break;
     }
     case DCBF: {
@@ -4073,6 +4259,169 @@ uintptr_t Simulator::PopAddress() {
   set_register(sp, current_sp + sizeof(uintptr_t));
   return address;
 }
+
+Simulator::LocalMonitor::LocalMonitor()
+    : access_state_(MonitorAccess::Open),
+      tagged_addr_(0),
+      size_(TransactionSize::None) {}
+
+void Simulator::LocalMonitor::Clear() {
+  access_state_ = MonitorAccess::Open;
+  tagged_addr_ = 0;
+  size_ = TransactionSize::None;
+}
+
+void Simulator::LocalMonitor::NotifyLoad(int32_t addr) {
+  if (access_state_ == MonitorAccess::Exclusive) {
+    // A load could cause a cache eviction which will affect the monitor. As a
+    // result, it's most strict to unconditionally clear the local monitor on
+    // load.
+    Clear();
+  }
+}
+
+void Simulator::LocalMonitor::NotifyLoadExcl(int32_t addr,
+                                             TransactionSize size) {
+  access_state_ = MonitorAccess::Exclusive;
+  tagged_addr_ = addr;
+  size_ = size;
+}
+
+void Simulator::LocalMonitor::NotifyStore(int32_t addr) {
+  if (access_state_ == MonitorAccess::Exclusive) {
+    // A store could cause a cache eviction which will affect the
+    // monitor. As a result, it's most strict to unconditionally clear the
+    // local monitor on store.
+    Clear();
+  }
+}
+
+bool Simulator::LocalMonitor::NotifyStoreExcl(int32_t addr,
+                                              TransactionSize size) {
+  if (access_state_ == MonitorAccess::Exclusive) {
+    if (addr == tagged_addr_ && size_ == size) {
+      Clear();
+      return true;
+    } else {
+      Clear();
+      return false;
+    }
+  } else {
+    DCHECK(access_state_ == MonitorAccess::Open);
+    return false;
+  }
+}
+
+Simulator::GlobalMonitor::Processor::Processor()
+    : access_state_(MonitorAccess::Open),
+      tagged_addr_(0),
+      next_(nullptr),
+      prev_(nullptr) {}
+
+void Simulator::GlobalMonitor::Processor::Clear_Locked() {
+  access_state_ = MonitorAccess::Open;
+  tagged_addr_ = 0;
+}
+void Simulator::GlobalMonitor::Processor::NotifyLoadExcl_Locked(int32_t addr) {
+  access_state_ = MonitorAccess::Exclusive;
+  tagged_addr_ = addr;
+}
+
+void Simulator::GlobalMonitor::Processor::NotifyStore_Locked(
+    int32_t addr, bool is_requesting_processor) {
+  if (access_state_ == MonitorAccess::Exclusive) {
+    // It is possible that a store caused a cache eviction,
+    // which can affect the montior, so conservatively,
+    // we always clear the monitor.
+    Clear_Locked();
+  }
+}
+
+bool Simulator::GlobalMonitor::Processor::NotifyStoreExcl_Locked(
+    int32_t addr, bool is_requesting_processor) {
+  if (access_state_ == MonitorAccess::Exclusive) {
+    if (is_requesting_processor) {
+      if (addr == tagged_addr_) {
+        Clear_Locked();
+        return true;
+      }
+    } else if (addr == tagged_addr_) {
+      Clear_Locked();
+      return false;
+    }
+  }
+  return false;
+}
+
+Simulator::GlobalMonitor::GlobalMonitor() : head_(nullptr) {}
+
+void Simulator::GlobalMonitor::NotifyLoadExcl_Locked(int32_t addr,
+                                                     Processor* processor) {
+  processor->NotifyLoadExcl_Locked(addr);
+  PrependProcessor_Locked(processor);
+}
+
+void Simulator::GlobalMonitor::NotifyStore_Locked(int32_t addr,
+                                                  Processor* processor) {
+  // Notify each processor of the store operation.
+  for (Processor* iter = head_; iter; iter = iter->next_) {
+    bool is_requesting_processor = iter == processor;
+    iter->NotifyStore_Locked(addr, is_requesting_processor);
+  }
+}
+
+bool Simulator::GlobalMonitor::NotifyStoreExcl_Locked(int32_t addr,
+                                                      Processor* processor) {
+  DCHECK(IsProcessorInLinkedList_Locked(processor));
+  if (processor->NotifyStoreExcl_Locked(addr, true)) {
+    // Notify the other processors that this StoreExcl succeeded.
+    for (Processor* iter = head_; iter; iter = iter->next_) {
+      if (iter != processor) {
+        iter->NotifyStoreExcl_Locked(addr, false);
+      }
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool Simulator::GlobalMonitor::IsProcessorInLinkedList_Locked(
+    Processor* processor) const {
+  return head_ == processor || processor->next_ || processor->prev_;
+}
+
+void Simulator::GlobalMonitor::PrependProcessor_Locked(Processor* processor) {
+  if (IsProcessorInLinkedList_Locked(processor)) {
+    return;
+  }
+
+  if (head_) {
+    head_->prev_ = processor;
+  }
+  processor->prev_ = nullptr;
+  processor->next_ = head_;
+  head_ = processor;
+}
+
+void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
+  base::LockGuard<base::Mutex> lock_guard(&mutex);
+  if (!IsProcessorInLinkedList_Locked(processor)) {
+    return;
+  }
+
+  if (processor->prev_) {
+    processor->prev_->next_ = processor->next_;
+  } else {
+    head_ = processor->next_;
+  }
+  if (processor->next_) {
+    processor->next_->prev_ = processor->prev_;
+  }
+  processor->prev_ = nullptr;
+  processor->next_ = nullptr;
+}
+
 }  // namespace internal
 }  // namespace v8
 

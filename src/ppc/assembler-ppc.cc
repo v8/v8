@@ -641,7 +641,6 @@ void Assembler::d_form(Instr instr, Register rt, Register ra,
   emit(instr | rt.code() * B21 | ra.code() * B16 | (kImm16Mask & val));
 }
 
-
 void Assembler::xo_form(Instr instr, Register rt, Register ra, Register rb,
                         OEBit o, RCBit r) {
   emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 | o | r);
@@ -1060,7 +1059,6 @@ void Assembler::lwa(Register dst, const MemOperand& src) {
   lwz(dst, src);
 #endif
 }
-
 
 void Assembler::stb(Register dst, const MemOperand& src) {
   DCHECK(!src.ra_.is(r0));

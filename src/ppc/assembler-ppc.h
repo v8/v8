@@ -598,12 +598,26 @@ class Assembler : public AssemblerBase {
     x_form(instr_name, cr.code() * B2, src1.code(), src2.code(), LeaveRC);  \
   }
 
+#define DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM(name, instr_name, instr_value) \
+  inline void name(const Register dst, const MemOperand& src) {             \
+    x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
+  }
+#define DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM(name, instr_name, instr_value) \
+  inline void name(const Register dst, const MemOperand& src) {             \
+    DCHECK(!src.ra_.is(r0));                                                \
+    x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
+  }
+
   inline void x_form(Instr instr, int f1, int f2, int f3, int rc) {
     emit(instr | f1 * B21 | f2 * B16 | f3 * B11 | rc);
   }
   inline void x_form(Instr instr, Register rs, Register ra, Register rb,
                      RCBit rc) {
     emit(instr | rs.code() * B21 | ra.code() * B16 | rb.code() * B11 | rc);
+  }
+  inline void x_form(Instr instr, Register ra, Register rs, Register rb,
+                     EHBit eh = SetEH) {
+    emit(instr | rs.code() * B21 | ra.code() * B16 | rb.code() * B11 | eh);
   }
   inline void x_form(Instr instr, CRegister cr, Register s1, Register s2,
                      RCBit rc) {
@@ -622,6 +636,8 @@ class Assembler : public AssemblerBase {
   PPC_X_OPCODE_D_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_D_FORM)
   PPC_X_OPCODE_E_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_E_FORM)
   PPC_X_OPCODE_F_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_F_FORM)
+  PPC_X_OPCODE_EH_S_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM)
+  PPC_X_OPCODE_EH_L_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM)
 
   inline void notx(Register dst, Register src, RCBit rc = LeaveRC) {
     nor(dst, src, src, rc);
@@ -651,6 +667,8 @@ class Assembler : public AssemblerBase {
 #undef DECLARE_PPC_X_INSTRUCTIONS_D_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_E_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_F_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM
 
 #define DECLARE_PPC_XX3_INSTRUCTIONS(name, instr_name, instr_value)  \
   inline void name(const DoubleRegister rt, const DoubleRegister ra, \
@@ -978,7 +996,6 @@ class Assembler : public AssemblerBase {
   void sth(Register dst, const MemOperand& src);
   void stw(Register dst, const MemOperand& src);
   void stwu(Register dst, const MemOperand& src);
-
   void neg(Register rt, Register ra, OEBit o = LeaveOE, RCBit c = LeaveRC);
 
 #if V8_TARGET_ARCH_PPC64

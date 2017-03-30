@@ -268,8 +268,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
 
   Node* value_integer = ToInteger(context, value);
 
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_PPC
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   Return(CallRuntime(Runtime::kAtomicsExchange, context, array, index_integer,
                      value_integer));
 #else
@@ -318,8 +317,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   // This shouldn't happen, we've already validated the type.
   Bind(&other);
   Unreachable();
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
-        // || V8_TARGET_ARCH_PPC
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 }
 
 TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {

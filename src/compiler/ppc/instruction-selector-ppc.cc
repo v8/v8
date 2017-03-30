@@ -2117,7 +2117,39 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
       0, nullptr, input_count, inputs);
 }
 
-void InstructionSelector::VisitAtomicExchange(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitAtomicExchange(Node* node) {
+  PPCOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  ArchOpcode opcode = kArchNop;
+  MachineType type = AtomicExchangeRepresentationOf(node->op());
+  if (type == MachineType::Int8()) {
+    opcode = kAtomicExchangeInt8;
+  } else if (type == MachineType::Uint8()) {
+    opcode = kAtomicExchangeUint8;
+  } else if (type == MachineType::Int16()) {
+    opcode = kAtomicExchangeInt16;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kAtomicExchangeUint16;
+  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+    opcode = kAtomicExchangeWord32;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+
+  AddressingMode addressing_mode = kMode_MRR;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionOperand outputs[1];
+  outputs[0] = g.UseUniqueRegister(node);
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs);
+}
 
 void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   UNIMPLEMENTED();

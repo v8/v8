@@ -792,6 +792,16 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ sync();                                               \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                     \
   } while (0)
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)       \
+  do {                                                                  \
+    Label exchange;                                                     \
+    __ bind(&exchange);                                                 \
+    __ load_instr(i.OutputRegister(0),                                  \
+                  MemOperand(i.InputRegister(0), i.InputRegister(1)));  \
+    __ store_instr(i.InputRegister(2),                                  \
+                   MemOperand(i.InputRegister(0), i.InputRegister(1))); \
+    __ bne(&exchange, cr0);                                             \
+  } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
@@ -1979,10 +1989,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_STORE_INTEGER(stw, stwx);
       break;
     case kAtomicExchangeInt8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
+      __ extsb(i.OutputRegister(0), i.OutputRegister(0));
+      break;
     case kAtomicExchangeUint8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
+      break;
     case kAtomicExchangeInt16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
+      __ extsh(i.OutputRegister(0), i.OutputRegister(0));
+      break;
     case kAtomicExchangeUint16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
+      break;
     case kAtomicExchangeWord32:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lwarx, stwcx);
+      break;
     case kAtomicCompareExchangeInt8:
     case kAtomicCompareExchangeUint8:
     case kAtomicCompareExchangeInt16:
