@@ -120,6 +120,9 @@ var assertContains;
 // Assert that a string matches a given regex.
 var assertMatches;
 
+// Assert the result of a promise.
+var assertPromiseResult;
+
 // These bits must be in sync with bits defined in Runtime_GetOptimizationStatus
 var V8OptimizationStatus = {
   kIsFunction: 1 << 0,
@@ -488,6 +491,30 @@ var failWithMessage;
     if (!str.match(regexp)) {
       fail("should match '" + regexp + "'", str, name_opt);
     }
+  };
+
+  assertPromiseResult = function(promise, success, fail) {
+    // Use --allow-natives-syntax to use this function. Note that this function
+    // overwrites {failWithMessage} permanently with %AbortJS.
+
+    // We have to patch mjsunit because normal assertion failures just throw
+    // exceptions which are swallowed in a then clause.
+    // We use eval here to avoid parsing issues with the natives syntax.
+    failWithMessage = (msg) => eval("%AbortJS(msg)");
+    if (!fail)
+      fail = result => failWithMessage("assertPromiseResult failed: " + result);
+
+    eval("%IncrementWaitCount()");
+    promise.then(
+      result => {
+        eval("%DecrementWaitCount()");
+        success(result);
+      },
+      result => {
+        eval("%DecrementWaitCount()");
+        fail(result);
+      }
+    );
   };
 
   var OptimizationStatusImpl = undefined;
