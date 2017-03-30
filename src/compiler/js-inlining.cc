@@ -481,6 +481,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
+  // TODO(706642): Don't inline derived class constructors for now, as the
+  // inlining logic doesn't deal properly with derived class constructors
+  // that return a primitive, i.e. it's not in sync with what the Parser
+  // and the JSConstructSub does.
+  if (node->opcode() == IrOpcode::kJSConstruct &&
+      IsDerivedConstructor(shared_info->kind())) {
+    TRACE("Not inlining %s into %s because constructor is derived.\n",
+          shared_info->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
+
   // Class constructors are callable, but [[Call]] will raise an exception.
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
   if (node->opcode() == IrOpcode::kJSCall &&
