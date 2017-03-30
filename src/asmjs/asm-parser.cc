@@ -1496,8 +1496,11 @@ AsmType* AsmJsParser::AssignmentExpression() {
     ret = info->type;
     scanner_.Next();
     if (Check('=')) {
-      // NOTE: Before this point, this might have been VarKind::kUndefined,
-      // as it might be a label.
+      // NOTE: Before this point, this might have been VarKind::kUnused even in
+      // valid code, as it might be a label.
+      if (info->kind == VarKind::kUnused) {
+        FAILn("Undeclared assignment target");
+      }
       DCHECK(is_local ? info->kind == VarKind::kLocal
                       : info->kind == VarKind::kGlobal);
       AsmType* value;
