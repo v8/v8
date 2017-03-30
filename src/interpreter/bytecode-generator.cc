@@ -895,9 +895,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       break;
     case VariableLocation::PARAMETER:
       if (variable->binding_needs_init()) {
-        // The parameter indices are shifted by 1 (receiver is variable
-        // index -1 but is parameter index 0 in BytecodeArrayBuilder).
-        Register destination(builder()->Parameter(variable->index() + 1));
+        Register destination(builder()->Parameter(variable->index()));
         builder()->LoadTheHole().StoreAccumulatorInRegister(destination);
       }
       break;
@@ -1925,9 +1923,12 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable, FeedbackSlot slot,
       break;
     }
     case VariableLocation::PARAMETER: {
-      // The parameter indices are shifted by 1 (receiver is variable
-      // index -1 but is parameter index 0 in BytecodeArrayBuilder).
-      Register source = builder()->Parameter(variable->index() + 1);
+      Register source;
+      if (variable->IsReceiver()) {
+        source = builder()->Receiver();
+      } else {
+        source = builder()->Parameter(variable->index());
+      }
       // We need to load the variable into the accumulator, even when in a
       // VisitForRegisterScope, in order to avoid register aliasing if
       // subsequent expressions assign to the same variable.
@@ -2138,7 +2139,11 @@ void BytecodeGenerator::BuildVariableAssignment(Variable* variable,
     case VariableLocation::LOCAL: {
       Register destination;
       if (VariableLocation::PARAMETER == variable->location()) {
-        destination = Register(builder()->Parameter(variable->index() + 1));
+        if (variable->IsReceiver()) {
+          destination = Register(builder()->Receiver());
+        } else {
+          destination = Register(builder()->Parameter(variable->index()));
+        }
       } else {
         destination = Register(variable->index());
       }
@@ -3253,7 +3258,7 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
     // its sole argument, which we pass on to PushModuleContext.
     RegisterList args = register_allocator()->NewRegisterList(3);
     builder()
-        ->MoveRegister(builder()->Parameter(1), args[0])
+        ->MoveRegister(builder()->Parameter(0), args[0])
         .LoadAccumulatorWithRegister(Register::function_closure())
         .StoreAccumulatorInRegister(args[1])
         .LoadLiteral(scope)
@@ -3289,7 +3294,7 @@ void BytecodeGenerator::BuildLocalActivationContextInitialization() {
 
   if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
     Variable* variable = scope->receiver();
-    Register receiver(builder()->Parameter(0));
+    Register receiver(builder()->Receiver());
     // Context variable (at bottom of the context chain).
     DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
     builder()->LoadAccumulatorWithRegister(receiver).StoreContextSlot(
@@ -3302,9 +3307,7 @@ void BytecodeGenerator::BuildLocalActivationContextInitialization() {
     Variable* variable = scope->parameter(i);
     if (!variable->IsContextSlot()) continue;
 
-    // The parameter indices are shifted by 1 (receiver is variable
-    // index -1 but is parameter index 0 in BytecodeArrayBuilder).
-    Register parameter(builder()->Parameter(i + 1));
+    Register parameter(builder()->Parameter(i));
     // Context variable (at bottom of the context chain).
     DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
     builder()->LoadAccumulatorWithRegister(parameter).StoreContextSlot(

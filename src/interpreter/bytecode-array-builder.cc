@@ -68,7 +68,13 @@ Register BytecodeArrayBuilder::last_context_register() const {
 
 Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
   DCHECK_GE(parameter_index, 0);
-  return Register::FromParameterIndex(parameter_index, parameter_count());
+  // The parameter indices are shifted by 1 (receiver is the
+  // first entry).
+  return Register::FromParameterIndex(parameter_index + 1, parameter_count());
+}
+
+Register BytecodeArrayBuilder::Receiver() const {
+  return Register::FromParameterIndex(0, parameter_count());
 }
 
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {

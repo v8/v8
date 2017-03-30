@@ -514,9 +514,9 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
   CanonicalHandleScope canonical(isolate());
   BytecodeArrayBuilder builder(isolate(), zone(), 10, 0, 0);
 
-  Register param0(builder.Parameter(0));
-  Register param9(builder.Parameter(9));
-  CHECK_EQ(param9.index() - param0.index(), 9);
+  Register receiver(builder.Receiver());
+  Register param8(builder.Parameter(8));
+  CHECK_EQ(param8.index() - receiver.index(), 9);
 }
 
 

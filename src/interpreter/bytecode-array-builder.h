@@ -73,6 +73,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   }
 
   Register Parameter(int parameter_index) const;
+  Register Receiver() const;
 
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadConstantPoolEntry(size_t entry);

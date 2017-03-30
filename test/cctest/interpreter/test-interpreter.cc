@@ -479,7 +479,7 @@ TEST(InterpreterParameter1) {
   Zone* zone = handles.main_zone();
   BytecodeArrayBuilder builder(isolate, zone, 1, 0, 0);
 
-  builder.LoadAccumulatorWithRegister(builder.Parameter(0)).Return();
+  builder.LoadAccumulatorWithRegister(builder.Receiver()).Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
   InterpreterTester tester(isolate, bytecode_array);
@@ -517,14 +517,14 @@ TEST(InterpreterParameter8) {
   Handle<i::FeedbackMetadata> metadata =
       NewFeedbackMetadata(isolate, &feedback_spec);
 
-  builder.LoadAccumulatorWithRegister(builder.Parameter(0))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(1), GetIndex(slot))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(2), GetIndex(slot1))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(3), GetIndex(slot2))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(4), GetIndex(slot3))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(5), GetIndex(slot4))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(6), GetIndex(slot5))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(7), GetIndex(slot6))
+  builder.LoadAccumulatorWithRegister(builder.Receiver())
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(0), GetIndex(slot))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(1), GetIndex(slot1))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(2), GetIndex(slot2))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(3), GetIndex(slot3))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(4), GetIndex(slot4))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(5), GetIndex(slot5))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(6), GetIndex(slot6))
       .Return();
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -837,13 +837,13 @@ TEST(InterpreterUnaryOpFeedback) {
     Handle<i::FeedbackMetadata> metadata =
         i::NewFeedbackMetadata(isolate, &feedback_spec);
 
-    builder.LoadAccumulatorWithRegister(builder.Parameter(0))
+    builder.LoadAccumulatorWithRegister(builder.Receiver())
         .CountOperation(test_case.op, GetIndex(slot0))
-        .LoadAccumulatorWithRegister(builder.Parameter(1))
+        .LoadAccumulatorWithRegister(builder.Parameter(0))
         .CountOperation(test_case.op, GetIndex(slot1))
-        .LoadAccumulatorWithRegister(builder.Parameter(2))
+        .LoadAccumulatorWithRegister(builder.Parameter(1))
         .CountOperation(test_case.op, GetIndex(slot2))
-        .LoadAccumulatorWithRegister(builder.Parameter(3))
+        .LoadAccumulatorWithRegister(builder.Parameter(2))
         .CountOperation(test_case.op, GetIndex(slot3))
         .Return();
 
@@ -900,10 +900,10 @@ TEST(InterpreterBitwiseTypeFeedback) {
     Handle<i::FeedbackMetadata> metadata =
         i::NewFeedbackMetadata(isolate, &feedback_spec);
 
-    builder.LoadAccumulatorWithRegister(builder.Parameter(0))
-        .BinaryOperation(op, builder.Parameter(1), GetIndex(slot0))
-        .BinaryOperation(op, builder.Parameter(2), GetIndex(slot1))
-        .BinaryOperation(op, builder.Parameter(3), GetIndex(slot2))
+    builder.LoadAccumulatorWithRegister(builder.Receiver())
+        .BinaryOperation(op, builder.Parameter(0), GetIndex(slot0))
+        .BinaryOperation(op, builder.Parameter(1), GetIndex(slot1))
+        .BinaryOperation(op, builder.Parameter(2), GetIndex(slot2))
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -944,8 +944,8 @@ TEST(InterpreterParameter1Assign) {
   BytecodeArrayBuilder builder(isolate, zone, 1, 0, 0);
 
   builder.LoadLiteral(Smi::FromInt(5))
-      .StoreAccumulatorInRegister(builder.Parameter(0))
-      .LoadAccumulatorWithRegister(builder.Parameter(0))
+      .StoreAccumulatorInRegister(builder.Receiver())
+      .LoadAccumulatorWithRegister(builder.Receiver())
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -1074,8 +1074,7 @@ TEST(InterpreterLoadNamedProperty) {
 
   BytecodeArrayBuilder builder(isolate, zone, 1, 0, 0);
 
-  builder.LoadNamedProperty(builder.Parameter(0), name, GetIndex(slot))
-      .Return();
+  builder.LoadNamedProperty(builder.Receiver(), name, GetIndex(slot)).Return();
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -1129,7 +1128,7 @@ TEST(InterpreterLoadKeyedProperty) {
   BytecodeArrayBuilder builder(isolate, zone, 1, 0, 1);
 
   builder.LoadLiteral(key)
-      .LoadKeyedProperty(builder.Parameter(0), GetIndex(slot))
+      .LoadKeyedProperty(builder.Receiver(), GetIndex(slot))
       .Return();
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1172,7 +1171,7 @@ TEST(InterpreterStoreNamedProperty) {
   BytecodeArrayBuilder builder(isolate, zone, 1, 0, 0);
 
   builder.LoadLiteral(Smi::FromInt(999))
-      .StoreNamedProperty(builder.Parameter(0), name, GetIndex(slot), STRICT)
+      .StoreNamedProperty(builder.Receiver(), name, GetIndex(slot), STRICT)
       .Return();
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1237,7 +1236,7 @@ TEST(InterpreterStoreKeyedProperty) {
   builder.LoadLiteral(name)
       .StoreAccumulatorInRegister(Register(0))
       .LoadLiteral(Smi::FromInt(999))
-      .StoreKeyedProperty(builder.Parameter(0), Register(0), GetIndex(slot),
+      .StoreKeyedProperty(builder.Receiver(), Register(0), GetIndex(slot),
                           i::SLOPPY)
       .Return();
   ast_factory.Internalize(isolate);
@@ -1293,9 +1292,9 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
     BytecodeArrayBuilder builder(isolate, zone, 1, 0, 1);
     Register reg = builder.register_allocator()->NewRegister();
     RegisterList args = builder.register_allocator()->NewRegisterList(1);
-    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
+    builder.LoadNamedProperty(builder.Receiver(), name, slot_index)
         .StoreAccumulatorInRegister(reg)
-        .MoveRegister(builder.Parameter(0), args[0]);
+        .MoveRegister(builder.Receiver(), args[0]);
 
     builder.Call(reg, args, call_slot_index, Call::GLOBAL_CALL, tail_call_mode);
 
@@ -1317,9 +1316,9 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
     BytecodeArrayBuilder builder(isolate, zone, 1, 0, 1);
     Register reg = builder.register_allocator()->NewRegister();
     RegisterList args = builder.register_allocator()->NewRegisterList(1);
-    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
+    builder.LoadNamedProperty(builder.Receiver(), name, slot_index)
         .StoreAccumulatorInRegister(reg)
-        .MoveRegister(builder.Parameter(0), args[0]);
+        .MoveRegister(builder.Receiver(), args[0]);
     builder.Call(reg, args, call_slot_index, Call::GLOBAL_CALL, tail_call_mode);
     builder.Return();
     ast_factory.Internalize(isolate);
@@ -1343,9 +1342,9 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
     Register reg = builder.register_allocator()->NewRegister();
     RegisterList args = builder.register_allocator()->NewRegisterList(3);
 
-    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
+    builder.LoadNamedProperty(builder.Receiver(), name, slot_index)
         .StoreAccumulatorInRegister(reg)
-        .LoadAccumulatorWithRegister(builder.Parameter(0))
+        .LoadAccumulatorWithRegister(builder.Receiver())
         .StoreAccumulatorInRegister(args[0])
         .LoadLiteral(Smi::FromInt(51))
         .StoreAccumulatorInRegister(args[1])
@@ -1376,9 +1375,9 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
     Register reg = builder.register_allocator()->NewRegister();
     RegisterList args = builder.register_allocator()->NewRegisterList(11);
 
-    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
+    builder.LoadNamedProperty(builder.Receiver(), name, slot_index)
         .StoreAccumulatorInRegister(reg)
-        .LoadAccumulatorWithRegister(builder.Parameter(0))
+        .LoadAccumulatorWithRegister(builder.Receiver())
         .StoreAccumulatorInRegister(args[0])
         .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("a")))
         .StoreAccumulatorInRegister(args[1])
@@ -2106,7 +2105,7 @@ TEST(InterpreterCompareTypeOf) {
     if (literal_flag == LiteralFlag::kOther) continue;
 
     BytecodeArrayBuilder builder(isolate, zone, 1, 0, 0);
-    builder.LoadAccumulatorWithRegister(builder.Parameter(0))
+    builder.LoadAccumulatorWithRegister(builder.Receiver())
         .CompareTypeOf(kLiterals[l])
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
