@@ -36,19 +36,18 @@ var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
-// arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
-FUNCTION(1, Uint8Array, 1)
-FUNCTION(2, Int8Array, 1)
-FUNCTION(3, Uint16Array, 2)
-FUNCTION(4, Int16Array, 2)
-FUNCTION(5, Uint32Array, 4)
-FUNCTION(6, Int32Array, 4)
-FUNCTION(7, Float32Array, 4)
-FUNCTION(8, Float64Array, 8)
-FUNCTION(9, Uint8ClampedArray, 1)
+FUNCTION(Uint8Array, 1)
+FUNCTION(Int8Array, 1)
+FUNCTION(Uint16Array, 2)
+FUNCTION(Int16Array, 2)
+FUNCTION(Uint32Array, 4)
+FUNCTION(Int32Array, 4)
+FUNCTION(Float32Array, 4)
+FUNCTION(Float64Array, 8)
+FUNCTION(Uint8ClampedArray, 1)
 endmacro
 
-macro DECLARE_GLOBALS(INDEX, NAME, SIZE)
+macro DECLARE_GLOBALS(NAME, SIZE)
 var GlobalNAME = global.NAME;
 endmacro
 
@@ -77,7 +76,7 @@ utils.Import(function(from) {
 
 function TypedArrayDefaultConstructor(typedArray) {
   switch (%_ClassOf(typedArray)) {
-macro TYPED_ARRAY_CONSTRUCTOR_CASE(ARRAY_ID, NAME, ELEMENT_SIZE)
+macro TYPED_ARRAY_CONSTRUCTOR_CASE(NAME, ELEMENT_SIZE)
     case "NAME":
       return GlobalNAME;
 endmacro
@@ -112,7 +111,7 @@ function TypedArraySpeciesCreate(exemplar, arg0, arg1, arg2, conservative) {
   return TypedArrayCreate(constructor, arg0, arg1, arg2);
 }
 
-macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
+macro TYPED_ARRAY_CONSTRUCTOR(NAME, ELEMENT_SIZE)
 function NAMEConstructByIterable(obj, iterable, iteratorFn) {
   var list = new InternalArray();
   // Reading the Symbol.iterator property of iterable twice would be
@@ -212,7 +211,7 @@ TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR)
 
 function TypedArraySubArray(begin, end) {
   switch (%_ClassOf(this)) {
-macro TYPED_ARRAY_SUBARRAY_CASE(ARRAY_ID, NAME, ELEMENT_SIZE)
+macro TYPED_ARRAY_SUBARRAY_CASE(NAME, ELEMENT_SIZE)
     case "NAME":
       return %_Call(NAMESubArray, this, begin, end);
 endmacro
@@ -711,7 +710,7 @@ utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
                   DONT_ENUM);
 
 
-macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
+macro SETUP_TYPED_ARRAY(NAME, ELEMENT_SIZE)
   %SetCode(GlobalNAME, NAMEConstructor);
   %FunctionSetPrototype(GlobalNAME, new GlobalObject());
   %InternalSetPrototype(GlobalNAME, GlobalTypedArray);
