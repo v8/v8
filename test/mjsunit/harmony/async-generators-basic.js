@@ -148,6 +148,28 @@ assertEquals(AsyncGeneratorFunction.prototype.prototype,
 assertTrue(new AsyncGeneratorFunction().hasOwnProperty("prototype"));
 
 // ----------------------------------------------------------------------------
+// Basic Function.prototype.toString()
+async function* asyncGeneratorForToString() {}
+assertEquals("async function* asyncGeneratorForToString() {}",
+             asyncGeneratorForToString.toString());
+
+assertEquals("async function* () {}", async function*() {}.toString());
+assertEquals("async function* namedAsyncGeneratorForToString() {}",
+             async function* namedAsyncGeneratorForToString() {}.toString());
+
+assertEquals("async *method() { }",
+             ({ async *method() { } }).method.toString());
+assertEquals("async *method() { }",
+             (class { static async *method() { } }).method.toString());
+assertEquals("async *method() { }",
+             (new (class { async *method() { } })).method.toString());
+
+assertEquals("async function* anonymous() {\n\n}",
+             AsyncGeneratorFunction().toString());
+assertEquals("async function* anonymous() {\n\n}",
+             (new AsyncGeneratorFunction()).toString());
+
+// ----------------------------------------------------------------------------
 // AsyncGenerator functions syntactically allow AwaitExpressions
 assertEquals(1, async function*(a) { await 1; }.length);
 assertEquals(2, async function*(a, b) { await 1; }.length);
