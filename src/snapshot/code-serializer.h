@@ -116,9 +116,10 @@ class SerializedCodeData : public SerializedData {
   static const int kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
 
   // Used when consuming.
-  static const SerializedCodeData FromCachedData(
-      Isolate* isolate, ScriptData* cached_data, uint32_t expected_source_hash,
-      SanityCheckResult* rejection_result);
+  static SerializedCodeData FromCachedData(Isolate* isolate,
+                                           ScriptData* cached_data,
+                                           uint32_t expected_source_hash,
+                                           SanityCheckResult* rejection_result);
 
   // Used when producing.
   SerializedCodeData(const List<byte>* payload, const CodeSerializer* cs);

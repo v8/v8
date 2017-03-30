@@ -485,7 +485,7 @@ Vector<const uint32_t> SerializedCodeData::CodeStubKeys() const {
 SerializedCodeData::SerializedCodeData(ScriptData* data)
     : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
 
-const SerializedCodeData SerializedCodeData::FromCachedData(
+SerializedCodeData SerializedCodeData::FromCachedData(
     Isolate* isolate, ScriptData* cached_data, uint32_t expected_source_hash,
     SanityCheckResult* rejection_result) {
   DisallowHeapAllocation no_gc;

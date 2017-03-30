@@ -239,6 +239,11 @@ class SerializedData {
   SerializedData(byte* data, int size)
       : data_(data), size_(size), owns_data_(false) {}
   SerializedData() : data_(NULL), size_(0), owns_data_(false) {}
+  SerializedData(SerializedData&& other)
+      : data_(other.data_), size_(other.size_), owns_data_(other.owns_data_) {
+    // Ensure |other| will not attempt to destroy our data in destructor.
+    other.owns_data_ = false;
+  }
 
   ~SerializedData() {
     if (owns_data_) DeleteArray<byte>(data_);
@@ -295,6 +300,9 @@ class SerializedData {
   byte* data_;
   int size_;
   bool owns_data_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(SerializedData);
 };
 
 }  // namespace internal
