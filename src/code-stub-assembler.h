@@ -447,6 +447,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadFixedTypedArrayElement(
       Node* data_pointer, Node* index_node, ElementsKind elements_kind,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
+  Node* LoadFixedTypedArrayElementAsTagged(
+      Node* data_pointer, Node* index_node, ElementsKind elements_kind,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   // Context manipulation
   Node* LoadContextElement(Node* context, int slot_index);

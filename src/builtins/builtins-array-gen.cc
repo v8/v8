@@ -295,6 +295,97 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     to_.Bind(to);
   }
 
+  void GenerateIteratingTypedArrayBuiltinBody(
+      const char* name, const BuiltinResultGenerator& generator,
+      const CallResultProcessor& processor, const PostLoopAction& action) {
+    Node* name_string =
+        HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(name));
+
+    // ValidateTypedArray: tc39.github.io/ecma262/#sec-validatetypedarray
+
+    Label throw_not_typed_array(this, Label::kDeferred),
+        throw_detached(this, Label::kDeferred);
+
+    GotoIf(TaggedIsSmi(receiver_), &throw_not_typed_array);
+    GotoIfNot(HasInstanceType(receiver_, JS_TYPED_ARRAY_TYPE),
+              &throw_not_typed_array);
+
+    o_ = receiver_;
+    Node* array_buffer = LoadObjectField(o_, JSTypedArray::kBufferOffset);
+    GotoIf(IsDetachedBuffer(array_buffer), &throw_detached);
+
+    len_ = LoadObjectField(o_, JSTypedArray::kLengthOffset);
+
+    Label throw_not_callable(this, Label::kDeferred);
+    Label distinguish_types(this);
+    GotoIf(TaggedIsSmi(callbackfn_), &throw_not_callable);
+    Branch(IsCallableMap(LoadMap(callbackfn_)), &distinguish_types,
+           &throw_not_callable);
+
+    Bind(&throw_not_typed_array);
+    {
+      CallRuntime(Runtime::kThrowTypeError, context_,
+                  SmiConstant(MessageTemplate::kNotTypedArray));
+      Unreachable();
+    }
+
+    Bind(&throw_detached);
+    {
+      CallRuntime(Runtime::kThrowTypeError, context_,
+                  SmiConstant(MessageTemplate::kDetachedOperation),
+                  name_string);
+      Unreachable();
+    }
+
+    Bind(&throw_not_callable);
+    {
+      CallRuntime(Runtime::kThrowTypeError, context_,
+                  SmiConstant(MessageTemplate::kCalledNonCallable),
+                  callbackfn_);
+      Unreachable();
+    }
+
+    Label unexpected_instance_type(this);
+    Bind(&unexpected_instance_type);
+    Unreachable();
+
+    std::vector<int32_t> instance_types = {
+#define INSTANCE_TYPE(Type, type, TYPE, ctype, size) FIXED_##TYPE##_ARRAY_TYPE,
+        TYPED_ARRAYS(INSTANCE_TYPE)
+#undef INSTANCE_TYPE
+    };
+    std::vector<Label> labels;
+    for (size_t i = 0; i < instance_types.size(); ++i) {
+      labels.push_back(Label(this));
+    }
+    std::vector<Label*> label_ptrs;
+    for (Label& label : labels) {
+      label_ptrs.push_back(&label);
+    }
+
+    Bind(&distinguish_types);
+    a_.Bind(generator(this));
+    Node* elements_type = LoadInstanceType(LoadElements(o_));
+    Switch(elements_type, &unexpected_instance_type, instance_types.data(),
+           label_ptrs.data(), labels.size());
+
+    for (size_t i = 0; i < labels.size(); ++i) {
+      Bind(&labels[i]);
+      Label done(this);
+      // TODO(tebbi): Silently cancelling the loop on buffer detachment is a
+      // spec violation. Should go to &detached and throw a TypeError instead.
+      VisitAllTypedArrayElements(
+          ElementsKindForInstanceType(
+              static_cast<InstanceType>(instance_types[i])),
+          array_buffer, processor, &done);
+      Goto(&done);
+      action(this);
+      // No exception, return success
+      Bind(&done);
+      Return(a_.value());
+    }
+  }
+
   void GenerateIteratingArrayBuiltinLoopContinuation(
       const CallResultProcessor& processor, const PostLoopAction& action,
       ForEachDirection direction = ForEachDirection::kForward) {
@@ -350,6 +441,44 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   }
 
  private:
+  static ElementsKind ElementsKindForInstanceType(InstanceType type) {
+    switch (type) {
+#define INSTANCE_TYPE_TO_ELEMENTS_KIND(Type, type, TYPE, ctype, size) \
+  case FIXED_##TYPE##_ARRAY_TYPE:                                     \
+    return TYPE##_ELEMENTS;
+
+      TYPED_ARRAYS(INSTANCE_TYPE_TO_ELEMENTS_KIND)
+#undef INSTANCE_TYPE_TO_ELEMENTS_KIND
+
+      default:
+        UNREACHABLE();
+        return static_cast<ElementsKind>(-1);
+    }
+  }
+
+  void VisitAllTypedArrayElements(ElementsKind kind, Node* array_buffer,
+                                  const CallResultProcessor& processor,
+                                  Label* detached) {
+    VariableList list({&a_, &k_, &to_}, zone());
+
+    FastLoopBody body = [&](Node* index) {
+      GotoIf(IsDetachedBuffer(array_buffer), detached);
+      Node* elements = LoadElements(o_);
+      Node* base_ptr =
+          LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
+      Node* external_ptr =
+          LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
+                          MachineType::Pointer());
+      Node* data_ptr = IntPtrAdd(BitcastTaggedToWord(base_ptr), external_ptr);
+      Node* value = LoadFixedTypedArrayElementAsTagged(data_ptr, index, kind,
+                                                       SMI_PARAMETERS);
+      k_.Bind(index);
+      a_.Bind(processor(this, value, index));
+    };
+    BuildFastLoop(list, SmiConstant(0), len_, body, 1,
+                  ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
+  }
+
   void VisitAllFastElementsOneKind(ElementsKind kind,
                                    const CallResultProcessor& processor,
                                    Label* array_changed, ParameterMode mode,
@@ -709,6 +838,23 @@ TF_BUILTIN(ArraySome, ArrayBuiltinCodeStubAssembler) {
       CodeFactory::ArraySomeLoopContinuation(isolate()));
 }
 
+TF_BUILTIN(TypedArrayPrototypeSome, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
+
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
+                                new_target);
+
+  GenerateIteratingTypedArrayBuiltinBody(
+      "%TypedArray%.prototype.some",
+      &ArrayBuiltinCodeStubAssembler::SomeResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::SomeProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
+}
+
 TF_BUILTIN(ArrayEveryLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -745,6 +891,23 @@ TF_BUILTIN(ArrayEvery, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::EveryProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
       CodeFactory::ArrayEveryLoopContinuation(isolate()));
+}
+
+TF_BUILTIN(TypedArrayPrototypeEvery, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
+
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
+                                new_target);
+
+  GenerateIteratingTypedArrayBuiltinBody(
+      "%TypedArray%.prototype.every",
+      &ArrayBuiltinCodeStubAssembler::EveryResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::EveryProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
 TF_BUILTIN(ArrayReduceLoopContinuation, ArrayBuiltinCodeStubAssembler) {

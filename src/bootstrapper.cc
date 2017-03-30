@@ -216,7 +216,7 @@ class Genesis BASE_EMBEDDED {
   HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
 #undef DECLARE_FEATURE_INITIALIZATION
 
-  void InstallOneBuiltinFunction(const char* object, const char* method,
+  void InstallOneBuiltinFunction(Handle<Object> prototype, const char* method,
                                  Builtins::Name name);
   void InitializeGlobal_experimental_fast_array_builtins();
 
@@ -3827,35 +3827,38 @@ void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
   JSObject::AddProperty(symbol, name_string, value, attributes);
 }
 
-void Genesis::InstallOneBuiltinFunction(const char* object_name,
+void Genesis::InstallOneBuiltinFunction(Handle<Object> prototype,
                                         const char* method_name,
                                         Builtins::Name builtin_name) {
-  Handle<JSGlobalObject> global(native_context()->global_object());
-  Isolate* isolate = global->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  LookupIterator it1(global, factory->NewStringFromAsciiChecked(object_name),
-                     LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Handle<Object> object = Object::GetProperty(&it1).ToHandleChecked();
-  LookupIterator it2(object, factory->NewStringFromAsciiChecked("prototype"),
-                     LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Handle<Object> prototype = Object::GetProperty(&it2).ToHandleChecked();
-
-  LookupIterator it3(prototype, factory->NewStringFromAsciiChecked(method_name),
-                     LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Handle<Object> function = Object::GetProperty(&it3).ToHandleChecked();
+  LookupIterator it(
+      prototype, isolate()->factory()->NewStringFromAsciiChecked(method_name),
+      LookupIterator::OWN_SKIP_INTERCEPTOR);
+  Handle<Object> function = Object::GetProperty(&it).ToHandleChecked();
   Handle<JSFunction>::cast(function)->set_code(
-      isolate->builtins()->builtin(builtin_name));
+      isolate()->builtins()->builtin(builtin_name));
   Handle<JSFunction>::cast(function)->shared()->set_code(
-      isolate->builtins()->builtin(builtin_name));
+      isolate()->builtins()->builtin(builtin_name));
 }
 
 void Genesis::InitializeGlobal_experimental_fast_array_builtins() {
   if (!FLAG_experimental_fast_array_builtins) return;
-
-  // Insert experimental fast array builtins here.
-  InstallOneBuiltinFunction("Array", "filter", Builtins::kArrayFilter);
-  InstallOneBuiltinFunction("Array", "map", Builtins::kArrayMap);
+  {
+    Handle<JSFunction> array_constructor(native_context()->array_function());
+    Handle<Object> array_prototype(array_constructor->prototype(), isolate());
+    // Insert experimental fast Array builtins here.
+    InstallOneBuiltinFunction(array_prototype, "filter",
+                              Builtins::kArrayFilter);
+    InstallOneBuiltinFunction(array_prototype, "map", Builtins::kArrayMap);
+  }
+  {
+    Handle<Object> typed_array_prototype(
+        native_context()->typed_array_prototype(), isolate());
+    // Insert experimental fast TypedArray builtins here.
+    InstallOneBuiltinFunction(typed_array_prototype, "every",
+                              Builtins::kTypedArrayPrototypeEvery);
+    InstallOneBuiltinFunction(typed_array_prototype, "some",
+                              Builtins::kTypedArrayPrototypeSome);
+  }
 }
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {

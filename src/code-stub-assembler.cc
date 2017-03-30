@@ -1241,6 +1241,32 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElement(
   return Load(type, data_pointer, offset);
 }
 
+Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
+    Node* data_pointer, Node* index_node, ElementsKind elements_kind,
+    ParameterMode parameter_mode) {
+  Node* value = LoadFixedTypedArrayElement(data_pointer, index_node,
+                                           elements_kind, parameter_mode);
+  switch (elements_kind) {
+    case ElementsKind::INT8_ELEMENTS:
+    case ElementsKind::UINT8_CLAMPED_ELEMENTS:
+    case ElementsKind::UINT8_ELEMENTS:
+    case ElementsKind::INT16_ELEMENTS:
+    case ElementsKind::UINT16_ELEMENTS:
+      return SmiFromWord32(value);
+    case ElementsKind::INT32_ELEMENTS:
+      return ChangeInt32ToTagged(value);
+    case ElementsKind::UINT32_ELEMENTS:
+      return ChangeUint32ToTagged(value);
+    case ElementsKind::FLOAT32_ELEMENTS:
+      return AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(value));
+    case ElementsKind::FLOAT64_ELEMENTS:
+      return AllocateHeapNumberWithValue(value);
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
+}
+
 Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
     Node* object, Node* index_node, int additional_offset,
     ParameterMode parameter_mode) {
