@@ -2741,7 +2741,7 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
   return var_value.value();
 }
 
-Node* CodeStubAssembler::ChangeNumberToFloat64(compiler::Node* value) {
+Node* CodeStubAssembler::ChangeNumberToFloat64(Node* value) {
   Variable result(this, MachineRepresentation::kFloat64);
   Label smi(this);
   Label done(this, &result);
@@ -2755,6 +2755,23 @@ Node* CodeStubAssembler::ChangeNumberToFloat64(compiler::Node* value) {
     result.Bind(SmiToFloat64(value));
     Goto(&done);
   }
+
+  Bind(&done);
+  return result.value();
+}
+
+Node* CodeStubAssembler::ChangeNumberToIntPtr(Node* value) {
+  Variable result(this, MachineType::PointerRepresentation());
+  Label smi(this), done(this, &result);
+  GotoIf(TaggedIsSmi(value), &smi);
+
+  CSA_ASSERT(this, IsHeapNumber(value));
+  result.Bind(ChangeFloat64ToUintPtr(LoadHeapNumberValue(value)));
+  Goto(&done);
+
+  Bind(&smi);
+  result.Bind(SmiToWord(value));
+  Goto(&done);
 
   Bind(&done);
   return result.value();
@@ -3054,6 +3071,19 @@ Node* CodeStubAssembler::IsUnseededNumberDictionary(Node* object) {
 
 Node* CodeStubAssembler::IsJSFunction(Node* object) {
   return HasInstanceType(object, JS_FUNCTION_TYPE);
+}
+
+Node* CodeStubAssembler::IsJSTypedArray(Node* object) {
+  return HasInstanceType(object, JS_TYPED_ARRAY_TYPE);
+}
+
+Node* CodeStubAssembler::IsFixedTypedArray(Node* object) {
+  Node* instance_type = LoadInstanceType(object);
+  return Word32And(
+      Int32GreaterThanOrEqual(instance_type,
+                              Int32Constant(FIRST_FIXED_TYPED_ARRAY_TYPE)),
+      Int32LessThanOrEqual(instance_type,
+                           Int32Constant(LAST_FIXED_TYPED_ARRAY_TYPE)));
 }
 
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,

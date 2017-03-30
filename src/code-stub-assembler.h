@@ -676,6 +676,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ChangeInt32ToTagged(Node* value);
   Node* ChangeUint32ToTagged(Node* value);
   Node* ChangeNumberToFloat64(Node* value);
+  Node* ChangeNumberToIntPtr(Node* value);
 
   // Type conversions.
   // Throws a TypeError for {method_name} if {value} is not coercible to Object,
@@ -731,6 +732,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsUnseededNumberDictionary(Node* object);
   Node* IsConstructorMap(Node* map);
   Node* IsJSFunction(Node* object);
+  Node* IsJSTypedArray(Node* object);
+  Node* IsFixedTypedArray(Node* object);
 
   // ElementsKind helpers:
   Node* IsFastElementsKind(Node* elements_kind);

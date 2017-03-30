@@ -234,6 +234,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "wasm::call_trap_callback_for_testing");
   Add(ExternalReference::libc_memchr_function(isolate).address(),
       "libc_memchr");
+  Add(ExternalReference::libc_memcpy_function(isolate).address(),
+      "libc_memcpy");
   Add(ExternalReference::libc_memset_function(isolate).address(),
       "libc_memset");
   Add(ExternalReference::log_enter_external_function(isolate).address(),

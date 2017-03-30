@@ -68,11 +68,39 @@ function TestLengthIsMaxSmi(constr) {
   }, RangeError);
 }
 
+function TestOffsetIsUsedRunner(constr, n) {
+  var buffer = new ArrayBuffer(constr.BYTES_PER_ELEMENT * n);
+
+  var whole_ta = new constr(buffer);
+  assertEquals(n, whole_ta.length);
+  for (var i = 0; i < whole_ta.length; i++) {
+    whole_ta[i] = i;
+  }
+
+  var half_ta = new constr(buffer, constr.BYTES_PER_ELEMENT * n / 2);
+  assertEquals(n / 2, half_ta.length);
+
+  var arr = new constr(half_ta);
+
+  assertEquals(n / 2, arr.length);
+  for (var i = 0; i < arr.length; i++) {
+    assertEquals(n / 2 + i, arr[i]);
+  }
+}
+
+function TestOffsetIsUsed(constr, n) {
+  TestOffsetIsUsedRunner(constr, 4);
+  TestOffsetIsUsedRunner(constr, 16);
+  TestOffsetIsUsedRunner(constr, 32);
+  TestOffsetIsUsedRunner(constr, 128);
+}
+
 Test(TestConstructSmallObject);
 Test(TestConstructLargeObject);
 Test(TestConstructFromArray);
 Test(TestConstructFromTypedArray);
 Test(TestLengthIsMaxSmi);
+Test(TestOffsetIsUsed);
 
 function Test(func) {
   func(Uint8Array);
