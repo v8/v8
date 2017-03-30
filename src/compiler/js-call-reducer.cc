@@ -63,6 +63,21 @@ Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
   return Changed(node);
 }
 
+// ES6 section 19.3.1.1 Boolean ( value )
+Reduction JSCallReducer::ReduceBooleanConstructor(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+
+  // Replace the {node} with a proper {JSToBoolean} operator.
+  DCHECK_LE(2u, p.arity());
+  Node* value = (p.arity() == 2) ? jsgraph()->UndefinedConstant()
+                                 : NodeProperties::GetValueInput(node, 2);
+  Node* context = NodeProperties::GetContextInput(node);
+  value = graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), value,
+                           context);
+  ReplaceWithValue(node, value);
+  return Replace(value);
+}
 
 // ES6 section 20.1.1 The Number Constructor
 Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
@@ -558,6 +573,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
       // Check for known builtin functions.
       switch (builtin_index) {
+        case Builtins::kBooleanConstructor:
+          return ReduceBooleanConstructor(node);
         case Builtins::kFunctionPrototypeApply:
           return ReduceFunctionPrototypeApply(node);
         case Builtins::kFunctionPrototypeCall:
