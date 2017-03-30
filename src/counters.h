@@ -959,22 +959,18 @@ class RuntimeCallTimerScope {
   /* Total JavaScript execution time (including callbacks and runtime calls */ \
   HT(execute, V8.Execute, 1000000, MICROSECOND)                                \
   /* Asm/Wasm */                                                               \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
   HT(wasm_instantiate_asm_module_time,                                         \
      V8.WasmInstantiateModuleMicroSeconds.asm, 1000000, MICROSECOND)           \
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 1000000, MICROSECOND)          \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
   HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds.asm,         \
      1000000, MICROSECOND)                                                     \
   HT(wasm_decode_wasm_module_time, V8.WasmDecodeModuleMicroSeconds.wasm,       \
      1000000, MICROSECOND)                                                     \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */       \
   HT(wasm_decode_asm_function_time, V8.WasmDecodeFunctionMicroSeconds.asm,     \
      1000000, MICROSECOND)                                                     \
   HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds.wasm,   \
      1000000, MICROSECOND)                                                     \
-  /* TODO(kschimpf) Update chrome flags to reflect asm/wasm split. */          \
   HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds.asm,       \
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds.wasm,     \
@@ -1015,23 +1011,18 @@ class RuntimeCallTimerScope {
   HM(memory_heap_committed, V8.MemoryHeapCommitted)                      \
   HM(memory_heap_used, V8.MemoryHeapUsed)                                \
   /* Asm/Wasm */                                                         \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
   HM(wasm_decode_asm_module_peak_memory_bytes,                           \
      V8.WasmDecodeModulePeakMemoryBytes.asm)                             \
   HM(wasm_decode_wasm_module_peak_memory_bytes,                          \
      V8.WasmDecodeModulePeakMemoryBytes.wasm)                            \
   HM(wasm_compile_function_peak_memory_bytes,                            \
      V8.WasmCompileFunctionPeakMemoryBytes)                              \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
   HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm)          \
   HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm)        \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
   HM(wasm_asm_max_mem_pages_count, V8.WasmMaxMemPagesCount.asm)          \
   HM(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm)        \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
   HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm)         \
   HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm)       \
-  /* TODO(karlschimpf) Update chrome flags to reflect asm/wasm split. */ \
   HM(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm)             \
   HM(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm)
 
