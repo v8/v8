@@ -113,23 +113,30 @@ function TypedArraySpeciesCreate(exemplar, arg0, arg1, arg2, conservative) {
 
 macro TYPED_ARRAY_CONSTRUCTOR(NAME, ELEMENT_SIZE)
 function NAMEConstructByIterable(obj, iterable, iteratorFn) {
-  var list = new InternalArray();
-  // Reading the Symbol.iterator property of iterable twice would be
-  // observable with getters, so instead, we call the function which
-  // was already looked up, and wrap it in another iterable. The
-  // __proto__ of the new iterable is set to null to avoid any chance
-  // of modifications to Object.prototype being observable here.
-  var iterator = %_Call(iteratorFn, iterable);
-  var newIterable = {
-    __proto__: null
-  };
-  // TODO(littledan): Computed properties don't work yet in nosnap.
-  // Rephrase when they do.
-  newIterable[iteratorSymbol] = function() { return iterator; }
-  for (var value of newIterable) {
-    list.push(value);
+  if (%has_iteration_side_effects(iterable)) {
+    var list = new InternalArray();
+    // Reading the Symbol.iterator property of iterable twice would be
+    // observable with getters, so instead, we call the function which
+    // was already looked up, and wrap it in another iterable. The
+    // __proto__ of the new iterable is set to null to avoid any chance
+    // of modifications to Object.prototype being observable here.
+    var iterator = %_Call(iteratorFn, iterable);
+    var newIterable = {
+      __proto__: null
+    };
+    // TODO(littledan): Computed properties don't work yet in nosnap.
+    // Rephrase when they do.
+    newIterable[iteratorSymbol] = function() { return iterator; }
+    for (var value of newIterable) {
+      list.push(value);
+    }
+    %typed_array_construct_by_array_like(obj, list, list.length, ELEMENT_SIZE);
+  } else {
+    // This .length access is unobservable, because it being observable would
+    // mean that iteration has side effects, and we wouldn't reach this path.
+    %typed_array_construct_by_array_like(
+        obj, iterable, iterable.length, ELEMENT_SIZE);
   }
-  %typed_array_construct_by_array_like(obj, list, list.length, ELEMENT_SIZE);
 }
 
 // ES#sec-typedarray-typedarray TypedArray ( typedArray )
