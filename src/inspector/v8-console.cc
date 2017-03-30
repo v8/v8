@@ -261,7 +261,7 @@ void V8Console::countCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   String16 identifier;
   if (title.isEmpty()) {
     std::unique_ptr<V8StackTraceImpl> stackTrace =
-        V8StackTraceImpl::capture(nullptr, 0, 1);
+        V8StackTraceImpl::capture(helper.inspector()->debugger(), 0, 1);
     if (stackTrace && !stackTrace->isEmpty()) {
       identifier = toString16(stackTrace->topSourceURL()) + ":" +
                    String16::fromInteger(stackTrace->topLineNumber());
