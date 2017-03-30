@@ -659,7 +659,6 @@
 ['variant == asm_wasm', {
   # Issue 6127: We won't fix these in the "old" validator. But we definitely
   # need to re-enable these for the "new" validator.
-  'regress/regress-599719': [SKIP],
   'regress/regress-618608': [SKIP],
   'regress/regress-670808': [SKIP],
   'wasm/asm-wasm-exception-in-tonumber': [SKIP],
