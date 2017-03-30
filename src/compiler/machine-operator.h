@@ -184,6 +184,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     bool IsUnalignedSupported(const Vector<MachineType>& unsupported,
                               const MachineType& machineType,
                               uint8_t alignment) const {
+      // All accesses of bytes in memory are aligned.
+      DCHECK_NE(machineType.representation(), MachineRepresentation::kWord8);
       if (unalignedSupport_ == kFullSupport) {
         return true;
       } else if (unalignedSupport_ == kNoSupport) {

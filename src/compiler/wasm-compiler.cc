@@ -3017,7 +3017,8 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
     BoundsCheckMem(memtype, index, offset, position);
   }
 
-  if (jsgraph()->machine()->UnalignedLoadSupported(memtype, alignment)) {
+  if (memtype.representation() == MachineRepresentation::kWord8 ||
+      jsgraph()->machine()->UnalignedLoadSupported(memtype, alignment)) {
     if (FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED) {
       DCHECK(FLAG_wasm_guard_pages);
       Node* position_node = jsgraph()->Int32Constant(position);
@@ -3072,7 +3073,8 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   val = BuildChangeEndianness(val, memtype);
 #endif
 
-  if (jsgraph()->machine()->UnalignedStoreSupported(memtype, alignment)) {
+  if (memtype.representation() == MachineRepresentation::kWord8 ||
+      jsgraph()->machine()->UnalignedStoreSupported(memtype, alignment)) {
     if (FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED) {
       Node* position_node = jsgraph()->Int32Constant(position);
       store = graph()->NewNode(
