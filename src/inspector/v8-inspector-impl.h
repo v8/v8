@@ -41,7 +41,6 @@
 namespace v8_inspector {
 
 class InspectedContext;
-class V8Console;
 class V8ConsoleMessageStorage;
 class V8Debugger;
 class V8DebuggerAgentImpl;
@@ -112,7 +111,6 @@ class V8InspectorImpl : public V8Inspector {
   V8DebuggerAgentImpl* enabledDebuggerAgentForGroup(int contextGroupId);
   V8RuntimeAgentImpl* enabledRuntimeAgentForGroup(int contextGroupId);
   V8ProfilerAgentImpl* enabledProfilerAgentForGroup(int contextGroupId);
-  V8Console* console();
 
  private:
   v8::Isolate* m_isolate;
@@ -138,8 +136,6 @@ class V8InspectorImpl : public V8Inspector {
   ConsoleStorageMap m_consoleStorageMap;
 
   protocol::HashMap<int, int> m_contextIdToGroupIdMap;
-
-  std::unique_ptr<V8Console> m_console;
 
   DISALLOW_COPY_AND_ASSIGN(V8InspectorImpl);
 };
