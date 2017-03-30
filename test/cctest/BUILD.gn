@@ -11,6 +11,7 @@ v8_executable("cctest") {
     "$target_gen_dir/resources.cc",
 
     ### gcmole(all) ###
+    "../common/wasm/test-signatures.h",
     "asmjs/test-asm-typer.cc",
     "ast-types-fuzz.h",
     "cctest.cc",
@@ -334,7 +335,6 @@ v8_executable("cctest") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:wasm_module_runner",
-    "../..:wasm_test_signatures",
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
   ]

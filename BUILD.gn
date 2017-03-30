@@ -2980,17 +2980,6 @@ v8_source_set("wasm_module_runner") {
   ]
 }
 
-v8_source_set("wasm_test_signatures") {
-  sources = [
-    "test/common/wasm/test-signatures.h",
-  ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
-
 v8_source_set("wasm_fuzzer") {
   sources = [
     "test/fuzzer/wasm.cc",
@@ -3031,13 +3020,13 @@ v8_fuzzer("wasm_asmjs_fuzzer") {
 
 v8_source_set("wasm_code_fuzzer") {
   sources = [
+    "test/common/wasm/test-signatures.h",
     "test/fuzzer/wasm-code.cc",
   ]
 
   deps = [
     ":fuzzer_support",
     ":wasm_module_runner",
-    ":wasm_test_signatures",
   ]
 
   configs = [
@@ -3051,13 +3040,13 @@ v8_fuzzer("wasm_code_fuzzer") {
 
 v8_source_set("wasm_call_fuzzer") {
   sources = [
+    "test/common/wasm/test-signatures.h",
     "test/fuzzer/wasm-call.cc",
   ]
 
   deps = [
     ":fuzzer_support",
     ":wasm_module_runner",
-    ":wasm_test_signatures",
   ]
 
   configs = [
@@ -3223,13 +3212,13 @@ v8_fuzzer("wasm_data_section_fuzzer") {
 
 v8_source_set("wasm_compile_fuzzer") {
   sources = [
+    "test/common/wasm/test-signatures.h",
     "test/fuzzer/wasm-compile.cc",
   ]
 
   deps = [
     ":fuzzer_support",
     ":wasm_module_runner",
-    ":wasm_test_signatures",
   ]
 
   configs = [
