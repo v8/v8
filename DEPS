@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "133db8fa9593987eb65316cf2277f23259744ac2",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "a634e44492100123636cd2e66cc3cadd828f7031",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -38,7 +38,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "e9e483c380e9cd4982d8c7428bd0aaf68a415674",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "c55112ff399f9ad6958b4bb58ca031b8ada63628",
   "v8/test/wasm-js":
     Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "002e57c86ccf5c80db0de6e40246665340350c43",
 }
@@ -48,7 +48,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "b43a6a289a7588b1769814f04dd6c7d7176974cc",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "0c870c77bbab62d977fddcbc08197a1eaea1d7a1",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "d3a91071e560106b98d072184a54276ae13713cc",
   },
   "win": {
     "v8/third_party/cygwin":
