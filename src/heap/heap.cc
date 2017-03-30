@@ -1723,12 +1723,14 @@ void Heap::Scavenge() {
   {
     // Copy objects reachable from the old generation.
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
-    RememberedSet<OLD_TO_NEW>::Iterate(this, [this](Address addr) {
-      return Scavenger::CheckAndScavengeObject(this, addr);
-    });
+    RememberedSet<OLD_TO_NEW>::Iterate(
+        this, SYNCHRONIZED, [this](Address addr) {
+          return Scavenger::CheckAndScavengeObject(this, addr);
+        });
 
     RememberedSet<OLD_TO_NEW>::IterateTyped(
-        this, [this](SlotType type, Address host_addr, Address addr) {
+        this, SYNCHRONIZED,
+        [this](SlotType type, Address host_addr, Address addr) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
               isolate(), type, addr, [this](Object** addr) {
                 // We expect that objects referenced by code are long living.
