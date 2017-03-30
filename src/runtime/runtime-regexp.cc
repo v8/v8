@@ -1116,6 +1116,7 @@ class VectorBackedMatch : public String::Match {
 Handle<JSObject> ConstructNamedCaptureGroupsObject(
     Isolate* isolate, Handle<FixedArray> capture_map,
     std::function<Object*(int)> f_get_capture) {
+  DCHECK(FLAG_harmony_regexp_named_captures);
   Handle<JSObject> groups = isolate->factory()->NewJSObjectWithNullProto();
 
   const int capture_count = capture_map->length() >> 1;
@@ -1228,6 +1229,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
 
         Handle<Object> maybe_capture_map(regexp->CaptureNameMap(), isolate);
         const bool has_named_captures = maybe_capture_map->IsFixedArray();
+        DCHECK_IMPLIES(has_named_captures, FLAG_harmony_regexp_named_captures);
 
         const int argc =
             has_named_captures ? 4 + capture_count : 3 + capture_count;
@@ -1254,7 +1256,6 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
         elements->set(cursor++, *subject);
 
         if (has_named_captures) {
-          DCHECK(FLAG_harmony_regexp_named_captures);
           Handle<FixedArray> capture_map =
               Handle<FixedArray>::cast(maybe_capture_map);
           Handle<JSObject> groups = ConstructNamedCaptureGroupsObject(
@@ -1499,12 +1500,12 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
 
     Object* maybe_capture_map = regexp->CaptureNameMap();
     if (maybe_capture_map->IsFixedArray()) {
-      DCHECK(FLAG_harmony_regexp_named_captures);
       has_named_captures = true;
       capture_map = handle(FixedArray::cast(maybe_capture_map));
     }
   }
 
+  DCHECK_IMPLIES(has_named_captures, FLAG_harmony_regexp_named_captures);
   const int argc = has_named_captures ? m + 3 : m + 2;
   ScopedVector<Handle<Object>> argv(argc);
 
@@ -1853,12 +1854,15 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
       captures.push_back(capture);
     }
 
-    Handle<Object> groups_obj;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, groups_obj,
-        Object::GetProperty(result, factory->groups_string()));
+    Handle<Object> groups_obj = isolate->factory()->undefined_value();
+    if (FLAG_harmony_regexp_named_captures) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, groups_obj,
+          Object::GetProperty(result, factory->groups_string()));
+    }
 
     const bool has_named_captures = !groups_obj->IsUndefined(isolate);
+    DCHECK_IMPLIES(has_named_captures, FLAG_harmony_regexp_named_captures);
 
     Handle<String> replacement;
     if (functional_replace) {
