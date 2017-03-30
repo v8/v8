@@ -34,6 +34,7 @@
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console-agent-impl.h"
 #include "src/inspector/v8-console-message.h"
+#include "src/inspector/v8-console.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-session-impl.h"
@@ -333,6 +334,11 @@ V8InspectorSessionImpl* V8InspectorImpl::sessionForContextGroup(
   if (!contextGroupId) return nullptr;
   SessionMap::iterator iter = m_sessions.find(contextGroupId);
   return iter == m_sessions.end() ? nullptr : iter->second;
+}
+
+V8Console* V8InspectorImpl::console() {
+  if (!m_console) m_console.reset(new V8Console(this));
+  return m_console.get();
 }
 
 }  // namespace v8_inspector
