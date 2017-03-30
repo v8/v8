@@ -663,11 +663,6 @@
   'regress/regress-670808': [SKIP],
   'wasm/asm-wasm-exception-in-tonumber': [SKIP],
   'wasm/asm-wasm-stack': [SKIP],
-
-  # Issue 6127: Breaks on no-snap bots.
-  'es8/regress/regress-624300': [SKIP],
-  'regress/regress-148378': [SKIP],
-  'regress/regress-446389': [SKIP],
 }],  # variant == asm_wasm
 
 ['variant == wasm_traps', {
