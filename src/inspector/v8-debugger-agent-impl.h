@@ -143,8 +143,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   v8::Isolate* isolate() { return m_isolate; }
 
-  bool shouldBreakInScheduledAsyncTask();
-
  private:
   void enableImpl();
 
@@ -203,8 +201,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unique_ptr<V8Regex> m_blackboxPattern;
   protocol::HashMap<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
-
-  std::unique_ptr<ScheduleStepIntoAsyncCallback> m_stepIntoAsyncCallback;
 
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 };
