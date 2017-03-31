@@ -680,7 +680,25 @@ void RegExpParser::ScanForCaptures() {
         break;
       }
       case '(':
-        if (current() != '?') capture_count++;
+        if (current() == '?') {
+          // At this point we could be in
+          // * a non-capturing group '(:',
+          // * a lookbehind assertion '(?<=' '(?<!'
+          // * or a named capture '(?<'.
+          //
+          // Of these, only named captures are capturing groups.
+          if (!FLAG_harmony_regexp_named_captures) break;
+
+          Advance();
+          if (current() != '<') break;
+
+          // TODO(jgruber): To be more future-proof we could test for
+          // IdentifierStart here once it becomes clear whether group names
+          // allow unicode escapes.
+          Advance();
+          if (current() == '=' || current() == '!') break;
+        }
+        capture_count++;
         break;
     }
   }

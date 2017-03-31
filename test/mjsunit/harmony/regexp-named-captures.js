@@ -124,6 +124,12 @@ assertEquals(["fst", "snd"],
 assertEquals(undefined, /(?<a>.)/u.exec("a").groups.__proto__);
 assertEquals("a", /(?<__proto__>a)/u.exec("a").groups.__proto__);
 
+// Backreference before the group (exercises the capture mini-parser).
+assertThrows("/\\1(?:.)/u", SyntaxError);
+assertThrows("/\\1(?<=a)./u", SyntaxError);
+assertThrows("/\\1(?<!a)./u", SyntaxError);
+assertEquals(["a", "a"], /\1(?<a>.)/u.exec("abcd"));
+
 // @@replace with a callable replacement argument (no named captures).
 {
   let result = "abcd".replace(/(.)(.)/u, (match, fst, snd, offset, str) => {
