@@ -588,8 +588,12 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
   // Check that the result is not a Smi, indicating that the constructor result
   // from a derived class is neither undefined nor an Object.
   if (check_derived_construct) {
-    Label dont_throw;
-    __ JumpIfNotSmi(r3, &dont_throw);
+    Label do_throw, dont_throw;
+    __ JumpIfSmi(r3, &do_throw);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    __ CompareObjectType(r3, r6, r6, FIRST_JS_RECEIVER_TYPE);
+    __ bge(&dont_throw);
+    __ bind(&do_throw);
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ CallRuntime(Runtime::kThrowDerivedConstructorReturnedNonObject);
