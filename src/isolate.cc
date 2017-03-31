@@ -12,6 +12,7 @@
 #include "src/assembler-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/context-slot-cache.h"
+#include "src/base/adapters.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
@@ -464,7 +465,8 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         // function.
         List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
         js_frame->Summarize(&frames);
-        for (int i = frames.length() - 1; i >= 0; i--) {
+        for (int i = frames.length() - 1;
+             i >= 0 && elements->FrameCount() < limit; i--) {
           const auto& summ = frames[i].AsJavaScript();
           Handle<JSFunction> fun = summ.function();
 
@@ -551,12 +553,11 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
         // interpreted_stack is bottom-up, i.e. caller before callee. We need it
         // the other way around.
-        for (auto it = interpreted_stack.rbegin(),
-                  end = interpreted_stack.rend();
-             it != end; ++it) {
+        for (auto pair : base::Reversed(interpreted_stack)) {
           elements = FrameArray::AppendWasmFrame(
-              elements, instance, it->first, Handle<AbstractCode>::null(),
-              it->second, FrameArray::kIsWasmInterpretedFrame);
+              elements, instance, pair.first, Handle<AbstractCode>::null(),
+              pair.second, FrameArray::kIsWasmInterpretedFrame);
+          if (elements->FrameCount() >= limit) break;
         }
       } break;
 

@@ -1406,13 +1406,17 @@ class ThreadImpl {
     }
   }
 
-  void DoCall(Decoder* decoder, InterpreterCode* target, pc_t* pc,
-              pc_t* limit) {
+  // Returns true if the call was successful, false if the stack check failed
+  // and the current activation was fully unwound.
+  bool DoCall(Decoder* decoder, InterpreterCode* target, pc_t* pc,
+              pc_t* limit) WARN_UNUSED_RESULT {
     frames_.back().pc = *pc;
     PushFrame(target);
+    if (!DoStackCheck()) return false;
     *pc = frames_.back().pc;
     *limit = target->end - target->start;
     decoder->Reset(target->start, target->end);
+    return true;
   }
 
   // Copies {arity} values on the top of the stack down the stack to {dest},
@@ -1473,6 +1477,30 @@ class ThreadImpl {
       possible_nondeterminism_ |= std::isnan(val.to<double>());
     }
     return true;
+  }
+
+  // Check if our control stack (frames_) exceeds the limit. Trigger stack
+  // overflow if it does, and unwinding the current frame.
+  // Returns true if execution can continue, false if the current activation was
+  // fully unwound.
+  // Do call this function immediately *after* pushing a new frame. The pc of
+  // the top frame will be reset to 0 if the stack check fails.
+  bool DoStackCheck() WARN_UNUSED_RESULT {
+    // Sum up the size of all dynamically growing structures.
+    if (V8_LIKELY(frames_.size() <= kV8MaxWasmInterpretedStackSize)) {
+      return true;
+    }
+    if (!codemap()->has_instance()) {
+      // In test mode: Just abort.
+      FATAL("wasm interpreter: stack overflow");
+    }
+    // The pc of the top frame is initialized to the first instruction. We reset
+    // it to 0 here such that we report the same position as in compiled code.
+    frames_.back().pc = 0;
+    Isolate* isolate = codemap()->instance()->GetIsolate();
+    HandleScope handle_scope(isolate);
+    isolate->StackOverflow();
+    return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
   }
 
   void Execute(InterpreterCode* code, pc_t pc, int max) {
@@ -1683,7 +1711,7 @@ class ThreadImpl {
             if (result.type != ExternalCallResult::INTERNAL) break;
           }
           // Execute an internal call.
-          DoCall(&decoder, target, &pc, &limit);
+          if (!DoCall(&decoder, target, &pc, &limit)) return;
           code = target;
           PAUSE_IF_BREAK_FLAG(AfterCall);
           continue;  // don't bump pc
@@ -1698,7 +1726,8 @@ class ThreadImpl {
           switch (result.type) {
             case ExternalCallResult::INTERNAL:
               // The import is a function of this instance. Call it directly.
-              DoCall(&decoder, result.interpreter_code, &pc, &limit);
+              if (!DoCall(&decoder, result.interpreter_code, &pc, &limit))
+                return;
               code = result.interpreter_code;
               PAUSE_IF_BREAK_FLAG(AfterCall);
               continue;  // don't bump pc

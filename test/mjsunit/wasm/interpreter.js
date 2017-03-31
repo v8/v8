@@ -309,3 +309,23 @@ function checkStack(stack, expected_lines) {
     ]);
   }
 })();
+
+(function testInfiniteRecursion() {
+  var builder = new WasmModuleBuilder();
+
+  var direct = builder.addFunction('main', kSig_v_v)
+                   .addBody([kExprNop, kExprCallFunction, 0])
+                   .exportFunc();
+  var instance = builder.instantiate();
+
+  try {
+    instance.exports.main();
+    assertUnreachable("should throw");
+  } catch (e) {
+    if (!(e instanceof RangeError)) throw e;
+    checkStack(stripPath(e.stack), [
+      'RangeError: Maximum call stack size exceeded',
+      '    at main (<WASM>[0]+0)'
+    ].concat(Array(9).fill('    at main (<WASM>[0]+2)')));
+  }
+})();
