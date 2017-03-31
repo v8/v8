@@ -710,7 +710,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // expects all parameters to be declared and from left to right.
   Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
                              bool is_optional, bool is_rest, bool* is_duplicate,
-                             AstValueFactory* ast_value_factory);
+                             AstValueFactory* ast_value_factory, int position);
 
   // Declares that a parameter with the name exists. Creates a Variable and
   // returns it if FLAG_preparser_scope_analysis is on.

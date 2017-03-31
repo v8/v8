@@ -16756,6 +16756,10 @@ Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
 
 template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape,
+           uint32_t>::NewEmpty(Isolate*, PretenureFlag pretenure);
+
+template Handle<UnseededNumberDictionary>
+Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape,
            uint32_t>::New(Isolate*, int at_least_space_for,
                           PretenureFlag pretenure,
                           MinimumCapacity capacity_option);

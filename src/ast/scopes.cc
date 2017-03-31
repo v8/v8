@@ -1008,7 +1008,7 @@ Variable* Scope::Lookup(const AstRawString* name) {
 
 Variable* DeclarationScope::DeclareParameter(
     const AstRawString* name, VariableMode mode, bool is_optional, bool is_rest,
-    bool* is_duplicate, AstValueFactory* ast_value_factory) {
+    bool* is_duplicate, AstValueFactory* ast_value_factory, int position) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
   DCHECK(!has_rest_);
@@ -1025,6 +1025,7 @@ Variable* DeclarationScope::DeclareParameter(
     *is_duplicate = IsDeclaredParameter(name);
   }
   has_rest_ = is_rest;
+  var->set_initializer_position(position);
   params_.Add(var, zone());
   if (name == ast_value_factory->arguments_string()) {
     has_arguments_parameter_ = true;

@@ -133,16 +133,18 @@ class Parser;
 struct ParserFormalParameters : FormalParametersBase {
   struct Parameter : public ZoneObject {
     Parameter(const AstRawString* name, Expression* pattern,
-              Expression* initializer, int initializer_end_position,
-              bool is_rest)
+              Expression* initializer, int position,
+              int initializer_end_position, bool is_rest)
         : name(name),
           pattern(pattern),
           initializer(initializer),
+          position(position),
           initializer_end_position(initializer_end_position),
           is_rest(is_rest) {}
     const AstRawString* name;
     Expression* pattern;
     Expression* initializer;
+    int position;
     int initializer_end_position;
     bool is_rest;
     Parameter* next_parameter = nullptr;
@@ -1081,9 +1083,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     const AstRawString* name = has_simple_name
                                    ? pattern->AsVariableProxy()->raw_name()
                                    : ast_value_factory()->empty_string();
-    auto parameter =
-        new (parameters->scope->zone()) ParserFormalParameters::Parameter(
-            name, pattern, initializer, initializer_end_position, is_rest);
+    auto parameter = new (parameters->scope->zone())
+        ParserFormalParameters::Parameter(name, pattern, initializer,
+                                          scanner()->location().beg_pos,
+                                          initializer_end_position, is_rest);
 
     parameters->params.Add(parameter);
   }
@@ -1103,7 +1106,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       scope->DeclareParameter(
           is_simple ? parameter->name : ast_value_factory()->empty_string(),
           is_simple ? VAR : TEMPORARY, is_optional, parameter->is_rest,
-          &is_duplicate, ast_value_factory());
+          &is_duplicate, ast_value_factory(), parameter->position);
       if (is_duplicate &&
           classifier()->is_valid_formal_parameter_list_without_duplicates()) {
         classifier()->RecordDuplicateFormalParameterError(

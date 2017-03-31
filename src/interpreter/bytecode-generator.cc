@@ -762,6 +762,16 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   // Emit tracing call if requested to do so.
   if (FLAG_trace) builder()->CallRuntime(Runtime::kTraceEnter);
 
+  // Emit type profile call.
+  if (info()->literal()->feedback_vector_spec()->HasTypeProfileSlot()) {
+    int num_parameters = closure_scope()->num_parameters();
+    for (int i = 0; i < num_parameters; i++) {
+      Register parameter(builder()->Parameter(i));
+      builder()->LoadAccumulatorWithRegister(parameter).CollectTypeProfile(
+          closure_scope()->parameter(i)->initializer_position());
+    }
+  }
+
   // Visit declarations within the function scope.
   VisitDeclarations(closure_scope()->declarations());
 
@@ -2025,7 +2035,7 @@ void BytecodeGenerator::BuildReturn() {
         Runtime::kTraceExit, result);
   }
   if (info()->literal()->feedback_vector_spec()->HasTypeProfileSlot()) {
-    builder()->CollectTypeProfile(info()->literal()->position());
+    builder()->CollectTypeProfile(info()->literal()->return_position());
   }
   builder()->Return();
 }

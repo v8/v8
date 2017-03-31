@@ -1,26 +1,73 @@
 Function: testFunction
-246: Object
-246: number
-246: string
-246: number
+247:
+Object
+number
+string
+number
+254:
+undefined
+boolean
+undefined
+undefined
+443:
+Object
+number
+string
+number
 
 Function: testFunction
-246: Object
-246: number
-246: string
-246: number
-246: undefined
-246: string
-246: Object
-246: Object
-246: MyClass
+247:
+Object
+number
+string
+number
+undefined
+string
+Object
+Object
+MyClass
+254:
+undefined
+boolean
+undefined
+undefined
+undefined
+boolean
+boolean
+undefined
+undefined
+443:
+Object
+number
+string
+number
+undefined
+string
+Object
+Object
+MyClass
 
 Function: try_finally
-956: string
+1038:
+string
 
 Function: fall_off
-1105: undefined
+1122:
+undefined
 
-*%(basename)s:63: throw otherwise test fails with --stress-opt
-throw "throw otherwise test fails with --stress-opt";
+Function: check_param
+1272:
+number
+1275:
+string
+1280:
+Object
+1291:
+MyClass
+1323:
+undefined
+
+
+*%(basename)s:70: end
+throw "end";
 ^

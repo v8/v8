@@ -707,7 +707,7 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
 
   DCHECK(FLAG_type_profile);
 
-  Handle<Name> type = Object::TypeOf(isolate, value);
+  Handle<String> type = Object::TypeOf(isolate, value);
   if (value->IsJSReceiver()) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
     type = JSReceiver::GetConstructorName(object);
