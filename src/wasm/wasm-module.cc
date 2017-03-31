@@ -2019,11 +2019,6 @@ class InstantiationHelper {
               // TODO(titzer): We compile JS->WASM wrappers for functions are
               // not exported but are in an exported table. This should be done
               // at module compile time and cached instead.
-              WasmInstance temp_instance(module_);
-              temp_instance.context = isolate_->native_context();
-              temp_instance.mem_size = 0;
-              temp_instance.mem_start = nullptr;
-              temp_instance.globals_start = nullptr;
 
               Handle<Code> wrapper_code =
                   js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
