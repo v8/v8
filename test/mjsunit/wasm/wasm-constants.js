@@ -315,6 +315,7 @@ let kExprI32ReinterpretF32 = 0xbc;
 let kExprI64ReinterpretF64 = 0xbd;
 let kExprF32ReinterpretI32 = 0xbe;
 let kExprF64ReinterpretI64 = 0xbf;
+let kExprS128LoadMem = 0xc0;
 
 let kTrapUnreachable          = 0;
 let kTrapMemOutOfBounds       = 1;
