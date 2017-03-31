@@ -981,6 +981,21 @@ RUNTIME_FUNCTION(Runtime_WasmNumInterpretedCalls) {
   return *isolate->factory()->NewNumberFromSize(static_cast<size_t>(num));
 }
 
+RUNTIME_FUNCTION(Runtime_RedirectToWasmInterpreter) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, instance_obj, 0);
+  CONVERT_SMI_ARG_CHECKED(function_index, 1);
+  CHECK(WasmInstanceObject::IsWasmInstanceObject(*instance_obj));
+  Handle<WasmInstanceObject> instance =
+      Handle<WasmInstanceObject>::cast(instance_obj);
+  Handle<WasmDebugInfo> debug_info =
+      WasmInstanceObject::GetOrCreateDebugInfo(instance);
+  WasmDebugInfo::RedirectToInterpreter(debug_info,
+                                       Vector<int>(&function_index, 1));
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_IncrementWaitCount) {
   isolate->IncrementWaitCountForTesting();
   return isolate->heap()->undefined_value();

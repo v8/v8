@@ -573,6 +573,10 @@ class WasmDebugInfo : public FixedArray {
   uint64_t NumInterpretedCalls();
 
   DECLARE_GETTER(wasm_instance, WasmInstanceObject);
+
+  // Update the memory view of the interpreter after executing GrowMemory in
+  // compiled code.
+  void UpdateMemory(JSArrayBuffer* new_memory);
 };
 
 class WasmInstanceWrapper : public FixedArray {

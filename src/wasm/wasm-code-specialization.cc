@@ -137,28 +137,34 @@ bool CodeSpecialization::ApplyToWholeInstance(
     changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
   }
 
-  // Patch all exported functions.
-  for (auto exp : module->export_table) {
-    if (exp.kind != kExternalFunction) continue;
-    Code* export_wrapper = Code::cast(code_table->get(func_index));
-    DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
-    // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
-    for (RelocIterator it(export_wrapper,
-                          RelocInfo::ModeMask(RelocInfo::CODE_TARGET));
-         ; it.next()) {
-      DCHECK(!it.done());
-      // Ignore calls to other builtins like ToNumber.
-      if (!IsAtWasmDirectCallTarget(it)) continue;
-      Code* new_code = Code::cast(code_table->get(exp.index));
-      it.rinfo()->set_target_address(new_code->GetIsolate(),
-                                     new_code->instruction_start(),
-                                     UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-      break;
+  // Patch all exported functions (if we shall relocate direct calls).
+  if (!relocate_direct_calls_instance.is_null()) {
+    // If we patch direct calls, the instance registered for that
+    // (relocate_direct_calls_instance) should match the instance we currently
+    // patch (instance).
+    DCHECK_EQ(instance, *relocate_direct_calls_instance);
+    for (auto exp : module->export_table) {
+      if (exp.kind != kExternalFunction) continue;
+      Code* export_wrapper = Code::cast(code_table->get(func_index));
+      DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
+      // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
+      for (RelocIterator it(export_wrapper,
+                            RelocInfo::ModeMask(RelocInfo::CODE_TARGET));
+           ; it.next()) {
+        DCHECK(!it.done());
+        // Ignore calls to other builtins like ToNumber.
+        if (!IsAtWasmDirectCallTarget(it)) continue;
+        Code* new_code = Code::cast(code_table->get(exp.index));
+        it.rinfo()->set_target_address(new_code->GetIsolate(),
+                                       new_code->instruction_start(),
+                                       UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+        break;
+      }
+      changed = true;
+      func_index++;
     }
-    changed = true;
-    func_index++;
+    DCHECK_EQ(code_table->length(), func_index);
   }
-  DCHECK_EQ(code_table->length(), func_index);
   return changed;
 }
 

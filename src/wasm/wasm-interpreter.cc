@@ -595,47 +595,62 @@ inline int64_t ExecuteI64ReinterpretF64(WasmVal a) {
   return a.to_unchecked<int64_t>();
 }
 
-inline int32_t ExecuteGrowMemory(uint32_t delta_pages, WasmInstance* instance) {
+inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
+                                 MaybeHandle<WasmInstanceObject> instance_obj,
+                                 WasmInstance* instance) {
+  DCHECK_EQ(0, instance->mem_size % WasmModule::kPageSize);
+  uint32_t old_pages = instance->mem_size / WasmModule::kPageSize;
+
+  // If an instance is set, execute GrowMemory on the instance. This will also
+  // update the WasmInstance struct used here.
+  if (!instance_obj.is_null()) {
+    Isolate* isolate = instance_obj.ToHandleChecked()->GetIsolate();
+    int32_t ret = WasmInstanceObject::GrowMemory(
+        isolate, instance_obj.ToHandleChecked(), delta_pages);
+    // Some sanity checks.
+    DCHECK_EQ(ret == -1 ? old_pages : old_pages + delta_pages,
+              instance->mem_size / WasmModule::kPageSize);
+    DCHECK(ret == -1 || static_cast<uint32_t>(ret) == old_pages);
+    return ret;
+  }
+
   // TODO(ahaas): Move memory allocation to wasm-module.cc for better
   // encapsulation.
   if (delta_pages > FLAG_wasm_max_mem_pages ||
       delta_pages > instance->module->max_mem_pages) {
     return -1;
   }
-  uint32_t old_size = instance->mem_size;
-  uint32_t new_size;
+
+  uint32_t new_pages = old_pages + delta_pages;
+  if (new_pages > FLAG_wasm_max_mem_pages ||
+      new_pages > instance->module->max_mem_pages) {
+    return -1;
+  }
+
   byte* new_mem_start;
   if (instance->mem_size == 0) {
     // TODO(gdeepti): Fix bounds check to take into account size of memtype.
-    new_size = delta_pages * wasm::WasmModule::kPageSize;
-    new_mem_start = static_cast<byte*>(calloc(new_size, sizeof(byte)));
-    if (!new_mem_start) {
-      return -1;
-    }
+    new_mem_start = static_cast<byte*>(
+        calloc(new_pages * WasmModule::kPageSize, sizeof(byte)));
+    if (!new_mem_start) return -1;
   } else {
     DCHECK_NOT_NULL(instance->mem_start);
-    new_size = old_size + delta_pages * wasm::WasmModule::kPageSize;
-    if (new_size / wasm::WasmModule::kPageSize > FLAG_wasm_max_mem_pages ||
-        new_size / wasm::WasmModule::kPageSize >
-            instance->module->max_mem_pages) {
-      return -1;
-    }
     if (EnableGuardRegions()) {
-      v8::base::OS::Unprotect(instance->mem_start, new_size);
+      v8::base::OS::Unprotect(instance->mem_start,
+                              new_pages * WasmModule::kPageSize);
       new_mem_start = instance->mem_start;
     } else {
-      new_mem_start =
-          static_cast<byte*>(realloc(instance->mem_start, new_size));
-      if (!new_mem_start) {
-        return -1;
-      }
+      new_mem_start = static_cast<byte*>(
+          realloc(instance->mem_start, new_pages * WasmModule::kPageSize));
+      if (!new_mem_start) return -1;
     }
     // Zero initializing uninitialized memory from realloc
-    memset(new_mem_start + old_size, 0, new_size - old_size);
+    memset(new_mem_start + old_pages * WasmModule::kPageSize, 0,
+           delta_pages * WasmModule::kPageSize);
   }
   instance->mem_start = new_mem_start;
-  instance->mem_size = new_size;
-  return static_cast<int32_t>(old_size / WasmModule::kPageSize);
+  instance->mem_size = new_pages * WasmModule::kPageSize;
+  return static_cast<int32_t>(old_pages);
 }
 
 enum InternalOpcode {
@@ -922,6 +937,9 @@ class CodeMap {
   Handle<WasmInstanceObject> instance() const {
     DCHECK(has_instance());
     return instance_;
+  }
+  MaybeHandle<WasmInstanceObject> maybe_instance() const {
+    return has_instance() ? instance_ : MaybeHandle<WasmInstanceObject>();
   }
 
   void SetInstanceObject(WasmInstanceObject* instance) {
@@ -1867,7 +1885,8 @@ class ThreadImpl {
         case kExprGrowMemory: {
           MemoryIndexOperand operand(&decoder, code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
-          Push(pc, WasmVal(ExecuteGrowMemory(delta_pages, instance())));
+          Push(pc, WasmVal(ExecuteGrowMemory(
+                       delta_pages, codemap_->maybe_instance(), instance())));
           len = 1 + operand.length;
           break;
         }

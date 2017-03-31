@@ -101,9 +101,9 @@ class WasmFunctionBuilder {
       if (typeof b != 'number')
         throw new Error('invalid body (entries have to be numbers): ' + body);
     }
-    this.body = body;
+    this.body = body.slice();
     // Automatically add the end for the function block to the body.
-    body.push(kExprEnd);
+    this.body.push(kExprEnd);
     return this;
   }
 

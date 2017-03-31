@@ -376,6 +376,9 @@ void SetInstanceMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
   instance->set_memory_buffer(*buffer);
   WasmCompiledModule::SetSpecializationMemInfoFrom(
       isolate->factory(), handle(instance->compiled_module()), buffer);
+  if (instance->has_debug_info()) {
+    instance->debug_info()->UpdateMemory(*buffer);
+  }
 }
 
 void UncheckedUpdateInstanceMemory(Isolate* isolate,

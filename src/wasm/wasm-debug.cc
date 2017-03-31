@@ -80,17 +80,12 @@ class InterpreterHandle {
     interpreter_.SetInstanceObject(instance);
 
     // Set memory start pointer and size.
-    // TODO(wasm): Update this on grow_memory in both directions (compiled ->
-    // interpreter, interpreter -> compiles).
+    instance_.mem_start = nullptr;
+    instance_.mem_size = 0;
     if (instance->has_memory_buffer()) {
-      JSArrayBuffer* mem_buffer = instance->memory_buffer();
-      instance_.mem_start =
-          reinterpret_cast<byte*>(mem_buffer->backing_store());
-      CHECK(mem_buffer->byte_length()->ToUint32(&instance_.mem_size));
+      UpdateMemory(instance->memory_buffer());
     } else {
       DCHECK_EQ(0, instance_.module->min_mem_pages);
-      instance_.mem_start = nullptr;
-      instance_.mem_size = 0;
     }
 
     // Set pointer to globals storage.
@@ -368,6 +363,11 @@ class InterpreterHandle {
     DCHECK_EQ(1, interpreter()->GetThreadCount());
     return interpreter()->GetThread(0)->NumInterpretedCalls();
   }
+
+  void UpdateMemory(JSArrayBuffer* new_memory) {
+    instance_.mem_start = reinterpret_cast<byte*>(new_memory->backing_store());
+    CHECK(new_memory->byte_length()->ToUint32(&instance_.mem_size));
+  }
 };
 
 InterpreterHandle* GetOrCreateInterpreterHandle(
@@ -547,4 +547,10 @@ void WasmDebugInfo::Unwind(Address frame_pointer) {
 uint64_t WasmDebugInfo::NumInterpretedCalls() {
   auto handle = GetInterpreterHandleOrNull(this);
   return handle ? handle->NumInterpretedCalls() : 0;
+}
+
+void WasmDebugInfo::UpdateMemory(JSArrayBuffer* new_memory) {
+  InterpreterHandle* interp_handle = GetInterpreterHandleOrNull(this);
+  if (!interp_handle) return;
+  interp_handle->UpdateMemory(new_memory);
 }
