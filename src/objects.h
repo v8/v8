@@ -8305,6 +8305,7 @@ class JSRegExp: public JSObject {
     kMultiline = 1 << 2,
     kSticky = 1 << 3,
     kUnicode = 1 << 4,
+    kDotAll = 1 << 5,
   };
   typedef base::Flags<Flag> Flags;
 

@@ -4004,6 +4004,22 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
   }
 }
 
+void Genesis::InitializeGlobal_harmony_regexp_dotall() {
+  if (!FLAG_harmony_regexp_dotall) return;
+
+  Handle<JSFunction> constructor(native_context()->regexp_function());
+  Handle<JSObject> prototype(JSObject::cast(constructor->instance_prototype()));
+
+  SimpleInstallGetter(prototype, isolate()->factory()->dotAll_string(),
+                      Builtins::kRegExpPrototypeDotAllGetter, true);
+
+  // The regexp prototype map has changed because we added a property
+  // to it, so we update the saved map.
+  Handle<Map> prototype_map(prototype->map());
+  Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate());
+  native_context()->set_regexp_prototype_map(*prototype_map);
+}
+
 #ifdef V8_I18N_SUPPORT
 void Genesis::InitializeGlobal_datetime_format_to_parts() {
   if (!FLAG_datetime_format_to_parts) return;

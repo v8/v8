@@ -72,8 +72,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   Node* FlagGetter(Node* const context, Node* const regexp, JSRegExp::Flag flag,
                    bool is_fastpath);
   void FlagGetter(Node* context, Node* receiver, JSRegExp::Flag flag,
-                  v8::Isolate::UseCounterFeature counter,
-                  const char* method_name);
+                  int counter, const char* method_name);
+
+  // Utility method, remove once dotall is unstaged.
+  Node* IsDotAllEnabled(Isolate* isolate);
 
   Node* IsRegExp(Node* const context, Node* const maybe_receiver);
   Node* RegExpInitialize(Node* const context, Node* const regexp,

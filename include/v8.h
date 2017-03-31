@@ -4692,11 +4692,12 @@ class V8_EXPORT RegExp : public Object {
    */
   enum Flags {
     kNone = 0,
-    kGlobal = 1,
-    kIgnoreCase = 2,
-    kMultiline = 4,
-    kSticky = 8,
-    kUnicode = 16
+    kGlobal = 1 << 0,
+    kIgnoreCase = 1 << 1,
+    kMultiline = 1 << 2,
+    kSticky = 1 << 3,
+    kUnicode = 1 << 4,
+    kDotAll = 1 << 5,
   };
 
   /**

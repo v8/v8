@@ -29,6 +29,7 @@ RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
       named_back_references_(NULL),
       in_(in),
       current_(kEndMarker),
+      dotall_(flags & JSRegExp::kDotAll),
       ignore_case_(flags & JSRegExp::kIgnoreCase),
       multiline_(flags & JSRegExp::kMultiline),
       unicode_(flags & JSRegExp::kUnicode),
@@ -40,6 +41,7 @@ RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
       contains_anchor_(false),
       is_scanned_for_captures_(false),
       failed_(false) {
+  DCHECK_IMPLIES(dotall(), FLAG_harmony_regexp_dotall);
   Advance();
 }
 
@@ -270,10 +272,18 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       }
       case '.': {
         Advance();
-        // everything except \x0a, \x0d, \u2028 and \u2029
         ZoneList<CharacterRange>* ranges =
             new (zone()) ZoneList<CharacterRange>(2, zone());
-        CharacterRange::AddClassEscape('.', ranges, false, zone());
+
+        if (dotall()) {
+          // Everything.
+          DCHECK(FLAG_harmony_regexp_dotall);
+          CharacterRange::AddClassEscape('*', ranges, false, zone());
+        } else {
+          // Everything except \x0a, \x0d, \u2028 and \u2029
+          CharacterRange::AddClassEscape('.', ranges, false, zone());
+        }
+
         RegExpCharacterClass* cc =
             new (zone()) RegExpCharacterClass(ranges, false);
         builder->AddCharacterClass(cc);

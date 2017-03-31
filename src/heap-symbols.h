@@ -54,6 +54,7 @@
   V(did_handle_string, "didHandle")                                \
   V(display_name_string, "displayName")                            \
   V(done_string, "done")                                           \
+  V(dotAll_string, "dotAll")                                       \
   V(dot_catch_string, ".catch")                                    \
   V(dot_for_string, ".for")                                        \
   V(dot_generator_object_string, ".generator_object")              \

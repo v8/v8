@@ -1717,6 +1717,13 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
       case 'm':
         flag = RegExp::kMultiline;
         break;
+      case 's':
+        if (FLAG_harmony_regexp_dotall) {
+          flag = RegExp::kDotAll;
+        } else {
+          return Nothing<RegExp::Flags>();
+        }
+        break;
       case 'u':
         flag = RegExp::kUnicode;
         break;

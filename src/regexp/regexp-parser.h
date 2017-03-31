@@ -199,6 +199,7 @@ class RegExpParser BASE_EMBEDDED {
   int captures_started() { return captures_started_; }
   int position() { return next_pos_ - 1; }
   bool failed() { return failed_; }
+  bool dotall() const { return dotall_; }
   bool ignore_case() const { return ignore_case_; }
   bool multiline() const { return multiline_; }
   bool unicode() const { return unicode_; }
@@ -312,6 +313,7 @@ class RegExpParser BASE_EMBEDDED {
   ZoneList<RegExpBackReference*>* named_back_references_;
   FlatStringReader* in_;
   uc32 current_;
+  bool dotall_;
   bool ignore_case_;
   bool multiline_;
   bool unicode_;

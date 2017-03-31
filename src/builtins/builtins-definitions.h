@@ -737,6 +737,8 @@ namespace internal {
   TFJ(RegExpPrototypeCompile, 2, kPattern, kFlags)                             \
   /* ES #sec-regexp.prototype.exec */                                          \
   TFJ(RegExpPrototypeExec, 1, kString)                                         \
+  /* ES #sec-get-regexp.prototype.dotAll */                                    \
+  TFJ(RegExpPrototypeDotAllGetter, 0)                                          \
   /* ES #sec-get-regexp.prototype.flags */                                     \
   TFJ(RegExpPrototypeFlagsGetter, 0)                                           \
   /* ES #sec-get-regexp.prototype.global */                                    \
