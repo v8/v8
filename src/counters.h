@@ -972,9 +972,9 @@ class RuntimeCallTimerScope {
   HT(wasm_decode_wasm_function_time, V8.WasmDecodeFunctionMicroSeconds.wasm,   \
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_asm_module_time, V8.WasmCompileModuleMicroSeconds.asm,       \
-     1000000, MICROSECOND)                                                     \
+     10000000, MICROSECOND)                                                    \
   HT(wasm_compile_wasm_module_time, V8.WasmCompileModuleMicroSeconds.wasm,     \
-     1000000, MICROSECOND)                                                     \
+     10000000, MICROSECOND)                                                    \
   HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000,  \
      MICROSECOND)                                                              \
   HT(asm_wasm_translation_time, V8.AsmWasmTranslationMicroSeconds, 1000000,    \
