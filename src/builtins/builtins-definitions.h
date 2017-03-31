@@ -809,8 +809,6 @@ namespace internal {
   CPP(StringPrototypeLastIndexOf)                                              \
   /* ES6 #sec-string.prototype.localecompare */                                \
   CPP(StringPrototypeLocaleCompare)                                            \
-  /* ES6 #sec-string.prototype.normalize */                                    \
-  CPP(StringPrototypeNormalize)                                                \
   /* ES6 #sec-string.prototype.replace */                                      \
   TFJ(StringPrototypeReplace, 2, kSearch, kReplace)                            \
   /* ES6 #sec-string.prototype.split */                                        \
@@ -963,10 +961,15 @@ namespace internal {
   /* ES #sec-string.prototype.tolowercase */            \
   CPP(StringPrototypeToLowerCaseI18N)                   \
   /* ES #sec-string.prototype.touppercase */            \
-  CPP(StringPrototypeToUpperCaseI18N)
+  CPP(StringPrototypeToUpperCaseI18N)                   \
+  /* ES #sec-string.prototype.normalize */              \
+  CPP(StringPrototypeNormalizeI18N)
 #else
 #define BUILTIN_LIST(CPP, API, TFJ, TFS, TFH, ASM, DBG) \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, TFH, ASM, DBG)
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, TFH, ASM, DBG)  \
+                                                        \
+  /* (obsolete) Unibrow version */                      \
+  CPP(StringPrototypeNormalize)
 #endif  // V8_I18N_SUPPORT
 
 #define BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(V) \

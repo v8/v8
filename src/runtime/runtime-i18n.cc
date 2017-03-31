@@ -29,7 +29,6 @@
 #include "unicode/fieldpos.h"
 #include "unicode/fpositer.h"
 #include "unicode/locid.h"
-#include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
 #include "unicode/rbbi.h"
@@ -600,64 +599,6 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
   if (U_FAILURE(status)) return isolate->ThrowIllegalOperation();
 
   return *isolate->factory()->NewNumberFromInt(result);
-}
-
-
-RUNTIME_FUNCTION(Runtime_StringNormalize) {
-  HandleScope scope(isolate);
-  static const struct {
-    const char* name;
-    UNormalization2Mode mode;
-  } normalizationForms[] = {
-      {"nfc", UNORM2_COMPOSE},
-      {"nfc", UNORM2_DECOMPOSE},
-      {"nfkc", UNORM2_COMPOSE},
-      {"nfkc", UNORM2_DECOMPOSE},
-  };
-
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-  CONVERT_NUMBER_CHECKED(int, form_id, Int32, args[1]);
-  CHECK(form_id >= 0 &&
-        static_cast<size_t>(form_id) < arraysize(normalizationForms));
-
-  int length = s->length();
-  s = String::Flatten(s);
-  icu::UnicodeString result;
-  std::unique_ptr<uc16[]> sap;
-  UErrorCode status = U_ZERO_ERROR;
-  {
-    DisallowHeapAllocation no_gc;
-    String::FlatContent flat = s->GetFlatContent();
-    const UChar* src = GetUCharBufferFromFlat(flat, &sap, length);
-    icu::UnicodeString input(false, src, length);
-    // Getting a singleton. Should not free it.
-    const icu::Normalizer2* normalizer =
-        icu::Normalizer2::getInstance(nullptr, normalizationForms[form_id].name,
-                                      normalizationForms[form_id].mode, status);
-    DCHECK(U_SUCCESS(status));
-    CHECK(normalizer != nullptr);
-    int32_t normalized_prefix_length =
-        normalizer->spanQuickCheckYes(input, status);
-    // Quick return if the input is already normalized.
-    if (length == normalized_prefix_length) return *s;
-    icu::UnicodeString unnormalized =
-        input.tempSubString(normalized_prefix_length);
-    // Read-only alias of the normalized prefix.
-    result.setTo(false, input.getBuffer(), normalized_prefix_length);
-    // copy-on-write; normalize the suffix and append to |result|.
-    normalizer->normalizeSecondAndAppend(result, unnormalized, status);
-  }
-
-  if (U_FAILURE(status)) {
-    return isolate->heap()->undefined_value();
-  }
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-                   reinterpret_cast<const uint16_t*>(result.getBuffer()),
-                   result.length())));
 }
 
 

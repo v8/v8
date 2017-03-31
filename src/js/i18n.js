@@ -2028,33 +2028,6 @@ OverrideFunction(GlobalString.prototype, 'localeCompare', function(that) {
 );
 
 
-/**
- * Unicode normalization. This method is called with one argument that
- * specifies the normalization form.
- * If none is specified, "NFC" is assumed.
- * If the form is not one of "NFC", "NFD", "NFKC", or "NFKD", then throw
- * a RangeError Exception.
- */
-
-OverrideFunction(GlobalString.prototype, 'normalize', function() {
-    CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
-    var s = TO_STRING(this);
-
-    var formArg = arguments[0];
-    var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
-
-    var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
-
-    var normalizationForm = %ArrayIndexOf(NORMALIZATION_FORMS, form, 0);
-    if (normalizationForm === -1) {
-      throw %make_range_error(kNormalizationForm,
-          %_Call(ArrayJoin, NORMALIZATION_FORMS, ', '));
-    }
-
-    return %StringNormalize(s, normalizationForm);
-  }
-);
-
 // TODO(littledan): Rewrite these two functions as C++ builtins
 function ToLowerCaseI18N() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");

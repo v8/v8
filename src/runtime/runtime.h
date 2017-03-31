@@ -262,7 +262,6 @@ namespace internal {
   F(InternalNumberFormat, 2, 1)              \
   F(CreateCollator, 3, 1)                    \
   F(InternalCompare, 3, 1)                   \
-  F(StringNormalize, 2, 1)                   \
   F(CreateBreakIterator, 3, 1)               \
   F(BreakIteratorAdoptText, 2, 1)            \
   F(BreakIteratorFirst, 1, 1)                \
