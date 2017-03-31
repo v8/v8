@@ -148,7 +148,8 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
   if (thrower.error()) {
     auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-    CHECK(!maybe.IsNothing());
+    CHECK_IMPLIES(!maybe.FromMaybe(false),
+                  i_isolate->has_scheduled_exception());
     return;
   }
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*resolver->GetPromise());
@@ -299,7 +300,8 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
         "Argument 0 must be provided and must be either a buffer source or a "
         "WebAssembly.Module object");
     auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-    CHECK(!maybe.IsNothing());
+    CHECK_IMPLIES(!maybe.FromMaybe(false),
+                  i_isolate->has_scheduled_exception());
     return;
   }
 
@@ -308,14 +310,16 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError(
         "Argument 0 must be a buffer source or a WebAssembly.Module object");
     auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-    CHECK(!maybe.IsNothing());
+    CHECK_IMPLIES(!maybe.FromMaybe(false),
+                  i_isolate->has_scheduled_exception());
     return;
   }
 
   auto maybe_imports = GetSecondArgumentAsImports(args, &thrower);
   if (thrower.error()) {
     auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-    CHECK(!maybe.IsNothing());
+    CHECK_IMPLIES(!maybe.FromMaybe(false),
+                  i_isolate->has_scheduled_exception());
     return;
   }
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*resolver->GetPromise());
@@ -329,7 +333,8 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     auto bytes = GetFirstArgumentAsBytes(args, &thrower);
     if (thrower.error()) {
       auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-      CHECK(!maybe.IsNothing());
+      CHECK_IMPLIES(!maybe.FromMaybe(false),
+                    i_isolate->has_scheduled_exception());
       return;
     }
     i::wasm::AsyncCompileAndInstantiate(i_isolate, promise, bytes,
