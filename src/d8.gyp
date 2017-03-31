@@ -42,9 +42,6 @@
         'v8.gyp:v8_libbase',
         'v8.gyp:v8_libplatform',
       ],
-      'defines': [
-        'V8_INSPECTOR_ENABLED',
-      ],
       # Generated source files need this explicitly:
       'include_dirs+': [
         '..',

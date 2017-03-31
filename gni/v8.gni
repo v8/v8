@@ -37,9 +37,6 @@ declare_args() {
   # add a dependency on the ICU library.
   v8_enable_i18n_support = true
 
-  # Enable inspector. See include/v8-inspector.h.
-  v8_enable_inspector = true
-
   # Use static libraries instead of source_sets.
   v8_static_library = false
 }

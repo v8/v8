@@ -263,9 +263,6 @@ def BuildOptions():
   result.add_option("--download-data-only",
                     help="Deprecated",
                     default=False, action="store_true")
-  result.add_option("--enable-inspector",
-                    help="Indicates a build with inspector support",
-                    default=True, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
@@ -496,7 +493,6 @@ def ProcessOptions(options):
       options.arch = 'ia32'
     options.asan = build_config["is_asan"]
     options.dcheck_always_on = build_config["dcheck_always_on"]
-    options.enable_inspector = build_config["v8_enable_inspector"]
     options.mode = 'debug' if build_config["is_debug"] else 'release'
     options.msan = build_config["is_msan"]
     options.no_i18n = not build_config["v8_enable_i18n_support"]
@@ -623,13 +619,6 @@ def ProcessOptions(options):
   if options.no_i18n:
     TEST_MAP["bot_default"].remove("intl")
     TEST_MAP["default"].remove("intl")
-  if not options.enable_inspector:
-    TEST_MAP["default"].remove("inspector")
-    TEST_MAP["bot_default"].remove("inspector")
-    TEST_MAP["optimize_for_size"].remove("inspector")
-    TEST_MAP["default"].remove("debugger")
-    TEST_MAP["bot_default"].remove("debugger")
-    TEST_MAP["optimize_for_size"].remove("debugger")
   return True
 
 

@@ -22,6 +22,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
+#include "include/v8-inspector.h"
 #include "src/api.h"
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
@@ -38,10 +39,6 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 #include "src/v8.h"
-
-#ifdef V8_INSPECTOR_ENABLED
-#include "include/v8-inspector.h"
-#endif  // V8_INSPECTOR_ENABLED
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
@@ -1937,7 +1934,6 @@ void Shell::RunShell(Isolate* isolate) {
   printf("\n");
 }
 
-#ifdef V8_INSPECTOR_ENABLED
 class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
  public:
   explicit InspectorFrontend(Local<Context> context) {
@@ -2070,12 +2066,6 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
   Global<Context> context_;
   Isolate* isolate_;
 };
-#else   // V8_INSPECTOR_ENABLED
-class InspectorClient {
- public:
-  InspectorClient(Local<Context> context, bool connect) { CHECK(!connect); }
-};
-#endif  // V8_INSPECTOR_ENABLED
 
 SourceGroup::~SourceGroup() {
   delete thread_;
