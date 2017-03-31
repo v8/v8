@@ -1593,42 +1593,29 @@ Block* Parser::IgnoreCompletion(Statement* statement) {
 
 Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
   if (IsDerivedConstructor(function_state_->kind())) {
-    // For subclass constructors we need to return this in case of undefined
-    // return a Smi (transformed into an exception in the ConstructStub)
-    // for a non object.
+    // For subclass constructors we need to return this in case of undefined;
+    // other primitive values trigger an exception in the ConstructStub.
     //
     //   return expr;
     //
     // Is rewritten as:
     //
-    //   return (temp = expr) === undefined ? this :
-    //       %_IsJSReceiver(temp) ? temp : 1;
+    //   return (temp = expr) === undefined ? this : temp;
 
     // temp = expr
     Variable* temp = NewTemporary(ast_value_factory()->empty_string());
     Assignment* assign = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(temp), return_value, pos);
 
-    // %_IsJSReceiver(temp)
-    ZoneList<Expression*>* is_spec_object_args =
-        new (zone()) ZoneList<Expression*>(1, zone());
-    is_spec_object_args->Add(factory()->NewVariableProxy(temp), zone());
-    Expression* is_spec_object_call = factory()->NewCallRuntime(
-        Runtime::kInlineIsJSReceiver, is_spec_object_args, pos);
-
-    // %_IsJSReceiver(temp) ? temp : 1;
-    Expression* is_object_conditional = factory()->NewConditional(
-        is_spec_object_call, factory()->NewVariableProxy(temp),
-        factory()->NewSmiLiteral(1, pos), pos);
-
     // temp === undefined
     Expression* is_undefined = factory()->NewCompareOperation(
         Token::EQ_STRICT, assign,
         factory()->NewUndefinedLiteral(kNoSourcePosition), pos);
 
-    // is_undefined ? this : is_object_conditional
-    return_value = factory()->NewConditional(is_undefined, ThisExpression(pos),
-                                             is_object_conditional, pos);
+    // is_undefined ? this : temp
+    return_value =
+        factory()->NewConditional(is_undefined, ThisExpression(pos),
+                                  factory()->NewVariableProxy(temp), pos);
   }
   return return_value;
 }
