@@ -799,7 +799,10 @@ struct InliningPhase {
         &graph_reducer, data->jsgraph(),
         data->info()->is_function_context_specializing()
             ? handle(data->info()->context())
-            : MaybeHandle<Context>());
+            : MaybeHandle<Context>(),
+        data->info()->is_function_context_specializing()
+            ? data->info()->closure()
+            : MaybeHandle<JSFunction>());
     JSFrameSpecialization frame_specialization(
         &graph_reducer, data->info()->osr_frame(), data->jsgraph());
     JSNativeContextSpecialization::Flags flags =
