@@ -1150,8 +1150,10 @@ class ThreadImpl {
       TRACE("  => Run()\n");
       state_ = WasmInterpreter::RUNNING;
       Execute(frames_.back().code, frames_.back().pc, kRunSteps);
-    } while (state_ == WasmInterpreter::PAUSED && !frames_.empty() &&
-             !PausedAtBreakpoint());
+    } while (state_ == WasmInterpreter::PAUSED && !PausedAtBreakpoint());
+    // If state_ is STOPPED, the current activation must be fully unwound.
+    DCHECK_IMPLIES(state_ == WasmInterpreter::STOPPED,
+                   current_activation().fp == frames_.size());
     return state_;
   }
 

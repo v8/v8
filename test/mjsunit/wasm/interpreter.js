@@ -329,3 +329,39 @@ function checkStack(stack, expected_lines) {
     ].concat(Array(9).fill('    at main (<WASM>[0]+2)')));
   }
 })();
+
+(function testUnwindSingleActivation() {
+  // Create two activations and unwind just the top one.
+  var builder = new WasmModuleBuilder();
+
+  function MyError(i) {
+    this.i = i;
+  }
+
+  // We call WASM -> func 1 -> WASM -> func2.
+  // func2 throws, func 1 catches.
+  function func1() {
+    try {
+      return instance.exports.foo();
+    } catch (e) {
+      if (!(e instanceof MyError)) throw e;
+      return e.i + 2;
+    }
+  }
+  function func2() {
+    throw new MyError(11);
+  }
+  var imp1 = builder.addImport('mod', 'func1', kSig_i_v);
+  var imp2 = builder.addImport('mod', 'func2', kSig_v_v);
+  builder.addFunction('main', kSig_i_v)
+      .addBody([kExprCallFunction, imp1, kExprI32Const, 2, kExprI32Mul])
+      .exportFunc();
+  builder.addFunction('foo', kSig_v_v)
+      .addBody([kExprCallFunction, imp2])
+      .exportFunc();
+  var instance = builder.instantiate({mod: {func1: func1, func2: func2}});
+
+  var interpreted_before = % WasmNumInterpretedCalls(instance);
+  assertEquals(2 * (11 + 2), instance.exports.main());
+  assertEquals(interpreted_before + 2, % WasmNumInterpretedCalls(instance));
+})();

@@ -180,8 +180,9 @@ class InterpreterHandle {
           return result == WasmInterpreter::Thread::HANDLED;
         } break;
         case WasmInterpreter::State::STOPPED:
-          // Then an exception happened, and the stack was unwound.
-          DCHECK_EQ(0, thread->GetFrameCount());
+          // An exception happened, and the current activation was unwound.
+          DCHECK_EQ(thread->ActivationFrameBase(activation_id),
+                    thread->GetFrameCount());
           return false;
         // RUNNING should never occur here.
         case WasmInterpreter::State::RUNNING:
