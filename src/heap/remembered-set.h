@@ -13,8 +13,6 @@
 namespace v8 {
 namespace internal {
 
-enum RememberedSetIterationMode { SYNCHRONIZED, NON_SYNCHRONIZED };
-
 // TODO(ulan): Investigate performance of de-templatizing this class.
 template <RememberedSetType type>
 class RememberedSet : public AllStatic {
@@ -100,13 +98,9 @@ class RememberedSet : public AllStatic {
   // Iterates and filters the remembered set with the given callback.
   // The callback should take (Address slot) and return SlotCallbackResult.
   template <typename Callback>
-  static void Iterate(Heap* heap, RememberedSetIterationMode mode,
-                      Callback callback) {
-    IterateMemoryChunks(heap, [mode, callback](MemoryChunk* chunk) {
-      if (mode == SYNCHRONIZED) chunk->mutex()->Lock();
-      Iterate(chunk, callback);
-      if (mode == SYNCHRONIZED) chunk->mutex()->Unlock();
-    });
+  static void Iterate(Heap* heap, Callback callback) {
+    IterateMemoryChunks(
+        heap, [callback](MemoryChunk* chunk) { Iterate(chunk, callback); });
   }
 
   // Iterates over all memory chunks that contains non-empty slot sets.
@@ -183,12 +177,9 @@ class RememberedSet : public AllStatic {
   // The callback should take (SlotType slot_type, SlotAddress slot) and return
   // SlotCallbackResult.
   template <typename Callback>
-  static void IterateTyped(Heap* heap, RememberedSetIterationMode mode,
-                           Callback callback) {
-    IterateMemoryChunks(heap, [mode, callback](MemoryChunk* chunk) {
-      if (mode == SYNCHRONIZED) chunk->mutex()->Lock();
+  static void IterateTyped(Heap* heap, Callback callback) {
+    IterateMemoryChunks(heap, [callback](MemoryChunk* chunk) {
       IterateTyped(chunk, callback);
-      if (mode == SYNCHRONIZED) chunk->mutex()->Unlock();
     });
   }
 
