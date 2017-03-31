@@ -61,8 +61,8 @@ class DelayedMasm BASE_EMBEDDED {
   inline void Mov(const Register& rd,
                   const Operand& operand,
                   DiscardMoveMode discard_mode = kDontDiscardForSameWReg);
-  inline void Fmov(VRegister fd, VRegister fn);
-  inline void Fmov(VRegister fd, double imm);
+  inline void Fmov(FPRegister fd, FPRegister fn);
+  inline void Fmov(FPRegister fd, double imm);
   inline void LoadObject(Register result, Handle<Object> object);
   // Instructions which try to merge which the pending instructions.
   void StackSlotMove(LOperand* src, LOperand* dst);

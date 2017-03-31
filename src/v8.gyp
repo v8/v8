@@ -1470,7 +1470,6 @@
             'arm64/macro-assembler-arm64-inl.h',
             'arm64/simulator-arm64.cc',
             'arm64/simulator-arm64.h',
-            'arm64/simulator-logic-arm64.cc',
             'arm64/utils-arm64.cc',
             'arm64/utils-arm64.h',
             'arm64/eh-frame-arm64.cc',

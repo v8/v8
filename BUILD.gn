@@ -2120,7 +2120,6 @@ v8_source_set("v8_base") {
       "src/arm64/macro-assembler-arm64.h",
       "src/arm64/simulator-arm64.cc",
       "src/arm64/simulator-arm64.h",
-      "src/arm64/simulator-logic-arm64.cc",
       "src/arm64/utils-arm64.cc",
       "src/arm64/utils-arm64.h",
       "src/compiler/arm64/code-generator-arm64.cc",

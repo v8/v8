@@ -179,9 +179,9 @@ class TestAndBranch : public BranchGenerator {
 // Test the input and branch if it is non-zero and not a NaN.
 class BranchIfNonZeroNumber : public BranchGenerator {
  public:
-  BranchIfNonZeroNumber(LCodeGen* codegen, const VRegister& value,
-                        const VRegister& scratch)
-      : BranchGenerator(codegen), value_(value), scratch_(scratch) {}
+  BranchIfNonZeroNumber(LCodeGen* codegen, const FPRegister& value,
+                        const FPRegister& scratch)
+    : BranchGenerator(codegen), value_(value), scratch_(scratch) { }
 
   virtual void Emit(Label* label) const {
     __ Fabs(scratch_, value_);
@@ -198,8 +198,8 @@ class BranchIfNonZeroNumber : public BranchGenerator {
   }
 
  private:
-  const VRegister& value_;
-  const VRegister& scratch_;
+  const FPRegister& value_;
+  const FPRegister& scratch_;
 };
 
 
@@ -547,7 +547,7 @@ void LCodeGen::SaveCallerDoubles() {
   while (!iterator.Done()) {
     // TODO(all): Is this supposed to save just the callee-saved doubles? It
     // looks like it's saving all of them.
-    VRegister value = VRegister::from_code(iterator.Current());
+    FPRegister value = FPRegister::from_code(iterator.Current());
     __ Poke(value, count * kDoubleSize);
     iterator.Advance();
     count++;
@@ -565,7 +565,7 @@ void LCodeGen::RestoreCallerDoubles() {
   while (!iterator.Done()) {
     // TODO(all): Is this supposed to restore just the callee-saved doubles? It
     // looks like it's restoring all of them.
-    VRegister value = VRegister::from_code(iterator.Current());
+    FPRegister value = FPRegister::from_code(iterator.Current());
     __ Peek(value, count * kDoubleSize);
     iterator.Advance();
     count++;
@@ -1135,7 +1135,7 @@ MemOperand LCodeGen::ToMemOperand(LOperand* op, StackMode stack_mode) const {
           (pushed_arguments_ + GetTotalFrameSlotCount()) * kPointerSize -
           StandardFrameConstants::kFixedFrameSizeAboveFp;
       int jssp_offset = fp_offset + jssp_offset_to_fp;
-      if (masm()->IsImmLSScaled(jssp_offset, kPointerSizeLog2)) {
+      if (masm()->IsImmLSScaled(jssp_offset, LSDoubleWord)) {
         return MemOperand(masm()->StackPointer(), jssp_offset);
       }
     }
@@ -1274,10 +1274,11 @@ void LCodeGen::EmitTestAndBranch(InstrType instr,
   EmitBranchGeneric(instr, branch);
 }
 
-template <class InstrType>
+
+template<class InstrType>
 void LCodeGen::EmitBranchIfNonZeroNumber(InstrType instr,
-                                         const VRegister& value,
-                                         const VRegister& scratch) {
+                                         const FPRegister& value,
+                                         const FPRegister& scratch) {
   BranchIfNonZeroNumber branch(this, value, scratch);
   EmitBranchGeneric(instr, branch);
 }
@@ -2278,7 +2279,7 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
 
 void LCodeGen::DoCmpHoleAndBranchD(LCmpHoleAndBranchD* instr) {
   DCHECK(instr->hydrogen()->representation().IsDouble());
-  VRegister object = ToDoubleRegister(instr->object());
+  FPRegister object = ToDoubleRegister(instr->object());
   Register temp = ToRegister(instr->temp());
 
   // If we don't have a NaN, we don't have the hole, so branch now to avoid the
@@ -3275,7 +3276,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
   if (instr->hydrogen()->representation().IsDouble()) {
     DCHECK(access.IsInobject());
-    VRegister result = ToDoubleRegister(instr->result());
+    FPRegister result = ToDoubleRegister(instr->result());
     __ Ldr(result, FieldMemOperand(object, offset));
     return;
   }
@@ -3435,7 +3436,7 @@ void LCodeGen::DoMathAbsTagged(LMathAbsTagged* instr) {
 
   // The result is the magnitude (abs) of the smallest value a smi can
   // represent, encoded as a double.
-  __ Mov(result_bits, bit_cast<uint64_t>(static_cast<double>(0x80000000)));
+  __ Mov(result_bits, double_to_rawbits(0x80000000));
   __ B(deferred->allocation_entry());
 
   __ Bind(deferred->exit());
@@ -4977,7 +4978,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     DCHECK(access.IsInobject());
     DCHECK(!instr->hydrogen()->has_transition());
     DCHECK(!instr->hydrogen()->NeedsWriteBarrier());
-    VRegister value = ToDoubleRegister(instr->value());
+    FPRegister value = ToDoubleRegister(instr->value());
     __ Str(value, FieldMemOperand(object, offset));
     return;
   }
@@ -5015,7 +5016,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   if (FLAG_unbox_double_fields && representation.IsDouble()) {
     DCHECK(access.IsInobject());
-    VRegister value = ToDoubleRegister(instr->value());
+    FPRegister value = ToDoubleRegister(instr->value());
     __ Str(value, FieldMemOperand(object, offset));
   } else if (representation.IsSmi() &&
              instr->hydrogen()->value()->representation().IsInteger32()) {

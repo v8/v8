@@ -225,9 +225,6 @@ v8_executable("cctest") {
       "test-js-arm64-variables.cc",
       "test-run-wasm-relocation-arm64.cc",
       "test-simulator-arm64.cc",
-      "test-simulator-neon-arm64.cc",
-      "test-simulator-neon-inputs-arm64.h",
-      "test-simulator-neon-traces-arm64.h",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
     ]

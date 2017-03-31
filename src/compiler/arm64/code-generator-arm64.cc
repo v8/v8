@@ -257,7 +257,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       int from_sp = offset.offset() + frame_access_state()->GetSPToFPOffset();
       // Convert FP-offsets to SP-offsets if it results in better code.
       if (Assembler::IsImmLSUnscaled(from_sp) ||
-          Assembler::IsImmLSScaled(from_sp, 3)) {
+          Assembler::IsImmLSScaled(from_sp, LSDoubleWord)) {
         offset = FrameOffset::FromStackPointer(from_sp);
       }
     }
@@ -1901,11 +1901,11 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   }
 
   // Save FP registers.
-  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
+  CPURegList saves_fp = CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
                                    descriptor->CalleeSavedFPRegisters());
   int saved_count = saves_fp.Count();
   if (saved_count != 0) {
-    DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedV().list());
+    DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedFP().list());
     frame->AllocateSavedCalleeRegisterSlots(saved_count *
                                             (kDoubleSize / kPointerSize));
   }
@@ -1977,11 +1977,11 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   // Save FP registers.
-  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
+  CPURegList saves_fp = CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
                                    descriptor->CalleeSavedFPRegisters());
   int saved_count = saves_fp.Count();
   if (saved_count != 0) {
-    DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedV().list());
+    DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedFP().list());
     __ PushCPURegList(saves_fp);
   }
   // Save registers.
@@ -2007,7 +2007,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   }
 
   // Restore fp registers.
-  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
+  CPURegList saves_fp = CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
                                    descriptor->CalleeSavedFPRegisters());
   if (saves_fp.Count() != 0) {
     __ PopCPURegList(saves_fp);
@@ -2107,7 +2107,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPRegister()) {
-        VRegister dst = g.ToDoubleRegister(destination).S();
+        FPRegister dst = g.ToDoubleRegister(destination).S();
         __ Fmov(dst, src.ToFloat32());
       } else {
         DCHECK(destination->IsFPStackSlot());
@@ -2115,7 +2115,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ Str(wzr, g.ToMemOperand(destination, masm()));
         } else {
           UseScratchRegisterScope scope(masm());
-          VRegister temp = scope.AcquireS();
+          FPRegister temp = scope.AcquireS();
           __ Fmov(temp, src.ToFloat32());
           __ Str(temp, g.ToMemOperand(destination, masm()));
         }
@@ -2123,7 +2123,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
       if (destination->IsFPRegister()) {
-        VRegister dst = g.ToDoubleRegister(destination);
+        FPRegister dst = g.ToDoubleRegister(destination);
         __ Fmov(dst, src.ToFloat64());
       } else {
         DCHECK(destination->IsFPStackSlot());
@@ -2131,16 +2131,16 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ Str(xzr, g.ToMemOperand(destination, masm()));
         } else {
           UseScratchRegisterScope scope(masm());
-          VRegister temp = scope.AcquireD();
+          FPRegister temp = scope.AcquireD();
           __ Fmov(temp, src.ToFloat64());
           __ Str(temp, g.ToMemOperand(destination, masm()));
         }
       }
     }
   } else if (source->IsFPRegister()) {
-    VRegister src = g.ToDoubleRegister(source);
+    FPRegister src = g.ToDoubleRegister(source);
     if (destination->IsFPRegister()) {
-      VRegister dst = g.ToDoubleRegister(destination);
+      FPRegister dst = g.ToDoubleRegister(destination);
       __ Fmov(dst, src);
     } else {
       DCHECK(destination->IsFPStackSlot());
@@ -2153,7 +2153,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ Ldr(g.ToDoubleRegister(destination), src);
     } else {
       UseScratchRegisterScope scope(masm());
-      VRegister temp = scope.AcquireD();
+      FPRegister temp = scope.AcquireD();
       __ Ldr(temp, src);
       __ Str(temp, g.ToMemOperand(destination, masm()));
     }
@@ -2197,10 +2197,10 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ Str(temp_1, src);
   } else if (source->IsFPRegister()) {
     UseScratchRegisterScope scope(masm());
-    VRegister temp = scope.AcquireD();
-    VRegister src = g.ToDoubleRegister(source);
+    FPRegister temp = scope.AcquireD();
+    FPRegister src = g.ToDoubleRegister(source);
     if (destination->IsFPRegister()) {
-      VRegister dst = g.ToDoubleRegister(destination);
+      FPRegister dst = g.ToDoubleRegister(destination);
       __ Fmov(temp, src);
       __ Fmov(src, dst);
       __ Fmov(dst, temp);
