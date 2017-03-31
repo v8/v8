@@ -103,13 +103,13 @@ class Arm64OperandGenerator final : public OperandGenerator {
       case kArithmeticImm:
         return Assembler::IsImmAddSub(value);
       case kLoadStoreImm8:
-        return IsLoadStoreImmediate(value, LSByte);
+        return IsLoadStoreImmediate(value, 0);
       case kLoadStoreImm16:
-        return IsLoadStoreImmediate(value, LSHalfword);
+        return IsLoadStoreImmediate(value, 1);
       case kLoadStoreImm32:
-        return IsLoadStoreImmediate(value, LSWord);
+        return IsLoadStoreImmediate(value, 2);
       case kLoadStoreImm64:
-        return IsLoadStoreImmediate(value, LSDoubleWord);
+        return IsLoadStoreImmediate(value, 3);
       case kNoImmediate:
         return false;
       case kShift32Imm:  // Fall through.
@@ -130,7 +130,7 @@ class Arm64OperandGenerator final : public OperandGenerator {
   }
 
  private:
-  bool IsLoadStoreImmediate(int64_t value, LSDataSize size) {
+  bool IsLoadStoreImmediate(int64_t value, unsigned size) {
     return Assembler::IsImmLSScaled(value, size) ||
            Assembler::IsImmLSUnscaled(value);
   }

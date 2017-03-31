@@ -147,8 +147,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 // See call site for description.
 static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
                                           Register right, Register scratch,
-                                          FPRegister double_scratch,
-                                          Label* slow, Condition cond) {
+                                          VRegister double_scratch, Label* slow,
+                                          Condition cond) {
   DCHECK(!AreAliased(left, right, scratch));
   Label not_identical, return_equal, heap_number;
   Register result = x0;
@@ -292,12 +292,9 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
 
 
 // See call site for description.
-static void EmitSmiNonsmiComparison(MacroAssembler* masm,
-                                    Register left,
-                                    Register right,
-                                    FPRegister left_d,
-                                    FPRegister right_d,
-                                    Label* slow,
+static void EmitSmiNonsmiComparison(MacroAssembler* masm, Register left,
+                                    Register right, VRegister left_d,
+                                    VRegister right_d, Label* slow,
                                     bool strict) {
   DCHECK(!AreAliased(left_d, right_d));
   DCHECK((left.is(x0) && right.is(x1)) ||
@@ -476,8 +473,8 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   // In case 3, we have found out that we were dealing with a number-number
   // comparison. The double values of the numbers have been loaded, right into
   // rhs_d, left into lhs_d.
-  FPRegister rhs_d = d0;
-  FPRegister lhs_d = d1;
+  VRegister rhs_d = d0;
+  VRegister lhs_d = d1;
   EmitSmiNonsmiComparison(masm, lhs, rhs, lhs_d, rhs_d, &slow, strict());
 
   __ Bind(&both_loaded_as_doubles);
@@ -613,7 +610,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
 void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   CPURegList saved_regs = kCallerSaved;
-  CPURegList saved_fp_regs = kCallerSavedFP;
+  CPURegList saved_fp_regs = kCallerSavedV;
 
   // We don't allow a GC during a store buffer overflow so there is no need to
   // store the registers in any particular way, but we do have to store and
@@ -686,12 +683,12 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   Register exponent_integer = MathPowIntegerDescriptor::exponent();
   DCHECK(exponent_integer.is(x12));
   Register saved_lr = x19;
-  FPRegister result_double = d0;
-  FPRegister base_double = d0;
-  FPRegister exponent_double = d1;
-  FPRegister base_double_copy = d2;
-  FPRegister scratch1_double = d6;
-  FPRegister scratch0_double = d7;
+  VRegister result_double = d0;
+  VRegister base_double = d0;
+  VRegister exponent_double = d1;
+  VRegister base_double_copy = d2;
+  VRegister scratch1_double = d6;
+  VRegister scratch0_double = d7;
 
   // A fast-path for integer exponents.
   Label exponent_is_smi, exponent_is_integer;
@@ -1649,8 +1646,8 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   Register result = x0;
   Register rhs = x0;
   Register lhs = x1;
-  FPRegister rhs_d = d0;
-  FPRegister lhs_d = d1;
+  VRegister rhs_d = d0;
+  VRegister lhs_d = d1;
 
   if (left() == CompareICState::SMI) {
     __ JumpIfNotSmi(lhs, &miss);
@@ -2109,7 +2106,7 @@ RecordWriteStub::RegisterAllocation::RegisterAllocation(Register object,
       address_(address),
       scratch0_(scratch),
       saved_regs_(kCallerSaved),
-      saved_fp_regs_(kCallerSavedFP) {
+      saved_fp_regs_(kCallerSavedV) {
   DCHECK(!AreAliased(scratch, object, address));
 
   // The SaveCallerSaveRegisters method needs to save caller-saved

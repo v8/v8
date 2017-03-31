@@ -37,6 +37,8 @@ deps = {
     Var("chromium_url") + "/external/github.com/tc39/test262.git" + "@" + "975e54de17ede3d8802dd7411181dbbc29147308",
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
+  "v8/test/cctest/traces-arm64":
+    "https://git.linaro.org/arm/vixl-simulator-traces.git" + "@" + "6168e7e1eec52c9cb0a62f87f94df0582dc48aa8",
   "v8/tools/clang":
     Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "5bc7c5efbb948c4f517dcfe026613584fcbfad09",
   "v8/test/wasm-js":
