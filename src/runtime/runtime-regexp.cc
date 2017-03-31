@@ -1046,7 +1046,7 @@ class VectorBackedMatch : public String::Match {
  public:
   VectorBackedMatch(Isolate* isolate, Handle<String> subject,
                     Handle<String> match, int match_position,
-                    std::vector<Handle<Object>>* captures,
+                    ZoneVector<Handle<Object>>* captures,
                     Handle<Object> groups_obj)
       : isolate_(isolate),
         match_(match),
@@ -1105,7 +1105,7 @@ class VectorBackedMatch : public String::Match {
   Handle<String> subject_;
   Handle<String> match_;
   const int match_position_;
-  std::vector<Handle<Object>>* captures_;
+  ZoneVector<Handle<Object>>* captures_;
 
   bool has_named_captures_;
   Handle<JSReceiver> groups_obj_;
@@ -1839,8 +1839,8 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     const uint32_t position =
         std::min(PositiveNumberToUint32(*position_obj), length);
 
-    std::vector<Handle<Object>> captures;
-    captures.reserve(captures_length);
+    // Do not reserve capacity since captures_length is user-controlled.
+    ZoneVector<Handle<Object>> captures(&zone);
 
     for (int n = 0; n < captures_length; n++) {
       Handle<Object> capture;
