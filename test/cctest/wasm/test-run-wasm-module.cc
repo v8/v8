@@ -700,9 +700,7 @@ TEST(TestInterruptLoop) {
             ModuleOrigin::kWasmOrigin);
     CHECK(!instance.is_null());
 
-    MaybeHandle<JSArrayBuffer> maybe_memory =
-        GetInstanceMemory(isolate, instance);
-    Handle<JSArrayBuffer> memory = maybe_memory.ToHandleChecked();
+    Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
     int32_t* memory_array = reinterpret_cast<int32_t*>(memory->backing_store());
 
     InterruptThread thread(isolate, memory_array);
@@ -1099,9 +1097,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
             isolate, &thrower, buffer.begin(), buffer.end(),
             ModuleOrigin::kWasmOrigin);
     CHECK(!instance.is_null());
-    MaybeHandle<JSArrayBuffer> maybe_memory =
-        GetInstanceMemory(isolate, instance);
-    Handle<JSArrayBuffer> memory = maybe_memory.ToHandleChecked();
+    Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
 
     // Fake the Embedder flow by creating a memory object, externalize and grow.
     Handle<WasmMemoryObject> mem_obj =
@@ -1115,7 +1111,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     if (!memory->has_guard_region()) v8::Utils::ToLocal(memory)->Externalize();
     void* backing_store = memory->backing_store();
     uint64_t byte_length = NumberToSize(memory->byte_length());
-    uint32_t result = GrowWebAssemblyMemory(isolate, mem_obj, 4);
+    uint32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 4);
     CHECK_EQ(16, result);
     if (!memory->has_guard_region()) {
       isolate->array_buffer_allocator()->Free(backing_store, byte_length);

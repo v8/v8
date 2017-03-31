@@ -646,8 +646,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
                                              : "maximum memory size exceeded");
     return;
   }
-  int32_t ret = i::wasm::GrowWebAssemblyMemory(
-      i_isolate, receiver, static_cast<uint32_t>(delta_size));
+  int32_t ret = i::WasmMemoryObject::Grow(i_isolate, receiver,
+                                          static_cast<uint32_t>(delta_size));
   if (ret == -1) {
     thrower.RangeError("Unable to grow instance memory.");
     return;

@@ -45,10 +45,8 @@ RUNTIME_FUNCTION(Runtime_WasmMemorySize) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
-  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
-                                      isolate);
-  return *isolate->factory()->NewNumberFromInt(
-      wasm::GetInstanceMemorySize(isolate, instance));
+  int32_t mem_size = GetWasmInstanceOnStackTop(isolate)->GetMemorySize();
+  return *isolate->factory()->NewNumberFromInt(mem_size);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
@@ -63,7 +61,7 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   isolate->set_context(instance->compiled_module()->ptr_to_native_context());
 
   return *isolate->factory()->NewNumberFromInt(
-      wasm::GrowMemory(isolate, instance, delta_pages));
+      WasmInstanceObject::GrowMemory(isolate, instance, delta_pages));
 }
 
 Object* ThrowRuntimeError(Isolate* isolate, int message_id, int byte_offset,

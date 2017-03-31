@@ -419,24 +419,12 @@ int GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
 // Returns nullptr on failing to get owning instance.
 WasmInstanceObject* GetOwningWasmInstance(Code* code);
 
-MaybeHandle<JSArrayBuffer> GetInstanceMemory(
-    Isolate* isolate, Handle<WasmInstanceObject> instance);
-
-int32_t GetInstanceMemorySize(Isolate* isolate,
-                              Handle<WasmInstanceObject> instance);
-
-int32_t GrowInstanceMemory(Isolate* isolate,
-                           Handle<WasmInstanceObject> instance, uint32_t pages);
-
-Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
+Handle<JSArrayBuffer> NewArrayBuffer(Isolate*, size_t size,
                                      bool enable_guard_regions);
 
-int32_t GrowWebAssemblyMemory(Isolate* isolate,
-                              Handle<WasmMemoryObject> receiver,
-                              uint32_t pages);
-
-int32_t GrowMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
-                   uint32_t pages);
+Handle<JSArrayBuffer> SetupArrayBuffer(Isolate*, void* backing_store,
+                                       size_t size, bool is_external,
+                                       bool enable_guard_regions);
 
 void DetachWebAssemblyMemoryBuffer(Isolate* isolate,
                                    Handle<JSArrayBuffer> buffer);

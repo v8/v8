@@ -115,8 +115,7 @@ class WasmMemoryObject : public JSObject {
                                       Handle<JSArrayBuffer> buffer,
                                       int32_t maximum);
 
-  static bool Grow(Isolate* isolate, Handle<WasmMemoryObject> memory,
-                   uint32_t count);
+  static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
 };
 
 // Representation of a WebAssembly.Instance JavaScript-level object.
@@ -149,11 +148,16 @@ class WasmInstanceObject : public JSObject {
 
   // Get the debug info associated with the given wasm object.
   // If no debug info exists yet, it is created automatically.
-  static Handle<WasmDebugInfo> GetOrCreateDebugInfo(
-      Handle<WasmInstanceObject> instance);
+  static Handle<WasmDebugInfo> GetOrCreateDebugInfo(Handle<WasmInstanceObject>);
 
-  static Handle<WasmInstanceObject> New(
-      Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
+  static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmCompiledModule>);
+
+  int32_t GetMemorySize();
+
+  static int32_t GrowMemory(Isolate*, Handle<WasmInstanceObject>,
+                            uint32_t pages);
+
+  uint32_t GetMaxMemoryPages();
 };
 
 // Representation of an exported WASM function.
