@@ -1249,7 +1249,7 @@ class InstantiationHelper {
     // Set up the indirect function tables for the new instance.
     //--------------------------------------------------------------------------
     if (function_table_count > 0)
-      InitializeTables(code_table, instance, &code_specialization);
+      InitializeTables(instance, &code_specialization);
 
     //--------------------------------------------------------------------------
     // Set up the memory for the new instance.
@@ -2054,8 +2054,7 @@ class InstantiationHelper {
     }
   }
 
-  void InitializeTables(Handle<FixedArray> code_table,
-                        Handle<WasmInstanceObject> instance,
+  void InitializeTables(Handle<WasmInstanceObject> instance,
                         CodeSpecialization* code_specialization) {
     int function_table_count =
         static_cast<int>(module_->function_tables.size());
