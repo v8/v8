@@ -165,6 +165,19 @@ bool CodeAssembler::IsFloat64RoundTruncateSupported() const {
   return raw_assembler()->machine()->Float64RoundTruncate().IsSupported();
 }
 
+bool CodeAssembler::IsInt32AbsWithOverflowSupported() const {
+  return raw_assembler()->machine()->Int32AbsWithOverflow().IsSupported();
+}
+
+bool CodeAssembler::IsInt64AbsWithOverflowSupported() const {
+  return raw_assembler()->machine()->Int64AbsWithOverflow().IsSupported();
+}
+
+bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
+  return Is64() ? IsInt64AbsWithOverflowSupported()
+                : IsInt32AbsWithOverflowSupported();
+}
+
 Node* CodeAssembler::Int32Constant(int32_t value) {
   return raw_assembler()->Int32Constant(value);
 }

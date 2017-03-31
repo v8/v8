@@ -1126,6 +1126,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitWord32ReverseBits(node);
     case IrOpcode::kWord32ReverseBytes:
       return MarkAsWord32(node), VisitWord32ReverseBytes(node);
+    case IrOpcode::kInt32AbsWithOverflow:
+      return MarkAsWord32(node), VisitInt32AbsWithOverflow(node);
     case IrOpcode::kWord32Popcnt:
       return MarkAsWord32(node), VisitWord32Popcnt(node);
     case IrOpcode::kWord64Popcnt:
@@ -1152,6 +1154,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitWord64ReverseBits(node);
     case IrOpcode::kWord64ReverseBytes:
       return MarkAsWord64(node), VisitWord64ReverseBytes(node);
+    case IrOpcode::kInt64AbsWithOverflow:
+      return MarkAsWord64(node), VisitInt64AbsWithOverflow(node);
     case IrOpcode::kWord64Equal:
       return VisitWord64Equal(node);
     case IrOpcode::kInt32Add:
@@ -2392,6 +2396,8 @@ void InstructionSelector::VisitProjection(Node* node) {
     case IrOpcode::kWord32PairShl:
     case IrOpcode::kWord32PairShr:
     case IrOpcode::kWord32PairSar:
+    case IrOpcode::kInt32AbsWithOverflow:
+    case IrOpcode::kInt64AbsWithOverflow:
       if (ProjectionIndexOf(node->op()) == 0u) {
         Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
       } else {

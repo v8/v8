@@ -2782,6 +2782,14 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   Emit(code, 1, outputs, input_count, inputs, 2, temp);
 }
 
+void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

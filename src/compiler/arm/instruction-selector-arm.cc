@@ -2483,6 +2483,14 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 SIMD_FORMAT_LIST(SIMD_VISIT_SELECT_OP)
 #undef SIMD_VISIT_SELECT_OP
 
+void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

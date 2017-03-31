@@ -380,6 +380,7 @@
 #define MACHINE_UNOP_32_LIST(V) \
   V(Word32Clz)                  \
   V(Word32Ctz)                  \
+  V(Int32AbsWithOverflow)       \
   V(Word32ReverseBits)          \
   V(Word32ReverseBytes)
 
@@ -499,6 +500,7 @@
   V(Word64Ctz)                  \
   V(Word64ReverseBits)          \
   V(Word64ReverseBytes)         \
+  V(Int64AbsWithOverflow)       \
   V(BitcastTaggedToWord)        \
   V(BitcastWordToTagged)        \
   V(BitcastWordToTaggedSigned)  \

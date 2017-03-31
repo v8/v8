@@ -439,6 +439,19 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
 #undef UINTPTR_BINOP
 
+  Node* Int32AbsWithOverflow(Node* a) {
+    return AddNode(machine()->Int32AbsWithOverflow().op(), a);
+  }
+
+  Node* Int64AbsWithOverflow(Node* a) {
+    return AddNode(machine()->Int64AbsWithOverflow().op(), a);
+  }
+
+  Node* IntPtrAbsWithOverflow(Node* a) {
+    return kPointerSize == 8 ? Int64AbsWithOverflow(a)
+                             : Int32AbsWithOverflow(a);
+  }
+
   Node* Float32Add(Node* a, Node* b) {
     return AddNode(machine()->Float32Add(), a, b);
   }

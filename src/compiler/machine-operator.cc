@@ -346,6 +346,8 @@ MachineType AtomicCompareExchangeRepresentationOf(Operator const* op) {
   V(Word64ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)   \
   V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)   \
+  V(Int32AbsWithOverflow, Operator::kNoProperties, 1, 0, 1) \
+  V(Int64AbsWithOverflow, Operator::kNoProperties, 1, 0, 1) \
   V(Word32Popcnt, Operator::kNoProperties, 1, 0, 1)         \
   V(Word64Popcnt, Operator::kNoProperties, 1, 0, 1)         \
   V(Float32RoundDown, Operator::kNoProperties, 1, 0, 1)     \

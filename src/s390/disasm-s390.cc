@@ -1067,10 +1067,10 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
       break;
     }
     case LPGR:
-      Format(instr, "lpgr\t'r1, 'r2");
+      Format(instr, "lpgr\t'r5,'r6");
       break;
     case LPGFR:
-      Format(instr, "lpgfr\t'r1,'r2");
+      Format(instr, "lpgfr\t'r5,'r6");
       break;
     default:
       return false;

@@ -131,13 +131,15 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord64ReverseBits = 1u << 17,
     kWord32ReverseBytes = 1u << 18,
     kWord64ReverseBytes = 1u << 19,
-    kAllOptionalOps = kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
-                      kFloat64RoundUp | kFloat32RoundTruncate |
-                      kFloat64RoundTruncate | kFloat64RoundTiesAway |
-                      kFloat32RoundTiesEven | kFloat64RoundTiesEven |
-                      kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
-                      kWord32ReverseBits | kWord64ReverseBits |
-                      kWord32ReverseBytes | kWord64ReverseBytes
+    kInt32AbsWithOverflow = 1u << 20,
+    kInt64AbsWithOverflow = 1u << 21,
+    kAllOptionalOps =
+        kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
+        kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
+        kFloat64RoundTiesAway | kFloat32RoundTiesEven | kFloat64RoundTiesEven |
+        kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
+        kWord32ReverseBits | kWord64ReverseBits | kWord32ReverseBytes |
+        kWord64ReverseBytes | kInt32AbsWithOverflow | kInt64AbsWithOverflow
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -232,6 +234,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const OptionalOperator Word64ReverseBits();
   const OptionalOperator Word32ReverseBytes();
   const OptionalOperator Word64ReverseBytes();
+  const OptionalOperator Int32AbsWithOverflow();
+  const OptionalOperator Int64AbsWithOverflow();
   bool Word32ShiftIsSafe() const { return flags_ & kWord32ShiftIsSafe; }
 
   const Operator* Word64And();

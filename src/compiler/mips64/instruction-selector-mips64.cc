@@ -2642,6 +2642,14 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

@@ -1270,6 +1270,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kWord32Ctz:
     case IrOpcode::kWord32ReverseBits:
     case IrOpcode::kWord32ReverseBytes:
+    case IrOpcode::kInt32AbsWithOverflow:
     case IrOpcode::kWord32Popcnt:
     case IrOpcode::kWord64And:
     case IrOpcode::kWord64Or:
@@ -1283,6 +1284,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kWord64Ctz:
     case IrOpcode::kWord64ReverseBits:
     case IrOpcode::kWord64ReverseBytes:
+    case IrOpcode::kInt64AbsWithOverflow:
     case IrOpcode::kWord64Equal:
     case IrOpcode::kInt32Add:
     case IrOpcode::kInt32AddWithOverflow:

@@ -48,36 +48,45 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 
     Bind(&if_xissmi);
     {
-      // Check if {x} is already positive.
-      Label if_xispositive(this), if_xisnotpositive(this);
-      BranchIfSmiLessThanOrEqual(SmiConstant(Smi::FromInt(0)), x,
-                                 &if_xispositive, &if_xisnotpositive);
+      Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
+      Node* pair = NULL;
 
-      Bind(&if_xispositive);
-      {
-        // Just return the input {x}.
-        Return(x);
-      }
-
-      Bind(&if_xisnotpositive);
-      {
-        // Try to negate the {x} value.
-        Node* pair =
-            IntPtrSubWithOverflow(IntPtrConstant(0), BitcastTaggedToWord(x));
+      // check if support abs function
+      if (IsIntPtrAbsWithOverflowSupported()) {
+        pair = IntPtrAbsWithOverflow(x);
         Node* overflow = Projection(1, pair);
-        Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
         Branch(overflow, &if_overflow, &if_notoverflow);
+      } else {
+        // Check if {x} is already positive.
+        Label if_xispositive(this), if_xisnotpositive(this);
+        BranchIfSmiLessThanOrEqual(SmiConstant(Smi::FromInt(0)), x,
+                                   &if_xispositive, &if_xisnotpositive);
 
-        Bind(&if_notoverflow);
+        Bind(&if_xispositive);
         {
-          // There is a Smi representation for negated {x}.
-          Node* result = Projection(0, pair);
-          Return(BitcastWordToTagged(result));
+          // Just return the input {x}.
+          Return(x);
         }
 
-        Bind(&if_overflow);
-        { Return(NumberConstant(0.0 - Smi::kMinValue)); }
+        Bind(&if_xisnotpositive);
+        {
+          // Try to negate the {x} value.
+          pair =
+              IntPtrSubWithOverflow(IntPtrConstant(0), BitcastTaggedToWord(x));
+          Node* overflow = Projection(1, pair);
+          Branch(overflow, &if_overflow, &if_notoverflow);
+        }
       }
+
+      Bind(&if_notoverflow);
+      {
+        // There is a Smi representation for negated {x}.
+        Node* result = Projection(0, pair);
+        Return(BitcastWordToTagged(result));
+      }
+
+      Bind(&if_overflow);
+      { Return(NumberConstant(0.0 - Smi::kMinValue)); }
     }
 
     Bind(&if_xisnotsmi);

@@ -2469,6 +2469,14 @@ void InstructionSelector::VisitS32x4Select(Node* node) {
        g.UseRegister(node->InputAt(2)));
 }
 
+void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

@@ -167,6 +167,9 @@ typedef std::function<void()> CodeAssemblerCallback;
   V(Float64RoundTruncate)               \
   V(Word32Clz)                          \
   V(Word32Not)                          \
+  V(Int32AbsWithOverflow)               \
+  V(Int64AbsWithOverflow)               \
+  V(IntPtrAbsWithOverflow)              \
   V(Word32BinaryNot)
 
 // A "public" interface used by components outside of compiler directory to
@@ -201,6 +204,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool IsFloat64RoundDownSupported() const;
   bool IsFloat64RoundTiesEvenSupported() const;
   bool IsFloat64RoundTruncateSupported() const;
+  bool IsInt32AbsWithOverflowSupported() const;
+  bool IsInt64AbsWithOverflowSupported() const;
+  bool IsIntPtrAbsWithOverflowSupported() const;
 
   // Shortened aliases for use in CodeAssembler subclasses.
   typedef CodeAssemblerLabel Label;

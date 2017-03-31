@@ -309,6 +309,8 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
         case kS390_Add64:
         case kS390_Sub32:
         case kS390_Sub64:
+        case kS390_Abs64:
+        case kS390_Abs32:
           return overflow;
         default:
           break;
@@ -1347,6 +1349,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               Operand(offset.offset()));
       break;
     }
+    case kS390_Abs32:
+      // TODO(john.yan): zero-ext
+      __ lpr(i.OutputRegister(0), i.InputRegister(0));
+      break;
+    case kS390_Abs64:
+      __ lpgr(i.OutputRegister(0), i.InputRegister(0));
+      break;
     case kS390_And32:
       // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
@@ -1855,6 +1864,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasRegisterInput(instr, 1)) {
         __ And(r0, i.InputRegister(0), i.InputRegister(1));
       } else {
+        // detect tmlh/tmhl/tmhh case
         Operand opnd = i.InputImmediate(1);
         if (is_uint16(opnd.immediate())) {
           __ tmll(i.InputRegister(0), opnd);
