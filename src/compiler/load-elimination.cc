@@ -37,6 +37,7 @@ Aliasing QueryAlias(Node* a, Node* b) {
       break;
     }
     case IrOpcode::kFinishRegion:
+    case IrOpcode::kTypeGuard:
       return QueryAlias(a, b->InputAt(0));
     default:
       break;
@@ -53,6 +54,7 @@ Aliasing QueryAlias(Node* a, Node* b) {
       break;
     }
     case IrOpcode::kFinishRegion:
+    case IrOpcode::kTypeGuard:
       return QueryAlias(a->InputAt(0), b);
     default:
       break;
