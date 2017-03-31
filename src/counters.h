@@ -928,7 +928,8 @@ class RuntimeCallTimerScope {
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 100000, \
      51)                                                                      \
   HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,       \
-     100000, 51)
+     100000, 51)                                                              \
+  HR(array_buffer_big_allocations, V8.ArrayBufferBigAllocations, 1, 32, 32)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
