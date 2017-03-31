@@ -910,25 +910,25 @@ class RuntimeCallTimerScope {
   RuntimeCallTimer timer_;
 };
 
-#define HISTOGRAM_RANGE_LIST(HR)                                               \
-  /* Generic range histograms */                                               \
-  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)         \
-  HR(gc_idle_time_allotted_in_ms, V8.GCIdleTimeAllottedInMS, 0, 10000, 101)    \
-  HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101)  \
-  HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000,     \
-     101)                                                                      \
-  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
-  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
-  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
-  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)     \
-  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                   \
-  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                          \
-  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
-  /* Asm/Wasm. */                                                              \
-  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 10000,   \
-     51)                                                                       \
-  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1, 10000, \
-     51)
+#define HISTOGRAM_RANGE_LIST(HR)                                              \
+  /* Generic range histograms */                                              \
+  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)        \
+  HR(gc_idle_time_allotted_in_ms, V8.GCIdleTimeAllottedInMS, 0, 10000, 101)   \
+  HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101) \
+  HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000,    \
+     101)                                                                     \
+  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
+  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
+  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                      \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)    \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                  \
+  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
+  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)        \
+  /* Asm/Wasm. */                                                             \
+  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 100000, \
+     51)                                                                      \
+  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,       \
+     100000, 51)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
