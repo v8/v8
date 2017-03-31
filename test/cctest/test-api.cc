@@ -25486,6 +25486,12 @@ TEST(ExtrasUtilsObject) {
           .ToLocalChecked()
           .As<v8::Promise>();
   CHECK(rejected_but_handled_promise->HasHandler());
+
+  auto promise_states = result->Get(env.local(), v8_str("promiseStates"))
+                            .ToLocalChecked()
+                            .As<v8::String>();
+  String::Utf8Value promise_states_string(promise_states);
+  CHECK_EQ(0, strcmp(*promise_states_string, "pending fulfilled rejected"));
 }
 
 

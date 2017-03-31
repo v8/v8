@@ -218,6 +218,16 @@ extrasUtils.markPromiseAsHandled = function markPromiseAsHandled(promise) {
   %PromiseMarkAsHandled(promise);
 };
 
+extrasUtils.promiseState = function promiseState(promise) {
+  return %PromiseStatus(promise);
+};
+
+// [[PromiseState]] values (for extrasUtils.promiseState())
+// These values should be kept in sync with PromiseStatus in globals.h
+extrasUtils.kPROMISE_PENDING = 0;
+extrasUtils.kPROMISE_FULFILLED = 1;
+extrasUtils.kPROMISE_REJECTED = 2;
+
 %ToFastProperties(extrasUtils);
 
 })
