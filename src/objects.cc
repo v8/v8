@@ -14751,8 +14751,8 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   if (!it.done()) {
     os << "Source positions:\n pc offset  position\n";
     for (; !it.done(); it.Advance()) {
-      os << std::setw(10) << it.code_offset() << std::setw(10)
-         << it.source_position().ScriptOffset()
+      os << std::setw(10) << std::hex << it.code_offset() << std::dec
+         << std::setw(10) << it.source_position().ScriptOffset()
          << (it.is_statement() ? "  statement" : "") << "\n";
     }
     os << "\n";
@@ -14775,7 +14775,7 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
       os << static_cast<const void*>(instruction_start() + pc_offset) << "  ";
-      os << std::setw(4) << pc_offset << "  ";
+      os << std::setw(4) << std::hex << pc_offset << std::dec << "  ";
       table.PrintEntry(i, os);
       os << " (sp -> fp)  ";
       SafepointEntry entry = table.GetEntry(i);
@@ -14803,8 +14803,8 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 
       for (uint32_t i = 0; i < back_edges.length(); i++) {
         os << std::setw(6) << back_edges.ast_id(i).ToInt() << "  "
-           << std::setw(9) << back_edges.pc_offset(i) << "  " << std::setw(10)
-           << back_edges.loop_depth(i) << "\n";
+           << std::setw(9) << std::hex << back_edges.pc_offset(i) << std::dec
+           << "  " << std::setw(10) << back_edges.loop_depth(i) << "\n";
       }
 
       os << "\n";
