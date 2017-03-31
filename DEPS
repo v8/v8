@@ -14,7 +14,7 @@ deps = {
   "v8/third_party/icu":
     Var("chromium_url") + "/chromium/deps/icu.git" + "@" + "450be73c9ee8ae29d43d4fdc82febb2a5f62bfb5",
   "v8/third_party/instrumented_libraries":
-    Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "61065eb0db191f46bdea202e833f5cd1f1ecedcd",
+    Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "48dcb2c2397ce4fbb49f9461638a32ccf2c84ce5",
   "v8/buildtools":
     Var("chromium_url") + "/chromium/buildtools.git" + "@" + "e6b510a9daf822bbe9f922c200c58150803d2fd8",
   "v8/base/trace_event/common":
@@ -248,6 +248,16 @@ hooks = [
         'python',
         'v8/build/linux/sysroot_scripts/install-sysroot.py',
         '--running-as-hook',
+    ],
+  },
+  {
+    # Pull sanitizer-instrumented third-party libraries if requested via
+    # GYP_DEFINES.
+    'name': 'instrumented_libraries',
+    'pattern': '\\.sha1',
+    'action': [
+        'python',
+        'v8/third_party/instrumented_libraries/scripts/download_binaries.py',
     ],
   },
   {
