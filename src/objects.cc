@@ -19485,7 +19485,12 @@ bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
       data = isolate->array_buffer_allocator()->AllocateUninitialized(
           allocated_length);
     }
-    if (data == NULL) return false;
+    if (data == NULL) {
+      isolate->counters()->array_buffer_new_size_failures()->AddSample(
+          sizeof(uint64_t) * kBitsPerByte -
+          base::bits::CountLeadingZeros64(allocated_length));
+      return false;
+    }
   } else {
     data = NULL;
   }
