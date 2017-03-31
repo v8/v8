@@ -1142,14 +1142,8 @@ void AstPrinter::VisitCallNew(CallNew* node) {
 
 void AstPrinter::VisitCallRuntime(CallRuntime* node) {
   EmbeddedVector<char, 128> buf;
-  if (node->is_jsruntime()) {
-    SNPrintF(
-        buf, "CALL RUNTIME %s code = %p", node->debug_name(),
-        static_cast<void*>(isolate_->context()->get(node->context_index())));
-  } else {
-    SNPrintF(buf, "CALL RUNTIME %s", node->debug_name());
-  }
-
+  SNPrintF(buf, "CALL RUNTIME %s%s", node->debug_name(),
+           node->is_jsruntime() ? " (JS function)" : "");
   IndentedScope indent(this, buf.start(), node->position());
   PrintArguments(node->arguments());
 }
