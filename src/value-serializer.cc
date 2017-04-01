@@ -1261,16 +1261,22 @@ bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
 
   // If the bytes are verbatim what is in the flattened string, then the string
   // is successfully consumed.
-  if (tag == SerializationTag::kUtf8String && flat.IsOneByte()) {
+  if (tag == SerializationTag::kOneByteString && flat.IsOneByte()) {
     Vector<const uint8_t> chars = flat.ToOneByteVector();
     if (byte_length == static_cast<size_t>(chars.length()) &&
-        String::IsAscii(chars.begin(), chars.length()) &&
         memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
       return true;
     }
   } else if (tag == SerializationTag::kTwoByteString && flat.IsTwoByte()) {
     Vector<const uc16> chars = flat.ToUC16Vector();
     if (byte_length == static_cast<unsigned>(chars.length()) * sizeof(uc16) &&
+        memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
+      return true;
+    }
+  } else if (tag == SerializationTag::kUtf8String && flat.IsOneByte()) {
+    Vector<const uint8_t> chars = flat.ToOneByteVector();
+    if (byte_length == static_cast<size_t>(chars.length()) &&
+        String::IsAscii(chars.begin(), chars.length()) &&
         memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
       return true;
     }
