@@ -700,15 +700,27 @@ class ElementsAccessorBase : public ElementsAccessor {
     return 0;
   }
 
-  Handle<JSArray> Slice(Handle<JSObject> receiver, uint32_t start,
-                        uint32_t end) final {
+  Handle<JSObject> Slice(Handle<JSObject> receiver, uint32_t start,
+                         uint32_t end) final {
     return Subclass::SliceImpl(receiver, start, end);
   }
 
-  static Handle<JSArray> SliceImpl(Handle<JSObject> receiver,
-                                   uint32_t start, uint32_t end) {
+  Handle<JSObject> Slice(Handle<JSObject> receiver, uint32_t start,
+                         uint32_t end, Handle<JSObject> result) final {
+    return Subclass::SliceWithResultImpl(receiver, start, end, result);
+  }
+
+  static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
+                                    uint32_t end) {
     UNREACHABLE();
-    return Handle<JSArray>();
+    return Handle<JSObject>();
+  }
+
+  static Handle<JSObject> SliceWithResultImpl(Handle<JSObject> receiver,
+                                              uint32_t start, uint32_t end,
+                                              Handle<JSObject> result) {
+    UNREACHABLE();
+    return Handle<JSObject>();
   }
 
   Handle<JSArray> Splice(Handle<JSArray> receiver, uint32_t start,
@@ -2049,8 +2061,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                                   AT_START);
   }
 
-  static Handle<JSArray> SliceImpl(Handle<JSObject> receiver,
-                                   uint32_t start, uint32_t end) {
+  static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
+                                    uint32_t end) {
     Isolate* isolate = receiver->GetIsolate();
     Handle<FixedArrayBase> backing_store(receiver->elements(), isolate);
     int result_len = end < start ? 0u : end - start;
@@ -3052,6 +3064,48 @@ class TypedElementsAccessor
     ctype* data = static_cast<ctype*>(elements->DataPtr());
     std::reverse(data, data + len);
   }
+
+  static Handle<JSObject> SliceWithResultImpl(Handle<JSObject> receiver,
+                                              uint32_t start, uint32_t end,
+                                              Handle<JSObject> result) {
+    Isolate* isolate = receiver->GetIsolate();
+    DCHECK(!WasNeutered(*receiver));
+    DCHECK(result->IsJSTypedArray());
+    DCHECK(!WasNeutered(*result));
+    DCHECK_LE(start, end);
+
+    Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
+    Handle<JSTypedArray> result_array = Handle<JSTypedArray>::cast(result);
+    DCHECK_LE(end, array->length_value());
+
+    // Fast path for the same type result array
+    if (result_array->type() == array->type()) {
+      int64_t element_size = array->element_size();
+      int64_t count = end - start;
+
+      DisallowHeapAllocation no_gc;
+      BackingStore* src_elements = BackingStore::cast(receiver->elements());
+      BackingStore* result_elements =
+          BackingStore::cast(result_array->elements());
+
+      DCHECK_LE(count, result_elements->length());
+
+      uint8_t* src = static_cast<uint8_t*>(src_elements->DataPtr());
+      uint8_t* result = static_cast<uint8_t*>(result_elements->DataPtr());
+      std::memcpy(result, src + start * element_size, count * element_size);
+      return result_array;
+    }
+
+    // If the types of the two typed arrays are different, properly convert
+    // elements
+    Handle<BackingStore> from(BackingStore::cast(array->elements()), isolate);
+    ElementsAccessor* result_accessor = result_array->GetElementsAccessor();
+    for (uint32_t i = start; i < end; i++) {
+      Handle<Object> elem = AccessorClass::GetImpl(isolate, *from, i);
+      result_accessor->Set(result_array, i, *elem);
+    }
+    return result_array;
+  }
 };
 
 #define FIXED_ELEMENTS_ACCESSOR(Type, type, TYPE, ctype, size) \
@@ -3489,8 +3543,8 @@ class FastSloppyArgumentsElementsAccessor
     return Handle<FixedArray>(FixedArray::cast(parameter_map->get(1)), isolate);
   }
 
-  static Handle<JSArray> SliceImpl(Handle<JSObject> receiver, uint32_t start,
-                                   uint32_t end) {
+  static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
+                                    uint32_t end) {
     Isolate* isolate = receiver->GetIsolate();
     uint32_t result_len = end < start ? 0u : end - start;
     Handle<JSArray> result_array = isolate->factory()->NewJSArray(

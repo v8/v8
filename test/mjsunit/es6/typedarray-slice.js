@@ -68,4 +68,28 @@ for (var constructor of typedArrayConstructors) {
   assertEquals(2, slice[0]);
   assertEquals(3, slice[1]);
   assertTrue(slice instanceof constructor);
+
+  // Check that the species array must be a typed array
+  class MyTypedArray extends constructor {
+    static get[Symbol.species]() {
+      return Array;
+    }
+  }
+  var arr = new MyTypedArray([-1.0, 0, 1.1, 255, 256]);
+  assertThrows(() => arr.slice(), TypeError);
+}
+
+// Check that the result array is properly created by checking species
+for (var constructor1 of typedArrayConstructors) {
+  for (var constructor2 of typedArrayConstructors) {
+    class MyTypedArray2 extends constructor1 {
+      static get[Symbol.species]() {
+        return constructor2;
+      }
+    }
+    var arr = new MyTypedArray2([-1.0, 0, 1.1, 255, 256]);
+    var arr2 = new constructor1([-1.0, 0, 1.1, 255, 256]);
+    assertEquals(new constructor2(arr2), arr.slice(),
+                 constructor1.name + ' -> ' + constructor2.name);
+  }
 }

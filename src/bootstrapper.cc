@@ -2750,6 +2750,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kTypedArrayPrototypeLastIndexOf, 1, false);
     SimpleInstallFunction(prototype, "reverse",
                           Builtins::kTypedArrayPrototypeReverse, 0, false);
+    SimpleInstallFunction(prototype, "slice",
+                          Builtins::kTypedArrayPrototypeSlice, 2, false);
   }
 
   {  // -- T y p e d A r r a y s

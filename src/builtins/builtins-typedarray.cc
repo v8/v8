@@ -41,6 +41,83 @@ int64_t CapRelativeIndex(Handle<Object> num, int64_t minimum, int64_t maximum) {
                       : std::min<int64_t>(relative, maximum);
 }
 
+// ES7 section 22.2.4.6 TypedArrayCreate ( constructor, argumentList )
+MaybeHandle<JSTypedArray> TypedArrayCreate(Isolate* isolate,
+                                           Handle<JSFunction> default_ctor,
+                                           int argc, Handle<Object>* argv,
+                                           const char* method_name) {
+  // 1. Let newTypedArray be ? Construct(constructor, argumentList).
+  Handle<Object> new_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, new_obj, Execution::New(default_ctor, argc, argv), JSTypedArray);
+
+  // 2. Perform ? ValidateTypedArray(newTypedArray).
+  Handle<JSTypedArray> new_array;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, new_array, JSTypedArray::Validate(isolate, new_obj, method_name),
+      JSTypedArray);
+
+  // 3. If argumentList is a List of a single Number, then
+  // If newTypedArray.[[ArrayLength]] < size, throw a TypeError exception.
+  DCHECK_IMPLIES(argc == 1, argv[0]->IsSmi());
+  if (argc == 1 && new_array->length_value() < argv[0]->Number()) {
+    const MessageTemplate::Template message =
+        MessageTemplate::kTypedArrayTooShort;
+    THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
+  }
+
+  // 4. Return newTypedArray.
+  return new_array;
+}
+
+// ES7 section 22.2.4.7 TypedArraySpeciesCreate ( exemplar, argumentList )
+MaybeHandle<JSTypedArray> TypedArraySpeciesCreate(Isolate* isolate,
+                                                  Handle<JSTypedArray> exemplar,
+                                                  int argc,
+                                                  Handle<Object>* argv,
+                                                  const char* method_name) {
+  // 1. Assert: exemplar is an Object that has a [[TypedArrayName]] internal
+  // slot.
+  DCHECK(exemplar->IsJSTypedArray());
+
+  // 2. Let defaultConstructor be the intrinsic object listed in column one of
+  // Table 51 for exemplar.[[TypedArrayName]].
+  Handle<JSFunction> default_ctor = isolate->uint8_array_fun();
+  switch (exemplar->type()) {
+#define TYPED_ARRAY_CTOR(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array: {                        \
+    default_ctor = isolate->type##_array_fun();         \
+    break;                                              \
+  }
+
+    TYPED_ARRAYS(TYPED_ARRAY_CTOR)
+#undef TYPED_ARRAY_CTOR
+    default:
+      UNREACHABLE();
+  }
+
+  // 3. Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
+  Handle<Object> ctor;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, ctor,
+      Object::SpeciesConstructor(isolate, exemplar, default_ctor),
+      JSTypedArray);
+
+  // 4. Return ? TypedArrayCreate(constructor, argumentList).
+  return TypedArrayCreate(isolate, Handle<JSFunction>::cast(ctor), argc, argv,
+                          method_name);
+}
+
+MaybeHandle<JSTypedArray> TypedArraySpeciesCreateByLength(
+    Isolate* isolate, Handle<JSTypedArray> exemplar, const char* method_name,
+    int64_t length) {
+  const int argc = 1;
+  ScopedVector<Handle<Object>> argv(argc);
+  argv[0] = isolate->factory()->NewNumberFromInt64(length);
+  return TypedArraySpeciesCreate(isolate, exemplar, argc, argv.start(),
+                                 method_name);
+}
+
 }  // namespace
 
 BUILTIN(TypedArrayPrototypeCopyWithin) {
@@ -268,6 +345,56 @@ BUILTIN(TypedArrayPrototypeReverse) {
   ElementsAccessor* elements = array->GetElementsAccessor();
   elements->Reverse(*array);
   return *array;
+}
+
+BUILTIN(TypedArrayPrototypeSlice) {
+  HandleScope scope(isolate);
+
+  Handle<JSTypedArray> array;
+  const char* method = "%TypedArray%.prototype.slice";
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+
+  int64_t len = array->length_value();
+  int64_t start = 0;
+  int64_t end = len;
+  {
+    Handle<Object> num = args.atOrUndefined(isolate, 1);
+    if (!num->IsUndefined(isolate)) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
+                                         Object::ToInteger(isolate, num));
+      start = CapRelativeIndex(num, 0, len);
+
+      num = args.atOrUndefined(isolate, 2);
+      if (!num->IsUndefined(isolate)) {
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
+                                           Object::ToInteger(isolate, num));
+        end = CapRelativeIndex(num, 0, len);
+      }
+    }
+  }
+
+  int64_t count = std::max<int64_t>(end - start, 0);
+
+  Handle<JSTypedArray> result_array;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result_array,
+      TypedArraySpeciesCreateByLength(isolate, array, method, count));
+
+  // TODO(cwhan.tunz): neutering check of the result_array should be done in
+  // TypedArraySpeciesCreate, but currently ValidateTypedArray does not throw
+  // for neutered buffer, so this is a temporary neutering check for the result
+  // array
+  if (V8_UNLIKELY(result_array->WasNeutered())) return *result_array;
+
+  // TODO(cwhan.tunz): should throw.
+  if (V8_UNLIKELY(array->WasNeutered())) return *result_array;
+
+  if (count == 0) return *result_array;
+
+  ElementsAccessor* accessor = array->GetElementsAccessor();
+  return *accessor->Slice(array, static_cast<uint32_t>(start),
+                          static_cast<uint32_t>(end), result_array);
 }
 
 }  // namespace internal

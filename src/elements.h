@@ -142,8 +142,11 @@ class ElementsAccessor {
   virtual uint32_t Unshift(Handle<JSArray> receiver,
                            Arguments* args, uint32_t unshift_size) = 0;
 
-  virtual Handle<JSArray> Slice(Handle<JSObject> receiver,
-                                uint32_t start, uint32_t end) = 0;
+  virtual Handle<JSObject> Slice(Handle<JSObject> receiver, uint32_t start,
+                                 uint32_t end) = 0;
+
+  virtual Handle<JSObject> Slice(Handle<JSObject> receiver, uint32_t start,
+                                 uint32_t end, Handle<JSObject> result) = 0;
 
   virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
                                  uint32_t start, uint32_t delete_count,

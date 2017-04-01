@@ -892,6 +892,8 @@ namespace internal {
   CPP(TypedArrayPrototypeLastIndexOf)                                          \
   /* ES6 #sec-%typedarray%.prototype.reverse */                                \
   CPP(TypedArrayPrototypeReverse)                                              \
+  /* ES6 #sec-%typedarray%.prototype.slice */                                  \
+  CPP(TypedArrayPrototypeSlice)                                                \
   /* ES6 %TypedArray%.prototype.every */                                       \
   TFJ(TypedArrayPrototypeEvery, 2, kCallbackFn, kThisArg)                      \
   /* ES6 %TypedArray%.prototype.some */                                        \

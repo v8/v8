@@ -583,49 +583,6 @@ function TypedArrayReduceRight(callback, current) {
 %FunctionSetLength(TypedArrayReduceRight, 1);
 
 
-function TypedArraySlice(start, end) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
-  var len = %_TypedArrayGetLength(this);
-
-  var relativeStart = TO_INTEGER(start);
-
-  var k;
-  if (relativeStart < 0) {
-    k = MaxSimple(len + relativeStart, 0);
-  } else {
-    k = MinSimple(relativeStart, len);
-  }
-
-  var relativeEnd;
-  if (IS_UNDEFINED(end)) {
-    relativeEnd = len;
-  } else {
-    relativeEnd = TO_INTEGER(end);
-  }
-
-  var final;
-  if (relativeEnd < 0) {
-    final = MaxSimple(len + relativeEnd, 0);
-  } else {
-    final = MinSimple(relativeEnd, len);
-  }
-
-  var count = MaxSimple(final - k, 0);
-  var array = TypedArraySpeciesCreate(this, count);
-  // The code below is the 'then' branch; the 'else' branch species
-  // a memcpy. Because V8 doesn't canonicalize NaN, the difference is
-  // unobservable.
-  var n = 0;
-  while (k < final) {
-    var kValue = this[k];
-    array[n] = kValue;
-    k++;
-    n++;
-  }
-  return array;
-}
-
-
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
   var length = arguments.length;
@@ -710,7 +667,6 @@ utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
   "map", TypedArrayMap,
   "reduce", TypedArrayReduce,
   "reduceRight", TypedArrayReduceRight,
-  "slice", TypedArraySlice,
   "some", TypedArraySome,
   "sort", TypedArraySort,
   "toLocaleString", TypedArrayToLocaleString
