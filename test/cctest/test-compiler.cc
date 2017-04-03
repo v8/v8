@@ -605,7 +605,8 @@ TEST(CompileFunctionInContextHarmonyFunctionToString) {
           fun->ToString(env.local()).ToLocalChecked();
       v8::Local<v8::String> expected = v8_str(
           "function anonymous(event\n"
-          ") {return event\n"
+          ") {\n"
+          "return event\n"
           "}");
       CHECK(expected->Equals(env.local(), result).FromJust());
     }
@@ -630,7 +631,8 @@ TEST(CompileFunctionInContextHarmonyFunctionToString) {
           fun->ToString(env.local()).ToLocalChecked();
       v8::Local<v8::String> expected = v8_str(
           "function anonymous(\n"
-          ") {return 0\n"
+          ") {\n"
+          "return 0\n"
           "}");
       CHECK(expected->Equals(env.local(), result).FromJust());
     }

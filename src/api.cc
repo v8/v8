@@ -2298,7 +2298,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     if (i::FLAG_harmony_function_tostring) {
       // Append linefeed and signal that text beyond the linefeed is not part of
       // the formal parameters.
-      brackets = factory->NewStringFromStaticChars("\n) {");
+      brackets = factory->NewStringFromStaticChars("\n) {\n");
       parameters_end_pos = source_string->length() + 1;
     } else {
       brackets = factory->NewStringFromStaticChars("){");
@@ -2309,8 +2309,8 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
   } else {
     if (i::FLAG_harmony_function_tostring) {
       source_string =
-          factory->NewStringFromStaticChars("(function anonymous(\n) {");
-      parameters_end_pos = source_string->length() - 3;
+          factory->NewStringFromStaticChars("(function anonymous(\n) {\n");
+      parameters_end_pos = source_string->length() - 4;
     } else {
       source_string = factory->NewStringFromStaticChars("(function(){");
     }
