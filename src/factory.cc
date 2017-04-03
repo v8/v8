@@ -2592,6 +2592,19 @@ Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
   return new_break_point_info;
 }
 
+Handle<StackFrameInfo> Factory::NewStackFrameInfo() {
+  Handle<StackFrameInfo> stack_frame_info =
+      Handle<StackFrameInfo>::cast(NewStruct(STACK_FRAME_INFO_TYPE));
+  stack_frame_info->set_line_number(0);
+  stack_frame_info->set_column_number(0);
+  stack_frame_info->set_script_id(0);
+  stack_frame_info->set_script_name(Smi::kZero);
+  stack_frame_info->set_script_name_or_source_url(Smi::kZero);
+  stack_frame_info->set_function_name(Smi::kZero);
+  stack_frame_info->set_flag(0);
+  return stack_frame_info;
+}
+
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
   bool strict_mode_callee = is_strict(callee->shared()->language_mode()) ||

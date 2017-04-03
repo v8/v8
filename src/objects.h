@@ -144,6 +144,7 @@
 //       - Script
 //       - DebugInfo
 //       - BreakPointInfo
+//       - StackFrameInfo
 //       - CodeCache
 //       - PrototypeInfo
 //       - Module
@@ -357,6 +358,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
   V(DEBUG_INFO_TYPE)                                            \
   V(BREAK_POINT_INFO_TYPE)                                      \
+  V(STACK_FRAME_INFO_TYPE)                                      \
   V(PROTOTYPE_INFO_TYPE)                                        \
   V(TUPLE2_TYPE)                                                \
   V(TUPLE3_TYPE)                                                \
@@ -528,6 +530,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
     promise_reaction_job_info)                                               \
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)                      \
+  V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
   V(TUPLE2, Tuple2, tuple2)                                                  \
   V(TUPLE3, Tuple3, tuple3)                                                  \
@@ -699,6 +702,7 @@ enum InstanceType {
   PROMISE_REACTION_JOB_INFO_TYPE,
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
+  STACK_FRAME_INFO_TYPE,
   PROTOTYPE_INFO_TYPE,
   TUPLE2_TYPE,
   TUPLE3_TYPE,
@@ -11283,6 +11287,42 @@ class BreakPointInfo: public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPointInfo);
 };
 
+class StackFrameInfo : public Struct {
+ public:
+  DECL_INT_ACCESSORS(line_number)
+  DECL_INT_ACCESSORS(column_number)
+  DECL_INT_ACCESSORS(script_id)
+  DECL_ACCESSORS(script_name, Object)
+  DECL_ACCESSORS(script_name_or_source_url, Object)
+  DECL_ACCESSORS(function_name, Object)
+  DECL_BOOLEAN_ACCESSORS(is_eval)
+  DECL_BOOLEAN_ACCESSORS(is_constructor)
+  DECL_INT_ACCESSORS(flag)
+
+  DECLARE_CAST(StackFrameInfo)
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(StackFrameInfo)
+  DECLARE_VERIFIER(StackFrameInfo)
+
+  static const int kLineNumberIndex = Struct::kHeaderSize;
+  static const int kColumnNumberIndex = kLineNumberIndex + kPointerSize;
+  static const int kScriptIdIndex = kColumnNumberIndex + kPointerSize;
+  static const int kScriptNameIndex = kScriptIdIndex + kPointerSize;
+  static const int kScriptNameOrSourceUrlIndex =
+      kScriptNameIndex + kPointerSize;
+  static const int kFunctionNameIndex =
+      kScriptNameOrSourceUrlIndex + kPointerSize;
+  static const int kFlagIndex = kFunctionNameIndex + kPointerSize;
+  static const int kSize = kFlagIndex + kPointerSize;
+
+ private:
+  // Bit position in the flag, from least significant bit position.
+  static const int kIsEvalBit = 0;
+  static const int kIsConstructorBit = 1;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StackFrameInfo);
+};
 
 #define VISITOR_SYNCHRONIZATION_TAGS_LIST(V)                               \
   V(kStringTable, "string_table", "(Internalized strings)")                \

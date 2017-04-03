@@ -1472,6 +1472,19 @@ void BreakPointInfo::BreakPointInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "StackFrame");
+  os << "\n - line_number: " << line_number();
+  os << "\n - column_number: " << column_number();
+  os << "\n - script_id: " << script_id();
+  os << "\n - script_name: " << Brief(script_name());
+  os << "\n - script_name_or_source_url: "
+     << Brief(script_name_or_source_url());
+  os << "\n - function_name: " << Brief(function_name());
+  os << "\n - is_eval: " << (is_eval() ? "true" : "false");
+  os << "\n - is_constructor: " << (is_constructor() ? "true" : "false");
+  os << "\n";
+}
 
 static void PrintBitMask(std::ostream& os, uint32_t value) {  // NOLINT
   for (int i = 0; i < 32; i++) {

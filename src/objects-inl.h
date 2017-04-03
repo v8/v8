@@ -5797,6 +5797,17 @@ Code* DebugInfo::DebugCode() {
 SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
 
+SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberIndex)
+SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberIndex)
+SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdIndex)
+ACCESSORS(StackFrameInfo, script_name, Object, kScriptNameIndex)
+ACCESSORS(StackFrameInfo, script_name_or_source_url, Object,
+          kScriptNameOrSourceUrlIndex)
+ACCESSORS(StackFrameInfo, function_name, Object, kFunctionNameIndex)
+SMI_ACCESSORS(StackFrameInfo, flag, kFlagIndex)
+BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
+BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
+
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,
           kOptimizedCodeMapOffset)

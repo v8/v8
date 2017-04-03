@@ -1302,6 +1302,13 @@ void BreakPointInfo::BreakPointInfoVerify() {
   CHECK(IsBreakPointInfo());
   VerifyPointer(break_point_objects());
 }
+
+void StackFrameInfo::StackFrameInfoVerify() {
+  CHECK(IsStackFrameInfo());
+  VerifyPointer(script_name());
+  VerifyPointer(script_name_or_source_url());
+  VerifyPointer(function_name());
+}
 #endif  // VERIFY_HEAP
 
 #ifdef DEBUG

@@ -2846,8 +2846,8 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   auto self = Utils::OpenHandle(this);
   auto obj = i::JSReceiver::GetElement(isolate, self, index).ToHandleChecked();
-  auto jsobj = i::Handle<i::JSObject>::cast(obj);
-  return scope.Escape(Utils::StackFrameToLocal(jsobj));
+  auto info = i::Handle<i::StackFrameInfo>::cast(obj);
+  return scope.Escape(Utils::StackFrameToLocal(info));
 }
 
 
@@ -2875,77 +2875,59 @@ Local<StackTrace> StackTrace::CurrentStackTrace(
 
 // --- S t a c k F r a m e ---
 
-static int getIntProperty(const StackFrame* f, const char* propertyName,
-                          int defaultValue) {
-  i::Isolate* isolate = Utils::OpenHandle(f)->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> self = Utils::OpenHandle(f);
-  i::Handle<i::Object> obj =
-      i::JSReceiver::GetProperty(isolate, self, propertyName).ToHandleChecked();
-  return obj->IsSmi() ? i::Smi::cast(*obj)->value() : defaultValue;
-}
-
-
 int StackFrame::GetLineNumber() const {
-  return getIntProperty(this, "lineNumber", Message::kNoLineNumberInfo);
+  int v = Utils::OpenHandle(this)->line_number();
+  return v ? v : Message::kNoLineNumberInfo;
 }
 
 
 int StackFrame::GetColumn() const {
-  return getIntProperty(this, "column", Message::kNoColumnInfo);
+  int v = Utils::OpenHandle(this)->column_number();
+  return v ? v : Message::kNoLineNumberInfo;
 }
 
 
 int StackFrame::GetScriptId() const {
-  return getIntProperty(this, "scriptId", Message::kNoScriptIdInfo);
+  int v = Utils::OpenHandle(this)->script_id();
+  return v ? v : Message::kNoScriptIdInfo;
 }
 
-
-static Local<String> getStringProperty(const StackFrame* f,
-                                       const char* propertyName) {
-  i::Isolate* isolate = Utils::OpenHandle(f)->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+Local<String> StackFrame::GetScriptName() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  i::Handle<i::JSObject> self = Utils::OpenHandle(f);
-  i::Handle<i::Object> obj =
-      i::JSReceiver::GetProperty(isolate, self, propertyName).ToHandleChecked();
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> obj(self->script_name(), isolate);
   return obj->IsString()
              ? scope.Escape(Local<String>::Cast(Utils::ToLocal(obj)))
              : Local<String>();
 }
 
 
-Local<String> StackFrame::GetScriptName() const {
-  return getStringProperty(this, "scriptName");
-}
-
-
 Local<String> StackFrame::GetScriptNameOrSourceURL() const {
-  return getStringProperty(this, "scriptNameOrSourceURL");
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> obj(self->script_name_or_source_url(), isolate);
+  return obj->IsString()
+             ? scope.Escape(Local<String>::Cast(Utils::ToLocal(obj)))
+             : Local<String>();
 }
 
 
 Local<String> StackFrame::GetFunctionName() const {
-  return getStringProperty(this, "functionName");
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> obj(self->function_name(), isolate);
+  return obj->IsString()
+             ? scope.Escape(Local<String>::Cast(Utils::ToLocal(obj)))
+             : Local<String>();
 }
 
-
-static bool getBoolProperty(const StackFrame* f, const char* propertyName) {
-  i::Isolate* isolate = Utils::OpenHandle(f)->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSObject> self = Utils::OpenHandle(f);
-  i::Handle<i::Object> obj =
-      i::JSReceiver::GetProperty(isolate, self, propertyName).ToHandleChecked();
-  return obj->IsTrue(isolate);
-}
-
-bool StackFrame::IsEval() const { return getBoolProperty(this, "isEval"); }
-
+bool StackFrame::IsEval() const { return Utils::OpenHandle(this)->is_eval(); }
 
 bool StackFrame::IsConstructor() const {
-  return getBoolProperty(this, "isConstructor");
+  return Utils::OpenHandle(this)->is_constructor();
 }
 
 

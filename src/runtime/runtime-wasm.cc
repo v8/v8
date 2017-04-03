@@ -103,19 +103,10 @@ Object* ThrowRuntimeError(Isolate* isolate, int message_id, int byte_offset,
     Handle<FixedArray> stack_elements(
         FixedArray::cast(JSArray::cast(*detailed_stack_trace_obj)->elements()));
     DCHECK_GE(stack_elements->length(), 1);
-    Handle<JSObject> top_frame(JSObject::cast(stack_elements->get(0)));
-    Handle<String> wasm_offset_key =
-        isolate->factory()->InternalizeOneByteString(
-            STATIC_CHAR_VECTOR("column"));
-    LookupIterator it(top_frame, wasm_offset_key, top_frame,
-                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-    if (it.IsFound()) {
-      DCHECK(JSReceiver::GetDataProperty(&it)->IsSmi());
-      // Make column number 1-based here.
-      Maybe<bool> data_set = JSReceiver::SetDataProperty(
-          &it, handle(Smi::FromInt(byte_offset + 1), isolate));
-      DCHECK(data_set.IsJust() && data_set.FromJust() == true);
-      USE(data_set);
+    Handle<StackFrameInfo> top_frame(
+        StackFrameInfo::cast(stack_elements->get(0)));
+    if (top_frame->column_number()) {
+      top_frame->set_column_number(byte_offset + 1);
     }
   }
 

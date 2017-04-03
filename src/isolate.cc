@@ -614,169 +614,85 @@ class CaptureStackTraceHelper {
  public:
   CaptureStackTraceHelper(Isolate* isolate,
                           StackTrace::StackTraceOptions options)
-      : isolate_(isolate) {
-    if (options & StackTrace::kColumnOffset) {
-      column_key_ =
-          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("column"));
-    }
-    if (options & StackTrace::kLineNumber) {
-      line_key_ =
-          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("lineNumber"));
-    }
-    if (options & StackTrace::kScriptId) {
-      script_id_key_ =
-          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptId"));
-    }
-    if (options & StackTrace::kScriptName) {
-      script_name_key_ =
-          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptName"));
-    }
-    if (options & StackTrace::kScriptNameOrSourceURL) {
-      script_name_or_source_url_key_ = factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("scriptNameOrSourceURL"));
-    }
-    if (options & StackTrace::kFunctionName) {
-      function_key_ = factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("functionName"));
-    }
-    if (options & StackTrace::kIsEval) {
-      eval_key_ =
-          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("isEval"));
-    }
-    if (options & StackTrace::kIsConstructor) {
-      constructor_key_ = factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("isConstructor"));
-    }
-  }
+      : isolate_(isolate), options_(options) {}
 
-  Handle<JSObject> NewStackFrameObject(FrameSummary& summ) {
+  Handle<StackFrameInfo> NewStackFrameObject(FrameSummary& summ) {
     if (summ.IsJavaScript()) return NewStackFrameObject(summ.AsJavaScript());
     if (summ.IsWasm()) return NewStackFrameObject(summ.AsWasm());
     UNREACHABLE();
-    return Handle<JSObject>::null();
+    return factory()->NewStackFrameInfo();
   }
 
-  Handle<JSObject> NewStackFrameObject(
+  Handle<StackFrameInfo> NewStackFrameObject(
       const FrameSummary::JavaScriptFrameSummary& summ) {
-    Handle<JSObject> stack_frame =
-        factory()->NewJSObject(isolate_->object_function());
+    Handle<StackFrameInfo> frame = factory()->NewStackFrameInfo();
     Handle<Script> script = Handle<Script>::cast(summ.script());
-
-    if (!line_key_.is_null()) {
+    if (options_ & StackTrace::kLineNumber) {
       Script::PositionInfo info;
       bool valid_pos = Script::GetPositionInfo(script, summ.SourcePosition(),
                                                &info, Script::WITH_OFFSET);
-
-      if (!column_key_.is_null() && valid_pos) {
-        JSObject::AddProperty(stack_frame, column_key_,
-                              handle(Smi::FromInt(info.column + 1), isolate_),
-                              NONE);
+      if (valid_pos) {
+        frame->set_line_number(info.line + 1);
+        if (options_ & StackTrace::kColumnOffset) {
+          frame->set_column_number(info.column + 1);
+        }
       }
-      JSObject::AddProperty(stack_frame, line_key_,
-                            handle(Smi::FromInt(info.line + 1), isolate_),
-                            NONE);
     }
 
-    if (!script_id_key_.is_null()) {
-      JSObject::AddProperty(stack_frame, script_id_key_,
-                            handle(Smi::FromInt(script->id()), isolate_), NONE);
+    if (options_ & StackTrace::kScriptId) frame->set_script_id(script->id());
+    if (options_ & StackTrace::kScriptName) {
+      frame->set_script_name(script->name());
     }
-
-    if (!script_name_key_.is_null()) {
-      JSObject::AddProperty(stack_frame, script_name_key_,
-                            handle(script->name(), isolate_), NONE);
+    if (options_ & StackTrace::kScriptNameOrSourceURL) {
+      frame->set_script_name_or_source_url(script->GetNameOrSourceURL());
     }
-
-    if (!script_name_or_source_url_key_.is_null()) {
-      Handle<Object> result(script->GetNameOrSourceURL(), isolate_);
-      JSObject::AddProperty(stack_frame, script_name_or_source_url_key_, result,
-                            NONE);
+    if (options_ & StackTrace::kIsEval) {
+      frame->set_is_eval(script->compilation_type() ==
+                         Script::COMPILATION_TYPE_EVAL);
     }
-
-    if (!eval_key_.is_null()) {
-      Handle<Object> is_eval = factory()->ToBoolean(
-          script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
-      JSObject::AddProperty(stack_frame, eval_key_, is_eval, NONE);
+    if (options_ & StackTrace::kFunctionName) {
+      Handle<String> name = summ.FunctionName();
+      frame->set_function_name(*name);
     }
-
-    if (!function_key_.is_null()) {
-      Handle<String> fun_name = summ.FunctionName();
-      JSObject::AddProperty(stack_frame, function_key_, fun_name, NONE);
+    if (options_ & StackTrace::kIsConstructor) {
+      frame->set_is_constructor(summ.is_constructor());
     }
-
-    if (!constructor_key_.is_null()) {
-      Handle<Object> is_constructor_obj =
-          factory()->ToBoolean(summ.is_constructor());
-      JSObject::AddProperty(stack_frame, constructor_key_, is_constructor_obj,
-                            NONE);
-    }
-    return stack_frame;
+    return frame;
   }
 
-  Handle<JSObject> NewStackFrameObject(BuiltinExitFrame* frame) {
-    Handle<JSObject> stack_frame =
-        factory()->NewJSObject(isolate_->object_function());
-    Handle<JSFunction> fun = handle(frame->function(), isolate_);
-    if (!function_key_.is_null()) {
-      Handle<Object> fun_name = JSFunction::GetDebugName(fun);
-      JSObject::AddProperty(stack_frame, function_key_, fun_name, NONE);
-    }
-
-    // We don't have a script and hence cannot set line and col positions.
-    DCHECK(!fun->shared()->script()->IsScript());
-
-    return stack_frame;
-  }
-
-  Handle<JSObject> NewStackFrameObject(
+  Handle<StackFrameInfo> NewStackFrameObject(
       const FrameSummary::WasmFrameSummary& summ) {
-    Handle<JSObject> stack_frame =
-        factory()->NewJSObject(isolate_->object_function());
+    Handle<StackFrameInfo> info = factory()->NewStackFrameInfo();
 
-    if (!function_key_.is_null()) {
+    if (options_ & StackTrace::kFunctionName) {
       Handle<WasmCompiledModule> compiled_module(
           summ.wasm_instance()->compiled_module(), isolate_);
       Handle<String> name = WasmCompiledModule::GetFunctionName(
           isolate_, compiled_module, summ.function_index());
-      JSObject::AddProperty(stack_frame, function_key_, name, NONE);
+      info->set_function_name(*name);
     }
     // Encode the function index as line number (1-based).
-    if (!line_key_.is_null()) {
-      JSObject::AddProperty(
-          stack_frame, line_key_,
-          isolate_->factory()->NewNumberFromInt(summ.function_index() + 1),
-          NONE);
+    if (options_ & StackTrace::kLineNumber) {
+      info->set_line_number(summ.function_index() + 1);
     }
     // Encode the byte offset as column (1-based).
-    if (!column_key_.is_null()) {
+    if (options_ & StackTrace::kColumnOffset) {
       int position = summ.byte_offset();
       // Make position 1-based.
       if (position >= 0) ++position;
-      JSObject::AddProperty(stack_frame, column_key_,
-                            isolate_->factory()->NewNumberFromInt(position),
-                            NONE);
+      info->set_column_number(position);
     }
-    if (!script_id_key_.is_null()) {
-      int script_id = summ.script()->id();
-      JSObject::AddProperty(stack_frame, script_id_key_,
-                            handle(Smi::FromInt(script_id), isolate_), NONE);
+    if (options_ & StackTrace::kScriptId) {
+      info->set_script_id(summ.script()->id());
     }
-
-    return stack_frame;
+    return info;
   }
 
  private:
   inline Factory* factory() { return isolate_->factory(); }
 
   Isolate* isolate_;
-  Handle<String> column_key_;
-  Handle<String> line_key_;
-  Handle<String> script_id_key_;
-  Handle<String> script_name_key_;
-  Handle<String> script_name_or_source_url_key_;
-  Handle<String> function_key_;
-  Handle<String> eval_key_;
-  Handle<String> constructor_key_;
+  StackTrace::StackTraceOptions options_;
 };
 
 Handle<JSArray> Isolate::CaptureCurrentStackTrace(
@@ -803,7 +719,8 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
           !this->context()->HasSameSecurityTokenAs(*frames[i].native_context()))
         continue;
-      Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(frames[i]);
+      Handle<StackFrameInfo> new_frame_obj =
+          helper.NewStackFrameObject(frames[i]);
       stack_trace_elems->set(frames_seen, *new_frame_obj);
       frames_seen++;
     }

@@ -321,6 +321,7 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Script> NewScript(Handle<String> source);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
+  Handle<StackFrameInfo> NewStackFrameInfo();
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,

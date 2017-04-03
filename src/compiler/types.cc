@@ -320,6 +320,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:
     case BREAK_POINT_INFO_TYPE:
+    case STACK_FRAME_INFO_TYPE:
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
