@@ -1027,6 +1027,61 @@ TEST(CompareTypeOf) {
                      LoadGolden("CompareTypeOf.golden")));
 }
 
+TEST(CompareNil) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "var a = 1;\n"
+      "return a === null;\n",
+
+      "var a = undefined;\n"
+      "return undefined === a;\n",
+
+      "var a = undefined;\n"
+      "return undefined !== a;\n",
+
+      "var a = 2;\n"
+      "return a != null;\n",
+
+      "var a = undefined;\n"
+      "return undefined == a;\n",
+
+      "var a = undefined;\n"
+      "return undefined === a ? 1 : 2;\n",
+
+      "var a = 0;\n"
+      "return null == a ? 1 : 2;\n",
+
+      "var a = 0;\n"
+      "return undefined !== a ? 1 : 2;\n",
+
+      "var a = 0;\n"
+      "return a === null ? 1 : 2;\n",
+
+      "var a = 0;\n"
+      "if (a === null) {\n"
+      "  return 1;\n"
+      "} else {\n"
+      "  return 2;\n"
+      "}\n",
+
+      "var a = 0;\n"
+      "if (a != undefined) {\n"
+      "  return 1;\n"
+      "}\n",
+
+      "var a = undefined;\n"
+      "var b = 0;\n"
+      "while (a !== undefined) {\n"
+      "  b++;\n"
+      "}\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CompareNil.golden")));
+}
+
 TEST(Delete) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());

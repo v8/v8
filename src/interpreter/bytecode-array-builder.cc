@@ -389,6 +389,36 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareUndetectable() {
+  OutputTestUndetectable();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareUndefined() {
+  OutputTestUndefined();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareNull() {
+  OutputTestNull();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareNil(Token::Value op,
+                                                       NilValue nil) {
+  if (op == Token::EQ) {
+    return CompareUndetectable();
+  } else {
+    DCHECK_EQ(Token::EQ_STRICT, op);
+    if (nil == kUndefinedValue) {
+      return CompareUndefined();
+    } else {
+      DCHECK_EQ(kNullValue, nil);
+      return CompareNull();
+    }
+  }
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CompareTypeOf(
     TestTypeOfFlags::LiteralFlag literal_flag) {
   DCHECK(literal_flag != TestTypeOfFlags::LiteralFlag::kOther);
@@ -885,11 +915,59 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNull(BytecodeLabel* label) {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotNull(
+    BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
+  OutputJumpIfNotNull(label, 0);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
     BytecodeLabel* label) {
   DCHECK(!label->is_bound());
   OutputJumpIfUndefined(label, 0);
   return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotUndefined(
+    BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
+  OutputJumpIfNotUndefined(label, 0);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNil(BytecodeLabel* label,
+                                                      Token::Value op,
+                                                      NilValue nil) {
+  if (op == Token::EQ) {
+    // TODO(rmcilroy): Implement JumpIfUndetectable.
+    return CompareUndetectable().JumpIfTrue(label);
+  } else {
+    DCHECK_EQ(Token::EQ_STRICT, op);
+    if (nil == kUndefinedValue) {
+      return JumpIfUndefined(label);
+    } else {
+      DCHECK_EQ(kNullValue, nil);
+      return JumpIfNull(label);
+    }
+  }
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotNil(BytecodeLabel* label,
+                                                         Token::Value op,
+                                                         NilValue nil) {
+  if (op == Token::EQ) {
+    // TODO(rmcilroy): Implement JumpIfUndetectable.
+    return CompareUndetectable().JumpIfFalse(label);
+  } else {
+    DCHECK_EQ(Token::EQ_STRICT, op);
+    if (nil == kUndefinedValue) {
+      return JumpIfNotUndefined(label);
+    } else {
+      DCHECK_EQ(kNullValue, nil);
+      return JumpIfNotNull(label);
+    }
+  }
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(

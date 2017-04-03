@@ -3040,13 +3040,34 @@ void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
   }
 }
 
+void BytecodeGenerator::BuildLiteralCompareNil(Token::Value op, NilValue nil) {
+  if (execution_result()->IsTest()) {
+    TestResultScope* test_result = execution_result()->AsTest();
+    switch (test_result->fallthrough()) {
+      case TestFallthrough::kThen:
+        builder()->JumpIfNotNil(test_result->NewElseLabel(), op, nil);
+        break;
+      case TestFallthrough::kElse:
+        builder()->JumpIfNil(test_result->NewThenLabel(), op, nil);
+        break;
+      case TestFallthrough::kNone:
+        builder()
+            ->JumpIfNil(test_result->NewThenLabel(), op, nil)
+            .Jump(test_result->NewElseLabel());
+    }
+    test_result->SetResultConsumedByTest();
+  } else {
+    builder()->CompareNil(op, nil);
+  }
+}
+
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
-  // Emit a fast literal comparion for expressions of the form:
-  // typeof(x) === 'string'.
-  Expression* typeof_sub_expr;
+  Expression* sub_expr;
   Literal* literal;
-  if (expr->IsLiteralCompareTypeof(&typeof_sub_expr, &literal)) {
-    VisitForTypeOfValue(typeof_sub_expr);
+  if (expr->IsLiteralCompareTypeof(&sub_expr, &literal)) {
+    // Emit a fast literal comparion for expressions of the form:
+    // typeof(x) === 'string'.
+    VisitForTypeOfValue(sub_expr);
     builder()->SetExpressionPosition(expr);
     TestTypeOfFlags::LiteralFlag literal_flag =
         TestTypeOfFlags::GetFlagForLiteral(ast_string_constants(), literal);
@@ -3055,6 +3076,14 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     } else {
       builder()->CompareTypeOf(literal_flag);
     }
+  } else if (expr->IsLiteralCompareUndefined(&sub_expr)) {
+    VisitForAccumulatorValue(sub_expr);
+    builder()->SetExpressionPosition(expr);
+    BuildLiteralCompareNil(expr->op(), kUndefinedValue);
+  } else if (expr->IsLiteralCompareNull(&sub_expr)) {
+    VisitForAccumulatorValue(sub_expr);
+    builder()->SetExpressionPosition(expr);
+    BuildLiteralCompareNil(expr->op(), kNullValue);
   } else {
     Register lhs = VisitForRegisterValue(expr->left());
     VisitForAccumulatorValue(expr->right());

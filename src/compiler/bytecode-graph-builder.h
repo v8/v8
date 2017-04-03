@@ -212,6 +212,7 @@ class BytecodeGraphBuilder {
   void BuildJumpIf(Node* condition);
   void BuildJumpIfNot(Node* condition);
   void BuildJumpIfEqual(Node* comperand);
+  void BuildJumpIfNotEqual(Node* comperand);
   void BuildJumpIfTrue();
   void BuildJumpIfFalse();
   void BuildJumpIfToBooleanTrue();

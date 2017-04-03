@@ -162,8 +162,12 @@ Bytecode GetJumpWithConstantOperand(Bytecode jump_bytecode) {
       return Bytecode::kJumpIfNotHoleConstant;
     case Bytecode::kJumpIfNull:
       return Bytecode::kJumpIfNullConstant;
+    case Bytecode::kJumpIfNotNull:
+      return Bytecode::kJumpIfNotNullConstant;
     case Bytecode::kJumpIfUndefined:
       return Bytecode::kJumpIfUndefinedConstant;
+    case Bytecode::kJumpIfNotUndefined:
+      return Bytecode::kJumpIfNotUndefinedConstant;
     case Bytecode::kJumpIfJSReceiver:
       return Bytecode::kJumpIfJSReceiverConstant;
     default:

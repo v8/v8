@@ -2429,82 +2429,53 @@ void InterpreterGenerator::DoTestInstanceOf(InterpreterAssembler* assembler) {
   DoCompareOp(Token::INSTANCEOF, assembler);
 }
 
-// TestUndetectable <src>
+// TestUndetectable
 //
-// Test if the value in the <src> register equals to null/undefined. This is
-// done by checking undetectable bit on the map of the object.
+// Test if the value in the accumulator is undetectable (null, undefined or
+// document.all).
 void InterpreterGenerator::DoTestUndetectable(InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(0);
-  Node* object = __ LoadRegister(reg_index);
+  Label return_false(assembler), end(assembler);
+  Node* object = __ GetAccumulator();
 
-  Label not_equal(assembler), end(assembler);
   // If the object is an Smi then return false.
-  __ GotoIf(__ TaggedIsSmi(object), &not_equal);
+  __ SetAccumulator(__ BooleanConstant(false));
+  __ GotoIf(__ TaggedIsSmi(object), &end);
 
   // If it is a HeapObject, load the map and check for undetectable bit.
   Node* map = __ LoadMap(object);
   Node* map_bitfield = __ LoadMapBitField(map);
   Node* map_undetectable =
       __ Word32And(map_bitfield, __ Int32Constant(1 << Map::kIsUndetectable));
-  __ GotoIf(__ Word32Equal(map_undetectable, __ Int32Constant(0)), &not_equal);
-
-  __ SetAccumulator(__ BooleanConstant(true));
+  Node* result = __ SelectBooleanConstant(
+      __ Word32NotEqual(map_undetectable, __ Int32Constant(0)));
+  __ SetAccumulator(result);
   __ Goto(&end);
-
-  __ Bind(&not_equal);
-  {
-    __ SetAccumulator(__ BooleanConstant(false));
-    __ Goto(&end);
-  }
 
   __ Bind(&end);
   __ Dispatch();
 }
 
-// TestNull <src>
+// TestNull
 //
-// Test if the value in the <src> register is strictly equal to null.
+// Test if the value in accumulator is strictly equal to null.
 void InterpreterGenerator::DoTestNull(InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(0);
-  Node* object = __ LoadRegister(reg_index);
+  Node* object = __ GetAccumulator();
   Node* null_value = __ HeapConstant(isolate_->factory()->null_value());
-
-  Label equal(assembler), end(assembler);
-  __ GotoIf(__ WordEqual(object, null_value), &equal);
-  __ SetAccumulator(__ BooleanConstant(false));
-  __ Goto(&end);
-
-  __ Bind(&equal);
-  {
-    __ SetAccumulator(__ BooleanConstant(true));
-    __ Goto(&end);
-  }
-
-  __ Bind(&end);
+  Node* result = __ SelectBooleanConstant(__ WordEqual(object, null_value));
+  __ SetAccumulator(result);
   __ Dispatch();
 }
 
-// TestUndefined <src>
+// TestUndefined
 //
-// Test if the value in the <src> register is strictly equal to undefined.
+// Test if the value in the accumulator is strictly equal to undefined.
 void InterpreterGenerator::DoTestUndefined(InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(0);
-  Node* object = __ LoadRegister(reg_index);
+  Node* object = __ GetAccumulator();
   Node* undefined_value =
       __ HeapConstant(isolate_->factory()->undefined_value());
-
-  Label equal(assembler), end(assembler);
-  __ GotoIf(__ WordEqual(object, undefined_value), &equal);
-  __ SetAccumulator(__ BooleanConstant(false));
-  __ Goto(&end);
-
-  __ Bind(&equal);
-  {
-    __ SetAccumulator(__ BooleanConstant(true));
-    __ Goto(&end);
-  }
-
-  __ Bind(&end);
+  Node* result =
+      __ SelectBooleanConstant(__ WordEqual(object, undefined_value));
+  __ SetAccumulator(result);
   __ Dispatch();
 }
 
@@ -2797,6 +2768,30 @@ void InterpreterGenerator::DoJumpIfNullConstant(
   __ JumpIfWordEqual(accumulator, null_value, relative_jump);
 }
 
+// JumpIfNotNull <imm>
+//
+// Jump by number of bytes represented by an immediate operand if the object
+// referenced by the accumulator is not the null constant.
+void InterpreterGenerator::DoJumpIfNotNull(InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* null_value = __ HeapConstant(isolate_->factory()->null_value());
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
+  __ JumpIfWordNotEqual(accumulator, null_value, relative_jump);
+}
+
+// JumpIfNotNullConstant <idx>
+//
+// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
+// if the object referenced by the accumulator is not the null constant.
+void InterpreterGenerator::DoJumpIfNotNullConstant(
+    InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* null_value = __ HeapConstant(isolate_->factory()->null_value());
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
+  __ JumpIfWordNotEqual(accumulator, null_value, relative_jump);
+}
+
 // JumpIfUndefined <imm>
 //
 // Jump by number of bytes represented by an immediate operand if the object
@@ -2821,6 +2816,33 @@ void InterpreterGenerator::DoJumpIfUndefinedConstant(
   Node* index = __ BytecodeOperandIdx(0);
   Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   __ JumpIfWordEqual(accumulator, undefined_value, relative_jump);
+}
+
+// JumpIfNotUndefined <imm>
+//
+// Jump by number of bytes represented by an immediate operand if the object
+// referenced by the accumulator is not the undefined constant.
+void InterpreterGenerator::DoJumpIfNotUndefined(
+    InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* undefined_value =
+      __ HeapConstant(isolate_->factory()->undefined_value());
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
+  __ JumpIfWordNotEqual(accumulator, undefined_value, relative_jump);
+}
+
+// JumpIfNotUndefinedConstant <idx>
+//
+// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
+// if the object referenced by the accumulator is not the undefined constant.
+void InterpreterGenerator::DoJumpIfNotUndefinedConstant(
+    InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* undefined_value =
+      __ HeapConstant(isolate_->factory()->undefined_value());
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
+  __ JumpIfWordNotEqual(accumulator, undefined_value, relative_jump);
 }
 
 // JumpIfJSReceiver <imm>

@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 1030
+bytecode array length: 1027
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(39),
@@ -204,8 +204,7 @@ bytecodes: [
                 B(LdaNamedProperty), R(12), U8(10), U8(21),
                 B(StaContextSlot), R(1), U8(13), U8(0),
                 B(LdaContextSlot), R(1), U8(13), U8(0),
-                B(Star), R(12),
-                B(TestUndetectable), R(12),
+                B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
                 B(JumpConstant), U8(15),
                 B(LdaContextSlot), R(1), U8(9), U8(0),
@@ -468,20 +467,20 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
-  Smi [560],
+  Smi [557],
   FIXED_ARRAY_TYPE,
-  Smi [702],
+  Smi [699],
   Smi [348],
-  Smi [374],
+  Smi [371],
   FIXED_ARRAY_TYPE,
   Smi [317],
 ]
 handlers: [
-  [80, 943, 949],
-  [83, 889, 891],
+  [80, 940, 946],
+  [83, 886, 888],
   [100, 423, 429],
   [103, 375, 377],
-  [519, 645, 647],
+  [516, 642, 644],
 ]
 
 ---
@@ -493,7 +492,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 1088
+bytecode array length: 1085
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(39),
@@ -688,8 +687,7 @@ bytecodes: [
                 B(LdaNamedProperty), R(12), U8(10), U8(21),
                 B(StaContextSlot), R(1), U8(13), U8(0),
                 B(LdaContextSlot), R(1), U8(13), U8(0),
-                B(Star), R(12),
-                B(TestUndetectable), R(12),
+                B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
                 B(JumpConstant), U8(15),
                 B(LdaContextSlot), R(1), U8(9), U8(0),
@@ -974,20 +972,20 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
-  Smi [572],
+  Smi [569],
   FIXED_ARRAY_TYPE,
-  Smi [714],
+  Smi [711],
   Smi [348],
-  Smi [374],
+  Smi [371],
   FIXED_ARRAY_TYPE,
   Smi [340],
 ]
 handlers: [
-  [80, 978, 984],
-  [83, 924, 926],
+  [80, 975, 981],
+  [83, 921, 923],
   [100, 435, 441],
   [103, 387, 389],
-  [531, 657, 659],
+  [528, 654, 656],
 ]
 
 ---
@@ -1002,7 +1000,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 1067
+bytecode array length: 1064
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(39),
@@ -1206,8 +1204,7 @@ bytecodes: [
                 B(LdaNamedProperty), R(12), U8(10), U8(23),
                 B(StaContextSlot), R(1), U8(13), U8(0),
                 B(LdaContextSlot), R(1), U8(13), U8(0),
-                B(Star), R(12),
-                B(TestUndetectable), R(12),
+                B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
                 B(JumpConstant), U8(15),
                 B(LdaContextSlot), R(1), U8(9), U8(0),
@@ -1470,20 +1467,20 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
-  Smi [597],
+  Smi [594],
   FIXED_ARRAY_TYPE,
-  Smi [739],
+  Smi [736],
   Smi [348],
-  Smi [374],
+  Smi [371],
   FIXED_ARRAY_TYPE,
   Smi [317],
 ]
 handlers: [
-  [80, 980, 986],
-  [83, 926, 928],
+  [80, 977, 983],
+  [83, 923, 925],
   [100, 460, 466],
   [103, 412, 414],
-  [556, 682, 684],
+  [553, 679, 681],
 ]
 
 ---
@@ -1496,7 +1493,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 582
+bytecode array length: 579
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(22),
@@ -1608,14 +1605,13 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(11), U8(21),
-                B(JumpIfTrue), U8(129),
+                B(JumpIfTrue), U8(126),
                 B(LdaCurrentContextSlot), U8(7),
                 B(Star), R(11),
                 B(LdaNamedProperty), R(11), U8(9), U8(22),
                 B(StaCurrentContextSlot), U8(11),
                 B(LdaCurrentContextSlot), U8(11),
-                B(Star), R(11),
-                B(TestUndetectable), R(11),
+                B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(109),
                 B(LdaCurrentContextSlot), U8(9),
@@ -1778,10 +1774,10 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [63, 499, 505],
-  [66, 445, 447],
+  [63, 496, 502],
+  [66, 442, 444],
   [81, 241, 247],
   [84, 193, 195],
-  [325, 337, 339],
+  [322, 334, 336],
 ]
 

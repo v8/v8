@@ -314,6 +314,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
                                          int feedback_slot);
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg);
+  BytecodeArrayBuilder& CompareUndetectable();
+  BytecodeArrayBuilder& CompareUndefined();
+  BytecodeArrayBuilder& CompareNull();
+  BytecodeArrayBuilder& CompareNil(Token::Value op, NilValue nil);
   BytecodeArrayBuilder& CompareTypeOf(
       TestTypeOfFlags::LiteralFlag literal_flag);
 
@@ -332,7 +336,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& JumpIfNotHole(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfJSReceiver(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfNotNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfNotUndefined(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfNil(BytecodeLabel* label, Token::Value op,
+                                  NilValue nil);
+  BytecodeArrayBuilder& JumpIfNotNil(BytecodeLabel* label, Token::Value op,
+                                     NilValue nil);
   BytecodeArrayBuilder& JumpLoop(BytecodeLabel* label, int loop_depth);
 
   BytecodeArrayBuilder& StackCheck(int position);

@@ -404,25 +404,6 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaZeroWithBinaryOp) {
   }
 }
 
-TEST_F(BytecodePeepholeOptimizerTest, MergeLdaNullOrUndefinedWithCompareOp) {
-  Bytecode first_bytecodes[] = {Bytecode::kLdaUndefined, Bytecode::kLdaNull};
-
-  for (auto first_bytecode : first_bytecodes) {
-    uint32_t reg_operand = Register(0).ToOperand();
-    uint32_t idx_operand = 1;
-    BytecodeNode first(first_bytecode);
-    BytecodeNode second(Bytecode::kTestEqual, reg_operand, idx_operand);
-    optimizer()->Write(&first);
-    optimizer()->Write(&second);
-    Flush();
-    CHECK_EQ(write_count(), 1);
-    CHECK_EQ(last_written().bytecode(), Bytecode::kTestUndetectable);
-    CHECK_EQ(last_written().operand_count(), 1);
-    CHECK_EQ(last_written().operand(0), reg_operand);
-    Reset();
-  }
-}
-
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

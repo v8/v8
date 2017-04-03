@@ -207,9 +207,9 @@ namespace interpreter {
   V(TestEqualStrictNoFeedback, AccumulatorUse::kReadWrite, OperandType::kReg)  \
   V(TestInstanceOf, AccumulatorUse::kReadWrite, OperandType::kReg)             \
   V(TestIn, AccumulatorUse::kReadWrite, OperandType::kReg)                     \
-  V(TestUndetectable, AccumulatorUse::kWrite, OperandType::kReg)               \
-  V(TestNull, AccumulatorUse::kWrite, OperandType::kReg)                       \
-  V(TestUndefined, AccumulatorUse::kWrite, OperandType::kReg)                  \
+  V(TestUndetectable, AccumulatorUse::kReadWrite)                              \
+  V(TestNull, AccumulatorUse::kReadWrite)                                      \
+  V(TestUndefined, AccumulatorUse::kReadWrite)                                 \
   V(TestTypeOf, AccumulatorUse::kReadWrite, OperandType::kFlag8)               \
                                                                                \
   /* Cast operators */                                                         \
@@ -253,7 +253,9 @@ namespace interpreter {
   /* - [Conditional jumps] */                                                  \
   /* - [Conditional constant jumps] */                                         \
   V(JumpIfNullConstant, AccumulatorUse::kRead, OperandType::kIdx)              \
+  V(JumpIfNotNullConstant, AccumulatorUse::kRead, OperandType::kIdx)           \
   V(JumpIfUndefinedConstant, AccumulatorUse::kRead, OperandType::kIdx)         \
+  V(JumpIfNotUndefinedConstant, AccumulatorUse::kRead, OperandType::kIdx)      \
   V(JumpIfTrueConstant, AccumulatorUse::kRead, OperandType::kIdx)              \
   V(JumpIfFalseConstant, AccumulatorUse::kRead, OperandType::kIdx)             \
   V(JumpIfJSReceiverConstant, AccumulatorUse::kRead, OperandType::kIdx)        \
@@ -269,7 +271,9 @@ namespace interpreter {
   V(JumpIfTrue, AccumulatorUse::kRead, OperandType::kUImm)                     \
   V(JumpIfFalse, AccumulatorUse::kRead, OperandType::kUImm)                    \
   V(JumpIfNull, AccumulatorUse::kRead, OperandType::kUImm)                     \
+  V(JumpIfNotNull, AccumulatorUse::kRead, OperandType::kUImm)                  \
   V(JumpIfUndefined, AccumulatorUse::kRead, OperandType::kUImm)                \
+  V(JumpIfNotUndefined, AccumulatorUse::kRead, OperandType::kUImm)             \
   V(JumpIfJSReceiver, AccumulatorUse::kRead, OperandType::kUImm)               \
   V(JumpIfNotHole, AccumulatorUse::kRead, OperandType::kUImm)                  \
                                                                                \
@@ -363,14 +367,18 @@ namespace interpreter {
   V(JumpIfTrue)                                         \
   V(JumpIfFalse)                                        \
   V(JumpIfNull)                                         \
+  V(JumpIfNotNull)                                      \
   V(JumpIfUndefined)                                    \
+  V(JumpIfNotUndefined)                                 \
   V(JumpIfJSReceiver)                                   \
   V(JumpIfNotHole)
 
 #define JUMP_CONDITIONAL_CONSTANT_BYTECODE_LIST(V)     \
   JUMP_TOBOOLEAN_CONDITIONAL_CONSTANT_BYTECODE_LIST(V) \
   V(JumpIfNullConstant)                                \
+  V(JumpIfNotNullConstant)                             \
   V(JumpIfUndefinedConstant)                           \
+  V(JumpIfNotUndefinedConstant)                        \
   V(JumpIfTrueConstant)                                \
   V(JumpIfFalseConstant)                               \
   V(JumpIfJSReceiverConstant)                          \
@@ -534,6 +542,15 @@ class V8_EXPORT_PRIVATE Bytecodes final {
            bytecode == Bytecode::kLdaImmutableCurrentContextSlot;
   }
 
+  // Returns true if |bytecode| is a compare operation without external effects
+  // (e.g., Type cooersion).
+  static constexpr bool IsCompareWithoutEffects(Bytecode bytecode) {
+    return bytecode == Bytecode::kTestUndetectable ||
+           bytecode == Bytecode::kTestNull ||
+           bytecode == Bytecode::kTestUndefined ||
+           bytecode == Bytecode::kTestTypeOf;
+  }
+
   // Return true if |bytecode| is a register load without effects,
   // e.g. Mov, Star.
   static constexpr bool IsRegisterLoadWithoutEffects(Bytecode bytecode) {
@@ -619,7 +636,8 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   static constexpr bool IsWithoutExternalSideEffects(Bytecode bytecode) {
     return (IsAccumulatorLoadWithoutEffects(bytecode) ||
             IsRegisterLoadWithoutEffects(bytecode) ||
-            bytecode == Bytecode::kNop || IsJumpWithoutEffects(bytecode));
+            IsCompareWithoutEffects(bytecode) || bytecode == Bytecode::kNop ||
+            IsJumpWithoutEffects(bytecode));
   }
 
   // Returns true if the bytecode is Ldar or Star.

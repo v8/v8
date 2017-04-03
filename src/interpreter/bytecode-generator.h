@@ -109,7 +109,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildVariableAssignment(Variable* variable, Token::Value op,
                                FeedbackSlot slot,
                                HoleCheckMode hole_check_mode);
-
+  void BuildLiteralCompareNil(Token::Value compare_op, NilValue nil);
   void BuildReturn();
   void BuildAsyncReturn();
   void BuildAsyncGeneratorReturn();

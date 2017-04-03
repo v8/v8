@@ -1943,23 +1943,20 @@ void BytecodeGraphBuilder::VisitTestInstanceOf() {
 }
 
 void BytecodeGraphBuilder::VisitTestUndetectable() {
-  Node* object =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* object = environment()->LookupAccumulator();
   Node* node = NewNode(jsgraph()->simplified()->ObjectIsUndetectable(), object);
   environment()->BindAccumulator(node);
 }
 
 void BytecodeGraphBuilder::VisitTestNull() {
-  Node* object =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* object = environment()->LookupAccumulator();
   Node* result = NewNode(simplified()->ReferenceEqual(), object,
                          jsgraph()->NullConstant());
   environment()->BindAccumulator(result);
 }
 
 void BytecodeGraphBuilder::VisitTestUndefined() {
-  Node* object =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* object = environment()->LookupAccumulator();
   Node* result = NewNode(simplified()->ReferenceEqual(), object,
                          jsgraph()->UndefinedConstant());
   environment()->BindAccumulator(result);
@@ -2082,12 +2079,28 @@ void BytecodeGraphBuilder::VisitJumpIfNullConstant() {
   BuildJumpIfEqual(jsgraph()->NullConstant());
 }
 
+void BytecodeGraphBuilder::VisitJumpIfNotNull() {
+  BuildJumpIfNotEqual(jsgraph()->NullConstant());
+}
+
+void BytecodeGraphBuilder::VisitJumpIfNotNullConstant() {
+  BuildJumpIfNotEqual(jsgraph()->NullConstant());
+}
+
 void BytecodeGraphBuilder::VisitJumpIfUndefined() {
   BuildJumpIfEqual(jsgraph()->UndefinedConstant());
 }
 
 void BytecodeGraphBuilder::VisitJumpIfUndefinedConstant() {
   BuildJumpIfEqual(jsgraph()->UndefinedConstant());
+}
+
+void BytecodeGraphBuilder::VisitJumpIfNotUndefined() {
+  BuildJumpIfNotEqual(jsgraph()->UndefinedConstant());
+}
+
+void BytecodeGraphBuilder::VisitJumpIfNotUndefinedConstant() {
+  BuildJumpIfNotEqual(jsgraph()->UndefinedConstant());
 }
 
 void BytecodeGraphBuilder::VisitJumpLoop() { BuildJump(); }
@@ -2363,6 +2376,13 @@ void BytecodeGraphBuilder::BuildJumpIfEqual(Node* comperand) {
   Node* condition =
       NewNode(simplified()->ReferenceEqual(), accumulator, comperand);
   BuildJumpIf(condition);
+}
+
+void BytecodeGraphBuilder::BuildJumpIfNotEqual(Node* comperand) {
+  Node* accumulator = environment()->LookupAccumulator();
+  Node* condition =
+      NewNode(simplified()->ReferenceEqual(), accumulator, comperand);
+  BuildJumpIfNot(condition);
 }
 
 void BytecodeGraphBuilder::BuildJumpIfFalse() {

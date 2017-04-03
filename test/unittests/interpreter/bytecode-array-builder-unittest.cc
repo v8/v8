@@ -215,7 +215,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareOperation(Token::Value::GTE, reg, 6)
       .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber)
       .CompareOperation(Token::Value::INSTANCEOF, reg)
-      .CompareOperation(Token::Value::IN, reg);
+      .CompareOperation(Token::Value::IN, reg)
+      .CompareUndetectable()
+      .CompareUndefined()
+      .CompareNull();
 
   // Emit peephole optimizations of equality with Null or Undefined.
   builder.LoadUndefined()
@@ -238,23 +241,27 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Short jumps with Imm8 operands
   {
     BytecodeLabel start, after_jump1, after_jump2, after_jump3, after_jump4,
-        after_jump5;
+        after_jump5, after_jump6, after_jump7;
     builder.Bind(&start)
         .Jump(&after_jump1)
         .Bind(&after_jump1)
         .JumpIfNull(&after_jump2)
         .Bind(&after_jump2)
-        .JumpIfUndefined(&after_jump3)
+        .JumpIfNotNull(&after_jump3)
         .Bind(&after_jump3)
-        .JumpIfNotHole(&after_jump4)
+        .JumpIfUndefined(&after_jump4)
         .Bind(&after_jump4)
-        .JumpIfJSReceiver(&after_jump5)
+        .JumpIfNotUndefined(&after_jump5)
         .Bind(&after_jump5)
+        .JumpIfNotHole(&after_jump6)
+        .Bind(&after_jump6)
+        .JumpIfJSReceiver(&after_jump7)
+        .Bind(&after_jump7)
         .JumpLoop(&start, 0);
   }
 
   // Longer jumps with constant operands
-  BytecodeLabel end[9];
+  BytecodeLabel end[11];
   {
     BytecodeLabel after_jump;
     builder.Jump(&end[0])
@@ -268,10 +275,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .LoadLiteral(Smi::kZero)
         .JumpIfFalse(&end[4])
         .JumpIfNull(&end[5])
-        .JumpIfUndefined(&end[6])
-        .JumpIfNotHole(&end[7])
+        .JumpIfNotNull(&end[6])
+        .JumpIfUndefined(&end[7])
+        .JumpIfNotUndefined(&end[8])
+        .JumpIfNotHole(&end[9])
         .LoadLiteral(ast_factory.prototype_string())
-        .JumpIfJSReceiver(&end[8]);
+        .JumpIfJSReceiver(&end[10]);
   }
 
   // Perform an operation that returns boolean value to
@@ -442,9 +451,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     scorecard[Bytecodes::ToByte(Bytecode::kBitwiseOrSmi)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kShiftLeftSmi)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kShiftRightSmi)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kTestUndetectable)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kTestUndefined)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kTestNull)] = 1;
   }
 
   if (!FLAG_type_profile) {
