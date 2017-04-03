@@ -701,6 +701,11 @@ class RepresentationSelector {
            GetUpperBound(node->InputAt(1))->Is(type);
   }
 
+  bool IsNodeRepresentationFloat64(Node* node) {
+    MachineRepresentation representation = GetInfo(node)->representation();
+    return representation == MachineRepresentation::kFloat64;
+  }
+
   bool IsNodeRepresentationTagged(Node* node) {
     MachineRepresentation representation = GetInfo(node)->representation();
     return IsAnyTagged(representation);
@@ -1619,6 +1624,15 @@ class RepresentationSelector {
                 ChangeToPureOp(
                     node, changer_->TaggedSignedOperatorFor(node->opcode()));
 
+              } else if (IsNodeRepresentationFloat64(lhs) ||
+                         IsNodeRepresentationFloat64(rhs)) {
+                // If one side is already a Float64, it's pretty expensive to
+                // do the comparison in Word32, since that means we need a
+                // checked conversion from Float64 to Word32. It's cheaper to
+                // just go to Float64 for the comparison.
+                VisitBinop(node, UseInfo::CheckedNumberAsFloat64(),
+                           MachineRepresentation::kBit);
+                ChangeToPureOp(node, Float64Op(node));
               } else {
                 VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
                            MachineRepresentation::kBit);
