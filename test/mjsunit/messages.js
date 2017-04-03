@@ -371,7 +371,7 @@ test(function() {
 // kParenthesisInArgString
 test(function() {
   new Function(")", "");
-}, "Function arg string contains parenthesis", SyntaxError);
+}, "Arg string terminates parameters early", SyntaxError);
 
 // === ReferenceError ===
 
