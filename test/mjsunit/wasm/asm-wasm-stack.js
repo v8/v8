@@ -68,8 +68,10 @@ function generateWasmFromAsmJs(stdlib, foreign) {
       case 0: callThrow(); break;
       case 1: redirectFun(0); break;
       case 2: redirectFun(1); break;
+      case 3: funTable[i & 0](2); break;
     }
   }
+  var funTable = [ redirectFun ];
   return redirectFun;
 }
 
@@ -88,8 +90,8 @@ function generateWasmFromAsmJs(stdlib, foreign) {
     '^ *at throwException \\(' + filename + ':56:9\\)$',
     '^ *at callThrow \\(' + filename + ':63:5\\)$',
     '^ *at redirectFun \\(' + filename + ':68:15\\)$',
-    '^ *at PreformattedStackTraceFromJS \\(' + filename + ':81:5\\)$',
-    '^ *at ' + filename + ':94:3$'
+    '^ *at PreformattedStackTraceFromJS \\(' + filename + ':83:5\\)$',
+    '^ *at ' + filename + ':96:3$'
   ]);
 })();
 
@@ -103,7 +105,7 @@ Error.prepareStackTrace = function(error, frames) {
   assertTrue(%IsWasmCode(fun));
   var e = null;
   try {
-    fun(2);
+    fun(3);
   } catch (ex) {
     e = ex;
   }
@@ -114,8 +116,9 @@ Error.prepareStackTrace = function(error, frames) {
     ['redirectFun', 68, 15],            // --
     ['redirectFun', 69, 15],            // --
     ['redirectFun', 70, 15],            // --
-    ['CallsiteObjectsFromJS', 106, 5],  // --
-    [null, 120, 3]
+    ['redirectFun', 71, 30],            // --
+    ['CallsiteObjectsFromJS', 108, 5],  // --
+    [null, 123, 3]
   ]);
 })();
 
@@ -133,15 +136,15 @@ function generateOverflowWasmFromAsmJs() {
   assertTrue(%IsWasmCode(fun));
   var e = null;
   try {
-    fun(2);
+    fun(23);
   } catch (ex) {
     e = ex;
   }
   assertInstanceof(e, RangeError, 'RangeError should have been thrown');
   checkTopFunctionsOnCallsites(e, [
-    ['f', 124, 13],  // --
-    ['f', 126, 12],  // --
-    ['f', 126, 12],  // --
-    ['f', 126, 12]   // --
+    ['f', 127, 13],  // --
+    ['f', 129, 12],  // --
+    ['f', 129, 12],  // --
+    ['f', 129, 12]   // --
   ]);
 })();

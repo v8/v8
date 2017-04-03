@@ -712,7 +712,6 @@ void AsmJsParser::ValidateFunctionTable() {
 
 // 6.4 ValidateFunction
 void AsmJsParser::ValidateFunction() {
-  int start_position = scanner_.GetPosition();
   EXPECT_TOKEN(TOK(function));
   if (!scanner_.IsGlobal()) {
     FAIL("Expected function name");
@@ -741,6 +740,7 @@ void AsmJsParser::ValidateFunction() {
   return_type_ = nullptr;
 
   // Record start of the function, used as position for the stack check.
+  int start_position = static_cast<int>(scanner_.Position());
   current_function_builder_->SetAsmFunctionStartPosition(start_position);
 
   std::vector<AsmType*> params;
@@ -2037,6 +2037,8 @@ AsmType* AsmJsParser::ValidateCall() {
     current_function_builder_->Emit(kExprI32Add);
     // We have to use a temporary for the correct order of evaluation.
     current_function_builder_->EmitSetLocal(tmp);
+    // The position of function table calls is after the table lookup.
+    pos = static_cast<int>(scanner_.Position());
   }
   std::vector<AsmType*> param_types;
   ZoneVector<AsmType*> param_specific_types(zone());
@@ -2122,10 +2124,8 @@ AsmType* AsmJsParser::ValidateCall() {
     function_info->type = function_type;
     if (function_info->kind == VarKind::kTable) {
       current_function_builder_->EmitGetLocal(tmp);
-      // TODO(bradnelson): Figure out the right debug scanner offset and
-      // re-enable.
-      //      current_function_builder_->AddAsmWasmOffset(scanner_.GetPosition(),
-      //                                                  scanner_.GetPosition());
+      // TODO(mstarzinger): Fix the {to_number_position} and test it.
+      current_function_builder_->AddAsmWasmOffset(pos, pos);
       current_function_builder_->Emit(kExprCallIndirect);
       current_function_builder_->EmitVarUint(signature_index);
       current_function_builder_->EmitVarUint(0);  // table index
@@ -2272,10 +2272,7 @@ AsmType* AsmJsParser::ValidateCall() {
       current_function_builder_->EmitVarUint(signature_index);
       current_function_builder_->EmitVarUint(0);  // table index
     } else {
-      // TODO(bradnelson): Figure out the right debug scanner offset and
-      // re-enable.
-      //      current_function_builder_->AddAsmWasmOffset(scanner_.GetPosition(),
-      //                                                  scanner_.GetPosition());
+      current_function_builder_->AddAsmWasmOffset(pos, pos);
       current_function_builder_->Emit(kExprCallFunction);
       current_function_builder_->EmitDirectCallIndex(function_info->index);
     }

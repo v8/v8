@@ -661,7 +661,9 @@
   # need to re-enable these for the "new" validator.
   'regress/regress-618608': [SKIP],
   'wasm/asm-wasm-exception-in-tonumber': [SKIP],
-  'wasm/asm-wasm-stack': [SKIP],
+
+  # Issue 6127: Currently {StashCode} breaks the source position table.
+  'wasm/asm-wasm-expr': [SKIP],
 }],  # variant == asm_wasm
 
 ['variant == wasm_traps', {

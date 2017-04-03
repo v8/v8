@@ -8,7 +8,6 @@
 ['variant != default', {
   # Issue 6166.
   'debugger/asm-js-breakpoint-during-exec': [PASS, FAIL],
-  'debugger/asm-js-stack': [PASS, FAIL],
   # Issue 6167.
   'debugger/eval-scopes': [PASS, FAIL],
   'debugger/scope-skip-variables-with-empty-name': [PASS, FAIL],
