@@ -255,10 +255,11 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   // Copy left part.
   function CopyLeftPart() {
     // First un-mutated byte after the next write
-    var targetPtr = target.byteOffset + (offset + 1) * targetElementSize;
+    var targetPtr = %_ArrayBufferViewGetByteOffset(target) +
+                    (offset + 1) * targetElementSize;
     // Next read at sourcePtr. We do not care for memory changing before
     // sourcePtr - we have already copied it.
-    var sourcePtr = source.byteOffset;
+    var sourcePtr = %_ArrayBufferViewGetByteOffset(source);
     for (var leftIndex = 0;
          leftIndex < sourceLength && targetPtr <= sourcePtr;
          leftIndex++) {
@@ -273,12 +274,12 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   // Copy right part;
   function CopyRightPart() {
     // First unmutated byte before the next write
-    var targetPtr =
-      target.byteOffset + (offset + sourceLength - 1) * targetElementSize;
+    var targetPtr = %_ArrayBufferViewGetByteOffset(target) +
+                    (offset + sourceLength - 1) * targetElementSize;
     // Next read before sourcePtr. We do not care for memory changing after
     // sourcePtr - we have already copied it.
-    var sourcePtr =
-      source.byteOffset + sourceLength * sourceElementSize;
+    var sourcePtr = %_ArrayBufferViewGetByteOffset(source) +
+                    sourceLength * sourceElementSize;
     for(var rightIndex = sourceLength - 1;
         rightIndex >= leftIndex && targetPtr >= sourcePtr;
         rightIndex--) {
