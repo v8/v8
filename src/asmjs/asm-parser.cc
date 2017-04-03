@@ -723,19 +723,17 @@ void AsmJsParser::ValidateFunction() {
   if (function_info->kind == VarKind::kUnused) {
     function_info->kind = VarKind::kFunction;
     function_info->function_builder = module_builder_->AddFunction();
-    // TODO(bradnelson): Cleanup memory management here.
-    // WasmModuleBuilder should own these.
-    char* function_name = zone()->NewArray<char>(function_name_raw.size());
-    memcpy(function_name, function_name_raw.data(), function_name_raw.size());
-    function_info->function_builder->SetName(
-        {function_name, static_cast<int>(function_name_raw.size())});
     function_info->index = function_info->function_builder->func_index();
-    function_info->function_defined = true;
   } else if (function_info->function_defined) {
     FAIL("Function redefined");
-  } else {
-    function_info->function_defined = true;
   }
+  function_info->function_defined = true;
+  // TODO(bradnelson): Cleanup memory management here.
+  // WasmModuleBuilder should own these.
+  char* function_name_chr = zone()->NewArray<char>(function_name_raw.size());
+  memcpy(function_name_chr, function_name_raw.data(), function_name_raw.size());
+  function_info->function_builder->SetName(
+      {function_name_chr, static_cast<int>(function_name_raw.size())});
   current_function_builder_ = function_info->function_builder;
   return_type_ = nullptr;
 
@@ -2088,10 +2086,8 @@ AsmType* AsmJsParser::ValidateCall() {
     function_info->function_builder = module_builder_->AddFunction();
     function_info->index = function_info->function_builder->func_index();
     function_info->type = function_type;
-    // TODO(bradnelson): Figure out the right debug scanner offset and
-    // re-enable.
-    //    current_function_builder_->AddAsmWasmOffset(scanner_.GetPosition(),
-    //                                                scanner_.GetPosition());
+    // TODO(mstarzinger): Fix the {to_number_position} and test it.
+    current_function_builder_->AddAsmWasmOffset(pos, pos);
     current_function_builder_->Emit(kExprCallFunction);
     current_function_builder_->EmitDirectCallIndex(function_info->index);
   } else if (function_info->kind == VarKind::kImportedFunction) {
