@@ -759,13 +759,9 @@ class CollectTypeProfileNexus : public FeedbackNexus {
     DCHECK_EQ(FeedbackSlotKind::kTypeProfile, vector->GetKind(slot));
   }
 
-  // Add a type to the list of types.
+  // Add a type to the list of types for source position <position>.
   void Collect(Handle<String> type, int position);
-
-  // Dump the types to stdout.
-  // TODO(franzih): pass this information to the debugger protocol instead of
-  // stdout.
-  void Print() const;
+  JSObject* GetTypeProfile() const;
 
   InlineCacheState StateFromFeedback() const override;
 };

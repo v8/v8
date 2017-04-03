@@ -210,7 +210,7 @@ RUNTIME_FUNCTION(Runtime_IsConcurrentRecompilationSupported) {
       isolate->concurrent_recompilation_enabled());
 }
 
-RUNTIME_FUNCTION(Runtime_PrintTypeProfile) {
+RUNTIME_FUNCTION(Runtime_TypeProfile) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
@@ -221,18 +221,13 @@ RUNTIME_FUNCTION(Runtime_PrintTypeProfile) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (function->has_feedback_vector()) {
     FeedbackVector* vector = function->feedback_vector();
-
-    Object* function_name = vector->shared_function_info()->name();
-    PrintF("Function: %s\n", String::cast(function_name)->ToCString().get());
-
     if (vector->metadata()->HasTypeProfileSlot()) {
       FeedbackSlot slot = vector->GetTypeProfileSlot();
       CollectTypeProfileNexus nexus(vector, slot);
-      nexus.Print();
-      PrintF("\n");
+      return nexus.GetTypeProfile();
     }
   }
-  return isolate->heap()->undefined_value();
+  return *isolate->factory()->NewJSObject(isolate->object_function());
 }
 
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {

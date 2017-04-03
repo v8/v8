@@ -944,54 +944,51 @@ void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
 
 namespace {
 
-void PrintTypes(Handle<ArrayList> s) {
-  for (int i = 0; i < s->Length(); i++) {
-    Object* entry = s->Get(i);
-    if (entry->IsString()) {
-      PrintF("%s\n", String::cast(entry)->ToCString().get());
-    }
-  }
-}
+Handle<JSObject> ConvertToJSObject(Isolate* isolate,
+                                   Handle<UnseededNumberDictionary> feedback) {
+  Handle<JSObject> type_profile =
+      isolate->factory()->NewJSObject(isolate->object_function());
 
-void SortTypes(Isolate* isolate,
-               Handle<UnseededNumberDictionary> unsorted_types,
-               std::map<int, Handle<ArrayList>>* types) {
   for (int index = UnseededNumberDictionary::kElementsStartIndex;
-       index < unsorted_types->length();
+       index < feedback->length();
        index += UnseededNumberDictionary::kEntrySize) {
     int key_index = index + UnseededNumberDictionary::kEntryKeyIndex;
-    Object* key = unsorted_types->get(key_index);
+    Object* key = feedback->get(key_index);
     if (key->IsSmi()) {
       int value_index = index + UnseededNumberDictionary::kEntryValueIndex;
-      Handle<ArrayList> types_for_position = Handle<ArrayList>(
-          ArrayList::cast(unsorted_types->get(value_index)), isolate);
 
-      (*types)[Smi::cast(key)->value()] = types_for_position;
+      Handle<ArrayList> orig = Handle<ArrayList>(
+          ArrayList::cast(feedback->get(value_index)), isolate);
+
+      // Delete the first entry, i.e., the length.
+      Handle<FixedArray> storage =
+          isolate->factory()->NewFixedArray(orig->Length());
+      orig->CopyTo(1, *storage, 0, orig->Length());
+
+      int pos = Smi::cast(key)->value();
+      JSObject::AddDataElement(
+          type_profile, pos,
+          isolate->factory()->NewJSArrayWithElements(storage),
+          PropertyAttributes::NONE)
+          .ToHandleChecked();
     }
   }
+  return type_profile;
 }
 }  // namespace
 
-void CollectTypeProfileNexus::Print() const {
+JSObject* CollectTypeProfileNexus::GetTypeProfile() const {
   Isolate* isolate = GetIsolate();
 
   Object* const feedback = GetFeedback();
 
   if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
-    return;
+    return *isolate->factory()->NewJSMap();
   }
 
-  Handle<UnseededNumberDictionary> unsorted_types =
-      Handle<UnseededNumberDictionary>(UnseededNumberDictionary::cast(feedback),
-                                       isolate);
-
-  std::map<int, Handle<ArrayList>> types;
-  SortTypes(isolate, unsorted_types, &types);
-
-  for (const auto& entry : types) {
-    PrintF("%d:\n", entry.first);
-    PrintTypes(entry.second);
-  }
+  return *ConvertToJSObject(
+      isolate, Handle<UnseededNumberDictionary>(
+                   UnseededNumberDictionary::cast(feedback), isolate));
 }
 
 }  // namespace internal
