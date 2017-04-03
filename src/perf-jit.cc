@@ -322,13 +322,11 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     SourcePositionInfo info(GetSourcePositionInfo(code_handle, function_handle,
                                                   iterator.source_position()));
     PerfJitDebugEntry entry;
-    // TODO(danno): There seems to be a bug in the dwarf handling of JIT code in
-    // the perf tool. It seems to erroneously believe that the first instruction
-    // of functions is at offset 0x40 when displayed in "perf report". To
-    // compensate for this, add a magic constant to the position addresses when
-    // writing them out.
-    entry.address_ =
-        reinterpret_cast<intptr_t>(code_start + iterator.code_offset() + 0x40);
+    // The entry point of the function will be placed straight after the ELF
+    // header when processed by "perf inject". Adjust the position addresses
+    // accordingly.
+    entry.address_ = reinterpret_cast<intptr_t>(
+        code_start + iterator.code_offset() + kElfHeaderSize);
     entry.line_number_ = info.line + 1;
     entry.column_ = info.column + 1;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
