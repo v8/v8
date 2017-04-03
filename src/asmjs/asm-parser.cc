@@ -2000,6 +2000,7 @@ AsmType* AsmJsParser::ParenthesizedExpression() {
 AsmType* AsmJsParser::ValidateCall() {
   AsmType* return_type = call_coercion_;
   call_coercion_ = nullptr;
+  int pos = static_cast<int>(scanner_.Position());
   AsmJsScanner::token_t function_name = Consume();
   int32_t tmp = TempVariable(0);
   if (Check('[')) {
@@ -2113,6 +2114,8 @@ AsmType* AsmJsParser::ValidateCall() {
     } else {
       index = function_info->import->cache_index[cache_index];
     }
+    // TODO(mstarzinger): Fix the {to_number_position} and test it.
+    current_function_builder_->AddAsmWasmOffset(pos, pos);
     current_function_builder_->Emit(kExprCallFunction);
     current_function_builder_->EmitVarUint(index);
   } else if (function_info->type->IsA(AsmType::None())) {
@@ -2127,8 +2130,8 @@ AsmType* AsmJsParser::ValidateCall() {
       current_function_builder_->EmitVarUint(signature_index);
       current_function_builder_->EmitVarUint(0);  // table index
     } else {
-      //      current_function_builder_->AddAsmWasmOffset(scanner_.GetPosition(),
-      //                                                  scanner_.GetPosition());
+      // TODO(mstarzinger): Fix the {to_number_position} and test it.
+      current_function_builder_->AddAsmWasmOffset(pos, pos);
       current_function_builder_->Emit(kExprCallFunction);
       current_function_builder_->EmitDirectCallIndex(function_info->index);
     }

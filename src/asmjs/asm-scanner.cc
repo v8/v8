@@ -22,6 +22,9 @@ AsmJsScanner::AsmJsScanner()
     : token_(kUninitialized),
       preceding_token_(kUninitialized),
       next_token_(kUninitialized),
+      position_(0),
+      preceding_position_(0),
+      next_position_(0),
       rewind_(false),
       in_local_scope_(false),
       global_count_(0),
@@ -49,8 +52,11 @@ void AsmJsScanner::SetStream(std::unique_ptr<Utf16CharacterStream> stream) {
 void AsmJsScanner::Next() {
   if (rewind_) {
     preceding_token_ = token_;
+    preceding_position_ = position_;
     token_ = next_token_;
+    position_ = next_position_;
     next_token_ = kUninitialized;
+    next_position_ = 0;
     rewind_ = false;
     return;
   }
@@ -74,7 +80,10 @@ void AsmJsScanner::Next() {
 
   preceded_by_newline_ = false;
   preceding_token_ = token_;
+  preceding_position_ = position_;
+
   for (;;) {
+    position_ = stream_->pos();
     uc32 ch = stream_->Advance();
     switch (ch) {
       case ' ':
@@ -145,13 +154,17 @@ void AsmJsScanner::Next() {
 }
 
 void AsmJsScanner::Rewind() {
+  DCHECK_NE(kUninitialized, preceding_token_);
   // TODO(bradnelson): Currently rewinding needs to leave in place the
   // preceding newline state (in case a |0 ends a line).
   // This is weird and stateful, fix me.
   DCHECK(!rewind_);
   next_token_ = token_;
+  next_position_ = position_;
   token_ = preceding_token_;
+  position_ = preceding_position_;
   preceding_token_ = kUninitialized;
+  preceding_position_ = 0;
   rewind_ = true;
   identifier_string_.clear();
 }
@@ -207,6 +220,9 @@ void AsmJsScanner::Seek(int pos) {
   preceding_token_ = kUninitialized;
   token_ = kUninitialized;
   next_token_ = kUninitialized;
+  preceding_position_ = 0;
+  position_ = 0;
+  next_position_ = 0;
   rewind_ = false;
   Next();
 }

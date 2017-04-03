@@ -303,4 +303,5 @@ class AsmJsParser {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-#endif
+
+#endif  // V8_ASMJS_ASM_PARSER_H_

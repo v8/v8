@@ -37,6 +37,8 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
 
   // Get current token.
   token_t Token() const { return token_; }
+  // Get position of current token.
+  size_t Position() const { return position_; }
   // Advance to the next token.
   void Next();
   // Back up by one token.
@@ -128,7 +130,10 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   std::unique_ptr<Utf16CharacterStream> stream_;
   token_t token_;
   token_t preceding_token_;
-  token_t next_token_;
+  token_t next_token_;         // Only set when in {rewind} state.
+  size_t position_;            // Corresponds to {token} position.
+  size_t preceding_position_;  // Corresponds to {preceding_token} position.
+  size_t next_position_;       // Only set when in {rewind} state.
   bool rewind_;
   std::string identifier_string_;
   bool in_local_scope_;
@@ -156,4 +161,5 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
 
 }  // namespace internal
 }  // namespace v8
-#endif
+
+#endif  // V8_ASMJS_ASM_SCANNER_H_
