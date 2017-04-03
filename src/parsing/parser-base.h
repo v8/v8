@@ -1438,7 +1438,7 @@ class ParserBase {
 
   // Pops and discards the classifier that is on top of the stack
   // without accumulating.
-  V8_INLINE void Discard() {
+  V8_INLINE void DiscardExpressionClassifier() {
     DCHECK_NOT_NULL(classifier_);
     classifier_->Discard();
     classifier_ = classifier_->previous();
@@ -1924,7 +1924,7 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
     }
     // No need to accumulate binding pattern-related errors, since
     // an Expression can't be a binding pattern anyway.
-    impl()->AccumulateNonBindingPatternErrors();
+    AccumulateNonBindingPatternErrors();
     if (!impl()->IsIdentifier(right)) classifier()->RecordNonSimpleParameter();
     if (impl()->IsEmptyExpression(result)) {
       // First time through the loop.
@@ -2139,7 +2139,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
       ExpressionClassifier computed_name_classifier(this);
       expression = ParseAssignmentExpression(true, CHECK_OK);
       impl()->RewriteNonPattern(CHECK_OK);
-      impl()->AccumulateFormalParameterContainmentErrors();
+      AccumulateFormalParameterContainmentErrors();
       Expect(Token::RBRACK, CHECK_OK);
       break;
     }
@@ -2482,7 +2482,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
         ExpressionT rhs = ParseAssignmentExpression(
             true, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
         impl()->RewriteNonPattern(CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-        impl()->AccumulateFormalParameterContainmentErrors();
+        AccumulateFormalParameterContainmentErrors();
         value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
                                          kNoSourcePosition);
         classifier()->RecordExpressionError(
@@ -2777,7 +2777,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
       classifier()->RecordDuplicateFormalParameterError(duplicate_loc);
     }
     expression = ParseArrowFunctionLiteral(accept_IN, parameters, CHECK_OK);
-    impl()->Discard();
+    DiscardExpressionClassifier();
     classifier()->RecordPatternError(arrow_loc,
                                      MessageTemplate::kUnexpectedToken,
                                      Token::String(Token::ARROW));
@@ -2813,11 +2813,11 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   if (!Token::IsAssignmentOp(peek())) {
     // Parsed conditional expression only (no assignment).
     // Pending non-pattern expressions must be merged.
-    impl()->Accumulate(productions);
+    Accumulate(productions);
     return expression;
   } else {
     // Pending non-pattern expressions must be discarded.
-    impl()->Accumulate(productions, false);
+    Accumulate(productions, false);
   }
 
   if (is_destructuring_assignment) {
@@ -2842,7 +2842,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   ExpressionT right = ParseAssignmentExpression(accept_IN, CHECK_OK);
   impl()->RewriteNonPattern(CHECK_OK);
-  impl()->AccumulateFormalParameterContainmentErrors();
+  AccumulateFormalParameterContainmentErrors();
 
   // We try to estimate the set of properties set by constructors. We define a
   // new property whenever there is an assignment to a property of 'this'. We
@@ -2967,7 +2967,7 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
     // expressions we always accept the 'in' keyword; see ECMA-262,
     // section 11.12, page 58.
     left = ParseAssignmentExpression(true, CHECK_OK);
-    impl()->AccumulateNonBindingPatternErrors();
+    AccumulateNonBindingPatternErrors();
   }
   impl()->RewriteNonPattern(CHECK_OK);
   Expect(Token::COLON, CHECK_OK);
@@ -2975,7 +2975,7 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
   {
     ExpressionClassifier classifier(this);
     right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-    impl()->AccumulateNonBindingPatternErrors();
+    AccumulateNonBindingPatternErrors();
   }
   impl()->RewriteNonPattern(CHECK_OK);
   return factory()->NewConditional(expression, left, right, pos);
@@ -3217,7 +3217,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
             // async () => ...
             return factory()->NewEmptyParentheses(pos);
           } else {
-            impl()->AccumulateFormalParameterContainmentErrors();
+            AccumulateFormalParameterContainmentErrors();
           }
         } else {
           args = ParseArguments(&spread_pos, false, CHECK_OK);
@@ -3591,7 +3591,7 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
     impl()->RewriteNonPattern(CHECK_OK_CUSTOM(Void));
     ValidateFormalParameterInitializer(CHECK_OK_CUSTOM(Void));
     parameters->is_simple = false;
-    impl()->Discard();
+    DiscardExpressionClassifier();
     classifier()->RecordNonSimpleParameter();
 
     impl()->SetFunctionNameFromIdentifierRef(initializer, pattern);
@@ -4334,7 +4334,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     ExpressionClassifier extends_classifier(this);
     class_info.extends = ParseLeftHandSideExpression(CHECK_OK);
     impl()->RewriteNonPattern(CHECK_OK);
-    impl()->AccumulateFormalParameterContainmentErrors();
+    AccumulateFormalParameterContainmentErrors();
   }
 
   ClassLiteralChecker checker(this);
@@ -4363,7 +4363,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     }
     is_constructor &= class_info.has_seen_constructor;
     impl()->RewriteNonPattern(CHECK_OK);
-    impl()->AccumulateFormalParameterContainmentErrors();
+    AccumulateFormalParameterContainmentErrors();
 
     impl()->DeclareClassProperty(name, property, property_kind, is_static,
                                  is_constructor, &class_info, CHECK_OK);
