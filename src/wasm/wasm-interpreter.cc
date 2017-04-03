@@ -2128,8 +2128,16 @@ class ThreadImpl {
                                      signature->GetParam(i)));
     }
 
-    MaybeHandle<Object> maybe_retval = Execution::Call(
-        isolate, target, isolate->global_proxy(), num_args, args.data());
+    // The receiver is the global proxy if in sloppy mode (default), undefined
+    // if in strict mode.
+    Handle<Object> receiver = isolate->global_proxy();
+    if (target->IsJSFunction() &&
+        is_strict(JSFunction::cast(*target)->shared()->language_mode())) {
+      receiver = isolate->factory()->undefined_value();
+    }
+
+    MaybeHandle<Object> maybe_retval =
+        Execution::Call(isolate, target, receiver, num_args, args.data());
     if (maybe_retval.is_null()) return TryHandleException(isolate);
 
     Handle<Object> retval = maybe_retval.ToHandleChecked();
