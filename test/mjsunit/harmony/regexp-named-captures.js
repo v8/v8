@@ -1,23 +1,29 @@
-// Copyright 2015 the V8 project authors. All rights reserved.
+// Copyright 2017 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Flags: --harmony-regexp-named-captures --harmony-regexp-lookbehind
 
 // Malformed named captures.
-assertThrows("/(?<>a)/u");  // Empty name.
-assertThrows("/(?<aa)/u");  // Unterminated name.
-assertThrows("/(?<42a>a)/u");  // Name starting with digits.
-assertThrows("/(?<:a>a)/u");  // Name starting with invalid char.
-assertThrows("/(?<a:>a)/u");  // Name containing with invalid char.
-assertThrows("/(?<a>a)(?<a>a)/u");  // Duplicate name.
-assertThrows("/(?<a>a)(?<b>b)(?<a>a)/u");  // Duplicate name.
-assertThrows("/\\k<a>/u");  // Invalid reference.
-assertThrows("/(?<a>a)\\k<ab>/u");  // Invalid reference.
-assertThrows("/(?<ab>a)\\k<a>/u");  // Invalid reference.
-assertThrows("/\\k<a>(?<ab>a)/u");  // Invalid reference.
+assertThrows("/(?<>a)/u", SyntaxError);  // Empty name.
+assertThrows("/(?<aa)/u", SyntaxError);  // Unterminated name.
+assertThrows("/(?<42a>a)/u", SyntaxError);  // Name starting with digits.
+assertThrows("/(?<:a>a)/u", SyntaxError);  // Name starting with invalid char.
+assertThrows("/(?<a:>a)/u", SyntaxError);  // Name containing with invalid char.
+assertThrows("/(?<a>a)(?<a>a)/u", SyntaxError);  // Duplicate name.
+assertThrows("/(?<a>a)(?<b>b)(?<a>a)/u", SyntaxError);  // Duplicate name.
+assertThrows("/\\k<a>/u", SyntaxError);  // Invalid reference.
+assertThrows("/\\k<a/u", SyntaxError);  // Unterminated reference.
+assertThrows("/\\k/u", SyntaxError);  // Lone \k.
+assertThrows("/(?<a>.)\\k/u", SyntaxError);  // Lone \k.
+assertThrows("/(?<a>.)\\k<a/u", SyntaxError);  // Unterminated reference.
+assertThrows("/(?<a>.)\\k<b>/u", SyntaxError);  // Invalid reference.
+assertThrows("/(?<a>a)\\k<ab>/u", SyntaxError);  // Invalid reference.
+assertThrows("/(?<ab>a)\\k<a>/u", SyntaxError);  // Invalid reference.
+assertThrows("/\\k<a>(?<ab>a)/u", SyntaxError);  // Invalid reference.
+assertThrows("/(?<a>\\a)/u", SyntaxError);  // Identity escape in capture.
 
-// Fallback behavior in non-unicode mode.
+// Behavior in non-unicode mode.
 assertThrows("/(?<>a)/", SyntaxError);
 assertThrows("/(?<aa)/", SyntaxError);
 assertThrows("/(?<42a>a)/", SyntaxError);
@@ -25,11 +31,34 @@ assertThrows("/(?<:a>a)/", SyntaxError);
 assertThrows("/(?<a:>a)/", SyntaxError);
 assertThrows("/(?<a>a)(?<a>a)/", SyntaxError);
 assertThrows("/(?<a>a)(?<b>b)(?<a>a)/", SyntaxError);
+assertTrue(/\k<a>/.test("k<a>"));
+assertTrue(/\k<4>/.test("k<4>"));
+assertTrue(/\k<a/.test("k<a"));
+assertTrue(/\k/.test("k"));
+assertThrows("/(?<a>.)\\k/", SyntaxError);
+assertThrows("/(?<a>.)\\k<a/", SyntaxError);
+assertThrows("/(?<a>.)\\k<b>/", SyntaxError);
 assertThrows("/(?<a>a)\\k<ab>/", SyntaxError);
 assertThrows("/(?<ab>a)\\k<a>/", SyntaxError);
+assertThrows("/\\k<a>(?<ab>a)/", SyntaxError);
+assertThrows("/\\k<a(?<a>a)/", SyntaxError);
+assertTrue(/(?<a>\a)/.test("a"));
 
 assertEquals(["k<a>"], "xxxk<a>xxx".match(/\k<a>/));
 assertEquals(["k<a"], "xxxk<a>xxx".match(/\k<a/));
+
+assertEquals({a: "a", b: "b", c: "c"},
+             /(?<a>.)(?<b>.)(?<c>.)\k<c>\k<b>\k<a>/.exec("abccba").groups);
+
+// A couple of corner cases around '\k' as named back-references vs. identity
+// escapes.
+assertTrue(/\k<a>(?<=>)a/.test("k<a>a"));
+assertTrue(/\k<a>(?<!a)a/.test("k<a>a"));
+assertTrue(/\k<a>(<a>x)/.test("k<a><a>x"));
+assertTrue(/\k<a>(?<a>x)/.test("x"));
+assertThrows("/\\k<a>(?<b>x)/", SyntaxError);
+assertThrows("/\\k<a(?<a>.)/", SyntaxError);
+assertThrows("/\\k(?<a>.)/", SyntaxError);
 
 // Basic named groups.
 assertEquals(["a", "a"], "bab".match(/(?<a>a)/u));
@@ -42,6 +71,17 @@ assertEquals(["bab", "a", "b"], "bab".match(/.(?<a>a)(?<b>.)/u));
 assertEquals(["bab", "ab"], "bab".match(/.(?<a>\w\w)/u));
 assertEquals(["bab", "bab"], "bab".match(/(?<a>\w\w\w)/u));
 assertEquals(["bab", "ba", "b"], "bab".match(/(?<a>\w\w)(?<b>\w)/u));
+
+assertEquals(["a", "a"], "bab".match(/(?<a>a)/));
+assertEquals(["a", "a"], "bab".match(/(?<a42>a)/));
+assertEquals(["a", "a"], "bab".match(/(?<_>a)/));
+assertEquals(["a", "a"], "bab".match(/(?<$>a)/));
+assertEquals(["bab", "a"], "bab".match(/.(?<$>a)./));
+assertEquals(["bab", "a", "b"], "bab".match(/.(?<a>a)(.)/));
+assertEquals(["bab", "a", "b"], "bab".match(/.(?<a>a)(?<b>.)/));
+assertEquals(["bab", "ab"], "bab".match(/.(?<a>\w\w)/));
+assertEquals(["bab", "bab"], "bab".match(/(?<a>\w\w\w)/));
+assertEquals(["bab", "ba", "b"], "bab".match(/(?<a>\w\w)(?<b>\w)/));
 
 assertEquals("bab".match(/(a)/u), "bab".match(/(?<a>a)/u));
 assertEquals("bab".match(/(a)/u), "bab".match(/(?<a42>a)/u));
@@ -81,6 +121,9 @@ assertEquals(["bab", "b", "a"], "bab".match(/(?<b>b)\k<a>(?<a>a)\k<b>/u));
 assertEquals({a: "a", b: "b"},
              "bab".match(/(?<b>b)\k<a>(?<a>a)\k<b>/u).groups);
 
+assertEquals(["bab", "b"], "bab".match(/\k<a>(?<a>b)\w\k<a>/));
+assertEquals(["bab", "b", "a"], "bab".match(/(?<b>b)\k<a>(?<a>a)\k<b>/));
+
 // Reference properties.
 assertEquals("a", /(?<a>a)(?<b>b)\k<a>/u.exec("aba").groups.a);
 assertEquals("b", /(?<a>a)(?<b>b)\k<a>/u.exec("aba").groups.b);
@@ -89,6 +132,8 @@ assertEquals(undefined, /(?<a>a)(?<b>b)\k<a>|(?<c>c)/u.exec("aba").groups.c);
 
 // Unicode names.
 assertEquals("a", /(?<π>a)/u.exec("bab").groups.π);
+assertEquals("a", /(?<\u{03C0}>a)/u.exec("bab").groups.π);
+assertEquals("a", /(?<π>a)/u.exec("bab").groups.\u03C0);
 assertEquals("a", /(?<\u{03C0}>a)/u.exec("bab").groups.\u03C0);
 assertEquals("a", /(?<$>a)/u.exec("bab").groups.$);
 assertEquals("a", /(?<_>a)/u.exec("bab").groups._);
@@ -98,6 +143,14 @@ assertEquals("a", /(?<_\u200D>a)/u.exec("bab").groups._\u200D);
 assertEquals("a", /(?<ಠ_ಠ>a)/u.exec("bab").groups.ಠ_ಠ);
 assertThrows('/(?<❤>a)/u', SyntaxError);
 assertThrows('/(?<𐒤>a)/u', SyntaxError);  // ID_Continue but not ID_Start.
+
+assertEquals("a", /(?<π>a)/.exec("bab").groups.π);
+assertEquals("a", /(?<$>a)/.exec("bab").groups.$);
+assertEquals("a", /(?<_>a)/.exec("bab").groups._);
+assertThrows("/(?<$𐒤>a)/", SyntaxError);
+assertEquals("a", /(?<ಠ_ಠ>a)/.exec("bab").groups.ಠ_ಠ);
+assertThrows('/(?<❤>a)/', SyntaxError);
+assertThrows('/(?<𐒤>a)/', SyntaxError);  // ID_Continue but not ID_Start.
 
 // Interaction with lookbehind assertions.
 assertEquals(["f", "c"], "abcdef".match(/(?<=(?<a>\w){3})f/u));

@@ -293,6 +293,10 @@ class RegExpParser BASE_EMBEDDED {
 
   Handle<FixedArray> CreateCaptureNameMap();
 
+  // Returns true iff the pattern contains named captures. May call
+  // ScanForCaptures to look ahead at the remaining pattern.
+  bool HasNamedCaptures();
+
   Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
 
@@ -319,12 +323,12 @@ class RegExpParser BASE_EMBEDDED {
   bool unicode_;
   int next_pos_;
   int captures_started_;
-  // The capture count is only valid after we have scanned for captures.
-  int capture_count_;
+  int capture_count_;  // Only valid after we have scanned for captures.
   bool has_more_;
   bool simple_;
   bool contains_anchor_;
   bool is_scanned_for_captures_;
+  bool has_named_captures_;  // Only valid after we have scanned for captures.
   bool failed_;
 };
 

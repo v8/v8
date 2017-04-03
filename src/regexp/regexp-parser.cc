@@ -40,6 +40,7 @@ RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
       simple_(false),
       contains_anchor_(false),
       is_scanned_for_captures_(false),
+      has_named_captures_(false),
       failed_(false) {
   DCHECK_IMPLIES(dotall(), FLAG_harmony_regexp_dotall);
   Advance();
@@ -325,7 +326,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
                   break;
                 }
               }
-              if (FLAG_harmony_regexp_named_captures && unicode()) {
+              if (FLAG_harmony_regexp_named_captures) {
+                has_named_captures_ = true;
                 is_named_capture = true;
                 Advance();
                 break;
@@ -541,7 +543,13 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             break;
           }
           case 'k':
-            if (FLAG_harmony_regexp_named_captures && unicode()) {
+            // Either an identity escape or a named back-reference.  The two
+            // interpretations are mutually exclusive: '\k' is interpreted as
+            // an identity escape for non-unicode patterns without named
+            // capture groups, and as the beginning of a named back-reference
+            // in all other cases.
+            if (FLAG_harmony_regexp_named_captures &&
+                (unicode() || HasNamedCaptures())) {
               Advance(2);
               ParseNamedBackReference(builder, state CHECK_FAILED);
               break;
@@ -657,6 +665,8 @@ static bool IsSpecialClassEscape(uc32 c) {
 // noncapturing parentheses and can skip character classes and backslash-escaped
 // characters.
 void RegExpParser::ScanForCaptures() {
+  DCHECK(!is_scanned_for_captures_);
+  const int saved_position = position();
   // Start with captures started previous to current position
   int capture_count = captures_started();
   // Add count of captures after this position.
@@ -692,11 +702,19 @@ void RegExpParser::ScanForCaptures() {
           Advance();
           if (current() != '<') break;
 
-          // TODO(jgruber): To be more future-proof we could test for
-          // IdentifierStart here once it becomes clear whether group names
-          // allow unicode escapes.
-          Advance();
-          if (current() == '=' || current() == '!') break;
+          if (FLAG_harmony_regexp_lookbehind) {
+            // TODO(jgruber): To be more future-proof we could test for
+            // IdentifierStart here once it becomes clear whether group names
+            // allow unicode escapes.
+            // https://github.com/tc39/proposal-regexp-named-groups/issues/23
+            Advance();
+            if (current() == '=' || current() == '!') break;
+          }
+
+          // Found a possible named capture. It could turn out to be a syntax
+          // error (e.g. an unterminated or invalid name), but that distinction
+          // does not matter for our purposes.
+          has_named_captures_ = true;
         }
         capture_count++;
         break;
@@ -704,6 +722,7 @@ void RegExpParser::ScanForCaptures() {
   }
   capture_count_ = capture_count;
   is_scanned_for_captures_ = true;
+  Reset(saved_position);
 }
 
 
@@ -729,11 +748,7 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
     }
   }
   if (value > captures_started()) {
-    if (!is_scanned_for_captures_) {
-      int saved_position = position();
-      ScanForCaptures();
-      Reset(saved_position);
-    }
+    if (!is_scanned_for_captures_) ScanForCaptures();
     if (value > capture_count_) {
       Reset(start);
       return false;
@@ -754,7 +769,6 @@ static void push_code_unit(ZoneVector<uc16>* v, uint32_t code_unit) {
 
 const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
   DCHECK(FLAG_harmony_regexp_named_captures);
-  DCHECK(unicode());
 
   ZoneVector<uc16>* name =
       new (zone()->New(sizeof(ZoneVector<uc16>))) ZoneVector<uc16>(zone());
@@ -766,6 +780,8 @@ const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
 
     // Convert unicode escapes.
     if (c == '\\' && current() == 'u') {
+      // TODO(jgruber): Reconsider this once the spec has settled.
+      // https://github.com/tc39/proposal-regexp-named-groups/issues/23
       Advance();
       if (!ParseUnicodeEscape(&c)) {
         ReportError(CStrVector("Invalid Unicode escape sequence"));
@@ -798,7 +814,6 @@ const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
 bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<uc16>* name,
                                              int index) {
   DCHECK(FLAG_harmony_regexp_named_captures);
-  DCHECK(unicode());
   DCHECK(0 < index && index <= captures_started_);
   DCHECK_NOT_NULL(name);
 
@@ -806,6 +821,7 @@ bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<uc16>* name,
     named_captures_ = new (zone()) ZoneList<RegExpCapture*>(1, zone());
   } else {
     // Check for duplicates and bail if we find any.
+    // TODO(jgruber): O(n^2).
     for (const auto& named_capture : *named_captures_) {
       if (*named_capture->name() == *name) {
         ReportError(CStrVector("Duplicate capture group name"));
@@ -918,6 +934,16 @@ Handle<FixedArray> RegExpParser::CreateCaptureNameMap() {
   }
 
   return array;
+}
+
+bool RegExpParser::HasNamedCaptures() {
+  if (has_named_captures_ || is_scanned_for_captures_) {
+    return has_named_captures_;
+  }
+
+  ScanForCaptures();
+  DCHECK(is_scanned_for_captures_);
+  return has_named_captures_;
 }
 
 bool RegExpParser::RegExpParserState::IsInsideCaptureGroup(int index) {
