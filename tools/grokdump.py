@@ -108,12 +108,10 @@ class Descriptor(object):
   def _GetCtype(fields):
     class Raw(ctypes.Structure):
       _fields_ = fields
-      _maxWidth = max(map(lambda s: len(s), fields))
       _pack_ = 1
 
       def __str__(self):
-        return "{" + ", ".join("%s: %s" % (str(field).ljust(_maxWidth),
-                                           self.__getattribute__(field))
+        return "{" + ", ".join("%s: %s" % (field, self.__getattribute__(field))
                                for field, _ in Raw._fields_) + "}"
     return Raw
 
@@ -180,6 +178,12 @@ INSTANCE_TYPES = v8heapconst.INSTANCE_TYPES
 KNOWN_MAPS = v8heapconst.KNOWN_MAPS
 KNOWN_OBJECTS = v8heapconst.KNOWN_OBJECTS
 FRAME_MARKERS = v8heapconst.FRAME_MARKERS
+
+# Markers pushed on the stack by PushStackTraceAndDie
+MAGIC_MARKER_PAIRS = (
+    (0xbbbbbbbb, 0xbbbbbbbb),
+    (0xfefefefe, 0xfefefeff),
+)
 
 # Set of structures and constants that describe the layout of minidump
 # files. Based on MSDN and Google Breakpad.
@@ -743,6 +747,17 @@ class MinidumpReader(object):
     ascii_content = [c if c >= '\x20' and c <  '\x7f' else '.'
                        for c in self.ReadBytes(address, self.PointerSize())]
     return ''.join(ascii_content)
+
+  def ReadAsciiString(self, address):
+    string = ""
+    while self.IsValidAddress(address):
+      code = self.ReadU8(address)
+      if 0 < code < 128:
+        string += chr(code)
+      else:
+        break
+      address += 1
+    return string
 
   def IsProbableASCIIRegion(self, location, length):
     ascii_bytes = 0
@@ -1725,7 +1740,7 @@ class V8Heap(object):
     return (1 << 19) - 1
 
   def IsTaggedAddress(self, address):
-    return (address & 1) == 1
+    return (address & self.ObjectAlignmentMask()) == 1
 
   def IsSmi(self, tagged_address):
     if self.reader.Is64():
@@ -1742,6 +1757,13 @@ class V8Heap(object):
     if self.reader.IsModuleAddress(address): return "C"
     if self.IsTaggedAddress(address): return "T"
     return "*"
+
+  def FormatIntPtr(self, address):
+    marker = self.AddressTypeMarker(address)
+    address = self.reader.FormatIntPtr(address)
+    if marker == " ": return address
+    return "%s %s" % (address, marker)
+
 
   def RelativeOffset(self, slot, address):
     if not self.reader.IsValidAddress(slot): return None
@@ -1959,6 +1981,59 @@ class InspectionPadawan(object):
           self.reader.FormatIntPtr(self.known_first_map_page),
           self.reader.FormatIntPtr(self.known_first_old_page))
 
+  def PrintStackTraceMessage(self, start=None, print_message=True):
+    """
+    Try to print a possible message from PushStackTraceAndDie.
+    Returns the first address where the normal stack starts again.
+    """
+    # Only look at the first 32 words on the stack
+    ptr_size = self.reader.PointerSize()
+    if start is None:
+      start = self.reader.ExceptionSP()
+    end = start + ptr_size * 32
+    message_start = 0
+    for slot in xrange(start, end, ptr_size):
+      magic1 = self.reader.ReadUIntPtr(slot)
+      magic2 = self.reader.ReadUIntPtr(slot + ptr_size)
+      pair = (magic1 & 0xFFFFFFFF, magic2 & 0xFFFFFFFF)
+      if pair in MAGIC_MARKER_PAIRS:
+        message_slot = slot + ptr_size * 4
+        message_start = self.reader.ReadUIntPtr(message_slot)
+        break
+    if message_start == 0: return start
+    ptr1 = self.reader.ReadUIntPtr(slot + ptr_size * 2)
+    ptr2 = self.reader.ReadUIntPtr(slot + ptr_size * 3)
+    message = self.reader.ReadAsciiString(message_start)
+    stack_start = message_start + len(message) + 1
+    # Make sure the address is word aligned
+    stack_start =  stack_start - (stack_start % ptr_size)
+    print "Stack Message:"
+    print "  magic1:        %s" % self.heap.FormatIntPtr(magic1)
+    print "  magic2:        %s" % self.heap.FormatIntPtr(magic2)
+    print "  ptr1:          %s" % self.heap.FormatIntPtr(ptr1)
+    print "  ptr2:          %s" % self.heap.FormatIntPtr(ptr2)
+    print "  message start: %s" % self.heap.FormatIntPtr(message_start)
+    print "  stack_start:   %s" % self.heap.FormatIntPtr(stack_start )
+    print ""
+    if not print_message:
+      print "  Use `das` to print the message with annotated addresses."
+      print ""
+      return stack_start
+    # Annotate all addresses in the dumped message
+    prog = re.compile("[0-9a-fA-F]{%s}" % ptr_size*2)
+    addresses = list(set(prog.findall(message)))
+    for i in range(len(addresses)):
+      address_org = addresses[i]
+      address = self.heap.FormatIntPtr(int(address_org, 16))
+      if address_org != address:
+        message = message.replace(address_org, address)
+    print "Message:"
+    print "="*80
+    print message
+    print "="*80
+    print ""
+    return stack_start
+
   def TryInferFramePointer(self, slot, address):
     """ Assume we have a framepointer if we find 4 consecutive links """
     for i in range(0, 4):
@@ -1982,7 +2057,7 @@ class InspectionPadawan(object):
       address_info = []
       heap_object = self.SenseObject(maybe_address, slot)
       if heap_object:
-        address_info.append(heap_object)
+        address_info.append(str(heap_object))
       relative_offset = self.heap.RelativeOffset(slot, maybe_address)
       if relative_offset:
         address_info.append(relative_offset)
@@ -3077,24 +3152,6 @@ class InspectionShell(cmd.Cmd):
     self.padawan = InspectionPadawan(reader, heap)
     self.prompt = "(grok) "
 
-  def do_da(self, address):
-    """
-     Print ASCII string starting at specified address.
-    """
-    address = int(address, 16)
-    string = ""
-    while self.reader.IsValidAddress(address):
-      code = self.reader.ReadU8(address)
-      if code < 128:
-        string += chr(code)
-      else:
-        break
-      address += 1
-    if string == "":
-      print "Not an ASCII string at %s" % self.reader.FormatIntPtr(address)
-    else:
-      print "%s\n" % string
-
   def ParseAddressExpr(self, expr):
     """
     Support parsing simple expressions of the form:
@@ -3127,6 +3184,30 @@ class InspectionShell(cmd.Cmd):
         print("*** Invalid offset: %s" % expr[1])
         return 0
     return address
+
+  def do_da(self, address):
+    """
+     Print ASCII string starting at specified address.
+    """
+    address = self.ParseAddressExpr(address)
+    string = self.reader.ReadAsciiString(address)
+    if string == "":
+      print "Not an ASCII string at %s" % self.reader.FormatIntPtr(address)
+    else:
+      print "%s\n" % string
+
+  def do_das(self, address):
+    """
+    Print ASCII stack error message.
+    """
+    if self.reader.exception is None:
+      print "Minidump has no exception info"
+      return
+    if len(address) == 0:
+      address = None
+    else:
+      address = self.ParseAddressExpr(address)
+    self.padawan.PrintStackTraceMessage(address)
 
   def do_dd(self, args):
     """
@@ -3354,7 +3435,9 @@ def AnalyzeMinidump(options, minidump_name):
     maybe_address = reader.ReadUIntPtr(slot)
     if not maybe_address in stack_map:
       stack_map[maybe_address] = slot
+
   heap = V8Heap(reader, stack_map)
+  padawan = InspectionPadawan(reader, heap)
 
   DebugPrint("========================================")
   if reader.exception is None:
@@ -3365,6 +3448,7 @@ def AnalyzeMinidump(options, minidump_name):
     print "  S = address on the exception stack"
     print "  C = address in loaded C/C++ module"
     print "  * = address in the minidump"
+    print ""
     print "Exception info:"
     exception_thread = reader.ExceptionThread()
     print "  thread id: %d" % exception_thread.id
@@ -3374,9 +3458,8 @@ def AnalyzeMinidump(options, minidump_name):
     maxWidth = max(map(lambda s: len(s), context))
     for r in context:
       register_value = reader.Register(r)
-      print "    %s: %s %s" % (r.rjust(maxWidth),
-                            reader.FormatIntPtr(register_value ),
-                            heap.AddressTypeMarker(register_value))
+      print "    %s: %s" % (r.rjust(maxWidth),
+                            heap.FormatIntPtr(register_value))
     # TODO(vitalyr): decode eflags.
     if reader.arch in [MD_CPU_ARCHITECTURE_ARM, MD_CPU_ARCHITECTURE_ARM64]:
       print "    cpsr: %s" % bin(reader.exception_context.cpsr)[2:]
@@ -3391,6 +3474,13 @@ def AnalyzeMinidump(options, minidump_name):
         print "    %s at %08X" % (name, module.base_of_image)
         reader.TryLoadSymbolsFor(name, module)
     print
+
+    print "  stack-top:    %s" % heap.FormatIntPtr(reader.StackTop())
+    print "  stack-bottom: %s" % heap.FormatIntPtr(reader.StackBottom())
+    print ""
+
+    if options.shell:
+      padawan.PrintStackTraceMessage(print_message=False)
 
     print "Disassembly around exception.eip:"
     eip_symbol = reader.FindSymbol(reader.ExceptionIP())
@@ -3431,8 +3521,8 @@ def AnalyzeMinidump(options, minidump_name):
   elif not options.command:
     if reader.exception is not None:
       print "Annotated stack (from exception.esp to bottom):"
-      padawan = InspectionPadawan(reader, heap)
-      padawan.InterpretMemory(stack_top, stack_bottom)
+      stack_start = padawan.PrintStackTraceMessage()
+      padawan.InterpretMemory(stack_start, stack_bottom)
   reader.Dispose()
 
 
