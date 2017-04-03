@@ -32,10 +32,6 @@ namespace base {
 class RandomNumberGenerator;
 }
 
-namespace debug {
-class ConsoleDelegate;
-}
-
 namespace internal {
 
 class AccessCompilerData;
@@ -740,11 +736,6 @@ class Isolate {
     Throw(*exception, location);
     return MaybeHandle<T>();
   }
-
-  void set_console_delegate(debug::ConsoleDelegate* delegate) {
-    console_delegate_ = delegate;
-  }
-  debug::ConsoleDelegate* console_delegate() { return console_delegate_; }
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.
@@ -1540,8 +1531,6 @@ class Isolate {
   FutexWaitListNode futex_wait_list_node_;
 
   CancelableTaskManager* cancelable_task_manager_;
-
-  debug::ConsoleDelegate* console_delegate_ = nullptr;
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
       abort_on_uncaught_exception_callback_;
