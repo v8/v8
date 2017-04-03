@@ -10039,6 +10039,13 @@ Handle<ArrayList> ArrayList::New(Isolate* isolate, int size) {
   return result;
 }
 
+Handle<FixedArray> ArrayList::Elements() {
+  Handle<FixedArray> result = GetIsolate()->factory()->NewFixedArray(Length());
+  // Do not copy the first entry, i.e., the length.
+  CopyTo(kFirstIndex, *result, 0, Length());
+  return result;
+}
+
 bool ArrayList::IsFull() {
   int capacity = length();
   return kFirstIndex + Length() == capacity;

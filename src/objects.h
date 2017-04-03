@@ -2966,6 +2966,9 @@ class ArrayList : public FixedArray {
   inline void Set(int index, Object* obj,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Clear(int index, Object* undefined);
+
+  // Return a copy of the list without the first entry (contains the Length).
+  Handle<FixedArray> Elements();
   bool IsFull();
   DECLARE_CAST(ArrayList)
 

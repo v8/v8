@@ -926,19 +926,19 @@ void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
         UnseededNumberDictionary::cast(feedback), isolate);
   }
 
-  Handle<ArrayList> types_for_position;
+  Handle<ArrayList> position_specific_types;
 
   if (types->Has(position)) {
     int entry = types->FindEntry(position);
     DCHECK(types->ValueAt(entry)->IsArrayList());
-    types_for_position =
+    position_specific_types =
         Handle<ArrayList>(ArrayList::cast(types->ValueAt(entry)));
   } else {
-    types_for_position = ArrayList::New(isolate, 1);
+    position_specific_types = ArrayList::New(isolate, 1);
   }
 
   types = UnseededNumberDictionary::Set(
-      types, position, ArrayList::Add(types_for_position, type));
+      types, position, ArrayList::Add(position_specific_types, type));
   SetFeedback(*types);
 }
 
@@ -957,19 +957,14 @@ Handle<JSObject> ConvertToJSObject(Isolate* isolate,
     if (key->IsSmi()) {
       int value_index = index + UnseededNumberDictionary::kEntryValueIndex;
 
-      Handle<ArrayList> orig = Handle<ArrayList>(
+      Handle<ArrayList> position_specific_types = Handle<ArrayList>(
           ArrayList::cast(feedback->get(value_index)), isolate);
 
-      // Delete the first entry, i.e., the length.
-      Handle<FixedArray> storage =
-          isolate->factory()->NewFixedArray(orig->Length());
-      orig->CopyTo(1, *storage, 0, orig->Length());
-
-      int pos = Smi::cast(key)->value();
-      JSObject::AddDataElement(
-          type_profile, pos,
-          isolate->factory()->NewJSArrayWithElements(storage),
-          PropertyAttributes::NONE)
+      int position = Smi::cast(key)->value();
+      JSObject::AddDataElement(type_profile, position,
+                               isolate->factory()->NewJSArrayWithElements(
+                                   position_specific_types->Elements()),
+                               PropertyAttributes::NONE)
           .ToHandleChecked();
     }
   }
