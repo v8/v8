@@ -250,7 +250,6 @@ var failWithMessage;
 
 
   failWithMessage = function failWithMessage(message) {
-    print("oh, we failed: " + message);
     throw new MjsUnitAssertionError(message);
   }
 
