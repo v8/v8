@@ -454,7 +454,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
   }
   os << "]";
   if (obj->GetEmbedderFieldCount() > 0) {
-    os << "\n - internal fields: " << obj->GetEmbedderFieldCount();
+    os << "\n - embedder fields: " << obj->GetEmbedderFieldCount();
   }
 }
 
@@ -471,7 +471,7 @@ static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
   }
   int embedder_fields = obj->GetEmbedderFieldCount();
   if (embedder_fields > 0) {
-    os << " - internal fields = {";
+    os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
       os << "\n    " << obj->GetEmbedderField(i);
     }

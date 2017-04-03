@@ -168,7 +168,7 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     //  - Set IsExternal and IsNeuterable bits of BitFieldSlot.
     //  - Set the byte_length field to byte_length.
     //  - Set backing_store to null/Smi(0).
-    //  - Set all internal fields to Smi(0).
+    //  - Set all embedder fields to Smi(0).
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldSlot,
                                    SmiConstant(Smi::kZero));
     int32_t bitfield_value = (1 << JSArrayBuffer::IsExternal::kShift) |
