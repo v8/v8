@@ -708,7 +708,7 @@ function ArraySplice(start, delete_count) {
 
 function InnerArraySort(array, length, comparefn) {
   // In-place QuickSort algorithm.
-  // For short (length <= 22) arrays, insertion sort is used for efficiency.
+  // For short (length <= 10) arrays, insertion sort is used for efficiency.
 
   if (!IS_CALLABLE(comparefn)) {
     comparefn = function (x, y) {
