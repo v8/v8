@@ -195,6 +195,10 @@ BUILTIN(TypedArrayPrototypeFill) {
 
   if (V8_UNLIKELY(array->WasNeutered())) return *array;
 
+  Handle<Object> obj_value = args.atOrUndefined(isolate, 1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, obj_value, Object::ToNumber(obj_value));
+
   int64_t len = array->length_value();
   int64_t start = 0;
   int64_t end = len;
@@ -226,8 +230,6 @@ BUILTIN(TypedArrayPrototypeFill) {
   DCHECK_GE(end, 0);
   DCHECK_LE(end, len);
   DCHECK_LE(count, len);
-
-  Handle<Object> obj_value = args.atOrUndefined(isolate, 1);
 
   return array->GetElementsAccessor()->Fill(isolate, array, obj_value,
                                             static_cast<uint32_t>(start),

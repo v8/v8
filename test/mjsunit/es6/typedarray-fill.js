@@ -52,22 +52,13 @@ for (var constructor of typedArrayConstructors) {
   assertArrayEquals([8, 8, 8, 8, 8], new constructor([0, 0, 0, 0, 0]).fill("8"));
 
   // Test ToNumber
-  var s = "";
-  var p = new Proxy({}, {get(t,k) { s += k.toString() + '\n'; return Reflect.get(t, k)}})
+  var n = 1;
+  assertArrayEquals([1, 1], new constructor(2).fill({ valueOf() { return n++; } }));
+  assertEquals(2, n);
+  var s = [];
+  var p = new Proxy({}, { get(t,k) { s.push(k.toString()); return Reflect.get(t,k)} });
   new constructor(3).fill(p);
-  assertEquals(s, `Symbol(Symbol.toPrimitive)
-valueOf
-toString
-Symbol(Symbol.toStringTag)
-Symbol(Symbol.toPrimitive)
-valueOf
-toString
-Symbol(Symbol.toStringTag)
-Symbol(Symbol.toPrimitive)
-valueOf
-toString
-Symbol(Symbol.toStringTag)
-`);
+  assertEquals(["Symbol(Symbol.toPrimitive)", "valueOf", "toString", "Symbol(Symbol.toStringTag)"], s);
 
   // Shadowing length doesn't affect fill, unlike Array.prototype.fill
   var a = new constructor([2, 2]);

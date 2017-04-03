@@ -470,22 +470,6 @@ static void SortIndices(
   }
 }
 
-static Object* FillNumberSlowPath(Isolate* isolate, Handle<JSTypedArray> array,
-                                  Handle<Object> obj_value,
-                                  uint32_t start, uint32_t end) {
-  Handle<Object> cast_value;
-  ElementsAccessor* elements = array->GetElementsAccessor();
-
-  for (uint32_t k = start; k < end; ++k) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, cast_value, Object::ToNumber(obj_value));
-    // TODO(caitp,cbruni): throw on neutered array
-    if (V8_UNLIKELY(array->WasNeutered())) return *array;
-    elements->Set(array, k, *cast_value);
-  }
-  return *array;
-}
-
 static Maybe<bool> IncludesValueSlowPath(Isolate* isolate,
                                          Handle<JSObject> receiver,
                                          Handle<Object> value,
@@ -2878,24 +2862,14 @@ class TypedElementsAccessor
                           uint32_t end) {
     Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
     DCHECK(!array->WasNeutered());
+    DCHECK(obj_value->IsNumber());
 
     ctype value;
     if (obj_value->IsSmi()) {
       value = BackingStore::from_int(Smi::cast(*obj_value)->value());
     } else {
-      Handle<HeapObject> heap_obj_value = Handle<HeapObject>::cast(obj_value);
-      if (heap_obj_value->IsHeapNumber()) {
-        value = BackingStore::from_double(
-            HeapNumber::cast(*heap_obj_value)->value());
-      } else if (heap_obj_value->IsOddball()) {
-        value = BackingStore::from_double(
-            Oddball::ToNumber(Handle<Oddball>::cast(heap_obj_value))->Number());
-      } else if (heap_obj_value->IsString()) {
-        value = BackingStore::from_double(
-            String::ToNumber(Handle<String>::cast(heap_obj_value))->Number());
-      } else {
-        return FillNumberSlowPath(isolate, array, obj_value, start, end);
-      }
+      DCHECK(obj_value->IsHeapNumber());
+      value = BackingStore::from_double(HeapNumber::cast(*obj_value)->value());
     }
 
     // Ensure indexes are within array bounds
