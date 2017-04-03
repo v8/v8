@@ -2296,8 +2296,10 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     }
     i::Handle<i::String> brackets;
     if (i::FLAG_harmony_function_tostring) {
+      // Append linefeed and signal that text beyond the linefeed is not part of
+      // the formal parameters.
       brackets = factory->NewStringFromStaticChars("\n) {");
-      parameters_end_pos = source_string->length() - 3;
+      parameters_end_pos = source_string->length() + 1;
     } else {
       brackets = factory->NewStringFromStaticChars("){");
     }
