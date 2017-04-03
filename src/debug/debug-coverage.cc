@@ -159,14 +159,15 @@ Coverage* Coverage::Collect(Isolate* isolate,
             count = 1;
             break;
         }
-      } else if (nesting.empty() || functions->at(nesting.back()).count == 0) {
-        // Only include a function range if it has a non-0 count, or
-        // if it is directly nested inside a function with non-0 count.
-        continue;
       }
-      Handle<String> name(info->DebugName(), isolate);
-      nesting.push_back(functions->size());
-      functions->emplace_back(start, end, count, name);
+      // Only include a function range if it has a non-0 count, or
+      // if it is directly nested inside a function with non-0 count.
+      if (count != 0 ||
+          (!nesting.empty() && functions->at(nesting.back()).count != 0)) {
+        Handle<String> name(info->DebugName(), isolate);
+        nesting.push_back(functions->size());
+        functions->emplace_back(start, end, count, name);
+      }
     }
 
     // Remove entries for scripts that have no coverage.

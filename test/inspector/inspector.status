@@ -6,8 +6,6 @@
 
 ##############################################################################
 ['variant != default', {
-  # Issue 6165.
-  'cpu-profiler/coverage': [PASS, FAIL],
   # Issue 6166.
   'debugger/asm-js-breakpoint-during-exec': [PASS, FAIL],
   'debugger/asm-js-stack': [PASS, FAIL],
