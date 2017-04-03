@@ -1189,7 +1189,7 @@ void Code::CodePrint(std::ostream& os) {  // NOLINT
 
 
 void Foreign::ForeignPrint(std::ostream& os) {  // NOLINT
-  os << "foreign address : " << reinterpret_cast<void*>(foreign_address());
+  os << "foreign address : " << foreign_address();
   os << "\n";
 }
 
