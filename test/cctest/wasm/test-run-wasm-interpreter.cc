@@ -429,6 +429,12 @@ TEST(WasmInterpreterActivations) {
   CHECK_EQ(0, thread->NumActivations());
 }
 
+TEST(InterpreterLoadWithoutMemory) {
+  WasmRunner<int32_t, int32_t> r(kExecuteInterpreted);
+  BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
+  CHECK_TRAP32(r.Call(0));
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

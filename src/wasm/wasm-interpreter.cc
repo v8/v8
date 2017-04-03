@@ -1456,13 +1456,17 @@ class ThreadImpl {
     stack_.resize(stack_.size() - pop_count);
   }
 
+  template <typename mtype>
+  inline bool BoundsCheck(uint32_t mem_size, uint32_t offset, uint32_t index) {
+    return sizeof(mtype) <= mem_size && offset <= mem_size - sizeof(mtype) &&
+           index <= mem_size - sizeof(mtype) - offset;
+  }
+
   template <typename ctype, typename mtype>
   bool ExecuteLoad(Decoder* decoder, InterpreterCode* code, pc_t pc, int& len) {
     MemoryAccessOperand operand(decoder, code->at(pc), sizeof(ctype));
     uint32_t index = Pop().to<uint32_t>();
-    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);
-    if (operand.offset > effective_mem_size ||
-        index > (effective_mem_size - operand.offset)) {
+    if (!BoundsCheck<mtype>(instance()->mem_size, operand.offset, index)) {
       DoTrap(kTrapMemOutOfBounds, pc);
       return false;
     }
@@ -1481,9 +1485,7 @@ class ThreadImpl {
     WasmVal val = Pop();
 
     uint32_t index = Pop().to<uint32_t>();
-    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);
-    if (operand.offset > effective_mem_size ||
-        index > (effective_mem_size - operand.offset)) {
+    if (!BoundsCheck<mtype>(instance()->mem_size, operand.offset, index)) {
       DoTrap(kTrapMemOutOfBounds, pc);
       return false;
     }
@@ -1844,7 +1846,7 @@ class ThreadImpl {
   case kExpr##name: {                                               \
     uint32_t index = Pop().to<uint32_t>();                          \
     ctype result;                                                   \
-    if (index >= (instance()->mem_size - sizeof(mtype))) {          \
+    if (!BoundsCheck<mtype>(instance()->mem_size, 0, index)) {      \
       result = defval;                                              \
     } else {                                                        \
       byte* addr = instance()->mem_start + index;                   \
@@ -1869,7 +1871,7 @@ class ThreadImpl {
   case kExpr##name: {                                                          \
     WasmVal val = Pop();                                                       \
     uint32_t index = Pop().to<uint32_t>();                                     \
-    if (index < (instance()->mem_size - sizeof(mtype))) {                      \
+    if (BoundsCheck<mtype>(instance()->mem_size, 0, index)) {                  \
       byte* addr = instance()->mem_start + index;                              \
       /* TODO(titzer): alignment for asmjs store mem? */                       \
       *(reinterpret_cast<mtype*>(addr)) = static_cast<mtype>(val.to<ctype>()); \
