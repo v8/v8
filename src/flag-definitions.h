@@ -192,11 +192,6 @@ DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
 
-
-// Activate on ClusterFuzz.
-DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
-DEFINE_IMPLICATION(es_staging, move_object_start)
-
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                           \
   V(harmony_array_prototype_values, "harmony Array.prototype.values")   \
@@ -205,7 +200,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
   V(harmony_do_expressions, "harmony do-expressions")                   \
   V(harmony_regexp_dotall, "harmony regexp dotall flag")                \
-  V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
   V(harmony_function_tostring, "harmony Function.prototype.toString")   \
   V(harmony_class_fields, "harmony public fields in class literals")    \
@@ -216,6 +210,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")              \
+  V(harmony_regexp_named_captures, "harmony regexp named captures")      \
   V(harmony_restrictive_generators,                                      \
     "harmony restrictions on generator declarations")                    \
   V(harmony_object_rest_spread, "harmony object rest spread properties") \
