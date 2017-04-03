@@ -1368,8 +1368,8 @@ TF_BUILTIN(RegExpPrototypeMultilineGetter, RegExpBuiltinsAssembler) {
 Node* RegExpBuiltinsAssembler::IsDotAllEnabled(Isolate* isolate) {
   Node* flag_ptr = ExternalConstant(
       ExternalReference::address_of_regexp_dotall_flag(isolate));
-  Node* flag_value = Load(MachineType::IntPtr(), flag_ptr);
-  return WordNotEqual(flag_value, IntPtrConstant(0));
+  Node* const flag_value = Load(MachineType::Int8(), flag_ptr);
+  return Word32NotEqual(flag_value, Int32Constant(0));
 }
 
 // ES #sec-get-regexp.prototype.dotAll
