@@ -35,6 +35,7 @@
 #include "src/list-inl.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
+#include "src/objects.h"
 #include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
@@ -393,6 +394,20 @@ class PerIsolateData {
   int RealmFind(Local<Context> context);
 };
 
+class ExternalOwningOneByteStringResource
+    : public String::ExternalOneByteStringResource {
+ public:
+  ExternalOwningOneByteStringResource() : length_(0) {}
+  ExternalOwningOneByteStringResource(std::unique_ptr<const char[]> data,
+                                      size_t length)
+      : data_(std::move(data)), length_(length) {}
+  const char* data() const override { return data_.get(); }
+  size_t length() const override { return length_; }
+
+ private:
+  std::unique_ptr<const char[]> data_;
+  size_t length_;
+};
 
 CounterMap* Shell::counter_map_;
 base::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
@@ -406,6 +421,8 @@ base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 i::List<Worker*> Shell::workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
+std::vector<std::unique_ptr<String::ExternalOneByteStringResource>>
+    Shell::external_string_resources_;
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -1990,16 +2007,23 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(buffer);
 }
 
-
 // Reads a file into a v8 string.
 Local<String> Shell::ReadFile(Isolate* isolate, const char* name) {
   int size = 0;
   char* chars = ReadChars(name, &size);
   if (chars == NULL) return Local<String>();
-  Local<String> result =
-      String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size)
-          .ToLocalChecked();
-  delete[] chars;
+  Local<String> result;
+  if (i::FLAG_use_external_strings && internal::String::IsAscii(chars, size)) {
+    String::ExternalOneByteStringResource* resource =
+        new ExternalOwningOneByteStringResource(
+            std::unique_ptr<const char[]>(chars), size);
+    external_string_resources_.emplace_back(resource);
+    result = String::NewExternalOneByte(isolate, resource).ToLocalChecked();
+  } else {
+    result = String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size)
+                 .ToLocalChecked();
+    delete[] chars;
+  }
   return result;
 }
 
@@ -2221,16 +2245,8 @@ void SourceGroup::Execute(Isolate* isolate) {
   }
 }
 
-
 Local<String> SourceGroup::ReadFile(Isolate* isolate, const char* name) {
-  int size;
-  char* chars = ReadChars(name, &size);
-  if (chars == NULL) return Local<String>();
-  Local<String> result =
-      String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size)
-          .ToLocalChecked();
-  delete[] chars;
-  return result;
+  return Shell::ReadFile(isolate, name);
 }
 
 
