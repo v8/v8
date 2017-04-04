@@ -248,8 +248,6 @@ CompilerDispatcher::~CompilerDispatcher() {
 bool CompilerDispatcher::CanEnqueue() {
   if (!IsEnabled()) return false;
 
-  DCHECK(FLAG_ignition);
-
   if (memory_pressure_level_.Value() != MemoryPressureLevel::kNone) {
     return false;
   }
@@ -263,6 +261,8 @@ bool CompilerDispatcher::CanEnqueue() {
 }
 
 bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
+  DCHECK_IMPLIES(IsEnabled(), FLAG_ignition);
+
   if (!CanEnqueue()) return false;
 
   // We only handle functions (no eval / top-level code / wasm) that are
@@ -598,7 +598,7 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::GetJobFor(
 
 void CompilerDispatcher::ScheduleIdleTaskFromAnyThread() {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  DCHECK(platform_->IdleTasksEnabled(v8_isolate));
+  if (!platform_->IdleTasksEnabled(v8_isolate)) return;
   {
     base::LockGuard<base::Mutex> lock(&mutex_);
     if (idle_task_scheduled_) return;

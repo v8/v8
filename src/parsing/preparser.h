@@ -901,7 +901,6 @@ class PreParser : public ParserBase<PreParser> {
                               ast_value_factory, runtime_call_stats,
                               preparsed_scope_data, parsing_on_main_thread),
         use_counts_(nullptr),
-        preparse_data_(FLAG_use_parse_tasks ? new PreParseData() : nullptr),
         track_unresolved_variables_(false),
         pending_error_handler_(pending_error_handler) {}
 
@@ -913,8 +912,7 @@ class PreParser : public ParserBase<PreParser> {
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  PreParseResult PreParseProgram(bool is_module = false,
-                                 int* use_counts = nullptr);
+  PreParseResult PreParseProgram(bool is_module = false);
 
   // Parses a single function literal, from the opening parentheses before
   // parameters to the closing brace after the body.
@@ -929,8 +927,6 @@ class PreParser : public ParserBase<PreParser> {
                                   bool parsing_module,
                                   bool track_unresolved_variables,
                                   bool may_abort, int* use_counts);
-
-  const PreParseData* preparse_data() const { return preparse_data_.get(); }
 
  private:
   // These types form an algebra over syntactic categories that is just
@@ -1669,7 +1665,6 @@ class PreParser : public ParserBase<PreParser> {
   // Preparser's private field members.
 
   int* use_counts_;
-  std::unique_ptr<PreParseData> preparse_data_;
   bool track_unresolved_variables_;
   PreParserLogger log_;
   PendingCompilationErrorHandler* pending_error_handler_;

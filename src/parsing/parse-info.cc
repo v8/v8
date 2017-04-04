@@ -178,6 +178,24 @@ void ParseInfo::UpdateStatisticsAfterBackgroundParse(Isolate* isolate) {
   set_runtime_call_stats(main_call_stats);
 }
 
+void ParseInfo::ParseFinished(std::unique_ptr<ParseInfo> info) {
+  if (info->literal()) {
+    base::LockGuard<base::Mutex> access_child_infos(&child_infos_mutex_);
+    child_infos_.emplace_back(std::move(info));
+  }
+}
+
+std::map<int, ParseInfo*> ParseInfo::child_infos() const {
+  base::LockGuard<base::Mutex> access_child_infos(&child_infos_mutex_);
+  std::map<int, ParseInfo*> rv;
+  for (const auto& child_info : child_infos_) {
+    DCHECK_NOT_NULL(child_info->literal());
+    int start_position = child_info->literal()->start_position();
+    rv.insert(std::make_pair(start_position, child_info.get()));
+  }
+  return rv;
+}
+
 #ifdef DEBUG
 bool ParseInfo::script_is_native() const {
   return script_->type() == Script::TYPE_NATIVE;

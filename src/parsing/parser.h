@@ -273,6 +273,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   void SetCachedData(ParseInfo* info);
 
+  void StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate);
+
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
   }
@@ -1151,6 +1153,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Mode mode_;
+
+  std::vector<FunctionLiteral*> literals_to_stitch_;
+  Handle<String> source_;
+  CompilerDispatcher* compiler_dispatcher_ = nullptr;
+  ParseInfo* main_parse_info_ = nullptr;
 
   friend class ParserTarget;
   friend class ParserTargetScope;
