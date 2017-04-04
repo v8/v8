@@ -1436,6 +1436,12 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
     case MSY:
       Format(instr, "msy\t'r1,'d2('r2d,'r3)");
       break;
+    case MSC:
+      Format(instr, "msc\t'r1,'d2('r2d,'r3)");
+      break;
+    case MSGC:
+      Format(instr, "msgc\t'r1,'d2('r2d,'r3)");
+      break;
     case STEY:
       Format(instr, "stey\t'f1,'d2('r2d,'r3)");
       break;

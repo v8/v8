@@ -1300,6 +1300,7 @@ void Simulator::EvalTableInit() {
   EvalTable[BCTG] = &Simulator::Evaluate_BCTG;
   EvalTable[STY] = &Simulator::Evaluate_STY;
   EvalTable[MSY] = &Simulator::Evaluate_MSY;
+  EvalTable[MSC] = &Simulator::Evaluate_MSC;
   EvalTable[NY] = &Simulator::Evaluate_NY;
   EvalTable[CLY] = &Simulator::Evaluate_CLY;
   EvalTable[OY] = &Simulator::Evaluate_OY;
@@ -8153,6 +8154,25 @@ EVALUATE(MSY) {
   intptr_t d2_val = d2;
   int32_t mem_val = ReadW(b2_val + d2_val + x2_val, instr);
   int32_t r1_val = get_low_register<int32_t>(r1);
+  set_low_register(r1, mem_val * r1_val);
+  return length;
+}
+
+EVALUATE(MSC) {
+  DCHECK_OPCODE(MSC);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  int32_t mem_val = ReadW(b2_val + d2_val + x2_val, instr);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t result64 =
+      static_cast<int64_t>(r1_val) * static_cast<int64_t>(mem_val);
+  int32_t result32 = static_cast<int32_t>(result64);
+  bool isOF = (static_cast<int64_t>(result32) != result64);
+  SetS390ConditionCode<int32_t>(result32, 0);
+  SetS390OverflowCode(isOF);
+  set_low_register(r1, result32);
   set_low_register(r1, mem_val * r1_val);
   return length;
 }

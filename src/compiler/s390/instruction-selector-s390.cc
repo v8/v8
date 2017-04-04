@@ -1359,10 +1359,16 @@ static inline bool TryMatchInt32SubWithOverflow(InstructionSelector* selector,
 static inline bool TryMatchInt32MulWithOverflow(InstructionSelector* selector,
                                                 Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
-    VisitWord32BinOp(selector, node, kS390_Mul32WithOverflow,
-                     OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps,
-                     &cont);
+    if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+      DCHECK(TryMatchInt32OpWithOverflow<kS390_Mul32>(
+                 selector, node,
+                 OperandMode::kAllowRRR | OperandMode::kAllowRM) == true);
+    } else {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+      VisitWord32BinOp(selector, node, kS390_Mul32WithOverflow,
+                       OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps,
+                       &cont);
+    }
     return true;
   }
   return TryMatchShiftFromMul<Int32BinopMatcher, kS390_ShiftLeft32>(selector,

@@ -311,6 +311,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
         case kS390_Sub64:
         case kS390_Abs64:
         case kS390_Abs32:
+        case kS390_Mul32:
           return overflow;
         default:
           break;
@@ -322,6 +323,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
         case kS390_Add64:
         case kS390_Sub32:
         case kS390_Sub64:
+        case kS390_Abs64:
+        case kS390_Abs32:
+        case kS390_Mul32:
           return nooverflow;
         default:
           break;
@@ -1624,7 +1628,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_Mul32:
       // zero-ext
-      ASSEMBLE_BIN32_OP(RRInstr(Mul32), RM32Instr(Mul32), RIInstr(Mul32));
+      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+        ASSEMBLE_BIN32_OP(RRRInstr(msrkc), RM32Instr(msc), RIInstr(Mul32));
+      } else {
+        ASSEMBLE_BIN32_OP(RRInstr(Mul32), RM32Instr(Mul32), RIInstr(Mul32));
+      }
       break;
     case kS390_Mul32WithOverflow:
       // zero-ext
@@ -2549,8 +2557,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 
   // Overflow checked for add/sub only.
   DCHECK((condition != kOverflow && condition != kNotOverflow) ||
-         (op == kS390_Add32 || kS390_Add64 || op == kS390_Sub32 ||
-          op == kS390_Sub64));
+         (op == kS390_Add32 || op == kS390_Add64 || op == kS390_Sub32 ||
+          op == kS390_Sub64 || op == kS390_Mul32));
 
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
