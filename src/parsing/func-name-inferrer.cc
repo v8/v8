@@ -64,9 +64,9 @@ const AstConsString* FuncNameInferrer::MakeNameFromStack() {
     }
     // Add name. Separate names with ".".
     if (!result->IsEmpty()) {
-      result->AddString(ast_value_factory_->dot_string());
+      result->AddString(zone(), ast_value_factory_->dot_string());
     }
-    result->AddString(names_stack_.at(pos).name);
+    result->AddString(zone(), names_stack_.at(pos).name);
   }
   return result;
 }

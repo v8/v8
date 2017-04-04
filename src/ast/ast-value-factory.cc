@@ -156,12 +156,17 @@ bool AstRawString::Compare(void* a, void* b) {
 }
 
 void AstConsString::Internalize(Isolate* isolate) {
-  Handle<String> tmp(isolate->factory()->empty_string());
-  for (const AstRawString* current : strings_) {
-    // AstRawStrings are internalized before AstConsStrings, so *current is
-    // already internalized.
+  if (IsEmpty()) {
+    set_string(isolate->factory()->empty_string());
+    return;
+  }
+  // AstRawStrings are internalized before AstConsStrings, so
+  // AstRawString::string() will just work.
+  Handle<String> tmp(segment_.string->string());
+  for (AstConsString::Segment* current = segment_.next; current != nullptr;
+       current = current->next) {
     tmp = isolate->factory()
-              ->NewConsString(tmp, current->string())
+              ->NewConsString(current->string->string(), tmp)
               .ToHandleChecked();
   }
   set_string(tmp);
@@ -285,19 +290,19 @@ const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
 }
 
 AstConsString* AstValueFactory::NewConsString() {
-  AstConsString* new_string = new (zone_) AstConsString(zone_);
+  AstConsString* new_string = new (zone_) AstConsString;
   DCHECK_NOT_NULL(new_string);
   AddConsString(new_string);
   return new_string;
 }
 
 AstConsString* AstValueFactory::NewConsString(const AstRawString* str) {
-  return NewConsString()->AddString(str);
+  return NewConsString()->AddString(zone_, str);
 }
 
 AstConsString* AstValueFactory::NewConsString(const AstRawString* str1,
                                               const AstRawString* str2) {
-  return NewConsString()->AddString(str1)->AddString(str2);
+  return NewConsString()->AddString(zone_, str1)->AddString(zone_, str2);
 }
 
 void AstValueFactory::Internalize(Isolate* isolate) {

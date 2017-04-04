@@ -126,12 +126,24 @@ class AstRawString final : public ZoneObject {
 
 class AstConsString final : public ZoneObject {
  public:
-  AstConsString* AddString(const AstRawString* s) {
-    if (s && !s->IsEmpty()) strings_.push_back(s);
+  AstConsString* AddString(Zone* zone, const AstRawString* s) {
+    if (s->IsEmpty()) return this;
+    if (!IsEmpty()) {
+      // We're putting the new string to the head of the list, meaning
+      // the string segments will be in reverse order.
+      Segment* tmp = new (zone->New(sizeof(Segment))) Segment;
+      *tmp = segment_;
+      segment_.next = tmp;
+    }
+    segment_.string = s;
     return this;
   }
 
-  bool IsEmpty() const { return strings_.empty(); }
+  bool IsEmpty() const {
+    DCHECK_IMPLIES(segment_.string == nullptr, segment_.next == nullptr);
+    DCHECK_IMPLIES(segment_.string != nullptr, !segment_.string->IsEmpty());
+    return segment_.string == nullptr;
+  }
 
   void Internalize(Isolate* isolate);
 
@@ -143,7 +155,7 @@ class AstConsString final : public ZoneObject {
  private:
   friend class AstValueFactory;
 
-  explicit AstConsString(Zone* zone) : next_(nullptr), strings_(zone) {}
+  AstConsString() : next_(nullptr), segment_({nullptr, nullptr}) {}
 
   AstConsString* next() const { return next_; }
   AstConsString** next_location() { return &next_; }
@@ -156,7 +168,11 @@ class AstConsString final : public ZoneObject {
     String** string_;
   };
 
-  ZoneLinkedList<const AstRawString*> strings_;
+  struct Segment {
+    const AstRawString* string;
+    AstConsString::Segment* next;
+  };
+  Segment segment_;
 };
 
 enum class AstSymbol : uint8_t { kHomeObjectSymbol };
