@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-interpret-all --allow-natives-syntax
+// Flags: --wasm-interpret-all --allow-natives-syntax --expose-gc
 
 load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
@@ -364,4 +364,37 @@ function checkStack(stack, expected_lines) {
   var interpreted_before = % WasmNumInterpretedCalls(instance);
   assertEquals(2 * (11 + 2), instance.exports.main());
   assertEquals(interpreted_before + 2, % WasmNumInterpretedCalls(instance));
+})();
+
+(function testInterpreterGC() {
+  function run(f) {
+    // wrap the creation in a closure so that the only thing returned is
+    // the module (i.e. the underlying array buffer of WASM wire bytes dies).
+    var module = (() => {
+      var builder = new WasmModuleBuilder();
+      var imp = builder.addImport('mod', 'the_name_of_my_import', kSig_i_i);
+      builder.addFunction('main', kSig_i_i)
+          .addBody([kExprGetLocal, 0, kExprCallFunction, imp])
+          .exportAs('main');
+      print('module');
+      return new WebAssembly.Module(builder.toBuffer());
+    })();
+
+    gc();
+    for (var i = 0; i < 10; i++) {
+      print('  instance ' + i);
+      var instance =
+          new WebAssembly.Instance(module, {'mod': {the_name_of_my_import: f}});
+      var g = instance.exports.main;
+      assertEquals('function', typeof g);
+      for (var j = 0; j < 10; j++) {
+        assertEquals(f(j), g(j));
+      }
+    }
+  }
+
+  for (var i = 0; i < 3; i++) {
+    run(x => (x + 19));
+    run(x => (x - 18));
+  }
 })();

@@ -2001,12 +2001,15 @@ Isolate::ThreadDataTable::~ThreadDataTable() {
 void Isolate::ReleaseManagedObjects() {
   Isolate::ManagedObjectFinalizer* current =
       managed_object_finalizers_list_.next_;
+  managed_object_finalizers_list_.next_ = nullptr;
   while (current != nullptr) {
     Isolate::ManagedObjectFinalizer* next = current->next_;
     current->Dispose();
     delete current;
     current = next;
   }
+  // No new managed objects should pop up during finalization.
+  DCHECK_NULL(managed_object_finalizers_list_.next_);
 }
 
 Isolate::ManagedObjectFinalizer* Isolate::RegisterForReleaseAtTeardown(
@@ -2345,6 +2348,9 @@ void Isolate::Deinit() {
   debug()->Unload();
 
   FreeThreadResources();
+  // Release managed objects before shutting down the heap. The finalizer might
+  // need to access heap objects.
+  ReleaseManagedObjects();
 
   if (concurrent_recompilation_enabled()) {
     optimizing_compile_dispatcher_->Stop();
@@ -2408,7 +2414,6 @@ void Isolate::Deinit() {
   root_index_map_ = NULL;
 
   ClearSerializerData();
-  ReleaseManagedObjects();
 }
 
 

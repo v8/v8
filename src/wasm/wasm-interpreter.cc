@@ -926,10 +926,12 @@ class CodeMap {
   }
 
   ~CodeMap() {
-    // Destroy the global handles (passing nullptr is ok).
-    GlobalHandles::Destroy(Handle<Object>::cast(instance_).location());
+    // Destroy the global handles.
+    // Cast the location, not the handle, because the handle cast might access
+    // the object behind the handle.
+    GlobalHandles::Destroy(reinterpret_cast<Object**>(instance_.location()));
     GlobalHandles::Destroy(
-        Handle<Object>::cast(imported_functions_).location());
+        reinterpret_cast<Object**>(imported_functions_.location()));
   }
 
   const WasmModule* module() const { return module_; }
@@ -2353,8 +2355,6 @@ class WasmInterpreterInternals : public ZoneObject {
         threads_(zone) {
     threads_.emplace_back(zone, &codemap_, env.module_env.instance);
   }
-
-  void Delete() { threads_.clear(); }
 };
 
 //============================================================================
@@ -2364,7 +2364,7 @@ WasmInterpreter::WasmInterpreter(Isolate* isolate, const ModuleBytesEnv& env)
     : zone_(isolate->allocator(), ZONE_NAME),
       internals_(new (&zone_) WasmInterpreterInternals(isolate, &zone_, env)) {}
 
-WasmInterpreter::~WasmInterpreter() { internals_->Delete(); }
+WasmInterpreter::~WasmInterpreter() { internals_->~WasmInterpreterInternals(); }
 
 void WasmInterpreter::Run() { internals_->threads_[0].Run(); }
 
