@@ -2786,7 +2786,7 @@ class FixedArray: public FixedArrayBase {
   void Shrink(int length);
 
   // Copy a sub array from the receiver to dest.
-  void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);
+  void CopyTo(int pos, FixedArray* dest, int dest_pos, int len) const;
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {
@@ -2968,12 +2968,12 @@ class ArrayList : public FixedArray {
 
   // Returns the number of elements in the list, not the allocated size, which
   // is length(). Lower and upper case length() return different results!
-  inline int Length();
+  inline int Length() const;
 
   // Sets the Length() as used by Elements(). Does not change the underlying
   // storage capacity, i.e., length().
   inline void SetLength(int length);
-  inline Object* Get(int index);
+  inline Object* Get(int index) const;
   inline Object** Slot(int index);
 
   // Set the element at index to obj. The underlying array must be large enough.
@@ -2986,7 +2986,7 @@ class ArrayList : public FixedArray {
 
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
-  Handle<FixedArray> Elements();
+  Handle<FixedArray> Elements() const;
   bool IsFull();
   DECLARE_CAST(ArrayList)
 

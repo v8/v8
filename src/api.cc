@@ -2963,8 +2963,7 @@ void NativeWeakMap::Set(Local<Value> v8_key, Local<Value> v8_value) {
   i::JSWeakCollection::Set(weak_collection, key, value, hash);
 }
 
-
-Local<Value> NativeWeakMap::Get(Local<Value> v8_key) {
+Local<Value> NativeWeakMap::Get(Local<Value> v8_key) const {
   i::Handle<i::JSWeakMap> weak_collection = Utils::OpenHandle(this);
   i::Isolate* isolate = weak_collection->GetIsolate();
   ENTER_V8(isolate);

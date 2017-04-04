@@ -1942,7 +1942,7 @@ class V8_EXPORT NativeWeakMap : public Data {
  public:
   static Local<NativeWeakMap> New(Isolate* isolate);
   void Set(Local<Value> key, Local<Value> value);
-  Local<Value> Get(Local<Value> key);
+  Local<Value> Get(Local<Value> key) const;
   bool Has(Local<Value> key);
   bool Delete(Local<Value> key);
 };

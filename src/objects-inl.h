@@ -2508,8 +2508,7 @@ T* WeakFixedArray::Iterator::Next() {
   return NULL;
 }
 
-
-int ArrayList::Length() {
+int ArrayList::Length() const {
   if (FixedArray::cast(this)->length() == 0) return 0;
   return Smi::cast(FixedArray::cast(this)->get(kLengthIndex))->value();
 }
@@ -2519,8 +2518,7 @@ void ArrayList::SetLength(int length) {
   return FixedArray::cast(this)->set(kLengthIndex, Smi::FromInt(length));
 }
 
-
-Object* ArrayList::Get(int index) {
+Object* ArrayList::Get(int index) const {
   return FixedArray::cast(this)->get(kFirstIndex + index);
 }
 

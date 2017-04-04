@@ -9843,8 +9843,8 @@ void FixedArray::Shrink(int new_length) {
   }
 }
 
-
-void FixedArray::CopyTo(int pos, FixedArray* dest, int dest_pos, int len) {
+void FixedArray::CopyTo(int pos, FixedArray* dest, int dest_pos,
+                        int len) const {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = dest->GetWriteBarrierMode(no_gc);
   for (int index = 0; index < len; index++) {
@@ -10005,7 +10005,7 @@ Handle<WeakFixedArray> WeakFixedArray::Allocate(
   return Handle<WeakFixedArray>::cast(result);
 }
 
-
+// static
 Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj,
                                  AddMode mode) {
   int length = array->Length();
@@ -10019,6 +10019,7 @@ Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj,
   return array;
 }
 
+// static
 Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj1,
                                  Handle<Object> obj2, AddMode mode) {
   int length = array->Length();
@@ -10032,6 +10033,7 @@ Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj1,
   return array;
 }
 
+// static
 Handle<ArrayList> ArrayList::New(Isolate* isolate, int size) {
   Handle<ArrayList> result = Handle<ArrayList>::cast(
       isolate->factory()->NewFixedArray(size + kFirstIndex));
@@ -10039,7 +10041,7 @@ Handle<ArrayList> ArrayList::New(Isolate* isolate, int size) {
   return result;
 }
 
-Handle<FixedArray> ArrayList::Elements() {
+Handle<FixedArray> ArrayList::Elements() const {
   Handle<FixedArray> result = GetIsolate()->factory()->NewFixedArray(Length());
   // Do not copy the first entry, i.e., the length.
   CopyTo(kFirstIndex, *result, 0, Length());
@@ -10068,6 +10070,7 @@ Handle<FixedArray> EnsureSpaceInFixedArray(Handle<FixedArray> array,
 
 }  // namespace
 
+// static
 Handle<ArrayList> ArrayList::EnsureSpace(Handle<ArrayList> array, int length) {
   const bool empty = (array->length() == 0);
   auto ret = Handle<ArrayList>::cast(
