@@ -183,6 +183,23 @@ bool AsmJsParser::Run() {
   return !failed_;
 }
 
+class AsmJsParser::TemporaryVariableScope {
+ public:
+  explicit TemporaryVariableScope(AsmJsParser* parser) : parser_(parser) {
+    local_depth_ = parser_->function_temp_locals_depth_;
+    parser_->function_temp_locals_depth_++;
+  }
+  ~TemporaryVariableScope() {
+    DCHECK_EQ(local_depth_, parser_->function_temp_locals_depth_ - 1);
+    parser_->function_temp_locals_depth_--;
+  }
+  uint32_t get() const { return parser_->TempVariable(local_depth_); }
+
+ private:
+  AsmJsParser* parser_;
+  int local_depth_;
+};
+
 AsmJsParser::VarInfo::VarInfo()
     : type(AsmType::None()),
       function_builder(nullptr),
@@ -274,11 +291,11 @@ void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
   info->mutable_variable = mutable_variable;
 }
 
-int32_t AsmJsParser::TempVariable(int i) {
-  if (i + 1 > function_temp_locals_used_) {
-    function_temp_locals_used_ = i + 1;
+uint32_t AsmJsParser::TempVariable(int index) {
+  if (index + 1 > function_temp_locals_used_) {
+    function_temp_locals_used_ = index + 1;
   }
-  return function_temp_locals_offset_ + i;
+  return function_temp_locals_offset_ + index;
 }
 
 void AsmJsParser::SkipSemicolon() {
@@ -749,6 +766,7 @@ void AsmJsParser::ValidateFunction() {
   function_temp_locals_offset_ = static_cast<uint32_t>(
       params.size() + locals.size());
   function_temp_locals_used_ = 0;
+  function_temp_locals_depth_ = 0;
 
   while (!failed_ && !Peek('}')) {
     RECURSE(ValidateStatement());
@@ -1270,7 +1288,7 @@ void AsmJsParser::SwitchStatement() {
     FAIL("Expected signed for switch value");
   }
   EXPECT_TOKEN(')');
-  int32_t tmp = TempVariable(0);
+  uint32_t tmp = TempVariable(0);
   current_function_builder_->EmitSetLocal(tmp);
   Begin(pending_label_);
   pending_label_ = 0;
@@ -1542,10 +1560,10 @@ AsmType* AsmJsParser::UnaryExpression() {
     } else {
       RECURSEn(ret = UnaryExpression());
       if (ret->IsA(AsmType::Int())) {
-        int32_t tmp = TempVariable(0);
-        current_function_builder_->EmitSetLocal(tmp);
+        TemporaryVariableScope tmp(this);
+        current_function_builder_->EmitSetLocal(tmp.get());
         current_function_builder_->EmitI32Const(0);
-        current_function_builder_->EmitGetLocal(tmp);
+        current_function_builder_->EmitGetLocal(tmp.get());
         current_function_builder_->Emit(kExprI32Sub);
         ret = AsmType::Intish();
       } else if (ret->IsA(AsmType::DoubleQ())) {
@@ -2000,7 +2018,8 @@ AsmType* AsmJsParser::ValidateCall() {
   call_coercion_ = nullptr;
   int pos = static_cast<int>(scanner_.Position());
   AsmJsScanner::token_t function_name = Consume();
-  int32_t tmp = TempVariable(0);
+  // TODO(mstarzinger): Consider using Chromiums base::Optional instead.
+  std::unique_ptr<TemporaryVariableScope> tmp;
   if (Check('[')) {
     RECURSEn(EqualityExpression());
     EXPECT_TOKENn('&');
@@ -2034,7 +2053,8 @@ AsmType* AsmJsParser::ValidateCall() {
     current_function_builder_->EmitI32Const(function_info->index);
     current_function_builder_->Emit(kExprI32Add);
     // We have to use a temporary for the correct order of evaluation.
-    current_function_builder_->EmitSetLocal(tmp);
+    tmp.reset(new TemporaryVariableScope(this));
+    current_function_builder_->EmitSetLocal(tmp.get()->get());
     // The position of function table calls is after the table lookup.
     pos = static_cast<int>(scanner_.Position());
   }
@@ -2119,7 +2139,7 @@ AsmType* AsmJsParser::ValidateCall() {
   } else if (function_info->type->IsA(AsmType::None())) {
     function_info->type = function_type;
     if (function_info->kind == VarKind::kTable) {
-      current_function_builder_->EmitGetLocal(tmp);
+      current_function_builder_->EmitGetLocal(tmp.get()->get());
       // TODO(mstarzinger): Fix the {to_number_position} and test it.
       current_function_builder_->AddAsmWasmOffset(pos, pos);
       current_function_builder_->Emit(kExprCallIndirect);
@@ -2194,21 +2214,21 @@ AsmType* AsmJsParser::ValidateCall() {
             }
           }
         } else if (param_specific_types[0]->IsA(AsmType::Int())) {
-          int32_t tmp_x = TempVariable(0);
-          int32_t tmp_y = TempVariable(1);
+          TemporaryVariableScope tmp_x(this);
+          TemporaryVariableScope tmp_y(this);
           for (size_t i = 1; i < param_specific_types.size(); ++i) {
-            current_function_builder_->EmitSetLocal(tmp_x);
-            current_function_builder_->EmitTeeLocal(tmp_y);
-            current_function_builder_->EmitGetLocal(tmp_x);
+            current_function_builder_->EmitSetLocal(tmp_x.get());
+            current_function_builder_->EmitTeeLocal(tmp_y.get());
+            current_function_builder_->EmitGetLocal(tmp_x.get());
             if (function_info->kind == VarKind::kMathMin) {
               current_function_builder_->Emit(kExprI32GeS);
             } else {
               current_function_builder_->Emit(kExprI32LeS);
             }
             current_function_builder_->EmitWithU8(kExprIf, kLocalI32);
-            current_function_builder_->EmitGetLocal(tmp_x);
+            current_function_builder_->EmitGetLocal(tmp_x.get());
             current_function_builder_->Emit(kExprElse);
-            current_function_builder_->EmitGetLocal(tmp_y);
+            current_function_builder_->EmitGetLocal(tmp_y.get());
             current_function_builder_->Emit(kExprEnd);
           }
         } else {
@@ -2218,14 +2238,14 @@ AsmType* AsmJsParser::ValidateCall() {
 
       case VarKind::kMathAbs:
         if (param_specific_types[0]->IsA(AsmType::Signed())) {
-          int32_t tmp = TempVariable(0);
-          current_function_builder_->EmitTeeLocal(tmp);
+          TemporaryVariableScope tmp(this);
+          current_function_builder_->EmitTeeLocal(tmp.get());
           current_function_builder_->Emit(kExprI32Clz);
           current_function_builder_->EmitWithU8(kExprIf, kLocalI32);
-          current_function_builder_->EmitGetLocal(tmp);
+          current_function_builder_->EmitGetLocal(tmp.get());
           current_function_builder_->Emit(kExprElse);
           current_function_builder_->EmitI32Const(0);
-          current_function_builder_->EmitGetLocal(tmp);
+          current_function_builder_->EmitGetLocal(tmp.get());
           current_function_builder_->Emit(kExprI32Sub);
           current_function_builder_->Emit(kExprEnd);
         } else if (param_specific_types[0]->IsA(AsmType::DoubleQ())) {
@@ -2259,7 +2279,7 @@ AsmType* AsmJsParser::ValidateCall() {
       FAILn("Function use doesn't match definition");
     }
     if (function_info->kind == VarKind::kTable) {
-      current_function_builder_->EmitGetLocal(tmp);
+      current_function_builder_->EmitGetLocal(tmp.get()->get());
       // TODO(bradnelson): Figure out the right debug scanner offset and
       // re-enable.
       //      current_function_builder_->AddAsmWasmOffset(scanner_.GetPosition(),
