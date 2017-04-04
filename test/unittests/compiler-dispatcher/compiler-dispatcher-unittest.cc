@@ -4,6 +4,8 @@
 
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 
+#include <sstream>
+
 #include "include/v8-platform.h"
 #include "src/api.h"
 #include "src/base/platform/semaphore.h"
@@ -314,6 +316,36 @@ TEST_F(CompilerDispatcherTest, FinishNow) {
   ASSERT_TRUE(shared->is_compiled());
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.ClearIdleTask();
+}
+
+TEST_F(CompilerDispatcherTest, FinishAllNow) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  constexpr int num_funcs = 2;
+  Handle<JSFunction> f[num_funcs];
+  Handle<SharedFunctionInfo> shared[num_funcs];
+
+  for (int i = 0; i < num_funcs; ++i) {
+    std::stringstream ss;
+    ss << 'f' << STR(__LINE__) << '_' << i;
+    std::string func_name = ss.str();
+    std::string script("function g() { function " + func_name +
+                       "(x) { var a =  'x'; }; return " + func_name +
+                       "; } g();");
+    f[i] = Handle<JSFunction>::cast(test::RunJS(isolate(), script.c_str()));
+    shared[i] = Handle<SharedFunctionInfo>(f[i]->shared(), i_isolate());
+    ASSERT_FALSE(shared[i]->is_compiled());
+    ASSERT_TRUE(dispatcher.Enqueue(shared[i]));
+  }
+  dispatcher.FinishAllNow();
+  for (int i = 0; i < num_funcs; ++i) {
+    // Finishing removes the SFI from the queue.
+    ASSERT_FALSE(dispatcher.IsEnqueued(shared[i]));
+    ASSERT_TRUE(shared[i]->is_compiled());
+  }
+  platform.ClearIdleTask();
+  platform.ClearBackgroundTasks();
 }
 
 TEST_F(CompilerDispatcherTest, IdleTask) {

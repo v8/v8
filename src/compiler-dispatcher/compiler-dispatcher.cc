@@ -454,26 +454,37 @@ void CompilerDispatcher::WaitForJobIfRunningOnBackground(
   DCHECK(running_background_jobs_.find(job) == running_background_jobs_.end());
 }
 
+bool CompilerDispatcher::FinishNow(CompilerDispatcherJob* job) {
+  if (trace_compiler_dispatcher_) {
+    PrintF("CompilerDispatcher: finishing ");
+    job->ShortPrint();
+    PrintF(" now\n");
+  }
+  WaitForJobIfRunningOnBackground(job);
+  while (!IsFinished(job)) {
+    DoNextStepOnMainThread(isolate_, job, ExceptionHandling::kThrow);
+  }
+  return job->status() != CompileJobStatus::kFailed;
+}
+
 bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherFinishNow");
   JobMap::const_iterator job = GetJobFor(function);
   CHECK(job != jobs_.end());
-
-  if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: finishing ");
-    function->ShortPrint();
-    PrintF(" now\n");
+  bool result = FinishNow(job->second.get());
+  if (!job->second->shared().is_null()) {
+    shared_to_job_id_.Delete(job->second->shared());
   }
-
-  WaitForJobIfRunningOnBackground(job->second.get());
-  while (!IsFinished(job->second.get())) {
-    DoNextStepOnMainThread(isolate_, job->second.get(),
-                           ExceptionHandling::kThrow);
-  }
-  bool result = job->second->status() != CompileJobStatus::kFailed;
   RemoveIfFinished(job);
   return result;
+}
+
+void CompilerDispatcher::FinishAllNow() {
+  for (auto it = jobs_.cbegin(); it != jobs_.cend();
+       it = RemoveIfFinished(it)) {
+    FinishNow(it->second.get());
+  }
 }
 
 void CompilerDispatcher::AbortAll(BlockingBehavior blocking) {

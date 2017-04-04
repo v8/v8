@@ -118,6 +118,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // possible). Returns true if the compile job was successful.
   bool FinishNow(Handle<SharedFunctionInfo> function);
 
+  // Blocks until all jobs are finished.
+  void FinishAllNow();
+
   // Aborts a given job. Blocks if requested.
   void Abort(Handle<SharedFunctionInfo> function, BlockingBehavior blocking);
 
@@ -168,6 +171,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   JobMap::const_iterator RemoveIfFinished(JobMap::const_iterator job);
   // Returns iterator following the removed job.
   JobMap::const_iterator RemoveJob(JobMap::const_iterator job);
+  bool FinishNow(CompilerDispatcherJob* job);
 
   Isolate* isolate_;
   Platform* platform_;
