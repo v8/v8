@@ -1624,7 +1624,7 @@ void PrintVar(int indent, Variable* var) {
     PrintF(".%p", reinterpret_cast<void*>(var));
   else
     PrintName(var->raw_name());
-  PrintF(";  // ");
+  PrintF(";  // (%p) ", var);
   PrintLocation(var);
   bool comma = !var->IsUnallocated();
   if (var->has_forced_context_allocation()) {
@@ -1697,7 +1697,7 @@ void Scope::Print(int n) {
     function = AsDeclarationScope()->function_var();
   }
 
-  PrintF(" { // (%d, %d)\n", start_position(), end_position());
+  PrintF(" { // (%p) (%d, %d)\n", this, start_position(), end_position());
   if (is_hidden()) {
     Indent(n1, "// is hidden\n");
   }
