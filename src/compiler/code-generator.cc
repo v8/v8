@@ -220,9 +220,12 @@ Handle<Code> CodeGenerator::GenerateCode() {
     }
   }
 
-  safepoints()->Emit(masm(), frame()->GetTotalFrameSlotCount());
-
+  // The PerfJitLogger logs code up until here, excluding the safepoint
+  // table. Resolve the unwinding info now so it is aware of the same code size
+  // as reported by perf.
   unwinding_info_writer_.Finish(masm()->pc_offset());
+
+  safepoints()->Emit(masm(), frame()->GetTotalFrameSlotCount());
 
   Handle<Code> result = v8::internal::CodeGenerator::MakeCodeEpilogue(
       masm(), unwinding_info_writer_.eh_frame_writer(), info, Handle<Object>());
