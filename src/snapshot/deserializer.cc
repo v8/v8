@@ -7,6 +7,7 @@
 #include "src/api.h"
 #include "src/assembler-inl.h"
 #include "src/bootstrapper.h"
+#include "src/deoptimizer.h"
 #include "src/external-reference-table.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
@@ -729,6 +730,33 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         int size = source_.GetInt();
         current = reinterpret_cast<Object**>(
             reinterpret_cast<intptr_t>(current) + size);
+        break;
+      }
+
+      case kDeoptimizerEntryFromCode:
+      case kDeoptimizerEntryPlain: {
+        int skip = source_.GetInt();
+        current = reinterpret_cast<Object**>(
+            reinterpret_cast<intptr_t>(current) + skip);
+        Deoptimizer::BailoutType bailout_type =
+            static_cast<Deoptimizer::BailoutType>(source_.Get());
+        int entry_id = source_.GetInt();
+        HandleScope scope(isolate);
+        Address address = Deoptimizer::GetDeoptimizationEntry(
+            isolate_, entry_id, bailout_type, Deoptimizer::ENSURE_ENTRY_CODE);
+        if (data == kDeoptimizerEntryFromCode) {
+          Address location_of_branch_data = reinterpret_cast<Address>(current);
+          Assembler::deserialization_set_special_target_at(
+              isolate, location_of_branch_data,
+              Code::cast(HeapObject::FromAddress(current_object_address)),
+              address);
+          location_of_branch_data += Assembler::kSpecialTargetSize;
+          current = reinterpret_cast<Object**>(location_of_branch_data);
+        } else {
+          Object* new_object = reinterpret_cast<Object*>(address);
+          UnalignedCopy(current, &new_object);
+          current++;
+        }
         break;
       }
 

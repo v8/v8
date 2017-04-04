@@ -2731,16 +2731,6 @@ bool Isolate::Init(Deserializer* des) {
     ast_string_constants_ = new AstStringConstants(this, heap()->HashSeed());
   }
 
-  if (!create_heap_objects) {
-    // Now that the heap is consistent, it's OK to generate the code for the
-    // deopt entry table that might have been referred to by optimized code in
-    // the snapshot.
-    HandleScope scope(this);
-    Deoptimizer::EnsureCodeForDeoptimizationEntry(
-        this, Deoptimizer::LAZY,
-        ExternalReferenceTable::kDeoptTableSerializeEntryCount - 1);
-  }
-
   if (!serializer_enabled()) {
     // Ensure that all stubs which need to be generated ahead of time, but
     // cannot be serialized into the snapshot have been generated.

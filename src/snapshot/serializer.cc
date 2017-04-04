@@ -5,6 +5,7 @@
 #include "src/snapshot/serializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/deoptimizer.h"
 #include "src/heap/heap-inl.h"
 #include "src/macro-assembler.h"
 #include "src/snapshot/natives.h"
@@ -334,6 +335,25 @@ bool Serializer::HasNotExceededFirstPageOfEachSpace() {
   return true;
 }
 
+bool Serializer::ObjectSerializer::TryEncodeDeoptimizationEntry(
+    HowToCode how_to_code, Address target, int skip) {
+  for (int bailout_type = 0; bailout_type <= Deoptimizer::kLastBailoutType;
+       ++bailout_type) {
+    int id = Deoptimizer::GetDeoptimizationId(
+        serializer_->isolate(), target,
+        static_cast<Deoptimizer::BailoutType>(bailout_type));
+    if (id == Deoptimizer::kNotDeoptimizationEntry) continue;
+    sink_->Put(how_to_code == kPlain ? kDeoptimizerEntryPlain
+                                     : kDeoptimizerEntryFromCode,
+               "DeoptimizationEntry");
+    sink_->PutInt(skip, "SkipB4DeoptimizationEntry");
+    sink_->Put(bailout_type, "BailoutType");
+    sink_->PutInt(id, "EntryId");
+    return true;
+  }
+  return false;
+}
+
 void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
                                                      int size, Map* map) {
   if (serializer_->code_address_map_) {
@@ -611,10 +631,12 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
 void Serializer::ObjectSerializer::VisitExternalReference(Address* p) {
   int skip = OutputRawData(reinterpret_cast<Address>(p),
                            kCanReturnSkipInsteadOfSkipping);
-  sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
-  sink_->PutInt(skip, "SkipB4ExternalRef");
   Address target = *p;
-  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  if (!TryEncodeDeoptimizationEntry(kPlain, target, skip)) {
+    sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
+    sink_->PutInt(skip, "SkipB4ExternalRef");
+    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  }
   bytes_processed_so_far_ += kPointerSize;
 }
 
@@ -622,11 +644,14 @@ void Serializer::ObjectSerializer::VisitExternalReference(RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
-  sink_->PutInt(skip, "SkipB4ExternalRef");
   Address target = rinfo->target_external_reference();
-  DCHECK_NOT_NULL(target);  // Code does not reference null.
-  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  if (!TryEncodeDeoptimizationEntry(how_to_code, target, skip)) {
+    sink_->Put(kExternalReference + how_to_code + kStartOfObject,
+               "ExternalRef");
+    sink_->PutInt(skip, "SkipB4ExternalRef");
+    DCHECK_NOT_NULL(target);  // Code does not reference null.
+    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  }
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
@@ -658,10 +683,13 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
-  sink_->PutInt(skip, "SkipB4ExternalRef");
   Address target = rinfo->target_address();
-  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  if (!TryEncodeDeoptimizationEntry(how_to_code, target, skip)) {
+    sink_->Put(kExternalReference + how_to_code + kStartOfObject,
+               "ExternalRef");
+    sink_->PutInt(skip, "SkipB4ExternalRef");
+    sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  }
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 

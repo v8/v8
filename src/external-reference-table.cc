@@ -45,7 +45,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   AddIsolateAddresses(isolate);
   AddAccessors(isolate);
   AddStubCache(isolate);
-  AddDeoptEntries(isolate);
   // API references must be added last.
   AddApiReferences(isolate);
 }
@@ -434,19 +433,6 @@ void ExternalReferenceTable::AddStubCache(Isolate* isolate) {
       "Store StubCache::secondary_->value");
   Add(store_stub_cache->map_reference(StubCache::kSecondary).address(),
       "Store StubCache::secondary_->map");
-}
-
-void ExternalReferenceTable::AddDeoptEntries(Isolate* isolate) {
-  // Add a small set of deopt entry addresses to encoder without generating
-  // the
-  // deopt table code, which isn't possible at deserialization time.
-  HandleScope scope(isolate);
-  for (int entry = 0; entry < kDeoptTableSerializeEntryCount; ++entry) {
-    Address address = Deoptimizer::GetDeoptimizationEntry(
-        isolate, entry, Deoptimizer::LAZY,
-        Deoptimizer::CALCULATE_ENTRY_ADDRESS);
-    Add(address, "lazy_deopt");
-  }
 }
 
 void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {

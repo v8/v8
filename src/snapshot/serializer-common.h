@@ -184,7 +184,10 @@ class SerializerDeserializer : public ObjectVisitor {
   static const int kHotObjectWithSkip = 0x58;
   static const int kHotObjectMask = 0x07;
 
-  // 0x35..0x37, 0x55..0x57, 0x75..0x7f unused.
+  static const int kDeoptimizerEntryPlain = 0x35;
+  static const int kDeoptimizerEntryFromCode = 0x36;
+
+  // 0x37, 0x55..0x57, 0x75..0x7f unused.
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.

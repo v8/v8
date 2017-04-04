@@ -300,6 +300,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   }
 
  private:
+  bool TryEncodeDeoptimizationEntry(HowToCode how_to_code, Address target,
+                                    int skip);
   void SerializePrologue(AllocationSpace space, int size, Map* map);
 
   bool SerializeExternalNativeSourceString(
