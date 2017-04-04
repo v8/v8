@@ -395,6 +395,17 @@ class ParserBase {
       return scope()->promise_var();
     }
 
+    void RewindDestructuringAssignments(int pos) {
+      destructuring_assignments_to_rewrite_.Rewind(pos);
+    }
+
+    void SetDestructuringAssignmentsScope(int pos, Scope* scope) {
+      for (int i = pos; i < destructuring_assignments_to_rewrite_.length();
+           ++i) {
+        destructuring_assignments_to_rewrite_[i].scope = scope;
+      }
+    }
+
     const ZoneList<DestructuringAssignment>&
         destructuring_assignments_to_rewrite() const {
       return destructuring_assignments_to_rewrite_;
@@ -1108,9 +1119,14 @@ class ParserBase {
   ExpressionT ParseMemberExpression(bool* is_async, bool* ok);
   ExpressionT ParseMemberExpressionContinuation(ExpressionT expression,
                                                 bool* is_async, bool* ok);
+
+  // `rewritable_length`: length of the destructuring_assignments_to_rewrite()
+  // queue in the parent function state, prior to parsing of formal parameters.
+  // If the arrow function is lazy, any items added during formal parameter
+  // parsing are removed from the queue.
   ExpressionT ParseArrowFunctionLiteral(bool accept_IN,
                                         const FormalParametersT& parameters,
-                                        bool* ok);
+                                        int rewritable_length, bool* ok);
   void ParseAsyncFunctionBody(Scope* scope, StatementListT body,
                               FunctionKind kind, FunctionBodyType type,
                               bool accept_IN, int pos, bool* ok);
@@ -2711,6 +2727,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
       this, classifier()->duplicate_finder());
 
   Scope::Snapshot scope_snapshot(scope());
+  int rewritable_length =
+      function_state_->destructuring_assignments_to_rewrite().length();
 
   bool is_async = peek() == Token::ASYNC &&
                   !scanner()->HasAnyLineTerminatorAfterNext() &&
@@ -2762,6 +2780,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     // Because the arrow's parameters were parsed in the outer scope,
     // we need to fix up the scope chain appropriately.
     scope_snapshot.Reparent(scope);
+    function_state_->SetDestructuringAssignmentsScope(rewritable_length, scope);
 
     FormalParametersT parameters(scope);
     if (!classifier()->is_simple_parameter_list()) {
@@ -2776,7 +2795,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     if (duplicate_loc.IsValid()) {
       classifier()->RecordDuplicateFormalParameterError(duplicate_loc);
     }
-    expression = ParseArrowFunctionLiteral(accept_IN, parameters, CHECK_OK);
+    expression = ParseArrowFunctionLiteral(accept_IN, parameters,
+                                           rewritable_length, CHECK_OK);
     DiscardExpressionClassifier();
     classifier()->RecordPatternError(arrow_loc,
                                      MessageTemplate::kUnexpectedToken,
@@ -4146,7 +4166,8 @@ bool ParserBase<Impl>::IsTrivialExpression() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseArrowFunctionLiteral(
-    bool accept_IN, const FormalParametersT& formal_parameters, bool* ok) {
+    bool accept_IN, const FormalParametersT& formal_parameters,
+    int rewritable_length, bool* ok) {
   const RuntimeCallStats::CounterId counters[2][2] = {
       {&RuntimeCallStats::ParseBackgroundArrowFunctionLiteral,
        &RuntimeCallStats::ParseArrowFunctionLiteral},
@@ -4275,6 +4296,14 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
                               scanner()->location().end_pos, CHECK_OK);
     }
     impl()->CheckConflictingVarDeclarations(formal_parameters.scope, CHECK_OK);
+
+    if (is_lazy_top_level_function) {
+      FunctionState* parent_state = function_state.outer();
+      DCHECK_NOT_NULL(parent_state);
+      DCHECK_GE(parent_state->destructuring_assignments_to_rewrite().length(),
+                rewritable_length);
+      parent_state->RewindDestructuringAssignments(rewritable_length);
+    }
 
     impl()->RewriteDestructuringAssignments();
   }

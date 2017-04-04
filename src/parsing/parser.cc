@@ -891,6 +891,8 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
       scope->set_start_position(info->start_position());
       ExpressionClassifier formals_classifier(this);
       ParserFormalParameters formals(scope);
+      int rewritable_length =
+          function_state.destructuring_assignments_to_rewrite().length();
       {
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Enter arrow function
@@ -925,7 +927,8 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
 
         // Pass `accept_IN=true` to ParseArrowFunctionLiteral --- This should
         // not be observable, or else the preparser would have failed.
-        Expression* expression = ParseArrowFunctionLiteral(true, formals, &ok);
+        Expression* expression =
+            ParseArrowFunctionLiteral(true, formals, rewritable_length, &ok);
         if (ok) {
           // Scanning must end at the same position that was recorded
           // previously. If not, parsing has been interrupted due to a stack

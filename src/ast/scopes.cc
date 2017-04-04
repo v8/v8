@@ -1496,7 +1496,11 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   DCHECK(is_function_scope());
 
   // Reset all non-trivial members.
-  params_.Clear();
+  if (!aborted || !IsArrowFunction(function_kind_)) {
+    // Do not remove parameters when lazy parsing an Arrow Function has failed,
+    // as the formal parameters are not re-parsed.
+    params_.Clear();
+  }
   decls_.Clear();
   locals_.Clear();
   inner_scope_ = nullptr;
