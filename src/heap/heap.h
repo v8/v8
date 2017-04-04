@@ -1091,9 +1091,7 @@ class Heap {
   Object** roots_array_start() { return roots_; }
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  void SetRootCodeStubs(UnseededNumberDictionary* value) {
-    roots_[kCodeStubsRootIndex] = value;
-  }
+  void SetRootCodeStubs(UnseededNumberDictionary* value);
 
   void SetRootMaterializedObjects(FixedArray* objects) {
     roots_[kMaterializedObjectsRootIndex] = objects;

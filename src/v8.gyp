@@ -1119,6 +1119,7 @@
         'objects.cc',
         'objects.h',
         'objects/descriptor-array.h',
+        'objects/dictionary.h',
         'objects/frame-array.h',
         'objects/frame-array-inl.h',
         'objects/literal-objects.cc',

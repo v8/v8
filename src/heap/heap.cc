@@ -483,6 +483,9 @@ const char* Heap::GetSpaceName(int idx) {
   return nullptr;
 }
 
+void Heap::SetRootCodeStubs(UnseededNumberDictionary* value) {
+  roots_[kCodeStubsRootIndex] = value;
+}
 
 void Heap::RepairFreeListsAfterDeserialization() {
   PagedSpaces spaces(this);
