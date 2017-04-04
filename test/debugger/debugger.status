@@ -53,9 +53,6 @@
   'debug/debug-stepout-scope-part7': [SKIP],
   'debug/debug-stepout-scope-part8': [SKIP],
 
-  # BUG(chromium:664490)
-  'debug/debug-scopes': [SKIP],
-
   # Async function tests taking too long
   # https://bugs.chromium.org/p/v8/issues/detail?id=5411
   'debug/es8/async-debug-caught-exception-cases0': [SKIP],
