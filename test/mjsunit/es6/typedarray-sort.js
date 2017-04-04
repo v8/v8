@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 var typedArrayConstructors = [
   Uint8Array,
   Int8Array,
@@ -62,9 +60,4 @@ for (var constructor of typedArrayConstructors) {
   b[0] = 3; b[1] = 2; b[2] = 1;
   a.sort();
   assertArrayLikeEquals(a, [1, 2], constructor);
-
-  // Detached Operation
-  var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-  %ArrayBufferNeuter(array.buffer);
-  assertThrows(() => array.sort(), TypeError);
 }

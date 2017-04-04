@@ -56,12 +56,6 @@ BUFFER_VIEW_GETTER(TypedArray, Length, length)
 
 #undef BUFFER_VIEW_GETTER
 
-RUNTIME_FUNCTION(Runtime_ArrayBufferViewWasNeutered) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(JSTypedArray::cast(args[0])->WasNeutered());
-}
-
 RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -219,6 +213,7 @@ RUNTIME_FUNCTION(Runtime_IsTypedArray) {
   DCHECK_EQ(1, args.length());
   return isolate->heap()->ToBoolean(args[0]->IsJSTypedArray());
 }
+
 
 RUNTIME_FUNCTION(Runtime_IsSharedTypedArray) {
   HandleScope scope(isolate);

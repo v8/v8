@@ -9924,23 +9924,6 @@ void HOptimizedGraphBuilder::GenerateArrayBufferViewGetByteOffset(
       FieldIndex::ForInObjectOffset(JSArrayBufferView::kByteOffsetOffset)));
 }
 
-void HOptimizedGraphBuilder::GenerateArrayBufferViewWasNeutered(
-    CallRuntime* expr) {
-  NoObservableSideEffectsScope scope(this);
-  DCHECK_EQ(expr->arguments()->length(), 1);
-  CHECK_ALIVE(VisitForValue(expr->arguments()->at(0)));
-  HValue* view = Pop();
-
-  HInstruction* buffer = Add<HLoadNamedField>(
-      view, nullptr, HObjectAccess::ForJSArrayBufferViewBuffer());
-  HInstruction* flags = Add<HLoadNamedField>(
-      buffer, nullptr, HObjectAccess::ForJSArrayBufferBitField());
-  HValue* was_neutered_mask =
-      Add<HConstant>(1 << JSArrayBuffer::WasNeutered::kShift);
-  HValue* was_neutered =
-      AddUncasted<HBitwise>(Token::BIT_AND, flags, was_neutered_mask);
-  return ast_context()->ReturnValue(was_neutered);
-}
 
 void HOptimizedGraphBuilder::GenerateTypedArrayGetLength(
     CallRuntime* expr) {

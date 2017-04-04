@@ -6914,18 +6914,8 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
   }
 
-  Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
-  if (V8_UNLIKELY(array->WasNeutered())) {
-    const MessageTemplate::Template message =
-        MessageTemplate::kDetachedOperation;
-    Handle<String> operation =
-        isolate->factory()->NewStringFromAsciiChecked(method_name);
-    THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
-  }
-
-  // spec describes to return `buffer`, but it may disrupt current
-  // implementations, and it's much useful to return array for now.
-  return array;
+  // TODO(caitp): throw if array.[[ViewedArrayBuffer]] is neutered (per v8:4648)
+  return Handle<JSTypedArray>::cast(receiver);
 }
 
 #ifdef VERIFY_HEAP

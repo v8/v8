@@ -17,8 +17,7 @@ namespace internal {
 // ES6 section 22.2.3.1 get %TypedArray%.prototype.buffer
 BUILTIN(TypedArrayPrototypeBuffer) {
   HandleScope scope(isolate);
-  CHECK_RECEIVER(JSTypedArray, typed_array,
-                 "get %TypedArray%.prototype.buffer");
+  CHECK_RECEIVER(JSTypedArray, typed_array, "get TypedArray.prototype.buffer");
   return *typed_array->GetBuffer();
 }
 
@@ -129,6 +128,8 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
 
+  if (V8_UNLIKELY(array->WasNeutered())) return *array;
+
   int64_t len = array->length_value();
   int64_t to = 0;
   int64_t from = 0;
@@ -191,6 +192,8 @@ BUILTIN(TypedArrayPrototypeFill) {
   const char* method = "%TypedArray%.prototype.fill";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+
+  if (V8_UNLIKELY(array->WasNeutered())) return *array;
 
   int64_t len = array->length_value();
   int64_t start = 0;
@@ -336,6 +339,8 @@ BUILTIN(TypedArrayPrototypeReverse) {
   const char* method = "%TypedArray%.prototype.reverse";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+
+  if (V8_UNLIKELY(array->WasNeutered())) return *array;
 
   ElementsAccessor* elements = array->GetElementsAccessor();
   elements->Reverse(*array);
