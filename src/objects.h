@@ -2947,6 +2947,12 @@ class WeakFixedArray : public FixedArray {
 };
 
 // Generic array grows dynamically with O(1) amortized insertion.
+//
+// ArrayList is a FixedArray with static convenience methods for adding more
+// elements. The Length() method returns the number of elements in the list, not
+// the allocated size. The number of elements is stored at kLengthIndex and is
+// updated with every insertion. The elements of the ArrayList are stored in the
+// underlying FixedArray starting at kFirstIndex.
 class ArrayList : public FixedArray {
  public:
   enum AddMode {
@@ -2959,15 +2965,27 @@ class ArrayList : public FixedArray {
   static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj1,
                                Handle<Object> obj2, AddMode = kNone);
   static Handle<ArrayList> New(Isolate* isolate, int size);
+
+  // Returns the number of elements in the list, not the allocated size, which
+  // is length(). Lower and upper case length() return different results!
   inline int Length();
+
+  // Sets the Length() as used by Elements(). Does not change the underlying
+  // storage capacity, i.e., length().
   inline void SetLength(int length);
   inline Object* Get(int index);
   inline Object** Slot(int index);
+
+  // Set the element at index to obj. The underlying array must be large enough.
+  // If you need to grow the ArrayList, use the static Add() methods instead.
   inline void Set(int index, Object* obj,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Set the element at index to undefined. This does not change the Length().
   inline void Clear(int index, Object* undefined);
 
-  // Return a copy of the list without the first entry (contains the Length).
+  // Return a copy of the list of size Length() without the first entry. The
+  // number returned by Length() is stored in the first entry.
   Handle<FixedArray> Elements();
   bool IsFull();
   DECLARE_CAST(ArrayList)
