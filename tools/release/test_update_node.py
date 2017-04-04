@@ -84,8 +84,13 @@ class TestUpdateNode(unittest.TestCase):
     shutil.copytree(src=os.path.join(TEST_DATA, 'node'), dst=node_cwd)
     gitify(os.path.join(node_cwd))
 
+    # Add a patch.
+    with open(os.path.join(v8_cwd, 'v8_foo'), 'w') as f:
+      f.write('zonk')
+    subprocess.check_call(['git', 'add', 'v8_foo'], cwd=v8_cwd)
+
     # Run update script.
-    update_node.Main([v8_cwd, node_cwd, "--commit"])
+    update_node.Main([v8_cwd, node_cwd, "--commit", "--with-patch"])
 
     # Check expectations.
     with open(os.path.join(node_cwd, 'deps', 'v8', '.gitignore')) as f:
@@ -97,9 +102,18 @@ class TestUpdateNode(unittest.TestCase):
     for f in REMOVED_FILES:
       removed_file = os.path.join(node_cwd, 'deps', 'v8', *f.split('/'))
       self.assertFalse(os.path.exists(removed_file))
-    gitlog = subprocess.check_output(['git', 'diff', 'master', '--summary'],
-                                     cwd=node_cwd)
+    gitlog = subprocess.check_output(
+        ['git', 'diff', 'master', '--summary'],
+        cwd=node_cwd,
+    )
     self.assertEquals(EXPECTED_GIT_DIFF.strip(), gitlog.strip())
+
+    # Check patch.
+    gitlog = subprocess.check_output(
+        ['git', 'diff', 'master', '--cached', '--', 'deps/v8/v8_foo'],
+        cwd=node_cwd,
+    )
+    self.assertIn('+zonk', gitlog.strip())
 
 if __name__ == "__main__":
   unittest.main()

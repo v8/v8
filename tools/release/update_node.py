@@ -43,6 +43,27 @@ def UninitGit(path):
     print ">> Cleaning up %s" % path
     shutil.rmtree(target)
 
+def ApplyIndex(source, target):
+  if not subprocess.check_output(["git", "diff", "--cached"], cwd=source):
+    print ">> Ignoring empty patch"
+    return
+
+  print ">> Applying patch"
+  diff_proc = subprocess.Popen(
+      ["git", "diff", "--cached"],
+      cwd=source,
+      stdout=subprocess.PIPE,
+  )
+  apply_proc = subprocess.Popen(
+      ["git", "apply", "--index"],
+      cwd=target,
+      stdin=diff_proc.stdout,
+  )
+  diff_proc.stdout.close()
+  apply_proc.communicate()
+  if apply_proc.returncode != 0:
+    raise Exception("Error applying patch")
+
 def UpdateTarget(repository, options):
   source = os.path.join(options.v8_path, *repository)
   target = os.path.join(options.node_path, TARGET_SUBDIR, *repository)
@@ -63,6 +84,8 @@ def UpdateTarget(repository, options):
   try:
     for command in git_commands:
       subprocess.check_call(command, cwd=target)
+    if options.with_patch:
+      ApplyIndex(source, target)
   except:
     raise
   finally:
@@ -108,6 +131,8 @@ def ParseOptions(args):
   parser.add_argument("node_path", help="Path to Node.js checkout")
   parser.add_argument("--gclient", action="store_true", help="Run gclient sync")
   parser.add_argument("--commit", action="store_true", help="Create commit")
+  parser.add_argument("--with-patch", action="store_true",
+                      help="Apply also staged files")
   options = parser.parse_args(args)
   assert os.path.isdir(options.v8_path)
   options.v8_path = os.path.abspath(options.v8_path)
