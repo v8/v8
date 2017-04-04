@@ -613,19 +613,20 @@ namespace internal {
   F(WasmNumInterpretedCalls, 1, 1)            \
   F(RedirectToWasmInterpreter, 2, 1)
 
-#define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
-  F(ArrayBufferGetByteLength, 1, 1)          \
-  F(ArrayBufferNeuter, 1, 1)                 \
-  F(ArrayBufferViewGetByteLength, 1, 1)      \
-  F(ArrayBufferViewGetByteOffset, 1, 1)      \
-  F(TypedArrayGetLength, 1, 1)               \
-  F(TypedArrayGetBuffer, 1, 1)               \
-  F(TypedArraySetFastCases, 3, 1)            \
-  F(TypedArraySortFast, 1, 1)                \
-  F(TypedArrayMaxSizeInHeap, 0, 1)           \
-  F(IsTypedArray, 1, 1)                      \
-  F(IsSharedTypedArray, 1, 1)                \
-  F(IsSharedIntegerTypedArray, 1, 1)         \
+#define FOR_EACH_INTRINSIC_TYPEDARRAY(F) \
+  F(ArrayBufferGetByteLength, 1, 1)      \
+  F(ArrayBufferNeuter, 1, 1)             \
+  F(ArrayBufferViewGetByteLength, 1, 1)  \
+  F(ArrayBufferViewGetByteOffset, 1, 1)  \
+  F(ArrayBufferViewWasNeutered, 1, 1)    \
+  F(TypedArrayGetLength, 1, 1)           \
+  F(TypedArrayGetBuffer, 1, 1)           \
+  F(TypedArraySetFastCases, 3, 1)        \
+  F(TypedArraySortFast, 1, 1)            \
+  F(TypedArrayMaxSizeInHeap, 0, 1)       \
+  F(IsTypedArray, 1, 1)                  \
+  F(IsSharedTypedArray, 1, 1)            \
+  F(IsSharedIntegerTypedArray, 1, 1)     \
   F(IsSharedInteger32TypedArray, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM(F)     \
