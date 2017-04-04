@@ -43,28 +43,13 @@ const char* Marking::kImpossibleBitPattern = "01";
 // produce invalid {kImpossibleBitPattern} in the marking bitmap by overlapping.
 STATIC_ASSERT(Heap::kMinObjectSizeInWords >= 2);
 
-
-// -------------------------------------------------------------------------
-// MarkCompactCollector
-
-MarkCompactCollector::MarkCompactCollector(Heap* heap)
-    :  // NOLINT
-      heap_(heap),
-      page_parallel_job_semaphore_(0),
-#ifdef DEBUG
-      state_(IDLE),
-#endif
-      was_marked_incrementally_(false),
-      evacuation_(false),
-      compacting_(false),
-      black_allocation_(false),
-      have_code_to_deoptimize_(false),
-      marking_deque_(heap),
-      code_flusher_(nullptr),
-      sweeper_(heap) {
-}
+// =============================================================================
+// Verifiers
+// =============================================================================
 
 #ifdef VERIFY_HEAP
+namespace {
+
 class MarkingVerifier : public ObjectVisitor {
  public:
   virtual void Run() = 0;
@@ -220,8 +205,10 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
   }
 };
 
-class VerifyEvacuationVisitor : public ObjectVisitor {
+class EvacuationVerifier : public ObjectVisitor {
  public:
+  virtual void Run() = 0;
+
   void VisitPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
@@ -230,61 +217,92 @@ class VerifyEvacuationVisitor : public ObjectVisitor {
       }
     }
   }
+
+ protected:
+  explicit EvacuationVerifier(Heap* heap) : heap_(heap) {}
+
+  void VerifyRoots(VisitMode mode);
+  void VerifyEvacuationOnPage(Address start, Address end);
+  void VerifyEvacuation(NewSpace* new_space);
+  void VerifyEvacuation(PagedSpace* paged_space);
+
+  Heap* heap_;
 };
 
+void EvacuationVerifier::VerifyRoots(VisitMode mode) {
+  heap_->IterateStrongRoots(this, mode);
+}
 
-static void VerifyEvacuation(Page* page) {
-  VerifyEvacuationVisitor visitor;
-  HeapObjectIterator iterator(page);
-  for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
-       heap_object = iterator.Next()) {
-    // We skip free space objects.
-    if (!heap_object->IsFiller()) {
-      heap_object->Iterate(&visitor);
-    }
+void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
+  Address current = start;
+  while (current < end) {
+    HeapObject* object = HeapObject::FromAddress(current);
+    if (!object->IsFiller()) object->Iterate(this);
+    current += object->Size();
   }
 }
 
-
-static void VerifyEvacuation(NewSpace* space) {
-  VerifyEvacuationVisitor visitor;
+void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
   PageRange range(space->bottom(), space->top());
   for (auto it = range.begin(); it != range.end();) {
     Page* page = *(it++);
     Address current = page->area_start();
     Address limit = it != range.end() ? page->area_end() : space->top();
     CHECK(limit == space->top() || !page->Contains(space->top()));
-    while (current < limit) {
-      HeapObject* object = HeapObject::FromAddress(current);
-      object->Iterate(&visitor);
-      current += object->Size();
-    }
+    VerifyEvacuationOnPage(current, limit);
   }
 }
 
-
-static void VerifyEvacuation(Heap* heap, PagedSpace* space) {
-  if (FLAG_use_allocation_folding && (space == heap->old_space())) {
+void EvacuationVerifier::VerifyEvacuation(PagedSpace* space) {
+  if (FLAG_use_allocation_folding && (space == heap_->old_space())) {
     return;
   }
   for (Page* p : *space) {
     if (p->IsEvacuationCandidate()) continue;
-    VerifyEvacuation(p);
+    if (p->Contains(space->top()))
+      heap_->CreateFillerObjectAt(space->top(), space->limit() - space->top(),
+                                  ClearRecordedSlots::kNo);
+
+    VerifyEvacuationOnPage(p->area_start(), p->area_end());
   }
 }
 
+class FullEvacuationVerifier : public EvacuationVerifier {
+ public:
+  explicit FullEvacuationVerifier(Heap* heap) : EvacuationVerifier(heap) {}
 
-static void VerifyEvacuation(Heap* heap) {
-  VerifyEvacuation(heap, heap->old_space());
-  VerifyEvacuation(heap, heap->code_space());
-  VerifyEvacuation(heap, heap->map_space());
-  VerifyEvacuation(heap->new_space());
+  void Run() override {
+    VerifyRoots(VISIT_ALL);
+    VerifyEvacuation(heap_->new_space());
+    VerifyEvacuation(heap_->old_space());
+    VerifyEvacuation(heap_->code_space());
+    VerifyEvacuation(heap_->map_space());
+  }
+};
 
-  VerifyEvacuationVisitor visitor;
-  heap->IterateStrongRoots(&visitor, VISIT_ALL);
-}
+}  // namespace
 #endif  // VERIFY_HEAP
 
+// =============================================================================
+// MarkCompactCollector
+// =============================================================================
+
+MarkCompactCollector::MarkCompactCollector(Heap* heap)
+    :  // NOLINT
+      heap_(heap),
+      page_parallel_job_semaphore_(0),
+#ifdef DEBUG
+      state_(IDLE),
+#endif
+      was_marked_incrementally_(false),
+      evacuation_(false),
+      compacting_(false),
+      black_allocation_(false),
+      have_code_to_deoptimize_(false),
+      marking_deque_(heap),
+      code_flusher_(nullptr),
+      sweeper_(heap) {
+}
 
 void MarkCompactCollector::SetUp() {
   DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
@@ -586,7 +604,8 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !evacuation()) {
-    VerifyEvacuation(heap_);
+    FullEvacuationVerifier verifier(heap_);
+    verifier.Run();
   }
 #endif
 
@@ -3711,7 +3730,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !sweeper().sweeping_in_progress()) {
-    VerifyEvacuation(heap());
+    FullEvacuationVerifier verifier(heap());
+    verifier.Run();
   }
 #endif
 }
