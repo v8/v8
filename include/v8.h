@@ -4053,7 +4053,8 @@ class V8_EXPORT WasmCompiledModule : public Object {
 class V8_EXPORT WasmModuleObjectBuilder final {
  public:
   WasmModuleObjectBuilder(Isolate* isolate) : isolate_(isolate) {}
-  void OnBytesReceived(std::unique_ptr<const uint8_t[]>&& bytes, size_t size);
+  // The buffer passed into OnBytesReceived is owned by the caller.
+  void OnBytesReceived(const uint8_t*, size_t size);
   MaybeLocal<WasmCompiledModule> Finish();
 
  private:

@@ -464,9 +464,9 @@ TEST(ModuleBuilder) {
       CreatePayload(buffer.begin() + first_mark, second_mark - first_mark);
   std::unique_ptr<const uint8_t[]> third_part =
       CreatePayload(buffer.begin() + second_mark, buffer.size() - second_mark);
-  builder.OnBytesReceived(std::move(first_part), first_mark);
-  builder.OnBytesReceived(std::move(second_part), second_mark - first_mark);
-  builder.OnBytesReceived(std::move(third_part), buffer.size() - second_mark);
+  builder.OnBytesReceived(first_part.get(), first_mark);
+  builder.OnBytesReceived(second_part.get(), second_mark - first_mark);
+  builder.OnBytesReceived(third_part.get(), buffer.size() - second_mark);
   {
     HandleScope scope(i_isolate);
     v8::MaybeLocal<v8::WasmCompiledModule> maybe_module = builder.Finish();
@@ -490,7 +490,7 @@ TEST(FailingModuleBuilder) {
   v8::WasmModuleObjectBuilder builder(CcTest::isolate());
   std::unique_ptr<const uint8_t[]> first_part =
       CreatePayload(buffer.begin(), first_mark);
-  builder.OnBytesReceived(std::move(first_part), first_mark);
+  builder.OnBytesReceived(first_part.get(), first_mark);
   {
     HandleScope scope(i_isolate);
     v8::MaybeLocal<v8::WasmCompiledModule> maybe_module = builder.Finish();

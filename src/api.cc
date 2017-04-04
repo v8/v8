@@ -7589,9 +7589,14 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
 }
 
-void WasmModuleObjectBuilder::OnBytesReceived(
-    std::unique_ptr<const uint8_t[]>&& bytes, size_t size) {
-  received_buffers_.push_back(Buffer(std::move(bytes), size));
+void WasmModuleObjectBuilder::OnBytesReceived(const uint8_t* bytes,
+                                              size_t size) {
+  std::unique_ptr<uint8_t[]> cloned_bytes(new uint8_t[size]);
+  memcpy(cloned_bytes.get(), bytes, size);
+  received_buffers_.push_back(
+      Buffer(std::unique_ptr<const uint8_t[]>(
+                 const_cast<const uint8_t*>(cloned_bytes.release())),
+             size));
   total_size_ += size;
 }
 
