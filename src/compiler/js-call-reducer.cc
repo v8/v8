@@ -134,16 +134,25 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     CreateArgumentsType const type = CreateArgumentsTypeOf(arg_array->op());
     Node* frame_state = NodeProperties::GetFrameStateInput(arg_array);
     FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
-    int formal_parameter_count;
     int start_index = 0;
-    {
-      Handle<SharedFunctionInfo> shared;
-      if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-      formal_parameter_count = shared->internal_formal_parameter_count();
-    }
+    // Determine the formal parameter count;
+    Handle<SharedFunctionInfo> shared;
+    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+    int formal_parameter_count = shared->internal_formal_parameter_count();
     if (type == CreateArgumentsType::kMappedArguments) {
-      // Mapped arguments (sloppy mode) cannot be handled if they are aliased.
-      if (formal_parameter_count != 0) return NoChange();
+      // Mapped arguments (sloppy mode) that are aliased can only be handled
+      // here if there's no side-effect between the {node} and the {arg_array}.
+      // TODO(turbofan): Further relax this constraint.
+      if (formal_parameter_count != 0) {
+        Node* effect = NodeProperties::GetEffectInput(node);
+        while (effect != arg_array) {
+          if (effect->op()->EffectInputCount() != 1 ||
+              !(effect->op()->properties() & Operator::kNoWrite)) {
+            return NoChange();
+          }
+          effect = NodeProperties::GetEffectInput(effect);
+        }
+      }
     } else if (type == CreateArgumentsType::kRestParameter) {
       start_index = formal_parameter_count;
     }
