@@ -929,8 +929,8 @@ class RuntimeCallTimerScope {
      51)                                                                      \
   HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,       \
      100000, 51)                                                              \
-  HR(array_buffer_big_allocations, V8.ArrayBufferBigAllocations, 1, 32, 32)   \
-  HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 1, 32, 32)
+  HR(array_buffer_big_allocations, V8.ArrayBufferBigAllocations, 0, 4096, 13) \
+  HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096, 13)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
