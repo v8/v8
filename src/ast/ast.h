@@ -2742,6 +2742,8 @@ class FunctionLiteral final : public Expression {
     function_literal_id_ = function_literal_id;
   }
 
+  void ReplaceBodyAndScope(FunctionLiteral* other);
+
  private:
   friend class AstNodeFactory;
 

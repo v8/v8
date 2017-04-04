@@ -101,10 +101,8 @@ PreParserIdentifier PreParser::GetSymbol() const {
   return symbol;
 }
 
-PreParser::PreParseResult PreParser::PreParseProgram(bool is_module,
-                                                     int* use_counts) {
+PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
   DCHECK_NULL(scope_);
-  use_counts_ = use_counts;
   DeclarationScope* scope = NewScriptScope();
 #ifdef DEBUG
   scope->set_is_being_lazily_parsed(true);
@@ -123,7 +121,6 @@ PreParser::PreParseResult PreParser::PreParseProgram(bool is_module,
   PreParserStatementList body;
   ParseStatementList(body, Token::EOS, &ok);
   original_scope_ = nullptr;
-  use_counts_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
   if (!ok) {
     ReportUnexpectedToken(scanner()->current_token());
@@ -289,9 +286,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       runtime_call_stats_,
       counters[track_unresolved_variables_][parsing_on_main_thread_]);
 
-  bool is_top_level =
-      scope()->AllowsLazyParsingWithoutUnresolvedVariables(original_scope_);
-
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
   FunctionState function_state(&function_state_, &scope_, function_scope);
@@ -337,22 +331,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   int end_position = scanner()->location().end_pos;
   if (is_strict(language_mode)) {
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
-  }
-
-  if (FLAG_use_parse_tasks && is_top_level && preparse_data_) {
-    preparse_data_->AddFunctionData(
-        start_position, PreParseData::FunctionData(
-                            end_position, formals.num_parameters(),
-                            GetLastFunctionLiteralId() - func_id, language_mode,
-                            function_scope->uses_super_property()));
-    // TODO(wiktorg) spin-off a parse task
-    if (FLAG_trace_parse_tasks) {
-      PrintF("Saved function at %d to %d with:\n", start_position,
-             end_position);
-      PrintF("\t- %d params\n", formals.num_parameters());
-      PrintF("\t- %d function length\n", formals.function_length);
-      PrintF("\t- %d inner-funcs\n", GetLastFunctionLiteralId() - func_id);
-    }
   }
 
   if (FLAG_experimental_preparser_scope_analysis &&

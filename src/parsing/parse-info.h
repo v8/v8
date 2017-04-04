@@ -5,9 +5,11 @@
 #ifndef V8_PARSING_PARSE_INFO_H_
 #define V8_PARSING_PARSE_INFO_H_
 
+#include <map>
 #include <memory>
 
 #include "include/v8.h"
+#include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/parsing/preparsed-scope-data.h"
@@ -33,7 +35,7 @@ class Utf16CharacterStream;
 class Zone;
 
 // A container for the inputs, configuration options, and outputs of parsing.
-class V8_EXPORT_PRIVATE ParseInfo {
+class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
  public:
   explicit ParseInfo(AccountingAllocator* zone_allocator);
   ParseInfo(Handle<Script> script);
@@ -243,6 +245,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
     }
   }
 
+  const std::map<int, std::unique_ptr<ParseInfo>>* child_infos() const {
+    return child_infos_.get();
+  }
+
+  void ParseFinished(std::unique_ptr<ParseInfo> info) override;
+
 #ifdef DEBUG
   bool script_is_native() const;
 #endif  // DEBUG
@@ -302,6 +310,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
   std::shared_ptr<DeferredHandles> deferred_handles_;
+  // The key of the map is the FunctionLiteral's start_position
+  std::unique_ptr<std::map<int, std::unique_ptr<ParseInfo>>> child_infos_;
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }

@@ -43,7 +43,7 @@ enum class CompileJobStatus {
   kDone,
 };
 
-class CompileJobFinishCallback {
+class V8_EXPORT_PRIVATE CompileJobFinishCallback {
  public:
   virtual ~CompileJobFinishCallback() {}
   virtual void ParseFinished(std::unique_ptr<ParseInfo> parse_info) = 0;
