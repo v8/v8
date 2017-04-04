@@ -1329,10 +1329,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void HandleBreakOnNode();
 
-  Node* AllocateRawAligned(Node* size_in_bytes, AllocationFlags flags,
-                           Node* top_address, Node* limit_address);
+  Node* AllocateRawDoubleAligned(Node* size_in_bytes, AllocationFlags flags,
+                                 Node* top_address, Node* limit_address);
   Node* AllocateRawUnaligned(Node* size_in_bytes, AllocationFlags flags,
                              Node* top_adddress, Node* limit_address);
+  Node* AllocateRaw(Node* size_in_bytes, AllocationFlags flags,
+                    Node* top_address, Node* limit_address);
   // Allocate and return a JSArray of given total size in bytes with header
   // fields initialized.
   Node* AllocateUninitializedJSArray(ElementsKind kind, Node* array_map,

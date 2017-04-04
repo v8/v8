@@ -214,7 +214,7 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     // Allocate a FixedTypedArray and set the length, base pointer and external
     // pointer.
     CSA_ASSERT(this, IsRegularHeapObjectSize(total_size.value()));
-    Node* elements = Allocate(total_size.value());
+    Node* elements = AllocateInNewSpace(total_size.value(), kDoubleAlignment);
 
     StoreMapNoWriteBarrier(elements, fixed_typed_map.value());
     StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
