@@ -1955,6 +1955,26 @@ void InstructionSelector::VisitS1x16Zero(Node* node) {
   Emit(kMipsS128Zero, g.DefineSameAsFirst(node));
 }
 
+void InstructionSelector::VisitF32x4Splat(Node* node) {
+  VisitRR(this, kMipsF32x4Splat, node);
+}
+
+void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
+  VisitRRI(this, kMipsF32x4ExtractLane, node);
+}
+
+void InstructionSelector::VisitF32x4ReplaceLane(Node* node) {
+  VisitRRIR(this, kMipsF32x4ReplaceLane, node);
+}
+
+void InstructionSelector::VisitF32x4SConvertI32x4(Node* node) {
+  VisitRR(this, kMipsF32x4SConvertI32x4, node);
+}
+
+void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
+  VisitRR(this, kMipsF32x4UConvertI32x4, node);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

@@ -406,7 +406,8 @@ bool SkipFPValue(float x) {
 // doesn't handle NaNs. Also skip extreme values.
 bool SkipFPExpectedValue(float x) { return std::isnan(x) || SkipFPValue(x); }
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 WASM_EXEC_COMPILED_TEST(F32x4Splat) {
   FLAG_wasm_simd_prototype = true;
 
@@ -473,7 +474,10 @@ WASM_EXEC_COMPILED_TEST(F32x4ConvertI32x4) {
                        static_cast<float>(static_cast<uint32_t>(*i))));
   }
 }
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 void RunF32x4UnOpTest(WasmOpcode simd_op, FloatUnOp expected_op,
                       float error = 0.0f) {
   FLAG_wasm_simd_prototype = true;
