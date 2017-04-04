@@ -43,6 +43,8 @@ enum class SerializationTag : uint8_t;
  */
 class ValueSerializer {
  public:
+  static uint32_t GetCurrentDataFormatVersion();
+
   ValueSerializer(Isolate* isolate, v8::ValueSerializer::Delegate* delegate);
   ~ValueSerializer();
 

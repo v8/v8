@@ -154,6 +154,11 @@ enum class WasmEncodingTag : uint8_t {
 
 }  // namespace
 
+// static
+uint32_t ValueSerializer::GetCurrentDataFormatVersion() {
+  return kLatestVersion;
+}
+
 ValueSerializer::ValueSerializer(Isolate* isolate,
                                  v8::ValueSerializer::Delegate* delegate)
     : isolate_(isolate),
