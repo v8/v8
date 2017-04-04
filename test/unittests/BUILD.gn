@@ -109,6 +109,7 @@ v8_executable("unittests") {
     "heap/memory-reducer-unittest.cc",
     "heap/scavenge-job-unittest.cc",
     "heap/slot-set-unittest.cc",
+    "heap/spaces-unittest.cc",
     "heap/unmapper-unittest.cc",
     "interpreter/bytecode-array-builder-unittest.cc",
     "interpreter/bytecode-array-iterator-unittest.cc",
