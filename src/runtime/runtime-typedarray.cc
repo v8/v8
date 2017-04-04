@@ -25,7 +25,15 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferGetByteLength) {
 RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, array_buffer, 0);
+  Handle<Object> argument = args.at(0);
+  // This runtime function is exposed in ClusterFuzz and as such has to
+  // support arbitrary arguments.
+  if (!argument->IsJSArrayBuffer()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotTypedArray));
+  }
+  Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(argument);
+
   if (array_buffer->backing_store() == NULL) {
     CHECK(Smi::kZero == array_buffer->byte_length());
     return isolate->heap()->undefined_value();
@@ -87,8 +95,9 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
 
-  if (!args[1]->IsJSTypedArray())
+  if (!args[1]->IsJSTypedArray()) {
     return Smi::FromInt(TYPED_ARRAY_SET_NON_TYPED_ARRAY);
+  }
 
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target_obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source_obj, 1);
