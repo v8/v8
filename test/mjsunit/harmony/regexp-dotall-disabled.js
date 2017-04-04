@@ -5,6 +5,8 @@
 // This tests that RegExp dotall features are not enabled when
 // --harmony-regexp-dotall is not passed.
 
+// Flags: --no-harmony-regexp-dotall
+
 // Construction does not throw.
 {
   assertThrows("/./s", SyntaxError);
