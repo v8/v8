@@ -807,7 +807,7 @@ class Page : public MemoryChunk {
 
   size_t ShrinkToHighWaterMark();
 
-  void CreateBlackArea(Address start, Address end);
+  V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
 
 #ifdef DEBUG
   void Print();
@@ -2733,7 +2733,7 @@ class PauseAllocationObserversScope {
 // -----------------------------------------------------------------------------
 // Compaction space that is used temporarily during compaction.
 
-class CompactionSpace : public PagedSpace {
+class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
  public:
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable)
       : PagedSpace(heap, id, executable) {}
