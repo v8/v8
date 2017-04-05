@@ -1360,9 +1360,8 @@ static inline bool TryMatchInt32MulWithOverflow(InstructionSelector* selector,
                                                 Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
-      DCHECK(TryMatchInt32OpWithOverflow<kS390_Mul32>(
-                 selector, node,
-                 OperandMode::kAllowRRR | OperandMode::kAllowRM) == true);
+      TryMatchInt32OpWithOverflow<kS390_Mul32>(
+          selector, node, OperandMode::kAllowRRR | OperandMode::kAllowRM);
     } else {
       FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
       VisitWord32BinOp(selector, node, kS390_Mul32WithOverflow,
