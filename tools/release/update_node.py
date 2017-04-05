@@ -43,26 +43,18 @@ def UninitGit(path):
     print ">> Cleaning up %s" % path
     shutil.rmtree(target)
 
-def ApplyIndex(source, target):
-  if not subprocess.check_output(["git", "diff", "--cached"], cwd=source):
-    print ">> Ignoring empty patch"
-    return
+def CommitPatch(options):
+  """Makes a dummy commit for the changes in the index.
 
-  print ">> Applying patch"
-  diff_proc = subprocess.Popen(
-      ["git", "diff", "--cached"],
-      cwd=source,
-      stdout=subprocess.PIPE,
+  On trybots, bot_updated applies the patch to the index. We commit it to make
+  the fake git clone fetch it into node.js. We can leave the commit, as
+  bot_update will ensure a clean state on each run.
+  """
+  print ">> Comitting patch"
+  subprocess.check_call(
+      ["git", "commit", "--allow-empty", "-m", "placeholder-commit"],
+      cwd=options.v8_path,
   )
-  apply_proc = subprocess.Popen(
-      ["git", "apply", "--index"],
-      cwd=target,
-      stdin=diff_proc.stdout,
-  )
-  diff_proc.stdout.close()
-  apply_proc.communicate()
-  if apply_proc.returncode != 0:
-    raise Exception("Error applying patch")
 
 def UpdateTarget(repository, options):
   source = os.path.join(options.v8_path, *repository)
@@ -84,8 +76,6 @@ def UpdateTarget(repository, options):
   try:
     for command in git_commands:
       subprocess.check_call(command, cwd=target)
-    if options.with_patch:
-      ApplyIndex(source, target)
   except:
     raise
   finally:
@@ -144,6 +134,9 @@ def Main(args):
   options = ParseOptions(args)
   if options.gclient:
     RunGclient(options.v8_path)
+  # Commit patch on trybots to main V8 repository.
+  if options.with_patch:
+    CommitPatch(options)
   # Update main V8 repository.
   UpdateTarget([""], options)
   # Patch .gitignore before updating sub-repositories.
