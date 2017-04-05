@@ -4223,8 +4223,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         DCHECK((kind & FunctionKind::kArrowFunction) != 0);
         LazyParsingResult result = impl()->SkipFunction(
             kind, formal_parameters.scope, &dummy_num_parameters,
-            &dummy_function_length, &expected_property_count, false, true,
-            CHECK_OK);
+            &dummy_function_length, false, true, CHECK_OK);
         formal_parameters.scope->ResetAfterPreparsing(
             ast_value_factory_, result == kLazyParsingAborted);
 

@@ -2624,7 +2624,11 @@ class FunctionLiteral final : public Expression {
 
   static bool NeedsHomeObject(Expression* expr);
 
-  int expected_property_count() { return expected_property_count_; }
+  int expected_property_count() {
+    // Not valid for lazy functions.
+    DCHECK_NOT_NULL(body_);
+    return expected_property_count_;
+  }
   int parameter_count() { return parameter_count_; }
   int function_length() { return function_length_; }
 
@@ -2668,7 +2672,7 @@ class FunctionLiteral final : public Expression {
   void set_pretenure() { bit_field_ = Pretenure::update(bit_field_, true); }
 
   bool has_duplicate_parameters() const {
-    // has_duplicate_parameters is not valid for lazy functions.
+    // Not valid for lazy functions.
     DCHECK_NOT_NULL(body_);
     return HasDuplicateParameters::decode(bit_field_);
   }
@@ -2758,6 +2762,7 @@ class FunctionLiteral final : public Expression {
                   ShouldNotBeUsedOnceHintField::encode(false) |
                   DontOptimizeReasonField::encode(kNoReason);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
+    DCHECK_EQ(body == nullptr, expected_property_count < 0);
   }
 
   class FunctionTypeBits

@@ -474,6 +474,7 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
   shared_info->set_ast_node_count(literal->ast_node_count());
   shared_info->set_has_duplicate_parameters(
       literal->has_duplicate_parameters());
+  shared_info->SetExpectedNofPropertiesFromEstimate(literal);
   if (literal->dont_optimize_reason() != kNoReason) {
     shared_info->DisableOptimization(literal->dont_optimize_reason());
   }

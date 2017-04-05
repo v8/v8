@@ -6492,7 +6492,8 @@ class SharedFunctionInfo: public HeapObject {
   // called without using argument adaptor frames.
   inline void DontAdaptArguments();
 
-  // [expected_nof_properties]: Expected number of properties for the function.
+  // [expected_nof_properties]: Expected number of properties for the
+  // function. The value is only reliable when the function has been compiled.
   inline int expected_nof_properties() const;
   inline void set_expected_nof_properties(int value);
 
@@ -6783,6 +6784,9 @@ class SharedFunctionInfo: public HeapObject {
   // Initialize a SharedFunctionInfo from a parsed function literal.
   static void InitFromFunctionLiteral(Handle<SharedFunctionInfo> shared_info,
                                       FunctionLiteral* lit);
+
+  // Sets the expected number of properties based on estimate from parser.
+  void SetExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);
 
   // Dispatched behavior.
   DECLARE_PRINTER(SharedFunctionInfo)
@@ -7533,10 +7537,10 @@ class JSFunction: public JSObject {
   void CalculateInstanceSize(InstanceType instance_type,
                              int requested_embedder_fields, int* instance_size,
                              int* in_object_properties);
-  void CalculateInstanceSizeForDerivedClass(InstanceType instance_type,
-                                            int requested_embedder_fields,
-                                            int* instance_size,
-                                            int* in_object_properties);
+  static void CalculateInstanceSizeForDerivedClass(
+      Handle<JSFunction> function, InstanceType instance_type,
+      int requested_embedder_fields, int* instance_size,
+      int* in_object_properties);
   static void CalculateInstanceSizeHelper(InstanceType instance_type,
                                           int requested_embedder_fields,
                                           int requested_in_object_properties,

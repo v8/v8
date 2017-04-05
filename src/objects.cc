@@ -12892,9 +12892,9 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
                           constructor_initial_map->unused_property_fields();
       int instance_size;
       int in_object_properties;
-      function->CalculateInstanceSizeForDerivedClass(
-          instance_type, embedder_fields, &instance_size,
-          &in_object_properties);
+      CalculateInstanceSizeForDerivedClass(function, instance_type,
+                                           embedder_fields, &instance_size,
+                                           &in_object_properties);
 
       int unused_property_fields = in_object_properties - pre_allocated;
       Handle<Map> map =
@@ -13589,23 +13589,32 @@ void JSFunction::CalculateInstanceSize(InstanceType instance_type,
                                        int requested_embedder_fields,
                                        int* instance_size,
                                        int* in_object_properties) {
+  DCHECK(shared()->is_compiled());
   CalculateInstanceSizeHelper(instance_type, requested_embedder_fields,
                               shared()->expected_nof_properties(),
                               instance_size, in_object_properties);
 }
 
 void JSFunction::CalculateInstanceSizeForDerivedClass(
-    InstanceType instance_type, int requested_embedder_fields,
-    int* instance_size, int* in_object_properties) {
-  Isolate* isolate = GetIsolate();
+    Handle<JSFunction> function, InstanceType instance_type,
+    int requested_embedder_fields, int* instance_size,
+    int* in_object_properties) {
+  Isolate* isolate = function->GetIsolate();
   int expected_nof_properties = 0;
-  for (PrototypeIterator iter(isolate, this, kStartAtReceiver); !iter.IsAtEnd();
-       iter.Advance()) {
-    JSReceiver* current = iter.GetCurrent<JSReceiver>();
+  for (PrototypeIterator iter(isolate, function, kStartAtReceiver);
+       !iter.IsAtEnd(); iter.Advance()) {
+    Handle<JSReceiver> current =
+        PrototypeIterator::GetCurrent<JSReceiver>(iter);
     if (!current->IsJSFunction()) break;
-    JSFunction* func = JSFunction::cast(current);
-    SharedFunctionInfo* shared = func->shared();
-    expected_nof_properties += shared->expected_nof_properties();
+    Handle<JSFunction> func(Handle<JSFunction>::cast(current));
+    // The super constructor should be compiled for the number of expected
+    // properties to be available.
+    Handle<SharedFunctionInfo> shared(func->shared());
+    if (shared->is_compiled() ||
+        Compiler::Compile(func, Compiler::CLEAR_EXCEPTION)) {
+      DCHECK(shared->is_compiled());
+      expected_nof_properties += shared->expected_nof_properties();
+    }
     if (!IsDerivedConstructor(shared->kind())) {
       break;
     }
@@ -13705,26 +13714,6 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   }
 }
 
-namespace {
-
-// Sets the expected number of properties based on estimate from parser.
-void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
-                                          FunctionLiteral* literal) {
-  int estimate = literal->expected_property_count();
-
-  // If no properties are added in the constructor, they are more likely
-  // to be added later.
-  if (estimate == 0) estimate = 2;
-
-  // Inobject slack tracking will reclaim redundant inobject space later,
-  // so we can afford to adjust the estimate generously.
-  estimate += 8;
-
-  shared->set_expected_nof_properties(estimate);
-}
-
-}  // namespace
-
 void SharedFunctionInfo::InitFromFunctionLiteral(
     Handle<SharedFunctionInfo> shared_info, FunctionLiteral* lit) {
   // When adding fields here, make sure DeclarationScope::AnalyzePartially is
@@ -13749,7 +13738,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
   shared_info->set_asm_function(lit->scope()->asm_function());
   shared_info->set_function_literal_id(lit->function_literal_id());
-  SetExpectedNofPropertiesFromEstimate(shared_info, lit);
 
   // For lazy parsed functions, the following flags will be inaccurate since we
   // don't have the information yet. They're set later in
@@ -13757,9 +13745,24 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   // really parsed and compiled.
   if (lit->body() != nullptr) {
     shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
+    shared_info->SetExpectedNofPropertiesFromEstimate(lit);
   }
 }
 
+void SharedFunctionInfo::SetExpectedNofPropertiesFromEstimate(
+    FunctionLiteral* literal) {
+  int estimate = literal->expected_property_count();
+
+  // If no properties are added in the constructor, they are more likely
+  // to be added later.
+  if (estimate == 0) estimate = 2;
+
+  // Inobject slack tracking will reclaim redundant inobject space later,
+  // so we can afford to adjust the estimate generously.
+  estimate += 8;
+
+  set_expected_nof_properties(estimate);
+}
 
 bool SharedFunctionInfo::VerifyBailoutId(BailoutId id) {
   DCHECK(!id.IsNone());

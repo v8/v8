@@ -938,8 +938,7 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE LazyParsingResult SkipFunction(
       FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
-      int* function_length, int* expected_property_count,
-      bool is_inner_function, bool may_abort, bool* ok) {
+      int* function_length, bool is_inner_function, bool may_abort, bool* ok) {
     UNREACHABLE();
     return kLazyParsingComplete;
   }

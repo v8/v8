@@ -36,7 +36,6 @@ class FunctionEntry BASE_EMBEDDED {
     kEndPositionIndex,
     kNumParametersIndex,
     kFunctionLengthIndex,
-    kPropertyCountIndex,
     kFlagsIndex,
     kNumInnerFunctionsIndex,
     kSize
@@ -64,7 +63,6 @@ class FunctionEntry BASE_EMBEDDED {
   int end_pos() const { return backing_[kEndPositionIndex]; }
   int num_parameters() const { return backing_[kNumParametersIndex]; }
   int function_length() const { return backing_[kFunctionLengthIndex]; }
-  int property_count() const { return backing_[kPropertyCountIndex]; }
   LanguageMode language_mode() const {
     return LanguageModeField::decode(backing_[kFlagsIndex]);
   }
@@ -565,7 +563,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   LazyParsingResult SkipFunction(FunctionKind kind,
                                  DeclarationScope* function_scope,
                                  int* num_parameters, int* function_length,
-                                 int* expected_property_count,
                                  bool is_inner_function, bool may_abort,
                                  bool* ok);
 

@@ -329,17 +329,15 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   if (FLAG_use_parse_tasks && is_top_level && preparse_data_) {
     preparse_data_->AddTopLevelFunctionData(PreParseData::FunctionData(
         start_position, end_position, formals.num_parameters(),
-        formals.function_length, function_state_->expected_property_count(),
-        GetLastFunctionLiteralId() - func_id, language_mode,
-        function_scope->uses_super_property(), function_scope->calls_eval()));
+        formals.function_length, GetLastFunctionLiteralId() - func_id,
+        language_mode, function_scope->uses_super_property(),
+        function_scope->calls_eval()));
     // TODO(wiktorg) spin-off a parse task
     if (FLAG_trace_parse_tasks) {
       PrintF("Saved function at %d to %d with:\n", start_position,
              end_position);
       PrintF("\t- %d params\n", formals.num_parameters());
       PrintF("\t- %d function length\n", formals.function_length);
-      PrintF("\t- %d expected properties\n",
-             function_state_->expected_property_count());
       PrintF("\t- %d inner-funcs\n", GetLastFunctionLiteralId() - func_id);
     }
   }
@@ -365,9 +363,8 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
   DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
-  log_.LogFunction(
-      body_end, formals->num_parameters(), formals->function_length,
-      function_state_->expected_property_count(), GetLastFunctionLiteralId());
+  log_.LogFunction(body_end, formals->num_parameters(),
+                   formals->function_length, GetLastFunctionLiteralId());
   return kLazyParsingComplete;
 }
 
