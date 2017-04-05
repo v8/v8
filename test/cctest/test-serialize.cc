@@ -49,6 +49,7 @@
 #include "src/snapshot/startup-serializer.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
+#include "test/cctest/setup-isolate-for-tests.h"
 
 using namespace v8::internal;
 
@@ -64,13 +65,25 @@ class TestIsolate : public Isolate {
  public:
   static v8::Isolate* NewInitialized(bool enable_serializer) {
     i::Isolate* isolate = new TestIsolate(enable_serializer);
+    isolate->setup_delegate_ = new SetupIsolateDelegateForTests();
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     isolate->Init(NULL);
     return v8_isolate;
   }
+  // Wraps v8::Isolate::New, but with a TestIsolate under the hood.
+  // Allows flexibility to bootstrap with or without snapshot even when
+  // the production Isolate class has one or the other behavior baked in.
+  static v8::Isolate* New(const v8::Isolate::CreateParams& params) {
+    i::Isolate* isolate = new TestIsolate(false);
+    isolate->setup_delegate_ = new SetupIsolateDelegateForTests();
+    return v8::IsolateNewImpl(isolate, params);
+  }
   explicit TestIsolate(bool enable_serializer) : Isolate(enable_serializer) {
     set_array_buffer_allocator(CcTest::array_buffer_allocator());
+  }
+  void CreateSetupDelegateForTests() {
+    setup_delegate_ = new SetupIsolateDelegateForTests();
   }
 };
 
@@ -125,9 +138,10 @@ v8::Isolate* InitializeFromBlob(Vector<const byte> blob) {
   {
     SnapshotData snapshot_data(blob);
     Deserializer deserializer(&snapshot_data);
-    Isolate* isolate = new TestIsolate(false);
+    TestIsolate* isolate = new TestIsolate(false);
     v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
+    isolate->CreateSetupDelegateForTests();
     isolate->Init(&deserializer);
   }
   return v8_isolate;
@@ -633,7 +647,8 @@ TEST(CustomSnapshotDataBlob1) {
   params1.snapshot_blob = &data1;
   params1.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate1 = v8::Isolate::New(params1);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate1 = TestIsolate::New(params1);
   {
     v8::Isolate::Scope i_scope(isolate1);
     v8::HandleScope h_scope(isolate1);
@@ -660,7 +675,8 @@ TEST(CustomSnapshotDataBlob2) {
   v8::Isolate::CreateParams params2;
   params2.snapshot_blob = &data2;
   params2.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate2 = v8::Isolate::New(params2);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate2 = TestIsolate::New(params2);
   {
     v8::Isolate::Scope i_scope(isolate2);
     v8::HandleScope h_scope(isolate2);
@@ -703,7 +719,8 @@ TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
   params.snapshot_blob = &data;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
@@ -750,7 +767,8 @@ TEST(CustomSnapshotDataBlobWithLocker) {
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
   params1.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate1 = v8::Isolate::New(params1);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate1 = TestIsolate::New(params1);
   {
     v8::Locker locker(isolate1);
     v8::Isolate::Scope i_scope(isolate1);
@@ -782,7 +800,8 @@ TEST(CustomSnapshotDataBlobStackOverflow) {
   params.snapshot_blob = &data;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
@@ -822,7 +841,8 @@ TEST(SnapshotDataBlobWithWarmup) {
   params.snapshot_blob = &warm;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
@@ -855,7 +875,8 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
   params.snapshot_blob = &warm;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
@@ -891,7 +912,8 @@ TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   params.snapshot_blob = &data;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
@@ -1906,7 +1928,8 @@ TEST(SnapshotCreatorMultipleContexts) {
   v8::Isolate::CreateParams params;
   params.snapshot_blob = &blob;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope isolate_scope(isolate);
     {
@@ -2028,7 +2051,8 @@ TEST(SnapshotCreatorExternalReferences) {
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     params.external_references = original_external_references;
-    v8::Isolate* isolate = v8::Isolate::New(params);
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
@@ -2045,7 +2069,8 @@ TEST(SnapshotCreatorExternalReferences) {
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     params.external_references = replaced_external_references;
-    v8::Isolate* isolate = v8::Isolate::New(params);
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
@@ -2178,7 +2203,8 @@ TEST(SnapshotCreatorTemplates) {
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     params.external_references = original_external_references;
-    v8::Isolate* isolate = v8::Isolate::New(params);
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
       {
@@ -2355,7 +2381,8 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     params.external_references = original_external_references;
-    v8::Isolate* isolate = v8::Isolate::New(params);
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
       // We can introduce new extensions, which could override the already
