@@ -789,6 +789,12 @@ const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
       }
     }
 
+    // The backslash char is misclassified as both ID_Start and ID_Continue.
+    if (c == '\\') {
+      ReportError(CStrVector("Invalid capture group name"));
+      return nullptr;
+    }
+
     if (at_start) {
       if (!IdentifierStart::Is(c)) {
         ReportError(CStrVector("Invalid capture group name"));

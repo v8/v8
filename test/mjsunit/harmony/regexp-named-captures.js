@@ -177,6 +177,10 @@ assertEquals(["fst", "snd"],
 assertEquals(undefined, /(?<a>.)/u.exec("a").groups.__proto__);
 assertEquals("a", /(?<__proto__>a)/u.exec("a").groups.__proto__);
 
+// Backslash as ID_Start and ID_Continue (v8:5868).
+assertThrows("/(?<\\>.)/", SyntaxError);   // '\' misclassified as ID_Start.
+assertThrows("/(?<a\\>.)/", SyntaxError);  // '\' misclassified as ID_Continue.
+
 // Backreference before the group (exercises the capture mini-parser).
 assertThrows("/\\1(?:.)/u", SyntaxError);
 assertThrows("/\\1(?<=a)./u", SyntaxError);
