@@ -21,7 +21,7 @@ struct LocalIndexOperand {
   unsigned length;
 
   inline LocalIndexOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->checked_read_u32v(pc, 1, &length, "local index");
+    index = decoder->checked_read_u32v(pc + 1, &length, "local index");
     type = kWasmStmt;
   }
 };
@@ -30,7 +30,7 @@ struct ImmI32Operand {
   int32_t value;
   unsigned length;
   inline ImmI32Operand(Decoder* decoder, const byte* pc) {
-    value = decoder->checked_read_i32v(pc, 1, &length, "immi32");
+    value = decoder->checked_read_i32v(pc + 1, &length, "immi32");
   }
 };
 
@@ -38,7 +38,7 @@ struct ImmI64Operand {
   int64_t value;
   unsigned length;
   inline ImmI64Operand(Decoder* decoder, const byte* pc) {
-    value = decoder->checked_read_i64v(pc, 1, &length, "immi64");
+    value = decoder->checked_read_i64v(pc + 1, &length, "immi64");
   }
 };
 
@@ -47,7 +47,7 @@ struct ImmF32Operand {
   unsigned length;
   inline ImmF32Operand(Decoder* decoder, const byte* pc) {
     // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
-    uint32_t tmp = decoder->checked_read_u32(pc, 1, "immf32");
+    uint32_t tmp = decoder->checked_read_u32(pc + 1, "immf32");
     memcpy(&value, &tmp, sizeof(value));
     length = 4;
   }
@@ -58,7 +58,7 @@ struct ImmF64Operand {
   unsigned length;
   inline ImmF64Operand(Decoder* decoder, const byte* pc) {
     // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
-    uint64_t tmp = decoder->checked_read_u64(pc, 1, "immf64");
+    uint64_t tmp = decoder->checked_read_u64(pc + 1, "immf64");
     memcpy(&value, &tmp, sizeof(value));
     length = 8;
   }
@@ -71,7 +71,7 @@ struct GlobalIndexOperand {
   unsigned length;
 
   inline GlobalIndexOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->checked_read_u32v(pc, 1, &length, "global index");
+    index = decoder->checked_read_u32v(pc + 1, &length, "global index");
     global = nullptr;
     type = kWasmStmt;
   }
@@ -83,7 +83,7 @@ struct BlockTypeOperand {
   unsigned length;
 
   inline BlockTypeOperand(Decoder* decoder, const byte* pc) {
-    uint8_t val = decoder->checked_read_u8(pc, 1, "block type");
+    uint8_t val = decoder->checked_read_u8(pc + 1, "block type");
     ValueType type = kWasmStmt;
     length = 1;
     arity = 0;
@@ -94,16 +94,16 @@ struct BlockTypeOperand {
     } else {
       // Handle multi-value blocks.
       if (!FLAG_wasm_mv_prototype) {
-        decoder->error(pc, pc + 1, "invalid block arity > 1");
+        decoder->error(pc + 1, "invalid block arity > 1");
         return;
       }
       if (val != kMultivalBlock) {
-        decoder->error(pc, pc + 1, "invalid block type");
+        decoder->error(pc + 1, "invalid block type");
         return;
       }
       // Decode and check the types vector of the block.
       unsigned len = 0;
-      uint32_t count = decoder->checked_read_u32v(pc, 2, &len, "block arity");
+      uint32_t count = decoder->checked_read_u32v(pc + 2, &len, "block arity");
       // {count} is encoded as {arity-2}, so that a {0} count here corresponds
       // to a block with 2 values. This makes invalid/redundant encodings
       // impossible.
@@ -113,10 +113,10 @@ struct BlockTypeOperand {
 
       for (uint32_t i = 0; i < arity; i++) {
         uint32_t offset = 1 + 1 + len + i;
-        val = decoder->checked_read_u8(pc, offset, "block type");
+        val = decoder->checked_read_u8(pc + offset, "block type");
         decode_local_type(val, &type);
         if (type == kWasmStmt) {
-          decoder->error(pc, pc + offset, "invalid block type");
+          decoder->error(pc + offset, "invalid block type");
           return;
         }
       }
@@ -172,7 +172,7 @@ struct BreakDepthOperand {
   Control* target;
   unsigned length;
   inline BreakDepthOperand(Decoder* decoder, const byte* pc) {
-    depth = decoder->checked_read_u32v(pc, 1, &length, "break depth");
+    depth = decoder->checked_read_u32v(pc + 1, &length, "break depth");
     target = nullptr;
   }
 };
@@ -184,11 +184,11 @@ struct CallIndirectOperand {
   unsigned length;
   inline CallIndirectOperand(Decoder* decoder, const byte* pc) {
     unsigned len = 0;
-    index = decoder->checked_read_u32v(pc, 1, &len, "signature index");
-    table_index = decoder->checked_read_u8(pc, 1 + len, "table index");
+    index = decoder->checked_read_u32v(pc + 1, &len, "signature index");
+    table_index = decoder->checked_read_u8(pc + 1 + len, "table index");
     if (table_index != 0) {
-      decoder->error(pc, pc + 1 + len, "expected table index 0, found %u",
-                     table_index);
+      decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
+                      table_index);
     }
     length = 1 + len;
     sig = nullptr;
@@ -200,7 +200,7 @@ struct CallFunctionOperand {
   FunctionSig* sig;
   unsigned length;
   inline CallFunctionOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->checked_read_u32v(pc, 1, &length, "function index");
+    index = decoder->checked_read_u32v(pc + 1, &length, "function index");
     sig = nullptr;
   }
 };
@@ -209,9 +209,9 @@ struct MemoryIndexOperand {
   uint32_t index;
   unsigned length;
   inline MemoryIndexOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->checked_read_u8(pc, 1, "memory index");
+    index = decoder->checked_read_u8(pc + 1, "memory index");
     if (index != 0) {
-      decoder->error(pc, pc + 1, "expected memory index 0, found %u", index);
+      decoder->errorf(pc + 1, "expected memory index 0, found %u", index);
     }
     length = 1;
   }
@@ -222,10 +222,10 @@ struct BranchTableOperand {
   const byte* start;
   const byte* table;
   inline BranchTableOperand(Decoder* decoder, const byte* pc) {
-    DCHECK_EQ(kExprBrTable, decoder->checked_read_u8(pc, 0, "opcode"));
+    DCHECK_EQ(kExprBrTable, decoder->checked_read_u8(pc, "opcode"));
     start = pc + 1;
     unsigned len1 = 0;
-    table_count = decoder->checked_read_u32v(pc, 1, &len1, "table count");
+    table_count = decoder->checked_read_u32v(pc + 1, &len1, "table count");
     if (table_count > (UINT_MAX / sizeof(uint32_t)) - 1 ||
         len1 > UINT_MAX - (table_count + 1) * sizeof(uint32_t)) {
       decoder->error(pc, "branch table size overflow");
@@ -244,7 +244,7 @@ class BranchTableIterator {
     index_++;
     unsigned length = 0;
     uint32_t result =
-        decoder_->checked_read_u32v(pc_, 0, &length, "branch table entry");
+        decoder_->checked_read_u32v(pc_, &length, "branch table entry");
     pc_ += length;
     return result;
   }
@@ -279,15 +279,15 @@ struct MemoryAccessOperand {
                              uint32_t max_alignment) {
     unsigned alignment_length;
     alignment =
-        decoder->checked_read_u32v(pc, 1, &alignment_length, "alignment");
+        decoder->checked_read_u32v(pc + 1, &alignment_length, "alignment");
     if (max_alignment < alignment) {
-      decoder->error(pc, pc + 1,
-                     "invalid alignment; expected maximum alignment is %u, "
-                     "actual alignment is %u",
-                     max_alignment, alignment);
+      decoder->errorf(pc + 1,
+                      "invalid alignment; expected maximum alignment is %u, "
+                      "actual alignment is %u",
+                      max_alignment, alignment);
     }
     unsigned offset_length;
-    offset = decoder->checked_read_u32v(pc, 1 + alignment_length,
+    offset = decoder->checked_read_u32v(pc + 1 + alignment_length,
                                         &offset_length, "offset");
     length = alignment_length + offset_length;
   }
@@ -299,7 +299,7 @@ struct SimdLaneOperand {
   unsigned length;
 
   inline SimdLaneOperand(Decoder* decoder, const byte* pc) {
-    lane = decoder->checked_read_u8(pc, 2, "lane");
+    lane = decoder->checked_read_u8(pc + 2, "lane");
     length = 1;
   }
 };
@@ -310,7 +310,7 @@ struct SimdShiftOperand {
   unsigned length;
 
   inline SimdShiftOperand(Decoder* decoder, const byte* pc) {
-    shift = decoder->checked_read_u8(pc, 2, "shift");
+    shift = decoder->checked_read_u8(pc + 2, "shift");
     length = 1;
   }
 };

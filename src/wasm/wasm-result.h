@@ -40,7 +40,6 @@ struct Result {
   ErrorCode error_code;
   const byte* start;
   const byte* error_pc;
-  const byte* error_pt;
   std::unique_ptr<char[]> error_msg;
 
   bool ok() const { return error_code == kSuccess; }
@@ -51,7 +50,6 @@ struct Result {
     error_code = that.error_code;
     start = that.start;
     error_pc = that.error_pc;
-    error_pt = that.error_pt;
     error_msg = std::move(that.error_msg);
   }
 

@@ -387,11 +387,9 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
     }
 
     ptrdiff_t pc = result.error_pc - result.start;
-    ptrdiff_t pt = result.error_pt - result.start;
     std::ostringstream str;
-    str << "Verification failed: " << result.error_code << " pc = +" << pc;
-    if (result.error_pt) str << ", pt = +" << pt;
-    str << ", msg = " << result.error_msg.get();
+    str << "Verification failed: " << result.error_code << " pc = +" << pc
+        << ", msg = " << result.error_msg.get();
     FATAL(str.str().c_str());
   }
   builder.Int64LoweringForTesting();

@@ -283,7 +283,7 @@ class WasmDecoder : public Decoder {
       }
       return true;
     }
-    error(pc, pc + 1, "invalid local index: %u", operand.index);
+    errorf(pc + 1, "invalid local index: %u", operand.index);
     return false;
   }
 
@@ -293,7 +293,7 @@ class WasmDecoder : public Decoder {
       operand.type = operand.global->type;
       return true;
     }
-    error(pc, pc + 1, "invalid global index: %u", operand.index);
+    errorf(pc + 1, "invalid global index: %u", operand.index);
     return false;
   }
 
@@ -309,7 +309,7 @@ class WasmDecoder : public Decoder {
     if (Complete(pc, operand)) {
       return true;
     }
-    error(pc, pc + 1, "invalid function index: %u", operand.index);
+    errorf(pc + 1, "invalid function index: %u", operand.index);
     return false;
   }
 
@@ -329,7 +329,7 @@ class WasmDecoder : public Decoder {
     if (Complete(pc, operand)) {
       return true;
     }
-    error(pc, pc + 1, "invalid signature index: #%u", operand.index);
+    errorf(pc + 1, "invalid signature index: #%u", operand.index);
     return false;
   }
 
@@ -339,7 +339,7 @@ class WasmDecoder : public Decoder {
       operand.target = &control[control.size() - operand.depth - 1];
       return true;
     }
-    error(pc, pc + 1, "invalid break depth: %u", operand.depth);
+    errorf(pc + 1, "invalid break depth: %u", operand.depth);
     return false;
   }
 
@@ -372,7 +372,7 @@ class WasmDecoder : public Decoder {
         break;
     }
     if (operand.lane < 0 || operand.lane >= num_lanes) {
-      error(pc_, pc_ + 2, "invalid lane index");
+      error(pc_ + 2, "invalid lane index");
       return false;
     } else {
       return true;
@@ -403,7 +403,7 @@ class WasmDecoder : public Decoder {
         break;
     }
     if (operand.shift < 0 || operand.shift >= max_shift) {
-      error(pc_, pc_ + 2, "invalid shift amount");
+      error(pc_ + 2, "invalid shift amount");
       return false;
     } else {
       return true;
@@ -478,7 +478,7 @@ class WasmDecoder : public Decoder {
       case kExprF64Const:
         return 9;
       case kSimdPrefix: {
-        byte simd_index = decoder->checked_read_u8(pc, 1, "simd_index");
+        byte simd_index = decoder->checked_read_u8(pc + 1, "simd_index");
         WasmOpcode opcode =
             static_cast<WasmOpcode>(kSimdPrefix << 8 | simd_index);
         switch (opcode) {
@@ -548,7 +548,7 @@ class WasmFullDecoder : public WasmDecoder {
       // Generate a better error message whether the unterminated control
       // structure is the function body block or an innner structure.
       if (control_.size() > 1) {
-        error(pc_, control_.back().pc, "unterminated control structure");
+        error(control_.back().pc, "unterminated control structure");
       } else {
         error("function body must end with \"end\" opcode.");
       }
@@ -840,11 +840,11 @@ class WasmFullDecoder : public WasmDecoder {
             }
             Control* c = &control_.back();
             if (!c->is_if()) {
-              error(pc_, c->pc, "else does not match an if");
+              error(pc_, "else does not match an if");
               break;
             }
             if (c->false_env == nullptr) {
-              error(pc_, c->pc, "else already present for if");
+              error(pc_, "else already present for if");
               break;
             }
             FallThruTo(c);
@@ -901,7 +901,7 @@ class WasmFullDecoder : public WasmDecoder {
             if (control_.size() == 1) {
               // If at the last (implicit) control, check we are at end.
               if (pc_ + 1 != end_) {
-                error(pc_, pc_ + 1, "trailing code after function end");
+                error(pc_ + 1, "trailing code after function end");
                 break;
               }
               last_end_found_ = true;
@@ -992,17 +992,18 @@ class WasmFullDecoder : public WasmDecoder {
                   if (i == 0) {
                     merge = &c->merge;
                   } else if (merge->arity != c->merge.arity) {
-                    error(pos, pos, "inconsistent arity in br_table target %d"
-                          " (previous was %u, this one %u)",
-                          i, merge->arity, c->merge.arity);
+                    errorf(pos,
+                           "inconsistent arity in br_table target %d"
+                           " (previous was %u, this one %u)",
+                           i, merge->arity, c->merge.arity);
                   } else if (control_.back().unreachable) {
                     for (uint32_t j = 0; ok() && j < merge->arity; ++j) {
                       if ((*merge)[j].type != c->merge[j].type) {
-                        error(pos, pos,
-                              "type error in br_table target %d operand %d"
-                              " (previous expected %s, this one %s)", i, j,
-                              WasmOpcodes::TypeName((*merge)[j].type),
-                              WasmOpcodes::TypeName(c->merge[j].type));
+                        errorf(pos,
+                               "type error in br_table target %d operand %d"
+                               " (previous expected %s, this one %s)",
+                               i, j, WasmOpcodes::TypeName((*merge)[j].type),
+                               WasmOpcodes::TypeName(c->merge[j].type));
                       }
                     }
                   }
@@ -1108,8 +1109,8 @@ class WasmFullDecoder : public WasmDecoder {
                 Value val = Pop(0, operand.type);
                 BUILD(SetGlobal, operand.index, val.node);
               } else {
-                error(pc_, pc_ + 1, "immutable global #%u cannot be assigned",
-                      operand.index);
+                errorf(pc_, "immutable global #%u cannot be assigned",
+                       operand.index);
               }
             }
             len = 1 + operand.length;
@@ -1239,7 +1240,7 @@ class WasmFullDecoder : public WasmDecoder {
           case kSimdPrefix: {
             CHECK_PROTOTYPE_OPCODE(wasm_simd_prototype);
             len++;
-            byte simd_index = checked_read_u8(pc_, 1, "simd index");
+            byte simd_index = checked_read_u8(pc_ + 1, "simd index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
             TRACE("  @%-4d #%-20s|", startrel(pc_),
                   WasmOpcodes::OpcodeName(opcode));
@@ -1256,7 +1257,7 @@ class WasmFullDecoder : public WasmDecoder {
               break;
             }
             len = 2;
-            byte atomic_opcode = checked_read_u8(pc_, 1, "atomic index");
+            byte atomic_opcode = checked_read_u8(pc_ + 1, "atomic index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_opcode);
             sig = WasmOpcodes::AtomicSignature(opcode);
             if (sig) {
@@ -1575,9 +1576,9 @@ class WasmFullDecoder : public WasmDecoder {
   Value Pop(int index, ValueType expected) {
     Value val = Pop();
     if (val.type != expected && val.type != kWasmVar && expected != kWasmVar) {
-      error(pc_, val.pc, "%s[%d] expected type %s, found %s of type %s",
-            SafeOpcodeNameAt(pc_), index, WasmOpcodes::TypeName(expected),
-            SafeOpcodeNameAt(val.pc), WasmOpcodes::TypeName(val.type));
+      errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
+             SafeOpcodeNameAt(pc_), index, WasmOpcodes::TypeName(expected),
+             SafeOpcodeNameAt(val.pc), WasmOpcodes::TypeName(val.type));
     }
     return val;
   }
@@ -1588,7 +1589,7 @@ class WasmFullDecoder : public WasmDecoder {
       // Popping past the current control start in reachable code.
       Value val = {pc_, nullptr, kWasmVar};
       if (!control_.back().unreachable) {
-        error(pc_, pc_, "%s found empty stack", SafeOpcodeNameAt(pc_));
+        errorf(pc_, "%s found empty stack", SafeOpcodeNameAt(pc_));
       }
       return val;
     }
@@ -1612,8 +1613,8 @@ class WasmFullDecoder : public WasmDecoder {
       // Merge the value(s) into the end of the block.
       size_t expected = control_.back().stack_depth + c->merge.arity;
       if (stack_.size() < expected && !control_.back().unreachable) {
-        error(
-            pc_, pc_,
+        errorf(
+            pc_,
             "expected at least %u values on the stack for br to @%d, found %d",
             c->merge.arity, startrel(c->pc),
             static_cast<int>(stack_.size() - c->stack_depth));
@@ -1633,8 +1634,8 @@ class WasmFullDecoder : public WasmDecoder {
       c->unreachable = false;
       return;
     }
-    error(pc_, pc_, "expected %u elements on the stack for fallthru to @%d",
-          c->merge.arity, startrel(c->pc));
+    errorf(pc_, "expected %u elements on the stack for fallthru to @%d",
+           c->merge.arity, startrel(c->pc));
   }
 
   inline Value& GetMergeValueFromStack(Control* c, size_t i) {
@@ -1647,8 +1648,8 @@ class WasmFullDecoder : public WasmDecoder {
     int arity = static_cast<int>(c->merge.arity);
     if (c->stack_depth + arity < stack_.size() ||
         (c->stack_depth + arity != stack_.size() && !c->unreachable)) {
-      error(pc_, pc_, "expected %d elements on the stack for fallthru to @%d",
-            arity, startrel(c->pc));
+      errorf(pc_, "expected %d elements on the stack for fallthru to @%d",
+             arity, startrel(c->pc));
       return;
     }
     // Typecheck the values left on the stack.
@@ -1658,8 +1659,9 @@ class WasmFullDecoder : public WasmDecoder {
       Value& val = GetMergeValueFromStack(c, i);
       Value& old = c->merge[i];
       if (val.type != old.type) {
-        error(pc_, pc_, "type error in merge[%zu] (expected %s, got %s)", i,
-              WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));
+        errorf(pc_, "type error in merge[%zu] (expected %s, got %s)", i,
+               WasmOpcodes::TypeName(old.type),
+               WasmOpcodes::TypeName(val.type));
         return;
       }
     }
@@ -1677,8 +1679,9 @@ class WasmFullDecoder : public WasmDecoder {
       Value& val = GetMergeValueFromStack(c, i);
       Value& old = c->merge[i];
       if (val.type != old.type && val.type != kWasmVar) {
-        error(pc_, pc_, "type error in merge[%zu] (expected %s, got %s)", i,
-              WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));
+        errorf(pc_, "type error in merge[%zu] (expected %s, got %s)", i,
+               WasmOpcodes::TypeName(old.type),
+               WasmOpcodes::TypeName(val.type));
         return;
       }
       if (builder_ && reachable) {

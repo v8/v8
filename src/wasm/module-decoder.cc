@@ -127,11 +127,11 @@ class WasmSectionIterator {
   void advance() {
     if (decoder_.pc() != section_end_) {
       const char* msg = decoder_.pc() < section_end_ ? "shorter" : "longer";
-      decoder_.error(decoder_.pc(), decoder_.pc(),
-                     "section was %s than expected size "
-                     "(%u bytes expected, %zu decoded)",
-                     msg, section_length(),
-                     static_cast<size_t>(decoder_.pc() - section_start_));
+      decoder_.errorf(decoder_.pc(),
+                      "section was %s than expected size "
+                      "(%u bytes expected, %zu decoded)",
+                      msg, section_length(),
+                      static_cast<size_t>(decoder_.pc() - section_start_));
     }
     next();
   }
@@ -188,8 +188,8 @@ class WasmSectionIterator {
           section_code = kUnknownSectionCode;
         }
       } else if (!IsValidSectionCode(section_code)) {
-        decoder_.error(decoder_.pc(), decoder_.pc(),
-                       "unknown section code #0x%02x", section_code);
+        decoder_.errorf(decoder_.pc(), "unknown section code #0x%02x",
+                        section_code);
         section_code = kUnknownSectionCode;
       }
       section_code_ = static_cast<WasmSectionCode>(section_code);
@@ -265,20 +265,20 @@ class ModuleDecoder : public Decoder {
     uint32_t magic_word = consume_u32("wasm magic");
 #define BYTES(x) (x & 0xff), (x >> 8) & 0xff, (x >> 16) & 0xff, (x >> 24) & 0xff
     if (magic_word != kWasmMagic) {
-      error(pos, pos,
-            "expected magic word %02x %02x %02x %02x, "
-            "found %02x %02x %02x %02x",
-            BYTES(kWasmMagic), BYTES(magic_word));
+      errorf(pos,
+             "expected magic word %02x %02x %02x %02x, "
+             "found %02x %02x %02x %02x",
+             BYTES(kWasmMagic), BYTES(magic_word));
     }
 
     pos = pc_;
     {
       uint32_t magic_version = consume_u32("wasm version");
       if (magic_version != kWasmVersion) {
-        error(pos, pos,
-              "expected version %02x %02x %02x %02x, "
-              "found %02x %02x %02x %02x",
-              BYTES(kWasmVersion), BYTES(magic_version));
+        errorf(pos,
+               "expected version %02x %02x %02x %02x, "
+               "found %02x %02x %02x %02x",
+               BYTES(kWasmVersion), BYTES(magic_version));
       }
     }
 
@@ -379,7 +379,7 @@ class ModuleDecoder : public Decoder {
             break;
           }
           default:
-            error(pos, pos, "unknown import kind 0x%02x", import->kind);
+            errorf(pos, "unknown import kind 0x%02x", import->kind);
             break;
         }
       }
@@ -515,7 +515,7 @@ class ModuleDecoder : public Decoder {
             break;
           }
           default:
-            error(pos, pos, "invalid export kind 0x%02x", exp->kind);
+            errorf(pos, "invalid export kind 0x%02x", exp->kind);
             break;
         }
       }
@@ -539,9 +539,8 @@ class ModuleDecoder : public Decoder {
           DCHECK(!cmp_less(*it, *last));  // Vector must be sorted.
           if (!cmp_less(*last, *it)) {
             const byte* pc = start_ + it->name_offset;
-            error(pc, pc,
-                  "Duplicate export name '%.*s' for functions %d and %d",
-                  it->name_length, pc, last->index, it->index);
+            errorf(pc, "Duplicate export name '%.*s' for functions %d and %d",
+                   it->name_length, pc, last->index, it->index);
             break;
           }
         }
@@ -570,11 +569,11 @@ class ModuleDecoder : public Decoder {
         const byte* pos = pc();
         uint32_t table_index = consume_u32v("table index");
         if (table_index != 0) {
-          error(pos, pos, "illegal table index %u != 0", table_index);
+          errorf(pos, "illegal table index %u != 0", table_index);
         }
         WasmIndirectFunctionTable* table = nullptr;
         if (table_index >= module->function_tables.size()) {
-          error(pos, pos, "out of bounds table index %u", table_index);
+          errorf(pos, "out of bounds table index %u", table_index);
           break;
         }
         table = &module->function_tables[table_index];
@@ -604,8 +603,8 @@ class ModuleDecoder : public Decoder {
       const byte* pos = pc_;
       uint32_t functions_count = consume_u32v("functions count");
       if (functions_count != module->num_declared_functions) {
-        error(pos, pos, "function body count %u mismatch (%u expected)",
-              functions_count, module->num_declared_functions);
+        errorf(pos, "function body count %u mismatch (%u expected)",
+               functions_count, module->num_declared_functions);
       }
       for (uint32_t i = 0; ok() && i < functions_count; ++i) {
         WasmFunction* function =
@@ -677,8 +676,8 @@ class ModuleDecoder : public Decoder {
 
     // ===== Remaining sections ==============================================
     if (section_iter.more() && ok()) {
-      error(pc(), pc(), "unexpected section: %s",
-            SectionName(section_iter.section_code()));
+      errorf(pc(), "unexpected section: %s",
+             SectionName(section_iter.section_code()));
     }
 
     if (ok()) {
@@ -760,25 +759,25 @@ class ModuleDecoder : public Decoder {
       case WasmInitExpr::kGlobalIndex: {
         uint32_t other_index = global->init.val.global_index;
         if (other_index >= index) {
-          error(pos, pos,
-                "invalid global index in init expression, "
-                "index %u, other_index %u",
-                index, other_index);
+          errorf(pos,
+                 "invalid global index in init expression, "
+                 "index %u, other_index %u",
+                 index, other_index);
         } else if (module->globals[other_index].type != global->type) {
-          error(pos, pos,
-                "type mismatch in global initialization "
-                "(from global #%u), expected %s, got %s",
-                other_index, WasmOpcodes::TypeName(global->type),
-                WasmOpcodes::TypeName(module->globals[other_index].type));
+          errorf(pos,
+                 "type mismatch in global initialization "
+                 "(from global #%u), expected %s, got %s",
+                 other_index, WasmOpcodes::TypeName(global->type),
+                 WasmOpcodes::TypeName(module->globals[other_index].type));
         }
         break;
       }
       default:
         if (global->type != TypeOf(module, global->init)) {
-          error(pos, pos,
-                "type error in global initialization, expected %s, got %s",
-                WasmOpcodes::TypeName(global->type),
-                WasmOpcodes::TypeName(TypeOf(module, global->init)));
+          errorf(pos,
+                 "type error in global initialization, expected %s, got %s",
+                 WasmOpcodes::TypeName(global->type),
+                 WasmOpcodes::TypeName(TypeOf(module, global->init)));
         }
     }
   }
@@ -881,8 +880,8 @@ class ModuleDecoder : public Decoder {
     const byte* pos = pc_;
     uint32_t sig_index = consume_u32v("signature index");
     if (sig_index >= module->signatures.size()) {
-      error(pos, pos, "signature index %u out of bounds (%d signatures)",
-            sig_index, static_cast<int>(module->signatures.size()));
+      errorf(pos, "signature index %u out of bounds (%d signatures)", sig_index,
+             static_cast<int>(module->signatures.size()));
       *sig = nullptr;
       return 0;
     }
@@ -894,8 +893,7 @@ class ModuleDecoder : public Decoder {
     const byte* p = pc_;
     uint32_t count = consume_u32v(name);
     if (count > maximum) {
-      error(p, p, "%s of %u exceeds internal limit of %zu", name, count,
-            maximum);
+      errorf(p, "%s of %u exceeds internal limit of %zu", name, count, maximum);
       return static_cast<uint32_t>(maximum);
     }
     return count;
@@ -919,8 +917,8 @@ class ModuleDecoder : public Decoder {
     const byte* pos = pc_;
     uint32_t index = consume_u32v(name);
     if (index >= vector.size()) {
-      error(pos, pos, "%s %u out of bounds (%d entries)", name, index,
-            static_cast<int>(vector.size()));
+      errorf(pos, "%s %u out of bounds (%d entries)", name, index,
+             static_cast<int>(vector.size()));
       *ptr = nullptr;
       return 0;
     }
@@ -937,23 +935,23 @@ class ModuleDecoder : public Decoder {
     *initial = consume_u32v("initial size");
     *has_max = false;
     if (*initial > max_initial) {
-      error(pos, pos,
-            "initial %s size (%u %s) is larger than implementation limit (%u)",
-            name, *initial, units, max_initial);
+      errorf(pos,
+             "initial %s size (%u %s) is larger than implementation limit (%u)",
+             name, *initial, units, max_initial);
     }
     if (flags & 1) {
       *has_max = true;
       pos = pc();
       *maximum = consume_u32v("maximum size");
       if (*maximum > max_maximum) {
-        error(
-            pos, pos,
+        errorf(
+            pos,
             "maximum %s size (%u %s) is larger than implementation limit (%u)",
             name, *maximum, units, max_maximum);
       }
       if (*maximum < *initial) {
-        error(pos, pos, "maximum %s size (%u %s) is less than initial (%u %s)",
-              name, *maximum, units, *initial, units);
+        errorf(pos, "maximum %s size (%u %s) is less than initial (%u %s)",
+               name, *maximum, units, *initial, units);
       }
     } else {
       *has_max = false;
@@ -965,7 +963,7 @@ class ModuleDecoder : public Decoder {
     const byte* pos = pc();
     uint8_t value = consume_u8(name);
     if (value != expected) {
-      error(pos, pos, "expected %s 0x%02x, got 0x%02x", name, expected, value);
+      errorf(pos, "expected %s 0x%02x, got 0x%02x", name, expected, value);
       return false;
     }
     return true;
@@ -1038,9 +1036,9 @@ class ModuleDecoder : public Decoder {
       expr.kind = WasmInitExpr::kNone;
     }
     if (expected != kWasmStmt && TypeOf(module, expr) != kWasmI32) {
-      error(pos, pos, "type error in init expression, expected %s, got %s",
-            WasmOpcodes::TypeName(expected),
-            WasmOpcodes::TypeName(TypeOf(module, expr)));
+      errorf(pos, "type error in init expression, expected %s, got %s",
+             WasmOpcodes::TypeName(expected),
+             WasmOpcodes::TypeName(TypeOf(module, expr)));
     }
     return expr;
   }
