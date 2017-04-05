@@ -620,8 +620,9 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
     PrintLiteralIndented(info, value, true);
   } else {
     EmbeddedVector<char, 256> buf;
-    int pos = SNPrintF(buf, "%s (%p) (mode = %s", info, var,
-                       VariableMode2String(var->mode()));
+    int pos =
+        SNPrintF(buf, "%s (%p) (mode = %s", info, reinterpret_cast<void*>(var),
+                 VariableMode2String(var->mode()));
     SNPrintF(buf + pos, ")");
     PrintLiteralIndented(buf.start(), value, true);
   }
