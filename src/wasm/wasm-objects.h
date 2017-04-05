@@ -258,64 +258,67 @@ class WasmCompiledModule : public FixedArray {
     return reinterpret_cast<WasmCompiledModule*>(fixed_array);
   }
 
-#define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID, TYPE_CHECK)               \
-  Handle<TYPE> NAME() const { return handle(ptr_to_##NAME()); }      \
-                                                                     \
-  MaybeHandle<TYPE> maybe_##NAME() const {                           \
-    if (has_##NAME()) return NAME();                                 \
-    return MaybeHandle<TYPE>();                                      \
-  }                                                                  \
-                                                                     \
-  TYPE* maybe_ptr_to_##NAME() const {                                \
-    Object* obj = get(ID);                                           \
-    if (!(TYPE_CHECK)) return nullptr;                               \
-    return TYPE::cast(obj);                                          \
-  }                                                                  \
-                                                                     \
-  TYPE* ptr_to_##NAME() const {                                      \
-    Object* obj = get(ID);                                           \
-    DCHECK(TYPE_CHECK);                                              \
-    return TYPE::cast(obj);                                          \
-  }                                                                  \
-                                                                     \
-  void set_##NAME(Handle<TYPE> value) { set_ptr_to_##NAME(*value); } \
-                                                                     \
-  void set_ptr_to_##NAME(TYPE* value) { set(ID, value); }            \
-                                                                     \
-  bool has_##NAME() const {                                          \
-    Object* obj = get(ID);                                           \
-    return TYPE_CHECK;                                               \
-  }                                                                  \
-                                                                     \
-  void reset_##NAME() { set_undefined(ID); }
+#define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID, TYPE_CHECK, SETTER_MODIFIER) \
+ public:                                                                \
+  Handle<TYPE> NAME() const { return handle(ptr_to_##NAME()); }         \
+                                                                        \
+  MaybeHandle<TYPE> maybe_##NAME() const {                              \
+    if (has_##NAME()) return NAME();                                    \
+    return MaybeHandle<TYPE>();                                         \
+  }                                                                     \
+                                                                        \
+  TYPE* maybe_ptr_to_##NAME() const {                                   \
+    Object* obj = get(ID);                                              \
+    if (!(TYPE_CHECK)) return nullptr;                                  \
+    return TYPE::cast(obj);                                             \
+  }                                                                     \
+                                                                        \
+  TYPE* ptr_to_##NAME() const {                                         \
+    Object* obj = get(ID);                                              \
+    DCHECK(TYPE_CHECK);                                                 \
+    return TYPE::cast(obj);                                             \
+  }                                                                     \
+                                                                        \
+  bool has_##NAME() const {                                             \
+    Object* obj = get(ID);                                              \
+    return TYPE_CHECK;                                                  \
+  }                                                                     \
+                                                                        \
+  void reset_##NAME() { set_undefined(ID); }                            \
+                                                                        \
+  SETTER_MODIFIER:                                                      \
+  void set_##NAME(Handle<TYPE> value) { set_ptr_to_##NAME(*value); }    \
+  void set_ptr_to_##NAME(TYPE* value) { set(ID, value); }
 
 #define WCM_OBJECT(TYPE, NAME) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE())
+  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE(), public)
+
+#define WCM_CONST_OBJECT(TYPE, NAME) \
+  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE(), private)
 
 #define WCM_WASM_OBJECT(TYPE, NAME) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, TYPE::Is##TYPE(obj))
+  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, TYPE::Is##TYPE(obj), private)
 
-#define WCM_SMALL_FIXED_NUMBER(TYPE, NAME)                         \
+#define WCM_SMALL_CONST_NUMBER(TYPE, NAME)                         \
+ public:                                                           \
   TYPE NAME() const {                                              \
     return static_cast<TYPE>(Smi::cast(get(kID_##NAME))->value()); \
   }                                                                \
+                                                                   \
+ private:                                                          \
   void set_##NAME(TYPE value) { set(kID_##NAME, Smi::FromInt(value)); }
 
-#define WCM_SMALL_NUMBER(TYPE, NAME)                                    \
-  TYPE NAME() const {                                                   \
-    return static_cast<TYPE>(Smi::cast(get(kID_##NAME))->value());      \
-  }                                                                     \
-  void set_##NAME(TYPE value) { set(kID_##NAME, Smi::FromInt(value)); } \
-  bool has_##NAME() const { return get(kID_##NAME)->IsSmi(); }
-
-#define WCM_WEAK_LINK(TYPE, NAME)                                           \
-  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME, obj->IsWeakCell()); \
-                                                                            \
-  Handle<TYPE> NAME() const {                                               \
-    return handle(TYPE::cast(weak_##NAME()->value()));                      \
+#define WCM_WEAK_LINK(TYPE, NAME)                                          \
+  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME, obj->IsWeakCell(), \
+                     public)                                               \
+                                                                           \
+ public:                                                                   \
+  Handle<TYPE> NAME() const {                                              \
+    return handle(TYPE::cast(weak_##NAME()->value()));                     \
   }
 
 #define WCM_LARGE_NUMBER(TYPE, NAME)                                   \
+ public:                                                               \
   TYPE NAME() const {                                                  \
     Object* value = get(kID_##NAME);                                   \
     DCHECK(value->IsMutableHeapNumber());                              \
@@ -336,29 +339,35 @@ class WasmCompiledModule : public FixedArray {
   }                                                                    \
   bool has_##NAME() const { return get(kID_##NAME)->IsMutableHeapNumber(); }
 
+// Add values here if they are required for creating new instances or
+// for deserialization, and if they are serializable.
+// By default, instance values go to WasmInstanceObject, however, if
+// we embed the generated code with a value, then we track that value here.
 #define CORE_WCM_PROPERTY_TABLE(MACRO)                        \
   MACRO(WASM_OBJECT, WasmSharedModuleData, shared)            \
   MACRO(OBJECT, Context, native_context)                      \
-  MACRO(SMALL_FIXED_NUMBER, uint32_t, num_imported_functions) \
-  MACRO(OBJECT, FixedArray, code_table)                       \
+  MACRO(SMALL_CONST_NUMBER, uint32_t, num_imported_functions) \
+  MACRO(CONST_OBJECT, FixedArray, code_table)                 \
   MACRO(OBJECT, FixedArray, weak_exported_functions)          \
   MACRO(OBJECT, FixedArray, function_tables)                  \
   MACRO(OBJECT, FixedArray, signature_tables)                 \
-  MACRO(OBJECT, FixedArray, empty_function_tables)            \
+  MACRO(CONST_OBJECT, FixedArray, empty_function_tables)      \
   MACRO(LARGE_NUMBER, size_t, embedded_mem_start)             \
   MACRO(LARGE_NUMBER, size_t, globals_start)                  \
   MACRO(LARGE_NUMBER, uint32_t, embedded_mem_size)            \
-  MACRO(SMALL_FIXED_NUMBER, uint32_t, min_mem_pages)          \
-  MACRO(SMALL_FIXED_NUMBER, uint32_t, max_mem_pages)          \
+  MACRO(SMALL_CONST_NUMBER, uint32_t, min_mem_pages)          \
+  MACRO(SMALL_CONST_NUMBER, uint32_t, max_mem_pages)          \
   MACRO(WEAK_LINK, WasmCompiledModule, next_instance)         \
   MACRO(WEAK_LINK, WasmCompiledModule, prev_instance)         \
   MACRO(WEAK_LINK, JSObject, owning_instance)                 \
   MACRO(WEAK_LINK, WasmModuleObject, wasm_module)
 
 #if DEBUG
-#define DEBUG_ONLY_TABLE(MACRO) MACRO(SMALL_NUMBER, uint32_t, instance_id)
+#define DEBUG_ONLY_TABLE(MACRO) MACRO(SMALL_CONST_NUMBER, uint32_t, instance_id)
 #else
 #define DEBUG_ONLY_TABLE(IGNORE)
+
+ public:
   uint32_t instance_id() const { return static_cast<uint32_t>(-1); }
 #endif
 
@@ -374,8 +383,11 @@ class WasmCompiledModule : public FixedArray {
   };
 
  public:
-  static Handle<WasmCompiledModule> New(Isolate* isolate,
-                                        Handle<WasmSharedModuleData> shared);
+  static Handle<WasmCompiledModule> New(
+      Isolate* isolate, Handle<WasmSharedModuleData> shared,
+      Handle<FixedArray> code_table,
+      MaybeHandle<FixedArray> maybe_empty_function_tables,
+      MaybeHandle<FixedArray> maybe_signature_tables);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);
@@ -412,6 +424,7 @@ class WasmCompiledModule : public FixedArray {
   WCM_PROPERTY_TABLE(DECLARATION)
 #undef DECLARATION
 
+ public:
 // Allow to call method on WasmSharedModuleData also on this object.
 #define FORWARD_SHARED(type, name) \
   type name() { return shared()->name(); }
@@ -513,6 +526,10 @@ class WasmCompiledModule : public FixedArray {
   static MaybeHandle<Code> CompileLazy(Isolate*, Handle<WasmInstanceObject>,
                                        Handle<Code> caller, int offset,
                                        int func_index, bool patch_caller);
+
+  void ReplaceCodeTableForTesting(Handle<FixedArray> testing_table) {
+    set_code_table(testing_table);
+  }
 
  private:
   void InitId();

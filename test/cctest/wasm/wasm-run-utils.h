@@ -359,15 +359,11 @@ class TestingModule : public ModuleEnv {
     Handle<WasmSharedModuleData> shared_module_data =
         WasmSharedModuleData::New(isolate_, module_wrapper, empty_string,
                                   script, Handle<ByteArray>::null());
-    Handle<WasmCompiledModule> compiled_module =
-        WasmCompiledModule::New(isolate_, shared_module_data);
-    // Minimally initialize the compiled module such that IsWasmCompiledModule
-    // passes.
-    // If tests need more (correct) information, add it later.
-    compiled_module->set_min_mem_pages(0);
-    compiled_module->set_max_mem_pages(Smi::kMaxValue);
     Handle<FixedArray> code_table = isolate_->factory()->NewFixedArray(0);
-    compiled_module->set_code_table(code_table);
+
+    Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
+        isolate_, shared_module_data, code_table, MaybeHandle<FixedArray>(),
+        MaybeHandle<FixedArray>());
     Handle<FixedArray> weak_exported = isolate_->factory()->NewFixedArray(0);
     compiled_module->set_weak_exported_functions(weak_exported);
     DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
@@ -587,7 +583,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
           static_cast<int>(function_index()) + 1);
       code_table->CopyTo(0, *new_arr, 0, code_table->length());
       code_table = new_arr;
-      compiled_module->set_code_table(code_table);
+      compiled_module->ReplaceCodeTableForTesting(code_table);
     }
     DCHECK(code_table->get(static_cast<int>(function_index()))
                ->IsUndefined(isolate()));

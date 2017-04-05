@@ -608,17 +608,10 @@ class CompilationHelper {
     // and information needed at instantiation time. This object needs to be
     // serializable. Instantiation may occur off a deserialized version of this
     // object.
-    Handle<WasmCompiledModule> compiled_module =
-        WasmCompiledModule::New(isolate_, shared);
-    compiled_module->set_num_imported_functions(
-        module_->num_imported_functions);
-    compiled_module->set_code_table(code_table);
-    compiled_module->set_min_mem_pages(module_->min_mem_pages);
-    compiled_module->set_max_mem_pages(module_->max_mem_pages);
+    Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
+        isolate_, shared, code_table, function_tables, signature_tables);
     if (function_table_count > 0) {
       compiled_module->set_function_tables(function_tables);
-      compiled_module->set_signature_tables(signature_tables);
-      compiled_module->set_empty_function_tables(function_tables);
     }
 
     // If we created a wasm script, finish it now and make it public to the
@@ -1098,6 +1091,9 @@ class InstantiationHelper {
     // Reuse the compiled module (if no owner), otherwise clone.
     //--------------------------------------------------------------------------
     Handle<FixedArray> code_table;
+    // We keep around a copy of the old code table, because we'll be replacing
+    // imports for the new instance, and then we need the old imports to be
+    // able to relocate.
     Handle<FixedArray> old_code_table;
     MaybeHandle<WasmInstanceObject> owner;
 
@@ -1119,11 +1115,6 @@ class InstantiationHelper {
         }
       }
       DCHECK(!original.is_null());
-      // Always make a new copy of the code_table, since the old_code_table
-      // may still have placeholders for imports.
-      old_code_table = original->code_table();
-      code_table = factory->CopyFixedArray(old_code_table);
-
       if (original->has_weak_owning_instance()) {
         // Clone, but don't insert yet the clone in the instances chain.
         // We do that last. Since we are holding on to the owner instance,
@@ -1131,7 +1122,9 @@ class InstantiationHelper {
         // won't be mutated by possible finalizer runs.
         DCHECK(!owner.is_null());
         TRACE("Cloning from %d\n", original->instance_id());
+        old_code_table = original->code_table();
         compiled_module_ = WasmCompiledModule::Clone(isolate_, original);
+        code_table = compiled_module_->code_table();
         // Avoid creating too many handles in the outer scope.
         HandleScope scope(isolate_);
 
@@ -1169,10 +1162,12 @@ class InstantiationHelper {
       } else {
         // There was no owner, so we can reuse the original.
         compiled_module_ = original;
+        old_code_table =
+            factory->CopyFixedArray(compiled_module_->code_table());
+        code_table = compiled_module_->code_table();
         TRACE("Reusing existing instance %d\n",
               compiled_module_->instance_id());
       }
-      compiled_module_->set_code_table(code_table);
       compiled_module_->set_native_context(isolate_->native_context());
     }
 

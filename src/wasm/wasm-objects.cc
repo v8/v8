@@ -947,24 +947,46 @@ void WasmSharedModuleData::PrepareForLazyCompilation(
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
-    Isolate* isolate, Handle<WasmSharedModuleData> shared) {
+    Isolate* isolate, Handle<WasmSharedModuleData> shared,
+    Handle<FixedArray> code_table,
+    MaybeHandle<FixedArray> maybe_empty_function_tables,
+    MaybeHandle<FixedArray> maybe_signature_tables) {
   Handle<FixedArray> ret =
       isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
   // WasmCompiledModule::cast would fail since fields are not set yet.
   Handle<WasmCompiledModule> compiled_module(
       reinterpret_cast<WasmCompiledModule*>(*ret), isolate);
   compiled_module->InitId();
-  compiled_module->set_num_imported_functions(0);
   compiled_module->set_shared(shared);
   compiled_module->set_native_context(isolate->native_context());
+  compiled_module->set_code_table(code_table);
+  int function_table_count =
+      static_cast<int>(shared->module()->function_tables.size());
+  if (function_table_count > 0) {
+    compiled_module->set_signature_tables(
+        maybe_signature_tables.ToHandleChecked());
+    compiled_module->set_empty_function_tables(
+        maybe_empty_function_tables.ToHandleChecked());
+  }
+  // TODO(mtrofin): we copy these because the order of finalization isn't
+  // reliable, and we need some of these at Reset (which is called at
+  // finalization). If the order were reliable, and top-down, we could instead
+  // just get them from shared().
+  compiled_module->set_min_mem_pages(shared->module()->min_mem_pages);
+  compiled_module->set_max_mem_pages(shared->module()->max_mem_pages);
+  compiled_module->set_num_imported_functions(
+      shared->module()->num_imported_functions);
   return compiled_module;
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::Clone(
     Isolate* isolate, Handle<WasmCompiledModule> module) {
+  Handle<FixedArray> code_copy =
+      isolate->factory()->CopyFixedArray(module->code_table());
   Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
       isolate->factory()->CopyFixedArray(module));
   ret->InitId();
+  ret->set_code_table(code_copy);
   ret->reset_weak_owning_instance();
   ret->reset_weak_next_instance();
   ret->reset_weak_prev_instance();
@@ -1133,9 +1155,11 @@ bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
 // We're OK with undefined, generally, because maybe we don't
 // have a value for that item. For example, we may not have a
 // memory, or globals.
-// We're not OK with the fixed numbers being undefined. We want
-// to set once all of them.
+// We're not OK with the const numbers being undefined. They are
+// expected to be initialized at construction.
 #define WCM_CHECK_OBJECT(TYPE, NAME) \
+  WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->Is##TYPE())
+#define WCM_CHECK_CONST_OBJECT(TYPE, NAME) \
   WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->Is##TYPE())
 #define WCM_CHECK_WASM_OBJECT(TYPE, NAME) \
   WCM_CHECK_TYPE(NAME, TYPE::Is##TYPE(obj))
@@ -1143,7 +1167,7 @@ bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
 #define WCM_CHECK_SMALL_NUMBER(TYPE, NAME) \
   WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->IsSmi())
 #define WCM_CHECK(KIND, TYPE, NAME) WCM_CHECK_##KIND(TYPE, NAME)
-#define WCM_CHECK_SMALL_FIXED_NUMBER(TYPE, NAME) \
+#define WCM_CHECK_SMALL_CONST_NUMBER(TYPE, NAME) \
   WCM_CHECK_TYPE(NAME, obj->IsSmi())
 #define WCM_CHECK_LARGE_NUMBER(TYPE, NAME) \
   WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->IsMutableHeapNumber())
