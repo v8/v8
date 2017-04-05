@@ -63,7 +63,7 @@
       'V8 Linux64 - debug builder': 'gn_debug_x64_valgrind',
       'V8 Linux64 - custom snapshot - debug builder': 'gn_debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'gn_release_x64_internal',
-      'V8 Linux64 - gyp': 'gyp_release_x64_no_goma',
+      'V8 Linux64 - gyp': 'gyp_release_x64',
       'V8 Linux64 - verify csa': 'gn_release_x64_verify_csa',
       # Windows.
       'V8 Win32 - builder': 'gn_release_x86_minimal_symbols',
@@ -463,8 +463,6 @@
     # Gyp release configs for x64.
     'gyp_release_x64': [
       'gyp', 'release_bot', 'x64', 'swarming'],
-    'gyp_release_x64_no_goma': [
-      'gyp', 'release', 'static', 'x64', 'swarming'],
     'gyp_release_x64_asan_minimal_symbols_coverage': [
       'gyp', 'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan',
       'minimal_symbols', 'swarming'],
