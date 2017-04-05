@@ -1576,8 +1576,10 @@ AsmType* AsmJsParser::UnaryExpression() {
         FAILn("expected int/double?/float?");
       }
     }
-  } else if (Check('+')) {
+  } else if (Peek('+')) {
     call_coercion_ = AsmType::Double();
+    call_coercion_position_ = scanner_.Position();
+    scanner_.Next();  // Done late for correct position.
     RECURSEn(ret = UnaryExpression());
     // TODO(bradnelson): Generalize.
     if (ret->IsA(AsmType::Signed())) {
@@ -2016,7 +2018,8 @@ AsmType* AsmJsParser::ParenthesizedExpression() {
 AsmType* AsmJsParser::ValidateCall() {
   AsmType* return_type = call_coercion_;
   call_coercion_ = nullptr;
-  int pos = static_cast<int>(scanner_.Position());
+  int call_pos = static_cast<int>(scanner_.Position());
+  int to_number_pos = static_cast<int>(call_coercion_position_);
   AsmJsScanner::token_t function_name = Consume();
   // TODO(mstarzinger): Consider using Chromiums base::Optional instead.
   std::unique_ptr<TemporaryVariableScope> tmp;
@@ -2056,7 +2059,7 @@ AsmType* AsmJsParser::ValidateCall() {
     tmp.reset(new TemporaryVariableScope(this));
     current_function_builder_->EmitSetLocal(tmp.get()->get());
     // The position of function table calls is after the table lookup.
-    pos = static_cast<int>(scanner_.Position());
+    call_pos = static_cast<int>(scanner_.Position());
   }
   std::vector<AsmType*> param_types;
   ZoneVector<AsmType*> param_specific_types(zone());
@@ -2083,8 +2086,10 @@ AsmType* AsmJsParser::ValidateCall() {
   // TODO(bradnelson): clarify how this binds, and why only float?
   if (Peek('|') &&
       (return_type == nullptr || return_type->IsA(AsmType::Float()))) {
+    to_number_pos = static_cast<int>(scanner_.Position());
     return_type = AsmType::Signed();
   } else if (return_type == nullptr) {
+    to_number_pos = call_pos;  // No conversion.
     return_type = AsmType::Void();
   }
   AsmType* function_type = AsmType::Function(zone(), return_type);
@@ -2106,8 +2111,7 @@ AsmType* AsmJsParser::ValidateCall() {
     function_info->function_builder = module_builder_->AddFunction();
     function_info->index = function_info->function_builder->func_index();
     function_info->type = function_type;
-    // TODO(mstarzinger): Fix the {to_number_position} and test it.
-    current_function_builder_->AddAsmWasmOffset(pos, pos);
+    current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
     current_function_builder_->Emit(kExprCallFunction);
     current_function_builder_->EmitDirectCallIndex(function_info->index);
   } else if (function_info->kind == VarKind::kImportedFunction) {
@@ -2132,22 +2136,19 @@ AsmType* AsmJsParser::ValidateCall() {
     } else {
       index = function_info->import->cache_index[cache_index];
     }
-    // TODO(mstarzinger): Fix the {to_number_position} and test it.
-    current_function_builder_->AddAsmWasmOffset(pos, pos);
+    current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
     current_function_builder_->Emit(kExprCallFunction);
     current_function_builder_->EmitVarUint(index);
   } else if (function_info->type->IsA(AsmType::None())) {
     function_info->type = function_type;
     if (function_info->kind == VarKind::kTable) {
       current_function_builder_->EmitGetLocal(tmp.get()->get());
-      // TODO(mstarzinger): Fix the {to_number_position} and test it.
-      current_function_builder_->AddAsmWasmOffset(pos, pos);
+      current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
       current_function_builder_->Emit(kExprCallIndirect);
       current_function_builder_->EmitVarUint(signature_index);
       current_function_builder_->EmitVarUint(0);  // table index
     } else {
-      // TODO(mstarzinger): Fix the {to_number_position} and test it.
-      current_function_builder_->AddAsmWasmOffset(pos, pos);
+      current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
       current_function_builder_->Emit(kExprCallFunction);
       current_function_builder_->EmitDirectCallIndex(function_info->index);
     }
@@ -2288,7 +2289,7 @@ AsmType* AsmJsParser::ValidateCall() {
       current_function_builder_->EmitVarUint(signature_index);
       current_function_builder_->EmitVarUint(0);  // table index
     } else {
-      current_function_builder_->AddAsmWasmOffset(pos, pos);
+      current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
       current_function_builder_->Emit(kExprCallFunction);
       current_function_builder_->EmitDirectCallIndex(function_info->index);
     }
@@ -2379,6 +2380,9 @@ void AsmJsParser::ValidateFloatCoercion() {
   scanner_.Next();
   EXPECT_TOKEN('(');
   call_coercion_ = AsmType::Float();
+  // NOTE: The coercion position to float is not observable from JavaScript,
+  // because imported functions are not allowed to have float return type.
+  call_coercion_position_ = scanner_.Position();
   AsmType* ret;
   RECURSE(ret = ValidateExpression());
   if (ret->IsA(AsmType::Floatish())) {

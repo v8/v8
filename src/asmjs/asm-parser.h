@@ -147,6 +147,9 @@ class AsmJsParser {
   // along the coercion.
   AsmType* call_coercion_;
 
+  // The source position associated with the above {call_coercion}.
+  size_t call_coercion_position_;
+
   // Used to track the last label we've seen so it can be matched to later
   // statements it's attached to.
   AsmJsScanner::token_t pending_label_;
