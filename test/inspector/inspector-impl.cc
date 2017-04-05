@@ -207,6 +207,7 @@ void InspectorClientImpl::disconnect() {
     states_[it.first] = it.second->stateJSON();
   }
   sessions_.clear();
+  inspector_.reset();
 }
 
 void InspectorClientImpl::scheduleCreateContextGroup(

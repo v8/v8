@@ -150,6 +150,9 @@ class FunctionCallbackArguments;
 class GlobalHandles;
 }  // namespace internal
 
+namespace debug {
+class ConsoleCallArguments;
+}  // namespace debug
 
 // --- Handles ---
 
@@ -3568,6 +3571,7 @@ class FunctionCallbackInfo {
  protected:
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
+  friend class debug::ConsoleCallArguments;
   static const int kHolderIndex = 0;
   static const int kIsolateIndex = 1;
   static const int kReturnValueDefaultValueIndex = 2;
