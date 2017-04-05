@@ -79,10 +79,6 @@ const char* PeepholeActionTableWriter::kNamespaceElements[] = {"v8", "internal",
 // static
 PeepholeActionAndData PeepholeActionTableWriter::LookupActionAndData(
     Bytecode last, Bytecode current) {
-  if (current == Bytecode::kToName && Bytecodes::PutsNameInAccumulator(last)) {
-    return {PeepholeAction::kChangeBytecodeAction, Bytecode::kStar};
-  }
-
   // Nop are placeholders for holding source position information and can be
   // elided if there is no source information.
   if (last == Bytecode::kNop) {

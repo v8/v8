@@ -163,6 +163,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildPushUndefinedIntoRegisterList(RegisterList* reg_list);
 
+  void BuildLoadPropertyKey(LiteralProperty* property, Register out_reg);
+
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect. Some visitors return a TypeHint which
   // specifies the type of the result of the visited expression.

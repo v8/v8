@@ -188,33 +188,6 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatementStarRy) {
   CHECK_EQ(last_written(), third);
 }
 
-TEST_F(BytecodePeepholeOptimizerTest, LdarToName) {
-  BytecodeNode first(Bytecode::kLdar, Register(0).ToOperand());
-  BytecodeNode second(Bytecode::kToName, Register(0).ToOperand());
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  Flush();
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written(), second);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, TypeOfToName) {
-  BytecodeNode first(Bytecode::kTypeOf);
-  BytecodeNode second(Bytecode::kToName, Register(0).ToOperand());
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  Flush();
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written(), second);
-  CHECK_EQ(last_written().bytecode(), Bytecode::kStar);
-}
-
 // Tests covering BytecodePeepholeOptimizer::CanElideLast().
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaTrueLdaFalse) {

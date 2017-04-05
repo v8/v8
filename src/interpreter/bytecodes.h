@@ -618,11 +618,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     return bytecode == Bytecode::kLdar || bytecode == Bytecode::kStar;
   }
 
-  // Returns true if |bytecode| puts a name in the accumulator.
-  static constexpr bool PutsNameInAccumulator(Bytecode bytecode) {
-    return bytecode == Bytecode::kTypeOf;
-  }
-
   // Returns true if the bytecode is a call or a constructor call.
   static constexpr bool IsCallOrConstruct(Bytecode bytecode) {
     return bytecode == Bytecode::kCall || bytecode == Bytecode::kCallProperty ||
