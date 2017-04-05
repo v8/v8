@@ -1403,6 +1403,20 @@ inline const char* SuspendTypeFor(SuspendFlags flags) {
   return "";
 }
 
+struct AssemblerDebugInfo {
+  AssemblerDebugInfo(const char* name, const char* file, int line)
+      : name(name), file(file), line(line) {}
+  const char* name;
+  const char* file;
+  int line;
+};
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const AssemblerDebugInfo& info) {
+  os << "(" << info.name << ":" << info.file << ":" << info.line << ")";
+  return os;
+}
+
 }  // namespace internal
 }  // namespace v8
 

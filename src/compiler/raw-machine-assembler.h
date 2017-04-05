@@ -798,6 +798,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void Unreachable();
   void Comment(const char* msg);
 
+#if DEBUG
+  void Bind(RawMachineLabel* label, AssemblerDebugInfo info);
+  void SetInitialDebugInformation(AssemblerDebugInfo info);
+  void PrintCurrentBlock(std::ostream& os);
+#endif  // DEBUG
+
   // Add success / exception successor blocks and ends the current block ending
   // in a potentially throwing call node.
   void Continuations(Node* call, RawMachineLabel* if_success,
@@ -861,6 +867,8 @@ class V8_EXPORT_PRIVATE RawMachineLabel final {
   explicit RawMachineLabel(Type type = kNonDeferred)
       : deferred_(type == kDeferred) {}
   ~RawMachineLabel();
+
+  BasicBlock* block() const { return block_; }
 
  private:
   BasicBlock* block_ = nullptr;

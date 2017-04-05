@@ -29,7 +29,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                        Int32Constant(kSeqStringTag)),
            &if_sequential, &if_external);
 
-    Bind(&if_sequential);
+    BIND(&if_sequential);
     {
       var_data.Bind(IntPtrAdd(
           IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag),
@@ -37,7 +37,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       Goto(&if_join);
     }
 
-    Bind(&if_external);
+    BIND(&if_external);
     {
       // This is only valid for ExternalStrings where the resource data
       // pointer is cached (i.e. no short external strings).

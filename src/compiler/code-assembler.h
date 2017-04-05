@@ -250,6 +250,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Comment(const char* format, ...);
 
   void Bind(Label* label);
+#if DEBUG
+  void Bind(Label* label, AssemblerDebugInfo debug_info);
+#endif  // DEBUG
   void Goto(Label* label);
   void GotoIf(Node* condition, Label* true_label);
   void GotoIfNot(Node* condition, Label* false_label);
@@ -441,6 +444,13 @@ class CodeAssemblerVariable {
                                  MachineRepresentation rep);
   CodeAssemblerVariable(CodeAssembler* assembler, MachineRepresentation rep,
                         Node* initial_value);
+#if DEBUG
+  CodeAssemblerVariable(CodeAssembler* assembler, AssemblerDebugInfo debug_info,
+                        MachineRepresentation rep);
+  CodeAssemblerVariable(CodeAssembler* assembler, AssemblerDebugInfo debug_info,
+                        MachineRepresentation rep, Node* initial_value);
+#endif  // DEBUG
+
   ~CodeAssemblerVariable();
   void Bind(Node* value);
   Node* value() const;
@@ -448,12 +458,17 @@ class CodeAssemblerVariable {
   bool IsBound() const;
 
  private:
+  class Impl;
   friend class CodeAssemblerLabel;
   friend class CodeAssemblerState;
-  class Impl;
+  friend std::ostream& operator<<(std::ostream&, const Impl&);
+  friend std::ostream& operator<<(std::ostream&, const CodeAssemblerVariable&);
   Impl* impl_;
   CodeAssemblerState* state_;
 };
+
+std::ostream& operator<<(std::ostream&, const CodeAssemblerVariable&);
+std::ostream& operator<<(std::ostream&, const CodeAssemblerVariable::Impl&);
 
 class CodeAssemblerLabel {
  public:
@@ -490,6 +505,10 @@ class CodeAssemblerLabel {
   friend class CodeAssembler;
 
   void Bind();
+#if DEBUG
+  void Bind(AssemblerDebugInfo debug_info);
+#endif  // DEBUG
+  void UpdateVariablesAfterBind();
   void MergeVariables();
 
   bool bound_;
@@ -522,6 +541,11 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
   const char* name() const { return name_; }
   int parameter_count() const;
+
+#if DEBUG
+  void PrintCurrentBlock(std::ostream& os);
+#endif  // DEBUG
+  void SetInitialDebugInformation(const char* msg, const char* file, int line);
 
  private:
   friend class CodeAssembler;

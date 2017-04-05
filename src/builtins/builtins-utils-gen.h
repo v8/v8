@@ -46,6 +46,7 @@ class CodeAssemblerState;
   };                                                                     \
   void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) {  \
     Name##Assembler assembler(state);                                    \
+    state->SetInitialDebugInformation(#Name, __FILE__, __LINE__);        \
     assembler.Generate##Name##Impl();                                    \
   }                                                                      \
   void Name##Assembler::Generate##Name##Impl()

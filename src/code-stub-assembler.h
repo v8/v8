@@ -1474,10 +1474,16 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \
   CSA_ASSERT_JS_ARGC_OP(csa, Word32Equal, ==, expected)
 
-#else
+#define BIND(label) Bind(label, {#label, __FILE__, __LINE__})
+#define VARIABLE(name, ...) \
+  Variable name(this, #name, {__FILE__, __LINE__, __VA_ARGS__});
+
+#else  // DEBUG
 #define CSA_ASSERT(csa, x) ((void)0)
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) ((void)0)
-#endif
+#define BIND(label) Bind(label);
+#define VARIABLE(name, ...) Variable name(this, __VA_ARGS__);
+#endif  // DEBUG
 
 #ifdef ENABLE_SLOW_DCHECKS
 #define CSA_SLOW_ASSERT(csa, x)                                 \

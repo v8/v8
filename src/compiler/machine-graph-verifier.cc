@@ -84,6 +84,7 @@ class MachineRepresentationInferrer {
   void Run() {
     auto blocks = schedule_->all_blocks();
     for (BasicBlock* block : *blocks) {
+      current_block_ = block;
       for (size_t i = 0; i <= block->NodeCount(); ++i) {
         Node const* node =
             i < block->NodeCount() ? block->NodeAt(i) : block->control_input();
@@ -280,6 +281,7 @@ class MachineRepresentationInferrer {
   Schedule const* const schedule_;
   Linkage const* const linkage_;
   ZoneVector<MachineRepresentation> representation_vector_;
+  BasicBlock* current_block_;
 };
 
 class MachineRepresentationChecker {
@@ -291,11 +293,13 @@ class MachineRepresentationChecker {
       : schedule_(schedule),
         inferrer_(inferrer),
         is_stub_(is_stub),
-        name_(name) {}
+        name_(name),
+        current_block_(nullptr) {}
 
   void Run() {
     BasicBlockVector const* blocks = schedule_->all_blocks();
     for (BasicBlock* block : *blocks) {
+      current_block_ = block;
       for (size_t i = 0; i <= block->NodeCount(); ++i) {
         Node const* node =
             i < block->NodeCount() ? block->NodeAt(i) : block->control_input();
@@ -806,7 +810,8 @@ class MachineRepresentationChecker {
 
   void PrintDebugHelp(std::ostream& out, Node const* node) {
     if (DEBUG_BOOL) {
-      out << "\n#\n# Specify option --csa-trap-on-node=" << name_ << ","
+      out << "\n#     Current block: " << *current_block_;
+      out << "\n#\n#     Specify option --csa-trap-on-node=" << name_ << ","
           << node->id() << " for debugging.";
     }
   }
@@ -815,6 +820,7 @@ class MachineRepresentationChecker {
   MachineRepresentationInferrer const* const inferrer_;
   bool is_stub_;
   const char* name_;
+  BasicBlock* current_block_;
 };
 
 }  // namespace
