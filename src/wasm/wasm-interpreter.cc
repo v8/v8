@@ -808,22 +808,22 @@ class ControlTransfers : public ZoneObject {
           break;
         }
         case kExprBr: {
-          BreakDepthOperand operand(&i, i.pc());
+          BreakDepthOperand<false> operand(&i, i.pc());
           TRACE("control @%u: Br[depth=%u]\n", i.pc_offset(), operand.depth);
           Control* c = &control_stack[control_stack.size() - operand.depth - 1];
           c->Ref(&map_, start, i.pc());
           break;
         }
         case kExprBrIf: {
-          BreakDepthOperand operand(&i, i.pc());
+          BreakDepthOperand<false> operand(&i, i.pc());
           TRACE("control @%u: BrIf[depth=%u]\n", i.pc_offset(), operand.depth);
           Control* c = &control_stack[control_stack.size() - operand.depth - 1];
           c->Ref(&map_, start, i.pc());
           break;
         }
         case kExprBrTable: {
-          BranchTableOperand operand(&i, i.pc());
-          BranchTableIterator iterator(&i, operand);
+          BranchTableOperand<false> operand(&i, i.pc());
+          BranchTableIterator<false> iterator(&i, operand);
           TRACE("control @%u: BrTable[count=%u]\n", i.pc_offset(),
                 operand.table_count);
           while (iterator.has_next()) {
@@ -1385,11 +1385,11 @@ class ThreadImpl {
   pc_t ReturnPc(Decoder* decoder, InterpreterCode* code, pc_t pc) {
     switch (code->orig_start[pc]) {
       case kExprCallFunction: {
-        CallFunctionOperand operand(decoder, code->at(pc));
+        CallFunctionOperand<false> operand(decoder, code->at(pc));
         return pc + 1 + operand.length;
       }
       case kExprCallIndirect: {
-        CallIndirectOperand operand(decoder, code->at(pc));
+        CallIndirectOperand<false> operand(decoder, code->at(pc));
         return pc + 1 + operand.length;
       }
       default:
@@ -1466,7 +1466,7 @@ class ThreadImpl {
 
   template <typename ctype, typename mtype>
   bool ExecuteLoad(Decoder* decoder, InterpreterCode* code, pc_t pc, int& len) {
-    MemoryAccessOperand operand(decoder, code->at(pc), sizeof(ctype));
+    MemoryAccessOperand<false> operand(decoder, code->at(pc), sizeof(ctype));
     uint32_t index = Pop().to<uint32_t>();
     if (!BoundsCheck<mtype>(instance()->mem_size, operand.offset, index)) {
       DoTrap(kTrapMemOutOfBounds, pc);
@@ -1483,7 +1483,7 @@ class ThreadImpl {
   template <typename ctype, typename mtype>
   bool ExecuteStore(Decoder* decoder, InterpreterCode* code, pc_t pc,
                     int& len) {
-    MemoryAccessOperand operand(decoder, code->at(pc), sizeof(ctype));
+    MemoryAccessOperand<false> operand(decoder, code->at(pc), sizeof(ctype));
     WasmVal val = Pop();
 
     uint32_t index = Pop().to<uint32_t>();
@@ -1574,19 +1574,19 @@ class ThreadImpl {
         case kExprNop:
           break;
         case kExprBlock: {
-          BlockTypeOperand operand(&decoder, code->at(pc));
+          BlockTypeOperand<false> operand(&decoder, code->at(pc));
           blocks_.push_back({pc, stack_.size(), frames_.size(), operand.arity});
           len = 1 + operand.length;
           break;
         }
         case kExprLoop: {
-          BlockTypeOperand operand(&decoder, code->at(pc));
+          BlockTypeOperand<false> operand(&decoder, code->at(pc));
           blocks_.push_back({pc, stack_.size(), frames_.size(), 0});
           len = 1 + operand.length;
           break;
         }
         case kExprIf: {
-          BlockTypeOperand operand(&decoder, code->at(pc));
+          BlockTypeOperand<false> operand(&decoder, code->at(pc));
           WasmVal cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
           blocks_.push_back({pc, stack_.size(), frames_.size(), operand.arity});
@@ -1614,13 +1614,13 @@ class ThreadImpl {
           break;
         }
         case kExprBr: {
-          BreakDepthOperand operand(&decoder, code->at(pc));
+          BreakDepthOperand<false> operand(&decoder, code->at(pc));
           len = DoBreak(code, pc, operand.depth);
           TRACE("  br => @%zu\n", pc + len);
           break;
         }
         case kExprBrIf: {
-          BreakDepthOperand operand(&decoder, code->at(pc));
+          BreakDepthOperand<false> operand(&decoder, code->at(pc));
           WasmVal cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
           if (is_true) {
@@ -1633,8 +1633,8 @@ class ThreadImpl {
           break;
         }
         case kExprBrTable: {
-          BranchTableOperand operand(&decoder, code->at(pc));
-          BranchTableIterator iterator(&decoder, operand);
+          BranchTableOperand<false> operand(&decoder, code->at(pc));
+          BranchTableIterator<false> iterator(&decoder, operand);
           uint32_t key = Pop().to<uint32_t>();
           uint32_t depth = 0;
           if (key >= operand.table_count) key = operand.table_count;
@@ -1660,44 +1660,44 @@ class ThreadImpl {
           break;
         }
         case kExprI32Const: {
-          ImmI32Operand operand(&decoder, code->at(pc));
+          ImmI32Operand<false> operand(&decoder, code->at(pc));
           Push(pc, WasmVal(operand.value));
           len = 1 + operand.length;
           break;
         }
         case kExprI64Const: {
-          ImmI64Operand operand(&decoder, code->at(pc));
+          ImmI64Operand<false> operand(&decoder, code->at(pc));
           Push(pc, WasmVal(operand.value));
           len = 1 + operand.length;
           break;
         }
         case kExprF32Const: {
-          ImmF32Operand operand(&decoder, code->at(pc));
+          ImmF32Operand<false> operand(&decoder, code->at(pc));
           Push(pc, WasmVal(operand.value));
           len = 1 + operand.length;
           break;
         }
         case kExprF64Const: {
-          ImmF64Operand operand(&decoder, code->at(pc));
+          ImmF64Operand<false> operand(&decoder, code->at(pc));
           Push(pc, WasmVal(operand.value));
           len = 1 + operand.length;
           break;
         }
         case kExprGetLocal: {
-          LocalIndexOperand operand(&decoder, code->at(pc));
+          LocalIndexOperand<false> operand(&decoder, code->at(pc));
           Push(pc, stack_[frames_.back().sp + operand.index]);
           len = 1 + operand.length;
           break;
         }
         case kExprSetLocal: {
-          LocalIndexOperand operand(&decoder, code->at(pc));
+          LocalIndexOperand<false> operand(&decoder, code->at(pc));
           WasmVal val = Pop();
           stack_[frames_.back().sp + operand.index] = val;
           len = 1 + operand.length;
           break;
         }
         case kExprTeeLocal: {
-          LocalIndexOperand operand(&decoder, code->at(pc));
+          LocalIndexOperand<false> operand(&decoder, code->at(pc));
           WasmVal val = Pop();
           stack_[frames_.back().sp + operand.index] = val;
           Push(pc, val);
@@ -1709,7 +1709,7 @@ class ThreadImpl {
           break;
         }
         case kExprCallFunction: {
-          CallFunctionOperand operand(&decoder, code->at(pc));
+          CallFunctionOperand<false> operand(&decoder, code->at(pc));
           InterpreterCode* target = codemap()->GetCode(operand.index);
           if (target->function->imported) {
             CommitPc(pc);
@@ -1741,7 +1741,7 @@ class ThreadImpl {
           continue;  // don't bump pc
         } break;
         case kExprCallIndirect: {
-          CallIndirectOperand operand(&decoder, code->at(pc));
+          CallIndirectOperand<false> operand(&decoder, code->at(pc));
           uint32_t entry_index = Pop().to<uint32_t>();
           // Assume only one table for now.
           DCHECK_LE(module()->function_tables.size(), 1u);
@@ -1768,7 +1768,7 @@ class ThreadImpl {
           }
         } break;
         case kExprGetGlobal: {
-          GlobalIndexOperand operand(&decoder, code->at(pc));
+          GlobalIndexOperand<false> operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
           WasmVal val;
@@ -1787,7 +1787,7 @@ class ThreadImpl {
           break;
         }
         case kExprSetGlobal: {
-          GlobalIndexOperand operand(&decoder, code->at(pc));
+          GlobalIndexOperand<false> operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
           WasmVal val = Pop();
@@ -1889,7 +1889,7 @@ class ThreadImpl {
           ASMJS_STORE_CASE(F64AsmjsStoreMem, double, double);
 #undef ASMJS_STORE_CASE
         case kExprGrowMemory: {
-          MemoryIndexOperand operand(&decoder, code->at(pc));
+          MemoryIndexOperand<false> operand(&decoder, code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
           Push(pc, WasmVal(ExecuteGrowMemory(
                        delta_pages, codemap_->maybe_instance(), instance())));
@@ -1897,7 +1897,7 @@ class ThreadImpl {
           break;
         }
         case kExprMemorySize: {
-          MemoryIndexOperand operand(&decoder, code->at(pc));
+          MemoryIndexOperand<false> operand(&decoder, code->at(pc));
           Push(pc, WasmVal(static_cast<uint32_t>(instance()->mem_size /
                                                  WasmModule::kPageSize)));
           len = 1 + operand.length;

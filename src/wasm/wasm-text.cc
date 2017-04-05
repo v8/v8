@@ -102,7 +102,7 @@ void wasm::PrintWasmText(const WasmModule *module,
       case kExprIf:
       case kExprBlock:
       case kExprTry: {
-        BlockTypeOperand operand(&i, i.pc());
+        BlockTypeOperand<false> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode);
         for (unsigned i = 0; i < operand.arity; i++) {
           os << " " << WasmOpcodes::TypeName(operand.read_entry(i));
@@ -112,7 +112,7 @@ void wasm::PrintWasmText(const WasmModule *module,
       }
       case kExprBr:
       case kExprBrIf: {
-        BreakDepthOperand operand(&i, i.pc());
+        BreakDepthOperand<false> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.depth;
         break;
       }
@@ -124,20 +124,20 @@ void wasm::PrintWasmText(const WasmModule *module,
         os << "end";
         break;
       case kExprBrTable: {
-        BranchTableOperand operand(&i, i.pc());
-        BranchTableIterator iterator(&i, operand);
+        BranchTableOperand<false> operand(&i, i.pc());
+        BranchTableIterator<false> iterator(&i, operand);
         os << "br_table";
         while (iterator.has_next()) os << ' ' << iterator.next();
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectOperand operand(&i, i.pc());
+        CallIndirectOperand<false> operand(&i, i.pc());
         DCHECK_EQ(0, operand.table_index);
         os << "call_indirect " << operand.index;
         break;
       }
       case kExprCallFunction: {
-        CallFunctionOperand operand(&i, i.pc());
+        CallFunctionOperand<false> operand(&i, i.pc());
         os << "call " << operand.index;
         break;
       }
@@ -145,19 +145,19 @@ void wasm::PrintWasmText(const WasmModule *module,
       case kExprSetLocal:
       case kExprTeeLocal:
       case kExprCatch: {
-        LocalIndexOperand operand(&i, i.pc());
+        LocalIndexOperand<false> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.index;
         break;
       }
       case kExprGetGlobal:
       case kExprSetGlobal: {
-        GlobalIndexOperand operand(&i, i.pc());
+        GlobalIndexOperand<false> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.index;
         break;
       }
 #define CASE_CONST(type, str, cast_type)                           \
   case kExpr##type##Const: {                                       \
-    Imm##type##Operand operand(&i, i.pc());                        \
+    Imm##type##Operand<false> operand(&i, i.pc());                 \
     os << #str ".const " << static_cast<cast_type>(operand.value); \
     break;                                                         \
   }
@@ -169,7 +169,7 @@ void wasm::PrintWasmText(const WasmModule *module,
 #define CASE_OPCODE(opcode, _, __) case kExpr##opcode:
         FOREACH_LOAD_MEM_OPCODE(CASE_OPCODE)
         FOREACH_STORE_MEM_OPCODE(CASE_OPCODE) {
-          MemoryAccessOperand operand(&i, i.pc(), kMaxUInt32);
+          MemoryAccessOperand<false> operand(&i, i.pc(), kMaxUInt32);
           os << WasmOpcodes::OpcodeName(opcode) << " offset=" << operand.offset
              << " align=" << (1ULL << operand.alignment);
           break;

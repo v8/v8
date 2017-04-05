@@ -976,7 +976,7 @@ class ModuleDecoder : public Decoder {
     unsigned len = 0;
     switch (opcode) {
       case kExprGetGlobal: {
-        GlobalIndexOperand operand(this, pc() - 1);
+        GlobalIndexOperand<true> operand(this, pc() - 1);
         if (module->globals.size() <= operand.index) {
           error("global index is out of bounds");
           expr.kind = WasmInitExpr::kNone;
@@ -998,28 +998,28 @@ class ModuleDecoder : public Decoder {
         break;
       }
       case kExprI32Const: {
-        ImmI32Operand operand(this, pc() - 1);
+        ImmI32Operand<true> operand(this, pc() - 1);
         expr.kind = WasmInitExpr::kI32Const;
         expr.val.i32_const = operand.value;
         len = operand.length;
         break;
       }
       case kExprF32Const: {
-        ImmF32Operand operand(this, pc() - 1);
+        ImmF32Operand<true> operand(this, pc() - 1);
         expr.kind = WasmInitExpr::kF32Const;
         expr.val.f32_const = operand.value;
         len = operand.length;
         break;
       }
       case kExprI64Const: {
-        ImmI64Operand operand(this, pc() - 1);
+        ImmI64Operand<true> operand(this, pc() - 1);
         expr.kind = WasmInitExpr::kI64Const;
         expr.val.i64_const = operand.value;
         len = operand.length;
         break;
       }
       case kExprF64Const: {
-        ImmF64Operand operand(this, pc() - 1);
+        ImmF64Operand<true> operand(this, pc() - 1);
         expr.kind = WasmInitExpr::kF64Const;
         expr.val.f64_const = operand.value;
         len = operand.length;

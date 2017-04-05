@@ -252,7 +252,7 @@ class WasmDecoder : public Decoder {
           break;
         case kExprSetLocal:  // fallthru
         case kExprTeeLocal: {
-          LocalIndexOperand operand(decoder, pc);
+          LocalIndexOperand<true> operand(decoder, pc);
           if (assigned->length() > 0 &&
               operand.index < static_cast<uint32_t>(assigned->length())) {
             // Unverified code might have an out-of-bounds index.
@@ -274,7 +274,7 @@ class WasmDecoder : public Decoder {
     return decoder->ok() ? assigned : nullptr;
   }
 
-  inline bool Validate(const byte* pc, LocalIndexOperand& operand) {
+  inline bool Validate(const byte* pc, LocalIndexOperand<true>& operand) {
     if (operand.index < total_locals()) {
       if (local_types_) {
         operand.type = local_types_->at(operand.index);
@@ -287,7 +287,7 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Validate(const byte* pc, GlobalIndexOperand& operand) {
+  inline bool Validate(const byte* pc, GlobalIndexOperand<true>& operand) {
     if (module_ != nullptr && operand.index < module_->globals.size()) {
       operand.global = &module_->globals[operand.index];
       operand.type = operand.global->type;
@@ -297,7 +297,7 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Complete(const byte* pc, CallFunctionOperand& operand) {
+  inline bool Complete(const byte* pc, CallFunctionOperand<true>& operand) {
     if (module_ != nullptr && operand.index < module_->functions.size()) {
       operand.sig = module_->functions[operand.index].sig;
       return true;
@@ -305,7 +305,7 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Validate(const byte* pc, CallFunctionOperand& operand) {
+  inline bool Validate(const byte* pc, CallFunctionOperand<true>& operand) {
     if (Complete(pc, operand)) {
       return true;
     }
@@ -313,7 +313,7 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Complete(const byte* pc, CallIndirectOperand& operand) {
+  inline bool Complete(const byte* pc, CallIndirectOperand<true>& operand) {
     if (module_ != nullptr && operand.index < module_->signatures.size()) {
       operand.sig = module_->signatures[operand.index];
       return true;
@@ -321,7 +321,7 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Validate(const byte* pc, CallIndirectOperand& operand) {
+  inline bool Validate(const byte* pc, CallIndirectOperand<true>& operand) {
     if (module_ == nullptr || module_->function_tables.empty()) {
       error("function table has to exist to execute call_indirect");
       return false;
@@ -333,7 +333,7 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Validate(const byte* pc, BreakDepthOperand& operand,
+  inline bool Validate(const byte* pc, BreakDepthOperand<true>& operand,
                        ZoneVector<Control>& control) {
     if (operand.depth < control.size()) {
       operand.target = &control[control.size() - operand.depth - 1];
@@ -343,14 +343,14 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  bool Validate(const byte* pc, BranchTableOperand& operand,
+  bool Validate(const byte* pc, BranchTableOperand<true>& operand,
                 size_t block_depth) {
     // TODO(titzer): add extra redundant validation for br_table here?
     return true;
   }
 
   inline bool Validate(const byte* pc, WasmOpcode opcode,
-                       SimdLaneOperand& operand) {
+                       SimdLaneOperand<true>& operand) {
     uint8_t num_lanes = 0;
     switch (opcode) {
       case kExprF32x4ExtractLane:
@@ -380,7 +380,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, WasmOpcode opcode,
-                       SimdShiftOperand& operand) {
+                       SimdShiftOperand<true>& operand) {
     uint8_t max_shift = 0;
     switch (opcode) {
       case kExprI32x4Shl:
@@ -417,26 +417,26 @@ class WasmDecoder : public Decoder {
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
       {
-        MemoryAccessOperand operand(decoder, pc, UINT32_MAX);
+        MemoryAccessOperand<true> operand(decoder, pc, UINT32_MAX);
         return 1 + operand.length;
       }
       case kExprBr:
       case kExprBrIf: {
-        BreakDepthOperand operand(decoder, pc);
+        BreakDepthOperand<true> operand(decoder, pc);
         return 1 + operand.length;
       }
       case kExprSetGlobal:
       case kExprGetGlobal: {
-        GlobalIndexOperand operand(decoder, pc);
+        GlobalIndexOperand<true> operand(decoder, pc);
         return 1 + operand.length;
       }
 
       case kExprCallFunction: {
-        CallFunctionOperand operand(decoder, pc);
+        CallFunctionOperand<true> operand(decoder, pc);
         return 1 + operand.length;
       }
       case kExprCallIndirect: {
-        CallIndirectOperand operand(decoder, pc);
+        CallIndirectOperand<true> operand(decoder, pc);
         return 1 + operand.length;
       }
 
@@ -444,7 +444,7 @@ class WasmDecoder : public Decoder {
       case kExprIf:  // fall thru
       case kExprLoop:
       case kExprBlock: {
-        BlockTypeOperand operand(decoder, pc);
+        BlockTypeOperand<true> operand(decoder, pc);
         return 1 + operand.length;
       }
 
@@ -452,25 +452,25 @@ class WasmDecoder : public Decoder {
       case kExprTeeLocal:
       case kExprGetLocal:
       case kExprCatch: {
-        LocalIndexOperand operand(decoder, pc);
+        LocalIndexOperand<true> operand(decoder, pc);
         return 1 + operand.length;
       }
       case kExprBrTable: {
-        BranchTableOperand operand(decoder, pc);
-        BranchTableIterator iterator(decoder, operand);
+        BranchTableOperand<true> operand(decoder, pc);
+        BranchTableIterator<true> iterator(decoder, operand);
         return 1 + iterator.length();
       }
       case kExprI32Const: {
-        ImmI32Operand operand(decoder, pc);
+        ImmI32Operand<true> operand(decoder, pc);
         return 1 + operand.length;
       }
       case kExprI64Const: {
-        ImmI64Operand operand(decoder, pc);
+        ImmI64Operand<true> operand(decoder, pc);
         return 1 + operand.length;
       }
       case kExprGrowMemory:
       case kExprMemorySize: {
-        MemoryIndexOperand operand(decoder, pc);
+        MemoryIndexOperand<true> operand(decoder, pc);
         return 1 + operand.length;
       }
       case kExprF32Const:
@@ -478,7 +478,7 @@ class WasmDecoder : public Decoder {
       case kExprF64Const:
         return 9;
       case kSimdPrefix: {
-        byte simd_index = decoder->checked_read_u8(pc + 1, "simd_index");
+        byte simd_index = decoder->read_u8<true>(pc + 1, "simd_index");
         WasmOpcode opcode =
             static_cast<WasmOpcode>(kSimdPrefix << 8 | simd_index);
         switch (opcode) {
@@ -733,7 +733,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           case kExprBlock: {
             // The break environment is the outer environment.
-            BlockTypeOperand operand(this, pc_);
+            BlockTypeOperand<true> operand(this, pc_);
             SsaEnv* break_env = ssa_env_;
             PushBlock(break_env);
             SetEnv("block:start", Steal(break_env));
@@ -753,7 +753,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprTry: {
             CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
-            BlockTypeOperand operand(this, pc_);
+            BlockTypeOperand<true> operand(this, pc_);
             SsaEnv* outer_env = ssa_env_;
             SsaEnv* try_env = Steal(outer_env);
             SsaEnv* catch_env = UnreachableEnv();
@@ -765,7 +765,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprCatch: {
             CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
-            LocalIndexOperand operand(this, pc_);
+            LocalIndexOperand<true> operand(this, pc_);
             len = 1 + operand.length;
 
             if (control_.empty()) {
@@ -804,7 +804,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprLoop: {
-            BlockTypeOperand operand(this, pc_);
+            BlockTypeOperand<true> operand(this, pc_);
             SsaEnv* finish_try_env = Steal(ssa_env_);
             // The continue environment is the inner environment.
             SsaEnv* loop_body_env = PrepareForLoop(pc_, finish_try_env);
@@ -817,7 +817,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprIf: {
             // Condition on top of stack. Split environments for branches.
-            BlockTypeOperand operand(this, pc_);
+            BlockTypeOperand<true> operand(this, pc_);
             Value cond = Pop(0, kWasmI32);
             TFNode* if_true = nullptr;
             TFNode* if_false = nullptr;
@@ -935,7 +935,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprBr: {
-            BreakDepthOperand operand(this, pc_);
+            BreakDepthOperand<true> operand(this, pc_);
             if (Validate(pc_, operand, control_)) {
               BreakTo(operand.depth);
             }
@@ -944,7 +944,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprBrIf: {
-            BreakDepthOperand operand(this, pc_);
+            BreakDepthOperand<true> operand(this, pc_);
             Value cond = Pop(0, kWasmI32);
             if (ok() && Validate(pc_, operand, control_)) {
               SsaEnv* fenv = ssa_env_;
@@ -959,8 +959,8 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprBrTable: {
-            BranchTableOperand operand(this, pc_);
-            BranchTableIterator iterator(this, operand);
+            BranchTableOperand<true> operand(this, pc_);
+            BranchTableIterator<true> iterator(this, operand);
             if (Validate(pc_, operand, control_.size())) {
               Value key = Pop(0, kWasmI32);
               if (failed()) break;
@@ -1036,31 +1036,31 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprI32Const: {
-            ImmI32Operand operand(this, pc_);
+            ImmI32Operand<true> operand(this, pc_);
             Push(kWasmI32, BUILD(Int32Constant, operand.value));
             len = 1 + operand.length;
             break;
           }
           case kExprI64Const: {
-            ImmI64Operand operand(this, pc_);
+            ImmI64Operand<true> operand(this, pc_);
             Push(kWasmI64, BUILD(Int64Constant, operand.value));
             len = 1 + operand.length;
             break;
           }
           case kExprF32Const: {
-            ImmF32Operand operand(this, pc_);
+            ImmF32Operand<true> operand(this, pc_);
             Push(kWasmF32, BUILD(Float32Constant, operand.value));
             len = 1 + operand.length;
             break;
           }
           case kExprF64Const: {
-            ImmF64Operand operand(this, pc_);
+            ImmF64Operand<true> operand(this, pc_);
             Push(kWasmF64, BUILD(Float64Constant, operand.value));
             len = 1 + operand.length;
             break;
           }
           case kExprGetLocal: {
-            LocalIndexOperand operand(this, pc_);
+            LocalIndexOperand<true> operand(this, pc_);
             if (Validate(pc_, operand)) {
               if (build()) {
                 Push(operand.type, ssa_env_->locals[operand.index]);
@@ -1072,7 +1072,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprSetLocal: {
-            LocalIndexOperand operand(this, pc_);
+            LocalIndexOperand<true> operand(this, pc_);
             if (Validate(pc_, operand)) {
               Value val = Pop(0, local_type_vec_[operand.index]);
               if (ssa_env_->locals) ssa_env_->locals[operand.index] = val.node;
@@ -1081,7 +1081,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprTeeLocal: {
-            LocalIndexOperand operand(this, pc_);
+            LocalIndexOperand<true> operand(this, pc_);
             if (Validate(pc_, operand)) {
               Value val = Pop(0, local_type_vec_[operand.index]);
               if (ssa_env_->locals) ssa_env_->locals[operand.index] = val.node;
@@ -1095,7 +1095,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprGetGlobal: {
-            GlobalIndexOperand operand(this, pc_);
+            GlobalIndexOperand<true> operand(this, pc_);
             if (Validate(pc_, operand)) {
               Push(operand.type, BUILD(GetGlobal, operand.index));
             }
@@ -1103,7 +1103,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprSetGlobal: {
-            GlobalIndexOperand operand(this, pc_);
+            GlobalIndexOperand<true> operand(this, pc_);
             if (Validate(pc_, operand)) {
               if (operand.global->mutability) {
                 Value val = Pop(0, operand.type);
@@ -1195,7 +1195,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           case kExprGrowMemory: {
             if (!CheckHasMemory()) break;
-            MemoryIndexOperand operand(this, pc_);
+            MemoryIndexOperand<true> operand(this, pc_);
             DCHECK_NOT_NULL(module_);
             if (module_->is_wasm()) {
               Value val = Pop(0, kWasmI32);
@@ -1208,13 +1208,13 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprMemorySize: {
             if (!CheckHasMemory()) break;
-            MemoryIndexOperand operand(this, pc_);
+            MemoryIndexOperand<true> operand(this, pc_);
             Push(kWasmI32, BUILD(CurrentMemoryPages));
             len = 1 + operand.length;
             break;
           }
           case kExprCallFunction: {
-            CallFunctionOperand operand(this, pc_);
+            CallFunctionOperand<true> operand(this, pc_);
             if (Validate(pc_, operand)) {
               TFNode** buffer = PopArgs(operand.sig);
               TFNode** rets = nullptr;
@@ -1225,7 +1225,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprCallIndirect: {
-            CallIndirectOperand operand(this, pc_);
+            CallIndirectOperand<true> operand(this, pc_);
             if (Validate(pc_, operand)) {
               Value index = Pop(0, kWasmI32);
               TFNode** buffer = PopArgs(operand.sig);
@@ -1240,7 +1240,7 @@ class WasmFullDecoder : public WasmDecoder {
           case kSimdPrefix: {
             CHECK_PROTOTYPE_OPCODE(wasm_simd_prototype);
             len++;
-            byte simd_index = checked_read_u8(pc_ + 1, "simd index");
+            byte simd_index = read_u8<true>(pc_ + 1, "simd index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
             TRACE("  @%-4d #%-20s|", startrel(pc_),
                   WasmOpcodes::OpcodeName(opcode));
@@ -1257,7 +1257,7 @@ class WasmFullDecoder : public WasmDecoder {
               break;
             }
             len = 2;
-            byte atomic_opcode = checked_read_u8(pc_ + 1, "atomic index");
+            byte atomic_opcode = read_u8<true>(pc_ + 1, "atomic index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_opcode);
             sig = WasmOpcodes::AtomicSignature(opcode);
             if (sig) {
@@ -1322,18 +1322,18 @@ class WasmFullDecoder : public WasmDecoder {
                  WasmOpcodes::OpcodeName(opcode));
           switch (opcode) {
             case kExprI32Const: {
-              ImmI32Operand operand(this, val.pc);
+              ImmI32Operand<true> operand(this, val.pc);
               PrintF("[%d]", operand.value);
               break;
             }
             case kExprGetLocal: {
-              LocalIndexOperand operand(this, val.pc);
+              LocalIndexOperand<true> operand(this, val.pc);
               PrintF("[%u]", operand.index);
               break;
             }
             case kExprSetLocal:  // fallthru
             case kExprTeeLocal: {
-              LocalIndexOperand operand(this, val.pc);
+              LocalIndexOperand<true> operand(this, val.pc);
               PrintF("[%u]", operand.index);
               break;
             }
@@ -1358,7 +1358,7 @@ class WasmFullDecoder : public WasmDecoder {
     }
   }
 
-  void SetBlockType(Control* c, BlockTypeOperand& operand) {
+  void SetBlockType(Control* c, BlockTypeOperand<true>& operand) {
     c->merge.arity = operand.arity;
     if (c->merge.arity == 1) {
       c->merge.vals.first = {pc_, nullptr, operand.read_entry(0)};
@@ -1417,8 +1417,8 @@ class WasmFullDecoder : public WasmDecoder {
 
   int DecodeLoadMem(ValueType type, MachineType mem_type) {
     if (!CheckHasMemory()) return 0;
-    MemoryAccessOperand operand(this, pc_,
-                                ElementSizeLog2Of(mem_type.representation()));
+    MemoryAccessOperand<true> operand(
+        this, pc_, ElementSizeLog2Of(mem_type.representation()));
 
     Value index = Pop(0, kWasmI32);
     TFNode* node = BUILD(LoadMem, type, mem_type, index.node, operand.offset,
@@ -1429,8 +1429,8 @@ class WasmFullDecoder : public WasmDecoder {
 
   int DecodeStoreMem(ValueType type, MachineType mem_type) {
     if (!CheckHasMemory()) return 0;
-    MemoryAccessOperand operand(this, pc_,
-                                ElementSizeLog2Of(mem_type.representation()));
+    MemoryAccessOperand<true> operand(
+        this, pc_, ElementSizeLog2Of(mem_type.representation()));
     Value val = Pop(1, type);
     Value index = Pop(0, kWasmI32);
     BUILD(StoreMem, mem_type, index.node, operand.offset, operand.alignment,
@@ -1439,7 +1439,7 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   unsigned SimdExtractLane(WasmOpcode opcode, ValueType type) {
-    SimdLaneOperand operand(this, pc_);
+    SimdLaneOperand<true> operand(this, pc_);
     if (Validate(pc_, opcode, operand)) {
       compiler::NodeVector inputs(1, zone_);
       inputs[0] = Pop(0, ValueType::kSimd128).node;
@@ -1450,7 +1450,7 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   unsigned SimdReplaceLane(WasmOpcode opcode, ValueType type) {
-    SimdLaneOperand operand(this, pc_);
+    SimdLaneOperand<true> operand(this, pc_);
     if (Validate(pc_, opcode, operand)) {
       compiler::NodeVector inputs(2, zone_);
       inputs[1] = Pop(1, type).node;
@@ -1462,7 +1462,7 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   unsigned SimdShiftOp(WasmOpcode opcode) {
-    SimdShiftOperand operand(this, pc_);
+    SimdShiftOperand<true> operand(this, pc_);
     if (Validate(pc_, opcode, operand)) {
       compiler::NodeVector inputs(1, zone_);
       inputs[0] = Pop(0, ValueType::kSimd128).node;
@@ -2116,7 +2116,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprIf:
       case kExprBlock:
       case kExprTry: {
-        BlockTypeOperand operand(&i, i.pc());
+        BlockTypeOperand<true> operand(&i, i.pc());
         os << "   // @" << i.pc_offset();
         for (unsigned i = 0; i < operand.arity; i++) {
           os << " " << WasmOpcodes::TypeName(operand.read_entry(i));
@@ -2129,22 +2129,22 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         control_depth--;
         break;
       case kExprBr: {
-        BreakDepthOperand operand(&i, i.pc());
+        BreakDepthOperand<true> operand(&i, i.pc());
         os << "   // depth=" << operand.depth;
         break;
       }
       case kExprBrIf: {
-        BreakDepthOperand operand(&i, i.pc());
+        BreakDepthOperand<true> operand(&i, i.pc());
         os << "   // depth=" << operand.depth;
         break;
       }
       case kExprBrTable: {
-        BranchTableOperand operand(&i, i.pc());
+        BranchTableOperand<true> operand(&i, i.pc());
         os << " // entries=" << operand.table_count;
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectOperand operand(&i, i.pc());
+        CallIndirectOperand<true> operand(&i, i.pc());
         os << "   // sig #" << operand.index;
         if (decoder.Complete(i.pc(), operand)) {
           os << ": " << *operand.sig;
@@ -2152,7 +2152,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         break;
       }
       case kExprCallFunction: {
-        CallFunctionOperand operand(&i, i.pc());
+        CallFunctionOperand<true> operand(&i, i.pc());
         os << " // function #" << operand.index;
         if (decoder.Complete(i.pc(), operand)) {
           os << ": " << *operand.sig;

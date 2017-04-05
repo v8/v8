@@ -25,7 +25,7 @@ class DecoderTest : public TestWithZone {
     decoder.Reset(data, data + sizeof(data));                           \
     unsigned length;                                                    \
     EXPECT_EQ(static_cast<uint32_t>(expected),                          \
-              decoder.checked_read_u32v(decoder.start(), &length));     \
+              decoder.read_u32v<true>(decoder.start(), &length));       \
     EXPECT_EQ(static_cast<unsigned>(expected_length), length);          \
     EXPECT_EQ(data, decoder.pc());                                      \
     EXPECT_TRUE(decoder.ok());                                          \
@@ -33,36 +33,36 @@ class DecoderTest : public TestWithZone {
     EXPECT_EQ(data + expected_length, decoder.pc());                    \
   } while (false)
 
-#define CHECK_INT32V_INLINE(expected, expected_length, ...)                   \
-  do {                                                                        \
-    const byte data[] = {__VA_ARGS__};                                        \
-    decoder.Reset(data, data + sizeof(data));                                 \
-    unsigned length;                                                          \
-    EXPECT_EQ(expected, decoder.checked_read_i32v(decoder.start(), &length)); \
-    EXPECT_EQ(static_cast<unsigned>(expected_length), length);                \
-    EXPECT_EQ(data, decoder.pc());                                            \
-    EXPECT_TRUE(decoder.ok());                                                \
-    EXPECT_EQ(expected, decoder.consume_i32v());                              \
-    EXPECT_EQ(data + expected_length, decoder.pc());                          \
+#define CHECK_INT32V_INLINE(expected, expected_length, ...)                 \
+  do {                                                                      \
+    const byte data[] = {__VA_ARGS__};                                      \
+    decoder.Reset(data, data + sizeof(data));                               \
+    unsigned length;                                                        \
+    EXPECT_EQ(expected, decoder.read_i32v<true>(decoder.start(), &length)); \
+    EXPECT_EQ(static_cast<unsigned>(expected_length), length);              \
+    EXPECT_EQ(data, decoder.pc());                                          \
+    EXPECT_TRUE(decoder.ok());                                              \
+    EXPECT_EQ(expected, decoder.consume_i32v());                            \
+    EXPECT_EQ(data + expected_length, decoder.pc());                        \
   } while (false)
 
-#define CHECK_UINT64V_INLINE(expected, expected_length, ...)        \
-  do {                                                              \
-    const byte data[] = {__VA_ARGS__};                              \
-    decoder.Reset(data, data + sizeof(data));                       \
-    unsigned length;                                                \
-    EXPECT_EQ(static_cast<uint64_t>(expected),                      \
-              decoder.checked_read_u64v(decoder.start(), &length)); \
-    EXPECT_EQ(static_cast<unsigned>(expected_length), length);      \
+#define CHECK_UINT64V_INLINE(expected, expected_length, ...)       \
+  do {                                                             \
+    const byte data[] = {__VA_ARGS__};                             \
+    decoder.Reset(data, data + sizeof(data));                      \
+    unsigned length;                                               \
+    EXPECT_EQ(static_cast<uint64_t>(expected),                     \
+              decoder.read_u64v<false>(decoder.start(), &length)); \
+    EXPECT_EQ(static_cast<unsigned>(expected_length), length);     \
   } while (false)
 
-#define CHECK_INT64V_INLINE(expected, expected_length, ...)                   \
-  do {                                                                        \
-    const byte data[] = {__VA_ARGS__};                                        \
-    decoder.Reset(data, data + sizeof(data));                                 \
-    unsigned length;                                                          \
-    EXPECT_EQ(expected, decoder.checked_read_i64v(decoder.start(), &length)); \
-    EXPECT_EQ(static_cast<unsigned>(expected_length), length);                \
+#define CHECK_INT64V_INLINE(expected, expected_length, ...)                  \
+  do {                                                                       \
+    const byte data[] = {__VA_ARGS__};                                       \
+    decoder.Reset(data, data + sizeof(data));                                \
+    unsigned length;                                                         \
+    EXPECT_EQ(expected, decoder.read_i64v<false>(decoder.start(), &length)); \
+    EXPECT_EQ(static_cast<unsigned>(expected_length), length);               \
   } while (false)
 
 TEST_F(DecoderTest, ReadU32v_OneByte) {
@@ -374,7 +374,7 @@ TEST_F(DecoderTest, ReadU32v_off_end1) {
   static const byte data[] = {U32V_1(11)};
   unsigned length = 0;
   decoder.Reset(data, data);
-  decoder.checked_read_u32v(decoder.start(), &length);
+  decoder.read_u32v<true>(decoder.start(), &length);
   EXPECT_EQ(0u, length);
   EXPECT_FALSE(decoder.ok());
 }
@@ -384,7 +384,7 @@ TEST_F(DecoderTest, ReadU32v_off_end2) {
   for (size_t i = 0; i < sizeof(data); i++) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
-    decoder.checked_read_u32v(decoder.start(), &length);
+    decoder.read_u32v<true>(decoder.start(), &length);
     EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -395,7 +395,7 @@ TEST_F(DecoderTest, ReadU32v_off_end3) {
   for (size_t i = 0; i < sizeof(data); i++) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
-    decoder.checked_read_u32v(decoder.start(), &length);
+    decoder.read_u32v<true>(decoder.start(), &length);
     EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -406,7 +406,7 @@ TEST_F(DecoderTest, ReadU32v_off_end4) {
   for (size_t i = 0; i < sizeof(data); i++) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
-    decoder.checked_read_u32v(decoder.start(), &length);
+    decoder.read_u32v<true>(decoder.start(), &length);
     EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -417,7 +417,7 @@ TEST_F(DecoderTest, ReadU32v_off_end5) {
   for (size_t i = 0; i < sizeof(data); i++) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
-    decoder.checked_read_u32v(decoder.start(), &length);
+    decoder.read_u32v<true>(decoder.start(), &length);
     EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -429,7 +429,7 @@ TEST_F(DecoderTest, ReadU32v_extra_bits) {
     data[4] = static_cast<byte>(i << 4);
     unsigned length = 0;
     decoder.Reset(data, data + sizeof(data));
-    decoder.checked_read_u32v(decoder.start(), &length);
+    decoder.read_u32v<true>(decoder.start(), &length);
     EXPECT_EQ(5u, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -440,7 +440,7 @@ TEST_F(DecoderTest, ReadI32v_extra_bits_negative) {
   unsigned length = 0;
   byte data[] = {0xff, 0xff, 0xff, 0xff, 0x7f};
   decoder.Reset(data, data + sizeof(data));
-  decoder.checked_read_i32v(decoder.start(), &length);
+  decoder.read_i32v<true>(decoder.start(), &length);
   EXPECT_EQ(5u, length);
   EXPECT_TRUE(decoder.ok());
 }
@@ -450,7 +450,7 @@ TEST_F(DecoderTest, ReadI32v_extra_bits_positive) {
   unsigned length = 0;
   byte data[] = {0x80, 0x80, 0x80, 0x80, 0x77};
   decoder.Reset(data, data + sizeof(data));
-  decoder.checked_read_i32v(decoder.start(), &length);
+  decoder.read_i32v<true>(decoder.start(), &length);
   EXPECT_EQ(5u, length);
   EXPECT_FALSE(decoder.ok());
 }
@@ -485,7 +485,7 @@ TEST_F(DecoderTest, ReadU32v_Bits) {
       for (unsigned limit = 0; limit <= kMaxSize; limit++) {
         decoder.Reset(data, data + limit);
         unsigned rlen;
-        uint32_t result = decoder.checked_read_u32v(data, &rlen);
+        uint32_t result = decoder.read_u32v<true>(data, &rlen);
         if (limit < length) {
           EXPECT_FALSE(decoder.ok());
         } else {
@@ -541,7 +541,7 @@ TEST_F(DecoderTest, ReadU64v_PowerOf2) {
     for (unsigned limit = 0; limit <= kMaxSize; limit++) {
       decoder.Reset(data, data + limit);
       unsigned length;
-      uint64_t result = decoder.checked_read_u64v(data, &length);
+      uint64_t result = decoder.read_u64v<true>(data, &length);
       if (limit <= index) {
         EXPECT_FALSE(decoder.ok());
       } else {
@@ -582,7 +582,7 @@ TEST_F(DecoderTest, ReadU64v_Bits) {
       for (unsigned limit = 0; limit <= kMaxSize; limit++) {
         decoder.Reset(data, data + limit);
         unsigned rlen;
-        uint64_t result = decoder.checked_read_u64v(data, &rlen);
+        uint64_t result = decoder.read_u64v<true>(data, &rlen);
         if (limit < length) {
           EXPECT_FALSE(decoder.ok());
         } else {
@@ -624,7 +624,7 @@ TEST_F(DecoderTest, ReadI64v_Bits) {
       for (unsigned limit = 0; limit <= kMaxSize; limit++) {
         decoder.Reset(data, data + limit);
         unsigned rlen;
-        int64_t result = decoder.checked_read_i64v(data, &rlen);
+        int64_t result = decoder.read_i64v<true>(data, &rlen);
         if (limit < length) {
           EXPECT_FALSE(decoder.ok());
         } else {
@@ -643,7 +643,7 @@ TEST_F(DecoderTest, ReadU64v_extra_bits) {
     data[9] = static_cast<byte>(i << 1);
     unsigned length = 0;
     decoder.Reset(data, data + sizeof(data));
-    decoder.checked_read_u64v(decoder.start(), &length);
+    decoder.read_u64v<true>(decoder.start(), &length);
     EXPECT_EQ(10u, length);
     EXPECT_FALSE(decoder.ok());
   }
@@ -654,7 +654,7 @@ TEST_F(DecoderTest, ReadI64v_extra_bits_negative) {
   unsigned length = 0;
   byte data[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
   decoder.Reset(data, data + sizeof(data));
-  decoder.checked_read_i64v(decoder.start(), &length);
+  decoder.read_i64v<true>(decoder.start(), &length);
   EXPECT_EQ(10u, length);
   EXPECT_TRUE(decoder.ok());
 }
@@ -664,7 +664,7 @@ TEST_F(DecoderTest, ReadI64v_extra_bits_positive) {
   unsigned length = 0;
   byte data[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x77};
   decoder.Reset(data, data + sizeof(data));
-  decoder.checked_read_i64v(decoder.start(), &length);
+  decoder.read_i64v<true>(decoder.start(), &length);
   EXPECT_EQ(10u, length);
   EXPECT_FALSE(decoder.ok());
 }
