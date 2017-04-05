@@ -53,7 +53,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class TestResultScope;
   class ValueResultScope;
 
+  using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
+
   enum class TestFallthrough { kThen, kElse, kNone };
+  enum class TypeHint { kAny, kBoolean };
 
   void GenerateBytecodeBody();
   void AllocateDeferredConstants(Isolate* isolate);
@@ -161,8 +164,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildPushUndefinedIntoRegisterList(RegisterList* reg_list);
 
   // Visitors for obtaining expression result in the accumulator, in a
-  // register, or just getting the effect.
-  void VisitForAccumulatorValue(Expression* expr);
+  // register, or just getting the effect. Some visitors return a TypeHint which
+  // specifies the type of the result of the visited expression.
+  TypeHint VisitForAccumulatorValue(Expression* expr);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
   MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
   void VisitForRegisterValue(Expression* expr, Register destination);
@@ -175,6 +179,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   // language mode.
   inline Runtime::FunctionId StoreToSuperRuntimeId();
   inline Runtime::FunctionId StoreKeyedToSuperRuntimeId();
+
+  ToBooleanMode ToBooleanModeFromTypeHint(TypeHint type_hint);
 
   inline BytecodeArrayBuilder* builder() const { return builder_; }
   inline Zone* zone() const { return zone_; }

@@ -269,16 +269,6 @@ void BytecodePeepholeOptimizer::UpdateLastJumpAction(
   DCHECK(Bytecodes::IsJump(node->bytecode()));
 }
 
-void BytecodePeepholeOptimizer::ChangeJumpBytecodeAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(Bytecodes::IsJump(node->bytecode()));
-
-  next_stage()->Write(last());
-  InvalidateLast();
-  node->replace_bytecode(action_data->bytecode);
-}
-
 void BytecodePeepholeOptimizer::ElideLastBeforeJumpAction(
     BytecodeNode* const node, const PeepholeActionAndData* action_data) {
   DCHECK(LastIsValid());

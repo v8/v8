@@ -190,7 +190,7 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
       Entry& entry = deferred_[i];
       builder()->LoadLiteral(Smi::FromInt(entry.token));
       builder()->CompareOperation(Token::EQ_STRICT, token_register_);
-      dispatch.Case(static_cast<int>(i));
+      dispatch.Case(ToBooleanMode::kAlreadyBoolean, static_cast<int>(i));
     }
     dispatch.DefaultAt(static_cast<int>(deferred_.size()));
     for (size_t i = 0; i < deferred_.size(); ++i) {
@@ -411,9 +411,10 @@ class BytecodeGenerator::ExpressionResultScope {
  public:
   ExpressionResultScope(BytecodeGenerator* generator, Expression::Context kind)
       : generator_(generator),
-        kind_(kind),
         outer_(generator->execution_result()),
-        allocator_(generator) {
+        allocator_(generator),
+        kind_(kind),
+        type_hint_(TypeHint::kAny) {
     generator_->set_execution_result(this);
   }
 
@@ -430,11 +431,20 @@ class BytecodeGenerator::ExpressionResultScope {
     return reinterpret_cast<TestResultScope*>(this);
   }
 
+  // Specify expression always returns a Boolean result value.
+  void SetResultIsBoolean() {
+    DCHECK(type_hint_ == TypeHint::kAny);
+    type_hint_ = TypeHint::kBoolean;
+  }
+
+  TypeHint type_hint() const { return type_hint_; }
+
  private:
   BytecodeGenerator* generator_;
-  Expression::Context kind_;
   ExpressionResultScope* outer_;
   RegisterAllocationScope allocator_;
+  Expression::Context kind_;
+  TypeHint type_hint_;
 
   DISALLOW_COPY_AND_ASSIGN(ExpressionResultScope);
 };
@@ -473,8 +483,7 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
   void SetResultConsumedByTest() {
     result_consumed_by_test_ = true;
   }
-
-  bool ResultConsumedByTest() { return result_consumed_by_test_; }
+  bool result_consumed_by_test() { return result_consumed_by_test_; }
 
   BytecodeLabel* NewThenLabel() { return then_labels_->New(); }
   BytecodeLabel* NewElseLabel() { return else_labels_->New(); }
@@ -794,7 +803,7 @@ void BytecodeGenerator::BuildIndexedJump(Register index, size_t start_index,
     builder()
         ->LoadLiteral(Smi::FromInt(static_cast<int>(i)))
         .CompareOperation(Token::Value::EQ_STRICT, index)
-        .JumpIfTrue(&(targets[i]));
+        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &(targets[i]));
   }
   BuildAbort(BailoutReason::kInvalidJumpTableIndex);
 }
@@ -828,7 +837,7 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
     builder()
         ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
         .CompareOperation(Token::Value::EQ_STRICT, generator_state_)
-        .JumpIfTrue(&not_resuming);
+        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &not_resuming);
     BuildIndexedJump(generator_state_, first_yield, stmt->suspend_count(),
                      generator_resume_points_);
     builder()->Bind(&not_resuming);
@@ -1142,7 +1151,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     builder()->CompareOperation(
         Token::Value::EQ_STRICT, tag,
         feedback_index(clause->CompareOperationFeedbackSlot()));
-    switch_builder.Case(i);
+    switch_builder.Case(ToBooleanMode::kAlreadyBoolean, i);
   }
 
   if (default_index >= 0) {
@@ -1344,7 +1353,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   VisitIterationHeader(stmt, &loop_builder);
   builder()->SetExpressionAsStatementPosition(stmt->each());
   builder()->ForInContinue(index, cache_length);
-  loop_builder.BreakIfFalse();
+  loop_builder.BreakIfFalse(ToBooleanMode::kAlreadyBoolean);
   FeedbackSlot slot = stmt->ForInFeedbackSlot();
   builder()->ForInNext(receiver, index, triple.Truncate(2),
                        feedback_index(slot));
@@ -1368,8 +1377,8 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   VisitIterationHeader(stmt, &loop_builder);
   builder()->SetExpressionAsStatementPosition(stmt->next_result());
   VisitForEffect(stmt->next_result());
-  VisitForAccumulatorValue(stmt->result_done());
-  loop_builder.BreakIfTrue();
+  TypeHint type_hint = VisitForAccumulatorValue(stmt->result_done());
+  loop_builder.BreakIfTrue(ToBooleanModeFromTypeHint(type_hint));
 
   VisitForEffect(stmt->assign_each());
   VisitIterationBody(stmt, &loop_builder);
@@ -1562,7 +1571,7 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
       builder()
           ->LoadLiteral(ast_string_constants()->prototype_string())
           .CompareOperation(Token::Value::EQ_STRICT, key)
-          .JumpIfFalse(&done)
+          .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done)
           .CallRuntime(Runtime::kThrowStaticPrototypeError)
           .Bind(&done);
     }
@@ -1662,6 +1671,9 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
   if (!execution_result()->IsEffect()) {
     const AstValue* raw_value = expr->raw_value();
     builder()->LoadLiteral(raw_value);
+    if (raw_value->IsTrue() || raw_value->IsFalse()) {
+      execution_result()->SetResultIsBoolean();
+    }
   }
 }
 
@@ -2450,10 +2462,10 @@ void BytecodeGenerator::VisitSuspend(Suspend* expr) {
     builder()
         ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kNext))
         .CompareOperation(Token::EQ_STRICT, resume_mode)
-        .JumpIfTrue(&resume_with_next)
+        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &resume_with_next)
         .LoadLiteral(Smi::FromInt(JSGeneratorObject::kThrow))
         .CompareOperation(Token::EQ_STRICT, resume_mode)
-        .JumpIfTrue(&resume_with_throw)
+        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &resume_with_throw)
         .Jump(&resume_with_return);
 
     builder()->Bind(&resume_with_return);
@@ -2814,9 +2826,11 @@ void BytecodeGenerator::VisitNot(UnaryOperation* expr) {
                  test_result->inverted_fallthrough());
     test_result->SetResultConsumedByTest();
   } else {
-    VisitForAccumulatorValue(expr->expression());
-    builder()->LogicalNot();
+    TypeHint type_hint = VisitForAccumulatorValue(expr->expression());
+    builder()->LogicalNot(ToBooleanModeFromTypeHint(type_hint));
   }
+  // Always returns a boolean value.
+  execution_result()->SetResultIsBoolean();
 }
 
 void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
@@ -3095,6 +3109,8 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       builder()->CompareOperation(expr->op(), lhs, feedback_index(slot));
     }
   }
+  // Always returns a boolean value.
+  execution_result()->SetResultIsBoolean();
 }
 
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
@@ -3229,8 +3245,8 @@ void BytecodeGenerator::VisitLogicalOrExpression(BinaryOperation* binop) {
       VisitForAccumulatorValue(right);
     } else {
       BytecodeLabel end_label;
-      VisitForAccumulatorValue(left);
-      builder()->JumpIfTrue(&end_label);
+      TypeHint type_hint = VisitForAccumulatorValue(left);
+      builder()->JumpIfTrue(ToBooleanModeFromTypeHint(type_hint), &end_label);
       VisitForAccumulatorValue(right);
       builder()->Bind(&end_label);
     }
@@ -3264,8 +3280,8 @@ void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
       VisitForAccumulatorValue(right);
     } else {
       BytecodeLabel end_label;
-      VisitForAccumulatorValue(left);
-      builder()->JumpIfFalse(&end_label);
+      TypeHint type_hint = VisitForAccumulatorValue(left);
+      builder()->JumpIfFalse(ToBooleanModeFromTypeHint(type_hint), &end_label);
       VisitForAccumulatorValue(right);
       builder()->Bind(&end_label);
     }
@@ -3485,9 +3501,11 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
 }
 
 // Visits the expression |expr| and places the result in the accumulator.
-void BytecodeGenerator::VisitForAccumulatorValue(Expression* expr) {
+BytecodeGenerator::TypeHint BytecodeGenerator::VisitForAccumulatorValue(
+    Expression* expr) {
   ValueResultScope accumulator_scope(this);
   Visit(expr);
+  return accumulator_scope.type_hint();
 }
 
 void BytecodeGenerator::VisitForAccumulatorValueOrTheHole(Expression* expr) {
@@ -3551,24 +3569,27 @@ void BytecodeGenerator::VisitForTest(Expression* expr,
                                      BytecodeLabels* else_labels,
                                      TestFallthrough fallthrough) {
   bool result_consumed;
+  TypeHint type_hint;
   {
     // To make sure that all temporary registers are returned before generating
     // jumps below, we ensure that the result scope is deleted before doing so.
     // Dead registers might be materialized otherwise.
     TestResultScope test_result(this, then_labels, else_labels, fallthrough);
     Visit(expr);
-    result_consumed = test_result.ResultConsumedByTest();
+    result_consumed = test_result.result_consumed_by_test();
+    type_hint = test_result.type_hint();
   }
   if (!result_consumed) {
+    ToBooleanMode mode(ToBooleanModeFromTypeHint(type_hint));
     switch (fallthrough) {
       case TestFallthrough::kThen:
-        builder()->JumpIfFalse(else_labels->New());
+        builder()->JumpIfFalse(mode, else_labels->New());
         break;
       case TestFallthrough::kElse:
-        builder()->JumpIfTrue(then_labels->New());
+        builder()->JumpIfTrue(mode, then_labels->New());
         break;
       case TestFallthrough::kNone:
-        builder()->JumpIfTrue(then_labels->New());
+        builder()->JumpIfTrue(mode, then_labels->New());
         builder()->Jump(else_labels->New());
     }
   }
@@ -3579,6 +3600,12 @@ void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {
   CurrentScope current_scope(this, scope);
   ContextScope context_scope(this, scope);
   Visit(stmt);
+}
+
+BytecodeArrayBuilder::ToBooleanMode
+BytecodeGenerator::ToBooleanModeFromTypeHint(TypeHint type_hint) {
+  return type_hint == TypeHint::kBoolean ? ToBooleanMode::kAlreadyBoolean
+                                         : ToBooleanMode::kConvertToBoolean;
 }
 
 LanguageMode BytecodeGenerator::language_mode() const {

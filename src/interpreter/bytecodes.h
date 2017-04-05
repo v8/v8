@@ -500,33 +500,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     return BytecodeOperands::WritesAccumulator(GetAccumulatorUse(bytecode));
   }
 
-  // Return true if |bytecode| writes the accumulator with a boolean value.
-  static bool WritesBooleanToAccumulator(Bytecode bytecode) {
-    switch (bytecode) {
-      case Bytecode::kLdaTrue:
-      case Bytecode::kLdaFalse:
-      case Bytecode::kToBooleanLogicalNot:
-      case Bytecode::kLogicalNot:
-      case Bytecode::kTestEqual:
-      case Bytecode::kTestEqualStrict:
-      case Bytecode::kTestLessThan:
-      case Bytecode::kTestLessThanOrEqual:
-      case Bytecode::kTestGreaterThan:
-      case Bytecode::kTestGreaterThanOrEqual:
-      case Bytecode::kTestInstanceOf:
-      case Bytecode::kTestIn:
-      case Bytecode::kTestEqualStrictNoFeedback:
-      case Bytecode::kTestUndetectable:
-      case Bytecode::kTestTypeOf:
-      case Bytecode::kForInContinue:
-      case Bytecode::kTestUndefined:
-      case Bytecode::kTestNull:
-        return true;
-      default:
-        return false;
-    }
-  }
-
   // Return true if |bytecode| is an accumulator load without effects,
   // e.g. LdaConstant, LdaTrue, Ldar.
   static constexpr bool IsAccumulatorLoadWithoutEffects(Bytecode bytecode) {

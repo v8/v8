@@ -128,56 +128,6 @@ TEST_F(BytecodePeepholeOptimizerTest, KeepStatementNop) {
   CHECK_EQ(add, last_written());
 }
 
-// Tests covering BytecodePeepholeOptimizer::UpdateCurrentBytecode().
-
-TEST_F(BytecodePeepholeOptimizerTest, KeepJumpIfToBooleanTrue) {
-  BytecodeNode first(Bytecode::kLdaNull);
-  BytecodeNode second(Bytecode::kJumpIfToBooleanTrue, 3);
-  BytecodeLabel label;
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->WriteJump(&second, &label);
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written(), second);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, ElideJumpIfToBooleanTrue) {
-  BytecodeNode first(Bytecode::kLdaTrue);
-  BytecodeNode second(Bytecode::kJumpIfToBooleanTrue, 3);
-  BytecodeLabel label;
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->WriteJump(&second, &label);
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written(), second);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, KeepToBooleanLogicalNot) {
-  BytecodeNode first(Bytecode::kLdaNull);
-  BytecodeNode second(Bytecode::kToBooleanLogicalNot);
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  Flush();
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written(), second);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, ElideToBooleanLogicalNot) {
-  BytecodeNode first(Bytecode::kLdaTrue);
-  BytecodeNode second(Bytecode::kToBooleanLogicalNot);
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  Flush();
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written().bytecode(), Bytecode::kLogicalNot);
-}
-
 // Tests covering BytecodePeepholeOptimizer::CanElideCurrent().
 
 TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRy) {

@@ -22,6 +22,8 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
   ~BytecodeArrayBuilderTest() override {}
 };
 
+using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
+
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   CanonicalHandleScope canonical(isolate());
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 1, 131);
@@ -194,9 +196,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CountOperation(Token::Value::SUB, 1);
 
   // Emit unary operator invocations.
-  builder
-      .LogicalNot()  // ToBooleanLogicalNot
-      .LogicalNot()  // non-ToBoolean LogicalNot
+  builder.LogicalNot(ToBooleanMode::kConvertToBoolean)
+      .LogicalNot(ToBooleanMode::kAlreadyBoolean)
       .TypeOf();
 
   // Emit delete
@@ -241,7 +242,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Short jumps with Imm8 operands
   {
     BytecodeLabel start, after_jump1, after_jump2, after_jump3, after_jump4,
-        after_jump5, after_jump6, after_jump7;
+        after_jump5, after_jump6, after_jump7, after_jump8, after_jump9,
+        after_jump10, after_jump11;
     builder.Bind(&start)
         .Jump(&after_jump1)
         .Bind(&after_jump1)
@@ -257,6 +259,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .Bind(&after_jump6)
         .JumpIfJSReceiver(&after_jump7)
         .Bind(&after_jump7)
+        .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &after_jump8)
+        .Bind(&after_jump8)
+        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &after_jump9)
+        .Bind(&after_jump9)
+        .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &after_jump10)
+        .Bind(&after_jump10)
+        .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &after_jump11)
+        .Bind(&after_jump11)
         .JumpLoop(&start, 0);
   }
 
@@ -266,14 +276,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     BytecodeLabel after_jump;
     builder.Jump(&end[0])
         .Bind(&after_jump)
-        .LoadTrue()
-        .JumpIfTrue(&end[1])
-        .LoadTrue()
-        .JumpIfFalse(&end[2])
-        .LoadLiteral(Smi::kZero)
-        .JumpIfTrue(&end[3])
-        .LoadLiteral(Smi::kZero)
-        .JumpIfFalse(&end[4])
+        .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &end[1])
+        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &end[2])
+        .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &end[3])
+        .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &end[4])
         .JumpIfNull(&end[5])
         .JumpIfNotNull(&end[6])
         .JumpIfUndefined(&end[7])
@@ -281,30 +287,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .JumpIfNotHole(&end[9])
         .LoadLiteral(ast_factory.prototype_string())
         .JumpIfJSReceiver(&end[10]);
-  }
-
-  // Perform an operation that returns boolean value to
-  // generate JumpIfTrue/False
-  {
-    BytecodeLabel after_jump1, after_jump2;
-    builder.CompareOperation(Token::Value::EQ, reg, 1)
-        .JumpIfTrue(&after_jump1)
-        .Bind(&after_jump1)
-        .CompareOperation(Token::Value::EQ, reg, 2)
-        .JumpIfFalse(&after_jump2)
-        .Bind(&after_jump2);
-  }
-
-  // Perform an operation that returns a non-boolean operation to
-  // generate JumpIfToBooleanTrue/False.
-  {
-    BytecodeLabel after_jump1, after_jump2;
-    builder.BinaryOperation(Token::Value::ADD, reg, 1)
-        .JumpIfTrue(&after_jump1)
-        .Bind(&after_jump1)
-        .BinaryOperation(Token::Value::ADD, reg, 2)
-        .JumpIfFalse(&after_jump2)
-        .Bind(&after_jump2);
   }
 
   // Emit set pending message bytecode.
@@ -439,12 +421,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   if (!FLAG_ignition_peephole) {
     // Insert entries for bytecodes only emitted by peephole optimizer.
-    scorecard[Bytecodes::ToByte(Bytecode::kLogicalNot)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kJump)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kJumpIfTrue)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kJumpIfFalse)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kJumpIfTrueConstant)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kJumpIfFalseConstant)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kAddSmi)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kSubSmi)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kBitwiseAndSmi)] = 1;
@@ -573,13 +549,13 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   builder.Jump(&near0)
       .Bind(&after_jump0)
       .CompareOperation(Token::Value::EQ, reg, 1)
-      .JumpIfTrue(&near1)
+      .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &near1)
       .CompareOperation(Token::Value::EQ, reg, 2)
-      .JumpIfFalse(&near2)
+      .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &near2)
       .BinaryOperation(Token::Value::ADD, reg, 1)
-      .JumpIfTrue(&near3)
+      .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &near3)
       .BinaryOperation(Token::Value::ADD, reg, 2)
-      .JumpIfFalse(&near4)
+      .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &near4)
       .Bind(&near0)
       .Bind(&near1)
       .Bind(&near2)
@@ -588,13 +564,13 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
       .Jump(&far0)
       .Bind(&after_jump1)
       .CompareOperation(Token::Value::EQ, reg, 3)
-      .JumpIfTrue(&far1)
+      .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &far1)
       .CompareOperation(Token::Value::EQ, reg, 4)
-      .JumpIfFalse(&far2)
+      .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &far2)
       .BinaryOperation(Token::Value::ADD, reg, 3)
-      .JumpIfTrue(&far3)
+      .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &far3)
       .BinaryOperation(Token::Value::ADD, reg, 4)
-      .JumpIfFalse(&far4);
+      .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &far4);
   for (int i = 0; i < kFarJumpDistance - 22; i++) {
     builder.Debugger();
   }

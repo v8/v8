@@ -25,7 +25,6 @@ namespace interpreter {
 #define PEEPHOLE_JUMP_ACTION_LIST(V) \
   V(DefaultJumpAction)               \
   V(UpdateLastJumpAction)            \
-  V(ChangeJumpBytecodeAction)        \
   V(ElideLastBeforeJumpAction)
 
 #define PEEPHOLE_ACTION_LIST(V)    \

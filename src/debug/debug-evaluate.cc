@@ -338,7 +338,6 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
   typedef interpreter::Bytecodes Bytecodes;
   if (Bytecodes::IsWithoutExternalSideEffects(bytecode)) return true;
   if (Bytecodes::IsCallOrConstruct(bytecode)) return true;
-  if (Bytecodes::WritesBooleanToAccumulator(bytecode)) return true;
   if (Bytecodes::IsJumpIfToBoolean(bytecode)) return true;
   if (Bytecodes::IsPrefixScalingBytecode(bytecode)) return true;
   switch (bytecode) {
@@ -385,6 +384,20 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kCreateClosure:
     case Bytecode::kCreateUnmappedArguments:
     case Bytecode::kCreateRestParameter:
+    // Comparisons.
+    case Bytecode::kTestEqual:
+    case Bytecode::kTestEqualStrict:
+    case Bytecode::kTestLessThan:
+    case Bytecode::kTestLessThanOrEqual:
+    case Bytecode::kTestGreaterThan:
+    case Bytecode::kTestGreaterThanOrEqual:
+    case Bytecode::kTestInstanceOf:
+    case Bytecode::kTestIn:
+    case Bytecode::kTestEqualStrictNoFeedback:
+    case Bytecode::kTestUndetectable:
+    case Bytecode::kTestTypeOf:
+    case Bytecode::kTestUndefined:
+    case Bytecode::kTestNull:
     // Conversions.
     case Bytecode::kToObject:
     case Bytecode::kToNumber:
