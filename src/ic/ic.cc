@@ -437,6 +437,14 @@ void IC::OnFeedbackChanged(Isolate* isolate, JSFunction* host_function) {
     info->change_own_type_change_checksum();
     host->set_profiler_ticks(0);
   } else if (host_function->IsInterpreted()) {
+    if (FLAG_trace_opt_verbose) {
+      if (host_function->shared()->profiler_ticks() != 0) {
+        PrintF("[resetting ticks for ");
+        host_function->PrintName();
+        PrintF(" due from %d due to IC change]\n",
+               host_function->shared()->profiler_ticks());
+      }
+    }
     host_function->shared()->set_profiler_ticks(0);
   }
   isolate->runtime_profiler()->NotifyICChanged();

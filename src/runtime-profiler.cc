@@ -402,8 +402,28 @@ OptimizationReason RuntimeProfiler::ShouldOptimizeIgnition(
     int typeinfo, generic, total, type_percentage, generic_percentage;
     GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
                 &generic_percentage);
-    if (type_percentage >= FLAG_type_info_threshold) {
-      return OptimizationReason::kSmallFunction;
+    if (type_percentage < FLAG_type_info_threshold) {
+      if (FLAG_trace_opt_verbose) {
+        PrintF("[not yet optimizing ");
+        function->PrintName();
+        PrintF(
+            ", not enough type info for small function optimization: %d/%d "
+            "(%d%%)]\n",
+            typeinfo, total, type_percentage);
+      }
+      return OptimizationReason::kDoNotOptimize;
+    }
+    return OptimizationReason::kSmallFunction;
+  } else if (FLAG_trace_opt_verbose) {
+    PrintF("[not yet optimizing ");
+    function->PrintName();
+    PrintF(", not enough ticks: %d/%d and ", ticks,
+           kProfilerTicksBeforeOptimization);
+    if (any_ic_changed_) {
+      PrintF("ICs changed]\n");
+    } else {
+      PrintF(" too large for small function optimization: %d/%d]\n",
+             shared->bytecode_array()->Size(), kMaxSizeEarlyOptIgnition);
     }
   }
   return OptimizationReason::kDoNotOptimize;
