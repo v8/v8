@@ -165,7 +165,6 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
 }  // namespace
 
 MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
-  ErrorThrower thrower(info->isolate(), "Asm.js -> WebAssembly conversion");
   wasm::ZoneBuffer* module = nullptr;
   wasm::ZoneBuffer* asm_offsets = nullptr;
   Handle<FixedArray> uses_array;
@@ -239,11 +238,13 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
 
   base::ElapsedTimer compile_timer;
   compile_timer.Start();
+  ErrorThrower thrower(info->isolate(), "Asm.js -> WebAssembly conversion");
   MaybeHandle<JSObject> compiled = SyncCompileTranslatedAsmJs(
       info->isolate(), &thrower,
       wasm::ModuleWireBytes(module->begin(), module->end()), info->script(),
       asm_offsets_vec);
   DCHECK(!compiled.is_null());
+  DCHECK(!thrower.error());
   double compile_time = compile_timer.Elapsed().InMillisecondsF();
   DCHECK_GE(module->end(), module->begin());
   uintptr_t wasm_size = module->end() - module->begin();
@@ -307,8 +308,6 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
   i::Handle<i::FixedArray> foreign_globals(
       i::FixedArray::cast(wasm_data->get(kWasmDataForeignGlobals)));
 
-  ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
-
   // Create the ffi object for foreign functions {"": foreign}.
   Handle<JSObject> ffi_object;
   if (!foreign.is_null()) {
@@ -319,11 +318,14 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                           foreign, NONE);
   }
 
+  ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
   i::MaybeHandle<i::Object> maybe_module_object =
       i::wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
   if (maybe_module_object.is_null()) {
+    thrower.Reify();  // Ensure exceptions do not propagate.
     return MaybeHandle<Object>();
   }
+  DCHECK(!thrower.error());
   i::Handle<i::Object> module_object = maybe_module_object.ToHandleChecked();
 
   if (!FLAG_fast_validate_asm) {
