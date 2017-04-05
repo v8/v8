@@ -354,6 +354,26 @@ class V8_EXPORT_PRIVATE CanonicalHandleScope final {
   friend class HandleScope;
 };
 
+// A DeferredHandleScope is a HandleScope in which handles are not destroyed
+// when the DeferredHandleScope is left. Instead the DeferredHandleScope has to
+// be detached with {Detach}, and the result of {Detach} has to be destroyed
+// explicitly. A DeferredHandleScope should only be used with the following
+// design pattern:
+// 1) Open a HandleScope (not a DeferredHandleScope).
+//    HandleScope scope(isolate_);
+// 2) Create handles.
+//    Handle<Object> h1 = handle(object1, isolate);
+//    Handle<Object> h2 = handle(object2, isolate);
+// 3) Open a DeferredHandleScope.
+//    DeferredHandleScope deferred_scope(isolate);
+// 4) Reopen handles which should be in the DeferredHandleScope, e.g only h1.
+//    h1 = handle(*h1, isolate);
+// 5) Detach the DeferredHandleScope.
+//    DeferredHandles* deferred_handles = deferred_scope.Detach();
+// 6) Destroy the deferred handles.
+//    delete deferred_handles;
+//
+// Note: A DeferredHandleScope must not be opened within a DeferredHandleScope.
 class V8_EXPORT_PRIVATE DeferredHandleScope final {
  public:
   explicit DeferredHandleScope(Isolate* isolate);
@@ -369,7 +389,7 @@ class V8_EXPORT_PRIVATE DeferredHandleScope final {
   HandleScopeImplementer* impl_;
 
 #ifdef DEBUG
-  bool handles_detached_;
+  bool handles_detached_ = false;
   int prev_level_;
 #endif
 
