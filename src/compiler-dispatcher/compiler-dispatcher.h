@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_DISPATCHER_COMPILER_DISPATCHER_H_
 #define V8_COMPILER_DISPATCHER_COMPILER_DISPATCHER_H_
 
-#include <cstdint>
 #include <map>
 #include <memory>
 #include <unordered_set>
@@ -17,7 +16,6 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/globals.h"
-#include "src/identity-map.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace v8 {
@@ -67,8 +65,6 @@ class Handle;
 // thread.
 class V8_EXPORT_PRIVATE CompilerDispatcher {
  public:
-  typedef uintptr_t JobId;
-
   enum class BlockingBehavior { kBlock, kDontBlock };
 
   CompilerDispatcher(Isolate* isolate, Platform* platform,
@@ -121,7 +117,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
                                   bool is_isolate_locked);
 
  private:
-  FRIEND_TEST(CompilerDispatcherTest, EnqueueJob);
   FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStep);
   FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepTwice);
   FRIEND_TEST(CompilerDispatcherTest, EnqueueParsed);
@@ -134,8 +129,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   FRIEND_TEST(CompilerDispatcherTest, FinishNowDuringAbortAll);
   FRIEND_TEST(CompilerDispatcherTest, CompileMultipleOnBackgroundThread);
 
-  typedef std::map<JobId, std::unique_ptr<CompilerDispatcherJob>> JobMap;
-  typedef IdentityMap<JobId, FreeStoreAllocationPolicy> SharedToJobIdMap;
+  typedef std::multimap<std::pair<int, int>,
+                        std::unique_ptr<CompilerDispatcherJob>>
+      JobMap;
   class AbortTask;
   class BackgroundTask;
   class IdleTask;
@@ -151,7 +147,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   void ScheduleAbortTask();
   void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
-  JobId Enqueue(std::unique_ptr<CompilerDispatcherJob> job);
 
   Isolate* isolate_;
   Platform* platform_;
@@ -164,14 +159,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
   std::unique_ptr<CancelableTaskManager> task_manager_;
 
-  // Id for next job to be added
-  JobId next_job_id_;
-
-  // Mapping from job_id to job.
+  // Mapping from (script id, function literal id) to job. We use a multimap,
+  // as script id is not necessarily unique.
   JobMap jobs_;
-
-  // Mapping from SharedFunctionInfo to corresponding JobId;
-  SharedToJobIdMap shared_to_job_id_;
 
   base::AtomicValue<v8::MemoryPressureLevel> memory_pressure_level_;
 

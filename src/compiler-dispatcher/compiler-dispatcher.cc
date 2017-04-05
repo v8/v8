@@ -221,8 +221,6 @@ CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
       trace_compiler_dispatcher_(FLAG_trace_compiler_dispatcher),
       tracer_(new CompilerDispatcherTracer(isolate_)),
       task_manager_(new CancelableTaskManager()),
-      next_job_id_(0),
-      shared_to_job_id_(isolate->heap()),
       memory_pressure_level_(MemoryPressureLevel::kNone),
       abort_(false),
       idle_task_scheduled_(false),
@@ -265,22 +263,6 @@ bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
   return true;
 }
 
-CompilerDispatcher::JobId CompilerDispatcher::Enqueue(
-    std::unique_ptr<CompilerDispatcherJob> job) {
-  DCHECK(!IsFinished(job.get()));
-  bool added;
-  JobMap::const_iterator it;
-  std::tie(it, added) =
-      jobs_.insert(std::make_pair(next_job_id_++, std::move(job)));
-  DCHECK(added);
-  if (!it->second->shared().is_null()) {
-    shared_to_job_id_.Set(it->second->shared(), it->first);
-  }
-  ConsiderJobForBackgroundProcessing(it->second.get());
-  ScheduleIdleTaskIfNeeded();
-  return it->first;
-}
-
 bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherEnqueue");
@@ -295,7 +277,10 @@ bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
 
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       isolate_, tracer_.get(), function, max_stack_size_));
-  Enqueue(std::move(job));
+  std::pair<int, int> key(Script::cast(function->script())->id(),
+                          function->function_literal_id());
+  jobs_.insert(std::make_pair(key, std::move(job)));
+  ScheduleIdleTaskIfNeeded();
   return true;
 }
 
@@ -336,7 +321,10 @@ bool CompilerDispatcher::Enqueue(
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       isolate_, tracer_.get(), script, function, literal, parse_zone,
       parse_handles, compile_handles, max_stack_size_));
-  Enqueue(std::move(job));
+  std::pair<int, int> key(Script::cast(function->script())->id(),
+                          function->function_literal_id());
+  jobs_.insert(std::make_pair(key, std::move(job)));
+  ScheduleIdleTaskIfNeeded();
   return true;
 }
 
@@ -420,9 +408,6 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   }
 
   job->second->ResetOnMainThread();
-  if (!job->second->shared().is_null()) {
-    shared_to_job_id_.Delete(job->second->shared());
-  }
   jobs_.erase(job);
   if (jobs_.empty()) {
     base::LockGuard<base::Mutex> lock(&mutex_);
@@ -445,7 +430,6 @@ void CompilerDispatcher::AbortAll(BlockingBehavior blocking) {
       it.second->ResetOnMainThread();
     }
     jobs_.clear();
-    shared_to_job_id_.Clear();
     {
       base::LockGuard<base::Mutex> lock(&mutex_);
       DCHECK(pending_background_jobs_.empty());
@@ -491,9 +475,6 @@ void CompilerDispatcher::AbortInactiveJobs() {
       PrintF("\n");
     }
     job->second->ResetOnMainThread();
-    if (!job->second->shared().is_null()) {
-      shared_to_job_id_.Delete(job->second->shared());
-    }
     jobs_.erase(job);
   }
   if (jobs_.empty()) {
@@ -535,13 +516,14 @@ void CompilerDispatcher::MemoryPressureNotification(
 
 CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::GetJobFor(
     Handle<SharedFunctionInfo> shared) const {
-  JobId* job_id_ptr = shared_to_job_id_.Find(shared);
-  JobMap::const_iterator job = jobs_.end();
-  if (job_id_ptr) {
-    job = jobs_.find(*job_id_ptr);
-    DCHECK(job == jobs_.end() || job->second->IsAssociatedWith(shared));
+  if (!shared->script()->IsScript()) return jobs_.end();
+  std::pair<int, int> key(Script::cast(shared->script())->id(),
+                          shared->function_literal_id());
+  auto range = jobs_.equal_range(key);
+  for (auto job = range.first; job != range.second; ++job) {
+    if (job->second->IsAssociatedWith(shared)) return job;
   }
-  return job;
+  return jobs_.end();
 }
 
 void CompilerDispatcher::ScheduleIdleTaskFromAnyThread() {
@@ -715,9 +697,6 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
         tracer_->DumpStatistics();
       }
       job->second->ResetOnMainThread();
-      if (!job->second->shared().is_null()) {
-        shared_to_job_id_.Delete(job->second->shared());
-      }
       job = jobs_.erase(job);
       continue;
     } else {

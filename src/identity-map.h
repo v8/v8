@@ -112,10 +112,7 @@ class IdentityMap : public IdentityMapBase {
   void Set(Object* key, V v) { *(reinterpret_cast<V*>(GetEntry(key))) = v; }
 
   V Delete(Handle<Object> key) { return Delete(*key); }
-  V Delete(Object* key) {
-    void* val = DeleteEntry(key);
-    return *reinterpret_cast<V*>(&val);
-  }
+  V Delete(Object* key) { return reinterpret_cast<V>(DeleteEntry(key)); }
 
   // Removes all elements from the map.
   void Clear() { IdentityMapBase::Clear(); }

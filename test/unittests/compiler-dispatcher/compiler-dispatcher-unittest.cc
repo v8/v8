@@ -20,17 +20,6 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-// V8 is smart enough to know something was already compiled and return compiled
-// code straight away. We need a unique name for each test function so that V8
-// returns an empty SharedFunctionInfo.
-#define _STR(x) #x
-#define STR(x) _STR(x)
-#define _SCRIPT(fn, a, b, c) a fn b fn c
-#define SCRIPT(a, b, c) _SCRIPT("f" STR(__LINE__), a, b, c)
-#define TEST_SCRIPT()                           \
-  SCRIPT("function g() { var y = 1; function ", \
-         "(x) { return x * y }; return ", "; } g();")
-
 namespace v8 {
 namespace internal {
 
@@ -281,7 +270,9 @@ TEST_F(CompilerDispatcherTest, IsEnqueued) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f1(x) { return x * y }; return f1; } "
+      "g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -298,7 +289,9 @@ TEST_F(CompilerDispatcherTest, FinishNow) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f2(x) { return x * y }; return f2; } "
+      "g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -316,7 +309,9 @@ TEST_F(CompilerDispatcherTest, IdleTask) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f3(x) { return x * y }; return f3; } "
+      "g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -336,7 +331,9 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f4(x) { return x * y }; return f4; } "
+      "g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -374,12 +371,11 @@ TEST_F(CompilerDispatcherTest, IdleTaskException) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, 50);
 
-  std::string func_name("f" STR(__LINE__));
-  std::string script("function g() { function " + func_name + "(x) { var a = ");
+  std::string script("function g() { function f5(x) { var a = ");
   for (int i = 0; i < 1000; i++) {
     script += "'x' + ";
   }
-  script += " 'x'; }; return " + func_name + "; } g();";
+  script += " 'x'; }; return f5; } g();";
   Handle<JSFunction> f =
       Handle<JSFunction>::cast(RunJS(isolate(), script.c_str()));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
@@ -401,7 +397,9 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f6(x) { return x * y }; return f6; } "
+      "g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -444,7 +442,9 @@ TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f7(x) { return x * y }; return f7; } "
+      "g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -483,11 +483,15 @@ TEST_F(CompilerDispatcherTest, IdleTaskMultipleJobs) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script1[] = TEST_SCRIPT();
+  const char script1[] =
+      "function g() { var y = 1; function f8(x) { return x * y }; return f8; } "
+      "g();";
   Handle<JSFunction> f1 = Handle<JSFunction>::cast(RunJS(isolate(), script1));
   Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
 
-  const char script2[] = TEST_SCRIPT();
+  const char script2[] =
+      "function g() { var y = 1; function f9(x) { return x * y }; return f9; } "
+      "g();";
   Handle<JSFunction> f2 = Handle<JSFunction>::cast(RunJS(isolate(), script2));
   Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
 
@@ -510,12 +514,11 @@ TEST_F(CompilerDispatcherTest, FinishNowException) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, 50);
 
-  std::string func_name("f" STR(__LINE__));
-  std::string script("function g() { function " + func_name + "(x) { var a = ");
+  std::string script("function g() { function f10(x) { var a = ");
   for (int i = 0; i < 1000; i++) {
     script += "'x' + ";
   }
-  script += " 'x'; }; return " + func_name + "; } g();";
+  script += " 'x'; }; return f10; } g();";
   Handle<JSFunction> f =
       Handle<JSFunction>::cast(RunJS(isolate(), script.c_str()));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
@@ -538,7 +541,9 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f11(x) { return x * y }; return f11; "
+      "} g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -580,11 +585,15 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script1[] = TEST_SCRIPT();
+  const char script1[] =
+      "function g() { var y = 1; function f11(x) { return x * y }; return f11; "
+      "} g();";
   Handle<JSFunction> f1 = Handle<JSFunction>::cast(RunJS(isolate(), script1));
   Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
 
-  const char script2[] = TEST_SCRIPT();
+  const char script2[] =
+      "function g() { var y = 1; function f12(x) { return x * y }; return f12; "
+      "} g();";
   Handle<JSFunction> f2 = Handle<JSFunction>::cast(RunJS(isolate(), script2));
   Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
 
@@ -660,7 +669,9 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f13(x) { return x * y }; return f13; "
+      "} g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -738,7 +749,9 @@ TEST_F(CompilerDispatcherTest, MemoryPressure) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f14(x) { return x * y }; return f14; "
+      "} g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -785,7 +798,9 @@ TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f15(x) { return x * y }; return f15; "
+      "} g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -813,29 +828,13 @@ TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
   platform.ClearIdleTask();
 }
 
-TEST_F(CompilerDispatcherTest, EnqueueJob) {
-  MockPlatform platform;
-  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
-  const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
-  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
-  std::unique_ptr<CompilerDispatcherJob> job(
-      new CompilerDispatcherJob(i_isolate(), dispatcher.tracer_.get(), shared,
-                                dispatcher.max_stack_size_));
-  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  dispatcher.Enqueue(std::move(job));
-  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
-
-  ASSERT_TRUE(platform.IdleTaskPending());
-  platform.ClearIdleTask();
-  ASSERT_FALSE(platform.BackgroundTasksPending());
-}
-
 TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] = TEST_SCRIPT();
+  const char script[] =
+      "function g() { var y = 1; function f16(x) { return x * y }; return f16; "
+      "} g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -856,7 +855,9 @@ TEST_F(CompilerDispatcherTest, EnqueueParsed) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char source[] = TEST_SCRIPT();
+  const char source[] =
+      "function g() { var y = 1; function f17(x) { return x * y }; return f17; "
+      "} g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), source));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
   Handle<Script> script(Script::cast(shared->script()), i_isolate());
@@ -882,7 +883,9 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char source[] = TEST_SCRIPT();
+  const char source[] =
+      "function g() { var y = 1; function f18(x) { return x * y }; return f18; "
+      "} g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), source));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
   Handle<Script> script(Script::cast(shared->script()), i_isolate());
@@ -910,7 +913,9 @@ TEST_F(CompilerDispatcherTest, CompileParsedOutOfScope) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char source[] = TEST_SCRIPT();
+  const char source[] =
+      "function g() { var y = 1; function f20(x) { return x + y }; return f20; "
+      "} g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), source));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
   Handle<Script> script(Script::cast(shared->script()), i_isolate());
@@ -1022,7 +1027,9 @@ TEST_F(CompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
   // enqueued functions.
   CompilerDispatcher* dispatcher = i_isolate()->compiler_dispatcher();
 
-  const char source[] = TEST_SCRIPT();
+  const char source[] =
+      "function g() { var y = 1; function f16(x) { return x * y }; return f16; "
+      "} g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), source));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
@@ -1069,7 +1076,9 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char source[] = TEST_SCRIPT();
+  const char source[] =
+      "function g() { var y = 1; function f18(x) { return x * y }; return f18; "
+      "} g();";
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), source));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
   Handle<Script> script(Script::cast(shared->script()), i_isolate());
@@ -1109,10 +1118,14 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script1[] = TEST_SCRIPT();
+  const char script1[] =
+      "function g() { var y = 1; function f19(x) { return x * y }; "
+      "return f19; } g();";
   Handle<JSFunction> f1 = Handle<JSFunction>::cast(RunJS(isolate(), script1));
   Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
-  const char script2[] = TEST_SCRIPT();
+  const char script2[] =
+      "function g() { var y = 1; function f20(x) { return x * y }; "
+      "return f20; } g();";
   Handle<JSFunction> f2 = Handle<JSFunction>::cast(RunJS(isolate(), script2));
   Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
 
