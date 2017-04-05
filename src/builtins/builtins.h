@@ -28,6 +28,9 @@ class Builtins {
  public:
   ~Builtins();
 
+  // Generate all builtin code objects. Should be called once during
+  // isolate initialization.
+  void SetUp(Isolate* isolate, bool create_heap_objects);
   void TearDown();
 
   // Garbage collection support.
@@ -104,11 +107,6 @@ class Builtins {
 
  private:
   Builtins();
-  // Used by SetupIsolateDelegate.
-  void MarkInitialized() {
-    DCHECK(!initialized_);
-    initialized_ = true;
-  }
 
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode,
@@ -147,7 +145,6 @@ class Builtins {
   bool initialized_;
 
   friend class Isolate;
-  friend class SetupIsolateDelegate;
 
   DISALLOW_COPY_AND_ASSIGN(Builtins);
 };

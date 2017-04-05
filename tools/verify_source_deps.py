@@ -53,7 +53,6 @@ ALL_GYP_PREFIXES = [
 
 GYP_UNSUPPORTED_FEATURES = [
   'gcmole',
-  'setup-isolate-deserialize.cc',
 ]
 
 GN_FILES = [

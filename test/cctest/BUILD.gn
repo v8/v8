@@ -102,8 +102,6 @@ v8_executable("cctest") {
     "profiler-extension.cc",
     "profiler-extension.h",
     "scope-test-helper.h",
-    "setup-isolate-for-tests.cc",
-    "setup-isolate-for-tests.h",
     "test-access-checks.cc",
     "test-accessor-assembler.cc",
     "test-accessors.cc",
@@ -334,7 +332,6 @@ v8_executable("cctest") {
 
   deps = [
     ":resources",
-    "../..:v8_builtins_generators",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:wasm_module_runner",

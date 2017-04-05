@@ -122,8 +122,6 @@
       'profiler-extension.cc',
       'profiler-extension.h',
       'scope-test-helper.h',
-      'setup-isolate-for-tests.cc',
-      'setup-isolate-for-tests.h',
       'test-access-checks.cc',
       'test-accessor-assembler.cc',
       'test-accessors.cc',

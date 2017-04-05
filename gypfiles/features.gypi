@@ -137,8 +137,5 @@
         ],  # conditions
       },  # Release
     },  # configurations
-    'defines': [
-      'V8_GYP_BUILD',
-    ],  # defines
   },  # target_defaults
 }

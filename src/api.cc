@@ -8182,12 +8182,6 @@ Isolate* Isolate::GetCurrent() {
 
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
   i::Isolate* isolate = new i::Isolate(false);
-  return IsolateNewImpl(isolate, params);
-}
-
-// This is separate so that tests can provide a different |isolate|.
-Isolate* IsolateNewImpl(internal::Isolate* isolate,
-                        const v8::Isolate::CreateParams& params) {
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
   CHECK(params.array_buffer_allocator != NULL);
   isolate->set_array_buffer_allocator(params.array_buffer_allocator);

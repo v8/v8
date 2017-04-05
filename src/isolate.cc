@@ -44,7 +44,6 @@
 #include "src/prototype.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime-profiler.h"
-#include "src/setup-isolate.h"
 #include "src/simulator.h"
 #include "src/snapshot/deserializer.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -2228,7 +2227,6 @@ Isolate::Isolate(bool enable_serializer)
       global_handles_(NULL),
       eternal_handles_(NULL),
       thread_manager_(NULL),
-      setup_delegate_(NULL),
       regexp_stack_(NULL),
       date_cache_(NULL),
       call_descriptor_data_(NULL),
@@ -2668,10 +2666,7 @@ bool Isolate::Init(Deserializer* des) {
   InitializeThreadLocal();
 
   bootstrapper_->Initialize(create_heap_objects);
-  if (setup_delegate_ == nullptr) {
-    setup_delegate_ = new SetupIsolateDelegate();
-  }
-  setup_delegate_->SetupBuiltins(this, create_heap_objects);
+  builtins_.SetUp(this, create_heap_objects);
   if (create_heap_objects) heap_.CreateFixedStubs();
 
   if (FLAG_log_internal_timer_events) {
@@ -2698,12 +2693,10 @@ bool Isolate::Init(Deserializer* des) {
     }
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
-    setup_delegate_->SetupInterpreter(interpreter_, create_heap_objects);
+    interpreter_->Initialize();
 
     heap_.NotifyDeserializationComplete();
   }
-  delete setup_delegate_;
-  setup_delegate_ = nullptr;
 
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();
