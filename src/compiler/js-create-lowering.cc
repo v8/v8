@@ -198,9 +198,13 @@ bool IsFastLiteral(Handle<JSObject> boilerplate, int max_depth,
 }
 
 // Maximum depth and total number of elements and properties for literal
-// graphs to be considered for fast deep-copying.
+// graphs to be considered for fast deep-copying. The limit is chosen to
+// match the maximum number of inobject properties, to ensure that the
+// performance of using object literals is not worse than using constructor
+// functions, see crbug.com/v8/6211 for details.
 const int kMaxFastLiteralDepth = 3;
-const int kMaxFastLiteralProperties = 8;
+const int kMaxFastLiteralProperties =
+    (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kPointerSizeLog2;
 
 }  // namespace
 
