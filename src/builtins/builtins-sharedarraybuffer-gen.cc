@@ -60,14 +60,14 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
                        Int32Constant(FIXED_FLOAT32_ARRAY_TYPE)),
          &not_float_or_clamped, &invalid);
 
-  Bind(&invalid);
+  BIND(&invalid);
   {
     CallRuntime(Runtime::kThrowNotIntegerSharedTypedArrayError, context,
                 tagged);
     Unreachable();
   }
 
-  Bind(&not_float_or_clamped);
+  BIND(&not_float_or_clamped);
   *out_instance_type = elements_instance_type;
 
   Node* backing_store =
@@ -94,13 +94,13 @@ Node* SharedArrayBufferBuiltinsAssembler::ConvertTaggedAtomicIndexToWord32(
   Label if_numberissmi(this), if_numberisnotsmi(this);
   Branch(TaggedIsSmi(*number_index), &if_numberissmi, &if_numberisnotsmi);
 
-  Bind(&if_numberissmi);
+  BIND(&if_numberissmi);
   {
     var_result.Bind(SmiToWord32(*number_index));
     Goto(&done);
   }
 
-  Bind(&if_numberisnotsmi);
+  BIND(&if_numberisnotsmi);
   {
     Node* number_index_value = LoadHeapNumberValue(*number_index);
     Node* access_index = TruncateFloat64ToWord32(number_index_value);
@@ -110,20 +110,20 @@ Node* SharedArrayBufferBuiltinsAssembler::ConvertTaggedAtomicIndexToWord32(
     Branch(Float64Equal(number_index_value, test_index), &if_indexesareequal,
            &if_indexesarenotequal);
 
-    Bind(&if_indexesareequal);
+    BIND(&if_indexesareequal);
     {
       var_result.Bind(access_index);
       Goto(&done);
     }
 
-    Bind(&if_indexesarenotequal);
+    BIND(&if_indexesarenotequal);
     {
       CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context);
       Unreachable();
     }
   }
 
-  Bind(&done);
+  BIND(&done);
   return var_result.value();
 }
 
@@ -136,7 +136,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateAtomicIndex(
   CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context);
   Unreachable();
 
-  Bind(&check_passed);
+  BIND(&check_passed);
 }
 
 TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
@@ -168,32 +168,32 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   Switch(instance_type, &other, case_values, case_labels,
          arraysize(case_labels));
 
-  Bind(&i8);
+  BIND(&i8);
   Return(SmiFromWord32(
       AtomicLoad(MachineType::Int8(), backing_store, index_word)));
 
-  Bind(&u8);
+  BIND(&u8);
   Return(SmiFromWord32(
       AtomicLoad(MachineType::Uint8(), backing_store, index_word)));
 
-  Bind(&i16);
+  BIND(&i16);
   Return(SmiFromWord32(
       AtomicLoad(MachineType::Int16(), backing_store, WordShl(index_word, 1))));
 
-  Bind(&u16);
+  BIND(&u16);
   Return(SmiFromWord32(AtomicLoad(MachineType::Uint16(), backing_store,
                                   WordShl(index_word, 1))));
 
-  Bind(&i32);
+  BIND(&i32);
   Return(ChangeInt32ToTagged(
       AtomicLoad(MachineType::Int32(), backing_store, WordShl(index_word, 2))));
 
-  Bind(&u32);
+  BIND(&u32);
   Return(ChangeUint32ToTagged(AtomicLoad(MachineType::Uint32(), backing_store,
                                          WordShl(index_word, 2))));
 
   // This shouldn't happen, we've already validated the type.
-  Bind(&other);
+  BIND(&other);
   Unreachable();
 }
 
@@ -229,23 +229,23 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   Switch(instance_type, &other, case_values, case_labels,
          arraysize(case_labels));
 
-  Bind(&u8);
+  BIND(&u8);
   AtomicStore(MachineRepresentation::kWord8, backing_store, index_word,
               value_word32);
   Return(value_integer);
 
-  Bind(&u16);
+  BIND(&u16);
   AtomicStore(MachineRepresentation::kWord16, backing_store,
               WordShl(index_word, 1), value_word32);
   Return(value_integer);
 
-  Bind(&u32);
+  BIND(&u32);
   AtomicStore(MachineRepresentation::kWord32, backing_store,
               WordShl(index_word, 2), value_word32);
   Return(value_integer);
 
   // This shouldn't happen, we've already validated the type.
-  Bind(&other);
+  BIND(&other);
   Unreachable();
 }
 
@@ -288,34 +288,34 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   Switch(instance_type, &other, case_values, case_labels,
          arraysize(case_labels));
 
-  Bind(&i8);
+  BIND(&i8);
   Return(SmiFromWord32(AtomicExchange(MachineType::Int8(), backing_store,
                                       index_word, value_word32)));
 
-  Bind(&u8);
+  BIND(&u8);
   Return(SmiFromWord32(AtomicExchange(MachineType::Uint8(), backing_store,
                                       index_word, value_word32)));
 
-  Bind(&i16);
+  BIND(&i16);
   Return(SmiFromWord32(AtomicExchange(MachineType::Int16(), backing_store,
                                       WordShl(index_word, 1), value_word32)));
 
-  Bind(&u16);
+  BIND(&u16);
   Return(SmiFromWord32(AtomicExchange(MachineType::Uint16(), backing_store,
                                       WordShl(index_word, 1), value_word32)));
 
-  Bind(&i32);
+  BIND(&i32);
   Return(ChangeInt32ToTagged(AtomicExchange(MachineType::Int32(), backing_store,
                                             WordShl(index_word, 2),
                                             value_word32)));
 
-  Bind(&u32);
+  BIND(&u32);
   Return(ChangeUint32ToTagged(
       AtomicExchange(MachineType::Uint32(), backing_store,
                      WordShl(index_word, 2), value_word32)));
 
   // This shouldn't happen, we've already validated the type.
-  Bind(&other);
+  BIND(&other);
   Unreachable();
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 }
@@ -365,38 +365,38 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   Switch(instance_type, &other, case_values, case_labels,
          arraysize(case_labels));
 
-  Bind(&i8);
+  BIND(&i8);
   Return(SmiFromWord32(AtomicCompareExchange(MachineType::Int8(), backing_store,
                                              index_word, old_value_word32,
                                              new_value_word32)));
 
-  Bind(&u8);
+  BIND(&u8);
   Return(SmiFromWord32(
       AtomicCompareExchange(MachineType::Uint8(), backing_store, index_word,
                             old_value_word32, new_value_word32)));
 
-  Bind(&i16);
+  BIND(&i16);
   Return(SmiFromWord32(AtomicCompareExchange(
       MachineType::Int16(), backing_store, WordShl(index_word, 1),
       old_value_word32, new_value_word32)));
 
-  Bind(&u16);
+  BIND(&u16);
   Return(SmiFromWord32(AtomicCompareExchange(
       MachineType::Uint16(), backing_store, WordShl(index_word, 1),
       old_value_word32, new_value_word32)));
 
-  Bind(&i32);
+  BIND(&i32);
   Return(ChangeInt32ToTagged(AtomicCompareExchange(
       MachineType::Int32(), backing_store, WordShl(index_word, 2),
       old_value_word32, new_value_word32)));
 
-  Bind(&u32);
+  BIND(&u32);
   Return(ChangeUint32ToTagged(AtomicCompareExchange(
       MachineType::Uint32(), backing_store, WordShl(index_word, 2),
       old_value_word32, new_value_word32)));
 
   // This shouldn't happen, we've already validated the type.
-  Bind(&other);
+  BIND(&other);
   Unreachable();
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
         // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X

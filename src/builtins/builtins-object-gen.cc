@@ -29,7 +29,7 @@ void ObjectBuiltinsAssembler::IsString(Node* object, Label* if_string,
   Label if_notsmi(this);
   Branch(TaggedIsSmi(object), if_notstring, &if_notsmi);
 
-  Bind(&if_notsmi);
+  BIND(&if_notsmi);
   {
     Node* instance_type = LoadInstanceType(object);
 
@@ -59,7 +59,7 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
   // Smi receivers do not have own properties.
   Label if_objectisnotsmi(this);
   Branch(TaggedIsSmi(object), &return_false, &if_objectisnotsmi);
-  Bind(&if_objectisnotsmi);
+  BIND(&if_objectisnotsmi);
 
   Node* map = LoadMap(object);
   Node* instance_type = LoadMapInstanceType(map);
@@ -72,23 +72,23 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
     TryToName(key, &keyisindex, &var_index, &if_iskeyunique, &var_unique,
               &call_runtime);
 
-    Bind(&if_iskeyunique);
+    BIND(&if_iskeyunique);
     TryHasOwnProperty(object, map, instance_type, var_unique.value(),
                       &return_true, &return_false, &call_runtime);
 
-    Bind(&keyisindex);
+    BIND(&keyisindex);
     // Handle negative keys in the runtime.
     GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)), &call_runtime);
     TryLookupElement(object, map, instance_type, var_index.value(),
                      &return_true, &return_false, &return_false, &call_runtime);
   }
-  Bind(&return_true);
+  BIND(&return_true);
   Return(BooleanConstant(true));
 
-  Bind(&return_false);
+  BIND(&return_false);
   Return(BooleanConstant(false));
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   Return(CallRuntime(Runtime::kObjectHasOwnProperty, context, object, key));
 }
 
@@ -126,7 +126,7 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
   Branch(Word32Equal(receiver_instance_type, Int32Constant(JS_PROXY_TYPE)),
          &if_isproxy, &checkstringtag);
 
-  Bind(&if_isproxy);
+  BIND(&if_isproxy);
   {
     // This can throw
     var_proxy_is_array.Bind(
@@ -134,7 +134,7 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
     Goto(&checkstringtag);
   }
 
-  Bind(&checkstringtag);
+  BIND(&checkstringtag);
   {
     Node* to_string_tag_symbol =
         HeapConstant(isolate()->factory()->to_string_tag_symbol());
@@ -147,10 +147,10 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
 
     IsString(to_string_tag_value, &if_tostringtag, &if_notostringtag);
 
-    Bind(&if_tostringtag);
+    BIND(&if_tostringtag);
     ReturnToStringFormat(context, to_string_tag_value);
   }
-  Bind(&if_notostringtag);
+  BIND(&if_notostringtag);
   {
     size_t const kNumCases = 11;
     Label* case_labels[kNumCases];
@@ -181,37 +181,37 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
     Switch(receiver_instance_type, &return_object, case_values, case_labels,
            arraysize(case_values));
 
-    Bind(&return_undefined);
+    BIND(&return_undefined);
     Return(HeapConstant(isolate()->factory()->undefined_to_string()));
 
-    Bind(&return_null);
+    BIND(&return_null);
     Return(HeapConstant(isolate()->factory()->null_to_string()));
 
-    Bind(&return_arguments);
+    BIND(&return_arguments);
     Return(HeapConstant(isolate()->factory()->arguments_to_string()));
 
-    Bind(&return_array);
+    BIND(&return_array);
     Return(HeapConstant(isolate()->factory()->array_to_string()));
 
-    Bind(&return_function);
+    BIND(&return_function);
     Return(HeapConstant(isolate()->factory()->function_to_string()));
 
-    Bind(&return_error);
+    BIND(&return_error);
     Return(HeapConstant(isolate()->factory()->error_to_string()));
 
-    Bind(&return_date);
+    BIND(&return_date);
     Return(HeapConstant(isolate()->factory()->date_to_string()));
 
-    Bind(&return_regexp);
+    BIND(&return_regexp);
     Return(HeapConstant(isolate()->factory()->regexp_to_string()));
 
-    Bind(&return_api);
+    BIND(&return_api);
     {
       Node* class_name = CallRuntime(Runtime::kClassOf, context, receiver);
       ReturnToStringFormat(context, class_name);
     }
 
-    Bind(&return_jsvalue);
+    BIND(&return_jsvalue);
     {
       Label return_boolean(this), return_number(this), return_string(this);
 
@@ -228,17 +228,17 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
       CSA_ASSERT(this, Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE)));
       Goto(&return_object);
 
-      Bind(&return_string);
+      BIND(&return_string);
       Return(HeapConstant(isolate()->factory()->string_to_string()));
 
-      Bind(&return_number);
+      BIND(&return_number);
       Return(HeapConstant(isolate()->factory()->number_to_string()));
 
-      Bind(&return_boolean);
+      BIND(&return_boolean);
       Return(HeapConstant(isolate()->factory()->boolean_to_string()));
     }
 
-    Bind(&return_jsproxy);
+    BIND(&return_jsproxy);
     {
       GotoIf(WordEqual(var_proxy_is_array.value(), BooleanConstant(true)),
              &return_array);
@@ -250,7 +250,7 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
     }
 
     // Default
-    Bind(&return_object);
+    BIND(&return_object);
     Return(HeapConstant(isolate()->factory()->object_to_string()));
   }
 }
@@ -280,7 +280,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BranchIfJSReceiver(prototype, &prototype_valid, &call_runtime);
   }
 
-  Bind(&prototype_valid);
+  BIND(&prototype_valid);
   {
     Comment("Argument 2 check: properties");
     // Check that we have a simple object
@@ -301,7 +301,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   }
 
   // Create a new object with the given prototype.
-  Bind(&no_properties);
+  BIND(&no_properties);
   {
     Variable map(this, MachineRepresentation::kTagged);
     Variable properties(this, MachineRepresentation::kTagged);
@@ -309,7 +309,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
     Branch(WordEqual(prototype, NullConstant()), &good, &non_null_proto);
 
-    Bind(&good);
+    BIND(&good);
     {
       map.Bind(LoadContextElement(
           context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
@@ -317,7 +317,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       Goto(&instantiate_map);
     }
 
-    Bind(&non_null_proto);
+    BIND(&non_null_proto);
     {
       properties.Bind(EmptyFixedArrayConstant());
       Node* object_function =
@@ -338,14 +338,14 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       Goto(&instantiate_map);
     }
 
-    Bind(&instantiate_map);
+    BIND(&instantiate_map);
     {
       Node* instance = AllocateJSObjectFromMap(map.value(), properties.value());
       Return(instance);
     }
   }
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   {
     Return(CallRuntime(Runtime::kObjectCreate, context, prototype, properties));
   }

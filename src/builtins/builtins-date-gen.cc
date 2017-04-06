@@ -47,7 +47,7 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
       Return(LoadObjectField(
           receiver, JSDate::kValueOffset + field_index * kPointerSize));
 
-      Bind(&stamp_mismatch);
+      BIND(&stamp_mismatch);
     }
 
     Node* field_index_smi = SmiConstant(Smi::FromInt(field_index));
@@ -60,7 +60,7 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
   }
 
   // Raise a TypeError if the receiver is not a date.
-  Bind(&receiver_not_date);
+  BIND(&receiver_not_date);
   {
     CallRuntime(Runtime::kThrowNotDateError, context);
     Unreachable();
@@ -219,7 +219,7 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   Goto(&hint_is_invalid);
 
   // Use the OrdinaryToPrimitive builtin to convert to a Number.
-  Bind(&hint_is_number);
+  BIND(&hint_is_number);
   {
     Callable callable = CodeFactory::OrdinaryToPrimitive(
         isolate(), OrdinaryToPrimitiveHint::kNumber);
@@ -228,7 +228,7 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   }
 
   // Use the OrdinaryToPrimitive builtin to convert to a String.
-  Bind(&hint_is_string);
+  BIND(&hint_is_string);
   {
     Callable callable = CodeFactory::OrdinaryToPrimitive(
         isolate(), OrdinaryToPrimitiveHint::kString);
@@ -237,14 +237,14 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   }
 
   // Raise a TypeError if the {hint} is invalid.
-  Bind(&hint_is_invalid);
+  BIND(&hint_is_invalid);
   {
     CallRuntime(Runtime::kThrowInvalidHint, context, hint);
     Unreachable();
   }
 
   // Raise a TypeError if the {receiver} is not a JSReceiver instance.
-  Bind(&receiver_is_invalid);
+  BIND(&receiver_is_invalid);
   {
     CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
                 HeapConstant(factory()->NewStringFromAsciiChecked(

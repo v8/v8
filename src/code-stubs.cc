@@ -469,7 +469,7 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
     Return(value);
   }
 
-  Bind(&miss);
+  BIND(&miss);
   {
     Comment("Miss");
     TailCallRuntime(Runtime::kElementsTransitionAndStoreIC_Miss, context,
@@ -521,7 +521,7 @@ TF_STUB(KeyedLoadSloppyArgumentsStub, CodeStubAssembler) {
   Node* result = LoadKeyedSloppyArguments(receiver, key, &miss);
   Return(result);
 
-  Bind(&miss);
+  BIND(&miss);
   {
     Comment("Miss");
     TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, key, slot,
@@ -543,7 +543,7 @@ TF_STUB(KeyedStoreSloppyArgumentsStub, CodeStubAssembler) {
   StoreKeyedSloppyArguments(receiver, key, value, &miss);
   Return(value);
 
-  Bind(&miss);
+  BIND(&miss);
   {
     Comment("Miss");
     TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot, vector,
@@ -597,10 +597,10 @@ TF_STUB(LoadIndexedInterceptorStub, CodeStubAssembler) {
 
   Label if_keyispositivesmi(this), if_keyisinvalid(this);
   Branch(TaggedIsPositiveSmi(key), &if_keyispositivesmi, &if_keyisinvalid);
-  Bind(&if_keyispositivesmi);
+  BIND(&if_keyispositivesmi);
   TailCallRuntime(Runtime::kLoadElementWithInterceptor, context, receiver, key);
 
-  Bind(&if_keyisinvalid);
+  BIND(&if_keyisinvalid);
   TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, key, slot,
                   vector);
 }
@@ -658,7 +658,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
   Node* is_smi = TaggedIsSmi(target);
   Branch(is_smi, &extra_checks, &call_function);
 
-  Bind(&call_function);
+  BIND(&call_function);
   {
     // Call using CallFunction builtin.
     Callable callable = CodeFactory::CallFunction(
@@ -666,7 +666,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
     TailCallStub(callable, context, target, argc);
   }
 
-  Bind(&extra_checks);
+  BIND(&extra_checks);
   {
     Label check_initialized(this), mark_megamorphic(this),
         create_allocation_site(this, Label::kDeferred),
@@ -693,7 +693,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
     Callable callable = CodeFactory::ArrayConstructor(isolate());
     TailCallStub(callable, context, target, target, argc, feedback_element);
 
-    Bind(&check_initialized);
+    BIND(&check_initialized);
     {
       Comment("check if uninitialized");
       // Check if it is uninitialized target first.
@@ -725,7 +725,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
       Branch(is_same_native_context, &create_weak_cell, &mark_megamorphic);
     }
 
-    Bind(&create_weak_cell);
+    BIND(&create_weak_cell);
     {
       // Wrap the {target} in a WeakCell and remember it.
       Comment("create weak cell");
@@ -735,7 +735,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
       Goto(&call_function);
     }
 
-    Bind(&create_allocation_site);
+    BIND(&create_allocation_site);
     {
       // Create an AllocationSite for the {target}.
       Comment("create allocation site");
@@ -747,7 +747,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
       Goto(&call_function);
     }
 
-    Bind(&mark_megamorphic);
+    BIND(&mark_megamorphic);
     {
       // Mark it as a megamorphic.
       // MegamorphicSentinel is created as a part of Heap::InitialObjects
@@ -761,7 +761,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
     }
   }
 
-  Bind(&call);
+  BIND(&call);
   {
     // Call using call builtin.
     Comment("call using Call builtin");
@@ -840,7 +840,7 @@ TF_STUB(GetPropertyStub, CodeStubAssembler) {
         TryGetOwnProperty(context, receiver, holder, holder_map,
                           holder_instance_type, unique_name, &if_found,
                           &var_value, next_holder, if_bailout);
-        Bind(&if_found);
+        BIND(&if_found);
         {
           var_result.Bind(var_value.value());
           Goto(&end);
@@ -860,19 +860,19 @@ TF_STUB(GetPropertyStub, CodeStubAssembler) {
                           lookup_element_in_holder, &return_undefined,
                           &call_runtime);
 
-  Bind(&return_undefined);
+  BIND(&return_undefined);
   {
     var_result.Bind(UndefinedConstant());
     Goto(&end);
   }
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   {
     var_result.Bind(CallRuntime(Runtime::kGetProperty, context, object, key));
     Goto(&end);
   }
 
-  Bind(&end);
+  BIND(&end);
   Return(var_result.value());
 }
 
@@ -918,7 +918,7 @@ TF_STUB(StoreFastElementStub, CodeStubAssembler) {
                    stub->elements_kind(), stub->store_mode(), &miss);
   Return(value);
 
-  Bind(&miss);
+  BIND(&miss);
   {
     Comment("Miss");
     TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot, vector,
@@ -1065,14 +1065,14 @@ void ArrayConstructorAssembler::GenerateConstructor(
 
   Branch(TaggedIsSmi(array_size), &smi_size, &call_runtime);
 
-  Bind(&smi_size);
+  BIND(&smi_size);
 
   if (IsFastPackedElementsKind(elements_kind)) {
     Label abort(this, Label::kDeferred);
     Branch(SmiEqual(array_size, SmiConstant(Smi::kZero)), &small_smi_size,
            &abort);
 
-    Bind(&abort);
+    BIND(&abort);
     Node* reason = SmiConstant(Smi::FromInt(kAllocatingNonEmptyPackedArray));
     TailCallRuntime(Runtime::kAbort, context, reason);
   } else {
@@ -1087,7 +1087,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
            &call_runtime, &small_smi_size);
   }
 
-  Bind(&small_smi_size);
+  BIND(&small_smi_size);
   {
     Node* array = AllocateJSArray(
         elements_kind, array_map, array_size, array_size,
@@ -1096,7 +1096,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
     Return(array);
   }
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   {
     TailCallRuntime(Runtime::kNewArray, context, array_function, array_size,
                     array_function, allocation_site);
@@ -1144,7 +1144,7 @@ TF_STUB(GrowArrayElementsStub, CodeStubAssembler) {
       TryGrowElementsCapacity(object, elements, kind, key, &runtime);
   Return(new_elements);
 
-  Bind(&runtime);
+  BIND(&runtime);
   // TODO(danno): Make this a tail call when the stub is only used from TurboFan
   // code. This musn't be a tail call for now, since the caller site in lithium
   // creates a safepoint. This safepoint musn't have a different number of

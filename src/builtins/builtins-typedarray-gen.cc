@@ -81,9 +81,9 @@ void TypedArrayBuiltinsAssembler::LoadMapAndElementsSize(Node* const array,
     }
   }
 
-  Bind(&unreachable);
+  BIND(&unreachable);
   { Unreachable(); }
-  Bind(&done);
+  BIND(&done);
 }
 
 // The byte_offset can be higher than Smi range, in which case to perform the
@@ -128,7 +128,7 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
   CSA_ASSERT(this, TaggedIsSmi(byte_length));
   Goto(&setup_holder);
 
-  Bind(&setup_holder);
+  BIND(&setup_holder);
   {
     LoadMapAndElementsSize(holder, &fixed_typed_map, &element_size);
     // Setup the holder (JSArrayBufferView).
@@ -148,7 +148,7 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     Branch(IsNull(maybe_buffer), &alloc_array_buffer, &attach_buffer);
   }
 
-  Bind(&alloc_array_buffer);
+  BIND(&alloc_array_buffer);
   {
     // Allocate a new ArrayBuffer and initialize it with empty properties and
     // elements.
@@ -202,14 +202,14 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     Goto(&allocate_elements);
   }
 
-  Bind(&aligned);
+  BIND(&aligned);
   {
     Node* header_size = IntPtrConstant(FixedTypedArrayBase::kHeaderSize);
     total_size.Bind(IntPtrAdd(SmiToWord(byte_length), header_size));
     Goto(&allocate_elements);
   }
 
-  Bind(&allocate_elements);
+  BIND(&allocate_elements);
   {
     // Allocate a FixedTypedArray and set the length, base pointer and external
     // pointer.
@@ -240,7 +240,7 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     Goto(&done);
   }
 
-  Bind(&attach_buffer);
+  BIND(&attach_buffer);
   {
     StoreObjectField(holder, JSArrayBufferView::kBufferOffset, maybe_buffer);
 
@@ -264,7 +264,7 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     Goto(&done);
   }
 
-  Bind(&done);
+  BIND(&done);
 }
 
 TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
@@ -300,7 +300,7 @@ void TypedArrayBuiltinsAssembler::InitializeBasedOnLength(
                             SmiConstant(FLAG_typed_array_max_size_in_heap)),
          &do_init, &allocate_buffer);
 
-  Bind(&allocate_buffer);
+  BIND(&allocate_buffer);
   {
     Node* const buffer_constructor = LoadContextElement(
         LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX);
@@ -309,7 +309,7 @@ void TypedArrayBuiltinsAssembler::InitializeBasedOnLength(
     Goto(&do_init);
   }
 
-  Bind(&do_init);
+  BIND(&do_init);
   {
     DoInitialize(holder, length, maybe_buffer.value(), byte_offset, byte_length,
                  initialize, context);
@@ -340,7 +340,7 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
                           context);
   Return(UndefinedConstant());
 
-  Bind(&invalid_length);
+  BIND(&invalid_length);
   {
     CallRuntime(Runtime::kThrowRangeError, context,
                 SmiConstant(MessageTemplate::kInvalidTypedArrayLength));
@@ -385,7 +385,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   Branch(TaggedIsSmi(offset.value()), &offset_is_smi, &offset_not_smi);
 
   // Check that the offset is a multiple of the element size.
-  Bind(&offset_is_smi);
+  BIND(&offset_is_smi);
   {
     GotoIf(SmiEqual(offset.value(), SmiConstant(0)), &check_length);
     GotoIf(SmiLessThan(offset.value(), SmiConstant(0)), &invalid_length);
@@ -393,7 +393,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
     Branch(SmiEqual(remainder, SmiConstant(0)), &check_length,
            &start_offset_error);
   }
-  Bind(&offset_not_smi);
+  BIND(&offset_not_smi);
   {
     GotoIf(IsTrue(CallStub(less_than, context, offset.value(), SmiConstant(0))),
            &invalid_length);
@@ -403,11 +403,11 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
            &check_length, &start_offset_error);
   }
 
-  Bind(&check_length);
+  BIND(&check_length);
   // TODO(petermarshall): Throw on detached typedArray.
   Branch(IsUndefined(length), &length_undefined, &length_defined);
 
-  Bind(&length_undefined);
+  BIND(&length_undefined);
   {
     Node* buffer_byte_length =
         LoadObjectField(buffer, JSArrayBuffer::kByteLengthOffset);
@@ -425,7 +425,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
            &invalid_offset_error, &call_init);
   }
 
-  Bind(&length_defined);
+  BIND(&length_defined);
   {
     Node* new_length = ToSmiIndex(length, context, &invalid_length);
     new_byte_length.Bind(SmiMul(new_length, element_size));
@@ -440,7 +440,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
            &invalid_length, &call_init);
   }
 
-  Bind(&call_init);
+  BIND(&call_init);
   {
     Node* new_length =
         CallStub(div, context, new_byte_length.value(), element_size);
@@ -452,14 +452,14 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
     Return(UndefinedConstant());
   }
 
-  Bind(&invalid_offset_error);
+  BIND(&invalid_offset_error);
   {
     CallRuntime(Runtime::kThrowRangeError, context,
                 SmiConstant(MessageTemplate::kInvalidOffset), byte_offset);
     Unreachable();
   }
 
-  Bind(&start_offset_error);
+  BIND(&start_offset_error);
   {
     Node* holder_map = LoadMap(holder);
     Node* problem_string = HeapConstant(
@@ -470,7 +470,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
     Unreachable();
   }
 
-  Bind(&byte_length_error);
+  BIND(&byte_length_error);
   {
     Node* holder_map = LoadMap(holder);
     Node* problem_string = HeapConstant(
@@ -481,7 +481,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
     Unreachable();
   }
 
-  Bind(&invalid_length);
+  BIND(&invalid_length);
   {
     CallRuntime(Runtime::kThrowRangeError, context,
                 SmiConstant(MessageTemplate::kInvalidTypedArrayLength));
@@ -513,12 +513,12 @@ compiler::Node* TypedArrayBuiltinsAssembler::ByteLengthIsValid(
   is_valid.Bind(Float64LessThanOrEqual(float_value, max_byte_length_double));
   Goto(&done);
 
-  Bind(&smi);
+  BIND(&smi);
   Node* max_byte_length = IntPtrConstant(FixedTypedArrayBase::kMaxByteLength);
   is_valid.Bind(UintPtrLessThanOrEqual(SmiUntag(byte_length), max_byte_length));
   Goto(&done);
 
-  Bind(&done);
+  BIND(&done);
   return is_valid.value();
 }
 
@@ -543,7 +543,7 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   GotoIf(SmiNotEqual(length, SmiConstant(0)), &fill);
   Return(UndefinedConstant());
 
-  Bind(&fill);
+  BIND(&fill);
   Node* holder_kind = LoadMapElementsKind(LoadMap(holder));
   Node* source_kind = LoadMapElementsKind(LoadMap(array_like));
   GotoIf(Word32Equal(holder_kind, source_kind), &fast_copy);
@@ -556,7 +556,7 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
          array_like, length, SmiConstant(0));
   Return(UndefinedConstant());
 
-  Bind(&fast_copy);
+  BIND(&fast_copy);
   {
     Node* holder_data_ptr = LoadDataPtr(holder);
     Node* source_data_ptr = LoadDataPtr(array_like);
@@ -583,7 +583,7 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
     Return(UndefinedConstant());
   }
 
-  Bind(&invalid_length);
+  BIND(&invalid_length);
   {
     CallRuntime(Runtime::kThrowRangeError, context,
                 SmiConstant(MessageTemplate::kInvalidTypedArrayLength));
@@ -606,13 +606,13 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
   GotoIf(IsDetachedBuffer(receiver_buffer), &if_receiverisneutered);
   Return(LoadObjectField(receiver, object_offset));
 
-  Bind(&if_receiverisneutered);
+  BIND(&if_receiverisneutered);
   {
     // The {receiver}s buffer was neutered, default to zero.
     Return(SmiConstant(0));
   }
 
-  Bind(&receiver_is_incompatible);
+  BIND(&receiver_is_incompatible);
   {
     // The {receiver} is not a valid JSTypedArray.
     CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
@@ -673,16 +673,16 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
                              iteration_kind));
 
   Variable var_message(this, MachineRepresentation::kTagged);
-  Bind(&throw_bad_receiver);
+  BIND(&throw_bad_receiver);
   var_message.Bind(SmiConstant(MessageTemplate::kNotTypedArray));
   Goto(&throw_typeerror);
 
-  Bind(&if_receiverisneutered);
+  BIND(&if_receiverisneutered);
   var_message.Bind(
       SmiConstant(Smi::FromInt(MessageTemplate::kDetachedOperation)));
   Goto(&throw_typeerror);
 
-  Bind(&throw_typeerror);
+  BIND(&throw_typeerror);
   {
     Node* method_arg = HeapConstant(
         isolate()->factory()->NewStringFromAsciiChecked(method_name, TENURED));

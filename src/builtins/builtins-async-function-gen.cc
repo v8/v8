@@ -169,7 +169,7 @@ TF_BUILTIN(AsyncFunctionPromiseCreate, AsyncFunctionBuiltinsAssembler) {
   // Early exit if debug is not active.
   Return(promise);
 
-  Bind(&if_is_debug_active);
+  BIND(&if_is_debug_active);
   {
     // Push the Promise under construction in an async function on
     // the catch prediction stack to handle exceptions thrown before
@@ -192,7 +192,7 @@ TF_BUILTIN(AsyncFunctionPromiseRelease, AsyncFunctionBuiltinsAssembler) {
   // Early exit if debug is not active.
   Return(UndefinedConstant());
 
-  Bind(&if_is_debug_active);
+  BIND(&if_is_debug_active);
   {
     // Pop the Promise under construction in an async function on
     // from catch prediction stack.

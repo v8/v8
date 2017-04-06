@@ -77,7 +77,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   }
   Goto(&if_function_without_prototype);
 
-  Bind(&if_normal);
+  BIND(&if_normal);
   {
     map_index.Bind(SelectIntPtrConstant(is_strict,
                                         Context::STRICT_FUNCTION_MAP_INDEX,
@@ -85,7 +85,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
     Goto(&load_map);
   }
 
-  Bind(&if_generator);
+  BIND(&if_generator);
   {
     Node* is_async =
         Word32And(compiler_hints,
@@ -97,26 +97,26 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
     Goto(&load_map);
   }
 
-  Bind(&if_async);
+  BIND(&if_async);
   {
     map_index.Bind(IntPtrConstant(Context::ASYNC_FUNCTION_MAP_INDEX));
     Goto(&load_map);
   }
 
-  Bind(&if_class_constructor);
+  BIND(&if_class_constructor);
   {
     map_index.Bind(IntPtrConstant(Context::CLASS_FUNCTION_MAP_INDEX));
     Goto(&load_map);
   }
 
-  Bind(&if_function_without_prototype);
+  BIND(&if_function_without_prototype);
   {
     map_index.Bind(
         IntPtrConstant(Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
     Goto(&load_map);
   }
 
-  Bind(&load_map);
+  BIND(&load_map);
 
   // Get the function map in the current native context and set that
   // as the map of the allocated object.
@@ -143,15 +143,15 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
     CSA_ASSERT(this, IsManyClosuresCellMap(cell_map));
     Goto(&cell_done);
 
-    Bind(&no_closures);
+    BIND(&no_closures);
     StoreMapNoWriteBarrier(literals_cell, Heap::kOneClosureCellMapRootIndex);
     Goto(&cell_done);
 
-    Bind(&one_closure);
+    BIND(&one_closure);
     StoreMapNoWriteBarrier(literals_cell, Heap::kManyClosuresCellMapRootIndex);
     Goto(&cell_done);
 
-    Bind(&cell_done);
+    BIND(&cell_done);
   }
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackVectorOffset,
                                  literals_cell);
@@ -193,7 +193,7 @@ TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
   Node* result = EmitFastNewObject(context, target, new_target, &call_runtime);
   Return(result);
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   TailCallRuntime(Runtime::kNewObject, context, target, new_target);
 }
 
@@ -207,11 +207,11 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
   var_obj.Bind(result);
   Goto(&end);
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   var_obj.Bind(CallRuntime(Runtime::kNewObject, context, target, new_target));
   Goto(&end);
 
-  Bind(&end);
+  BIND(&end);
   return var_obj.value();
 }
 
@@ -227,7 +227,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
   GotoIf(HasInstanceType(new_target, JS_FUNCTION_TYPE), &fast);
   Goto(call_runtime);
 
-  Bind(&fast);
+  BIND(&fast);
 
   // Load the initial map and verify that it's in fact a map.
   Node* initial_map =
@@ -249,13 +249,13 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
     properties.Bind(EmptyFixedArrayConstant());
     Goto(&instantiate_map);
   }
-  Bind(&allocate_properties);
+  BIND(&allocate_properties);
   {
     properties.Bind(AllocateNameDictionary(NameDictionary::kInitialCapacity));
     Goto(&instantiate_map);
   }
 
-  Bind(&instantiate_map);
+  BIND(&instantiate_map);
 
   Node* object = AllocateJSObjectFromMap(initial_map, properties.value());
 
@@ -278,7 +278,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
   }
 
   {
-    Bind(&slack_tracking);
+    BIND(&slack_tracking);
 
     // Decrease generous allocation count.
     STATIC_ASSERT(Map::ConstructionCounter::kNext == 32);
@@ -308,7 +308,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
 
   {
     // Finalize the instance size.
-    Bind(&finalize);
+    BIND(&finalize);
 
     Node* unused_fields = LoadObjectField(
         initial_map, Map::kUnusedPropertyFieldsOffset, MachineType::Uint8());
@@ -328,7 +328,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
     Goto(&end);
   }
 
-  Bind(&end);
+  BIND(&end);
   return object;
 }
 
@@ -428,14 +428,14 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
     Goto(&end);
   }
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   {
     result.Bind(CallRuntime(Runtime::kCreateRegExpLiteral, context, closure,
                             literal_index, pattern, flags));
     Goto(&end);
   }
 
-  Bind(&end);
+  BIND(&end);
   return result.value();
 }
 
@@ -519,7 +519,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
       Branch(IsFixedDoubleArrayMap(elements_map), &correct_elements_map,
              &abort);
 
-      Bind(&abort);
+      BIND(&abort);
       {
         Node* abort_id = SmiConstant(
             Smi::FromInt(BailoutReason::kExpectedFixedDoubleArrayMap));
@@ -527,7 +527,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
         result.Bind(UndefinedConstant());
         Goto(&return_result);
       }
-      Bind(&correct_elements_map);
+      BIND(&correct_elements_map);
     }
 
     Node* array =
@@ -537,7 +537,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
     Goto(&return_result);
   }
 
-  Bind(&fast_elements);
+  BIND(&fast_elements);
   {
     Comment("fast elements path");
     Node* array =
@@ -551,7 +551,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
       elements(this, MachineRepresentation::kTagged);
   Label allocate_without_elements(this);
 
-  Bind(&cow_elements);
+  BIND(&cow_elements);
   {
     Comment("fixed cow path");
     length.Bind(LoadJSArrayLength(boilerplate));
@@ -560,7 +560,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
     Goto(&allocate_without_elements);
   }
 
-  Bind(&zero_capacity);
+  BIND(&zero_capacity);
   {
     Comment("zero capacity path");
     length.Bind(zero);
@@ -569,7 +569,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
     Goto(&allocate_without_elements);
   }
 
-  Bind(&allocate_without_elements);
+  BIND(&allocate_without_elements);
   {
     Node* array = AllocateUninitializedJSArrayWithoutElements(
         FAST_ELEMENTS, boilerplate_map, length.value(), allocation_site);
@@ -578,7 +578,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
     Goto(&return_result);
   }
 
-  Bind(&return_result);
+  BIND(&return_result);
   return result.value();
 }
 
@@ -594,7 +594,7 @@ void ConstructorBuiltinsAssembler::CreateFastCloneShallowArrayBuiltin(
   Return(EmitFastCloneShallowArray(closure, literal_index, context,
                                    &call_runtime, allocation_site_mode));
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   {
     Comment("call runtime");
     Node* flags =
@@ -648,7 +648,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
   Label loop_body(this, &offset), loop_check(this, &offset);
   // We should always have an object size greater than zero.
   Goto(&loop_body);
-  Bind(&loop_body);
+  BIND(&loop_body);
   {
     // The Allocate above guarantees that the copy lies in new space. This
     // allows us to skip write barriers. This is necessary since we may also be
@@ -658,7 +658,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
                         offset.value(), field);
     Goto(&loop_check);
   }
-  Bind(&loop_check);
+  BIND(&loop_check);
   {
     offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
     GotoIfNot(IntPtrGreaterThanOrEqual(offset.value(), end_offset), &loop_body);
@@ -699,7 +699,7 @@ void ConstructorBuiltinsAssembler::CreateFastCloneShallowObjectBuiltin(
       &call_runtime, closure, literals_index, properties_count_node);
   Return(copy);
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   Node* constant_properties = Parameter(Descriptor::kConstantProperties);
   Node* flags = Parameter(Descriptor::kFlags);
   Node* context = Parameter(Descriptor::kContext);

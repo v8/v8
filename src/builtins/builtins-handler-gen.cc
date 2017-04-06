@@ -30,7 +30,7 @@ TF_BUILTIN(KeyedLoadIC_IndexedString, CodeStubAssembler) {
   Node* result = StringFromCharCode(code);
   Return(result);
 
-  Bind(&miss);
+  BIND(&miss);
   TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, index, slot,
                   vector);
 }
@@ -142,10 +142,10 @@ TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
   var_result.Bind(LoadMapPrototype(proto_or_map));
   Goto(&done);
 
-  Bind(&done);
+  BIND(&done);
   Return(var_result.value());
 
-  Bind(&miss);
+  BIND(&miss);
   TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name, slot, vector);
 }
 

@@ -50,7 +50,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       Goto(&if_join);
     }
 
-    Bind(&if_join);
+    BIND(&if_join);
     return var_data.value();
   }
 
@@ -165,7 +165,7 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
   Variable* input_vars[2] = {&var_left, &var_right};
   Label if_equal(this), if_notequal(this), restart(this, 2, input_vars);
   Goto(&restart);
-  Bind(&restart);
+  BIND(&restart);
   Node* lhs = var_left.value();
   Node* rhs = var_right.value();
 
@@ -213,7 +213,7 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
                      Int32Constant(kBothDirectOneByteStringTag)),
          &if_bothdirectonebytestrings, &if_notbothdirectonebytestrings);
 
-  Bind(&if_bothdirectonebytestrings);
+  BIND(&if_bothdirectonebytestrings);
   {
     // Compute the effective offset of the first character.
     Node* lhs_data = DirectStringData(lhs, lhs_instance_type);
@@ -227,7 +227,7 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
     Label loop(this, &var_offset);
     var_offset.Bind(IntPtrConstant(0));
     Goto(&loop);
-    Bind(&loop);
+    BIND(&loop);
     {
       // If {offset} equals {end}, no difference was found, so the
       // strings are equal.
@@ -247,7 +247,7 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
     }
   }
 
-  Bind(&if_notbothdirectonebytestrings);
+  BIND(&if_notbothdirectonebytestrings);
   {
     // Try to unwrap indirect strings, restart the above attempt on success.
     MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
@@ -257,10 +257,10 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
     TailCallRuntime(Runtime::kStringEqual, context, lhs, rhs);
   }
 
-  Bind(&if_equal);
+  BIND(&if_equal);
   Return(TrueConstant());
 
-  Bind(&if_notequal);
+  BIND(&if_notequal);
   Return(FalseConstant());
 }
 
@@ -273,7 +273,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
   Label if_less(this), if_equal(this), if_greater(this);
   Label restart(this, 2, input_vars);
   Goto(&restart);
-  Bind(&restart);
+  BIND(&restart);
 
   Node* lhs = var_left.value();
   Node* rhs = var_right.value();
@@ -302,7 +302,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
                      Int32Constant(kBothSeqOneByteStringTag)),
          &if_bothonebyteseqstrings, &if_notbothonebyteseqstrings);
 
-  Bind(&if_bothonebyteseqstrings);
+  BIND(&if_bothonebyteseqstrings);
   {
     // Load the length of {lhs} and {rhs}.
     Node* lhs_length = LoadStringLength(lhs);
@@ -323,14 +323,14 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
     Label loop(this, &var_offset);
     var_offset.Bind(begin);
     Goto(&loop);
-    Bind(&loop);
+    BIND(&loop);
     {
       // Check if {offset} equals {end}.
       Node* offset = var_offset.value();
       Label if_done(this), if_notdone(this);
       Branch(WordEqual(offset, end), &if_done, &if_notdone);
 
-      Bind(&if_notdone);
+      BIND(&if_notdone);
       {
         // Load the next characters from {lhs} and {rhs}.
         Node* lhs_value = Load(MachineType::Uint8(), lhs, offset);
@@ -341,18 +341,18 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
         Branch(Word32Equal(lhs_value, rhs_value), &if_valueissame,
                &if_valueisnotsame);
 
-        Bind(&if_valueissame);
+        BIND(&if_valueissame);
         {
           // Advance to next character.
           var_offset.Bind(IntPtrAdd(offset, IntPtrConstant(1)));
         }
         Goto(&loop);
 
-        Bind(&if_valueisnotsame);
+        BIND(&if_valueisnotsame);
         Branch(Uint32LessThan(lhs_value, rhs_value), &if_less, &if_greater);
       }
 
-      Bind(&if_done);
+      BIND(&if_done);
       {
         // All characters up to the min length are equal, decide based on
         // string length.
@@ -362,7 +362,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
     }
   }
 
-  Bind(&if_notbothonebyteseqstrings);
+  BIND(&if_notbothonebyteseqstrings);
   {
     // Try to unwrap indirect strings, restart the above attempt on success.
     MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
@@ -384,7 +384,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
     }
   }
 
-  Bind(&if_less);
+  BIND(&if_less);
   switch (mode) {
     case RelationalComparisonMode::kLessThan:
     case RelationalComparisonMode::kLessThanOrEqual:
@@ -397,7 +397,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
       break;
   }
 
-  Bind(&if_equal);
+  BIND(&if_equal);
   switch (mode) {
     case RelationalComparisonMode::kLessThan:
     case RelationalComparisonMode::kGreaterThan:
@@ -410,7 +410,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
       break;
   }
 
-  Bind(&if_greater);
+  BIND(&if_greater);
   switch (mode) {
     case RelationalComparisonMode::kLessThan:
     case RelationalComparisonMode::kLessThanOrEqual:
@@ -508,7 +508,7 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
   Branch(WordEqual(argc, IntPtrConstant(1)), &if_oneargument,
          &if_notoneargument);
 
-  Bind(&if_oneargument);
+  BIND(&if_oneargument);
   {
     // Single argument case, perform fast single character string cache lookup
     // for one-byte code units, or fall back to creating a single character
@@ -521,7 +521,7 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
   }
 
   Node* code16 = nullptr;
-  Bind(&if_notoneargument);
+  BIND(&if_notoneargument);
   {
     Label two_byte(this);
     // Assume that the resulting string contains only one-byte characters.
@@ -554,7 +554,7 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
     });
     arguments.PopAndReturn(one_byte_result);
 
-    Bind(&two_byte);
+    BIND(&two_byte);
 
     // At least one of the characters in the string requires a 16-bit
     // representation.  Allocate a SeqTwoByteString to hold the resulting
@@ -627,10 +627,10 @@ TF_BUILTIN(StringPrototypeCharAt, CodeStubAssembler) {
     Branch(SmiAboveOrEqual(position, receiver_length), &return_emptystring,
            &if_positioninbounds);
 
-    Bind(&return_emptystring);
+    BIND(&return_emptystring);
     Return(EmptyStringConstant());
 
-    Bind(&if_positioninbounds);
+    BIND(&if_positioninbounds);
   }
 
   // Load the character code at the {position} from the {receiver}.
@@ -666,10 +666,10 @@ TF_BUILTIN(StringPrototypeCharCodeAt, CodeStubAssembler) {
     Branch(SmiAboveOrEqual(position, receiver_length), &return_nan,
            &if_positioninbounds);
 
-    Bind(&return_nan);
+    BIND(&return_nan);
     Return(NaNConstant());
 
-    Bind(&if_positioninbounds);
+    BIND(&if_positioninbounds);
   }
 
   // Load the character at the {position} from the {receiver}.
@@ -744,14 +744,14 @@ void StringBuiltinsAssembler::StringIndexOf(
     DispatchOnStringInstanceType(instance_type, &if_onebyte_sequential,
                                  &if_onebyte_external, &call_runtime_unchecked);
 
-    Bind(&if_onebyte_sequential);
+    BIND(&if_onebyte_sequential);
     {
       var_string_addr.Bind(
           OneByteCharAddress(BitcastTaggedToWord(receiver), start_position));
       Goto(&check_search_string);
     }
 
-    Bind(&if_onebyte_external);
+    BIND(&if_onebyte_external);
     {
       Node* const unpacked = TryDerefExternalString(receiver, instance_type,
                                                     &call_runtime_unchecked);
@@ -761,7 +761,7 @@ void StringBuiltinsAssembler::StringIndexOf(
   }
 
   // Load the needle character.
-  Bind(&check_search_string);
+  BIND(&check_search_string);
   {
     Label if_onebyte_sequential(this);
     Label if_onebyte_external(this, Label::kDeferred);
@@ -770,14 +770,14 @@ void StringBuiltinsAssembler::StringIndexOf(
                                  &if_onebyte_sequential, &if_onebyte_external,
                                  &call_runtime_unchecked);
 
-    Bind(&if_onebyte_sequential);
+    BIND(&if_onebyte_sequential);
     {
       var_needle_byte.Bind(
           ChangeInt32ToIntPtr(LoadOneByteChar(search_string, int_zero)));
       Goto(&continue_fast_path);
     }
 
-    Bind(&if_onebyte_external);
+    BIND(&if_onebyte_external);
     {
       Node* const unpacked = TryDerefExternalString(
           search_string, search_string_instance_type, &call_runtime_unchecked);
@@ -787,7 +787,7 @@ void StringBuiltinsAssembler::StringIndexOf(
     }
   }
 
-  Bind(&continue_fast_path);
+  BIND(&continue_fast_path);
   {
     Node* needle_byte = var_needle_byte.value();
     Node* string_addr = var_string_addr.value();
@@ -806,16 +806,16 @@ void StringBuiltinsAssembler::StringIndexOf(
     f_return(SmiTag(result_index));
   }
 
-  Bind(&return_minus_1);
+  BIND(&return_minus_1);
   f_return(SmiConstant(-1));
 
-  Bind(&zero_length_needle);
+  BIND(&zero_length_needle);
   {
     Comment("0-length search_string");
     f_return(SmiTag(IntPtrMin(string_length, start_position)));
   }
 
-  Bind(&call_runtime_unchecked);
+  BIND(&call_runtime_unchecked);
   {
     // Simplified version of the runtime call where the types of the arguments
     // are already known due to type checks in this stub.
@@ -864,7 +864,7 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
   GotoIf(IntPtrEqual(argc, IntPtrConstant(0)), &argc_0);
   GotoIf(IntPtrEqual(argc, IntPtrConstant(1)), &argc_1);
   Goto(&argc_2);
-  Bind(&argc_0);
+  BIND(&argc_0);
   {
     Comment("0 Argument case");
     Node* undefined = UndefinedConstant();
@@ -872,14 +872,14 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
     position.Bind(undefined);
     Goto(&call_runtime);
   }
-  Bind(&argc_1);
+  BIND(&argc_1);
   {
     Comment("1 Argument case");
     search_string.Bind(arguments.AtIndex(0));
     position.Bind(SmiConstant(0));
     Goto(&fast_path);
   }
-  Bind(&argc_2);
+  BIND(&argc_2);
   {
     Comment("2 Argument case");
     search_string.Bind(arguments.AtIndex(0));
@@ -888,7 +888,7 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
     Goto(&fast_path);
   }
 
-  Bind(&fast_path);
+  BIND(&fast_path);
   {
     Comment("Fast Path");
     GotoIf(TaggedIsSmi(receiver), &call_runtime);
@@ -906,7 +906,7 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
         [&arguments](Node* result) { arguments.PopAndReturn(result); });
   }
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   {
     Comment("Call Runtime");
     Node* result = CallRuntime(Runtime::kStringIndexOf, context, receiver,
@@ -925,12 +925,12 @@ void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
   Label out(this), throw_exception(this, Label::kDeferred);
   Branch(IsNullOrUndefined(value), &throw_exception, &out);
 
-  Bind(&throw_exception);
+  BIND(&throw_exception);
   TailCallRuntime(
       Runtime::kThrowCalledOnNullOrUndefined, context,
       HeapConstant(factory()->NewStringFromAsciiChecked(method_name, TENURED)));
 
-  Bind(&out);
+  BIND(&out);
 }
 
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
@@ -961,7 +961,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
 
     Branch(WordEqual(proto_map, initial_proto_initial_map), &out, &next);
 
-    Bind(&next);
+    BIND(&next);
   }
 
   // Take the fast path for RegExps.
@@ -972,10 +972,10 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     regexp_asm.BranchIfFastRegExp(context, object, object_map, &stub_call,
                                   &slow_lookup);
 
-    Bind(&stub_call);
+    BIND(&stub_call);
     Return(regexp_call());
 
-    Bind(&slow_lookup);
+    BIND(&slow_lookup);
   }
 
   GotoIf(IsNullOrUndefined(object), &out);
@@ -990,7 +990,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   Node* const result = generic_call(maybe_func);
   Return(result);
 
-  Bind(&out);
+  BIND(&out);
 }
 
 // ES6 #sec-string.prototype.replace
@@ -1059,7 +1059,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     Return(CallRuntime(Runtime::kStringReplaceOneCharWithString, context,
                        subject_string, search_string, replace));
 
-    Bind(&next);
+    BIND(&next);
   }
 
   // TODO(jgruber): Extend StringIndexOf to handle two-byte strings and
@@ -1088,10 +1088,10 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     CallStub(tostring_callable, context, replace);
     Goto(&return_subject);
 
-    Bind(&return_subject);
+    BIND(&return_subject);
     Return(subject_string);
 
-    Bind(&next);
+    BIND(&next);
   }
 
   Node* const match_end_index = SmiAdd(match_start_index, search_length);
@@ -1113,7 +1113,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     var_result.Bind(prefix);
 
     Goto(&next);
-    Bind(&next);
+    BIND(&next);
   }
 
   // Compute the string to replace with.
@@ -1123,7 +1123,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Branch(IsCallableMap(LoadMap(replace)), &if_iscallablereplace,
          &if_notcallablereplace);
 
-  Bind(&if_iscallablereplace);
+  BIND(&if_iscallablereplace);
   {
     Callable call_callable = CodeFactory::Call(isolate());
     Node* const replacement =
@@ -1136,7 +1136,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     Goto(&out);
   }
 
-  Bind(&if_notcallablereplace);
+  BIND(&if_notcallablereplace);
   {
     Node* const replace_string = CallStub(tostring_callable, context, replace);
 
@@ -1151,7 +1151,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     Goto(&out);
   }
 
-  Bind(&out);
+  BIND(&out);
   {
     Node* const suffix = CallStub(substring_callable, context, subject_string,
                                   match_end_index, subject_length);
@@ -1221,7 +1221,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
     Return(result);
 
-    Bind(&next);
+    BIND(&next);
   }
 
   // ECMA-262 says that if {separator} is undefined, the result should
@@ -1243,7 +1243,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
     Return(result);
 
-    Bind(&next);
+    BIND(&next);
   }
 
   // If the separator string is empty then return the elements in the subject.
@@ -1255,7 +1255,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
                                      subject_string, limit_number);
     Return(result);
 
-    Bind(&next);
+    BIND(&next);
   }
 
   Node* const result =
@@ -1292,7 +1292,7 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
     Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
     Branch(TaggedIsSmi(start_int), &if_issmi, &if_isheapnumber);
 
-    Bind(&if_issmi);
+    BIND(&if_issmi);
     {
       Node* const length_plus_start = SmiAdd(string_length, start_int);
       var_start.Bind(Select(SmiLessThan(start_int, zero),
@@ -1302,7 +1302,7 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
       Goto(&handle_length);
     }
 
-    Bind(&if_isheapnumber);
+    BIND(&if_isheapnumber);
     {
       // If {start} is a heap number, it is definitely out of bounds. If it is
       // negative, {start} = max({string_length} + {start}),0) = 0'. If it is
@@ -1317,7 +1317,7 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
   }
 
   // Conversions and bounds-checks for {length}.
-  Bind(&handle_length);
+  BIND(&handle_length);
   {
     Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
 
@@ -1327,11 +1327,11 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
       Branch(WordEqual(length, UndefinedConstant()), &if_isundefined,
              &if_isnotundefined);
 
-      Bind(&if_isundefined);
+      BIND(&if_isundefined);
       var_length.Bind(string_length);
       Goto(&if_issmi);
 
-      Bind(&if_isnotundefined);
+      BIND(&if_isnotundefined);
       var_length.Bind(
           ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero));
     }
@@ -1339,7 +1339,7 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
     Branch(TaggedIsSmi(var_length.value()), &if_issmi, &if_isheapnumber);
 
     // Set {length} to min(max({length}, 0), {string_length} - {start}
-    Bind(&if_issmi);
+    BIND(&if_issmi);
     {
       Node* const positive_length = SmiMax(var_length.value(), zero);
 
@@ -1350,7 +1350,7 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
       Return(EmptyStringConstant());
     }
 
-    Bind(&if_isheapnumber);
+    BIND(&if_isheapnumber);
     {
       // If {length} is a heap number, it is definitely out of bounds. There are
       // two cases according to the spec: if it is negative, "" is returned; if
@@ -1364,10 +1364,10 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
       Branch(Float64LessThan(length_float, float_zero), &if_isnegative,
              &if_ispositive);
 
-      Bind(&if_isnegative);
+      BIND(&if_isnegative);
       Return(EmptyStringConstant());
 
-      Bind(&if_ispositive);
+      BIND(&if_ispositive);
       {
         var_length.Bind(SmiSub(string_length, var_start.value()));
         GotoIfNot(SmiLessThanOrEqual(var_length.value(), zero), &out);
@@ -1376,7 +1376,7 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
     }
   }
 
-  Bind(&out);
+  BIND(&out);
   {
     Node* const end = SmiAdd(var_start.value(), var_length.value());
     Node* const result = SubString(context, string, var_start.value(), end);
@@ -1396,18 +1396,18 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
   Label if_issmi(this), if_isnotsmi(this, Label::kDeferred);
   Branch(TaggedIsSmi(value_int), &if_issmi, &if_isnotsmi);
 
-  Bind(&if_issmi);
+  BIND(&if_issmi);
   {
     Label if_isinbounds(this), if_isoutofbounds(this, Label::kDeferred);
     Branch(SmiAbove(value_int, limit), &if_isoutofbounds, &if_isinbounds);
 
-    Bind(&if_isinbounds);
+    BIND(&if_isinbounds);
     {
       var_result.Bind(value_int);
       Goto(&out);
     }
 
-    Bind(&if_isoutofbounds);
+    BIND(&if_isoutofbounds);
     {
       Node* const zero = SmiConstant(Smi::kZero);
       var_result.Bind(
@@ -1416,7 +1416,7 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
     }
   }
 
-  Bind(&if_isnotsmi);
+  BIND(&if_isnotsmi);
   {
     // {value} is a heap number - in this case, it is definitely out of bounds.
     CSA_ASSERT(this, IsHeapNumberMap(LoadMap(value_int)));
@@ -1429,7 +1429,7 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
     Goto(&out);
   }
 
-  Bind(&out);
+  BIND(&out);
   return var_result.value();
 }
 
@@ -1465,7 +1465,7 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
     Branch(SmiLessThan(var_end.value(), var_start.value()),
            &if_endislessthanstart, &out);
 
-    Bind(&if_endislessthanstart);
+    BIND(&if_endislessthanstart);
     {
       Node* const tmp = var_end.value();
       var_end.Bind(var_start.value());
@@ -1474,7 +1474,7 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
     }
   }
 
-  Bind(&out);
+  BIND(&out);
   {
     Node* result =
         SubString(context, string, var_start.value(), var_end.value());
@@ -1548,7 +1548,7 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
                      Int32Constant(0xDC00)),
          &handle_surrogate_pair, &return_result);
 
-  Bind(&handle_surrogate_pair);
+  BIND(&handle_surrogate_pair);
   {
     Node* lead = var_result.value();
     Node* trail = var_trail.value();
@@ -1587,7 +1587,7 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
     Goto(&return_result);
   }
 
-  Bind(&return_result);
+  BIND(&return_result);
   return var_result.value();
 }
 
@@ -1616,7 +1616,7 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
 
   Branch(SmiLessThan(position, length), &next_codepoint, &return_result);
 
-  Bind(&next_codepoint);
+  BIND(&next_codepoint);
   {
     UnicodeEncoding encoding = UnicodeEncoding::UTF16;
     Node* ch = LoadSurrogatePairAt(string, length, position, encoding);
@@ -1629,7 +1629,7 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
     Goto(&return_result);
   }
 
-  Bind(&return_result);
+  BIND(&return_result);
   {
     Node* native_context = LoadNativeContext(context);
     Node* map =
@@ -1647,7 +1647,7 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
     Return(result);
   }
 
-  Bind(&throw_bad_receiver);
+  BIND(&throw_bad_receiver);
   {
     // The {receiver} is not a valid JSGeneratorObject.
     CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,

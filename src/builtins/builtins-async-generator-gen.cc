@@ -153,7 +153,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
   Branch(HasInstanceType(generator, JS_ASYNC_GENERATOR_OBJECT_TYPE), &enqueue,
          &if_receiverisincompatible);
 
-  Bind(&enqueue);
+  BIND(&enqueue);
   {
     Label done(this);
     Node* const req =
@@ -174,11 +174,11 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
     CallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
 
     Goto(&done);
-    Bind(&done);
+    BIND(&done);
     Return(promise);
   }
 
-  Bind(&if_receiverisincompatible);
+  BIND(&if_receiverisincompatible);
   {
     Node* const error =
         MakeTypeError(MessageTemplate::kIncompatibleMethodReceiver, context,
@@ -282,32 +282,32 @@ void AsyncGeneratorBuiltinsAssembler::AddAsyncGeneratorRequestToQueue(
       LoadObjectField(generator, JSAsyncGeneratorObject::kQueueOffset));
   Branch(IsUndefined(var_current.value()), &empty, &loop);
 
-  Bind(&empty);
+  BIND(&empty);
   {
     StoreObjectField(generator, JSAsyncGeneratorObject::kQueueOffset, request);
     Goto(&done);
   }
 
-  Bind(&loop);
+  BIND(&loop);
   {
     Label loop_next(this), next_empty(this);
     Node* current = var_current.value();
     Node* next = LoadObjectField(current, AsyncGeneratorRequest::kNextOffset);
 
     Branch(IsUndefined(next), &next_empty, &loop_next);
-    Bind(&next_empty);
+    BIND(&next_empty);
     {
       StoreObjectField(current, AsyncGeneratorRequest::kNextOffset, request);
       Goto(&done);
     }
 
-    Bind(&loop_next);
+    BIND(&loop_next);
     {
       var_current.Bind(next);
       Goto(&loop);
     }
   }
-  Bind(&done);
+  BIND(&done);
 }
 
 Node* AsyncGeneratorBuiltinsAssembler::TakeFirstAsyncGeneratorRequestFromQueue(
@@ -399,7 +399,7 @@ TF_BUILTIN(AsyncGeneratorRawYield, AsyncGeneratorBuiltinsAssembler) {
   var_done.Bind(LoadObjectField(iter_result, JSIteratorResult::kDoneOffset));
   Goto(&async_generator_resolve);
 
-  Bind(&if_slow);
+  BIND(&if_slow);
   {
     var_value.Bind(
         GetProperty(context, iter_result, factory()->value_string()));
@@ -413,7 +413,7 @@ TF_BUILTIN(AsyncGeneratorRawYield, AsyncGeneratorBuiltinsAssembler) {
     Goto(&async_generator_resolve);
   }
 
-  Bind(&async_generator_resolve);
+  BIND(&async_generator_resolve);
   Node* const value = var_value.value();
   Node* const done = var_done.value();
   CallBuiltin(Builtins::kAsyncGeneratorResolve, context, generator, value,
@@ -465,7 +465,7 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
   Variable* labels[] = {&var_state, &var_next};
   Label start(this, 2, labels);
   Goto(&start);
-  Bind(&start);
+  BIND(&start);
 
   CSA_ASSERT(this, IsGeneratorNotExecuting(generator));
 
@@ -480,7 +480,7 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
 
   Label if_abrupt(this), if_normal(this), resume_generator(this);
   Branch(IsAbruptResumeType(resume_type), &if_abrupt, &if_normal);
-  Bind(&if_abrupt);
+  BIND(&if_abrupt);
   {
     Label settle_promise(this), fulfill_promise(this), reject_promise(this);
     GotoIfNot(IsGeneratorStateSuspendedAtStart(var_state.value()),
@@ -489,27 +489,27 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
     var_state.Bind(SmiConstant(JSGeneratorObject::kGeneratorClosed));
 
     Goto(&settle_promise);
-    Bind(&settle_promise);
+    BIND(&settle_promise);
 
     GotoIfNot(IsGeneratorStateClosed(var_state.value()), &resume_generator);
 
     Branch(SmiEqual(resume_type, SmiConstant(JSGeneratorObject::kReturn)),
            &fulfill_promise, &reject_promise);
 
-    Bind(&fulfill_promise);
+    BIND(&fulfill_promise);
     CallBuiltin(Builtins::kAsyncGeneratorResolve, context, generator,
                 LoadValueFromAsyncGeneratorRequest(next), TrueConstant());
     var_next.Bind(LoadFirstAsyncGeneratorRequestFromQueue(generator));
     Goto(&start);
 
-    Bind(&reject_promise);
+    BIND(&reject_promise);
     CallBuiltin(Builtins::kAsyncGeneratorReject, context, generator,
                 LoadValueFromAsyncGeneratorRequest(next));
     var_next.Bind(LoadFirstAsyncGeneratorRequestFromQueue(generator));
     Goto(&start);
   }
 
-  Bind(&if_normal);
+  BIND(&if_normal);
   {
     GotoIfNot(IsGeneratorStateClosed(var_state.value()), &resume_generator);
     CallBuiltin(Builtins::kAsyncGeneratorResolve, context, generator,
@@ -519,7 +519,7 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
     Goto(&start);
   }
 
-  Bind(&resume_generator);
+  BIND(&resume_generator);
   {
     CallStub(CodeFactory::ResumeGenerator(isolate()), context,
              LoadValueFromAsyncGeneratorRequest(next), generator, resume_type,

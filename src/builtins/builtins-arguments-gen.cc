@@ -53,7 +53,7 @@ ArgumentsBuiltinsAssembler::GetArgumentsFrameAndCount(Node* function,
   argument_count.Bind(TaggedToParameter(adapted_parameter_count, mode));
   Goto(&done_argument_count);
 
-  Bind(&done_argument_count);
+  BIND(&done_argument_count);
   return std::tuple<Node*, Node*, Node*>(
       frame_ptr.value(), argument_count.value(), formal_parameter_count);
 }
@@ -179,7 +179,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
       mode, JSArray::kSize));
   Goto(&done);
 
-  Bind(&no_rest_parameters);
+  BIND(&no_rest_parameters);
   {
     Node* arguments;
     Node* elements;
@@ -190,13 +190,13 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
     Goto(&done);
   }
 
-  Bind(&runtime);
+  BIND(&runtime);
   {
     result.Bind(CallRuntime(Runtime::kNewRestParameter, context, function));
     Goto(&done);
   }
 
-  Bind(&done);
+  BIND(&done);
   return result.value();
 }
 
@@ -235,7 +235,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
       JSStrictArgumentsObject::kSize));
   Goto(&done);
 
-  Bind(&empty);
+  BIND(&empty);
   {
     Node* arguments;
     Node* elements;
@@ -246,13 +246,13 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
     Goto(&done);
   }
 
-  Bind(&runtime);
+  BIND(&runtime);
   {
     result.Bind(CallRuntime(Runtime::kNewStrictArguments, context, function));
     Goto(&done);
   }
 
-  Bind(&done);
+  BIND(&done);
   return result.value();
 }
 
@@ -372,7 +372,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     Goto(&done);
   }
 
-  Bind(&no_parameters);
+  BIND(&no_parameters);
   {
     Comment("No parameters JSSloppyArgumentsObject");
     GotoIfFixedArraySizeDoesntFitInNewSpace(
@@ -389,7 +389,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     Goto(&done);
   }
 
-  Bind(&empty);
+  BIND(&empty);
   {
     Comment("Empty JSSloppyArgumentsObject");
     Node* const native_context = LoadNativeContext(context);
@@ -406,13 +406,13 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     Goto(&done);
   }
 
-  Bind(&runtime);
+  BIND(&runtime);
   {
     result.Bind(CallRuntime(Runtime::kNewSloppyArguments, context, function));
     Goto(&done);
   }
 
-  Bind(&done);
+  BIND(&done);
   return result.value();
 }
 

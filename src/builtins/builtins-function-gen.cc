@@ -86,12 +86,12 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
       native_context, Context::BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX));
   Goto(&map_done);
 
-  Bind(&with_constructor);
+  BIND(&with_constructor);
   bound_function_map.Bind(LoadContextElement(
       native_context, Context::BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX));
   Goto(&map_done);
 
-  Bind(&map_done);
+  BIND(&map_done);
 
   // Verify that __proto__ matches that of a the target bound function.
   Comment("Verify that __proto__ matches target bound function");
@@ -119,11 +119,11 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   argument_array.Bind(elements);
   Goto(&arguments_done);
 
-  Bind(&empty_arguments);
+  BIND(&empty_arguments);
   argument_array.Bind(EmptyFixedArrayConstant());
   Goto(&arguments_done);
 
-  Bind(&arguments_done);
+  BIND(&arguments_done);
 
   // Determine bound receiver.
   Comment("Determine bound receiver");
@@ -134,11 +134,11 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   bound_receiver.Bind(UndefinedConstant());
   Goto(&receiver_done);
 
-  Bind(&has_receiver);
+  BIND(&has_receiver);
   bound_receiver.Bind(args.AtIndex(0));
   Goto(&receiver_done);
 
-  Bind(&receiver_done);
+  BIND(&receiver_done);
 
   // Allocate the resulting bound function.
   Comment("Allocate the resulting bound function");
@@ -159,7 +159,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
                                  empty_fixed_array);
 
   args.PopAndReturn(bound_function);
-  Bind(&slow);
+  BIND(&slow);
 
   Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                MachineType::TaggedPointer());

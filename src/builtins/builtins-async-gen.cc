@@ -76,7 +76,7 @@ Node* AsyncBuiltinsAssembler::Await(
     }
 
     Goto(&common);
-    Bind(&common);
+    BIND(&common);
     // Mark the dependency to outer Promise in case the throwaway Promise is
     // found on the Promise stack
     CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
@@ -87,7 +87,7 @@ Node* AsyncBuiltinsAssembler::Await(
   }
 
   Goto(&do_perform_promise_then);
-  Bind(&do_perform_promise_then);
+  BIND(&do_perform_promise_then);
   InternalPerformPromiseThen(context, wrapped_value, on_resolve, on_reject,
                              throwaway_promise, UndefinedConstant(),
                              UndefinedConstant());

@@ -53,7 +53,7 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
                SmiConstant(static_cast<int>(SuspendFlags::kGeneratorYield)));
   Return(result);
 
-  Bind(&if_receiverisincompatible);
+  BIND(&if_receiverisincompatible);
   {
     // The {receiver} is not a valid JSGeneratorObject.
     CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
@@ -63,7 +63,7 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
     Unreachable();
   }
 
-  Bind(&if_receiverisclosed);
+  BIND(&if_receiverisclosed);
   {
     Callable create_iter_result_object =
         CodeFactory::CreateIterResultObject(isolate());
@@ -86,7 +86,7 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
     Return(result);
   }
 
-  Bind(&if_receiverisrunning);
+  BIND(&if_receiverisrunning);
   {
     CallRuntime(Runtime::kThrowGeneratorRunning, context);
     Unreachable();

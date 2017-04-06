@@ -72,10 +72,10 @@ TF_BUILTIN(NumberIsFinite, CodeStubAssembler) {
   BranchIfFloat64IsNaN(Float64Sub(number_value, number_value), &return_false,
                        &return_true);
 
-  Bind(&return_true);
+  BIND(&return_true);
   Return(BooleanConstant(true));
 
-  Bind(&return_false);
+  BIND(&return_false);
   Return(BooleanConstant(false));
 }
 
@@ -101,10 +101,10 @@ TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
   Branch(Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0)),
          &return_true, &return_false);
 
-  Bind(&return_true);
+  BIND(&return_true);
   Return(BooleanConstant(true));
 
-  Bind(&return_false);
+  BIND(&return_false);
   Return(BooleanConstant(false));
 }
 
@@ -124,10 +124,10 @@ TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
   Node* number_value = LoadHeapNumberValue(number);
   BranchIfFloat64IsNaN(number_value, &return_true, &return_false);
 
-  Bind(&return_true);
+  BIND(&return_true);
   Return(BooleanConstant(true));
 
-  Bind(&return_false);
+  BIND(&return_false);
   Return(BooleanConstant(false));
 }
 
@@ -159,10 +159,10 @@ TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
                                 Float64Constant(kMaxSafeInteger)),
          &return_true, &return_false);
 
-  Bind(&return_true);
+  BIND(&return_true);
   Return(BooleanConstant(true));
 
-  Bind(&return_false);
+  BIND(&return_false);
   Return(BooleanConstant(false));
 }
 
@@ -175,7 +175,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
                      Parameter(Descriptor::kString));
   Label loop(this, &var_input);
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     // Load the current {input} value.
     Node* input = var_input.value();
@@ -184,13 +184,13 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
     Label if_inputissmi(this), if_inputisnotsmi(this);
     Branch(TaggedIsSmi(input), &if_inputissmi, &if_inputisnotsmi);
 
-    Bind(&if_inputissmi);
+    BIND(&if_inputissmi);
     {
       // The {input} is already a Number, no need to do anything.
       Return(input);
     }
 
-    Bind(&if_inputisnotsmi);
+    BIND(&if_inputisnotsmi);
     {
       // The {input} is a HeapObject, check if it's already a String.
       Label if_inputisstring(this), if_inputisnotstring(this);
@@ -199,7 +199,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
       Branch(IsStringInstanceType(input_instance_type), &if_inputisstring,
              &if_inputisnotstring);
 
-      Bind(&if_inputisstring);
+      BIND(&if_inputisstring);
       {
         // The {input} is already a String, check if {input} contains
         // a cached array index.
@@ -210,7 +210,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
         Branch(Word32Equal(input_bit, Int32Constant(0)), &if_inputcached,
                &if_inputnotcached);
 
-        Bind(&if_inputcached);
+        BIND(&if_inputcached);
         {
           // Just return the {input}s cached array index.
           Node* input_array_index =
@@ -218,14 +218,14 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
           Return(SmiTag(input_array_index));
         }
 
-        Bind(&if_inputnotcached);
+        BIND(&if_inputnotcached);
         {
           // Need to fall back to the runtime to convert {input} to double.
           Return(CallRuntime(Runtime::kStringParseFloat, context, input));
         }
       }
 
-      Bind(&if_inputisnotstring);
+      BIND(&if_inputisnotstring);
       {
         // The {input} is neither a String nor a Smi, check for HeapNumber.
         Label if_inputisnumber(this),
@@ -233,7 +233,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
         Branch(IsHeapNumberMap(input_map), &if_inputisnumber,
                &if_inputisnotnumber);
 
-        Bind(&if_inputisnumber);
+        BIND(&if_inputisnumber);
         {
           // The {input} is already a Number, take care of -0.
           Label if_inputiszero(this), if_inputisnotzero(this);
@@ -241,14 +241,14 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
           Branch(Float64Equal(input_value, Float64Constant(0.0)),
                  &if_inputiszero, &if_inputisnotzero);
 
-          Bind(&if_inputiszero);
+          BIND(&if_inputiszero);
           Return(SmiConstant(0));
 
-          Bind(&if_inputisnotzero);
+          BIND(&if_inputisnotzero);
           Return(input);
         }
 
-        Bind(&if_inputisnotnumber);
+        BIND(&if_inputisnotnumber);
         {
           // Need to convert the {input} to String first.
           // TODO(bmeurer): This could be more efficient if necessary.
@@ -274,7 +274,7 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
   GotoIf(WordEqual(radix, SmiConstant(Smi::FromInt(0))), &if_radix10);
   Goto(&if_generic);
 
-  Bind(&if_radix10);
+  BIND(&if_radix10);
   {
     // Check if we can avoid the ToString conversion on {input}.
     Label if_inputissmi(this), if_inputisheapnumber(this),
@@ -286,13 +286,13 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
     Branch(IsStringInstanceType(input_instance_type), &if_inputisstring,
            &if_generic);
 
-    Bind(&if_inputissmi);
+    BIND(&if_inputissmi);
     {
       // Just return the {input}.
       Return(input);
     }
 
-    Bind(&if_inputisheapnumber);
+    BIND(&if_inputisheapnumber);
     {
       // Check if the {input} value is in Signed32 range.
       Label if_inputissigned32(this);
@@ -310,12 +310,12 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
              &if_inputissigned32, &if_generic);
 
       // Return the truncated int32 value, and return the tagged result.
-      Bind(&if_inputissigned32);
+      BIND(&if_inputissigned32);
       Node* result = ChangeInt32ToTagged(input_value32);
       Return(result);
     }
 
-    Bind(&if_inputisstring);
+    BIND(&if_inputisstring);
     {
       // Check if the String {input} has a cached array index.
       Node* input_hash = LoadNameHashField(input);
@@ -331,7 +331,7 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
     }
   }
 
-  Bind(&if_generic);
+  BIND(&if_generic);
   {
     Node* result = CallRuntime(Runtime::kStringParseInt, context, input, radix);
     Return(result);
@@ -370,7 +370,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
   var_lhs.Bind(left);
   var_rhs.Bind(right);
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     // Load the current {lhs} and {rhs} values.
     Node* lhs = var_lhs.value();
@@ -380,13 +380,13 @@ TF_BUILTIN(Add, CodeStubAssembler) {
     Label if_lhsissmi(this), if_lhsisnotsmi(this);
     Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
 
-    Bind(&if_lhsissmi);
+    BIND(&if_lhsissmi);
     {
       // Check if the {rhs} is also a Smi.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
-      Bind(&if_rhsissmi);
+      BIND(&if_rhsissmi);
       {
         // Try fast Smi addition first.
         Node* pair = IntPtrAddWithOverflow(BitcastTaggedToWord(lhs),
@@ -397,19 +397,19 @@ TF_BUILTIN(Add, CodeStubAssembler) {
         Label if_overflow(this), if_notoverflow(this);
         Branch(overflow, &if_overflow, &if_notoverflow);
 
-        Bind(&if_overflow);
+        BIND(&if_overflow);
         {
           var_fadd_lhs.Bind(SmiToFloat64(lhs));
           var_fadd_rhs.Bind(SmiToFloat64(rhs));
           Goto(&do_fadd);
         }
 
-        Bind(&if_notoverflow);
+        BIND(&if_notoverflow);
         var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
         Goto(&end);
       }
 
-      Bind(&if_rhsisnotsmi);
+      BIND(&if_rhsisnotsmi);
       {
         // Load the map of {rhs}.
         Node* rhs_map = LoadMap(rhs);
@@ -418,14 +418,14 @@ TF_BUILTIN(Add, CodeStubAssembler) {
         Label if_rhsisnumber(this), if_rhsisnotnumber(this, Label::kDeferred);
         Branch(IsHeapNumberMap(rhs_map), &if_rhsisnumber, &if_rhsisnotnumber);
 
-        Bind(&if_rhsisnumber);
+        BIND(&if_rhsisnumber);
         {
           var_fadd_lhs.Bind(SmiToFloat64(lhs));
           var_fadd_rhs.Bind(LoadHeapNumberValue(rhs));
           Goto(&do_fadd);
         }
 
-        Bind(&if_rhsisnotnumber);
+        BIND(&if_rhsisnotnumber);
         {
           // Load the instance type of {rhs}.
           Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
@@ -436,14 +436,14 @@ TF_BUILTIN(Add, CodeStubAssembler) {
           Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
                  &if_rhsisnotstring);
 
-          Bind(&if_rhsisstring);
+          BIND(&if_rhsisstring);
           {
             var_lhs.Bind(lhs);
             var_rhs.Bind(rhs);
             Goto(&string_add_convert_left);
           }
 
-          Bind(&if_rhsisnotstring);
+          BIND(&if_rhsisnotstring);
           {
             // Check if {rhs} is a JSReceiver.
             Label if_rhsisreceiver(this, Label::kDeferred),
@@ -451,7 +451,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
             Branch(IsJSReceiverInstanceType(rhs_instance_type),
                    &if_rhsisreceiver, &if_rhsisnotreceiver);
 
-            Bind(&if_rhsisreceiver);
+            BIND(&if_rhsisreceiver);
             {
               // Convert {rhs} to a primitive first passing no hint.
               Callable callable =
@@ -460,7 +460,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
               Goto(&loop);
             }
 
-            Bind(&if_rhsisnotreceiver);
+            BIND(&if_rhsisnotreceiver);
             {
               // Convert {rhs} to a Number first.
               Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -472,7 +472,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
       }
     }
 
-    Bind(&if_lhsisnotsmi);
+    BIND(&if_lhsisnotsmi);
     {
       // Load the map and instance type of {lhs}.
       Node* lhs_instance_type = LoadInstanceType(lhs);
@@ -482,20 +482,20 @@ TF_BUILTIN(Add, CodeStubAssembler) {
       Branch(IsStringInstanceType(lhs_instance_type), &if_lhsisstring,
              &if_lhsisnotstring);
 
-      Bind(&if_lhsisstring);
+      BIND(&if_lhsisstring);
       {
         var_lhs.Bind(lhs);
         var_rhs.Bind(rhs);
         Goto(&string_add_convert_right);
       }
 
-      Bind(&if_lhsisnotstring);
+      BIND(&if_lhsisnotstring);
       {
         // Check if {rhs} is a Smi.
         Label if_rhsissmi(this), if_rhsisnotsmi(this);
         Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
-        Bind(&if_rhsissmi);
+        BIND(&if_rhsissmi);
         {
           // Check if {lhs} is a Number.
           Label if_lhsisnumber(this), if_lhsisnotnumber(this, Label::kDeferred);
@@ -503,7 +503,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
               Word32Equal(lhs_instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
               &if_lhsisnumber, &if_lhsisnotnumber);
 
-          Bind(&if_lhsisnumber);
+          BIND(&if_lhsisnumber);
           {
             // The {lhs} is a HeapNumber, the {rhs} is a Smi, just add them.
             var_fadd_lhs.Bind(LoadHeapNumberValue(lhs));
@@ -511,7 +511,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
             Goto(&do_fadd);
           }
 
-          Bind(&if_lhsisnotnumber);
+          BIND(&if_lhsisnotnumber);
           {
             // The {lhs} is neither a Number nor a String, and the {rhs} is a
             // Smi.
@@ -520,7 +520,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
             Branch(IsJSReceiverInstanceType(lhs_instance_type),
                    &if_lhsisreceiver, &if_lhsisnotreceiver);
 
-            Bind(&if_lhsisreceiver);
+            BIND(&if_lhsisreceiver);
             {
               // Convert {lhs} to a primitive first passing no hint.
               Callable callable =
@@ -529,7 +529,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
               Goto(&loop);
             }
 
-            Bind(&if_lhsisnotreceiver);
+            BIND(&if_lhsisnotreceiver);
             {
               // Convert {lhs} to a Number first.
               Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -539,7 +539,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
           }
         }
 
-        Bind(&if_rhsisnotsmi);
+        BIND(&if_rhsisnotsmi);
         {
           // Load the instance type of {rhs}.
           Node* rhs_instance_type = LoadInstanceType(rhs);
@@ -549,14 +549,14 @@ TF_BUILTIN(Add, CodeStubAssembler) {
           Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
                  &if_rhsisnotstring);
 
-          Bind(&if_rhsisstring);
+          BIND(&if_rhsisstring);
           {
             var_lhs.Bind(lhs);
             var_rhs.Bind(rhs);
             Goto(&string_add_convert_left);
           }
 
-          Bind(&if_rhsisnotstring);
+          BIND(&if_rhsisnotstring);
           {
             // Check if {lhs} is a HeapNumber.
             Label if_lhsisnumber(this), if_lhsisnotnumber(this);
@@ -564,7 +564,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
                 Word32Equal(lhs_instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
                 &if_lhsisnumber, &if_lhsisnotnumber);
 
-            Bind(&if_lhsisnumber);
+            BIND(&if_lhsisnumber);
             {
               // Check if {rhs} is also a HeapNumber.
               Label if_rhsisnumber(this),
@@ -573,7 +573,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
                                  Int32Constant(HEAP_NUMBER_TYPE)),
                      &if_rhsisnumber, &if_rhsisnotnumber);
 
-              Bind(&if_rhsisnumber);
+              BIND(&if_rhsisnumber);
               {
                 // Perform a floating point addition.
                 var_fadd_lhs.Bind(LoadHeapNumberValue(lhs));
@@ -581,7 +581,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
                 Goto(&do_fadd);
               }
 
-              Bind(&if_rhsisnotnumber);
+              BIND(&if_rhsisnotnumber);
               {
                 // Check if {rhs} is a JSReceiver.
                 Label if_rhsisreceiver(this, Label::kDeferred),
@@ -589,7 +589,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
                 Branch(IsJSReceiverInstanceType(rhs_instance_type),
                        &if_rhsisreceiver, &if_rhsisnotreceiver);
 
-                Bind(&if_rhsisreceiver);
+                BIND(&if_rhsisreceiver);
                 {
                   // Convert {rhs} to a primitive first passing no hint.
                   Callable callable =
@@ -598,7 +598,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
                   Goto(&loop);
                 }
 
-                Bind(&if_rhsisnotreceiver);
+                BIND(&if_rhsisnotreceiver);
                 {
                   // Convert {rhs} to a Number first.
                   Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -608,7 +608,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
               }
             }
 
-            Bind(&if_lhsisnotnumber);
+            BIND(&if_lhsisnotnumber);
             {
               // Check if {lhs} is a JSReceiver.
               Label if_lhsisreceiver(this, Label::kDeferred),
@@ -616,7 +616,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
               Branch(IsJSReceiverInstanceType(lhs_instance_type),
                      &if_lhsisreceiver, &if_lhsisnotreceiver);
 
-              Bind(&if_lhsisreceiver);
+              BIND(&if_lhsisreceiver);
               {
                 // Convert {lhs} to a primitive first passing no hint.
                 Callable callable =
@@ -625,7 +625,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
                 Goto(&loop);
               }
 
-              Bind(&if_lhsisnotreceiver);
+              BIND(&if_lhsisnotreceiver);
               {
                 // Check if {rhs} is a JSReceiver.
                 Label if_rhsisreceiver(this, Label::kDeferred),
@@ -633,7 +633,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
                 Branch(IsJSReceiverInstanceType(rhs_instance_type),
                        &if_rhsisreceiver, &if_rhsisnotreceiver);
 
-                Bind(&if_rhsisreceiver);
+                BIND(&if_rhsisreceiver);
                 {
                   // Convert {rhs} to a primitive first passing no hint.
                   Callable callable =
@@ -642,7 +642,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
                   Goto(&loop);
                 }
 
-                Bind(&if_rhsisnotreceiver);
+                BIND(&if_rhsisnotreceiver);
                 {
                   // Convert {lhs} to a Number first.
                   Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -656,7 +656,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
       }
     }
   }
-  Bind(&string_add_convert_left);
+  BIND(&string_add_convert_left);
   {
     // Convert {lhs}, which is a Smi, to a String and concatenate the
     // resulting string with the String {rhs}.
@@ -667,7 +667,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
     Goto(&end);
   }
 
-  Bind(&string_add_convert_right);
+  BIND(&string_add_convert_right);
   {
     // Convert {lhs}, which is a Smi, to a String and concatenate the
     // resulting string with the String {rhs}.
@@ -678,7 +678,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
     Goto(&end);
   }
 
-  Bind(&do_fadd);
+  BIND(&do_fadd);
   {
     Node* lhs_value = var_fadd_lhs.value();
     Node* rhs_value = var_fadd_rhs.value();
@@ -687,7 +687,7 @@ TF_BUILTIN(Add, CodeStubAssembler) {
     var_result.Bind(result);
     Goto(&end);
   }
-  Bind(&end);
+  BIND(&end);
   Return(var_result.value());
 }
 
@@ -711,7 +711,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
   var_lhs.Bind(left);
   var_rhs.Bind(right);
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     // Load the current {lhs} and {rhs} values.
     Node* lhs = var_lhs.value();
@@ -721,13 +721,13 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
     Label if_lhsissmi(this), if_lhsisnotsmi(this);
     Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
 
-    Bind(&if_lhsissmi);
+    BIND(&if_lhsissmi);
     {
       // Check if the {rhs} is also a Smi.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
-      Bind(&if_rhsissmi);
+      BIND(&if_rhsissmi);
       {
         // Try a fast Smi subtraction first.
         Node* pair = IntPtrSubWithOverflow(BitcastTaggedToWord(lhs),
@@ -738,7 +738,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
         Label if_overflow(this), if_notoverflow(this);
         Branch(overflow, &if_overflow, &if_notoverflow);
 
-        Bind(&if_overflow);
+        BIND(&if_overflow);
         {
           // The result doesn't fit into Smi range.
           var_fsub_lhs.Bind(SmiToFloat64(lhs));
@@ -746,12 +746,12 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
           Goto(&do_fsub);
         }
 
-        Bind(&if_notoverflow);
+        BIND(&if_notoverflow);
         var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
         Goto(&end);
       }
 
-      Bind(&if_rhsisnotsmi);
+      BIND(&if_rhsisnotsmi);
       {
         // Load the map of the {rhs}.
         Node* rhs_map = LoadMap(rhs);
@@ -760,7 +760,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
         Label if_rhsisnumber(this), if_rhsisnotnumber(this, Label::kDeferred);
         Branch(IsHeapNumberMap(rhs_map), &if_rhsisnumber, &if_rhsisnotnumber);
 
-        Bind(&if_rhsisnumber);
+        BIND(&if_rhsisnumber);
         {
           // Perform a floating point subtraction.
           var_fsub_lhs.Bind(SmiToFloat64(lhs));
@@ -768,7 +768,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
           Goto(&do_fsub);
         }
 
-        Bind(&if_rhsisnotnumber);
+        BIND(&if_rhsisnotnumber);
         {
           // Convert the {rhs} to a Number first.
           Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -778,7 +778,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
       }
     }
 
-    Bind(&if_lhsisnotsmi);
+    BIND(&if_lhsisnotsmi);
     {
       // Load the map of the {lhs}.
       Node* lhs_map = LoadMap(lhs);
@@ -787,13 +787,13 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
       Label if_lhsisnumber(this), if_lhsisnotnumber(this, Label::kDeferred);
       Branch(IsHeapNumberMap(lhs_map), &if_lhsisnumber, &if_lhsisnotnumber);
 
-      Bind(&if_lhsisnumber);
+      BIND(&if_lhsisnumber);
       {
         // Check if the {rhs} is a Smi.
         Label if_rhsissmi(this), if_rhsisnotsmi(this);
         Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
-        Bind(&if_rhsissmi);
+        BIND(&if_rhsissmi);
         {
           // Perform a floating point subtraction.
           var_fsub_lhs.Bind(LoadHeapNumberValue(lhs));
@@ -801,7 +801,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
           Goto(&do_fsub);
         }
 
-        Bind(&if_rhsisnotsmi);
+        BIND(&if_rhsisnotsmi);
         {
           // Load the map of the {rhs}.
           Node* rhs_map = LoadMap(rhs);
@@ -810,7 +810,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
           Label if_rhsisnumber(this), if_rhsisnotnumber(this, Label::kDeferred);
           Branch(IsHeapNumberMap(rhs_map), &if_rhsisnumber, &if_rhsisnotnumber);
 
-          Bind(&if_rhsisnumber);
+          BIND(&if_rhsisnumber);
           {
             // Perform a floating point subtraction.
             var_fsub_lhs.Bind(LoadHeapNumberValue(lhs));
@@ -818,7 +818,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
             Goto(&do_fsub);
           }
 
-          Bind(&if_rhsisnotnumber);
+          BIND(&if_rhsisnotnumber);
           {
             // Convert the {rhs} to a Number first.
             Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -828,7 +828,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
         }
       }
 
-      Bind(&if_lhsisnotnumber);
+      BIND(&if_lhsisnotnumber);
       {
         // Convert the {lhs} to a Number first.
         Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -838,7 +838,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
     }
   }
 
-  Bind(&do_fsub);
+  BIND(&do_fsub);
   {
     Node* lhs_value = var_fsub_lhs.value();
     Node* rhs_value = var_fsub_rhs.value();
@@ -846,7 +846,7 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
     var_result.Bind(AllocateHeapNumberWithValue(value));
     Goto(&end);
   }
-  Bind(&end);
+  BIND(&end);
   Return(var_result.value());
 }
 
@@ -869,7 +869,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
   var_lhs.Bind(left);
   var_rhs.Bind(right);
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     Node* lhs = var_lhs.value();
     Node* rhs = var_rhs.value();
@@ -877,12 +877,12 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
     Label lhs_is_smi(this), lhs_is_not_smi(this);
     Branch(TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
 
-    Bind(&lhs_is_smi);
+    BIND(&lhs_is_smi);
     {
       Label rhs_is_smi(this), rhs_is_not_smi(this);
       Branch(TaggedIsSmi(rhs), &rhs_is_smi, &rhs_is_not_smi);
 
-      Bind(&rhs_is_smi);
+      BIND(&rhs_is_smi);
       {
         // Both {lhs} and {rhs} are Smis. The result is not necessarily a smi,
         // in case of overflow.
@@ -890,7 +890,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
         Goto(&return_result);
       }
 
-      Bind(&rhs_is_not_smi);
+      BIND(&rhs_is_not_smi);
       {
         Node* rhs_map = LoadMap(rhs);
 
@@ -898,7 +898,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
         Label rhs_is_number(this), rhs_is_not_number(this, Label::kDeferred);
         Branch(IsHeapNumberMap(rhs_map), &rhs_is_number, &rhs_is_not_number);
 
-        Bind(&rhs_is_number);
+        BIND(&rhs_is_number);
         {
           // Convert {lhs} to a double and multiply it with the value of {rhs}.
           var_lhs_float64.Bind(SmiToFloat64(lhs));
@@ -906,7 +906,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
           Goto(&do_fmul);
         }
 
-        Bind(&rhs_is_not_number);
+        BIND(&rhs_is_not_number);
         {
           // Multiplication is commutative, swap {lhs} with {rhs} and loop.
           var_lhs.Bind(rhs);
@@ -916,7 +916,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
       }
     }
 
-    Bind(&lhs_is_not_smi);
+    BIND(&lhs_is_not_smi);
     {
       Node* lhs_map = LoadMap(lhs);
 
@@ -924,13 +924,13 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
       Label lhs_is_number(this), lhs_is_not_number(this, Label::kDeferred);
       Branch(IsHeapNumberMap(lhs_map), &lhs_is_number, &lhs_is_not_number);
 
-      Bind(&lhs_is_number);
+      BIND(&lhs_is_number);
       {
         // Check if {rhs} is a Smi.
         Label rhs_is_smi(this), rhs_is_not_smi(this);
         Branch(TaggedIsSmi(rhs), &rhs_is_smi, &rhs_is_not_smi);
 
-        Bind(&rhs_is_smi);
+        BIND(&rhs_is_smi);
         {
           // Convert {rhs} to a double and multiply it with the value of {lhs}.
           var_lhs_float64.Bind(LoadHeapNumberValue(lhs));
@@ -938,7 +938,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
           Goto(&do_fmul);
         }
 
-        Bind(&rhs_is_not_smi);
+        BIND(&rhs_is_not_smi);
         {
           Node* rhs_map = LoadMap(rhs);
 
@@ -946,7 +946,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
           Label rhs_is_number(this), rhs_is_not_number(this, Label::kDeferred);
           Branch(IsHeapNumberMap(rhs_map), &rhs_is_number, &rhs_is_not_number);
 
-          Bind(&rhs_is_number);
+          BIND(&rhs_is_number);
           {
             // Both {lhs} and {rhs} are HeapNumbers. Load their values and
             // multiply them.
@@ -955,7 +955,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
             Goto(&do_fmul);
           }
 
-          Bind(&rhs_is_not_number);
+          BIND(&rhs_is_not_number);
           {
             // Multiplication is commutative, swap {lhs} with {rhs} and loop.
             var_lhs.Bind(rhs);
@@ -965,7 +965,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
         }
       }
 
-      Bind(&lhs_is_not_number);
+      BIND(&lhs_is_not_number);
       {
         // Convert {lhs} to a Number and loop.
         Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -975,7 +975,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
     }
   }
 
-  Bind(&do_fmul);
+  BIND(&do_fmul);
   {
     Node* value = Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
     Node* result = AllocateHeapNumberWithValue(value);
@@ -983,7 +983,7 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
     Goto(&return_result);
   }
 
-  Bind(&return_result);
+  BIND(&return_result);
   Return(var_result.value());
 }
 
@@ -1006,7 +1006,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
   var_dividend.Bind(left);
   var_divisor.Bind(right);
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     Node* dividend = var_dividend.value();
     Node* divisor = var_divisor.value();
@@ -1014,12 +1014,12 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
     Label dividend_is_smi(this), dividend_is_not_smi(this);
     Branch(TaggedIsSmi(dividend), &dividend_is_smi, &dividend_is_not_smi);
 
-    Bind(&dividend_is_smi);
+    BIND(&dividend_is_smi);
     {
       Label divisor_is_smi(this), divisor_is_not_smi(this);
       Branch(TaggedIsSmi(divisor), &divisor_is_smi, &divisor_is_not_smi);
 
-      Bind(&divisor_is_smi);
+      BIND(&divisor_is_smi);
       {
         Label bailout(this);
 
@@ -1032,12 +1032,12 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
         Branch(SmiEqual(dividend, SmiConstant(0)), &dividend_is_zero,
                &dividend_is_not_zero);
 
-        Bind(&dividend_is_zero);
+        BIND(&dividend_is_zero);
         {
           GotoIf(SmiLessThan(divisor, SmiConstant(0)), &bailout);
           Goto(&dividend_is_not_zero);
         }
-        Bind(&dividend_is_not_zero);
+        BIND(&dividend_is_not_zero);
 
         Node* untagged_divisor = SmiToWord32(divisor);
         Node* untagged_dividend = SmiToWord32(dividend);
@@ -1048,7 +1048,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
         Branch(Word32Equal(untagged_divisor, Int32Constant(-1)),
                &divisor_is_minus_one, &divisor_is_not_minus_one);
 
-        Bind(&divisor_is_minus_one);
+        BIND(&divisor_is_minus_one);
         {
           GotoIf(
               Word32Equal(untagged_dividend,
@@ -1057,7 +1057,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
               &bailout);
           Goto(&divisor_is_not_minus_one);
         }
-        Bind(&divisor_is_not_minus_one);
+        BIND(&divisor_is_not_minus_one);
 
         // TODO(epertoso): consider adding a machine instruction that returns
         // both the result and the remainder.
@@ -1070,7 +1070,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
 
         // Bailout: convert {dividend} and {divisor} to double and do double
         // division.
-        Bind(&bailout);
+        BIND(&bailout);
         {
           var_dividend_float64.Bind(SmiToFloat64(dividend));
           var_divisor_float64.Bind(SmiToFloat64(divisor));
@@ -1078,7 +1078,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
         }
       }
 
-      Bind(&divisor_is_not_smi);
+      BIND(&divisor_is_not_smi);
       {
         Node* divisor_map = LoadMap(divisor);
 
@@ -1088,7 +1088,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
         Branch(IsHeapNumberMap(divisor_map), &divisor_is_number,
                &divisor_is_not_number);
 
-        Bind(&divisor_is_number);
+        BIND(&divisor_is_number);
         {
           // Convert {dividend} to a double and divide it with the value of
           // {divisor}.
@@ -1097,7 +1097,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
           Goto(&do_fdiv);
         }
 
-        Bind(&divisor_is_not_number);
+        BIND(&divisor_is_not_number);
         {
           // Convert {divisor} to a number and loop.
           Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -1107,7 +1107,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
       }
     }
 
-    Bind(&dividend_is_not_smi);
+    BIND(&dividend_is_not_smi);
     {
       Node* dividend_map = LoadMap(dividend);
 
@@ -1117,13 +1117,13 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
       Branch(IsHeapNumberMap(dividend_map), &dividend_is_number,
              &dividend_is_not_number);
 
-      Bind(&dividend_is_number);
+      BIND(&dividend_is_number);
       {
         // Check if {divisor} is a Smi.
         Label divisor_is_smi(this), divisor_is_not_smi(this);
         Branch(TaggedIsSmi(divisor), &divisor_is_smi, &divisor_is_not_smi);
 
-        Bind(&divisor_is_smi);
+        BIND(&divisor_is_smi);
         {
           // Convert {divisor} to a double and use it for a floating point
           // division.
@@ -1132,7 +1132,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
           Goto(&do_fdiv);
         }
 
-        Bind(&divisor_is_not_smi);
+        BIND(&divisor_is_not_smi);
         {
           Node* divisor_map = LoadMap(divisor);
 
@@ -1142,7 +1142,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
           Branch(IsHeapNumberMap(divisor_map), &divisor_is_number,
                  &divisor_is_not_number);
 
-          Bind(&divisor_is_number);
+          BIND(&divisor_is_number);
           {
             // Both {dividend} and {divisor} are HeapNumbers. Load their values
             // and divide them.
@@ -1151,7 +1151,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
             Goto(&do_fdiv);
           }
 
-          Bind(&divisor_is_not_number);
+          BIND(&divisor_is_not_number);
           {
             // Convert {divisor} to a number and loop.
             Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -1161,7 +1161,7 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
         }
       }
 
-      Bind(&dividend_is_not_number);
+      BIND(&dividend_is_not_number);
       {
         // Convert {dividend} to a Number and loop.
         Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -1171,14 +1171,14 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
     }
   }
 
-  Bind(&do_fdiv);
+  BIND(&do_fdiv);
   {
     Node* value =
         Float64Div(var_dividend_float64.value(), var_divisor_float64.value());
     var_result.Bind(AllocateHeapNumberWithValue(value));
     Goto(&end);
   }
-  Bind(&end);
+  BIND(&end);
   Return(var_result.value());
 }
 
@@ -1203,7 +1203,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
   var_dividend.Bind(left);
   var_divisor.Bind(right);
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     Node* dividend = var_dividend.value();
     Node* divisor = var_divisor.value();
@@ -1211,20 +1211,20 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
     Label dividend_is_smi(this), dividend_is_not_smi(this);
     Branch(TaggedIsSmi(dividend), &dividend_is_smi, &dividend_is_not_smi);
 
-    Bind(&dividend_is_smi);
+    BIND(&dividend_is_smi);
     {
       Label dividend_is_not_zero(this);
       Label divisor_is_smi(this), divisor_is_not_smi(this);
       Branch(TaggedIsSmi(divisor), &divisor_is_smi, &divisor_is_not_smi);
 
-      Bind(&divisor_is_smi);
+      BIND(&divisor_is_smi);
       {
         // Compute the modulus of two Smis.
         var_result.Bind(SmiMod(dividend, divisor));
         Goto(&return_result);
       }
 
-      Bind(&divisor_is_not_smi);
+      BIND(&divisor_is_not_smi);
       {
         Node* divisor_map = LoadMap(divisor);
 
@@ -1234,7 +1234,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
         Branch(IsHeapNumberMap(divisor_map), &divisor_is_number,
                &divisor_is_not_number);
 
-        Bind(&divisor_is_number);
+        BIND(&divisor_is_number);
         {
           // Convert {dividend} to a double and compute its modulus with the
           // value of {dividend}.
@@ -1243,7 +1243,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
           Goto(&do_fmod);
         }
 
-        Bind(&divisor_is_not_number);
+        BIND(&divisor_is_not_number);
         {
           // Convert {divisor} to a number and loop.
           Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -1253,7 +1253,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
       }
     }
 
-    Bind(&dividend_is_not_smi);
+    BIND(&dividend_is_not_smi);
     {
       Node* dividend_map = LoadMap(dividend);
 
@@ -1263,13 +1263,13 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
       Branch(IsHeapNumberMap(dividend_map), &dividend_is_number,
              &dividend_is_not_number);
 
-      Bind(&dividend_is_number);
+      BIND(&dividend_is_number);
       {
         // Check if {divisor} is a Smi.
         Label divisor_is_smi(this), divisor_is_not_smi(this);
         Branch(TaggedIsSmi(divisor), &divisor_is_smi, &divisor_is_not_smi);
 
-        Bind(&divisor_is_smi);
+        BIND(&divisor_is_smi);
         {
           // Convert {divisor} to a double and compute {dividend}'s modulus with
           // it.
@@ -1278,7 +1278,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
           Goto(&do_fmod);
         }
 
-        Bind(&divisor_is_not_smi);
+        BIND(&divisor_is_not_smi);
         {
           Node* divisor_map = LoadMap(divisor);
 
@@ -1288,7 +1288,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
           Branch(IsHeapNumberMap(divisor_map), &divisor_is_number,
                  &divisor_is_not_number);
 
-          Bind(&divisor_is_number);
+          BIND(&divisor_is_number);
           {
             // Both {dividend} and {divisor} are HeapNumbers. Load their values
             // and compute their modulus.
@@ -1297,7 +1297,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
             Goto(&do_fmod);
           }
 
-          Bind(&divisor_is_not_number);
+          BIND(&divisor_is_not_number);
           {
             // Convert {divisor} to a number and loop.
             Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -1307,7 +1307,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
         }
       }
 
-      Bind(&dividend_is_not_number);
+      BIND(&dividend_is_not_number);
       {
         // Convert {dividend} to a Number and loop.
         Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -1317,7 +1317,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
     }
   }
 
-  Bind(&do_fmod);
+  BIND(&do_fmod);
   {
     Node* value =
         Float64Mod(var_dividend_float64.value(), var_divisor_float64.value());
@@ -1325,7 +1325,7 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
     Goto(&return_result);
   }
 
-  Bind(&return_result);
+  BIND(&return_result);
   Return(var_result.value());
 }
 

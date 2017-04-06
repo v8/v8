@@ -55,13 +55,13 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
                                 Int32Constant(LAST_PRIMITIVE_TYPE)),
            &if_resultisprimitive, &if_resultisnotprimitive);
 
-    Bind(&if_resultisprimitive);
+    BIND(&if_resultisprimitive);
     {
       // Just return the {result}.
       Return(result);
     }
 
-    Bind(&if_resultisnotprimitive);
+    BIND(&if_resultisnotprimitive);
     {
       // Somehow the @@toPrimitive method on {input} didn't yield a primitive.
       TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive, context);
@@ -69,7 +69,7 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
   }
 
   // Convert using the OrdinaryToPrimitive algorithm instead.
-  Bind(&ordinary_to_primitive);
+  BIND(&ordinary_to_primitive);
   {
     Callable callable = CodeFactory::OrdinaryToPrimitive(
         isolate(), (hint == ToPrimitiveHint::kString)
@@ -147,20 +147,20 @@ TF_BUILTIN(ToString, CodeStubAssembler) {
 
   Label not_heap_number(this);
 
-  Bind(&not_string);
+  BIND(&not_string);
   { Branch(IsHeapNumberMap(input_map), &is_number, &not_heap_number); }
 
-  Bind(&is_number);
+  BIND(&is_number);
   { Return(NumberToString(context, input)); }
 
-  Bind(&not_heap_number);
+  BIND(&not_heap_number);
   {
     GotoIf(Word32NotEqual(input_instance_type, Int32Constant(ODDBALL_TYPE)),
            &runtime);
     Return(LoadObjectField(input, Oddball::kToStringOffset));
   }
 
-  Bind(&runtime);
+  BIND(&runtime);
   { Return(CallRuntime(Runtime::kToString, context, input)); }
 }
 
@@ -193,7 +193,7 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
     Branch(IsCallableMap(method_map), &if_methodiscallable,
            &if_methodisnotcallable);
 
-    Bind(&if_methodiscallable);
+    BIND(&if_methodiscallable);
     {
       // Call the {method} on the {input}.
       Callable callable = CodeFactory::Call(
@@ -212,12 +212,12 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
 
     // Just continue with the next {name} if the {method} is not callable.
     Goto(&if_methodisnotcallable);
-    Bind(&if_methodisnotcallable);
+    BIND(&if_methodisnotcallable);
   }
 
   TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive, context);
 
-  Bind(&return_result);
+  BIND(&return_result);
   Return(var_result.value());
 }
 
@@ -242,10 +242,10 @@ TF_BUILTIN(ToBoolean, CodeStubAssembler) {
   Label return_true(this), return_false(this);
   BranchIfToBooleanIsTrue(value, &return_true, &return_false);
 
-  Bind(&return_true);
+  BIND(&return_true);
   Return(BooleanConstant(true));
 
-  Bind(&return_false);
+  BIND(&return_false);
   Return(BooleanConstant(false));
 }
 
@@ -257,7 +257,7 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
                    Parameter(Descriptor::kArgument));
   Label loop(this, &var_len);
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     // Shared entry points.
     Label return_len(this), return_two53minus1(this, Label::kDeferred),
@@ -278,7 +278,7 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
     Branch(IsHeapNumberMap(LoadMap(len)), &if_lenisheapnumber,
            &if_lenisnotheapnumber);
 
-    Bind(&if_lenisheapnumber);
+    BIND(&if_lenisheapnumber);
     {
       // Load the floating-point value of {len}.
       Node* len_value = LoadHeapNumberValue(len);
@@ -298,7 +298,7 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
       Return(result);
     }
 
-    Bind(&if_lenisnotheapnumber);
+    BIND(&if_lenisnotheapnumber);
     {
       // Need to convert {len} to a Number first.
       Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -306,13 +306,13 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
       Goto(&loop);
     }
 
-    Bind(&return_len);
+    BIND(&return_len);
     Return(var_len.value());
 
-    Bind(&return_two53minus1);
+    BIND(&return_two53minus1);
     Return(NumberConstant(kMaxSafeInteger));
 
-    Bind(&return_zero);
+    BIND(&return_zero);
     Return(SmiConstant(Smi::kZero));
   }
 }
@@ -337,7 +337,7 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
 
   Branch(TaggedIsSmi(object), &if_number, &if_notsmi);
 
-  Bind(&if_notsmi);
+  BIND(&if_notsmi);
   Node* map = LoadMap(object);
 
   GotoIf(IsHeapNumberMap(map), &if_number);
@@ -352,12 +352,12 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   constructor_function_index_var.Bind(constructor_function_index);
   Goto(&if_wrapjsvalue);
 
-  Bind(&if_number);
+  BIND(&if_number);
   constructor_function_index_var.Bind(
       IntPtrConstant(Context::NUMBER_FUNCTION_INDEX));
   Goto(&if_wrapjsvalue);
 
-  Bind(&if_wrapjsvalue);
+  BIND(&if_wrapjsvalue);
   Node* native_context = LoadNativeContext(context);
   Node* constructor = LoadFixedArrayElement(
       native_context, constructor_function_index_var.value());
@@ -372,12 +372,12 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   StoreObjectField(js_value, JSValue::kValueOffset, object);
   Return(js_value);
 
-  Bind(&if_noconstructor);
+  BIND(&if_noconstructor);
   TailCallRuntime(
       Runtime::kThrowUndefinedOrNullToObject, context,
       HeapConstant(factory()->NewStringFromAsciiChecked("ToObject", TENURED)));
 
-  Bind(&if_jsreceiver);
+  BIND(&if_jsreceiver);
   Return(object);
 }
 

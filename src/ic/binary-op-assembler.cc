@@ -28,13 +28,13 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
   Label if_lhsissmi(this), if_lhsisnotsmi(this);
   Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
 
-  Bind(&if_lhsissmi);
+  BIND(&if_lhsissmi);
   {
     // Check if the {rhs} is also a Smi.
     Label if_rhsissmi(this), if_rhsisnotsmi(this);
     Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
-    Bind(&if_rhsissmi);
+    BIND(&if_rhsissmi);
     {
       // Try fast Smi addition first.
       Node* pair = IntPtrAddWithOverflow(BitcastTaggedToWord(lhs),
@@ -45,14 +45,14 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
       Label if_overflow(this), if_notoverflow(this);
       Branch(overflow, &if_overflow, &if_notoverflow);
 
-      Bind(&if_overflow);
+      BIND(&if_overflow);
       {
         var_fadd_lhs.Bind(SmiToFloat64(lhs));
         var_fadd_rhs.Bind(SmiToFloat64(rhs));
         Goto(&do_fadd);
       }
 
-      Bind(&if_notoverflow);
+      BIND(&if_notoverflow);
       {
         var_type_feedback.Bind(
             SmiConstant(BinaryOperationFeedback::kSignedSmall));
@@ -61,7 +61,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
       }
     }
 
-    Bind(&if_rhsisnotsmi);
+    BIND(&if_rhsisnotsmi);
     {
       // Load the map of {rhs}.
       Node* rhs_map = LoadMap(rhs);
@@ -75,7 +75,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
     }
   }
 
-  Bind(&if_lhsisnotsmi);
+  BIND(&if_lhsisnotsmi);
   {
     // Load the map of {lhs}.
     Node* lhs_map = LoadMap(lhs);
@@ -87,14 +87,14 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
     Label if_rhsissmi(this), if_rhsisnotsmi(this);
     Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
-    Bind(&if_rhsissmi);
+    BIND(&if_rhsissmi);
     {
       var_fadd_lhs.Bind(LoadHeapNumberValue(lhs));
       var_fadd_rhs.Bind(SmiToFloat64(rhs));
       Goto(&do_fadd);
     }
 
-    Bind(&if_rhsisnotsmi);
+    BIND(&if_rhsisnotsmi);
     {
       // Load the map of {rhs}.
       Node* rhs_map = LoadMap(rhs);
@@ -108,7 +108,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
     }
   }
 
-  Bind(&do_fadd);
+  BIND(&do_fadd);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
     Node* value = Float64Add(var_fadd_lhs.value(), var_fadd_rhs.value());
@@ -117,7 +117,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
     Goto(&end);
   }
 
-  Bind(&if_lhsisnotnumber);
+  BIND(&if_lhsisnotnumber);
   {
     // No checks on rhs are done yet. We just know lhs is not a number or Smi.
     Label if_lhsisoddball(this), if_lhsisnotoddball(this);
@@ -126,7 +126,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
         Word32Equal(lhs_instance_type, Int32Constant(ODDBALL_TYPE));
     Branch(lhs_is_oddball, &if_lhsisoddball, &if_lhsisnotoddball);
 
-    Bind(&if_lhsisoddball);
+    BIND(&if_lhsisoddball);
     {
       GotoIf(TaggedIsSmi(rhs), &call_with_oddball_feedback);
 
@@ -138,7 +138,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
              &check_rhsisoddball);
     }
 
-    Bind(&if_lhsisnotoddball);
+    BIND(&if_lhsisnotoddball);
     {
       // Exit unless {lhs} is a string
       GotoIfNot(IsStringInstanceType(lhs_instance_type),
@@ -163,7 +163,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
     }
   }
 
-  Bind(&check_rhsisoddball);
+  BIND(&check_rhsisoddball);
   {
     // Check if rhs is an oddball. At this point we know lhs is either a
     // Smi or number or oddball and rhs is not a number or Smi.
@@ -174,27 +174,27 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
            &call_with_any_feedback);
   }
 
-  Bind(&call_with_oddball_feedback);
+  BIND(&call_with_oddball_feedback);
   {
     var_type_feedback.Bind(
         SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
     Goto(&call_add_stub);
   }
 
-  Bind(&call_with_any_feedback);
+  BIND(&call_with_any_feedback);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
     Goto(&call_add_stub);
   }
 
-  Bind(&call_add_stub);
+  BIND(&call_add_stub);
   {
     Callable callable = CodeFactory::Add(isolate());
     var_result.Bind(CallStub(callable, context, lhs, rhs));
     Goto(&end);
   }
 
-  Bind(&end);
+  BIND(&end);
   UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
   return var_result.value();
 }
@@ -215,13 +215,13 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
   Label if_lhsissmi(this), if_lhsisnotsmi(this);
   Branch(TaggedIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
 
-  Bind(&if_lhsissmi);
+  BIND(&if_lhsissmi);
   {
     // Check if the {rhs} is also a Smi.
     Label if_rhsissmi(this), if_rhsisnotsmi(this);
     Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
-    Bind(&if_rhsissmi);
+    BIND(&if_rhsissmi);
     {
       // Try a fast Smi subtraction first.
       Node* pair = IntPtrSubWithOverflow(BitcastTaggedToWord(lhs),
@@ -232,7 +232,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
       Label if_overflow(this), if_notoverflow(this);
       Branch(overflow, &if_overflow, &if_notoverflow);
 
-      Bind(&if_overflow);
+      BIND(&if_overflow);
       {
         // lhs, rhs - smi and result - number. combined - number.
         // The result doesn't fit into Smi range.
@@ -241,7 +241,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
         Goto(&do_fsub);
       }
 
-      Bind(&if_notoverflow);
+      BIND(&if_notoverflow);
       // lhs, rhs, result smi. combined - smi.
       var_type_feedback.Bind(
           SmiConstant(BinaryOperationFeedback::kSignedSmall));
@@ -249,7 +249,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
       Goto(&end);
     }
 
-    Bind(&if_rhsisnotsmi);
+    BIND(&if_rhsisnotsmi);
     {
       // Load the map of the {rhs}.
       Node* rhs_map = LoadMap(rhs);
@@ -264,7 +264,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
     }
   }
 
-  Bind(&if_lhsisnotsmi);
+  BIND(&if_lhsisnotsmi);
   {
     // Load the map of the {lhs}.
     Node* lhs_map = LoadMap(lhs);
@@ -276,7 +276,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
     Label if_rhsissmi(this), if_rhsisnotsmi(this);
     Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
-    Bind(&if_rhsissmi);
+    BIND(&if_rhsissmi);
     {
       // Perform a floating point subtraction.
       var_fsub_lhs.Bind(LoadHeapNumberValue(lhs));
@@ -284,7 +284,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
       Goto(&do_fsub);
     }
 
-    Bind(&if_rhsisnotsmi);
+    BIND(&if_rhsisnotsmi);
     {
       // Load the map of the {rhs}.
       Node* rhs_map = LoadMap(rhs);
@@ -299,7 +299,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
     }
   }
 
-  Bind(&do_fsub);
+  BIND(&do_fsub);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
     Node* lhs_value = var_fsub_lhs.value();
@@ -309,7 +309,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
     Goto(&end);
   }
 
-  Bind(&if_lhsisnotnumber);
+  BIND(&if_lhsisnotnumber);
   {
     // No checks on rhs are done yet. We just know lhs is not a number or Smi.
     // Check if lhs is an oddball.
@@ -321,14 +321,14 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
     Label if_rhsissmi(this), if_rhsisnotsmi(this);
     Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
-    Bind(&if_rhsissmi);
+    BIND(&if_rhsissmi);
     {
       var_type_feedback.Bind(
           SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
       Goto(&call_subtract_stub);
     }
 
-    Bind(&if_rhsisnotsmi);
+    BIND(&if_rhsisnotsmi);
     {
       // Load the map of the {rhs}.
       Node* rhs_map = LoadMap(rhs);
@@ -342,7 +342,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
     }
   }
 
-  Bind(&check_rhsisoddball);
+  BIND(&check_rhsisoddball);
   {
     // Check if rhs is an oddball. At this point we know lhs is either a
     // Smi or number or oddball and rhs is not a number or Smi.
@@ -356,20 +356,20 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
     Goto(&call_subtract_stub);
   }
 
-  Bind(&call_with_any_feedback);
+  BIND(&call_with_any_feedback);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
     Goto(&call_subtract_stub);
   }
 
-  Bind(&call_subtract_stub);
+  BIND(&call_subtract_stub);
   {
     Callable callable = CodeFactory::Subtract(isolate());
     var_result.Bind(CallStub(callable, context, lhs, rhs));
     Goto(&end);
   }
 
-  Bind(&end);
+  BIND(&end);
   UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
   return var_result.value();
 }
@@ -390,12 +390,12 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
   Label lhs_is_smi(this), lhs_is_not_smi(this);
   Branch(TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
 
-  Bind(&lhs_is_smi);
+  BIND(&lhs_is_smi);
   {
     Label rhs_is_smi(this), rhs_is_not_smi(this);
     Branch(TaggedIsSmi(rhs), &rhs_is_smi, &rhs_is_not_smi);
 
-    Bind(&rhs_is_smi);
+    BIND(&rhs_is_smi);
     {
       // Both {lhs} and {rhs} are Smis. The result is not necessarily a smi,
       // in case of overflow.
@@ -407,7 +407,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
       Goto(&end);
     }
 
-    Bind(&rhs_is_not_smi);
+    BIND(&rhs_is_not_smi);
     {
       Node* rhs_map = LoadMap(rhs);
 
@@ -421,7 +421,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
     }
   }
 
-  Bind(&lhs_is_not_smi);
+  BIND(&lhs_is_not_smi);
   {
     Node* lhs_map = LoadMap(lhs);
 
@@ -432,7 +432,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
     Label rhs_is_smi(this), rhs_is_not_smi(this);
     Branch(TaggedIsSmi(rhs), &rhs_is_smi, &rhs_is_not_smi);
 
-    Bind(&rhs_is_smi);
+    BIND(&rhs_is_smi);
     {
       // Convert {rhs} to a double and multiply it with the value of {lhs}.
       var_lhs_float64.Bind(LoadHeapNumberValue(lhs));
@@ -440,7 +440,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
       Goto(&do_fmul);
     }
 
-    Bind(&rhs_is_not_smi);
+    BIND(&rhs_is_not_smi);
     {
       Node* rhs_map = LoadMap(rhs);
 
@@ -455,7 +455,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
     }
   }
 
-  Bind(&do_fmul);
+  BIND(&do_fmul);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
     Node* value = Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
@@ -464,7 +464,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
     Goto(&end);
   }
 
-  Bind(&if_lhsisnotnumber);
+  BIND(&if_lhsisnotnumber);
   {
     // No checks on rhs are done yet. We just know lhs is not a number or Smi.
     // Check if lhs is an oddball.
@@ -483,7 +483,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
            &check_rhsisoddball);
   }
 
-  Bind(&check_rhsisoddball);
+  BIND(&check_rhsisoddball);
   {
     // Check if rhs is an oddball. At this point we know lhs is either a
     // Smi or number or oddball and rhs is not a number or Smi.
@@ -494,27 +494,27 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
            &call_with_any_feedback);
   }
 
-  Bind(&call_with_oddball_feedback);
+  BIND(&call_with_oddball_feedback);
   {
     var_type_feedback.Bind(
         SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
     Goto(&call_multiply_stub);
   }
 
-  Bind(&call_with_any_feedback);
+  BIND(&call_with_any_feedback);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
     Goto(&call_multiply_stub);
   }
 
-  Bind(&call_multiply_stub);
+  BIND(&call_multiply_stub);
   {
     Callable callable = CodeFactory::Multiply(isolate());
     var_result.Bind(CallStub(callable, context, lhs, rhs));
     Goto(&end);
   }
 
-  Bind(&end);
+  BIND(&end);
   UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
   return var_result.value();
 }
@@ -537,12 +537,12 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
   Label dividend_is_smi(this), dividend_is_not_smi(this);
   Branch(TaggedIsSmi(dividend), &dividend_is_smi, &dividend_is_not_smi);
 
-  Bind(&dividend_is_smi);
+  BIND(&dividend_is_smi);
   {
     Label divisor_is_smi(this), divisor_is_not_smi(this);
     Branch(TaggedIsSmi(divisor), &divisor_is_smi, &divisor_is_not_smi);
 
-    Bind(&divisor_is_smi);
+    BIND(&divisor_is_smi);
     {
       Label bailout(this);
 
@@ -555,12 +555,12 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
       Branch(WordEqual(dividend, SmiConstant(0)), &dividend_is_zero,
              &dividend_is_not_zero);
 
-      Bind(&dividend_is_zero);
+      BIND(&dividend_is_zero);
       {
         GotoIf(SmiLessThan(divisor, SmiConstant(0)), &bailout);
         Goto(&dividend_is_not_zero);
       }
-      Bind(&dividend_is_not_zero);
+      BIND(&dividend_is_not_zero);
 
       Node* untagged_divisor = SmiToWord32(divisor);
       Node* untagged_dividend = SmiToWord32(dividend);
@@ -571,7 +571,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
       Branch(Word32Equal(untagged_divisor, Int32Constant(-1)),
              &divisor_is_minus_one, &divisor_is_not_minus_one);
 
-      Bind(&divisor_is_minus_one);
+      BIND(&divisor_is_minus_one);
       {
         GotoIf(Word32Equal(untagged_dividend,
                            Int32Constant(kSmiValueSize == 32 ? kMinInt
@@ -579,7 +579,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
                &bailout);
         Goto(&divisor_is_not_minus_one);
       }
-      Bind(&divisor_is_not_minus_one);
+      BIND(&divisor_is_not_minus_one);
 
       Node* untagged_result = Int32Div(untagged_dividend, untagged_divisor);
       Node* truncated = Int32Mul(untagged_result, untagged_divisor);
@@ -592,7 +592,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
 
       // Bailout: convert {dividend} and {divisor} to double and do double
       // division.
-      Bind(&bailout);
+      BIND(&bailout);
       {
         var_dividend_float64.Bind(SmiToFloat64(dividend));
         var_divisor_float64.Bind(SmiToFloat64(divisor));
@@ -600,7 +600,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
       }
     }
 
-    Bind(&divisor_is_not_smi);
+    BIND(&divisor_is_not_smi);
     {
       Node* divisor_map = LoadMap(divisor);
 
@@ -614,7 +614,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
       Goto(&do_fdiv);
     }
 
-    Bind(&dividend_is_not_smi);
+    BIND(&dividend_is_not_smi);
     {
       Node* dividend_map = LoadMap(dividend);
 
@@ -625,7 +625,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
       Label divisor_is_smi(this), divisor_is_not_smi(this);
       Branch(TaggedIsSmi(divisor), &divisor_is_smi, &divisor_is_not_smi);
 
-      Bind(&divisor_is_smi);
+      BIND(&divisor_is_smi);
       {
         // Convert {divisor} to a double and use it for a floating point
         // division.
@@ -634,7 +634,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
         Goto(&do_fdiv);
       }
 
-      Bind(&divisor_is_not_smi);
+      BIND(&divisor_is_not_smi);
       {
         Node* divisor_map = LoadMap(divisor);
 
@@ -650,7 +650,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
     }
   }
 
-  Bind(&do_fdiv);
+  BIND(&do_fdiv);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
     Node* value =
@@ -659,7 +659,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
     Goto(&end);
   }
 
-  Bind(&dividend_is_not_number);
+  BIND(&dividend_is_not_number);
   {
     // We just know dividend is not a number or Smi. No checks on divisor yet.
     // Check if dividend is an oddball.
@@ -678,7 +678,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
            &check_divisor_for_oddball);
   }
 
-  Bind(&check_divisor_for_oddball);
+  BIND(&check_divisor_for_oddball);
   {
     // Check if divisor is an oddball. At this point we know dividend is either
     // a Smi or number or oddball and divisor is not a number or Smi.
@@ -689,27 +689,27 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
            &call_with_any_feedback);
   }
 
-  Bind(&call_with_oddball_feedback);
+  BIND(&call_with_oddball_feedback);
   {
     var_type_feedback.Bind(
         SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
     Goto(&call_divide_stub);
   }
 
-  Bind(&call_with_any_feedback);
+  BIND(&call_with_any_feedback);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
     Goto(&call_divide_stub);
   }
 
-  Bind(&call_divide_stub);
+  BIND(&call_divide_stub);
   {
     Callable callable = CodeFactory::Divide(isolate());
     var_result.Bind(CallStub(callable, context, dividend, divisor));
     Goto(&end);
   }
 
-  Bind(&end);
+  BIND(&end);
   UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
   return var_result.value();
 }
@@ -732,12 +732,12 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
   Label dividend_is_smi(this), dividend_is_not_smi(this);
   Branch(TaggedIsSmi(dividend), &dividend_is_smi, &dividend_is_not_smi);
 
-  Bind(&dividend_is_smi);
+  BIND(&dividend_is_smi);
   {
     Label divisor_is_smi(this), divisor_is_not_smi(this);
     Branch(TaggedIsSmi(divisor), &divisor_is_smi, &divisor_is_not_smi);
 
-    Bind(&divisor_is_smi);
+    BIND(&divisor_is_smi);
     {
       var_result.Bind(SmiMod(dividend, divisor));
       var_type_feedback.Bind(
@@ -747,7 +747,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
       Goto(&end);
     }
 
-    Bind(&divisor_is_not_smi);
+    BIND(&divisor_is_not_smi);
     {
       Node* divisor_map = LoadMap(divisor);
 
@@ -762,7 +762,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
     }
   }
 
-  Bind(&dividend_is_not_smi);
+  BIND(&dividend_is_not_smi);
   {
     Node* dividend_map = LoadMap(dividend);
 
@@ -773,7 +773,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
     Label divisor_is_smi(this), divisor_is_not_smi(this);
     Branch(TaggedIsSmi(divisor), &divisor_is_smi, &divisor_is_not_smi);
 
-    Bind(&divisor_is_smi);
+    BIND(&divisor_is_smi);
     {
       // Convert {divisor} to a double and use it for a floating point
       // division.
@@ -782,7 +782,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
       Goto(&do_fmod);
     }
 
-    Bind(&divisor_is_not_smi);
+    BIND(&divisor_is_not_smi);
     {
       Node* divisor_map = LoadMap(divisor);
 
@@ -797,7 +797,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
     }
   }
 
-  Bind(&do_fmod);
+  BIND(&do_fmod);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
     Node* value =
@@ -806,7 +806,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
     Goto(&end);
   }
 
-  Bind(&dividend_is_not_number);
+  BIND(&dividend_is_not_number);
   {
     // No checks on divisor yet. We just know dividend is not a number or Smi.
     // Check if dividend is an oddball.
@@ -825,7 +825,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
            &check_divisor_for_oddball);
   }
 
-  Bind(&check_divisor_for_oddball);
+  BIND(&check_divisor_for_oddball);
   {
     // Check if divisor is an oddball. At this point we know dividend is either
     // a Smi or number or oddball and divisor is not a number or Smi.
@@ -836,27 +836,27 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
            &call_with_any_feedback);
   }
 
-  Bind(&call_with_oddball_feedback);
+  BIND(&call_with_oddball_feedback);
   {
     var_type_feedback.Bind(
         SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
     Goto(&call_modulus_stub);
   }
 
-  Bind(&call_with_any_feedback);
+  BIND(&call_with_any_feedback);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
     Goto(&call_modulus_stub);
   }
 
-  Bind(&call_modulus_stub);
+  BIND(&call_modulus_stub);
   {
     Callable callable = CodeFactory::Modulus(isolate());
     var_result.Bind(CallStub(callable, context, dividend, divisor));
     Goto(&end);
   }
 
-  Bind(&end);
+  BIND(&end);
   UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
   return var_result.value();
 }

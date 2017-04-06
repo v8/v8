@@ -58,7 +58,7 @@ void AsyncFromSyncBuiltinsAssembler::ThrowIfNotAsyncFromSyncIterator(
   Branch(HasInstanceType(object, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE), &done,
          &if_receiverisincompatible);
 
-  Bind(&if_receiverisincompatible);
+  BIND(&if_receiverisincompatible);
   {
     // If Type(O) is not Object, or if O does not have a [[SyncIterator]]
     // internal slot, then
@@ -74,7 +74,7 @@ void AsyncFromSyncBuiltinsAssembler::ThrowIfNotAsyncFromSyncIterator(
     Goto(if_exception);
   }
 
-  Bind(&done);
+  BIND(&done);
 }
 
 void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
@@ -105,7 +105,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     GotoIfNot(IsUndefined(method), &if_isnotundefined);
     if_method_undefined(native_context, promise, &reject_promise);
 
-    Bind(&if_isnotundefined);
+    BIND(&if_isnotundefined);
   }
 
   Node* const iter_result = CallJS(CodeFactory::Call(isolate()), context,
@@ -134,7 +134,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
                              undefined, undefined);
   Return(promise);
 
-  Bind(&reject_promise);
+  BIND(&reject_promise);
   {
     Node* const exception = var_exception.value();
     InternalPromiseReject(context, promise, exception, TrueConstant());
@@ -161,7 +161,7 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   Branch(WordEqual(iter_result_map, fast_iter_result_map), &if_fastpath,
          &if_slowpath);
 
-  Bind(&if_fastpath);
+  BIND(&if_fastpath);
   {
     var_value.Bind(
         LoadObjectField(iter_result, JSIteratorResult::kValueOffset));
@@ -169,7 +169,7 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
     Goto(&merge);
   }
 
-  Bind(&if_slowpath);
+  BIND(&if_slowpath);
   {
     // Let nextValue be IteratorValue(nextResult).
     // IfAbruptRejectPromise(nextValue, promiseCapability).
@@ -188,7 +188,7 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
     Goto(&merge);
   }
 
-  Bind(&if_notanobject);
+  BIND(&if_notanobject);
   {
     // Sync iterator result is not an object --- Produce a TypeError and jump
     // to the `if_exception` path.
@@ -198,12 +198,12 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
     Goto(if_exception);
   }
 
-  Bind(&merge);
+  BIND(&merge);
   // Ensure `iterResult.done` is a Boolean.
   GotoIf(TaggedIsSmi(var_done.value()), &to_boolean);
   Branch(IsBoolean(var_done.value()), &done, &to_boolean);
 
-  Bind(&to_boolean);
+  BIND(&to_boolean);
   {
     Node* const result =
         CallStub(CodeFactory::ToBoolean(isolate()), context, var_done.value());
@@ -211,7 +211,7 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
     Goto(&done);
   }
 
-  Bind(&done);
+  BIND(&done);
   return std::make_pair(var_value.value(), var_done.value());
 }
 }  // namespace

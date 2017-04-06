@@ -20,7 +20,7 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
   Label loop(this, &var_num);
   var_num.Bind(Parameter(Descriptor::kNumber));
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     Node* num = var_num.value();
 
@@ -33,7 +33,7 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
     Branch(IsHeapNumberMap(LoadMap(num)), &if_numisheapnumber,
            &if_numisnotheapnumber);
 
-    Bind(&if_numisheapnumber);
+    BIND(&if_numisheapnumber);
     {
       // Check if {num} contains a finite, non-NaN value.
       Node* num_value = LoadHeapNumberValue(num);
@@ -41,7 +41,7 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
                            &return_true);
     }
 
-    Bind(&if_numisnotheapnumber);
+    BIND(&if_numisnotheapnumber);
     {
       // Need to convert {num} to a Number first.
       Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -50,10 +50,10 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
     }
   }
 
-  Bind(&return_true);
+  BIND(&return_true);
   Return(BooleanConstant(true));
 
-  Bind(&return_false);
+  BIND(&return_false);
   Return(BooleanConstant(false));
 }
 
@@ -68,7 +68,7 @@ TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
   Label loop(this, &var_num);
   var_num.Bind(Parameter(Descriptor::kNumber));
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     Node* num = var_num.value();
 
@@ -81,14 +81,14 @@ TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
     Branch(IsHeapNumberMap(LoadMap(num)), &if_numisheapnumber,
            &if_numisnotheapnumber);
 
-    Bind(&if_numisheapnumber);
+    BIND(&if_numisheapnumber);
     {
       // Check if {num} contains a NaN.
       Node* num_value = LoadHeapNumberValue(num);
       BranchIfFloat64IsNaN(num_value, &return_true, &return_false);
     }
 
-    Bind(&if_numisnotheapnumber);
+    BIND(&if_numisnotheapnumber);
     {
       // Need to convert {num} to a Number first.
       Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -97,10 +97,10 @@ TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
     }
   }
 
-  Bind(&return_true);
+  BIND(&return_true);
   Return(BooleanConstant(true));
 
-  Bind(&return_false);
+  BIND(&return_false);
   Return(BooleanConstant(false));
 }
 

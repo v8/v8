@@ -34,7 +34,7 @@ Node* ForInBuiltinsAssembler::ForInFilter(Node* key, Node* object,
   var_result.Bind(UndefinedConstant());
   Goto(&end);
 
-  Bind(&end);
+  BIND(&end);
   return var_result.value();
 }
 
@@ -46,7 +46,7 @@ std::tuple<Node*, Node*, Node*> ForInBuiltinsAssembler::EmitForInPrepare(
 
   CheckEnumCache(object, &use_cache, nothing_to_iterate, call_runtime);
 
-  Bind(&use_cache);
+  BIND(&use_cache);
   Node* map = LoadMap(object);
   Node* enum_length = EnumLength(map);
   GotoIf(WordEqual(enum_length, SmiConstant(0)), nothing_to_iterate);
@@ -79,7 +79,7 @@ void ForInBuiltinsAssembler::CheckPrototypeEnumCache(Node* receiver, Node* map,
   Goto(&loop);
   // Check that there are no elements. |current_js_object| contains
   // the current JS object we've reached through the prototype chain.
-  Bind(&loop);
+  BIND(&loop);
   {
     Label if_elements(this), if_no_elements(this);
     Node* elements = LoadElements(current_js_object.value());
@@ -87,7 +87,7 @@ void ForInBuiltinsAssembler::CheckPrototypeEnumCache(Node* receiver, Node* map,
     // Check that there are no elements.
     Branch(WordEqual(elements, empty_fixed_array), &if_no_elements,
            &if_elements);
-    Bind(&if_elements);
+    BIND(&if_elements);
     {
       // Second chance, the object may be using the empty slow element
       // dictionary.
@@ -97,7 +97,7 @@ void ForInBuiltinsAssembler::CheckPrototypeEnumCache(Node* receiver, Node* map,
              &if_no_elements);
     }
 
-    Bind(&if_no_elements);
+    BIND(&if_no_elements);
     {
       // Update map prototype.
       current_js_object.Bind(LoadMapPrototype(current_map.value()));
@@ -106,7 +106,7 @@ void ForInBuiltinsAssembler::CheckPrototypeEnumCache(Node* receiver, Node* map,
     }
   }
 
-  Bind(&next);
+  BIND(&next);
   {
     // For all objects but the receiver, check that the cache is empty.
     current_map.Bind(LoadMap(current_js_object.value()));
@@ -136,11 +136,11 @@ void ForInBuiltinsAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
 
   // Check that there are no elements on the fast |receiver| and its prototype
   // chain.
-  Bind(&check_empty_prototype);
+  BIND(&check_empty_prototype);
   CheckPrototypeEnumCache(receiver, map, use_cache, use_runtime);
 
   Label dict_loop(this);
-  Bind(&check_dict_receiver);
+  BIND(&check_dict_receiver);
   {
     // Avoid runtime-call for empty dictionary receivers.
     GotoIfNot(IsDictionaryMap(map), use_runtime);
@@ -176,7 +176,7 @@ TF_BUILTIN(ForInNext, ForInBuiltinsAssembler) {
   Node* map = LoadMap(object);
   GotoIfNot(WordEqual(map, cache_type), &filter);
   Return(key);
-  Bind(&filter);
+  BIND(&filter);
   Return(ForInFilter(key, object, context));
 }
 
@@ -193,10 +193,10 @@ TF_BUILTIN(ForInPrepare, ForInBuiltinsAssembler) {
 
   Return(cache_type, cache_array, cache_length);
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   TailCallRuntime(Runtime::kForInPrepare, context, object);
 
-  Bind(&nothing_to_iterate);
+  BIND(&nothing_to_iterate);
   {
     Node* zero = SmiConstant(0);
     Return(zero, zero, zero);

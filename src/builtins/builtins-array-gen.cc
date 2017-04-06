@@ -45,9 +45,9 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
                          this_arg(), k_value, k, o());
     Label false_continue(this), return_true(this);
     BranchIfToBooleanIsTrue(value, &return_true, &false_continue);
-    Bind(&return_true);
+    BIND(&return_true);
     Return(TrueConstant());
-    Bind(&false_continue);
+    BIND(&false_continue);
     return a();
   }
 
@@ -58,9 +58,9 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
                          this_arg(), k_value, k, o());
     Label true_continue(this), return_false(this);
     BranchIfToBooleanIsTrue(value, &true_continue, &return_false);
-    Bind(&return_false);
+    BIND(&return_false);
     Return(FalseConstant());
-    Bind(&true_continue);
+    BIND(&true_continue);
     return a();
   }
 
@@ -84,17 +84,17 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
            &no_initial_value, &has_initial_value);
 
     // a. Set accumulator to initialValue.
-    Bind(&has_initial_value);
+    BIND(&has_initial_value);
     a.Bind(this_arg());
     Goto(&done);
 
     // 9. Else initialValue is not present,
-    Bind(&no_initial_value);
+    BIND(&no_initial_value);
 
     // a. Let kPresent be false.
     a.Bind(TheHoleConstant());
     Goto(&done);
-    Bind(&done);
+    BIND(&done);
     return a.value();
   }
 
@@ -106,11 +106,11 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
                        UndefinedConstant(), a(), k_value, k, o()));
     Goto(&done);
 
-    Bind(&initial);
+    BIND(&initial);
     result.Bind(k_value);
     Goto(&done);
 
-    Bind(&done);
+    BIND(&done);
     return result.value();
   }
 
@@ -120,7 +120,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     CallRuntime(Runtime::kThrowTypeError, context(),
                 SmiConstant(MessageTemplate::kReduceNoInitial));
     Unreachable();
-    Bind(&ok);
+    BIND(&ok);
   }
 
   Node* FilterResultGenerator() {
@@ -134,7 +134,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
                             callbackfn(), this_arg(), k_value, k, o());
     Label true_continue(this, &to_), false_continue(this);
     BranchIfToBooleanIsTrue(selected, &true_continue, &false_continue);
-    Bind(&true_continue);
+    BIND(&true_continue);
     // iii. If selected is true, then...
     {
       // 1. Perform ? CreateDataPropertyOrThrow(A, ToString(to), kValue).
@@ -145,7 +145,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       to_.Bind(NumberInc(to_.value()));
       Goto(&false_continue);
     }
-    Bind(&false_continue);
+    BIND(&false_continue);
     return a();
   }
 
@@ -220,13 +220,13 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     GotoIf(DoesntHaveInstanceType(o(), JS_ARRAY_TYPE), &not_js_array);
     merged_length.Bind(LoadJSArrayLength(o()));
     Goto(&has_length);
-    Bind(&not_js_array);
+    BIND(&not_js_array);
     Node* len_property =
         GetProperty(context(), o(), isolate()->factory()->length_string());
     merged_length.Bind(
         CallStub(CodeFactory::ToLength(isolate()), context(), len_property));
     Goto(&has_length);
-    Bind(&has_length);
+    BIND(&has_length);
     len_ = merged_length.value();
 
     // 5. If IsCallable(callbackfn) is false, throw a TypeError exception.
@@ -235,7 +235,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     GotoIf(TaggedIsSmi(callbackfn()), &type_exception);
     Branch(IsCallableMap(LoadMap(callbackfn())), &done, &type_exception);
 
-    Bind(&throw_null_undefined_exception);
+    BIND(&throw_null_undefined_exception);
     {
       CallRuntime(
           Runtime::kThrowTypeError, context(),
@@ -244,7 +244,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       Unreachable();
     }
 
-    Bind(&type_exception);
+    BIND(&type_exception);
     {
       CallRuntime(Runtime::kThrowTypeError, context(),
                   SmiConstant(MessageTemplate::kCalledNonCallable),
@@ -252,7 +252,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       Unreachable();
     }
 
-    Bind(&done);
+    BIND(&done);
 
     // 6. If thisArg was supplied, let T be thisArg; else let T be undefined.
     // [Already done by the arguments adapter]
@@ -269,7 +269,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
     HandleFastElements(processor, action, &slow, direction);
 
-    Bind(&slow);
+    BIND(&slow);
 
     Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                  MachineType::TaggedPointer());
@@ -322,14 +322,14 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Branch(IsCallableMap(LoadMap(callbackfn_)), &distinguish_types,
            &throw_not_callable);
 
-    Bind(&throw_not_typed_array);
+    BIND(&throw_not_typed_array);
     {
       CallRuntime(Runtime::kThrowTypeError, context_,
                   SmiConstant(MessageTemplate::kNotTypedArray));
       Unreachable();
     }
 
-    Bind(&throw_detached);
+    BIND(&throw_detached);
     {
       CallRuntime(Runtime::kThrowTypeError, context_,
                   SmiConstant(MessageTemplate::kDetachedOperation),
@@ -337,7 +337,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       Unreachable();
     }
 
-    Bind(&throw_not_callable);
+    BIND(&throw_not_callable);
     {
       CallRuntime(Runtime::kThrowTypeError, context_,
                   SmiConstant(MessageTemplate::kCalledNonCallable),
@@ -346,7 +346,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     }
 
     Label unexpected_instance_type(this);
-    Bind(&unexpected_instance_type);
+    BIND(&unexpected_instance_type);
     Unreachable();
 
     std::vector<int32_t> instance_types = {
@@ -363,14 +363,14 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       label_ptrs.push_back(&label);
     }
 
-    Bind(&distinguish_types);
+    BIND(&distinguish_types);
     a_.Bind(generator(this));
     Node* elements_type = LoadInstanceType(LoadElements(o_));
     Switch(elements_type, &unexpected_instance_type, instance_types.data(),
            label_ptrs.data(), labels.size());
 
     for (size_t i = 0; i < labels.size(); ++i) {
-      Bind(&labels[i]);
+      BIND(&labels[i]);
       Label done(this);
       // TODO(tebbi): Silently cancelling the loop on buffer detachment is a
       // spec violation. Should go to &detached and throw a TypeError instead.
@@ -381,7 +381,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       Goto(&done);
       action(this);
       // No exception, return success
-      Bind(&done);
+      BIND(&done);
       Return(a_.value());
     }
   }
@@ -392,7 +392,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Label loop(this, {&k_, &a_, &to_});
     Label after_loop(this);
     Goto(&loop);
-    Bind(&loop);
+    BIND(&loop);
     {
       if (direction == ForEachDirection::kForward) {
         // 8. Repeat, while k < len
@@ -423,7 +423,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       a_.Bind(processor(this, k_value, k()));
       Goto(&done_element);
 
-      Bind(&done_element);
+      BIND(&done_element);
 
       if (direction == ForEachDirection::kForward) {
         // e. Increase k by 1.
@@ -434,7 +434,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       }
       Goto(&loop);
     }
-    Bind(&after_loop);
+    BIND(&after_loop);
 
     action(this);
     Return(a_.value());
@@ -532,13 +532,13 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
           a_.Bind(processor(this, value, k()));
           Goto(&one_element_done);
 
-          Bind(&hole_element);
+          BIND(&hole_element);
           // Check if o's prototype change unexpectedly has elements after the
           // callback in the case of a hole.
           BranchIfPrototypesHaveNoElements(o_map, &one_element_done,
                                            array_changed);
 
-          Bind(&one_element_done);
+          BIND(&one_element_done);
         },
         1, mode, advance_mode);
     Comment("end VisitAllFastElementsOneKind");
@@ -558,7 +558,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
                         CodeStubAssembler::FastJSArrayAccessMode::INBOUNDS_READ,
                         &switch_on_elements_kind, slow);
 
-    Bind(&switch_on_elements_kind);
+    BIND(&switch_on_elements_kind);
     // Select by ElementsKind
     Node* o_map = LoadMap(o());
     Node* bit_field2 = LoadMapBitField2(o_map);
@@ -567,7 +567,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
            &maybe_double_elements, &fast_elements);
 
     ParameterMode mode = OptimalParameterMode();
-    Bind(&fast_elements);
+    BIND(&fast_elements);
     {
       VisitAllFastElementsOneKind(FAST_ELEMENTS, processor, slow, mode,
                                   direction);
@@ -578,11 +578,11 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       Return(a_.value());
     }
 
-    Bind(&maybe_double_elements);
+    BIND(&maybe_double_elements);
     Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
            slow, &fast_double_elements);
 
-    Bind(&fast_double_elements);
+    BIND(&fast_double_elements);
     {
       VisitAllFastElementsOneKind(FAST_DOUBLE_ELEMENTS, processor, slow, mode,
                                   direction);
@@ -630,7 +630,7 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   BranchIfFastJSArray(receiver, context, FastJSArrayAccessMode::ANY_ACCESS,
                       &fast, &runtime);
 
-  Bind(&fast);
+  BIND(&fast);
   {
     // Disallow pushing onto prototypes. It might be the JSArray prototype.
     // Disallow pushing onto non-extensible objects.
@@ -672,7 +672,7 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   // transition the array for only the single next element. If the argument is
   // a smi, the failure is due to some other reason and we should fall back on
   // the most generic implementation for the rest of the array.
-  Bind(&smi_transition);
+  BIND(&smi_transition);
   {
     Node* arg = args.AtIndex(arg_index.value());
     GotoIf(TaggedIsSmi(arg), &default_label);
@@ -694,20 +694,20 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
     Goto(&double_push);
   }
 
-  Bind(&object_push_pre);
+  BIND(&object_push_pre);
   {
     Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
            &double_push, &object_push);
   }
 
-  Bind(&object_push);
+  BIND(&object_push);
   {
     Node* new_length = BuildAppendJSArray(FAST_ELEMENTS, context, receiver,
                                           args, arg_index, &default_label);
     args.PopAndReturn(new_length);
   }
 
-  Bind(&double_push);
+  BIND(&double_push);
   {
     Node* new_length =
         BuildAppendJSArray(FAST_DOUBLE_ELEMENTS, context, receiver, args,
@@ -719,7 +719,7 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   // transition the array for only the single next element. If the argument is
   // a double, the failure is due to some other reason and we should fall back
   // on the most generic implementation for the rest of the array.
-  Bind(&double_transition);
+  BIND(&double_transition);
   {
     Node* arg = args.AtIndex(arg_index.value());
     GotoIfNumber(arg, &default_label);
@@ -741,7 +741,7 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
 
   // Fallback that stores un-processed arguments using the full, heavyweight
   // SetProperty machinery.
-  Bind(&default_label);
+  BIND(&default_label);
   {
     args.ForEach(
         [this, receiver, context](Node* arg) {
@@ -753,7 +753,7 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
     args.PopAndReturn(LoadJSArrayLength(receiver));
   }
 
-  Bind(&runtime);
+  BIND(&runtime);
   {
     Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                  MachineType::TaggedPointer());
@@ -1079,13 +1079,13 @@ TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {
   Branch(Word32Equal(instance_type, Int32Constant(JS_PROXY_TYPE)),
          &call_runtime, &return_false);
 
-  Bind(&return_true);
+  BIND(&return_true);
   Return(BooleanConstant(true));
 
-  Bind(&return_false);
+  BIND(&return_false);
   Return(BooleanConstant(false));
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   Return(CallRuntime(Runtime::kArrayIsArray, context, object));
 }
 
@@ -1107,7 +1107,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
   BranchIfFastJSArray(array, context, FastJSArrayAccessMode::INBOUNDS_READ,
                       &init_len, &call_runtime);
 
-  Bind(&init_len);
+  BIND(&init_len);
   // JSArray length is always an Smi for fast arrays.
   CSA_ASSERT(this, TaggedIsSmi(LoadObjectField(array, JSArray::kLengthOffset)));
   Node* const len = LoadAndUntagObjectField(array, JSArray::kLengthOffset);
@@ -1117,7 +1117,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
   // Bailout to slow path if startIndex is not an Smi.
   Branch(TaggedIsSmi(start_from), &init_k, &call_runtime);
 
-  Bind(&init_k);
+  BIND(&init_k);
   CSA_ASSERT(this, TaggedIsSmi(start_from));
   Node* const untagged_start_from = SmiToWord(start_from);
   index_var.Bind(
@@ -1132,7 +1132,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
              MachineType::PointerRepresentation()));
 
   Goto(&select_loop);
-  Bind(&select_loop);
+  BIND(&select_loop);
   static int32_t kElementsKind[] = {
       FAST_SMI_ELEMENTS,   FAST_HOLEY_SMI_ELEMENTS, FAST_ELEMENTS,
       FAST_HOLEY_ELEMENTS, FAST_DOUBLE_ELEMENTS,    FAST_HOLEY_DOUBLE_ELEMENTS,
@@ -1149,7 +1149,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
   Switch(elements_kind, &return_false, kElementsKind, element_kind_handlers,
          arraysize(kElementsKind));
 
-  Bind(&if_smiorobjects);
+  BIND(&if_smiorobjects);
   {
     Variable search_num(this, MachineRepresentation::kFloat64);
     Label ident_loop(this, &index_var), heap_num_loop(this, &search_num),
@@ -1160,19 +1160,19 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     search_num.Bind(SmiToFloat64(search_element));
     Goto(&heap_num_loop);
 
-    Bind(&not_smi);
+    BIND(&not_smi);
     GotoIf(WordEqual(search_element, UndefinedConstant()), &undef_loop);
     Node* map = LoadMap(search_element);
     GotoIfNot(IsHeapNumberMap(map), &not_heap_num);
     search_num.Bind(LoadHeapNumberValue(search_element));
     Goto(&heap_num_loop);
 
-    Bind(&not_heap_num);
+    BIND(&not_heap_num);
     Node* search_type = LoadMapInstanceType(map);
     GotoIf(IsStringInstanceType(search_type), &string_loop);
     Goto(&ident_loop);
 
-    Bind(&ident_loop);
+    BIND(&ident_loop);
     {
       GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
       Node* element_k = LoadFixedArrayElement(elements, index_var.value());
@@ -1182,7 +1182,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
       Goto(&ident_loop);
     }
 
-    Bind(&undef_loop);
+    BIND(&undef_loop);
     {
       GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
       Node* element_k = LoadFixedArrayElement(elements, index_var.value());
@@ -1193,12 +1193,12 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
       Goto(&undef_loop);
     }
 
-    Bind(&heap_num_loop);
+    BIND(&heap_num_loop);
     {
       Label nan_loop(this, &index_var), not_nan_loop(this, &index_var);
       BranchIfFloat64IsNaN(search_num.value(), &nan_loop, &not_nan_loop);
 
-      Bind(&not_nan_loop);
+      BIND(&not_nan_loop);
       {
         Label continue_loop(this), not_smi(this);
         GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
@@ -1207,17 +1207,17 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
         Branch(Float64Equal(search_num.value(), SmiToFloat64(element_k)),
                &return_true, &continue_loop);
 
-        Bind(&not_smi);
+        BIND(&not_smi);
         GotoIfNot(IsHeapNumber(element_k), &continue_loop);
         Branch(Float64Equal(search_num.value(), LoadHeapNumberValue(element_k)),
                &return_true, &continue_loop);
 
-        Bind(&continue_loop);
+        BIND(&continue_loop);
         index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
         Goto(&not_nan_loop);
       }
 
-      Bind(&nan_loop);
+      BIND(&nan_loop);
       {
         Label continue_loop(this);
         GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
@@ -1227,13 +1227,13 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
         BranchIfFloat64IsNaN(LoadHeapNumberValue(element_k), &return_true,
                              &continue_loop);
 
-        Bind(&continue_loop);
+        BIND(&continue_loop);
         index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
         Goto(&nan_loop);
       }
     }
 
-    Bind(&string_loop);
+    BIND(&string_loop);
     {
       Label continue_loop(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
@@ -1248,13 +1248,13 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
       Branch(WordEqual(BooleanConstant(true), result), &return_true,
              &continue_loop);
 
-      Bind(&continue_loop);
+      BIND(&continue_loop);
       index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
       Goto(&string_loop);
     }
   }
 
-  Bind(&if_packed_doubles);
+  BIND(&if_packed_doubles);
   {
     Label nan_loop(this, &index_var), not_nan_loop(this, &index_var),
         hole_loop(this, &index_var), search_notnan(this);
@@ -1264,7 +1264,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     search_num.Bind(SmiToFloat64(search_element));
     Goto(&not_nan_loop);
 
-    Bind(&search_notnan);
+    BIND(&search_notnan);
     GotoIfNot(IsHeapNumber(search_element), &return_false);
 
     search_num.Bind(LoadHeapNumberValue(search_element));
@@ -1272,7 +1272,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     BranchIfFloat64IsNaN(search_num.value(), &nan_loop, &not_nan_loop);
 
     // Search for HeapNumber
-    Bind(&not_nan_loop);
+    BIND(&not_nan_loop);
     {
       Label continue_loop(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
@@ -1280,26 +1280,26 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
                                                     MachineType::Float64());
       Branch(Float64Equal(element_k, search_num.value()), &return_true,
              &continue_loop);
-      Bind(&continue_loop);
+      BIND(&continue_loop);
       index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
       Goto(&not_nan_loop);
     }
 
     // Search for NaN
-    Bind(&nan_loop);
+    BIND(&nan_loop);
     {
       Label continue_loop(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
       Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
                                                     MachineType::Float64());
       BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
-      Bind(&continue_loop);
+      BIND(&continue_loop);
       index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
       Goto(&nan_loop);
     }
   }
 
-  Bind(&if_holey_doubles);
+  BIND(&if_holey_doubles);
   {
     Label nan_loop(this, &index_var), not_nan_loop(this, &index_var),
         hole_loop(this, &index_var), search_notnan(this);
@@ -1309,7 +1309,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     search_num.Bind(SmiToFloat64(search_element));
     Goto(&not_nan_loop);
 
-    Bind(&search_notnan);
+    BIND(&search_notnan);
     GotoIf(WordEqual(search_element, UndefinedConstant()), &hole_loop);
     GotoIfNot(IsHeapNumber(search_element), &return_false);
 
@@ -1318,7 +1318,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     BranchIfFloat64IsNaN(search_num.value(), &nan_loop, &not_nan_loop);
 
     // Search for HeapNumber
-    Bind(&not_nan_loop);
+    BIND(&not_nan_loop);
     {
       Label continue_loop(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
@@ -1330,13 +1330,13 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
 
       Branch(Float64Equal(element_k, search_num.value()), &return_true,
              &continue_loop);
-      Bind(&continue_loop);
+      BIND(&continue_loop);
       index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
       Goto(&not_nan_loop);
     }
 
     // Search for NaN
-    Bind(&nan_loop);
+    BIND(&nan_loop);
     {
       Label continue_loop(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
@@ -1347,13 +1347,13 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
           INTPTR_PARAMETERS, &continue_loop);
 
       BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
-      Bind(&continue_loop);
+      BIND(&continue_loop);
       index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
       Goto(&nan_loop);
     }
 
     // Search for the Hole
-    Bind(&hole_loop);
+    BIND(&hole_loop);
     {
       GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
 
@@ -1367,13 +1367,13 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     }
   }
 
-  Bind(&return_true);
+  BIND(&return_true);
   Return(TrueConstant());
 
-  Bind(&return_false);
+  BIND(&return_false);
   Return(FalseConstant());
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   Return(CallRuntime(Runtime::kArrayIncludes_Slow, context, array,
                      search_element, start_from));
 }
@@ -1404,7 +1404,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
   BranchIfFastJSArray(array, context, FastJSArrayAccessMode::INBOUNDS_READ,
                       &init_len, &call_runtime);
 
-  Bind(&init_len);
+  BIND(&init_len);
   {
     // JSArray length is always an Smi for fast arrays.
     CSA_ASSERT(this,
@@ -1415,7 +1415,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
     Branch(WordEqual(len_var.value(), intptr_zero), &return_not_found, &init_k);
   }
 
-  Bind(&init_k);
+  BIND(&init_k);
   {
     // For now only deal with undefined and Smis here; we must be really careful
     // with side-effects from the ToInteger conversion as the side-effects might
@@ -1425,14 +1425,14 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
         init_k_n(this);
     Branch(TaggedIsSmi(start_from), &init_k_smi, &init_k_other);
 
-    Bind(&init_k_smi);
+    BIND(&init_k_smi);
     {
       // The fromIndex is a Smi.
       start_from_var.Bind(SmiUntag(start_from));
       Goto(&init_k_n);
     }
 
-    Bind(&init_k_other);
+    BIND(&init_k_other);
     {
       // The fromIndex must be undefined then, otherwise bailout and let the
       // runtime deal with the full ToInteger conversion.
@@ -1441,32 +1441,32 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
       Goto(&init_k_n);
     }
 
-    Bind(&init_k_n);
+    BIND(&init_k_n);
     {
       Label if_positive(this), if_negative(this), done(this);
       Branch(IntPtrLessThan(start_from_var.value(), intptr_zero), &if_negative,
              &if_positive);
 
-      Bind(&if_positive);
+      BIND(&if_positive);
       {
         index_var.Bind(start_from_var.value());
         Goto(&done);
       }
 
-      Bind(&if_negative);
+      BIND(&if_negative);
       {
         index_var.Bind(IntPtrAdd(len_var.value(), start_from_var.value()));
         Branch(IntPtrLessThan(index_var.value(), intptr_zero), &init_k_zero,
                &done);
       }
 
-      Bind(&init_k_zero);
+      BIND(&init_k_zero);
       {
         index_var.Bind(intptr_zero);
         Goto(&done);
       }
 
-      Bind(&done);
+      BIND(&done);
     }
   }
 
@@ -1486,7 +1486,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
   Switch(elements_kind, &return_not_found, kElementsKind, element_kind_handlers,
          arraysize(kElementsKind));
 
-  Bind(&if_smiorobjects);
+  BIND(&if_smiorobjects);
   {
     Variable search_num(this, MachineRepresentation::kFloat64);
     Label ident_loop(this, &index_var), heap_num_loop(this, &search_num),
@@ -1496,18 +1496,18 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
     search_num.Bind(SmiToFloat64(search_element));
     Goto(&heap_num_loop);
 
-    Bind(&not_smi);
+    BIND(&not_smi);
     Node* map = LoadMap(search_element);
     GotoIfNot(IsHeapNumberMap(map), &not_heap_num);
     search_num.Bind(LoadHeapNumberValue(search_element));
     Goto(&heap_num_loop);
 
-    Bind(&not_heap_num);
+    BIND(&not_heap_num);
     Node* search_type = LoadMapInstanceType(map);
     GotoIf(IsStringInstanceType(search_type), &string_loop);
     Goto(&ident_loop);
 
-    Bind(&ident_loop);
+    BIND(&ident_loop);
     {
       GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
                 &return_not_found);
@@ -1518,13 +1518,13 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
       Goto(&ident_loop);
     }
 
-    Bind(&heap_num_loop);
+    BIND(&heap_num_loop);
     {
       Label not_nan_loop(this, &index_var);
       BranchIfFloat64IsNaN(search_num.value(), &return_not_found,
                            &not_nan_loop);
 
-      Bind(&not_nan_loop);
+      BIND(&not_nan_loop);
       {
         Label continue_loop(this), not_smi(this);
         GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
@@ -1534,18 +1534,18 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
         Branch(Float64Equal(search_num.value(), SmiToFloat64(element_k)),
                &return_found, &continue_loop);
 
-        Bind(&not_smi);
+        BIND(&not_smi);
         GotoIfNot(IsHeapNumber(element_k), &continue_loop);
         Branch(Float64Equal(search_num.value(), LoadHeapNumberValue(element_k)),
                &return_found, &continue_loop);
 
-        Bind(&continue_loop);
+        BIND(&continue_loop);
         index_var.Bind(IntPtrAdd(index_var.value(), intptr_one));
         Goto(&not_nan_loop);
       }
     }
 
-    Bind(&string_loop);
+    BIND(&string_loop);
     {
       Label continue_loop(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
@@ -1560,13 +1560,13 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
       Branch(WordEqual(BooleanConstant(true), result), &return_found,
              &continue_loop);
 
-      Bind(&continue_loop);
+      BIND(&continue_loop);
       index_var.Bind(IntPtrAdd(index_var.value(), intptr_one));
       Goto(&string_loop);
     }
   }
 
-  Bind(&if_packed_doubles);
+  BIND(&if_packed_doubles);
   {
     Label not_nan_loop(this, &index_var), search_notnan(this);
     Variable search_num(this, MachineRepresentation::kFloat64);
@@ -1575,7 +1575,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
     search_num.Bind(SmiToFloat64(search_element));
     Goto(&not_nan_loop);
 
-    Bind(&search_notnan);
+    BIND(&search_notnan);
     GotoIfNot(IsHeapNumber(search_element), &return_not_found);
 
     search_num.Bind(LoadHeapNumberValue(search_element));
@@ -1583,7 +1583,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
     BranchIfFloat64IsNaN(search_num.value(), &return_not_found, &not_nan_loop);
 
     // Search for HeapNumber
-    Bind(&not_nan_loop);
+    BIND(&not_nan_loop);
     {
       GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
                 &return_not_found);
@@ -1596,7 +1596,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
     }
   }
 
-  Bind(&if_holey_doubles);
+  BIND(&if_holey_doubles);
   {
     Label not_nan_loop(this, &index_var), search_notnan(this);
     Variable search_num(this, MachineRepresentation::kFloat64);
@@ -1605,7 +1605,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
     search_num.Bind(SmiToFloat64(search_element));
     Goto(&not_nan_loop);
 
-    Bind(&search_notnan);
+    BIND(&search_notnan);
     GotoIfNot(IsHeapNumber(search_element), &return_not_found);
 
     search_num.Bind(LoadHeapNumberValue(search_element));
@@ -1613,7 +1613,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
     BranchIfFloat64IsNaN(search_num.value(), &return_not_found, &not_nan_loop);
 
     // Search for HeapNumber
-    Bind(&not_nan_loop);
+    BIND(&not_nan_loop);
     {
       Label continue_loop(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
@@ -1626,19 +1626,19 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
 
       Branch(Float64Equal(element_k, search_num.value()), &return_found,
              &continue_loop);
-      Bind(&continue_loop);
+      BIND(&continue_loop);
       index_var.Bind(IntPtrAdd(index_var.value(), intptr_one));
       Goto(&not_nan_loop);
     }
   }
 
-  Bind(&return_found);
+  BIND(&return_found);
   Return(SmiTag(index_var.value()));
 
-  Bind(&return_not_found);
+  BIND(&return_not_found);
   Return(NumberConstant(-1));
 
-  Bind(&call_runtime);
+  BIND(&call_runtime);
   Return(CallRuntime(Runtime::kArrayIndexOf, context, array, search_element,
                      start_from));
 }
@@ -1665,7 +1665,7 @@ class ArrayPrototypeIterationAssembler : public CodeStubAssembler {
     Branch(IsJSReceiverInstanceType(var_type.value()), &create_array_iterator,
            &if_isnotobject);
 
-    Bind(&if_isnotobject);
+    BIND(&if_isnotobject);
     {
       Callable callable = CodeFactory::ToObject(isolate());
       Node* result = CallStub(callable, context, receiver);
@@ -1675,7 +1675,7 @@ class ArrayPrototypeIterationAssembler : public CodeStubAssembler {
       Goto(&create_array_iterator);
     }
 
-    Bind(&create_array_iterator);
+    BIND(&create_array_iterator);
     Return(CreateArrayIterator(var_array.value(), var_map.value(),
                                var_type.value(), context, iteration_kind));
   }
@@ -1749,7 +1749,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   Branch(WordEqual(orig_map, array_map), &if_isfastarray, &if_isnotfastarray);
 
-  Bind(&if_isfastarray);
+  BIND(&if_isfastarray);
   {
     CSA_ASSERT(this, Word32Equal(LoadMapInstanceType(array_map),
                                  Int32Constant(JS_ARRAY_TYPE)));
@@ -1796,13 +1796,13 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Switch(instance_type, &throw_bad_receiver, kInstanceType,
            kInstanceTypeHandlers, arraysize(kInstanceType));
 
-    Bind(&packed_object_values);
+    BIND(&packed_object_values);
     {
       var_value.Bind(LoadFixedArrayElement(elements, index, 0, SMI_PARAMETERS));
       Goto(&allocate_entry_if_needed);
     }
 
-    Bind(&packed_double_values);
+    BIND(&packed_double_values);
     {
       Node* value = LoadFixedDoubleArrayElement(
           elements, index, MachineType::Float64(), 0, SMI_PARAMETERS);
@@ -1810,7 +1810,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
       Goto(&allocate_entry_if_needed);
     }
 
-    Bind(&holey_object_values);
+    BIND(&holey_object_values);
     {
       // Check the array_protector cell, and take the slow path if it's invalid.
       Node* invalid = SmiConstant(Smi::FromInt(Isolate::kProtectorInvalid));
@@ -1825,7 +1825,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
       Goto(&allocate_entry_if_needed);
     }
 
-    Bind(&holey_double_values);
+    BIND(&holey_double_values);
     {
       // Check the array_protector cell, and take the slow path if it's invalid.
       Node* invalid = SmiConstant(Smi::FromInt(Isolate::kProtectorInvalid));
@@ -1842,7 +1842,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     }
   }
 
-  Bind(&if_isnotfastarray);
+  BIND(&if_isnotfastarray);
   {
     Label if_istypedarray(this), if_isgeneric(this);
 
@@ -1853,7 +1853,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Branch(Word32Equal(array_type, Int32Constant(JS_TYPED_ARRAY_TYPE)),
            &if_istypedarray, &if_isgeneric);
 
-    Bind(&if_isgeneric);
+    BIND(&if_isgeneric);
     {
       Label if_wasfastarray(this);
 
@@ -1864,7 +1864,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
         Branch(Word32Equal(array_type, Int32Constant(JS_ARRAY_TYPE)),
                &if_isarray, &if_isnotarray);
 
-        Bind(&if_isarray);
+        BIND(&if_isarray);
         {
           var_length.Bind(LoadObjectField(array, JSArray::kLengthOffset));
 
@@ -1872,7 +1872,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
           Branch(WordNotEqual(orig_map, UndefinedConstant()), &if_wasfastarray,
                  &done);
 
-          Bind(&if_wasfastarray);
+          BIND(&if_wasfastarray);
           {
             Label if_invalid(this, Label::kDeferred);
             // A fast array iterator transitioned to a slow iterator during
@@ -1894,7 +1894,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
           }
         }
 
-        Bind(&if_isnotarray);
+        BIND(&if_isnotarray);
         {
           Node* length =
               GetProperty(context, array, factory()->length_string());
@@ -1903,7 +1903,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
           Goto(&done);
         }
 
-        Bind(&done);
+        BIND(&done);
         length = var_length.value();
       }
 
@@ -1918,14 +1918,14 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
               instance_type, Int32Constant(JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)),
           &allocate_key_result, &generic_values);
 
-      Bind(&generic_values);
+      BIND(&generic_values);
       {
         var_value.Bind(GetProperty(context, array, index));
         Goto(&allocate_entry_if_needed);
       }
     }
 
-    Bind(&if_istypedarray);
+    BIND(&if_istypedarray);
     {
       Node* buffer = LoadObjectField(array, JSTypedArray::kBufferOffset);
       GotoIf(IsDetachedBuffer(buffer), &if_isdetached);
@@ -1989,49 +1989,49 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
       Switch(instance_type, &throw_bad_receiver, kInstanceType,
              kInstanceTypeHandlers, arraysize(kInstanceType));
 
-      Bind(&uint8_values);
+      BIND(&uint8_values);
       {
         Node* value_uint8 = LoadFixedTypedArrayElement(
             data_ptr, index, UINT8_ELEMENTS, SMI_PARAMETERS);
         var_value.Bind(SmiFromWord32(value_uint8));
         Goto(&allocate_entry_if_needed);
       }
-      Bind(&int8_values);
+      BIND(&int8_values);
       {
         Node* value_int8 = LoadFixedTypedArrayElement(
             data_ptr, index, INT8_ELEMENTS, SMI_PARAMETERS);
         var_value.Bind(SmiFromWord32(value_int8));
         Goto(&allocate_entry_if_needed);
       }
-      Bind(&uint16_values);
+      BIND(&uint16_values);
       {
         Node* value_uint16 = LoadFixedTypedArrayElement(
             data_ptr, index, UINT16_ELEMENTS, SMI_PARAMETERS);
         var_value.Bind(SmiFromWord32(value_uint16));
         Goto(&allocate_entry_if_needed);
       }
-      Bind(&int16_values);
+      BIND(&int16_values);
       {
         Node* value_int16 = LoadFixedTypedArrayElement(
             data_ptr, index, INT16_ELEMENTS, SMI_PARAMETERS);
         var_value.Bind(SmiFromWord32(value_int16));
         Goto(&allocate_entry_if_needed);
       }
-      Bind(&uint32_values);
+      BIND(&uint32_values);
       {
         Node* value_uint32 = LoadFixedTypedArrayElement(
             data_ptr, index, UINT32_ELEMENTS, SMI_PARAMETERS);
         var_value.Bind(ChangeUint32ToTagged(value_uint32));
         Goto(&allocate_entry_if_needed);
       }
-      Bind(&int32_values);
+      BIND(&int32_values);
       {
         Node* value_int32 = LoadFixedTypedArrayElement(
             data_ptr, index, INT32_ELEMENTS, SMI_PARAMETERS);
         var_value.Bind(ChangeInt32ToTagged(value_int32));
         Goto(&allocate_entry_if_needed);
       }
-      Bind(&float32_values);
+      BIND(&float32_values);
       {
         Node* value_float32 = LoadFixedTypedArrayElement(
             data_ptr, index, FLOAT32_ELEMENTS, SMI_PARAMETERS);
@@ -2039,7 +2039,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
             AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(value_float32)));
         Goto(&allocate_entry_if_needed);
       }
-      Bind(&float64_values);
+      BIND(&float64_values);
       {
         Node* value_float64 = LoadFixedTypedArrayElement(
             data_ptr, index, FLOAT64_ELEMENTS, SMI_PARAMETERS);
@@ -2049,21 +2049,21 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     }
   }
 
-  Bind(&set_done);
+  BIND(&set_done);
   {
     StoreObjectFieldNoWriteBarrier(
         iterator, JSArrayIterator::kIteratedObjectOffset, UndefinedConstant());
     Goto(&allocate_iterator_result);
   }
 
-  Bind(&allocate_key_result);
+  BIND(&allocate_key_result);
   {
     var_value.Bind(index);
     var_done.Bind(FalseConstant());
     Goto(&allocate_iterator_result);
   }
 
-  Bind(&allocate_entry_if_needed);
+  BIND(&allocate_entry_if_needed);
   {
     GotoIf(Int32GreaterThan(instance_type,
                             Int32Constant(LAST_ARRAY_KEY_VALUE_ITERATOR_TYPE)),
@@ -2088,7 +2088,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Goto(&allocate_iterator_result);
   }
 
-  Bind(&allocate_iterator_result);
+  BIND(&allocate_iterator_result);
   {
     Node* result = Allocate(JSIteratorResult::kSize);
     Node* map = LoadContextElement(LoadNativeContext(context),
@@ -2105,7 +2105,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Return(result);
   }
 
-  Bind(&throw_bad_receiver);
+  BIND(&throw_bad_receiver);
   {
     // The {receiver} is not a valid JSArrayIterator.
     CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
@@ -2113,7 +2113,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Unreachable();
   }
 
-  Bind(&if_isdetached);
+  BIND(&if_isdetached);
   {
     Node* message = SmiConstant(MessageTemplate::kDetachedOperation);
     CallRuntime(Runtime::kThrowTypeError, context, message,

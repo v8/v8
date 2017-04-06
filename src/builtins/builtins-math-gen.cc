@@ -37,7 +37,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
   Label loop(this, &var_x);
   var_x.Bind(Parameter(Descriptor::kX));
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     // Load the current {x} value.
     Node* x = var_x.value();
@@ -46,7 +46,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
     Label if_xissmi(this), if_xisnotsmi(this);
     Branch(TaggedIsSmi(x), &if_xissmi, &if_xisnotsmi);
 
-    Bind(&if_xissmi);
+    BIND(&if_xissmi);
     {
       Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
       Node* pair = NULL;
@@ -62,13 +62,13 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
         BranchIfSmiLessThanOrEqual(SmiConstant(Smi::FromInt(0)), x,
                                    &if_xispositive, &if_xisnotpositive);
 
-        Bind(&if_xispositive);
+        BIND(&if_xispositive);
         {
           // Just return the input {x}.
           Return(x);
         }
 
-        Bind(&if_xisnotpositive);
+        BIND(&if_xisnotpositive);
         {
           // Try to negate the {x} value.
           pair =
@@ -78,25 +78,25 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
         }
       }
 
-      Bind(&if_notoverflow);
+      BIND(&if_notoverflow);
       {
         // There is a Smi representation for negated {x}.
         Node* result = Projection(0, pair);
         Return(BitcastWordToTagged(result));
       }
 
-      Bind(&if_overflow);
+      BIND(&if_overflow);
       { Return(NumberConstant(0.0 - Smi::kMinValue)); }
     }
 
-    Bind(&if_xisnotsmi);
+    BIND(&if_xisnotsmi);
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
       Branch(IsHeapNumberMap(LoadMap(x)), &if_xisheapnumber,
              &if_xisnotheapnumber);
 
-      Bind(&if_xisheapnumber);
+      BIND(&if_xisheapnumber);
       {
         Node* x_value = LoadHeapNumberValue(x);
         Node* value = Float64Abs(x_value);
@@ -104,7 +104,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
         Return(result);
       }
 
-      Bind(&if_xisnotheapnumber);
+      BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
         Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -121,7 +121,7 @@ void MathBuiltinsAssembler::MathRoundingOperation(
   Variable var_x(this, MachineRepresentation::kTagged, x);
   Label loop(this, &var_x);
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     // Load the current {x} value.
     Node* x = var_x.value();
@@ -130,20 +130,20 @@ void MathBuiltinsAssembler::MathRoundingOperation(
     Label if_xissmi(this), if_xisnotsmi(this);
     Branch(TaggedIsSmi(x), &if_xissmi, &if_xisnotsmi);
 
-    Bind(&if_xissmi);
+    BIND(&if_xissmi);
     {
       // Nothing to do when {x} is a Smi.
       Return(x);
     }
 
-    Bind(&if_xisnotsmi);
+    BIND(&if_xisnotsmi);
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
       Branch(IsHeapNumberMap(LoadMap(x)), &if_xisheapnumber,
              &if_xisnotheapnumber);
 
-      Bind(&if_xisheapnumber);
+      BIND(&if_xisheapnumber);
       {
         Node* x_value = LoadHeapNumberValue(x);
         Node* value = (this->*float64op)(x_value);
@@ -151,7 +151,7 @@ void MathBuiltinsAssembler::MathRoundingOperation(
         Return(result);
       }
 
-      Bind(&if_xisnotheapnumber);
+      BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
         Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -270,7 +270,7 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
   Label loop(this, &var_x);
   var_x.Bind(Parameter(Descriptor::kX));
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     // Load the current {x} value.
     Node* x = var_x.value();
@@ -279,26 +279,26 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
     Label if_xissmi(this), if_xisnotsmi(this);
     Branch(TaggedIsSmi(x), &if_xissmi, &if_xisnotsmi);
 
-    Bind(&if_xissmi);
+    BIND(&if_xissmi);
     {
       var_clz32_x.Bind(SmiToWord32(x));
       Goto(&do_clz32);
     }
 
-    Bind(&if_xisnotsmi);
+    BIND(&if_xisnotsmi);
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
       Branch(IsHeapNumberMap(LoadMap(x)), &if_xisheapnumber,
              &if_xisnotheapnumber);
 
-      Bind(&if_xisheapnumber);
+      BIND(&if_xisheapnumber);
       {
         var_clz32_x.Bind(TruncateHeapNumberValueToWord32(x));
         Goto(&do_clz32);
       }
 
-      Bind(&if_xisnotheapnumber);
+      BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
         Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -308,7 +308,7 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
     }
   }
 
-  Bind(&do_clz32);
+  BIND(&do_clz32);
   {
     Node* x_value = var_clz32_x.value();
     Node* value = Word32Clz(x_value);
@@ -434,7 +434,7 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
   Goto(&if_cached);
 
   // Compute next index by decrement.
-  Bind(&if_cached);
+  BIND(&if_cached);
   Node* new_smi_index = SmiSub(smi_index.value(), SmiConstant(Smi::FromInt(1)));
   StoreContextElement(native_context, Context::MATH_RANDOM_INDEX_INDEX,
                       new_smi_index);
@@ -467,10 +467,10 @@ TF_BUILTIN(MathSign, CodeStubAssembler) {
   GotoIf(Float64LessThan(Float64Constant(0.0), x_value), &if_xispositive);
   Return(ChangeFloat64ToTagged(x_value));
 
-  Bind(&if_xisnegative);
+  BIND(&if_xisnegative);
   Return(SmiConstant(Smi::FromInt(-1)));
 
-  Bind(&if_xispositive);
+  BIND(&if_xispositive);
   Return(SmiConstant(Smi::FromInt(1)));
 }
 

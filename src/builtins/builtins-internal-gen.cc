@@ -42,7 +42,7 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
                               mode),
          &if_newspace, &if_oldspace);
 
-  Bind(&if_newspace);
+  BIND(&if_newspace);
   {
     Node* target = AllocateFixedArray(kind, length, mode);
     CopyFixedArrayElements(kind, source, target, length, SKIP_WRITE_BARRIER,
@@ -51,7 +51,7 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
     Return(target);
   }
 
-  Bind(&if_oldspace);
+  BIND(&if_oldspace);
   {
     Node* target = AllocateFixedArray(kind, length, mode, kPretenured);
     CopyFixedArrayElements(kind, source, target, length, UPDATE_WRITE_BARRIER,
@@ -72,7 +72,7 @@ TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
                                      key, &runtime);
   Return(elements);
 
-  Bind(&runtime);
+  BIND(&runtime);
   TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
@@ -87,7 +87,7 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
       TryGrowElementsCapacity(object, elements, FAST_ELEMENTS, key, &runtime);
   Return(elements);
 
-  Bind(&runtime);
+  BIND(&runtime);
   TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
@@ -102,7 +102,7 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
   Branch(IntPtrLessThan(length, IntPtrConstant(max_elements)), &if_newspace,
          &if_oldspace);
 
-  Bind(&if_newspace);
+  BIND(&if_newspace);
   {
     // Prefer EmptyFixedArray in case of non-positive {length} (the {length}
     // can be negative here for rest parameters).
@@ -110,10 +110,10 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
     Branch(IntPtrLessThanOrEqual(length, IntPtrConstant(0)), &if_empty,
            &if_notempty);
 
-    Bind(&if_empty);
+    BIND(&if_empty);
     Return(EmptyFixedArrayConstant());
 
-    Bind(&if_notempty);
+    BIND(&if_notempty);
     {
       // Allocate a FixedArray in new space.
       Node* result = AllocateFixedArray(kind, length);
@@ -126,7 +126,7 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
       Label loop(this, &var_index), done_loop(this);
       var_index.Bind(IntPtrConstant(0));
       Goto(&loop);
-      Bind(&loop);
+      BIND(&loop);
       {
         // Load the current {index}.
         Node* index = var_index.value();
@@ -147,12 +147,12 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
         Goto(&loop);
       }
 
-      Bind(&done_loop);
+      BIND(&done_loop);
       Return(result);
     }
   }
 
-  Bind(&if_oldspace);
+  BIND(&if_oldspace);
   {
     // Allocate in old space (or large object space).
     TailCallRuntime(Runtime::kNewArgumentsElements, NoContextConstant(),
