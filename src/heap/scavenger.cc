@@ -74,19 +74,18 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     table_.Register(kVisitJSFunction, &EvacuateJSFunction);
 
-    table_.Register(kVisitDataObject,
-                    &ObjectEvacuationStrategy<DATA_OBJECT>::Visit);
+    table_.RegisterSpecializations<ObjectEvacuationStrategy<DATA_OBJECT>,
+                                   kVisitDataObject, kVisitDataObjectGeneric>();
 
-    table_.Register(kVisitJSObjectFast,
-                    &ObjectEvacuationStrategy<POINTER_OBJECT>::Visit);
-    table_.Register(kVisitJSObject,
-                    &ObjectEvacuationStrategy<POINTER_OBJECT>::Visit);
+    table_.RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
+                                   kVisitJSObject, kVisitJSObjectGeneric>();
 
-    table_.Register(kVisitJSApiObject,
-                    &ObjectEvacuationStrategy<POINTER_OBJECT>::Visit);
+    table_
+        .RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
+                                 kVisitJSApiObject, kVisitJSApiObjectGeneric>();
 
-    table_.Register(kVisitStruct,
-                    &ObjectEvacuationStrategy<POINTER_OBJECT>::Visit);
+    table_.RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
+                                   kVisitStruct, kVisitStructGeneric>();
   }
 
   static VisitorDispatchTable<ScavengingCallback>* GetTable() {

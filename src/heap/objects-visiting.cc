@@ -40,7 +40,8 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
         return kVisitSlicedString;
 
       case kExternalStringTag:
-        return kVisitDataObject;
+        return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
+                                   instance_size, has_unboxed_fields);
 
       case kThinStringTag:
         return kVisitThinString;
@@ -96,7 +97,8 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       return kVisitSharedFunctionInfo;
 
     case JS_PROXY_TYPE:
-      return kVisitStruct;
+      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
+                                 instance_size, has_unboxed_fields);
 
     case SYMBOL_TYPE:
       return kVisitSymbol;
@@ -165,19 +167,24 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
-      return has_unboxed_fields ? kVisitJSObject : kVisitJSObjectFast;
+      return GetVisitorIdForSize(kVisitJSObject, kVisitJSObjectGeneric,
+                                 instance_size, has_unboxed_fields);
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
-      return kVisitJSApiObject;
+      return GetVisitorIdForSize(kVisitJSApiObject, kVisitJSApiObjectGeneric,
+                                 instance_size, has_unboxed_fields);
 
     case JS_FUNCTION_TYPE:
       return kVisitJSFunction;
 
     case FILLER_TYPE:
+      if (instance_size == kPointerSize) return kVisitDataObjectGeneric;
+    // Fall through.
     case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
-      return kVisitDataObject;
+      return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
+                                 instance_size, has_unboxed_fields);
 
     case FIXED_UINT8_ARRAY_TYPE:
     case FIXED_INT8_ARRAY_TYPE:
@@ -199,7 +206,8 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
         return kVisitAllocationSite;
       }
 
-      return kVisitStruct;
+      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
+                                 instance_size, has_unboxed_fields);
 
     default:
       UNREACHABLE();
