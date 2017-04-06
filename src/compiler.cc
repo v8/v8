@@ -733,10 +733,6 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   // Frame specialization implies function context specialization.
   DCHECK(!info->is_frame_specializing());
 
-  // TODO(4764): When compiling for OSR from bytecode, BailoutId might derive
-  // from bytecode offset and overlap with actual BailoutId. No caching!
-  if (info->is_osr() && info->is_optimizing_from_bytecode()) return;
-
   // Cache optimized context-specific code.
   Handle<JSFunction> function = info->closure();
   Handle<SharedFunctionInfo> shared(function->shared());
@@ -852,10 +848,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   DCHECK_IMPLIES(ignition_osr, FLAG_ignition_osr);
 
   Handle<Code> cached_code;
-  // TODO(4764): When compiling for OSR from bytecode, BailoutId might derive
-  // from bytecode offset and overlap with actual BailoutId. No lookup!
-  if (!ignition_osr &&
-      GetCodeFromOptimizedCodeMap(function, osr_ast_id)
+  if (GetCodeFromOptimizedCodeMap(function, osr_ast_id)
           .ToHandle(&cached_code)) {
     if (FLAG_trace_opt) {
       PrintF("[found optimized code for ");
@@ -919,7 +912,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   // TurboFan can optimize directly from existing bytecode.
   if (use_turbofan && ShouldUseIgnition(info)) {
-    if (info->is_osr() && !ignition_osr) return MaybeHandle<Code>();
     DCHECK(shared->HasBytecodeArray());
     info->MarkAsOptimizeFromBytecode();
   }
