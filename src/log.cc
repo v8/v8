@@ -848,7 +848,9 @@ void Logger::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
   if (!log_->IsEnabled()) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
   Log::MessageBuilder msg(log_);
-  int since_epoch = static_cast<int>(timer_.Elapsed().InMicroseconds());
+  int since_epoch = timer_.IsStarted()
+                        ? static_cast<int>(timer_.Elapsed().InMicroseconds())
+                        : -1;
   msg.Append("code-deopt,%d,%d,", since_epoch, code->CodeSize());
   msg.AppendAddress(code->address());
 
