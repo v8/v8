@@ -43,14 +43,14 @@ enum class CompileJobStatus {
   kDone,
 };
 
+class CompileJobFinishCallback {
+ public:
+  virtual ~CompileJobFinishCallback() {}
+  virtual void ParseFinished(std::unique_ptr<ParseInfo> parse_info) = 0;
+};
+
 class V8_EXPORT_PRIVATE CompilerDispatcherJob {
  public:
-  class FinishCallback {
-   public:
-    virtual ~FinishCallback() {}
-    virtual void ParseFinished(std::unique_ptr<ParseInfo> parse_info) = 0;
-  };
-
   // Creates a CompilerDispatcherJob in the initial state.
   CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
                         Handle<SharedFunctionInfo> shared,
@@ -65,7 +65,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
                         uint32_t hash_seed, AccountingAllocator* zone_allocator,
                         int compiler_hints,
                         const AstStringConstants* ast_string_constants,
-                        FinishCallback* finish_callback);
+                        CompileJobFinishCallback* finish_callback);
   // Creates a CompilerDispatcherJob in the analyzed state.
   CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
                         Handle<Script> script,
@@ -79,6 +79,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
 
   CompileJobStatus status() const { return status_; }
 
+  bool has_context() const { return !context_.is_null(); }
   Context* context() { return *context_; }
 
   Handle<SharedFunctionInfo> shared() const { return shared_; }
@@ -135,7 +136,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   Handle<String> wrapper_;       // Global handle.
   std::unique_ptr<v8::String::ExternalStringResourceBase> source_wrapper_;
   size_t max_stack_size_;
-  FinishCallback* finish_callback_ = nullptr;
+  CompileJobFinishCallback* finish_callback_ = nullptr;
 
   // Members required for parsing.
   std::unique_ptr<UnicodeCache> unicode_cache_;

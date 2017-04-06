@@ -68,7 +68,7 @@ CompilerDispatcherJob::CompilerDispatcherJob(
     bool module, bool is_named_expression, bool calls_eval, uint32_t hash_seed,
     AccountingAllocator* zone_allocator, int compiler_hints,
     const AstStringConstants* ast_string_constants,
-    FinishCallback* finish_callback)
+    CompileJobFinishCallback* finish_callback)
     : status_(CompileJobStatus::kReadyToParse),
       isolate_(nullptr),
       tracer_(tracer),

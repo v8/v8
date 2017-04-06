@@ -28,6 +28,7 @@ enum class MemoryPressureLevel;
 namespace internal {
 
 class CancelableTaskManager;
+class CompileJobFinishCallback;
 class CompilerDispatcherJob;
 class CompilerDispatcherTracer;
 class DeferredHandles;
@@ -81,6 +82,13 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Enqueue a job for parse and compile. Returns true if a job was enqueued.
   bool Enqueue(Handle<SharedFunctionInfo> function);
 
+  // Enqueue a job for initial parse. Returns true if a job was enqueued.
+  bool Enqueue(Handle<String> source, int start_pos, int end_position,
+               LanguageMode language_mode, int function_literal_id, bool native,
+               bool module, bool is_named_expression, bool calls_eval,
+               int compiler_hints, CompileJobFinishCallback* finish_callback,
+               JobId* job_id);
+
   // Like Enqueue, but also advances the job so that it can potentially
   // continue running on a background thread (if at all possible). Returns
   // true if the job was enqueued.
@@ -122,7 +130,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
  private:
   FRIEND_TEST(CompilerDispatcherTest, EnqueueJob);
+  FRIEND_TEST(CompilerDispatcherTest, EnqueueWithoutSFI);
   FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStep);
+  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepWithoutSFI);
   FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepTwice);
   FRIEND_TEST(CompilerDispatcherTest, EnqueueParsed);
   FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepParsed);
@@ -142,6 +152,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
   void WaitForJobIfRunningOnBackground(CompilerDispatcherJob* job);
   void AbortInactiveJobs();
+  bool CanEnqueue();
   bool CanEnqueue(Handle<SharedFunctionInfo> function);
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
   void ConsiderJobForBackgroundProcessing(CompilerDispatcherJob* job);
@@ -152,6 +163,11 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
   JobId Enqueue(std::unique_ptr<CompilerDispatcherJob> job);
+  JobId EnqueueAndStep(std::unique_ptr<CompilerDispatcherJob> job);
+  // Returns job if not removed otherwise iterator following the removed job.
+  JobMap::const_iterator RemoveIfFinished(JobMap::const_iterator job);
+  // Returns iterator following the removed job.
+  JobMap::const_iterator RemoveJob(JobMap::const_iterator job);
 
   Isolate* isolate_;
   Platform* platform_;
