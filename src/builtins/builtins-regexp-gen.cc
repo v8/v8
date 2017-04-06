@@ -69,6 +69,10 @@ void RegExpBuiltinsAssembler::StoreLastIndex(Node* context, Node* regexp,
 Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     Node* const context, Node* const regexp, Node* const match_info,
     Node* const string) {
+  CSA_ASSERT(this, IsFixedArrayMap(LoadMap(match_info)));
+  CSA_ASSERT(this, IsJSRegExp(regexp));
+  CSA_ASSERT(this, IsString(string));
+
   Label named_captures(this), out(this);
 
   Node* const num_indices = SmiUntag(LoadFixedArrayElement(
@@ -134,7 +138,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // We reach this point only if captures exist, implying that this is an
     // IRREGEXP JSRegExp.
 
-    CSA_ASSERT(this, HasInstanceType(regexp, JS_REGEXP_TYPE));
+    CSA_ASSERT(this, IsJSRegExp(regexp));
     CSA_ASSERT(this, SmiGreaterThan(num_results, SmiConstant(1)));
 
     // Preparations for named capture properties. Exit early if the result does
@@ -241,7 +245,7 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
                      match_info);
 #else   // V8_INTERPRETED_REGEXP
   CSA_ASSERT(this, TaggedIsNotSmi(regexp));
-  CSA_ASSERT(this, HasInstanceType(regexp, JS_REGEXP_TYPE));
+  CSA_ASSERT(this, IsJSRegExp(regexp));
 
   CSA_ASSERT(this, TaggedIsNotSmi(string));
   CSA_ASSERT(this, IsString(string));
@@ -489,8 +493,8 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
                            "RegExp.prototype.exec");
   }
 
-  CSA_ASSERT(this, IsStringInstanceType(LoadInstanceType(string)));
-  CSA_ASSERT(this, HasInstanceType(regexp, JS_REGEXP_TYPE));
+  CSA_ASSERT(this, IsString(string));
+  CSA_ASSERT(this, IsJSRegExp(regexp));
 
   Variable var_result(this, MachineRepresentation::kTagged);
   Label out(this);
@@ -729,6 +733,11 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
 }
 
 Node* RegExpBuiltinsAssembler::IsFastRegExp(Node* const context,
+                                            Node* const object) {
+  return IsFastRegExp(context, object, LoadMap(object));
+}
+
+Node* RegExpBuiltinsAssembler::IsFastRegExp(Node* const context,
                                             Node* const object,
                                             Node* const map) {
   Label yup(this), nope(this), out(this);
@@ -819,6 +828,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
 
   if (is_fastpath) {
     // Refer to JSRegExp's flag property on the fast-path.
+    CSA_ASSERT(this, IsJSRegExp(regexp));
     Node* const flags_smi = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
     Node* const flags_intptr = SmiUntag(flags_smi);
     var_flags.Bind(flags_intptr);
@@ -942,7 +952,7 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
     Branch(IsUndefined(value), &match_isundefined, &match_isnotundefined);
 
     BIND(&match_isundefined);
-    Branch(HasInstanceType(receiver, JS_REGEXP_TYPE), &if_isregexp, &out);
+    Branch(IsJSRegExp(receiver), &if_isregexp, &out);
 
     BIND(&match_isnotundefined);
     BranchIfToBooleanIsTrue(value, &if_isregexp, &out);
@@ -962,6 +972,8 @@ Node* RegExpBuiltinsAssembler::RegExpInitialize(Node* const context,
                                                 Node* const regexp,
                                                 Node* const maybe_pattern,
                                                 Node* const maybe_flags) {
+  CSA_ASSERT(this, IsJSRegExp(regexp));
+
   // Normalize pattern.
   Node* const pattern =
       Select(IsUndefined(maybe_pattern), [=] { return EmptyStringConstant(); },
@@ -1044,7 +1056,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
         if_patternisslowregexp(this);
     GotoIf(TaggedIsSmi(pattern), &next);
 
-    GotoIf(HasInstanceType(pattern, JS_REGEXP_TYPE), &if_patternisfastregexp);
+    GotoIf(IsJSRegExp(pattern), &if_patternisfastregexp);
 
     Branch(pattern_is_regexp, &if_patternisslowregexp, &next);
 
@@ -1148,7 +1160,7 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
     Label next(this);
 
     GotoIf(TaggedIsSmi(maybe_pattern), &next);
-    GotoIfNot(HasInstanceType(maybe_pattern, JS_REGEXP_TYPE), &next);
+    GotoIfNot(IsJSRegExp(maybe_pattern), &next);
 
     Node* const pattern = maybe_pattern;
 
@@ -1188,8 +1200,7 @@ TF_BUILTIN(RegExpPrototypeSourceGetter, RegExpBuiltinsAssembler) {
   Label if_isjsregexp(this), if_isnotjsregexp(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(receiver), &if_isnotjsregexp);
-  Branch(HasInstanceType(receiver, JS_REGEXP_TYPE), &if_isjsregexp,
-         &if_isnotjsregexp);
+  Branch(IsJSRegExp(receiver), &if_isjsregexp, &if_isnotjsregexp);
 
   BIND(&if_isjsregexp);
   {
@@ -1318,12 +1329,8 @@ void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
       if_isnotunmodifiedjsregexp(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(receiver), &if_isnotunmodifiedjsregexp);
-
-  Node* const receiver_map = LoadMap(receiver);
-  Node* const instance_type = LoadMapInstanceType(receiver_map);
-
-  Branch(Word32Equal(instance_type, Int32Constant(JS_REGEXP_TYPE)),
-         &if_isunmodifiedjsregexp, &if_isnotunmodifiedjsregexp);
+  Branch(IsJSRegExp(receiver), &if_isunmodifiedjsregexp,
+         &if_isnotunmodifiedjsregexp);
 
   BIND(&if_isunmodifiedjsregexp);
   {
@@ -1529,6 +1536,9 @@ TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
 Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
                                                   Node* const index,
                                                   Node* const is_unicode) {
+  CSA_ASSERT(this, IsString(string));
+  // TODO(jgruber): Handle HeapNumber index.
+
   // Default to last_index + 1.
   Node* const index_plus_one = SmiAdd(index, SmiConstant(1));
   Variable var_result(this, MachineRepresentation::kTagged, index_plus_one);
@@ -1718,6 +1728,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
                                                        Node* const regexp,
                                                        Node* const string,
                                                        const bool is_fastpath) {
+  CSA_ASSERT(this, IsString(string));
+  if (is_fastpath) CSA_ASSERT(this, IsFastRegExp(context, regexp));
+
   Node* const null = NullConstant();
   Node* const int_zero = IntPtrConstant(0);
   Node* const smi_zero = SmiConstant(Smi::kZero);
@@ -1892,6 +1905,9 @@ TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
 
 void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodyFast(
     Node* const context, Node* const regexp, Node* const string) {
+  CSA_ASSERT(this, IsFastRegExp(context, regexp));
+  CSA_ASSERT(this, IsString(string));
+
   // Grab the initial value of last index.
   Node* const previous_last_index = FastLoadLastIndex(regexp);
 
@@ -1924,6 +1940,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodyFast(
 
 void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
     Node* const context, Node* const regexp, Node* const string) {
+  CSA_ASSERT(this, IsJSReceiver(regexp));
+  CSA_ASSERT(this, IsString(string));
+
   Isolate* const isolate = this->isolate();
 
   Node* const smi_zero = SmiConstant(Smi::kZero);
@@ -2018,6 +2037,10 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
                                                        Node* const regexp,
                                                        Node* const string,
                                                        Node* const limit) {
+  CSA_ASSERT(this, IsFastRegExp(context, regexp));
+  CSA_ASSERT(this, TaggedIsSmi(limit));
+  CSA_ASSERT(this, IsString(string));
+
   Node* const null = NullConstant();
   Node* const smi_zero = SmiConstant(0);
   Node* const int_zero = IntPtrConstant(0);
@@ -2097,6 +2120,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
   {
     Node* const next_search_from = var_next_search_from.value();
     Node* const last_matched_until = var_last_matched_until.value();
+
+    CSA_ASSERT(this, TaggedIsSmi(next_search_from));
+    CSA_ASSERT(this, TaggedIsSmi(last_matched_until));
 
     // We're done if we've reached the end of the string.
     {
@@ -2261,7 +2287,7 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
   Node* const maybe_limit = Parameter(Descriptor::kLimit);
   Node* const context = Parameter(Descriptor::kContext);
 
-  CSA_ASSERT(this, IsFastRegExp(context, regexp, LoadMap(regexp)));
+  CSA_ASSERT(this, IsFastRegExp(context, regexp));
   CSA_ASSERT(this, IsString(string));
 
   // TODO(jgruber): Even if map checks send us to the fast path, we still need
@@ -2330,6 +2356,10 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     Node* context, Node* regexp, Node* string, Node* replace_callable) {
   // The fast path is reached only if {receiver} is a global unmodified
   // JSRegExp instance and {replace_callable} is callable.
+
+  CSA_ASSERT(this, IsFastRegExp(context, regexp));
+  CSA_ASSERT(this, IsCallable(replace_callable));
+  CSA_ASSERT(this, IsString(string));
 
   Isolate* const isolate = this->isolate();
 
@@ -2545,6 +2575,10 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   Node* const int_zero = IntPtrConstant(0);
   Node* const smi_zero = SmiConstant(Smi::kZero);
 
+  CSA_ASSERT(this, IsFastRegExp(context, regexp));
+  CSA_ASSERT(this, IsString(replace_string));
+  CSA_ASSERT(this, IsString(string));
+
   Label out(this);
   Variable var_result(this, MachineRepresentation::kTagged);
 
@@ -2641,7 +2675,7 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
   Node* const replace_value = Parameter(Descriptor::kReplaceValue);
   Node* const context = Parameter(Descriptor::kContext);
 
-  CSA_ASSERT(this, IsFastRegExp(context, regexp, LoadMap(regexp)));
+  CSA_ASSERT(this, IsFastRegExp(context, regexp));
   CSA_ASSERT(this, IsString(string));
 
   Label checkreplacestring(this), if_iscallable(this),
@@ -2749,7 +2783,10 @@ TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   Node* const null = NullConstant();
-  Node* const smi_zero = SmiConstant(Smi::FromInt(0));
+  Node* const smi_zero = SmiConstant(0);
+
+  CSA_ASSERT(this, IsJSRegExp(regexp));
+  CSA_ASSERT(this, IsString(string));
 
   Node* const native_context = LoadNativeContext(context);
   Node* const internal_match_info = LoadContextElement(

@@ -3105,6 +3105,10 @@ Node* CodeStubAssembler::IsFixedTypedArray(Node* object) {
                            Int32Constant(LAST_FIXED_TYPED_ARRAY_TYPE)));
 }
 
+Node* CodeStubAssembler::IsJSRegExp(Node* object) {
+  return HasInstanceType(object, JS_REGEXP_TYPE);
+}
+
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,
                                           ParameterMode parameter_mode) {
   CSA_ASSERT(this, IsString(string));
