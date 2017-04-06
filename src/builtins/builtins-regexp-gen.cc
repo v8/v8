@@ -2295,13 +2295,23 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
   // been changed.
 
   // Convert {maybe_limit} to a uint32, capping at the maximal smi value.
-  Variable var_limit(this, MachineRepresentation::kTagged);
-  Label if_limitissmimax(this), limit_done(this);
+  Variable var_limit(this, MachineRepresentation::kTagged, maybe_limit);
+  Label if_limitissmimax(this), limit_done(this), runtime(this);
 
   GotoIf(IsUndefined(maybe_limit), &if_limitissmimax);
+  GotoIf(TaggedIsPositiveSmi(maybe_limit), &limit_done);
 
+  Node* const limit = ToUint32(context, maybe_limit);
   {
-    Node* const limit = ToUint32(context, maybe_limit);
+    // ToUint32(limit) could potentially change the shape of the RegExp
+    // object. Recheck that we are still on the fast path and bail to runtime
+    // otherwise.
+    {
+      Label next(this);
+      BranchIfFastRegExp(context, regexp, LoadMap(regexp), &next, &runtime);
+      Bind(&next);
+    }
+
     GotoIfNot(TaggedIsSmi(limit), &if_limitissmimax);
 
     var_limit.Bind(limit);
@@ -2320,6 +2330,14 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
   {
     Node* const limit = var_limit.value();
     RegExpPrototypeSplitBody(context, regexp, string, limit);
+  }
+
+  Bind(&runtime);
+  {
+    // The runtime call passes in limit to ensure the second ToUint32(limit)
+    // call is not observable.
+    CSA_ASSERT(this, IsHeapNumberMap(LoadReceiverMap(limit)));
+    Return(CallRuntime(Runtime::kRegExpSplit, context, regexp, string, limit));
   }
 }
 
@@ -2691,6 +2709,15 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
   {
     Node* const replace_string =
         CallBuiltin(Builtins::kToString, context, replace_value);
+
+    // ToString(replaceValue) could potentially change the shape of the RegExp
+    // object. Recheck that we are still on the fast path and bail to runtime
+    // otherwise.
+    {
+      Label next(this);
+      BranchIfFastRegExp(context, regexp, LoadMap(regexp), &next, &runtime);
+      Bind(&next);
+    }
 
     Node* const dollar_string = HeapConstant(
         isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
