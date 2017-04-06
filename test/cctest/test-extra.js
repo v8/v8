@@ -93,7 +93,9 @@
       fulfilledPromise2, // should be fulfilled with 2
       rejectedPromise, // should be rejected with 3
       rejectedButHandledPromise, // should be rejected but have a handler
-      promiseStates // should be the string "pending fulfilled rejected"
+      promiseStates, // should be the string "pending fulfilled rejected"
+      promiseIsPromise: v8.isPromise(fulfilledPromise), // should be true
+      thenableIsPromise: v8.isPromise({ then() { } })  // should be false
     };
   };
 })

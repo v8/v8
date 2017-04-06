@@ -4214,6 +4214,8 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
                   factory()->NewStringFromAsciiChecked("createPromise"));
   InstallFunction(extras_utils, isolate()->promise_resolve(),
                   factory()->NewStringFromAsciiChecked("resolvePromise"));
+  InstallFunction(extras_utils, isolate()->is_promise(),
+                  factory()->NewStringFromAsciiChecked("isPromise"));
 
   int builtin_index = Natives::GetDebuggerCount();
   // Only run prologue.js and runtime.js at this point.

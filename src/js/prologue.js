@@ -168,7 +168,7 @@ utils.PostNatives = PostNatives;
 
 // -----------------------------------------------------------------------
 
-%OptimizeObjectForAddingMultipleProperties(extrasUtils, 7);
+%OptimizeObjectForAddingMultipleProperties(extrasUtils, 11);
 
 extrasUtils.logStackTrace = function logStackTrace() {
   %DebugTrace();

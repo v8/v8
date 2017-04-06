@@ -25492,6 +25492,17 @@ TEST(ExtrasUtilsObject) {
                             .As<v8::String>();
   String::Utf8Value promise_states_string(promise_states);
   CHECK_EQ(0, strcmp(*promise_states_string, "pending fulfilled rejected"));
+
+  auto promise_is_promise = result->Get(env.local(), v8_str("promiseIsPromise"))
+                                .ToLocalChecked()
+                                .As<v8::Boolean>();
+  CHECK_EQ(true, promise_is_promise->Value());
+
+  auto thenable_is_promise =
+      result->Get(env.local(), v8_str("thenableIsPromise"))
+          .ToLocalChecked()
+          .As<v8::Boolean>();
+  CHECK_EQ(false, thenable_is_promise->Value());
 }
 
 
