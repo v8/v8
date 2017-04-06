@@ -115,6 +115,9 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
                             const ModuleWireBytes& wire_bytes,
                             int function_index, WasmVal* args,
                             bool* possible_nondeterminism) {
+  // Don't execute more than 16k steps.
+  constexpr int kMaxNumSteps = 16 * 1024;
+
   DCHECK_NOT_NULL(module);
   Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
@@ -144,7 +147,7 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
   WasmInterpreter::Thread* thread = interpreter.GetThread(0);
   thread->Reset();
   thread->InitFrame(&(module->functions[function_index]), args);
-  WasmInterpreter::State interpreter_result = thread->Run();
+  WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
   if (instance.mem_start) {
     free(instance.mem_start);
   }
