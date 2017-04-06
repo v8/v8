@@ -112,11 +112,11 @@ class InterpretedFrame {
 class V8_EXPORT_PRIVATE WasmInterpreter {
  public:
   // State machine for a Thread:
-  //                       +---------------Run()-----------+
-  //                       V                               |
-  // STOPPED ---Run()-->  RUNNING  ------Pause()-----+-> PAUSED  <------+
-  //  ^                   | | | |                   /      |            |
-  //  +- HandleException -+ | | +--- Breakpoint ---+       +-- Step() --+
+  //                         +---------Run()/Step()--------+
+  //                         V                             |
+  // STOPPED ---Run()-->  RUNNING  ------Pause()-----+-> PAUSED
+  //  ^                   | | | |                   /
+  //  +- HandleException -+ | | +--- Breakpoint ---+
   //                        | |
   //                        | +---------- Trap --------------> TRAPPED
   //                        +----------- Finish -------------> FINISHED
@@ -141,8 +141,9 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     // Execution control.
     State state();
     void InitFrame(const WasmFunction* function, WasmVal* args);
-    State Run();
-    State Step();
+    // Pass -1 as num_steps to run till completion, pause or breakpoint.
+    State Run(int num_steps = -1);
+    State Step() { return Run(1); }
     void Pause();
     void Reset();
     // Handle the pending exception in the passed isolate. Unwind the stack

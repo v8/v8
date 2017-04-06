@@ -670,8 +670,6 @@ const char* OpcodeName(uint32_t val) {
   return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(val));
 }
 
-constexpr int kRunSteps = 1000;
-
 // Unwrap a wasm to js wrapper, return the callable heap object.
 // If the wrapper would throw a TypeError, return a null handle.
 Handle<HeapObject> UnwrapWasmToJSWrapper(Isolate* isolate,
@@ -1143,28 +1141,22 @@ class ThreadImpl {
     PushFrame(code);
   }
 
-  WasmInterpreter::State Run() {
+  WasmInterpreter::State Run(int num_steps = -1) {
     DCHECK(state_ == WasmInterpreter::STOPPED ||
            state_ == WasmInterpreter::PAUSED);
-    // Execute in chunks of {kRunSteps} steps as long as we did not trap or
-    // unwind.
-    do {
+    DCHECK(num_steps == -1 || num_steps > 0);
+    if (num_steps == -1) {
       TRACE("  => Run()\n");
-      state_ = WasmInterpreter::RUNNING;
-      Execute(frames_.back().code, frames_.back().pc, kRunSteps);
-    } while (state_ == WasmInterpreter::PAUSED && !PausedAtBreakpoint());
+    } else if (num_steps == 1) {
+      TRACE("  => Step()\n");
+    } else {
+      TRACE("  => Run(%d)\n", num_steps);
+    }
+    state_ = WasmInterpreter::RUNNING;
+    Execute(frames_.back().code, frames_.back().pc, num_steps);
     // If state_ is STOPPED, the current activation must be fully unwound.
     DCHECK_IMPLIES(state_ == WasmInterpreter::STOPPED,
                    current_activation().fp == frames_.size());
-    return state_;
-  }
-
-  WasmInterpreter::State Step() {
-    DCHECK(state_ == WasmInterpreter::STOPPED ||
-           state_ == WasmInterpreter::PAUSED);
-    TRACE("  => Step()\n");
-    state_ = WasmInterpreter::RUNNING;
-    Execute(frames_.back().code, frames_.back().pc, 1);
     return state_;
   }
 
@@ -1210,12 +1202,6 @@ class ThreadImpl {
   TrapReason GetTrapReason() { return trap_reason_; }
 
   pc_t GetBreakpointPc() { return break_pc_; }
-
-  bool PausedAtBreakpoint() {
-    DCHECK_IMPLIES(break_pc_ != kInvalidPc,
-                   !frames_.empty() && break_pc_ == frames_.back().pc);
-    return break_pc_ != kInvalidPc;
-  }
 
   bool PossibleNondeterminism() { return possible_nondeterminism_; }
 
@@ -1542,6 +1528,7 @@ class ThreadImpl {
       DCHECK_GT(limit, pc);
       DCHECK_NOT_NULL(code->start);
 
+      // Do first check for a breakpoint, in order to set hit_break correctly.
       const char* skip = "        ";
       int len = 1;
       byte opcode = code->start[pc];
@@ -1561,8 +1548,9 @@ class ThreadImpl {
         }
       }
 
-      // If max == 0, do only break after setting hit_break correctly.
-      if (--max < 0) break;
+      // If max is 0, break. If max is positive (a limit is set), decrement it.
+      if (max == 0) break;
+      if (max > 0) --max;
 
       USE(skip);
       TRACE("@%-3zu: %s%-24s:", pc, skip,
@@ -2272,11 +2260,8 @@ void WasmInterpreter::Thread::InitFrame(const WasmFunction* function,
                                         WasmVal* args) {
   ToImpl(this)->InitFrame(function, args);
 }
-WasmInterpreter::State WasmInterpreter::Thread::Run() {
-  return ToImpl(this)->Run();
-}
-WasmInterpreter::State WasmInterpreter::Thread::Step() {
-  return ToImpl(this)->Step();
+WasmInterpreter::State WasmInterpreter::Thread::Run(int num_steps) {
+  return ToImpl(this)->Run(num_steps);
 }
 void WasmInterpreter::Thread::Pause() { return ToImpl(this)->Pause(); }
 void WasmInterpreter::Thread::Reset() { return ToImpl(this)->Reset(); }
