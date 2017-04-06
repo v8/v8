@@ -423,10 +423,11 @@ class MinorMarkCompactCollector {
 
   void CollectGarbage();
 
+  inline Heap* heap() const { return heap_; }
+
  private:
   class RootMarkingVisitor;
 
-  inline Heap* heap() { return heap_; }
   inline Isolate* isolate() { return heap()->isolate(); }
   inline MarkingDeque* marking_deque() { return &marking_deque_; }
 
