@@ -647,7 +647,7 @@ uint32_t WasmInstanceObject::GetMaxMemoryPages() {
       if (maximum < FLAG_wasm_max_mem_pages) return maximum;
     }
   }
-  uint32_t compiled_max_pages = compiled_module()->max_mem_pages();
+  uint32_t compiled_max_pages = compiled_module()->module()->max_mem_pages;
   Isolate* isolate = GetIsolate();
   auto* histogram = (compiled_module()->module()->is_wasm()
                          ? isolate->counters()->wasm_wasm_max_mem_pages_count()
@@ -969,11 +969,10 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
         maybe_empty_function_tables.ToHandleChecked());
   }
   // TODO(mtrofin): we copy these because the order of finalization isn't
-  // reliable, and we need some of these at Reset (which is called at
+  // reliable, and we need these at Reset (which is called at
   // finalization). If the order were reliable, and top-down, we could instead
   // just get them from shared().
   compiled_module->set_min_mem_pages(shared->module()->min_mem_pages);
-  compiled_module->set_max_mem_pages(shared->module()->max_mem_pages);
   compiled_module->set_num_imported_functions(
       shared->module()->num_imported_functions);
   return compiled_module;

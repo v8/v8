@@ -356,7 +356,6 @@ class WasmCompiledModule : public FixedArray {
   MACRO(LARGE_NUMBER, size_t, globals_start)                  \
   MACRO(LARGE_NUMBER, uint32_t, embedded_mem_size)            \
   MACRO(SMALL_CONST_NUMBER, uint32_t, min_mem_pages)          \
-  MACRO(SMALL_CONST_NUMBER, uint32_t, max_mem_pages)          \
   MACRO(WEAK_LINK, WasmCompiledModule, next_instance)         \
   MACRO(WEAK_LINK, WasmCompiledModule, prev_instance)         \
   MACRO(WEAK_LINK, JSObject, owning_instance)                 \
