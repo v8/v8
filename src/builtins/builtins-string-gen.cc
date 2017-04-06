@@ -969,7 +969,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     Label stub_call(this), slow_lookup(this);
 
     RegExpBuiltinsAssembler regexp_asm(state());
-    regexp_asm.BranchIfFastRegExp(context, object_map, &stub_call,
+    regexp_asm.BranchIfFastRegExp(context, object, object_map, &stub_call,
                                   &slow_lookup);
 
     Bind(&stub_call);

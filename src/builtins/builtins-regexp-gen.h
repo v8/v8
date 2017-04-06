@@ -15,8 +15,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   explicit RegExpBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void BranchIfFastRegExp(Node* const context, Node* const map,
-                          Label* const if_isunmodified,
+  void BranchIfFastRegExp(Node* const context, Node* const object,
+                          Node* const map, Label* const if_isunmodified,
                           Label* const if_ismodified);
 
  protected:
@@ -58,9 +58,13 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                              char const* method_name);
 
   // Analogous to BranchIfFastRegExp, for use in asserts.
-  Node* IsFastRegExpMap(Node* const context, Node* const map);
+  Node* IsFastRegExp(Node* const context, Node* const object, Node* const map);
 
-  Node* IsInitialRegExpMap(Node* context, Node* map);
+  // Performs fast path checks on the given object itself, but omits prototype
+  // checks.
+  Node* IsFastRegExpNoPrototype(Node* const context, Node* const object,
+                                Node* const map);
+
   void BranchIfFastRegExpResult(Node* context, Node* map,
                                 Label* if_isunmodified, Label* if_ismodified);
 
