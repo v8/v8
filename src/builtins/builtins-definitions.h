@@ -618,6 +618,9 @@ namespace internal {
   TFS(StrictEqual, Compare, 1)                                                 \
   TFS(AddWithFeedback, BinaryOpWithVector, 1)                                  \
   TFS(SubtractWithFeedback, BinaryOpWithVector, 1)                             \
+  TFS(MultiplyWithFeedback, BinaryOpWithVector, 1)                             \
+  TFS(DivideWithFeedback, BinaryOpWithVector, 1)                               \
+  TFS(ModulusWithFeedback, BinaryOpWithVector, 1)                              \
                                                                                \
   /* Object */                                                                 \
   CPP(ObjectAssign)                                                            \

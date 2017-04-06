@@ -190,25 +190,47 @@ TEST(PrimitiveExpressions) {
 
       "var x = 0; return x + 3;\n",
 
+      "var x = 0; return 3 + x;\n",
+
       "var x = 0; return x - 3;\n",
+
+      "var x = 0; return 3 - x;\n",
 
       "var x = 4; return x * 3;\n",
 
+      "var x = 4; return 3 * x;\n",
+
       "var x = 4; return x / 3;\n",
+
+      "var x = 4; return 3 / x;\n",
 
       "var x = 4; return x % 3;\n",
 
+      "var x = 4; return 3 % x;\n",
+
       "var x = 1; return x | 2;\n",
+
+      "var x = 1; return 2 | x;\n",
 
       "var x = 1; return x ^ 2;\n",
 
+      "var x = 1; return 2 ^ x;\n",
+
       "var x = 1; return x & 2;\n",
+
+      "var x = 1; return 2 & x;\n",
 
       "var x = 10; return x << 3;\n",
 
+      "var x = 10; return 3 << x;\n",
+
       "var x = 10; return x >> 3;\n",
 
+      "var x = 10; return 3 >> x;\n",
+
       "var x = 10; return x >>> 3;\n",
+
+      "var x = 10; return 3 >>> x;\n",
 
       "var x = 0; return (x, 3);\n",
   };

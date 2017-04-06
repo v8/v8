@@ -1201,6 +1201,11 @@ class Literal final : public Expression {
     return value_->AsString();
   }
 
+  Smi* AsSmiLiteral() {
+    DCHECK(IsSmiLiteral());
+    return raw_value()->AsSmi();
+  }
+
   bool ToBooleanIsTrue() const { return raw_value()->BooleanValue(); }
   bool ToBooleanIsFalse() const { return !raw_value()->BooleanValue(); }
 
@@ -2134,6 +2139,11 @@ class BinaryOperation final : public Expression {
   TypeFeedbackId BinaryOperationFeedbackId() const {
     return TypeFeedbackId(local_id(1));
   }
+
+  // Returns true if one side is a Smi literal, returning the other side's
+  // sub-expression in |subexpr| and the literal Smi in |literal|.
+  bool IsSmiLiteralOperation(Expression** subexpr, Smi** literal);
+
   Maybe<int> fixed_right_arg() const {
     return has_fixed_right_arg_ ? Just(fixed_right_arg_value_) : Nothing<int>();
   }
