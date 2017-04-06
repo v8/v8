@@ -72,17 +72,20 @@ class ScriptResource : public v8::String::ExternalOneByteStringResource {
   DISALLOW_COPY_AND_ASSIGN(ScriptResource);
 };
 
+Handle<String> CreateSource(Isolate* isolate,
+                            ExternalOneByteString::Resource* maybe_resource) {
+  if (maybe_resource) {
+    return isolate->factory()
+        ->NewExternalStringFromOneByte(maybe_resource)
+        .ToHandleChecked();
+  }
+  return isolate->factory()->NewStringFromAsciiChecked(test_script);
+}
+
 Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
     Isolate* isolate, ExternalOneByteString::Resource* maybe_resource) {
   HandleScope scope(isolate);
-  Handle<String> source;
-  if (maybe_resource) {
-    source = isolate->factory()
-                 ->NewExternalStringFromOneByte(maybe_resource)
-                 .ToHandleChecked();
-  } else {
-    source = isolate->factory()->NewStringFromAsciiChecked(test_script);
-  }
+  Handle<String> source = CreateSource(isolate, maybe_resource);
   Handle<Script> script = isolate->factory()->NewScript(source);
   Handle<FixedArray> infos = isolate->factory()->NewFixedArray(3);
   script->set_shared_function_infos(*infos);
@@ -96,12 +99,35 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   return scope.CloseAndEscape(shared);
 }
 
+class FinishCallback : public CompilerDispatcherJob::FinishCallback {
+ public:
+  void ParseFinished(std::unique_ptr<ParseInfo> result) override {
+    result_ = std::move(result);
+  }
+  ParseInfo* result() const { return result_.get(); }
+
+ private:
+  std::unique_ptr<ParseInfo> result_;
+};
+
 }  // namespace
 
 TEST_F(CompilerDispatcherJobTest, Construct) {
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       i_isolate(), tracer(), CreateSharedFunctionInfo(i_isolate(), nullptr),
       FLAG_stack_size));
+}
+
+TEST_F(CompilerDispatcherJobTest, ConstructWithoutSFI) {
+  std::unique_ptr<FinishCallback> callback(new FinishCallback());
+  std::unique_ptr<ScriptResource> resource(
+      new ScriptResource(test_script, strlen(test_script)));
+  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+      tracer(), FLAG_stack_size, CreateSource(i_isolate(), resource.get()), 0,
+      static_cast<int>(resource->length()), SLOPPY, 1, false, false, false,
+      false, i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
+      ScriptCompiler::kNoCompileOptions, i_isolate()->ast_string_constants(),
+      callback.get()));
 }
 
 TEST_F(CompilerDispatcherJobTest, StateTransitions) {
@@ -126,6 +152,24 @@ TEST_F(CompilerDispatcherJobTest, StateTransitions) {
   ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
   job->ResetOnMainThread();
   ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+}
+
+TEST_F(CompilerDispatcherJobTest, StateTransitionsParseWithCallback) {
+  std::unique_ptr<FinishCallback> callback(new FinishCallback());
+  std::unique_ptr<ScriptResource> resource(
+      new ScriptResource(test_script, strlen(test_script)));
+  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+      tracer(), FLAG_stack_size, CreateSource(i_isolate(), resource.get()), 0,
+      static_cast<int>(resource->length()), SLOPPY, 1, false, false, false,
+      false, i_isolate()->heap()->HashSeed(), i_isolate()->allocator(),
+      ScriptCompiler::kNoCompileOptions, i_isolate()->ast_string_constants(),
+      callback.get()));
+  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToParse);
+  job->Parse();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
+  job->ResetOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  ASSERT_TRUE(callback->result() != nullptr);
 }
 
 TEST_F(CompilerDispatcherJobTest, SyntaxError) {

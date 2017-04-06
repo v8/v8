@@ -805,8 +805,8 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
         source, shared_info->start_position(), shared_info->end_position()));
     Handle<String> name(String::cast(shared_info->name()));
-    result = DoParseFunction(info, ast_value_factory()->GetString(name),
-                             stream.get());
+    scanner_.Initialize(stream.get());
+    result = DoParseFunction(info, ast_value_factory()->GetString(name));
     if (result != nullptr) {
       Handle<String> inferred_name(shared_info->inferred_name());
       result->set_inferred_name(inferred_name);
@@ -836,9 +836,8 @@ static FunctionLiteral::FunctionType ComputeFunctionType(ParseInfo* info) {
 }
 
 FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
-                                         const AstRawString* raw_name,
-                                         Utf16CharacterStream* source) {
-  scanner_.Initialize(source);
+                                         const AstRawString* raw_name) {
+  DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
   DCHECK_NULL(target_stack_);
 
@@ -3534,6 +3533,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
                                     runtime_call_stats_));
     stream_ptr = stream.get();
   }
+  scanner_.Initialize(stream_ptr);
   DCHECK(info->maybe_outer_scope_info().is_null());
 
   DCHECK(original_scope_);
@@ -3546,10 +3546,14 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   // scopes) and set their end position after we know the script length.
   if (info->is_toplevel()) {
     fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
-    scanner_.Initialize(stream_ptr);
     result = DoParseProgram(info);
   } else {
-    result = DoParseFunction(info, info->function_name(), stream_ptr);
+    const AstRawString* function_name = info->function_name();
+    if (!function_name) {
+      // FIXME(wiktorg) solve fni in parse tasks
+      function_name = ast_value_factory()->empty_string();
+    }
+    result = DoParseFunction(info, function_name);
   }
 
   info->set_literal(result);

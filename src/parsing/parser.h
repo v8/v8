@@ -275,8 +275,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info);
   FunctionLiteral* DoParseFunction(ParseInfo* info,
-                                   const AstRawString* raw_name,
-                                   Utf16CharacterStream* source);
+                                   const AstRawString* raw_name);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(ParseInfo* info);
