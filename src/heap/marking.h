@@ -227,10 +227,16 @@ class Bitmap {
         if (cells()[i] != ~0u) return false;
       }
       matching_mask = (end_index_mask - 1);
-      return ((cells()[end_cell_index] & matching_mask) == matching_mask);
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) ||
+             ((cells()[end_cell_index] & matching_mask) == matching_mask);
     } else {
       matching_mask = end_index_mask - start_index_mask;
-      return (cells()[end_cell_index] & matching_mask) == matching_mask;
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) ||
+             (cells()[end_cell_index] & matching_mask) == matching_mask;
     }
   }
 
@@ -250,10 +256,14 @@ class Bitmap {
         if (cells()[i]) return false;
       }
       matching_mask = (end_index_mask - 1);
-      return !(cells()[end_cell_index] & matching_mask);
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) || !(cells()[end_cell_index] & matching_mask);
     } else {
       matching_mask = end_index_mask - start_index_mask;
-      return !(cells()[end_cell_index] & matching_mask);
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) || !(cells()[end_cell_index] & matching_mask);
     }
   }
 
