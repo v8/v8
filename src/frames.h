@@ -1130,6 +1130,12 @@ class StubFrame : public StandardFrame {
   // Determine the code for the frame.
   Code* unchecked_code() const override;
 
+  // Lookup exception handler for current {pc}, returns -1 if none found. Only
+  // TurboFan stub frames are supported. Also returns data associated with the
+  // handler site:
+  //  - TurboFan stub: Data is the stack slot count of the entire frame.
+  int LookupExceptionHandlerInTable(int* data);
+
  protected:
   inline explicit StubFrame(StackFrameIteratorBase* iterator);
 

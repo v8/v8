@@ -916,6 +916,15 @@ int StubFrame::GetNumberOfIncomingArguments() const {
   return 0;
 }
 
+int StubFrame::LookupExceptionHandlerInTable(int* stack_slots) {
+  Code* code = LookupCode();
+  DCHECK(code->is_turbofanned());
+  DCHECK_EQ(code->kind(), Code::BUILTIN);
+  HandlerTable* table = HandlerTable::cast(code->handler_table());
+  int pc_offset = static_cast<int>(pc() - code->entry());
+  *stack_slots = code->stack_slots();
+  return table->LookupReturn(pc_offset);
+}
 
 void OptimizedFrame::Iterate(ObjectVisitor* v) const {
   IterateCompiledFrame(v);
