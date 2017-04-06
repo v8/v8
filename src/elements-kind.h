@@ -86,8 +86,7 @@ inline bool IsDictionaryElementsKind(ElementsKind kind) {
   return kind == DICTIONARY_ELEMENTS;
 }
 
-
-inline bool IsSloppyArgumentsElements(ElementsKind kind) {
+inline bool IsSloppyArgumentsElementsKind(ElementsKind kind) {
   return kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS ||
          kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
 }

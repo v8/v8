@@ -383,12 +383,40 @@ void PrintFixedArrayElements(std::ostream& os, FixedArray* array) {
   }
 }
 
+void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
+                                 SloppyArgumentsElements* elements) {
+  FixedArray* arguments_store = elements->arguments();
+  os << "\n    0: context= " << Brief(elements->context())
+     << "\n    1: arguments_store= " << Brief(arguments_store)
+     << "\n    parameter to context slot map:";
+  for (uint32_t i = 0; i < elements->parameter_map_length(); i++) {
+    uint32_t raw_index = i + SloppyArgumentsElements::kParameterMapStart;
+    os << "\n    " << raw_index << ": param(" << i
+       << ")= " << Brief(elements->get_mapped_entry(i));
+  }
+  if (arguments_store->length() == 0) return;
+  os << "\n }"
+     << "\n - arguments_store = " << Brief(arguments_store) << " "
+     << ElementsKindToString(arguments_store->map()->elements_kind()) << " {";
+  if (kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
+    PrintFixedArrayElements(os, arguments_store);
+  } else {
+    DCHECK_EQ(kind, SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
+    SeededNumberDictionary::cast(arguments_store)->Print(os);
+  }
+  os << "\n }";
+}
+
 }  // namespace
 
-bool JSObject::PrintElements(std::ostream& os) {  // NOLINT
+void JSObject::PrintElements(std::ostream& os) {  // NOLINT
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
-  if (elements()->length() == 0) return false;
+  os << " - elements= " << Brief(elements()) << " {";
+  if (elements()->length() == 0) {
+    os << " }\n";
+    return;
+  }
   switch (map()->elements_kind()) {
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_SMI_ELEMENTS:
@@ -417,20 +445,14 @@ bool JSObject::PrintElements(std::ostream& os) {  // NOLINT
       SeededNumberDictionary::cast(elements())->Print(os);
       break;
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
-      FixedArray* p = FixedArray::cast(elements());
-      os << "\n   parameter map:";
-      for (int i = 2; i < p->length(); i++) {
-        os << " " << (i - 2) << ":" << Brief(p->get(i));
-      }
-      os << "\n   context: " << Brief(p->get(0))
-         << "\n   arguments: " << Brief(p->get(1));
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+      PrintSloppyArgumentElements(os, map()->elements_kind(),
+                                  SloppyArgumentsElements::cast(elements()));
       break;
-    }
     case NO_ELEMENTS:
       break;
   }
-  return true;
+  os << "\n }\n";
 }
 
 
@@ -465,9 +487,7 @@ static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
   if (obj->PrintProperties(os)) os << "\n ";
   os << "}\n";
   if (print_elements && obj->elements()->length() > 0) {
-    os << " - elements = " << Brief(obj->elements()) << " {";
-    if (obj->PrintElements(os)) os << "\n ";
-    os << "}\n";
+    obj->PrintElements(os);
   }
   int embedder_fields = obj->GetEmbedderFieldCount();
   if (embedder_fields > 0) {

@@ -7167,7 +7167,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         elements_kind != GetInitialFastElementsKind()) {
       possible_transitioned_maps.Add(map);
     }
-    if (IsSloppyArgumentsElements(elements_kind)) {
+    if (IsSloppyArgumentsElementsKind(elements_kind)) {
       HInstruction* result =
           BuildKeyedGeneric(access_type, expr, slot, object, key, val);
       *has_side_effects = result->HasObservableSideEffects();

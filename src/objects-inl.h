@@ -200,6 +200,8 @@ bool HeapObject::IsFixedArray() const {
          instance_type == TRANSITION_ARRAY_TYPE;
 }
 
+bool HeapObject::IsSloppyArgumentsElements() const { return IsFixedArray(); }
+
 bool HeapObject::IsJSGeneratorObject() const {
   return map()->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
          IsJSAsyncGeneratorObject();
@@ -697,6 +699,7 @@ CAST_ACCESSOR(UnseededNumberDictionary)
 CAST_ACCESSOR(WeakCell)
 CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakHashTable)
+CAST_ACCESSOR(SloppyArgumentsElements)
 
 #define MAKE_STRUCT_CAST(NAME, Name, name) CAST_ACCESSOR(Name)
 STRUCT_LIST(MAKE_STRUCT_CAST)
@@ -1581,6 +1584,29 @@ FixedArrayBase* JSObject::elements() const {
   return static_cast<FixedArrayBase*>(array);
 }
 
+Context* SloppyArgumentsElements::context() {
+  return Context::cast(get(kContextIndex));
+}
+
+FixedArray* SloppyArgumentsElements::arguments() {
+  return FixedArray::cast(get(kArgumentsIndex));
+}
+
+void SloppyArgumentsElements::set_arguments(FixedArray* arguments) {
+  set(kArgumentsIndex, arguments);
+}
+
+uint32_t SloppyArgumentsElements::parameter_map_length() {
+  return length() - kParameterMapStart;
+}
+
+Object* SloppyArgumentsElements::get_mapped_entry(uint32_t entry) {
+  return get(entry + kParameterMapStart);
+}
+
+void SloppyArgumentsElements::set_mapped_entry(uint32_t entry, Object* object) {
+  set(entry + kParameterMapStart, object);
+}
 
 void AllocationSite::Initialize() {
   set_transition_info(Smi::kZero);
@@ -4553,7 +4579,7 @@ bool Map::has_fast_double_elements() {
 bool Map::has_fast_elements() { return IsFastElementsKind(elements_kind()); }
 
 bool Map::has_sloppy_arguments_elements() {
-  return IsSloppyArgumentsElements(elements_kind());
+  return IsSloppyArgumentsElementsKind(elements_kind());
 }
 
 bool Map::has_fast_sloppy_arguments_elements() {
@@ -7031,7 +7057,7 @@ ElementsKind JSObject::GetElementsKind() {
     } else {
       DCHECK(kind > DICTIONARY_ELEMENTS);
     }
-    DCHECK(!IsSloppyArgumentsElements(kind) ||
+    DCHECK(!IsSloppyArgumentsElementsKind(kind) ||
            (elements()->IsFixedArray() && elements()->length() >= 2));
   }
 #endif
@@ -7085,7 +7111,7 @@ bool JSObject::HasSlowArgumentsElements() {
 
 
 bool JSObject::HasSloppyArgumentsElements() {
-  return IsSloppyArgumentsElements(GetElementsKind());
+  return IsSloppyArgumentsElementsKind(GetElementsKind());
 }
 
 bool JSObject::HasStringWrapperElements() {

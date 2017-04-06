@@ -172,7 +172,7 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
   }
 
   ElementsKind elements_kind = receiver_map->elements_kind();
-  if (IsSloppyArgumentsElements(elements_kind)) {
+  if (IsSloppyArgumentsElementsKind(elements_kind)) {
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
     return KeyedLoadSloppyArgumentsStub(isolate).GetCode();
   }

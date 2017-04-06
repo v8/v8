@@ -1097,7 +1097,8 @@ template <class C> inline bool Is(Object* obj);
   V(ObjectHashTable)             \
   V(ObjectHashSet)               \
   V(WeakHashTable)               \
-  V(OrderedHashTable)
+  V(OrderedHashTable)            \
+  V(SloppyArgumentsElements)
 
 #define ODDBALL_LIST(V)                 \
   V(Undefined, undefined_value)         \
@@ -2483,7 +2484,7 @@ class JSObject: public JSReceiver {
   DECLARE_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
   bool PrintProperties(std::ostream& os);  // NOLINT
-  bool PrintElements(std::ostream& os);    // NOLINT
+  void PrintElements(std::ostream& os);    // NOLINT
 #endif
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   void PrintTransitions(std::ostream& os);  // NOLINT
@@ -2877,6 +2878,46 @@ class FixedDoubleArray: public FixedArrayBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
 };
 
+// Helper class to access FAST_ and SLOW_SLOPPY_ARGUMENTS_ELEMENTS
+//
+// +---+-----------------------+
+// | 0 | Context* context      |
+// +---------------------------+
+// | 1 | FixedArray* arguments +----+ FAST_HOLEY_ELEMENTS
+// +---------------------------+    v-----+-----------+
+// | 2 | Object* param_1_map   |    |  0  | the_hole  |
+// |...| ...                   |    | ... | ...       |
+// |n+1| Object* param_n_map   |    | n-1 | the_hole  |
+// +---------------------------+    |  n  | element_1 |
+//                                  | ... | ...       |
+//                                  |n+m-1| element_m |
+//                                  +-----------------+
+//
+// Parameter maps give the index into the provided context. If a map entry is
+// the_hole it means that the given entry has been deleted from the arguments
+// object.
+// The arguments backing store kind depends on the ElementsKind of the outer
+// JSArgumentsObject:
+// - FAST_SLOPPY_ARGUMENTS_ELEMENTS: FAST_HOLEY_ELEMENTS
+// - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
+class SloppyArgumentsElements : public FixedArray {
+ public:
+  static const int kContextIndex = 0;
+  static const int kArgumentsIndex = 1;
+  static const uint32_t kParameterMapStart = 2;
+
+  inline Context* context();
+  inline FixedArray* arguments();
+  inline void set_arguments(FixedArray* arguments);
+  inline uint32_t parameter_map_length();
+  inline Object* get_mapped_entry(uint32_t entry);
+  inline void set_mapped_entry(uint32_t entry, Object* object);
+
+  DECLARE_CAST(SloppyArgumentsElements)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SloppyArgumentsElements);
+};
 
 class WeakFixedArray : public FixedArray {
  public:
