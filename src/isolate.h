@@ -704,6 +704,7 @@ class Isolate {
   Handle<String> StackTraceString();
   NO_INLINE(void PushStackTraceAndDie(unsigned int magic, void* ptr1,
                                       void* ptr2, unsigned int magic2));
+  NO_INLINE(void PushCodeObjectsAndDie(unsigned int magic));
   Handle<JSArray> CaptureCurrentStackTrace(
       int frame_limit,
       StackTrace::StackTraceOptions options);

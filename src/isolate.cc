@@ -322,6 +322,27 @@ void Isolate::PushStackTraceAndDie(unsigned int magic, void* ptr1, void* ptr2,
   // TODO(dcarney): convert buffer to utf8?
   base::OS::PrintError("Stacktrace (%x-%x) %p %p: %s\n", magic, magic2, ptr1,
                        ptr2, reinterpret_cast<char*>(buffer));
+  PushCodeObjectsAndDie(0xdeadc0de);
+}
+
+void Isolate::PushCodeObjectsAndDie(unsigned int magic) {
+  const int kMaxCodeObjects = 16;
+  // Mark as volatile to lower the probability of optimizing code_objects
+  // away.
+  Code* volatile code_objects[kMaxCodeObjects];
+  StackFrameIterator it(this);
+  int numCodeObjects = 0;
+  for (; !it.done() && numCodeObjects < kMaxCodeObjects; it.Advance()) {
+    code_objects[numCodeObjects++] = it.frame()->unchecked_code();
+  }
+
+  // Keep the top raw code object pointers on the stack in the hope that the
+  // corresponding pages end up more frequently in the minidump.
+  base::OS::PrintError(
+      "\nCodeObjects (%p length=%i): 1:%p 2:%p 3:%p 4:%p...\n\n",
+      static_cast<void*>(code_objects[0]), numCodeObjects,
+      static_cast<void*>(code_objects[0]), static_cast<void*>(code_objects[1]),
+      static_cast<void*>(code_objects[2]), static_cast<void*>(code_objects[4]));
   base::OS::Abort();
 }
 
@@ -763,7 +784,6 @@ static void PrintFrames(Isolate* isolate,
     it.frame()->Print(accumulator, mode, i++);
   }
 }
-
 
 void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
   // The MentionedObjectCache is not GC-proof at the moment.
