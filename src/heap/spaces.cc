@@ -2834,14 +2834,18 @@ size_t PagedSpace::SizeOfObjects() {
 void PagedSpace::RepairFreeListsAfterDeserialization() {
   free_list_.RepairLists(heap());
   // Each page may have a small free space that is not tracked by a free list.
-  // Update the maps for those free space objects.
+  // Those free spaces still contain null as their map pointer.
+  // Overwrite them with new fillers.
   for (Page* page : *this) {
-    size_t size = page->wasted_memory();
-    if (size == 0) continue;
-    DCHECK_GE(static_cast<size_t>(Page::kPageSize), size);
-    Address address = page->OffsetToAddress(Page::kPageSize - size);
-    heap()->CreateFillerObjectAt(address, static_cast<int>(size),
-                                 ClearRecordedSlots::kNo);
+    int size = static_cast<int>(page->wasted_memory());
+    if (size == 0) {
+      // If there is no wasted memory then all free space is in the free list.
+      continue;
+    }
+    Address start = page->HighWaterMark();
+    Address end = page->area_end();
+    CHECK_EQ(size, static_cast<int>(end - start));
+    heap()->CreateFillerObjectAt(start, size, ClearRecordedSlots::kNo);
   }
 }
 
