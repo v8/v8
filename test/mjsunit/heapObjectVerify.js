@@ -50,4 +50,4 @@ var objects = [
     slowSloppyArguments2(), slowSloppyArguments2(1, 2, 3, 4),
 
 ];
-for (var o of objects) %DebugPrint(o);
+for (var o of objects) %HeapObjectVerify(o);
