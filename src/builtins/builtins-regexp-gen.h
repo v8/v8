@@ -89,7 +89,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   Node* RegExpExec(Node* context, Node* regexp, Node* string);
 
   Node* AdvanceStringIndex(Node* const string, Node* const index,
-                           Node* const is_unicode);
+                           Node* const is_unicode, bool is_fastpath);
 
   void RegExpPrototypeMatchBody(Node* const context, Node* const regexp,
                                 Node* const string, const bool is_fastpath);

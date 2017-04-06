@@ -1535,16 +1535,40 @@ TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
 
 Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
                                                   Node* const index,
-                                                  Node* const is_unicode) {
+                                                  Node* const is_unicode,
+                                                  bool is_fastpath) {
   CSA_ASSERT(this, IsString(string));
-  // TODO(jgruber): Handle HeapNumber index.
+  CSA_ASSERT(this, IsHeapNumberMap(LoadReceiverMap(index)));
+  if (is_fastpath) CSA_ASSERT(this, TaggedIsPositiveSmi(index));
+
+  // TODO(jgruber): If index is a HeapNumber, assert that it is outside the
+  // Smi range.
 
   // Default to last_index + 1.
-  Node* const index_plus_one = SmiAdd(index, SmiConstant(1));
+  Node* const index_plus_one = NumberInc(index);
   Variable var_result(this, MachineRepresentation::kTagged, index_plus_one);
 
+  // Advancing the index has some subtle issues involving the distinction
+  // between Smis and HeapNumbers. There's three cases:
+  // * {index} is a Smi, {index_plus_one} is a Smi. The standard case.
+  // * {index} is a Smi, {index_plus_one} overflows into a HeapNumber.
+  //   In this case we can return the result early, because
+  //   {index_plus_one} > {string}.length.
+  // * {index} is a HeapNumber, {index_plus_one} is a HeapNumber. This can only
+  //   occur when {index} is outside the Smi range since we normalize
+  //   explicitly. Again we can return early.
+  if (is_fastpath) {
+    // Must be in Smi range on the fast path. We control the value of {index}
+    // on all call-sites and can never exceed the length of the string.
+    STATIC_ASSERT(String::kMaxLength + 2 < Smi::kMaxValue);
+    CSA_ASSERT(this, TaggedIsPositiveSmi(index_plus_one));
+  }
+
   Label if_isunicode(this), out(this);
-  Branch(is_unicode, &if_isunicode, &out);
+  GotoIfNot(is_unicode, &out);
+
+  // Keep this unconditional (even on the fast path) just to be safe.
+  Branch(TaggedIsPositiveSmi(index_plus_one), &if_isunicode, &out);
 
   BIND(&if_isunicode);
   {
@@ -1562,7 +1586,7 @@ Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
               &out);
 
     // At a surrogate pair, return index + 2.
-    Node* const index_plus_two = SmiAdd(index, SmiConstant(2));
+    Node* const index_plus_two = NumberInc(index_plus_one);
     var_result.Bind(index_plus_two);
 
     Goto(&out);
@@ -1851,7 +1875,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         }
 
         Node* const new_last_index =
-            AdvanceStringIndex(string, last_index, is_unicode);
+            AdvanceStringIndex(string, last_index, is_unicode, is_fastpath);
 
         if (is_fastpath) {
           // On the fast path, we can be certain that lastIndex can never be
@@ -2169,7 +2193,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
       Node* const is_unicode = FastFlagGetter(regexp, JSRegExp::kUnicode);
       Node* const new_next_search_from =
-          AdvanceStringIndex(string, next_search_from, is_unicode);
+          AdvanceStringIndex(string, next_search_from, is_unicode, true);
       var_next_search_from.Bind(new_next_search_from);
       Goto(&loop);
 
