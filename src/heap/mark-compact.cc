@@ -257,8 +257,9 @@ void EvacuationVerifier::VerifyEvacuation(PagedSpace* space) {
   for (Page* p : *space) {
     if (p->IsEvacuationCandidate()) continue;
     if (p->Contains(space->top()))
-      heap_->CreateFillerObjectAt(space->top(), space->limit() - space->top(),
-                                  ClearRecordedSlots::kNo);
+      heap_->CreateFillerObjectAt(
+          space->top(), static_cast<int>(space->limit() - space->top()),
+          ClearRecordedSlots::kNo);
 
     VerifyEvacuationOnPage(p->area_start(), p->area_end());
   }
