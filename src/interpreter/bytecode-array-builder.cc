@@ -873,8 +873,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToName(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToNumber(
-    Register out) {
-  OutputToNumber(out);
+    Register out, int feedback_slot) {
+  OutputToNumber(out, feedback_slot);
   return *this;
 }
 

@@ -2976,17 +2976,19 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Save result for postfix expressions.
+  FeedbackSlot count_slot = expr->CountBinaryOpFeedbackSlot();
   if (is_postfix) {
     // Convert old value into a number before saving it.
     old_value = register_allocator()->NewRegister();
+    // TODO(ignition): Think about adding proper PostInc/PostDec bytecodes
+    // instead of this ToNumber + Inc/Dec dance.
     builder()
-        ->ConvertAccumulatorToNumber(old_value)
+        ->ConvertAccumulatorToNumber(old_value, feedback_index(count_slot))
         .LoadAccumulatorWithRegister(old_value);
   }
 
   // Perform +1/-1 operation.
-  FeedbackSlot slot = expr->CountBinaryOpFeedbackSlot();
-  builder()->CountOperation(expr->binary_op(), feedback_index(slot));
+  builder()->CountOperation(expr->binary_op(), feedback_index(count_slot));
 
   // Store the value.
   builder()->SetExpressionPosition(expr);

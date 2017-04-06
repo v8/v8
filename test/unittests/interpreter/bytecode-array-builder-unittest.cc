@@ -232,7 +232,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareOperation(Token::Value::EQ_STRICT, reg, 1);
 
   // Emit conversion operator invocations.
-  builder.ConvertAccumulatorToNumber(reg)
+  builder.ConvertAccumulatorToNumber(reg, 1)
       .ConvertAccumulatorToObject(reg)
       .ConvertAccumulatorToName(reg);
 

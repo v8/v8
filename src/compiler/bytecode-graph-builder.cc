@@ -2028,7 +2028,21 @@ void BytecodeGraphBuilder::VisitToObject() {
 }
 
 void BytecodeGraphBuilder::VisitToNumber() {
-  BuildCastOperator(javascript()->ToNumber());
+  PrepareEagerCheckpoint();
+  Node* object = environment()->LookupAccumulator();
+
+  Node* node = nullptr;
+  FeedbackSlot slot =
+      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
+  if (Node* simplified = TryBuildSimplifiedBinaryOp(
+          javascript()->Multiply(), object, jsgraph()->OneConstant(), slot)) {
+    node = simplified;
+  } else {
+    node = NewNode(javascript()->ToNumber(), object);
+  }
+
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), node,
+                              Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitJump() { BuildJump(); }

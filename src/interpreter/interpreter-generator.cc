@@ -1694,14 +1694,57 @@ void InterpreterGenerator::DoToName(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// ToNumber
+// ToNumber <dst> <slot>
 //
 // Convert the object referenced by the accumulator to a number.
 void InterpreterGenerator::DoToNumber(InterpreterAssembler* assembler) {
   Node* object = __ GetAccumulator();
   Node* context = __ GetContext();
-  Node* result = __ ToNumber(context, object);
-  __ StoreRegister(result, __ BytecodeOperandReg(0));
+
+  // Convert the {object} to a Number and collect feedback for the {object}.
+  Variable var_type_feedback(assembler, MachineRepresentation::kTaggedSigned);
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Label if_done(assembler), if_objectissmi(assembler),
+      if_objectisnumber(assembler),
+      if_objectisother(assembler, Label::kDeferred);
+
+  __ GotoIf(__ TaggedIsSmi(object), &if_objectissmi);
+  Node* object_map = __ LoadMap(object);
+  __ Branch(__ IsHeapNumberMap(object_map), &if_objectisnumber,
+            &if_objectisother);
+
+  __ Bind(&if_objectissmi);
+  {
+    var_result.Bind(object);
+    var_type_feedback.Bind(
+        __ SmiConstant(BinaryOperationFeedback::kSignedSmall));
+    __ Goto(&if_done);
+  }
+
+  __ Bind(&if_objectisnumber);
+  {
+    var_result.Bind(object);
+    var_type_feedback.Bind(__ SmiConstant(BinaryOperationFeedback::kNumber));
+    __ Goto(&if_done);
+  }
+
+  __ Bind(&if_objectisother);
+  {
+    // Convert the {object} to a Number.
+    Callable callable = CodeFactory::NonNumberToNumber(assembler->isolate());
+    var_result.Bind(__ CallStub(callable, context, object));
+    var_type_feedback.Bind(__ SmiConstant(BinaryOperationFeedback::kAny));
+    __ Goto(&if_done);
+  }
+
+  __ Bind(&if_done);
+  __ StoreRegister(var_result.value(), __ BytecodeOperandReg(0));
+
+  // Record the type feedback collected for {object}.
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* feedback_vector = __ LoadFeedbackVector();
+  __ UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
+
   __ Dispatch();
 }
 
