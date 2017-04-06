@@ -354,7 +354,7 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
   BIND(&invalid_length);
   {
     CallRuntime(Runtime::kThrowRangeError, context,
-                SmiConstant(MessageTemplate::kInvalidTypedArrayLength));
+                SmiConstant(MessageTemplate::kInvalidTypedArrayLength), length);
     Unreachable();
   }
 }
@@ -495,7 +495,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   BIND(&invalid_length);
   {
     CallRuntime(Runtime::kThrowRangeError, context,
-                SmiConstant(MessageTemplate::kInvalidTypedArrayLength));
+                SmiConstant(MessageTemplate::kInvalidTypedArrayLength), length);
     Unreachable();
   }
 }
@@ -536,7 +536,7 @@ compiler::Node* TypedArrayBuiltinsAssembler::ByteLengthIsValid(
 TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   Node* const holder = Parameter(Descriptor::kHolder);
   Node* const array_like = Parameter(Descriptor::kArrayLike);
-  Node* length = Parameter(Descriptor::kLength);
+  Node* initial_length = Parameter(Descriptor::kLength);
   Node* const element_size = Parameter(Descriptor::kElementSize);
   CSA_ASSERT(this, TaggedIsSmi(element_size));
   Node* const context = Parameter(Descriptor::kContext);
@@ -547,7 +547,7 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   Label invalid_length(this), fill(this), fast_copy(this);
 
   // The caller has looked up length on array_like, which is observable.
-  length = ToSmiLength(length, context, &invalid_length);
+  Node* length = ToSmiLength(initial_length, context, &invalid_length);
 
   InitializeBasedOnLength(holder, length, element_size, byte_offset, initialize,
                           context);
@@ -597,7 +597,8 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   BIND(&invalid_length);
   {
     CallRuntime(Runtime::kThrowRangeError, context,
-                SmiConstant(MessageTemplate::kInvalidTypedArrayLength));
+                SmiConstant(MessageTemplate::kInvalidTypedArrayLength),
+                initial_length);
     Unreachable();
   }
 }
