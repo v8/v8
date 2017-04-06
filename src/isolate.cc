@@ -1241,6 +1241,29 @@ Object* Isolate::UnwindAndFindHandler() {
         return FoundHandler(nullptr, code, offset, return_sp, frame->fp());
       }
 
+      case StackFrame::STUB: {
+        // Some stubs are able to handle exceptions.
+        if (!catchable_by_js) break;
+        StubFrame* stub_frame = static_cast<StubFrame*>(frame);
+        Code* code = stub_frame->LookupCode();
+        if (!code->IsCode() || code->kind() != Code::BUILTIN ||
+            !code->handler_table()->length() || !code->is_turbofanned()) {
+          break;
+        }
+
+        int stack_slots = 0;  // Will contain stack slot count of frame.
+        int offset = stub_frame->LookupExceptionHandlerInTable(&stack_slots);
+        if (offset < 0) break;
+
+        // Compute the stack pointer from the frame pointer. This ensures
+        // that argument slots on the stack are dropped as returning would.
+        Address return_sp = frame->fp() +
+                            StandardFrameConstants::kFixedFrameSizeAboveFp -
+                            stack_slots * kPointerSize;
+
+        return FoundHandler(nullptr, code, offset, return_sp, frame->fp());
+      }
+
       case StackFrame::INTERPRETED: {
         // For interpreted frame we perform a range lookup in the handler table.
         if (!catchable_by_js) break;
@@ -1398,6 +1421,25 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
             return CAUGHT_BY_DESUGARING;
           case HandlerTable::ASYNC_AWAIT:
             return CAUGHT_BY_ASYNC_AWAIT;
+        }
+      } break;
+
+      case StackFrame::STUB: {
+        Handle<Code> code(frame->LookupCode());
+        if (code->kind() == Code::BUILTIN && code->is_turbofanned() &&
+            code->handler_table()->length()) {
+          if (code->is_promise_rejection()) {
+            return CAUGHT_BY_PROMISE;
+          }
+
+          // This the exception throw in PromiseHandle which doesn't
+          // cause a promise rejection.
+          if (code->is_exception_caught()) {
+            return CAUGHT_BY_JAVASCRIPT;
+          }
+
+          // The built-in must be marked with an exception prediction.
+          UNREACHABLE();
         }
       } break;
 

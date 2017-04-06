@@ -1762,5 +1762,42 @@ TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
   }
 }
 
+TF_BUILTIN(ResolveNativePromise, PromiseBuiltinsAssembler) {
+  Node* const promise = Parameter(Descriptor::kPromise);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, HasInstanceType(promise, JS_PROMISE_TYPE));
+  InternalResolvePromise(context, promise, value);
+  Return(UndefinedConstant());
+}
+
+TF_BUILTIN(RejectNativePromise, PromiseBuiltinsAssembler) {
+  Node* const promise = Parameter(Descriptor::kPromise);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const debug_event = Parameter(Descriptor::kDebugEvent);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, HasInstanceType(promise, JS_PROMISE_TYPE));
+  CSA_ASSERT(this, IsBoolean(debug_event));
+  InternalPromiseReject(context, promise, value, debug_event);
+  Return(UndefinedConstant());
+}
+
+TF_BUILTIN(PerformNativePromiseThen, PromiseBuiltinsAssembler) {
+  Node* const promise = Parameter(Descriptor::kPromise);
+  Node* const resolve_reaction = Parameter(Descriptor::kResolveReaction);
+  Node* const reject_reaction = Parameter(Descriptor::kRejectReaction);
+  Node* const result_promise = Parameter(Descriptor::kResultPromise);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, HasInstanceType(result_promise, JS_PROMISE_TYPE));
+
+  InternalPerformPromiseThen(context, promise, resolve_reaction,
+                             reject_reaction, result_promise,
+                             UndefinedConstant(), UndefinedConstant());
+  Return(result_promise);
+}
+
 }  // namespace internal
 }  // namespace v8
