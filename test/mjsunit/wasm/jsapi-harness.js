@@ -1,9 +1,12 @@
 // Copyright 2017 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
+//
 // TODO(eholk): Once we have stable test IDs, use those as the key instead.
 // See https://github.com/WebAssembly/spec/issues/415
+//
+// Flags: --expose-wasm --allow-natives-syntax
+
 const known_failures = {
   "'WebAssembly.Module.customSections' method":
     'https://bugs.chromium.org/p/v8/issues/detail?id=5815',
@@ -78,7 +81,7 @@ load("test/wasm-js/test/harness/wasm-constants.js");
 load("test/wasm-js/test/harness/wasm-module-builder.js");
 load("test/wasm-js/test/js-api/jsapi.js");
 
-last_promise.then(_ => {
+assertPromiseResult(last_promise, _ => {
   if (failures.length > 0) {
     let unexpected = false;
     print("Some tests FAILED:");

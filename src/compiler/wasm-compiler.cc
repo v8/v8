@@ -3932,12 +3932,20 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
       info_(GetDebugName(&compilation_zone_, name, index), isolate,
             &compilation_zone_, Code::ComputeFlags(Code::WASM_FUNCTION)),
       func_index_(index),
-      protected_instructions_(&compilation_zone_) {
-  // Create and cache this node in the main thread.
+      protected_instructions_(&compilation_zone_) {}
+
+void WasmCompilationUnit::InitializeHandles() {
+  // Create and cache this node in the main thread, which contains a handle to
+  // the code object of the c-entry stub.
   jsgraph_->CEntryStubConstant(1);
+  DCHECK(!handles_initialized_);
+#if DEBUG
+  handles_initialized_ = true;
+#endif  // DEBUG
 }
 
 void WasmCompilationUnit::ExecuteCompilation() {
+  DCHECK(handles_initialized_);
   // TODO(ahaas): The counters are not thread-safe at the moment.
   //    HistogramTimerScope wasm_compile_function_time_scope(
   //        isolate_->counters()->wasm_compile_function_time());
@@ -4044,6 +4052,7 @@ Handle<Code> WasmCompilationUnit::CompileWasmFunction(
     wasm::ErrorThrower* thrower, Isolate* isolate,
     wasm::ModuleBytesEnv* module_env, const wasm::WasmFunction* function) {
   WasmCompilationUnit unit(isolate, module_env, function);
+  unit.InitializeHandles();
   unit.ExecuteCompilation();
   return unit.FinishCompilation(thrower);
 }

@@ -55,6 +55,7 @@ class WasmCompilationUnit final {
   Zone* graph_zone() { return graph_zone_.get(); }
   int func_index() const { return func_index_; }
 
+  void InitializeHandles();
   void ExecuteCompilation();
   Handle<Code> FinishCompilation(wasm::ErrorThrower* thrower);
 
@@ -79,6 +80,9 @@ class WasmCompilationUnit final {
   int func_index_;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_ = true;
+#if DEBUG
+  bool handles_initialized_ = false;
+#endif  // DEBUG
   ZoneVector<trap_handler::ProtectedInstructionData>
       protected_instructions_;  // Instructions that are protected by the signal
                                 // handler.
