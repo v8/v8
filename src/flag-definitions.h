@@ -1285,6 +1285,7 @@ DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded, parallel_compaction)
+DEFINE_NEG_IMPLICATION(single_threaded, parallel_pointer_update)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_store_buffer)
 DEFINE_NEG_IMPLICATION(single_threaded, compiler_dispatcher)
 
