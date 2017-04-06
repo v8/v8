@@ -21,7 +21,6 @@ namespace interpreter {
 // Format is <command-line flag> <flag name> <bit index>
 #define OPTIMIZATION_FLAGS(V)                                                 \
   V(FLAG_ignition_reo, kUseReo, 0)                                            \
-  V(FLAG_ignition_peephole, kUsePeephole, 1)                                  \
   V(FLAG_ignition_filter_expression_positions, kUseFilterExpressionPositions, \
     2)                                                                        \
   V(FLAG_ignition_deadcode, kUseDeadCode, 3)
@@ -35,20 +34,13 @@ OPTIMIZATION_FLAGS(DECLARE_BIT)
 // because it provides easier to comprehend failure case for humans.
 #define TEST_CASES(V)                                              \
   V(UsingReo, kUseReo)                                             \
-  V(UsingPeephole, kUsePeephole)                                   \
   V(UsingDeadCode, kUseDeadCode)                                   \
   V(UsingFilterExpressionPositions, kUseFilterExpressionPositions) \
-  V(UsingReoAndPeephole, kUseReo | kUsePeephole)                   \
   V(UsingReoAndFilterExpressionPositions,                          \
     kUseReo | kUseFilterExpressionPositions)                       \
   V(UsingReoAndDeadCode, kUseReo | kUseDeadCode)                   \
-  V(UsingPeepholeAndFilterExpressionPositions,                     \
-    kUsePeephole | kUseFilterExpressionPositions)                  \
-  V(UsingPeepholeAndDeadCode, kUsePeephole | kUseDeadCode)         \
-  V(UsingFilterExpressionPositionsAndDeadCode,                     \
-    kUseFilterExpressionPositions | kUseDeadCode)                  \
   V(UsingAllOptimizations,                                         \
-    kUseReo | kUsePeephole | kUseFilterExpressionPositions | kUseDeadCode)
+    kUseReo | kUseFilterExpressionPositions | kUseDeadCode)
 
 struct TestCaseData {
   TestCaseData(const char* const script,

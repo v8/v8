@@ -8,7 +8,6 @@
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-dead-code-optimizer.h"
 #include "src/interpreter/bytecode-label.h"
-#include "src/interpreter/bytecode-peephole-optimizer.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
@@ -60,10 +59,6 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
 
   if (FLAG_ignition_deadcode) {
     pipeline_ = new (zone) BytecodeDeadCodeOptimizer(pipeline_);
-  }
-
-  if (FLAG_ignition_peephole) {
-    pipeline_ = new (zone) BytecodePeepholeOptimizer(pipeline_);
   }
 
   if (FLAG_ignition_reo) {

@@ -141,7 +141,6 @@ if (v8_enable_v8_checks == "") {
 # snapshots.
 is_target_simulator = target_cpu != v8_target_cpu
 
-v8_generated_peephole_source = "$target_gen_dir/bytecode-peephole-table.cc"
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
@@ -745,29 +744,6 @@ action("run_mksnapshot") {
     sources += [ v8_embed_script ]
     args += [ rebase_path(v8_embed_script, root_build_dir) ]
   }
-}
-
-action("run_mkpeephole") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  deps = [
-    ":mkpeephole($v8_snapshot_toolchain)",
-  ]
-
-  outputs = [
-    v8_generated_peephole_source,
-  ]
-
-  sources = []
-
-  script = "tools/run.py"
-
-  args = [
-    "./" + rebase_path(get_label_info(":mkpeephole($v8_snapshot_toolchain)",
-                                      "root_out_dir") + "/mkpeephole",
-                       root_build_dir),
-    rebase_path(v8_generated_peephole_source, root_build_dir),
-  ]
 }
 
 action("v8_dump_build_config") {
@@ -1656,9 +1632,6 @@ v8_source_set("v8_base") {
     "src/interpreter/bytecode-label.h",
     "src/interpreter/bytecode-operands.cc",
     "src/interpreter/bytecode-operands.h",
-    "src/interpreter/bytecode-peephole-optimizer.cc",
-    "src/interpreter/bytecode-peephole-optimizer.h",
-    "src/interpreter/bytecode-peephole-table.h",
     "src/interpreter/bytecode-pipeline.cc",
     "src/interpreter/bytecode-pipeline.h",
     "src/interpreter/bytecode-register-allocator.h",
@@ -2383,9 +2356,6 @@ v8_source_set("v8_base") {
     "src/inspector:inspector",
   ]
 
-  sources += [ v8_generated_peephole_source ]
-  deps += [ ":run_mkpeephole" ]
-
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
     if (is_win) {
@@ -2636,34 +2606,6 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "//build/win:default_exe_manifest",
     ]
   }
-}
-
-v8_executable("mkpeephole") {
-  # mkpeephole needs to be built for the build host so the peephole lookup
-  # table can built during build. The table depends on the properties of
-  # bytecodes that are described in bytecodes.{cc,h}.
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  sources = [
-    "src/interpreter/bytecode-operands.cc",
-    "src/interpreter/bytecode-operands.h",
-    "src/interpreter/bytecode-peephole-optimizer.h",
-    "src/interpreter/bytecode-traits.h",
-    "src/interpreter/bytecodes.cc",
-    "src/interpreter/bytecodes.h",
-    "src/interpreter/mkpeephole.cc",
-  ]
-
-  configs = [
-    ":external_config",
-    ":internal_config",
-  ]
-
-  deps = [
-    ":v8_libbase",
-    "//build/config/sanitizers:deps",
-    "//build/win:default_exe_manifest",
-  ]
 }
 
 ###############################################################################

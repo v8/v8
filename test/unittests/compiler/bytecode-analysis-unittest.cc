@@ -28,7 +28,6 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
     i::FLAG_ignition_elide_noneffectful_bytecodes = false;
-    i::FLAG_ignition_peephole = false;
     i::FLAG_ignition_reo = false;
 
     TestWithIsolateAndZone::SetUpTestCase();

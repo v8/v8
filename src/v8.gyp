@@ -35,7 +35,6 @@
     'v8_extra_library_files%': [],
     'v8_experimental_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
-    'mkpeephole_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkpeephole<(EXECUTABLE_SUFFIX)',
     'v8_os_page_size%': 0,
   },
   'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi', 'inspector/inspector.gypi'],
@@ -383,13 +382,6 @@
         '<(DEPTH)',
         '<(SHARED_INTERMEDIATE_DIR)'
       ],
-      'actions':[{
-        'action_name': 'run mkpeephole',
-        'inputs': ['<(mkpeephole_exec)'],
-        'outputs': ['<(INTERMEDIATE_DIR)/bytecode-peephole-table.cc'],
-        'action': ['<(mkpeephole_exec)', '<(INTERMEDIATE_DIR)/bytecode-peephole-table.cc' ],
-        'process_outputs_as_sources': 1,
-      }],
       'sources': [  ### gcmole(all) ###
         '<@(inspector_all_sources)',
         '../include/v8-debug.h',
@@ -1050,9 +1042,6 @@
         'interpreter/bytecode-label.h',
         'interpreter/bytecode-operands.cc',
         'interpreter/bytecode-operands.h',
-        'interpreter/bytecode-peephole-optimizer.cc',
-        'interpreter/bytecode-peephole-optimizer.h',
-        'interpreter/bytecode-peephole-table.h',
         'interpreter/bytecode-pipeline.cc',
         'interpreter/bytecode-pipeline.h',
         'interpreter/bytecode-register.cc',
@@ -1403,11 +1392,6 @@
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
-        }],
-        ['want_separate_host_toolset_mkpeephole==1', {
-          'dependencies': ['mkpeephole#host'],
-        }, {
-          'dependencies': ['mkpeephole'],
         }],
         ['v8_target_arch=="arm"', {
           'sources': [  ### gcmole(arch:arm) ###
@@ -1930,8 +1914,7 @@
         }],
       ],
       'conditions': [
-        ['want_separate_host_toolset==1 or \
-          want_separate_host_toolset_mkpeephole==1', {
+        ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
@@ -2494,30 +2477,6 @@
           ]
         }],
         ['want_separate_host_toolset==1', {
-          'toolsets': ['host'],
-        }, {
-          'toolsets': ['target'],
-        }],
-      ],
-    },
-    {
-      'target_name': 'mkpeephole',
-      'type': 'executable',
-      'dependencies': [ 'v8_libbase' ],
-      'include_dirs+': [
-        '..',
-       ],
-      'sources': [
-        'interpreter/bytecode-operands.h',
-        'interpreter/bytecode-operands.cc',
-        'interpreter/bytecode-peephole-table.h',
-        'interpreter/bytecode-traits.h',
-        'interpreter/bytecodes.h',
-        'interpreter/bytecodes.cc',
-        'interpreter/mkpeephole.cc'
-      ],
-      'conditions': [
-        ['want_separate_host_toolset_mkpeephole==1', {
           'toolsets': ['host'],
         }, {
           'toolsets': ['target'],
