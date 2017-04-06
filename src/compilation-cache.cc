@@ -8,6 +8,7 @@
 #include "src/factory.h"
 #include "src/globals.h"
 #include "src/objects-inl.h"
+#include "src/objects/compilation-cache-inl.h"
 
 namespace v8 {
 namespace internal {

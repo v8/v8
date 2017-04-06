@@ -10,6 +10,8 @@
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
+#include "src/objects/code-cache-inl.h"
+#include "src/objects/compilation-cache-inl.h"
 #include "src/utils.h"
 
 namespace v8 {

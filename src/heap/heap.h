@@ -19,6 +19,8 @@
 #include "src/heap-symbols.h"
 #include "src/list.h"
 #include "src/objects.h"
+#include "src/objects/hash-table.h"
+#include "src/objects/string-table.h"
 
 namespace v8 {
 namespace internal {

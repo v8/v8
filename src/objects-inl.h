@@ -616,8 +616,6 @@ CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(BytecodeArray)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(Code)
-CAST_ACCESSOR(CodeCacheHashTable)
-CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(ConsString)
 CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DeoptimizationOutputData)
@@ -920,16 +918,6 @@ Char FlatStringReader::Get(int index) {
 }
 
 Handle<Object> StringTableShape::AsHandle(Isolate* isolate, HashTableKey* key) {
-  return key->AsHandle(isolate);
-}
-
-Handle<Object> CompilationCacheShape::AsHandle(Isolate* isolate,
-                                               HashTableKey* key) {
-  return key->AsHandle(isolate);
-}
-
-Handle<Object> CodeCacheHashTableShape::AsHandle(Isolate* isolate,
-                                                 HashTableKey* key) {
   return key->AsHandle(isolate);
 }
 
