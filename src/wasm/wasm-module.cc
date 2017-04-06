@@ -2736,12 +2736,14 @@ class AsyncCompileJob {
   // Step 1: (async) Decode the module.
   //==========================================================================
   bool DecodeModule() {
-    DisallowHandleAllocation no_handle;
-    DisallowHeapAllocation no_allocation;
-    // Decode the module bytes.
-    TRACE_COMPILE("(1) Decoding module...\n");
-    result_ = DecodeWasmModule(isolate_, wire_bytes_.start(), wire_bytes_.end(),
-                               true, kWasmOrigin);
+    {
+      DisallowHandleAllocation no_handle;
+      DisallowHeapAllocation no_allocation;
+      // Decode the module bytes.
+      TRACE_COMPILE("(1) Decoding module...\n");
+      result_ = DecodeWasmModule(isolate_, wire_bytes_.start(),
+                                 wire_bytes_.end(), true, kWasmOrigin);
+    }
     if (result_.failed()) {
       // Decoding failure; reject the promise and clean up.
       if (result_.val) delete result_.val;
@@ -2812,8 +2814,7 @@ class AsyncCompileJob {
     isolate_->counters()->wasm_functions_per_wasm_module()->AddSample(
         static_cast<int>(module_->functions.size()));
 
-    helper_ = std::unique_ptr<CompilationHelper>(
-        new CompilationHelper(isolate_, module_));
+    helper_.reset(new CompilationHelper(isolate_, module_));
 
     DCHECK_LE(module_->num_imported_functions, module_->functions.size());
     size_t num_functions =
@@ -2860,17 +2861,22 @@ class AsyncCompileJob {
   // Step 3 (async x K tasks): Execute compilation units.
   //==========================================================================
   bool ExecuteCompilationUnits() {
-    DisallowHandleAllocation no_handle;
-    DisallowHeapAllocation no_allocation;
     TRACE_COMPILE("(3) Compiling...\n");
-    while (!failed_ && helper_->FetchAndExecuteCompilationUnit()) {
+    while (!failed_) {
+      {
+        DisallowHandleAllocation no_handle;
+        DisallowHeapAllocation no_allocation;
+        if (!helper_->FetchAndExecuteCompilationUnit()) break;
+      }
       // TODO(ahaas): Create one FinishCompilationUnit job for all compilation
       // units.
       DoSync(&AsyncCompileJob::FinishCompilationUnit);
       // TODO(ahaas): Limit the number of outstanding compilation units to be
       // finished to reduce memory overhead.
     }
-    helper_->module_->pending_tasks.get()->Signal();
+    // In predictable mode DoSync and DoAsync are only normal function calls.
+    // Therefore the semaphore would cause a deadlock, so we do not use it.
+    if (!FLAG_predictable) helper_->module_->pending_tasks.get()->Signal();
     return true;
   }
 
@@ -2907,15 +2913,18 @@ class AsyncCompileJob {
   // Step 4b (async): Wait for all background tasks to finish.
   //==========================================================================
   bool WaitForBackgroundTasks() {
-    DisallowHandleAllocation no_handle;
-    DisallowHeapAllocation no_allocation;
     TRACE_COMPILE("(4b) Waiting for background tasks...\n");
-    for (size_t i = 0; i < num_background_tasks_; ++i) {
-      // If the task has not started yet, then we abort it. Otherwise we wait
-      // for it to finish.
-      if (isolate_->cancelable_task_manager()->TryAbort(task_ids_.get()[i]) !=
-          CancelableTaskManager::kTaskAborted) {
-        module_->pending_tasks.get()->Wait();
+    // In predictable mode DoSync and DoAsync are only normal function calls.
+    // Therefore the semaphore would cause a deadlock, so we do not use it.
+    if (!FLAG_predictable) {
+      for (size_t i = 0; i < num_background_tasks_; ++i) {
+        // If the task has not started yet, then we abort it. Otherwise we wait
+        // for it to finish.
+
+        if (isolate_->cancelable_task_manager()->TryAbort(task_ids_.get()[i]) !=
+            CancelableTaskManager::kTaskAborted) {
+          module_->pending_tasks.get()->Wait();
+        }
       }
     }
     if (failed_) {
@@ -3052,7 +3061,13 @@ class AsyncCompileJob {
 
     void RunInternal() override {
       bool more = (job_->*func_)();  // run the task.
-      if (!more) delete job_;        // if no more work, then this job is done.
+      if (!more) {
+        // In predictable mode DoSync and DoAsync are only normal function
+        // calls. Therefore we cannot deallocate the AsyncCompilationJob here
+        // because all previous tasks of the compilation are still on the stack.
+        if (!FLAG_predictable)
+          delete job_;  // if no more work, then this job is done.
+      }
     }
   };
 };
@@ -3066,6 +3081,9 @@ void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
   auto job = new AsyncCompileJob(isolate, std::move(copy), bytes.length(),
                                  handle(isolate->context()), promise);
   job->Start();
+  // In predictable mode the whole compilation takes place in Start(). Therefore
+  // we can just delete the code here.
+  if (FLAG_predictable) delete job;
 }
 
 Handle<Code> wasm::CompileLazy(Isolate* isolate) {
