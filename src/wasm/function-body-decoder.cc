@@ -988,22 +988,24 @@ class WasmFullDecoder : public WasmDecoder {
                   BreakTo(target);
 
                   // Check that label types match up.
+                  static MergeValues loop_dummy = {0, {nullptr}};
                   Control* c = &control_[control_.size() - target - 1];
+                  MergeValues* current = c->is_loop() ? &loop_dummy : &c->merge;
                   if (i == 0) {
-                    merge = &c->merge;
-                  } else if (merge->arity != c->merge.arity) {
+                    merge = current;
+                  } else if (merge->arity != current->arity) {
                     errorf(pos,
                            "inconsistent arity in br_table target %d"
                            " (previous was %u, this one %u)",
-                           i, merge->arity, c->merge.arity);
+                           i, merge->arity, current->arity);
                   } else if (control_.back().unreachable) {
                     for (uint32_t j = 0; ok() && j < merge->arity; ++j) {
-                      if ((*merge)[j].type != c->merge[j].type) {
+                      if ((*merge)[j].type != (*current)[j].type) {
                         errorf(pos,
                                "type error in br_table target %d operand %d"
                                " (previous expected %s, this one %s)",
                                i, j, WasmOpcodes::TypeName((*merge)[j].type),
-                               WasmOpcodes::TypeName(c->merge[j].type));
+                               WasmOpcodes::TypeName((*current)[j].type));
                       }
                     }
                   }

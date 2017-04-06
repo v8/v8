@@ -1018,6 +1018,20 @@ WASM_EXEC_TEST(BrTable4_fallthru) {
   CHECK_EQ(108, r.Call(4, 100));
 }
 
+WASM_EXEC_TEST(BrTable_loop_target) {
+  byte code[] = {
+      WASM_LOOP_I(
+          WASM_BLOCK(
+              WASM_BR_TABLE(WASM_GET_LOCAL(0), 2,
+                  BR_TARGET(0), BR_TARGET(1), BR_TARGET(1))),
+          WASM_ONE)};
+
+  WasmRunner<int32_t, int32_t> r(execution_mode);
+  r.Build(code, code + arraysize(code));
+
+  CHECK_EQ(1, r.Call(0));
+}
+
 WASM_EXEC_TEST(F32ReinterpretI32) {
   WasmRunner<int32_t> r(execution_mode);
   int32_t* memory = r.module().AddMemoryElems<int32_t>(8);
