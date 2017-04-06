@@ -2685,6 +2685,10 @@ void wasm::AsyncCompileAndInstantiate(Isolate* isolate,
 // foreground task. All other tasks (e.g. decoding and validating, the majority
 // of the work of compilation) can be background tasks.
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
+//
+// Note: In predictable mode, DoSync and DoAsync execute the referenced function
+// immediately before returning. Thus we handle the predictable mode specially,
+// e.g. when we synchronizing tasks or when we delete the AyncCompileJob.
 class AsyncCompileJob {
  public:
   explicit AsyncCompileJob(Isolate* isolate, std::unique_ptr<byte[]> bytes_copy,
@@ -2874,9 +2878,9 @@ class AsyncCompileJob {
       // TODO(ahaas): Limit the number of outstanding compilation units to be
       // finished to reduce memory overhead.
     }
-    // In predictable mode DoSync and DoAsync are only normal function calls.
-    // Therefore the semaphore would cause a deadlock, so we do not use it.
-    if (!FLAG_predictable) helper_->module_->pending_tasks.get()->Signal();
+    // Special handling for predictable mode, see above.
+    if (!FLAG_verify_predictable)
+      helper_->module_->pending_tasks.get()->Signal();
     return true;
   }
 
@@ -2914,9 +2918,8 @@ class AsyncCompileJob {
   //==========================================================================
   bool WaitForBackgroundTasks() {
     TRACE_COMPILE("(4b) Waiting for background tasks...\n");
-    // In predictable mode DoSync and DoAsync are only normal function calls.
-    // Therefore the semaphore would cause a deadlock, so we do not use it.
-    if (!FLAG_predictable) {
+    // Special handling for predictable mode, see above.
+    if (!FLAG_verify_predictable) {
       for (size_t i = 0; i < num_background_tasks_; ++i) {
         // If the task has not started yet, then we abort it. Otherwise we wait
         // for it to finish.
@@ -3062,11 +3065,9 @@ class AsyncCompileJob {
     void RunInternal() override {
       bool more = (job_->*func_)();  // run the task.
       if (!more) {
-        // In predictable mode DoSync and DoAsync are only normal function
-        // calls. Therefore we cannot deallocate the AsyncCompilationJob here
-        // because all previous tasks of the compilation are still on the stack.
-        if (!FLAG_predictable)
-          delete job_;  // if no more work, then this job is done.
+        // If no more work, then this job is done. Predictable mode is handled
+        // specially though, see above.
+        if (!FLAG_verify_predictable) delete job_;
       }
     }
   };
@@ -3081,9 +3082,8 @@ void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
   auto job = new AsyncCompileJob(isolate, std::move(copy), bytes.length(),
                                  handle(isolate->context()), promise);
   job->Start();
-  // In predictable mode the whole compilation takes place in Start(). Therefore
-  // we can just delete the code here.
-  if (FLAG_predictable) delete job;
+  // Special handling for predictable mode, see above.
+  if (FLAG_verify_predictable) delete job;
 }
 
 Handle<Code> wasm::CompileLazy(Isolate* isolate) {
