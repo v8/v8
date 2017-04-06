@@ -2691,6 +2691,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate, array_buffer_fun,
                                      Context::ARRAY_BUFFER_FUN_INDEX);
     InstallSpeciesGetter(array_buffer_fun);
+
+    Handle<JSFunction> array_buffer_noinit_fun = SimpleCreateFunction(
+        isolate,
+        factory->NewStringFromAsciiChecked(
+            "arrayBufferConstructor_DoNotInitialize"),
+        Builtins::kArrayBufferConstructor_DoNotInitialize, 1, false);
+    native_context()->set_array_buffer_noinit_fun(*array_buffer_noinit_fun);
   }
 
   {  // -- T y p e d A r r a y

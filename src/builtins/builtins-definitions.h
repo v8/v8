@@ -301,6 +301,7 @@ namespace internal {
   /* ArrayBuffer */                                                            \
   CPP(ArrayBufferConstructor)                                                  \
   CPP(ArrayBufferConstructor_ConstructStub)                                    \
+  CPP(ArrayBufferConstructor_DoNotInitialize)                                  \
   CPP(ArrayBufferPrototypeGetByteLength)                                       \
   CPP(ArrayBufferIsView)                                                       \
   CPP(ArrayBufferPrototypeSlice)                                               \

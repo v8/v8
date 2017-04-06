@@ -34,26 +34,16 @@ BUILTIN(ArrayBufferConstructor) {
                             handle(target->shared()->name(), isolate)));
 }
 
-// ES6 section 24.1.2.1 ArrayBuffer ( length ) for the [[Construct]] case.
-BUILTIN(ArrayBufferConstructor_ConstructStub) {
-  HandleScope scope(isolate);
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-  Handle<Object> length = args.atOrUndefined(isolate, 1);
-  DCHECK(*target == target->native_context()->array_buffer_fun() ||
-         *target == target->native_context()->shared_array_buffer_fun());
-  Handle<Object> number_length;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_length,
-                                     Object::ToInteger(isolate, length));
-  if (number_length->Number() < 0.0) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
-  }
+namespace {
+
+Object* ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
+                        Handle<JSReceiver> new_target, Handle<Object> length,
+                        bool initialize) {
   Handle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSObject::New(target, new_target));
   size_t byte_length;
-  if (!TryNumberToSize(*number_length, &byte_length)) {
+  if (!TryNumberToSize(*length, &byte_length)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
@@ -62,12 +52,44 @@ BUILTIN(ArrayBufferConstructor_ConstructStub) {
           ? SharedFlag::kNotShared
           : SharedFlag::kShared;
   if (!JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer>::cast(result),
-                                          isolate, byte_length, true,
+                                          isolate, byte_length, initialize,
                                           shared_flag)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
   }
   return *result;
+}
+
+}  // namespace
+
+// ES6 section 24.1.2.1 ArrayBuffer ( length ) for the [[Construct]] case.
+BUILTIN(ArrayBufferConstructor_ConstructStub) {
+  HandleScope scope(isolate);
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<Object> length = args.atOrUndefined(isolate, 1);
+  DCHECK(*target == target->native_context()->array_buffer_fun() ||
+         *target == target->native_context()->shared_array_buffer_fun());
+
+  Handle<Object> number_length;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_length,
+                                     Object::ToInteger(isolate, length));
+  if (number_length->Number() < 0.0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
+  }
+
+  return ConstructBuffer(isolate, target, new_target, number_length, true);
+}
+
+// This is a helper to construct an ArrayBuffer with uinitialized memory.
+// This means the caller must ensure the buffer is totally initialized in
+// all cases, or we will expose uinitialized memory to user code.
+BUILTIN(ArrayBufferConstructor_DoNotInitialize) {
+  HandleScope scope(isolate);
+  Handle<JSFunction> target(isolate->native_context()->array_buffer_fun());
+  Handle<Object> length = args.atOrUndefined(isolate, 1);
+  return ConstructBuffer(isolate, target, target, length, false);
 }
 
 // ES6 section 24.1.4.1 get ArrayBuffer.prototype.byteLength

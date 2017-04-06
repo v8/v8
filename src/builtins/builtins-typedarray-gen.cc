@@ -289,16 +289,17 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 void TypedArrayBuiltinsAssembler::InitializeBasedOnLength(
     Node* const holder, Node* const length, Node* const element_size,
     Node* const byte_offset, Node* const initialize, Node* const context) {
-  Label allocate_buffer(this), do_init(this);
+  Label allocate_buffer(this), allocate_buffer_noinit(this), do_init(this);
 
   Variable maybe_buffer(this, MachineRepresentation::kTagged, NullConstant());
 
   // SmiMul returns a heap number in case of Smi overflow.
   Node* byte_length = SmiMul(length, element_size);
   GotoIf(TaggedIsNotSmi(byte_length), &allocate_buffer);
-  Branch(SmiLessThanOrEqual(byte_length,
+  GotoIf(SmiLessThanOrEqual(byte_length,
                             SmiConstant(FLAG_typed_array_max_size_in_heap)),
-         &do_init, &allocate_buffer);
+         &do_init);
+  Branch(IsTrue(initialize), &allocate_buffer, &allocate_buffer_noinit);
 
   BIND(&allocate_buffer);
   {
@@ -309,7 +310,17 @@ void TypedArrayBuiltinsAssembler::InitializeBasedOnLength(
     Goto(&do_init);
   }
 
-  BIND(&do_init);
+  Bind(&allocate_buffer_noinit);
+  {
+    Node* const buffer_constructor_noinit = LoadContextElement(
+        LoadNativeContext(context), Context::ARRAY_BUFFER_NOINIT_FUN_INDEX);
+    maybe_buffer.Bind(CallJS(CodeFactory::Call(isolate()), context,
+                             buffer_constructor_noinit, UndefinedConstant(),
+                             byte_length));
+    Goto(&do_init);
+  }
+
+  Bind(&do_init);
   {
     DoInitialize(holder, length, maybe_buffer.value(), byte_offset, byte_length,
                  initialize, context);
