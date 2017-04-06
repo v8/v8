@@ -25,7 +25,6 @@
 #include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
-#include "src/builtins/builtins-utils.h"
 #include "src/char-predicates-inl.h"
 #include "src/code-stubs.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
@@ -9573,22 +9572,6 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   fun->shared()->DontAdaptArguments();
   return Utils::ToLocal(handle_scope.CloseAndEscape(fun));
 }
-
-void debug::SetConsoleDelegate(Isolate* v8_isolate, ConsoleDelegate* delegate) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ENTER_V8(isolate);
-  isolate->set_console_delegate(delegate);
-}
-
-debug::ConsoleCallArguments::ConsoleCallArguments(
-    const v8::FunctionCallbackInfo<v8::Value>& info)
-    : v8::FunctionCallbackInfo<v8::Value>(nullptr, info.values_, info.length_) {
-}
-
-debug::ConsoleCallArguments::ConsoleCallArguments(
-    internal::BuiltinArguments& args)
-    : v8::FunctionCallbackInfo<v8::Value>(nullptr, &args[0] - 1,
-                                          args.length() - 1) {}
 
 MaybeLocal<debug::Script> debug::GeneratorObject::Script() {
   i::Handle<i::JSGeneratorObject> obj = Utils::OpenHandle(this);

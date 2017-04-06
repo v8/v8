@@ -56,13 +56,9 @@ V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
       m_debugger(new V8Debugger(isolate, this)),
       m_capturingStackTracesCount(0),
       m_lastExceptionId(0),
-      m_lastContextId(0) {
-  v8::debug::SetConsoleDelegate(m_isolate, console());
-}
+      m_lastContextId(0) {}
 
-V8InspectorImpl::~V8InspectorImpl() {
-  v8::debug::SetConsoleDelegate(m_isolate, nullptr);
-}
+V8InspectorImpl::~V8InspectorImpl() {}
 
 int V8InspectorImpl::contextGroupId(v8::Local<v8::Context> context) {
   return contextGroupId(InspectedContext::contextId(context));
