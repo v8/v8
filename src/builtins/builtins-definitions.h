@@ -224,10 +224,6 @@ namespace internal {
   TFH(StoreIC_Uninitialized, BUILTIN, kNoExtraICState, StoreWithVector)        \
   TFH(StoreICStrict_Uninitialized, BUILTIN, kNoExtraICState, StoreWithVector)  \
                                                                                \
-  TFS(ResolveNativePromise, ResolveNativePromise, 1)                           \
-  TFS(RejectNativePromise, RejectNativePromise, 1)                             \
-  TFS(PerformNativePromiseThen, PerformNativePromiseThen, 1)                   \
-                                                                               \
   /* Built-in functions for Javascript */                                      \
   /* Special internal builtins */                                              \
   CPP(EmptyFunction)                                                           \
@@ -986,13 +982,10 @@ namespace internal {
   V(AsyncGeneratorResolve)                           \
   V(AsyncGeneratorAwaitCaught)                       \
   V(AsyncGeneratorAwaitUncaught)                     \
-  V(PerformNativePromiseThen)                        \
   V(PromiseConstructor)                              \
   V(PromiseHandle)                                   \
   V(PromiseResolve)                                  \
   V(PromiseResolveClosure)                           \
-  V(RejectNativePromise)                             \
-  V(ResolveNativePromise)                            \
   V(ResolvePromise)
 
 #define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseHandleReject)

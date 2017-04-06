@@ -27,7 +27,7 @@ Node* AsyncBuiltinsAssembler::Await(
   Node* const wrapped_value = AllocateAndInitJSPromise(context);
 
   // Perform ! Call(promiseCapability.[[Resolve]], undefined, « promise »).
-  CallBuiltin(Builtins::kResolveNativePromise, context, wrapped_value, value);
+  InternalResolvePromise(context, wrapped_value, value);
 
   Node* const native_context = LoadNativeContext(context);
 
@@ -88,8 +88,9 @@ Node* AsyncBuiltinsAssembler::Await(
 
   Goto(&do_perform_promise_then);
   BIND(&do_perform_promise_then);
-  CallBuiltin(Builtins::kPerformNativePromiseThen, context, wrapped_value,
-              on_resolve, on_reject, throwaway_promise);
+  InternalPerformPromiseThen(context, wrapped_value, on_resolve, on_reject,
+                             throwaway_promise, UndefinedConstant(),
+                             UndefinedConstant());
 
   return wrapped_value;
 }

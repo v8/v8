@@ -184,8 +184,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
         MakeTypeError(MessageTemplate::kIncompatibleMethodReceiver, context,
                       CStringConstant(method_name), generator);
 
-    CallBuiltin(Builtins::kRejectNativePromise, context, promise, error,
-                TrueConstant());
+    InternalPromiseReject(context, promise, error, true);
     Return(promise);
   }
 }
@@ -542,15 +541,18 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
   Node* const promise = LoadPromiseFromAsyncGeneratorRequest(next);
 
   Node* const wrapper = AllocateAndInitJSPromise(context);
-  CallBuiltin(Builtins::kResolveNativePromise, context, wrapper, value);
+  InternalResolvePromise(context, wrapper, value);
 
   Node* const on_fulfilled =
       CreateUnwrapClosure(LoadNativeContext(context), done);
 
+  Node* const undefined = UndefinedConstant();
+  InternalPerformPromiseThen(context, wrapper, on_fulfilled, undefined, promise,
+                             undefined, undefined);
+
   // Per spec, AsyncGeneratorResolve() returns undefined. However, for the
   // benefit of %TraceExit(), return the Promise.
-  Return(CallBuiltin(Builtins::kPerformNativePromiseThen, context, wrapper,
-                     on_fulfilled, UndefinedConstant(), promise));
+  Return(promise);
 }
 
 TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
@@ -562,8 +564,8 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
   Node* const next = TakeFirstAsyncGeneratorRequestFromQueue(generator);
   Node* const promise = LoadPromiseFromAsyncGeneratorRequest(next);
 
-  Return(CallBuiltin(Builtins::kRejectNativePromise, context, promise, value,
-                     TrueConstant()));
+  InternalPromiseReject(context, promise, value, true);
+  Return(UndefinedConstant());
 }
 
 }  // namespace internal

@@ -120,7 +120,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 
   // Perform ! Call(valueWrapperCapability.[[Resolve]], undefined, «
   // throwValue »).
-  CallBuiltin(Builtins::kResolveNativePromise, context, wrapper, value);
+  InternalResolvePromise(context, wrapper, value);
 
   // Let onFulfilled be a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions.
@@ -129,14 +129,16 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 
   // Perform ! PerformPromiseThen(valueWrapperCapability.[[Promise]],
   //     onFulfilled, undefined, promiseCapability).
-  Return(CallBuiltin(Builtins::kPerformNativePromiseThen, context, wrapper,
-                     on_fulfilled, UndefinedConstant(), promise));
+  Node* const undefined = UndefinedConstant();
+  InternalPerformPromiseThen(context, wrapper, on_fulfilled, undefined, promise,
+                             undefined, undefined);
+  Return(promise);
 
   BIND(&reject_promise);
   {
     Node* const exception = var_exception.value();
-    CallBuiltin(Builtins::kRejectNativePromise, context, promise, exception,
-                TrueConstant());
+    InternalPromiseReject(context, promise, exception, TrueConstant());
+
     Return(promise);
   }
 }

@@ -101,10 +101,7 @@ class PlatformInterfaceDescriptor;
   V(AsyncGeneratorResolve)                 \
   V(AsyncGeneratorReject)                  \
   V(AsyncGeneratorResumeNext)              \
-  V(WasmRuntimeCall)                       \
-  V(ResolveNativePromise)                  \
-  V(RejectNativePromise)                   \
-  V(PerformNativePromiseThen)
+  V(WasmRuntimeCall)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
@@ -1008,28 +1005,6 @@ class AsyncGeneratorResumeNextDescriptor final
  public:
   DEFINE_PARAMETERS(kGenerator)
   DECLARE_DEFAULT_DESCRIPTOR(AsyncGeneratorResumeNextDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class ResolveNativePromiseDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kPromise, kValue)
-  DECLARE_DEFAULT_DESCRIPTOR(ResolveNativePromiseDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class RejectNativePromiseDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kPromise, kValue, kDebugEvent)
-  DECLARE_DEFAULT_DESCRIPTOR(RejectNativePromiseDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class PerformNativePromiseThenDescriptor final
-    : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kPromise, kResolveReaction, kRejectReaction, kResultPromise)
-  DECLARE_DEFAULT_DESCRIPTOR(PerformNativePromiseThenDescriptor,
                              CallInterfaceDescriptor, kParameterCount)
 };
 
