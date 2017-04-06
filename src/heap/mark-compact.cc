@@ -254,9 +254,6 @@ void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
 }
 
 void EvacuationVerifier::VerifyEvacuation(PagedSpace* space) {
-  if (FLAG_use_allocation_folding && (space == heap_->old_space())) {
-    return;
-  }
   for (Page* p : *space) {
     if (p->IsEvacuationCandidate()) continue;
     if (p->Contains(space->top()))
