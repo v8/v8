@@ -84,6 +84,11 @@
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
   'language/statements/variable/binding-resolution': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6216
+  'built-ins/TypedArrays/buffer-arg-byteoffset-to-number-detachbuffer': [FAIL],
+  'built-ins/TypedArrays/buffer-arg-length-to-number-detachbuffer': [FAIL],
+  'built-ins/TypedArrays/buffer-arg-detachedbuffer': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
@@ -283,22 +288,23 @@
   'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4451
-  'annexB/language/eval-code/direct/global-block-decl-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/direct/global-if-decl-else-decl-a-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/direct/global-if-decl-else-decl-b-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/direct/global-if-decl-else-stmt-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/direct/global-if-decl-no-else-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/direct/global-if-stmt-else-decl-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/direct/global-switch-case-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/direct/global-switch-dflt-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/indirect/global-block-decl-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/indirect/global-if-decl-else-decl-a-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/indirect/global-if-decl-else-decl-b-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/indirect/global-if-decl-else-stmt-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/indirect/global-if-decl-no-else-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/indirect/global-if-stmt-else-decl-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/indirect/global-switch-case-eval-global-exsting-global-init': [FAIL],
-  'annexB/language/eval-code/indirect/global-switch-dflt-eval-global-exsting-global-init': [FAIL],
+  # https://github.com/tc39/ecma262/issues/753
+  'annexB/language/eval-code/direct/global-block-decl-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/direct/global-if-decl-else-decl-a-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/direct/global-if-decl-else-decl-b-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/direct/global-if-decl-else-stmt-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/direct/global-if-decl-no-else-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/direct/global-if-stmt-else-decl-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/direct/global-switch-case-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/direct/global-switch-dflt-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/indirect/global-block-decl-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/indirect/global-if-decl-else-decl-a-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/indirect/global-if-decl-else-decl-b-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/indirect/global-if-decl-else-stmt-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/indirect/global-if-decl-no-else-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/indirect/global-if-stmt-else-decl-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/indirect/global-switch-case-eval-global-existing-global-init': [FAIL],
+  'annexB/language/eval-code/indirect/global-switch-dflt-eval-global-existing-global-init': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5135
   'annexB/language/eval-code/direct/func-block-decl-eval-func-block-scoping': [FAIL],
@@ -419,6 +425,32 @@
   'language/expressions/async-generators/*': ['--harmony-async-iteration'],
   'language/statements/async-generator/*': ['--harmony-async-iteration'],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6226
+  'language/expressions/async-generator/named-yield-star-async-next': [FAIL],
+  'language/expressions/async-generator/named-yield-star-async-return': [FAIL],
+  'language/expressions/async-generator/named-yield-star-async-throw': [FAIL],
+  'language/expressions/async-generator/yield-star-async-next': [FAIL],
+  'language/expressions/async-generator/yield-star-async-return': [FAIL],
+  'language/expressions/async-generator/yield-star-async-throw': [FAIL],
+  'language/expressions/class/async-gen-method-static-yield-star-async-next': [FAIL],
+  'language/expressions/class/async-gen-method-static-yield-star-async-return': [FAIL],
+  'language/expressions/class/async-gen-method-static-yield-star-async-throw': [FAIL],
+  'language/expressions/class/async-gen-method-yield-star-async-next': [FAIL],
+  'language/expressions/class/async-gen-method-yield-star-async-return': [FAIL],
+  'language/expressions/class/async-gen-method-yield-star-async-throw': [FAIL],
+  'language/expressions/object/method-definition/async-gen-yield-star-async-next': [FAIL],
+  'language/expressions/object/method-definition/async-gen-yield-star-async-return': [FAIL],
+  'language/expressions/object/method-definition/async-gen-yield-star-async-throw': [FAIL],
+  'language/statements/async-generator/yield-star-async-next': [FAIL],
+  'language/statements/async-generator/yield-star-async-return': [FAIL],
+  'language/statements/async-generator/yield-star-async-throw': [FAIL],
+  'language/statements/class/async-gen-method-static-yield-star-async-next': [FAIL],
+  'language/statements/class/async-gen-method-static-yield-star-async-return': [FAIL],
+  'language/statements/class/async-gen-method-static-yield-star-async-throw': [FAIL],
+  'language/statements/class/async-gen-method-yield-star-async-next': [FAIL],
+  'language/statements/class/async-gen-method-yield-star-async-return': [FAIL],
+  'language/statements/class/async-gen-method-yield-star-async-throw': [FAIL],
+
   # SharedArrayBuffer tests that require flags
   'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],
   'built-ins/Atomics/*': ['--harmony-sharedarraybuffer'],
@@ -519,6 +551,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6016
+  'intl402/NumberFormat/dft-currency-mnfd-range-check-mxfd': [FAIL],
 
 ######################## NEEDS INVESTIGATION ###########################
 

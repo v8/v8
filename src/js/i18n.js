@@ -1125,12 +1125,7 @@ function isWellFormedCurrencyCode(currency) {
 }
 
 
-/**
- * Returns the valid digit count for a property, or throws RangeError on
- * a value out of the range.
- */
-function getNumberOption(options, property, min, max, fallback) {
-  var value = options[property];
+function defaultNumberOption(value, min, max, fallback, property) {
   if (!IS_UNDEFINED(value)) {
     value = TO_NUMBER(value);
     if (NUMBER_IS_NAN(value) || value < min || value > max) {
@@ -1140,6 +1135,16 @@ function getNumberOption(options, property, min, max, fallback) {
   }
 
   return fallback;
+}
+
+
+/**
+ * Returns the valid digit count for a property, or throws RangeError on
+ * a value out of the range.
+ */
+function getNumberOption(options, property, min, max, fallback) {
+  var value = options[property];
+  return defaultNumberOption(value, min, max, fallback, property);
 }
 
 var patternAccessor = {
@@ -1207,10 +1212,10 @@ function CreateNumberFormat(locales, options) {
   var mnsd = options['minimumSignificantDigits'];
   var mxsd = options['maximumSignificantDigits'];
   if (!IS_UNDEFINED(mnsd) || !IS_UNDEFINED(mxsd)) {
-    mnsd = getNumberOption(options, 'minimumSignificantDigits', 1, 21, 1);
+    mnsd = defaultNumberOption(mnsd, 1, 21, 1, 'minimumSignificantDigits');
     defineWEProperty(internalOptions, 'minimumSignificantDigits', mnsd);
 
-    mxsd = getNumberOption(options, 'maximumSignificantDigits', mnsd, 21, 21);
+    mxsd = defaultNumberOption(mxsd, mnsd, 21, 21, 'maximumSignificantDigits');
     defineWEProperty(internalOptions, 'maximumSignificantDigits', mxsd);
   }
 
@@ -1747,8 +1752,6 @@ function FormatDateToParts(dateValue) {
 
   return %InternalDateFormatToParts(this, new GlobalDate(dateMs));
 }
-
-%FunctionSetLength(FormatDateToParts, 0);
 
 
 // Length is 1 as specified in ECMA 402 v2+

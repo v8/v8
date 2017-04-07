@@ -39,6 +39,13 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
+# TODO(littledan): move the flag mapping into the status file
+FEATURE_FLAGS = {
+  'object-rest': '--harmony-object-rest-spread',
+  'object-spread': '--harmony-object-rest-spread',
+  'async-iteration': '--harmony-async-iteration',
+}
+
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 ARCHIVE = DATA + ".tar"
 
@@ -153,7 +160,9 @@ class Test262TestSuite(testsuite.TestSuite):
              if "detachArrayBuffer.js" in
                 self.GetTestRecord(testcase).get("includes", [])
              else []) +
-            ([flag for flag in testcase.outcomes if flag.startswith("--")]))
+            ([flag for flag in testcase.outcomes if flag.startswith("--")]) +
+            ([flag for (feature, flag) in FEATURE_FLAGS.items()
+              if feature in self.GetTestRecord(testcase).get("features", [])]))
 
   def _VariantGeneratorFactory(self):
     return Test262VariantGenerator
