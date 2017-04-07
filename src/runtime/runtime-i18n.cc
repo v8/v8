@@ -43,6 +43,7 @@
 #include "unicode/uloc.h"
 #include "unicode/unistr.h"
 #include "unicode/unum.h"
+#include "unicode/ustring.h"
 #include "unicode/uversion.h"
 
 
@@ -609,10 +610,11 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
     String::FlatContent flat2 = string2->GetFlatContent();
     std::unique_ptr<uc16[]> sap1;
     std::unique_ptr<uc16[]> sap2;
-    const UChar* string_val1 = GetUCharBufferFromFlat(flat1, &sap1, length1);
-    const UChar* string_val2 = GetUCharBufferFromFlat(flat2, &sap2, length2);
-    result =
-        collator->compare(string_val1, length1, string_val2, length2, status);
+    icu::UnicodeString string_val1(
+        FALSE, GetUCharBufferFromFlat(flat1, &sap1, length1), length1);
+    icu::UnicodeString string_val2(
+        FALSE, GetUCharBufferFromFlat(flat2, &sap2, length2), length2);
+    result = collator->compare(string_val1, string_val2, status);
   }
   if (U_FAILURE(status)) return isolate->ThrowIllegalOperation();
 
