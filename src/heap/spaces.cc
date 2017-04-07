@@ -1222,6 +1222,22 @@ STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CODE_SPACE) ==
 STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
               ObjectSpace::kObjectSpaceMapSpace);
 
+void Space::AddAllocationObserver(AllocationObserver* observer) {
+  allocation_observers_->Add(observer);
+}
+
+void Space::RemoveAllocationObserver(AllocationObserver* observer) {
+  bool removed = allocation_observers_->RemoveElement(observer);
+  USE(removed);
+  DCHECK(removed);
+}
+
+void Space::PauseAllocationObservers() { allocation_observers_paused_ = true; }
+
+void Space::ResumeAllocationObservers() {
+  allocation_observers_paused_ = false;
+}
+
 void Space::AllocationStep(Address soon_object, int size) {
   if (!allocation_observers_paused_) {
     for (int i = 0; i < allocation_observers_->length(); ++i) {
