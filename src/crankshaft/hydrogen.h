@@ -2115,9 +2115,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   static const int kUnlimitedMaxInlinedNodesCumulative = 10000;
 
   // Maximum depth and total number of elements and properties for literal
-  // graphs to be considered for fast deep-copying.
+  // graphs to be considered for fast deep-copying. The limit is chosen to
+  // match the maximum number of inobject properties, to ensure that the
+  // performance of using object literals is not worse than using constructor
+  // functions, see crbug.com/v8/6211 for details.
   static const int kMaxFastLiteralDepth = 3;
-  static const int kMaxFastLiteralProperties = 8;
+  static const int kMaxFastLiteralProperties =
+      (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kPointerSizeLog2;
 
   // Simple accessors.
   void set_function_state(FunctionState* state) { function_state_ = state; }
