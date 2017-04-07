@@ -4130,11 +4130,9 @@ Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
 
   BIND(&if_isnegativesmi);
   {
-    // floor({input}) mod 2^32 === {input} + 2^32.
-    Node* const float_number = SmiToFloat64(number);
-    Node* const float_result = Float64Add(float_number, float_two_32);
-    Node* const result = ChangeFloat64ToTagged(float_result);
-    var_result.Bind(result);
+    Node* const uint32_value = SmiToWord32(number);
+    Node* float64_value = ChangeUint32ToFloat64(uint32_value);
+    var_result.Bind(AllocateHeapNumberWithValue(float64_value));
     Goto(&out);
   }
 
