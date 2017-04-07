@@ -301,6 +301,8 @@
   V(NumberToUint8Clamped)              \
   V(NumberSilenceNaN)
 
+#define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
+
 #define SIMPLIFIED_OTHER_OP_LIST(V) \
   V(PlainPrimitiveToNumber)         \
   V(PlainPrimitiveToWord32)         \
@@ -356,6 +358,7 @@
   SIMPLIFIED_NUMBER_BINOP_LIST(V)             \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   SIMPLIFIED_NUMBER_UNOP_LIST(V)              \
+  SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V)  \
   SIMPLIFIED_OTHER_OP_LIST(V)
 
 // Opcodes for Machine-level operators.

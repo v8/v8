@@ -914,6 +914,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Unsigned32());
       break;
+    case IrOpcode::kSpeculativeToNumber:
+      // Any -> Number
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Number());
+      break;
     case IrOpcode::kPlainPrimitiveToNumber:
       // PlainPrimitive -> Number
       CheckValueInputIs(node, 0, Type::PlainPrimitive());

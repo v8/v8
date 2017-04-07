@@ -96,6 +96,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceReferenceEqual(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
+    case IrOpcode::kSpeculativeToNumber:
+      return ReduceSpeculativeToNumber(node);
     default:
       break;
   }
@@ -307,6 +309,18 @@ Reduction TypedOptimization::ReduceSelect(Node* node) {
     type = Type::Intersect(node_type, type, graph()->zone());
     NodeProperties::SetType(node, type);
     return Changed(node);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceSpeculativeToNumber(Node* node) {
+  DCHECK_EQ(IrOpcode::kSpeculativeToNumber, node->opcode());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::Number())) {
+    // SpeculativeToNumber(x:number) => x
+    ReplaceWithValue(node, input);
+    return Replace(input);
   }
   return NoChange();
 }

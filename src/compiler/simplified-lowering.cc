@@ -454,6 +454,16 @@ class RepresentationSelector {
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
+#define DECLARE_CASE(Name)                                                \
+  case IrOpcode::k##Name: {                                               \
+    new_type =                                                            \
+        Type::Intersect(op_typer_.Name(FeedbackTypeOf(node->InputAt(0))), \
+                        info->restriction_type(), graph_zone());          \
+    break;                                                                \
+  }
+      SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
+#undef DECLARE_CASE
+
       case IrOpcode::kPlainPrimitiveToNumber:
         new_type = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
         break;
@@ -840,11 +850,12 @@ class RepresentationSelector {
   }
 
   // Helper for unops of the I -> O variety.
-  void VisitUnop(Node* node, UseInfo input_use, MachineRepresentation output) {
+  void VisitUnop(Node* node, UseInfo input_use, MachineRepresentation output,
+                 Type* restriction_type = Type::Any()) {
     DCHECK_EQ(1, node->op()->ValueInputCount());
     ProcessInput(node, 0, input_use);
     ProcessRemainingInputs(node, 1);
-    SetOutput(node, output);
+    SetOutput(node, output, restriction_type);
   }
 
   // Helper for leaf nodes.
@@ -2570,6 +2581,23 @@ class RepresentationSelector {
         } else {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         }
+        return;
+      }
+      case IrOpcode::kSpeculativeToNumber: {
+        NumberOperationHint const hint = NumberOperationHintOf(node->op());
+        switch (hint) {
+          case NumberOperationHint::kSigned32:
+          case NumberOperationHint::kSignedSmall:
+            VisitUnop(node, CheckedUseInfoAsWord32FromHint(hint),
+                      MachineRepresentation::kWord32, Type::Signed32());
+            break;
+          case NumberOperationHint::kNumber:
+          case NumberOperationHint::kNumberOrOddball:
+            VisitUnop(node, CheckedUseInfoAsFloat64FromHint(hint),
+                      MachineRepresentation::kFloat64);
+            break;
+        }
+        if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
       case IrOpcode::kObjectIsDetectableCallable: {

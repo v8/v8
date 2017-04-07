@@ -371,7 +371,8 @@ size_t hash_value(NumberOperationHint hint) {
 }
 
 NumberOperationHint NumberOperationHintOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kSpeculativeNumberAdd ||
+  DCHECK(op->opcode() == IrOpcode::kSpeculativeToNumber ||
+         op->opcode() == IrOpcode::kSpeculativeNumberAdd ||
          op->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
          op->opcode() == IrOpcode::kSpeculativeNumberMultiply ||
          op->opcode() == IrOpcode::kSpeculativeNumberDivide ||
@@ -696,6 +697,26 @@ struct SimplifiedOperatorGlobalCache final {
   SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
 #undef SPECULATIVE_NUMBER_BINOP
 
+  template <NumberOperationHint kHint>
+  struct SpeculativeToNumberOperator final
+      : public Operator1<NumberOperationHint> {
+    SpeculativeToNumberOperator()
+        : Operator1<NumberOperationHint>(
+              IrOpcode::kSpeculativeToNumber,            // opcode
+              Operator::kFoldable | Operator::kNoThrow,  // flags
+              "SpeculativeToNumber",                     // name
+              1, 1, 1, 1, 1, 0,                          // counts
+              kHint) {}                                  // parameter
+  };
+  SpeculativeToNumberOperator<NumberOperationHint::kSignedSmall>
+      kSpeculativeToNumberSignedSmallOperator;
+  SpeculativeToNumberOperator<NumberOperationHint::kSigned32>
+      kSpeculativeToNumberSigned32Operator;
+  SpeculativeToNumberOperator<NumberOperationHint::kNumber>
+      kSpeculativeToNumberNumberOperator;
+  SpeculativeToNumberOperator<NumberOperationHint::kNumberOrOddball>
+      kSpeculativeToNumberNumberOrOddballOperator;
+
 #define BUFFER_ACCESS(Type, type, TYPE, ctype, size)                          \
   struct LoadBuffer##Type##Operator final : public Operator1<BufferAccess> {  \
     LoadBuffer##Type##Operator()                                              \
@@ -802,6 +823,22 @@ const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
       return &cache_.kCheckFloat64HoleAllowReturnHoleOperator;
     case CheckFloat64HoleMode::kNeverReturnHole:
       return &cache_.kCheckFloat64HoleNeverReturnHoleOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(
+    NumberOperationHint hint) {
+  switch (hint) {
+    case NumberOperationHint::kSignedSmall:
+      return &cache_.kSpeculativeToNumberSignedSmallOperator;
+    case NumberOperationHint::kSigned32:
+      return &cache_.kSpeculativeToNumberSigned32Operator;
+    case NumberOperationHint::kNumber:
+      return &cache_.kSpeculativeToNumberNumberOperator;
+    case NumberOperationHint::kNumberOrOddball:
+      return &cache_.kSpeculativeToNumberNumberOrOddballOperator;
   }
   UNREACHABLE();
   return nullptr;

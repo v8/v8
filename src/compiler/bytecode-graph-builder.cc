@@ -2053,8 +2053,7 @@ void BytecodeGraphBuilder::VisitToNumber() {
   Node* node = nullptr;
   FeedbackSlot slot =
       feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
-  if (Node* simplified = TryBuildSimplifiedBinaryOp(
-          javascript()->Multiply(), object, jsgraph()->OneConstant(), slot)) {
+  if (Node* simplified = TryBuildSimplifiedToNumber(object, slot)) {
     node = simplified;
   } else {
     node = NewNode(javascript()->ToNumber(), object);
@@ -2474,6 +2473,19 @@ Node* BytecodeGraphBuilder::TryBuildSimplifiedBinaryOp(const Operator* op,
   Node* control = environment()->GetControlDependency();
   Reduction early_reduction = type_hint_lowering().ReduceBinaryOperation(
       op, left, right, effect, control, slot);
+  if (early_reduction.Changed()) {
+    ApplyEarlyReduction(early_reduction);
+    return early_reduction.replacement();
+  }
+  return nullptr;
+}
+
+Node* BytecodeGraphBuilder::TryBuildSimplifiedToNumber(Node* value,
+                                                       FeedbackSlot slot) {
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  Reduction early_reduction = type_hint_lowering().ReduceToNumberOperation(
+      value, effect, control, slot);
   if (early_reduction.Changed()) {
     ApplyEarlyReduction(early_reduction);
     return early_reduction.replacement();

@@ -180,6 +180,7 @@ class BytecodeGraphBuilder {
   // any other invocation of {NewNode} would do.
   Node* TryBuildSimplifiedBinaryOp(const Operator* op, Node* left, Node* right,
                                    FeedbackSlot slot);
+  Node* TryBuildSimplifiedToNumber(Node* input, FeedbackSlot slot);
   Node* TryBuildSimplifiedLoadNamed(const Operator* op, Node* receiver,
                                     FeedbackSlot slot);
   Node* TryBuildSimplifiedLoadKeyed(const Operator* op, Node* receiver,

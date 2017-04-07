@@ -108,6 +108,7 @@ class Typer::Visitor : public Reducer {
   case IrOpcode::k##x:  \
     return UpdateType(node, TypeUnaryOp(node, x));
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
@@ -173,6 +174,7 @@ class Typer::Visitor : public Reducer {
   case IrOpcode::k##x:  \
     return TypeUnaryOp(node, x);
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
@@ -274,6 +276,7 @@ class Typer::Visitor : public Reducer {
     return t->operation_typer_.Name(type);  \
   }
   SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 #define DECLARE_METHOD(Name)                          \
   static Type* Name(Type* lhs, Type* rhs, Typer* t) { \

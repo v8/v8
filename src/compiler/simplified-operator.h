@@ -381,6 +381,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringFromCodePoint(UnicodeEncoding encoding);
   const Operator* StringIndexOf();
 
+  const Operator* SpeculativeToNumber(NumberOperationHint hint);
+
   const Operator* PlainPrimitiveToNumber();
   const Operator* PlainPrimitiveToWord32();
   const Operator* PlainPrimitiveToFloat64();

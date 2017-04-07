@@ -55,6 +55,10 @@ class JSTypeHintLowering {
                                   Node* effect, Node* control,
                                   FeedbackSlot slot) const;
 
+  // Potential reduction to ToNumber operations
+  Reduction ReduceToNumberOperation(Node* value, Node* effect, Node* control,
+                                    FeedbackSlot slot) const;
+
   // Potential reduction of property access operations.
   Reduction ReduceLoadNamedOperation(const Operator* op, Node* obj,
                                      Node* effect, Node* control,

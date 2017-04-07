@@ -968,11 +968,11 @@ Type* OperationTyper::NumberPow(Type* lhs, Type* rhs) {
   return Type::Number();
 }
 
-#define SPECULATIVE_NUMBER_BINOP(Name)                                     \
-  Type* OperationTyper::Speculative##Name(Type* lhs, Type* rhs) {          \
-    lhs = ToNumber(Type::Intersect(lhs, Type::NumberOrOddball(), zone())); \
-    rhs = ToNumber(Type::Intersect(rhs, Type::NumberOrOddball(), zone())); \
-    return Name(lhs, rhs);                                                 \
+#define SPECULATIVE_NUMBER_BINOP(Name)                            \
+  Type* OperationTyper::Speculative##Name(Type* lhs, Type* rhs) { \
+    lhs = SpeculativeToNumber(lhs);                               \
+    rhs = SpeculativeToNumber(rhs);                               \
+    return Name(lhs, rhs);                                        \
   }
 SPECULATIVE_NUMBER_BINOP(NumberAdd)
 SPECULATIVE_NUMBER_BINOP(NumberSubtract)
@@ -986,6 +986,10 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftLeft)
 SPECULATIVE_NUMBER_BINOP(NumberShiftRight)
 SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
+
+Type* OperationTyper::SpeculativeToNumber(Type* type) {
+  return ToNumber(Type::Intersect(type, Type::NumberOrOddball(), zone()));
+}
 
 Type* OperationTyper::ToPrimitive(Type* type) {
   if (type->Is(Type::Primitive()) && !type->Maybe(Type::Receiver())) {

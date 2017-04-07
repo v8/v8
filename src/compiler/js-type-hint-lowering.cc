@@ -14,6 +14,30 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+
+bool BinaryOperationHintToNumberOperationHint(
+    BinaryOperationHint binop_hint, NumberOperationHint* number_hint) {
+  switch (binop_hint) {
+    case BinaryOperationHint::kSignedSmall:
+      *number_hint = NumberOperationHint::kSignedSmall;
+      return true;
+    case BinaryOperationHint::kSigned32:
+      *number_hint = NumberOperationHint::kSigned32;
+      return true;
+    case BinaryOperationHint::kNumberOrOddball:
+      *number_hint = NumberOperationHint::kNumberOrOddball;
+      return true;
+    case BinaryOperationHint::kAny:
+    case BinaryOperationHint::kNone:
+    case BinaryOperationHint::kString:
+      break;
+  }
+  return false;
+}
+
+}  // namespace
+
 class JSSpeculativeBinopBuilder final {
  public:
   JSSpeculativeBinopBuilder(const JSTypeHintLowering* lowering,
@@ -40,22 +64,8 @@ class JSSpeculativeBinopBuilder final {
   }
 
   bool GetBinaryNumberOperationHint(NumberOperationHint* hint) {
-    switch (GetBinaryOperationHint()) {
-      case BinaryOperationHint::kSignedSmall:
-        *hint = NumberOperationHint::kSignedSmall;
-        return true;
-      case BinaryOperationHint::kSigned32:
-        *hint = NumberOperationHint::kSigned32;
-        return true;
-      case BinaryOperationHint::kNumberOrOddball:
-        *hint = NumberOperationHint::kNumberOrOddball;
-        return true;
-      case BinaryOperationHint::kAny:
-      case BinaryOperationHint::kNone:
-      case BinaryOperationHint::kString:
-        break;
-    }
-    return false;
+    return BinaryOperationHintToNumberOperationHint(GetBinaryOperationHint(),
+                                                    hint);
   }
 
   bool GetCompareNumberOperationHint(NumberOperationHint* hint) {
@@ -224,6 +234,22 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
     default:
       UNREACHABLE();
       break;
+  }
+  return Reduction();
+}
+
+Reduction JSTypeHintLowering::ReduceToNumberOperation(Node* input, Node* effect,
+                                                      Node* control,
+                                                      FeedbackSlot slot) const {
+  DCHECK(!slot.IsInvalid());
+  BinaryOpICNexus nexus(feedback_vector(), slot);
+  NumberOperationHint hint;
+  if (BinaryOperationHintToNumberOperationHint(
+          nexus.GetBinaryOperationFeedback(), &hint)) {
+    Node* node = jsgraph()->graph()->NewNode(
+        jsgraph()->simplified()->SpeculativeToNumber(hint), input, effect,
+        control);
+    return Reduction(node);
   }
   return Reduction();
 }

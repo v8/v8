@@ -317,7 +317,8 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
 
   // TODO(jarin) Support both sides.
   if (arith->InputAt(0) != phi) {
-    if (arith->InputAt(0)->opcode() != IrOpcode::kJSToNumber ||
+    if ((arith->InputAt(0)->opcode() != IrOpcode::kJSToNumber &&
+         arith->InputAt(0)->opcode() != IrOpcode::kSpeculativeToNumber) ||
         arith->InputAt(0)->InputAt(0) != phi) {
       return nullptr;
     }
