@@ -10226,9 +10226,6 @@ class ObjectVisitor BASE_EMBEDDED {
   // Visits an (encoded) internal reference.
   virtual void VisitInternalReference(RelocInfo* rinfo) {}
 
-  // Visits a handle that has an embedder-assigned class ID.
-  virtual void VisitEmbedderReference(Object** p, uint16_t class_id) {}
-
   // Intended for serialization/deserialization checking: insert, or
   // check for the presence of, a tag at this position in the stream.
   // Also used for marking up GC roots in heap snapshots.

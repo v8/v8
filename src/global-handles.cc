@@ -949,34 +949,44 @@ void GlobalHandles::IterateAllRoots(ObjectVisitor* v) {
 
 
 DISABLE_CFI_PERF
-void GlobalHandles::IterateAllRootsWithClassIds(ObjectVisitor* v) {
+void GlobalHandles::ApplyPersistentHandleVisitor(
+    v8::PersistentHandleVisitor* visitor, GlobalHandles::Node* node) {
+  v8::Value* value = ToApi<v8::Value>(Handle<Object>(node->location()));
+  visitor->VisitPersistentHandle(
+      reinterpret_cast<v8::Persistent<v8::Value>*>(&value),
+      node->wrapper_class_id());
+}
+
+DISABLE_CFI_PERF
+void GlobalHandles::IterateAllRootsWithClassIds(
+    v8::PersistentHandleVisitor* visitor) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     if (it.node()->IsRetainer() && it.node()->has_wrapper_class_id()) {
-      v->VisitEmbedderReference(it.node()->location(),
-                                it.node()->wrapper_class_id());
+      ApplyPersistentHandleVisitor(visitor, it.node());
     }
   }
 }
 
 
 DISABLE_CFI_PERF
-void GlobalHandles::IterateAllRootsInNewSpaceWithClassIds(ObjectVisitor* v) {
+void GlobalHandles::IterateAllRootsInNewSpaceWithClassIds(
+    v8::PersistentHandleVisitor* visitor) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     if (node->IsRetainer() && node->has_wrapper_class_id()) {
-      v->VisitEmbedderReference(node->location(),
-                                node->wrapper_class_id());
+      ApplyPersistentHandleVisitor(visitor, node);
     }
   }
 }
 
 
 DISABLE_CFI_PERF
-void GlobalHandles::IterateWeakRootsInNewSpaceWithClassIds(ObjectVisitor* v) {
+void GlobalHandles::IterateWeakRootsInNewSpaceWithClassIds(
+    v8::PersistentHandleVisitor* visitor) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     if (node->has_wrapper_class_id() && node->IsWeak()) {
-      v->VisitEmbedderReference(node->location(), node->wrapper_class_id());
+      ApplyPersistentHandleVisitor(visitor, node);
     }
   }
 }

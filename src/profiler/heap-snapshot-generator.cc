@@ -2197,16 +2197,17 @@ void V8HeapExplorer::TagGlobalObjects() {
   DeleteArray(urls);
 }
 
-
-class GlobalHandlesExtractor : public ObjectVisitor {
+class GlobalHandlesExtractor : public PersistentHandleVisitor {
  public:
   explicit GlobalHandlesExtractor(NativeObjectsExplorer* explorer)
       : explorer_(explorer) {}
   ~GlobalHandlesExtractor() override {}
-  void VisitPointers(Object** start, Object** end) override { UNREACHABLE(); }
-  void VisitEmbedderReference(Object** p, uint16_t class_id) override {
-    explorer_->VisitSubtreeWrapper(p, class_id);
+  void VisitPersistentHandle(Persistent<Value>* value,
+                             uint16_t class_id) override {
+    Handle<Object> object = Utils::OpenPersistent(value);
+    explorer_->VisitSubtreeWrapper(object.location(), class_id);
   }
+
  private:
   NativeObjectsExplorer* explorer_;
 };
