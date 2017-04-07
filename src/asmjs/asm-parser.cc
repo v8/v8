@@ -741,9 +741,12 @@ void AsmJsParser::ValidateFunction() {
     function_info->kind = VarKind::kFunction;
     function_info->function_builder = module_builder_->AddFunction();
     function_info->index = function_info->function_builder->func_index();
+  } else if (function_info->kind != VarKind::kFunction) {
+    FAIL("Function name collides with variable");
   } else if (function_info->function_defined) {
     FAIL("Function redefined");
   }
+
   function_info->function_defined = true;
   // TODO(bradnelson): Cleanup memory management here.
   // WasmModuleBuilder should own these.
@@ -806,9 +809,6 @@ void AsmJsParser::ValidateFunction() {
     function_info->index = current_function_builder_->func_index();
     function_info->type = function_type;
   } else {
-    if (function_info->kind != VarKind::kFunction) {
-      FAIL("Function name collides with variable");
-    }
     // TODO(bradnelson): Should IsExactly be used here?
     if (!function_info->type->IsA(AsmType::None()) &&
         !function_type->IsA(function_info->type)) {
