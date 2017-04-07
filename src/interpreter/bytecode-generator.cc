@@ -2299,48 +2299,50 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   // Evaluate the value and potentially handle compound assignments by loading
   // the left-hand side value and performing a binary operation.
   if (expr->is_compound()) {
+    Register old_value = register_allocator()->NewRegister();
     switch (assign_type) {
       case VARIABLE: {
         VariableProxy* proxy = expr->target()->AsVariableProxy();
         BuildVariableLoad(proxy->var(), proxy->VariableFeedbackSlot(),
                           proxy->hole_check_mode());
+        builder()->StoreAccumulatorInRegister(old_value);
         break;
       }
       case NAMED_PROPERTY: {
         FeedbackSlot slot = property->PropertyFeedbackSlot();
-        builder()->LoadNamedProperty(object, name, feedback_index(slot));
+        builder()
+            ->LoadNamedProperty(object, name, feedback_index(slot))
+            .StoreAccumulatorInRegister(old_value);
         break;
       }
       case KEYED_PROPERTY: {
         // Key is already in accumulator at this point due to evaluating the
         // LHS above.
         FeedbackSlot slot = property->PropertyFeedbackSlot();
-        builder()->LoadKeyedProperty(object, feedback_index(slot));
+        builder()
+            ->LoadKeyedProperty(object, feedback_index(slot))
+            .StoreAccumulatorInRegister(old_value);
         break;
       }
       case NAMED_SUPER_PROPERTY: {
-        builder()->CallRuntime(Runtime::kLoadFromSuper,
-                               super_property_args.Truncate(3));
+        builder()
+            ->CallRuntime(Runtime::kLoadFromSuper,
+                          super_property_args.Truncate(3))
+            .StoreAccumulatorInRegister(old_value);
         break;
       }
       case KEYED_SUPER_PROPERTY: {
-        builder()->CallRuntime(Runtime::kLoadKeyedFromSuper,
-                               super_property_args.Truncate(3));
+        builder()
+            ->CallRuntime(Runtime::kLoadKeyedFromSuper,
+                          super_property_args.Truncate(3))
+            .StoreAccumulatorInRegister(old_value);
         break;
       }
     }
+    VisitForAccumulatorValue(expr->value());
     FeedbackSlot slot = expr->binary_operation()->BinaryOperationFeedbackSlot();
-    if (expr->value()->IsSmiLiteral()) {
-      builder()->BinaryOperationSmiLiteral(
-          expr->binary_op(), expr->value()->AsLiteral()->AsSmiLiteral(),
-          feedback_index(slot));
-    } else {
-      Register old_value = register_allocator()->NewRegister();
-      builder()->StoreAccumulatorInRegister(old_value);
-      VisitForAccumulatorValue(expr->value());
-      builder()->BinaryOperation(expr->binary_op(), old_value,
-                                 feedback_index(slot));
-    }
+    builder()->BinaryOperation(expr->binary_op(), old_value,
+                               feedback_index(slot));
   } else {
     VisitForAccumulatorValue(expr->value());
   }
@@ -3107,20 +3109,11 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   // TODO(rmcilroy): Special case "x * 1.0" and "x * -1" which are generated for
   // +x and -x by the parser.
+  Register lhs = VisitForRegisterValue(expr->left());
+  VisitForAccumulatorValue(expr->right());
   FeedbackSlot slot = expr->BinaryOperationFeedbackSlot();
-  Expression* subexpr;
-  Smi* literal;
-  if (expr->IsSmiLiteralOperation(&subexpr, &literal)) {
-    VisitForAccumulatorValue(subexpr);
-    builder()->SetExpressionPosition(expr);
-    builder()->BinaryOperationSmiLiteral(expr->op(), literal,
-                                         feedback_index(slot));
-  } else {
-    Register lhs = VisitForRegisterValue(expr->left());
-    VisitForAccumulatorValue(expr->right());
-    builder()->SetExpressionPosition(expr);
-    builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));
-  }
+  builder()->SetExpressionPosition(expr);
+  builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));
 }
 
 void BytecodeGenerator::VisitSpread(Spread* expr) { Visit(expr->expression()); }

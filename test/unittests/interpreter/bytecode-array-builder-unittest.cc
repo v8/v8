@@ -177,18 +177,19 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::SAR, reg, 10)
       .BinaryOperation(Token::Value::SHR, reg, 11);
 
-  // Emit Smi binary operations.
-  builder.BinaryOperationSmiLiteral(Token::Value::ADD, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SUB, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::MUL, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::DIV, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::MOD, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::BIT_OR, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::BIT_XOR, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::BIT_AND, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SHL, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SAR, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::Value::SHR, Smi::FromInt(42), 2);
+  // Emit peephole optimizations of LdaSmi followed by binary operation.
+  builder.LoadLiteral(Smi::FromInt(1))
+      .BinaryOperation(Token::Value::ADD, reg, 1)
+      .LoadLiteral(Smi::FromInt(2))
+      .BinaryOperation(Token::Value::SUB, reg, 2)
+      .LoadLiteral(Smi::FromInt(3))
+      .BinaryOperation(Token::Value::BIT_AND, reg, 3)
+      .LoadLiteral(Smi::FromInt(4))
+      .BinaryOperation(Token::Value::BIT_OR, reg, 4)
+      .LoadLiteral(Smi::FromInt(5))
+      .BinaryOperation(Token::Value::SHL, reg, 5)
+      .LoadLiteral(Smi::FromInt(6))
+      .BinaryOperation(Token::Value::SAR, reg, 6);
 
   // Emit count operatior invocations
   builder.CountOperation(Token::Value::ADD, 1)
@@ -420,6 +421,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   if (!FLAG_ignition_peephole) {
     // Insert entries for bytecodes only emitted by peephole optimizer.
+    scorecard[Bytecodes::ToByte(Bytecode::kAddSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kSubSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kBitwiseAndSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kBitwiseOrSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kShiftLeftSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kShiftRightSmi)] = 1;
   }
 
   if (!FLAG_type_profile) {

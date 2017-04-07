@@ -292,9 +292,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Type feedback will be recorded in the |feedback_slot|
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
                                         int feedback_slot);
-  BytecodeArrayBuilder& BinaryOperationSmiLiteral(Token::Value binop,
-                                                  Smi* literal,
-                                                  int feedback_slot);
 
   // Count Operators (value stored in accumulator).
   // Type feedback will be recorded in the |feedback_slot|

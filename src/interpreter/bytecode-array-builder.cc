@@ -389,48 +389,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
-    Token::Value op, Smi* literal, int feedback_slot) {
-  switch (op) {
-    case Token::Value::ADD:
-      OutputAddSmi(literal->value(), feedback_slot);
-      break;
-    case Token::Value::SUB:
-      OutputSubSmi(literal->value(), feedback_slot);
-      break;
-    case Token::Value::MUL:
-      OutputMulSmi(literal->value(), feedback_slot);
-      break;
-    case Token::Value::DIV:
-      OutputDivSmi(literal->value(), feedback_slot);
-      break;
-    case Token::Value::MOD:
-      OutputModSmi(literal->value(), feedback_slot);
-      break;
-    case Token::Value::BIT_OR:
-      OutputBitwiseOrSmi(literal->value(), feedback_slot);
-      break;
-    case Token::Value::BIT_XOR:
-      OutputBitwiseXorSmi(literal->value(), feedback_slot);
-      break;
-    case Token::Value::BIT_AND:
-      OutputBitwiseAndSmi(literal->value(), feedback_slot);
-      break;
-    case Token::Value::SHL:
-      OutputShiftLeftSmi(literal->value(), feedback_slot);
-      break;
-    case Token::Value::SAR:
-      OutputShiftRightSmi(literal->value(), feedback_slot);
-      break;
-    case Token::Value::SHR:
-      OutputShiftRightLogicalSmi(literal->value(), feedback_slot);
-      break;
-    default:
-      UNREACHABLE();
-  }
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::CountOperation(Token::Value op,
                                                            int feedback_slot) {
   if (op == Token::Value::ADD) {

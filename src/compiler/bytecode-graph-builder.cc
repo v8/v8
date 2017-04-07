@@ -1745,7 +1745,8 @@ void BytecodeGraphBuilder::VisitShiftRightLogical() {
 
 void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* op) {
   PrepareEagerCheckpoint();
-  Node* left = environment()->LookupAccumulator();
+  Node* left =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
   Node* right = jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
 
   Node* node = nullptr;
@@ -1769,24 +1770,8 @@ void BytecodeGraphBuilder::VisitSubSmi() {
   BuildBinaryOpWithImmediate(javascript()->Subtract());
 }
 
-void BytecodeGraphBuilder::VisitMulSmi() {
-  BuildBinaryOpWithImmediate(javascript()->Multiply());
-}
-
-void BytecodeGraphBuilder::VisitDivSmi() {
-  BuildBinaryOpWithImmediate(javascript()->Divide());
-}
-
-void BytecodeGraphBuilder::VisitModSmi() {
-  BuildBinaryOpWithImmediate(javascript()->Modulus());
-}
-
 void BytecodeGraphBuilder::VisitBitwiseOrSmi() {
   BuildBinaryOpWithImmediate(javascript()->BitwiseOr());
-}
-
-void BytecodeGraphBuilder::VisitBitwiseXorSmi() {
-  BuildBinaryOpWithImmediate(javascript()->BitwiseXor());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseAndSmi() {
@@ -1799,10 +1784,6 @@ void BytecodeGraphBuilder::VisitShiftLeftSmi() {
 
 void BytecodeGraphBuilder::VisitShiftRightSmi() {
   BuildBinaryOpWithImmediate(javascript()->ShiftRight());
-}
-
-void BytecodeGraphBuilder::VisitShiftRightLogicalSmi() {
-  BuildBinaryOpWithImmediate(javascript()->ShiftRightLogical());
 }
 
 void BytecodeGraphBuilder::VisitInc() {

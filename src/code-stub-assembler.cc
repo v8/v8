@@ -581,53 +581,6 @@ Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
-                                   Label* bailout) {
-  // Both {a} and {b} are Smis. Bailout to floating point division if {divisor}
-  // is zero.
-  GotoIf(WordEqual(divisor, SmiConstant(0)), bailout);
-
-  // Do floating point division if {dividend} is zero and {divisor} is
-  // negative.
-  Label dividend_is_zero(this), dividend_is_not_zero(this);
-  Branch(WordEqual(dividend, SmiConstant(0)), &dividend_is_zero,
-         &dividend_is_not_zero);
-
-  Bind(&dividend_is_zero);
-  {
-    GotoIf(SmiLessThan(divisor, SmiConstant(0)), bailout);
-    Goto(&dividend_is_not_zero);
-  }
-  Bind(&dividend_is_not_zero);
-
-  Node* untagged_divisor = SmiToWord32(divisor);
-  Node* untagged_dividend = SmiToWord32(dividend);
-
-  // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
-  // if the Smi size is 31) and {divisor} is -1.
-  Label divisor_is_minus_one(this), divisor_is_not_minus_one(this);
-  Branch(Word32Equal(untagged_divisor, Int32Constant(-1)),
-         &divisor_is_minus_one, &divisor_is_not_minus_one);
-
-  Bind(&divisor_is_minus_one);
-  {
-    GotoIf(Word32Equal(
-               untagged_dividend,
-               Int32Constant(kSmiValueSize == 32 ? kMinInt : (kMinInt >> 1))),
-           bailout);
-    Goto(&divisor_is_not_minus_one);
-  }
-  Bind(&divisor_is_not_minus_one);
-
-  Node* untagged_result = Int32Div(untagged_dividend, untagged_divisor);
-  Node* truncated = Int32Mul(untagged_result, untagged_divisor);
-
-  // Do floating point division if the remainder is not 0.
-  GotoIf(Word32NotEqual(untagged_dividend, truncated), bailout);
-
-  return SmiFromWord32(untagged_result);
-}
-
 Node* CodeStubAssembler::TruncateWordToWord32(Node* value) {
   if (Is64()) {
     return TruncateInt64ToInt32(value);
