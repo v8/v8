@@ -621,51 +621,6 @@ TEST(CollectCpuProfile) {
   profile->Delete();
 }
 
-static const char* cpu_profiler_toplevel_source =
-    "for (var i = 0; i < 1E5; i++) {"
-    "  var s = 0;"
-    "  for (var j = 0; j < 1E2; j++) s += i;"
-    "}";
-
-TEST(CollectOptimizedToplevelProfile) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  v8::CpuProfiler* profiler = v8::CpuProfiler::New(env->GetIsolate());
-  v8::Local<v8::String> profile_name = v8_str("my_profile");
-
-  profiler->SetSamplingInterval(100);
-  profiler->StartProfiling(profile_name, true);
-  v8::internal::CpuProfiler* iprofiler =
-      reinterpret_cast<v8::internal::CpuProfiler*>(profiler);
-  v8::sampler::Sampler* sampler = iprofiler->processor()->sampler();
-  sampler->StartCountingSamples();
-
-  CompileRun(cpu_profiler_toplevel_source);
-
-  v8::CpuProfile* profile = profiler->StopProfiling(profile_name);
-  reinterpret_cast<i::CpuProfile*>(profile)->Print();
-
-  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
-  v8::Local<v8::String> empty = v8::String::Empty(env->GetIsolate());
-  unsigned toplevel_hitcount = 0;
-  unsigned unaccounted_hitcount = 0;
-  for (int i = 0; i < root->GetChildrenCount(); i++) {
-    const v8::CpuProfileNode* child = root->GetChild(i);
-    if (empty->Equals(env.local(), child->GetFunctionName()).FromJust()) {
-      toplevel_hitcount += child->GetHitCount();
-    } else {
-      unaccounted_hitcount += child->GetHitCount();
-    }
-  }
-  // Check that we are getting more ticks from the toplevel function than
-  // unaccounted ticks.
-  DCHECK(toplevel_hitcount > unaccounted_hitcount);
-
-  profile->Delete();
-  profiler->Dispose();
-}
-
 static const char* hot_deopt_no_frame_entry_test_source =
     "%NeverOptimizeFunction(foo);\n"
     "%NeverOptimizeFunction(start);\n"

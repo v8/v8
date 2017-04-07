@@ -117,7 +117,6 @@
 ['arch == arm64', {
 
   'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
-  'test-cpu-profiler/CollectOptimizedToplevelProfile': [PASS, FAIL],
 
   'test-api/Bug618': [PASS],
 
