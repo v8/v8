@@ -320,56 +320,61 @@ function toSlowMode(re) {
 
 // @@replace with a string replacement argument (no named captures).
 {
-  let re = /(.)(.)/u;
+  let re = /(.)(.)|(x)/u;
   assertEquals("$<snd>$<fst>cd", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("bacd", "abcd".replace(re, "$2$1"));
+  assertEquals("cd", "abcd".replace(re, "$3"));
   assertEquals("$<sndcd", "abcd".replace(re, "$<snd"));
   assertEquals("$<42a>cd", "abcd".replace(re, "$<42$1>"));
-  assertEquals("$<thd>cd", "abcd".replace(re, "$<thd>"));
+  assertEquals("$<fth>cd", "abcd".replace(re, "$<fth>"));
   assertEquals("$<a>cd", "abcd".replace(re, "$<$1>"));
 }
 
 // @@replace with a string replacement argument (global, named captures).
 {
-  let re = /(?<fst>.)(?<snd>.)/gu;
+  let re = /(?<fst>.)(?<snd>.)|(?<thd>x)/gu;
   assertEquals("badc", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("badc", "abcd".replace(re, "$2$1"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertEquals("", "abcd".replace(re, "$<42$1>"));
   assertEquals("", "abcd".replace(re, "$<thd>"));
-  assertEquals("", "abcd".replace(re, "$<$1>"));
+  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
 }
 
 // @@replace with a string replacement argument (non-global, named captures).
 {
-  let re = /(?<fst>.)(?<snd>.)/u;
+  let re = /(?<fst>.)(?<snd>.)|(?<thd>x)/u;
   assertEquals("bacd", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("bacd", "abcd".replace(re, "$2$1"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertEquals("cd", "abcd".replace(re, "$<42$1>"));
   assertEquals("cd", "abcd".replace(re, "$<thd>"));
-  assertEquals("cd", "abcd".replace(re, "$<$1>"));
+  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
 }
 
 // @@replace with a string replacement argument (slow, global, named captures).
 {
-  let re = toSlowMode(/(?<fst>.)(?<snd>.)/gu);
+  let re = toSlowMode(/(?<fst>.)(?<snd>.)|(?<thd>x)/gu);
   assertEquals("badc", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("badc", "abcd".replace(re, "$2$1"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertEquals("", "abcd".replace(re, "$<42$1>"));
   assertEquals("", "abcd".replace(re, "$<thd>"));
-  assertEquals("", "abcd".replace(re, "$<$1>"));
+  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
 }
 
 // @@replace with a string replacement argument (slow, non-global,
 // named captures).
 {
-  let re = toSlowMode(/(?<fst>.)(?<snd>.)/u);
+  let re = toSlowMode(/(?<fst>.)(?<snd>.)|(?<thd>x)/u);
   assertEquals("bacd", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("bacd", "abcd".replace(re, "$2$1"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertEquals("cd", "abcd".replace(re, "$<42$1>"));
   assertEquals("cd", "abcd".replace(re, "$<thd>"));
-  assertEquals("cd", "abcd".replace(re, "$<$1>"));
+  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
+  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
 }

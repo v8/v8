@@ -75,7 +75,6 @@ class CompiledReplacement {
     SUBJECT_CAPTURE,
     REPLACEMENT_SUBSTRING,
     REPLACEMENT_STRING,
-    EMPTY,
     NUMBER_OF_PART_TYPES
   };
 
@@ -100,7 +99,6 @@ class CompiledReplacement {
       DCHECK(to > from);
       return ReplacementPart(-from, to);
     }
-    static inline ReplacementPart Empty() { return ReplacementPart(EMPTY, 0); }
 
     // If tag <= 0 then it is the negation of a start index of a substring of
     // the replacement pattern, otherwise it's a value from PartType.
@@ -113,8 +111,7 @@ class CompiledReplacement {
     int tag;
     // The data value's interpretation depends on the value of tag:
     // tag == SUBJECT_PREFIX ||
-    // tag == SUBJECT_SUFFIX ||
-    // tag == EMPTY:  data is unused.
+    // tag == SUBJECT_SUFFIX:  data is unused.
     // tag == SUBJECT_CAPTURE: data is the number of the capture.
     // tag == REPLACEMENT_SUBSTRING ||
     // tag == REPLACEMENT_STRING:    data is index into array of substrings
@@ -251,30 +248,27 @@ class CompiledReplacement {
 
             // Let capture be ? Get(namedCaptures, groupName).
 
-            int capture_index = LookupNamedCapture(
+            const int capture_index = LookupNamedCapture(
                 [=](String* capture_name) {
                   return capture_name->IsEqualTo(requested_name);
                 },
                 capture_name_map);
+
+            // If ? HasProperty(_namedCaptures_, _groupName_) is *false*, throw
+            // a *SyntaxError* exception.
+            if (capture_index == -1) return Nothing<bool>();
 
             // If capture is undefined, replace the text through the following
             // '>' with the empty string.
             // Otherwise, replace the text through the following '>' with
             // ? ToString(capture).
 
-            DCHECK_IMPLIES(
-                capture_index != -1,
-                1 <= capture_index && capture_index <= capture_count);
-
-            ReplacementPart replacement =
-                (capture_index == -1)
-                    ? ReplacementPart::Empty()
-                    : ReplacementPart::SubjectCapture(capture_index);
+            DCHECK(1 <= capture_index && capture_index <= capture_count);
 
             if (i > last) {
               parts->Add(ReplacementPart::ReplacementSubString(last, i), zone);
             }
-            parts->Add(replacement, zone);
+            parts->Add(ReplacementPart::SubjectCapture(capture_index), zone);
             last = closing_bracket_index + 1;
             i = closing_bracket_index;
             break;
@@ -385,8 +379,6 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
       case REPLACEMENT_SUBSTRING:
       case REPLACEMENT_STRING:
         builder->AddString(replacement_substrings_[part.data]);
-        break;
-      case EMPTY:
         break;
       default:
         UNREACHABLE();
@@ -1018,19 +1010,32 @@ class MatchInfoBackedMatch : public String::Match {
   }
 
   MaybeHandle<String> GetNamedCapture(Handle<String> name,
-                                      bool* capture_exists) override {
+                                      CaptureState* state) override {
     DCHECK(has_named_captures_);
     const int capture_index = LookupNamedCapture(
         [=](String* capture_name) { return capture_name->Equals(*name); },
         *capture_name_map_);
 
     if (capture_index == -1) {
-      *capture_exists = false;
+      *state = INVALID;
       return name;  // Arbitrary string handle.
     }
 
     DCHECK(1 <= capture_index && capture_index <= CaptureCount());
-    return GetCapture(capture_index, capture_exists);
+
+    bool capture_exists;
+    Handle<String> capture_value;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_value,
+                               GetCapture(capture_index, &capture_exists),
+                               String);
+
+    if (!capture_exists) {
+      *state = UNMATCHED;
+      return isolate_->factory()->empty_string();
+    } else {
+      *state = MATCHED;
+      return capture_value;
+    }
   }
 
  private:
@@ -1086,16 +1091,26 @@ class VectorBackedMatch : public String::Match {
   }
 
   MaybeHandle<String> GetNamedCapture(Handle<String> name,
-                                      bool* capture_exists) override {
+                                      CaptureState* state) override {
     DCHECK(has_named_captures_);
+
+    Maybe<bool> maybe_capture_exists =
+        JSReceiver::HasProperty(groups_obj_, name);
+    if (maybe_capture_exists.IsNothing()) return MaybeHandle<String>();
+
+    if (!maybe_capture_exists.FromJust()) {
+      *state = INVALID;
+      return name;  // Arbitrary string handle.
+    }
+
     Handle<Object> capture_obj;
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_obj,
                                Object::GetProperty(groups_obj_, name), String);
     if (capture_obj->IsUndefined(isolate_)) {
-      *capture_exists = false;
-      return name;
+      *state = UNMATCHED;
+      return isolate_->factory()->empty_string();
     } else {
-      *capture_exists = true;
+      *state = MATCHED;
       return Object::ToString(isolate_, capture_obj);
     }
   }
@@ -1893,7 +1908,6 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     } else {
       DCHECK(!functional_replace);
       if (!groups_obj->IsUndefined(isolate)) {
-        // TODO(jgruber): Behavior in this case is not yet specced.
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, groups_obj, JSReceiver::ToObject(isolate, groups_obj));
       }

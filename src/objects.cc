@@ -11529,6 +11529,8 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
         break;
       }
       case '<': {  // $<name> - named capture
+        typedef String::Match::CaptureState CaptureState;
+
         if (!match->HasNamedCaptures()) {
           builder.AppendCharacter('$');
           continue_from_ix = peek_ix;
@@ -11550,12 +11552,27 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
 
         Handle<String> capture_name =
             factory->NewSubString(replacement, peek_ix + 1, closing_bracket_ix);
-        bool capture_exists;
         Handle<String> capture;
+        CaptureState capture_state;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, capture,
-            match->GetNamedCapture(capture_name, &capture_exists), String);
-        if (capture_exists) builder.AppendString(capture);
+            match->GetNamedCapture(capture_name, &capture_state), String);
+
+        switch (capture_state) {
+          case CaptureState::INVALID:
+            THROW_NEW_ERROR(
+                isolate,
+                NewSyntaxError(MessageTemplate::kRegExpInvalidReplaceString,
+                               replacement),
+                String);
+            break;
+          case CaptureState::UNMATCHED:
+            break;
+          case CaptureState::MATCHED:
+            builder.AppendString(capture);
+            break;
+        }
+
         continue_from_ix = closing_bracket_ix + 1;
         break;
       }

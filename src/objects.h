@@ -8183,11 +8183,15 @@ class String: public Name {
     virtual Handle<String> GetPrefix() = 0;
     virtual Handle<String> GetSuffix() = 0;
 
+    // A named capture can be invalid (if it is not specified in the pattern),
+    // unmatched (specified but not matched in the current string), and matched.
+    enum CaptureState { INVALID, UNMATCHED, MATCHED };
+
     virtual int CaptureCount() = 0;
     virtual bool HasNamedCaptures() = 0;
     virtual MaybeHandle<String> GetCapture(int i, bool* capture_exists) = 0;
     virtual MaybeHandle<String> GetNamedCapture(Handle<String> name,
-                                                bool* capture_exists) = 0;
+                                                CaptureState* state) = 0;
 
     virtual ~Match() {}
   };
