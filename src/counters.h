@@ -859,11 +859,14 @@ class RuntimeCallStats final : public ZoneObject {
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
   RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
+  RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
   bool InUse() { return in_use_; }
 
  private:
-  // Counter to track recursive time events.
+  // Top of a stack of active timers.
   base::AtomicValue<RuntimeCallTimer*> current_timer_;
+  // Active counter object associated with current timer.
+  base::AtomicValue<RuntimeCallCounter*> current_counter_;
   // Used to track nested tracing scopes.
   bool in_use_;
 };

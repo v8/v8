@@ -1295,9 +1295,7 @@ void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
 
 void Logger::RuntimeCallTimerEvent() {
   RuntimeCallStats* stats = isolate_->counters()->runtime_call_stats();
-  RuntimeCallTimer* timer = stats->current_timer();
-  if (timer == nullptr) return;
-  RuntimeCallCounter* counter = timer->counter();
+  RuntimeCallCounter* counter = stats->current_counter();
   if (counter == nullptr) return;
   Log::MessageBuilder msg(log_);
   msg.Append("active-runtime-timer,");

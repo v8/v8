@@ -416,6 +416,7 @@ void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
   DCHECK(counter->name() != nullptr);
   timer->Start(counter, stats->current_timer_.Value());
   stats->current_timer_.SetValue(timer);
+  stats->current_counter_.SetValue(counter);
 }
 
 // static
@@ -430,6 +431,15 @@ void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
     while (next && next->parent() != timer) next = next->parent();
     if (next == nullptr) return;
     next->set_parent(timer->Stop());
+  }
+
+  {
+    RuntimeCallTimer* cur_timer = stats->current_timer_.Value();
+    if (cur_timer == nullptr) {
+      stats->current_counter_.SetValue(nullptr);
+    } else {
+      stats->current_counter_.SetValue(cur_timer->counter());
+    }
   }
 }
 
@@ -448,7 +458,9 @@ void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
   RuntimeCallTimer* timer = stats->current_timer_.Value();
   // When RCS are enabled dynamically there might be no current timer set up.
   if (timer == nullptr) return;
-  timer->set_counter(&(stats->*counter_id));
+  RuntimeCallCounter* counter = &(stats->*counter_id);
+  timer->set_counter(counter);
+  stats->current_counter_.SetValue(counter);
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {
