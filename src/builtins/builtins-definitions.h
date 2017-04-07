@@ -35,6 +35,8 @@ namespace internal {
 // TFJ: Builtin in Turbofan, with JS linkage (callable as Javascript function).
 //      Args: name, arguments count, explicit argument names...
 // TFS: Builtin in Turbofan, with CodeStub linkage.
+//      Args: name, explicit argument names...
+// TFC: Builtin in Turbofan, with CodeStub linkage and custom descriptor.
 //      Args: name, interface descriptor, return_size
 // TFH: Handlers in Turbofan, with CodeStub linkage.
 //      Args: name, code kind, extra IC state, interface descriptor
@@ -43,16 +45,16 @@ namespace internal {
 // DBG: Builtin in platform-dependent assembly, used by the debugger.
 //      Args: name
 
-#define BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, TFH, ASM, DBG)                   \
+#define BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)              \
   ASM(Abort)                                                                   \
   /* Code aging */                                                             \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                        \
                                                                                \
   /* Declared first for dependency reasons */                                  \
   ASM(CompileLazy)                                                             \
-  TFS(ToObject, TypeConversion, 1)                                             \
-  TFS(FastNewObject, FastNewObject, 1)                                         \
-  TFS(HasProperty, HasProperty, 1)                                             \
+  TFC(ToObject, TypeConversion, 1)                                             \
+  TFC(FastNewObject, FastNewObject, 1)                                         \
+  TFS(HasProperty, kKey, kObject)                                              \
                                                                                \
   /* Calls */                                                                  \
   ASM(ArgumentsAdaptorTrampoline)                                              \
@@ -92,22 +94,22 @@ namespace internal {
   ASM(JSConstructStubGeneric)                                                  \
   ASM(JSBuiltinsConstructStub)                                                 \
   ASM(JSBuiltinsConstructStubForDerived)                                       \
-  TFS(FastNewClosure, FastNewClosure, 1)                                       \
-  TFS(FastNewFunctionContextEval, FastNewFunctionContext, 1)                   \
-  TFS(FastNewFunctionContextFunction, FastNewFunctionContext, 1)               \
-  TFS(FastNewStrictArguments, FastNewArguments, 1)                             \
-  TFS(FastNewSloppyArguments, FastNewArguments, 1)                             \
-  TFS(FastNewRestParameter, FastNewArguments, 1)                               \
-  TFS(FastCloneRegExp, FastCloneRegExp, 1)                                     \
-  TFS(FastCloneShallowArrayTrack, FastCloneShallowArray, 1)                    \
-  TFS(FastCloneShallowArrayDontTrack, FastCloneShallowArray, 1)                \
-  TFS(FastCloneShallowObject0, FastCloneShallowObject, 1)                      \
-  TFS(FastCloneShallowObject1, FastCloneShallowObject, 1)                      \
-  TFS(FastCloneShallowObject2, FastCloneShallowObject, 1)                      \
-  TFS(FastCloneShallowObject3, FastCloneShallowObject, 1)                      \
-  TFS(FastCloneShallowObject4, FastCloneShallowObject, 1)                      \
-  TFS(FastCloneShallowObject5, FastCloneShallowObject, 1)                      \
-  TFS(FastCloneShallowObject6, FastCloneShallowObject, 1)                      \
+  TFC(FastNewClosure, FastNewClosure, 1)                                       \
+  TFC(FastNewFunctionContextEval, FastNewFunctionContext, 1)                   \
+  TFC(FastNewFunctionContextFunction, FastNewFunctionContext, 1)               \
+  TFC(FastNewStrictArguments, FastNewArguments, 1)                             \
+  TFC(FastNewSloppyArguments, FastNewArguments, 1)                             \
+  TFC(FastNewRestParameter, FastNewArguments, 1)                               \
+  TFC(FastCloneRegExp, FastCloneRegExp, 1)                                     \
+  TFC(FastCloneShallowArrayTrack, FastCloneShallowArray, 1)                    \
+  TFC(FastCloneShallowArrayDontTrack, FastCloneShallowArray, 1)                \
+  TFC(FastCloneShallowObject0, FastCloneShallowObject, 1)                      \
+  TFC(FastCloneShallowObject1, FastCloneShallowObject, 1)                      \
+  TFC(FastCloneShallowObject2, FastCloneShallowObject, 1)                      \
+  TFC(FastCloneShallowObject3, FastCloneShallowObject, 1)                      \
+  TFC(FastCloneShallowObject4, FastCloneShallowObject, 1)                      \
+  TFC(FastCloneShallowObject5, FastCloneShallowObject, 1)                      \
+  TFC(FastCloneShallowObject6, FastCloneShallowObject, 1)                      \
                                                                                \
   /* Apply and entries */                                                      \
   ASM(Apply)                                                                   \
@@ -120,14 +122,14 @@ namespace internal {
   ASM(StackCheck)                                                              \
                                                                                \
   /* String helpers */                                                         \
-  TFS(StringCharAt, StringCharAt, 1)                                           \
-  TFS(StringCharCodeAt, StringCharCodeAt, 1)                                   \
-  TFS(StringEqual, Compare, 1)                                                 \
-  TFS(StringGreaterThan, Compare, 1)                                           \
-  TFS(StringGreaterThanOrEqual, Compare, 1)                                    \
-  TFS(StringIndexOf, StringIndexOf, 1)                                         \
-  TFS(StringLessThan, Compare, 1)                                              \
-  TFS(StringLessThanOrEqual, Compare, 1)                                       \
+  TFC(StringCharAt, StringCharAt, 1)                                           \
+  TFC(StringCharCodeAt, StringCharCodeAt, 1)                                   \
+  TFC(StringEqual, Compare, 1)                                                 \
+  TFC(StringGreaterThan, Compare, 1)                                           \
+  TFC(StringGreaterThanOrEqual, Compare, 1)                                    \
+  TFS(StringIndexOf, kReceiver, kSearchString, kPosition)                      \
+  TFC(StringLessThan, Compare, 1)                                              \
+  TFC(StringLessThanOrEqual, Compare, 1)                                       \
                                                                                \
   /* Interpreter */                                                            \
   ASM(InterpreterEntryTrampoline)                                              \
@@ -169,10 +171,10 @@ namespace internal {
   ASM(AllocateInOldSpace)                                                      \
                                                                                \
   /* TurboFan support builtins */                                              \
-  TFS(CopyFastSmiOrObjectElements, CopyFastSmiOrObjectElements, 1)             \
-  TFS(GrowFastDoubleElements, GrowArrayElements, 1)                            \
-  TFS(GrowFastSmiOrObjectElements, GrowArrayElements, 1)                       \
-  TFS(NewUnmappedArgumentsElements, NewArgumentsElements, 1)                   \
+  TFS(CopyFastSmiOrObjectElements, kObject)                                    \
+  TFC(GrowFastDoubleElements, GrowArrayElements, 1)                            \
+  TFC(GrowFastSmiOrObjectElements, GrowArrayElements, 1)                       \
+  TFC(NewUnmappedArgumentsElements, NewArgumentsElements, 1)                   \
                                                                                \
   /* Debugger */                                                               \
   DBG(FrameDropperTrampoline)                                                  \
@@ -181,22 +183,22 @@ namespace internal {
   DBG(Slot_DebugBreak)                                                         \
                                                                                \
   /* Type conversions */                                                       \
-  TFS(ToBoolean, TypeConversion, 1)                                            \
-  TFS(OrdinaryToPrimitive_Number, TypeConversion, 1)                           \
-  TFS(OrdinaryToPrimitive_String, TypeConversion, 1)                           \
-  TFS(NonPrimitiveToPrimitive_Default, TypeConversion, 1)                      \
-  TFS(NonPrimitiveToPrimitive_Number, TypeConversion, 1)                       \
-  TFS(NonPrimitiveToPrimitive_String, TypeConversion, 1)                       \
-  TFS(StringToNumber, TypeConversion, 1)                                       \
-  TFS(ToName, TypeConversion, 1)                                               \
-  TFS(NonNumberToNumber, TypeConversion, 1)                                    \
-  TFS(ToNumber, TypeConversion, 1)                                             \
-  TFS(ToString, TypeConversion, 1)                                             \
-  TFS(ToInteger, TypeConversion, 1)                                            \
-  TFS(ToLength, TypeConversion, 1)                                             \
-  TFS(ClassOf, Typeof, 1)                                                      \
-  TFS(Typeof, Typeof, 1)                                                       \
-  TFS(GetSuperConstructor, Typeof, 1)                                          \
+  TFC(ToBoolean, TypeConversion, 1)                                            \
+  TFC(OrdinaryToPrimitive_Number, TypeConversion, 1)                           \
+  TFC(OrdinaryToPrimitive_String, TypeConversion, 1)                           \
+  TFC(NonPrimitiveToPrimitive_Default, TypeConversion, 1)                      \
+  TFC(NonPrimitiveToPrimitive_Number, TypeConversion, 1)                       \
+  TFC(NonPrimitiveToPrimitive_String, TypeConversion, 1)                       \
+  TFC(StringToNumber, TypeConversion, 1)                                       \
+  TFC(ToName, TypeConversion, 1)                                               \
+  TFC(NonNumberToNumber, TypeConversion, 1)                                    \
+  TFC(ToNumber, TypeConversion, 1)                                             \
+  TFC(ToString, TypeConversion, 1)                                             \
+  TFC(ToInteger, TypeConversion, 1)                                            \
+  TFC(ToLength, TypeConversion, 1)                                             \
+  TFC(ClassOf, Typeof, 1)                                                      \
+  TFC(Typeof, Typeof, 1)                                                       \
+  TFC(GetSuperConstructor, Typeof, 1)                                          \
                                                                                \
   /* Handlers */                                                               \
   TFH(LoadICProtoArray, BUILTIN, kNoExtraICState, LoadICProtoArray)            \
@@ -224,9 +226,10 @@ namespace internal {
   TFH(StoreIC_Uninitialized, BUILTIN, kNoExtraICState, StoreWithVector)        \
   TFH(StoreICStrict_Uninitialized, BUILTIN, kNoExtraICState, StoreWithVector)  \
                                                                                \
-  TFS(ResolveNativePromise, ResolveNativePromise, 1)                           \
-  TFS(RejectNativePromise, RejectNativePromise, 1)                             \
-  TFS(PerformNativePromiseThen, PerformNativePromiseThen, 1)                   \
+  TFS(ResolveNativePromise, kPromise, kValue)                                  \
+  TFS(RejectNativePromise, kPromise, kValue, kDebugEvent)                      \
+  TFS(PerformNativePromiseThen, kPromise, kResolveReaction, kRejectReaction,   \
+      kResultPromise)                                                          \
                                                                                \
   /* Built-in functions for Javascript */                                      \
   /* Special internal builtins */                                              \
@@ -457,7 +460,7 @@ namespace internal {
   CPP(FunctionPrototypeToString)                                               \
                                                                                \
   /* Belongs to Objects but is a dependency of GeneratorPrototypeResume */     \
-  TFS(CreateIterResultObject, CreateIterResultObject, 1)                       \
+  TFS(CreateIterResultObject, kValue, kDone)                                   \
                                                                                \
   /* Generator and Async */                                                    \
   CPP(GeneratorFunctionConstructor)                                            \
@@ -603,25 +606,25 @@ namespace internal {
   CPP(NumberPrototypeToString)                                                 \
   /* ES6 #sec-number.prototype.valueof */                                      \
   TFJ(NumberPrototypeValueOf, 0)                                               \
-  TFS(Add, BinaryOp, 1)                                                        \
-  TFS(Subtract, BinaryOp, 1)                                                   \
-  TFS(Multiply, BinaryOp, 1)                                                   \
-  TFS(Divide, BinaryOp, 1)                                                     \
-  TFS(Modulus, BinaryOp, 1)                                                    \
-  TFS(BitwiseAnd, BinaryOp, 1)                                                 \
-  TFS(BitwiseOr, BinaryOp, 1)                                                  \
-  TFS(BitwiseXor, BinaryOp, 1)                                                 \
-  TFS(ShiftLeft, BinaryOp, 1)                                                  \
-  TFS(ShiftRight, BinaryOp, 1)                                                 \
-  TFS(ShiftRightLogical, BinaryOp, 1)                                          \
-  TFS(LessThan, Compare, 1)                                                    \
-  TFS(LessThanOrEqual, Compare, 1)                                             \
-  TFS(GreaterThan, Compare, 1)                                                 \
-  TFS(GreaterThanOrEqual, Compare, 1)                                          \
-  TFS(Equal, Compare, 1)                                                       \
-  TFS(StrictEqual, Compare, 1)                                                 \
-  TFS(AddWithFeedback, BinaryOpWithVector, 1)                                  \
-  TFS(SubtractWithFeedback, BinaryOpWithVector, 1)                             \
+  TFC(Add, BinaryOp, 1)                                                        \
+  TFC(Subtract, BinaryOp, 1)                                                   \
+  TFC(Multiply, BinaryOp, 1)                                                   \
+  TFC(Divide, BinaryOp, 1)                                                     \
+  TFC(Modulus, BinaryOp, 1)                                                    \
+  TFC(BitwiseAnd, BinaryOp, 1)                                                 \
+  TFC(BitwiseOr, BinaryOp, 1)                                                  \
+  TFC(BitwiseXor, BinaryOp, 1)                                                 \
+  TFC(ShiftLeft, BinaryOp, 1)                                                  \
+  TFC(ShiftRight, BinaryOp, 1)                                                 \
+  TFC(ShiftRightLogical, BinaryOp, 1)                                          \
+  TFC(LessThan, Compare, 1)                                                    \
+  TFC(LessThanOrEqual, Compare, 1)                                             \
+  TFC(GreaterThan, Compare, 1)                                                 \
+  TFC(GreaterThanOrEqual, Compare, 1)                                          \
+  TFC(Equal, Compare, 1)                                                       \
+  TFC(StrictEqual, Compare, 1)                                                 \
+  TFC(AddWithFeedback, BinaryOpWithVector, 1)                                  \
+  TFC(SubtractWithFeedback, BinaryOpWithVector, 1)                             \
                                                                                \
   /* Object */                                                                 \
   CPP(ObjectAssign)                                                            \
@@ -660,13 +663,13 @@ namespace internal {
   CPP(ObjectValues)                                                            \
                                                                                \
   /* instanceof */                                                             \
-  TFS(OrdinaryHasInstance, Compare, 1)                                         \
-  TFS(InstanceOf, Compare, 1)                                                  \
+  TFC(OrdinaryHasInstance, Compare, 1)                                         \
+  TFC(InstanceOf, Compare, 1)                                                  \
                                                                                \
   /* for-in */                                                                 \
-  TFS(ForInFilter, ForInFilter, 1)                                             \
-  TFS(ForInNext, ForInNext, 1)                                                 \
-  TFS(ForInPrepare, ForInPrepare, 3)                                           \
+  TFS(ForInFilter, kKey, kObject)                                              \
+  TFS(ForInNext, kObject, kCacheArray, kCacheType, kIndex)                     \
+  TFC(ForInPrepare, ForInPrepare, 3)                                           \
                                                                                \
   /* Promise */                                                                \
   /* ES6 #sec-getcapabilitiesexecutor-functions */                             \
@@ -687,7 +690,7 @@ namespace internal {
   TFJ(PromiseCatch, 1, kOnRejected)                                            \
   /* ES #sec-fulfillpromise */                                                 \
   TFJ(ResolvePromise, 2, kPromise, kValue)                                     \
-  TFS(PromiseHandleReject, PromiseHandleReject, 1)                             \
+  TFS(PromiseHandleReject, kPromise, kOnReject, kException)                    \
   TFJ(PromiseHandle, 5, kValue, kHandler, kDeferredPromise,                    \
       kDeferredOnResolve, kDeferredOnReject)                                   \
   /* ES #sec-promise.resolve */                                                \
@@ -721,7 +724,7 @@ namespace internal {
   CPP(ReflectSetPrototypeOf)                                                   \
                                                                                \
   /* RegExp */                                                                 \
-  TFS(RegExpPrototypeExecSlow, RegExpPrototypeExecSlow, 1)                     \
+  TFS(RegExpPrototypeExecSlow, kReceiver, kString)                             \
   CPP(RegExpCapture1Getter)                                                    \
   CPP(RegExpCapture2Getter)                                                    \
   CPP(RegExpCapture3Getter)                                                    \
@@ -768,11 +771,11 @@ namespace internal {
   TFJ(RegExpPrototypeUnicodeGetter, 0)                                         \
   CPP(RegExpRightContextGetter)                                                \
                                                                                \
-  TFS(RegExpReplace, RegExpReplace, 1)                                         \
+  TFS(RegExpReplace, kRegExp, kString, kReplaceValue)                          \
   /* ES #sec-regexp.prototype-@@replace */                                     \
   TFJ(RegExpPrototypeReplace, 2, kString, kReplaceValue)                       \
                                                                                \
-  TFS(RegExpSplit, RegExpSplit, 1)                                             \
+  TFS(RegExpSplit, kRegExp, kString, kLimit)                                   \
   /* ES #sec-regexp.prototype-@@split */                                       \
   TFJ(RegExpPrototypeSplit, 2, kString, kLimit)                                \
                                                                                \
@@ -904,21 +907,21 @@ namespace internal {
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
-  TFS(WasmStackGuard, WasmRuntimeCall, 1)                                      \
-  TFS(ThrowWasmTrapUnreachable, WasmRuntimeCall, 1)                            \
-  TFS(ThrowWasmTrapMemOutOfBounds, WasmRuntimeCall, 1)                         \
-  TFS(ThrowWasmTrapDivByZero, WasmRuntimeCall, 1)                              \
-  TFS(ThrowWasmTrapDivUnrepresentable, WasmRuntimeCall, 1)                     \
-  TFS(ThrowWasmTrapRemByZero, WasmRuntimeCall, 1)                              \
-  TFS(ThrowWasmTrapFloatUnrepresentable, WasmRuntimeCall, 1)                   \
-  TFS(ThrowWasmTrapFuncInvalid, WasmRuntimeCall, 1)                            \
-  TFS(ThrowWasmTrapFuncSigMismatch, WasmRuntimeCall, 1)                        \
+  TFC(WasmStackGuard, WasmRuntimeCall, 1)                                      \
+  TFC(ThrowWasmTrapUnreachable, WasmRuntimeCall, 1)                            \
+  TFC(ThrowWasmTrapMemOutOfBounds, WasmRuntimeCall, 1)                         \
+  TFC(ThrowWasmTrapDivByZero, WasmRuntimeCall, 1)                              \
+  TFC(ThrowWasmTrapDivUnrepresentable, WasmRuntimeCall, 1)                     \
+  TFC(ThrowWasmTrapRemByZero, WasmRuntimeCall, 1)                              \
+  TFC(ThrowWasmTrapFloatUnrepresentable, WasmRuntimeCall, 1)                   \
+  TFC(ThrowWasmTrapFuncInvalid, WasmRuntimeCall, 1)                            \
+  TFC(ThrowWasmTrapFuncSigMismatch, WasmRuntimeCall, 1)                        \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \
-  TFS(AsyncGeneratorResolve, AsyncGeneratorResolve, 1)                         \
-  TFS(AsyncGeneratorReject, AsyncGeneratorReject, 1)                           \
-  TFS(AsyncGeneratorResumeNext, AsyncGeneratorResumeNext, 1)                   \
+  TFS(AsyncGeneratorResolve, kGenerator, kValue, kDone)                        \
+  TFS(AsyncGeneratorReject, kGenerator, kValue)                                \
+  TFS(AsyncGeneratorResumeNext, kGenerator)                                    \
                                                                                \
   /* AsyncGeneratorFunction( p1, p2, ... pn, body ) */                         \
   /* proposal-async-iteration/#sec-asyncgeneratorfunction-constructor */       \
@@ -960,20 +963,20 @@ namespace internal {
   TFJ(AsyncIteratorValueUnwrap, 1, kValue)
 
 #ifdef V8_I18N_SUPPORT
-#define BUILTIN_LIST(CPP, API, TFJ, TFS, TFH, ASM, DBG) \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, TFH, ASM, DBG)  \
-                                                        \
-  /* ES #sec-string.prototype.tolowercase */            \
-  CPP(StringPrototypeToLowerCaseI18N)                   \
-  /* ES #sec-string.prototype.touppercase */            \
-  CPP(StringPrototypeToUpperCaseI18N)                   \
-  /* ES #sec-string.prototype.normalize */              \
+#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG) \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)  \
+                                                             \
+  /* ES #sec-string.prototype.tolowercase */                 \
+  CPP(StringPrototypeToLowerCaseI18N)                        \
+  /* ES #sec-string.prototype.touppercase */                 \
+  CPP(StringPrototypeToUpperCaseI18N)                        \
+  /* ES #sec-string.prototype.normalize */                   \
   CPP(StringPrototypeNormalizeI18N)
 #else
-#define BUILTIN_LIST(CPP, API, TFJ, TFS, TFH, ASM, DBG) \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFS, TFH, ASM, DBG)  \
-                                                        \
-  /* (obsolete) Unibrow version */                      \
+#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG) \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)  \
+                                                             \
+  /* (obsolete) Unibrow version */                           \
   CPP(StringPrototypeNormalize)
 #endif  // V8_I18N_SUPPORT
 
@@ -999,19 +1002,23 @@ namespace internal {
 
 #define IGNORE_BUILTIN(...)
 
-#define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V, V)
+#define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V, V, V)
 
 #define BUILTIN_LIST_C(V)                                            \
   BUILTIN_LIST(V, V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_A(V)                                                      \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, V, V)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, V, V)
 
 #define BUILTIN_LIST_DBG(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, V)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V)
+
+#define BUILTIN_LIST_TFS(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTINS_WITH_UNTAGGED_PARAMS(V) V(WasmCompileLazy)
 

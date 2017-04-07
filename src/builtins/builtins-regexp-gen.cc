@@ -2305,7 +2305,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
 // Helper that skips a few initial checks.
 TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
-  Node* const regexp = Parameter(Descriptor::kReceiver);
+  Node* const regexp = Parameter(Descriptor::kRegExp);
   Node* const string = Parameter(Descriptor::kString);
   Node* const maybe_limit = Parameter(Descriptor::kLimit);
   Node* const context = Parameter(Descriptor::kContext);
@@ -2711,7 +2711,7 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
 
 // Helper that skips a few initial checks.
 TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
-  Node* const regexp = Parameter(Descriptor::kReceiver);
+  Node* const regexp = Parameter(Descriptor::kRegExp);
   Node* const string = Parameter(Descriptor::kString);
   Node* const replace_value = Parameter(Descriptor::kReplaceValue);
   Node* const context = Parameter(Descriptor::kContext);

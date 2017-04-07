@@ -286,46 +286,6 @@ void StringAddDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-
-void KeyedDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  static PlatformInterfaceDescriptor noInlineDescriptor =
-      PlatformInterfaceDescriptor(NEVER_INLINE_TARGET_ADDRESS);
-
-  Register registers[] = {
-      r2,  // key
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers,
-                                   &noInlineDescriptor);
-}
-
-
-void NamedDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  static PlatformInterfaceDescriptor noInlineDescriptor =
-      PlatformInterfaceDescriptor(NEVER_INLINE_TARGET_ADDRESS);
-
-  Register registers[] = {
-      r2,  // name
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers,
-                                   &noInlineDescriptor);
-}
-
-
-void CallHandlerDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  static PlatformInterfaceDescriptor default_descriptor =
-      PlatformInterfaceDescriptor(CAN_INLINE_TARGET_ADDRESS);
-
-  Register registers[] = {
-      r0,  // receiver
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers,
-                                   &default_descriptor);
-}
-
-
 void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   static PlatformInterfaceDescriptor default_descriptor =

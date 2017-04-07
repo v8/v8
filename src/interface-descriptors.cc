@@ -43,7 +43,7 @@ const char* CallInterfaceDescriptor::DebugName(Isolate* isolate) const {
   DCHECK(index < CallDescriptors::NUMBER_OF_DESCRIPTORS);
   CallDescriptors::Key key = static_cast<CallDescriptors::Key>(index);
   switch (key) {
-#define DEF_CASE(NAME)        \
+#define DEF_CASE(NAME, ...)   \
   case CallDescriptors::NAME: \
     return #NAME " Descriptor";
     INTERFACE_DESCRIPTOR_LIST(DEF_CASE)

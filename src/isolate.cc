@@ -2709,8 +2709,8 @@ bool Isolate::Init(Deserializer* des) {
   code_aging_helper_ = new CodeAgingHelper(this);
 
 // Initialize the interface descriptors ahead of time.
-#define INTERFACE_DESCRIPTOR(V) \
-  { V##Descriptor(this); }
+#define INTERFACE_DESCRIPTOR(Name, ...) \
+  { Name##Descriptor(this); }
   INTERFACE_DESCRIPTOR_LIST(INTERFACE_DESCRIPTOR)
 #undef INTERFACE_DESCRIPTOR
 

@@ -137,11 +137,17 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   code = BuildWithCodeStubAssemblerJS(isolate, &Builtins::Generate_##Name, \
                                       Argc, kBuiltinFlags, #Name);         \
   AddBuiltin(builtins, index++, code);
-#define BUILD_TFS(Name, InterfaceDescriptor, result_size)                   \
+#define BUILD_TFC(Name, InterfaceDescriptor, result_size)                   \
   { InterfaceDescriptor##Descriptor descriptor(isolate); }                  \
   code = BuildWithCodeStubAssemblerCS(isolate, &Builtins::Generate_##Name,  \
                                       CallDescriptors::InterfaceDescriptor, \
                                       kBuiltinFlags, #Name, result_size);   \
+  AddBuiltin(builtins, index++, code);
+#define BUILD_TFS(Name, ...)                                                \
+  /* Return size for generic TF builtins (stub linkage) is always 1. */     \
+  code = BuildWithCodeStubAssemblerCS(isolate, &Builtins::Generate_##Name,  \
+                                      CallDescriptors::Name, kBuiltinFlags, \
+                                      #Name, 1);                            \
   AddBuiltin(builtins, index++, code);
 #define BUILD_TFH(Name, Kind, Extra, InterfaceDescriptor)                    \
   { InterfaceDescriptor##Descriptor descriptor(isolate); }                   \
@@ -156,12 +162,13 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
                                  kBuiltinFlags, #Name);              \
   AddBuiltin(builtins, index++, code);
 
-  BUILTIN_LIST(BUILD_CPP, BUILD_API, BUILD_TFJ, BUILD_TFS, BUILD_TFH, BUILD_ASM,
-               BUILD_ASM);
+  BUILTIN_LIST(BUILD_CPP, BUILD_API, BUILD_TFJ, BUILD_TFC, BUILD_TFS, BUILD_TFH,
+               BUILD_ASM, BUILD_ASM);
 
 #undef BUILD_CPP
 #undef BUILD_API
 #undef BUILD_TFJ
+#undef BUILD_TFC
 #undef BUILD_TFS
 #undef BUILD_TFH
 #undef BUILD_ASM

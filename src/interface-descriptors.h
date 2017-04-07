@@ -50,10 +50,6 @@ class PlatformInterfaceDescriptor;
   V(ConstructStub)                         \
   V(ConstructTrampoline)                   \
   V(RegExpExec)                            \
-  V(RegExpPrototypeExecSlow)               \
-  V(RegExpReplace)                         \
-  V(RegExpSplit)                           \
-  V(CopyFastSmiOrObjectElements)           \
   V(TransitionElementsKind)                \
   V(AllocateHeapNumber)                    \
   V(Builtin)                               \
@@ -72,17 +68,9 @@ class PlatformInterfaceDescriptor;
   V(StringCharAt)                          \
   V(StringCharCodeAt)                      \
   V(StringCompare)                         \
-  V(StringIndexOf)                         \
   V(SubString)                             \
-  V(Keyed)                                 \
-  V(Named)                                 \
-  V(CreateIterResultObject)                \
-  V(HasProperty)                           \
-  V(ForInFilter)                           \
-  V(ForInNext)                             \
   V(ForInPrepare)                          \
   V(GetProperty)                           \
-  V(CallHandler)                           \
   V(ArgumentAdaptor)                       \
   V(ApiCallback)                           \
   V(ApiGetter)                             \
@@ -97,14 +85,8 @@ class PlatformInterfaceDescriptor;
   V(InterpreterCEntry)                     \
   V(ResumeGenerator)                       \
   V(FrameDropperTrampoline)                \
-  V(PromiseHandleReject)                   \
-  V(AsyncGeneratorResolve)                 \
-  V(AsyncGeneratorReject)                  \
-  V(AsyncGeneratorResumeNext)              \
   V(WasmRuntimeCall)                       \
-  V(ResolveNativePromise)                  \
-  V(RejectNativePromise)                   \
-  V(PerformNativePromiseThen)
+  BUILTIN_LIST_TFS(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
@@ -162,10 +144,10 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
 class CallDescriptors {
  public:
   enum Key {
-#define DEF_ENUM(name) name,
+#define DEF_ENUM(name, ...) name,
     INTERFACE_DESCRIPTOR_LIST(DEF_ENUM)
 #undef DEF_ENUM
-    NUMBER_OF_DESCRIPTORS
+        NUMBER_OF_DESCRIPTORS
   };
 };
 
@@ -516,34 +498,6 @@ class TypeConversionDescriptor final : public CallInterfaceDescriptor {
   static const Register ArgumentRegister();
 };
 
-class CreateIterResultObjectDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kValue, kDone)
-  DECLARE_DEFAULT_DESCRIPTOR(CreateIterResultObjectDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class HasPropertyDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kKey, kObject)
-  DECLARE_DEFAULT_DESCRIPTOR(HasPropertyDescriptor, CallInterfaceDescriptor,
-                             kParameterCount)
-};
-
-class ForInFilterDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kKey, kObject)
-  DECLARE_DEFAULT_DESCRIPTOR(ForInFilterDescriptor, CallInterfaceDescriptor,
-                             kParameterCount)
-};
-
-class ForInNextDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kObject, kCacheArray, kCacheType, kIndex)
-  DECLARE_DEFAULT_DESCRIPTOR(ForInNextDescriptor, CallInterfaceDescriptor,
-                             kParameterCount)
-};
-
 class ForInPrepareDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kObject)
@@ -670,34 +624,6 @@ class RegExpExecDescriptor : public CallInterfaceDescriptor {
   static const Register StringStartRegister();
   static const Register StringEndRegister();
   static const Register CodeRegister();
-};
-
-class RegExpPrototypeExecSlowDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kReceiver, kString)
-  DECLARE_DEFAULT_DESCRIPTOR(RegExpPrototypeExecSlowDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class RegExpReplaceDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kReceiver, kString, kReplaceValue)
-  DECLARE_DEFAULT_DESCRIPTOR(RegExpReplaceDescriptor, CallInterfaceDescriptor,
-                             kParameterCount)
-};
-
-class RegExpSplitDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kReceiver, kString, kLimit)
-  DECLARE_DEFAULT_DESCRIPTOR(RegExpSplitDescriptor, CallInterfaceDescriptor,
-                             kParameterCount)
-};
-
-class CopyFastSmiOrObjectElementsDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kObject)
-  DECLARE_DEFAULT_DESCRIPTOR(CopyFastSmiOrObjectElementsDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
 };
 
 class TransitionElementsKindDescriptor : public CallInterfaceDescriptor {
@@ -839,32 +765,6 @@ class SubStringDescriptor : public CallInterfaceDescriptor {
                                      CallInterfaceDescriptor)
 };
 
-class StringIndexOfDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kReceiver, kSearchString, kPosition)
-  DECLARE_DEFAULT_DESCRIPTOR(StringIndexOfDescriptor, CallInterfaceDescriptor,
-                             kParameterCount)
-};
-
-// TODO(ishell): not used, remove.
-class KeyedDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(KeyedDescriptor, CallInterfaceDescriptor)
-};
-
-// TODO(ishell): not used, remove
-class NamedDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(NamedDescriptor, CallInterfaceDescriptor)
-};
-
-// TODO(ishell): not used, remove.
-class CallHandlerDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(CallHandlerDescriptor, CallInterfaceDescriptor)
-};
-
-
 class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kFunction, kNewTarget, kActualArgumentsCount,
@@ -982,63 +882,22 @@ class FrameDropperTrampolineDescriptor final : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
-class PromiseHandleRejectDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kPromise, kOnReject, kException)
-  DECLARE_DEFAULT_DESCRIPTOR(PromiseHandleRejectDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class AsyncGeneratorResolveDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kGenerator, kValue, kDone)
-  DECLARE_DEFAULT_DESCRIPTOR(AsyncGeneratorResolveDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class AsyncGeneratorRejectDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kGenerator, kValue)
-  DECLARE_DEFAULT_DESCRIPTOR(AsyncGeneratorRejectDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class AsyncGeneratorResumeNextDescriptor final
-    : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kGenerator)
-  DECLARE_DEFAULT_DESCRIPTOR(AsyncGeneratorResumeNextDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class ResolveNativePromiseDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kPromise, kValue)
-  DECLARE_DEFAULT_DESCRIPTOR(ResolveNativePromiseDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class RejectNativePromiseDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kPromise, kValue, kDebugEvent)
-  DECLARE_DEFAULT_DESCRIPTOR(RejectNativePromiseDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
-class PerformNativePromiseThenDescriptor final
-    : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kPromise, kResolveReaction, kRejectReaction, kResultPromise)
-  DECLARE_DEFAULT_DESCRIPTOR(PerformNativePromiseThenDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
-};
-
 class WasmRuntimeCallDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_EMPTY_PARAMETERS()
   DECLARE_DEFAULT_DESCRIPTOR(WasmRuntimeCallDescriptor, CallInterfaceDescriptor,
                              0)
 };
+
+#define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                          \
+  class Name##Descriptor : public CallInterfaceDescriptor {               \
+   public:                                                                \
+    DEFINE_PARAMETERS(__VA_ARGS__)                                        \
+    DECLARE_DEFAULT_DESCRIPTOR(Name##Descriptor, CallInterfaceDescriptor, \
+                               kParameterCount)                           \
+  };
+BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
+#undef DEFINE_TFS_BUILTIN_DESCRIPTOR
 
 #undef DECLARE_DESCRIPTOR_WITH_BASE
 #undef DECLARE_DESCRIPTOR
@@ -1048,7 +907,7 @@ class WasmRuntimeCallDescriptor final : public CallInterfaceDescriptor {
 
 // We define the association between CallDescriptors::Key and the specialized
 // descriptor here to reduce boilerplate and mistakes.
-#define DEF_KEY(name) \
+#define DEF_KEY(name, ...) \
   CallDescriptors::Key name##Descriptor::key() { return CallDescriptors::name; }
 INTERFACE_DESCRIPTOR_LIST(DEF_KEY)
 #undef DEF_KEY

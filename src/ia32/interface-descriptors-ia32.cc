@@ -288,34 +288,6 @@ void StringAddDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
-
-void KeyedDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      ecx,  // key
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void NamedDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      ecx,  // name
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void CallHandlerDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      edx,  // name
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
 void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {

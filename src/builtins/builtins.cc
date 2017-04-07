@@ -123,7 +123,7 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     return Callable(code, descriptor);                                   \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE, CASE,
-                 IGNORE_BUILTIN, IGNORE_BUILTIN)
+                 CASE, IGNORE_BUILTIN, IGNORE_BUILTIN)
 #undef CASE
     default:
       UNREACHABLE();
@@ -170,7 +170,7 @@ bool Builtins::IsCpp(int index) {
     return true;
 #define BUILTIN_LIST_CPP(V)                                       \
   BUILTIN_LIST(V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
     BUILTIN_LIST_CPP(CASE)
 #undef BUILTIN_LIST_CPP
 #undef CASE
@@ -189,7 +189,7 @@ bool Builtins::IsApi(int index) {
     return true;
 #define BUILTIN_LIST_API(V)                                       \
   BUILTIN_LIST(IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
     BUILTIN_LIST_API(CASE);
 #undef BUILTIN_LIST_API
 #undef CASE

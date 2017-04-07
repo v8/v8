@@ -532,7 +532,6 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
-  typedef AsyncGeneratorResolveDescriptor Descriptor;
   Node* const generator = Parameter(Descriptor::kGenerator);
   Node* const value = Parameter(Descriptor::kValue);
   Node* const done = Parameter(Descriptor::kDone);
