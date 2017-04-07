@@ -26,6 +26,8 @@
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"
 
+class TestIsolate;
+
 namespace v8 {
 
 namespace base {
@@ -74,6 +76,7 @@ class OptimizingCompileDispatcher;
 class RegExpStack;
 class RuntimeProfiler;
 class SaveContext;
+class SetupIsolateDelegate;
 class StatsTable;
 class StringTracker;
 class StubCache;
@@ -1423,6 +1426,7 @@ class Isolate {
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
   Builtins builtins_;
+  SetupIsolateDelegate* setup_delegate_;
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
@@ -1561,6 +1565,7 @@ class Isolate {
   friend class v8::Locker;
   friend class v8::Unlocker;
   friend class v8::SnapshotCreator;
+  friend class ::TestIsolate;
   friend v8::StartupData v8::V8::CreateSnapshotDataBlob(const char*);
   friend v8::StartupData v8::V8::WarmUpSnapshotDataBlob(v8::StartupData,
                                                         const char*);

@@ -809,6 +809,7 @@ source_set("v8_maybe_snapshot") {
   } else {
     # Ignore v8_use_external_startup_data setting if no snapshot is used.
     public_deps = [
+      ":v8_builtins_setup",
       ":v8_nosnapshot",
     ]
   }
@@ -822,7 +823,6 @@ v8_source_set("v8_nosnapshot") {
     ":js2c_experimental_extras",
     ":js2c_extras",
     ":v8_base",
-    ":v8_builtins_generators",
   ]
 
   sources = [
@@ -848,7 +848,6 @@ v8_source_set("v8_snapshot") {
     ":js2c_experimental_extras",
     ":js2c_extras",
     ":v8_base",
-    ":v8_builtins_generators",
   ]
   public_deps = [
     # This should be public so downstream targets can declare the snapshot
@@ -861,6 +860,7 @@ v8_source_set("v8_snapshot") {
     "$target_gen_dir/extras-libraries.cc",
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/snapshot.cc",
+    "src/setup-isolate-deserialize.cc",
   ]
 
   configs = [ ":internal_config" ]
@@ -875,7 +875,6 @@ if (v8_use_external_startup_data) {
       ":js2c_experimental_extras",
       ":js2c_extras",
       ":v8_base",
-      ":v8_builtins_generators",
     ]
     public_deps = [
       ":natives_blob",
@@ -883,6 +882,7 @@ if (v8_use_external_startup_data) {
     ]
 
     sources = [
+      "src/setup-isolate-deserialize.cc",
       "src/snapshot/natives-external.cc",
       "src/snapshot/snapshot-external.cc",
     ]
@@ -892,7 +892,11 @@ if (v8_use_external_startup_data) {
 }
 
 v8_source_set("v8_builtins_generators") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  visibility = [
+    ":*",
+    "test/cctest:*",
+    "test/unittests:*",
+  ]
 
   deps = [
     ":v8_base",
@@ -909,6 +913,7 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-async-generator-gen.cc",
     "src/builtins/builtins-async-iterator-gen.cc",
     "src/builtins/builtins-boolean-gen.cc",
+    "src/builtins/builtins-call-gen.cc",
     "src/builtins/builtins-constructor-gen.cc",
     "src/builtins/builtins-constructor-gen.h",
     "src/builtins/builtins-constructor.h",
@@ -922,6 +927,7 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-handler-gen.cc",
     "src/builtins/builtins-ic-gen.cc",
     "src/builtins/builtins-internal-gen.cc",
+    "src/builtins/builtins-interpreter-gen.cc",
     "src/builtins/builtins-math-gen.cc",
     "src/builtins/builtins-number-gen.cc",
     "src/builtins/builtins-object-gen.cc",
@@ -935,6 +941,7 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-typedarray-gen.cc",
     "src/builtins/builtins-utils-gen.h",
     "src/builtins/builtins-wasm-gen.cc",
+    "src/builtins/setup-builtins-internal.cc",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",
     "src/ic/binary-op-assembler.cc",
@@ -947,6 +954,8 @@ v8_source_set("v8_builtins_generators") {
     "src/interpreter/interpreter-generator.h",
     "src/interpreter/interpreter-intrinsics-generator.cc",
     "src/interpreter/interpreter-intrinsics-generator.h",
+    "src/interpreter/setup-interpreter-internal.cc",
+    "src/interpreter/setup-interpreter.h",
   ]
 
   if (v8_current_cpu == "x86") {
@@ -995,6 +1004,21 @@ v8_source_set("v8_builtins_generators") {
       "src/builtins/x87/builtins-x87.cc",
     ]
   }
+
+  configs = [ ":internal_config" ]
+}
+
+v8_source_set("v8_builtins_setup") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  deps = [
+    ":v8_builtins_generators",
+  ]
+
+  sources = [
+    ### gcmole(all) ###
+    "src/setup-isolate-full.cc",
+  ]
 
   configs = [ ":internal_config" ]
 }
@@ -1847,6 +1871,7 @@ v8_source_set("v8_base") {
     "src/runtime/runtime.h",
     "src/safepoint-table.cc",
     "src/safepoint-table.h",
+    "src/setup-isolate.h",
     "src/signature.h",
     "src/simulator.h",
     "src/small-pointer-list.h",
@@ -2603,6 +2628,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
 
     deps = [
       ":v8_base",
+      ":v8_builtins_setup",
       ":v8_libbase",
       ":v8_libplatform",
       ":v8_nosnapshot",

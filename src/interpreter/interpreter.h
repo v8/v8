@@ -23,6 +23,7 @@ class Isolate;
 class Callable;
 class CompilationInfo;
 class CompilationJob;
+class SetupIsolateDelegate;
 
 namespace interpreter {
 
@@ -32,9 +33,6 @@ class Interpreter {
  public:
   explicit Interpreter(Isolate* isolate);
   virtual ~Interpreter() {}
-
-  // Initializes the interpreter dispatch table.
-  void Initialize();
 
   // Returns the interrupt budget which should be used for the profiler counter.
   static int InterruptBudget();
@@ -65,14 +63,8 @@ class Interpreter {
   static const int kCodeSizeMultiplier = 24;
 
  private:
-  // In the case of bytecodes that share handler implementations, copy the code
-  // into the bytecode's dispatcher table entry and return true.
-  bool ReuseExistingHandler(Bytecode bytecode, OperandScale operand_scale);
-
-  // Generates handler for given |bytecode| and |operand_scale|
-  // and installs it into the dispatch table.
-  void InstallBytecodeHandler(Isolate* isolate, Bytecode bytecode,
-                              OperandScale operand_scale);
+  friend class SetupInterpreter;
+  friend class v8::internal::SetupIsolateDelegate;
 
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 
@@ -81,7 +73,6 @@ class Interpreter {
                                       OperandScale operand_scale);
 
   bool IsDispatchTableInitialized();
-  bool ShouldInitializeDispatchTable();
 
   static const int kNumberOfWideVariants = 3;
   static const int kDispatchTableSize = kNumberOfWideVariants * (kMaxUInt8 + 1);

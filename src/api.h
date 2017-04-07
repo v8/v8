@@ -347,6 +347,8 @@ OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 #undef MAKE_OPEN_HANDLE
 #undef OPEN_HANDLE_LIST
 
+extern Isolate* IsolateNewImpl(internal::Isolate* isolate,
+                               const Isolate::CreateParams& params);
 
 namespace internal {
 
@@ -644,7 +646,6 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
   DCHECK((blocks_.is_empty() && prev_limit == NULL) ||
          (!blocks_.is_empty() && prev_limit != NULL));
 }
-
 
 // Interceptor functions called from generated inline caches to notify
 // CPU profiler that external callbacks are invoked.

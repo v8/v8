@@ -185,7 +185,7 @@ v8_executable("unittests") {
   #}],
 
   deps = [
-    "../..:v8",
+    "../..:v8_builtins_generators",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "//build/config/sanitizers:deps",
@@ -196,6 +196,17 @@ v8_executable("unittests") {
 
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
+  }
+
+  defines = []
+
+  if (is_component_build) {
+    # unittests can't be built against a shared library, so we
+    # need to depend on the underlying static target in that case.
+    deps += [ "../..:v8_maybe_snapshot" ]
+    defines += [ "BUILDING_V8_SHARED" ]
+  } else {
+    deps += [ "../..:v8" ]
   }
 
   if (is_win) {
