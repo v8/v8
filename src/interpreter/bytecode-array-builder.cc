@@ -17,6 +17,25 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+class RegisterTransferWriter final
+    : public NON_EXPORTED_BASE(BytecodeRegisterOptimizer::BytecodeWriter),
+      public NON_EXPORTED_BASE(ZoneObject) {
+ public:
+  RegisterTransferWriter(BytecodeArrayBuilder* builder) : builder_(builder) {}
+  ~RegisterTransferWriter() override {}
+
+  void EmitLdar(Register input) override { builder_->OutputLdarRaw(input); }
+
+  void EmitStar(Register output) override { builder_->OutputStarRaw(output); }
+
+  void EmitMov(Register input, Register output) override {
+    builder_->OutputMovRaw(input, output);
+  }
+
+ private:
+  BytecodeArrayBuilder* builder_;
+};
+
 BytecodeArrayBuilder::BytecodeArrayBuilder(
     Isolate* isolate, Zone* zone, int parameter_count, int context_count,
     int locals_count, FunctionLiteral* literal,
@@ -50,7 +69,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
   if (FLAG_ignition_reo) {
     register_optimizer_ = new (zone) BytecodeRegisterOptimizer(
         zone, &register_allocator_, fixed_register_count(), parameter_count,
-        pipeline_);
+        new (zone) RegisterTransferWriter(this));
   }
 
   return_position_ = literal ? literal->return_position() : kNoSourcePosition;
@@ -117,6 +136,59 @@ BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
     }
   }
   return source_position;
+}
+
+void BytecodeArrayBuilder::SetDeferredSourceInfo(
+    BytecodeSourceInfo source_info) {
+  if (!source_info.is_valid()) return;
+  if (deferred_source_info_.is_valid()) {
+    // Emit any previous deferred source info now as a nop.
+    BytecodeNode node = BytecodeNode::Nop(deferred_source_info_);
+    pipeline()->Write(&node);
+  }
+  deferred_source_info_ = source_info;
+}
+
+void BytecodeArrayBuilder::AttachOrEmitDeferredSourceInfo(BytecodeNode* node) {
+  if (!deferred_source_info_.is_valid()) return;
+
+  if (!node->source_info().is_valid()) {
+    node->set_source_info(deferred_source_info_);
+  } else {
+    BytecodeNode node = BytecodeNode::Nop(deferred_source_info_);
+    pipeline()->Write(&node);
+  }
+  deferred_source_info_.set_invalid();
+}
+
+void BytecodeArrayBuilder::Write(BytecodeNode* node) {
+  AttachOrEmitDeferredSourceInfo(node);
+  pipeline()->Write(node);
+}
+
+void BytecodeArrayBuilder::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
+  AttachOrEmitDeferredSourceInfo(node);
+  pipeline()->WriteJump(node, label);
+}
+
+void BytecodeArrayBuilder::OutputLdarRaw(Register reg) {
+  uint32_t operand = static_cast<uint32_t>(reg.ToOperand());
+  BytecodeNode node(BytecodeNode::Ldar(BytecodeSourceInfo(), operand));
+  Write(&node);
+}
+
+void BytecodeArrayBuilder::OutputStarRaw(Register reg) {
+  uint32_t operand = static_cast<uint32_t>(reg.ToOperand());
+  BytecodeNode node(BytecodeNode::Star(BytecodeSourceInfo(), operand));
+  Write(&node);
+}
+
+void BytecodeArrayBuilder::OutputMovRaw(Register src, Register dest) {
+  uint32_t operand0 = static_cast<uint32_t>(src.ToOperand());
+  uint32_t operand1 = static_cast<uint32_t>(dest.ToOperand());
+  BytecodeNode node(
+      BytecodeNode::Mov(BytecodeSourceInfo(), operand0, operand1));
+  Write(&node);
 }
 
 namespace {
@@ -257,7 +329,7 @@ class BytecodeNodeBuilder {
         BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make<       \
             Operands...>(this, CurrentSourcePosition(Bytecode::k##name), \
                          operands...));                                  \
-    pipeline()->Write(&node);                                            \
+    Write(&node);                                                        \
   }                                                                      \
                                                                          \
   template <typename... Operands>                                        \
@@ -268,7 +340,7 @@ class BytecodeNodeBuilder {
         BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make<       \
             Operands...>(this, CurrentSourcePosition(Bytecode::k##name), \
                          operands...));                                  \
-    pipeline()->WriteJump(&node, label);                                 \
+    WriteJump(&node, label);                                             \
     LeaveBasicBlock();                                                   \
   }
 BYTECODE_LIST(DEFINE_BYTECODE_OUTPUT)
@@ -566,7 +638,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadFalse() {
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
     Register reg) {
   if (register_optimizer_) {
-    register_optimizer_->DoLdar(reg, CurrentSourcePosition(Bytecode::kLdar));
+    // Defer source info so that if we elide the bytecode transfer, we attach
+    // the source info to a subsequent bytecode or to a nop.
+    SetDeferredSourceInfo(CurrentSourcePosition(Bytecode::kLdar));
+    register_optimizer_->DoLdar(reg);
   } else {
     OutputLdar(reg);
   }
@@ -576,7 +651,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
     Register reg) {
   if (register_optimizer_) {
-    register_optimizer_->DoStar(reg, CurrentSourcePosition(Bytecode::kStar));
+    // Defer source info so that if we elide the bytecode transfer, we attach
+    // the source info to a subsequent bytecode or to a nop.
+    SetDeferredSourceInfo(CurrentSourcePosition(Bytecode::kStar));
+    register_optimizer_->DoStar(reg);
   } else {
     OutputStar(reg);
   }
@@ -587,7 +665,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
                                                          Register to) {
   DCHECK(from != to);
   if (register_optimizer_) {
-    register_optimizer_->DoMov(from, to, CurrentSourcePosition(Bytecode::kMov));
+    // Defer source info so that if we elide the bytecode transfer, we attach
+    // the source info to a subsequent bytecode or to a nop.
+    SetDeferredSourceInfo(CurrentSourcePosition(Bytecode::kMov));
+    register_optimizer_->DoMov(from, to);
   } else {
     OutputMov(from, to);
   }

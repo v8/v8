@@ -434,6 +434,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   uint32_t GetInputRegisterListOperand(RegisterList reg_list);
   uint32_t GetOutputRegisterListOperand(RegisterList reg_list);
 
+  // Outputs raw register transfer bytecodes without going through the register
+  // optimizer.
+  void OutputLdarRaw(Register reg);
+  void OutputStarRaw(Register reg);
+  void OutputMovRaw(Register src, Register dest);
+
   // Accessors
   BytecodeRegisterAllocator* register_allocator() {
     return &register_allocator_;
@@ -469,6 +475,17 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Set position for return.
   void SetReturnPosition();
+
+  // Sets a deferred source info which should be emitted before any future
+  // source info (either attached to a following bytecode or as a nop).
+  void SetDeferredSourceInfo(BytecodeSourceInfo source_info);
+  // Either attach deferred source info to node, or emit it as a nop bytecode
+  // if node already have valid source info.
+  void AttachOrEmitDeferredSourceInfo(BytecodeNode* node);
+
+  // Write bytecode to bytecode array.
+  void Write(BytecodeNode* node);
+  void WriteJump(BytecodeNode* node, BytecodeLabel* label);
 
   // Not implemented as the illegal bytecode is used inside internally
   // to indicate a bytecode field is not valid or an error has occured
@@ -509,6 +526,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodePipelineStage* pipeline_;
   BytecodeRegisterOptimizer* register_optimizer_;
   BytecodeSourceInfo latest_source_info_;
+  BytecodeSourceInfo deferred_source_info_;
 
   static int const kNoFeedbackSlot = 0;
 

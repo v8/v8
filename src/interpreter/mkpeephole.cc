@@ -79,16 +79,6 @@ const char* PeepholeActionTableWriter::kNamespaceElements[] = {"v8", "internal",
 // static
 PeepholeActionAndData PeepholeActionTableWriter::LookupActionAndData(
     Bytecode last, Bytecode current) {
-  // Nop are placeholders for holding source position information and can be
-  // elided if there is no source information.
-  if (last == Bytecode::kNop) {
-    if (Bytecodes::IsJump(current)) {
-      return {PeepholeAction::kElideLastBeforeJumpAction, Bytecode::kIllegal};
-    } else {
-      return {PeepholeAction::kElideLastAction, Bytecode::kIllegal};
-    }
-  }
-
   // The accumulator is invisible to the debugger. If there is a sequence
   // of consecutive accumulator loads (that don't have side effects) then
   // only the final load is potentially visible.

@@ -92,42 +92,6 @@ TEST_F(BytecodePeepholeOptimizerTest, FlushOnBind) {
   CHECK_EQ(add, last_written());
 }
 
-// Nop elimination tests.
-
-TEST_F(BytecodePeepholeOptimizerTest, ElideEmptyNop) {
-  BytecodeNode nop(Bytecode::kNop);
-  optimizer()->Write(&nop);
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
-  optimizer()->Write(&add);
-  Flush();
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(add, last_written());
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, ElideExpressionNop) {
-  BytecodeSourceInfo source_info(3, false);
-  BytecodeNode nop(Bytecode::kNop, source_info);
-  optimizer()->Write(&nop);
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
-  optimizer()->Write(&add);
-  Flush();
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(add, last_written());
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, KeepStatementNop) {
-  BytecodeSourceInfo source_info_statement(3, true);
-  BytecodeNode nop(Bytecode::kNop, source_info_statement);
-  optimizer()->Write(&nop);
-  BytecodeSourceInfo source_info_expression(3, false);
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1,
-                   source_info_expression);
-  optimizer()->Write(&add);
-  Flush();
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(add, last_written());
-}
-
 // Tests covering BytecodePeepholeOptimizer::CanElideCurrent().
 
 TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRy) {
@@ -170,24 +134,6 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatement) {
   CHECK_EQ(last_written().source_info(), source_info);
 }
 
-TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatementStarRy) {
-  BytecodeLabel label;
-  BytecodeNode first(Bytecode::kStar, Register(0).ToOperand());
-  BytecodeSourceInfo source_info(0, true);
-  BytecodeNode second(Bytecode::kLdar, Register(0).ToOperand(), source_info);
-  BytecodeNode third(Bytecode::kStar, Register(3).ToOperand());
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  optimizer()->Write(&third);
-  CHECK_EQ(write_count(), 1);
-  Flush();
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written(), third);
-}
-
 // Tests covering BytecodePeepholeOptimizer::CanElideLast().
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaTrueLdaFalse) {
@@ -215,32 +161,6 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaTrueStatementLdaFalse) {
   CHECK_EQ(last_written(), second);
   CHECK(second.source_info().is_statement());
   CHECK_EQ(second.source_info().source_position(), 3);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, NopStackCheck) {
-  BytecodeNode first(Bytecode::kNop);
-  BytecodeNode second(Bytecode::kStackCheck);
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 0);
-  Flush();
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), second);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, NopStatementStackCheck) {
-  BytecodeSourceInfo source_info(3, true);
-  BytecodeNode first(Bytecode::kNop, source_info);
-  BytecodeNode second(Bytecode::kStackCheck);
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 0);
-  Flush();
-  CHECK_EQ(write_count(), 1);
-  BytecodeNode expected(Bytecode::kStackCheck, source_info);
-  CHECK_EQ(last_written(), expected);
 }
 
 // Tests covering BytecodePeepholeOptimizer::UpdateLastAndCurrentBytecodes().
