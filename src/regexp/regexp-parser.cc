@@ -499,9 +499,9 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             uc32 letter = controlLetter & ~('a' ^ 'A');
             if (letter < 'A' || 'Z' < letter) {
               // controlLetter is not in range 'A'-'Z' or 'a'-'z'.
-              // This is outside the specification. We match JSC in
-              // reading the backslash as a literal character instead
-              // of as starting an escape.
+              // Read the backslash as a literal character instead of as
+              // starting an escape.
+              // ES#prod-annexB-ExtendedPatternCharacter
               if (unicode()) {
                 // With /u, invalid escapes are not treated as identity escapes.
                 return ReportError(CStrVector("Invalid unicode escape"));
@@ -1046,6 +1046,7 @@ uc32 RegExpParser::ParseOctalLiteral() {
   DCHECK(('0' <= current() && current() <= '7') || current() == kEndMarker);
   // For compatibility with some other browsers (not all), we parse
   // up to three octal digits with a value below 256.
+  // ES#prod-annexB-LegacyOctalEscapeSequence
   uc32 value = current() - '0';
   Advance();
   if ('0' <= current() && current() <= '7') {
@@ -1334,8 +1335,9 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
     case 'c': {
       uc32 controlLetter = Next();
       uc32 letter = controlLetter & ~('A' ^ 'a');
-      // For compatibility with JSC, inside a character class. We also accept
-      // digits and underscore as control characters, unless with /u.
+      // Inside a character class, we also accept digits and underscore as
+      // control characters, unless with /u. See Annex B:
+      // ES#prod-annexB-ClassControlLetter
       if (letter >= 'A' && letter <= 'Z') {
         Advance(2);
         // Control letters mapped to ASCII control characters in the range
@@ -1354,6 +1356,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       }
       // We match JSC in reading the backslash as a literal
       // character instead of as starting an escape.
+      // TODO(v8:6201): Not yet covered by the spec.
       return '\\';
     }
     case '0':
@@ -1373,6 +1376,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       // For compatibility, we interpret a decimal escape that isn't
       // a back reference (and therefore either \0 or not valid according
       // to the specification) as a 1..3 digit octal character code.
+      // ES#prod-annexB-LegacyOctalEscapeSequence
       if (unicode()) {
         // With /u, decimal escape is not interpreted as octal character code.
         ReportError(CStrVector("Invalid class escape"));
