@@ -295,9 +295,8 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
   effect = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   Node* value = effect = graph()->NewNode(
-      simplified()->Allocate(NOT_TENURED),
+      simplified()->Allocate(Type::OtherObject(), NOT_TENURED),
       jsgraph()->Constant(JSArrayIterator::kSize), effect, control);
-  NodeProperties::SetType(value, Type::OtherObject());
   effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                             value, jsgraph()->Constant(map), effect, control);
   effect = graph()->NewNode(
@@ -1582,7 +1581,7 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
         common()->BeginRegion(RegionObservability::kNotObservable), effect);
 
     Node* value = effect =
-        graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+        graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
                          jsgraph()->Constant(size), effect, control);
     effect =
         graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
@@ -1635,7 +1634,7 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
   effect = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   Node* value = effect =
-      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+      graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
                        jsgraph()->Constant(instance_size), effect, control);
   effect =
       graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()), value,
@@ -1878,9 +1877,8 @@ Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
     effect = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect);
     Node* value = effect = graph()->NewNode(
-        simplified()->Allocate(NOT_TENURED),
+        simplified()->Allocate(Type::OtherObject(), NOT_TENURED),
         jsgraph()->Constant(JSStringIterator::kSize), effect, control);
-    NodeProperties::SetType(value, Type::OtherObject());
     effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                               value, map, effect, control);
     effect = graph()->NewNode(

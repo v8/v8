@@ -99,8 +99,8 @@ Node* GraphAssembler::Projection(int index, Node* value) {
 
 Node* GraphAssembler::Allocate(PretenureFlag pretenure, Node* size) {
   return current_effect_ =
-             graph()->NewNode(simplified()->Allocate(NOT_TENURED), size,
-                              current_effect_, current_control_);
+             graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
+                              size, current_effect_, current_control_);
 }
 
 Node* GraphAssembler::LoadField(FieldAccess const& access, Node* object) {

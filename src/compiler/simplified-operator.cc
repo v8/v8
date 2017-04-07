@@ -388,9 +388,32 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   return OpParameter<NumberOperationHint>(op);
 }
 
+size_t hash_value(AllocateParameters info) {
+  return base::hash_combine(info.type(), info.pretenure());
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           AllocateParameters info) {
+  info.type()->PrintTo(os);
+  return os << ", " << info.pretenure();
+}
+
+bool operator==(AllocateParameters const& lhs, AllocateParameters const& rhs) {
+  return lhs.pretenure() == rhs.pretenure() && lhs.type() == rhs.type();
+}
+
+bool operator!=(AllocateParameters const& lhs, AllocateParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
 PretenureFlag PretenureFlagOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
-  return OpParameter<PretenureFlag>(op);
+  return OpParameter<AllocateParameters>(op).pretenure();
+}
+
+Type* AllocateTypeOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
+  return OpParameter<AllocateParameters>(op).type();
 }
 
 UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
@@ -646,17 +669,6 @@ struct SimplifiedOperatorGlobalCache final {
   CheckFloat64HoleNaNOperator<CheckFloat64HoleMode::kNeverReturnHole>
       kCheckFloat64HoleNeverReturnHoleOperator;
 
-  template <PretenureFlag kPretenure>
-  struct AllocateOperator final : public Operator1<PretenureFlag> {
-    AllocateOperator()
-        : Operator1<PretenureFlag>(
-              IrOpcode::kAllocate,
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
-              "Allocate", 1, 1, 1, 1, 1, 0, kPretenure) {}
-  };
-  AllocateOperator<NOT_TENURED> kAllocateNotTenuredOperator;
-  AllocateOperator<TENURED> kAllocateTenuredOperator;
-
   struct EnsureWritableFastElementsOperator final : public Operator {
     EnsureWritableFastElementsOperator()
         : Operator(                                     // --
@@ -864,15 +876,12 @@ bool IsRestLengthOf(const Operator* op) {
   return OpParameter<ArgumentsLengthParameters>(op).is_rest_length;
 }
 
-const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {
-  switch (pretenure) {
-    case NOT_TENURED:
-      return &cache_.kAllocateNotTenuredOperator;
-    case TENURED:
-      return &cache_.kAllocateTenuredOperator;
-  }
-  UNREACHABLE();
-  return nullptr;
+const Operator* SimplifiedOperatorBuilder::Allocate(Type* type,
+                                                    PretenureFlag pretenure) {
+  return new (zone()) Operator1<AllocateParameters>(
+      IrOpcode::kAllocate,
+      Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, "Allocate",
+      1, 1, 1, 1, 1, 0, AllocateParameters(type, pretenure));
 }
 
 

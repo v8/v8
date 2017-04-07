@@ -1520,7 +1520,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
                   common()->BeginRegion(RegionObservability::kNotObservable),
                   effect);
               Node* box = effect = graph()->NewNode(
-                  simplified()->Allocate(NOT_TENURED),
+                  simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
                   jsgraph()->Constant(HeapNumber::kSize), effect, control);
               effect = graph()->NewNode(
                   simplified()->StoreField(AccessBuilder::ForMap()), box,
@@ -2209,7 +2209,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   effect = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   Node* new_properties = effect = graph()->NewNode(
-      simplified()->Allocate(NOT_TENURED),
+      simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
       jsgraph()->Constant(FixedArray::SizeFor(new_length)), effect, control);
   effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                             new_properties, jsgraph()->FixedArrayMapConstant(),

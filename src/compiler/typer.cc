@@ -1876,7 +1876,9 @@ Type* Typer::Visitor::TypeConvertTaggedHoleToUndefined(Node* node) {
   return type;
 }
 
-Type* Typer::Visitor::TypeAllocate(Node* node) { return Type::Any(); }
+Type* Typer::Visitor::TypeAllocate(Node* node) {
+  return AllocateTypeOf(node->op());
+}
 
 Type* Typer::Visitor::TypeLoadField(Node* node) {
   return FieldAccessOf(node->op()).type;

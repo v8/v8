@@ -712,9 +712,8 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   effect = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   Node* value = effect =
-      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+      graph()->NewNode(simplified()->Allocate(Type::OtherString(), NOT_TENURED),
                        jsgraph()->Constant(ConsString::kSize), effect, control);
-  NodeProperties::SetType(value, Type::OtherString());
   effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                             value, value_map, effect, control);
   effect = graph()->NewNode(

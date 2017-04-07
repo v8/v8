@@ -43,11 +43,8 @@ class AllocationBuilder final {
     effect_ = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect_);
     allocation_ =
-        graph()->NewNode(simplified()->Allocate(pretenure),
+        graph()->NewNode(simplified()->Allocate(type, pretenure),
                          jsgraph()->Constant(size), effect_, control_);
-    // TODO(turbofan): Maybe we should put the Type* onto the Allocate operator
-    // at some point, or maybe we should have a completely differnt story.
-    NodeProperties::SetType(allocation_, type);
     effect_ = allocation_;
   }
 
