@@ -1132,9 +1132,10 @@ MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
                                         isolate);
   DCHECK_GE(module_bytes->length(), offset);
   DCHECK_GE(module_bytes->length() - offset, size);
-  Address raw = module_bytes->GetCharsAddress() + offset;
-  if (!unibrow::Utf8::Validate(reinterpret_cast<const byte*>(raw), size))
-    return {};  // UTF8 decoding error for name.
+  // UTF8 validation happens at decode time.
+  DCHECK(unibrow::Utf8::Validate(
+      reinterpret_cast<const byte*>(module_bytes->GetCharsAddress() + offset),
+      size));
   DCHECK_GE(kMaxInt, offset);
   DCHECK_GE(kMaxInt, size);
   return isolate->factory()->NewStringFromUtf8SubString(
@@ -1219,6 +1220,8 @@ MaybeHandle<String> WasmCompiledModule::GetFunctionNameOrNull(
     uint32_t func_index) {
   DCHECK_LT(func_index, compiled_module->module()->functions.size());
   WasmFunction& function = compiled_module->module()->functions[func_index];
+  DCHECK_IMPLIES(function.name_offset == 0, function.name_length == 0);
+  if (!function.name_offset) return {};
   return WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
       isolate, compiled_module, function.name_offset, function.name_length);
 }

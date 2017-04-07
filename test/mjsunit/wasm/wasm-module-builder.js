@@ -336,15 +336,16 @@ class WasmModuleBuilder {
     }
 
     // Add functions declarations
-    let has_names = false;
+    let num_function_names = 0;
     let names = false;
     if (wasm.functions.length > 0) {
       if (debug) print("emitting function decls @ " + binary.length);
       binary.emit_section(kFunctionSectionCode, section => {
         section.emit_u32v(wasm.functions.length);
         for (let func of wasm.functions) {
-          has_names = has_names || (func.name != undefined &&
-                                   func.name.length > 0);
+          if (func.name !== undefined) {
+            ++num_function_names;
+          }
           section.emit_u32v(func.type_index);
         }
       });
@@ -363,7 +364,7 @@ class WasmModuleBuilder {
     }
 
     // Add memory section
-    if (wasm.memory != undefined) {
+    if (wasm.memory !== undefined) {
       if (debug) print("emitting memory @ " + binary.length);
       binary.emit_section(kMemorySectionCode, section => {
         section.emit_u8(1);  // one memory entry
@@ -424,7 +425,7 @@ class WasmModuleBuilder {
     }
 
     // Add export table.
-    var mem_export = (wasm.memory != undefined && wasm.memory.exp);
+    var mem_export = (wasm.memory !== undefined && wasm.memory.exp);
     var exports_count = wasm.exports.length + (mem_export ? 1 : 0);
     if (exports_count > 0) {
       if (debug) print("emitting exports @ " + binary.length);
@@ -444,7 +445,7 @@ class WasmModuleBuilder {
     }
 
     // Add start function section.
-    if (wasm.start_index != undefined) {
+    if (wasm.start_index !== undefined) {
       if (debug) print("emitting start function @ " + binary.length);
       binary.emit_section(kStartSectionCode, section => {
         section.emit_u32v(wasm.start_index);
@@ -485,7 +486,7 @@ class WasmModuleBuilder {
           // Function body length will be patched later.
           let local_decls = [];
           let l = func.locals;
-          if (l != undefined) {
+          if (l !== undefined) {
             let local_decls_count = 0;
             if (l.i32_count > 0) {
               local_decls.push({count: l.i32_count, type: kWasmI32});
@@ -545,21 +546,18 @@ class WasmModuleBuilder {
     }
 
     // Add function names.
-    if (has_names) {
-      if (debug) print("emitting names @ " + binary.length);
+    if (num_function_names > 0) {
+      if (debug) print('emitting names @ ' + binary.length);
       binary.emit_section(kUnknownSectionCode, section => {
-        section.emit_string("name");
-        var count = wasm.functions.length + wasm.num_imported_funcs;
-        section.emit_u32v(count);
-        for (var i = 0; i < wasm.num_imported_funcs; i++) {
-          section.emit_u8(0); // empty string
-          section.emit_u8(0); // local names count == 0
-        }
-        for (let func of wasm.functions) {
-          var name = func.name == undefined ? "" : func.name;
-          section.emit_string(name);
-          section.emit_u8(0);  // local names count == 0
-        }
+        section.emit_string('name');
+        section.emit_section(kFunctionNamesCode, name_section => {
+          name_section.emit_u32v(num_function_names);
+          for (let func of wasm.functions) {
+            if (func.name === undefined) continue;
+            name_section.emit_u32v(func.index);
+            name_section.emit_string(func.name);
+          }
+        });
       });
     }
 

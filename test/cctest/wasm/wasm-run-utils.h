@@ -308,14 +308,17 @@ class TestingModule : public ModuleEnv {
     Handle<SeqOneByteString> old_bytes(
         instance_object_->compiled_module()->module_bytes(), isolate_);
     uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
-    ScopedVector<byte> new_bytes(old_size + bytes.length());
+    // Avoid placing strings at offset 0, this might be interpreted as "not
+    // set", e.g. for function names.
+    uint32_t bytes_offset = old_size ? old_size : 1;
+    ScopedVector<byte> new_bytes(bytes_offset + bytes.length());
     memcpy(new_bytes.start(), old_bytes->GetChars(), old_size);
-    memcpy(new_bytes.start() + old_size, bytes.start(), bytes.length());
+    memcpy(new_bytes.start() + bytes_offset, bytes.start(), bytes.length());
     Handle<SeqOneByteString> new_bytes_str = Handle<SeqOneByteString>::cast(
         isolate_->factory()->NewStringFromOneByte(new_bytes).ToHandleChecked());
     instance_object_->compiled_module()->shared()->set_module_bytes(
         *new_bytes_str);
-    return old_size;
+    return bytes_offset;
   }
 
   WasmFunction* GetFunctionAt(int index) { return &module_.functions[index]; }

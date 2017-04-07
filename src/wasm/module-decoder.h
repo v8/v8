@@ -20,7 +20,7 @@ const uint8_t kWasmFunctionTypeForm = 0x60;
 const uint8_t kWasmAnyFunctionTypeForm = 0x70;
 const uint8_t kResizableMaximumFlag = 1;
 
-enum WasmSectionCode {
+enum SectionCode {
   kUnknownSectionCode = 0,   // code for unknown sections
   kTypeSectionCode = 1,      // Function signature declarations
   kImportSectionCode = 2,    // Import declarations
@@ -36,11 +36,13 @@ enum WasmSectionCode {
   kNameSectionCode = 12,     // Name section (encoded as a string)
 };
 
+enum NameSectionType : uint8_t { kFunction = 1, kLocal = 2 };
+
 inline bool IsValidSectionCode(uint8_t byte) {
   return kTypeSectionCode <= byte && byte <= kDataSectionCode;
 }
 
-const char* SectionName(WasmSectionCode code);
+const char* SectionName(SectionCode code);
 
 typedef Result<const WasmModule*> ModuleResult;
 typedef Result<WasmFunction*> FunctionResult;

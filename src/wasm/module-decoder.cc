@@ -30,7 +30,7 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-const char* SectionName(WasmSectionCode code) {
+const char* SectionName(SectionCode code) {
   switch (code) {
     case kUnknownSectionCode:
       return "Unknown";
@@ -106,7 +106,7 @@ class WasmSectionIterator {
     return section_code_ != kUnknownSectionCode && decoder_.more();
   }
 
-  inline WasmSectionCode section_code() const { return section_code_; }
+  inline SectionCode section_code() const { return section_code_; }
 
   inline const byte* section_start() const { return section_start_; }
 
@@ -138,7 +138,7 @@ class WasmSectionIterator {
 
  private:
   Decoder& decoder_;
-  WasmSectionCode section_code_;
+  SectionCode section_code_;
   const byte* section_start_;
   const byte* payload_start_;
   const byte* section_end_;
@@ -184,15 +184,13 @@ class WasmSectionIterator {
             strncmp(reinterpret_cast<const char*>(section_name_start),
                     kNameString, kNameStringLength) == 0) {
           section_code = kNameSectionCode;
-        } else {
-          section_code = kUnknownSectionCode;
         }
       } else if (!IsValidSectionCode(section_code)) {
         decoder_.errorf(decoder_.pc(), "unknown section code #0x%02x",
                         section_code);
         section_code = kUnknownSectionCode;
       }
-      section_code_ = static_cast<WasmSectionCode>(section_code);
+      section_code_ = static_cast<SectionCode>(section_code);
 
       TRACE("Section: %s\n", SectionName(section_code_));
       if (section_code_ == kUnknownSectionCode &&
@@ -651,22 +649,36 @@ class ModuleDecoder : public Decoder {
       // TODO(titzer): find a way to report name errors as warnings.
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_);
-      uint32_t functions_count = inner.consume_u32v("functions count");
+      // Decode all name subsections.
+      // Be lenient with their order.
+      while (inner.ok() && inner.more()) {
+        uint8_t name_type = inner.consume_u8("name type");
+        if (name_type & 0x80) inner.error("name type if not varuint7");
 
-      for (uint32_t i = 0; inner.ok() && i < functions_count; ++i) {
-        uint32_t function_name_length = 0;
-        uint32_t name_offset =
-            consume_string(inner, &function_name_length, false);
-        uint32_t func_index = i;
-        if (inner.ok() && func_index < module->functions.size()) {
-          module->functions[func_index].name_offset = name_offset;
-          module->functions[func_index].name_length = function_name_length;
-        }
+        uint32_t name_payload_len = inner.consume_u32v("name payload length");
+        if (!inner.checkAvailable(name_payload_len)) break;
 
-        uint32_t local_names_count = inner.consume_u32v("local names count");
-        for (uint32_t j = 0; inner.ok() && j < local_names_count; j++) {
-          uint32_t length = inner.consume_u32v("string length");
-          inner.consume_bytes(length, "string");
+        // Decode function names, ignore the rest.
+        // Local names will be decoded when needed.
+        if (name_type == NameSectionType::kFunction) {
+          uint32_t functions_count = inner.consume_u32v("functions count");
+
+          for (; inner.ok() && functions_count > 0; --functions_count) {
+            uint32_t function_index = inner.consume_u32v("function index");
+            uint32_t name_length = 0;
+            uint32_t name_offset = consume_string(inner, &name_length, false);
+            // Be lenient with errors in the name section: Ignore illegal
+            // or out-of-order indexes and non-UTF8 names. You can even assign
+            // to the same function multiple times (last valid one wins).
+            if (inner.ok() && function_index < module->functions.size() &&
+                unibrow::Utf8::Validate(inner.start() + name_offset,
+                                        name_length)) {
+              module->functions[function_index].name_offset = name_offset;
+              module->functions[function_index].name_length = name_length;
+            }
+          }
+        } else {
+          inner.consume_bytes(name_payload_len, "name subsection payload");
         }
       }
       // Skip the whole names section in the outer decoder.

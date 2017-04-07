@@ -65,6 +65,10 @@ let kCodeSectionCode = 10;      // Function code
 let kDataSectionCode = 11;     // Data segments
 let kNameSectionCode = 12;     // Name section (encoded as string)
 
+// Name section types
+let kFunctionNamesCode = 1;
+let kLocalNamesCode = 2;
+
 let kWasmFunctionTypeForm = 0x60;
 let kWasmAnyFunctionTypeForm = 0x70;
 
