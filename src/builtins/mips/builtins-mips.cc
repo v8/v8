@@ -581,7 +581,7 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
   if (check_derived_construct) {
     Label do_throw, dont_throw;
     __ JumpIfSmi(v0, &do_throw);
-    __ GetObjectType(v0, a1, a3);
+    __ GetObjectType(v0, a3, a3);
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
     __ Branch(&dont_throw, greater_equal, a3, Operand(FIRST_JS_RECEIVER_TYPE));
     __ bind(&do_throw);
