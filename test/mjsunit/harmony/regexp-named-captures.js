@@ -147,7 +147,7 @@ assertThrows('/(?<𐒤>a)/u', SyntaxError);  // ID_Continue but not ID_Start.
 assertEquals("a", /(?<π>a)/.exec("bab").groups.π);
 assertEquals("a", /(?<$>a)/.exec("bab").groups.$);
 assertEquals("a", /(?<_>a)/.exec("bab").groups._);
-assertThrows("/(?<$𐒤>a)/", SyntaxError);
+assertEquals("a", /(?<$𐒤>a)/.exec("bab").groups.$𐒤);
 assertEquals("a", /(?<ಠ_ಠ>a)/.exec("bab").groups.ಠ_ಠ);
 assertThrows('/(?<❤>a)/', SyntaxError);
 assertThrows('/(?<𐒤>a)/', SyntaxError);  // ID_Continue but not ID_Start.
