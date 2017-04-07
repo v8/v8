@@ -81,7 +81,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
 // https://tc39.github.io/ecmascript_sharedmem/shmem.html#Atomics.ValidateAtomicAccess
 Node* SharedArrayBufferBuiltinsAssembler::ConvertTaggedAtomicIndexToWord32(
     Node* tagged, Node* context, Node** number_index) {
-  Variable var_result(this, MachineRepresentation::kWord32);
+  VARIABLE(var_result, MachineRepresentation::kWord32);
 
   // TODO(jkummerow): Skip ToNumber call when |tagged| is a number already.
   // Maybe this can be unified with other tagged-to-index conversions?

@@ -100,7 +100,7 @@ void StoreICUninitializedGenerator::Generate(
 
 void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
     Node* receiver_map, Label* non_fast_elements, Label* only_fast_elements) {
-  Variable var_map(this, MachineRepresentation::kTagged);
+  VARIABLE(var_map, MachineRepresentation::kTagged);
   var_map.Bind(receiver_map);
   Label loop_body(this, &var_map);
   Goto(&loop_body);
@@ -136,7 +136,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
     TrapAllocationMemento(receiver, bailout);
   }
   Label perform_transition(this), check_holey_map(this);
-  Variable var_target_map(this, MachineRepresentation::kTagged);
+  VARIABLE(var_target_map, MachineRepresentation::kTagged);
   // Check if the receiver has the default |from_kind| map.
   {
     Node* packed_map =
@@ -521,9 +521,9 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
     Variable* var_accessor_pair, Variable* var_accessor_holder, Label* readonly,
     Label* bailout) {
   Label ok_to_write(this);
-  Variable var_holder(this, MachineRepresentation::kTagged);
+  VARIABLE(var_holder, MachineRepresentation::kTagged);
   var_holder.Bind(LoadMapPrototype(receiver_map));
-  Variable var_holder_map(this, MachineRepresentation::kTagged);
+  VARIABLE(var_holder_map, MachineRepresentation::kTagged);
   var_holder_map.Bind(LoadMap(var_holder.value()));
 
   Variable* merged_variables[] = {&var_holder, &var_holder_map};
@@ -537,8 +537,8 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
     Label next_proto(this);
     {
       Label found(this), found_fast(this), found_dict(this), found_global(this);
-      Variable var_meta_storage(this, MachineRepresentation::kTagged);
-      Variable var_entry(this, MachineType::PointerRepresentation());
+      VARIABLE(var_meta_storage, MachineRepresentation::kTagged);
+      VARIABLE(var_entry, MachineType::PointerRepresentation());
       TryLookupProperty(holder, holder_map, instance_type, name, &found_fast,
                         &found_dict, &found_global, &var_meta_storage,
                         &var_entry, &next_proto, bailout);
@@ -552,7 +552,7 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 
         // Accessor case.
         // TODO(jkummerow): Implement a trimmed-down LoadAccessorFromFastObject.
-        Variable var_details(this, MachineRepresentation::kWord32);
+        VARIABLE(var_details, MachineRepresentation::kWord32);
         LoadPropertyFromFastObject(holder, holder_map, descriptors, name_index,
                                    &var_details, var_accessor_pair);
         var_accessor_holder->Bind(holder);
@@ -750,8 +750,8 @@ void KeyedStoreGenericAssembler::OverwriteExistingFastProperty(
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Node* receiver, Node* receiver_map, const StoreICParameters* p, Label* slow,
     LanguageMode language_mode, UseStubCache use_stub_cache) {
-  Variable var_accessor_pair(this, MachineRepresentation::kTagged);
-  Variable var_accessor_holder(this, MachineRepresentation::kTagged);
+  VARIABLE(var_accessor_pair, MachineRepresentation::kTagged);
+  VARIABLE(var_accessor_holder, MachineRepresentation::kTagged);
   Label stub_cache(this), fast_properties(this), dictionary_properties(this),
       accessor(this), readonly(this);
   Node* properties = LoadProperties(receiver);
@@ -765,7 +765,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Node* bitfield3 = LoadMapBitField3(receiver_map);
     Node* descriptors = LoadMapDescriptors(receiver_map);
     Label descriptor_found(this);
-    Variable var_name_index(this, MachineType::PointerRepresentation());
+    VARIABLE(var_name_index, MachineType::PointerRepresentation());
     // TODO(jkummerow): Maybe look for existing map transitions?
     Label* notfound = use_stub_cache == kUseStubCache ? &stub_cache : slow;
     DescriptorLookup(p->name, descriptors, bitfield3, &descriptor_found,
@@ -781,7 +781,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
       // Accessor case.
       // TODO(jkummerow): Implement a trimmed-down LoadAccessorFromFastObject.
-      Variable var_details(this, MachineRepresentation::kWord32);
+      VARIABLE(var_details, MachineRepresentation::kWord32);
       LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
                                  name_index, &var_details, &var_accessor_pair);
       var_accessor_holder.Bind(receiver);
@@ -803,7 +803,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
     // seeing global objects here (which would need special handling).
 
-    Variable var_name_index(this, MachineType::PointerRepresentation());
+    VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index), not_found(this);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
                                          &var_name_index, &not_found);
@@ -892,7 +892,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   if (use_stub_cache == kUseStubCache) {
     BIND(&stub_cache);
     Comment("stub cache probe");
-    Variable var_handler(this, MachineRepresentation::kTagged);
+    VARIABLE(var_handler, MachineRepresentation::kTagged);
     Label found_handler(this, &var_handler), stub_cache_miss(this);
     TryProbeStubCache(isolate()->store_stub_cache(), receiver, p->name,
                       &found_handler, &var_handler, &stub_cache_miss);
@@ -920,8 +920,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  Variable var_index(this, MachineType::PointerRepresentation());
-  Variable var_unique(this, MachineRepresentation::kTagged);
+  VARIABLE(var_index, MachineType::PointerRepresentation());
+  VARIABLE(var_unique, MachineRepresentation::kTagged);
   var_unique.Bind(name);  // Dummy initialization.
   Label if_index(this), if_unique_name(this), slow(this);
 

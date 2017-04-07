@@ -167,7 +167,7 @@ TF_BUILTIN(ToString, CodeStubAssembler) {
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )
 void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
     Node* context, Node* input, OrdinaryToPrimitiveHint hint) {
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Label return_result(this, &var_result);
 
   Handle<String> method_names[2];
@@ -253,8 +253,8 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   // We might need to loop once for ToNumber conversion.
-  Variable var_len(this, MachineRepresentation::kTagged,
-                   Parameter(Descriptor::kArgument));
+  VARIABLE(var_len, MachineRepresentation::kTagged,
+           Parameter(Descriptor::kArgument));
   Label loop(this, &var_len);
   Goto(&loop);
   BIND(&loop);
@@ -332,8 +332,8 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* object = Parameter(Descriptor::kArgument);
 
-  Variable constructor_function_index_var(this,
-                                          MachineType::PointerRepresentation());
+  VARIABLE(constructor_function_index_var,
+           MachineType::PointerRepresentation());
 
   Branch(TaggedIsSmi(object), &if_number, &if_notsmi);
 

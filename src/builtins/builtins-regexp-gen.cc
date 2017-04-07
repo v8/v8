@@ -103,8 +103,8 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   Variable var_from_cursor(
       this, MachineType::PointerRepresentation(),
       IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 2));
-  Variable var_to_cursor(this, MachineType::PointerRepresentation(),
-                         IntPtrConstant(1));
+  VARIABLE(var_to_cursor, MachineType::PointerRepresentation(),
+           IntPtrConstant(1));
 
   Variable* vars[] = {&var_from_cursor, &var_to_cursor};
   Label loop(this, 2, vars);
@@ -180,7 +180,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     Node* const names_length = LoadAndUntagFixedArrayBaseLength(names);
     CSA_ASSERT(this, IntPtrGreaterThan(names_length, IntPtrConstant(0)));
 
-    Variable var_i(this, MachineType::PointerRepresentation());
+    VARIABLE(var_i, MachineType::PointerRepresentation());
     var_i.Bind(IntPtrConstant(0));
 
     Variable* vars[] = {&var_i};
@@ -257,7 +257,7 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
 
   ToDirectStringAssembler to_direct(state(), string);
 
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Label out(this), runtime(this, Label::kDeferred);
 
   // External constants.
@@ -314,9 +314,9 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
 
   Node* const int_last_index = SmiUntag(last_index);
 
-  Variable var_string_start(this, MachineType::PointerRepresentation());
-  Variable var_string_end(this, MachineType::PointerRepresentation());
-  Variable var_code(this, MachineRepresentation::kTagged);
+  VARIABLE(var_string_start, MachineType::PointerRepresentation());
+  VARIABLE(var_string_end, MachineType::PointerRepresentation());
+  VARIABLE(var_code, MachineRepresentation::kTagged);
 
   {
     Node* const int_string_length = SmiUntag(smi_string_length);
@@ -413,8 +413,7 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
       Node* const to_offset = ElementOffsetFromIndex(
           IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), FAST_ELEMENTS,
           INTPTR_PARAMETERS, RegExpMatchInfo::kHeaderSize - kHeapObjectTag);
-      Variable var_to_offset(this, MachineType::PointerRepresentation(),
-                             to_offset);
+      VARIABLE(var_to_offset, MachineType::PointerRepresentation(), to_offset);
 
       VariableList vars({&var_to_offset}, zone());
       BuildFastLoop(
@@ -496,11 +495,11 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
   CSA_ASSERT(this, IsString(string));
   CSA_ASSERT(this, IsJSRegExp(regexp));
 
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Label out(this);
 
   // Load lastIndex.
-  Variable var_lastindex(this, MachineRepresentation::kTagged);
+  VARIABLE(var_lastindex, MachineRepresentation::kTagged);
   {
     Node* const regexp_lastindex = LoadLastIndex(context, regexp, is_fastpath);
     var_lastindex.Bind(regexp_lastindex);
@@ -611,7 +610,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBody(Node* const context,
                                                        const bool is_fastpath) {
   Node* const null = NullConstant();
 
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   Label if_didnotmatch(this), out(this);
   Node* const indices_or_null = RegExpPrototypeExecBodyWithoutResult(
@@ -640,7 +639,7 @@ Node* RegExpBuiltinsAssembler::ThrowIfNotJSReceiver(
     Node* context, Node* maybe_receiver, MessageTemplate::Template msg_template,
     char const* method_name) {
   Label out(this), throw_exception(this, Label::kDeferred);
-  Variable var_value_map(this, MachineRepresentation::kTagged);
+  VARIABLE(var_value_map, MachineRepresentation::kTagged);
 
   GotoIf(TaggedIsSmi(maybe_receiver), &throw_exception);
 
@@ -673,7 +672,7 @@ Node* RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(Node* const context,
                                                        Node* const object,
                                                        Node* const map) {
   Label out(this);
-  Variable var_result(this, MachineRepresentation::kWord32);
+  VARIABLE(var_result, MachineRepresentation::kWord32);
 
   Node* const native_context = LoadNativeContext(context);
   Node* const regexp_fun =
@@ -741,7 +740,7 @@ Node* RegExpBuiltinsAssembler::IsFastRegExp(Node* const context,
                                             Node* const object,
                                             Node* const map) {
   Label yup(this), nope(this), out(this);
-  Variable var_result(this, MachineRepresentation::kWord32);
+  VARIABLE(var_result, MachineRepresentation::kWord32);
 
   BranchIfFastRegExp(context, object, map, &yup, &nope);
 
@@ -818,8 +817,8 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
 
   Node* const int_zero = IntPtrConstant(0);
   Node* const int_one = IntPtrConstant(1);
-  Variable var_length(this, MachineType::PointerRepresentation(), int_zero);
-  Variable var_flags(this, MachineType::PointerRepresentation());
+  VARIABLE(var_length, MachineType::PointerRepresentation(), int_zero);
+  VARIABLE(var_flags, MachineType::PointerRepresentation());
 
   Node* const is_dotall_enabled = IsDotAllEnabled(isolate);
 
@@ -936,7 +935,7 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
                                         Node* const maybe_receiver) {
   Label out(this), if_isregexp(this);
 
-  Variable var_result(this, MachineRepresentation::kWord32, Int32Constant(0));
+  VARIABLE(var_result, MachineRepresentation::kWord32, Int32Constant(0));
 
   GotoIf(TaggedIsSmi(maybe_receiver), &out);
   GotoIfNot(IsJSReceiver(maybe_receiver), &out);
@@ -1023,9 +1022,9 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
   Isolate* isolate = this->isolate();
 
-  Variable var_flags(this, MachineRepresentation::kTagged, flags);
-  Variable var_pattern(this, MachineRepresentation::kTagged, pattern);
-  Variable var_new_target(this, MachineRepresentation::kTagged, new_target);
+  VARIABLE(var_flags, MachineRepresentation::kTagged, flags);
+  VARIABLE(var_pattern, MachineRepresentation::kTagged, pattern);
+  VARIABLE(var_new_target, MachineRepresentation::kTagged, new_target);
 
   Node* const native_context = LoadNativeContext(context);
   Node* const regexp_function =
@@ -1107,7 +1106,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
   // Allocate.
 
-  Variable var_regexp(this, MachineRepresentation::kTagged);
+  VARIABLE(var_regexp, MachineRepresentation::kTagged);
   {
     Label allocate_jsregexp(this), allocate_generic(this, Label::kDeferred),
         next(this);
@@ -1152,8 +1151,8 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
                          "RegExp.prototype.compile");
   Node* const receiver = maybe_receiver;
 
-  Variable var_flags(this, MachineRepresentation::kTagged, maybe_flags);
-  Variable var_pattern(this, MachineRepresentation::kTagged, maybe_pattern);
+  VARIABLE(var_flags, MachineRepresentation::kTagged, maybe_flags);
+  VARIABLE(var_pattern, MachineRepresentation::kTagged, maybe_pattern);
 
   // Handle a JSRegExp pattern.
   {
@@ -1264,7 +1263,7 @@ Node* RegExpBuiltinsAssembler::SlowFlagGetter(Node* const context,
   Factory* factory = isolate()->factory();
 
   Label out(this);
-  Variable var_result(this, MachineRepresentation::kWord32);
+  VARIABLE(var_result, MachineRepresentation::kWord32);
 
   Handle<String> name;
   switch (flag) {
@@ -1444,7 +1443,7 @@ TF_BUILTIN(RegExpPrototypeUnicodeGetter, RegExpBuiltinsAssembler) {
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
 Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
                                           Node* string) {
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Label out(this);
 
   // Take the slow path of fetching the exec property, calling it, and
@@ -1541,12 +1540,12 @@ Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
   CSA_ASSERT(this, IsHeapNumberMap(LoadReceiverMap(index)));
   if (is_fastpath) CSA_ASSERT(this, TaggedIsPositiveSmi(index));
 
-  // TODO(jgruber): If index is a HeapNumber, assert that it is outside the
+  // Default to last_index + 1.
   // Smi range.
 
   // Default to last_index + 1.
   Node* const index_plus_one = NumberInc(index);
-  Variable var_result(this, MachineRepresentation::kTagged, index_plus_one);
+  VARIABLE(var_result, MachineRepresentation::kTagged, index_plus_one);
 
   // Advancing the index has some subtle issues involving the distinction
   // between Smis and HeapNumbers. There's three cases:
@@ -1794,7 +1793,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
 
     BIND(&loop);
     {
-      Variable var_match(this, MachineRepresentation::kTagged);
+      VARIABLE(var_match, MachineRepresentation::kTagged);
 
       Label if_didmatch(this), if_didnotmatch(this);
       if (is_fastpath) {
@@ -2127,8 +2126,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
   GrowableFixedArray array(this);
 
-  Variable var_last_matched_until(this, MachineRepresentation::kTagged);
-  Variable var_next_search_from(this, MachineRepresentation::kTagged);
+  VARIABLE(var_last_matched_until, MachineRepresentation::kTagged);
+  VARIABLE(var_next_search_from, MachineRepresentation::kTagged);
 
   var_last_matched_until.Bind(smi_zero);
   var_next_search_from.Bind(smi_zero);
@@ -2217,7 +2216,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
           match_indices, RegExpMatchInfo::kNumberOfCapturesIndex);
       Node* const int_num_registers = SmiUntag(num_registers);
 
-      Variable var_reg(this, MachineType::PointerRepresentation());
+      VARIABLE(var_reg, MachineType::PointerRepresentation());
       var_reg.Bind(IntPtrConstant(2));
 
       Variable* vars[] = {array.var_array(), array.var_length(),
@@ -2238,7 +2237,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
             (RegExpMatchInfo::kFirstCaptureIndex + 1) * kPointerSize, mode);
 
         Label select_capture(this), select_undefined(this), store_value(this);
-        Variable var_value(this, MachineRepresentation::kTagged);
+        VARIABLE(var_value, MachineRepresentation::kTagged);
         Branch(SmiEqual(to, SmiConstant(-1)), &select_undefined,
                &select_capture);
 
@@ -2319,7 +2318,7 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
   // been changed.
 
   // Convert {maybe_limit} to a uint32, capping at the maximal smi value.
-  Variable var_limit(this, MachineRepresentation::kTagged, maybe_limit);
+  VARIABLE(var_limit, MachineRepresentation::kTagged, maybe_limit);
   Label if_limitissmimax(this), limit_done(this), runtime(this);
 
   GotoIf(IsUndefined(maybe_limit), &if_limitissmimax);
@@ -2414,7 +2413,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
   Node* const native_context = LoadNativeContext(context);
 
   Label out(this);
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Set last index to 0.
   FastStoreLastIndex(regexp, smi_zero);
@@ -2471,11 +2470,11 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     // input string and some replacements that were returned from the replace
     // function.
 
-    Variable var_match_start(this, MachineRepresentation::kTagged);
+    VARIABLE(var_match_start, MachineRepresentation::kTagged);
     var_match_start.Bind(smi_zero);
 
     Node* const end = SmiUntag(res_length);
-    Variable var_i(this, MachineType::PointerRepresentation());
+    VARIABLE(var_i, MachineType::PointerRepresentation());
     var_i.Bind(int_zero);
 
     Variable* vars[] = {&var_i, &var_match_start};
@@ -2622,7 +2621,7 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   CSA_ASSERT(this, IsString(string));
 
   Label out(this);
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Load the last match info.
   Node* const native_context = LoadNativeContext(context);

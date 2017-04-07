@@ -275,7 +275,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
 
 void AsyncGeneratorBuiltinsAssembler::AddAsyncGeneratorRequestToQueue(
     Node* generator, Node* request) {
-  Variable var_current(this, MachineRepresentation::kTagged);
+  VARIABLE(var_current, MachineRepresentation::kTagged);
   Label empty(this), loop(this, &var_current), done(this);
 
   var_current.Bind(
@@ -387,8 +387,8 @@ TF_BUILTIN(AsyncGeneratorRawYield, AsyncGeneratorBuiltinsAssembler) {
                   HasInstanceType(generator, JS_ASYNC_GENERATOR_OBJECT_TYPE));
   CSA_ASSERT(this, IsGeneratorNotSuspendedForAwait(generator));
 
-  Variable var_value(this, MachineRepresentation::kTagged);
-  Variable var_done(this, MachineRepresentation::kTagged);
+  VARIABLE(var_value, MachineRepresentation::kTagged);
+  VARIABLE(var_done, MachineRepresentation::kTagged);
 
   // RawYield is used for yield*, and values sent to yield* are always
   // iterator result objects.
@@ -458,10 +458,10 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
   // performs a loop in AsyncGeneratorResumeNext, which  continues as long as
   // there is an AsyncGeneratorRequest in the queue, and as long as the
   // generator is not suspended due to an AwaitExpression.
-  Variable var_state(this, MachineRepresentation::kTaggedSigned,
-                     LoadGeneratorState(generator));
-  Variable var_next(this, MachineRepresentation::kTagged,
-                    LoadFirstAsyncGeneratorRequestFromQueue(generator));
+  VARIABLE(var_state, MachineRepresentation::kTaggedSigned,
+           LoadGeneratorState(generator));
+  VARIABLE(var_next, MachineRepresentation::kTagged,
+           LoadFirstAsyncGeneratorRequestFromQueue(generator));
   Variable* labels[] = {&var_state, &var_next};
   Label start(this, 2, labels);
   Goto(&start);

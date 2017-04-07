@@ -65,8 +65,8 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
   Node* instance_type = LoadMapInstanceType(map);
 
   {
-    Variable var_index(this, MachineType::PointerRepresentation());
-    Variable var_unique(this, MachineRepresentation::kTagged);
+    VARIABLE(var_index, MachineType::PointerRepresentation());
+    VARIABLE(var_unique, MachineRepresentation::kTagged);
 
     Label keyisindex(this), if_iskeyunique(this);
     TryToName(key, &keyisindex, &var_index, &if_iskeyunique, &var_unique,
@@ -120,7 +120,7 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
   Node* receiver_instance_type = LoadInstanceType(receiver);
 
   // for proxies, check IsArray before getting @@toStringTag
-  Variable var_proxy_is_array(this, MachineRepresentation::kTagged);
+  VARIABLE(var_proxy_is_array, MachineRepresentation::kTagged);
   var_proxy_is_array.Bind(BooleanConstant(false));
 
   Branch(Word32Equal(receiver_instance_type, Int32Constant(JS_PROXY_TYPE)),
@@ -303,8 +303,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   // Create a new object with the given prototype.
   BIND(&no_properties);
   {
-    Variable map(this, MachineRepresentation::kTagged);
-    Variable properties(this, MachineRepresentation::kTagged);
+    VARIABLE(map, MachineRepresentation::kTagged);
+    VARIABLE(properties, MachineRepresentation::kTagged);
     Label non_null_proto(this), instantiate_map(this), good(this);
 
     Branch(WordEqual(prototype, NullConstant()), &good, &non_null_proto);

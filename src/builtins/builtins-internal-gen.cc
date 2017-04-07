@@ -122,7 +122,7 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
       Node* offset = IntPtrAdd(length, IntPtrConstant(1));
 
       // Copy the parameters from {frame} (starting at {offset}) to {result}.
-      Variable var_index(this, MachineType::PointerRepresentation());
+      VARIABLE(var_index, MachineType::PointerRepresentation());
       Label loop(this, &var_index), done_loop(this);
       var_index.Bind(IntPtrConstant(0));
       Goto(&loop);

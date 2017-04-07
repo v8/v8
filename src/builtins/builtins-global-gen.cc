@@ -16,7 +16,7 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
   Label return_true(this), return_false(this);
 
   // We might need to loop once for ToNumber conversion.
-  Variable var_num(this, MachineRepresentation::kTagged);
+  VARIABLE(var_num, MachineRepresentation::kTagged);
   Label loop(this, &var_num);
   var_num.Bind(Parameter(Descriptor::kNumber));
   Goto(&loop);
@@ -64,7 +64,7 @@ TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
   Label return_true(this), return_false(this);
 
   // We might need to loop once for ToNumber conversion.
-  Variable var_num(this, MachineRepresentation::kTagged);
+  VARIABLE(var_num, MachineRepresentation::kTagged);
   Label loop(this, &var_num);
   var_num.Bind(Parameter(Descriptor::kNumber));
   Goto(&loop);

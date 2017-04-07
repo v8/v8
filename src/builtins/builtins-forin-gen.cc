@@ -23,7 +23,7 @@ Node* ForInBuiltinsAssembler::ForInFilter(Node* key, Node* object,
                                           Node* context) {
   CSA_ASSERT(this, IsName(key));
 
-  Variable var_result(this, MachineRepresentation::kTagged, key);
+  VARIABLE(var_result, MachineRepresentation::kTagged, key);
 
   Node* has_property =
       HasProperty(object, key, context, Runtime::kForInHasProperty);
@@ -69,8 +69,8 @@ Node* ForInBuiltinsAssembler::EnumLength(Node* map) {
 void ForInBuiltinsAssembler::CheckPrototypeEnumCache(Node* receiver, Node* map,
                                                      Label* use_cache,
                                                      Label* use_runtime) {
-  Variable current_js_object(this, MachineRepresentation::kTagged, receiver);
-  Variable current_map(this, MachineRepresentation::kTagged, map);
+  VARIABLE(current_js_object, MachineRepresentation::kTagged, receiver);
+  VARIABLE(current_map, MachineRepresentation::kTagged, map);
 
   // These variables are updated in the loop below.
   Variable* loop_vars[2] = {&current_js_object, &current_map};

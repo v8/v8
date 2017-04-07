@@ -22,7 +22,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
  protected:
   Node* DirectStringData(Node* string, Node* string_instance_type) {
     // Compute the effective offset of the first character.
-    Variable var_data(this, MachineType::PointerRepresentation());
+    VARIABLE(var_data, MachineType::PointerRepresentation());
     Label if_sequential(this), if_external(this), if_join(this);
     Branch(Word32Equal(Word32And(string_instance_type,
                                  Int32Constant(kStringRepresentationMask)),
@@ -159,8 +159,8 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
   // }
   // return %StringEqual(lhs, rhs);
 
-  Variable var_left(this, MachineRepresentation::kTagged, left);
-  Variable var_right(this, MachineRepresentation::kTagged, right);
+  VARIABLE(var_left, MachineRepresentation::kTagged, left);
+  VARIABLE(var_right, MachineRepresentation::kTagged, right);
 
   Variable* input_vars[2] = {&var_left, &var_right};
   Label if_equal(this), if_notequal(this), restart(this, 2, input_vars);
@@ -223,7 +223,7 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
     Node* length = SmiUntag(lhs_length);
 
     // Loop over the {lhs} and {rhs} strings to see if they are equal.
-    Variable var_offset(this, MachineType::PointerRepresentation());
+    VARIABLE(var_offset, MachineType::PointerRepresentation());
     Label loop(this, &var_offset);
     var_offset.Bind(IntPtrConstant(0));
     Goto(&loop);
@@ -266,8 +266,8 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
 
 void StringBuiltinsAssembler::GenerateStringRelationalComparison(
     Node* context, Node* left, Node* right, RelationalComparisonMode mode) {
-  Variable var_left(this, MachineRepresentation::kTagged, left);
-  Variable var_right(this, MachineRepresentation::kTagged, right);
+  VARIABLE(var_left, MachineRepresentation::kTagged, left);
+  VARIABLE(var_right, MachineRepresentation::kTagged, right);
 
   Variable* input_vars[2] = {&var_left, &var_right};
   Label if_less(this), if_equal(this), if_greater(this);
@@ -319,7 +319,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
     Node* end = IntPtrAdd(begin, SmiUntag(length));
 
     // Loop over the {lhs} and {rhs} strings to see if they are equal.
-    Variable var_offset(this, MachineType::PointerRepresentation());
+    VARIABLE(var_offset, MachineType::PointerRepresentation());
     Label loop(this, &var_offset);
     var_offset.Bind(begin);
     Goto(&loop);
@@ -527,7 +527,7 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
     // Assume that the resulting string contains only one-byte characters.
     Node* one_byte_result = AllocateSeqOneByteString(context, argc);
 
-    Variable max_index(this, MachineType::PointerRepresentation());
+    VARIABLE(max_index, MachineType::PointerRepresentation());
     max_index.Bind(IntPtrConstant(0));
 
     // Iterate over the incoming arguments, converting them to 8-bit character
@@ -692,7 +692,7 @@ TF_BUILTIN(StringPrototypeConcat, CodeStubAssembler) {
   receiver = ToThisString(context, receiver, "String.prototype.concat");
 
   // Concatenate all the arguments passed to this builtin.
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   var_result.Bind(receiver);
   arguments.ForEach(
       CodeStubAssembler::VariableList({&var_result}, zone()),
@@ -717,10 +717,8 @@ void StringBuiltinsAssembler::StringIndexOf(
       check_search_string(this), continue_fast_path(this);
 
   Node* const int_zero = IntPtrConstant(0);
-  Variable var_needle_byte(this, MachineType::PointerRepresentation(),
-                           int_zero);
-  Variable var_string_addr(this, MachineType::PointerRepresentation(),
-                           int_zero);
+  VARIABLE(var_needle_byte, MachineType::PointerRepresentation(), int_zero);
+  VARIABLE(var_string_addr, MachineType::PointerRepresentation(), int_zero);
 
   Node* needle_length = SmiUntag(LoadStringLength(search_string));
   // Use faster/complex runtime fallback for long search strings.
@@ -845,8 +843,8 @@ TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
 // ES6 String.prototype.indexOf(searchString [, position])
 // #sec-string.prototype.indexof
 TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
-  Variable search_string(this, MachineRepresentation::kTagged),
-      position(this, MachineRepresentation::kTagged);
+  VARIABLE(search_string, MachineRepresentation::kTagged);
+  VARIABLE(position, MachineRepresentation::kTagged);
   Label call_runtime(this), call_runtime_unchecked(this), argc_0(this),
       no_argc_0(this), argc_1(this), no_argc_1(this), argc_2(this),
       fast_path(this), return_minus_1(this);
@@ -1100,8 +1098,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Callable stringadd_callable =
       CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
 
-  Variable var_result(this, MachineRepresentation::kTagged,
-                      EmptyStringConstant());
+  VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
 
   // Compute the prefix.
   {
@@ -1268,8 +1265,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
   Label out(this), handle_length(this);
 
-  Variable var_start(this, MachineRepresentation::kTagged);
-  Variable var_length(this, MachineRepresentation::kTagged);
+  VARIABLE(var_start, MachineRepresentation::kTagged);
+  VARIABLE(var_length, MachineRepresentation::kTagged);
 
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* const start = Parameter(Descriptor::kStart);
@@ -1388,7 +1385,7 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
                                                              Node* value,
                                                              Node* limit) {
   Label out(this);
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   Node* const value_int =
       this->ToInteger(context, value, CodeStubAssembler::kTruncateMinusZero);
@@ -1437,8 +1434,8 @@ compiler::Node* StringBuiltinsAssembler::ToSmiBetweenZeroAnd(Node* context,
 TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
   Label out(this);
 
-  Variable var_start(this, MachineRepresentation::kTagged);
-  Variable var_end(this, MachineRepresentation::kTagged);
+  VARIABLE(var_start, MachineRepresentation::kTagged);
+  VARIABLE(var_end, MachineRepresentation::kTagged);
 
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* const start = Parameter(Descriptor::kStart);
@@ -1532,8 +1529,8 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
     compiler::Node* string, compiler::Node* length, compiler::Node* index,
     UnicodeEncoding encoding) {
   Label handle_surrogate_pair(this), return_result(this);
-  Variable var_result(this, MachineRepresentation::kWord32);
-  Variable var_trail(this, MachineRepresentation::kWord32);
+  VARIABLE(var_result, MachineRepresentation::kWord32);
+  VARIABLE(var_trail, MachineRepresentation::kWord32);
   var_result.Bind(StringCharCodeAt(string, index));
   var_trail.Bind(Int32Constant(0));
 
@@ -1593,8 +1590,8 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
 
 // ES6 #sec-%stringiteratorprototype%.next
 TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
-  Variable var_value(this, MachineRepresentation::kTagged);
-  Variable var_done(this, MachineRepresentation::kTagged);
+  VARIABLE(var_value, MachineRepresentation::kTagged);
+  VARIABLE(var_done, MachineRepresentation::kTagged);
 
   var_value.Bind(UndefinedConstant());
   var_done.Bind(BooleanConstant(true));

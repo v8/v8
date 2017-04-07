@@ -42,7 +42,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   Label if_normal(this), if_generator(this), if_async(this),
       if_class_constructor(this), if_function_without_prototype(this),
       load_map(this);
-  Variable map_index(this, MachineType::PointerRepresentation());
+  VARIABLE(map_index, MachineType::PointerRepresentation());
 
   STATIC_ASSERT(FunctionKind::kNormalFunction == 0);
   Node* is_not_normal =
@@ -200,7 +200,7 @@ TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
 Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
                                                       Node* target,
                                                       Node* new_target) {
-  Variable var_obj(this, MachineRepresentation::kTagged);
+  VARIABLE(var_obj, MachineRepresentation::kTagged);
   Label call_runtime(this), end(this);
 
   Node* result = EmitFastNewObject(context, target, new_target, &call_runtime);
@@ -241,7 +241,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
       LoadObjectField(initial_map, Map::kConstructorOrBackPointerOffset);
   GotoIf(WordNotEqual(target, new_target_constructor), call_runtime);
 
-  Variable properties(this, MachineRepresentation::kTagged);
+  VARIABLE(properties, MachineRepresentation::kTagged);
 
   Label instantiate_map(this), allocate_properties(this);
   GotoIf(IsDictionaryMap(initial_map), &allocate_properties);
@@ -409,7 +409,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
                                                         Node* context) {
   Label call_runtime(this, Label::kDeferred), end(this);
 
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
 
   Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
   Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
@@ -486,7 +486,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
     AllocationSiteMode allocation_site_mode) {
   Label zero_capacity(this), cow_elements(this), fast_elements(this),
       return_result(this);
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
 
   Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
   Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
@@ -547,8 +547,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
     Goto(&return_result);
   }
 
-  Variable length(this, MachineRepresentation::kTagged),
-      elements(this, MachineRepresentation::kTagged);
+  VARIABLE(length, MachineRepresentation::kTagged);
+  VARIABLE(elements, MachineRepresentation::kTagged);
   Label allocate_without_elements(this);
 
   BIND(&cow_elements);
@@ -642,7 +642,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
   Node* copy = AllocateInNewSpace(allocation_size);
 
   // Copy boilerplate elements.
-  Variable offset(this, MachineType::PointerRepresentation());
+  VARIABLE(offset, MachineType::PointerRepresentation());
   offset.Bind(IntPtrConstant(-kHeapObjectTag));
   Node* end_offset = IntPtrAdd(object_size, offset.value());
   Label loop_body(this, &offset), loop_check(this, &offset);

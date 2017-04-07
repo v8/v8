@@ -135,7 +135,7 @@ TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
       LoadObjectField(receiver, JSFunction::kPrototypeOrInitialMapOffset);
   GotoIf(IsTheHole(proto_or_map), &miss);
 
-  Variable var_result(this, MachineRepresentation::kTagged, proto_or_map);
+  VARIABLE(var_result, MachineRepresentation::kTagged, proto_or_map);
   Label done(this, &var_result);
   GotoIfNot(IsMap(proto_or_map), &done);
 

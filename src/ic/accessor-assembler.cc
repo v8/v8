@@ -131,8 +131,8 @@ void AccessorAssembler::HandleLoadICHandlerCase(
     ExitPoint* exit_point, ElementSupport support_elements) {
   Comment("have_handler");
 
-  Variable var_holder(this, MachineRepresentation::kTagged, p->receiver);
-  Variable var_smi_handler(this, MachineRepresentation::kTagged, handler);
+  VARIABLE(var_holder, MachineRepresentation::kTagged, p->receiver);
+  VARIABLE(var_smi_handler, MachineRepresentation::kTagged, handler);
 
   Variable* vars[] = {&var_holder, &var_smi_handler};
   Label if_smi_handler(this, 2, vars);
@@ -210,7 +210,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     const LoadICParameters* p, Node* holder, Node* smi_handler, Label* miss,
     ExitPoint* exit_point, bool throw_reference_error_if_nonexistent,
     ElementSupport support_elements) {
-  Variable var_double_value(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_double_value, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
 
   Node* handler_word = SmiUntag(smi_handler);
@@ -323,14 +323,14 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   {
     Comment("load_normal");
     Node* properties = LoadProperties(holder);
-    Variable var_name_index(this, MachineType::PointerRepresentation());
+    VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label found(this, &var_name_index);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &found,
                                          &var_name_index, miss);
     BIND(&found);
     {
-      Variable var_details(this, MachineRepresentation::kWord32);
-      Variable var_value(this, MachineRepresentation::kTagged);
+      VARIABLE(var_details, MachineRepresentation::kWord32);
+      VARIABLE(var_value, MachineRepresentation::kTagged);
       LoadPropertyFromNameDictionary(properties, var_name_index.value(),
                                      &var_details, &var_value);
       Node* value = CallGetterIfAccessor(var_value.value(), var_details.value(),
@@ -425,14 +425,14 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
     CSA_ASSERT(this, Word32BinaryNot(
                          HasInstanceType(p->receiver, JS_GLOBAL_OBJECT_TYPE)));
     Node* properties = LoadProperties(p->receiver);
-    Variable var_name_index(this, MachineType::PointerRepresentation());
+    VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label found(this, &var_name_index);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &found,
                                          &var_name_index, &check_prototypes);
     BIND(&found);
     {
-      Variable var_details(this, MachineRepresentation::kWord32);
-      Variable var_value(this, MachineRepresentation::kTagged);
+      VARIABLE(var_details, MachineRepresentation::kWord32);
+      VARIABLE(var_value, MachineRepresentation::kTagged);
       LoadPropertyFromNameDictionary(properties, var_name_index.value(),
                                      &var_details, &var_value);
       Node* value = CallGetterIfAccessor(var_value.value(), var_details.value(),
@@ -484,7 +484,7 @@ Node* AccessorAssembler::EmitLoadICProtoArrayCheck(const LoadICParameters* p,
                                                    Node* handler_length,
                                                    Node* handler_flags,
                                                    Label* miss) {
-  Variable start_index(this, MachineType::PointerRepresentation());
+  VARIABLE(start_index, MachineType::PointerRepresentation());
   start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex));
 
   Label can_access(this);
@@ -525,7 +525,7 @@ Node* AccessorAssembler::EmitLoadICProtoArrayCheck(const LoadICParameters* p,
   Node* maybe_holder_cell =
       LoadFixedArrayElement(handler, LoadHandler::kHolderCellIndex);
 
-  Variable var_holder(this, MachineRepresentation::kTagged, p->receiver);
+  VARIABLE(var_holder, MachineRepresentation::kTagged, p->receiver);
   Label done(this);
   GotoIf(WordEqual(maybe_holder_cell, NullConstant()), &done);
 
@@ -549,10 +549,9 @@ void AccessorAssembler::HandleLoadGlobalICHandlerCase(
   Node* native_context = LoadNativeContext(p.context);
   p.receiver = LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
 
-  Variable var_holder(
-      this, MachineRepresentation::kTagged,
-      LoadContextElement(native_context, Context::EXTENSION_INDEX));
-  Variable var_smi_handler(this, MachineRepresentation::kTagged);
+  VARIABLE(var_holder, MachineRepresentation::kTagged,
+           LoadContextElement(native_context, Context::EXTENSION_INDEX));
+  VARIABLE(var_smi_handler, MachineRepresentation::kTagged);
   Label if_smi_handler(this);
 
   HandleLoadICProtoHandlerCase(&p, handler, &var_holder, &var_smi_handler,
@@ -597,7 +596,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     Node* properties = LoadProperties(holder);
 
-    Variable var_name_index(this, MachineType::PointerRepresentation());
+    VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
                                          &var_name_index, miss);
@@ -756,7 +755,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   Label array_handler(this), tuple_handler(this);
   Branch(TaggedIsSmi(maybe_transition_cell), &array_handler, &tuple_handler);
 
-  Variable var_transition(this, MachineRepresentation::kTagged);
+  VARIABLE(var_transition, MachineRepresentation::kTagged);
   Label if_transition(this), if_transition_to_constant(this),
       if_store_normal(this);
   BIND(&tuple_handler);
@@ -847,7 +846,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     {
       Node* properties = LoadProperties(p->receiver);
 
-      Variable var_name_index(this, MachineType::PointerRepresentation());
+      VARIABLE(var_name_index, MachineType::PointerRepresentation());
       Label found(this, &var_name_index), not_found(this);
       NameDictionaryLookup<NameDictionary>(properties, p->name, &found,
                                            &var_name_index, &not_found);
@@ -1155,7 +1154,7 @@ void AccessorAssembler::EmitFastElementsBoundsCheck(Node* object,
                                                     Node* intptr_index,
                                                     Node* is_jsarray_condition,
                                                     Label* miss) {
-  Variable var_length(this, MachineType::PointerRepresentation());
+  VARIABLE(var_length, MachineType::PointerRepresentation());
   Comment("Fast elements bounds check");
   Label if_array(this), length_loaded(this, &var_length);
   GotoIf(is_jsarray_condition, &if_array);
@@ -1253,7 +1252,7 @@ void AccessorAssembler::EmitElementLoad(
   {
     Comment("dictionary elements");
     GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), out_of_bounds);
-    Variable var_entry(this, MachineType::PointerRepresentation());
+    VARIABLE(var_entry, MachineType::PointerRepresentation());
     Label if_found(this);
     NumberDictionaryLookup<SeededNumberDictionary>(
         elements, intptr_index, &if_found, &var_entry, if_hole);
@@ -1402,7 +1401,7 @@ void AccessorAssembler::NameDictionaryNegativeLookup(Node* object, Node* name,
   CSA_ASSERT(this, IsDictionaryMap(LoadMap(object)));
   Node* properties = LoadProperties(object);
   // Ensure the property does not exist in a dictionary-mode object.
-  Variable var_name_index(this, MachineType::PointerRepresentation());
+  VARIABLE(var_name_index, MachineType::PointerRepresentation());
   Label done(this);
   NameDictionaryLookup<NameDictionary>(properties, name, miss, &var_name_index,
                                        &done);
@@ -1426,7 +1425,7 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
   Node* elements_kind = LoadMapElementsKind(receiver_map);
   Node* is_jsarray_condition =
       Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE));
-  Variable var_double_value(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_double_value, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
 
   // Unimplemented elements kinds fall back to a runtime call.
@@ -1470,8 +1469,8 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   Comment("key is unique name");
   Label if_found_on_receiver(this), if_property_dictionary(this),
       lookup_prototype_chain(this);
-  Variable var_details(this, MachineRepresentation::kWord32);
-  Variable var_value(this, MachineRepresentation::kTagged);
+  VARIABLE(var_details, MachineRepresentation::kWord32);
+  VARIABLE(var_value, MachineRepresentation::kTagged);
 
   // Receivers requiring non-standard accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
@@ -1491,7 +1490,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   Node* descriptors = LoadMapDescriptors(receiver_map);
 
   Label if_descriptor_found(this), stub_cache(this);
-  Variable var_name_index(this, MachineType::PointerRepresentation());
+  VARIABLE(var_name_index, MachineType::PointerRepresentation());
   Label* notfound =
       use_stub_cache == kUseStubCache ? &stub_cache : &lookup_prototype_chain;
   DescriptorLookup(key, descriptors, bitfield3, &if_descriptor_found,
@@ -1508,7 +1507,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   if (use_stub_cache == kUseStubCache) {
     BIND(&stub_cache);
     Comment("stub cache probe for fast property load");
-    Variable var_handler(this, MachineRepresentation::kTagged);
+    VARIABLE(var_handler, MachineRepresentation::kTagged);
     Label found_handler(this, &var_handler), stub_cache_miss(this);
     TryProbeStubCache(isolate()->load_stub_cache(), receiver, key,
                       &found_handler, &var_handler, &stub_cache_miss);
@@ -1531,7 +1530,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
     // seeing global objects here (which would need special handling).
 
-    Variable var_name_index(this, MachineType::PointerRepresentation());
+    VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index);
     NameDictionaryLookup<NameDictionary>(properties, key, &dictionary_found,
                                          &var_name_index,
@@ -1554,8 +1553,8 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
   BIND(&lookup_prototype_chain);
   {
-    Variable var_holder_map(this, MachineRepresentation::kTagged);
-    Variable var_holder_instance_type(this, MachineRepresentation::kWord32);
+    VARIABLE(var_holder_map, MachineRepresentation::kTagged);
+    VARIABLE(var_holder_instance_type, MachineRepresentation::kWord32);
     Label return_undefined(this);
     Variable* merged_variables[] = {&var_holder_map, &var_holder_instance_type};
     Label loop(this, arraysize(merged_variables), merged_variables);
@@ -1741,7 +1740,7 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LoadICParameters* p,
     Node* recv_map = LoadReceiverMap(p->receiver);
     GotoIf(IsDeprecatedMap(recv_map), &miss);
 
-    Variable var_handler(this, MachineRepresentation::kTagged);
+    VARIABLE(var_handler, MachineRepresentation::kTagged);
     Label try_polymorphic(this), if_handler(this, &var_handler);
 
     Node* feedback =
@@ -1785,7 +1784,7 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
 
   ExitPoint direct_exit(this);
 
-  Variable var_handler(this, MachineRepresentation::kTagged);
+  VARIABLE(var_handler, MachineRepresentation::kTagged);
   Label if_handler(this, &var_handler), non_inlined(this, Label::kDeferred),
       try_polymorphic(this), miss(this, Label::kDeferred);
 
@@ -1882,7 +1881,7 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
         LoadObjectField(receiver, JSFunction::kPrototypeOrInitialMapOffset);
     GotoIf(IsTheHole(proto_or_map), &miss);
 
-    Variable var_result(this, MachineRepresentation::kTagged, proto_or_map);
+    VARIABLE(var_result, MachineRepresentation::kTagged, proto_or_map);
     Label done(this, &var_result);
     GotoIfNot(IsMap(proto_or_map), &done);
 
@@ -2028,7 +2027,7 @@ void AccessorAssembler::LoadGlobalIC(const LoadICParameters* p,
 void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   ExitPoint direct_exit(this);
 
-  Variable var_handler(this, MachineRepresentation::kTagged);
+  VARIABLE(var_handler, MachineRepresentation::kTagged);
   Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred),
       try_polymorphic_name(this, Label::kDeferred),
@@ -2088,8 +2087,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
 }
 
 void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
-  Variable var_index(this, MachineType::PointerRepresentation());
-  Variable var_unique(this, MachineRepresentation::kTagged);
+  VARIABLE(var_index, MachineType::PointerRepresentation());
+  VARIABLE(var_unique, MachineRepresentation::kTagged);
   var_unique.Bind(p->name);  // Dummy initialization.
   Label if_index(this), if_unique_name(this), slow(this);
 
@@ -2125,7 +2124,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
 
 void AccessorAssembler::StoreIC(const StoreICParameters* p,
                                 LanguageMode language_mode) {
-  Variable var_handler(this, MachineRepresentation::kTagged);
+  VARIABLE(var_handler, MachineRepresentation::kTagged);
   Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred),
       try_uninitialized(this, Label::kDeferred), miss(this, Label::kDeferred);
@@ -2184,7 +2183,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
                                      LanguageMode language_mode) {
   Label miss(this, Label::kDeferred);
   {
-    Variable var_handler(this, MachineRepresentation::kTagged);
+    VARIABLE(var_handler, MachineRepresentation::kTagged);
 
     Label if_handler(this, &var_handler),
         try_polymorphic(this, Label::kDeferred),
@@ -2273,7 +2272,7 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
   Node* context = Parameter(Descriptor::kContext);
 
   ExitPoint direct_exit(this);
-  Variable var_handler(this, MachineRepresentation::kTagged);
+  VARIABLE(var_handler, MachineRepresentation::kTagged);
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(receiver);
@@ -2344,7 +2343,7 @@ void AccessorAssembler::GenerateLoadField() {
 
   ExitPoint direct_exit(this);
 
-  Variable var_double_value(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_double_value, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
 
   Node* smi_handler = Parameter(Descriptor::kSmiHandler);

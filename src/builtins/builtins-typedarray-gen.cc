@@ -109,9 +109,9 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
 
   Label setup_holder(this), alloc_array_buffer(this), aligned(this),
       allocate_elements(this), attach_buffer(this), done(this);
-  Variable fixed_typed_map(this, MachineRepresentation::kTagged);
-  Variable element_size(this, MachineRepresentation::kTagged);
-  Variable total_size(this, MachineType::PointerRepresentation());
+  VARIABLE(fixed_typed_map, MachineRepresentation::kTagged);
+  VARIABLE(element_size, MachineRepresentation::kTagged);
+  VARIABLE(total_size, MachineType::PointerRepresentation());
 
   // Make sure length is a Smi. The caller guarantees this is the case.
   length = ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero);
@@ -291,7 +291,7 @@ void TypedArrayBuiltinsAssembler::InitializeBasedOnLength(
     Node* const byte_offset, Node* const initialize, Node* const context) {
   Label allocate_buffer(this), allocate_buffer_noinit(this), do_init(this);
 
-  Variable maybe_buffer(this, MachineRepresentation::kTagged, NullConstant());
+  VARIABLE(maybe_buffer, MachineRepresentation::kTagged, NullConstant());
 
   // SmiMul returns a heap number in case of Smi overflow.
   Node* byte_length = SmiMul(length, element_size);
@@ -370,9 +370,8 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Node* const initialize = BooleanConstant(true);
 
-  Variable new_byte_length(this, MachineRepresentation::kTagged,
-                           SmiConstant(0));
-  Variable offset(this, MachineRepresentation::kTagged, SmiConstant(0));
+  VARIABLE(new_byte_length, MachineRepresentation::kTagged, SmiConstant(0));
+  VARIABLE(offset, MachineRepresentation::kTagged, SmiConstant(0));
 
   Label start_offset_error(this, Label::kDeferred),
       byte_length_error(this, Label::kDeferred),
@@ -514,7 +513,7 @@ compiler::Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
 compiler::Node* TypedArrayBuiltinsAssembler::ByteLengthIsValid(
     Node* byte_length) {
   Label smi(this), done(this);
-  Variable is_valid(this, MachineRepresentation::kWord32);
+  VARIABLE(is_valid, MachineRepresentation::kWord32);
   GotoIf(TaggedIsSmi(byte_length), &smi);
 
   CSA_ASSERT(this, IsHeapNumber(byte_length));
@@ -684,7 +683,7 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   Return(CreateArrayIterator(receiver, map, instance_type, context,
                              iteration_kind));
 
-  Variable var_message(this, MachineRepresentation::kTagged);
+  VARIABLE(var_message, MachineRepresentation::kTagged);
   BIND(&throw_bad_receiver);
   var_message.Bind(SmiConstant(MessageTemplate::kNotTypedArray));
   Goto(&throw_typeerror);

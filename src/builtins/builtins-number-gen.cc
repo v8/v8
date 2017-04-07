@@ -171,8 +171,8 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   // We might need to loop once for ToString conversion.
-  Variable var_input(this, MachineRepresentation::kTagged,
-                     Parameter(Descriptor::kString));
+  VARIABLE(var_input, MachineRepresentation::kTagged,
+           Parameter(Descriptor::kString));
   Label loop(this, &var_input);
   Goto(&loop);
   BIND(&loop);
@@ -355,14 +355,14 @@ TF_BUILTIN(Add, CodeStubAssembler) {
 
   // Shared entry for floating point addition.
   Label do_fadd(this);
-  Variable var_fadd_lhs(this, MachineRepresentation::kFloat64),
-      var_fadd_rhs(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_fadd_lhs, MachineRepresentation::kFloat64);
+  VARIABLE(var_fadd_rhs, MachineRepresentation::kFloat64);
 
   // We might need to loop several times due to ToPrimitive, ToString and/or
   // ToNumber conversions.
-  Variable var_lhs(this, MachineRepresentation::kTagged),
-      var_rhs(this, MachineRepresentation::kTagged),
-      var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_lhs, MachineRepresentation::kTagged);
+  VARIABLE(var_rhs, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Variable* loop_vars[2] = {&var_lhs, &var_rhs};
   Label loop(this, 2, loop_vars), end(this),
       string_add_convert_left(this, Label::kDeferred),
@@ -698,14 +698,14 @@ TF_BUILTIN(Subtract, CodeStubAssembler) {
 
   // Shared entry for floating point subtraction.
   Label do_fsub(this), end(this);
-  Variable var_fsub_lhs(this, MachineRepresentation::kFloat64),
-      var_fsub_rhs(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_fsub_lhs, MachineRepresentation::kFloat64);
+  VARIABLE(var_fsub_rhs, MachineRepresentation::kFloat64);
 
   // We might need to loop several times due to ToPrimitive and/or ToNumber
   // conversions.
-  Variable var_lhs(this, MachineRepresentation::kTagged),
-      var_rhs(this, MachineRepresentation::kTagged),
-      var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_lhs, MachineRepresentation::kTagged);
+  VARIABLE(var_rhs, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Variable* loop_vars[2] = {&var_lhs, &var_rhs};
   Label loop(this, 2, loop_vars);
   var_lhs.Bind(left);
@@ -857,13 +857,13 @@ TF_BUILTIN(Multiply, CodeStubAssembler) {
 
   // Shared entry point for floating point multiplication.
   Label do_fmul(this), return_result(this);
-  Variable var_lhs_float64(this, MachineRepresentation::kFloat64),
-      var_rhs_float64(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_lhs_float64, MachineRepresentation::kFloat64);
+  VARIABLE(var_rhs_float64, MachineRepresentation::kFloat64);
 
   // We might need to loop one or two times due to ToNumber conversions.
-  Variable var_lhs(this, MachineRepresentation::kTagged),
-      var_rhs(this, MachineRepresentation::kTagged),
-      var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_lhs, MachineRepresentation::kTagged);
+  VARIABLE(var_rhs, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Variable* loop_variables[] = {&var_lhs, &var_rhs};
   Label loop(this, 2, loop_variables);
   var_lhs.Bind(left);
@@ -994,13 +994,13 @@ TF_BUILTIN(Divide, CodeStubAssembler) {
 
   // Shared entry point for floating point division.
   Label do_fdiv(this), end(this);
-  Variable var_dividend_float64(this, MachineRepresentation::kFloat64),
-      var_divisor_float64(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_dividend_float64, MachineRepresentation::kFloat64);
+  VARIABLE(var_divisor_float64, MachineRepresentation::kFloat64);
 
   // We might need to loop one or two times due to ToNumber conversions.
-  Variable var_dividend(this, MachineRepresentation::kTagged),
-      var_divisor(this, MachineRepresentation::kTagged),
-      var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_dividend, MachineRepresentation::kTagged);
+  VARIABLE(var_divisor, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Variable* loop_variables[] = {&var_dividend, &var_divisor};
   Label loop(this, 2, loop_variables);
   var_dividend.Bind(left);
@@ -1187,17 +1187,17 @@ TF_BUILTIN(Modulus, CodeStubAssembler) {
   Node* left = Parameter(Descriptor::kLeft);
   Node* right = Parameter(Descriptor::kRight);
 
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Label return_result(this, &var_result);
 
   // Shared entry point for floating point modulus.
   Label do_fmod(this);
-  Variable var_dividend_float64(this, MachineRepresentation::kFloat64),
-      var_divisor_float64(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_dividend_float64, MachineRepresentation::kFloat64);
+  VARIABLE(var_divisor_float64, MachineRepresentation::kFloat64);
 
   // We might need to loop one or two times due to ToNumber conversions.
-  Variable var_dividend(this, MachineRepresentation::kTagged),
-      var_divisor(this, MachineRepresentation::kTagged);
+  VARIABLE(var_dividend, MachineRepresentation::kTagged);
+  VARIABLE(var_divisor, MachineRepresentation::kTagged);
   Variable* loop_variables[] = {&var_dividend, &var_divisor};
   Label loop(this, 2, loop_variables);
   var_dividend.Bind(left);

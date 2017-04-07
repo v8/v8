@@ -19,10 +19,10 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
       check_rhsisoddball(this, Label::kDeferred),
       call_with_oddball_feedback(this), call_with_any_feedback(this),
       call_add_stub(this), end(this);
-  Variable var_fadd_lhs(this, MachineRepresentation::kFloat64),
-      var_fadd_rhs(this, MachineRepresentation::kFloat64),
-      var_type_feedback(this, MachineRepresentation::kTaggedSigned),
-      var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_fadd_lhs, MachineRepresentation::kFloat64);
+  VARIABLE(var_fadd_rhs, MachineRepresentation::kFloat64);
+  VARIABLE(var_type_feedback, MachineRepresentation::kTaggedSigned);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Check if the {lhs} is a Smi or a HeapObject.
   Label if_lhsissmi(this), if_lhsisnotsmi(this);
@@ -206,10 +206,10 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
   Label do_fsub(this), end(this), call_subtract_stub(this),
       if_lhsisnotnumber(this), check_rhsisoddball(this),
       call_with_any_feedback(this);
-  Variable var_fsub_lhs(this, MachineRepresentation::kFloat64),
-      var_fsub_rhs(this, MachineRepresentation::kFloat64),
-      var_type_feedback(this, MachineRepresentation::kTaggedSigned),
-      var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_fsub_lhs, MachineRepresentation::kFloat64);
+  VARIABLE(var_fsub_rhs, MachineRepresentation::kFloat64);
+  VARIABLE(var_type_feedback, MachineRepresentation::kTaggedSigned);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Check if the {lhs} is a Smi or a HeapObject.
   Label if_lhsissmi(this), if_lhsisnotsmi(this);
@@ -382,10 +382,10 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
       check_rhsisoddball(this, Label::kDeferred),
       call_with_oddball_feedback(this), call_with_any_feedback(this),
       call_multiply_stub(this), end(this);
-  Variable var_lhs_float64(this, MachineRepresentation::kFloat64),
-      var_rhs_float64(this, MachineRepresentation::kFloat64),
-      var_result(this, MachineRepresentation::kTagged),
-      var_type_feedback(this, MachineRepresentation::kTaggedSigned);
+  VARIABLE(var_lhs_float64, MachineRepresentation::kFloat64);
+  VARIABLE(var_rhs_float64, MachineRepresentation::kFloat64);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  VARIABLE(var_type_feedback, MachineRepresentation::kTaggedSigned);
 
   Label lhs_is_smi(this), lhs_is_not_smi(this);
   Branch(TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
@@ -529,10 +529,10 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(Node* context,
       check_divisor_for_oddball(this, Label::kDeferred),
       call_with_oddball_feedback(this), call_with_any_feedback(this),
       call_divide_stub(this), end(this);
-  Variable var_dividend_float64(this, MachineRepresentation::kFloat64),
-      var_divisor_float64(this, MachineRepresentation::kFloat64),
-      var_result(this, MachineRepresentation::kTagged),
-      var_type_feedback(this, MachineRepresentation::kTaggedSigned);
+  VARIABLE(var_dividend_float64, MachineRepresentation::kFloat64);
+  VARIABLE(var_divisor_float64, MachineRepresentation::kFloat64);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  VARIABLE(var_type_feedback, MachineRepresentation::kTaggedSigned);
 
   Label dividend_is_smi(this), dividend_is_not_smi(this);
   Branch(TaggedIsSmi(dividend), &dividend_is_smi, &dividend_is_not_smi);
@@ -724,10 +724,10 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(Node* context,
       check_divisor_for_oddball(this, Label::kDeferred),
       call_with_oddball_feedback(this), call_with_any_feedback(this),
       call_modulus_stub(this), end(this);
-  Variable var_dividend_float64(this, MachineRepresentation::kFloat64),
-      var_divisor_float64(this, MachineRepresentation::kFloat64),
-      var_result(this, MachineRepresentation::kTagged),
-      var_type_feedback(this, MachineRepresentation::kTaggedSigned);
+  VARIABLE(var_dividend_float64, MachineRepresentation::kFloat64);
+  VARIABLE(var_divisor_float64, MachineRepresentation::kFloat64);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  VARIABLE(var_type_feedback, MachineRepresentation::kTaggedSigned);
 
   Label dividend_is_smi(this), dividend_is_not_smi(this);
   Branch(TaggedIsSmi(dividend), &dividend_is_smi, &dividend_is_not_smi);

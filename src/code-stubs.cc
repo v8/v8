@@ -829,13 +829,13 @@ TF_STUB(GetPropertyStub, CodeStubAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* key = Parameter(Descriptor::kKey);
   Node* context = Parameter(Descriptor::kContext);
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   CodeStubAssembler::LookupInHolder lookup_property_in_holder =
       [=, &var_result, &end](Node* receiver, Node* holder, Node* holder_map,
                              Node* holder_instance_type, Node* unique_name,
                              Label* next_holder, Label* if_bailout) {
-        Variable var_value(this, MachineRepresentation::kTagged);
+        VARIABLE(var_value, MachineRepresentation::kTagged);
         Label if_found(this);
         TryGetOwnProperty(context, receiver, holder, holder_map,
                           holder_instance_type, unique_name, &if_found,

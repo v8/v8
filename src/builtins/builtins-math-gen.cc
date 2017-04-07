@@ -33,7 +33,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   // We might need to loop once for ToNumber conversion.
-  Variable var_x(this, MachineRepresentation::kTagged);
+  VARIABLE(var_x, MachineRepresentation::kTagged);
   Label loop(this, &var_x);
   var_x.Bind(Parameter(Descriptor::kX));
   Goto(&loop);
@@ -118,7 +118,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 void MathBuiltinsAssembler::MathRoundingOperation(
     Node* context, Node* x, Node* (CodeStubAssembler::*float64op)(Node*)) {
   // We might need to loop once for ToNumber conversion.
-  Variable var_x(this, MachineRepresentation::kTagged, x);
+  VARIABLE(var_x, MachineRepresentation::kTagged, x);
   Label loop(this, &var_x);
   Goto(&loop);
   BIND(&loop);
@@ -176,7 +176,7 @@ void MathBuiltinsAssembler::MathMaxMin(
   CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
   argc = arguments.GetLength();
 
-  Variable result(this, MachineRepresentation::kFloat64);
+  VARIABLE(result, MachineRepresentation::kFloat64);
   result.Bind(Float64Constant(default_val));
 
   CodeStubAssembler::VariableList vars({&result}, zone());
@@ -262,11 +262,11 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   // Shared entry point for the clz32 operation.
-  Variable var_clz32_x(this, MachineRepresentation::kWord32);
+  VARIABLE(var_clz32_x, MachineRepresentation::kWord32);
   Label do_clz32(this);
 
   // We might need to loop once for ToNumber conversion.
-  Variable var_x(this, MachineRepresentation::kTagged);
+  VARIABLE(var_x, MachineRepresentation::kTagged);
   Label loop(this, &var_x);
   var_x.Bind(Parameter(Descriptor::kX));
   Goto(&loop);
@@ -421,7 +421,7 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
   Node* native_context = LoadNativeContext(context);
 
   // Load cache index.
-  Variable smi_index(this, MachineRepresentation::kTagged);
+  VARIABLE(smi_index, MachineRepresentation::kTagged);
   smi_index.Bind(
       LoadContextElement(native_context, Context::MATH_RANDOM_INDEX_INDEX));
 

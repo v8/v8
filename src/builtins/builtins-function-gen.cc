@@ -72,7 +72,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   // Choose the right bound function map based on whether the target is
   // constructable.
   Comment("Choose the right bound function map");
-  Variable bound_function_map(this, MachineRepresentation::kTagged);
+  VARIABLE(bound_function_map, MachineRepresentation::kTagged);
   Label with_constructor(this);
   VariableList vars({&bound_function_map}, zone());
   Node* native_context = LoadNativeContext(context);
@@ -101,13 +101,13 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   // Allocate the arguments array.
   Comment("Allocate the arguments array");
-  Variable argument_array(this, MachineRepresentation::kTagged);
+  VARIABLE(argument_array, MachineRepresentation::kTagged);
   Label empty_arguments(this);
   Label arguments_done(this, &argument_array);
   GotoIf(Uint32LessThanOrEqual(argc, Int32Constant(1)), &empty_arguments);
   Node* elements_length = ChangeUint32ToWord(Int32Sub(argc, Int32Constant(1)));
   Node* elements = AllocateFixedArray(FAST_ELEMENTS, elements_length);
-  Variable index(this, MachineType::PointerRepresentation());
+  VARIABLE(index, MachineType::PointerRepresentation());
   index.Bind(IntPtrConstant(0));
   VariableList foreach_vars({&index}, zone());
   args.ForEach(foreach_vars,
@@ -127,7 +127,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   // Determine bound receiver.
   Comment("Determine bound receiver");
-  Variable bound_receiver(this, MachineRepresentation::kTagged);
+  VARIABLE(bound_receiver, MachineRepresentation::kTagged);
   Label has_receiver(this);
   Label receiver_done(this, &bound_receiver);
   GotoIf(Word32NotEqual(argc, Int32Constant(0)), &has_receiver);

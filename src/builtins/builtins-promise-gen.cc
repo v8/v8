@@ -110,7 +110,7 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
   StoreObjectFieldNoWriteBarrier(capability, JSPromiseCapability::kRejectOffset,
                                  UndefinedConstant());
 
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   var_result.Bind(capability);
 
   Label if_builtin_promise(this), if_custom_promise(this, Label::kDeferred),
@@ -230,7 +230,7 @@ Node* PromiseBuiltinsAssembler::ThrowIfNotJSReceiver(
     Node* context, Node* value, MessageTemplate::Template msg_template,
     const char* method_name) {
   Label out(this), throw_exception(this, Label::kDeferred);
-  Variable var_value_map(this, MachineRepresentation::kTagged);
+  VARIABLE(var_value_map, MachineRepresentation::kTagged);
 
   GotoIf(TaggedIsSmi(value), &throw_exception);
 
@@ -279,7 +279,7 @@ void PromiseBuiltinsAssembler::PromiseSetHandledHint(Node* promise) {
 Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
                                                    Node* default_constructor) {
   Isolate* isolate = this->isolate();
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   var_result.Bind(default_constructor);
 
   // 2. Let C be ? Get(O, "constructor").
@@ -372,9 +372,9 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
   Callable call_callable = CodeFactory::Call(isolate);
   Label fast_promise_capability(this), promise_capability(this),
       perform_promise_then(this);
-  Variable var_deferred_promise(this, MachineRepresentation::kTagged),
-      var_deferred_on_resolve(this, MachineRepresentation::kTagged),
-      var_deferred_on_reject(this, MachineRepresentation::kTagged);
+  VARIABLE(var_deferred_promise, MachineRepresentation::kTagged);
+  VARIABLE(var_deferred_on_resolve, MachineRepresentation::kTagged);
+  VARIABLE(var_deferred_on_reject, MachineRepresentation::kTagged);
 
   Branch(WordEqual(promise_fun, constructor), &fast_promise_capability,
          &promise_capability);
@@ -413,8 +413,8 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
     Node* context, Node* promise, Node* on_resolve, Node* on_reject,
     Node* deferred_promise, Node* deferred_on_resolve,
     Node* deferred_on_reject) {
-  Variable var_on_resolve(this, MachineRepresentation::kTagged),
-      var_on_reject(this, MachineRepresentation::kTagged);
+  VARIABLE(var_on_resolve, MachineRepresentation::kTagged);
+  VARIABLE(var_on_reject, MachineRepresentation::kTagged);
 
   var_on_resolve.Bind(on_resolve);
   var_on_reject.Bind(on_reject);
@@ -665,8 +665,8 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
                                                       Node* result) {
   Isolate* isolate = this->isolate();
 
-  Variable var_reason(this, MachineRepresentation::kTagged),
-      var_then(this, MachineRepresentation::kTagged);
+  VARIABLE(var_reason, MachineRepresentation::kTagged);
+  VARIABLE(var_then, MachineRepresentation::kTagged);
 
   Label do_enqueue(this), fulfill(this), if_cycle(this, Label::kDeferred),
       if_rejectpromise(this, Label::kDeferred), out(this);
@@ -884,7 +884,7 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
 void PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
     Node* context, Node* native_context, Node* promise_constructor,
     Node* executor, Label* if_noaccess) {
-  Variable var_executor(this, MachineRepresentation::kTagged);
+  VARIABLE(var_executor, MachineRepresentation::kTagged);
   var_executor.Bind(executor);
   Label has_access(this), call_runtime(this, Label::kDeferred);
 
@@ -1038,9 +1038,9 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   Branch(WordEqual(promise_fun, new_target), &if_targetisnotmodified,
          &if_targetismodified);
 
-  Variable var_result(this, MachineRepresentation::kTagged),
-      var_reject_call(this, MachineRepresentation::kTagged),
-      var_reason(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  VARIABLE(var_reject_call, MachineRepresentation::kTagged);
+  VARIABLE(var_reason, MachineRepresentation::kTagged);
 
   BIND(&if_targetisnotmodified);
   {
@@ -1212,7 +1212,7 @@ TF_BUILTIN(PromiseHandleReject, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   Callable call_callable = CodeFactory::Call(isolate());
-  Variable var_unused(this, MachineRepresentation::kTagged);
+  VARIABLE(var_unused, MachineRepresentation::kTagged);
 
   Label if_internalhandler(this), if_customhandler(this, Label::kDeferred);
   Branch(IsUndefined(on_reject), &if_internalhandler, &if_customhandler);
@@ -1239,7 +1239,7 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Isolate* isolate = this->isolate();
 
-  Variable var_reason(this, MachineRepresentation::kTagged);
+  VARIABLE(var_reason, MachineRepresentation::kTagged);
 
   Node* const is_debug_active = IsDebugActive();
   Label run_handler(this), if_rejectpromise(this), promisehook_before(this),
@@ -1260,7 +1260,7 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   {
     Label if_defaulthandler(this), if_callablehandler(this),
         if_internalhandler(this), if_customhandler(this, Label::kDeferred);
-    Variable var_result(this, MachineRepresentation::kTagged);
+    VARIABLE(var_result, MachineRepresentation::kTagged);
 
     Branch(IsSymbol(handler), &if_defaulthandler, &if_callablehandler);
 
@@ -1707,8 +1707,8 @@ TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, promise, JS_PROMISE_TYPE,
                          "Promise.prototype.finally");
 
-  Variable var_then_finally(this, MachineRepresentation::kTagged),
-      var_catch_finally(this, MachineRepresentation::kTagged);
+  VARIABLE(var_then_finally, MachineRepresentation::kTagged);
+  VARIABLE(var_catch_finally, MachineRepresentation::kTagged);
 
   Label if_notcallable(this, Label::kDeferred), perform_finally(this);
 

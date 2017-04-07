@@ -21,14 +21,14 @@ ArgumentsBuiltinsAssembler::GetArgumentsFrameAndCount(Node* function,
                                                       ParameterMode mode) {
   CSA_ASSERT(this, HasInstanceType(function, JS_FUNCTION_TYPE));
 
-  Variable frame_ptr(this, MachineType::PointerRepresentation());
+  VARIABLE(frame_ptr, MachineType::PointerRepresentation());
   frame_ptr.Bind(LoadParentFramePointer());
   CSA_ASSERT(this,
              WordEqual(function,
                        LoadBufferObject(frame_ptr.value(),
                                         StandardFrameConstants::kFunctionOffset,
                                         MachineType::Pointer())));
-  Variable argument_count(this, ParameterRepresentation(mode));
+  VARIABLE(argument_count, ParameterRepresentation(mode));
   VariableList list({&frame_ptr, &argument_count}, zone());
   Label done_argument_count(this, list);
 
@@ -133,7 +133,7 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
       AllocateArgumentsObject(map, rest_count, nullptr, param_mode, base_size);
   DCHECK(unused == nullptr);
   CodeStubArguments arguments(this, arg_count, frame_ptr, param_mode);
-  Variable offset(this, MachineType::PointerRepresentation());
+  VARIABLE(offset, MachineType::PointerRepresentation());
   offset.Bind(IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
   VariableList list({&offset}, zone());
   arguments.ForEach(list,
@@ -158,7 +158,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
   std::tie(frame_ptr, argument_count, formal_parameter_count) =
       GetArgumentsFrameAndCount(function, mode);
 
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
   Label no_rest_parameters(this), runtime(this, Label::kDeferred),
       done(this, &result);
 
@@ -208,7 +208,7 @@ TF_BUILTIN(FastNewRestParameter, ArgumentsBuiltinsAssembler) {
 
 Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
                                                              Node* function) {
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
   Label done(this, &result), empty(this), runtime(this, Label::kDeferred);
 
   Node* frame_ptr;
@@ -267,7 +267,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   Node* frame_ptr;
   Node* argument_count;
   Node* formal_parameter_count;
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
 
   ParameterMode mode = OptimalParameterMode();
   Node* zero = IntPtrOrSmiConstant(0, mode);
@@ -320,7 +320,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
         ElementOffsetFromIndex(mapped_count, FAST_ELEMENTS, mode,
                                FixedArray::kHeaderSize - kHeapObjectTag);
     CodeStubArguments arguments(this, argument_count, frame_ptr, mode);
-    Variable current_argument(this, MachineType::PointerRepresentation());
+    VARIABLE(current_argument, MachineType::PointerRepresentation());
     current_argument.Bind(arguments.AtIndexPtr(argument_count, mode));
     VariableList var_list1({&current_argument}, zone());
     mapped_offset = BuildFastLoop(
@@ -342,7 +342,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     //       MIN_CONTEXT_SLOTS+argument_count-mapped_count
     // We loop from right to left.
     Comment("Fill in mapped parameters");
-    Variable context_index(this, OptimalParameterRepresentation());
+    VARIABLE(context_index, OptimalParameterRepresentation());
     context_index.Bind(IntPtrOrSmiSub(
         IntPtrOrSmiAdd(IntPtrOrSmiConstant(Context::MIN_CONTEXT_SLOTS, mode),
                        formal_parameter_count, mode),

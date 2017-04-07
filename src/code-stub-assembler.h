@@ -1477,7 +1477,7 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 
 #define BIND(label) Bind(label, {#label, __FILE__, __LINE__})
 #define VARIABLE(name, ...) \
-  Variable name(this, #name, {__FILE__, __LINE__, __VA_ARGS__});
+  Variable name(this, {#name, __FILE__, __LINE__}, __VA_ARGS__);
 
 #else  // DEBUG
 #define CSA_ASSERT(csa, x) ((void)0)

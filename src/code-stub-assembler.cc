@@ -83,7 +83,7 @@ void CodeStubAssembler::Assert(const NodeGenerator& codition_body,
 Node* CodeStubAssembler::Select(Node* condition, const NodeGenerator& true_body,
                                 const NodeGenerator& false_body,
                                 MachineRepresentation rep) {
-  Variable value(this, rep);
+  VARIABLE(value, rep);
   Label vtrue(this), vfalse(this), end(this);
   Branch(condition, &vtrue, &vfalse);
 
@@ -212,7 +212,7 @@ Node* CodeStubAssembler::Float64Round(Node* x) {
   Label return_x(this);
 
   // Round up {x} towards Infinity.
-  Variable var_x(this, MachineRepresentation::kFloat64, Float64Ceil(x));
+  VARIABLE(var_x, MachineRepresentation::kFloat64, Float64Ceil(x));
 
   GotoIf(Float64LessThanOrEqual(Float64Sub(var_x.value(), one_half), x),
          &return_x);
@@ -233,7 +233,7 @@ Node* CodeStubAssembler::Float64Ceil(Node* x) {
   Node* two_52 = Float64Constant(4503599627370496.0E0);
   Node* minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-  Variable var_x(this, MachineRepresentation::kFloat64, x);
+  VARIABLE(var_x, MachineRepresentation::kFloat64, x);
   Label return_x(this), return_minus_x(this);
 
   // Check if {x} is greater than zero.
@@ -285,7 +285,7 @@ Node* CodeStubAssembler::Float64Floor(Node* x) {
   Node* two_52 = Float64Constant(4503599627370496.0E0);
   Node* minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-  Variable var_x(this, MachineRepresentation::kFloat64, x);
+  VARIABLE(var_x, MachineRepresentation::kFloat64, x);
   Label return_x(this), return_minus_x(this);
 
   // Check if {x} is greater than zero.
@@ -335,7 +335,7 @@ Node* CodeStubAssembler::Float64RoundToEven(Node* x) {
   Node* f = Float64Floor(x);
   Node* f_and_half = Float64Add(f, Float64Constant(0.5));
 
-  Variable var_result(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_result, MachineRepresentation::kFloat64);
   Label return_f(this), return_f_plus_one(this), done(this);
 
   GotoIf(Float64LessThan(f_and_half, x), &return_f_plus_one);
@@ -368,7 +368,7 @@ Node* CodeStubAssembler::Float64Trunc(Node* x) {
   Node* two_52 = Float64Constant(4503599627370496.0E0);
   Node* minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-  Variable var_x(this, MachineRepresentation::kFloat64, x);
+  VARIABLE(var_x, MachineRepresentation::kFloat64, x);
   Label return_x(this), return_minus_x(this);
 
   // Check if {x} is greater than 0.
@@ -458,7 +458,7 @@ Node* CodeStubAssembler::SmiMin(Node* a, Node* b) {
 }
 
 Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Label return_result(this, &var_result),
       return_minuszero(this, Label::kDeferred),
       return_nan(this, Label::kDeferred);
@@ -521,9 +521,9 @@ Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
 }
 
 Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
-  Variable var_result(this, MachineRepresentation::kTagged);
-  Variable var_lhs_float64(this, MachineRepresentation::kFloat64),
-      var_rhs_float64(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  VARIABLE(var_lhs_float64, MachineRepresentation::kFloat64);
+  VARIABLE(var_rhs_float64, MachineRepresentation::kFloat64);
   Label return_result(this, &var_result);
 
   // Both {a} and {b} are Smis. Convert them to integers and multiply.
@@ -613,7 +613,7 @@ Node* CodeStubAssembler::WordIsWordAligned(Node* word) {
 void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
     Node* receiver_map, Label* definitely_no_elements,
     Label* possibly_elements) {
-  Variable var_map(this, MachineRepresentation::kTagged, receiver_map);
+  VARIABLE(var_map, MachineRepresentation::kTagged, receiver_map);
   Label loop_body(this, &var_map);
   Node* empty_elements = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
   Goto(&loop_body);
@@ -686,7 +686,7 @@ Node* CodeStubAssembler::AllocateRaw(Node* size_in_bytes, AllocationFlags flags,
   Node* limit = Load(MachineType::Pointer(), limit_address);
 
   // If there's not enough space, call the runtime.
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
   Label runtime_call(this, Label::kDeferred), no_runtime_call(this);
   Label merge_runtime(this, &result);
 
@@ -708,8 +708,7 @@ Node* CodeStubAssembler::AllocateRaw(Node* size_in_bytes, AllocationFlags flags,
     BIND(&next);
   }
 
-  Variable adjusted_size(this, MachineType::PointerRepresentation(),
-                         size_in_bytes);
+  VARIABLE(adjusted_size, MachineType::PointerRepresentation(), size_in_bytes);
 
   if (needs_double_alignment) {
     Label not_aligned(this), done_alignment(this, &adjusted_size);
@@ -752,8 +751,7 @@ Node* CodeStubAssembler::AllocateRaw(Node* size_in_bytes, AllocationFlags flags,
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
                       new_top);
 
-  Variable address(this, MachineType::PointerRepresentation(),
-                   no_runtime_result);
+  VARIABLE(address, MachineType::PointerRepresentation(), no_runtime_result);
 
   if (needs_double_alignment) {
     Label needs_filler(this), done_filling(this, &address);
@@ -1134,8 +1132,8 @@ Node* CodeStubAssembler::LoadMapConstructorFunctionIndex(Node* map) {
 
 Node* CodeStubAssembler::LoadMapConstructor(Node* map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  Variable result(this, MachineRepresentation::kTagged,
-                  LoadObjectField(map, Map::kConstructorOrBackPointerOffset));
+  VARIABLE(result, MachineRepresentation::kTagged,
+           LoadObjectField(map, Map::kConstructorOrBackPointerOffset));
 
   Label done(this), loop(this, &result);
   Goto(&loop);
@@ -1486,12 +1484,11 @@ Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* context,
   Comment("BuildAppendJSArray: %s", ElementsKindToString(kind));
   Label pre_bailout(this);
   Label success(this);
-  Variable var_tagged_length(this, MachineRepresentation::kTagged);
+  VARIABLE(var_tagged_length, MachineRepresentation::kTagged);
   ParameterMode mode = OptimalParameterMode();
-  Variable var_length(this, OptimalParameterRepresentation(),
-                      TaggedToParameter(LoadJSArrayLength(array), mode));
-  Variable var_elements(this, MachineRepresentation::kTagged,
-                        LoadElements(array));
+  VARIABLE(var_length, OptimalParameterRepresentation(),
+           TaggedToParameter(LoadJSArrayLength(array), mode));
+  VARIABLE(var_elements, MachineRepresentation::kTagged, LoadElements(array));
   Node* capacity =
       TaggedToParameter(LoadFixedArrayBaseLength(var_elements.value()), mode);
 
@@ -1594,7 +1591,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
                                                   ParameterMode mode,
                                                   AllocationFlags flags) {
   Comment("AllocateSeqOneByteString");
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Compute the SeqOneByteString size and check if it fits into new space.
   Label if_lengthiszero(this), if_sizeissmall(this),
@@ -1665,7 +1662,7 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length,
                                                   ParameterMode mode,
                                                   AllocationFlags flags) {
   Comment("AllocateSeqTwoByteString");
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Compute the SeqTwoByteString size and check if it fits into new space.
   Label if_lengthiszero(this), if_sizeissmall(this),
@@ -1816,7 +1813,7 @@ Node* CodeStubAssembler::NewConsString(Node* context, Node* length, Node* left,
   STATIC_ASSERT(kOneByteDataHintTag != 0);
   Label one_byte_map(this);
   Label two_byte_map(this);
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
   Label done(this, &result);
   GotoIf(Word32NotEqual(Word32And(anded_instance_types,
                                   Int32Constant(kStringEncodingMask |
@@ -2198,12 +2195,12 @@ void CodeStubAssembler::CopyFixedArrayElements(
 
   Node* limit_offset = ElementOffsetFromIndex(
       IntPtrOrSmiConstant(0, mode), from_kind, mode, first_element_offset);
-  Variable var_from_offset(this, MachineType::PointerRepresentation(),
-                           ElementOffsetFromIndex(element_count, from_kind,
-                                                  mode, first_element_offset));
+  VARIABLE(var_from_offset, MachineType::PointerRepresentation(),
+           ElementOffsetFromIndex(element_count, from_kind, mode,
+                                  first_element_offset));
   // This second variable is used only when the element sizes of source and
   // destination arrays do not match.
-  Variable var_to_offset(this, MachineType::PointerRepresentation());
+  VARIABLE(var_to_offset, MachineType::PointerRepresentation());
   if (element_size_matches) {
     var_to_offset.Bind(var_from_offset.value());
   } else {
@@ -2325,8 +2322,7 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
   int from_increment = 1 << ElementsKindToShiftSize(from_kind);
   int to_increment = 1 << ElementsKindToShiftSize(to_kind);
 
-  Variable current_to_offset(this, MachineType::PointerRepresentation(),
-                             to_offset);
+  VARIABLE(current_to_offset, MachineType::PointerRepresentation(), to_offset);
   VariableList vars({&current_to_offset}, zone());
   int to_index_constant = 0, from_index_constant = 0;
   Smi* to_index_smi = nullptr;
@@ -2470,7 +2466,7 @@ void CodeStubAssembler::InitializeAllocationMemento(Node* base_allocation,
 Node* CodeStubAssembler::TryTaggedToFloat64(Node* value,
                                             Label* if_valueisnotnumber) {
   Label out(this);
-  Variable var_result(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_result, MachineRepresentation::kFloat64);
 
   // Check if the {value} is a Smi or a HeapObject.
   Label if_valueissmi(this), if_valueisnotsmi(this);
@@ -2503,8 +2499,8 @@ Node* CodeStubAssembler::TryTaggedToFloat64(Node* value,
 
 Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
   // We might need to loop once due to ToNumber conversion.
-  Variable var_value(this, MachineRepresentation::kTagged),
-      var_result(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_value, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kFloat64);
   Label loop(this, &var_value), done_loop(this, &var_result);
   var_value.Bind(value);
   Goto(&loop);
@@ -2535,8 +2531,8 @@ Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
 
 Node* CodeStubAssembler::TruncateTaggedToWord32(Node* context, Node* value) {
   // We might need to loop once due to ToNumber conversion.
-  Variable var_value(this, MachineRepresentation::kTagged, value),
-      var_result(this, MachineRepresentation::kWord32);
+  VARIABLE(var_value, MachineRepresentation::kTagged, value);
+  VARIABLE(var_result, MachineRepresentation::kWord32);
   Label loop(this, &var_value), done_loop(this, &var_result);
   Goto(&loop);
   BIND(&loop);
@@ -2605,7 +2601,7 @@ Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value) {
   BIND(&if_valueisnotequal);
   Goto(&if_valueisheapnumber);
 
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   BIND(&if_valueisint32);
   {
     if (Is64()) {
@@ -2641,7 +2637,7 @@ Node* CodeStubAssembler::ChangeInt32ToTagged(Node* value) {
   if (Is64()) {
     return SmiTag(ChangeInt32ToInt64(value));
   }
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Node* pair = Int32AddWithOverflow(value, value);
   Node* overflow = Projection(1, pair);
   Label if_overflow(this, Label::kDeferred), if_notoverflow(this),
@@ -2667,7 +2663,7 @@ Node* CodeStubAssembler::ChangeInt32ToTagged(Node* value) {
 Node* CodeStubAssembler::ChangeUint32ToTagged(Node* value) {
   Label if_overflow(this, Label::kDeferred), if_not_overflow(this),
       if_join(this);
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   // If {value} > 2^31 - 1, we need to store it in a HeapNumber.
   Branch(Uint32LessThan(Int32Constant(Smi::kMaxValue), value), &if_overflow,
          &if_not_overflow);
@@ -2702,7 +2698,7 @@ Node* CodeStubAssembler::ChangeUint32ToTagged(Node* value) {
 
 Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
                                       char const* method_name) {
-  Variable var_value(this, MachineRepresentation::kTagged, value);
+  VARIABLE(var_value, MachineRepresentation::kTagged, value);
 
   // Check if the {value} is a Smi or a HeapObject.
   Label if_valueissmi(this, Label::kDeferred), if_valueisnotsmi(this),
@@ -2761,7 +2757,7 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
 }
 
 Node* CodeStubAssembler::ChangeNumberToFloat64(Node* value) {
-  Variable result(this, MachineRepresentation::kFloat64);
+  VARIABLE(result, MachineRepresentation::kFloat64);
   Label smi(this);
   Label done(this, &result);
   GotoIf(TaggedIsSmi(value), &smi);
@@ -2780,7 +2776,7 @@ Node* CodeStubAssembler::ChangeNumberToFloat64(Node* value) {
 }
 
 Node* CodeStubAssembler::ChangeNumberToIntPtr(Node* value) {
-  Variable result(this, MachineType::PointerRepresentation());
+  VARIABLE(result, MachineType::PointerRepresentation());
   Label smi(this), done(this, &result);
   GotoIf(TaggedIsSmi(value), &smi);
 
@@ -2800,7 +2796,7 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
                                      PrimitiveType primitive_type,
                                      char const* method_name) {
   // We might need to loop once due to JSValue unboxing.
-  Variable var_value(this, MachineRepresentation::kTagged, value);
+  VARIABLE(var_value, MachineRepresentation::kTagged, value);
   Label loop(this, &var_value), done_loop(this),
       done_throw(this, Label::kDeferred);
   Goto(&loop);
@@ -2872,7 +2868,7 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
                                                 InstanceType instance_type,
                                                 char const* method_name) {
   Label out(this), throw_exception(this, Label::kDeferred);
-  Variable var_value_map(this, MachineRepresentation::kTagged);
+  VARIABLE(var_value_map, MachineRepresentation::kTagged);
 
   GotoIf(TaggedIsSmi(value), &throw_exception);
 
@@ -3116,7 +3112,7 @@ Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,
   // Translate the {index} into a Word.
   Node* const int_index = ParameterToWord(index, parameter_mode);
 
-  Variable var_result(this, MachineRepresentation::kWord32);
+  VARIABLE(var_result, MachineRepresentation::kWord32);
 
   Label out(this, &var_result), runtime_generic(this), runtime_external(this);
 
@@ -3168,7 +3164,7 @@ Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,
 }
 
 Node* CodeStubAssembler::StringFromCharCode(Node* code) {
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Check if the {code} is a one-byte char code.
   Label if_codeisonebyte(this), if_codeistwobyte(this, Label::kDeferred),
@@ -3282,7 +3278,7 @@ Node* AllocAndCopyStringCharacters(CodeStubAssembler* a, Node* context,
 
 Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
                                    Node* to) {
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   ToDirectStringAssembler to_direct(state(), string);
   Label end(this), runtime(this);
 
@@ -3523,7 +3519,7 @@ Node* ToDirectStringAssembler::TryToSequential(StringPointerKind ptr_kind,
                                                Label* if_bailout) {
   CHECK(ptr_kind == PTR_TO_DATA || ptr_kind == PTR_TO_STRING);
 
-  Variable var_result(this, MachineType::PointerRepresentation());
+  VARIABLE(var_result, MachineType::PointerRepresentation());
   Label out(this), if_issequential(this), if_isexternal(this, Label::kDeferred);
   Branch(is_external(), &if_isexternal, &if_issequential);
 
@@ -3608,8 +3604,8 @@ void CodeStubAssembler::MaybeDerefIndirectStrings(Variable* var_left,
                                                   Variable* var_right,
                                                   Node* right_instance_type,
                                                   Label* did_something) {
-  Variable var_did_something(this, MachineType::PointerRepresentation(),
-                             IntPtrConstant(0));
+  VARIABLE(var_did_something, MachineType::PointerRepresentation(),
+           IntPtrConstant(0));
   MaybeDerefIndirectString(var_left, left_instance_type, &var_did_something);
   MaybeDerefIndirectString(var_right, right_instance_type, &var_did_something);
 
@@ -3620,12 +3616,9 @@ void CodeStubAssembler::MaybeDerefIndirectStrings(Variable* var_left,
 
 Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
                                    AllocationFlags flags) {
-  Label check_right(this);
-  Label runtime(this, Label::kDeferred);
-  Label cons(this);
-  Variable result(this, MachineRepresentation::kTagged);
-  Label done(this, &result);
-  Label done_native(this, &result);
+  VARIABLE(result, MachineRepresentation::kTagged);
+  Label check_right(this), runtime(this, Label::kDeferred), cons(this),
+      done(this, &result), done_native(this, &result);
   Counters* counters = isolate()->counters();
 
   Node* left_length = LoadStringLength(left);
@@ -3647,8 +3640,8 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
     GotoIf(SmiAboveOrEqual(new_length, SmiConstant(String::kMaxLength)),
            &runtime);
 
-    Variable var_left(this, MachineRepresentation::kTagged, left);
-    Variable var_right(this, MachineRepresentation::kTagged, right);
+    VARIABLE(var_left, MachineRepresentation::kTagged, left);
+    VARIABLE(var_right, MachineRepresentation::kTagged, right);
     Variable* input_vars[2] = {&var_left, &var_right};
     Label non_cons(this, 2, input_vars);
     Label slow(this, Label::kDeferred);
@@ -3742,8 +3735,7 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
 
 Node* CodeStubAssembler::StringFromCodePoint(Node* codepoint,
                                              UnicodeEncoding encoding) {
-  Variable var_result(this, MachineRepresentation::kTagged,
-                      EmptyStringConstant());
+  VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
 
   Label if_isword16(this), if_isword32(this), return_result(this);
 
@@ -3796,7 +3788,7 @@ Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
   Label runtime(this, Label::kDeferred);
   Label end(this);
 
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Check if string has a cached array index.
   Node* hash = LoadNameHashField(input);
@@ -3819,10 +3811,8 @@ Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
 }
 
 Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
-  Variable result(this, MachineRepresentation::kTagged);
-  Label runtime(this, Label::kDeferred);
-  Label smi(this);
-  Label done(this, &result);
+  VARIABLE(result, MachineRepresentation::kTagged);
+  Label runtime(this, Label::kDeferred), smi(this), done(this, &result);
 
   // Load the number string cache.
   Node* number_string_cache = LoadRoot(Heap::kNumberStringCacheRootIndex);
@@ -3899,7 +3889,7 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
 
 Node* CodeStubAssembler::ToName(Node* context, Node* value) {
   Label end(this);
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
 
   Label is_number(this);
   GotoIf(TaggedIsSmi(value), &is_number);
@@ -3949,8 +3939,8 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
   CSA_ASSERT(this, Word32BinaryNot(IsHeapNumberMap(LoadMap(input))));
 
   // We might need to loop once here due to ToPrimitive conversions.
-  Variable var_input(this, MachineRepresentation::kTagged, input);
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_input, MachineRepresentation::kTagged, input);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Label loop(this, &var_input);
   Label end(this);
   Goto(&loop);
@@ -4032,7 +4022,7 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
 }
 
 Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Label end(this);
 
   Label not_smi(this, Label::kDeferred);
@@ -4066,7 +4056,7 @@ Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
 
   Label out(this);
 
-  Variable var_result(this, MachineRepresentation::kTagged, input);
+  VARIABLE(var_result, MachineRepresentation::kTagged, input);
 
   // Early exit for positive smis.
   {
@@ -4164,7 +4154,7 @@ Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
 Node* CodeStubAssembler::ToString(Node* context, Node* input) {
   Label is_number(this);
   Label runtime(this, Label::kDeferred);
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
   Label done(this, &result);
 
   GotoIf(TaggedIsSmi(input), &is_number);
@@ -4202,7 +4192,7 @@ Node* CodeStubAssembler::ToString(Node* context, Node* input) {
 
 Node* CodeStubAssembler::JSReceiverToPrimitive(Node* context, Node* input) {
   Label if_isreceiver(this, Label::kDeferred), if_isnotreceiver(this);
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
   Label done(this, &result);
 
   BranchIfJSReceiver(input, &if_isreceiver, &if_isnotreceiver);
@@ -4227,7 +4217,7 @@ Node* CodeStubAssembler::JSReceiverToPrimitive(Node* context, Node* input) {
 
 Node* CodeStubAssembler::ToSmiIndex(Node* const input, Node* const context,
                                     Label* range_error) {
-  Variable result(this, MachineRepresentation::kTagged, input);
+  VARIABLE(result, MachineRepresentation::kTagged, input);
   Label check_undefined(this), return_zero(this), defined(this),
       negative_check(this), done(this);
   Branch(TaggedIsSmi(result.value()), &negative_check, &check_undefined);
@@ -4255,7 +4245,7 @@ Node* CodeStubAssembler::ToSmiIndex(Node* const input, Node* const context,
 
 Node* CodeStubAssembler::ToSmiLength(Node* input, Node* const context,
                                      Label* range_error) {
-  Variable result(this, MachineRepresentation::kTagged, input);
+  VARIABLE(result, MachineRepresentation::kTagged, input);
   Label to_integer(this), negative_check(this), return_zero(this), done(this);
   Branch(TaggedIsSmi(result.value()), &negative_check, &to_integer);
 
@@ -4280,7 +4270,7 @@ Node* CodeStubAssembler::ToSmiLength(Node* input, Node* const context,
 Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
                                    ToIntegerTruncationMode mode) {
   // We might need to loop once for ToNumber conversion.
-  Variable var_arg(this, MachineRepresentation::kTagged, input);
+  VARIABLE(var_arg, MachineRepresentation::kTagged, input);
   Label loop(this, &var_arg), out(this);
   Goto(&loop);
   BIND(&loop);
@@ -4547,8 +4537,8 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
   Node* undefined = UndefinedConstant();
   Node* the_hole = mode == kFindExisting ? nullptr : TheHoleConstant();
 
-  Variable var_count(this, MachineType::PointerRepresentation(), count);
-  Variable var_entry(this, MachineType::PointerRepresentation(), entry);
+  VARIABLE(var_count, MachineType::PointerRepresentation(), count);
+  VARIABLE(var_entry, MachineType::PointerRepresentation(), entry);
   Variable* loop_vars[] = {&var_count, &var_entry, var_name_index};
   Label loop(this, 3, loop_vars);
   Goto(&loop);
@@ -4626,7 +4616,7 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
   Node* undefined = UndefinedConstant();
   Node* the_hole = TheHoleConstant();
 
-  Variable var_count(this, MachineType::PointerRepresentation(), count);
+  VARIABLE(var_count, MachineType::PointerRepresentation(), count);
   Variable* loop_vars[] = {&var_count, var_entry};
   Label loop(this, 2, loop_vars);
   var_entry->Bind(entry);
@@ -4703,8 +4693,8 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
   enum_index =
       SmiShl(enum_index, PropertyDetails::DictionaryStorageField::kShift);
   STATIC_ASSERT(kInitialIndex == 0);
-  Variable var_details(this, MachineRepresentation::kTaggedSigned,
-                       SmiOr(SmiConstant(d.AsSmi()), enum_index));
+  VARIABLE(var_details, MachineRepresentation::kTaggedSigned,
+           SmiOr(SmiConstant(d.AsSmi()), enum_index));
 
   // Private names must be marked non-enumerable.
   Label not_private(this, &var_details);
@@ -4764,7 +4754,7 @@ void CodeStubAssembler::Add(Node* dictionary, Node* key, Node* value,
   }
   SetNumberOfElements<Dictionary>(dictionary, new_nof);
 
-  Variable var_key_index(this, MachineType::PointerRepresentation());
+  VARIABLE(var_key_index, MachineType::PointerRepresentation());
   FindInsertionEntry<Dictionary>(dictionary, key, &var_key_index);
   InsertEntry<Dictionary>(dictionary, key, value, var_key_index.value(),
                           enum_index);
@@ -4839,10 +4829,10 @@ void CodeStubAssembler::DescriptorLookupBinary(Node* unique_name,
                                                Variable* var_name_index,
                                                Label* if_not_found) {
   Comment("DescriptorLookupBinary");
-  Variable var_low(this, MachineRepresentation::kWord32, Int32Constant(0));
+  VARIABLE(var_low, MachineRepresentation::kWord32, Int32Constant(0));
   Node* limit =
       Int32Sub(DescriptorArrayNumberOfEntries(descriptors), Int32Constant(1));
-  Variable var_high(this, MachineRepresentation::kWord32, limit);
+  VARIABLE(var_high, MachineRepresentation::kWord32, limit);
   Node* hash = LoadNameHashField(unique_name);
   CSA_ASSERT(this, Word32NotEqual(hash, Int32Constant(0)));
 
@@ -4992,8 +4982,8 @@ void CodeStubAssembler::TryHasOwnProperty(Node* object, Node* map,
                                           Label* if_not_found,
                                           Label* if_bailout) {
   Comment("TryHasOwnProperty");
-  Variable var_meta_storage(this, MachineRepresentation::kTagged);
-  Variable var_name_index(this, MachineType::PointerRepresentation());
+  VARIABLE(var_meta_storage, MachineRepresentation::kTagged);
+  VARIABLE(var_name_index, MachineType::PointerRepresentation());
 
   Label if_found_global(this);
   TryLookupProperty(object, map, instance_type, unique_name, if_found, if_found,
@@ -5001,8 +4991,8 @@ void CodeStubAssembler::TryHasOwnProperty(Node* object, Node* map,
                     if_not_found, if_bailout);
   BIND(&if_found_global);
   {
-    Variable var_value(this, MachineRepresentation::kTagged);
-    Variable var_details(this, MachineRepresentation::kWord32);
+    VARIABLE(var_value, MachineRepresentation::kTagged);
+    VARIABLE(var_details, MachineRepresentation::kWord32);
     // Check if the property cell is not deleted.
     LoadPropertyFromGlobalDictionary(var_meta_storage.value(),
                                      var_name_index.value(), &var_value,
@@ -5039,7 +5029,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
     Node* inobject_properties = LoadMapInobjectProperties(map);
 
     Label if_inobject(this), if_backing_store(this);
-    Variable var_double_value(this, MachineRepresentation::kFloat64);
+    VARIABLE(var_double_value, MachineRepresentation::kFloat64);
     Label rebox_double(this, &var_double_value);
     Branch(UintPtrLessThan(field_index, inobject_properties), &if_inobject,
            &if_backing_store);
@@ -5156,7 +5146,7 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
 Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
                                               Node* context, Node* receiver,
                                               Label* if_bailout) {
-  Variable var_value(this, MachineRepresentation::kTagged, value);
+  VARIABLE(var_value, MachineRepresentation::kTagged, value);
   Label done(this);
 
   Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
@@ -5199,12 +5189,12 @@ void CodeStubAssembler::TryGetOwnProperty(
   DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
   Comment("TryGetOwnProperty");
 
-  Variable var_meta_storage(this, MachineRepresentation::kTagged);
-  Variable var_entry(this, MachineType::PointerRepresentation());
+  VARIABLE(var_meta_storage, MachineRepresentation::kTagged);
+  VARIABLE(var_entry, MachineType::PointerRepresentation());
 
   Label if_found_fast(this), if_found_dict(this), if_found_global(this);
 
-  Variable var_details(this, MachineRepresentation::kWord32);
+  VARIABLE(var_details, MachineRepresentation::kWord32);
   Variable* vars[] = {var_value, &var_details};
   Label if_found(this, 2, vars);
 
@@ -5338,7 +5328,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
     // Negative keys must be converted to property names.
     GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), if_bailout);
 
-    Variable var_entry(this, MachineType::PointerRepresentation());
+    VARIABLE(var_entry, MachineType::PointerRepresentation());
     Node* elements = LoadElements(object);
     NumberDictionaryLookup<SeededNumberDictionary>(
         elements, intptr_index, if_found, &var_entry, if_not_found);
@@ -5406,8 +5396,8 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     BIND(&if_objectisreceiver);
   }
 
-  Variable var_index(this, MachineType::PointerRepresentation());
-  Variable var_unique(this, MachineRepresentation::kTagged);
+  VARIABLE(var_index, MachineType::PointerRepresentation());
+  VARIABLE(var_unique, MachineRepresentation::kTagged);
 
   Label if_keyisindex(this), if_iskeyunique(this);
   TryToName(key, &if_keyisindex, &var_index, &if_iskeyunique, &var_unique,
@@ -5415,10 +5405,10 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
   BIND(&if_iskeyunique);
   {
-    Variable var_holder(this, MachineRepresentation::kTagged, receiver);
-    Variable var_holder_map(this, MachineRepresentation::kTagged, map);
-    Variable var_holder_instance_type(this, MachineRepresentation::kWord32,
-                                      instance_type);
+    VARIABLE(var_holder, MachineRepresentation::kTagged, receiver);
+    VARIABLE(var_holder_map, MachineRepresentation::kTagged, map);
+    VARIABLE(var_holder_instance_type, MachineRepresentation::kWord32,
+             instance_type);
 
     Variable* merged_variables[] = {&var_holder, &var_holder_map,
                                     &var_holder_instance_type};
@@ -5457,10 +5447,10 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   }
   BIND(&if_keyisindex);
   {
-    Variable var_holder(this, MachineRepresentation::kTagged, receiver);
-    Variable var_holder_map(this, MachineRepresentation::kTagged, map);
-    Variable var_holder_instance_type(this, MachineRepresentation::kWord32,
-                                      instance_type);
+    VARIABLE(var_holder, MachineRepresentation::kTagged, receiver);
+    VARIABLE(var_holder_map, MachineRepresentation::kTagged, map);
+    VARIABLE(var_holder_instance_type, MachineRepresentation::kWord32,
+             instance_type);
 
     Variable* merged_variables[] = {&var_holder, &var_holder_map,
                                     &var_holder_instance_type};
@@ -5494,7 +5484,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
 Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
                                              Node* object) {
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Label return_false(this), return_true(this),
       return_runtime(this, Label::kDeferred), return_result(this);
 
@@ -5548,8 +5538,8 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
       LoadObjectField(callable, JSFunction::kPrototypeOrInitialMapOffset);
   {
     Label callable_prototype_valid(this);
-    Variable var_callable_prototype(this, MachineRepresentation::kTagged,
-                                    callable_prototype);
+    VARIABLE(var_callable_prototype, MachineRepresentation::kTagged,
+             callable_prototype);
 
     // Resolve the "prototype" if the {callable} has an initial map.  Afterwards
     // the {callable_prototype} will be either the JSReceiver prototype object
@@ -5573,7 +5563,7 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   StoreRoot(Heap::kInstanceofCacheMapRootIndex, object_map);
 
   // Loop through the prototype chain looking for the {callable} prototype.
-  Variable var_object_map(this, MachineRepresentation::kTagged, object_map);
+  VARIABLE(var_object_map, MachineRepresentation::kTagged, object_map);
   Label loop(this, &var_object_map);
   Goto(&loop);
   BIND(&loop);
@@ -5685,7 +5675,7 @@ Node* CodeStubAssembler::LoadReceiverMap(Node* receiver) {
 }
 
 Node* CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
-  Variable var_intptr_key(this, MachineType::PointerRepresentation());
+  VARIABLE(var_intptr_key, MachineType::PointerRepresentation());
   Label done(this, &var_intptr_key), key_is_smi(this);
   GotoIf(TaggedIsSmi(key), &key_is_smi);
   // Try to convert a heap number to a Smi.
@@ -5745,7 +5735,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
   Node* elements = LoadElements(receiver);
   Node* elements_length = LoadAndUntagFixedArrayBaseLength(elements);
 
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   if (!is_load) {
     var_result.Bind(value);
   }
@@ -5871,7 +5861,7 @@ Node* CodeStubAssembler::Int32ToUint8Clamped(Node* int32_value) {
   Label done(this);
   Node* int32_zero = Int32Constant(0);
   Node* int32_255 = Int32Constant(255);
-  Variable var_value(this, MachineRepresentation::kWord32, int32_value);
+  VARIABLE(var_value, MachineRepresentation::kWord32, int32_value);
   GotoIf(Uint32LessThanOrEqual(int32_value, int32_255), &done);
   var_value.Bind(int32_zero);
   GotoIf(Int32LessThan(int32_value, int32_zero), &done);
@@ -5883,7 +5873,7 @@ Node* CodeStubAssembler::Int32ToUint8Clamped(Node* int32_value) {
 
 Node* CodeStubAssembler::Float64ToUint8Clamped(Node* float64_value) {
   Label done(this);
-  Variable var_value(this, MachineRepresentation::kWord32, Int32Constant(0));
+  VARIABLE(var_value, MachineRepresentation::kWord32, Int32Constant(0));
   GotoIf(Float64LessThanOrEqual(float64_value, Float64Constant(0.0)), &done);
   var_value.Bind(Int32Constant(255));
   GotoIf(Float64LessThanOrEqual(Float64Constant(255.0), float64_value), &done);
@@ -5922,7 +5912,7 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
       return nullptr;
   }
 
-  Variable var_result(this, rep);
+  VARIABLE(var_result, rep);
   Label done(this, &var_result), if_smi(this);
   GotoIf(TaggedIsSmi(input), &if_smi);
   // Try to convert a heap number to a Smi.
@@ -6061,7 +6051,7 @@ Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
                                               Node* key, ParameterMode mode,
                                               bool is_js_array,
                                               Label* bailout) {
-  Variable checked_elements(this, MachineRepresentation::kTagged);
+  VARIABLE(checked_elements, MachineRepresentation::kTagged);
   Label grow_case(this), no_grow_case(this), done(this);
 
   Node* condition;
@@ -6113,7 +6103,7 @@ Node* CodeStubAssembler::CopyElementsOnWrite(Node* object, Node* elements,
                                              ElementsKind kind, Node* length,
                                              ParameterMode mode,
                                              Label* bailout) {
-  Variable new_elements_var(this, MachineRepresentation::kTagged, elements);
+  VARIABLE(new_elements_var, MachineRepresentation::kTagged, elements);
   Label done(this);
 
   GotoIfNot(
@@ -6305,7 +6295,7 @@ Node* CodeStubAssembler::BuildFastLoop(
   MachineRepresentation index_rep = (parameter_mode == INTPTR_PARAMETERS)
                                         ? MachineType::PointerRepresentation()
                                         : MachineRepresentation::kTaggedSigned;
-  Variable var(this, index_rep, start_index);
+  VARIABLE(var, index_rep, start_index);
   VariableList vars_copy(vars, zone());
   vars_copy.Add(&var, zone());
   Label loop(this, vars_copy);
@@ -6415,12 +6405,12 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
     RelationalComparisonMode mode, Node* lhs, Node* rhs, Label* if_true,
     Label* if_false) {
   Label end(this);
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
 
   // Shared entry for floating point comparison.
   Label do_fcmp(this);
-  Variable var_fcmp_lhs(this, MachineRepresentation::kFloat64),
-      var_fcmp_rhs(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_fcmp_lhs, MachineRepresentation::kFloat64);
+  VARIABLE(var_fcmp_rhs, MachineRepresentation::kFloat64);
 
   // Check if the {lhs} is a Smi or a HeapObject.
   Label if_lhsissmi(this), if_lhsisnotsmi(this);
@@ -6526,17 +6516,17 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
                                               Node* lhs, Node* rhs,
                                               Node* context) {
   Label return_true(this), return_false(this), end(this);
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
 
   // Shared entry for floating point comparison.
   Label do_fcmp(this);
-  Variable var_fcmp_lhs(this, MachineRepresentation::kFloat64),
-      var_fcmp_rhs(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_fcmp_lhs, MachineRepresentation::kFloat64);
+  VARIABLE(var_fcmp_rhs, MachineRepresentation::kFloat64);
 
   // We might need to loop several times due to ToPrimitive and/or ToNumber
   // conversions.
-  Variable var_lhs(this, MachineRepresentation::kTagged, lhs),
-      var_rhs(this, MachineRepresentation::kTagged, rhs);
+  VARIABLE(var_lhs, MachineRepresentation::kTagged, lhs);
+  VARIABLE(var_rhs, MachineRepresentation::kTagged, rhs);
   Variable* loop_vars[2] = {&var_lhs, &var_rhs};
   Label loop(this, 2, loop_vars);
   Goto(&loop);
@@ -6889,17 +6879,17 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
 
   Label if_equal(this), if_notequal(this),
       do_rhsstringtonumber(this, Label::kDeferred), end(this);
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
 
   // Shared entry for floating point comparison.
   Label do_fcmp(this);
-  Variable var_fcmp_lhs(this, MachineRepresentation::kFloat64),
-      var_fcmp_rhs(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_fcmp_lhs, MachineRepresentation::kFloat64);
+  VARIABLE(var_fcmp_rhs, MachineRepresentation::kFloat64);
 
   // We might need to loop several times due to ToPrimitive and/or ToNumber
   // conversions.
-  Variable var_lhs(this, MachineRepresentation::kTagged, lhs),
-      var_rhs(this, MachineRepresentation::kTagged, rhs);
+  VARIABLE(var_lhs, MachineRepresentation::kTagged, lhs);
+  VARIABLE(var_rhs, MachineRepresentation::kTagged, rhs);
   Variable* loop_vars[2] = {&var_lhs, &var_rhs};
   Label loop(this, 2, loop_vars);
   Goto(&loop);
@@ -7376,7 +7366,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs) {
   // }
 
   Label if_equal(this), if_notequal(this), end(this);
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
 
   // Check if {lhs} and {rhs} refer to the same object.
   Label if_same(this), if_notsame(this);
@@ -7552,7 +7542,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs) {
 // This algorithm differs from the Strict Equality Comparison Algorithm in its
 // treatment of signed zeroes and NaNs.
 Node* CodeStubAssembler::SameValue(Node* lhs, Node* rhs) {
-  Variable var_result(this, MachineRepresentation::kWord32);
+  VARIABLE(var_result, MachineRepresentation::kWord32);
   Label strict_equal(this), out(this);
 
   Node* const int_false = Int32Constant(0);
@@ -7662,7 +7652,7 @@ Node* CodeStubAssembler::HasProperty(
                           lookup_element_in_holder, &return_false,
                           &call_runtime);
 
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
   BIND(&return_true);
   {
     result.Bind(BooleanConstant(true));
@@ -7687,7 +7677,7 @@ Node* CodeStubAssembler::HasProperty(
 }
 
 Node* CodeStubAssembler::ClassOf(Node* value) {
-  Variable var_result(this, MachineRepresentation::kTaggedPointer);
+  VARIABLE(var_result, MachineRepresentation::kTaggedPointer);
   Label if_function_template_info(this, Label::kDeferred),
       if_no_class_name(this, Label::kDeferred),
       if_function(this, Label::kDeferred), if_object(this, Label::kDeferred),
@@ -7754,7 +7744,7 @@ Node* CodeStubAssembler::ClassOf(Node* value) {
 }
 
 Node* CodeStubAssembler::Typeof(Node* value) {
-  Variable result_var(this, MachineRepresentation::kTagged);
+  VARIABLE(result_var, MachineRepresentation::kTagged);
 
   Label return_number(this, Label::kDeferred), if_oddball(this),
       return_function(this), return_undefined(this), return_object(this),
@@ -7835,7 +7825,7 @@ Node* CodeStubAssembler::GetSuperConstructor(Node* active_function,
   CSA_ASSERT(this, IsJSFunction(active_function));
 
   Label is_not_constructor(this, Label::kDeferred), out(this);
-  Variable result(this, MachineRepresentation::kTagged);
+  VARIABLE(result, MachineRepresentation::kTagged);
 
   Node* map = LoadMap(active_function);
   Node* prototype = LoadMapPrototype(map);
@@ -7858,7 +7848,7 @@ Node* CodeStubAssembler::GetSuperConstructor(Node* active_function,
 
 Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
                                     Node* context) {
-  Variable var_result(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
   Label if_notcallable(this, Label::kDeferred),
       if_notreceiver(this, Label::kDeferred), if_otherhandler(this),
       if_nohandler(this, Label::kDeferred), return_true(this),
@@ -7941,8 +7931,8 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
 }
 
 Node* CodeStubAssembler::NumberInc(Node* value) {
-  Variable var_result(this, MachineRepresentation::kTagged),
-      var_finc_value(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  VARIABLE(var_finc_value, MachineRepresentation::kFloat64);
   Label if_issmi(this), if_isnotsmi(this), do_finc(this), end(this);
   Branch(TaggedIsSmi(value), &if_issmi, &if_isnotsmi);
 
@@ -7993,8 +7983,8 @@ Node* CodeStubAssembler::NumberInc(Node* value) {
 }
 
 Node* CodeStubAssembler::NumberDec(Node* value) {
-  Variable var_result(this, MachineRepresentation::kTagged),
-      var_fdec_value(this, MachineRepresentation::kFloat64);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  VARIABLE(var_fdec_value, MachineRepresentation::kFloat64);
   Label if_issmi(this), if_isnotsmi(this), do_fdec(this), end(this);
   Branch(TaggedIsSmi(value), &if_issmi, &if_isnotsmi);
 
@@ -8095,9 +8085,9 @@ Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
   // Assert: Type(array) is Object
   CSA_ASSERT(this, IsJSReceiverInstanceType(array_type));
 
-  Variable var_result(this, MachineRepresentation::kTagged);
-  Variable var_map_index(this, MachineType::PointerRepresentation());
-  Variable var_array_map(this, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  VARIABLE(var_map_index, MachineType::PointerRepresentation());
+  VARIABLE(var_array_map, MachineRepresentation::kTagged);
 
   Label return_result(this);
   Label allocate_iterator(this);
