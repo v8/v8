@@ -700,10 +700,6 @@ void RegExpParser::ScanForCaptures() {
           if (current() != '<') break;
 
           if (FLAG_harmony_regexp_lookbehind) {
-            // TODO(jgruber): To be more future-proof we could test for
-            // IdentifierStart here once it becomes clear whether group names
-            // allow unicode escapes.
-            // https://github.com/tc39/proposal-regexp-named-groups/issues/23
             Advance();
             if (current() == '=' || current() == '!') break;
           }
@@ -783,8 +779,6 @@ const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
 
     // Convert unicode escapes.
     if (c == '\\' && current() == 'u') {
-      // TODO(jgruber): Reconsider this once the spec has settled.
-      // https://github.com/tc39/proposal-regexp-named-groups/issues/23
       Advance(scan_mode);
       if (!ParseUnicodeEscape(&c)) {
         ReportError(CStrVector("Invalid Unicode escape sequence"));

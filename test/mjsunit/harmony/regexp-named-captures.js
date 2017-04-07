@@ -187,6 +187,31 @@ assertThrows("/\\1(?<=a)./u", SyntaxError);
 assertThrows("/\\1(?<!a)./u", SyntaxError);
 assertEquals(["a", "a"], /\1(?<a>.)/u.exec("abcd"));
 
+// Unicode escapes in capture names.
+assertTrue(/(?<a\uD801\uDCA4>.)/u.test("a"));  // \u Lead \u Trail
+assertThrows("/(?<a\\uD801>.)/u", SyntaxError);  // \u Lead
+assertThrows("/(?<a\\uDCA4>.)/u", SyntaxError);  // \u Trail
+assertTrue(/(?<\u0041>.)/u.test("a"));  // \u NonSurrogate
+assertTrue(/(?<\u{0041}>.)/u.test("a"));  // \u{ Non-surrogate }
+assertTrue(/(?<a\u{104A4}>.)/u.test("a"));  // \u{ Surrogate, ID_Continue }
+assertThrows("/(?<a\\u{110000}>.)/u", SyntaxError);  // \u{ Out-of-bounds }
+assertThrows("/(?<a\uD801>.)/u", SyntaxError);  // Lead
+assertThrows("/(?<a\uDCA4>.)/u", SyntaxError);  // Trail
+assertTrue(RegExp("(?<\u{0041}>.)", "u").test("a"));  // Non-surrogate
+assertTrue(RegExp("(?<a\u{104A4}>.)", "u").test("a"));  // Surrogate,ID_Continue
+
+assertThrows("/(?<a\\uD801\uDCA4>.)/", SyntaxError);
+assertThrows("/(?<a\\uD801>.)/", SyntaxError);
+assertThrows("/(?<a\\uDCA4>.)/", SyntaxError);
+assertTrue(/(?<\u0041>.)/.test("a"));
+assertThrows("/(?<\\u{0041}>.)/", SyntaxError);
+assertThrows("/(?<a\\u{104A4}>.)/", SyntaxError);
+assertThrows("/(?<a\\u{10FFFF}>.)/", SyntaxError);
+assertThrows("/(?<a\uD801>.)/", SyntaxError);  // Lead
+assertThrows("/(?<a\uDCA4>.)/", SyntaxError);  // Trail
+assertTrue(RegExp("(?<\u{0041}>.)").test("a"));  // Non-surrogate
+assertTrue(RegExp("(?<a\u{104A4}>.)").test("a"));  // Surrogate, ID_Continue
+
 // @@replace with a callable replacement argument (no named captures).
 {
   let result = "abcd".replace(/(.)(.)/u, (match, fst, snd, offset, str) => {
