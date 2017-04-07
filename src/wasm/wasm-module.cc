@@ -396,19 +396,18 @@ class CompilationHelper {
   void FinishCompilationUnits(std::vector<Handle<Code>>& results,
                               ErrorThrower* thrower) {
     while (true) {
-      int func_index = 0;
-      MaybeHandle<Code> result = FinishCompilationUnit(thrower, &func_index);
-      if (result.is_null()) break;
-      results[func_index] = result.ToHandleChecked();
+      int func_index = -1;
+      Handle<Code> result = FinishCompilationUnit(thrower, &func_index);
+      if (func_index < 0) break;
+      results[func_index] = result;
     }
   }
 
-  MaybeHandle<Code> FinishCompilationUnit(ErrorThrower* thrower,
-                                          int* func_index) {
+  Handle<Code> FinishCompilationUnit(ErrorThrower* thrower, int* func_index) {
     compiler::WasmCompilationUnit* unit = nullptr;
     {
       base::LockGuard<base::Mutex> guard(&result_mutex_);
-      if (executed_units_.empty()) return {};
+      if (executed_units_.empty()) return Handle<Code>::null();
       unit = executed_units_.front();
       executed_units_.pop();
     }
@@ -2892,16 +2891,15 @@ class AsyncCompileJob {
     HandleScope scope(isolate_);
     if (failed_) return true;  // already failed
 
-    int func_index = 0;
+    int func_index = -1;
     ErrorThrower thrower(isolate_, nullptr);
-    MaybeHandle<Code> result =
-        helper_->FinishCompilationUnit(&thrower, &func_index);
+    Handle<Code> result = helper_->FinishCompilationUnit(&thrower, &func_index);
     if (thrower.error()) {
       RejectPromise(isolate_, context_, &thrower, module_promise_);
       failed_ = true;
     } else {
-      code_table_->set(func_index + module_->num_imported_functions,
-                       *(result.ToHandleChecked()));
+      DCHECK(func_index >= 0);
+      code_table_->set(func_index + module_->num_imported_functions, *(result));
     }
     if (failed_ || --outstanding_units_ == 0) {
       // All compilation units are done. We still need to wait for the
