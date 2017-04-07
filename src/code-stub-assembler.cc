@@ -4097,6 +4097,7 @@ Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
   return var_result.value();
 }
 
+// ES#sec-touint32
 Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
   Node* const float_zero = Float64Constant(0.0);
   Node* const float_two_32 = Float64Constant(static_cast<double>(1ULL << 32));
@@ -4174,10 +4175,12 @@ Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
       BIND(&next);
     }
 
-    // Return floor({input}) mod 2^32 (assuming mod semantics that always return
-    // positive results).
+    // * Let int be the mathematical value that is the same sign as number and
+    //   whose magnitude is floor(abs(number)).
+    // * Let int32bit be int modulo 2^32.
+    // * Return int32bit.
     {
-      Node* x = Float64Floor(value);
+      Node* x = Float64Trunc(value);
       x = Float64Mod(x, float_two_32);
       x = Float64Add(x, float_two_32);
       x = Float64Mod(x, float_two_32);

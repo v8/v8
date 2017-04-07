@@ -74,6 +74,15 @@ MaybeHandle<Object> FunctionTester::Call(Handle<Object> a, Handle<Object> b,
   return Execution::Call(isolate, function, undefined(), 4, args);
 }
 
+void FunctionTester::CheckThrows(Handle<Object> a) {
+  TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+  MaybeHandle<Object> no_result = Call(a);
+  CHECK(isolate->has_pending_exception());
+  CHECK(try_catch.HasCaught());
+  CHECK(no_result.is_null());
+  isolate->OptionalRescheduleException(true);
+}
+
 void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   MaybeHandle<Object> no_result = Call(a, b);

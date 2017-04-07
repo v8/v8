@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cmath>
+
 #include "src/api.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise-gen.h"
@@ -23,6 +25,109 @@ using compiler::Node;
 using compiler::CodeAssemblerLabel;
 using compiler::CodeAssemblerVariable;
 using compiler::CodeAssemblerVariableList;
+
+namespace {
+
+void CheckToUint32Result(uint32_t expected, Handle<Object> result) {
+  const int64_t result_int64 = NumberToInt64(*result);
+  const uint32_t result_uint32 = NumberToUint32(*result);
+
+  CHECK_EQ(static_cast<int64_t>(result_uint32), result_int64);
+  CHECK_EQ(expected, result_uint32);
+
+  // Ensure that the result is normalized to a Smi, i.e. a HeapNumber is only
+  // returned if the result is not within Smi range.
+  const bool expected_fits_into_intptr =
+      static_cast<int64_t>(expected) <=
+      static_cast<int64_t>(std::numeric_limits<intptr_t>::max());
+  if (expected_fits_into_intptr &&
+      Smi::IsValid(static_cast<intptr_t>(expected))) {
+    CHECK(result->IsSmi());
+  } else {
+    CHECK(result->IsHeapNumber());
+  }
+}
+
+}  // namespace
+
+TEST(ToUint32) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  const int kContextOffset = 2;
+  Node* const context = m.Parameter(kNumParams + kContextOffset);
+  Node* const input = m.Parameter(0);
+  m.Return(m.ToUint32(context, input));
+
+  Handle<Code> code = data.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  // clang-format off
+  double inputs[] = {
+     std::nan("-1"), std::nan("1"), std::nan("2"),
+    -std::numeric_limits<double>::infinity(),
+     std::numeric_limits<double>::infinity(),
+    -0.0, -0.001, -0.5, -0.999, -1.0,
+     0.0,  0.001,  0.5,  0.999,  1.0,
+    -2147483647.9, -2147483648.0, -2147483648.5, -2147483648.9,  // SmiMin.
+     2147483646.9,  2147483647.0,  2147483647.5,  2147483647.9,  // SmiMax.
+    -4294967295.9, -4294967296.0, -4294967296.5, -4294967297.0,  // - 2^32.
+     4294967295.9,  4294967296.0,  4294967296.5,  4294967297.0,  //   2^32.
+  };
+
+  uint32_t expectations[] = {
+     0, 0, 0,
+     0,
+     0,
+     0, 0, 0, 0, 4294967295,
+     0, 0, 0, 0, 1,
+     2147483649, 2147483648, 2147483648, 2147483648,
+     2147483646, 2147483647, 2147483647, 2147483647,
+     1, 0, 0, 4294967295,
+     4294967295, 0, 0, 1,
+  };
+  // clang-format on
+
+  STATIC_ASSERT(arraysize(inputs) == arraysize(expectations));
+
+  const int test_count = arraysize(inputs);
+  for (int i = 0; i < test_count; i++) {
+    Handle<Object> input_obj = factory->NewNumber(inputs[i]);
+    Handle<HeapNumber> input_num;
+
+    // Check with Smi input.
+    if (input_obj->IsSmi()) {
+      Handle<Smi> input_smi = Handle<Smi>::cast(input_obj);
+      Handle<Object> result = ft.Call(input_smi).ToHandleChecked();
+      CheckToUint32Result(expectations[i], result);
+      input_num = factory->NewHeapNumber(inputs[i]);
+    } else {
+      input_num = Handle<HeapNumber>::cast(input_obj);
+    }
+
+    // Check with HeapNumber input.
+    {
+      CHECK(input_num->IsHeapNumber());
+      Handle<Object> result = ft.Call(input_num).ToHandleChecked();
+      CheckToUint32Result(expectations[i], result);
+    }
+  }
+
+  // A couple of final cases for ToNumber conversions.
+  CheckToUint32Result(0, ft.Call(factory->undefined_value()).ToHandleChecked());
+  CheckToUint32Result(0, ft.Call(factory->null_value()).ToHandleChecked());
+  CheckToUint32Result(0, ft.Call(factory->false_value()).ToHandleChecked());
+  CheckToUint32Result(1, ft.Call(factory->true_value()).ToHandleChecked());
+  CheckToUint32Result(
+      42,
+      ft.Call(factory->NewStringFromAsciiChecked("0x2A")).ToHandleChecked());
+
+  ft.CheckThrows(factory->match_symbol());
+}
 
 TEST(FixedArrayAccessSmiIndex) {
   Isolate* isolate(CcTest::InitIsolateOnce());
