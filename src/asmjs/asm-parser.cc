@@ -706,6 +706,9 @@ void AsmJsParser::ValidateFunctionTable() {
       if (count >= static_cast<uint64_t>(table_info->mask) + 1) {
         FAIL("Exceeded function table size");
       }
+      if (!info->type->IsA(table_info->type)) {
+        FAIL("Function table definition doesn't match use");
+      }
       // Only store the function into a table if we used the table somewhere
       // (i.e. tables are first seen at their use sites and allocated there).
       module_builder_->SetIndirectFunction(
