@@ -329,16 +329,10 @@ class ExternalOneByteString::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    typedef v8::String::ExternalOneByteStringResource Resource;
-    v->VisitExternalOneByteString(reinterpret_cast<Resource**>(
-        HeapObject::RawField(obj, kResourceOffset)));
   }
 
   template <typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
-    typedef v8::String::ExternalOneByteStringResource Resource;
-    StaticVisitor::VisitExternalOneByteString(reinterpret_cast<Resource**>(
-        HeapObject::RawField(obj, kResourceOffset)));
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) { return kSize; }
@@ -351,16 +345,10 @@ class ExternalTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    typedef v8::String::ExternalStringResource Resource;
-    v->VisitExternalTwoByteString(reinterpret_cast<Resource**>(
-        HeapObject::RawField(obj, kResourceOffset)));
   }
 
   template <typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
-    typedef v8::String::ExternalStringResource Resource;
-    StaticVisitor::VisitExternalTwoByteString(reinterpret_cast<Resource**>(
-        HeapObject::RawField(obj, kResourceOffset)));
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) { return kSize; }

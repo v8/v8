@@ -10201,12 +10201,6 @@ class ObjectVisitor BASE_EMBEDDED {
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(RelocInfo* rinfo) {}
 
-  // Visits the resource of an one-byte or two-byte string.
-  virtual void VisitExternalOneByteString(
-      v8::String::ExternalOneByteStringResource** resource) {}
-  virtual void VisitExternalTwoByteString(
-      v8::String::ExternalStringResource** resource) {}
-
   // Visits a debug call target in the instruction stream.
   virtual void VisitDebugTarget(RelocInfo* rinfo);
 
