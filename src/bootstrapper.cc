@@ -3901,7 +3901,9 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
                          Builtins::kSharedArrayBufferPrototypeGetByteLength,
                          BuiltinFunctionId::kSharedArrayBufferByteLength,
                          Builtins::kSharedArrayBufferPrototypeSlice);
-  native_context()->set_shared_array_buffer_fun(*shared_array_buffer_fun);
+  InstallWithIntrinsicDefaultProto(isolate, shared_array_buffer_fun,
+                                   Context::SHARED_ARRAY_BUFFER_FUN_INDEX);
+  InstallSpeciesGetter(shared_array_buffer_fun);
 
   Handle<String> name = factory->InternalizeUtf8String("Atomics");
   Handle<JSFunction> cons = factory->NewFunction(name);

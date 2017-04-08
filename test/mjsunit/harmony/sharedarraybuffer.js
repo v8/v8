@@ -583,3 +583,13 @@ desc = Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype,
 var a = new ArrayBuffer(10);
 Object.defineProperty(a, 'byteLength', desc);
 assertThrows(function() {a.byteLength}, TypeError);
+
+// test SharedArrayBuffer species getter
+assertSame(SharedArrayBuffer[Symbol.species], SharedArrayBuffer);
+var desc = Object.getOwnPropertyDescriptor(SharedArrayBuffer, Symbol.species);
+assertEquals("function", typeof desc.get);
+assertEquals("get [Symbol.species]", desc.get.name);
+assertEquals(0, desc.get.length);
+assertEquals("undefined", typeof desc.set);
+assertTrue(desc.configurable);
+assertFalse(desc.enumerable);

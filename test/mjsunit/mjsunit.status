@@ -358,6 +358,10 @@
   'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4639
+  # The failed allocation causes an asan/msan/tsan error
+  'es6/typedarray-construct-offset-not-smi': [SKIP],
+
   # Exception thrown during bootstrapping on ASAN builds, see issue 4236.
   'regress/regress-1132': [SKIP],
 }],  # 'asan == True'
