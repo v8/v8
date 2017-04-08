@@ -758,6 +758,17 @@ void CodeAssembler::Switch(Node* index, Label* default_label,
                                  labels, case_count);
 }
 
+bool CodeAssembler::UnalignedLoadSupported(const MachineType& machineType,
+                                           uint8_t alignment) const {
+  return raw_assembler()->machine()->UnalignedLoadSupported(machineType,
+                                                            alignment);
+}
+bool CodeAssembler::UnalignedStoreSupported(const MachineType& machineType,
+                                            uint8_t alignment) const {
+  return raw_assembler()->machine()->UnalignedStoreSupported(machineType,
+                                                             alignment);
+}
+
 // RawMachineAssembler delegate helpers:
 Isolate* CodeAssembler::isolate() const { return raw_assembler()->isolate(); }
 

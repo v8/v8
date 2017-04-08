@@ -214,7 +214,17 @@ void TypedArrayBuiltinsAssembler::DoInitialize(Node* const holder, Node* length,
     // Allocate a FixedTypedArray and set the length, base pointer and external
     // pointer.
     CSA_ASSERT(this, IsRegularHeapObjectSize(total_size.value()));
-    Node* elements = AllocateInNewSpace(total_size.value(), kDoubleAlignment);
+
+    Node* elements;
+    int heap_alignment =
+        ElementSizeLog2Of(MachineType::PointerRepresentation());
+
+    if (UnalignedLoadSupported(MachineType::Float64(), heap_alignment) &&
+        UnalignedStoreSupported(MachineType::Float64(), heap_alignment)) {
+      elements = AllocateInNewSpace(total_size.value());
+    } else {
+      elements = AllocateInNewSpace(total_size.value(), kDoubleAlignment);
+    }
 
     StoreMapNoWriteBarrier(elements, fixed_typed_map.value());
     StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
