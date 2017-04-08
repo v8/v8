@@ -679,6 +679,7 @@ class CaptureStackTraceHelper {
     if (options_ & StackTrace::kIsConstructor) {
       frame->set_is_constructor(summ.is_constructor());
     }
+    frame->set_is_wasm(false);
     return frame;
   }
 
@@ -707,6 +708,7 @@ class CaptureStackTraceHelper {
     if (options_ & StackTrace::kScriptId) {
       info->set_script_id(summ.script()->id());
     }
+    info->set_is_wasm(true);
     return info;
   }
 

@@ -40,8 +40,10 @@ V8StackTraceImpl::Frame toFrame(v8::Local<v8::StackFrame> frame,
   int sourceColumn = frame->GetColumn() - 1;
   // TODO(clemensh): Figure out a way to do this translation only right before
   // sending the stack trace over wire.
-  wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
-      &scriptId, &sourceLineNumber, &sourceColumn);
+  if (frame->IsWasm()) {
+    wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
+        &scriptId, &sourceLineNumber, &sourceColumn);
+  }
   return V8StackTraceImpl::Frame(functionName, scriptId, sourceName,
                                  sourceLineNumber + 1, sourceColumn + 1);
 }

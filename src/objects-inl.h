@@ -5819,6 +5819,7 @@ ACCESSORS(StackFrameInfo, function_name, Object, kFunctionNameIndex)
 SMI_ACCESSORS(StackFrameInfo, flag, kFlagIndex)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
+BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, kIsWasmBit)
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,

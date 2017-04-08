@@ -2930,6 +2930,7 @@ bool StackFrame::IsConstructor() const {
   return Utils::OpenHandle(this)->is_constructor();
 }
 
+bool StackFrame::IsWasm() const { return Utils::OpenHandle(this)->is_wasm(); }
 
 // --- N a t i v e W e a k M a p ---
 

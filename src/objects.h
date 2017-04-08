@@ -10112,6 +10112,7 @@ class StackFrameInfo : public Struct {
   DECL_ACCESSORS(function_name, Object)
   DECL_BOOLEAN_ACCESSORS(is_eval)
   DECL_BOOLEAN_ACCESSORS(is_constructor)
+  DECL_BOOLEAN_ACCESSORS(is_wasm)
   DECL_INT_ACCESSORS(flag)
 
   DECLARE_CAST(StackFrameInfo)
@@ -10135,6 +10136,7 @@ class StackFrameInfo : public Struct {
   // Bit position in the flag, from least significant bit position.
   static const int kIsEvalBit = 0;
   static const int kIsConstructorBit = 1;
+  static const int kIsWasmBit = 2;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackFrameInfo);
 };
