@@ -4132,10 +4132,14 @@ bool ParserBase<Impl>::IsNextLetKeyword() {
                       // for those semantics to apply. This ensures that ASI is
                       // not honored when a LineTerminator separates the
                       // tokens.
-    case Token::YIELD:
-    case Token::AWAIT:
     case Token::ASYNC:
       return true;
+    case Token::AWAIT:
+      // In an async function, allow ASI between `let` and `yield`
+      return !is_async_function() || !scanner_->HasAnyLineTerminatorAfterNext();
+    case Token::YIELD:
+      // In an generator, allow ASI between `let` and `yield`
+      return !is_generator() || !scanner_->HasAnyLineTerminatorAfterNext();
     case Token::FUTURE_STRICT_RESERVED_WORD:
       return is_sloppy(language_mode());
     default:
