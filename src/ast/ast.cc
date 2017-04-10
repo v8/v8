@@ -884,6 +884,30 @@ void BinaryOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
   }
 }
 
+static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {
+  // Add is not commutative due to potential for string addition.
+  return op == Token::MUL || op == Token::BIT_AND || op == Token::BIT_OR ||
+         op == Token::BIT_XOR;
+}
+
+// Check for the pattern: x + 1.
+static bool MatchSmiLiteralOperation(Expression* left, Expression* right,
+                                     Expression** expr, Smi** literal) {
+  if (right->IsSmiLiteral()) {
+    *expr = left;
+    *literal = right->AsLiteral()->AsSmiLiteral();
+    return true;
+  }
+  return false;
+}
+
+bool BinaryOperation::IsSmiLiteralOperation(Expression** subexpr,
+                                            Smi** literal) {
+  return MatchSmiLiteralOperation(left_, right_, subexpr, literal) ||
+         (IsCommutativeOperationWithSmiLiteral(op()) &&
+          MatchSmiLiteralOperation(right_, left_, subexpr, literal));
+}
+
 static bool IsTypeof(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
   return maybe_unary != NULL && maybe_unary->op() == Token::TYPEOF;

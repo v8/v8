@@ -127,18 +127,23 @@ namespace interpreter {
     OperandType::kIdx)                                                         \
                                                                                \
   /* Binary operators with immediate operands */                               \
-  V(AddSmi, AccumulatorUse::kWrite, OperandType::kImm, OperandType::kReg,      \
+  V(AddSmi, AccumulatorUse::kReadWrite, OperandType::kImm, OperandType::kIdx)  \
+  V(SubSmi, AccumulatorUse::kReadWrite, OperandType::kImm, OperandType::kIdx)  \
+  V(MulSmi, AccumulatorUse::kReadWrite, OperandType::kImm, OperandType::kIdx)  \
+  V(DivSmi, AccumulatorUse::kReadWrite, OperandType::kImm, OperandType::kIdx)  \
+  V(ModSmi, AccumulatorUse::kReadWrite, OperandType::kImm, OperandType::kIdx)  \
+  V(BitwiseOrSmi, AccumulatorUse::kReadWrite, OperandType::kImm,               \
     OperandType::kIdx)                                                         \
-  V(SubSmi, AccumulatorUse::kWrite, OperandType::kImm, OperandType::kReg,      \
+  V(BitwiseXorSmi, AccumulatorUse::kReadWrite, OperandType::kImm,              \
     OperandType::kIdx)                                                         \
-  V(BitwiseOrSmi, AccumulatorUse::kWrite, OperandType::kImm,                   \
-    OperandType::kReg, OperandType::kIdx)                                      \
-  V(BitwiseAndSmi, AccumulatorUse::kWrite, OperandType::kImm,                  \
-    OperandType::kReg, OperandType::kIdx)                                      \
-  V(ShiftLeftSmi, AccumulatorUse::kWrite, OperandType::kImm,                   \
-    OperandType::kReg, OperandType::kIdx)                                      \
-  V(ShiftRightSmi, AccumulatorUse::kWrite, OperandType::kImm,                  \
-    OperandType::kReg, OperandType::kIdx)                                      \
+  V(BitwiseAndSmi, AccumulatorUse::kReadWrite, OperandType::kImm,              \
+    OperandType::kIdx)                                                         \
+  V(ShiftLeftSmi, AccumulatorUse::kReadWrite, OperandType::kImm,               \
+    OperandType::kIdx)                                                         \
+  V(ShiftRightSmi, AccumulatorUse::kReadWrite, OperandType::kImm,              \
+    OperandType::kIdx)                                                         \
+  V(ShiftRightLogicalSmi, AccumulatorUse::kReadWrite, OperandType::kImm,       \
+    OperandType::kIdx)                                                         \
                                                                                \
   /* Unary Operators */                                                        \
   V(Inc, AccumulatorUse::kReadWrite, OperandType::kIdx)                        \

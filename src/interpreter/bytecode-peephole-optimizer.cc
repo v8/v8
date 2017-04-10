@@ -117,30 +117,6 @@ bool BytecodePeepholeOptimizer::CanElideLastBasedOnSourcePosition(
 
 namespace {
 
-BytecodeNode TransformLdaSmiBinaryOpToBinaryOpWithSmi(
-    Bytecode new_bytecode, BytecodeNode* const last,
-    BytecodeNode* const current) {
-  DCHECK_EQ(last->bytecode(), Bytecode::kLdaSmi);
-  BytecodeNode node(new_bytecode, last->operand(0), current->operand(0),
-                    current->operand(1), current->source_info());
-  if (last->source_info().is_valid()) {
-    node.set_source_info(last->source_info());
-  }
-  return node;
-}
-
-BytecodeNode TransformLdaZeroBinaryOpToBinaryOpWithZero(
-    Bytecode new_bytecode, BytecodeNode* const last,
-    BytecodeNode* const current) {
-  DCHECK_EQ(last->bytecode(), Bytecode::kLdaZero);
-  BytecodeNode node(new_bytecode, 0, current->operand(0), current->operand(1),
-                    current->source_info());
-  if (last->source_info().is_valid()) {
-    node.set_source_info(last->source_info());
-  }
-  return node;
-}
-
 }  // namespace
 
 void BytecodePeepholeOptimizer::DefaultAction(
@@ -222,36 +198,6 @@ void BytecodePeepholeOptimizer::ChangeBytecodeAction(
 
   node->replace_bytecode(action_data->bytecode);
   DefaultAction(node);
-}
-
-void BytecodePeepholeOptimizer::TransformLdaSmiBinaryOpToBinaryOpWithSmiAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (!node->source_info().is_valid() || !last()->source_info().is_valid()) {
-    // Fused last and current into current.
-    BytecodeNode new_node(TransformLdaSmiBinaryOpToBinaryOpWithSmi(
-        action_data->bytecode, last(), node));
-    SetLast(&new_node);
-  } else {
-    DefaultAction(node);
-  }
-}
-
-void BytecodePeepholeOptimizer::
-    TransformLdaZeroBinaryOpToBinaryOpWithZeroAction(
-        BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-  if (!node->source_info().is_valid() || !last()->source_info().is_valid()) {
-    // Fused last and current into current.
-    BytecodeNode new_node(TransformLdaZeroBinaryOpToBinaryOpWithZero(
-        action_data->bytecode, last(), node));
-    SetLast(&new_node);
-  } else {
-    DefaultAction(node);
-  }
 }
 
 void BytecodePeepholeOptimizer::DefaultJumpAction(

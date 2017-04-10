@@ -22,7 +22,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 36
+bytecode array length: 33
 bytecodes: [
                 B(Mov), R(closure), R(0),
   /*   99 E> */ B(StackCheck),
@@ -35,8 +35,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kLoadFromSuper), R(3), U8(3),
                 B(Star), R(1),
   /*  117 E> */ B(Call0), R(1), R(this), U8(2),
-                B(Star), R(1),
-  /*  126 E> */ B(AddSmi), I8(1), R(1), U8(8),
+  /*  126 E> */ B(AddSmi), I8(1), U8(8),
   /*  131 S> */ B(Return),
 ]
 constant pool: [

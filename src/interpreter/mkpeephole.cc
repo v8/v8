@@ -106,66 +106,6 @@ PeepholeActionAndData PeepholeActionTableWriter::LookupActionAndData(
   // TODO(rmcilroy): Add elide for consecutive mov to and from the same
   // register.
 
-  // Fuse LdaSmi followed by binary op to produce binary op with a
-  // immediate integer argument. This savaes on dispatches and size.
-  if (last == Bytecode::kLdaSmi) {
-    switch (current) {
-      case Bytecode::kAdd:
-        return {PeepholeAction::kTransformLdaSmiBinaryOpToBinaryOpWithSmiAction,
-                Bytecode::kAddSmi};
-      case Bytecode::kSub:
-        return {PeepholeAction::kTransformLdaSmiBinaryOpToBinaryOpWithSmiAction,
-                Bytecode::kSubSmi};
-      case Bytecode::kBitwiseAnd:
-        return {PeepholeAction::kTransformLdaSmiBinaryOpToBinaryOpWithSmiAction,
-                Bytecode::kBitwiseAndSmi};
-      case Bytecode::kBitwiseOr:
-        return {PeepholeAction::kTransformLdaSmiBinaryOpToBinaryOpWithSmiAction,
-                Bytecode::kBitwiseOrSmi};
-      case Bytecode::kShiftLeft:
-        return {PeepholeAction::kTransformLdaSmiBinaryOpToBinaryOpWithSmiAction,
-                Bytecode::kShiftLeftSmi};
-      case Bytecode::kShiftRight:
-        return {PeepholeAction::kTransformLdaSmiBinaryOpToBinaryOpWithSmiAction,
-                Bytecode::kShiftRightSmi};
-      default:
-        break;
-    }
-  }
-
-  // Fuse LdaZero followed by binary op to produce binary op with a
-  // zero immediate argument. This saves dispatches, but not size.
-  if (last == Bytecode::kLdaZero) {
-    switch (current) {
-      case Bytecode::kAdd:
-        return {
-            PeepholeAction::kTransformLdaZeroBinaryOpToBinaryOpWithZeroAction,
-            Bytecode::kAddSmi};
-      case Bytecode::kSub:
-        return {
-            PeepholeAction::kTransformLdaZeroBinaryOpToBinaryOpWithZeroAction,
-            Bytecode::kSubSmi};
-      case Bytecode::kBitwiseAnd:
-        return {
-            PeepholeAction::kTransformLdaZeroBinaryOpToBinaryOpWithZeroAction,
-            Bytecode::kBitwiseAndSmi};
-      case Bytecode::kBitwiseOr:
-        return {
-            PeepholeAction::kTransformLdaZeroBinaryOpToBinaryOpWithZeroAction,
-            Bytecode::kBitwiseOrSmi};
-      case Bytecode::kShiftLeft:
-        return {
-            PeepholeAction::kTransformLdaZeroBinaryOpToBinaryOpWithZeroAction,
-            Bytecode::kShiftLeftSmi};
-      case Bytecode::kShiftRight:
-        return {
-            PeepholeAction::kTransformLdaZeroBinaryOpToBinaryOpWithZeroAction,
-            Bytecode::kShiftRightSmi};
-      default:
-        break;
-    }
-  }
-
   // If there is no last bytecode to optimize against, store the incoming
   // bytecode or for jumps emit incoming bytecode immediately.
   if (last == Bytecode::kIllegal) {

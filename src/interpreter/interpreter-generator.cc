@@ -1459,19 +1459,17 @@ void InterpreterGenerator::DoShiftRightLogical(
   DoBitwiseBinaryOp(Token::SHR, assembler);
 }
 
-// AddSmi <imm> <reg>
+// AddSmi <imm>
 //
-// Adds an immediate value <imm> to register <reg>. For this
-// operation <reg> is the lhs operand and <imm> is the <rhs> operand.
+// Adds an immediate value <imm> to the value in the accumulator.
 void InterpreterGenerator::DoAddSmi(InterpreterAssembler* assembler) {
   Variable var_result(assembler, MachineRepresentation::kTagged);
   Label fastpath(assembler), slowpath(assembler, Label::kDeferred),
       end(assembler);
 
-  Node* reg_index = __ BytecodeOperandReg(1);
-  Node* left = __ LoadRegister(reg_index);
+  Node* left = __ GetAccumulator();
   Node* right = __ BytecodeOperandImmSmi(0);
-  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* slot_index = __ BytecodeOperandIdx(1);
   Node* feedback_vector = __ LoadFeedbackVector();
 
   // {right} is known to be a Smi.
@@ -1511,19 +1509,17 @@ void InterpreterGenerator::DoAddSmi(InterpreterAssembler* assembler) {
   }
 }
 
-// SubSmi <imm> <reg>
+// SubSmi <imm>
 //
-// Subtracts an immediate value <imm> to register <reg>. For this
-// operation <reg> is the lhs operand and <imm> is the rhs operand.
+// Subtracts an immediate value <imm> from the value in the accumulator.
 void InterpreterGenerator::DoSubSmi(InterpreterAssembler* assembler) {
   Variable var_result(assembler, MachineRepresentation::kTagged);
   Label fastpath(assembler), slowpath(assembler, Label::kDeferred),
       end(assembler);
 
-  Node* reg_index = __ BytecodeOperandReg(1);
-  Node* left = __ LoadRegister(reg_index);
+  Node* left = __ GetAccumulator();
   Node* right = __ BytecodeOperandImmSmi(0);
-  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* slot_index = __ BytecodeOperandIdx(1);
   Node* feedback_vector = __ LoadFeedbackVector();
 
   // {right} is known to be a Smi.
@@ -1563,17 +1559,143 @@ void InterpreterGenerator::DoSubSmi(InterpreterAssembler* assembler) {
   }
 }
 
-// BitwiseOr <imm> <reg>
+// MulSmi <imm>
 //
-// BitwiseOr <reg> with <imm>. For this operation <reg> is the lhs
-// operand and <imm> is the rhs operand.
-void InterpreterGenerator::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(1);
-  Node* left = __ LoadRegister(reg_index);
+// Multiplies an immediate value <imm> to the value in the accumulator.
+void InterpreterGenerator::DoMulSmi(InterpreterAssembler* assembler) {
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Label fastpath(assembler), slowpath(assembler, Label::kDeferred),
+      end(assembler);
+
+  Node* left = __ GetAccumulator();
   Node* right = __ BytecodeOperandImmSmi(0);
-  Node* context = __ GetContext();
-  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* slot_index = __ BytecodeOperandIdx(1);
   Node* feedback_vector = __ LoadFeedbackVector();
+
+  // {right} is known to be a Smi.
+  // Check if the {left} is a Smi take the fast path.
+  __ Branch(__ TaggedIsSmi(left), &fastpath, &slowpath);
+  __ Bind(&fastpath);
+  {
+    // Both {lhs} and {rhs} are Smis. The result is not necessarily a smi,
+    // in case of overflow.
+    var_result.Bind(__ SmiMul(left, right));
+    Node* feedback = __ SelectSmiConstant(__ TaggedIsSmi(var_result.value()),
+                                          BinaryOperationFeedback::kSignedSmall,
+                                          BinaryOperationFeedback::kNumber);
+    __ UpdateFeedback(feedback, feedback_vector, slot_index);
+    __ Goto(&end);
+  }
+  __ Bind(&slowpath);
+  {
+    Node* context = __ GetContext();
+    // TODO(ishell): pass slot as word-size value.
+    var_result.Bind(
+        __ CallBuiltin(Builtins::kMultiplyWithFeedback, context, left, right,
+                       __ TruncateWordToWord32(slot_index), feedback_vector));
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  {
+    __ SetAccumulator(var_result.value());
+    __ Dispatch();
+  }
+}
+
+// DivSmi <imm>
+//
+// Divides the value in the accumulator by immediate value <imm>.
+void InterpreterGenerator::DoDivSmi(InterpreterAssembler* assembler) {
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Label fastpath(assembler), slowpath(assembler, Label::kDeferred),
+      end(assembler);
+
+  Node* left = __ GetAccumulator();
+  Node* right = __ BytecodeOperandImmSmi(0);
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* feedback_vector = __ LoadFeedbackVector();
+
+  // {right} is known to be a Smi.
+  // Check if the {left} is a Smi take the fast path.
+  __ Branch(__ TaggedIsSmi(left), &fastpath, &slowpath);
+  __ Bind(&fastpath);
+  {
+    var_result.Bind(__ TrySmiDiv(left, right, &slowpath));
+    __ UpdateFeedback(__ SmiConstant(BinaryOperationFeedback::kSignedSmall),
+                      feedback_vector, slot_index);
+    __ Goto(&end);
+  }
+  __ Bind(&slowpath);
+  {
+    Node* context = __ GetContext();
+    // TODO(ishell): pass slot as word-size value.
+    var_result.Bind(__ CallBuiltin(Builtins::kDivideWithFeedback, context, left,
+                                   right, __ TruncateWordToWord32(slot_index),
+                                   feedback_vector));
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  {
+    __ SetAccumulator(var_result.value());
+    __ Dispatch();
+  }
+}
+
+// ModSmi <imm>
+//
+// Modulo accumulator by immediate value <imm>.
+void InterpreterGenerator::DoModSmi(InterpreterAssembler* assembler) {
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Label fastpath(assembler), slowpath(assembler, Label::kDeferred),
+      end(assembler);
+
+  Node* left = __ GetAccumulator();
+  Node* right = __ BytecodeOperandImmSmi(0);
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* feedback_vector = __ LoadFeedbackVector();
+
+  // {right} is known to be a Smi.
+  // Check if the {left} is a Smi take the fast path.
+  __ Branch(__ TaggedIsSmi(left), &fastpath, &slowpath);
+  __ Bind(&fastpath);
+  {
+    // Both {lhs} and {rhs} are Smis. The result is not necessarily a smi.
+    var_result.Bind(__ SmiMod(left, right));
+    Node* feedback = __ SelectSmiConstant(__ TaggedIsSmi(var_result.value()),
+                                          BinaryOperationFeedback::kSignedSmall,
+                                          BinaryOperationFeedback::kNumber);
+    __ UpdateFeedback(feedback, feedback_vector, slot_index);
+    __ Goto(&end);
+  }
+  __ Bind(&slowpath);
+  {
+    Node* context = __ GetContext();
+    // TODO(ishell): pass slot as word-size value.
+    var_result.Bind(
+        __ CallBuiltin(Builtins::kModulusWithFeedback, context, left, right,
+                       __ TruncateWordToWord32(slot_index), feedback_vector));
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  {
+    __ SetAccumulator(var_result.value());
+    __ Dispatch();
+  }
+}
+
+// BitwiseOr <imm>
+//
+// BitwiseOr accumulator with <imm>.
+void InterpreterGenerator::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
+  Node* left = __ GetAccumulator();
+  Node* right = __ BytecodeOperandImmSmi(0);
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* feedback_vector = __ LoadFeedbackVector();
+  Node* context = __ GetContext();
+
   Variable var_lhs_type_feedback(assembler,
                                  MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
@@ -1590,17 +1712,41 @@ void InterpreterGenerator::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// BitwiseAnd <imm> <reg>
+// BitwiseXor <imm>
 //
-// BitwiseAnd <reg> with <imm>. For this operation <reg> is the lhs
-// operand and <imm> is the rhs operand.
-void InterpreterGenerator::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(1);
-  Node* left = __ LoadRegister(reg_index);
+// BitwiseXor accumulator with <imm>.
+void InterpreterGenerator::DoBitwiseXorSmi(InterpreterAssembler* assembler) {
+  Node* left = __ GetAccumulator();
   Node* right = __ BytecodeOperandImmSmi(0);
-  Node* context = __ GetContext();
-  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* slot_index = __ BytecodeOperandIdx(1);
   Node* feedback_vector = __ LoadFeedbackVector();
+  Node* context = __ GetContext();
+
+  Variable var_lhs_type_feedback(assembler,
+                                 MachineRepresentation::kTaggedSigned);
+  Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
+      context, left, &var_lhs_type_feedback);
+  Node* rhs_value = __ SmiToWord32(right);
+  Node* value = __ Word32Xor(lhs_value, rhs_value);
+  Node* result = __ ChangeInt32ToTagged(value);
+  Node* result_type = __ SelectSmiConstant(
+      __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumber);
+  __ UpdateFeedback(__ SmiOr(result_type, var_lhs_type_feedback.value()),
+                    feedback_vector, slot_index);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+// BitwiseAnd <imm>
+//
+// BitwiseAnd accumulator with <imm>.
+void InterpreterGenerator::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
+  Node* left = __ GetAccumulator();
+  Node* right = __ BytecodeOperandImmSmi(0);
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* feedback_vector = __ LoadFeedbackVector();
+  Node* context = __ GetContext();
+
   Variable var_lhs_type_feedback(assembler,
                                  MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
@@ -1617,18 +1763,18 @@ void InterpreterGenerator::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// ShiftLeftSmi <imm> <reg>
+// ShiftLeftSmi <imm>
 //
-// Left shifts register <src> by the count specified in <imm>.
-// Register <src> is converted to an int32 before the operation. The 5
+// Left shifts accumulator by the count specified in <imm>.
+// The accumulator is converted to an int32 before the operation. The 5
 // lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
 void InterpreterGenerator::DoShiftLeftSmi(InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(1);
-  Node* left = __ LoadRegister(reg_index);
+  Node* left = __ GetAccumulator();
   Node* right = __ BytecodeOperandImmSmi(0);
-  Node* context = __ GetContext();
-  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* slot_index = __ BytecodeOperandIdx(1);
   Node* feedback_vector = __ LoadFeedbackVector();
+  Node* context = __ GetContext();
+
   Variable var_lhs_type_feedback(assembler,
                                  MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
@@ -1646,18 +1792,18 @@ void InterpreterGenerator::DoShiftLeftSmi(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// ShiftRightSmi <imm> <reg>
+// ShiftRightSmi <imm>
 //
-// Right shifts register <src> by the count specified in <imm>.
-// Register <src> is converted to an int32 before the operation. The 5
-// lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
+// Right shifts accumulator by the count specified in <imm>. Result is sign
+// extended. The accumulator is converted to an int32 before the operation. The
+// 5 lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
 void InterpreterGenerator::DoShiftRightSmi(InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(1);
-  Node* left = __ LoadRegister(reg_index);
+  Node* left = __ GetAccumulator();
   Node* right = __ BytecodeOperandImmSmi(0);
-  Node* context = __ GetContext();
-  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* slot_index = __ BytecodeOperandIdx(1);
   Node* feedback_vector = __ LoadFeedbackVector();
+  Node* context = __ GetContext();
+
   Variable var_lhs_type_feedback(assembler,
                                  MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
@@ -1666,6 +1812,36 @@ void InterpreterGenerator::DoShiftRightSmi(InterpreterAssembler* assembler) {
   Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
   Node* value = __ Word32Sar(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
+  Node* result_type = __ SelectSmiConstant(
+      __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
+      BinaryOperationFeedback::kNumber);
+  __ UpdateFeedback(__ SmiOr(result_type, var_lhs_type_feedback.value()),
+                    feedback_vector, slot_index);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// ShiftRightLogicalSmi <imm>
+//
+// Right shifts accumulator by the count specified in <imm>. Result is zero
+// extended. The accumulator is converted to an int32 before the operation. The
+// 5 lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
+void InterpreterGenerator::DoShiftRightLogicalSmi(
+    InterpreterAssembler* assembler) {
+  Node* left = __ GetAccumulator();
+  Node* right = __ BytecodeOperandImmSmi(0);
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* feedback_vector = __ LoadFeedbackVector();
+  Node* context = __ GetContext();
+
+  Variable var_lhs_type_feedback(assembler,
+                                 MachineRepresentation::kTaggedSigned);
+  Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
+      context, left, &var_lhs_type_feedback);
+  Node* rhs_value = __ SmiToWord32(right);
+  Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
+  Node* value = __ Word32Shr(lhs_value, shift_count);
+  Node* result = __ ChangeUint32ToTagged(value);
   Node* result_type = __ SelectSmiConstant(
       __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);

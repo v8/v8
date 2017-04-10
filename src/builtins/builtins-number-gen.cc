@@ -1415,5 +1415,38 @@ TF_BUILTIN(SubtractWithFeedback, BinaryOpAssembler) {
                                        ChangeUint32ToWord(slot), vector));
 }
 
+TF_BUILTIN(MultiplyWithFeedback, BinaryOpAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+
+  Return(Generate_MultiplyWithFeedback(context, left, right,
+                                       ChangeUint32ToWord(slot), vector));
+}
+
+TF_BUILTIN(DivideWithFeedback, BinaryOpAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+
+  Return(Generate_DivideWithFeedback(context, left, right,
+                                     ChangeUint32ToWord(slot), vector));
+}
+
+TF_BUILTIN(ModulusWithFeedback, BinaryOpAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* left = Parameter(Descriptor::kLeft);
+  Node* right = Parameter(Descriptor::kRight);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+
+  Return(Generate_ModulusWithFeedback(context, left, right,
+                                      ChangeUint32ToWord(slot), vector));
+}
+
 }  // namespace internal
 }  // namespace v8
