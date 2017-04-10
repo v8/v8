@@ -252,6 +252,30 @@ void Counters::ResetHistograms() {
 
 #define HM(name, caption) name##_.Reset();
     HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+    HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+}
+
+void Counters::InitializeHistograms() {
+#define HR(name, caption, min, max, num_buckets) name##_.Enabled();
+  HISTOGRAM_RANGE_LIST(HR)
+#undef HR
+
+#define HT(name, caption, max, res) name##_.Enabled();
+  HISTOGRAM_TIMER_LIST(HT)
+#undef HT
+
+#define AHT(name, caption) name##_.Enabled();
+  AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+#undef AHT
+
+#define HP(name, caption) name##_.Enabled();
+  HISTOGRAM_PERCENTAGE_LIST(HP)
+#undef HP
+
+#define HM(name, caption) name##_.Enabled();
+  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+  HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 }
 
