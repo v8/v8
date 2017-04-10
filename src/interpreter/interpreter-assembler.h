@@ -228,9 +228,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
   compiler::Node* BytecodeOffset();
 
-  // Save the bytecode offset to the interpreter frame.
-  void SaveBytecodeOffset();
-
  protected:
   Bytecode bytecode() const { return bytecode_; }
   static bool TargetSupportsUnalignedAccess();
@@ -305,6 +302,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // |condition| is true. Helper function for JumpIfWordEqual and
   // JumpIfWordNotEqual.
   void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
+
+  // Save the bytecode offset to the interpreter frame.
+  void SaveBytecodeOffset();
 
   // Updates and returns BytecodeOffset() advanced by the current bytecode's
   // size. Traces the exit of the current bytecode.
