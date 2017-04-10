@@ -8584,6 +8584,7 @@ void Isolate::SetCreateHistogramFunction(CreateHistogramCallback callback) {
   isolate->stats_table()->SetCreateHistogramFunction(callback);
   isolate->InitializeLoggingAndCounters();
   isolate->counters()->ResetHistograms();
+  isolate->counters()->InitializeHistograms();
 }
 
 
