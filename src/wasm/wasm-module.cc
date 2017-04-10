@@ -782,18 +782,6 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   TRACE("}\n");
 }
 
-std::pair<int, int> GetFunctionOffsetAndLength(
-    Handle<WasmCompiledModule> compiled_module, int func_index) {
-  WasmModule* module = compiled_module->module();
-  if (func_index < 0 ||
-      static_cast<size_t>(func_index) > module->functions.size()) {
-    return {0, 0};
-  }
-  WasmFunction& func = module->functions[func_index];
-  return {static_cast<int>(func.code_start_offset),
-          static_cast<int>(func.code_end_offset - func.code_start_offset)};
-}
-
 int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
                                        int offset) {
   DCHECK(!iterator.done());
@@ -955,11 +943,6 @@ WasmInstanceObject* wasm::GetOwningWasmInstance(Code* code) {
   WeakCell* cell = WeakCell::cast(weak_link);
   if (cell->cleared()) return nullptr;
   return WasmInstanceObject::cast(cell->value());
-}
-
-int wasm::GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
-                                int func_index) {
-  return GetFunctionOffsetAndLength(compiled_module, func_index).first;
 }
 
 WasmModule::WasmModule(Zone* owned)

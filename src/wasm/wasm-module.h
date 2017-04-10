@@ -427,10 +427,6 @@ V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
     Isolate* isolate, Handle<WasmModuleObject> module, Handle<String> name,
     ErrorThrower* thrower);
 
-// Get the offset of the code of a function within a module.
-int GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
-                          int func_index);
-
 // Assumed to be called with a code object associated to a wasm module instance.
 // Intended to be called from runtime functions.
 // Returns nullptr on failing to get owning instance.
