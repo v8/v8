@@ -2050,11 +2050,11 @@ class InspectionPadawan(object):
     Try to print a possible message from PushStackTraceAndDie.
     Returns the first address where the normal stack starts again.
     """
-    # Only look at the first 32 words on the stack
+    # Only look at the first 1k words on the stack
     ptr_size = self.reader.PointerSize()
     if start is None:
       start = self.reader.ExceptionSP()
-    end = start + ptr_size * 32
+    end = start + ptr_size * 1024
     message_start = 0
     magic1 = None
     for slot in xrange(start, end, ptr_size):
@@ -2148,9 +2148,10 @@ class InspectionPadawan(object):
     if not self.reader.Is64():
       frame_pointer = self.reader.ExceptionFP()
       # Follow the framepointer into the address range
-      while frame_pointer < start:
+      while frame_pointer and frame_pointer < start:
         frame_pointer = self.reader.ReadUIntPtr(frame_pointer)
-        if not self.reader.IsExceptionStackAddress(frame_pointer):
+        if not self.reader.IsExceptionStackAddress(frame_pointer) or \
+            not frame_pointer:
           frame_pointer = 0
           break
     in_oom_dump_area  = False
@@ -3632,7 +3633,7 @@ def GetModuleName(reader, module):
 def PrintModuleDetails(reader, module):
   print "%s" % GetModuleName(reader, module)
   file_version = GetVersionString(module.version_info.dwFileVersionMS,
-                                  module.version_info.dwFileVersionS
+                                  module.version_info.dwFileVersionLS);
   product_version = GetVersionString(module.version_info.dwProductVersionMS,
                                      module.version_info.dwProductVersionLS)
   print "  base: %s" % reader.FormatIntPtr(module.base_of_image)
