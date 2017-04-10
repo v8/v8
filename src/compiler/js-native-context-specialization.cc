@@ -553,7 +553,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandleList const& receiver_maps,
     Handle<Name> name, AccessMode access_mode, LanguageMode language_mode,
-    Handle<FeedbackVector> vector, FeedbackSlot slot, Node* index) {
+    Node* index) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -599,13 +599,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       if (is_exceptional || !(flags() & kAccessorInliningEnabled)) {
         return NoChange();
       }
-    } else if (access_info.IsGeneric()) {
-      // We do not handle generic calls in try blocks.
-      if (is_exceptional) return NoChange();
-      // We only handle the generic store IC case.
-      if (!vector->IsStoreIC(slot)) {
-        return NoChange();
-      }
     }
   }
 
@@ -644,7 +637,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Generate the actual property access.
     ValueEffectControl continuation = BuildPropertyAccess(
         receiver, value, context, frame_state, effect, control, name,
-        access_info, access_mode, language_mode, vector, slot);
+        access_info, access_mode, language_mode);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -747,10 +740,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       }
 
       // Generate the actual property access.
-      ValueEffectControl continuation =
-          BuildPropertyAccess(this_receiver, this_value, context, frame_state,
-                              this_effect, this_control, name, access_info,
-                              access_mode, language_mode, vector, slot);
+      ValueEffectControl continuation = BuildPropertyAccess(
+          this_receiver, this_value, context, frame_state, this_effect,
+          this_control, name, access_info, access_mode, language_mode);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -823,7 +815,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
-                           language_mode, nexus.vector_handle(), nexus.slot());
+                           language_mode);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
@@ -1225,17 +1217,16 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
       } else {
         name = factory()->InternalizeName(name);
         return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
-                                 language_mode, nexus.vector_handle(),
-                                 nexus.slot());
+                                 language_mode);
       }
     }
   }
 
   // Check if we have feedback for a named access.
   if (Name* name = nexus.FindFirstName()) {
-    return ReduceNamedAccess(
-        node, value, receiver_maps, handle(name, isolate()), access_mode,
-        language_mode, nexus.vector_handle(), nexus.slot(), index);
+    return ReduceNamedAccess(node, value, receiver_maps,
+                             handle(name, isolate()), access_mode,
+                             language_mode, index);
   } else if (nexus.GetKeyType() != ELEMENT) {
     // The KeyedLoad/StoreIC has seen non-element accesses, so we cannot assume
     // that the {index} is a valid array index, thus we just let the IC continue
@@ -1309,8 +1300,7 @@ JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyAccess(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
     Node* control, Handle<Name> name, PropertyAccessInfo const& access_info,
-    AccessMode access_mode, LanguageMode language_mode,
-    Handle<FeedbackVector> vector, FeedbackSlot slot) {
+    AccessMode access_mode, LanguageMode language_mode) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
@@ -1411,7 +1401,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         break;
       }
     }
-  } else if (access_info.IsDataField() || access_info.IsDataConstantField()) {
+  } else {
+    DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
     FieldIndex const field_index = access_info.field_index();
     Type* const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
@@ -1661,28 +1652,6 @@ JSNativeContextSpecialization::BuildPropertyAccess(
                                   storage, value, effect, control);
       }
     }
-  } else {
-    DCHECK(access_info.IsGeneric());
-    DCHECK_EQ(AccessMode::kStore, access_mode);
-    DCHECK(vector->IsStoreIC(slot));
-    DCHECK_EQ(vector->GetLanguageMode(slot), language_mode);
-    Callable callable =
-        CodeFactory::StoreICInOptimizedCode(isolate(), language_mode);
-    const CallInterfaceDescriptor& descriptor = callable.descriptor();
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), descriptor,
-        descriptor.GetStackParameterCount(), CallDescriptor::kNeedsFrameState,
-        Operator::kNoProperties);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* name_node = jsgraph()->HeapConstant(name);
-    Node* slot_node = jsgraph()->Constant(vector->GetIndex(slot));
-    Node* vector_node = jsgraph()->HeapConstant(vector);
-
-    Node* inputs[] = {stub_code,   receiver, name_node,   value,  slot_node,
-                      vector_node, context,  frame_state, effect, control};
-
-    value = effect = control =
-        graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
   }
 
   return ValueEffectControl(value, effect, control);
@@ -1727,10 +1696,6 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
     return NoChange();
   }
 
-  if (access_info.IsGeneric()) {
-    return NoChange();
-  }
-
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1754,8 +1719,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   // Generate the actual property access.
   ValueEffectControl continuation = BuildPropertyAccess(
       receiver, value, context, frame_state_lazy, effect, control, cached_name,
-      access_info, AccessMode::kStoreInLiteral, LanguageMode::SLOPPY,
-      p.feedback().vector(), p.feedback().slot());
+      access_info, AccessMode::kStoreInLiteral, LanguageMode::SLOPPY);
   value = continuation.value();
   effect = continuation.effect();
   control = continuation.control();

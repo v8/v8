@@ -85,7 +85,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               MapHandleList const& receiver_maps,
                               Handle<Name> name, AccessMode access_mode,
                               LanguageMode language_mode,
-                              Handle<FeedbackVector> vector, FeedbackSlot slot,
                               Node* index = nullptr);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                Handle<Name> name, AccessMode access_mode,
@@ -110,12 +109,13 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   };
 
   // Construct the appropriate subgraph for property access.
-  ValueEffectControl BuildPropertyAccess(
-      Node* receiver, Node* value, Node* context, Node* frame_state,
-      Node* effect, Node* control, Handle<Name> name,
-      PropertyAccessInfo const& access_info, AccessMode access_mode,
-      LanguageMode language_mode, Handle<FeedbackVector> vector,
-      FeedbackSlot slot);
+  ValueEffectControl BuildPropertyAccess(Node* receiver, Node* value,
+                                         Node* context, Node* frame_state,
+                                         Node* effect, Node* control,
+                                         Handle<Name> name,
+                                         PropertyAccessInfo const& access_info,
+                                         AccessMode access_mode,
+                                         LanguageMode language_mode);
 
   // Construct the appropriate subgraph for element access.
   ValueEffectControl BuildElementAccess(Node* receiver, Node* index,

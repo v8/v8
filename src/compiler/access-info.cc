@@ -97,12 +97,6 @@ PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
   return PropertyAccessInfo(kAccessorConstant, holder, constant, receiver_maps);
 }
 
-// static
-PropertyAccessInfo PropertyAccessInfo::Generic(MapList const& receiver_maps) {
-  return PropertyAccessInfo(kGeneric, MaybeHandle<JSObject>(), Handle<Object>(),
-                            receiver_maps);
-}
-
 PropertyAccessInfo::PropertyAccessInfo()
     : kind_(kInvalid),
       field_representation_(MachineRepresentation::kNone),
@@ -177,8 +171,7 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
       return false;
     }
 
-    case kNotFound:
-    case kGeneric: {
+    case kNotFound: {
       this->receiver_maps_.insert(this->receiver_maps_.end(),
                                   that->receiver_maps_.begin(),
                                   that->receiver_maps_.end());
