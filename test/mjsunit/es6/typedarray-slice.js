@@ -57,9 +57,7 @@ for (var constructor of typedArrayConstructors) {
   assertEquals(7, array.slice(0, 100).length);
 
   // Does not permit being called on other types
-  assertThrows(function () {
-    constructor.prototype.slice.call([], 0, 0);
-  }, TypeError);
+  assertThrows(() => constructor.prototype.slice.call([], 0, 0), TypeError);
 
   // Check that elements are copied properly in slice
   array = new constructor([1, 2, 3, 4]);
@@ -82,14 +80,48 @@ for (var constructor of typedArrayConstructors) {
 // Check that the result array is properly created by checking species
 for (var constructor1 of typedArrayConstructors) {
   for (var constructor2 of typedArrayConstructors) {
-    class MyTypedArray2 extends constructor1 {
-      static get[Symbol.species]() {
-        return constructor2;
-      }
-    }
-    var arr = new MyTypedArray2([-1.0, 0, 1.1, 255, 256]);
-    var arr2 = new constructor1([-1.0, 0, 1.1, 255, 256]);
-    assertEquals(new constructor2(arr2), arr.slice(),
-                 constructor1.name + ' -> ' + constructor2.name);
+    testCustomSubclass(constructor1, constructor2);
   }
+}
+
+function testCustomSubclass(superClass, speciesClass) {
+  // Simple subclass that has another TypedArray as species
+  class CustomTypedArray extends superClass {
+    static get[Symbol.species]() {
+      return speciesClass;
+    }
+  }
+  // 16 entries.
+  let exampleArray = [-1.0, 0, 1.1, 255, 256, 0xFFFFFFFF, 2**50, NaN];
+  let customArray = new CustomTypedArray(exampleArray);
+  let basicArray = new superClass(exampleArray);
+  assertEquals(new speciesClass(basicArray), customArray.slice(),
+               superClass.name + ' -> ' + speciesClass.name);
+
+  // Custom constructor with shared buffer.
+  exampleArray =  new Array(64).fill(0).map((v,i) => i);
+  let filledBuffer = new Uint8Array(exampleArray).buffer;
+  // Create a view for the begining of the buffer.
+  let customArray2 = new superClass(filledBuffer, 0, 3);
+  customArray2.constructor = {
+    [Symbol.species]: function(length) {
+      let bytes_per_element = speciesClass.BYTES_PER_ELEMENT;
+      // Reuse the same buffer for the custom species constructor.
+      // Skip the first BYTES_PER_ELEMENT bytes of the buffer.
+      return new speciesClass(filledBuffer, bytes_per_element, length);
+    }
+  };
+  // Since slice is defined iteratively, the species created new array uses the
+  // same underlying buffer shifted by one element. Hence the first value is
+  // copied over and over again.
+  let convertedCopy = Array.from(customArray2);
+  let firstValue = convertedCopy[0];
+  assertEquals(firstValue, customArray2[0]);
+  let sliceResult = customArray2.slice();
+  if (superClass == speciesClass) {
+    assertEquals(new Array(3).fill(firstValue), Array.from(customArray2));
+    assertEquals(new Array(3).fill(firstValue), Array.from(sliceResult));
+  }
+  assertEquals(3, customArray2.length);
+  assertEquals(3, sliceResult.length);
 }

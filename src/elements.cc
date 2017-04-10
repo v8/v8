@@ -3063,10 +3063,19 @@ class TypedElementsAccessor
           BackingStore::cast(result_array->elements());
 
       DCHECK_LE(count, result_elements->length());
-
-      uint8_t* src = static_cast<uint8_t*>(src_elements->DataPtr());
+      uint8_t* src =
+          static_cast<uint8_t*>(src_elements->DataPtr()) + start * element_size;
       uint8_t* result = static_cast<uint8_t*>(result_elements->DataPtr());
-      std::memcpy(result, src + start * element_size, count * element_size);
+      if (array->buffer() != result_array->buffer()) {
+        std::memcpy(result, src, count * element_size);
+      } else {
+        // The spec defines the copy-step iteratively, which means that we
+        // cannot use memcpy if the buffer is shared.
+        uint8_t* end = src + count * element_size;
+        while (src < end) {
+          *result++ = *src++;
+        }
+      }
       return result_array;
     }
 
