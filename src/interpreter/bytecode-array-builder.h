@@ -71,6 +71,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
     return register_allocator()->maximum_register_count();
   }
 
+  Register Local(int index) const;
   Register Parameter(int parameter_index) const;
 
   // Constant loads to accumulator.

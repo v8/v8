@@ -71,6 +71,12 @@ Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
   return Register::FromParameterIndex(parameter_index, parameter_count());
 }
 
+Register BytecodeArrayBuilder::Local(int index) const {
+  // TODO(marja): Make a DCHECK once crbug.com/706234 is fixed.
+  CHECK_LT(index, locals_count());
+  return Register(index);
+}
+
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
   DCHECK(return_seen_in_block_);
   DCHECK(!bytecode_generated_);

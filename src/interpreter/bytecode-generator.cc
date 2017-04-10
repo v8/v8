@@ -892,7 +892,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
     }
     case VariableLocation::LOCAL:
       if (variable->binding_needs_init()) {
-        Register destination(variable->index());
+        Register destination(builder()->Local(variable->index()));
         builder()->LoadTheHole().StoreAccumulatorInRegister(destination);
       }
       break;
@@ -1918,7 +1918,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable, FeedbackSlot slot,
                                           TypeofMode typeof_mode) {
   switch (variable->location()) {
     case VariableLocation::LOCAL: {
-      Register source(Register(variable->index()));
+      Register source(builder()->Local(variable->index()));
       // We need to load the variable into the accumulator, even when in a
       // VisitForRegisterScope, in order to avoid register aliasing if
       // subsequent expressions assign to the same variable.
@@ -2112,9 +2112,9 @@ void BytecodeGenerator::BuildVariableAssignment(Variable* variable,
     case VariableLocation::LOCAL: {
       Register destination;
       if (VariableLocation::PARAMETER == variable->location()) {
-        destination = Register(builder()->Parameter(variable->index() + 1));
+        destination = builder()->Parameter(variable->index() + 1);
       } else {
-        destination = Register(variable->index());
+        destination = builder()->Local(variable->index());
       }
 
       if (hole_check_mode == HoleCheckMode::kRequired) {
