@@ -132,6 +132,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI32x4ExtractLane:
     case kArmI32x4ReplaceLane:
     case kArmI32x4SConvertF32x4:
+    case kArmI32x4SConvertI16x8Low:
+    case kArmI32x4SConvertI16x8High:
     case kArmI32x4Neg:
     case kArmI32x4Shl:
     case kArmI32x4ShrS:
@@ -145,6 +147,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI32x4LtS:
     case kArmI32x4LeS:
     case kArmI32x4UConvertF32x4:
+    case kArmI32x4UConvertI16x8Low:
+    case kArmI32x4UConvertI16x8High:
     case kArmI32x4ShrU:
     case kArmI32x4MinU:
     case kArmI32x4MaxU:
@@ -153,9 +157,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI16x8Splat:
     case kArmI16x8ExtractLane:
     case kArmI16x8ReplaceLane:
+    case kArmI16x8SConvertI8x16Low:
+    case kArmI16x8SConvertI8x16High:
     case kArmI16x8Neg:
     case kArmI16x8Shl:
     case kArmI16x8ShrS:
+    case kArmI16x8SConvertI32x4:
     case kArmI16x8Add:
     case kArmI16x8AddSaturateS:
     case kArmI16x8Sub:
@@ -167,9 +174,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI16x8Ne:
     case kArmI16x8LtS:
     case kArmI16x8LeS:
+    case kArmI16x8UConvertI8x16Low:
+    case kArmI16x8UConvertI8x16High:
+    case kArmI16x8ShrU:
+    case kArmI16x8UConvertI32x4:
     case kArmI16x8AddSaturateU:
     case kArmI16x8SubSaturateU:
-    case kArmI16x8ShrU:
     case kArmI16x8MinU:
     case kArmI16x8MaxU:
     case kArmI16x8LtU:
@@ -180,6 +190,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI8x16Neg:
     case kArmI8x16Shl:
     case kArmI8x16ShrS:
+    case kArmI8x16SConvertI16x8:
     case kArmI8x16Add:
     case kArmI8x16AddSaturateS:
     case kArmI8x16Sub:
@@ -191,6 +202,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI8x16Ne:
     case kArmI8x16LtS:
     case kArmI8x16LeS:
+    case kArmI8x16UConvertI16x8:
     case kArmI8x16AddSaturateU:
     case kArmI8x16SubSaturateU:
     case kArmI8x16ShrU:

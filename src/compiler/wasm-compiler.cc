@@ -3246,6 +3246,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI32x4UConvertF32x4:
       return graph()->NewNode(jsgraph()->machine()->I32x4UConvertF32x4(),
                               inputs[0]);
+    case wasm::kExprI32x4SConvertI16x8Low:
+      return graph()->NewNode(jsgraph()->machine()->I32x4SConvertI16x8Low(),
+                              inputs[0]);
+    case wasm::kExprI32x4SConvertI16x8High:
+      return graph()->NewNode(jsgraph()->machine()->I32x4SConvertI16x8High(),
+                              inputs[0]);
     case wasm::kExprI32x4Neg:
       return graph()->NewNode(jsgraph()->machine()->I32x4Neg(), inputs[0]);
     case wasm::kExprI32x4Add:
@@ -3281,6 +3287,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI32x4GeS:
       return graph()->NewNode(jsgraph()->machine()->I32x4LeS(), inputs[1],
                               inputs[0]);
+    case wasm::kExprI32x4UConvertI16x8Low:
+      return graph()->NewNode(jsgraph()->machine()->I32x4UConvertI16x8Low(),
+                              inputs[0]);
+    case wasm::kExprI32x4UConvertI16x8High:
+      return graph()->NewNode(jsgraph()->machine()->I32x4UConvertI16x8High(),
+                              inputs[0]);
     case wasm::kExprI32x4MinU:
       return graph()->NewNode(jsgraph()->machine()->I32x4MinU(), inputs[0],
                               inputs[1]);
@@ -3301,8 +3313,17 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
                               inputs[0]);
     case wasm::kExprI16x8Splat:
       return graph()->NewNode(jsgraph()->machine()->I16x8Splat(), inputs[0]);
+    case wasm::kExprI16x8SConvertI8x16Low:
+      return graph()->NewNode(jsgraph()->machine()->I16x8SConvertI8x16Low(),
+                              inputs[0]);
+    case wasm::kExprI16x8SConvertI8x16High:
+      return graph()->NewNode(jsgraph()->machine()->I16x8SConvertI8x16High(),
+                              inputs[0]);
     case wasm::kExprI16x8Neg:
       return graph()->NewNode(jsgraph()->machine()->I16x8Neg(), inputs[0]);
+    case wasm::kExprI16x8SConvertI32x4:
+      return graph()->NewNode(jsgraph()->machine()->I16x8SConvertI32x4(),
+                              inputs[0], inputs[1]);
     case wasm::kExprI16x8Add:
       return graph()->NewNode(jsgraph()->machine()->I16x8Add(), inputs[0],
                               inputs[1]);
@@ -3342,6 +3363,15 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI16x8GeS:
       return graph()->NewNode(jsgraph()->machine()->I16x8LeS(), inputs[1],
                               inputs[0]);
+    case wasm::kExprI16x8UConvertI8x16Low:
+      return graph()->NewNode(jsgraph()->machine()->I16x8UConvertI8x16Low(),
+                              inputs[0]);
+    case wasm::kExprI16x8UConvertI8x16High:
+      return graph()->NewNode(jsgraph()->machine()->I16x8UConvertI8x16High(),
+                              inputs[0]);
+    case wasm::kExprI16x8UConvertI32x4:
+      return graph()->NewNode(jsgraph()->machine()->I16x8UConvertI32x4(),
+                              inputs[0], inputs[1]);
     case wasm::kExprI16x8AddSaturateU:
       return graph()->NewNode(jsgraph()->machine()->I16x8AddSaturateU(),
                               inputs[0], inputs[1]);
@@ -3370,6 +3400,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
       return graph()->NewNode(jsgraph()->machine()->I8x16Splat(), inputs[0]);
     case wasm::kExprI8x16Neg:
       return graph()->NewNode(jsgraph()->machine()->I8x16Neg(), inputs[0]);
+    case wasm::kExprI8x16SConvertI16x8:
+      return graph()->NewNode(jsgraph()->machine()->I8x16SConvertI16x8(),
+                              inputs[0], inputs[1]);
     case wasm::kExprI8x16Add:
       return graph()->NewNode(jsgraph()->machine()->I8x16Add(), inputs[0],
                               inputs[1]);
@@ -3409,6 +3442,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI8x16GeS:
       return graph()->NewNode(jsgraph()->machine()->I8x16LeS(), inputs[1],
                               inputs[0]);
+    case wasm::kExprI8x16UConvertI16x8:
+      return graph()->NewNode(jsgraph()->machine()->I8x16UConvertI16x8(),
+                              inputs[0], inputs[1]);
     case wasm::kExprI8x16AddSaturateU:
       return graph()->NewNode(jsgraph()->machine()->I8x16AddSaturateU(),
                               inputs[0], inputs[1]);

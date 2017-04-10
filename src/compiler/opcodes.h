@@ -593,6 +593,8 @@
   V(I32x4ExtractLane)           \
   V(I32x4ReplaceLane)           \
   V(I32x4SConvertF32x4)         \
+  V(I32x4SConvertI16x8Low)      \
+  V(I32x4SConvertI16x8High)     \
   V(I32x4Neg)                   \
   V(I32x4Shl)                   \
   V(I32x4ShrS)                  \
@@ -608,6 +610,8 @@
   V(I32x4GtS)                   \
   V(I32x4GeS)                   \
   V(I32x4UConvertF32x4)         \
+  V(I32x4UConvertI16x8Low)      \
+  V(I32x4UConvertI16x8High)     \
   V(I32x4ShrU)                  \
   V(I32x4MinU)                  \
   V(I32x4MaxU)                  \
@@ -618,9 +622,12 @@
   V(I16x8Splat)                 \
   V(I16x8ExtractLane)           \
   V(I16x8ReplaceLane)           \
+  V(I16x8SConvertI8x16Low)      \
+  V(I16x8SConvertI8x16High)     \
   V(I16x8Neg)                   \
   V(I16x8Shl)                   \
   V(I16x8ShrS)                  \
+  V(I16x8SConvertI32x4)         \
   V(I16x8Add)                   \
   V(I16x8AddSaturateS)          \
   V(I16x8Sub)                   \
@@ -634,9 +641,12 @@
   V(I16x8LeS)                   \
   V(I16x8GtS)                   \
   V(I16x8GeS)                   \
+  V(I16x8UConvertI8x16Low)      \
+  V(I16x8UConvertI8x16High)     \
+  V(I16x8ShrU)                  \
+  V(I16x8UConvertI32x4)         \
   V(I16x8AddSaturateU)          \
   V(I16x8SubSaturateU)          \
-  V(I16x8ShrU)                  \
   V(I16x8MinU)                  \
   V(I16x8MaxU)                  \
   V(I16x8LtU)                   \
@@ -646,6 +656,7 @@
   V(I8x16Splat)                 \
   V(I8x16ExtractLane)           \
   V(I8x16ReplaceLane)           \
+  V(I8x16SConvertI16x8)         \
   V(I8x16Neg)                   \
   V(I8x16Shl)                   \
   V(I8x16ShrS)                  \
@@ -662,6 +673,7 @@
   V(I8x16LeS)                   \
   V(I8x16GtS)                   \
   V(I8x16GeS)                   \
+  V(I8x16UConvertI16x8)         \
   V(I8x16AddSaturateU)          \
   V(I8x16SubSaturateU)          \
   V(I8x16ShrU)                  \

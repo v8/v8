@@ -254,6 +254,8 @@ MachineType AtomicCompareExchangeRepresentationOf(Operator const* op) {
   V(F32x4Le, Operator::kNoProperties, 2, 0, 1)                            \
   V(I32x4Splat, Operator::kNoProperties, 1, 0, 1)                         \
   V(I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)                 \
+  V(I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)              \
+  V(I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)             \
   V(I32x4Neg, Operator::kNoProperties, 1, 0, 1)                           \
   V(I32x4Add, Operator::kCommutative, 2, 0, 1)                            \
   V(I32x4Sub, Operator::kNoProperties, 2, 0, 1)                           \
@@ -265,12 +267,17 @@ MachineType AtomicCompareExchangeRepresentationOf(Operator const* op) {
   V(I32x4LtS, Operator::kNoProperties, 2, 0, 1)                           \
   V(I32x4LeS, Operator::kNoProperties, 2, 0, 1)                           \
   V(I32x4UConvertF32x4, Operator::kNoProperties, 1, 0, 1)                 \
+  V(I32x4UConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)              \
+  V(I32x4UConvertI16x8High, Operator::kNoProperties, 1, 0, 1)             \
   V(I32x4MinU, Operator::kCommutative, 2, 0, 1)                           \
   V(I32x4MaxU, Operator::kCommutative, 2, 0, 1)                           \
   V(I32x4LtU, Operator::kNoProperties, 2, 0, 1)                           \
   V(I32x4LeU, Operator::kNoProperties, 2, 0, 1)                           \
   V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                         \
+  V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)              \
+  V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)             \
   V(I16x8Neg, Operator::kNoProperties, 1, 0, 1)                           \
+  V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                 \
   V(I16x8Add, Operator::kCommutative, 2, 0, 1)                            \
   V(I16x8AddSaturateS, Operator::kCommutative, 2, 0, 1)                   \
   V(I16x8Sub, Operator::kNoProperties, 2, 0, 1)                           \
@@ -282,6 +289,9 @@ MachineType AtomicCompareExchangeRepresentationOf(Operator const* op) {
   V(I16x8Ne, Operator::kCommutative, 2, 0, 1)                             \
   V(I16x8LtS, Operator::kNoProperties, 2, 0, 1)                           \
   V(I16x8LeS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x8UConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)              \
+  V(I16x8UConvertI8x16High, Operator::kNoProperties, 1, 0, 1)             \
+  V(I16x8UConvertI32x4, Operator::kNoProperties, 2, 0, 1)                 \
   V(I16x8AddSaturateU, Operator::kCommutative, 2, 0, 1)                   \
   V(I16x8SubSaturateU, Operator::kNoProperties, 2, 0, 1)                  \
   V(I16x8MinU, Operator::kCommutative, 2, 0, 1)                           \
@@ -290,6 +300,7 @@ MachineType AtomicCompareExchangeRepresentationOf(Operator const* op) {
   V(I16x8LeU, Operator::kNoProperties, 2, 0, 1)                           \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                         \
   V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                           \
+  V(I8x16SConvertI16x8, Operator::kNoProperties, 2, 0, 1)                 \
   V(I8x16Add, Operator::kCommutative, 2, 0, 1)                            \
   V(I8x16AddSaturateS, Operator::kCommutative, 2, 0, 1)                   \
   V(I8x16Sub, Operator::kNoProperties, 2, 0, 1)                           \
@@ -301,6 +312,7 @@ MachineType AtomicCompareExchangeRepresentationOf(Operator const* op) {
   V(I8x16Ne, Operator::kCommutative, 2, 0, 1)                             \
   V(I8x16LtS, Operator::kNoProperties, 2, 0, 1)                           \
   V(I8x16LeS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I8x16UConvertI16x8, Operator::kNoProperties, 2, 0, 1)                 \
   V(I8x16AddSaturateU, Operator::kCommutative, 2, 0, 1)                   \
   V(I8x16SubSaturateU, Operator::kNoProperties, 2, 0, 1)                  \
   V(I8x16MinU, Operator::kCommutative, 2, 0, 1)                           \

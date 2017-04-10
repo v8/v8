@@ -2320,27 +2320,35 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   V(S1x8Zero)                \
   V(S1x16Zero)
 
-#define SIMD_UNOP_LIST(V)                           \
-  V(F32x4SConvertI32x4, kArmF32x4SConvertI32x4)     \
-  V(F32x4UConvertI32x4, kArmF32x4UConvertI32x4)     \
-  V(F32x4Abs, kArmF32x4Abs)                         \
-  V(F32x4Neg, kArmF32x4Neg)                         \
-  V(F32x4RecipApprox, kArmF32x4RecipApprox)         \
-  V(F32x4RecipSqrtApprox, kArmF32x4RecipSqrtApprox) \
-  V(I32x4SConvertF32x4, kArmI32x4SConvertF32x4)     \
-  V(I32x4Neg, kArmI32x4Neg)                         \
-  V(I32x4UConvertF32x4, kArmI32x4UConvertF32x4)     \
-  V(I16x8Neg, kArmI16x8Neg)                         \
-  V(I8x16Neg, kArmI8x16Neg)                         \
-  V(S128Not, kArmS128Not)                           \
-  V(S1x4Not, kArmS128Not)                           \
-  V(S1x4AnyTrue, kArmS1x4AnyTrue)                   \
-  V(S1x4AllTrue, kArmS1x4AllTrue)                   \
-  V(S1x8Not, kArmS128Not)                           \
-  V(S1x8AnyTrue, kArmS1x8AnyTrue)                   \
-  V(S1x8AllTrue, kArmS1x8AllTrue)                   \
-  V(S1x16Not, kArmS128Not)                          \
-  V(S1x16AnyTrue, kArmS1x16AnyTrue)                 \
+#define SIMD_UNOP_LIST(V)                               \
+  V(F32x4SConvertI32x4, kArmF32x4SConvertI32x4)         \
+  V(F32x4UConvertI32x4, kArmF32x4UConvertI32x4)         \
+  V(F32x4Abs, kArmF32x4Abs)                             \
+  V(F32x4Neg, kArmF32x4Neg)                             \
+  V(F32x4RecipApprox, kArmF32x4RecipApprox)             \
+  V(F32x4RecipSqrtApprox, kArmF32x4RecipSqrtApprox)     \
+  V(I32x4SConvertF32x4, kArmI32x4SConvertF32x4)         \
+  V(I32x4SConvertI16x8Low, kArmI32x4SConvertI16x8Low)   \
+  V(I32x4SConvertI16x8High, kArmI32x4SConvertI16x8High) \
+  V(I32x4Neg, kArmI32x4Neg)                             \
+  V(I32x4UConvertF32x4, kArmI32x4UConvertF32x4)         \
+  V(I32x4UConvertI16x8Low, kArmI32x4UConvertI16x8Low)   \
+  V(I32x4UConvertI16x8High, kArmI32x4UConvertI16x8High) \
+  V(I16x8SConvertI8x16Low, kArmI16x8SConvertI8x16Low)   \
+  V(I16x8SConvertI8x16High, kArmI16x8SConvertI8x16High) \
+  V(I16x8Neg, kArmI16x8Neg)                             \
+  V(I16x8UConvertI8x16Low, kArmI16x8UConvertI8x16Low)   \
+  V(I16x8UConvertI8x16High, kArmI16x8UConvertI8x16High) \
+  V(I8x16Neg, kArmI8x16Neg)                             \
+  V(S128Not, kArmS128Not)                               \
+  V(S1x4Not, kArmS128Not)                               \
+  V(S1x4AnyTrue, kArmS1x4AnyTrue)                       \
+  V(S1x4AllTrue, kArmS1x4AllTrue)                       \
+  V(S1x8Not, kArmS128Not)                               \
+  V(S1x8AnyTrue, kArmS1x8AnyTrue)                       \
+  V(S1x8AllTrue, kArmS1x8AllTrue)                       \
+  V(S1x16Not, kArmS128Not)                              \
+  V(S1x16AnyTrue, kArmS1x16AnyTrue)                     \
   V(S1x16AllTrue, kArmS1x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
@@ -2379,6 +2387,7 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   V(I32x4MaxU, kArmI32x4MaxU)                       \
   V(I32x4LtU, kArmI32x4LtU)                         \
   V(I32x4LeU, kArmI32x4LeU)                         \
+  V(I16x8SConvertI32x4, kArmI16x8SConvertI32x4)     \
   V(I16x8Add, kArmI16x8Add)                         \
   V(I16x8AddSaturateS, kArmI16x8AddSaturateS)       \
   V(I16x8Sub, kArmI16x8Sub)                         \
@@ -2390,12 +2399,14 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   V(I16x8Ne, kArmI16x8Ne)                           \
   V(I16x8LtS, kArmI16x8LtS)                         \
   V(I16x8LeS, kArmI16x8LeS)                         \
+  V(I16x8UConvertI32x4, kArmI16x8UConvertI32x4)     \
   V(I16x8AddSaturateU, kArmI16x8AddSaturateU)       \
   V(I16x8SubSaturateU, kArmI16x8SubSaturateU)       \
   V(I16x8MinU, kArmI16x8MinU)                       \
   V(I16x8MaxU, kArmI16x8MaxU)                       \
   V(I16x8LtU, kArmI16x8LtU)                         \
   V(I16x8LeU, kArmI16x8LeU)                         \
+  V(I8x16SConvertI16x8, kArmI8x16SConvertI16x8)     \
   V(I8x16Add, kArmI8x16Add)                         \
   V(I8x16AddSaturateS, kArmI8x16AddSaturateS)       \
   V(I8x16Sub, kArmI8x16Sub)                         \
@@ -2407,6 +2418,7 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   V(I8x16Ne, kArmI8x16Ne)                           \
   V(I8x16LtS, kArmI8x16LtS)                         \
   V(I8x16LeS, kArmI8x16LeS)                         \
+  V(I8x16UConvertI16x8, kArmI8x16UConvertI16x8)     \
   V(I8x16AddSaturateU, kArmI8x16AddSaturateU)       \
   V(I8x16SubSaturateU, kArmI8x16SubSaturateU)       \
   V(I8x16MinU, kArmI8x16MinU)                       \

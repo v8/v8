@@ -1528,6 +1528,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4ReplaceLane(node);
     case IrOpcode::kI32x4SConvertF32x4:
       return MarkAsSimd128(node), VisitI32x4SConvertF32x4(node);
+    case IrOpcode::kI32x4SConvertI16x8Low:
+      return MarkAsSimd128(node), VisitI32x4SConvertI16x8Low(node);
+    case IrOpcode::kI32x4SConvertI16x8High:
+      return MarkAsSimd128(node), VisitI32x4SConvertI16x8High(node);
     case IrOpcode::kI32x4Neg:
       return MarkAsSimd128(node), VisitI32x4Neg(node);
     case IrOpcode::kI32x4Shl:
@@ -1554,6 +1558,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd1x4(node), VisitI32x4LeS(node);
     case IrOpcode::kI32x4UConvertF32x4:
       return MarkAsSimd128(node), VisitI32x4UConvertF32x4(node);
+    case IrOpcode::kI32x4UConvertI16x8Low:
+      return MarkAsSimd128(node), VisitI32x4UConvertI16x8Low(node);
+    case IrOpcode::kI32x4UConvertI16x8High:
+      return MarkAsSimd128(node), VisitI32x4UConvertI16x8High(node);
     case IrOpcode::kI32x4ShrU:
       return MarkAsSimd128(node), VisitI32x4ShrU(node);
     case IrOpcode::kI32x4MinU:
@@ -1570,12 +1578,18 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitI16x8ExtractLane(node);
     case IrOpcode::kI16x8ReplaceLane:
       return MarkAsSimd128(node), VisitI16x8ReplaceLane(node);
+    case IrOpcode::kI16x8SConvertI8x16Low:
+      return MarkAsSimd128(node), VisitI16x8SConvertI8x16Low(node);
+    case IrOpcode::kI16x8SConvertI8x16High:
+      return MarkAsSimd128(node), VisitI16x8SConvertI8x16High(node);
     case IrOpcode::kI16x8Neg:
       return MarkAsSimd128(node), VisitI16x8Neg(node);
     case IrOpcode::kI16x8Shl:
       return MarkAsSimd128(node), VisitI16x8Shl(node);
     case IrOpcode::kI16x8ShrS:
       return MarkAsSimd128(node), VisitI16x8ShrS(node);
+    case IrOpcode::kI16x8SConvertI32x4:
+      return MarkAsSimd128(node), VisitI16x8SConvertI32x4(node);
     case IrOpcode::kI16x8Add:
       return MarkAsSimd128(node), VisitI16x8Add(node);
     case IrOpcode::kI16x8AddSaturateS:
@@ -1598,8 +1612,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd1x8(node), VisitI16x8LtS(node);
     case IrOpcode::kI16x8LeS:
       return MarkAsSimd1x8(node), VisitI16x8LeS(node);
+    case IrOpcode::kI16x8UConvertI8x16Low:
+      return MarkAsSimd128(node), VisitI16x8UConvertI8x16Low(node);
+    case IrOpcode::kI16x8UConvertI8x16High:
+      return MarkAsSimd128(node), VisitI16x8UConvertI8x16High(node);
     case IrOpcode::kI16x8ShrU:
       return MarkAsSimd128(node), VisitI16x8ShrU(node);
+    case IrOpcode::kI16x8UConvertI32x4:
+      return MarkAsSimd128(node), VisitI16x8UConvertI32x4(node);
     case IrOpcode::kI16x8AddSaturateU:
       return MarkAsSimd128(node), VisitI16x8AddSaturateU(node);
     case IrOpcode::kI16x8SubSaturateU:
@@ -1624,6 +1644,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16Shl(node);
     case IrOpcode::kI8x16ShrS:
       return MarkAsSimd128(node), VisitI8x16ShrS(node);
+    case IrOpcode::kI8x16SConvertI16x8:
+      return MarkAsSimd128(node), VisitI8x16SConvertI16x8(node);
     case IrOpcode::kI8x16Add:
       return MarkAsSimd128(node), VisitI8x16Add(node);
     case IrOpcode::kI8x16AddSaturateS:
@@ -1648,6 +1670,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd1x16(node), VisitI8x16LeS(node);
     case IrOpcode::kI8x16ShrU:
       return MarkAsSimd128(node), VisitI8x16ShrU(node);
+    case IrOpcode::kI8x16UConvertI16x8:
+      return MarkAsSimd128(node), VisitI8x16UConvertI16x8(node);
     case IrOpcode::kI8x16AddSaturateU:
       return MarkAsSimd128(node), VisitI8x16AddSaturateU(node);
     case IrOpcode::kI8x16SubSaturateU:
@@ -2139,6 +2163,14 @@ void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitI32x4SConvertI16x8Low(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI32x4SConvertI16x8High(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitI32x4Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4LtS(Node* node) { UNIMPLEMENTED(); }
@@ -2146,6 +2178,14 @@ void InstructionSelector::VisitI32x4LtS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4LeS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI32x4UConvertI16x8Low(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI32x4UConvertI16x8High(Node* node) {
   UNIMPLEMENTED();
 }
 
@@ -2159,11 +2199,23 @@ void InstructionSelector::VisitI16x8ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitI16x8SConvertI8x16Low(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI16x8SConvertI8x16High(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitI16x8Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8Shl(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8ShrS(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI16x8SConvertI32x4(Node* node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitI16x8Add(Node* node) { UNIMPLEMENTED(); }
 
@@ -2191,7 +2243,19 @@ void InstructionSelector::VisitI16x8LtS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8LeS(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitI16x8UConvertI8x16Low(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI16x8UConvertI8x16High(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitI16x8ShrU(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitI16x8AddSaturateU(Node* node) {
   UNIMPLEMENTED();
@@ -2221,6 +2285,10 @@ void InstructionSelector::VisitI8x16Shl(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16ShrS(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitI8x16SConvertI16x8(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitI8x16Add(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
@@ -2248,6 +2316,10 @@ void InstructionSelector::VisitI8x16LtS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16LeS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitI8x16AddSaturateU(Node* node) {
   UNIMPLEMENTED();

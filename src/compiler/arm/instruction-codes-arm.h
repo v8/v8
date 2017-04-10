@@ -148,6 +148,8 @@ namespace compiler {
   V(ArmI32x4ExtractLane)           \
   V(ArmI32x4ReplaceLane)           \
   V(ArmI32x4SConvertF32x4)         \
+  V(ArmI32x4SConvertI16x8Low)      \
+  V(ArmI32x4SConvertI16x8High)     \
   V(ArmI32x4Neg)                   \
   V(ArmI32x4Shl)                   \
   V(ArmI32x4ShrS)                  \
@@ -161,6 +163,8 @@ namespace compiler {
   V(ArmI32x4LtS)                   \
   V(ArmI32x4LeS)                   \
   V(ArmI32x4UConvertF32x4)         \
+  V(ArmI32x4UConvertI16x8Low)      \
+  V(ArmI32x4UConvertI16x8High)     \
   V(ArmI32x4ShrU)                  \
   V(ArmI32x4MinU)                  \
   V(ArmI32x4MaxU)                  \
@@ -169,9 +173,12 @@ namespace compiler {
   V(ArmI16x8Splat)                 \
   V(ArmI16x8ExtractLane)           \
   V(ArmI16x8ReplaceLane)           \
+  V(ArmI16x8SConvertI8x16Low)      \
+  V(ArmI16x8SConvertI8x16High)     \
   V(ArmI16x8Neg)                   \
   V(ArmI16x8Shl)                   \
   V(ArmI16x8ShrS)                  \
+  V(ArmI16x8SConvertI32x4)         \
   V(ArmI16x8Add)                   \
   V(ArmI16x8AddSaturateS)          \
   V(ArmI16x8Sub)                   \
@@ -183,7 +190,10 @@ namespace compiler {
   V(ArmI16x8Ne)                    \
   V(ArmI16x8LtS)                   \
   V(ArmI16x8LeS)                   \
+  V(ArmI16x8UConvertI8x16Low)      \
+  V(ArmI16x8UConvertI8x16High)     \
   V(ArmI16x8ShrU)                  \
+  V(ArmI16x8UConvertI32x4)         \
   V(ArmI16x8AddSaturateU)          \
   V(ArmI16x8SubSaturateU)          \
   V(ArmI16x8MinU)                  \
@@ -196,6 +206,7 @@ namespace compiler {
   V(ArmI8x16Neg)                   \
   V(ArmI8x16Shl)                   \
   V(ArmI8x16ShrS)                  \
+  V(ArmI8x16SConvertI16x8)         \
   V(ArmI8x16Add)                   \
   V(ArmI8x16AddSaturateS)          \
   V(ArmI8x16Sub)                   \
@@ -208,6 +219,7 @@ namespace compiler {
   V(ArmI8x16LtS)                   \
   V(ArmI8x16LeS)                   \
   V(ArmI8x16ShrU)                  \
+  V(ArmI8x16UConvertI16x8)         \
   V(ArmI8x16AddSaturateU)          \
   V(ArmI8x16SubSaturateU)          \
   V(ArmI8x16MinU)                  \

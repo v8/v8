@@ -321,13 +321,17 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I32x4GtS, 0xe52a, s1x4_ss)           \
   V(I32x4GeS, 0xe52b, s1x4_ss)           \
   V(I32x4SConvertF32x4, 0xe52f, s_s)     \
+  V(I32x4UConvertF32x4, 0xe537, s_s)     \
+  V(I32x4SConvertI16x8Low, 0xe594, s_s)  \
+  V(I32x4SConvertI16x8High, 0xe595, s_s) \
+  V(I32x4UConvertI16x8Low, 0xe596, s_s)  \
+  V(I32x4UConvertI16x8High, 0xe597, s_s) \
   V(I32x4MinU, 0xe530, s_ss)             \
   V(I32x4MaxU, 0xe531, s_ss)             \
   V(I32x4LtU, 0xe533, s1x4_ss)           \
   V(I32x4LeU, 0xe534, s1x4_ss)           \
   V(I32x4GtU, 0xe535, s1x4_ss)           \
   V(I32x4GeU, 0xe536, s1x4_ss)           \
-  V(I32x4UConvertF32x4, 0xe537, s_s)     \
   V(I16x8Splat, 0xe538, s_i)             \
   V(I16x8Neg, 0xe53b, s_s)               \
   V(I16x8Add, 0xe53c, s_ss)              \
@@ -351,6 +355,12 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I16x8LeU, 0xe554, s1x8_ss)           \
   V(I16x8GtU, 0xe555, s1x8_ss)           \
   V(I16x8GeU, 0xe556, s1x8_ss)           \
+  V(I16x8SConvertI32x4, 0xe598, s_ss)    \
+  V(I16x8UConvertI32x4, 0xe599, s_ss)    \
+  V(I16x8SConvertI8x16Low, 0xe59a, s_s)  \
+  V(I16x8SConvertI8x16High, 0xe59b, s_s) \
+  V(I16x8UConvertI8x16Low, 0xe59c, s_s)  \
+  V(I16x8UConvertI8x16High, 0xe59d, s_s) \
   V(I8x16Splat, 0xe557, s_i)             \
   V(I8x16Neg, 0xe55a, s_s)               \
   V(I8x16Add, 0xe55b, s_ss)              \
@@ -374,6 +384,8 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I8x16LeU, 0xe573, s1x16_ss)          \
   V(I8x16GtU, 0xe574, s1x16_ss)          \
   V(I8x16GeU, 0xe575, s1x16_ss)          \
+  V(I8x16SConvertI16x8, 0xe59e, s_ss)    \
+  V(I8x16UConvertI16x8, 0xe59f, s_ss)    \
   V(S128And, 0xe576, s_ss)               \
   V(S128Or, 0xe577, s_ss)                \
   V(S128Xor, 0xe578, s_ss)               \

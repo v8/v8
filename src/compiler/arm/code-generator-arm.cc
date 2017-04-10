@@ -1668,6 +1668,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vcvt_s32_f32(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmI32x4SConvertI16x8Low: {
+      __ vmovl(NeonS16, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).low());
+      break;
+    }
+    case kArmI32x4SConvertI16x8High: {
+      __ vmovl(NeonS16, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).high());
+      break;
+    }
     case kArmI32x4Neg: {
       __ vneg(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -1733,6 +1743,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vcvt_u32_f32(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmI32x4UConvertI16x8Low: {
+      __ vmovl(NeonU16, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).low());
+      break;
+    }
+    case kArmI32x4UConvertI16x8High: {
+      __ vmovl(NeonU16, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).high());
+      break;
+    }
     case kArmI32x4ShrU: {
       __ vshr(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt5(1));
@@ -1772,6 +1792,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                      i.InputRegister(2), NeonS16, i.InputInt8(1));
       break;
     }
+    case kArmI16x8SConvertI8x16Low: {
+      __ vmovl(NeonS8, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).low());
+      break;
+    }
+    case kArmI16x8SConvertI8x16High: {
+      __ vmovl(NeonS8, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).high());
+      break;
+    }
     case kArmI16x8Neg: {
       __ vneg(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -1784,6 +1814,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmI16x8ShrS: {
       __ vshr(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt4(1));
+      break;
+    }
+    case kArmI16x8SConvertI32x4: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      // Take care not to overwrite a source register before it's used.
+      if (dst.is(src0) && dst.is(src1)) {
+        __ vqmovn(NeonS16, dst.low(), src0);
+        __ vmov(dst.high(), dst.low());
+      } else if (dst.is(src0)) {
+        // dst is src0, so narrow src0 first.
+        __ vqmovn(NeonS16, dst.low(), src0);
+        __ vqmovn(NeonS16, dst.high(), src1);
+      } else {
+        // dst may alias src1, so narrow src1 first.
+        __ vqmovn(NeonS16, dst.high(), src1);
+        __ vqmovn(NeonS16, dst.low(), src0);
+      }
       break;
     }
     case kArmI16x8Add: {
@@ -1843,9 +1892,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(0));
       break;
     }
+    case kArmI16x8UConvertI8x16Low: {
+      __ vmovl(NeonU8, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).low());
+      break;
+    }
+    case kArmI16x8UConvertI8x16High: {
+      __ vmovl(NeonU8, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).high());
+      break;
+    }
     case kArmI16x8ShrU: {
       __ vshr(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt4(1));
+      break;
+    }
+    case kArmI16x8UConvertI32x4: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      // Take care not to overwrite a source register before it's used.
+      if (dst.is(src0) && dst.is(src1)) {
+        __ vqmovn(NeonU16, dst.low(), src0);
+        __ vmov(dst.high(), dst.low());
+      } else if (dst.is(src0)) {
+        // dst is src0, so narrow src0 first.
+        __ vqmovn(NeonU16, dst.low(), src0);
+        __ vqmovn(NeonU16, dst.high(), src1);
+      } else {
+        // dst may alias src1, so narrow src1 first.
+        __ vqmovn(NeonU16, dst.high(), src1);
+        __ vqmovn(NeonU16, dst.low(), src0);
+      }
       break;
     }
     case kArmI16x8AddSaturateU: {
@@ -1904,6 +1982,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmI8x16ShrS: {
       __ vshr(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt3(1));
+      break;
+    }
+    case kArmI8x16SConvertI16x8: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      // Take care not to overwrite a source register before it's used.
+      if (dst.is(src0) && dst.is(src1)) {
+        __ vqmovn(NeonS8, dst.low(), src0);
+        __ vmov(dst.high(), dst.low());
+      } else if (dst.is(src0)) {
+        // dst is src0, so narrow src0 first.
+        __ vqmovn(NeonS8, dst.low(), src0);
+        __ vqmovn(NeonS8, dst.high(), src1);
+      } else {
+        // dst may alias src1, so narrow src1 first.
+        __ vqmovn(NeonS8, dst.high(), src1);
+        __ vqmovn(NeonS8, dst.low(), src0);
+      }
       break;
     }
     case kArmI8x16Add: {
@@ -1965,6 +2062,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmI8x16ShrU: {
       __ vshr(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputInt3(1));
+      break;
+    }
+    case kArmI8x16UConvertI16x8: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      // Take care not to overwrite a source register before it's used.
+      if (dst.is(src0) && dst.is(src1)) {
+        __ vqmovn(NeonU8, dst.low(), src0);
+        __ vmov(dst.high(), dst.low());
+      } else if (dst.is(src0)) {
+        // dst is src0, so narrow src0 first.
+        __ vqmovn(NeonU8, dst.low(), src0);
+        __ vqmovn(NeonU8, dst.high(), src1);
+      } else {
+        // dst may alias src1, so narrow src1 first.
+        __ vqmovn(NeonU8, dst.high(), src1);
+        __ vqmovn(NeonU8, dst.low(), src0);
+      }
       break;
     }
     case kArmI8x16AddSaturateU: {
