@@ -1353,8 +1353,9 @@ bool Heap::PerformGarbageCollection(
         MinorMarkCompact();
         break;
       case SCAVENGER:
-        if (fast_promotion_mode_ &&
-            CanExpandOldGeneration(new_space()->Size())) {
+        if ((fast_promotion_mode_ &&
+             CanExpandOldGeneration(new_space()->Size())) ||
+            concurrent_marking_->IsTaskPending()) {
           tracer()->NotifyYoungGenerationHandling(
               YoungGenerationHandling::kFastPromotionDuringScavenge);
           EvacuateYoungGeneration();
@@ -1626,8 +1627,10 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 void Heap::EvacuateYoungGeneration() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_EVACUATE);
-  DCHECK(fast_promotion_mode_);
-  DCHECK(CanExpandOldGeneration(new_space()->Size()));
+  if (!FLAG_concurrent_marking) {
+    DCHECK(fast_promotion_mode_);
+    DCHECK(CanExpandOldGeneration(new_space()->Size()));
+  }
 
   mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
 

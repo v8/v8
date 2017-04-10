@@ -7,6 +7,7 @@
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/conversions.h"
+#include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
@@ -544,6 +545,15 @@ void IncrementalMarking::StartMarking() {
   // Mark strong roots grey.
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
+
+  if (FLAG_concurrent_marking) {
+    ConcurrentMarking* concurrent_marking = heap_->concurrent_marking();
+    heap_->mark_compact_collector()->marking_deque()->Iterate(
+        [concurrent_marking](HeapObject* obj) {
+          concurrent_marking->AddRoot(obj);
+        });
+    concurrent_marking->StartTask();
+  }
 
   // Ready to start incremental marking.
   if (FLAG_trace_incremental_marking) {

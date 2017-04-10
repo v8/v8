@@ -186,6 +186,15 @@ class MarkingDeque {
     }
   }
 
+  template <typename Callback>
+  void Iterate(Callback callback) {
+    int i = bottom_;
+    while (i != top_) {
+      callback(array_[i]);
+      i = (i + 1) & mask_;
+    }
+  }
+
   HeapObject** array() { return array_; }
   int bottom() { return bottom_; }
   int top() { return top_; }

@@ -12,6 +12,8 @@
 #include "src/heap/marking.h"
 #include "src/isolate.h"
 #include "src/locked-queue-inl.h"
+#include "src/utils-inl.h"
+#include "src/utils.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -50,7 +52,7 @@ class ConcurrentMarkingMarkbits {
 
 class ConcurrentMarkingVisitor : public ObjectVisitor {
  public:
-  ConcurrentMarkingVisitor() {}
+  ConcurrentMarkingVisitor() : bytes_marked_(0) {}
 
   void VisitPointers(Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
@@ -61,6 +63,7 @@ class ConcurrentMarkingVisitor : public ObjectVisitor {
 
   void MarkObject(HeapObject* obj) {
     if (markbits_.Mark(obj)) {
+      bytes_marked_ += obj->Size();
       marking_stack_.push(obj);
     }
   }
@@ -73,7 +76,10 @@ class ConcurrentMarkingVisitor : public ObjectVisitor {
     }
   }
 
+  size_t bytes_marked() { return bytes_marked_; }
+
  private:
+  size_t bytes_marked_;
   std::stack<HeapObject*> marking_stack_;
   ConcurrentMarkingMarkbits markbits_;
 };
@@ -92,11 +98,19 @@ class ConcurrentMarking::Task : public CancelableTask {
  private:
   // v8::internal::CancelableTask overrides.
   void RunInternal() override {
-    USE(heap_);
-    for (HeapObject* obj : *root_set_) {
-      marking_visitor_.MarkObject(obj);
+    double time_ms = heap_->MonotonicallyIncreasingTimeInMs();
+    {
+      TimedScope scope(&time_ms);
+      for (HeapObject* obj : *root_set_) {
+        marking_visitor_.MarkObject(obj);
+      }
+      marking_visitor_.MarkTransitively();
     }
-    marking_visitor_.MarkTransitively();
+    if (FLAG_trace_concurrent_marking) {
+      heap_->isolate()->PrintWithTimestamp(
+          "concurrently marked %dKB in %.2fms\n",
+          static_cast<int>(marking_visitor_.bytes_marked() / KB), time_ms);
+    }
     on_finish_->Signal();
   }
 
@@ -108,7 +122,12 @@ class ConcurrentMarking::Task : public CancelableTask {
 };
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap)
-    : heap_(heap), pending_task_(0) {}
+    : heap_(heap), pending_task_semaphore_(0), is_task_pending_(false) {
+  // Concurrent marking does not work with double unboxing.
+  STATIC_ASSERT(!(V8_CONCURRENT_MARKING && V8_DOUBLE_FIELDS_UNBOXING));
+  // The runtime flag should be set only if the compile time flag was set.
+  CHECK(!FLAG_concurrent_marking || V8_CONCURRENT_MARKING);
+}
 
 ConcurrentMarking::~ConcurrentMarking() {}
 
@@ -116,17 +135,26 @@ void ConcurrentMarking::AddRoot(HeapObject* object) {
   root_set_.push_back(object);
 }
 
-void ConcurrentMarking::StartMarkingTask() {
+void ConcurrentMarking::StartTask() {
   if (!FLAG_concurrent_marking) return;
+  is_task_pending_ = true;
 
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new Task(heap_, &root_set_, &pending_task_),
+      new Task(heap_, &root_set_, &pending_task_semaphore_),
       v8::Platform::kShortRunningTask);
 }
 
 void ConcurrentMarking::WaitForTaskToComplete() {
   if (!FLAG_concurrent_marking) return;
-  pending_task_.Wait();
+  pending_task_semaphore_.Wait();
+  is_task_pending_ = false;
+  root_set_.clear();
+}
+
+void ConcurrentMarking::EnsureTaskCompleted() {
+  if (IsTaskPending()) {
+    WaitForTaskToComplete();
+  }
 }
 
 }  // namespace internal

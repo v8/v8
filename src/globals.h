@@ -118,6 +118,7 @@ namespace internal {
 #define V8_DOUBLE_FIELDS_UNBOXING 0
 #endif
 
+#define V8_CONCURRENT_MARKING 0
 
 typedef uint8_t byte;
 typedef byte* Address;

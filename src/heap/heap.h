@@ -1239,6 +1239,12 @@ class Heap {
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
 
+  // ===========================================================================
+  // Concurrent marking API. ===================================================
+  // ===========================================================================
+
+  ConcurrentMarking* concurrent_marking() { return concurrent_marking_; }
+
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
   // A layout change is unsafe if
