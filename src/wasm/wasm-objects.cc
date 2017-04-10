@@ -70,30 +70,6 @@ using namespace v8::internal::wasm;
 
 namespace {
 
-uint32_t SafeUint32(Object* value) {
-  if (value->IsSmi()) {
-    int32_t val = Smi::cast(value)->value();
-    CHECK_GE(val, 0);
-    return static_cast<uint32_t>(val);
-  }
-  DCHECK(value->IsHeapNumber());
-  HeapNumber* num = HeapNumber::cast(value);
-  CHECK_GE(num->value(), 0.0);
-  CHECK_LE(num->value(), kMaxUInt32);
-  return static_cast<uint32_t>(num->value());
-}
-
-int32_t SafeInt32(Object* value) {
-  if (value->IsSmi()) {
-    return Smi::cast(value)->value();
-  }
-  DCHECK(value->IsHeapNumber());
-  HeapNumber* num = HeapNumber::cast(value);
-  CHECK_GE(num->value(), Smi::kMinValue);
-  CHECK_LE(num->value(), Smi::kMaxValue);
-  return static_cast<int32_t>(num->value());
-}
-
 // An iterator that returns first the module itself, then all modules linked via
 // next, then all linked via prev.
 class CompiledModulesIterator
@@ -420,7 +396,9 @@ DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmMemoryObject, instances_link, kInstancesLink,
                               WasmInstanceWrapper)
 
 uint32_t WasmMemoryObject::current_pages() {
-  return SafeUint32(buffer()->byte_length()) / wasm::WasmModule::kPageSize;
+  uint32_t byte_length;
+  CHECK(buffer()->byte_length()->ToUint32(&byte_length));
+  return byte_length / wasm::WasmModule::kPageSize;
 }
 
 bool WasmMemoryObject::has_maximum_pages() {
@@ -662,7 +640,9 @@ WasmInstanceObject* WasmExportedFunction::instance() {
 }
 
 int WasmExportedFunction::function_index() {
-  return SafeInt32(GetEmbedderField(kIndex));
+  int32_t func_index;
+  CHECK(GetEmbedderField(kIndex)->ToInt32(&func_index));
+  return func_index;
 }
 
 WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
