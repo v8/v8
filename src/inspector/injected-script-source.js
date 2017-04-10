@@ -403,7 +403,9 @@ InjectedScript.prototype = {
                 var descriptor;
                 try {
                     descriptor = InjectedScriptHost.getOwnPropertyDescriptor(o, property);
-                    InjectedScriptHost.nullifyPrototype(descriptor);
+                    if (descriptor) {
+                        InjectedScriptHost.nullifyPrototype(descriptor);
+                    }
                     var isAccessorProperty = descriptor && ("get" in descriptor || "set" in descriptor);
                     if (accessorPropertiesOnly && !isAccessorProperty)
                         continue;

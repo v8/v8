@@ -105,7 +105,9 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(
 
 void V8InjectedScriptHost::nullifyPrototypeCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(info.Length() == 1 && info[0]->IsObject());
+  CHECK(info.Length() == 1);
+  DCHECK(info[0]->IsObject());
+  if (!info[0]->IsObject()) return;
   v8::Isolate* isolate = info.GetIsolate();
   info[0]
       .As<v8::Object>()
