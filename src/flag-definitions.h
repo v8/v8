@@ -822,8 +822,9 @@ DEFINE_BOOL(external_reference_stats, false,
 #endif  // DEBUG
 
 // compiler.cc
-DEFINE_INT(max_opt_count, 10,
-           "maximum number of optimization attempts before giving up.")
+DEFINE_INT(max_deopt_count, 10,
+           "maximum number of deoptimizations before giving up optimization of "
+           "a function.")
 
 // compilation-cache.cc
 DEFINE_BOOL(compilation_cache, true, "enable compilation cache")

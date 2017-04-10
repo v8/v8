@@ -3875,6 +3875,11 @@ class Code: public HeapObject {
   inline bool marked_for_deoptimization();
   inline void set_marked_for_deoptimization(bool flag);
 
+  // [deopt_already_counted]: For kind OPTIMIZED_FUNCTION tells whether
+  // the code was already deoptimized.
+  inline bool deopt_already_counted();
+  inline void set_deopt_already_counted(bool flag);
+
   // [is_promise_rejection]: For kind BUILTIN tells whether the exception
   // thrown by the code will lead to promise rejection.
   inline bool is_promise_rejection();
@@ -4148,7 +4153,8 @@ class Code: public HeapObject {
   static const int kStackSlotsBitCount = 24;
   static const int kMarkedForDeoptimizationBit =
       kStackSlotsFirstBit + kStackSlotsBitCount;
-  static const int kIsTurbofannedBit = kMarkedForDeoptimizationBit + 1;
+  static const int kDeoptAlreadyCountedBit = kMarkedForDeoptimizationBit + 1;
+  static const int kIsTurbofannedBit = kDeoptAlreadyCountedBit + 1;
   static const int kCanHaveWeakObjects = kIsTurbofannedBit + 1;
   // Could be moved to overlap previous bits when we need more space.
   static const int kIsConstructStub = kCanHaveWeakObjects + 1;
@@ -4162,6 +4168,8 @@ class Code: public HeapObject {
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
   class MarkedForDeoptimizationField
       : public BitField<bool, kMarkedForDeoptimizationBit, 1> {};  // NOLINT
+  class DeoptAlreadyCountedField
+      : public BitField<bool, kDeoptAlreadyCountedBit, 1> {};  // NOLINT
   class IsTurbofannedField : public BitField<bool, kIsTurbofannedBit, 1> {
   };  // NOLINT
   class CanHaveWeakObjectsField
