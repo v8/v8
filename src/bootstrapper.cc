@@ -1524,11 +1524,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         array_function, isolate->factory()->InternalizeUtf8String("isArray"),
         Builtins::kArrayIsArray, 1, true);
     native_context()->set_is_arraylike(*is_arraylike);
-
-    Handle<JSFunction> has_side_effects = SimpleCreateFunction(
-        isolate, factory->NewStringFromAsciiChecked("hasIterationSideEffects"),
-        Builtins::kHasIterationSideEffects, 1, false);
-    native_context()->set_has_iteration_side_effects(*has_side_effects);
   }
 
   {  // --- A r r a y I t e r a t o r ---

@@ -47,7 +47,6 @@ enum ContextLookupFlags {
   V(IS_ARRAYLIKE, JSFunction, is_arraylike)                                   \
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)             \
   V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)         \
-  V(HAS_ITERATION_SIDE_EFFECTS_INDEX, JSFunction, has_iteration_side_effects) \
   V(MAKE_ERROR_INDEX, JSFunction, make_error)                                 \
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                     \
   V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)                   \

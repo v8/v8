@@ -1028,6 +1028,22 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   return *value;
 }
 
+// Checks that 22.2.2.1.1 Runtime Semantics: IterableToList produces exactly the
+// same result as doing nothing.
+RUNTIME_FUNCTION(Runtime_IterableToListCanBeElided) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
+
+  if (!obj->IsJSObject()) return isolate->heap()->ToBoolean(false);
+
+  // While iteration alone may not have observable side-effects, calling
+  // toNumber on an object will. Make sure the arg is not an array of objects.
+  ElementsKind kind = JSObject::cast(*obj)->GetElementsKind();
+  if (!IsFastNumberElementsKind(kind)) return isolate->heap()->ToBoolean(false);
+
+  return isolate->heap()->ToBoolean(!obj->IterationHasObservableEffects());
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -150,6 +150,10 @@ inline bool IsFastSmiElementsKind(ElementsKind kind) {
       kind == FAST_HOLEY_SMI_ELEMENTS;
 }
 
+inline bool IsFastNumberElementsKind(ElementsKind kind) {
+  return IsFastSmiElementsKind(kind) || IsFastDoubleElementsKind(kind);
+}
+
 
 inline bool IsFastObjectElementsKind(ElementsKind kind) {
   return kind == FAST_ELEMENTS ||

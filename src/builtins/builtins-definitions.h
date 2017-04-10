@@ -243,7 +243,6 @@ namespace internal {
   /* Array */                                                                  \
   ASM(ArrayCode)                                                               \
   ASM(InternalArrayCode)                                                       \
-  CPP(HasIterationSideEffects)                                                 \
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \
   TFJ(ArrayIsArray, 1, kArg)                                                   \

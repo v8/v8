@@ -30,6 +30,27 @@ function TestConstructLargeObject(constr) {
   }
 }
 
+function TestConstructFromArrayWithSideEffects(constr) {
+  var arr = [{ valueOf() { arr[1] = 20; return 1; }}, 2];
+
+  var ta = new constr(arr);
+
+  assertEquals(1, ta[0]);
+  assertEquals(2, ta[1]);
+}
+
+function TestConstructFromArrayWithSideEffectsHoley(constr) {
+  var arr = [{ valueOf() { arr[1] = 20; return 1; }}, 2, , 4];
+
+  var ta = new constr(arr);
+
+  assertEquals(1, ta[0]);
+  assertEquals(2, ta[1]);
+  // ta[2] will be the default value, but we aren't testing that here.
+  assertEquals(4, ta[3]);
+}
+
+
 function TestConstructFromArray(constr) {
   var n = 64;
   var jsArray = [];
@@ -97,6 +118,8 @@ function TestOffsetIsUsed(constr, n) {
 
 Test(TestConstructSmallObject);
 Test(TestConstructLargeObject);
+Test(TestConstructFromArrayWithSideEffects);
+Test(TestConstructFromArrayWithSideEffectsHoley);
 Test(TestConstructFromArray);
 Test(TestConstructFromTypedArray);
 Test(TestLengthIsMaxSmi);

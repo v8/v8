@@ -1239,14 +1239,5 @@ BUILTIN(ArrayConcat) {
   return Slow_ArrayConcat(&args, species, isolate);
 }
 
-BUILTIN(HasIterationSideEffects) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  bool observable = args[1]->IterationHasObservableEffects();
-
-  return isolate->heap()->ToBoolean(observable);
-}
-
 }  // namespace internal
 }  // namespace v8

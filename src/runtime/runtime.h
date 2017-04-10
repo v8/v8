@@ -422,7 +422,8 @@ namespace internal {
   F(CreateIterResultObject, 2, 1)                               \
   F(CreateKeyValueArray, 2, 1)                                  \
   F(IsAccessCheckNeeded, 1, 1)                                  \
-  F(CreateDataProperty, 3, 1)
+  F(CreateDataProperty, 3, 1)                                   \
+  F(IterableToListCanBeElided, 1, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F) \
   F(Multiply, 2, 1)                     \
