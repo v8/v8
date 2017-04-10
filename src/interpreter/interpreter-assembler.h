@@ -339,6 +339,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* DispatchToBytecodeHandlerEntry(
       compiler::Node* handler_entry, compiler::Node* bytecode_offset);
 
+  int CurrentBytecodeSize() const;
+
   OperandScale operand_scale() const { return operand_scale_; }
 
   Bytecode bytecode_;

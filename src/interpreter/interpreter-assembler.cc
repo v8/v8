@@ -965,14 +965,21 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   Node* budget_offset =
       IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);
 
+  // Assert that the weight is positive (negative weights should be implemented
+  // as backward updates).
+  CSA_ASSERT(this, Int32GreaterThanOrEqual(weight, Int32Constant(0)));
+
   // Update budget by |weight| and check if it reaches zero.
   Variable new_budget(this, MachineRepresentation::kWord32);
   Node* old_budget =
       Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), budget_offset);
+  // Make sure we include the current bytecode in the budget calculation.
+  Node* budget_after_bytecode =
+      Int32Sub(old_budget, Int32Constant(CurrentBytecodeSize()));
   if (backward) {
-    new_budget.Bind(Int32Sub(old_budget, weight));
+    new_budget.Bind(Int32Sub(budget_after_bytecode, weight));
   } else {
-    new_budget.Bind(Int32Add(old_budget, weight));
+    new_budget.Bind(Int32Add(budget_after_bytecode, weight));
   }
   Node* condition =
       Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
@@ -993,9 +1000,7 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
                       new_budget.value());
 }
 
-Node* InterpreterAssembler::Advance() {
-  return Advance(Bytecodes::Size(bytecode_, operand_scale_));
-}
+Node* InterpreterAssembler::Advance() { return Advance(CurrentBytecodeSize()); }
 
 Node* InterpreterAssembler::Advance(int delta) {
   return Advance(IntPtrConstant(delta));
@@ -1258,12 +1263,25 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   // TODO(rmcilroy): Investigate whether it is worth supporting self
   // optimization of primitive functions like FullCodegen.
 
-  // Update profiling count by -BytecodeOffset to simulate backedge to start of
-  // function.
-  Node* profiling_weight =
-      Int32Sub(Int32Constant(kHeapObjectTag + BytecodeArray::kHeaderSize),
-               TruncateWordToWord32(BytecodeOffset()));
-  UpdateInterruptBudget(profiling_weight, false);
+  // Update profiling count by the number of bytes between the end of the
+  // current bytecode and the start of the first one, to simulate backedge to
+  // start of function.
+  //
+  // With headers and current offset, the bytecode array layout looks like:
+  //
+  //           <---------- simulated backedge ----------
+  // | header | first bytecode | .... | return bytecode |
+  //  |<------ current offset ------->
+  //  ^ tagged bytecode array pointer
+  //
+  // UpdateInterruptBudget already handles adding the bytecode size to the
+  // length of the back-edge, so we just have to correct for the non-zero offset
+  // of the first bytecode.
+
+  const int kFirstBytecodeOffset = BytecodeArray::kHeaderSize - kHeapObjectTag;
+  Node* profiling_weight = Int32Sub(TruncateWordToWord32(BytecodeOffset()),
+                                    Int32Constant(kFirstBytecodeOffset));
+  UpdateInterruptBudget(profiling_weight, true);
 }
 
 Node* InterpreterAssembler::StackCheckTriggeredInterrupt() {
@@ -1441,6 +1459,10 @@ Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
   Bind(&done_loop);
 
   return array;
+}
+
+int InterpreterAssembler::CurrentBytecodeSize() const {
+  return Bytecodes::Size(bytecode_, operand_scale_);
 }
 
 }  // namespace interpreter
