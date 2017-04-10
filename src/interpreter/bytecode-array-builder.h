@@ -238,14 +238,35 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Pop the current context and replace with |context|.
   BytecodeArrayBuilder& PopContext(Register context);
 
-  // Call a JS function. The JSFunction or Callable to be called should be in
-  // |callable|. The arguments should be in |args|, with the receiver in
-  // |args[0]|. The call type of the expression is in |call_type|. Type feedback
-  // is recorded in the |feedback_slot| in the type feedback vector.
-  BytecodeArrayBuilder& Call(
-      Register callable, RegisterList args, int feedback_slot,
-      Call::CallType call_type,
-      TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  // Call a JS function which is known to be a property of a JS object. The
+  // JSFunction or Callable to be called should be in |callable|. The arguments
+  // should be in |args|, with the receiver in |args[0]|. The call type of the
+  // expression is in |call_type|. Type feedback is recorded in the
+  // |feedback_slot| in the type feedback vector.
+  BytecodeArrayBuilder& CallProperty(Register callable, RegisterList args,
+                                     int feedback_slot);
+
+  // Call a JS function with an known undefined receiver. The JSFunction or
+  // Callable to be called should be in |callable|. The arguments should be in
+  // |args|, with no receiver as it is implicitly set to undefined. Type
+  // feedback is recorded in the |feedback_slot| in the type feedback vector.
+  BytecodeArrayBuilder& CallUndefinedReceiver(Register callable,
+                                              RegisterList args,
+                                              int feedback_slot);
+
+  // Call a JS function with an any receiver, possibly (but not necessarily)
+  // undefined. The JSFunction or Callable to be called should be in |callable|.
+  // The arguments should be in |args|, with the receiver in |args[0]|. Type
+  // feedback is recorded in the |feedback_slot| in the type feedback vector.
+  BytecodeArrayBuilder& CallAnyReceiver(Register callable, RegisterList args,
+                                        int feedback_slot);
+
+  // Tail call into a JS function. The JSFunction or Callable to be called
+  // should be in |callable|. The arguments should be in |args|, with the
+  // receiver in |args[0]|. Type feedback is recorded in the |feedback_slot| in
+  // the type feedback vector.
+  BytecodeArrayBuilder& TailCall(Register callable, RegisterList args,
+                                 int feedback_slot);
 
   // Call a JS function. The JSFunction or Callable to be called should be in
   // |callable|, the receiver in |args[0]| and the arguments in |args[1]|

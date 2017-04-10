@@ -173,12 +173,13 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable HasProperty(Isolate* isolate);
   static Callable ForInFilter(Isolate* isolate);
 
-  static Callable InterpreterPushArgsAndCall(Isolate* isolate,
-                                             TailCallMode tail_call_mode,
-                                             InterpreterPushArgsMode mode);
-  static Callable InterpreterPushArgsAndConstruct(Isolate* isolate,
-                                                  InterpreterPushArgsMode mode);
-  static Callable InterpreterPushArgsAndConstructArray(Isolate* isolate);
+  static Callable InterpreterPushArgsThenCall(Isolate* isolate,
+                                              ConvertReceiverMode receiver_mode,
+                                              TailCallMode tail_call_mode,
+                                              InterpreterPushArgsMode mode);
+  static Callable InterpreterPushArgsThenConstruct(
+      Isolate* isolate, InterpreterPushArgsMode mode);
+  static Callable InterpreterPushArgsThenConstructArray(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
 

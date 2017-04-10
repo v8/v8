@@ -39,8 +39,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Register reg(0);
   Register other(reg.index() + 1);
   Register wide(128);
-  RegisterList reg_list;
-  RegisterList single(0, 1), pair(0, 2), triple(0, 3);
+  RegisterList reg_list(0, 10);
+  RegisterList empty, single(0, 1), pair(0, 2), triple(0, 3);
 
   // Emit argument creation operations.
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)
@@ -145,16 +145,16 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateObjectLiteral(0, 0, 0, reg);
 
   // Call operations.
-  builder.Call(reg, reg_list, 1, Call::GLOBAL_CALL)
-      .Call(reg, single, 1, Call::GLOBAL_CALL)
-      .Call(reg, pair, 1, Call::GLOBAL_CALL)
-      .Call(reg, triple, 1, Call::GLOBAL_CALL)
-      .Call(reg, reg_list, 1, Call::NAMED_PROPERTY_CALL,
-            TailCallMode::kDisallow)
-      .Call(reg, single, 1, Call::NAMED_PROPERTY_CALL)
-      .Call(reg, pair, 1, Call::NAMED_PROPERTY_CALL)
-      .Call(reg, triple, 1, Call::NAMED_PROPERTY_CALL)
-      .Call(reg, reg_list, 1, Call::GLOBAL_CALL, TailCallMode::kAllow)
+  builder.CallAnyReceiver(reg, reg_list, 1)
+      .CallProperty(reg, reg_list, 1)
+      .CallProperty(reg, single, 1)
+      .CallProperty(reg, pair, 1)
+      .CallProperty(reg, triple, 1)
+      .CallUndefinedReceiver(reg, reg_list, 1)
+      .CallUndefinedReceiver(reg, empty, 1)
+      .CallUndefinedReceiver(reg, single, 1)
+      .CallUndefinedReceiver(reg, pair, 1)
+      .TailCall(reg, reg_list, 1)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list)

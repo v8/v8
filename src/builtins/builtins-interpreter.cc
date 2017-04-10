@@ -11,38 +11,53 @@
 namespace v8 {
 namespace internal {
 
-Handle<Code> Builtins::InterpreterPushArgsAndCall(
-    TailCallMode tail_call_mode, InterpreterPushArgsMode mode) {
+Handle<Code> Builtins::InterpreterPushArgsThenCall(
+    ConvertReceiverMode receiver_mode, TailCallMode tail_call_mode,
+    InterpreterPushArgsMode mode) {
   switch (mode) {
     case InterpreterPushArgsMode::kJSFunction:
       if (tail_call_mode == TailCallMode::kDisallow) {
-        return InterpreterPushArgsAndCallFunction();
+        switch (receiver_mode) {
+          case ConvertReceiverMode::kNullOrUndefined:
+            return InterpreterPushUndefinedAndArgsThenCallFunction();
+          case ConvertReceiverMode::kNotNullOrUndefined:
+          case ConvertReceiverMode::kAny:
+            return InterpreterPushArgsThenCallFunction();
+        }
       } else {
-        return InterpreterPushArgsAndTailCallFunction();
+        CHECK_EQ(receiver_mode, ConvertReceiverMode::kAny);
+        return InterpreterPushArgsThenTailCallFunction();
       }
     case InterpreterPushArgsMode::kWithFinalSpread:
       CHECK(tail_call_mode == TailCallMode::kDisallow);
-      return InterpreterPushArgsAndCallWithFinalSpread();
+      return InterpreterPushArgsThenCallWithFinalSpread();
     case InterpreterPushArgsMode::kOther:
       if (tail_call_mode == TailCallMode::kDisallow) {
-        return InterpreterPushArgsAndCall();
+        switch (receiver_mode) {
+          case ConvertReceiverMode::kNullOrUndefined:
+            return InterpreterPushUndefinedAndArgsThenCall();
+          case ConvertReceiverMode::kNotNullOrUndefined:
+          case ConvertReceiverMode::kAny:
+            return InterpreterPushArgsThenCall();
+        }
       } else {
-        return InterpreterPushArgsAndTailCall();
+        CHECK_EQ(receiver_mode, ConvertReceiverMode::kAny);
+        return InterpreterPushArgsThenTailCall();
       }
   }
   UNREACHABLE();
   return Handle<Code>::null();
 }
 
-Handle<Code> Builtins::InterpreterPushArgsAndConstruct(
+Handle<Code> Builtins::InterpreterPushArgsThenConstruct(
     InterpreterPushArgsMode mode) {
   switch (mode) {
     case InterpreterPushArgsMode::kJSFunction:
-      return InterpreterPushArgsAndConstructFunction();
+      return InterpreterPushArgsThenConstructFunction();
     case InterpreterPushArgsMode::kWithFinalSpread:
-      return InterpreterPushArgsAndConstructWithFinalSpread();
+      return InterpreterPushArgsThenConstructWithFinalSpread();
     case InterpreterPushArgsMode::kOther:
-      return InterpreterPushArgsAndConstruct();
+      return InterpreterPushArgsThenConstruct();
   }
   UNREACHABLE();
   return Handle<Code>::null();

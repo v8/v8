@@ -2597,6 +2597,12 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   Register callee = register_allocator()->NewRegister();
   RegisterList args = register_allocator()->NewGrowableRegisterList();
 
+  bool implicit_undefined_receiver = false;
+  bool is_tail_call = (expr->tail_call_mode() == TailCallMode::kAllow);
+  // When a call contains a spread, a Call AST node is only created if there is
+  // exactly one spread, and it is the last argument.
+  bool is_spread_call = expr->only_last_arg_is_spread();
+
   // TODO(petermarshall): We have a lot of call bytecodes that are very similar,
   // see if we can reduce the number by adding a separate argument which
   // specifies the call type (e.g., property, spread, tailcall, etc.).
@@ -2613,7 +2619,13 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     }
     case Call::GLOBAL_CALL: {
       // Receiver is undefined for global calls.
-      BuildPushUndefinedIntoRegisterList(&args);
+      if (!is_tail_call && !is_spread_call) {
+        implicit_undefined_receiver = true;
+      } else {
+        // TODO(leszeks): There's no special bytecode for tail calls or spread
+        // calls with an undefined receiver, so just push undefined ourselves.
+        BuildPushUndefinedIntoRegisterList(&args);
+      }
       // Load callee as a global variable.
       VariableProxy* proxy = callee_expr->AsVariableProxy();
       BuildVariableLoadForAccumulatorValue(proxy->var(),
@@ -2633,6 +2645,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
         DCHECK(Register::AreContiguous(callee, receiver));
         RegisterList result_pair(callee.index(), 2);
         USE(receiver);
+
         Variable* variable = callee_expr->AsVariableProxy()->var();
         builder()
             ->LoadLiteral(variable->raw_name())
@@ -2643,7 +2656,14 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       break;
     }
     case Call::OTHER_CALL: {
-      BuildPushUndefinedIntoRegisterList(&args);
+      // Receiver is undefined for other calls.
+      if (!is_tail_call && !is_spread_call) {
+        implicit_undefined_receiver = true;
+      } else {
+        // TODO(leszeks): There's no special bytecode for tail calls or spread
+        // calls with an undefined receiver, so just push undefined ourselves.
+        BuildPushUndefinedIntoRegisterList(&args);
+      }
       VisitForRegisterValue(callee_expr, callee);
       break;
     }
@@ -2669,7 +2689,9 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   // Evaluate all arguments to the function call and store in sequential args
   // registers.
   VisitArguments(expr->arguments(), &args);
-  CHECK_EQ(expr->arguments()->length() + 1, args.register_count());
+  int reciever_arg_count = implicit_undefined_receiver ? 0 : 1;
+  CHECK_EQ(reciever_arg_count + expr->arguments()->length(),
+           args.register_count());
 
   // Resolve callee for a potential direct eval call. This block will mutate the
   // callee value.
@@ -2678,10 +2700,11 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     // Set up arguments for ResolvePossiblyDirectEval by copying callee, source
     // strings and function closure, and loading language and
     // position.
+    Register first_arg = args[reciever_arg_count];
     RegisterList runtime_call_args = register_allocator()->NewRegisterList(6);
     builder()
         ->MoveRegister(callee, runtime_call_args[0])
-        .MoveRegister(args[1], runtime_call_args[1])
+        .MoveRegister(first_arg, runtime_call_args[1])
         .MoveRegister(Register::function_closure(), runtime_call_args[2])
         .LoadLiteral(Smi::FromInt(language_mode()))
         .StoreAccumulatorInRegister(runtime_call_args[3])
@@ -2698,15 +2721,23 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   builder()->SetExpressionPosition(expr);
 
-  // When a call contains a spread, a Call AST node is only created if there is
-  // exactly one spread, and it is the last argument.
-  if (expr->only_last_arg_is_spread()) {
-    DCHECK_EQ(TailCallMode::kDisallow, expr->tail_call_mode());
+  int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
+
+  if (is_spread_call) {
+    DCHECK(!is_tail_call);
+    DCHECK(!implicit_undefined_receiver);
     builder()->CallWithSpread(callee, args);
+  } else if (is_tail_call) {
+    DCHECK(!implicit_undefined_receiver);
+    builder()->TailCall(callee, args, feedback_slot_index);
+  } else if (call_type == Call::NAMED_PROPERTY_CALL ||
+             call_type == Call::KEYED_PROPERTY_CALL) {
+    DCHECK(!implicit_undefined_receiver);
+    builder()->CallProperty(callee, args, feedback_slot_index);
+  } else if (implicit_undefined_receiver) {
+    builder()->CallUndefinedReceiver(callee, args, feedback_slot_index);
   } else {
-    int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
-    builder()->Call(callee, args, feedback_slot_index, call_type,
-                    expr->tail_call_mode());
+    builder()->CallAnyReceiver(callee, args, feedback_slot_index);
   }
 }
 
@@ -2768,6 +2799,8 @@ void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
     RegisterList args = register_allocator()->NewGrowableRegisterList();
     // Allocate a register for the receiver and load it with undefined.
+    // TODO(leszeks): If CallJSRuntime always has an undefined receiver, use the
+    // same mechanism as CallUndefinedReceiver.
     BuildPushUndefinedIntoRegisterList(&args);
     VisitArguments(expr->arguments(), &args);
     builder()->CallJSRuntime(expr->context_index(), args);
@@ -3153,9 +3186,8 @@ void BytecodeGenerator::VisitGetIterator(GetIterator* expr) {
     builder()->JumpIfNull(&async_iterator_null);
 
     // Let iterator be Call(method, obj)
-    builder()->StoreAccumulatorInRegister(method).Call(
-        method, args, feedback_index(async_call_slot),
-        Call::NAMED_PROPERTY_CALL);
+    builder()->StoreAccumulatorInRegister(method).CallProperty(
+        method, args, feedback_index(async_call_slot));
 
     // If Type(iterator) is not Object, throw a TypeError exception.
     builder()->JumpIfJSReceiver(&done);
@@ -3170,8 +3202,7 @@ void BytecodeGenerator::VisitGetIterator(GetIterator* expr) {
         .StoreAccumulatorInRegister(method);
 
     //     Let syncIterator be Call(syncMethod, obj)
-    builder()->Call(method, args, feedback_index(call_slot),
-                    Call::NAMED_PROPERTY_CALL);
+    builder()->CallProperty(method, args, feedback_index(call_slot));
 
     // Return CreateAsyncFromSyncIterator(syncIterator)
     // alias `method` register as it's no longer used
@@ -3188,8 +3219,7 @@ void BytecodeGenerator::VisitGetIterator(GetIterator* expr) {
         .StoreAccumulatorInRegister(method);
 
     // Let iterator be Call(method, obj).
-    builder()->Call(method, args, feedback_index(call_slot),
-                    Call::NAMED_PROPERTY_CALL);
+    builder()->CallProperty(method, args, feedback_index(call_slot));
 
     // If Type(iterator) is not Object, throw a TypeError exception.
     BytecodeLabel no_type_error;

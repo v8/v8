@@ -58,9 +58,10 @@ class Builtins {
   Handle<Code> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
-  Handle<Code> InterpreterPushArgsAndCall(TailCallMode tail_call_mode,
-                                          InterpreterPushArgsMode mode);
-  Handle<Code> InterpreterPushArgsAndConstruct(InterpreterPushArgsMode mode);
+  Handle<Code> InterpreterPushArgsThenCall(ConvertReceiverMode receiver_mode,
+                                           TailCallMode tail_call_mode,
+                                           InterpreterPushArgsMode mode);
+  Handle<Code> InterpreterPushArgsThenConstruct(InterpreterPushArgsMode mode);
   Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> NewCloneShallowArray(AllocationSiteMode allocation_mode);
   Handle<Code> NewCloneShallowObject(int length);
@@ -122,11 +123,11 @@ class Builtins {
   static void Generate_CallForwardVarargs(MacroAssembler* masm,
                                           Handle<Code> code);
 
-  static void Generate_InterpreterPushArgsAndCallImpl(
-      MacroAssembler* masm, TailCallMode tail_call_mode,
-      InterpreterPushArgsMode mode);
+  static void Generate_InterpreterPushArgsThenCallImpl(
+      MacroAssembler* masm, ConvertReceiverMode receiver_mode,
+      TailCallMode tail_call_mode, InterpreterPushArgsMode mode);
 
-  static void Generate_InterpreterPushArgsAndConstructImpl(
+  static void Generate_InterpreterPushArgsThenConstructImpl(
       MacroAssembler* masm, InterpreterPushArgsMode mode);
 
 #define DECLARE_ASM(Name, ...) \
