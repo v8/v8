@@ -59,7 +59,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   // Analogous to BranchIfFastRegExp, for use in asserts.
   Node* IsFastRegExp(Node* const context, Node* const object);
-  Node* IsFastRegExp(Node* const context, Node* const object, Node* const map);
 
   // Performs fast path checks on the given object itself, but omits prototype
   // checks.

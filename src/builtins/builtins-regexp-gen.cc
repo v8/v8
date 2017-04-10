@@ -733,16 +733,10 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
 
 Node* RegExpBuiltinsAssembler::IsFastRegExp(Node* const context,
                                             Node* const object) {
-  return IsFastRegExp(context, object, LoadMap(object));
-}
-
-Node* RegExpBuiltinsAssembler::IsFastRegExp(Node* const context,
-                                            Node* const object,
-                                            Node* const map) {
   Label yup(this), nope(this), out(this);
   VARIABLE(var_result, MachineRepresentation::kWord32);
 
-  BranchIfFastRegExp(context, object, map, &yup, &nope);
+  BranchIfFastRegExp(context, object, LoadMap(object), &yup, &nope);
 
   BIND(&yup);
   var_result.Bind(Int32Constant(1));
@@ -784,16 +778,16 @@ TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSRegExp.
-  Node* const regexp_map = ThrowIfNotInstanceType(
-      context, maybe_receiver, JS_REGEXP_TYPE, "RegExp.prototype.exec");
+  ThrowIfNotInstanceType(context, maybe_receiver, JS_REGEXP_TYPE,
+                         "RegExp.prototype.exec");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
   Node* const string = ToString(context, maybe_string);
 
   Label if_isfastpath(this), if_isslowpath(this);
-  Branch(IsFastRegExpNoPrototype(context, receiver, regexp_map), &if_isfastpath,
-         &if_isslowpath);
+  Branch(IsFastRegExpNoPrototype(context, receiver, LoadMap(receiver)),
+         &if_isfastpath, &if_isslowpath);
 
   BIND(&if_isfastpath);
   {
@@ -1498,16 +1492,17 @@ TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
-  Node* const map = ThrowIfNotJSReceiver(
-      context, maybe_receiver, MessageTemplate::kIncompatibleMethodReceiver,
-      "RegExp.prototype.test");
+  ThrowIfNotJSReceiver(context, maybe_receiver,
+                       MessageTemplate::kIncompatibleMethodReceiver,
+                       "RegExp.prototype.test");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
   Node* const string = ToString(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
-  BranchIfFastRegExp(context, receiver, map, &fast_path, &slow_path);
+  BranchIfFastRegExp(context, receiver, LoadMap(receiver), &fast_path,
+                     &slow_path);
 
   BIND(&fast_path);
   {
@@ -1908,16 +1903,17 @@ TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
-  Node* const map = ThrowIfNotJSReceiver(
-      context, maybe_receiver, MessageTemplate::kIncompatibleMethodReceiver,
-      "RegExp.prototype.@@match");
+  ThrowIfNotJSReceiver(context, maybe_receiver,
+                       MessageTemplate::kIncompatibleMethodReceiver,
+                       "RegExp.prototype.@@match");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
   Node* const string = ToString(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
-  BranchIfFastRegExp(context, receiver, map, &fast_path, &slow_path);
+  BranchIfFastRegExp(context, receiver, LoadMap(receiver), &fast_path,
+                     &slow_path);
 
   BIND(&fast_path);
   RegExpPrototypeMatchBody(context, receiver, string, true);
@@ -2036,16 +2032,17 @@ TF_BUILTIN(RegExpPrototypeSearch, RegExpBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
-  Node* const map = ThrowIfNotJSReceiver(
-      context, maybe_receiver, MessageTemplate::kIncompatibleMethodReceiver,
-      "RegExp.prototype.@@search");
+  ThrowIfNotJSReceiver(context, maybe_receiver,
+                       MessageTemplate::kIncompatibleMethodReceiver,
+                       "RegExp.prototype.@@search");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
   Node* const string = ToString(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
-  BranchIfFastRegExp(context, receiver, map, &fast_path, &slow_path);
+  BranchIfFastRegExp(context, receiver, LoadMap(receiver), &fast_path,
+                     &slow_path);
 
   BIND(&fast_path);
   RegExpPrototypeSearchBodyFast(context, receiver, string);
@@ -2373,16 +2370,16 @@ TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
-  Node* const map = ThrowIfNotJSReceiver(
-      context, maybe_receiver, MessageTemplate::kIncompatibleMethodReceiver,
-      "RegExp.prototype.@@split");
+  ThrowIfNotJSReceiver(context, maybe_receiver,
+                       MessageTemplate::kIncompatibleMethodReceiver,
+                       "RegExp.prototype.@@split");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
   Node* const string = ToString(context, maybe_string);
 
   Label stub(this), runtime(this, Label::kDeferred);
-  BranchIfFastRegExp(context, receiver, map, &stub, &runtime);
+  BranchIfFastRegExp(context, receiver, LoadMap(receiver), &stub, &runtime);
 
   BIND(&stub);
   Return(CallBuiltin(Builtins::kRegExpSplit, context, receiver, string,
@@ -2804,9 +2801,9 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   // }
 
   // Ensure {maybe_receiver} is a JSReceiver.
-  Node* const map = ThrowIfNotJSReceiver(
-      context, maybe_receiver, MessageTemplate::kIncompatibleMethodReceiver,
-      "RegExp.prototype.@@replace");
+  ThrowIfNotJSReceiver(context, maybe_receiver,
+                       MessageTemplate::kIncompatibleMethodReceiver,
+                       "RegExp.prototype.@@replace");
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
@@ -2814,7 +2811,7 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
 
   // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
   Label stub(this), runtime(this, Label::kDeferred);
-  BranchIfFastRegExp(context, receiver, map, &stub, &runtime);
+  BranchIfFastRegExp(context, receiver, LoadMap(receiver), &stub, &runtime);
 
   BIND(&stub);
   Return(CallBuiltin(Builtins::kRegExpReplace, context, receiver, string,
