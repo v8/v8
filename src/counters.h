@@ -1273,8 +1273,6 @@ class Counters {
 
   void ResetCounters();
   void ResetHistograms();
-  void InitializeHistograms();
-
   RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
 
  private:
