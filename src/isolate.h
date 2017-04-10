@@ -705,9 +705,18 @@ class Isolate {
                   PrintStackMode mode = kPrintStackVerbose);
   void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose);
   Handle<String> StackTraceString();
-  NO_INLINE(void PushStackTraceAndDie(unsigned int magic, void* ptr1,
+  // Stores a stack trace in a stack-allocated temporary buffer which will
+  // end up in the minidump for debugging purposes.
+  NO_INLINE(void PushStackTraceAndDie(unsigned int magic1, void* ptr1,
                                       void* ptr2, unsigned int magic2));
-  NO_INLINE(void PushCodeObjectsAndDie(unsigned int magic));
+  NO_INLINE(void PushStackTraceAndDie(unsigned int magic1, void* ptr1,
+                                      void* ptr2, void* ptr3, void* ptr4,
+                                      void* ptr5, void* ptr6, void* ptr7,
+                                      void* ptr8, unsigned int magic2));
+  NO_INLINE(void PushCodeObjectsAndDie(unsigned int magic, void* ptr1,
+                                       void* ptr2, void* ptr3, void* ptr4,
+                                       void* ptr5, void* ptr6, void* ptr7,
+                                       void* ptr8, unsigned int magic2));
   Handle<JSArray> CaptureCurrentStackTrace(
       int frame_limit,
       StackTrace::StackTraceOptions options);

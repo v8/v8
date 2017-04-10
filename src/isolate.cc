@@ -311,8 +311,15 @@ Handle<String> Isolate::StackTraceString() {
   }
 }
 
+void Isolate::PushStackTraceAndDie(unsigned int magic1, void* ptr1, void* ptr2,
+                                   unsigned int magic2) {
+  PushStackTraceAndDie(magic1, ptr1, ptr2, nullptr, nullptr, nullptr, nullptr,
+                       nullptr, nullptr, magic2);
+}
 
-void Isolate::PushStackTraceAndDie(unsigned int magic, void* ptr1, void* ptr2,
+void Isolate::PushStackTraceAndDie(unsigned int magic1, void* ptr1, void* ptr2,
+                                   void* ptr3, void* ptr4, void* ptr5,
+                                   void* ptr6, void* ptr7, void* ptr8,
                                    unsigned int magic2) {
   const int kMaxStackTraceSize = 32 * KB;
   Handle<String> trace = StackTraceString();
@@ -321,29 +328,43 @@ void Isolate::PushStackTraceAndDie(unsigned int magic, void* ptr1, void* ptr2,
   String::WriteToFlat(*trace, buffer, 0, length);
   buffer[length] = '\0';
   // TODO(dcarney): convert buffer to utf8?
-  base::OS::PrintError("Stacktrace (%x-%x) %p %p: %s\n", magic, magic2, ptr1,
-                       ptr2, reinterpret_cast<char*>(buffer));
-  PushCodeObjectsAndDie(0xdeadc0de);
+  base::OS::PrintError(
+      "Stacktrace:"
+      "\n   magic1=%x magic2=%x ptr1=%p ptr2=%p ptr3=%p ptr4=%p ptr5=%p "
+      "ptr6=%p ptr7=%p ptr8=%p\n\n%s",
+      magic1, magic2, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7, ptr8,
+      reinterpret_cast<char*>(buffer));
+  PushCodeObjectsAndDie(0xdeadc0de, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7,
+                        ptr8, 0xdeadc0de);
 }
 
-void Isolate::PushCodeObjectsAndDie(unsigned int magic) {
+void Isolate::PushCodeObjectsAndDie(unsigned int magic1, void* ptr1, void* ptr2,
+                                    void* ptr3, void* ptr4, void* ptr5,
+                                    void* ptr6, void* ptr7, void* ptr8,
+                                    unsigned int magic2) {
   const int kMaxCodeObjects = 16;
   // Mark as volatile to lower the probability of optimizing code_objects
-  // away.
-  Code* volatile code_objects[kMaxCodeObjects];
+  // away. The first and last entries are set to the magic markers, making it
+  // easier to spot the array on the stack.
+  void* volatile code_objects[kMaxCodeObjects + 2];
+  code_objects[0] = reinterpret_cast<void*>(magic1);
+  code_objects[kMaxCodeObjects + 1] = reinterpret_cast<void*>(magic2);
   StackFrameIterator it(this);
   int numCodeObjects = 0;
   for (; !it.done() && numCodeObjects < kMaxCodeObjects; it.Advance()) {
-    code_objects[numCodeObjects++] = it.frame()->unchecked_code();
+    code_objects[1 + numCodeObjects++] = it.frame()->unchecked_code();
   }
 
   // Keep the top raw code object pointers on the stack in the hope that the
   // corresponding pages end up more frequently in the minidump.
   base::OS::PrintError(
-      "\nCodeObjects (%p length=%i): 1:%p 2:%p 3:%p 4:%p...\n\n",
+      "\nCodeObjects (%p length=%i): 1:%p 2:%p 3:%p 4:%p..."
+      "\n   magic1=%x magic2=%x ptr1=%p ptr2=%p ptr3=%p ptr4=%p ptr5=%p "
+      "ptr6=%p ptr7=%p ptr8=%p\n\n",
       static_cast<void*>(code_objects[0]), numCodeObjects,
-      static_cast<void*>(code_objects[0]), static_cast<void*>(code_objects[1]),
-      static_cast<void*>(code_objects[2]), static_cast<void*>(code_objects[4]));
+      static_cast<void*>(code_objects[1]), static_cast<void*>(code_objects[2]),
+      static_cast<void*>(code_objects[3]), static_cast<void*>(code_objects[4]),
+      magic1, magic2, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7, ptr8);
   base::OS::Abort();
 }
 
