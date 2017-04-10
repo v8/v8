@@ -2020,6 +2020,11 @@ AsmType* AsmJsParser::ValidateCall() {
   int call_pos = static_cast<int>(scanner_.Position());
   int to_number_pos = static_cast<int>(call_coercion_position_);
   AsmJsScanner::token_t function_name = Consume();
+
+  // Distinguish between ordinary function calls and function table calls. In
+  // both cases we might be seeing the {function_name} for the first time and
+  // hence allocate a {VarInfo} here, all subsequent uses of the same name then
+  // need to match the information stored at this point.
   // TODO(mstarzinger): Consider using Chromiums base::Optional instead.
   std::unique_ptr<TemporaryVariableScope> tmp;
   if (Check('[')) {
@@ -2059,7 +2064,21 @@ AsmType* AsmJsParser::ValidateCall() {
     current_function_builder_->EmitSetLocal(tmp.get()->get());
     // The position of function table calls is after the table lookup.
     call_pos = static_cast<int>(scanner_.Position());
+  } else {
+    VarInfo* function_info = GetVarInfo(function_name);
+    if (function_info->kind == VarKind::kUnused) {
+      function_info->kind = VarKind::kFunction;
+      function_info->function_builder = module_builder_->AddFunction();
+      function_info->index = function_info->function_builder->func_index();
+    } else {
+      if (function_info->kind != VarKind::kFunction &&
+          function_info->kind < VarKind::kImportedFunction) {
+        FAILn("Expected function as call target");
+      }
+    }
   }
+
+  // Parse argument list and gather types.
   std::vector<AsmType*> param_types;
   ZoneVector<AsmType*> param_specific_types(zone());
   EXPECT_TOKENn('(');
@@ -2082,6 +2101,10 @@ AsmType* AsmJsParser::ValidateCall() {
     }
   }
   EXPECT_TOKENn(')');
+
+  // We potentially use lookahead in order to determine the return type in case
+  // it is not yet clear from the call context.
+  // TODO(mstarzinger,6183): Several issues with look-ahead are known. Fix!
   // TODO(bradnelson): clarify how this binds, and why only float?
   if (Peek('|') &&
       (return_type == nullptr || return_type->IsA(AsmType::Float()))) {
@@ -2091,29 +2114,24 @@ AsmType* AsmJsParser::ValidateCall() {
     to_number_pos = call_pos;  // No conversion.
     return_type = AsmType::Void();
   }
+
+  // Compute function type and signature based on gathered types.
   AsmType* function_type = AsmType::Function(zone(), return_type);
   for (auto t : param_types) {
     function_type->AsFunctionType()->AddArgument(t);
   }
-
   FunctionSig* sig = ConvertSignature(return_type, param_types);
   if (sig == nullptr) {
     FAILn("Invalid function signature");
   }
   uint32_t signature_index = module_builder_->AddSignature(sig);
 
-  // TODO(bradnelson): Fix this to use a less error prone pattern.
-  // Reload as table might have grown.
+  // Emit actual function invocation depending on the kind. At this point we
+  // also determined the complete function type and can perform checking against
+  // the expected type or update the expected type in case of first occurrence.
+  // Reload {VarInfo} as table might have grown.
   VarInfo* function_info = GetVarInfo(function_name);
-  if (function_info->kind == VarKind::kUnused) {
-    function_info->kind = VarKind::kFunction;
-    function_info->function_builder = module_builder_->AddFunction();
-    function_info->index = function_info->function_builder->func_index();
-    function_info->type = function_type;
-    current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
-    current_function_builder_->Emit(kExprCallFunction);
-    current_function_builder_->EmitDirectCallIndex(function_info->index);
-  } else if (function_info->kind == VarKind::kImportedFunction) {
+  if (function_info->kind == VarKind::kImportedFunction) {
     for (auto t : param_specific_types) {
       if (!t->IsA(AsmType::Extern())) {
         FAILn("Imported function args must be type extern");
@@ -2138,19 +2156,6 @@ AsmType* AsmJsParser::ValidateCall() {
     current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
     current_function_builder_->Emit(kExprCallFunction);
     current_function_builder_->EmitVarUint(index);
-  } else if (function_info->type->IsA(AsmType::None())) {
-    function_info->type = function_type;
-    if (function_info->kind == VarKind::kTable) {
-      current_function_builder_->EmitGetLocal(tmp.get()->get());
-      current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
-      current_function_builder_->Emit(kExprCallIndirect);
-      current_function_builder_->EmitVarUint(signature_index);
-      current_function_builder_->EmitVarUint(0);  // table index
-    } else {
-      current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
-      current_function_builder_->Emit(kExprCallFunction);
-      current_function_builder_->EmitDirectCallIndex(function_info->index);
-    }
   } else if (function_info->kind > VarKind::kImportedFunction) {
     AsmCallableType* callable = function_info->type->AsCallableType();
     if (!callable) {
@@ -2269,21 +2274,20 @@ AsmType* AsmJsParser::ValidateCall() {
         UNREACHABLE();
     }
   } else {
-    if (function_info->kind != VarKind::kFunction &&
-        function_info->kind != VarKind::kTable) {
-      FAILn("Function name collides with variable");
-    }
-    AsmCallableType* callable = function_info->type->AsCallableType();
-    if (!callable ||
-        !callable->CanBeInvokedWith(return_type, param_specific_types)) {
-      FAILn("Function use doesn't match definition");
+    DCHECK(function_info->kind == VarKind::kFunction ||
+           function_info->kind == VarKind::kTable);
+    if (function_info->type->IsA(AsmType::None())) {
+      function_info->type = function_type;
+    } else {
+      AsmCallableType* callable = function_info->type->AsCallableType();
+      if (!callable ||
+          !callable->CanBeInvokedWith(return_type, param_specific_types)) {
+        FAILn("Function use doesn't match definition");
+      }
     }
     if (function_info->kind == VarKind::kTable) {
       current_function_builder_->EmitGetLocal(tmp.get()->get());
-      // TODO(bradnelson): Figure out the right debug scanner offset and
-      // re-enable.
-      //      current_function_builder_->AddAsmWasmOffset(scanner_.GetPosition(),
-      //                                                  scanner_.GetPosition());
+      current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
       current_function_builder_->Emit(kExprCallIndirect);
       current_function_builder_->EmitVarUint(signature_index);
       current_function_builder_->EmitVarUint(0);  // table index
