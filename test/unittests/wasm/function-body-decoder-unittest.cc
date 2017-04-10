@@ -2323,6 +2323,24 @@ TEST_F(FunctionBodyDecoderTest, MultiValIf1) {
       kExprI32Add);
 }
 
+TEST_F(FunctionBodyDecoderTest, Regression709741) {
+  AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 1);
+  EXPECT_VERIFIES(v_v, WASM_NOP);
+  byte code[] = {WASM_NOP};
+  const byte* start = code;
+  const byte* end = code + sizeof(code);
+  PrepareBytecode(&start, &end);
+
+  for (const byte* i = start; i < end; i++) {
+    DecodeResult result =
+        VerifyWasmCode(zone()->allocator(), nullptr, sigs.v_v(), start, i);
+    if (result.ok()) {
+      std::ostringstream str;
+      str << "Expected verification to fail";
+    }
+  }
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}

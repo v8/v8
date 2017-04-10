@@ -1948,7 +1948,7 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   virtual void onFirstError() {
-    end_ = start_;       // Terminate decoding loop.
+    end_ = pc_;          // Terminate decoding loop.
     builder_ = nullptr;  // Don't build any more nodes.
     TRACE(" !%s\n", error_msg_.c_str());
   }
