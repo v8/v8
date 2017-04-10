@@ -20,7 +20,7 @@ class VariableMaybeAssignedField
 class VariableContextAllocatedField
     : public BitField16<bool, VariableMaybeAssignedField::kNext, 1> {};
 
-const int kFunctionDataSize = 3;
+const int kFunctionDataSize = 9;
 
 }  // namespace
 
@@ -53,8 +53,19 @@ void PreParsedScopeData::SaveData(Scope* scope) {
   DCHECK(!has_data_);
 
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
-    function_index_[scope->start_position()] =
-        std::make_pair(scope->end_position(), backing_store_.size());
+    // This cast is OK since we're not going to have more than 2^32 elements in
+    // the data. FIXME(marja): Implement limits for the data size.
+    function_data_positions_[scope->start_position()] =
+        static_cast<uint32_t>(backing_store_.size());
+    // FIXME(marja): Fill in the missing fields: function_length +
+    // num_inner_functions.
+    function_index_.AddFunctionData(
+        scope->start_position(),
+        PreParseData::FunctionData(
+            scope->end_position(), scope->num_parameters(), -1, -1,
+            scope->language_mode(),
+            scope->AsDeclarationScope()->uses_super_property(),
+            scope->calls_eval()));
   }
 
   if (!ScopeNeedsData(scope)) {
@@ -109,9 +120,16 @@ void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
 #ifdef DEBUG
   // Data integrity check.
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
-    int end_position_from_data = -1;
-    FindFunctionEnd(scope->start_position(), &end_position_from_data);
-    DCHECK_EQ(end_position_from_data, scope->end_position());
+    // FIXME(marja): Compare the missing fields too (function length,
+    // num_inner_functions).
+    const PreParseData::FunctionData& data =
+        FindFunction(scope->start_position());
+    DCHECK_EQ(data.end, scope->end_position());
+    // FIXME(marja): unify num_parameters too and DCHECK here.
+    DCHECK_EQ(data.language_mode, scope->language_mode());
+    DCHECK_EQ(data.uses_super_property,
+              scope->AsDeclarationScope()->uses_super_property());
+    DCHECK_EQ(data.calls_eval, scope->calls_eval());
     int index_from_data = -1;
     FindFunctionData(scope->start_position(), &index_from_data);
     DCHECK_EQ(index_from_data, index);
@@ -158,9 +176,18 @@ FixedUint32Array* PreParsedScopeData::Serialize(Isolate* isolate) const {
   array->set(0, static_cast<uint32_t>(function_index_.size()));
   int i = 1;
   for (const auto& item : function_index_) {
-    array->set(i++, item.first);
-    array->set(i++, item.second.first);
-    array->set(i++, item.second.second);
+    const auto& it = function_data_positions_.find(item.first);
+    DCHECK(it != function_data_positions_.end());
+    const PreParseData::FunctionData& function_data = item.second;
+    array->set(i++, item.first);  // start position
+    array->set(i++, it->second);  // position in data
+    array->set(i++, function_data.end);
+    array->set(i++, function_data.num_parameters);
+    array->set(i++, function_data.function_length);
+    array->set(i++, function_data.num_inner_functions);
+    array->set(i++, function_data.language_mode);
+    array->set(i++, function_data.uses_super_property);
+    array->set(i++, function_data.calls_eval);
   }
 
   for (size_t j = 0; j < backing_store_.size(); ++j) {
@@ -182,8 +209,14 @@ void PreParsedScopeData::Deserialize(Handle<FixedUint32Array> array) {
   }
   int i = 1;
   for (; i < function_count * kFunctionDataSize + 1; i += kFunctionDataSize) {
-    function_index_[array->get_scalar(i)] =
-        std::make_pair(array->get_scalar(i + 1), array->get_scalar(i + 2));
+    int start = array->get_scalar(i);
+    function_data_positions_[start] = array->get_scalar(i + 1);
+    function_index_.AddFunctionData(
+        start, PreParseData::FunctionData(
+                   array->get_scalar(i + 2), array->get_scalar(i + 3),
+                   array->get_scalar(i + 4), array->get_scalar(i + 5),
+                   LanguageMode(array->get_scalar(i + 6)),
+                   array->get_scalar(i + 7), array->get_scalar(i + 8)));
   }
   CHECK_EQ(function_index_.size(), function_count);
 
@@ -193,13 +226,9 @@ void PreParsedScopeData::Deserialize(Handle<FixedUint32Array> array) {
   }
 }
 
-bool PreParsedScopeData::FindFunctionEnd(int start_pos, int* end_pos) const {
-  auto it = function_index_.find(start_pos);
-  if (it == function_index_.end()) {
-    return false;
-  }
-  *end_pos = it->second.first;
-  return true;
+PreParseData::FunctionData PreParsedScopeData::FindFunction(
+    int start_pos) const {
+  return function_index_.GetFunctionData(start_pos);
 }
 
 void PreParsedScopeData::SaveDataForVariable(Variable* var) {
@@ -271,11 +300,11 @@ void PreParsedScopeData::RestoreDataForInnerScopes(Scope* scope,
 }
 
 bool PreParsedScopeData::FindFunctionData(int start_pos, int* index) const {
-  auto it = function_index_.find(start_pos);
-  if (it == function_index_.end()) {
+  auto it = function_data_positions_.find(start_pos);
+  if (it == function_data_positions_.end()) {
     return false;
   }
-  *index = it->second.second;
+  *index = it->second;
   return true;
 }
 

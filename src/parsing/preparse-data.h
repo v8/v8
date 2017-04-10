@@ -103,22 +103,20 @@ class ParserLogger final {
 class PreParseData final {
  public:
   struct FunctionData {
-    int start;
     int end;
     int num_parameters;
     int function_length;
     int num_inner_functions;
     LanguageMode language_mode;
-    bool uses_super_property;
-    bool calls_eval;
+    bool uses_super_property : 1;
+    bool calls_eval : 1;
 
-    FunctionData() : start(-1), end(-1) {}
+    FunctionData() : end(-1) {}
 
-    FunctionData(int start, int end, int num_parameters, int function_length,
+    FunctionData(int end, int num_parameters, int function_length,
                  int num_inner_functions, LanguageMode language_mode,
                  bool uses_super_property, bool calls_eval)
-        : start(start),
-          end(end),
+        : end(end),
           num_parameters(num_parameters),
           function_length(function_length),
           num_inner_functions(num_inner_functions),
@@ -126,15 +124,20 @@ class PreParseData final {
           uses_super_property(uses_super_property),
           calls_eval(calls_eval) {}
 
-    bool is_valid() const { return start < end; }
+    bool is_valid() const { return end > 0; }
   };
 
-  FunctionData GetTopLevelFunctionData(int start) const;
-  void AddTopLevelFunctionData(FunctionData&& data);
-  void AddTopLevelFunctionData(const FunctionData& data);
+  FunctionData GetFunctionData(int start) const;
+  void AddFunctionData(int start, FunctionData&& data);
+  void AddFunctionData(int start, const FunctionData& data);
+  size_t size() const;
+
+  typedef std::unordered_map<int, FunctionData>::const_iterator const_iterator;
+  const_iterator begin() const;
+  const_iterator end() const;
 
  private:
-  std::unordered_map<int, FunctionData> top_level_functions_data_;
+  std::unordered_map<int, FunctionData> functions_;
 };
 
 }  // namespace internal

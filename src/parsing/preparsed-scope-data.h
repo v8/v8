@@ -10,6 +10,7 @@
 
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/parsing/preparse-data.h"
 
 namespace v8 {
 namespace internal {
@@ -76,7 +77,7 @@ class PreParsedScopeData {
 
   bool Producing() const { return !has_data_; }
 
-  bool FindFunctionEnd(int start_pos, int* end_pos) const;
+  PreParseData::FunctionData FindFunction(int start_pos) const;
 
  private:
   friend class ScopeTestHelper;
@@ -93,8 +94,11 @@ class PreParsedScopeData {
   // TODO(marja): Make the backing store more efficient once we know exactly
   // what data is needed.
   std::vector<byte> backing_store_;
-  // Start pos -> (end pos, index in data)
-  std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> function_index_;
+
+  // Start pos -> FunctionData.
+  PreParseData function_index_;
+  // Start pos -> position in backing_store_.
+  std::unordered_map<uint32_t, uint32_t> function_data_positions_;
 
   bool has_data_ = false;
 

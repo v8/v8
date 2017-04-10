@@ -56,23 +56,32 @@ ScriptData* ParserLogger::GetScriptData() {
   return result;
 }
 
-PreParseData::FunctionData PreParseData::GetTopLevelFunctionData(
-    int start) const {
-  auto it = top_level_functions_data_.find(start);
-  if (it != top_level_functions_data_.end()) {
+PreParseData::FunctionData PreParseData::GetFunctionData(int start) const {
+  auto it = functions_.find(start);
+  if (it != functions_.end()) {
     return it->second;
   }
   return FunctionData();
 }
 
-void PreParseData::AddTopLevelFunctionData(FunctionData&& data) {
+void PreParseData::AddFunctionData(int start, FunctionData&& data) {
   DCHECK(data.is_valid());
-  top_level_functions_data_[data.start] = std::move(data);
+  functions_[start] = std::move(data);
 }
 
-void PreParseData::AddTopLevelFunctionData(const FunctionData& data) {
+void PreParseData::AddFunctionData(int start, const FunctionData& data) {
   DCHECK(data.is_valid());
-  top_level_functions_data_[data.start] = data;
+  functions_[start] = data;
+}
+
+size_t PreParseData::size() const { return functions_.size(); }
+
+PreParseData::const_iterator PreParseData::begin() const {
+  return functions_.begin();
+}
+
+PreParseData::const_iterator PreParseData::end() const {
+  return functions_.end();
 }
 
 }  // namespace internal

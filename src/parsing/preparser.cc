@@ -327,11 +327,13 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
 
   if (FLAG_use_parse_tasks && is_top_level && preparse_data_) {
-    preparse_data_->AddTopLevelFunctionData(PreParseData::FunctionData(
-        start_position, end_position, formals.num_parameters(),
-        formals.function_length, GetLastFunctionLiteralId() - func_id,
-        language_mode, function_scope->uses_super_property(),
-        function_scope->calls_eval()));
+    preparse_data_->AddFunctionData(
+        start_position,
+        PreParseData::FunctionData(
+            end_position, formals.num_parameters(), formals.function_length,
+            GetLastFunctionLiteralId() - func_id, language_mode,
+            function_scope->uses_super_property(),
+            function_scope->calls_eval()));
     // TODO(wiktorg) spin-off a parse task
     if (FLAG_trace_parse_tasks) {
       PrintF("Saved function at %d to %d with:\n", start_position,

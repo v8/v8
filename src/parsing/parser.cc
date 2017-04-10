@@ -2834,12 +2834,12 @@ Parser::LazyParsingResult Parser::SkipFunction(
     // functions are already created. Use data gathered during the preparse step
     // to skip the function.
     PreParseData::FunctionData data =
-        reusable_preparser()->preparse_data()->GetTopLevelFunctionData(
+        reusable_preparser()->preparse_data()->GetFunctionData(
             function_scope->start_position());
     if (data.is_valid()) {
       if (FLAG_trace_parse_tasks) {
         PrintF("Skipping top level func @ %d : %d using preparse data\n",
-               data.start, data.end);
+               function_scope->start_position(), data.end);
       }
       function_scope->set_end_position(data.end);
       scanner()->SeekForward(data.end - 1);
@@ -2861,15 +2861,25 @@ Parser::LazyParsingResult Parser::SkipFunction(
   // FIXME(marja): There are 3 ways to skip functions now. Unify them.
   if (preparsed_scope_data_->Consuming()) {
     DCHECK(FLAG_preparser_scope_analysis);
-    int end_pos = kNoSourcePosition;
-    if (preparsed_scope_data_->FindFunctionEnd(function_scope->start_position(),
-                                               &end_pos)) {
-      function_scope->set_end_position(end_pos);
+    const PreParseData::FunctionData& data =
+        preparsed_scope_data_->FindFunction(function_scope->start_position());
+    if (data.is_valid()) {
       function_scope->set_is_skipped_function(true);
       function_scope->outer_scope()->SetMustUsePreParsedScopeData();
-      scanner()->SeekForward(end_pos - 1);
+
+      function_scope->set_end_position(data.end);
+      scanner()->SeekForward(data.end - 1);
       Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
-      // FIXME(marja): SkipFunctionLiterals still needed.
+      *num_parameters = data.num_parameters;
+      *function_length = data.function_length;
+      SetLanguageMode(function_scope, data.language_mode);
+      if (data.uses_super_property) {
+        function_scope->RecordSuperPropertyUsage();
+      }
+      if (data.calls_eval) {
+        function_scope->RecordEvalCall();
+      }
+      SkipFunctionLiterals(data.num_inner_functions);
       return kLazyParsingComplete;
     }
   }
