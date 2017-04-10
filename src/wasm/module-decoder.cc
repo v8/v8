@@ -215,7 +215,6 @@ class ModuleDecoder : public Decoder {
       : Decoder(module_start, module_end),
         module_zone(zone),
         origin_(FLAG_assume_asmjs_origin ? kAsmJsOrigin : origin) {
-    result_.start = start_;
     if (end_ < start_) {
       error(start_, "end is less than start");
       end_ = start_;

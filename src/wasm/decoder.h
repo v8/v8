@@ -206,8 +206,8 @@ class Decoder {
     if (failed()) {
       TRACE("Result error: %s\n", error_msg_.get());
       result.error_code = kError;
-      result.start = start_;
-      result.error_pc = error_pc_;
+      DCHECK_GE(error_pc_, start_);
+      result.error_offset = static_cast<uint32_t>(error_pc_ - start_);
       // transfer ownership of the error to the result.
       result.error_msg.reset(error_msg_.release());
     } else {

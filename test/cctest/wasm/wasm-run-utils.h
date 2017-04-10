@@ -389,7 +389,7 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
       result = BuildTFGraph(zone->allocator(), &builder, sig, start, end);
     }
 
-    ptrdiff_t pc = result.error_pc - result.start;
+    uint32_t pc = result.error_offset;
     std::ostringstream str;
     str << "Verification failed: " << result.error_code << " pc = +" << pc
         << ", msg = " << result.error_msg.get();
