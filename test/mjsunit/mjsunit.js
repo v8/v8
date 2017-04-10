@@ -422,7 +422,7 @@ var failWithMessage;
             'invalid use of assertThrows, maybe you want assertThrowsEquals');
       }
       if (arguments.length >= 3) {
-        assertEquals(e.message, cause_opt);
+        assertEquals(cause_opt, e.message);
       }
       // Success.
       return;

@@ -931,8 +931,8 @@ class ModuleDecoder : public Decoder {
     const byte* pos = pc_;
     uint32_t index = consume_u32v(name);
     if (index >= vector.size()) {
-      errorf(pos, "%s %u out of bounds (%d entries)", name, index,
-             static_cast<int>(vector.size()));
+      errorf(pos, "%s %u out of bounds (%d entr%s)", name, index,
+             static_cast<int>(vector.size()), vector.size() == 1 ? "y" : "ies");
       *ptr = nullptr;
       return 0;
     }
