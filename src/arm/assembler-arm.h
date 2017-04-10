@@ -1396,11 +1396,14 @@ class Assembler : public AssemblerBase {
             QwNeonRegister src2);
   void vext(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2,
             int bytes);
+  void vzip(NeonSize size, DwVfpRegister src1, DwVfpRegister src2);
   void vzip(NeonSize size, QwNeonRegister src1, QwNeonRegister src2);
+  void vuzp(NeonSize size, DwVfpRegister src1, DwVfpRegister src2);
   void vuzp(NeonSize size, QwNeonRegister src1, QwNeonRegister src2);
   void vrev16(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
   void vrev32(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
   void vrev64(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
+  void vtrn(NeonSize size, DwVfpRegister src1, DwVfpRegister src2);
   void vtrn(NeonSize size, QwNeonRegister src1, QwNeonRegister src2);
   void vtbl(DwVfpRegister dst, const NeonListOperand& list,
             DwVfpRegister index);
