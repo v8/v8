@@ -391,8 +391,8 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
 
     uint32_t pc = result.error_offset;
     std::ostringstream str;
-    str << "Verification failed: " << result.error_code << " pc = +" << pc
-        << ", msg = " << result.error_msg.get();
+    str << "Verification failed; pc = +" << pc
+        << ", msg = " << result.error_msg.c_str();
     FATAL(str.str().c_str());
   }
   builder.Int64LoweringForTesting();

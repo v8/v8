@@ -391,8 +391,6 @@ struct WasmFunctionName {
   WasmName name_;
 };
 
-std::ostream& operator<<(std::ostream& os, const WasmModule& module);
-std::ostream& operator<<(std::ostream& os, const WasmFunction& function);
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 
 // Get the debug info associated with the given wasm object.

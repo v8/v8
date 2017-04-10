@@ -173,13 +173,14 @@ class Decoder {
       base::OS::DebugBreak();
     }
 #endif
-    const int kMaxErrorMsg = 256;
-    char* buffer = new char[kMaxErrorMsg];
+    constexpr int kMaxErrorMsg = 256;
+    EmbeddedVector<char, kMaxErrorMsg> buffer;
     va_list arguments;
     va_start(arguments, format);
-    base::OS::VSNPrintF(buffer, kMaxErrorMsg - 1, format, arguments);
+    int len = VSNPrintF(buffer, format, arguments);
+    CHECK_LT(0, len);
     va_end(arguments);
-    error_msg_.reset(buffer);
+    error_msg_.assign(buffer.start(), len);
     error_pc_ = pc;
     onFirstError();
   }
@@ -200,20 +201,18 @@ class Decoder {
   }
 
   // Converts the given value to a {Result}, copying the error if necessary.
-  template <typename T>
-  Result<T> toResult(T val) {
-    Result<T> result;
+  template <typename T, typename U = typename std::remove_reference<T>::type>
+  Result<U> toResult(T&& val) {
+    Result<U> result(std::forward<T>(val));
     if (failed()) {
-      TRACE("Result error: %s\n", error_msg_.get());
-      result.error_code = kError;
+      // The error message must not be empty, otherwise Result::failed() will be
+      // false.
+      DCHECK(!error_msg_.empty());
+      TRACE("Result error: %s\n", error_msg_.c_str());
       DCHECK_GE(error_pc_, start_);
       result.error_offset = static_cast<uint32_t>(error_pc_ - start_);
-      // transfer ownership of the error to the result.
-      result.error_msg.reset(error_msg_.release());
-    } else {
-      result.error_code = kSuccess;
+      result.error_msg = std::move(error_msg_);
     }
-    result.val = std::move(val);
     return result;
   }
 
@@ -223,10 +222,10 @@ class Decoder {
     pc_ = start;
     end_ = end;
     error_pc_ = nullptr;
-    error_msg_.reset();
+    error_msg_.clear();
   }
 
-  bool ok() const { return error_msg_ == nullptr; }
+  bool ok() const { return error_msg_.empty(); }
   bool failed() const { return !ok(); }
   bool more() const { return pc_ < end_; }
 
@@ -240,7 +239,7 @@ class Decoder {
   const byte* pc_;
   const byte* end_;
   const byte* error_pc_;
-  std::unique_ptr<char[]> error_msg_;
+  std::string error_msg_;
 
  private:
   template <typename IntType, bool checked>

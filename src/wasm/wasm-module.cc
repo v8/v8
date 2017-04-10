@@ -900,24 +900,6 @@ void wasm::UnpackAndRegisterProtectedInstructions(
   }
 }
 
-std::ostream& wasm::operator<<(std::ostream& os, const WasmModule& module) {
-  os << "WASM module with ";
-  os << (module.min_mem_pages * module.kPageSize) << " min mem";
-  os << (module.max_mem_pages * module.kPageSize) << " max mem";
-  os << module.functions.size() << " functions";
-  os << module.functions.size() << " globals";
-  os << module.functions.size() << " data segments";
-  return os;
-}
-
-std::ostream& wasm::operator<<(std::ostream& os, const WasmFunction& function) {
-  os << "WASM function with signature " << *function.sig;
-
-  os << " code bytes: "
-     << (function.code_end_offset - function.code_start_offset);
-  return os;
-}
-
 std::ostream& wasm::operator<<(std::ostream& os, const WasmFunctionName& name) {
   os << "#" << name.function_->func_index;
   if (name.function_->name_offset > 0) {

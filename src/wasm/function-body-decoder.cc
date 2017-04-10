@@ -572,7 +572,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   bool TraceFailed() {
     TRACE("wasm-error module+%-6d func+%d: %s\n\n", baserel(error_pc_),
-          startrel(error_pc_), error_msg_.get());
+          startrel(error_pc_), error_msg_.c_str());
     return false;
   }
 
@@ -1950,7 +1950,7 @@ class WasmFullDecoder : public WasmDecoder {
   virtual void onFirstError() {
     end_ = start_;       // Terminate decoding loop.
     builder_ = nullptr;  // Don't build any more nodes.
-    TRACE(" !%s\n", error_msg_.get());
+    TRACE(" !%s\n", error_msg_.c_str());
   }
 
   inline wasm::WasmCodePosition position() {

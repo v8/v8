@@ -213,7 +213,7 @@ class ModuleDecoder : public Decoder {
   ModuleDecoder(Zone* zone, const byte* module_start, const byte* module_end,
                 ModuleOrigin origin)
       : Decoder(module_start, module_end),
-        module_zone(zone),
+        module_zone_(zone),
         origin_(FLAG_assume_asmjs_origin ? kAsmJsOrigin : origin) {
     if (end_ < start_) {
       error(start_, "end is less than start");
@@ -252,7 +252,7 @@ class ModuleDecoder : public Decoder {
   // Decodes an entire module.
   ModuleResult DecodeModule(bool verify_functions = true) {
     pc_ = start_;
-    WasmModule* module = new WasmModule(module_zone);
+    WasmModule* module = new WasmModule(module_zone_);
     module->min_mem_pages = 0;
     module->max_mem_pages = 0;
     module->mem_export = false;
@@ -697,7 +697,8 @@ class ModuleDecoder : public Decoder {
     const WasmModule* finished_module = module;
     ModuleResult result = toResult(finished_module);
     if (verify_functions && result.ok()) {
-      result.MoveFrom(result_);  // Copy error code and location.
+      // Copy error code and location.
+      result.MoveErrorFrom(intermediate_result_);
     }
     if (FLAG_dump_wasm_module) DumpModule(result);
     return result;
@@ -716,7 +717,8 @@ class ModuleDecoder : public Decoder {
     if (ok()) VerifyFunctionBody(0, module_env, function);
 
     FunctionResult result;
-    result.MoveFrom(result_);  // Copy error code and location.
+    // Copy error code and location.
+    result.MoveErrorFrom(intermediate_result_);
     result.val = function;
     return result;
   }
@@ -734,8 +736,8 @@ class ModuleDecoder : public Decoder {
   }
 
  private:
-  Zone* module_zone;
-  ModuleResult result_;
+  Zone* module_zone_;
+  Result<bool> intermediate_result_;
   ModuleOrigin origin_;
 
   uint32_t off(const byte* ptr) { return static_cast<uint32_t>(ptr - start_); }
@@ -847,23 +849,17 @@ class ModuleDecoder : public Decoder {
                          start_ + function->code_start_offset,
                          start_ + function->code_end_offset};
     DecodeResult result = VerifyWasmCode(
-        module_zone->allocator(),
+        module_zone_->allocator(),
         menv == nullptr ? nullptr : menv->module_env.module, body);
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream str;
-      str << "in function " << func_name << ": ";
-      str << result;
-      std::string strval = str.str();
-      const char* raw = strval.c_str();
-      size_t len = strlen(raw);
-      char* buffer = new char[len];
-      strncpy(buffer, raw, len);
-      buffer[len - 1] = 0;
+      str << "in function " << func_name << ": " << result.error_msg;
 
-      // Copy error code and location.
-      result_.MoveFrom(result);
-      result_.error_msg.reset(buffer);
+      // Set error code and location, if this is the first error.
+      if (intermediate_result_.ok()) {
+        intermediate_result_.MoveErrorFrom(result);
+      }
     }
   }
 
@@ -1123,38 +1119,12 @@ class ModuleDecoder : public Decoder {
 
     // FunctionSig stores the return types first.
     ValueType* buffer =
-        module_zone->NewArray<ValueType>(param_count + return_count);
+        module_zone_->NewArray<ValueType>(param_count + return_count);
     uint32_t b = 0;
     for (uint32_t i = 0; i < return_count; ++i) buffer[b++] = returns[i];
     for (uint32_t i = 0; i < param_count; ++i) buffer[b++] = params[i];
 
-    return new (module_zone) FunctionSig(return_count, param_count, buffer);
-  }
-};
-
-// Helpers for nice error messages.
-class ModuleError : public ModuleResult {
- public:
-  explicit ModuleError(const char* msg) {
-    error_code = kError;
-    size_t len = strlen(msg) + 1;
-    char* result = new char[len];
-    strncpy(result, msg, len);
-    result[len - 1] = 0;
-    error_msg.reset(result);
-  }
-};
-
-// Helpers for nice error messages.
-class FunctionError : public FunctionResult {
- public:
-  explicit FunctionError(const char* msg) {
-    error_code = kError;
-    size_t len = strlen(msg) + 1;
-    char* result = new char[len];
-    strncpy(result, msg, len);
-    result[len - 1] = 0;
-    error_msg.reset(result);
+    return new (module_zone_) FunctionSig(return_count, param_count, buffer);
   }
 };
 
@@ -1167,9 +1137,9 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
       IsWasm(origin) ? isolate->counters()->wasm_decode_wasm_module_time()
                      : isolate->counters()->wasm_decode_asm_module_time());
   size_t size = module_end - module_start;
-  if (module_start > module_end) return ModuleError("start > end");
+  if (module_start > module_end) return ModuleResult::Error("start > end");
   if (size >= kV8MaxWasmModuleSize)
-    return ModuleError("size > maximum module size");
+    return ModuleResult::Error("size > maximum module size: %zu", size);
   // TODO(bradnelson): Improve histogram handling of size_t.
   (IsWasm(origin) ? isolate->counters()->wasm_wasm_module_size_bytes()
                   : isolate->counters()->wasm_asm_module_size_bytes())
@@ -1212,9 +1182,10 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
       is_wasm ? isolate->counters()->wasm_decode_wasm_function_time()
               : isolate->counters()->wasm_decode_asm_function_time());
   size_t size = function_end - function_start;
-  if (function_start > function_end) return FunctionError("start > end");
+  if (function_start > function_end)
+    return FunctionResult::Error("start > end");
   if (size > kV8MaxWasmFunctionSize)
-    return FunctionError("size > maximum function size");
+    return FunctionResult::Error("size > maximum function size: %zu", size);
   (is_wasm ? isolate->counters()->wasm_wasm_function_size_bytes()
            : isolate->counters()->wasm_asm_function_size_bytes())
       ->AddSample(static_cast<int>(size));

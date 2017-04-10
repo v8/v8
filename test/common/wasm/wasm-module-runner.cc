@@ -36,7 +36,7 @@ const WasmModule* DecodeWasmModuleForTesting(
   if (decoding_result.failed()) {
     // Module verification failed. throw.
     thrower->CompileError("WASM.compileRun() failed: %s",
-                          decoding_result.error_msg.get());
+                          decoding_result.error_msg.c_str());
   }
 
   if (thrower->error()) {
