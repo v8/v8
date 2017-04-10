@@ -6,11 +6,17 @@
 #define V8_FRAMES_H_
 
 #include "src/allocation.h"
+#include "src/flags.h"
 #include "src/handles.h"
+#include "src/objects.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {
+
+class AbstractCode;
+class ObjectVisitor;
+class StringStream;
 
 #if V8_TARGET_ARCH_ARM64
 typedef uint64_t RegList;

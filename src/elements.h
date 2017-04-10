@@ -6,7 +6,6 @@
 #define V8_ELEMENTS_H_
 
 #include "src/elements-kind.h"
-#include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/keys.h"
 #include "src/objects.h"

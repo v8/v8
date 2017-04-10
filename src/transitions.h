@@ -7,7 +7,6 @@
 
 #include "src/checks.h"
 #include "src/elements-kind.h"
-#include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/descriptor-array.h"

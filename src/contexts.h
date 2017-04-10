@@ -5,7 +5,6 @@
 #ifndef V8_CONTEXTS_H_
 #define V8_CONTEXTS_H_
 
-#include "src/heap/heap.h"
 #include "src/objects.h"
 
 namespace v8 {
