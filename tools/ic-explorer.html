@@ -7,30 +7,30 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 <head>
   <style>
     .entry-details {}
-    
+
     .entry-details TD {}
-    
+
     .details {
       width: 2em;
       border: 1px black dotted;
     }
-    
+
     .count {
       text-align: right;
       width: 5em;
       font-family: monospace;
     }
-    
+
     .percentage {
       text-align: right;
       width: 5em;
       font-family: monospace;
     }
-    
+
     .key {
       padding-left: 1em;
     }
-    
+
     .drilldown-group-title {
       font-weight: bold;
       padding: 0.5em 0 0.2em 0;
@@ -93,7 +93,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
               offset++;
             }
             if (this.map == "(nil)") this.map = "unknown";
-          } 
+          }
           if (this.type !== "CompareIC") {
             // if there is no address we have a smi key
             var address = parts[++offset];
@@ -128,7 +128,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       parseMapProperties(parts, offset) {
         var next = parts[++offset];
         if (!next.startsWith('dict')) return offset;
-        this.propertiesMode = 
+        this.propertiesMode =
             next.substr(5) == "0" ? "fast" : "slow";
         this.numberOfOwnProperties  = parts[++offset].substr(4);
         next = parts[++offset];
@@ -355,7 +355,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         select.add(option);
       }
     }
-    
+
     function handleOnLoad() {
       document.querySelector("#uploadInput").focus();
     }

@@ -4,8 +4,6 @@
 
 #include "src/ic/ic.h"
 
-#include <iostream>
-
 #include "src/accessors.h"
 #include "src/api-arguments-inl.h"
 #include "src/api.h"
