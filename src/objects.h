@@ -6913,9 +6913,6 @@ class JSFunction: public JSObject {
   DECLARE_CAST(JSFunction)
 
   // Calculate the instance size and in-object properties count.
-  void CalculateInstanceSize(InstanceType instance_type,
-                             int requested_embedder_fields, int* instance_size,
-                             int* in_object_properties);
   static void CalculateInstanceSizeForDerivedClass(
       Handle<JSFunction> function, InstanceType instance_type,
       int requested_embedder_fields, int* instance_size,

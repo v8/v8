@@ -12835,10 +12835,6 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
 
-  // The constructor should be compiled for the optimization hints to be
-  // available.
-  Compiler::Compile(function, Compiler::CLEAR_EXCEPTION);
-
   // First create a new map with the size and number of in-object properties
   // suggested by the function.
   InstanceType instance_type;
@@ -12849,10 +12845,20 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   } else {
     instance_type = JS_OBJECT_TYPE;
   }
+
+  // The constructor should be compiled for the optimization hints to be
+  // available.
+  int expected_nof_properties = 0;
+  if (function->shared()->is_compiled() ||
+      Compiler::Compile(function, Compiler::CLEAR_EXCEPTION)) {
+    DCHECK(function->shared()->is_compiled());
+    expected_nof_properties = function->shared()->expected_nof_properties();
+  }
+
   int instance_size;
   int in_object_properties;
-  function->CalculateInstanceSize(instance_type, 0, &instance_size,
-                                  &in_object_properties);
+  CalculateInstanceSizeHelper(instance_type, 0, expected_nof_properties,
+                              &instance_size, &in_object_properties);
 
   Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size);
 
@@ -13602,16 +13608,6 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
           JSObject::kMaxInstanceSize);
   *in_object_properties = ((*instance_size - header_size) >> kPointerSizeLog2) -
                           requested_embedder_fields;
-}
-
-void JSFunction::CalculateInstanceSize(InstanceType instance_type,
-                                       int requested_embedder_fields,
-                                       int* instance_size,
-                                       int* in_object_properties) {
-  DCHECK(shared()->is_compiled());
-  CalculateInstanceSizeHelper(instance_type, requested_embedder_fields,
-                              shared()->expected_nof_properties(),
-                              instance_size, in_object_properties);
 }
 
 void JSFunction::CalculateInstanceSizeForDerivedClass(
