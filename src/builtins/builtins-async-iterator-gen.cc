@@ -160,25 +160,25 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
 
   BIND(&if_fastpath);
   {
+    var_done.Bind(LoadObjectField(iter_result, JSIteratorResult::kDoneOffset));
     var_value.Bind(
         LoadObjectField(iter_result, JSIteratorResult::kValueOffset));
-    var_done.Bind(LoadObjectField(iter_result, JSIteratorResult::kDoneOffset));
     Goto(&merge);
   }
 
   BIND(&if_slowpath);
   {
-    // Let nextValue be IteratorValue(nextResult).
-    // IfAbruptRejectPromise(nextValue, promiseCapability).
-    Node* const value =
-        GetProperty(context, iter_result, factory()->value_string());
-    GotoIfException(value, if_exception, var_exception);
-
     // Let nextDone be IteratorComplete(nextResult).
     // IfAbruptRejectPromise(nextDone, promiseCapability).
     Node* const done =
         GetProperty(context, iter_result, factory()->done_string());
     GotoIfException(done, if_exception, var_exception);
+
+    // Let nextValue be IteratorValue(nextResult).
+    // IfAbruptRejectPromise(nextValue, promiseCapability).
+    Node* const value =
+        GetProperty(context, iter_result, factory()->value_string());
+    GotoIfException(value, if_exception, var_exception);
 
     var_value.Bind(value);
     var_done.Bind(done);
