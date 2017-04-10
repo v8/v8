@@ -281,9 +281,10 @@ class Decoder {
     int shift = 0;
     byte b = 0;
     IntType result = 0;
-    for (;;) {
+    do {
       if (checked && V8_UNLIKELY(ptr >= end)) {
-        TRACE_IF(trace, "<end> ");
+        TRACE_IF(trace,
+                 ptr == pc + kMaxLength ? "<length overflow> " : "<end> ");
         errorf(ptr, "expected %s", name);
         result = 0;
         break;
@@ -293,8 +294,7 @@ class Decoder {
       TRACE_IF(trace, "%02x ", b);
       result = result | ((static_cast<IntType>(b) & 0x7F) << shift);
       shift += 7;
-      if ((b & 0x80) == 0) break;
-    }
+    } while (b & 0x80);
     DCHECK_LE(ptr - pc, kMaxLength);
     *length = static_cast<unsigned>(ptr - pc);
     if (advance_pc) pc_ = ptr;

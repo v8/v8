@@ -190,7 +190,9 @@ class WasmSectionIterator {
                         section_code);
         section_code = kUnknownSectionCode;
       }
-      section_code_ = static_cast<SectionCode>(section_code);
+      section_code_ = decoder_.failed()
+                          ? kUnknownSectionCode
+                          : static_cast<SectionCode>(section_code);
 
       TRACE("Section: %s\n", SectionName(section_code_));
       if (section_code_ == kUnknownSectionCode &&
