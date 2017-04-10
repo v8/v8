@@ -2360,11 +2360,12 @@ MUST_USE_RESULT MaybeHandle<Object> Object::SpeciesConstructor(
 bool Object::IterationHasObservableEffects() {
   // Check that this object is an array.
   if (!IsJSArray()) return true;
-  JSArray* spread_array = JSArray::cast(this);
-  Isolate* isolate = spread_array->GetIsolate();
+  JSArray* array = JSArray::cast(this);
+  Isolate* isolate = array->GetIsolate();
 
   // Check that we have the original ArrayPrototype.
-  JSObject* array_proto = JSObject::cast(spread_array->map()->prototype());
+  if (!array->map()->prototype()->IsJSObject()) return true;
+  JSObject* array_proto = JSObject::cast(array->map()->prototype());
   if (!isolate->is_initial_array_prototype(array_proto)) return true;
 
   // Check that the ArrayPrototype hasn't been modified in a way that would
@@ -2379,7 +2380,7 @@ bool Object::IterationHasObservableEffects() {
 
   // For FastPacked kinds, iteration will have the same effect as simply
   // accessing each property in order.
-  ElementsKind array_kind = spread_array->GetElementsKind();
+  ElementsKind array_kind = array->GetElementsKind();
   if (IsFastPackedElementsKind(array_kind)) return false;
 
   // For FastHoley kinds, an element access on a hole would cause a lookup on
