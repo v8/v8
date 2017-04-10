@@ -947,6 +947,8 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
         maybe_signature_tables.ToHandleChecked());
     compiled_module->set_empty_function_tables(
         maybe_empty_function_tables.ToHandleChecked());
+    compiled_module->set_function_tables(
+        maybe_empty_function_tables.ToHandleChecked());
   }
   // TODO(mtrofin): we copy these because the order of finalization isn't
   // reliable, and we need these at Reset (which is called at
