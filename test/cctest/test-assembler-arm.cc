@@ -1318,12 +1318,16 @@ TEST(15) {
     uint32_t vext[4];
     uint32_t vzip8a[4], vzip8b[4], vzip16a[4], vzip16b[4], vzip32a[4],
         vzip32b[4];
+    uint32_t vzipd8a[2], vzipd8b[2], vzipd16a[2], vzipd16b[2];
     uint32_t vuzp8a[4], vuzp8b[4], vuzp16a[4], vuzp16b[4], vuzp32a[4],
         vuzp32b[4];
+    uint32_t vuzpd8a[2], vuzpd8b[2], vuzpd16a[2], vuzpd16b[2];
     uint32_t vrev64_32[4], vrev64_16[4], vrev64_8[4];
     uint32_t vrev32_16[4], vrev32_8[4], vrev16_8[4];
     uint32_t vtrn8a[4], vtrn8b[4], vtrn16a[4], vtrn16b[4], vtrn32a[4],
         vtrn32b[4];
+    uint32_t vtrnd8a[2], vtrnd8b[2], vtrnd16a[2], vtrnd16b[2], vtrnd32a[2],
+        vtrnd32b[2];
     uint32_t vtbl[2], vtbx[2];
   } T;
   T t;
@@ -1856,7 +1860,7 @@ TEST(15) {
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vext))));
     __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
 
-    // vzip.
+    // vzip (q-register).
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
     __ vld1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
     __ vmov(q1, q0);
@@ -1882,7 +1886,20 @@ TEST(15) {
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vzip32b))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
 
-    // vuzp.
+    // vzip (d-register).
+    __ vldr(d2, r0, offsetof(T, lane_test));
+    __ vmov(d0, d2);
+    __ vmov(d1, d2);
+    __ vzip(Neon8, d0, d1);
+    __ vstr(d0, r0, offsetof(T, vzipd8a));
+    __ vstr(d1, r0, offsetof(T, vzipd8b));
+    __ vmov(d0, d2);
+    __ vmov(d1, d2);
+    __ vzip(Neon16, d0, d1);
+    __ vstr(d0, r0, offsetof(T, vzipd16a));
+    __ vstr(d1, r0, offsetof(T, vzipd16b));
+
+    // vuzp (q-register).
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
     __ vld1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
     __ vmov(q1, q0);
@@ -1908,7 +1925,20 @@ TEST(15) {
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vuzp32b))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
 
-    // vtrn.
+    // vuzp (d-register).
+    __ vldr(d2, r0, offsetof(T, lane_test));
+    __ vmov(d0, d2);
+    __ vmov(d1, d2);
+    __ vuzp(Neon8, d0, d1);
+    __ vstr(d0, r0, offsetof(T, vuzpd8a));
+    __ vstr(d1, r0, offsetof(T, vuzpd8b));
+    __ vmov(d0, d2);
+    __ vmov(d1, d2);
+    __ vuzp(Neon16, d0, d1);
+    __ vstr(d0, r0, offsetof(T, vuzpd16a));
+    __ vstr(d1, r0, offsetof(T, vuzpd16b));
+
+    // vtrn (q-register).
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
     __ vld1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
     __ vmov(q1, q0);
@@ -1933,6 +1963,24 @@ TEST(15) {
     __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vtrn32b))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vtrn (d-register).
+    __ vldr(d2, r0, offsetof(T, lane_test));
+    __ vmov(d0, d2);
+    __ vmov(d1, d2);
+    __ vtrn(Neon8, d0, d1);
+    __ vstr(d0, r0, offsetof(T, vtrnd8a));
+    __ vstr(d1, r0, offsetof(T, vtrnd8b));
+    __ vmov(d0, d2);
+    __ vmov(d1, d2);
+    __ vtrn(Neon16, d0, d1);
+    __ vstr(d0, r0, offsetof(T, vtrnd16a));
+    __ vstr(d1, r0, offsetof(T, vtrnd16b));
+    __ vmov(d0, d2);
+    __ vmov(d1, d2);
+    __ vtrn(Neon32, d0, d1);
+    __ vstr(d0, r0, offsetof(T, vtrnd32a));
+    __ vstr(d1, r0, offsetof(T, vtrnd32b));
 
     // vrev64/32/16
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
@@ -2140,6 +2188,11 @@ TEST(15) {
     CHECK_EQ_32X4(vzip32a, 0x03020100u, 0x03020100u, 0x07060504u, 0x07060504u);
     CHECK_EQ_32X4(vzip32b, 0x0b0a0908u, 0x0b0a0908u, 0x0f0e0d0cu, 0x0f0e0d0cu);
 
+    CHECK_EQ_32X2(vzipd8a, 0x01010000u, 0x03030202u);
+    CHECK_EQ_32X2(vzipd8b, 0x05050404u, 0x07070606u);
+    CHECK_EQ_32X2(vzipd16a, 0x01000100u, 0x03020302u);
+    CHECK_EQ_32X2(vzipd16b, 0x05040504u, 0x07060706u);
+
     CHECK_EQ_32X4(vuzp8a, 0x06040200u, 0x0e0c0a08u, 0x06040200u, 0x0e0c0a08u);
     CHECK_EQ_32X4(vuzp8b, 0x07050301u, 0x0f0d0b09u, 0x07050301u, 0x0f0d0b09u);
     CHECK_EQ_32X4(vuzp16a, 0x05040100u, 0x0d0c0908u, 0x05040100u, 0x0d0c0908u);
@@ -2147,12 +2200,24 @@ TEST(15) {
     CHECK_EQ_32X4(vuzp32a, 0x03020100u, 0x0b0a0908u, 0x03020100u, 0x0b0a0908u);
     CHECK_EQ_32X4(vuzp32b, 0x07060504u, 0x0f0e0d0cu, 0x07060504u, 0x0f0e0d0cu);
 
+    CHECK_EQ_32X2(vuzpd8a, 0x06040200u, 0x06040200u);
+    CHECK_EQ_32X2(vuzpd8b, 0x07050301u, 0x07050301u);
+    CHECK_EQ_32X2(vuzpd16a, 0x05040100u, 0x05040100u);
+    CHECK_EQ_32X2(vuzpd16b, 0x07060302u, 0x07060302u);
+
     CHECK_EQ_32X4(vtrn8a, 0x02020000u, 0x06060404u, 0x0a0a0808u, 0x0e0e0c0cu);
     CHECK_EQ_32X4(vtrn8b, 0x03030101u, 0x07070505u, 0x0b0b0909u, 0x0f0f0d0du);
     CHECK_EQ_32X4(vtrn16a, 0x01000100u, 0x05040504u, 0x09080908u, 0x0d0c0d0cu);
     CHECK_EQ_32X4(vtrn16b, 0x03020302u, 0x07060706u, 0x0b0a0b0au, 0x0f0e0f0eu);
     CHECK_EQ_32X4(vtrn32a, 0x03020100u, 0x03020100u, 0x0b0a0908u, 0x0b0a0908u);
     CHECK_EQ_32X4(vtrn32b, 0x07060504u, 0x07060504u, 0x0f0e0d0cu, 0x0f0e0d0cu);
+
+    CHECK_EQ_32X2(vtrnd8a, 0x02020000u, 0x06060404u);
+    CHECK_EQ_32X2(vtrnd8b, 0x03030101u, 0x07070505u);
+    CHECK_EQ_32X2(vtrnd16a, 0x01000100u, 0x05040504u);
+    CHECK_EQ_32X2(vtrnd16b, 0x03020302u, 0x07060706u);
+    CHECK_EQ_32X2(vtrnd32a, 0x03020100u, 0x03020100u);
+    CHECK_EQ_32X2(vtrnd32b, 0x07060504u, 0x07060504u);
 
     // src: 0 1 2 3  4 5 6 7  8 9 a b  c d e f (little endian)
     CHECK_EQ_32X4(vrev64_32, 0x07060504u, 0x03020100u, 0x0f0e0d0cu,
