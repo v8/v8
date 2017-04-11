@@ -3129,6 +3129,14 @@ void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
 }
 
+void BytecodeGenerator::VisitImportCallExpression(ImportCallExpression* expr) {
+  RegisterList args = register_allocator()->NewRegisterList(2);
+  VisitForRegisterValue(expr->argument(), args[1]);
+  builder()
+      ->MoveRegister(Register::function_closure(), args[0])
+      .CallRuntime(Runtime::kDynamicImportCall, args);
+}
+
 void BytecodeGenerator::VisitGetIterator(GetIterator* expr) {
   FeedbackSlot load_slot = expr->IteratorPropertyFeedbackSlot();
   FeedbackSlot call_slot = expr->IteratorCallFeedbackSlot();

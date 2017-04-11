@@ -6694,6 +6694,10 @@ class Module : public Struct {
   static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module,
                                                       int module_request);
 
+  // Get the namespace object for [module].  If it doesn't exist yet, it is
+  // created.
+  static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module);
+
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
   static const int kRegularExportsOffset = kExportsOffset + kPointerSize;
@@ -6710,10 +6714,6 @@ class Module : public Struct {
                            Handle<FixedArray> names);
   static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
                                    Handle<ModuleInfoEntry> entry);
-
-  // Get the namespace object for [module].  If it doesn't exist yet, it is
-  // created.
-  static Handle<JSModuleNamespace> GetModuleNamespace(Handle<Module> module);
 
   // The [must_resolve] argument indicates whether or not an exception should be
   // thrown in case the module does not provide an export named [name]

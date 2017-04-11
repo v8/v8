@@ -30,6 +30,7 @@
   # Modules which are only meant to be imported from by other tests, not to be
   # tested standalone.
   'modules-skip*': [SKIP],
+  'harmony/modules-skip*': [SKIP],
 
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],

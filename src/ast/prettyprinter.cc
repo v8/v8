@@ -384,6 +384,12 @@ void CallPrinter::VisitGetIterator(GetIterator* node) {
   if (was_found) done_ = true;
 }
 
+void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
+  Print("ImportCall(");
+  Find(node->argument(), true);
+  Print(")");
+}
+
 void CallPrinter::VisitThisFunction(ThisFunction* node) {}
 
 
@@ -1201,6 +1207,11 @@ void AstPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
 void AstPrinter::VisitGetIterator(GetIterator* node) {
   IndentedScope indent(this, "GET-ITERATOR", node->position());
   Visit(node->iterable());
+}
+
+void AstPrinter::VisitImportCallExpression(ImportCallExpression* node) {
+  IndentedScope indent(this, "IMPORT-CALL", node->position());
+  Visit(node->argument());
 }
 
 void AstPrinter::VisitThisFunction(ThisFunction* node) {

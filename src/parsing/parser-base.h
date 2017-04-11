@@ -3454,9 +3454,7 @@ ParserBase<Impl>::ParseDynamicImportExpression(bool* ok) {
   Expect(Token::LPAREN, CHECK_OK);
   ExpressionT arg = ParseAssignmentExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  ZoneList<ExpressionT>* args = new (zone()) ZoneList<ExpressionT>(1, zone());
-  args->Add(arg, zone());
-  return factory()->NewCallRuntime(Runtime::kDynamicImportCall, args, pos);
+  return factory()->NewImportCallExpression(arg, pos);
 }
 
 template <typename Impl>

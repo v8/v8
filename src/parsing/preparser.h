@@ -775,6 +775,11 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
+  PreParserExpression NewImportCallExpression(PreParserExpression args,
+                                              int pos) {
+    return PreParserExpression::Default();
+  }
+
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }

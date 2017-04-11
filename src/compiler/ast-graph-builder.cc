@@ -2041,6 +2041,11 @@ void AstGraphBuilder::VisitGetIterator(GetIterator* expr) {
   UNREACHABLE();
 }
 
+void AstGraphBuilder::VisitImportCallExpression(ImportCallExpression* expr) {
+  // ImportCallExpression is supported only by going through Ignition first.
+  UNREACHABLE();
+}
+
 void AstGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   Node* value = GetFunctionClosure();
   ast_context()->ProduceValue(expr, value);

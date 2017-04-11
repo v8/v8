@@ -472,6 +472,13 @@ void AstNumberingVisitor::VisitGetIterator(GetIterator* node) {
   ReserveFeedbackSlots(node);
 }
 
+void AstNumberingVisitor::VisitImportCallExpression(
+    ImportCallExpression* node) {
+  IncrementNodeCount();
+  DisableFullCodegenAndCrankshaft(kDynamicImport);
+  Visit(node->argument());
+}
+
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();

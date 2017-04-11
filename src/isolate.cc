@@ -3345,6 +3345,29 @@ void Isolate::DebugStateUpdated() {
   promise_hook_or_debug_is_active_ = promise_hook_ || debug()->is_active();
 }
 
+void Isolate::RunHostImportModuleDynamicallyCallback(
+    Handle<String> source_url, Handle<String> specifier,
+    Handle<JSPromise> promise) {
+  auto result = v8::Utils::PromiseToDynamicImportResult(promise);
+  if (host_import_module_dynamically_callback_ == nullptr) {
+    Handle<Object> exception =
+        factory()->NewError(error_function(), MessageTemplate::kUnsupported);
+    CHECK(result->FinishDynamicImportFailure(
+        v8::Utils::ToLocal(handle(context(), this)),
+        v8::Utils::ToLocal(exception)));
+    return;
+  }
+
+  host_import_module_dynamically_callback_(
+      reinterpret_cast<v8::Isolate*>(this), v8::Utils::ToLocal(source_url),
+      v8::Utils::ToLocal(specifier), result);
+}
+
+void Isolate::SetHostImportModuleDynamicallyCallback(
+    HostImportModuleDynamicallyCallback callback) {
+  host_import_module_dynamically_callback_ = callback;
+}
+
 void Isolate::SetPromiseHook(PromiseHook hook) {
   promise_hook_ = hook;
   DebugStateUpdated();

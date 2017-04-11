@@ -916,6 +916,21 @@ Handle<Symbol> Factory::NewPrivateSymbol() {
   return symbol;
 }
 
+Handle<JSPromise> Factory::NewJSPromise() {
+  Handle<JSFunction> constructor(
+      isolate()->native_context()->promise_function(), isolate());
+  DCHECK(constructor->has_initial_map());
+  Handle<Map> map(constructor->initial_map(), isolate());
+
+  DCHECK(!map->is_prototype_map());
+  Handle<JSObject> promise_obj = NewJSObjectFromMap(map);
+  Handle<JSPromise> promise = Handle<JSPromise>::cast(promise_obj);
+  promise->set_status(v8::Promise::kPending);
+  promise->set_flags(0);
+
+  isolate()->RunPromiseHook(PromiseHookType::kInit, promise, undefined_value());
+  return promise;
+}
 
 Handle<Context> Factory::NewNativeContext() {
   Handle<FixedArray> array =

@@ -1448,6 +1448,10 @@ void FullCodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
 
 void FullCodeGenerator::VisitGetIterator(GetIterator* expr) { UNREACHABLE(); }
 
+void FullCodeGenerator::VisitImportCallExpression(ImportCallExpression* expr) {
+  UNREACHABLE();
+}
+
 void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }

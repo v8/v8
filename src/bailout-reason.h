@@ -58,6 +58,7 @@ namespace internal {
     "Encountered a do-expression with unmodelable control statements")         \
   V(kDoPushArgumentNotImplementedForDoubleType,                                \
     "DoPushArgument not implemented for double type")                          \
+  V(kDynamicImport, "Dynamic module import")                                   \
   V(kEliminatedBoundsCheckFailed, "Eliminated bounds check failed")            \
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                               \
     "EmitLoadRegister: Unsupported double immediate")                          \

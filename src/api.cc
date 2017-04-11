@@ -2044,6 +2044,39 @@ Local<UnboundScript> Script::GetUnboundScript() {
       i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared()));
 }
 
+bool DynamicImportResult::FinishDynamicImportSuccess(Local<Context> context,
+                                                     Local<Module> module) {
+  PREPARE_FOR_EXECUTION_BOOL(context, Module, FinishDynamicImportSuccess);
+  auto promise = Utils::OpenHandle(this);
+  i::Handle<i::Module> module_obj = Utils::OpenHandle(*module);
+  i::Handle<i::JSModuleNamespace> module_namespace =
+      i::Module::GetModuleNamespace(module_obj);
+  i::Handle<i::Object> argv[] = {promise, module_namespace};
+  has_pending_exception =
+      i::Execution::Call(isolate, isolate->promise_resolve(),
+                         isolate->factory()->undefined_value(), arraysize(argv),
+                         argv)
+          .is_null();
+  RETURN_ON_FAILED_EXECUTION_BOOL();
+  return true;
+}
+
+bool DynamicImportResult::FinishDynamicImportFailure(Local<Context> context,
+                                                     Local<Value> exception) {
+  PREPARE_FOR_EXECUTION_BOOL(context, Module, FinishDynamicImportFailure);
+  auto promise = Utils::OpenHandle(this);
+  // We pass true to trigger the debugger's on exception handler.
+  i::Handle<i::Object> argv[] = {promise, Utils::OpenHandle(*exception),
+                                 isolate->factory()->ToBoolean(true)};
+  has_pending_exception =
+      i::Execution::Call(isolate, isolate->promise_internal_reject(),
+                         isolate->factory()->undefined_value(), arraysize(argv),
+                         argv)
+          .is_null();
+  RETURN_ON_FAILED_EXECUTION_BOOL();
+  return true;
+}
+
 int Module::GetModuleRequestsLength() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   return self->info()->module_requests()->length();
@@ -8231,6 +8264,12 @@ Isolate* IsolateNewImpl(internal::Isolate* isolate,
 
   isolate->set_api_external_references(params.external_references);
   isolate->set_allow_atomics_wait(params.allow_atomics_wait);
+
+  if (params.host_import_module_dynamically_callback_ != nullptr) {
+    isolate->SetHostImportModuleDynamicallyCallback(
+        params.host_import_module_dynamically_callback_);
+  }
+
   SetResourceConstraints(isolate, params.constraints);
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(v8_isolate);

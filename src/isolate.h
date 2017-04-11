@@ -1218,6 +1218,12 @@ class Isolate {
 
   bool IsInAnyContext(Object* object, uint32_t index);
 
+  void SetHostImportModuleDynamicallyCallback(
+      HostImportModuleDynamicallyCallback callback);
+  void RunHostImportModuleDynamicallyCallback(Handle<String> referrer,
+                                              Handle<String> specifier,
+                                              Handle<JSPromise> promise);
+
   void SetRAILMode(RAILMode rail_mode);
 
   RAILMode rail_mode() { return rail_mode_.Value(); }
@@ -1449,6 +1455,7 @@ class Isolate {
   base::AtomicValue<RAILMode> rail_mode_;
   bool promise_hook_or_debug_is_active_;
   PromiseHook promise_hook_;
+  HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_;
   base::Mutex rail_mutex_;
   double load_start_time_ms_;
 

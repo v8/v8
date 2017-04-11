@@ -756,6 +756,10 @@ void AstTyper::VisitEmptyParentheses(EmptyParentheses* expr) {
 
 void AstTyper::VisitGetIterator(GetIterator* expr) { UNREACHABLE(); }
 
+void AstTyper::VisitImportCallExpression(ImportCallExpression* expr) {
+  UNREACHABLE();
+}
+
 void AstTyper::VisitThisFunction(ThisFunction* expr) {}
 
 

@@ -111,7 +111,8 @@ class RegisteredExtension {
   V(NativeWeakMap, JSWeakMap)                  \
   V(debug::GeneratorObject, JSGeneratorObject) \
   V(debug::Script, Script)                     \
-  V(Promise, JSPromise)
+  V(Promise, JSPromise)                        \
+  V(DynamicImportResult, JSPromise)
 
 class Utils {
  public:
@@ -185,6 +186,8 @@ class Utils {
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Promise> PromiseToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
+  static inline Local<DynamicImportResult> PromiseToDynamicImportResult(
+      v8::internal::Handle<v8::internal::JSPromise> obj);
   static inline Local<StackTrace> StackTraceToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<StackFrame> StackFrameToLocal(
@@ -317,6 +320,7 @@ MAKE_TO_LOCAL(SignatureToLocal, FunctionTemplateInfo, Signature)
 MAKE_TO_LOCAL(AccessorSignatureToLocal, FunctionTemplateInfo, AccessorSignature)
 MAKE_TO_LOCAL(MessageToLocal, Object, Message)
 MAKE_TO_LOCAL(PromiseToLocal, JSObject, Promise)
+MAKE_TO_LOCAL(PromiseToDynamicImportResult, JSPromise, DynamicImportResult)
 MAKE_TO_LOCAL(StackTraceToLocal, JSArray, StackTrace)
 MAKE_TO_LOCAL(StackFrameToLocal, StackFrameInfo, StackFrame)
 MAKE_TO_LOCAL(NumberToLocal, Object, Number)

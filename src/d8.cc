@@ -435,6 +435,8 @@ ScriptCompiler::CachedData* CompileForCachedData(
   }
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  create_params.host_import_module_dynamically_callback_ =
+      Shell::HostImportModuleDynamically;
   Isolate* temp_isolate = Isolate::New(create_params);
   ScriptCompiler::CachedData* result = NULL;
   {
@@ -443,19 +445,21 @@ ScriptCompiler::CachedData* CompileForCachedData(
     Context::Scope context_scope(Context::New(temp_isolate));
     Local<String> source_copy =
         v8::String::NewFromTwoByte(temp_isolate, source_buffer,
-                                   v8::NewStringType::kNormal,
-                                   source_length).ToLocalChecked();
+                                   v8::NewStringType::kNormal, source_length)
+            .ToLocalChecked();
     Local<Value> name_copy;
     if (name_buffer) {
-      name_copy = v8::String::NewFromTwoByte(temp_isolate, name_buffer,
-                                             v8::NewStringType::kNormal,
-                                             name_length).ToLocalChecked();
+      name_copy =
+          v8::String::NewFromTwoByte(temp_isolate, name_buffer,
+                                     v8::NewStringType::kNormal, name_length)
+              .ToLocalChecked();
     } else {
       name_copy = v8::Undefined(temp_isolate);
     }
     ScriptCompiler::Source script_source(source_copy, ScriptOrigin(name_copy));
     if (!ScriptCompiler::CompileUnboundScript(temp_isolate, &script_source,
-                                              compile_options).IsEmpty() &&
+                                              compile_options)
+             .IsEmpty() &&
         script_source.GetCachedData()) {
       int length = script_source.GetCachedData()->length;
       uint8_t* cache = new uint8_t[length];
@@ -680,12 +684,11 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
                                           const std::string& file_name) {
   DCHECK(IsAbsolutePath(file_name));
   Isolate* isolate = context->GetIsolate();
-  TryCatch try_catch(isolate);
-  try_catch.SetVerbose(true);
   Local<String> source_text = ReadFile(isolate, file_name.c_str());
   if (source_text.IsEmpty()) {
-    printf("Error reading '%s'\n", file_name.c_str());
-    Shell::Exit(1);
+    std::string msg = "Error reading: " + file_name;
+    Throw(isolate, msg.c_str());
+    return MaybeLocal<Module>();
   }
   ScriptOrigin origin(
       String::NewFromUtf8(isolate, file_name.c_str(), NewStringType::kNormal)
@@ -695,7 +698,6 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
   ScriptCompiler::Source source(source_text, origin);
   Local<Module> module;
   if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
-    ReportException(isolate, &try_catch);
     return MaybeLocal<Module>();
   }
 
@@ -722,6 +724,85 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
   return module;
 }
 
+namespace {
+
+struct DynamicImportData {
+  DynamicImportData(Isolate* isolate_, Local<String> referrer_,
+                    Local<String> specifier_,
+                    Local<DynamicImportResult> result_)
+      : isolate(isolate_) {
+    referrer.Reset(isolate, referrer_);
+    specifier.Reset(isolate, specifier_);
+    result.Reset(isolate, result_);
+  }
+
+  Isolate* isolate;
+  Global<String> referrer;
+  Global<String> specifier;
+  Global<DynamicImportResult> result;
+};
+
+}  // namespace
+void Shell::HostImportModuleDynamically(Isolate* isolate,
+                                        Local<String> referrer,
+                                        Local<String> specifier,
+                                        Local<DynamicImportResult> result) {
+  DynamicImportData* data =
+      new DynamicImportData(isolate, referrer, specifier, result);
+  isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
+}
+
+void Shell::DoHostImportModuleDynamically(void* import_data) {
+  std::unique_ptr<DynamicImportData> import_data_(
+      static_cast<DynamicImportData*>(import_data));
+  Isolate* isolate(import_data_->isolate);
+  HandleScope handle_scope(isolate);
+
+  Local<String> referrer(import_data_->referrer.Get(isolate));
+  Local<String> specifier(import_data_->specifier.Get(isolate));
+  Local<DynamicImportResult> result(import_data_->result.Get(isolate));
+
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+  Context::Scope context_scope(realm);
+
+  std::string source_url = ToSTLString(referrer);
+  std::string dir_name =
+      IsAbsolutePath(source_url) ? DirName(source_url) : GetWorkingDirectory();
+  std::string file_name = ToSTLString(specifier);
+  std::string absolute_path = NormalizePath(file_name.c_str(), dir_name);
+
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+
+  ModuleEmbedderData* d = GetModuleDataFromContext(realm);
+  Local<Module> root_module;
+  auto module_it = d->specifier_to_module_map.find(absolute_path);
+  if (module_it != d->specifier_to_module_map.end()) {
+    root_module = module_it->second.Get(isolate);
+  } else if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
+    CHECK(try_catch.HasCaught());
+    CHECK(result->FinishDynamicImportFailure(realm, try_catch.Exception()));
+    return;
+  }
+
+  MaybeLocal<Value> maybe_result;
+  if (root_module->Instantiate(realm, ResolveModuleCallback)) {
+    maybe_result = root_module->Evaluate(realm);
+    EmptyMessageQueues(isolate);
+  }
+
+  Local<Value> module;
+  if (!maybe_result.ToLocal(&module)) {
+    DCHECK(try_catch.HasCaught());
+    CHECK(result->FinishDynamicImportFailure(realm, try_catch.Exception()));
+    return;
+  }
+
+  DCHECK(!try_catch.HasCaught());
+  CHECK(result->FinishDynamicImportSuccess(realm, root_module));
+}
+
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   HandleScope handle_scope(isolate);
 
@@ -731,13 +812,17 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
   std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
 
-  Local<Module> root_module;
-  if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
-    return false;
-  }
-
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
+
+  Local<Module> root_module;
+  MaybeLocal<Value> maybe_exception;
+
+  if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
+    CHECK(try_catch.HasCaught());
+    ReportException(isolate, &try_catch);
+    return false;
+  }
 
   MaybeLocal<Value> maybe_result;
   if (root_module->Instantiate(realm, ResolveModuleCallback)) {
@@ -2152,6 +2237,8 @@ base::Thread::Options SourceGroup::GetThreadOptions() {
 void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  create_params.host_import_module_dynamically_callback_ =
+      Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
     next_semaphore_.Wait();
@@ -2290,6 +2377,8 @@ void Worker::WaitForThread() {
 void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  create_params.host_import_module_dynamically_callback_ =
+      Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
   {
     Isolate::Scope iscope(isolate);
@@ -2962,6 +3051,9 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
+
+  create_params.host_import_module_dynamically_callback_ =
+      Shell::HostImportModuleDynamically;
 
   if (i::trap_handler::UseTrapHandler()) {
     if (!v8::V8::RegisterDefaultSignalHandler()) {

@@ -11240,6 +11240,11 @@ void HOptimizedGraphBuilder::VisitGetIterator(GetIterator* expr) {
   UNREACHABLE();
 }
 
+void HOptimizedGraphBuilder::VisitImportCallExpression(
+    ImportCallExpression* expr) {
+  UNREACHABLE();
+}
+
 HValue* HOptimizedGraphBuilder::AddThisFunction() {
   return AddInstruction(BuildThisFunction());
 }

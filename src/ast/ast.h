@@ -105,7 +105,8 @@ namespace internal {
   V(EmptyParentheses)           \
   V(GetIterator)                \
   V(DoExpression)               \
-  V(RewritableExpression)
+  V(RewritableExpression)       \
+  V(ImportCallExpression)
 
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
@@ -2973,6 +2974,21 @@ class SuperCallReference final : public Expression {
   VariableProxy* this_function_var_;
 };
 
+// This AST Node is used to represent a dynamic import call --
+// import(argument).
+class ImportCallExpression final : public Expression {
+ public:
+  Expression* argument() const { return argument_; }
+  void set_argument(Expression* argument) { argument_ = argument; }
+
+ private:
+  friend class AstNodeFactory;
+
+  ImportCallExpression(Expression* argument, int pos)
+      : Expression(pos, kImportCallExpression), argument_(argument) {}
+
+  Expression* argument_;
+};
 
 // This class is produced when parsing the () in arrow functions without any
 // arguments and is not actually a valid expression.
@@ -3621,6 +3637,10 @@ class AstNodeFactory final BASE_EMBEDDED {
   GetIterator* NewGetIterator(Expression* iterable, IteratorType hint,
                               int pos) {
     return new (zone_) GetIterator(iterable, hint, pos);
+  }
+
+  ImportCallExpression* NewImportCallExpression(Expression* args, int pos) {
+    return new (zone_) ImportCallExpression(args, pos);
   }
 
   Zone* zone() const { return zone_; }

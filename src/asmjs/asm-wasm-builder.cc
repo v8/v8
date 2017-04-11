@@ -302,6 +302,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void VisitGetIterator(GetIterator* expr) { UNREACHABLE(); }
 
+  void VisitImportCallExpression(ImportCallExpression* expr) { UNREACHABLE(); }
+
   void VisitIfStatement(IfStatement* stmt) {
     DCHECK_EQ(kFuncScope, scope_);
     RECURSE(Visit(stmt->condition()));

@@ -266,6 +266,9 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Symbol> NewSymbol();
   Handle<Symbol> NewPrivateSymbol();
 
+  // Create a promise.
+  Handle<JSPromise> NewJSPromise();
+
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();
 
