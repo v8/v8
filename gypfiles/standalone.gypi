@@ -855,7 +855,6 @@
           }],
         ],
         'msvs_cygwin_shell': 0,
-        'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
         'msvs_disabled_warnings': [
           # C4091: 'typedef ': ignored on left of 'X' when no variable is
           #                    declared.
