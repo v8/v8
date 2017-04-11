@@ -165,6 +165,9 @@ IGNORE_LINES = [
 
   # crbug.com/677032
   r'^.*:\d+:.*asm\.js.*: success$',
+
+  # crbug.com/705962
+  r'^\s\[0x[0-9a-f]+\]$',
 ]
 
 
