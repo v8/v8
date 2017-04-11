@@ -564,9 +564,9 @@ class ElementsAccessorBase : public ElementsAccessor {
     Subclass::ValidateImpl(holder);
   }
 
-  static bool IsPackedImpl(Handle<JSObject> holder,
-                           Handle<FixedArrayBase> backing_store, uint32_t start,
-                           uint32_t end) {
+  static bool IsPackedImpl(JSObject* holder, FixedArrayBase* backing_store,
+                           uint32_t start, uint32_t end) {
+    DisallowHeapAllocation no_gc;
     if (IsFastPackedElementsKind(kind())) return true;
     Isolate* isolate = backing_store->GetIsolate();
     for (uint32_t i = start; i < end; i++) {
@@ -580,9 +580,9 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   static void TryTransitionResultArrayToPacked(Handle<JSArray> array) {
     if (!IsHoleyElementsKind(kind())) return;
-    int length = Smi::cast(array->length())->value();
     Handle<FixedArrayBase> backing_store(array->elements());
-    if (!Subclass::IsPackedImpl(array, backing_store, 0, length)) {
+    int length = Smi::cast(array->length())->value();
+    if (!Subclass::IsPackedImpl(*array, *backing_store, 0, length)) {
       return;
     }
     ElementsKind packed_kind = GetPackedElementsKind(kind());
@@ -595,19 +595,17 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
   }
 
-  bool HasElement(Handle<JSObject> holder, uint32_t index,
-                  Handle<FixedArrayBase> backing_store,
-                  PropertyFilter filter) final {
+  bool HasElement(JSObject* holder, uint32_t index,
+                  FixedArrayBase* backing_store, PropertyFilter filter) final {
     return Subclass::HasElementImpl(holder->GetIsolate(), holder, index,
                                     backing_store, filter);
   }
 
-  static bool HasElementImpl(Isolate* isolate, Handle<JSObject> holder,
-                             uint32_t index,
-                             Handle<FixedArrayBase> backing_store,
+  static bool HasElementImpl(Isolate* isolate, JSObject* holder, uint32_t index,
+                             FixedArrayBase* backing_store,
                              PropertyFilter filter = ALL_PROPERTIES) {
-    return Subclass::GetEntryForIndexImpl(isolate, *holder, *backing_store,
-                                          index, filter) != kMaxUInt32;
+    return Subclass::GetEntryForIndexImpl(isolate, holder, backing_store, index,
+                                          filter) != kMaxUInt32;
   }
 
   bool HasAccessors(JSObject* holder) final {
@@ -1079,7 +1077,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     Isolate* isolate = keys->isolate();
     Factory* factory = isolate->factory();
     for (uint32_t i = 0; i < length; i++) {
-      if (Subclass::HasElementImpl(isolate, object, i, backing_store, filter)) {
+      if (Subclass::HasElementImpl(isolate, *object, i, *backing_store,
+                                   filter)) {
         keys->AddKey(factory->NewNumberFromUint(i));
       }
     }
@@ -1092,7 +1091,8 @@ class ElementsAccessorBase : public ElementsAccessor {
       uint32_t insertion_index = 0) {
     uint32_t length = Subclass::GetMaxIndex(*object, *backing_store);
     for (uint32_t i = 0; i < length; i++) {
-      if (Subclass::HasElementImpl(isolate, object, i, backing_store, filter)) {
+      if (Subclass::HasElementImpl(isolate, *object, i, *backing_store,
+                                   filter)) {
         if (convert == GetKeysConversion::kConvertToString) {
           Handle<String> index_string = isolate->factory()->Uint32ToString(i);
           list->set(insertion_index, *index_string);
@@ -2319,7 +2319,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     Handle<FixedArray> result = isolate->factory()->NewFixedArray(length);
     Handle<FixedArrayBase> elements(array->elements(), isolate);
     for (uint32_t i = 0; i < length; i++) {
-      if (!Subclass::HasElementImpl(isolate, array, i, elements)) continue;
+      if (!Subclass::HasElementImpl(isolate, *array, i, *elements)) continue;
       Handle<Object> value;
       value = Subclass::GetImpl(isolate, *elements, i);
       if (value->IsName()) {
@@ -2772,11 +2772,10 @@ class TypedElementsAccessor
     return PropertyDetails(kData, DONT_DELETE, 0, PropertyCellType::kNoCell);
   }
 
-  static bool HasElementImpl(Isolate* isolate, Handle<JSObject> holder,
-                             uint32_t index,
-                             Handle<FixedArrayBase> backing_store,
+  static bool HasElementImpl(Isolate* isolate, JSObject* holder, uint32_t index,
+                             FixedArrayBase* backing_store,
                              PropertyFilter filter) {
-    return index < AccessorClass::GetCapacityImpl(*holder, *backing_store);
+    return index < AccessorClass::GetCapacityImpl(holder, backing_store);
   }
 
   static bool HasAccessorsImpl(JSObject* holder,

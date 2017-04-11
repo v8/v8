@@ -43,13 +43,13 @@ class ElementsAccessor {
   // index is ignored. Note that only Dictionary elements have custom
   // PropertyAttributes associated, hence the |filter| argument is ignored for
   // all but DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
-  virtual bool HasElement(Handle<JSObject> holder, uint32_t index,
-                          Handle<FixedArrayBase> backing_store,
+  virtual bool HasElement(JSObject* holder, uint32_t index,
+                          FixedArrayBase* backing_store,
                           PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  inline bool HasElement(Handle<JSObject> holder, uint32_t index,
+  inline bool HasElement(JSObject* holder, uint32_t index,
                          PropertyFilter filter = ALL_PROPERTIES) {
-    return HasElement(holder, index, handle(holder->elements()), filter);
+    return HasElement(holder, index, holder->elements(), filter);
   }
 
   virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) = 0;

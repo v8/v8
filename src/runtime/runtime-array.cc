@@ -142,14 +142,14 @@ RUNTIME_FUNCTION(Runtime_MoveArrayContents) {
 
 // How many elements does this object/array have?
 RUNTIME_FUNCTION(Runtime_EstimateNumberOfElements) {
+  DisallowHeapAllocation no_gc;
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  Handle<FixedArrayBase> elements(array->elements(), isolate);
+  CONVERT_ARG_CHECKED(JSArray, array, 0);
+  FixedArrayBase* elements = array->elements();
   SealHandleScope shs(isolate);
   if (elements->IsDictionary()) {
-    int result =
-        Handle<SeededNumberDictionary>::cast(elements)->NumberOfElements();
+    int result = SeededNumberDictionary::cast(elements)->NumberOfElements();
     return Smi::FromInt(result);
   } else {
     DCHECK(array->length()->IsSmi());
@@ -661,7 +661,7 @@ RUNTIME_FUNCTION(Runtime_SpreadIterableFixed) {
   Handle<FixedArray> result = isolate->factory()->NewFixedArray(spread_length);
   ElementsAccessor* accessor = spread_array->GetElementsAccessor();
   for (uint32_t i = 0; i < spread_length; i++) {
-    DCHECK(accessor->HasElement(spread_array, i));
+    DCHECK(accessor->HasElement(*spread_array, i));
     Handle<Object> element = accessor->Get(spread_array, i);
     result->set(i, *element);
   }
