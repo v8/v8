@@ -33,11 +33,42 @@ inline T CompareExchangeSeqCst(T* p, T oldval, T newval) {
   return oldval;
 }
 
+template <typename T>
+inline T AddSeqCst(T* p, T value) {
+  return __atomic_fetch_add(p, value, __ATOMIC_SEQ_CST);
+}
+
+template <typename T>
+inline T SubSeqCst(T* p, T value) {
+  return __atomic_fetch_sub(p, value, __ATOMIC_SEQ_CST);
+}
+
+template <typename T>
+inline T AndSeqCst(T* p, T value) {
+  return __atomic_fetch_and(p, value, __ATOMIC_SEQ_CST);
+}
+
+template <typename T>
+inline T OrSeqCst(T* p, T value) {
+  return __atomic_fetch_or(p, value, __ATOMIC_SEQ_CST);
+}
+
+template <typename T>
+inline T XorSeqCst(T* p, T value) {
+  return __atomic_fetch_xor(p, value, __ATOMIC_SEQ_CST);
+}
+
 #elif V8_CC_MSVC
 
 #define InterlockedExchange32 _InterlockedExchange
 #define InterlockedCompareExchange32 _InterlockedCompareExchange
 #define InterlockedCompareExchange8 _InterlockedCompareExchange8
+#define InterlockedExchangeAdd32 _InterlockedExchangeAdd
+#define InterlockedExchangeAdd16 _InterlockedExchangeAdd16
+#define InterlockedExchangeAdd8 _InterlockedExchangeAdd8
+#define InterlockedAnd32 _InterlockedAnd
+#define InterlockedOr32 _InterlockedOr
+#define InterlockedXor32 _InterlockedXor
 
 #define ATOMIC_OPS(type, suffix, vctype)                                    \
   inline type ExchangeSeqCst(type* p, type value) {                         \
@@ -48,6 +79,26 @@ inline T CompareExchangeSeqCst(T* p, T oldval, T newval) {
     return InterlockedCompareExchange##suffix(reinterpret_cast<vctype*>(p), \
                                               bit_cast<vctype>(newval),     \
                                               bit_cast<vctype>(oldval));    \
+  }                                                                         \
+  inline type AddSeqCst(type* p, type value) {                              \
+    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),     \
+                                          bit_cast<vctype>(value));         \
+  }                                                                         \
+  inline type SubSeqCst(type* p, type value) {                              \
+    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),     \
+                                          -bit_cast<vctype>(value));        \
+  }                                                                         \
+  inline type AndSeqCst(type* p, type value) {                              \
+    return InterlockedAnd##suffix(reinterpret_cast<vctype*>(p),             \
+                                  bit_cast<vctype>(value));                 \
+  }                                                                         \
+  inline type OrSeqCst(type* p, type value) {                               \
+    return InterlockedOr##suffix(reinterpret_cast<vctype*>(p),              \
+                                 bit_cast<vctype>(value));                  \
+  }                                                                         \
+  inline type XorSeqCst(type* p, type value) {                              \
+    return InterlockedXor##suffix(reinterpret_cast<vctype*>(p),             \
+                                  bit_cast<vctype>(value));                 \
   }
 
 ATOMIC_OPS(int8_t, 8, char)
@@ -63,6 +114,12 @@ ATOMIC_OPS(uint32_t, 32, long)  /* NOLINT(runtime/int) */
 #undef InterlockedExchange32
 #undef InterlockedCompareExchange32
 #undef InterlockedCompareExchange8
+#undef InterlockedExchangeAdd32
+#undef InterlockedExchangeAdd16
+#undef InterlockedExchangeAdd8
+#undef InterlockedAnd32
+#undef InterlockedOr32
+#undef InterlockedXor32
 
 #else
 
@@ -137,6 +194,46 @@ inline Object* DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
   T newval = FromObject<T>(newobj);
   T result =
       CompareExchangeSeqCst(static_cast<T*>(buffer) + index, oldval, newval);
+  return ToObject(isolate, result);
+}
+
+template <typename T>
+inline Object* DoAdd(Isolate* isolate, void* buffer, size_t index,
+                     Handle<Object> obj) {
+  T value = FromObject<T>(obj);
+  T result = AddSeqCst(static_cast<T*>(buffer) + index, value);
+  return ToObject(isolate, result);
+}
+
+template <typename T>
+inline Object* DoSub(Isolate* isolate, void* buffer, size_t index,
+                     Handle<Object> obj) {
+  T value = FromObject<T>(obj);
+  T result = SubSeqCst(static_cast<T*>(buffer) + index, value);
+  return ToObject(isolate, result);
+}
+
+template <typename T>
+inline Object* DoAnd(Isolate* isolate, void* buffer, size_t index,
+                     Handle<Object> obj) {
+  T value = FromObject<T>(obj);
+  T result = AndSeqCst(static_cast<T*>(buffer) + index, value);
+  return ToObject(isolate, result);
+}
+
+template <typename T>
+inline Object* DoOr(Isolate* isolate, void* buffer, size_t index,
+                    Handle<Object> obj) {
+  T value = FromObject<T>(obj);
+  T result = OrSeqCst(static_cast<T*>(buffer) + index, value);
+  return ToObject(isolate, result);
+}
+
+template <typename T>
+inline Object* DoXor(Isolate* isolate, void* buffer, size_t index,
+                     Handle<Object> obj) {
+  T value = FromObject<T>(obj);
+  T result = XorSeqCst(static_cast<T*>(buffer) + index, value);
   return ToObject(isolate, result);
 }
 
@@ -221,6 +318,156 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
   case kExternal##Type##Array:                              \
     return DoCompareExchange<ctype>(isolate, source, index, oldobj, newobj);
+
+    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+    default:
+      break;
+  }
+
+  UNREACHABLE();
+  return isolate->heap()->undefined_value();
+}
+
+// ES #sec-atomics.add
+// Atomics.add( typedArray, index, value )
+RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
+  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
+
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(sta->byte_offset());
+
+  switch (sta->type()) {
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
+  case kExternal##Type##Array:                              \
+    return DoAdd<ctype>(isolate, source, index, value);
+
+    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+    default:
+      break;
+  }
+
+  UNREACHABLE();
+  return isolate->heap()->undefined_value();
+}
+
+// ES #sec-atomics.sub
+// Atomics.sub( typedArray, index, value )
+RUNTIME_FUNCTION(Runtime_AtomicsSub) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
+  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
+
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(sta->byte_offset());
+
+  switch (sta->type()) {
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
+  case kExternal##Type##Array:                              \
+    return DoSub<ctype>(isolate, source, index, value);
+
+    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+    default:
+      break;
+  }
+
+  UNREACHABLE();
+  return isolate->heap()->undefined_value();
+}
+
+// ES #sec-atomics.and
+// Atomics.and( typedArray, index, value )
+RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
+  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
+
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(sta->byte_offset());
+
+  switch (sta->type()) {
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
+  case kExternal##Type##Array:                              \
+    return DoAnd<ctype>(isolate, source, index, value);
+
+    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+    default:
+      break;
+  }
+
+  UNREACHABLE();
+  return isolate->heap()->undefined_value();
+}
+
+// ES #sec-atomics.or
+// Atomics.or( typedArray, index, value )
+RUNTIME_FUNCTION(Runtime_AtomicsOr) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
+  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
+
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(sta->byte_offset());
+
+  switch (sta->type()) {
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
+  case kExternal##Type##Array:                              \
+    return DoOr<ctype>(isolate, source, index, value);
+
+    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+    default:
+      break;
+  }
+
+  UNREACHABLE();
+  return isolate->heap()->undefined_value();
+}
+
+// ES #sec-atomics.xor
+// Atomics.xor( typedArray, index, value )
+RUNTIME_FUNCTION(Runtime_AtomicsXor) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
+  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(sta->length()));
+
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(sta->byte_offset());
+
+  switch (sta->type()) {
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
+  case kExternal##Type##Array:                              \
+    return DoXor<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE

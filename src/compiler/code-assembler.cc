@@ -516,10 +516,18 @@ Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
   return raw_assembler()->AtomicStore(rep, base, offset, value);
 }
 
-Node* CodeAssembler::AtomicExchange(MachineType type, Node* base, Node* offset,
-                                    Node* value) {
-  return raw_assembler()->AtomicExchange(type, base, offset, value);
-}
+#define ATOMIC_FUNCTION(name)                                        \
+  Node* CodeAssembler::Atomic##name(MachineType type, Node* base,    \
+                                    Node* offset, Node* value) {     \
+    return raw_assembler()->Atomic##name(type, base, offset, value); \
+  }
+ATOMIC_FUNCTION(Exchange);
+ATOMIC_FUNCTION(Add);
+ATOMIC_FUNCTION(Sub);
+ATOMIC_FUNCTION(And);
+ATOMIC_FUNCTION(Or);
+ATOMIC_FUNCTION(Xor);
+#undef ATOMIC_FUNCTION
 
 Node* CodeAssembler::AtomicCompareExchange(MachineType type, Node* base,
                                            Node* offset, Node* old_value,

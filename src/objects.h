@@ -5713,11 +5713,16 @@ class Script: public Struct {
   V(WeakSet.prototype, delete, WeakSetDelete)               \
   V(WeakSet.prototype, has, WeakSetHas)
 
-#define ATOMIC_FUNCTIONS_WITH_ID_LIST(V) \
-  V(Atomics, load, AtomicsLoad)          \
-  V(Atomics, store, AtomicsStore)        \
-  V(Atomics, exchange, AtomicsExchange)  \
-  V(Atomics, compareExchange, AtomicsCompareExchange)
+#define ATOMIC_FUNCTIONS_WITH_ID_LIST(V)              \
+  V(Atomics, load, AtomicsLoad)                       \
+  V(Atomics, store, AtomicsStore)                     \
+  V(Atomics, exchange, AtomicsExchange)               \
+  V(Atomics, compareExchange, AtomicsCompareExchange) \
+  V(Atomics, add, AtomicsAdd)                         \
+  V(Atomics, sub, AtomicsSub)                         \
+  V(Atomics, and, AtomicsAnd)                         \
+  V(Atomics, or, AtomicsOr)                           \
+  V(Atomics, xor, AtomicsXor)
 
 enum BuiltinFunctionId {
   kArrayCode,

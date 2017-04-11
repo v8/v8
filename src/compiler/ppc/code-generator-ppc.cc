@@ -2005,13 +2005,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lwarx, stwcx);
       break;
-    case kAtomicCompareExchangeInt8:
-    case kAtomicCompareExchangeUint8:
-    case kAtomicCompareExchangeInt16:
-    case kAtomicCompareExchangeUint16:
-    case kAtomicCompareExchangeWord32:
-      UNREACHABLE();
-      break;
     default:
       UNREACHABLE();
       break;

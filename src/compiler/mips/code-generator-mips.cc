@@ -1600,6 +1600,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeInt16:
     case kAtomicCompareExchangeUint16:
     case kAtomicCompareExchangeWord32:
+    case kAtomicAddInt8:
+    case kAtomicAddUint8:
+    case kAtomicAddInt16:
+    case kAtomicAddUint16:
+    case kAtomicAddWord32:
+    case kAtomicSubInt8:
+    case kAtomicSubUint8:
+    case kAtomicSubInt16:
+    case kAtomicSubUint16:
+    case kAtomicSubWord32:
+    case kAtomicAndInt8:
+    case kAtomicAndUint8:
+    case kAtomicAndInt16:
+    case kAtomicAndUint16:
+    case kAtomicAndWord32:
+    case kAtomicOrInt8:
+    case kAtomicOrUint8:
+    case kAtomicOrInt16:
+    case kAtomicOrUint16:
+    case kAtomicOrWord32:
+    case kAtomicXorInt8:
+    case kAtomicXorUint8:
+    case kAtomicXorInt16:
+    case kAtomicXorUint16:
+    case kAtomicXorWord32:
       UNREACHABLE();
       break;
     case kMipsS128Zero: {

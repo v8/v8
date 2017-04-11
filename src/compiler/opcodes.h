@@ -560,6 +560,11 @@
   V(AtomicStore)                \
   V(AtomicExchange)             \
   V(AtomicCompareExchange)      \
+  V(AtomicAdd)                  \
+  V(AtomicSub)                  \
+  V(AtomicAnd)                  \
+  V(AtomicOr)                   \
+  V(AtomicXor)                  \
   V(UnsafePointerAdd)
 
 #define MACHINE_SIMD_OP_LIST(V) \

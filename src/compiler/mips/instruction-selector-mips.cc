@@ -1907,6 +1907,16 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitAtomicAdd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicSub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicAnd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicOr(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicXor(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }

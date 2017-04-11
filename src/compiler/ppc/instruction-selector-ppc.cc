@@ -2123,7 +2123,7 @@ void InstructionSelector::VisitAtomicExchange(Node* node) {
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   ArchOpcode opcode = kArchNop;
-  MachineType type = AtomicExchangeRepresentationOf(node->op());
+  MachineType type = AtomicOpRepresentationOf(node->op());
   if (type == MachineType::Int8()) {
     opcode = kAtomicExchangeInt8;
   } else if (type == MachineType::Uint8()) {
@@ -2154,6 +2154,16 @@ void InstructionSelector::VisitAtomicExchange(Node* node) {
 void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   UNIMPLEMENTED();
 }
+
+void InstructionSelector::VisitAtomicAdd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicSub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicAnd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicOr(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicXor(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   UNREACHABLE();

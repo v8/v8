@@ -2429,14 +2429,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bne(&do_cs, Label::kNear);
       break;
     }
-    case kAtomicCompareExchangeInt8:
-    case kAtomicCompareExchangeUint8:
-    case kAtomicCompareExchangeInt16:
-    case kAtomicCompareExchangeUint16:
-    case kAtomicCompareExchangeWord32: {
-      UNREACHABLE();
-      break;
-    }
     default:
       UNREACHABLE();
       break;

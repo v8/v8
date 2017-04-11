@@ -293,6 +293,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* AtomicCompareExchange(MachineType type, Node* base, Node* offset,
                               Node* old_value, Node* new_value);
 
+  Node* AtomicAdd(MachineType type, Node* base, Node* offset, Node* value);
+
+  Node* AtomicSub(MachineType type, Node* base, Node* offset, Node* value);
+
+  Node* AtomicAnd(MachineType type, Node* base, Node* offset, Node* value);
+
+  Node* AtomicOr(MachineType type, Node* base, Node* offset, Node* value);
+
+  Node* AtomicXor(MachineType type, Node* base, Node* offset, Node* value);
+
   // Store a value to the root array.
   Node* StoreRoot(Heap::RootListIndex root_index, Node* value);
 

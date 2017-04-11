@@ -452,6 +452,21 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ dmb(ISH);                                                              \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_BINOP(load_instr, store_instr, bin_instr)            \
+  do {                                                                       \
+    Label binop;                                                             \
+    __ add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ dmb(ISH);                                                             \
+    __ bind(&binop);                                                         \
+    __ load_instr(i.OutputRegister(0), i.TempRegister(0));                   \
+    __ bin_instr(i.TempRegister(1), i.OutputRegister(0),                     \
+                 Operand(i.InputRegister(2)));                               \
+    __ store_instr(i.TempRegister(1), i.TempRegister(1), i.TempRegister(0)); \
+    __ teq(i.TempRegister(1), Operand(0));                                   \
+    __ b(ne, &binop);                                                        \
+    __ dmb(ISH);                                                             \
+  } while (0)
+
 #define ASSEMBLE_IEEE754_BINOP(name)                                           \
   do {                                                                         \
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
@@ -2305,6 +2320,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(i.TempRegister(1), i.InputRegister(2));
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrex, strex);
       break;
+#define ATOMIC_BINOP_CASE(op, inst)                    \
+  case kAtomic##op##Int8:                              \
+    ASSEMBLE_ATOMIC_BINOP(ldrexb, strexb, inst);       \
+    __ sxtb(i.OutputRegister(0), i.OutputRegister(0)); \
+    break;                                             \
+  case kAtomic##op##Uint8:                             \
+    ASSEMBLE_ATOMIC_BINOP(ldrexb, strexb, inst);       \
+    break;                                             \
+  case kAtomic##op##Int16:                             \
+    ASSEMBLE_ATOMIC_BINOP(ldrexh, strexh, inst);       \
+    __ sxth(i.OutputRegister(0), i.OutputRegister(0)); \
+    break;                                             \
+  case kAtomic##op##Uint16:                            \
+    ASSEMBLE_ATOMIC_BINOP(ldrexh, strexh, inst);       \
+    break;                                             \
+  case kAtomic##op##Word32:                            \
+    ASSEMBLE_ATOMIC_BINOP(ldrex, strex, inst);         \
+    break;
+      ATOMIC_BINOP_CASE(Add, add)
+      ATOMIC_BINOP_CASE(Sub, sub)
+      ATOMIC_BINOP_CASE(And, and_)
+      ATOMIC_BINOP_CASE(Or, orr)
+      ATOMIC_BINOP_CASE(Xor, eor)
+#undef ATOMIC_BINOP_CASE
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)

@@ -174,10 +174,17 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                     Node* value) {
     return AddNode(machine()->AtomicStore(rep), base, index, value);
   }
-
-  Node* AtomicExchange(MachineType rep, Node* base, Node* index, Node* value) {
-    return AddNode(machine()->AtomicExchange(rep), base, index, value);
+#define ATOMIC_FUNCTION(name)                                                 \
+  Node* Atomic##name(MachineType rep, Node* base, Node* index, Node* value) { \
+    return AddNode(machine()->Atomic##name(rep), base, index, value);         \
   }
+  ATOMIC_FUNCTION(Exchange);
+  ATOMIC_FUNCTION(Add);
+  ATOMIC_FUNCTION(Sub);
+  ATOMIC_FUNCTION(And);
+  ATOMIC_FUNCTION(Or);
+  ATOMIC_FUNCTION(Xor);
+#undef ATOMIC_FUNCTION
 
   Node* AtomicCompareExchange(MachineType rep, Node* base, Node* index,
                               Node* old_value, Node* new_value) {

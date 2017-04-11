@@ -97,9 +97,7 @@ int StackSlotSizeOf(Operator const* op);
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
 
-MachineType AtomicExchangeRepresentationOf(Operator const* op);
-
-MachineType AtomicCompareExchangeRepresentationOf(Operator const* op);
+MachineType AtomicOpRepresentationOf(Operator const* op);
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
@@ -627,6 +625,16 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* AtomicExchange(MachineType rep);
   // atomic-compare-exchange [base + index], old_value, new_value
   const Operator* AtomicCompareExchange(MachineType rep);
+  // atomic-add [base + index], value
+  const Operator* AtomicAdd(MachineType rep);
+  // atomic-sub [base + index], value
+  const Operator* AtomicSub(MachineType rep);
+  // atomic-and [base + index], value
+  const Operator* AtomicAnd(MachineType rep);
+  // atomic-or [base + index], value
+  const Operator* AtomicOr(MachineType rep);
+  // atomic-xor [base + index], value
+  const Operator* AtomicXor(MachineType rep);
 
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == MachineRepresentation::kWord32; }

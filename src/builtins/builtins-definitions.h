@@ -790,11 +790,11 @@ namespace internal {
   TFJ(AtomicsStore, 3, kArray, kIndex, kValue)                                 \
   TFJ(AtomicsExchange, 3, kArray, kIndex, kValue)                              \
   TFJ(AtomicsCompareExchange, 4, kArray, kIndex, kOldValue, kNewValue)         \
-  CPP(AtomicsAdd)                                                              \
-  CPP(AtomicsSub)                                                              \
-  CPP(AtomicsAnd)                                                              \
-  CPP(AtomicsOr)                                                               \
-  CPP(AtomicsXor)                                                              \
+  TFJ(AtomicsAdd, 3, kArray, kIndex, kValue)                                   \
+  TFJ(AtomicsSub, 3, kArray, kIndex, kValue)                                   \
+  TFJ(AtomicsAnd, 3, kArray, kIndex, kValue)                                   \
+  TFJ(AtomicsOr, 3, kArray, kIndex, kValue)                                    \
+  TFJ(AtomicsXor, 3, kArray, kIndex, kValue)                                   \
   CPP(AtomicsIsLockFree)                                                       \
   CPP(AtomicsWait)                                                             \
   CPP(AtomicsWake)                                                             \

@@ -710,6 +710,18 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
                      1);                                                      \
   } while (false)
 
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, mov_inst, cmpxchg_inst) \
+  do {                                                          \
+    Label binop;                                                \
+    __ bind(&binop);                                            \
+    __ mov_inst(rax, i.MemoryOperand(1));                       \
+    __ movl(i.TempRegister(0), rax);                            \
+    __ bin_inst(i.TempRegister(0), i.InputRegister(0));         \
+    __ lock();                                                  \
+    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));     \
+    __ j(not_equal, &binop);                                    \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
   __ movq(rsp, rbp);
@@ -2330,6 +2342,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmpxchgl(i.MemoryOperand(2), i.InputRegister(1));
       break;
     }
+#define ATOMIC_BINOP_CASE(op, inst)              \
+  case kAtomic##op##Int8:                        \
+    ASSEMBLE_ATOMIC_BINOP(inst, movb, cmpxchgb); \
+    __ movsxbl(rax, rax);                        \
+    break;                                       \
+  case kAtomic##op##Uint8:                       \
+    ASSEMBLE_ATOMIC_BINOP(inst, movb, cmpxchgb); \
+    __ movzxbl(rax, rax);                        \
+    break;                                       \
+  case kAtomic##op##Int16:                       \
+    ASSEMBLE_ATOMIC_BINOP(inst, movw, cmpxchgw); \
+    __ movsxwl(rax, rax);                        \
+    break;                                       \
+  case kAtomic##op##Uint16:                      \
+    ASSEMBLE_ATOMIC_BINOP(inst, movw, cmpxchgw); \
+    __ movzxwl(rax, rax);                        \
+    break;                                       \
+  case kAtomic##op##Word32:                      \
+    ASSEMBLE_ATOMIC_BINOP(inst, movl, cmpxchgl); \
+    break;
+      ATOMIC_BINOP_CASE(Add, addl)
+      ATOMIC_BINOP_CASE(Sub, subl)
+      ATOMIC_BINOP_CASE(And, andl)
+      ATOMIC_BINOP_CASE(Or, orl)
+      ATOMIC_BINOP_CASE(Xor, xorl)
+#undef ATOMIC_BINOP_CASE
     case kAtomicLoadInt8:
     case kAtomicLoadUint8:
     case kAtomicLoadInt16:

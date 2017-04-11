@@ -708,6 +708,7 @@ void Assembler::xchg(Register dst, const Operand& src) {
 }
 
 void Assembler::xchg_b(Register reg, const Operand& op) {
+  DCHECK(reg.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x86);
   emit_operand(reg, op);
@@ -733,6 +734,7 @@ void Assembler::cmpxchg(const Operand& dst, Register src) {
 }
 
 void Assembler::cmpxchg_b(const Operand& dst, Register src) {
+  DCHECK(src.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0xB0);

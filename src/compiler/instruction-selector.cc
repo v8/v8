@@ -1462,16 +1462,20 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kAtomicStore:
       return VisitAtomicStore(node);
-    case IrOpcode::kAtomicExchange: {
-      MachineType type = AtomicExchangeRepresentationOf(node->op());
-      MarkAsRepresentation(type.representation(), node);
-      return VisitAtomicExchange(node);
-    }
-    case IrOpcode::kAtomicCompareExchange: {
-      MachineType type = AtomicCompareExchangeRepresentationOf(node->op());
-      MarkAsRepresentation(type.representation(), node);
-      return VisitAtomicCompareExchange(node);
-    }
+#define ATOMIC_CASE(name)                                    \
+  case IrOpcode::kAtomic##name: {                            \
+    MachineType type = AtomicOpRepresentationOf(node->op()); \
+    MarkAsRepresentation(type.representation(), node);       \
+    return VisitAtomic##name(node);                          \
+  }
+      ATOMIC_CASE(Exchange)
+      ATOMIC_CASE(CompareExchange)
+      ATOMIC_CASE(Add)
+      ATOMIC_CASE(Sub)
+      ATOMIC_CASE(And)
+      ATOMIC_CASE(Or)
+      ATOMIC_CASE(Xor)
+#undef ATOMIC_CASE
     case IrOpcode::kProtectedLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);

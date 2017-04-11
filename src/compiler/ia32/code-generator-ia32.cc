@@ -775,6 +775,18 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                                 \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, mov_inst, cmpxchg_inst) \
+  do {                                                          \
+    Label binop;                                                \
+    __ bind(&binop);                                            \
+    __ mov_inst(eax, i.MemoryOperand(1));                       \
+    __ mov_inst(i.TempRegister(0), Operand(eax));               \
+    __ bin_inst(i.TempRegister(0), i.InputRegister(0));         \
+    __ lock();                                                  \
+    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));     \
+    __ j(not_equal, &binop);                                    \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -2016,6 +2028,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmpxchg(i.MemoryOperand(2), i.InputRegister(1));
       break;
     }
+#define ATOMIC_BINOP_CASE(op, inst)                \
+  case kAtomic##op##Int8: {                        \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b); \
+    __ movsx_b(eax, eax);                          \
+    break;                                         \
+  }                                                \
+  case kAtomic##op##Uint8: {                       \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b); \
+    __ movzx_b(eax, eax);                          \
+    break;                                         \
+  }                                                \
+  case kAtomic##op##Int16: {                       \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w); \
+    __ movsx_w(eax, eax);                          \
+    break;                                         \
+  }                                                \
+  case kAtomic##op##Uint16: {                      \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w); \
+    __ movzx_w(eax, eax);                          \
+    break;                                         \
+  }                                                \
+  case kAtomic##op##Word32: {                      \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov, cmpxchg);     \
+    break;                                         \
+  }
+      ATOMIC_BINOP_CASE(Add, add)
+      ATOMIC_BINOP_CASE(Sub, sub)
+      ATOMIC_BINOP_CASE(And, and_)
+      ATOMIC_BINOP_CASE(Or, or_)
+      ATOMIC_BINOP_CASE(Xor, xor_)
+#undef ATOMIC_BINOP_CASE
     case kAtomicLoadInt8:
     case kAtomicLoadUint8:
     case kAtomicLoadInt16:
