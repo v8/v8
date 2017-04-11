@@ -12,6 +12,7 @@
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
@@ -26,7 +27,6 @@ namespace interpreter {
 
 class BytecodeLabel;
 class BytecodeNode;
-class BytecodePipelineStage;
 class BytecodeRegisterOptimizer;
 class Register;
 
@@ -521,7 +521,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayWriter* bytecode_array_writer() {
     return &bytecode_array_writer_;
   }
-  BytecodePipelineStage* pipeline() { return pipeline_; }
   ConstantArrayBuilder* constant_array_builder() {
     return &constant_array_builder_;
   }
@@ -544,7 +543,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   int return_position_;
   BytecodeRegisterAllocator register_allocator_;
   BytecodeArrayWriter bytecode_array_writer_;
-  BytecodePipelineStage* pipeline_;
   BytecodeRegisterOptimizer* register_optimizer_;
   BytecodeSourceInfo latest_source_info_;
   BytecodeSourceInfo deferred_source_info_;

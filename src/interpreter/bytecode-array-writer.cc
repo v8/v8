@@ -6,7 +6,9 @@
 
 #include "src/api.h"
 #include "src/interpreter/bytecode-label.h"
+#include "src/interpreter/bytecode-node.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
@@ -33,10 +35,6 @@ BytecodeArrayWriter::BytecodeArrayWriter(
   bytecodes_.reserve(512);  // Derived via experimentation.
 }
 
-// override
-BytecodeArrayWriter::~BytecodeArrayWriter() {}
-
-// override
 Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
     Isolate* isolate, int register_count, int parameter_count,
     Handle<FixedArray> handler_table) {
@@ -57,7 +55,6 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
   return bytecode_array;
 }
 
-// override
 void BytecodeArrayWriter::Write(BytecodeNode* node) {
   DCHECK(!Bytecodes::IsJump(node->bytecode()));
 
@@ -69,7 +66,6 @@ void BytecodeArrayWriter::Write(BytecodeNode* node) {
   EmitBytecode(node);
 }
 
-// override
 void BytecodeArrayWriter::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   DCHECK(Bytecodes::IsJump(node->bytecode()));
 
@@ -83,7 +79,6 @@ void BytecodeArrayWriter::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   EmitJump(node, label);
 }
 
-// override
 void BytecodeArrayWriter::BindLabel(BytecodeLabel* label) {
   size_t current_offset = bytecodes()->size();
   if (label->is_forward_target()) {
@@ -96,7 +91,6 @@ void BytecodeArrayWriter::BindLabel(BytecodeLabel* label) {
   exit_seen_in_block_ = false;  // Starting a new basic block.
 }
 
-// override
 void BytecodeArrayWriter::BindLabel(const BytecodeLabel& target,
                                     BytecodeLabel* label) {
   DCHECK(!label->is_bound());

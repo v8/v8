@@ -4,9 +4,7 @@
 
 #include "src/v8.h"
 
-#include "src/interpreter/bytecode-pipeline.h"
-#include "src/interpreter/bytecode-register-allocator.h"
-#include "src/isolate.h"
+#include "src/interpreter/bytecode-node.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -14,42 +12,6 @@ namespace internal {
 namespace interpreter {
 
 using BytecodeNodeTest = TestWithIsolateAndZone;
-
-TEST(BytecodeSourceInfo, Operations) {
-  BytecodeSourceInfo x(0, true);
-  CHECK_EQ(x.source_position(), 0);
-  CHECK_EQ(x.is_statement(), true);
-  CHECK_EQ(x.is_valid(), true);
-  x.set_invalid();
-  CHECK_EQ(x.is_statement(), false);
-  CHECK_EQ(x.is_valid(), false);
-
-  x.MakeStatementPosition(1);
-  BytecodeSourceInfo y(1, true);
-  CHECK(x == y);
-  CHECK(!(x != y));
-
-  x.set_invalid();
-  CHECK(!(x == y));
-  CHECK(x != y);
-
-  y.MakeStatementPosition(1);
-  CHECK_EQ(y.source_position(), 1);
-  CHECK_EQ(y.is_statement(), true);
-
-  y.MakeStatementPosition(2);
-  CHECK_EQ(y.source_position(), 2);
-  CHECK_EQ(y.is_statement(), true);
-
-  y.set_invalid();
-  y.MakeExpressionPosition(3);
-  CHECK_EQ(y.source_position(), 3);
-  CHECK_EQ(y.is_statement(), false);
-
-  y.MakeStatementPosition(3);
-  CHECK_EQ(y.source_position(), 3);
-  CHECK_EQ(y.is_statement(), true);
-}
 
 TEST_F(BytecodeNodeTest, Constructor1) {
   BytecodeNode node(Bytecode::kLdaZero);

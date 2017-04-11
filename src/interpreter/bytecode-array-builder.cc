@@ -7,7 +7,9 @@
 #include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-label.h"
+#include "src/interpreter/bytecode-node.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
+#include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
 
@@ -50,7 +52,6 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       register_allocator_(fixed_register_count()),
       bytecode_array_writer_(zone, &constant_array_builder_,
                              source_position_mode),
-      pipeline_(&bytecode_array_writer_),
       register_optimizer_(nullptr) {
   DCHECK_GE(parameter_count_, 0);
   DCHECK_GE(context_register_count_, 0);
@@ -106,8 +107,8 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
 
   Handle<FixedArray> handler_table =
       handler_table_builder()->ToHandlerTable(isolate);
-  return pipeline_->ToBytecodeArray(isolate, register_count, parameter_count(),
-                                    handler_table);
+  return bytecode_array_writer_.ToBytecodeArray(
+      isolate, register_count, parameter_count(), handler_table);
 }
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
@@ -134,7 +135,7 @@ void BytecodeArrayBuilder::SetDeferredSourceInfo(
   if (deferred_source_info_.is_valid()) {
     // Emit any previous deferred source info now as a nop.
     BytecodeNode node = BytecodeNode::Nop(deferred_source_info_);
-    pipeline()->Write(&node);
+    bytecode_array_writer_.Write(&node);
   }
   deferred_source_info_ = source_info;
 }
@@ -146,19 +147,19 @@ void BytecodeArrayBuilder::AttachOrEmitDeferredSourceInfo(BytecodeNode* node) {
     node->set_source_info(deferred_source_info_);
   } else {
     BytecodeNode node = BytecodeNode::Nop(deferred_source_info_);
-    pipeline()->Write(&node);
+    bytecode_array_writer_.Write(&node);
   }
   deferred_source_info_.set_invalid();
 }
 
 void BytecodeArrayBuilder::Write(BytecodeNode* node) {
   AttachOrEmitDeferredSourceInfo(node);
-  pipeline()->Write(node);
+  bytecode_array_writer_.Write(node);
 }
 
 void BytecodeArrayBuilder::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   AttachOrEmitDeferredSourceInfo(node);
-  pipeline()->WriteJump(node, label);
+  bytecode_array_writer_.WriteJump(node, label);
 }
 
 void BytecodeArrayBuilder::OutputLdarRaw(Register reg) {
@@ -995,14 +996,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
   // Flush the register optimizer when binding a label to ensure all
   // expected registers are valid when jumping to this label.
   if (register_optimizer_) register_optimizer_->Flush();
-  pipeline_->BindLabel(label);
+  bytecode_array_writer_.BindLabel(label);
   LeaveBasicBlock();
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
                                                  BytecodeLabel* label) {
-  pipeline_->BindLabel(target, label);
+  bytecode_array_writer_.BindLabel(target, label);
   LeaveBasicBlock();
   return *this;
 }
