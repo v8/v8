@@ -1144,11 +1144,6 @@ Node* JSCreateLowering::AllocateFastLiteral(
   // Setup the properties backing store.
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
 
-  // Setup the elements backing store.
-  Node* elements = AllocateFastLiteralElements(effect, control, boilerplate,
-                                               pretenure, site_context);
-  if (elements->op()->EffectOutputCount() > 0) effect = elements;
-
   // Compute the in-object properties to store first (might have effects).
   Handle<Map> boilerplate_map(boilerplate->map(), isolate());
   ZoneVector<std::pair<FieldAccess, Node*>> inobject_fields(zone());
@@ -1212,6 +1207,11 @@ Node* JSCreateLowering::AllocateFastLiteral(
     Node* value = jsgraph()->HeapConstant(factory()->one_pointer_filler_map());
     inobject_fields.push_back(std::make_pair(access, value));
   }
+
+  // Setup the elements backing store.
+  Node* elements = AllocateFastLiteralElements(effect, control, boilerplate,
+                                               pretenure, site_context);
+  if (elements->op()->EffectOutputCount() > 0) effect = elements;
 
   // Actually allocate and initialize the object.
   AllocationBuilder builder(jsgraph(), effect, control);
