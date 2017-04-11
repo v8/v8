@@ -28,8 +28,8 @@ BytecodeArrayWriter::BytecodeArrayWriter(
       last_bytecode_(Bytecode::kIllegal),
       last_bytecode_offset_(0),
       last_bytecode_had_source_info_(false),
-      elide_noneffectful_bytecodes_(
-          FLAG_ignition_elide_noneffectful_bytecodes) {
+      elide_noneffectful_bytecodes_(FLAG_ignition_elide_noneffectful_bytecodes),
+      exit_seen_in_block_(false) {
   bytecodes_.reserve(512);  // Derived via experimentation.
 }
 
@@ -60,7 +60,11 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
 // override
 void BytecodeArrayWriter::Write(BytecodeNode* node) {
   DCHECK(!Bytecodes::IsJump(node->bytecode()));
+
+  if (exit_seen_in_block_) return;  // Don't emit dead code.
+  UpdateExitSeenInBlock(node->bytecode());
   MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
+
   UpdateSourcePositionTable(node);
   EmitBytecode(node);
 }
@@ -68,7 +72,13 @@ void BytecodeArrayWriter::Write(BytecodeNode* node) {
 // override
 void BytecodeArrayWriter::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   DCHECK(Bytecodes::IsJump(node->bytecode()));
+
+  // TODO(rmcilroy): For forward jumps we could also mark the label as dead,
+  // thereby avoiding emitting dead code when we bind the label.
+  if (exit_seen_in_block_) return;  // Don't emit dead code.
+  UpdateExitSeenInBlock(node->bytecode());
   MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
+
   UpdateSourcePositionTable(node);
   EmitJump(node, label);
 }
@@ -83,6 +93,7 @@ void BytecodeArrayWriter::BindLabel(BytecodeLabel* label) {
   }
   label->bind_to(current_offset);
   InvalidateLastBytecode();
+  exit_seen_in_block_ = false;  // Starting a new basic block.
 }
 
 // override
@@ -97,6 +108,8 @@ void BytecodeArrayWriter::BindLabel(const BytecodeLabel& target,
   }
   label->bind_to(target.offset());
   InvalidateLastBytecode();
+  // exit_seen_in_block_ was reset when target was bound, so shouldn't be
+  // changed here.
 }
 
 void BytecodeArrayWriter::UpdateSourcePositionTable(
@@ -107,6 +120,20 @@ void BytecodeArrayWriter::UpdateSourcePositionTable(
     source_position_table_builder()->AddPosition(
         bytecode_offset, SourcePosition(source_info.source_position()),
         source_info.is_statement());
+  }
+}
+
+void BytecodeArrayWriter::UpdateExitSeenInBlock(Bytecode bytecode) {
+  switch (bytecode) {
+    case Bytecode::kReturn:
+    case Bytecode::kThrow:
+    case Bytecode::kReThrow:
+    case Bytecode::kJump:
+    case Bytecode::kJumpConstant:
+      exit_seen_in_block_ = true;
+      break;
+    default:
+      break;
   }
 }
 

@@ -293,6 +293,73 @@ TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
   }
   CHECK(source_iterator.done());
 }
+
+TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
+  static const uint8_t expected_bytes[] = {
+      // clang-format off
+      /*  0  10 E> */ B(StackCheck),
+      /*  1  55 S> */ B(LdaSmi), U8(127),
+      /*  3        */ B(Jump), U8(2),
+      /*  5  65 S> */ B(LdaSmi), U8(127),
+      /*  7        */ B(JumpIfFalse), U8(3),
+      /*  9  75 S> */ B(Return),
+      /*  10       */ B(JumpIfFalse), U8(3),
+      /*  12       */ B(Throw),
+      /*  13       */ B(JumpIfFalse), U8(3),
+      /*  15       */ B(ReThrow),
+      /*  16       */ B(Return),
+      // clang-format on
+  };
+
+  static const PositionTableEntry expected_positions[] = {
+      {0, 10, false}, {1, 55, true}, {5, 65, true}, {9, 75, true}};
+
+  BytecodeLabel after_jump, after_conditional_jump, after_return, after_throw,
+      after_rethrow;
+
+  Write(Bytecode::kStackCheck, {10, false});
+  Write(Bytecode::kLdaSmi, 127, {55, true});
+  WriteJump(Bytecode::kJump, &after_jump);
+  Write(Bytecode::kLdaSmi, 127);                               // Dead code.
+  WriteJump(Bytecode::kJumpIfFalse, &after_conditional_jump);  // Dead code.
+  writer()->BindLabel(&after_jump);
+  writer()->BindLabel(&after_conditional_jump);
+  Write(Bytecode::kLdaSmi, 127, {65, true});
+  WriteJump(Bytecode::kJumpIfFalse, &after_return);
+  Write(Bytecode::kReturn, {75, true});
+  Write(Bytecode::kLdaSmi, 127, {100, true});  // Dead code.
+  writer()->BindLabel(&after_return);
+  WriteJump(Bytecode::kJumpIfFalse, &after_throw);
+  Write(Bytecode::kThrow);
+  Write(Bytecode::kLdaSmi, 127);  // Dead code.
+  writer()->BindLabel(&after_throw);
+  WriteJump(Bytecode::kJumpIfFalse, &after_rethrow);
+  Write(Bytecode::kReThrow);
+  Write(Bytecode::kLdaSmi, 127);  // Dead code.
+  writer()->BindLabel(&after_rethrow);
+  Write(Bytecode::kReturn);
+
+  CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
+  for (size_t i = 0; i < arraysize(expected_bytes); ++i) {
+    CHECK_EQ(static_cast<int>(bytecodes()->at(i)),
+             static_cast<int>(expected_bytes[i]));
+  }
+
+  Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
+      isolate(), 0, 0, factory()->empty_fixed_array());
+  SourcePositionTableIterator source_iterator(
+      bytecode_array->source_position_table());
+  for (size_t i = 0; i < arraysize(expected_positions); ++i) {
+    const PositionTableEntry& expected = expected_positions[i];
+    CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
+    CHECK_EQ(source_iterator.source_position().ScriptOffset(),
+             expected.source_position);
+    CHECK_EQ(source_iterator.is_statement(), expected.is_statement);
+    source_iterator.Advance();
+  }
+  CHECK(source_iterator.done());
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

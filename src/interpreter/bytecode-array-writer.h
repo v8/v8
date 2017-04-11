@@ -65,6 +65,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final
   void EmitJump(BytecodeNode* node, BytecodeLabel* label);
   void UpdateSourcePositionTable(const BytecodeNode* const node);
 
+  void UpdateExitSeenInBlock(Bytecode bytecode);
+
   void MaybeElideLastBytecode(Bytecode next_bytecode, bool has_source_info);
   void InvalidateLastBytecode();
 
@@ -85,6 +87,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final
   size_t last_bytecode_offset_;
   bool last_bytecode_had_source_info_;
   bool elide_noneffectful_bytecodes_;
+
+  bool exit_seen_in_block_;
 
   friend class BytecodeArrayWriterUnittest;
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayWriter);
