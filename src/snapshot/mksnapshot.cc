@@ -11,6 +11,7 @@
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
 #include "src/list.h"
+#include "src/msan.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/startup-serializer.h"
@@ -34,6 +35,10 @@ class SnapshotWriter {
     // we end up with a corrupted snapshot file. The build step would succeed,
     // but the build target is unusable. Ideally we would write out temporary
     // files and only move them to the final destination as last step.
+
+    // Tell MSan to ignore uninitialized padding in the blob.
+    MSAN_MEMORY_IS_INITIALIZED(blob.data, blob.raw_size);
+
     i::Vector<const i::byte> blob_vector(
         reinterpret_cast<const i::byte*>(blob.data), blob.raw_size);
     MaybeWriteSnapshotFile(blob_vector);
