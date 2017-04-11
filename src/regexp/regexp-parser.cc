@@ -1143,9 +1143,9 @@ bool IsExactPropertyValueAlias(const char* property_value_name,
   return false;
 }
 
-bool LookupPropertyName(UProperty property, const char* property_value_name,
-                        bool negate, ZoneList<CharacterRange>* result,
-                        Zone* zone) {
+bool LookupPropertyValueName(UProperty property,
+                             const char* property_value_name, bool negate,
+                             ZoneList<CharacterRange>* result, Zone* zone) {
   UProperty property_for_lookup = property;
   if (property_for_lookup == UCHAR_SCRIPT_EXTENSIONS) {
     // For the property Script_Extensions, we have to do the property value
@@ -1185,9 +1185,9 @@ inline bool NameEquals(const char* name, const char (&literal)[N]) {
   return strncmp(name, literal, N + 1) == 0;
 }
 
-bool LookupSpecialPropertyName(const char* name,
-                               ZoneList<CharacterRange>* result, bool negate,
-                               Zone* zone) {
+bool LookupSpecialPropertyValueName(const char* name,
+                                    ZoneList<CharacterRange>* result,
+                                    bool negate, Zone* zone) {
   if (NameEquals(name, "Any")) {
     if (!negate) result->Add(CharacterRange::Everything(), zone);
   } else if (NameEquals(name, "ASCII")) {
@@ -1195,45 +1195,8 @@ bool LookupSpecialPropertyName(const char* name,
                        : CharacterRange::Range(0x0, 0x7f),
                 zone);
   } else if (NameEquals(name, "Assigned")) {
-    return LookupPropertyName(UCHAR_GENERAL_CATEGORY, "Unassigned", !negate,
-                              result, zone);
-  } else if (NameEquals(name, "Other_ID_Start") || NameEquals(name, "OIDS")) {
-    // From Unicode 9.0.0 PropList.txt
-    // 1885..1886    ; Other_ID_Start
-    // 2118          ; Other_ID_Start
-    // 212E          ; Other_ID_Start
-    // 309B..309C    ; Other_ID_Start
-    if (negate) {
-      result->Add(CharacterRange::Range(0x0000, 0x1884), zone);
-      result->Add(CharacterRange::Range(0x1887, 0x2117), zone);
-      result->Add(CharacterRange::Range(0x2119, 0x212D), zone);
-      result->Add(CharacterRange::Range(0x212F, 0x309A), zone);
-      result->Add(CharacterRange::Range(0x309D, String::kMaxCodePoint), zone);
-    } else {
-      result->Add(CharacterRange::Range(0x1885, 0x1886), zone);
-      result->Add(CharacterRange::Singleton(0x2118), zone);
-      result->Add(CharacterRange::Singleton(0x212E), zone);
-      result->Add(CharacterRange::Range(0x309B, 0x309C), zone);
-    }
-  } else if (NameEquals(name, "Other_ID_Continue") ||
-             NameEquals(name, "OIDC")) {
-    // From Unicode 9.0.0 PropList.txt
-    // 00B7          ; Other_ID_Continue
-    // 0387          ; Other_ID_Continue
-    // 1369..1371    ; Other_ID_Continue
-    // 19DA          ; Other_ID_Continue
-    if (negate) {
-      result->Add(CharacterRange::Range(0x0000, 0x00B6), zone);
-      result->Add(CharacterRange::Range(0x00B8, 0x0386), zone);
-      result->Add(CharacterRange::Range(0x0388, 0x1368), zone);
-      result->Add(CharacterRange::Range(0x1372, 0x19D9), zone);
-      result->Add(CharacterRange::Range(0x19DB, String::kMaxCodePoint), zone);
-    } else {
-      result->Add(CharacterRange::Singleton(0x00B7), zone);
-      result->Add(CharacterRange::Singleton(0x0387), zone);
-      result->Add(CharacterRange::Range(0x1369, 0x1371), zone);
-      result->Add(CharacterRange::Singleton(0x19DA), zone);
-    }
+    return LookupPropertyValueName(UCHAR_GENERAL_CATEGORY, "Unassigned",
+                                   !negate, result, zone);
   } else {
     return false;
   }
@@ -1276,23 +1239,21 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
   if (second_part.is_empty()) {
     // First attempt to interpret as general category property value name.
     const char* name = first_part.ToConstVector().start();
-    if (LookupPropertyName(UCHAR_GENERAL_CATEGORY_MASK, name, negate, result,
-                           zone())) {
+    if (LookupPropertyValueName(UCHAR_GENERAL_CATEGORY_MASK, name, negate,
+                                result, zone())) {
       return true;
     }
-
+    // Interpret "Any", "ASCII", and "Assigned".
+    if (LookupSpecialPropertyValueName(name, result, negate, zone())) {
+      return true;
+    }
     // Then attempt to interpret as binary property name with value name 'Y'.
     UProperty property = u_getPropertyEnum(name);
-    if (property == UCHAR_INVALID_CODE) {
-      // Interpret "Any", "ASCII", "Assigned", "Other_ID_Start", and
-      // "Other_ID_Continue".
-      return LookupSpecialPropertyName(name, result, negate, zone());
-    }
     if (property < UCHAR_BINARY_START) return false;
     if (property >= UCHAR_BINARY_LIMIT) return false;
     if (!IsExactPropertyAlias(name, property)) return false;
-    return LookupPropertyName(property, negate ? "N" : "Y", false, result,
-                              zone());
+    return LookupPropertyValueName(property, negate ? "N" : "Y", false, result,
+                                   zone());
   } else {
     // Both property name and value name are specified. Attempt to interpret
     // the property name as enumerated property.
@@ -1307,7 +1268,8 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
                property != UCHAR_SCRIPT_EXTENSIONS) {
       return false;
     }
-    return LookupPropertyName(property, value_name, negate, result, zone());
+    return LookupPropertyValueName(property, value_name, negate, result,
+                                   zone());
   }
 }
 
