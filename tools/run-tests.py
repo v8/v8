@@ -403,7 +403,7 @@ def SetupEnvironment(options):
   )
 
   if options.asan:
-    asan_options = [symbolizer]
+    asan_options = [symbolizer, "allow_user_segv_handler=1"]
     if not utils.GuessOS() == 'macos':
       # LSAN is not available on mac.
       asan_options.append('detect_leaks=1')
