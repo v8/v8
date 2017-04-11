@@ -166,6 +166,12 @@ static void VisitRRR(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(1)));
 }
 
+void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+  Mips64OperandGenerator g(selector);
+  selector->Emit(
+      opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+}
 
 static void VisitRRO(InstructionSelector* selector, ArchOpcode opcode,
                      Node* node) {
@@ -2734,6 +2740,50 @@ void InstructionSelector::VisitF32x4SConvertI32x4(Node* node) {
 
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
   VisitRR(this, kMips64F32x4UConvertI32x4, node);
+}
+
+void InstructionSelector::VisitI32x4Mul(Node* node) {
+  VisitRRR(this, kMips64I32x4Mul, node);
+}
+
+void InstructionSelector::VisitI32x4MaxS(Node* node) {
+  VisitRRR(this, kMips64I32x4MaxS, node);
+}
+
+void InstructionSelector::VisitI32x4MinS(Node* node) {
+  VisitRRR(this, kMips64I32x4MinS, node);
+}
+
+void InstructionSelector::VisitI32x4Eq(Node* node) {
+  VisitRRR(this, kMips64I32x4Eq, node);
+}
+
+void InstructionSelector::VisitI32x4Ne(Node* node) {
+  VisitRRR(this, kMips64I32x4Ne, node);
+}
+
+void InstructionSelector::VisitI32x4Shl(Node* node) {
+  VisitRRI(this, kMips64I32x4Shl, node);
+}
+
+void InstructionSelector::VisitI32x4ShrS(Node* node) {
+  VisitRRI(this, kMips64I32x4ShrS, node);
+}
+
+void InstructionSelector::VisitI32x4ShrU(Node* node) {
+  VisitRRI(this, kMips64I32x4ShrU, node);
+}
+
+void InstructionSelector::VisitI32x4MaxU(Node* node) {
+  VisitRRR(this, kMips64I32x4MaxU, node);
+}
+
+void InstructionSelector::VisitI32x4MinU(Node* node) {
+  VisitRRR(this, kMips64I32x4MinU, node);
+}
+
+void InstructionSelector::VisitS32x4Select(Node* node) {
+  VisitRRRR(this, kMips64S32x4Select, node);
 }
 
 // static
