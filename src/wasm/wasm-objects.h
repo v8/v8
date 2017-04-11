@@ -579,7 +579,7 @@ class WasmDebugInfo : public FixedArray {
       Address frame_pointer);
 
   std::unique_ptr<wasm::InterpretedFrame> GetInterpretedFrame(
-      Address frame_pointer, int idx);
+      Address frame_pointer, int frame_index);
 
   // Unwind the interpreted stack belonging to the passed interpreter entry
   // frame.

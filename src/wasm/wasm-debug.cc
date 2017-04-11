@@ -303,10 +303,9 @@ class InterpreterHandle {
     WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
     DCHECK_LT(0, thread->GetFrameCount());
 
-    wasm::InterpretedFrame frame =
-        thread->GetFrame(thread->GetFrameCount() - 1);
-    return compiled_module->GetFunctionOffset(frame.function()->func_index) +
-           frame.pc();
+    auto frame = thread->GetFrame(thread->GetFrameCount() - 1);
+    return compiled_module->GetFunctionOffset(frame->function()->func_index) +
+           frame->pc();
   }
 
   std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
@@ -320,8 +319,8 @@ class InterpreterHandle {
     std::vector<std::pair<uint32_t, int>> stack;
     stack.reserve(frame_range.second - frame_range.first);
     for (uint32_t fp = frame_range.first; fp < frame_range.second; ++fp) {
-      wasm::InterpretedFrame frame = thread->GetFrame(fp);
-      stack.emplace_back(frame.function()->func_index, frame.pc());
+      auto frame = thread->GetFrame(fp);
+      stack.emplace_back(frame->function()->func_index, frame->pc());
     }
     return stack;
   }
@@ -336,8 +335,7 @@ class InterpreterHandle {
     DCHECK_LE(0, idx);
     DCHECK_GT(frame_range.second - frame_range.first, idx);
 
-    return std::unique_ptr<wasm::InterpretedFrame>(new wasm::InterpretedFrame(
-        thread->GetMutableFrame(frame_range.first + idx)));
+    return thread->GetFrame(frame_range.first + idx);
   }
 
   void Unwind(Address frame_pointer) {
