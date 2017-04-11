@@ -72,6 +72,9 @@ declare_args() {
   # Sets -dV8_ENABLE_CHECKS.
   v8_enable_v8_checks = ""
 
+  # Builds the snapshot with --trace-ignition
+  v8_trace_ignition = false
+
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
   # tools/gen-postmortem-metadata.py for details.
@@ -730,6 +733,10 @@ action("run_mksnapshot") {
       "--v8_os_page_size",
       v8_os_page_size,
     ]
+  }
+
+  if (v8_trace_ignition) {
+    args += [ "--trace-ignition" ]
   }
 
   if (v8_use_external_startup_data) {
