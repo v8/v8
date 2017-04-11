@@ -9780,7 +9780,10 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
         constructor->shared()->construct_stub() ==
             isolate()->builtins()->builtin(Builtins::kJSConstructStubGeneric) ||
         constructor->shared()->construct_stub() ==
-            isolate()->builtins()->builtin(Builtins::kJSConstructStubApi));
+            isolate()->builtins()->builtin(Builtins::kJSConstructStubApi) ||
+        constructor->shared()->construct_stub() ==
+            isolate()->builtins()->builtin(
+                Builtins::kJSBuiltinsConstructStubForBase));
     HValue* check = Add<HCheckValue>(function, constructor);
 
     // Force completion of inobject slack tracking before generating

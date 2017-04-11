@@ -448,7 +448,7 @@ namespace {
 
 void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
                                     bool create_implicit_receiver,
-                                    bool check_derived_construct) {
+                                    bool disallow_non_object_return) {
   Label post_instantiation_deopt_entry;
 
   // ----------- S t a t e -------------
@@ -548,7 +548,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
                       CheckDebugStepCallWrapper());
 
     // Store offset of return address for deoptimizer.
-    if (create_implicit_receiver && !is_api_function) {
+    if (create_implicit_receiver && !disallow_non_object_return &&
+        !is_api_function) {
       masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
           masm->pc_offset());
     }
@@ -563,17 +564,32 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
       // If the result is an object (in the ECMA sense), we should get rid
       // of the receiver and use the result; see ECMA-262 section 13.2.2-7
       // on page 74.
-      Label use_receiver, exit;
+      Label use_receiver, return_value, do_throw;
 
       // If the result is a smi, it is *not* an object in the ECMA sense.
       // x0: result
       // jssp[0]: receiver (newly allocated object)
       // jssp[1]: number of arguments (smi-tagged)
-      __ JumpIfSmi(x0, &use_receiver);
+      // If the result is undefined, we jump out to using the implicit
+      // receiver, otherwise we do a smi check and fall through to
+      // check if the return value is a valid receiver.
+      if (disallow_non_object_return) {
+        __ CompareRoot(x0, Heap::kUndefinedValueRootIndex);
+        __ B(eq, &use_receiver);
+        __ JumpIfSmi(x0, &do_throw);
+      } else {
+        __ JumpIfSmi(x0, &use_receiver);
+      }
 
       // If the type of the result (stored in its map) is less than
       // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
-      __ JumpIfObjectType(x0, x1, x3, FIRST_JS_RECEIVER_TYPE, &exit, ge);
+      __ JumpIfObjectType(x0, x1, x3, FIRST_JS_RECEIVER_TYPE, &return_value,
+                          ge);
+
+      if (disallow_non_object_return) {
+        __ Bind(&do_throw);
+        __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
+      }
 
       // Throw away the result of the constructor invocation and use the
       // on-stack receiver as the result.
@@ -582,7 +598,7 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
 
       // Remove the receiver from the stack, remove caller arguments, and
       // return.
-      __ Bind(&exit);
+      __ Bind(&return_value);
       // x0: result
       // jssp[0]: receiver (newly allocated object)
       // jssp[1]: number of arguments (smi-tagged)
@@ -595,9 +611,10 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
   }
 
   // ES6 9.2.2. Step 13+
-  // Check that the result is not a Smi, indicating that the constructor result
-  // from a derived class is neither undefined nor an Object.
-  if (check_derived_construct) {
+  // For derived class constructors, throw a TypeError here if the result
+  // is not a JSReceiver. For the base constructor, we've already checked
+  // the result, so we omit the check.
+  if (disallow_non_object_return && !create_implicit_receiver) {
     Label do_throw, dont_throw;
     __ JumpIfSmi(x0, &do_throw);
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
@@ -605,7 +622,7 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     __ Bind(&do_throw);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ CallRuntime(Runtime::kThrowDerivedConstructorReturnedNonObject);
+      __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
     }
     __ Bind(&dont_throw);
   }
@@ -620,7 +637,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
   // Store offset of trampoline address for deoptimizer. This is the bailout
   // point after the receiver instantiation but before the function invocation.
   // We need to restore some registers in order to continue the above code.
-  if (create_implicit_receiver && !is_api_function) {
+  if (create_implicit_receiver && !disallow_non_object_return &&
+      !is_api_function) {
     masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
         masm->pc_offset());
 
@@ -658,6 +676,10 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSConstructStubHelper(masm, false, false, false);
+}
+
+void Builtins::Generate_JSBuiltinsConstructStubForBase(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, true, true);
 }
 
 void Builtins::Generate_JSBuiltinsConstructStubForDerived(

@@ -455,11 +455,18 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
       isolate, NewTypeError(MessageTemplate::kNotConstructor, callsite));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowDerivedConstructorReturnedNonObject) {
+RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
+  if (FLAG_harmony_restrict_constructor_return) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kClassConstructorReturnedNonObject));
+  }
+
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kDerivedConstructorReturn));
+      isolate,
+      NewTypeError(MessageTemplate::kDerivedConstructorReturnedNonObject));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowUndefinedOrNullToObject) {
