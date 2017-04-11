@@ -464,25 +464,25 @@ Callable CodeFactory::ConstructFunction(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::InterpreterPushArgsThenCall(
-    Isolate* isolate, ConvertReceiverMode receiver_mode,
-    TailCallMode tail_call_mode, InterpreterPushArgsMode mode) {
-  return Callable(isolate->builtins()->InterpreterPushArgsThenCall(
-                      receiver_mode, tail_call_mode, mode),
-                  InterpreterPushArgsThenCallDescriptor(isolate));
+Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
+                                                 TailCallMode tail_call_mode,
+                                                 InterpreterPushArgsMode mode) {
+  return Callable(
+      isolate->builtins()->InterpreterPushArgsAndCall(tail_call_mode, mode),
+      InterpreterPushArgsAndCallDescriptor(isolate));
 }
 
 // static
-Callable CodeFactory::InterpreterPushArgsThenConstruct(
+Callable CodeFactory::InterpreterPushArgsAndConstruct(
     Isolate* isolate, InterpreterPushArgsMode mode) {
-  return Callable(isolate->builtins()->InterpreterPushArgsThenConstruct(mode),
-                  InterpreterPushArgsThenConstructDescriptor(isolate));
+  return Callable(isolate->builtins()->InterpreterPushArgsAndConstruct(mode),
+                  InterpreterPushArgsAndConstructDescriptor(isolate));
 }
 
 // static
-Callable CodeFactory::InterpreterPushArgsThenConstructArray(Isolate* isolate) {
-  return Callable(isolate->builtins()->InterpreterPushArgsThenConstructArray(),
-                  InterpreterPushArgsThenConstructArrayDescriptor(isolate));
+Callable CodeFactory::InterpreterPushArgsAndConstructArray(Isolate* isolate) {
+  return Callable(isolate->builtins()->InterpreterPushArgsAndConstructArray(),
+                  InterpreterPushArgsAndConstructArrayDescriptor(isolate));
 }
 
 // static

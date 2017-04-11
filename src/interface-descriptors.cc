@@ -607,7 +607,7 @@ void InterpreterDispatchDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
-void InterpreterPushArgsThenCallDescriptor::InitializePlatformIndependent(
+void InterpreterPushArgsAndCallDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kNumberOfArguments, kFirstArgument, kFunction
   MachineType machine_types[] = {MachineType::Int32(), MachineType::Pointer(),
@@ -616,7 +616,7 @@ void InterpreterPushArgsThenCallDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
-void InterpreterPushArgsThenConstructDescriptor::InitializePlatformIndependent(
+void InterpreterPushArgsAndConstructDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kNumberOfArguments, kNewTarget, kConstructor, kFeedbackElement,
   // kFirstArgument
@@ -627,7 +627,7 @@ void InterpreterPushArgsThenConstructDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
-void InterpreterPushArgsThenConstructArrayDescriptor::
+void InterpreterPushArgsAndConstructArrayDescriptor::
     InitializePlatformIndependent(CallInterfaceDescriptorData* data) {
   // kNumberOfArguments, kFunction, kFeedbackElement, kFirstArgument
   MachineType machine_types[] = {MachineType::Int32(), MachineType::AnyTagged(),

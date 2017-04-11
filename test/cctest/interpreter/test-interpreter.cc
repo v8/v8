@@ -1298,11 +1298,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
         .StoreAccumulatorInRegister(reg)
         .MoveRegister(builder.Receiver(), args[0]);
 
-    if (tail_call_mode == TailCallMode::kAllow) {
-      builder.TailCall(reg, args, call_slot_index);
-    } else {
-      builder.CallProperty(reg, args, call_slot_index);
-    }
+    builder.Call(reg, args, call_slot_index, Call::GLOBAL_CALL, tail_call_mode);
 
     builder.Return();
     ast_factory.Internalize(isolate);
@@ -1325,11 +1321,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
     builder.LoadNamedProperty(builder.Receiver(), name, slot_index)
         .StoreAccumulatorInRegister(reg)
         .MoveRegister(builder.Receiver(), args[0]);
-    if (tail_call_mode == TailCallMode::kAllow) {
-      builder.TailCall(reg, args, call_slot_index);
-    } else {
-      builder.CallProperty(reg, args, call_slot_index);
-    }
+    builder.Call(reg, args, call_slot_index, Call::GLOBAL_CALL, tail_call_mode);
     builder.Return();
     ast_factory.Internalize(isolate);
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1361,11 +1353,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
         .LoadLiteral(Smi::FromInt(11))
         .StoreAccumulatorInRegister(args[2]);
 
-    if (tail_call_mode == TailCallMode::kAllow) {
-      builder.TailCall(reg, args, call_slot_index);
-    } else {
-      builder.CallProperty(reg, args, call_slot_index);
-    }
+    builder.Call(reg, args, call_slot_index, Call::GLOBAL_CALL, tail_call_mode);
 
     builder.Return();
 
@@ -1414,11 +1402,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
         .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("j")))
         .StoreAccumulatorInRegister(args[10]);
 
-    if (tail_call_mode == TailCallMode::kAllow) {
-      builder.TailCall(reg, args, call_slot_index);
-    } else {
-      builder.CallProperty(reg, args, call_slot_index);
-    }
+    builder.Call(reg, args, call_slot_index, Call::GLOBAL_CALL, tail_call_mode);
 
     builder.Return();
 

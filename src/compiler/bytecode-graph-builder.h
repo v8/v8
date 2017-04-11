@@ -112,24 +112,24 @@ class BytecodeGraphBuilder {
 
   Node** EnsureInputBufferSize(int size);
 
-  Node* const* GetCallArgumentsFromRegister(Node* callee, Node* receiver,
+  Node* const* GetCallArgumentsFromRegister(Node* callee,
                                             interpreter::Register first_arg,
-                                            int arg_count);
+                                            size_t arity);
   Node* ProcessCallArguments(const Operator* call_op, Node* const* args,
-                             int arg_count);
+                             size_t arg_count);
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
-                             interpreter::Register receiver, size_t reg_count);
+                             interpreter::Register receiver, size_t arity);
   Node* ProcessConstructArguments(const Operator* call_new_op, Node* callee,
                                   Node* new_target,
-                                  interpreter::Register receiver,
-                                  size_t reg_count);
+                                  interpreter::Register first_arg,
+                                  size_t arity);
   Node* ProcessConstructWithSpreadArguments(const Operator* op, Node* callee,
                                             Node* new_target,
-                                            interpreter::Register receiver,
-                                            size_t reg_count);
+                                            interpreter::Register first_arg,
+                                            size_t arity);
   Node* ProcessCallRuntimeArguments(const Operator* call_runtime_op,
-                                    interpreter::Register receiver,
-                                    size_t reg_count);
+                                    interpreter::Register first_arg,
+                                    size_t arity);
 
   // Prepare information for eager deoptimization. This information is carried
   // by dedicated {Checkpoint} nodes that are wired into the effect chain.
@@ -159,12 +159,12 @@ class BytecodeGraphBuilder {
   void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);
   void BuildCallVarArgs(TailCallMode tail_call_mode,
-                        ConvertReceiverMode receiver_mode);
-  void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_mode,
+                        ConvertReceiverMode receiver_hint);
+  void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_hint,
                  Node* const* args, size_t arg_count, int slot_id);
-  void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_mode,
+  void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_hint,
                  std::initializer_list<Node*> args, int slot_id) {
-    BuildCall(tail_call_mode, receiver_mode, args.begin(), args.size(),
+    BuildCall(tail_call_mode, receiver_hint, args.begin(), args.size(),
               slot_id);
   }
   void BuildBinaryOp(const Operator* op);

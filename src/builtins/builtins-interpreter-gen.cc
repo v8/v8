@@ -9,67 +9,48 @@
 namespace v8 {
 namespace internal {
 
-void Builtins::Generate_InterpreterPushArgsThenCall(MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, TailCallMode::kDisallow,
-      InterpreterPushArgsMode::kOther);
+void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
+  return Generate_InterpreterPushArgsAndCallImpl(
+      masm, TailCallMode::kDisallow, InterpreterPushArgsMode::kOther);
 }
 
-void Builtins::Generate_InterpreterPushArgsThenCallFunction(
+void Builtins::Generate_InterpreterPushArgsAndCallFunction(
     MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, TailCallMode::kDisallow,
-      InterpreterPushArgsMode::kJSFunction);
+  return Generate_InterpreterPushArgsAndCallImpl(
+      masm, TailCallMode::kDisallow, InterpreterPushArgsMode::kJSFunction);
 }
 
-void Builtins::Generate_InterpreterPushUndefinedAndArgsThenCall(
+void Builtins::Generate_InterpreterPushArgsAndCallWithFinalSpread(
     MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kNullOrUndefined, TailCallMode::kDisallow,
-      InterpreterPushArgsMode::kOther);
+  return Generate_InterpreterPushArgsAndCallImpl(
+      masm, TailCallMode::kDisallow, InterpreterPushArgsMode::kWithFinalSpread);
 }
 
-void Builtins::Generate_InterpreterPushUndefinedAndArgsThenCallFunction(
+void Builtins::Generate_InterpreterPushArgsAndTailCall(MacroAssembler* masm) {
+  return Generate_InterpreterPushArgsAndCallImpl(
+      masm, TailCallMode::kAllow, InterpreterPushArgsMode::kOther);
+}
+
+void Builtins::Generate_InterpreterPushArgsAndTailCallFunction(
     MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kNullOrUndefined, TailCallMode::kDisallow,
-      InterpreterPushArgsMode::kJSFunction);
+  return Generate_InterpreterPushArgsAndCallImpl(
+      masm, TailCallMode::kAllow, InterpreterPushArgsMode::kJSFunction);
 }
 
-void Builtins::Generate_InterpreterPushArgsThenCallWithFinalSpread(
-    MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, TailCallMode::kDisallow,
-      InterpreterPushArgsMode::kWithFinalSpread);
-}
-
-void Builtins::Generate_InterpreterPushArgsThenTailCall(MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, TailCallMode::kAllow,
-      InterpreterPushArgsMode::kOther);
-}
-
-void Builtins::Generate_InterpreterPushArgsThenTailCallFunction(
-    MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, TailCallMode::kAllow,
-      InterpreterPushArgsMode::kJSFunction);
-}
-
-void Builtins::Generate_InterpreterPushArgsThenConstruct(MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenConstructImpl(
+void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+  return Generate_InterpreterPushArgsAndConstructImpl(
       masm, InterpreterPushArgsMode::kOther);
 }
 
-void Builtins::Generate_InterpreterPushArgsThenConstructWithFinalSpread(
+void Builtins::Generate_InterpreterPushArgsAndConstructWithFinalSpread(
     MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenConstructImpl(
+  return Generate_InterpreterPushArgsAndConstructImpl(
       masm, InterpreterPushArgsMode::kWithFinalSpread);
 }
 
-void Builtins::Generate_InterpreterPushArgsThenConstructFunction(
+void Builtins::Generate_InterpreterPushArgsAndConstructFunction(
     MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenConstructImpl(
+  return Generate_InterpreterPushArgsAndConstructImpl(
       masm, InterpreterPushArgsMode::kJSFunction);
 }
 

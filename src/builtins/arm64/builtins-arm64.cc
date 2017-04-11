@@ -1100,7 +1100,11 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register num_args, Register index,
                                          Register last_arg, Register stack_addr,
-                                         Register scratch) {
+                                         Register scratch,
+                                         Label* stack_overflow) {
+  // Add a stack check before pushing arguments.
+  Generate_StackOverflowCheck(masm, num_args, scratch, stack_overflow);
+
   __ Mov(scratch, num_args);
   __ lsl(scratch, scratch, kPointerSizeLog2);
   __ sub(last_arg, index, scratch);
@@ -1122,9 +1126,9 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenCallImpl(
-    MacroAssembler* masm, ConvertReceiverMode receiver_mode,
-    TailCallMode tail_call_mode, InterpreterPushArgsMode mode) {
+void Builtins::Generate_InterpreterPushArgsAndCallImpl(
+    MacroAssembler* masm, TailCallMode tail_call_mode,
+    InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   //  -- x0 : the number of arguments (not including the receiver)
   //  -- x2 : the address of the first argument to be pushed. Subsequent
@@ -1137,17 +1141,8 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   // Add one for the receiver.
   __ add(x3, x0, Operand(1));
 
-  // Add a stack check before pushing arguments.
-  Generate_StackOverflowCheck(masm, x3, x6, &stack_overflow);
-
-  // Push "undefined" as the receiver arg if we need to.
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
-    __ Mov(x3, x0);  // Argument count is correct.
-  }
-
   // Push the arguments. x2, x4, x5, x6 will be modified.
-  Generate_InterpreterPushArgs(masm, x3, x2, x4, x5, x6);
+  Generate_InterpreterPushArgs(masm, x3, x2, x4, x5, x6, &stack_overflow);
 
   // Call the target.
   if (mode == InterpreterPushArgsMode::kJSFunction) {
@@ -1171,7 +1166,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
+void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     MacroAssembler* masm, InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   // -- x0 : argument count (not including receiver)
@@ -1185,11 +1180,8 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   // Push a slot for the receiver.
   __ Push(xzr);
 
-  // Add a stack check before pushing arguments.
-  Generate_StackOverflowCheck(masm, x0, x7, &stack_overflow);
-
   // Push the arguments. x5, x4, x6, x7 will be modified.
-  Generate_InterpreterPushArgs(masm, x0, x4, x5, x6, x7);
+  Generate_InterpreterPushArgs(masm, x0, x4, x5, x6, x7, &stack_overflow);
 
   __ AssertUndefinedOrAllocationSite(x2, x6);
   if (mode == InterpreterPushArgsMode::kJSFunction) {
@@ -1219,7 +1211,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenConstructArray(
+void Builtins::Generate_InterpreterPushArgsAndConstructArray(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
   // -- x0 : argument count (not including receiver)
@@ -1229,14 +1221,10 @@ void Builtins::Generate_InterpreterPushArgsThenConstructArray(
   // -----------------------------------
   Label stack_overflow;
 
-  // Push a slot for the receiver.
-  __ Push(xzr);
-
-  // Add a stack check before pushing arguments.
-  Generate_StackOverflowCheck(masm, x0, x7, &stack_overflow);
+  __ add(x4, x0, Operand(1));  // Add one for the receiver.
 
   // Push the arguments. x3, x5, x6, x7 will be modified.
-  Generate_InterpreterPushArgs(masm, x0, x3, x5, x6, x7);
+  Generate_InterpreterPushArgs(masm, x4, x3, x5, x6, x7, &stack_overflow);
 
   // Array constructor expects constructor in x3. It is same as call target.
   __ mov(x3, x1);

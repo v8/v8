@@ -751,9 +751,9 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenCallImpl(
-    MacroAssembler* masm, ConvertReceiverMode receiver_mode,
-    TailCallMode tail_call_mode, InterpreterPushArgsMode mode) {
+void Builtins::Generate_InterpreterPushArgsAndCallImpl(
+    MacroAssembler* masm, TailCallMode tail_call_mode,
+    InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- ebx : the address of the first argument to be pushed. Subsequent
@@ -775,12 +775,6 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 
   // Pop return address to allow tail-call after pushing arguments.
   __ Pop(edx);
-
-  // Push "undefined" as the receiver arg if we need to.
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
-    __ sub(ecx, Immediate(1));  // Subtract one for receiver.
-  }
 
   // Find the address of the last argument.
   __ shl(ecx, kPointerSizeLog2);
@@ -821,10 +815,10 @@ namespace {
 // This function modified start_addr, and only reads the contents of num_args
 // register. scratch1 and scratch2 are used as temporary registers. Their
 // original values are restored after the use.
-void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
+void Generate_InterpreterPushArgsAndReturnAddress(
     MacroAssembler* masm, Register num_args, Register start_addr,
-    Register scratch1, Register scratch2, int num_slots_above_ret_addr,
-    Label* stack_overflow) {
+    Register scratch1, Register scratch2, bool receiver_in_args,
+    int num_slots_above_ret_addr, Label* stack_overflow) {
   // We have to move return address and the temporary registers above it
   // before we can copy arguments onto the stack. To achieve this:
   // Step 1: Increment the stack pointer by num_args + 1 (for receiver).
@@ -837,7 +831,7 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
   // |             |            | return addr   | (2)
   // |             |            | arg N         | (3)
   // | scratch1    | <-- esp    | ....          |
-  // | ....        |            | arg 1         |
+  // | ....        |            | arg 0         |
   // | scratch-n   |            | arg 0         |
   // | return addr |            | receiver slot |
 
@@ -881,12 +875,17 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
   }
 
   // Step 3 copy arguments to correct locations.
-  // Slot meant for receiver contains return address. Reset it so that
-  // we will not incorrectly interpret return address as an object.
-  __ mov(Operand(esp, num_args, times_pointer_size,
-                 (num_slots_above_ret_addr + 1) * kPointerSize),
-         Immediate(0));
-  __ mov(scratch1, num_args);
+  if (receiver_in_args) {
+    __ mov(scratch1, num_args);
+    __ add(scratch1, Immediate(1));
+  } else {
+    // Slot meant for receiver contains return address. Reset it so that
+    // we will not incorrectly interpret return address as an object.
+    __ mov(Operand(esp, num_args, times_pointer_size,
+                   (num_slots_above_ret_addr + 1) * kPointerSize),
+           Immediate(0));
+    __ mov(scratch1, num_args);
+  }
 
   Label loop_header, loop_check;
   __ jmp(&loop_check);
@@ -905,7 +904,7 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
 }  // end anonymous namespace
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
+void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     MacroAssembler* masm, InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
@@ -924,8 +923,8 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   // Push arguments and move return address to the top of stack.
   // The eax register is readonly. The ecx register will be modified. The edx
   // and edi registers will be modified but restored to their original values.
-  Generate_InterpreterPushZeroAndArgsAndReturnAddress(masm, eax, ecx, edx, edi,
-                                                      2, &stack_overflow);
+  Generate_InterpreterPushArgsAndReturnAddress(masm, eax, ecx, edx, edi, false,
+                                               2, &stack_overflow);
 
   // Restore edi and edx
   __ Pop(edx);
@@ -965,7 +964,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenConstructArray(
+void Builtins::Generate_InterpreterPushArgsAndConstructArray(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
@@ -983,8 +982,8 @@ void Builtins::Generate_InterpreterPushArgsThenConstructArray(
   // Push arguments and move return address to the top of stack.
   // The eax register is readonly. The ecx register will be modified. The edx
   // and edi registers will be modified but restored to their original values.
-  Generate_InterpreterPushZeroAndArgsAndReturnAddress(masm, eax, ecx, edx, edi,
-                                                      1, &stack_overflow);
+  Generate_InterpreterPushArgsAndReturnAddress(masm, eax, ecx, edx, edi, true,
+                                               1, &stack_overflow);
 
   // Restore edx.
   __ Pop(edx);

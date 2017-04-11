@@ -1112,7 +1112,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenCallImpl(
+void Builtins::Generate_InterpreterPushArgsAndCallImpl(
     MacroAssembler* masm, TailCallMode tail_call_mode,
     InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
@@ -1153,7 +1153,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
+void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     MacroAssembler* masm, InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   // -- r3 : argument count (not including receiver)
@@ -1206,7 +1206,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenConstructArray(
+void Builtins::Generate_InterpreterPushArgsAndConstructArray(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
   // -- r3 : argument count (not including receiver)

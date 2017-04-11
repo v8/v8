@@ -52,8 +52,28 @@ void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
 bool SetupInterpreter::ReuseExistingHandler(Address* dispatch_table,
                                             Bytecode bytecode,
                                             OperandScale operand_scale) {
-  // TODO(leszeks): reuse Lda[Immutable][Current]ContextSlot
-  return false;
+  size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
+  switch (bytecode) {
+    case Bytecode::kCallProperty:
+    case Bytecode::kCallProperty0:
+    case Bytecode::kCallProperty1:
+    case Bytecode::kCallProperty2: {
+      const int offset = static_cast<int>(Bytecode::kCallProperty) -
+                         static_cast<int>(Bytecode::kCall);
+      STATIC_ASSERT(offset == static_cast<int>(Bytecode::kCallProperty0) -
+                                  static_cast<int>(Bytecode::kCall0));
+      STATIC_ASSERT(offset == static_cast<int>(Bytecode::kCallProperty1) -
+                                  static_cast<int>(Bytecode::kCall1));
+      STATIC_ASSERT(offset == static_cast<int>(Bytecode::kCallProperty2) -
+                                  static_cast<int>(Bytecode::kCall2));
+      CHECK_LT(offset, index);
+      dispatch_table[index] = dispatch_table[index - offset];
+      return true;
+      break;
+    }
+    default:
+      return false;
+  }
 }
 
 // static

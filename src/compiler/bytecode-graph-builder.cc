@@ -1342,55 +1342,37 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
 }
 
 Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegister(
-    Node* callee, Node* receiver, interpreter::Register first_arg,
-    int arg_count) {
-  // The arity of the Call node -- includes the callee, receiver and function
-  // arguments.
-  int arity = 2 + arg_count;
-
-  Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
-
+    Node* callee, interpreter::Register receiver, size_t arity) {
+  Node** all = local_zone()->NewArray<Node*>(static_cast<int>(arity));
   all[0] = callee;
-  all[1] = receiver;
-
-  // The function arguments are in consecutive registers.
-  int arg_base = first_arg.index();
-  for (int i = 0; i < arg_count; ++i) {
-    all[2 + i] =
-        environment()->LookupRegister(interpreter::Register(arg_base + i));
+  all[1] = environment()->LookupRegister(receiver);
+  int receiver_index = receiver.index();
+  for (int i = 2; i < static_cast<int>(arity); ++i) {
+    all[i] = environment()->LookupRegister(
+        interpreter::Register(receiver_index + i - 1));
   }
-
   return all;
 }
 
 Node* BytecodeGraphBuilder::ProcessCallArguments(const Operator* call_op,
                                                  Node* const* args,
-                                                 int arg_count) {
-  return MakeNode(call_op, arg_count, args, false);
+                                                 size_t arg_count) {
+  return MakeNode(call_op, static_cast<int>(arg_count), args, false);
 }
 
 Node* BytecodeGraphBuilder::ProcessCallArguments(const Operator* call_op,
                                                  Node* callee,
                                                  interpreter::Register receiver,
-                                                 size_t reg_count) {
-  Node* receiver_node = environment()->LookupRegister(receiver);
-  // The receiver is followed by the arguments in the consecutive registers.
-  DCHECK_GE(reg_count, 1);
-  interpreter::Register first_arg = interpreter::Register(receiver.index() + 1);
-  int arg_count = static_cast<int>(reg_count) - 1;
-
-  Node* const* call_args =
-      GetCallArgumentsFromRegister(callee, receiver_node, first_arg, arg_count);
-  return ProcessCallArguments(call_op, call_args, 2 + arg_count);
+                                                 size_t arg_count) {
+  return ProcessCallArguments(
+      call_op, GetCallArgumentsFromRegister(callee, receiver, arg_count),
+      arg_count);
 }
 
 void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode,
-                                     ConvertReceiverMode receiver_mode,
+                                     ConvertReceiverMode receiver_hint,
                                      Node* const* args, size_t arg_count,
                                      int slot_id) {
-  DCHECK_EQ(interpreter::Bytecodes::GetReceiverMode(
-                bytecode_iterator().current_bytecode()),
-            receiver_mode);
   PrepareEagerCheckpoint();
 
   // Slot index of 0 is used indicate no feedback slot is available. Assert
@@ -1400,49 +1382,61 @@ void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode,
 
   float const frequency = ComputeCallFrequency(slot_id);
   const Operator* call = javascript()->Call(arg_count, frequency, feedback,
-                                            receiver_mode, tail_call_mode);
-  Node* value = ProcessCallArguments(call, args, static_cast<int>(arg_count));
+                                            receiver_hint, tail_call_mode);
+  Node* value = ProcessCallArguments(call, args, arg_count);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::BuildCallVarArgs(TailCallMode tail_call_mode,
-                                            ConvertReceiverMode receiver_mode) {
-  DCHECK_EQ(interpreter::Bytecodes::GetReceiverMode(
-                bytecode_iterator().current_bytecode()),
-            receiver_mode);
+                                            ConvertReceiverMode receiver_hint) {
   Node* callee =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
-  size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
   int const slot_id = bytecode_iterator().GetIndexOperand(3);
-
-  Node* receiver_node;
-  interpreter::Register first_arg;
-  int arg_count;
-
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    // The receiver is implicit (and undefined), the arguments are in
-    // consecutive registers.
-    receiver_node = jsgraph()->UndefinedConstant();
-    first_arg = first_reg;
-    arg_count = static_cast<int>(reg_count);
-  } else {
-    // The receiver is the first register, followed by the arguments in the
-    // consecutive registers.
-    DCHECK_GE(reg_count, 1);
-    receiver_node = environment()->LookupRegister(first_reg);
-    first_arg = interpreter::Register(first_reg.index() + 1);
-    arg_count = static_cast<int>(reg_count) - 1;
-  }
-
-  Node* const* call_args =
-      GetCallArgumentsFromRegister(callee, receiver_node, first_arg, arg_count);
-  BuildCall(tail_call_mode, receiver_mode, call_args,
-            static_cast<size_t>(2 + arg_count), slot_id);
+  BuildCall(tail_call_mode, receiver_hint,
+            GetCallArgumentsFromRegister(callee, receiver, arg_count + 1),
+            arg_count + 1, slot_id);
 }
 
-void BytecodeGraphBuilder::VisitCallAnyReceiver() {
+void BytecodeGraphBuilder::VisitCall() {
   BuildCallVarArgs(TailCallMode::kDisallow, ConvertReceiverMode::kAny);
+}
+
+void BytecodeGraphBuilder::VisitCall0() {
+  Node* callee =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* receiver =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  int const slot_id = bytecode_iterator().GetIndexOperand(2);
+  BuildCall(TailCallMode::kDisallow, ConvertReceiverMode::kAny,
+            {callee, receiver}, slot_id);
+}
+
+void BytecodeGraphBuilder::VisitCall1() {
+  Node* callee =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* receiver =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  Node* arg0 =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(2));
+  int const slot_id = bytecode_iterator().GetIndexOperand(3);
+  BuildCall(TailCallMode::kDisallow, ConvertReceiverMode::kAny,
+            {callee, receiver, arg0}, slot_id);
+}
+
+void BytecodeGraphBuilder::VisitCall2() {
+  Node* callee =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* receiver =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  Node* arg0 =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(2));
+  Node* arg1 =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(3));
+  int const slot_id = bytecode_iterator().GetIndexOperand(4);
+  BuildCall(TailCallMode::kDisallow, ConvertReceiverMode::kAny,
+            {callee, receiver, arg0, arg1}, slot_id);
 }
 
 void BytecodeGraphBuilder::VisitCallProperty() {
@@ -1486,54 +1480,16 @@ void BytecodeGraphBuilder::VisitCallProperty2() {
             {callee, receiver, arg0, arg1}, slot_id);
 }
 
-void BytecodeGraphBuilder::VisitCallUndefinedReceiver() {
-  BuildCallVarArgs(TailCallMode::kDisallow,
-                   ConvertReceiverMode::kNullOrUndefined);
-}
-
-void BytecodeGraphBuilder::VisitCallUndefinedReceiver0() {
-  Node* callee =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* receiver = jsgraph()->UndefinedConstant();
-  int const slot_id = bytecode_iterator().GetIndexOperand(1);
-  BuildCall(TailCallMode::kDisallow, ConvertReceiverMode::kNullOrUndefined,
-            {callee, receiver}, slot_id);
-}
-
-void BytecodeGraphBuilder::VisitCallUndefinedReceiver1() {
-  Node* callee =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* receiver = jsgraph()->UndefinedConstant();
-  Node* arg0 =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
-  int const slot_id = bytecode_iterator().GetIndexOperand(2);
-  BuildCall(TailCallMode::kDisallow, ConvertReceiverMode::kNullOrUndefined,
-            {callee, receiver, arg0}, slot_id);
-}
-
-void BytecodeGraphBuilder::VisitCallUndefinedReceiver2() {
-  Node* callee =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* receiver = jsgraph()->UndefinedConstant();
-  Node* arg0 =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
-  Node* arg1 =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(2));
-  int const slot_id = bytecode_iterator().GetIndexOperand(3);
-  BuildCall(TailCallMode::kDisallow, ConvertReceiverMode::kNullOrUndefined,
-            {callee, receiver, arg0, arg1}, slot_id);
-}
-
 void BytecodeGraphBuilder::VisitCallWithSpread() {
   PrepareEagerCheckpoint();
   Node* callee =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
-  size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
   const Operator* call =
-      javascript()->CallWithSpread(static_cast<int>(reg_count + 1));
+      javascript()->CallWithSpread(static_cast<int>(arg_count + 1));
 
-  Node* value = ProcessCallArguments(call, callee, receiver, reg_count);
+  Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
@@ -1550,127 +1506,118 @@ void BytecodeGraphBuilder::VisitCallJSRuntime() {
   Node* callee =
       BuildLoadNativeContextField(bytecode_iterator().GetIndexOperand(0));
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
-  size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
   // Create node to perform the JS runtime call.
-  const Operator* call = javascript()->Call(reg_count + 1);
-  Node* value = ProcessCallArguments(call, callee, receiver, reg_count);
+  const Operator* call = javascript()->Call(arg_count + 1);
+  Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
 Node* BytecodeGraphBuilder::ProcessCallRuntimeArguments(
-    const Operator* call_runtime_op, interpreter::Register receiver,
-    size_t reg_count) {
-  int arg_count = static_cast<int>(reg_count);
-  // arity is args.
-  int arity = arg_count;
-  Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
-  int first_arg_index = receiver.index();
-  for (int i = 0; i < static_cast<int>(reg_count); ++i) {
+    const Operator* call_runtime_op, interpreter::Register first_arg,
+    size_t arity) {
+  Node** all = local_zone()->NewArray<Node*>(arity);
+  int first_arg_index = first_arg.index();
+  for (int i = 0; i < static_cast<int>(arity); ++i) {
     all[i] = environment()->LookupRegister(
         interpreter::Register(first_arg_index + i));
   }
-  Node* value = MakeNode(call_runtime_op, arity, all, false);
+  Node* value = MakeNode(call_runtime_op, static_cast<int>(arity), all, false);
   return value;
 }
 
 void BytecodeGraphBuilder::VisitCallRuntime() {
   PrepareEagerCheckpoint();
   Runtime::FunctionId functionId = bytecode_iterator().GetRuntimeIdOperand(0);
-  interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
-  size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
   // Create node to perform the runtime call.
-  const Operator* call = javascript()->CallRuntime(functionId, reg_count);
-  Node* value = ProcessCallRuntimeArguments(call, receiver, reg_count);
+  const Operator* call = javascript()->CallRuntime(functionId, arg_count);
+  Node* value = ProcessCallRuntimeArguments(call, first_arg, arg_count);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitCallRuntimeForPair() {
   PrepareEagerCheckpoint();
   Runtime::FunctionId functionId = bytecode_iterator().GetRuntimeIdOperand(0);
-  interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
-  size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
   interpreter::Register first_return =
       bytecode_iterator().GetRegisterOperand(3);
 
   // Create node to perform the runtime call.
-  const Operator* call = javascript()->CallRuntime(functionId, reg_count);
-  Node* return_pair = ProcessCallRuntimeArguments(call, receiver, reg_count);
+  const Operator* call = javascript()->CallRuntime(functionId, arg_count);
+  Node* return_pair = ProcessCallRuntimeArguments(call, first_arg, arg_count);
   environment()->BindRegistersToProjections(first_return, return_pair,
                                             Environment::kAttachFrameState);
 }
 
 Node* BytecodeGraphBuilder::ProcessConstructWithSpreadArguments(
     const Operator* op, Node* callee, Node* new_target,
-    interpreter::Register receiver, size_t reg_count) {
-  int arg_count = static_cast<int>(reg_count);
-  // arity is args + callee and new target.
-  int arity = arg_count + 2;
-  Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
+    interpreter::Register first_arg, size_t arity) {
+  Node** all = local_zone()->NewArray<Node*>(arity);
   all[0] = callee;
-  int first_arg_index = receiver.index();
-  for (int i = 0; i < arg_count; ++i) {
-    all[1 + i] = environment()->LookupRegister(
-        interpreter::Register(first_arg_index + i));
+  int first_arg_index = first_arg.index();
+  for (int i = 1; i < static_cast<int>(arity) - 1; ++i) {
+    all[i] = environment()->LookupRegister(
+        interpreter::Register(first_arg_index + i - 1));
   }
   all[arity - 1] = new_target;
-  Node* value = MakeNode(op, arity, all, false);
+  Node* value = MakeNode(op, static_cast<int>(arity), all, false);
   return value;
 }
 
 void BytecodeGraphBuilder::VisitConstructWithSpread() {
   PrepareEagerCheckpoint();
   interpreter::Register callee_reg = bytecode_iterator().GetRegisterOperand(0);
-  interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
-  size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
   Node* new_target = environment()->LookupAccumulator();
   Node* callee = environment()->LookupRegister(callee_reg);
 
   const Operator* op =
-      javascript()->ConstructWithSpread(static_cast<uint32_t>(reg_count + 2));
+      javascript()->ConstructWithSpread(static_cast<int>(arg_count) + 2);
   Node* value = ProcessConstructWithSpreadArguments(op, callee, new_target,
-                                                    receiver, reg_count);
+                                                    first_arg, arg_count + 2);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitInvokeIntrinsic() {
   PrepareEagerCheckpoint();
   Runtime::FunctionId functionId = bytecode_iterator().GetIntrinsicIdOperand(0);
-  interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
-  size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
   // Create node to perform the runtime call. Turbofan will take care of the
   // lowering.
-  const Operator* call = javascript()->CallRuntime(functionId, reg_count);
-  Node* value = ProcessCallRuntimeArguments(call, receiver, reg_count);
+  const Operator* call = javascript()->CallRuntime(functionId, arg_count);
+  Node* value = ProcessCallRuntimeArguments(call, first_arg, arg_count);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
 Node* BytecodeGraphBuilder::ProcessConstructArguments(
     const Operator* call_new_op, Node* callee, Node* new_target,
-    interpreter::Register receiver, size_t reg_count) {
-  int arg_count = static_cast<int>(reg_count);
-  // arity is args + callee and new target.
-  int arity = arg_count + 2;
-  Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
+    interpreter::Register first_arg, size_t arity) {
+  Node** all = local_zone()->NewArray<Node*>(arity);
   all[0] = callee;
-  int first_arg_index = receiver.index();
-  for (int i = 0; i < arg_count; ++i) {
-    all[1 + i] = environment()->LookupRegister(
-        interpreter::Register(first_arg_index + i));
+  int first_arg_index = first_arg.index();
+  for (int i = 1; i < static_cast<int>(arity) - 1; ++i) {
+    all[i] = environment()->LookupRegister(
+        interpreter::Register(first_arg_index + i - 1));
   }
   all[arity - 1] = new_target;
-  Node* value = MakeNode(call_new_op, arity, all, false);
+  Node* value = MakeNode(call_new_op, static_cast<int>(arity), all, false);
   return value;
 }
 
 void BytecodeGraphBuilder::VisitConstruct() {
   PrepareEagerCheckpoint();
   interpreter::Register callee_reg = bytecode_iterator().GetRegisterOperand(0);
-  interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
-  size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
   // Slot index of 0 is used indicate no feedback slot is available. Assert
   // the assumption that slot index 0 is never a valid feedback slot.
   STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
@@ -1682,9 +1629,9 @@ void BytecodeGraphBuilder::VisitConstruct() {
 
   float const frequency = ComputeCallFrequency(slot_id);
   const Operator* call = javascript()->Construct(
-      static_cast<uint32_t>(reg_count + 2), frequency, feedback);
-  Node* value =
-      ProcessConstructArguments(call, callee, new_target, receiver, reg_count);
+      static_cast<int>(arg_count) + 2, frequency, feedback);
+  Node* value = ProcessConstructArguments(call, callee, new_target, first_arg,
+                                          arg_count + 2);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 

@@ -79,9 +79,9 @@ class PlatformInterfaceDescriptor;
   V(GrowArrayElements)                     \
   V(NewArgumentsElements)                  \
   V(InterpreterDispatch)                   \
-  V(InterpreterPushArgsThenCall)           \
-  V(InterpreterPushArgsThenConstruct)      \
-  V(InterpreterPushArgsThenConstructArray) \
+  V(InterpreterPushArgsAndCall)            \
+  V(InterpreterPushArgsAndConstruct)       \
+  V(InterpreterPushArgsAndConstructArray)  \
   V(InterpreterCEntry)                     \
   V(ResumeGenerator)                       \
   V(FrameDropperTrampoline)                \
@@ -839,29 +839,30 @@ class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
                                                CallInterfaceDescriptor)
 };
 
-class InterpreterPushArgsThenCallDescriptor : public CallInterfaceDescriptor {
+class InterpreterPushArgsAndCallDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kFunction)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      InterpreterPushArgsThenCallDescriptor, CallInterfaceDescriptor)
+      InterpreterPushArgsAndCallDescriptor, CallInterfaceDescriptor)
 };
 
-class InterpreterPushArgsThenConstructDescriptor
+
+class InterpreterPushArgsAndConstructDescriptor
     : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kNumberOfArguments, kNewTarget, kConstructor,
                     kFeedbackElement, kFirstArgument)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      InterpreterPushArgsThenConstructDescriptor, CallInterfaceDescriptor)
+      InterpreterPushArgsAndConstructDescriptor, CallInterfaceDescriptor)
 };
 
-class InterpreterPushArgsThenConstructArrayDescriptor
+class InterpreterPushArgsAndConstructArrayDescriptor
     : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kNumberOfArguments, kFunction, kFeedbackElement,
                     kFirstArgument)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      InterpreterPushArgsThenConstructArrayDescriptor, CallInterfaceDescriptor)
+      InterpreterPushArgsAndConstructArrayDescriptor, CallInterfaceDescriptor)
 };
 
 class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {

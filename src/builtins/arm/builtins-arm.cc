@@ -1082,7 +1082,11 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register num_args, Register index,
-                                         Register limit, Register scratch) {
+                                         Register limit, Register scratch,
+                                         Label* stack_overflow) {
+  // Add a stack check before pushing arguments.
+  Generate_StackOverflowCheck(masm, num_args, scratch, stack_overflow);
+
   // Find the address of the last argument.
   __ mov(limit, num_args);
   __ mov(limit, Operand(limit, LSL, kPointerSizeLog2));
@@ -1099,9 +1103,9 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenCallImpl(
-    MacroAssembler* masm, ConvertReceiverMode receiver_mode,
-    TailCallMode tail_call_mode, InterpreterPushArgsMode mode) {
+void Builtins::Generate_InterpreterPushArgsAndCallImpl(
+    MacroAssembler* masm, TailCallMode tail_call_mode,
+    InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   //  -- r0 : the number of arguments (not including the receiver)
   //  -- r2 : the address of the first argument to be pushed. Subsequent
@@ -1113,16 +1117,8 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 
   __ add(r3, r0, Operand(1));  // Add one for receiver.
 
-  Generate_StackOverflowCheck(masm, r3, r4, &stack_overflow);
-
-  // Push "undefined" as the receiver arg if we need to.
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
-    __ mov(r3, r0);  // Argument count is correct.
-  }
-
   // Push the arguments. r2, r4, r5 will be modified.
-  Generate_InterpreterPushArgs(masm, r3, r2, r4, r5);
+  Generate_InterpreterPushArgs(masm, r3, r2, r4, r5, &stack_overflow);
 
   // Call the target.
   if (mode == InterpreterPushArgsMode::kJSFunction) {
@@ -1147,7 +1143,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
+void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     MacroAssembler* masm, InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   // -- r0 : argument count (not including receiver)
@@ -1162,10 +1158,8 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   __ mov(ip, Operand::Zero());
   __ push(ip);
 
-  Generate_StackOverflowCheck(masm, r0, r5, &stack_overflow);
-
   // Push the arguments. r5, r4, r6 will be modified.
-  Generate_InterpreterPushArgs(masm, r0, r4, r5, r6);
+  Generate_InterpreterPushArgs(masm, r0, r4, r5, r6, &stack_overflow);
 
   __ AssertUndefinedOrAllocationSite(r2, r5);
   if (mode == InterpreterPushArgsMode::kJSFunction) {
@@ -1196,7 +1190,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsThenConstructArray(
+void Builtins::Generate_InterpreterPushArgsAndConstructArray(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
   // -- r0 : argument count (not including receiver)
@@ -1206,14 +1200,11 @@ void Builtins::Generate_InterpreterPushArgsThenConstructArray(
   // -----------------------------------
   Label stack_overflow;
 
-  // Push a slot for the receiver to be constructed.
-  __ mov(ip, Operand::Zero());
-  __ push(ip);
+  __ add(r4, r0, Operand(1));  // Add one for receiver.
 
-  Generate_StackOverflowCheck(masm, r0, r5, &stack_overflow);
-
+  // TODO(mythria): Add a stack check before pushing arguments.
   // Push the arguments. r3, r5, r6 will be modified.
-  Generate_InterpreterPushArgs(masm, r0, r3, r5, r6);
+  Generate_InterpreterPushArgs(masm, r4, r3, r5, r6, &stack_overflow);
 
   // Array constructor expects constructor in r3. It is same as r1 here.
   __ mov(r3, r1);

@@ -324,7 +324,7 @@ void InterpreterDispatchDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void InterpreterPushArgsThenCallDescriptor::InitializePlatformSpecific(
+void InterpreterPushArgsAndCallDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       r0,  // argument count (not including receiver)
@@ -334,7 +334,7 @@ void InterpreterPushArgsThenCallDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void InterpreterPushArgsThenConstructDescriptor::InitializePlatformSpecific(
+void InterpreterPushArgsAndConstructDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       r0,  // argument count (not including receiver)
@@ -346,8 +346,8 @@ void InterpreterPushArgsThenConstructDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void InterpreterPushArgsThenConstructArrayDescriptor::
-    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
+void InterpreterPushArgsAndConstructArrayDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
   Register registers[] = {
       r0,  // argument count (not including receiver)
       r1,  // target to call checked to be Array function
