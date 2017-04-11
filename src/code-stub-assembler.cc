@@ -3154,10 +3154,12 @@ Node* CodeStubAssembler::IsJSRegExp(Node* object) {
 
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,
                                           ParameterMode parameter_mode) {
+  if (parameter_mode == SMI_PARAMETERS) CSA_ASSERT(this, TaggedIsSmi(index));
   CSA_ASSERT(this, IsString(string));
 
   // Translate the {index} into a Word.
   Node* const int_index = ParameterToWord(index, parameter_mode);
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(int_index, IntPtrConstant(0)));
 
   VARIABLE(var_result, MachineRepresentation::kWord32);
 

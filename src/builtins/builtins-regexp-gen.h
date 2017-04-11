@@ -57,15 +57,20 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                              MessageTemplate::Template msg_template,
                              char const* method_name);
 
+  void BranchIfFastRegExp(Node* const context, Node* const object,
+                          Label* const if_isunmodified,
+                          Label* const if_ismodified);
+
   // Analogous to BranchIfFastRegExp, for use in asserts.
   Node* IsFastRegExp(Node* const context, Node* const object);
 
   // Performs fast path checks on the given object itself, but omits prototype
   // checks.
+  Node* IsFastRegExpNoPrototype(Node* const context, Node* const object);
   Node* IsFastRegExpNoPrototype(Node* const context, Node* const object,
                                 Node* const map);
 
-  void BranchIfFastRegExpResult(Node* context, Node* map,
+  void BranchIfFastRegExpResult(Node* const context, Node* const object,
                                 Label* if_isunmodified, Label* if_ismodified);
 
   Node* FlagsGetter(Node* const context, Node* const regexp, bool is_fastpath);

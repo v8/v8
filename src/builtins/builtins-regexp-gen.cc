@@ -100,9 +100,8 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   Node* const limit = IntPtrAdd(
       IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), num_indices);
 
-  Variable var_from_cursor(
-      this, MachineType::PointerRepresentation(),
-      IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 2));
+  VARIABLE(var_from_cursor, MachineType::PointerRepresentation(),
+           IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 2));
   VARIABLE(var_to_cursor, MachineType::PointerRepresentation(),
            IntPtrConstant(1));
 
@@ -486,7 +485,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
   Node* const smi_zero = SmiConstant(Smi::kZero);
 
   if (is_fastpath) {
-    CSA_ASSERT(this, IsFastRegExpNoPrototype(context, regexp, LoadMap(regexp)));
+    CSA_ASSERT(this, IsFastRegExpNoPrototype(context, regexp));
   } else {
     ThrowIfNotInstanceType(context, regexp, JS_REGEXP_TYPE,
                            "RegExp.prototype.exec");
@@ -694,6 +693,12 @@ Node* RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(Node* const context,
   return var_result.value();
 }
 
+Node* RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(Node* const context,
+                                                       Node* const object) {
+  CSA_ASSERT(this, TaggedIsNotSmi(object));
+  return IsFastRegExpNoPrototype(context, object, LoadMap(object));
+}
+
 // RegExp fast path implementations rely on unmodified JSRegExp instances.
 // We use a fairly coarse granularity for this and simply check whether both
 // the regexp itself is unmodified (i.e. its map has not changed), its
@@ -731,12 +736,21 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
   Branch(TaggedIsPositiveSmi(last_index), if_isunmodified, if_ismodified);
 }
 
+void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
+                                                 Node* const object,
+                                                 Label* const if_isunmodified,
+                                                 Label* const if_ismodified) {
+  CSA_ASSERT(this, TaggedIsNotSmi(object));
+  BranchIfFastRegExp(context, object, LoadMap(object), if_isunmodified,
+                     if_ismodified);
+}
+
 Node* RegExpBuiltinsAssembler::IsFastRegExp(Node* const context,
                                             Node* const object) {
   Label yup(this), nope(this), out(this);
   VARIABLE(var_result, MachineRepresentation::kWord32);
 
-  BranchIfFastRegExp(context, object, LoadMap(object), &yup, &nope);
+  BranchIfFastRegExp(context, object, &yup, &nope);
 
   BIND(&yup);
   var_result.Bind(Int32Constant(1));
@@ -750,9 +764,13 @@ Node* RegExpBuiltinsAssembler::IsFastRegExp(Node* const context,
   return var_result.value();
 }
 
-void RegExpBuiltinsAssembler::BranchIfFastRegExpResult(Node* context, Node* map,
+void RegExpBuiltinsAssembler::BranchIfFastRegExpResult(Node* const context,
+                                                       Node* const object,
                                                        Label* if_isunmodified,
                                                        Label* if_ismodified) {
+  // Could be a Smi.
+  Node* const map = LoadReceiverMap(object);
+
   Node* const native_context = LoadNativeContext(context);
   Node* const initial_regexp_result_map =
       LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX);
@@ -786,8 +804,8 @@ TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
   Node* const string = ToString(context, maybe_string);
 
   Label if_isfastpath(this), if_isslowpath(this);
-  Branch(IsFastRegExpNoPrototype(context, receiver, LoadMap(receiver)),
-         &if_isfastpath, &if_isslowpath);
+  Branch(IsFastRegExpNoPrototype(context, receiver), &if_isfastpath,
+         &if_isslowpath);
 
   BIND(&if_isfastpath);
   {
@@ -890,9 +908,8 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     Node* const result = AllocateSeqOneByteString(context, var_length.value());
     Node* const flags_intptr = var_flags.value();
 
-    Variable var_offset(
-        this, MachineType::PointerRepresentation(),
-        IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+    VARIABLE(var_offset, MachineType::PointerRepresentation(),
+             IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 
 #define CASE_FOR_FLAG(FLAG, CHAR)                              \
   do {                                                         \
@@ -1501,8 +1518,7 @@ TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
   Node* const string = ToString(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
-  BranchIfFastRegExp(context, receiver, LoadMap(receiver), &fast_path,
-                     &slow_path);
+  BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
 
   BIND(&fast_path);
   {
@@ -1816,8 +1832,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         BIND(&load_match);
         {
           Label fast_result(this), slow_result(this);
-          BranchIfFastRegExpResult(context, LoadMap(result), &fast_result,
-                                   &slow_result);
+          BranchIfFastRegExpResult(context, result, &fast_result, &slow_result);
 
           BIND(&fast_result);
           {
@@ -1912,8 +1927,7 @@ TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
   Node* const string = ToString(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
-  BranchIfFastRegExp(context, receiver, LoadMap(receiver), &fast_path,
-                     &slow_path);
+  BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
 
   BIND(&fast_path);
   RegExpPrototypeMatchBody(context, receiver, string, true);
@@ -2006,8 +2020,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
   // Return the index of the match.
   {
     Label fast_result(this), slow_result(this, Label::kDeferred);
-    BranchIfFastRegExpResult(context, LoadMap(exec_result), &fast_result,
-                             &slow_result);
+    BranchIfFastRegExpResult(context, exec_result, &fast_result, &slow_result);
 
     BIND(&fast_result);
     {
@@ -2041,8 +2054,7 @@ TF_BUILTIN(RegExpPrototypeSearch, RegExpBuiltinsAssembler) {
   Node* const string = ToString(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
-  BranchIfFastRegExp(context, receiver, LoadMap(receiver), &fast_path,
-                     &slow_path);
+  BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
 
   BIND(&fast_path);
   RegExpPrototypeSearchBodyFast(context, receiver, string);
@@ -2328,8 +2340,8 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
     // otherwise.
     {
       Label next(this);
-      BranchIfFastRegExp(context, regexp, LoadMap(regexp), &next, &runtime);
-      Bind(&next);
+      BranchIfFastRegExp(context, regexp, &next, &runtime);
+      BIND(&next);
     }
 
     GotoIfNot(TaggedIsSmi(limit), &if_limitissmimax);
@@ -2352,7 +2364,7 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
     RegExpPrototypeSplitBody(context, regexp, string, limit);
   }
 
-  Bind(&runtime);
+  BIND(&runtime);
   {
     // The runtime call passes in limit to ensure the second ToUint32(limit)
     // call is not observable.
@@ -2379,7 +2391,7 @@ TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
   Node* const string = ToString(context, maybe_string);
 
   Label stub(this), runtime(this, Label::kDeferred);
-  BranchIfFastRegExp(context, receiver, LoadMap(receiver), &stub, &runtime);
+  BranchIfFastRegExp(context, receiver, &stub, &runtime);
 
   BIND(&stub);
   Return(CallBuiltin(Builtins::kRegExpSplit, context, receiver, string,
@@ -2735,8 +2747,8 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
     // otherwise.
     {
       Label next(this);
-      BranchIfFastRegExp(context, regexp, LoadMap(regexp), &next, &runtime);
-      Bind(&next);
+      BranchIfFastRegExp(context, regexp, &next, &runtime);
+      BIND(&next);
     }
 
     Node* const dollar_string = HeapConstant(
@@ -2811,7 +2823,7 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
 
   // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
   Label stub(this), runtime(this, Label::kDeferred);
-  BranchIfFastRegExp(context, receiver, LoadMap(receiver), &stub, &runtime);
+  BranchIfFastRegExp(context, receiver, &stub, &runtime);
 
   BIND(&stub);
   Return(CallBuiltin(Builtins::kRegExpReplace, context, receiver, string,
