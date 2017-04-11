@@ -73,11 +73,13 @@ class InterpreterGenerator {
   void DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler);
 
   // Generates code to perform a JS call that collects type feedback.
-  void DoJSCall(InterpreterAssembler* assembler, TailCallMode tail_call_mode);
+  void DoJSCall(InterpreterAssembler* assembler,
+                ConvertReceiverMode receiver_mode, TailCallMode tail_call_mode);
 
   // Generates code to perform a JS call with a known number of arguments that
   // collects type feedback.
-  void DoJSCallN(InterpreterAssembler* assembler, int n);
+  void DoJSCallN(InterpreterAssembler* assembler, int n,
+                 ConvertReceiverMode receiver_mode);
 
   // Generates code to perform delete via function_id.
   void DoDelete(Runtime::FunctionId function_id,
@@ -2322,50 +2324,78 @@ void InterpreterGenerator::DoGetSuperConstructor(
 }
 
 void InterpreterGenerator::DoJSCall(InterpreterAssembler* assembler,
+                                    ConvertReceiverMode receiver_mode,
                                     TailCallMode tail_call_mode) {
   Node* function_reg = __ BytecodeOperandReg(0);
   Node* function = __ LoadRegister(function_reg);
-  Node* receiver_reg = __ BytecodeOperandReg(1);
-  Node* receiver_arg = __ RegisterLocation(receiver_reg);
-  Node* receiver_args_count = __ BytecodeOperandCount(2);
-  Node* receiver_count = __ Int32Constant(1);
-  Node* args_count = __ Int32Sub(receiver_args_count, receiver_count);
+  Node* first_arg_reg = __ BytecodeOperandReg(1);
+  Node* first_arg = __ RegisterLocation(first_arg_reg);
+  Node* arg_list_count = __ BytecodeOperandCount(2);
+  Node* args_count;
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    // The receiver is implied, so it is not in the argument list.
+    args_count = arg_list_count;
+  } else {
+    // Subtract the receiver from the argument count.
+    Node* receiver_count = __ Int32Constant(1);
+    args_count = __ Int32Sub(arg_list_count, receiver_count);
+  }
   Node* slot_id = __ BytecodeOperandIdx(3);
   Node* feedback_vector = __ LoadFeedbackVector();
   Node* context = __ GetContext();
   Node* result =
-      __ CallJSWithFeedback(function, context, receiver_arg, args_count,
-                            slot_id, feedback_vector, tail_call_mode);
+      __ CallJSWithFeedback(function, context, first_arg, args_count, slot_id,
+                            feedback_vector, receiver_mode, tail_call_mode);
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
 void InterpreterGenerator::DoJSCallN(InterpreterAssembler* assembler,
-                                     int arg_count) {
-  const int kReceiverOperandIndex = 1;
-  const int kReceiverOperandCount = 1;
+                                     int arg_count,
+                                     ConvertReceiverMode receiver_mode) {
+  // Indices and counts of operands on the bytecode.
+  const int kFirstArgumentOperandIndex = 1;
+  const int kReceiverOperandCount =
+      (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
   const int kSlotOperandIndex =
-      kReceiverOperandIndex + kReceiverOperandCount + arg_count;
-  const int kBoilerplatParameterCount = 7;
+      kFirstArgumentOperandIndex + kReceiverOperandCount + arg_count;
+  // Indices and counts of parameters to the call stub.
+  const int kBoilerplateParameterCount = 7;
   const int kReceiverParameterIndex = 5;
+  const int kReceiverParameterCount = 1;
+  // Only used in a DCHECK.
+  USE(kReceiverParameterCount);
 
   Node* function_reg = __ BytecodeOperandReg(0);
   Node* function = __ LoadRegister(function_reg);
-  std::array<Node*, Bytecodes::kMaxOperands + kBoilerplatParameterCount> temp;
+  std::array<Node*, Bytecodes::kMaxOperands + kBoilerplateParameterCount> temp;
   Callable call_ic = CodeFactory::CallIC(isolate_);
   temp[0] = __ HeapConstant(call_ic.code());
   temp[1] = function;
   temp[2] = __ Int32Constant(arg_count);
   temp[3] = __ BytecodeOperandIdxInt32(kSlotOperandIndex);
   temp[4] = __ LoadFeedbackVector();
-  for (int i = 0; i < (arg_count + kReceiverOperandCount); ++i) {
-    Node* reg = __ BytecodeOperandReg(i + kReceiverOperandIndex);
-    temp[kReceiverParameterIndex + i] = __ LoadRegister(reg);
+
+  int parameter_index = kReceiverParameterIndex;
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    // The first argument parameter (the receiver) is implied to be undefined.
+    Node* undefined_value =
+        __ HeapConstant(isolate_->factory()->undefined_value());
+    temp[parameter_index++] = undefined_value;
   }
-  temp[kReceiverParameterIndex + arg_count + kReceiverOperandCount] =
-      __ GetContext();
+  // The bytecode argument operands are copied into the remaining argument
+  // parameters.
+  for (int i = 0; i < (kReceiverOperandCount + arg_count); ++i) {
+    Node* reg = __ BytecodeOperandReg(kFirstArgumentOperandIndex + i);
+    temp[parameter_index++] = __ LoadRegister(reg);
+  }
+
+  DCHECK_EQ(parameter_index,
+            kReceiverParameterIndex + kReceiverParameterCount + arg_count);
+  temp[parameter_index] = __ GetContext();
+
   Node* result = __ CallStubN(call_ic.descriptor(), 1,
-                              arg_count + kBoilerplatParameterCount, &temp[0]);
+                              arg_count + kBoilerplateParameterCount, &temp[0]);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -2375,40 +2405,46 @@ void InterpreterGenerator::DoJSCallN(InterpreterAssembler* assembler,
 // Call a JSfunction or Callable in |callable| with the |receiver| and
 // |arg_count| arguments in subsequent registers. Collect type feedback
 // into |feedback_slot_id|
-void InterpreterGenerator::DoCall(InterpreterAssembler* assembler) {
-  DoJSCall(assembler, TailCallMode::kDisallow);
-}
-
-void InterpreterGenerator::DoCall0(InterpreterAssembler* assembler) {
-  DoJSCallN(assembler, 0);
-}
-
-void InterpreterGenerator::DoCall1(InterpreterAssembler* assembler) {
-  DoJSCallN(assembler, 1);
-}
-
-void InterpreterGenerator::DoCall2(InterpreterAssembler* assembler) {
-  DoJSCallN(assembler, 2);
+void InterpreterGenerator::DoCallAnyReceiver(InterpreterAssembler* assembler) {
+  DoJSCall(assembler, ConvertReceiverMode::kAny, TailCallMode::kDisallow);
 }
 
 void InterpreterGenerator::DoCallProperty(InterpreterAssembler* assembler) {
-  // Same as Call
-  UNREACHABLE();
+  DoJSCall(assembler, ConvertReceiverMode::kNotNullOrUndefined,
+           TailCallMode::kDisallow);
 }
 
 void InterpreterGenerator::DoCallProperty0(InterpreterAssembler* assembler) {
-  // Same as Call0
-  UNREACHABLE();
+  DoJSCallN(assembler, 0, ConvertReceiverMode::kNotNullOrUndefined);
 }
 
 void InterpreterGenerator::DoCallProperty1(InterpreterAssembler* assembler) {
-  // Same as Call1
-  UNREACHABLE();
+  DoJSCallN(assembler, 1, ConvertReceiverMode::kNotNullOrUndefined);
 }
 
 void InterpreterGenerator::DoCallProperty2(InterpreterAssembler* assembler) {
-  // Same as Call2
-  UNREACHABLE();
+  DoJSCallN(assembler, 2, ConvertReceiverMode::kNotNullOrUndefined);
+}
+
+void InterpreterGenerator::DoCallUndefinedReceiver(
+    InterpreterAssembler* assembler) {
+  DoJSCall(assembler, ConvertReceiverMode::kNullOrUndefined,
+           TailCallMode::kDisallow);
+}
+
+void InterpreterGenerator::DoCallUndefinedReceiver0(
+    InterpreterAssembler* assembler) {
+  DoJSCallN(assembler, 0, ConvertReceiverMode::kNullOrUndefined);
+}
+
+void InterpreterGenerator::DoCallUndefinedReceiver1(
+    InterpreterAssembler* assembler) {
+  DoJSCallN(assembler, 1, ConvertReceiverMode::kNullOrUndefined);
+}
+
+void InterpreterGenerator::DoCallUndefinedReceiver2(
+    InterpreterAssembler* assembler) {
+  DoJSCallN(assembler, 2, ConvertReceiverMode::kNullOrUndefined);
 }
 
 // TailCall <callable> <receiver> <arg_count> <feedback_slot_id>
@@ -2417,7 +2453,7 @@ void InterpreterGenerator::DoCallProperty2(InterpreterAssembler* assembler) {
 // |arg_count| arguments in subsequent registers. Collect type feedback
 // into |feedback_slot_id|
 void InterpreterGenerator::DoTailCall(InterpreterAssembler* assembler) {
-  DoJSCall(assembler, TailCallMode::kAllow);
+  DoJSCall(assembler, ConvertReceiverMode::kAny, TailCallMode::kAllow);
 }
 
 // CallRuntime <function_id> <first_arg> <arg_count>
@@ -2497,7 +2533,7 @@ void InterpreterGenerator::DoCallJSRuntime(InterpreterAssembler* assembler) {
 
   // Call the function.
   Node* result = __ CallJS(function, context, first_arg, args_count,
-                           TailCallMode::kDisallow);
+                           ConvertReceiverMode::kAny, TailCallMode::kDisallow);
   __ SetAccumulator(result);
   __ Dispatch();
 }
