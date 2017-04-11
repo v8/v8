@@ -265,6 +265,7 @@ namespace internal {
   F(InternalDateFormatToParts, 2, 1)         \
   F(CreateNumberFormat, 3, 1)                \
   F(InternalNumberFormat, 2, 1)              \
+  F(CurrencyDigits, 1, 1)                    \
   F(CreateCollator, 3, 1)                    \
   F(InternalCompare, 3, 1)                   \
   F(CreateBreakIterator, 3, 1)               \

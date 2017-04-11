@@ -274,23 +274,6 @@ icu::DecimalFormat* CreateICUNumberFormat(
         delete number_format;
         return NULL;
       }
-
-      UErrorCode status_digits = U_ZERO_ERROR;
-#if U_ICU_VERSION_MAJOR_NUM >= 59
-      uint32_t fraction_digits = ucurr_getDefaultFractionDigits(
-          icu::toUCharPtr(currency.getTerminatedBuffer()), &status_digits);
-#else
-      uint32_t fraction_digits = ucurr_getDefaultFractionDigits(
-          currency.getTerminatedBuffer(), &status_digits);
-#endif
-      if (U_SUCCESS(status_digits)) {
-        number_format->setMinimumFractionDigits(fraction_digits);
-        number_format->setMaximumFractionDigits(fraction_digits);
-      } else {
-        // Set min & max to default values (previously in i18n.js)
-        number_format->setMinimumFractionDigits(0);
-        number_format->setMaximumFractionDigits(3);
-      }
     } else if (style == UNICODE_STRING_SIMPLE("percent")) {
       number_format = static_cast<icu::DecimalFormat*>(
           icu::NumberFormat::createPercentInstance(icu_locale, status));

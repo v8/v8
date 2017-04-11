@@ -546,9 +546,6 @@
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6016
-  'intl402/NumberFormat/dft-currency-mnfd-range-check-mxfd': [FAIL],
-
 ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -568,8 +565,6 @@
   'intl402/NumberFormat/11.2.3_b': [FAIL],
   'intl402/NumberFormat/prototype/11.3_a': [FAIL],
   'intl402/String/prototype/localeCompare/13.1.1_7': [PASS, FAIL],
-  'intl402/NumberFormat/default-currency-maximum-fraction-digits': [PASS, FAIL],
-  'intl402/NumberFormat/fraction-digit-options-read-once': [PASS, FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
