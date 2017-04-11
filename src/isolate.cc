@@ -655,9 +655,7 @@ Handle<JSArray> Isolate::GetDetailedStackTrace(Handle<JSObject> error_object) {
 
 class CaptureStackTraceHelper {
  public:
-  CaptureStackTraceHelper(Isolate* isolate,
-                          StackTrace::StackTraceOptions options)
-      : isolate_(isolate), options_(options) {}
+  explicit CaptureStackTraceHelper(Isolate* isolate) : isolate_(isolate) {}
 
   Handle<StackFrameInfo> NewStackFrameObject(FrameSummary& summ) {
     if (summ.IsJavaScript()) return NewStackFrameObject(summ.AsJavaScript());
@@ -670,36 +668,21 @@ class CaptureStackTraceHelper {
       const FrameSummary::JavaScriptFrameSummary& summ) {
     Handle<StackFrameInfo> frame = factory()->NewStackFrameInfo();
     Handle<Script> script = Handle<Script>::cast(summ.script());
-    if (options_ & StackTrace::kLineNumber) {
-      Script::PositionInfo info;
-      bool valid_pos = Script::GetPositionInfo(script, summ.SourcePosition(),
-                                               &info, Script::WITH_OFFSET);
-      if (valid_pos) {
-        frame->set_line_number(info.line + 1);
-        if (options_ & StackTrace::kColumnOffset) {
-          frame->set_column_number(info.column + 1);
-        }
-      }
+    Script::PositionInfo info;
+    bool valid_pos = Script::GetPositionInfo(script, summ.SourcePosition(),
+                                             &info, Script::WITH_OFFSET);
+    if (valid_pos) {
+      frame->set_line_number(info.line + 1);
+      frame->set_column_number(info.column + 1);
     }
-
-    if (options_ & StackTrace::kScriptId) frame->set_script_id(script->id());
-    if (options_ & StackTrace::kScriptName) {
-      frame->set_script_name(script->name());
-    }
-    if (options_ & StackTrace::kScriptNameOrSourceURL) {
-      frame->set_script_name_or_source_url(script->GetNameOrSourceURL());
-    }
-    if (options_ & StackTrace::kIsEval) {
-      frame->set_is_eval(script->compilation_type() ==
-                         Script::COMPILATION_TYPE_EVAL);
-    }
-    if (options_ & StackTrace::kFunctionName) {
-      Handle<String> name = summ.FunctionName();
-      frame->set_function_name(*name);
-    }
-    if (options_ & StackTrace::kIsConstructor) {
-      frame->set_is_constructor(summ.is_constructor());
-    }
+    frame->set_script_id(script->id());
+    frame->set_script_name(script->name());
+    frame->set_script_name_or_source_url(script->GetNameOrSourceURL());
+    frame->set_is_eval(script->compilation_type() ==
+                       Script::COMPILATION_TYPE_EVAL);
+    Handle<String> function_name = summ.FunctionName();
+    frame->set_function_name(*function_name);
+    frame->set_is_constructor(summ.is_constructor());
     frame->set_is_wasm(false);
     return frame;
   }
@@ -708,27 +691,19 @@ class CaptureStackTraceHelper {
       const FrameSummary::WasmFrameSummary& summ) {
     Handle<StackFrameInfo> info = factory()->NewStackFrameInfo();
 
-    if (options_ & StackTrace::kFunctionName) {
-      Handle<WasmCompiledModule> compiled_module(
-          summ.wasm_instance()->compiled_module(), isolate_);
-      Handle<String> name = WasmCompiledModule::GetFunctionName(
-          isolate_, compiled_module, summ.function_index());
-      info->set_function_name(*name);
-    }
+    Handle<WasmCompiledModule> compiled_module(
+        summ.wasm_instance()->compiled_module(), isolate_);
+    Handle<String> name = WasmCompiledModule::GetFunctionName(
+        isolate_, compiled_module, summ.function_index());
+    info->set_function_name(*name);
     // Encode the function index as line number (1-based).
-    if (options_ & StackTrace::kLineNumber) {
-      info->set_line_number(summ.function_index() + 1);
-    }
+    info->set_line_number(summ.function_index() + 1);
     // Encode the byte offset as column (1-based).
-    if (options_ & StackTrace::kColumnOffset) {
-      int position = summ.byte_offset();
-      // Make position 1-based.
-      if (position >= 0) ++position;
-      info->set_column_number(position);
-    }
-    if (options_ & StackTrace::kScriptId) {
-      info->set_script_id(summ.script()->id());
-    }
+    int position = summ.byte_offset();
+    // Make position 1-based.
+    if (position >= 0) ++position;
+    info->set_column_number(position);
+    info->set_script_id(summ.script()->id());
     info->set_is_wasm(true);
     return info;
   }
@@ -737,13 +712,12 @@ class CaptureStackTraceHelper {
   inline Factory* factory() { return isolate_->factory(); }
 
   Isolate* isolate_;
-  StackTrace::StackTraceOptions options_;
 };
 
 Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
   DisallowJavascriptExecution no_js(this);
-  CaptureStackTraceHelper helper(this, options);
+  CaptureStackTraceHelper helper(this);
 
   // Ensure no negative values.
   int limit = Max(frame_limit, 0);
