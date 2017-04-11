@@ -5,6 +5,7 @@
 #ifndef V8_WASM_RESULT_H_
 #define V8_WASM_RESULT_H_
 
+#include <cstdarg>
 #include <memory>
 
 #include "src/base/compiler-specific.h"

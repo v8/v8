@@ -4,6 +4,7 @@
 
 #include "src/base/logging.h"
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 

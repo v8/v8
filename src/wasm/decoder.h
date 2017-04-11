@@ -5,6 +5,7 @@
 #ifndef V8_WASM_DECODER_H_
 #define V8_WASM_DECODER_H_
 
+#include <cstdarg>
 #include <memory>
 
 #include "src/base/compiler-specific.h"

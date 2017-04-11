@@ -4,6 +4,8 @@
 
 #include "src/heap/gc-tracer.h"
 
+#include <cstdarg>
+
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
