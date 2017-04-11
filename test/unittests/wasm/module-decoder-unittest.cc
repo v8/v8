@@ -1556,6 +1556,11 @@ TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {
   EXPECT_VERIFIES(data);
 }
 
+TEST_F(WasmModuleVerifyTest, Section_Name_No_UTF8) {
+  static const byte data[] = {SECTION(Unknown, 4), 1, 0xff, 17, 18};
+  EXPECT_FAILURE(data);
+}
+
 class WasmModuleCustomSectionTest : public TestWithIsolateAndZone {
  public:
   void CheckSections(const byte* module_start, const byte* module_end,

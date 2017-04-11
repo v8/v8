@@ -90,6 +90,24 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
   }
 }
 
+// Reads a length-prefixed string, checking that it is within bounds. Returns
+// the offset of the string, and the length as an out parameter.
+uint32_t consume_string(Decoder& decoder, uint32_t* length, bool validate_utf8,
+                        const char* name) {
+  *length = decoder.consume_u32v("string length");
+  uint32_t offset = decoder.pc_offset();
+  const byte* string_start = decoder.pc();
+  // Consume bytes before validation to guarantee that the string is not oob.
+  if (*length > 0) {
+    decoder.consume_bytes(*length, name);
+    if (decoder.ok() && validate_utf8 &&
+        !unibrow::Utf8::Validate(string_start, *length)) {
+      decoder.errorf(string_start, "%s: no valid UTF-8 string", name);
+    }
+  }
+  return offset;
+}
+
 // An iterator over the sections in a WASM binary module.
 // Automatically skips all unknown sections.
 class WasmSectionIterator {
@@ -166,14 +184,14 @@ class WasmSectionIterator {
 
       if (section_code == kUnknownSectionCode) {
         // Check for the known "name" section.
-        uint32_t string_length = decoder_.consume_u32v("section name length");
-        const byte* section_name_start = decoder_.pc();
-        decoder_.consume_bytes(string_length, "section name");
+        uint32_t string_length;
+        uint32_t string_offset = wasm::consume_string(decoder_, &string_length,
+                                                      true, "section name");
         if (decoder_.failed() || decoder_.pc() > section_end_) {
-          TRACE("Section name of length %u couldn't be read\n", string_length);
           section_code_ = kUnknownSectionCode;
           return;
         }
+        const byte* section_name_start = decoder_.start() + string_offset;
         payload_start_ = decoder_.pc();
 
         TRACE("  +%d  section name        : \"%.*s\"\n",
@@ -316,9 +334,9 @@ class ModuleDecoder : public Decoder {
         WasmImport* import = &module->import_table.back();
         const byte* pos = pc_;
         import->module_name_offset =
-            consume_string(&import->module_name_length, true);
+            consume_string(&import->module_name_length, true, "module name");
         import->field_name_offset =
-            consume_string(&import->field_name_length, true);
+            consume_string(&import->field_name_length, true, "field name");
 
         import->kind = static_cast<WasmExternalKind>(consume_u8("import kind"));
         switch (import->kind) {
@@ -475,7 +493,8 @@ class ModuleDecoder : public Decoder {
         });
         WasmExport* exp = &module->export_table.back();
 
-        exp->name_offset = consume_string(&exp->name_length, true);
+        exp->name_offset =
+            consume_string(&exp->name_length, true, "field name");
         const byte* pos = pc();
         exp->kind = static_cast<WasmExternalKind>(consume_u8("export kind"));
         switch (exp->kind) {
@@ -667,7 +686,8 @@ class ModuleDecoder : public Decoder {
           for (; inner.ok() && functions_count > 0; --functions_count) {
             uint32_t function_index = inner.consume_u32v("function index");
             uint32_t name_length = 0;
-            uint32_t name_offset = consume_string(inner, &name_length, false);
+            uint32_t name_offset = wasm::consume_string(inner, &name_length,
+                                                        false, "function name");
             // Be lenient with errors in the name section: Ignore illegal
             // or out-of-order indexes and non-UTF8 names. You can even assign
             // to the same function multiple times (last valid one wins).
@@ -865,24 +885,9 @@ class ModuleDecoder : public Decoder {
     }
   }
 
-  uint32_t consume_string(uint32_t* length, bool validate_utf8) {
-    return consume_string(*this, length, validate_utf8);
-  }
-
-  // Reads a length-prefixed string, checking that it is within bounds. Returns
-  // the offset of the string, and the length as an out parameter.
-  uint32_t consume_string(Decoder& decoder, uint32_t* length,
-                          bool validate_utf8) {
-    *length = decoder.consume_u32v("string length");
-    uint32_t offset = decoder.pc_offset();
-    const byte* string_start = decoder.pc();
-    // Consume bytes before validation to guarantee that the string is not oob.
-    if (*length > 0) decoder.consume_bytes(*length, "string");
-    if (decoder.ok() && validate_utf8 &&
-        !unibrow::Utf8::Validate(string_start, *length)) {
-      decoder.error(string_start, "no valid UTF-8 string");
-    }
-    return offset;
+  uint32_t consume_string(uint32_t* length, bool validate_utf8,
+                          const char* name) {
+    return wasm::consume_string(*this, length, validate_utf8, name);
   }
 
   uint32_t consume_sig_index(WasmModule* module, FunctionSig** sig) {
