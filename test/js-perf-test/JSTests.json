@@ -349,6 +349,12 @@
           "test_flags": ["construct-same-typedarray"]
         },
         {
+          "name": "ConstructAllTypedArrays",
+          "main": "run.js",
+          "resources": ["construct-all-typedarrays.js"],
+          "test_flags": ["construct-all-typedarrays"]
+        },
+        {
           "name": "Sort",
           "main": "run.js",
           "resources": ["sort.js"],
