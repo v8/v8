@@ -44,8 +44,16 @@ t(/\P{Assigned}+/u, "\ufdd0");
 t(/\P{Assigned}+/u, "\u{fffff}");
 f(/\P{Assigned}/u, "");
 
-t(/[^\P{Assigned}]+/u, "123");
-f(/[\P{Assigned}]+/u, "🄰🄱🄲");
-f(/[^\P{Assigned}]+/u, "\ufdd0");
-t(/[\P{Assigned}]+/u, "\u{fffff}");
-f(/[\P{Assigned}]/u, "");
+f(/[^\u1234\p{ASCII}]+/u, "\u1234");
+t(/[x\P{ASCII}]+/u, "x");
+t(/[\u1234\p{ASCII}]+/u, "\u1234");
+
+t(/^\p{Other_ID_Start}+$/u, "\u1885\u1886\u2118\u212e\u309b\u309c");
+f(/\P{OIDS}/u, "\u1885\u1886\u2118\u212e\u309b\u309c");
+f(/^[x\P{Other_ID_Start}]+$/u, "\u1885\u1886\u2118\u212e\u309b\u309cx");
+f(/[x\P{OIDS}]/u, "\u1885\u1886\u2118\u212e\u309b\u309c");
+
+var other_id_continue = "\u00b7\u0387\u1369\u136a\u136b\u136c" +
+                        "\u136d\u136e\u136f\u1370\u1371\u19da";
+t(/^\p{Other_ID_Continue}+$/u, other_id_continue);
+f(/\P{OIDC}/u, other_id_continue);
