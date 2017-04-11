@@ -727,6 +727,11 @@
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
 }],  # asan == True
 
+['variant != default and asan', {
+  # BUG(chromium:710428).
+  '*': [SKIP],
+}],  # variant != default and asan
+
 ['asan == True or msan == True or tsan == True', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=4639
   # The failed allocation causes an asan/msan/tsan error
