@@ -906,6 +906,10 @@ namespace internal {
   TFJ(TypedArrayPrototypeEvery, 2, kCallbackFn, kThisArg)                      \
   /* ES6 %TypedArray%.prototype.some */                                        \
   TFJ(TypedArrayPrototypeSome, 2, kCallbackFn, kThisArg)                       \
+  /* ES6 %TypedArray%.prototype.reduce */                                      \
+  TFJ(TypedArrayPrototypeReduce, 2, kCallbackFn, kInitialValue)                \
+  /* ES6 %TypedArray%.prototype.reduceRight */                                 \
+  TFJ(TypedArrayPrototypeReduceRight, 2, kCallbackFn, kInitialValue)           \
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
