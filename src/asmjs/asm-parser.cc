@@ -373,12 +373,12 @@ void AsmJsParser::ValidateModule() {
   RECURSE(ValidateExport());
 
   // Check that all functions were eventually defined.
-  for (auto info : global_var_info_) {
-    if (info.kind != VarKind::kFunction) {
-      continue;
-    }
-    if (!info.function_defined) {
+  for (auto& info : global_var_info_) {
+    if (info.kind == VarKind::kFunction && !info.function_defined) {
       FAIL("Undefined function");
+    }
+    if (info.kind == VarKind::kTable && !info.function_defined) {
+      FAIL("Undefined function table");
     }
   }
 
@@ -689,7 +689,14 @@ void AsmJsParser::ValidateFunctionTable() {
     FAIL("Expected table name");
   }
   VarInfo* table_info = GetVarInfo(Consume());
-  // TODO(bradnelson): Check for double use of export name.
+  if (table_info->kind == VarKind::kTable) {
+    if (table_info->function_defined) {
+      FAIL("Function table redefined");
+    }
+    table_info->function_defined = true;
+  } else if (table_info->kind != VarKind::kUnused) {
+    FAIL("Function table name collides");
+  }
   EXPECT_TOKEN('=');
   EXPECT_TOKEN('[');
   uint64_t count = 0;
@@ -701,6 +708,8 @@ void AsmJsParser::ValidateFunctionTable() {
     if (info->kind != VarKind::kFunction) {
       FAIL("Expected function");
     }
+    // Only store the function into a table if we used the table somewhere
+    // (i.e. tables are first seen at their use sites and allocated there).
     if (table_info->kind == VarKind::kTable) {
       DCHECK_GE(table_info->mask, 0);
       if (count >= static_cast<uint64_t>(table_info->mask) + 1) {
@@ -709,8 +718,6 @@ void AsmJsParser::ValidateFunctionTable() {
       if (!info->type->IsA(table_info->type)) {
         FAIL("Function table definition doesn't match use");
       }
-      // Only store the function into a table if we used the table somewhere
-      // (i.e. tables are first seen at their use sites and allocated there).
       module_builder_->SetIndirectFunction(
           static_cast<uint32_t>(table_info->index + count), info->index);
     }
