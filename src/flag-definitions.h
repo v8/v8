@@ -254,11 +254,6 @@ HARMONY_STAGED(FLAG_STAGED_FEATURES)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 
-#ifdef V8_I18N_SUPPORT
-DEFINE_BOOL(icu_timezone_data, false,
-            "get information about timezones from ICU")
-#endif
-
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else

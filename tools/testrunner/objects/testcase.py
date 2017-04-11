@@ -41,13 +41,11 @@ class TestCase(object):
     self.id = None  # int, used to map result back to TestCase instance
     self.duration = None  # assigned during execution
     self.run = 1  # The nth time this test is executed.
-    self.env = {}
 
   def CopyAddingFlags(self, variant, flags):
     copy = TestCase(self.suite, self.path, variant, self.flags + flags,
                     self.override_shell)
     copy.outcomes = self.outcomes
-    copy.env = self.env
     return copy
 
   def PackTask(self):
@@ -58,7 +56,7 @@ class TestCase(object):
     assert self.id is not None
     return [self.suitename(), self.path, self.variant, self.flags,
             self.override_shell, list(self.outcomes or []),
-            self.id, self.env]
+            self.id]
 
   @staticmethod
   def UnpackTask(task):
@@ -68,7 +66,6 @@ class TestCase(object):
     test.outcomes = frozenset(task[5])
     test.id = task[6]
     test.run = 1
-    test.env = task[7]
     return test
 
   def SetSuiteObject(self, suites):

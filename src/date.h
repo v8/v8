@@ -39,7 +39,9 @@ class DateCache {
   // It is an invariant of DateCache that cache stamp is non-negative.
   static const int kInvalidStamp = -1;
 
-  DateCache();
+  DateCache() : stamp_(0), tz_cache_(base::OS::CreateTimezoneCache()) {
+    ResetDateCache();
+  }
 
   virtual ~DateCache() {
     delete tz_cache_;

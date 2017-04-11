@@ -50,7 +50,7 @@ def Win32SetErrorMode(mode):
   return prev_error_mode
 
 
-def RunProcess(verbose, timeout, args, additional_env, **rest):
+def RunProcess(verbose, timeout, args, **rest):
   if verbose: print "#", " ".join(args)
   popen_args = args
   prev_error_mode = SEM_INVALID_VALUE
@@ -64,7 +64,6 @@ def RunProcess(verbose, timeout, args, additional_env, **rest):
     Win32SetErrorMode(error_mode | prev_error_mode)
 
   env = os.environ.copy()
-  env.update(additional_env)
   # GTest shard information is read by the V8 tests runner. Make sure it
   # doesn't leak into the execution of gtests we're wrapping. Those might
   # otherwise apply a second level of sharding and as a result skip tests.
@@ -127,6 +126,6 @@ def RunProcess(verbose, timeout, args, additional_env, **rest):
   )
 
 
-def Execute(args, verbose=False, timeout=None, env=None):
+def Execute(args, verbose=False, timeout=None):
   args = [ c for c in args if c != "" ]
-  return RunProcess(verbose, timeout, args, env or {})
+  return RunProcess(verbose, timeout, args=args)
