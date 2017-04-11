@@ -249,7 +249,7 @@ Node* RegExpBuiltinsAssembler::IrregexpExec(Node* const context,
   CSA_ASSERT(this, TaggedIsNotSmi(string));
   CSA_ASSERT(this, IsString(string));
 
-  CSA_ASSERT(this, IsHeapNumberMap(LoadReceiverMap(last_index)));
+  CSA_ASSERT(this, IsNumber(last_index));
   CSA_ASSERT(this, IsFixedArrayMap(LoadReceiverMap(match_info)));
 
   Node* const int_zero = IntPtrConstant(0);
@@ -1548,11 +1548,8 @@ Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
                                                   Node* const is_unicode,
                                                   bool is_fastpath) {
   CSA_ASSERT(this, IsString(string));
-  CSA_ASSERT(this, IsHeapNumberMap(LoadReceiverMap(index)));
+  CSA_ASSERT(this, IsNumberNormalized(index));
   if (is_fastpath) CSA_ASSERT(this, TaggedIsPositiveSmi(index));
-
-  // Default to last_index + 1.
-  // Smi range.
 
   // Default to last_index + 1.
   Node* const index_plus_one = NumberInc(index);
@@ -2368,7 +2365,7 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
   {
     // The runtime call passes in limit to ensure the second ToUint32(limit)
     // call is not observable.
-    CSA_ASSERT(this, IsHeapNumberMap(LoadReceiverMap(limit)));
+    CSA_ASSERT(this, IsNumber(limit));
     Return(CallRuntime(Runtime::kRegExpSplit, context, regexp, string, limit));
   }
 }

@@ -739,6 +739,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsFixedTypedArray(Node* object);
   Node* IsJSRegExp(Node* object);
 
+  // True iff |object| is a Smi or a HeapNumber.
+  Node* IsNumber(Node* object);
+
+  // True iff |number| is either a Smi, or a HeapNumber whose value is not
+  // within Smi range.
+  Node* IsNumberNormalized(Node* number);
+
   // ElementsKind helpers:
   Node* IsFastElementsKind(Node* elements_kind);
   Node* IsHoleyFastElementsKind(Node* elements_kind);

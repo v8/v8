@@ -3152,6 +3152,35 @@ Node* CodeStubAssembler::IsJSRegExp(Node* object) {
   return HasInstanceType(object, JS_REGEXP_TYPE);
 }
 
+Node* CodeStubAssembler::IsNumber(Node* object) {
+  return Select(TaggedIsSmi(object), [=] { return Int32Constant(1); },
+                [=] { return IsHeapNumber(object); },
+                MachineRepresentation::kWord32);
+}
+
+Node* CodeStubAssembler::IsNumberNormalized(Node* number) {
+  CSA_ASSERT(this, IsNumber(number));
+
+  VARIABLE(var_result, MachineRepresentation::kWord32, Int32Constant(1));
+  Label out(this);
+
+  GotoIf(TaggedIsSmi(number), &out);
+
+  Node* const value = LoadHeapNumberValue(number);
+  Node* const smi_min = Float64Constant(static_cast<double>(Smi::kMinValue));
+  Node* const smi_max = Float64Constant(static_cast<double>(Smi::kMaxValue));
+
+  GotoIf(Float64LessThan(value, smi_min), &out);
+  GotoIf(Float64GreaterThan(value, smi_max), &out);
+  GotoIfNot(Float64Equal(value, value), &out);  // NaN.
+
+  var_result.Bind(Int32Constant(0));
+  Goto(&out);
+
+  BIND(&out);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,
                                           ParameterMode parameter_mode) {
   if (parameter_mode == SMI_PARAMETERS) CSA_ASSERT(this, TaggedIsSmi(index));
