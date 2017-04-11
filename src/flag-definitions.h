@@ -312,6 +312,8 @@ DEFINE_BOOL(ignition, false, "use ignition interpreter")
 DEFINE_BOOL(ignition_deadcode, true,
             "use ignition dead code elimination optimizer")
 DEFINE_BOOL(ignition_osr, true, "enable support for OSR from ignition code")
+DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
+            "elide bytecodes which won't have any external effect")
 DEFINE_BOOL(ignition_peephole, true, "use ignition peephole optimizer")
 DEFINE_BOOL(ignition_reo, true, "use ignition register equivalence optimizer")
 DEFINE_BOOL(ignition_filter_expression_positions, true,

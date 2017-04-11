@@ -24,7 +24,12 @@ BytecodeArrayWriter::BytecodeArrayWriter(
     : bytecodes_(zone),
       unbound_jumps_(0),
       source_position_table_builder_(zone, source_position_mode),
-      constant_array_builder_(constant_array_builder) {
+      constant_array_builder_(constant_array_builder),
+      last_bytecode_(Bytecode::kIllegal),
+      last_bytecode_offset_(0),
+      last_bytecode_had_source_info_(false),
+      elide_noneffectful_bytecodes_(
+          FLAG_ignition_elide_noneffectful_bytecodes) {
   bytecodes_.reserve(512);  // Derived via experimentation.
 }
 
@@ -55,6 +60,7 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
 // override
 void BytecodeArrayWriter::Write(BytecodeNode* node) {
   DCHECK(!Bytecodes::IsJump(node->bytecode()));
+  MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
   UpdateSourcePositionTable(node);
   EmitBytecode(node);
 }
@@ -62,6 +68,7 @@ void BytecodeArrayWriter::Write(BytecodeNode* node) {
 // override
 void BytecodeArrayWriter::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   DCHECK(Bytecodes::IsJump(node->bytecode()));
+  MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
   UpdateSourcePositionTable(node);
   EmitJump(node, label);
 }
@@ -75,6 +82,7 @@ void BytecodeArrayWriter::BindLabel(BytecodeLabel* label) {
     // Now treat as if the label will only be back referred to.
   }
   label->bind_to(current_offset);
+  InvalidateLastBytecode();
 }
 
 // override
@@ -88,6 +96,7 @@ void BytecodeArrayWriter::BindLabel(const BytecodeLabel& target,
     // Now treat as if the label will only be back referred to.
   }
   label->bind_to(target.offset());
+  InvalidateLastBytecode();
 }
 
 void BytecodeArrayWriter::UpdateSourcePositionTable(
@@ -99,6 +108,31 @@ void BytecodeArrayWriter::UpdateSourcePositionTable(
         bytecode_offset, SourcePosition(source_info.source_position()),
         source_info.is_statement());
   }
+}
+
+void BytecodeArrayWriter::MaybeElideLastBytecode(Bytecode next_bytecode,
+                                                 bool has_source_info) {
+  if (!elide_noneffectful_bytecodes_) return;
+
+  // If the last bytecode loaded the accumulator without any external effect,
+  // and the next bytecode clobbers this load without reading the accumulator,
+  // then the previous bytecode can be elided as it has no effect.
+  if (Bytecodes::IsAccumulatorLoadWithoutEffects(last_bytecode_) &&
+      Bytecodes::GetAccumulatorUse(next_bytecode) == AccumulatorUse::kWrite &&
+      (!last_bytecode_had_source_info_ || !has_source_info)) {
+    DCHECK_GT(bytecodes()->size(), last_bytecode_offset_);
+    bytecodes()->resize(last_bytecode_offset_);
+    // If the last bytecode had source info we will transfer the source info
+    // to this bytecode.
+    has_source_info |= last_bytecode_had_source_info_;
+  }
+  last_bytecode_ = next_bytecode;
+  last_bytecode_had_source_info_ = has_source_info;
+  last_bytecode_offset_ = bytecodes()->size();
+}
+
+void BytecodeArrayWriter::InvalidateLastBytecode() {
+  last_bytecode_ = Bytecode::kIllegal;
 }
 
 void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {

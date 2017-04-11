@@ -20,6 +20,8 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+#define R(i) static_cast<uint32_t>(Register(i).ToOperand())
+
 class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
  public:
   BytecodeArrayWriterUnittest()
@@ -113,25 +115,35 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
   Write(Bytecode::kLdaSmi, 127, {55, true});
   CHECK_EQ(bytecodes()->size(), 3u);
 
+  Write(Bytecode::kStar, Register(20).ToOperand());
+  CHECK_EQ(bytecodes()->size(), 5u);
+
   Write(Bytecode::kLdar, Register(200).ToOperand());
-  CHECK_EQ(bytecodes()->size(), 7u);
+  CHECK_EQ(bytecodes()->size(), 9u);
 
   Write(Bytecode::kReturn, {70, true});
-  CHECK_EQ(bytecodes()->size(), 8u);
+  CHECK_EQ(bytecodes()->size(), 10u);
 
-  static const uint8_t bytes[] = {B(StackCheck), B(LdaSmi), U8(127),  B(Wide),
-                                  B(Ldar),       R16(200),  B(Return)};
-  CHECK_EQ(bytecodes()->size(), arraysize(bytes));
-  for (size_t i = 0; i < arraysize(bytes); ++i) {
-    CHECK_EQ(bytecodes()->at(i), bytes[i]);
+  static const uint8_t expected_bytes[] = {
+      // clang-format off
+      /*  0 10 E> */ B(StackCheck),
+      /*  1 55 S> */ B(LdaSmi), U8(127),
+      /*  3       */ B(Star), R8(20),
+      /*  5       */ B(Wide), B(Ldar), R16(200),
+      /*  9 70 S> */ B(Return),
+      // clang-format on
+  };
+  CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
+  for (size_t i = 0; i < arraysize(expected_bytes); ++i) {
+    CHECK_EQ(bytecodes()->at(i), expected_bytes[i]);
   }
 
   Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
       isolate(), 0, 0, factory()->empty_fixed_array());
-  CHECK_EQ(bytecodes()->size(), arraysize(bytes));
+  CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
 
   PositionTableEntry expected_positions[] = {
-      {0, 10, false}, {1, 55, true}, {7, 70, true}};
+      {0, 10, false}, {1, 55, true}, {9, 70, true}};
   SourcePositionTableIterator source_iterator(
       bytecode_array->source_position_table());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
@@ -180,7 +192,6 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
 
   BytecodeLabel back_jump, jump_for_in, jump_end_1, jump_end_2, jump_end_3;
 
-#define R(i) static_cast<uint32_t>(Register(i).ToOperand())
   Write(Bytecode::kStackCheck, {30, false});
   Write(Bytecode::kLdaConstant, U8(0), {42, true});
   Write(Bytecode::kAdd, R(1), U8(1), {42, false});
@@ -209,7 +220,6 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   writer()->BindLabel(&jump_end_3);
   Write(Bytecode::kLdaUndefined);
   Write(Bytecode::kReturn, {85, true});
-#undef R
 
   CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
   for (size_t i = 0; i < arraysize(expected_bytes); ++i) {
@@ -232,6 +242,57 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   CHECK(source_iterator.done());
 }
 
+TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
+  if (!i::FLAG_ignition_elide_noneffectful_bytecodes) return;
+
+  static const uint8_t expected_bytes[] = {
+      // clang-format off
+      /*  0  10 E> */ B(StackCheck),
+      /*  1  55 S> */ B(Ldar), R8(20),
+      /*  3        */ B(Star), R8(20),
+      /*  5        */ B(CreateMappedArguments),
+      /*  6  60 S> */ B(LdaSmi), U8(127),
+      /*  8  70 S> */ B(Ldar), R8(20),
+      /*  10 75 S> */ B(Return),
+      // clang-format on
+  };
+
+  static const PositionTableEntry expected_positions[] = {{0, 10, false},
+                                                          {1, 55, true},
+                                                          {6, 60, false},
+                                                          {8, 70, true},
+                                                          {10, 75, true}};
+
+  Write(Bytecode::kStackCheck, {10, false});
+  Write(Bytecode::kLdaSmi, 127, {55, true});  // Should be elided.
+  Write(Bytecode::kLdar, Register(20).ToOperand());
+  Write(Bytecode::kStar, Register(20).ToOperand());
+  Write(Bytecode::kLdar, Register(20).ToOperand());  // Should be elided.
+  Write(Bytecode::kCreateMappedArguments);
+  Write(Bytecode::kLdaSmi, 127, {60, false});  // Not elided due to source info.
+  Write(Bytecode::kLdar, Register(20).ToOperand(), {70, true});
+  Write(Bytecode::kReturn, {75, true});
+
+  CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
+  for (size_t i = 0; i < arraysize(expected_bytes); ++i) {
+    CHECK_EQ(static_cast<int>(bytecodes()->at(i)),
+             static_cast<int>(expected_bytes[i]));
+  }
+
+  Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
+      isolate(), 0, 0, factory()->empty_fixed_array());
+  SourcePositionTableIterator source_iterator(
+      bytecode_array->source_position_table());
+  for (size_t i = 0; i < arraysize(expected_positions); ++i) {
+    const PositionTableEntry& expected = expected_positions[i];
+    CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
+    CHECK_EQ(source_iterator.source_position().ScriptOffset(),
+             expected.source_position);
+    CHECK_EQ(source_iterator.is_statement(), expected.is_statement);
+    source_iterator.Advance();
+  }
+  CHECK(source_iterator.done());
+}
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

@@ -79,33 +79,6 @@ const char* PeepholeActionTableWriter::kNamespaceElements[] = {"v8", "internal",
 // static
 PeepholeActionAndData PeepholeActionTableWriter::LookupActionAndData(
     Bytecode last, Bytecode current) {
-  // The accumulator is invisible to the debugger. If there is a sequence
-  // of consecutive accumulator loads (that don't have side effects) then
-  // only the final load is potentially visible.
-  if (Bytecodes::IsAccumulatorLoadWithoutEffects(last) &&
-      Bytecodes::IsAccumulatorLoadWithoutEffects(current)) {
-    return {PeepholeAction::kElideLastAction, Bytecode::kIllegal};
-  }
-
-  // The current instruction clobbers the accumulator without reading
-  // it. The load in the last instruction can be elided as it has no
-  // effect.
-  if (Bytecodes::IsAccumulatorLoadWithoutEffects(last) &&
-      Bytecodes::GetAccumulatorUse(current) == AccumulatorUse::kWrite) {
-    return {PeepholeAction::kElideLastAction, Bytecode::kIllegal};
-  }
-
-  // Ldar and Star make the accumulator and register hold equivalent
-  // values. Only the first bytecode is needed if there's a sequence
-  // of back-to-back Ldar and Star bytecodes with the same operand.
-  if (Bytecodes::IsLdarOrStar(last) && Bytecodes::IsLdarOrStar(current)) {
-    return {PeepholeAction::kElideCurrentIfOperand0MatchesAction,
-            Bytecode::kIllegal};
-  }
-
-  // TODO(rmcilroy): Add elide for consecutive mov to and from the same
-  // register.
-
   // If there is no last bytecode to optimize against, store the incoming
   // bytecode or for jumps emit incoming bytecode immediately.
   if (last == Bytecode::kIllegal) {

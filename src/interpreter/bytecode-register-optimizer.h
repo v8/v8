@@ -43,6 +43,8 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
 
   // Perform explicit register transfer operations.
   void DoLdar(Register input) {
+    // TODO(rmcilroy): Avoid treating accumulator loads as clobbering the
+    // accumulator until the value is actually materialized in the accumulator.
     RegisterInfo* input_info = GetRegisterInfo(input);
     RegisterTransfer(input_info, accumulator_info_);
   }

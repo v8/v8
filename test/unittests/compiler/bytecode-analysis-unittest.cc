@@ -25,10 +25,10 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
   ~BytecodeAnalysisTest() override {}
 
   static void SetUpTestCase() {
-    old_FLAG_ignition_peephole_ = i::FLAG_ignition_peephole;
+    CHECK_NULL(save_flags_);
+    save_flags_ = new SaveFlags();
+    i::FLAG_ignition_elide_noneffectful_bytecodes = false;
     i::FLAG_ignition_peephole = false;
-
-    old_FLAG_ignition_reo_ = i::FLAG_ignition_reo;
     i::FLAG_ignition_reo = false;
 
     TestWithIsolateAndZone::SetUpTestCase();
@@ -36,8 +36,8 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
 
   static void TearDownTestCase() {
     TestWithIsolateAndZone::TearDownTestCase();
-    i::FLAG_ignition_peephole = old_FLAG_ignition_peephole_;
-    i::FLAG_ignition_reo = old_FLAG_ignition_reo_;
+    delete save_flags_;
+    save_flags_ = nullptr;
   }
 
   std::string ToLivenessString(const BytecodeLivenessState* liveness) const {
@@ -83,14 +83,12 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
   }
 
  private:
-  static bool old_FLAG_ignition_peephole_;
-  static bool old_FLAG_ignition_reo_;
+  static SaveFlags* save_flags_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeAnalysisTest);
 };
 
-bool BytecodeAnalysisTest::old_FLAG_ignition_peephole_;
-bool BytecodeAnalysisTest::old_FLAG_ignition_reo_;
+SaveFlags* BytecodeAnalysisTest::save_flags_ = nullptr;
 
 TEST_F(BytecodeAnalysisTest, EmptyBlock) {
   interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 0, 3);
@@ -131,9 +129,6 @@ TEST_F(BytecodeAnalysisTest, StoreThenLoad) {
 
   builder.StoreAccumulatorInRegister(reg_0);
   expected_liveness.emplace_back("...L", "L...");
-
-  builder.LoadNull();
-  expected_liveness.emplace_back("L...", "L...");
 
   builder.LoadAccumulatorWithRegister(reg_0);
   expected_liveness.emplace_back("L...", "...L");
