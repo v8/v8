@@ -130,6 +130,7 @@ function findNextFrame(file, stack, stackPos, step, filter) {
   while (stackPos >= 0 && stackPos < stack.length) {
     codeId = stack[stackPos];
     code = codeId >= 0 ? file.code[codeId] : undefined;
+
     if (filter) {
       let type = code ? code.type : undefined;
       let kind = code ? code.kind : undefined;
@@ -196,6 +197,31 @@ function createEmptyNode(name) {
       ownTicks : 0,
       ticks : 0
   };
+}
+
+class RuntimeCallTreeProcessor {
+  constructor() {
+    this.tree = createEmptyNode("root");
+    this.tree.delayedExpansion = { frameList : [], ascending : false };
+  }
+
+  addStack(file, tickIndex) {
+    this.tree.ticks++;
+
+    let stack = file.ticks[tickIndex].s;
+    let i;
+    for (i = 0; i < stack.length; i += 2) {
+      let codeId = stack[i];
+      if (codeId < 0) return;
+      let code = file.code[codeId];
+      if (code.type !== "CPP" && code.type !== "SHARED_LIB") {
+        i -= 2;
+        break;
+      }
+    }
+    if (i < 0 || i >= stack.length) return;
+    addOrUpdateChildNode(this.tree, file, tickIndex, i, false);
+  }
 }
 
 class PlainCallTreeProcessor {

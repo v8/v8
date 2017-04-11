@@ -526,7 +526,8 @@ class CallTreeView {
       case "top-down":
         addOptions(this.selectAttribution, attributions, calltree.attribution);
         addOptions(this.selectCategories, [
-            { value : "none", text : "None" }
+            { value : "none", text : "None" },
+            { value : "rt-entry", text : "Runtime entries" }
         ], calltree.categories);
         addOptions(this.selectSort, [
             { value : "time", text : "Time (including children)" },
@@ -605,8 +606,13 @@ class CallTreeView {
     let stackProcessor;
     let filter = filterFromFilterId(this.currentState.callTree.attribution);
     if (mode === "top-down") {
-      stackProcessor =
-          new PlainCallTreeProcessor(filter, false);
+      if (this.currentState.callTree.categories === "rt-entry") {
+        stackProcessor =
+            new RuntimeCallTreeProcessor();
+      } else {
+        stackProcessor =
+            new PlainCallTreeProcessor(filter, false);
+      }
     } else if (mode === "function-list") {
       stackProcessor = new FunctionListTree(
           filter, this.currentState.callTree.categories === "code-type");
