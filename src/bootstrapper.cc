@@ -35,32 +35,15 @@ Bootstrapper::Bootstrapper(Isolate* isolate)
       nesting_(0),
       extensions_cache_(Script::TYPE_EXTENSION) {}
 
-template <class Source>
-Handle<String> Bootstrapper::SourceLookup(int index) {
-  DCHECK(0 <= index && index < Source::GetBuiltinsCount());
-  Heap* heap = isolate_->heap();
-  if (Source::GetSourceCache(heap)->get(index)->IsUndefined(isolate_)) {
-    // We can use external strings for the natives.
-    Vector<const char> source = Source::GetScriptSource(index);
-    NativesExternalStringResource* resource =
-        new NativesExternalStringResource(source.start(), source.length());
-    Handle<ExternalOneByteString> source_code =
-        isolate_->factory()->NewNativeSourceString(resource);
-    // Mark this external string with a special map.
-    DCHECK(source_code->is_short());
-    Source::GetSourceCache(heap)->set(index, *source_code);
-  }
-  Handle<Object> cached_source(Source::GetSourceCache(heap)->get(index),
-                               isolate_);
-  return Handle<String>::cast(cached_source);
+Handle<String> Bootstrapper::GetNativeSource(NativeType type, int index) {
+  NativesExternalStringResource* resource =
+      new NativesExternalStringResource(type, index);
+  Handle<ExternalOneByteString> source_code =
+      isolate_->factory()->NewNativeSourceString(resource);
+  isolate_->heap()->RegisterExternalString(*source_code);
+  DCHECK(source_code->is_short());
+  return source_code;
 }
-
-
-template Handle<String> Bootstrapper::SourceLookup<Natives>(int index);
-template Handle<String> Bootstrapper::SourceLookup<ExperimentalExtraNatives>(
-    int index);
-template Handle<String> Bootstrapper::SourceLookup<ExtraNatives>(int index);
-
 
 void Bootstrapper::Initialize(bool create_heap_objects) {
   extensions_cache_.Initialize(isolate_, create_heap_objects);
@@ -111,30 +94,7 @@ void Bootstrapper::TearDownExtensions() {
   ignition_statistics_extension_ = NULL;
 }
 
-
-void DeleteNativeSources(Object* maybe_array) {
-  if (maybe_array->IsFixedArray()) {
-    FixedArray* array = FixedArray::cast(maybe_array);
-    Isolate* isolate = array->GetIsolate();
-    for (int i = 0; i < array->length(); i++) {
-      Object* natives_source = array->get(i);
-      if (!natives_source->IsUndefined(isolate)) {
-        const NativesExternalStringResource* resource =
-            reinterpret_cast<const NativesExternalStringResource*>(
-                ExternalOneByteString::cast(natives_source)->resource());
-        delete resource;
-      }
-    }
-  }
-}
-
-
 void Bootstrapper::TearDown() {
-  DeleteNativeSources(Natives::GetSourceCache(isolate_->heap()));
-  DeleteNativeSources(ExtraNatives::GetSourceCache(isolate_->heap()));
-  DeleteNativeSources(
-      ExperimentalExtraNatives::GetSourceCache(isolate_->heap()));
-
   extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
 }
 
@@ -3225,7 +3185,7 @@ void Genesis::InitializeExperimentalGlobal() {
 bool Bootstrapper::CompileBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> source_code =
-      isolate->bootstrapper()->SourceLookup<Natives>(index);
+      isolate->bootstrapper()->GetNativeSource(CORE, index);
 
   // We pass in extras_utils so that builtin code can set it up for later use
   // by actual extras code, compiled with CompileExtraBuiltin.
@@ -3243,7 +3203,7 @@ bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
   HandleScope scope(isolate);
   Vector<const char> name = ExtraNatives::GetScriptName(index);
   Handle<String> source_code =
-      isolate->bootstrapper()->SourceLookup<ExtraNatives>(index);
+      isolate->bootstrapper()->GetNativeSource(EXTRAS, index);
   Handle<Object> global = isolate->global_object();
   Handle<Object> binding = isolate->extras_binding_object();
   Handle<Object> extras_utils = isolate->extras_utils_object();
@@ -3258,7 +3218,7 @@ bool Bootstrapper::CompileExperimentalExtraBuiltin(Isolate* isolate,
   HandleScope scope(isolate);
   Vector<const char> name = ExperimentalExtraNatives::GetScriptName(index);
   Handle<String> source_code =
-      isolate->bootstrapper()->SourceLookup<ExperimentalExtraNatives>(index);
+      isolate->bootstrapper()->GetNativeSource(EXPERIMENTAL_EXTRAS, index);
   Handle<Object> global = isolate->global_object();
   Handle<Object> binding = isolate->extras_binding_object();
   Handle<Object> extras_utils = isolate->extras_utils_object();

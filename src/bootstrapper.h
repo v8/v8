@@ -6,6 +6,7 @@
 #define V8_BOOTSTRAPPER_H_
 
 #include "src/factory.h"
+#include "src/snapshot/natives.h"
 
 namespace v8 {
 namespace internal {
@@ -96,8 +97,7 @@ class Bootstrapper final {
   void Iterate(ObjectVisitor* v);
 
   // Accessor for the native scripts source code.
-  template <class Source>
-  Handle<String> SourceLookup(int index);
+  Handle<String> GetNativeSource(NativeType type, int index);
 
   // Tells whether bootstrapping is active.
   bool IsActive() const { return nesting_ != 0; }
@@ -161,20 +161,6 @@ class BootstrapperActive final BASE_EMBEDDED {
   Bootstrapper* bootstrapper_;
 
   DISALLOW_COPY_AND_ASSIGN(BootstrapperActive);
-};
-
-
-class NativesExternalStringResource final
-    : public v8::String::ExternalOneByteStringResource {
- public:
-  NativesExternalStringResource(const char* source, size_t length)
-      : data_(source), length_(length) {}
-  const char* data() const override { return data_; }
-  size_t length() const override { return length_; }
-
- private:
-  const char* data_;
-  size_t length_;
 };
 
 }  // namespace internal

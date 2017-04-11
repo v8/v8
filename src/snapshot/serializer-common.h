@@ -166,12 +166,9 @@ class SerializerDeserializer : public ObjectVisitor {
   // Internal reference encoded as offsets of pc and target from code entry.
   static const int kInternalReference = 0x1b;
   static const int kInternalReferenceEncoded = 0x1c;
-  // Used for the source code of the natives, which is in the executable, but
-  // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0x1d;
-  // Used for the source code for compiled stubs, which is in the executable,
-  // but is referred to from external strings in the snapshot.
-  static const int kExtraNativesStringResource = 0x1e;
+  // Used to encode deoptimizer entry code.
+  static const int kDeoptimizerEntryPlain = 0x1d;
+  static const int kDeoptimizerEntryFromCode = 0x1e;
   // Used for embedder-provided serialization data for embedder fields.
   static const int kEmbedderFieldsData = 0x1f;
 
@@ -184,10 +181,7 @@ class SerializerDeserializer : public ObjectVisitor {
   static const int kHotObjectWithSkip = 0x58;
   static const int kHotObjectMask = 0x07;
 
-  static const int kDeoptimizerEntryPlain = 0x35;
-  static const int kDeoptimizerEntryFromCode = 0x36;
-
-  // 0x37, 0x55..0x57, 0x75..0x7f unused.
+  // 0x35..0x37, 0x55..0x57, 0x75..0x7f unused.
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.

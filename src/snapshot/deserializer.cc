@@ -356,6 +356,14 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     if (isolate_->external_reference_redirector()) {
       accessor_infos_.Add(AccessorInfo::cast(obj));
     }
+  } else if (obj->IsExternalOneByteString()) {
+    DCHECK(obj->map() == isolate_->heap()->native_source_string_map());
+    ExternalOneByteString* string = ExternalOneByteString::cast(obj);
+    DCHECK(string->is_short());
+    string->set_resource(
+        NativesExternalStringResource::DecodeForDeserialization(
+            string->resource()));
+    isolate_->heap()->RegisterExternalString(string);
   }
   // Check alignment.
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(), obj->RequiredAlignment()));
@@ -500,16 +508,6 @@ Address Deserializer::Allocate(int space_index, int size) {
     if (space_index == CODE_SPACE) SkipList::Update(address, size);
     return address;
   }
-}
-
-Object** Deserializer::CopyInNativesSource(Vector<const char> source_vector,
-                                           Object** current) {
-  DCHECK(!isolate_->heap()->deserialization_complete());
-  NativesExternalStringResource* resource = new NativesExternalStringResource(
-      source_vector.start(), source_vector.length());
-  Object* resource_obj = reinterpret_cast<Object*>(resource);
-  UnalignedCopy(current++, &resource_obj);
-  return current;
 }
 
 bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
@@ -812,16 +810,6 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         // If we get here then that indicates that you have a mismatch between
         // the number of GC roots when serializing and deserializing.
         CHECK(false);
-        break;
-
-      case kNativesStringResource:
-        current = CopyInNativesSource(Natives::GetScriptSource(source_.Get()),
-                                      current);
-        break;
-
-      case kExtraNativesStringResource:
-        current = CopyInNativesSource(
-            ExtraNatives::GetScriptSource(source_.Get()), current);
         break;
 
       // Deserialize raw data of variable length.

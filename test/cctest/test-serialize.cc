@@ -271,13 +271,6 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
     }
-    // Make sure all builtin scripts are cached.
-    {
-      HandleScope scope(isolate);
-      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->SourceLookup<Natives>(i);
-      }
-    }
 
     heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
     heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
@@ -377,13 +370,6 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
-    }
-    // Make sure all builtin scripts are cached.
-    {
-      HandleScope scope(isolate);
-      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->SourceLookup<Natives>(i);
-      }
     }
 
     // If we don't do this then we end up with a stray root pointing at the
@@ -502,13 +488,6 @@ static void PartiallySerializeCustomContext(
           source.length());
       CompileRun(source_str.ToLocalChecked());
       source.Dispose();
-    }
-    // Make sure all builtin scripts are cached.
-    {
-      HandleScope scope(isolate);
-      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->SourceLookup<Natives>(i);
-      }
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.

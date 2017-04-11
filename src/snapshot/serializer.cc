@@ -410,57 +410,17 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
     // their resources.
     SerializeExternalStringAsSequentialString();
   } else {
-    DCHECK(object_->IsExternalOneByteString());
-    DCHECK(ExternalOneByteString::cast(object_)->is_short());
-    int size = object_->Size();
-    Map* map = object_->map();
-    AllocationSpace space =
-        MemoryChunk::FromAddress(object_->address())->owner()->identity();
-    SerializePrologue(space, size, map);
-    // Serialize the rest of the object.
-    CHECK_EQ(0, bytes_processed_so_far_);
-    bytes_processed_so_far_ = kPointerSize;
-    typedef v8::String::ExternalOneByteStringResource Resource;
-    Resource** resource_pointer = reinterpret_cast<Resource**>(
-        HeapObject::RawField(object_, ExternalString::kResourceOffset));
-
-    Address references_start = reinterpret_cast<Address>(resource_pointer);
-    OutputRawData(references_start);
-    if (!SerializeExternalNativeSourceString(
-            Natives::GetBuiltinsCount(), resource_pointer,
-            Natives::GetSourceCache(heap), kNativesStringResource)) {
-      bool result = SerializeExternalNativeSourceString(
-          ExtraNatives::GetBuiltinsCount(), resource_pointer,
-          ExtraNatives::GetSourceCache(heap), kExtraNativesStringResource);
-      // One of the strings in the natives cache should match the resource.  We
-      // don't expect any other kinds of external strings here.
-      USE(result);
-      DCHECK(result);
-    }
-    OutputRawData(object_->address() + size);
+    ExternalOneByteString* string = ExternalOneByteString::cast(object_);
+    DCHECK(string->is_short());
+    const NativesExternalStringResource* resource =
+        reinterpret_cast<const NativesExternalStringResource*>(
+            string->resource());
+    // Replace the resource field with the type and index of the native source.
+    string->set_resource(resource->EncodeForSerialization());
+    SerializeContent();
+    // Restore the resource field.
+    string->set_resource(resource);
   }
-}
-
-bool Serializer::ObjectSerializer::SerializeExternalNativeSourceString(
-    int builtin_count,
-    v8::String::ExternalOneByteStringResource** resource_pointer,
-    FixedArray* source_cache, int resource_index) {
-  Isolate* isolate = serializer_->isolate();
-  for (int i = 0; i < builtin_count; i++) {
-    Object* source = source_cache->get(i);
-    if (!source->IsUndefined(isolate)) {
-      ExternalOneByteString* string = ExternalOneByteString::cast(source);
-      typedef v8::String::ExternalOneByteStringResource Resource;
-      const Resource* resource = string->resource();
-      if (resource == *resource_pointer) {
-        sink_->Put(resource_index, "NativesStringResource");
-        sink_->PutSection(i, "NativesStringResourceEnd");
-        bytes_processed_so_far_ += sizeof(resource);
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
@@ -566,43 +526,48 @@ void Serializer::ObjectSerializer::Serialize() {
 
   if (object_->IsExternalString()) {
     SerializeExternalString();
-  } else {
-    // We cannot serialize typed array objects correctly.
-    DCHECK(!object_->IsJSTypedArray());
-
-    // We don't expect fillers.
-    DCHECK(!object_->IsFiller());
-
-    if (object_->IsScript()) {
-      // Clear cached line ends.
-      Object* undefined = serializer_->isolate()->heap()->undefined_value();
-      Script::cast(object_)->set_line_ends(undefined);
-    }
-
-    int size = object_->Size();
-    Map* map = object_->map();
-    AllocationSpace space =
-        MemoryChunk::FromAddress(object_->address())->owner()->identity();
-    SerializePrologue(space, size, map);
-
-    // Serialize the rest of the object.
-    CHECK_EQ(0, bytes_processed_so_far_);
-    bytes_processed_so_far_ = kPointerSize;
-
-    RecursionScope recursion(serializer_);
-    // Objects that are immediately post processed during deserialization
-    // cannot be deferred, since post processing requires the object content.
-    if (recursion.ExceedsMaximum() && CanBeDeferred(object_)) {
-      serializer_->QueueDeferredObject(object_);
-      sink_->Put(kDeferred, "Deferring object content");
-      return;
-    }
-
-    UnlinkWeakNextScope unlink_weak_next(object_);
-
-    object_->IterateBody(map->instance_type(), size, this);
-    OutputRawData(object_->address() + size);
+    return;
   }
+
+  // We cannot serialize typed array objects correctly.
+  DCHECK(!object_->IsJSTypedArray());
+
+  // We don't expect fillers.
+  DCHECK(!object_->IsFiller());
+
+  if (object_->IsScript()) {
+    // Clear cached line ends.
+    Object* undefined = serializer_->isolate()->heap()->undefined_value();
+    Script::cast(object_)->set_line_ends(undefined);
+  }
+
+  SerializeContent();
+}
+
+void Serializer::ObjectSerializer::SerializeContent() {
+  int size = object_->Size();
+  Map* map = object_->map();
+  AllocationSpace space =
+      MemoryChunk::FromAddress(object_->address())->owner()->identity();
+  SerializePrologue(space, size, map);
+
+  // Serialize the rest of the object.
+  CHECK_EQ(0, bytes_processed_so_far_);
+  bytes_processed_so_far_ = kPointerSize;
+
+  RecursionScope recursion(serializer_);
+  // Objects that are immediately post processed during deserialization
+  // cannot be deferred, since post processing requires the object content.
+  if (recursion.ExceedsMaximum() && CanBeDeferred(object_)) {
+    serializer_->QueueDeferredObject(object_);
+    sink_->Put(kDeferred, "Deferring object content");
+    return;
+  }
+
+  UnlinkWeakNextScope unlink_weak_next(object_);
+
+  object_->IterateBody(map->instance_type(), size, this);
+  OutputRawData(object_->address() + size);
 }
 
 void Serializer::ObjectSerializer::SerializeDeferred() {

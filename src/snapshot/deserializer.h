@@ -117,9 +117,6 @@ class Deserializer : public SerializerDeserializer {
   // snapshot by chunk index and offset.
   HeapObject* GetBackReferencedObject(int space);
 
-  Object** CopyInNativesSource(Vector<const char> source_vector,
-                               Object** current);
-
   // Cached current isolate.
   Isolate* isolate_;
 

@@ -280,6 +280,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
         code_has_been_output_(false) {}
   ~ObjectSerializer() override {}
   void Serialize();
+  void SerializeContent();
   void SerializeDeferred();
   void VisitPointers(Object** start, Object** end) override;
   void VisitEmbeddedPointer(RelocInfo* target) override;
@@ -305,10 +306,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   int OutputRawData(Address up_to, ReturnSkip return_skip = kIgnoringReturn);
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
-  bool SerializeExternalNativeSourceString(
-      int builtin_count,
-      v8::String::ExternalOneByteStringResource** resource_pointer,
-      FixedArray* source_cache, int resource_index);
 
   Address PrepareCode();
 

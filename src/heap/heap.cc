@@ -2782,16 +2782,6 @@ void Heap::CreateInitialObjects() {
   set_regexp_multiple_cache(*factory->NewFixedArray(
       RegExpResultsCache::kRegExpResultsCacheSize, TENURED));
 
-  // Allocate cache for external strings pointing to native source code.
-  set_natives_source_cache(
-      *factory->NewFixedArray(Natives::GetBuiltinsCount()));
-
-  set_extra_natives_source_cache(
-      *factory->NewFixedArray(ExtraNatives::GetBuiltinsCount()));
-
-  set_experimental_extra_natives_source_cache(
-      *factory->NewFixedArray(ExperimentalExtraNatives::GetBuiltinsCount()));
-
   set_undefined_cell(*factory->NewCell(factory->undefined_value()));
 
   // Microtask queue uses the empty fixed array as a sentinel for "empty".
