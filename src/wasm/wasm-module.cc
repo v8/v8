@@ -1455,22 +1455,26 @@ class InstantiationHelper {
   std::vector<Handle<JSFunction>> js_wrappers_;
   JSToWasmWrapperCache js_to_wasm_cache_;
 
-  // Helper routines to print out errors with imports.
-  void ReportLinkError(const char* error, uint32_t index,
-                       Handle<String> module_name, Handle<String> import_name) {
-    thrower_->LinkError(
-        "Import #%d module=\"%.*s\" function=\"%.*s\" error: %s", index,
-        module_name->length(), module_name->ToCString().get(),
-        import_name->length(), import_name->ToCString().get(), error);
+// Helper routines to print out errors with imports.
+#define ERROR_THROWER_WITH_MESSAGE(TYPE)                                      \
+  void Report##TYPE(const char* error, uint32_t index,                        \
+                    Handle<String> module_name, Handle<String> import_name) { \
+    thrower_->TYPE("Import #%d module=\"%.*s\" function=\"%.*s\" error: %s",  \
+                   index, module_name->length(),                              \
+                   module_name->ToCString().get(), import_name->length(),     \
+                   import_name->ToCString().get(), error);                    \
+  }                                                                           \
+                                                                              \
+  MaybeHandle<Object> Report##TYPE(const char* error, uint32_t index,         \
+                                   Handle<String> module_name) {              \
+    thrower_->TYPE("Import #%d module=\"%.*s\" error: %s", index,             \
+                   module_name->length(), module_name->ToCString().get(),     \
+                   error);                                                    \
+    return MaybeHandle<Object>();                                             \
   }
 
-  MaybeHandle<Object> ReportLinkError(const char* error, uint32_t index,
-                                      Handle<String> module_name) {
-    thrower_->LinkError("Import #%d module=\"%.*s\" error: %s", index,
-                        module_name->length(), module_name->ToCString().get(),
-                        error);
-    return MaybeHandle<Object>();
-  }
+  ERROR_THROWER_WITH_MESSAGE(LinkError)
+  ERROR_THROWER_WITH_MESSAGE(TypeError)
 
   // Look up an import value in the {ffi_} object.
   MaybeHandle<Object> LookupImport(uint32_t index, Handle<String> module_name,
@@ -1483,14 +1487,14 @@ class InstantiationHelper {
     MaybeHandle<Object> result =
         Object::GetPropertyOrElement(ffi_, module_name);
     if (result.is_null()) {
-      return ReportLinkError("module not found", index, module_name);
+      return ReportTypeError("module not found", index, module_name);
     }
 
     Handle<Object> module = result.ToHandleChecked();
 
     // Look up the value in the module.
     if (!module->IsJSReceiver()) {
-      return ReportLinkError("module is not an object or function", index,
+      return ReportTypeError("module is not an object or function", index,
                              module_name);
     }
 
