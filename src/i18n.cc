@@ -13,6 +13,7 @@
 #include "src/objects-inl.h"
 #include "src/string-case.h"
 #include "unicode/brkiter.h"
+#include "unicode/bytestream.h"
 #include "unicode/calendar.h"
 #include "unicode/coll.h"
 #include "unicode/curramt.h"
@@ -1193,6 +1194,58 @@ MUST_USE_RESULT Object* ConvertToUpper(Handle<String> s, Isolate* isolate) {
 MUST_USE_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
                                     Isolate* isolate) {
   return is_upper ? ConvertToUpper(s, isolate) : ConvertToLower(s, isolate);
+}
+
+ICUTimezoneCache::ICUTimezoneCache() : timezone_(nullptr) { Clear(); }
+
+ICUTimezoneCache::~ICUTimezoneCache() { Clear(); }
+
+const char* ICUTimezoneCache::LocalTimezone(double time_ms) {
+  bool is_dst = DaylightSavingsOffset(time_ms) != 0;
+  char* name = is_dst ? dst_timezone_name_ : timezone_name_;
+  if (name[0] == '\0') {
+    icu::UnicodeString result;
+    GetTimeZone()->getDisplayName(is_dst, icu::TimeZone::LONG, result);
+    result += '\0';
+
+    icu::CheckedArrayByteSink byte_sink(name, kMaxTimezoneChars);
+    result.toUTF8(byte_sink);
+    CHECK(!byte_sink.Overflowed());
+  }
+  return const_cast<const char*>(name);
+}
+
+icu::TimeZone* ICUTimezoneCache::GetTimeZone() {
+  if (timezone_ == nullptr) {
+    timezone_ = icu::TimeZone::createDefault();
+  }
+  return timezone_;
+}
+
+bool ICUTimezoneCache::GetOffsets(double time_ms, int32_t* raw_offset,
+                                  int32_t* dst_offset) {
+  UErrorCode status = U_ZERO_ERROR;
+  GetTimeZone()->getOffset(time_ms, false, *raw_offset, *dst_offset, status);
+  return U_SUCCESS(status);
+}
+
+double ICUTimezoneCache::DaylightSavingsOffset(double time_ms) {
+  int32_t raw_offset, dst_offset;
+  if (!GetOffsets(time_ms, &raw_offset, &dst_offset)) return 0;
+  return dst_offset;
+}
+
+double ICUTimezoneCache::LocalTimeOffset() {
+  int32_t raw_offset, dst_offset;
+  if (!GetOffsets(icu::Calendar::getNow(), &raw_offset, &dst_offset)) return 0;
+  return raw_offset;
+}
+
+void ICUTimezoneCache::Clear() {
+  delete timezone_;
+  timezone_ = nullptr;
+  timezone_name_[0] = '\0';
+  dst_timezone_name_[0] = '\0';
 }
 
 }  // namespace internal
