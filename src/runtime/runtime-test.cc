@@ -111,6 +111,15 @@ bool WasmInstantiateOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return true;
 }
 
+bool GetWasmFromResolvedPromise(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args.Length() == 1);
+  v8::Local<v8::Promise> promise = v8::Local<v8::Promise>::Cast(args[0]);
+  CHECK(promise->State() == v8::Promise::PromiseState::kFulfilled);
+  args.GetReturnValue().Set(promise);
+  return true;
+}
+
 }  // namespace
 
 namespace v8 {
@@ -442,6 +451,24 @@ RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   if (unoptimized->kind() == Code::FUNCTION) {
     unoptimized->ClearInlineCaches();
   }
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_SetWasmCompileFromPromiseOverload) {
+  v8::ExtensionCallback old = isolate->wasm_compile_callback();
+  HandleScope scope(isolate);
+  Handle<Foreign> ret =
+      isolate->factory()->NewForeign(reinterpret_cast<Address>(old));
+  isolate->set_wasm_compile_callback(GetWasmFromResolvedPromise);
+  return *ret;
+}
+
+RUNTIME_FUNCTION(Runtime_ResetWasmOverloads) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Foreign, old, 0);
+  isolate->set_wasm_compile_callback(
+      reinterpret_cast<v8::ExtensionCallback>(old->foreign_address()));
   return isolate->heap()->undefined_value();
 }
 
