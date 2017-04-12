@@ -468,6 +468,18 @@ class RepresentationSelector {
         new_type = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
         break;
 
+      case IrOpcode::kCheckFloat64Hole:
+        new_type = Type::Intersect(
+            op_typer_.CheckFloat64Hole(FeedbackTypeOf(node->InputAt(0))),
+            info->restriction_type(), graph_zone());
+        break;
+
+      case IrOpcode::kCheckNumber:
+        new_type = Type::Intersect(
+            op_typer_.CheckNumber(FeedbackTypeOf(node->InputAt(0))),
+            info->restriction_type(), graph_zone());
+        break;
+
       case IrOpcode::kPhi: {
         new_type = TypePhi(node);
         if (type != nullptr) {
@@ -817,6 +829,15 @@ class RepresentationSelector {
     }
     ProcessRemainingInputs(node, value_count);
     if (lower()) Kill(node);
+  }
+
+  // Helper for no-op node.
+  void VisitNoop(Node* node, Truncation truncation) {
+    if (truncation.IsUnused()) return VisitUnused(node);
+    MachineRepresentation representation =
+        GetOutputInfoForPhi(node, TypeOf(node), truncation);
+    VisitUnop(node, UseInfo(representation, truncation), representation);
+    if (lower()) DeferReplacement(node, node->InputAt(0));
   }
 
   // Helper for binops of the R x L -> O variety.
@@ -2356,19 +2377,9 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckNumber: {
-        if (InputIs(node, Type::Number())) {
-          if (truncation.IsUsedAsWord32()) {
-            VisitUnop(node, UseInfo::TruncatingWord32(),
-                      MachineRepresentation::kWord32);
-          } else {
-            // TODO(jarin,bmeurer): We need to go to Tagged here, because
-            // otherwise we cannot distinguish the hole NaN (which might need to
-            // be treated as undefined). We should have a dedicated Type for
-            // that at some point, and maybe even a dedicated truncation.
-            VisitUnop(node, UseInfo::AnyTagged(),
-                      MachineRepresentation::kTagged);
-          }
-          if (lower()) DeferReplacement(node, node->InputAt(0));
+        Type* const input_type = TypeOf(node->InputAt(0));
+        if (input_type->Is(Type::Number())) {
+          VisitNoop(node, truncation);
         } else {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         }
@@ -2681,13 +2692,36 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckFloat64Hole: {
-        CheckFloat64HoleMode mode = CheckFloat64HoleModeOf(node->op());
-        ProcessInput(node, 0, UseInfo::TruncatingFloat64());
-        ProcessRemainingInputs(node, 1);
-        SetOutput(node, MachineRepresentation::kFloat64);
-        if (truncation.IsUsedAsFloat64() &&
-            mode == CheckFloat64HoleMode::kAllowReturnHole) {
-          if (lower()) DeferReplacement(node, node->InputAt(0));
+        Type* const input_type = TypeOf(node->InputAt(0));
+        if (input_type->Is(Type::Number())) {
+          VisitNoop(node, truncation);
+        } else {
+          CheckFloat64HoleMode mode = CheckFloat64HoleModeOf(node->op());
+          switch (mode) {
+            case CheckFloat64HoleMode::kAllowReturnHole:
+              if (truncation.IsUnused()) return VisitUnused(node);
+              if (truncation.IsUsedAsWord32()) {
+                VisitUnop(node, UseInfo::TruncatingWord32(),
+                          MachineRepresentation::kWord32);
+                if (lower()) DeferReplacement(node, node->InputAt(0));
+              } else if (truncation.IsUsedAsFloat64()) {
+                VisitUnop(node, UseInfo::TruncatingFloat64(),
+                          MachineRepresentation::kFloat64);
+                if (lower()) DeferReplacement(node, node->InputAt(0));
+              } else {
+                VisitUnop(
+                    node,
+                    UseInfo(MachineRepresentation::kFloat64, Truncation::Any()),
+                    MachineRepresentation::kFloat64, Type::Number());
+              }
+              break;
+            case CheckFloat64HoleMode::kNeverReturnHole:
+              VisitUnop(
+                  node,
+                  UseInfo(MachineRepresentation::kFloat64, Truncation::Any()),
+                  MachineRepresentation::kFloat64, Type::Number());
+              break;
+          }
         }
         return;
       }

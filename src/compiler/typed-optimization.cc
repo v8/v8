@@ -78,6 +78,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceCheckHeapObject(node);
     case IrOpcode::kCheckMaps:
       return ReduceCheckMaps(node);
+    case IrOpcode::kCheckNumber:
+      return ReduceCheckNumber(node);
     case IrOpcode::kCheckString:
       return ReduceCheckString(node);
     case IrOpcode::kLoadField:
@@ -148,6 +150,16 @@ Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
         return Replace(effect);
       }
     }
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceCheckNumber(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::Number())) {
+    ReplaceWithValue(node, input);
+    return Replace(input);
   }
   return NoChange();
 }
