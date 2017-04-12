@@ -552,18 +552,6 @@
   'built-ins/TypedArrays/buffer-arg-use-default-proto-if-custom-proto-is-not-object-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/internals/Get/indexed-value-sab': ['--harmony-sharedarraybuffer'],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5961
-  'built-ins/Atomics/add/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/and/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/compareExchange/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/exchange/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/load/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/or/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/store/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/sub/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/wake/good-views': ['--harmony-sharedarraybuffer', FAIL],
-  'built-ins/Atomics/xor/good-views': ['--harmony-sharedarraybuffer', FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6045
   'intl402/NumberFormat/prototype/format/11.3.2_TRF': [FAIL],
   'intl402/NumberFormat/prototype/format/11.3.2_TRP': [FAIL],
