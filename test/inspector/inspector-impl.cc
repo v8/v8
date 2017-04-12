@@ -10,7 +10,7 @@
 
 namespace {
 
-const int kInspectorClientIndex = v8::Context::kDebugIdIndex + 1;
+const int kInspectorClientIndex = 0;
 
 class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
  public:

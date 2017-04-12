@@ -25,6 +25,9 @@ class Script;
 
 namespace debug {
 
+void SetContextId(Local<Context> context, int id);
+int GetContextId(Local<Context> context);
+
 /**
  * Debugger is running in its own context which is entered while debugger
  * messages are being dispatched. This is an explicit getter for this

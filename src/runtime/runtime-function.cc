@@ -111,8 +111,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  FixedArray* array = fun->native_context()->embedder_data();
-  return array->get(v8::Context::kDebugIdIndex);
+  return fun->native_context()->debug_context_id();
 }
 
 RUNTIME_FUNCTION(Runtime_FunctionSetInstanceClassName) {

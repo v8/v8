@@ -9139,6 +9139,15 @@ MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,
   return debug::GetInternalProperties(v8_isolate, value);
 }
 
+void debug::SetContextId(Local<Context> context, int id) {
+  Utils::OpenHandle(*context)->set_debug_context_id(i::Smi::FromInt(id));
+}
+
+int debug::GetContextId(Local<Context> context) {
+  i::Object* value = Utils::OpenHandle(*context)->debug_context_id();
+  return (value->IsSmi()) ? i::Smi::cast(value)->value() : 0;
+}
+
 Local<Context> debug::GetDebugContext(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8(i_isolate);

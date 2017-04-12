@@ -642,8 +642,6 @@ class ModuleEmbedderData {
 };
 
 enum {
-  // The debugger reserves the first slot in the Context embedder data.
-  kDebugIdIndex = Context::kDebugIdIndex,
   kModuleEmbedderDataIndex,
   kInspectorClientIndex
 };
