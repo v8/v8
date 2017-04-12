@@ -2700,11 +2700,7 @@ class RepresentationSelector {
           switch (mode) {
             case CheckFloat64HoleMode::kAllowReturnHole:
               if (truncation.IsUnused()) return VisitUnused(node);
-              if (truncation.IsUsedAsWord32()) {
-                VisitUnop(node, UseInfo::TruncatingWord32(),
-                          MachineRepresentation::kWord32);
-                if (lower()) DeferReplacement(node, node->InputAt(0));
-              } else if (truncation.IsUsedAsFloat64()) {
+              if (truncation.IsUsedAsFloat64()) {
                 VisitUnop(node, UseInfo::TruncatingFloat64(),
                           MachineRepresentation::kFloat64);
                 if (lower()) DeferReplacement(node, node->InputAt(0));
