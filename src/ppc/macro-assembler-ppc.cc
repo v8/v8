@@ -2629,7 +2629,7 @@ void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
   // `flags` should be an untagged integer. See `SuspendFlags` in src/globals.h
   if (!emit_debug_code()) return;
   TestIfSmi(object, r0);
-  Check(ne, kOperandIsASmiAndNotAGeneratorObject);
+  Check(ne, kOperandIsASmiAndNotAGeneratorObject, cr0);
 
   // Load map
   Register map = object;
@@ -2637,9 +2637,8 @@ void MacroAssembler::AssertGeneratorObject(Register object, Register flags) {
   LoadP(map, FieldMemOperand(object, HeapObject::kMapOffset));
 
   Label async, do_check;
-  And(ip, flags, Operand(static_cast<int>(SuspendFlags::kGeneratorTypeMask)));
-  cmpi(ip, Operand(static_cast<int>(SuspendFlags::kGeneratorTypeMask)));
-  bne(&async);
+  TestBitMask(flags, static_cast<int>(SuspendFlags::kGeneratorTypeMask), r0);
+  bne(&async, cr0);
 
   // Check if JSGeneratorObject
   CompareInstanceType(map, object, JS_GENERATOR_OBJECT_TYPE);

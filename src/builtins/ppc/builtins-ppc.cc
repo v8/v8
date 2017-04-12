@@ -672,7 +672,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Store input value into generator object.
   Label async_await, done_store_input;
 
-  __ And(r6, r6, Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
+  __ andi(r6, r6,
+          Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
   __ cmpi(r6, Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
   __ beq(&async_await);
 
