@@ -106,7 +106,6 @@ v8_enable_verify_heap = true
 """.replace("{GOMA}", USE_GOMA)
 
 DEBUG_ARGS_TEMPLATE = """\
-gdb_index = true
 is_component_build = true
 is_debug = true
 symbol_level = 2
@@ -118,7 +117,6 @@ v8_optimized_debug = false
 """.replace("{GOMA}", USE_GOMA)
 
 OPTDEBUG_ARGS_TEMPLATE = """\
-gdb_index = false
 is_component_build = true
 is_debug = true
 symbol_level = 1
