@@ -1810,6 +1810,9 @@ Type* Typer::Visitor::TypeStringIndexOf(Node* node) {
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   Type* index = Operand(node, 0);
   Type* length = Operand(node, 1);
+  if (index->Maybe(Type::MinusZero())) {
+    index = Type::Union(index, typer_->cache_.kSingletonZero, zone());
+  }
   index = Type::Intersect(index, Type::Integral32(), zone());
   if (!index->IsInhabited() || !length->IsInhabited()) return Type::None();
   double min = std::max(index->Min(), 0.0);
