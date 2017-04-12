@@ -966,6 +966,14 @@ class SeqOneByteSubStringKey : public HashTableKey {
     DCHECK(string_->IsSeqOneByteString());
   }
 
+// VS 2017 on official builds gives this spurious warning:
+// warning C4789: buffer 'key' of size 16 bytes will be overrun; 4 bytes will
+// be written starting at offset 16
+// https://bugs.chromium.org/p/v8/issues/detail?id=6068
+#if defined(V8_CC_MSVC)
+#pragma warning(push)
+#pragma warning(disable : 4789)
+#endif
   uint32_t Hash() override {
     DCHECK(length_ >= 0);
     DCHECK(from_ + length_ <= string_->length());
@@ -976,6 +984,9 @@ class SeqOneByteSubStringKey : public HashTableKey {
     DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
     return result;
   }
+#if defined(V8_CC_MSVC)
+#pragma warning(pop)
+#endif
 
   uint32_t HashForObject(Object* other) override {
     return String::cast(other)->Hash();
