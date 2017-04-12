@@ -2669,6 +2669,7 @@ group("v8_fuzzers") {
     ":v8_simple_wasm_asmjs_fuzzer",
     ":v8_simple_wasm_call_fuzzer",
     ":v8_simple_wasm_code_fuzzer",
+    ":v8_simple_wasm_compile_fuzzer",
     ":v8_simple_wasm_data_section_fuzzer",
     ":v8_simple_wasm_function_sigs_section_fuzzer",
     ":v8_simple_wasm_fuzzer",
