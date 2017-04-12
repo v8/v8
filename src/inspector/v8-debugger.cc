@@ -686,6 +686,11 @@ V8StackTraceImpl* V8Debugger::currentAsyncCallChain() {
   return m_currentStacks.back().get();
 }
 
+V8StackTraceImpl* V8Debugger::currentAsyncTaskCreationStack() {
+  if (!m_currentCreationStacks.size()) return nullptr;
+  return m_currentCreationStacks.back().get();
+}
+
 void V8Debugger::compileDebuggerScript() {
   if (!m_debuggerScript.IsEmpty()) {
     UNREACHABLE();
@@ -939,7 +944,9 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
     stack = stackIt->second->cloneImpl();
   auto itCreation = m_asyncTaskCreationStacks.find(task);
   if (stack && itCreation != m_asyncTaskCreationStacks.end()) {
-    stack->setCreation(itCreation->second->cloneImpl());
+    m_currentCreationStacks.push_back(itCreation->second->cloneImpl());
+  } else {
+    m_currentCreationStacks.push_back(nullptr);
   }
   m_currentStacks.push_back(std::move(stack));
 }
@@ -948,11 +955,12 @@ void V8Debugger::asyncTaskFinishedForStack(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
   // We could start instrumenting half way and the stack is empty.
   if (!m_currentStacks.size()) return;
-
   DCHECK(m_currentTasks.back() == task);
   m_currentTasks.pop_back();
 
+  DCHECK(m_currentStacks.size() == m_currentCreationStacks.size());
   m_currentStacks.pop_back();
+  m_currentCreationStacks.pop_back();
   if (m_recurringTasks.find(task) == m_recurringTasks.end()) {
     asyncTaskCanceledForStack(task);
   }
@@ -990,6 +998,7 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_asyncTaskStacks.clear();
   m_recurringTasks.clear();
   m_currentStacks.clear();
+  m_currentCreationStacks.clear();
   m_currentTasks.clear();
   m_parentTask.clear();
   m_asyncTaskCreationStacks.clear();

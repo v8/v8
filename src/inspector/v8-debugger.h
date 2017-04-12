@@ -77,6 +77,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   int maxAsyncCallChainDepth() { return m_maxAsyncCallStackDepth; }
   V8StackTraceImpl* currentAsyncCallChain();
+  V8StackTraceImpl* currentAsyncTaskCreationStack();
   void setAsyncCallStackDepth(V8DebuggerAgentImpl*, int);
   std::unique_ptr<V8StackTraceImpl> createStackTrace(v8::Local<v8::StackTrace>);
   std::unique_ptr<V8StackTraceImpl> captureStackTrace(bool fullStack);
@@ -189,6 +190,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   int m_maxAsyncCallStackDepth;
   std::vector<void*> m_currentTasks;
   std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
+  std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentCreationStacks;
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   protocol::HashMap<void*, void*> m_parentTask;
   protocol::HashMap<void*, void*> m_firstNextTask;

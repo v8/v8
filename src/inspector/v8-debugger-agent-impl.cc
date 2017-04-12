@@ -1030,9 +1030,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
 
 std::unique_ptr<StackTrace> V8DebuggerAgentImpl::currentAsyncStackTrace() {
   if (!isPaused()) return nullptr;
-  V8StackTraceImpl* stackTrace = m_debugger->currentAsyncCallChain();
-  return stackTrace ? stackTrace->buildInspectorObjectForTail(m_debugger)
-                    : nullptr;
+  return V8StackTraceImpl::buildInspectorObjectForTail(m_debugger);
 }
 
 bool V8DebuggerAgentImpl::isPaused() const { return m_debugger->isPaused(); }
