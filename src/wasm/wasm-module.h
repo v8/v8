@@ -472,6 +472,10 @@ V8_EXPORT_PRIVATE void AsyncInstantiate(Isolate* isolate,
                                         Handle<WasmModuleObject> module_object,
                                         MaybeHandle<JSReceiver> imports);
 
+V8_EXPORT_PRIVATE void AsyncCompileAndInstantiate(
+    Isolate* isolate, Handle<JSPromise> promise, const ModuleWireBytes& bytes,
+    MaybeHandle<JSReceiver> imports);
+
 #if V8_TARGET_ARCH_64_BIT
 const bool kGuardRegionsSupported = true;
 #else
