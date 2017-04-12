@@ -10,7 +10,7 @@
 #include "src/base/ring-buffer.h"
 #include "src/counters.h"
 #include "src/globals.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {
