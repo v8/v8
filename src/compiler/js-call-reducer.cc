@@ -544,44 +544,11 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         return Changed(node);
       }
 
-      // For CSA/C++ builtin {target}s, we can ensure that the number
-      // of parameters we pass to the {target} matches exactly the
-      // number of formal parameters expected by the builtin, and thus
-      // avoid creating an ArgumentsAdaptorFrame. This is safe because
-      // all CSA/C++ builtins that care about variable arguments are
-      // declared with the kDontAdaptArgumentsSentinel marker.
-      int builtin_index = shared->code()->builtin_index();
-      if (builtin_index != -1 && shared->native() && !shared->IsInterpreted()) {
-        // Check if we have an arguments mismatch for {target}.
-        int arity = static_cast<int>(p.arity() - 2);
-        int num_parameters = shared->internal_formal_parameter_count();
-        if (num_parameters != arity &&
-            num_parameters != SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
-          // Fill up missing parameters with undefined.
-          while (arity < num_parameters) {
-            node->InsertInput(graph()->zone(), arity + 2,
-                              jsgraph()->UndefinedConstant());
-            arity++;
-          }
-          // Remove additional parameters.
-          while (arity > num_parameters) {
-            node->RemoveInput(arity + 1);
-            arity--;
-          }
-          NodeProperties::ChangeOp(
-              node, javascript()->Call(arity + 2, p.frequency(), p.feedback(),
-                                       p.convert_mode(), p.tail_call_mode()));
-          // Try to further reduce the JSCall {node}.
-          Reduction const reduction = ReduceJSCall(node);
-          return reduction.Changed() ? reduction : Changed(node);
-        }
-      }
-
       // Don't inline cross native context.
       if (function->native_context() != *native_context()) return NoChange();
 
       // Check for known builtin functions.
-      switch (builtin_index) {
+      switch (shared->code()->builtin_index()) {
         case Builtins::kBooleanConstructor:
           return ReduceBooleanConstructor(node);
         case Builtins::kFunctionPrototypeApply:
