@@ -982,7 +982,6 @@ class CodeMap {
     DCHECK_EQ(code->function->imported, code->start == nullptr);
     if (code->targets == nullptr && code->start != nullptr) {
       // Compute the control targets map and the local declarations.
-      CHECK(DecodeLocalDecls(&code->locals, code->start, code->end));
       code->targets = new (zone_) ControlTransfers(
           zone_, &code->locals, code->orig_start, code->orig_end);
     }

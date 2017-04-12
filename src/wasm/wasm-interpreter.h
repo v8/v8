@@ -57,26 +57,38 @@ struct WasmVal {
   FOREACH_UNION_MEMBER(DECLARE_CONSTRUCTOR)
 #undef DECLARE_CONSTRUCTOR
 
+  bool operator==(const WasmVal& other) const {
+    if (type != other.type) return false;
+#define CHECK_VAL_EQ(field, localtype, ctype) \
+  if (type == localtype) {                    \
+    return val.field == other.val.field;      \
+  }
+    FOREACH_UNION_MEMBER(CHECK_VAL_EQ)
+#undef CHECK_VAL_EQ
+    UNREACHABLE();
+    return false;
+  }
+
   template <typename T>
-  inline T to() {
+  inline T to() const {
     UNREACHABLE();
   }
 
   template <typename T>
-  inline T to_unchecked() {
+  inline T to_unchecked() const {
     UNREACHABLE();
   }
 };
 
-#define DECLARE_CAST(field, localtype, ctype) \
-  template <>                                 \
-  inline ctype WasmVal::to_unchecked() {      \
-    return val.field;                         \
-  }                                           \
-  template <>                                 \
-  inline ctype WasmVal::to() {                \
-    CHECK_EQ(localtype, type);                \
-    return val.field;                         \
+#define DECLARE_CAST(field, localtype, ctype)  \
+  template <>                                  \
+  inline ctype WasmVal::to_unchecked() const { \
+    return val.field;                          \
+  }                                            \
+  template <>                                  \
+  inline ctype WasmVal::to() const {           \
+    CHECK_EQ(localtype, type);                 \
+    return val.field;                          \
   }
 FOREACH_UNION_MEMBER(DECLARE_CAST)
 #undef DECLARE_CAST

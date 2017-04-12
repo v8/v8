@@ -175,6 +175,7 @@ class WasmDecoder : public Decoder {
   static bool DecodeLocals(Decoder* decoder, const FunctionSig* sig,
                            ZoneVector<ValueType>* type_list) {
     DCHECK_NOT_NULL(type_list);
+    DCHECK_EQ(0, type_list->size());
     // Initialize from signature.
     if (sig != nullptr) {
       type_list->assign(sig->parameters().begin(), sig->parameters().end());
@@ -1721,7 +1722,7 @@ class WasmFullDecoder : public WasmDecoder {
         PrintF(", control = ");
         compiler::WasmGraphBuilder::PrintDebugName(env->control);
       }
-      PrintF("}");
+      PrintF("}\n");
     }
 #endif
     ssa_env_ = env;
