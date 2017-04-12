@@ -2035,6 +2035,74 @@ void InstructionSelector::VisitS32x4Select(Node* node) {
   VisitRRRR(this, kMipsS32x4Select, node);
 }
 
+void InstructionSelector::VisitF32x4Abs(Node* node) {
+  VisitRR(this, kMipsF32x4Abs, node);
+}
+
+void InstructionSelector::VisitF32x4Neg(Node* node) {
+  VisitRR(this, kMipsF32x4Neg, node);
+}
+
+void InstructionSelector::VisitF32x4RecipApprox(Node* node) {
+  VisitRR(this, kMipsF32x4RecipApprox, node);
+}
+
+void InstructionSelector::VisitF32x4RecipRefine(Node* node) {
+  VisitRRR(this, kMipsF32x4RecipRefine, node);
+}
+
+void InstructionSelector::VisitF32x4RecipSqrtApprox(Node* node) {
+  VisitRR(this, kMipsF32x4RecipSqrtApprox, node);
+}
+
+void InstructionSelector::VisitF32x4RecipSqrtRefine(Node* node) {
+  VisitRRR(this, kMipsF32x4RecipSqrtRefine, node);
+}
+
+void InstructionSelector::VisitF32x4Add(Node* node) {
+  VisitRRR(this, kMipsF32x4Add, node);
+}
+
+void InstructionSelector::VisitF32x4Sub(Node* node) {
+  VisitRRR(this, kMipsF32x4Sub, node);
+}
+
+void InstructionSelector::VisitF32x4Mul(Node* node) {
+  VisitRRR(this, kMipsF32x4Mul, node);
+}
+
+void InstructionSelector::VisitF32x4Max(Node* node) {
+  VisitRRR(this, kMipsF32x4Max, node);
+}
+
+void InstructionSelector::VisitF32x4Min(Node* node) {
+  VisitRRR(this, kMipsF32x4Min, node);
+}
+
+void InstructionSelector::VisitF32x4Eq(Node* node) {
+  VisitRRR(this, kMipsF32x4Eq, node);
+}
+
+void InstructionSelector::VisitF32x4Ne(Node* node) {
+  VisitRRR(this, kMipsF32x4Ne, node);
+}
+
+void InstructionSelector::VisitF32x4Lt(Node* node) {
+  VisitRRR(this, kMipsF32x4Lt, node);
+}
+
+void InstructionSelector::VisitF32x4Le(Node* node) {
+  VisitRRR(this, kMipsF32x4Le, node);
+}
+
+void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
+  VisitRR(this, kMipsI32x4SConvertF32x4, node);
+}
+
+void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
+  VisitRR(this, kMipsI32x4UConvertF32x4, node);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

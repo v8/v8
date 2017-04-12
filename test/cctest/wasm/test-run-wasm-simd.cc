@@ -75,7 +75,8 @@ T Maximum(T a, T b) {
 }
 
 // For float operands, Min and Max must return NaN if either operand is NaN.
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 template <>
 float Minimum(float a, float b) {
   if (std::isnan(a) || std::isnan(b))
@@ -89,7 +90,8 @@ float Maximum(float a, float b) {
     return std::numeric_limits<float>::quiet_NaN();
   return a >= b ? a : b;
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
 template <typename T>
 T UnsignedMinimum(T a, T b) {
@@ -485,7 +487,8 @@ WASM_EXEC_COMPILED_TEST(F32x4ConvertI32x4) {
 #endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 void RunF32x4UnOpTest(WasmOpcode simd_op, FloatUnOp expected_op,
                       float error = 0.0f) {
   FLAG_wasm_simd_prototype = true;
@@ -510,13 +513,14 @@ void RunF32x4UnOpTest(WasmOpcode simd_op, FloatUnOp expected_op,
 
 WASM_EXEC_COMPILED_TEST(F32x4Abs) { RunF32x4UnOpTest(kExprF32x4Abs, std::abs); }
 WASM_EXEC_COMPILED_TEST(F32x4Neg) { RunF32x4UnOpTest(kExprF32x4Neg, Negate); }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
 #if SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(F32x4Sqrt) { RunF32x4UnOpTest(kExprF32x4Sqrt, Sqrt); }
 #endif  // SIMD_LOWERING_TARGET
 
-#if V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 static const float kApproxError = 0.01f;
 
 WASM_EXEC_COMPILED_TEST(F32x4RecipApprox) {
@@ -526,9 +530,10 @@ WASM_EXEC_COMPILED_TEST(F32x4RecipApprox) {
 WASM_EXEC_COMPILED_TEST(F32x4RecipSqrtApprox) {
   RunF32x4UnOpTest(kExprF32x4RecipSqrtApprox, RecipSqrt, kApproxError);
 }
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 void RunF32x4BinOpTest(WasmOpcode simd_op, FloatBinOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, float, float, float> r(kExecuteCompiled);
@@ -563,13 +568,14 @@ WASM_EXEC_COMPILED_TEST(F32x4_Min) {
 WASM_EXEC_COMPILED_TEST(F32x4_Max) {
   RunF32x4BinOpTest(kExprF32x4Max, Maximum);
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
 #if SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(F32x4Div) { RunF32x4BinOpTest(kExprF32x4Div, Div); }
 #endif  // SIMD_LOWERING_TARGET
 
-#if V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_EXEC_COMPILED_TEST(F32x4RecipRefine) {
   RunF32x4BinOpTest(kExprF32x4RecipRefine, RecipRefine);
 }
@@ -577,9 +583,10 @@ WASM_EXEC_COMPILED_TEST(F32x4RecipRefine) {
 WASM_EXEC_COMPILED_TEST(F32x4RecipSqrtRefine) {
   RunF32x4BinOpTest(kExprF32x4RecipSqrtRefine, RecipSqrtRefine);
 }
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 void RunF32x4CompareOpTest(WasmOpcode simd_op, FloatCompareOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, float, float, int32_t> r(kExecuteCompiled);
@@ -626,7 +633,8 @@ WASM_EXEC_COMPILED_TEST(F32x4Lt) { RunF32x4CompareOpTest(kExprF32x4Lt, Less); }
 WASM_EXEC_COMPILED_TEST(F32x4Le) {
   RunF32x4CompareOpTest(kExprF32x4Le, LessEqual);
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
 WASM_EXEC_COMPILED_TEST(I32x4Splat) {
   FLAG_wasm_simd_prototype = true;
@@ -862,7 +870,8 @@ WASM_EXEC_COMPILED_TEST(I8x16ReplaceLane) {
 }
 #endif  // V8_TARGET_ARCH_ARM
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 // Determines if conversion from float to int will be valid.
 bool CanRoundToZeroAndConvert(double val, bool unsigned_integer) {
   const double max_uint = static_cast<double>(0xffffffffu);
@@ -928,6 +937,8 @@ WASM_EXEC_COMPILED_TEST(I32x4ConvertF32x4) {
     CHECK_EQ(1, r.Call(*i, signed_value, unsigned_value));
   }
 }
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_ARM
 // Tests both signed and unsigned conversion from I16x8 (unpacking).
@@ -956,6 +967,7 @@ WASM_EXEC_COMPILED_TEST(I32x4ConvertI16x8) {
 }
 #endif  // V8_TARGET_ARCH_ARM
 
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 void RunI32x4UnOpTest(WasmOpcode simd_op, Int32UnOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, int32_t> r(kExecuteCompiled);

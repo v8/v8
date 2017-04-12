@@ -356,6 +356,9 @@ constexpr DoubleRegister kLithiumScratchDouble = f30;
 constexpr DoubleRegister kDoubleRegZero = f28;
 // Used on mips32r6 for compare operations.
 constexpr DoubleRegister kDoubleCompareReg = f26;
+// MSA zero and scratch regs must have the same numbers as FPU zero and scratch
+constexpr Simd128Register kSimd128RegZero = w28;
+constexpr Simd128Register kSimd128ScratchReg = w30;
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.
