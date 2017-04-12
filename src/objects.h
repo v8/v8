@@ -1011,7 +1011,6 @@ template <class C> inline bool Is(Object* obj);
   V(JSReceiver)                  \
   V(JSObject)                    \
   V(JSArgumentsObject)           \
-  V(JSSloppyArgumentsObject)     \
   V(JSContextExtensionObject)    \
   V(JSGeneratorObject)           \
   V(JSAsyncGeneratorObject)      \
@@ -2683,11 +2682,6 @@ class JSArgumentsObject: public JSObject {
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
 
-  DECL_ACCESSORS(length, Object)
-
-  DECLARE_VERIFIER(JSArgumentsObject)
-  DECLARE_CAST(JSArgumentsObject)
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArgumentsObject);
 };
@@ -2703,11 +2697,6 @@ class JSSloppyArgumentsObject: public JSArgumentsObject {
   // Indices of in-object properties.
   static const int kCalleeIndex = 1;
 
-  DECL_ACCESSORS(callee, Object)
-
-  DECLARE_VERIFIER(JSSloppyArgumentsObject)
-  DECLARE_CAST(JSSloppyArgumentsObject)
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSloppyArgumentsObject);
 };
@@ -2719,8 +2708,6 @@ class JSStrictArgumentsObject: public JSArgumentsObject {
  public:
   // Offsets of object fields.
   static const int kSize = JSArgumentsObject::kHeaderSize;
-
-  DECLARE_CAST(JSStrictArgumentsObject)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);
@@ -2893,7 +2880,6 @@ class FixedDoubleArray: public FixedArrayBase {
 
 // Helper class to access FAST_ and SLOW_SLOPPY_ARGUMENTS_ELEMENTS
 //
-//    SloppyArgumentsElements
 // +---+-----------------------+
 // | 0 | Context* context      |
 // +---------------------------+
@@ -2928,9 +2914,6 @@ class SloppyArgumentsElements : public FixedArray {
   inline void set_mapped_entry(uint32_t entry, Object* object);
 
   DECLARE_CAST(SloppyArgumentsElements)
-#ifdef VERIFY_HEAP
-  void SloppyArgumentsElementsVerify(JSSloppyArgumentsObject* holder);
-#endif
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SloppyArgumentsElements);
