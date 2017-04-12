@@ -1007,8 +1007,15 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
                 !ZoneHandleSet<Map>(transition.target())
                      .contains(object_maps)) {
               state = state->KillMaps(object, zone());
-              state = state->KillField(
-                  object, FieldIndexOf(JSObject::kElementsOffset), zone());
+              switch (transition.mode()) {
+                case ElementsTransition::kFastTransition:
+                  break;
+                case ElementsTransition::kSlowTransition:
+                  // Kill the elements as well.
+                  state = state->KillField(
+                      object, FieldIndexOf(JSObject::kElementsOffset), zone());
+                  break;
+              }
             }
             break;
           }
