@@ -178,6 +178,7 @@ TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
+TYPE_CHECKER(SourcePositionTableWithFrameCache, TUPLE2_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
 TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
@@ -684,6 +685,7 @@ CAST_ACCESSOR(SeqOneByteString)
 CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(SeqTwoByteString)
 CAST_ACCESSOR(SharedFunctionInfo)
+CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(String)
@@ -4025,13 +4027,20 @@ int BytecodeArray::parameter_count() const {
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
 ACCESSORS(BytecodeArray, handler_table, FixedArray, kHandlerTableOffset)
-ACCESSORS(BytecodeArray, source_position_table, ByteArray,
+ACCESSORS(BytecodeArray, source_position_table, Object,
           kSourcePositionTableOffset)
 
 Address BytecodeArray::GetFirstBytecodeAddress() {
   return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
 }
 
+ByteArray* BytecodeArray::SourcePositionTable() {
+  Object* maybe_table = source_position_table();
+  if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
+  DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
+  return SourcePositionTableWithFrameCache::cast(maybe_table)
+      ->source_position_table();
+}
 
 int BytecodeArray::BytecodeArraySize() { return SizeFor(this->length()); }
 
@@ -4039,7 +4048,7 @@ int BytecodeArray::SizeIncludingMetadata() {
   int size = BytecodeArraySize();
   size += constant_pool()->Size();
   size += handler_table()->Size();
-  size += source_position_table()->Size();
+  size += SourcePositionTable()->Size();
   return size;
 }
 
@@ -5239,9 +5248,9 @@ int AbstractCode::instruction_size() {
 
 ByteArray* AbstractCode::source_position_table() {
   if (IsCode()) {
-    return GetCode()->source_position_table();
+    return GetCode()->SourcePositionTable();
   } else {
-    return GetBytecodeArray()->source_position_table();
+    return GetBytecodeArray()->SourcePositionTable();
   }
 }
 
@@ -5251,6 +5260,20 @@ void AbstractCode::set_source_position_table(ByteArray* source_position_table) {
   } else {
     GetBytecodeArray()->set_source_position_table(source_position_table);
   }
+}
+
+Object* AbstractCode::stack_frame_cache() {
+  Object* maybe_table;
+  if (IsCode()) {
+    maybe_table = GetCode()->source_position_table();
+  } else {
+    maybe_table = GetBytecodeArray()->source_position_table();
+  }
+  if (maybe_table->IsSourcePositionTableWithFrameCache()) {
+    return SourcePositionTableWithFrameCache::cast(maybe_table)
+        ->stack_frame_cache();
+  }
+  return Smi::kZero;
 }
 
 int AbstractCode::SizeIncludingMetadata() {
@@ -5824,6 +5847,11 @@ SMI_ACCESSORS(StackFrameInfo, flag, kFlagIndex)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, kIsWasmBit)
+
+ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
+          kSourcePositionTableIndex)
+ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
+          UnseededNumberDictionary, kStackFrameCacheIndex)
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,
@@ -6651,7 +6679,7 @@ INT_ACCESSORS(Code, constant_pool_offset, kConstantPoolOffset)
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(handler_table, FixedArray, kHandlerTableOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
-CODE_ACCESSORS(source_position_table, ByteArray, kSourcePositionTableOffset)
+CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
 CODE_ACCESSORS(trap_handler_index, Smi, kTrapHandlerIndex)
 CODE_ACCESSORS(raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
 CODE_ACCESSORS(next_code_link, Object, kNextCodeLinkOffset)
@@ -6684,6 +6712,13 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
                             value, mode);
 }
 
+ByteArray* Code::SourcePositionTable() {
+  Object* maybe_table = source_position_table();
+  if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
+  DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
+  return SourcePositionTableWithFrameCache::cast(maybe_table)
+      ->source_position_table();
+}
 
 uint32_t Code::stub_key() {
   DCHECK(IsCodeStubOrIC());
@@ -6750,7 +6785,9 @@ int Code::SizeIncludingMetadata() {
   size += relocation_info()->Size();
   size += deoptimization_data()->Size();
   size += handler_table()->Size();
-  if (kind() == FUNCTION) size += source_position_table()->Size();
+  if (kind() == FUNCTION) {
+    size += SourcePositionTable()->Size();
+  }
   return size;
 }
 

@@ -186,7 +186,7 @@ CodeBreakIterator::CodeBreakIterator(Handle<DebugInfo> debug_info)
     : BreakIterator(debug_info),
       reloc_iterator_(debug_info->DebugCode(), GetModeMask()),
       source_position_iterator_(
-          debug_info->DebugCode()->source_position_table()) {
+          debug_info->DebugCode()->SourcePositionTable()) {
   // There is at least one break location.
   DCHECK(!Done());
   Next();
@@ -277,7 +277,7 @@ BytecodeArrayBreakIterator::BytecodeArrayBreakIterator(
     Handle<DebugInfo> debug_info)
     : BreakIterator(debug_info),
       source_position_iterator_(
-          debug_info->DebugBytecodeArray()->source_position_table()) {
+          debug_info->DebugBytecodeArray()->SourcePositionTable()) {
   // There is at least one break location.
   DCHECK(!Done());
   Next();

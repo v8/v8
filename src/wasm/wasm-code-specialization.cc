@@ -41,8 +41,7 @@ int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
 class PatchDirectCallsHelper {
  public:
   PatchDirectCallsHelper(WasmInstanceObject* instance, Code* code)
-      : source_pos_it(code->source_position_table()),
-        decoder(nullptr, nullptr) {
+      : source_pos_it(code->SourcePositionTable()), decoder(nullptr, nullptr) {
     FixedArray* deopt_data = code->deoptimization_data();
     DCHECK_EQ(2, deopt_data->length());
     WasmCompiledModule* comp_mod = instance->compiled_module();

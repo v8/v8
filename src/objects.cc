@@ -14128,6 +14128,55 @@ void Code::ClearInlineCaches() {
   }
 }
 
+namespace {
+template <typename Code>
+void SetStackFrameCacheCommon(Handle<Code> code,
+                              Handle<UnseededNumberDictionary> cache) {
+  Handle<Object> maybe_table(code->source_position_table(), code->GetIsolate());
+  if (maybe_table->IsSourcePositionTableWithFrameCache()) {
+    Handle<SourcePositionTableWithFrameCache>::cast(maybe_table)
+        ->set_stack_frame_cache(*cache);
+    return;
+  }
+  DCHECK(maybe_table->IsByteArray());
+  Handle<ByteArray> table(Handle<ByteArray>::cast(maybe_table));
+  Handle<SourcePositionTableWithFrameCache> table_with_cache =
+      code->GetIsolate()->factory()->NewSourcePositionTableWithFrameCache(
+          table, cache);
+  code->set_source_position_table(*table_with_cache);
+}
+}  // namespace
+
+// static
+void AbstractCode::SetStackFrameCache(Handle<AbstractCode> abstract_code,
+                                      Handle<UnseededNumberDictionary> cache) {
+  if (abstract_code->IsCode()) {
+    SetStackFrameCacheCommon(handle(abstract_code->GetCode()), cache);
+  } else {
+    SetStackFrameCacheCommon(handle(abstract_code->GetBytecodeArray()), cache);
+  }
+}
+
+namespace {
+template <typename Code>
+void DropStackFrameCacheCommon(Code* code) {
+  i::Object* maybe_table = code->source_position_table();
+  if (maybe_table->IsByteArray()) return;
+  DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
+  code->set_source_position_table(
+      i::SourcePositionTableWithFrameCache::cast(maybe_table)
+          ->source_position_table());
+}
+}  // namespace
+
+void AbstractCode::DropStackFrameCache() {
+  if (IsCode()) {
+    DropStackFrameCacheCommon(GetCode());
+  } else {
+    DropStackFrameCacheCommon(GetBytecodeArray());
+  }
+}
+
 int AbstractCode::SourcePosition(int offset) {
   int position = 0;
   // Subtract one because the current PC is one instruction after the call site.
@@ -14784,7 +14833,7 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   }
   os << "\n";
 
-  SourcePositionTableIterator it(source_position_table());
+  SourcePositionTableIterator it(SourcePositionTable());
   if (!it.done()) {
     os << "Source positions:\n pc offset  position\n";
     for (; !it.done(); it.Advance()) {
@@ -14886,7 +14935,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Frame size " << frame_size() << "\n";
 
   const uint8_t* base_address = GetFirstBytecodeAddress();
-  SourcePositionTableIterator source_positions(source_position_table());
+  SourcePositionTableIterator source_positions(SourcePositionTable());
 
   interpreter::BytecodeArrayIterator iterator(handle(this));
   while (!iterator.done()) {

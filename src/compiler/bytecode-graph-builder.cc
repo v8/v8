@@ -638,7 +638,7 @@ void BytecodeGraphBuilder::VisitBytecodes(bool stack_check) {
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
   set_bytecode_iterator(&iterator);
   SourcePositionTableIterator source_position_iterator(
-      bytecode_array()->source_position_table());
+      bytecode_array()->SourcePositionTable());
 
   if (FLAG_trace_environment_liveness) {
     OFStream of(stdout);

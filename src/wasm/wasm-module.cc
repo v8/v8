@@ -3237,7 +3237,7 @@ MaybeHandle<Code> LazyCompilationOrchestrator::CompileLazy(
     DisallowHeapAllocation no_gc;
     SeqOneByteString* module_bytes = compiled_module->module_bytes();
     SourcePositionTableIterator source_pos_iterator(
-        caller->source_position_table());
+        caller->SourcePositionTable());
     DCHECK_EQ(2, caller->deoptimization_data()->length());
     int caller_func_index =
         Smi::cast(caller->deoptimization_data()->get(1))->value();

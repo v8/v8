@@ -148,7 +148,7 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
   PositionTableEntry expected_positions[] = {
       {0, 10, false}, {1, 55, true}, {9, 70, true}};
   SourcePositionTableIterator source_iterator(
-      bytecode_array->source_position_table());
+      bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
     CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
@@ -233,7 +233,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
       isolate(), 0, 0, factory()->empty_fixed_array());
   SourcePositionTableIterator source_iterator(
-      bytecode_array->source_position_table());
+      bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
     CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
@@ -285,7 +285,7 @@ TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
   Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
       isolate(), 0, 0, factory()->empty_fixed_array());
   SourcePositionTableIterator source_iterator(
-      bytecode_array->source_position_table());
+      bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
     CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
@@ -351,7 +351,7 @@ TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
   Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
       isolate(), 0, 0, factory()->empty_fixed_array());
   SourcePositionTableIterator source_iterator(
-      bytecode_array->source_position_table());
+      bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
     CHECK_EQ(source_iterator.code_offset(), expected.code_offset);

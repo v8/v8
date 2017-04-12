@@ -666,6 +666,32 @@ class CaptureStackTraceHelper {
 
   Handle<StackFrameInfo> NewStackFrameObject(
       const FrameSummary::JavaScriptFrameSummary& summ) {
+    int code_offset;
+    Handle<ByteArray> source_position_table;
+    Object* maybe_cache;
+    Handle<UnseededNumberDictionary> cache;
+    if (!FLAG_optimize_for_size) {
+      code_offset = summ.code_offset();
+      source_position_table =
+          handle(summ.abstract_code()->source_position_table(), isolate_);
+      maybe_cache = summ.abstract_code()->stack_frame_cache();
+      if (maybe_cache->IsUnseededNumberDictionary()) {
+        cache = handle(UnseededNumberDictionary::cast(maybe_cache));
+      } else {
+        cache = UnseededNumberDictionary::New(isolate_, 1);
+      }
+      int entry = cache->FindEntry(code_offset);
+      if (entry != UnseededNumberDictionary::kNotFound) {
+        Handle<StackFrameInfo> frame(
+            StackFrameInfo::cast(cache->ValueAt(entry)));
+        DCHECK(frame->function_name()->IsString());
+        Handle<String> function_name = summ.FunctionName();
+        if (function_name->Equals(String::cast(frame->function_name()))) {
+          return frame;
+        }
+      }
+    }
+
     Handle<StackFrameInfo> frame = factory()->NewStackFrameInfo();
     Handle<Script> script = Handle<Script>::cast(summ.script());
     Script::PositionInfo info;
@@ -684,6 +710,13 @@ class CaptureStackTraceHelper {
     frame->set_function_name(*function_name);
     frame->set_is_constructor(summ.is_constructor());
     frame->set_is_wasm(false);
+    if (!FLAG_optimize_for_size) {
+      auto new_cache =
+          UnseededNumberDictionary::AtNumberPut(cache, code_offset, frame);
+      if (*new_cache != *cache || !maybe_cache->IsUnseededNumberDictionary()) {
+        AbstractCode::SetStackFrameCache(summ.abstract_code(), new_cache);
+      }
+    }
     return frame;
   }
 

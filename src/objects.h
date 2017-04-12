@@ -145,6 +145,7 @@
 //       - DebugInfo
 //       - BreakPointInfo
 //       - StackFrameInfo
+//       - SourcePositionTableWithFrameCache
 //       - CodeCache
 //       - PrototypeInfo
 //       - Module
@@ -1098,7 +1099,8 @@ template <class C> inline bool Is(Object* obj);
   V(ObjectHashSet)               \
   V(WeakHashTable)               \
   V(OrderedHashTable)            \
-  V(SloppyArgumentsElements)
+  V(SloppyArgumentsElements)     \
+  V(SourcePositionTableWithFrameCache)
 
 #define ODDBALL_LIST(V)                 \
   V(Undefined, undefined_value)         \
@@ -3294,8 +3296,10 @@ class BytecodeArray : public FixedArrayBase {
   DECL_ACCESSORS(handler_table, FixedArray)
 
   // Accessors for source position table containing mappings between byte code
-  // offset and source position.
-  DECL_ACCESSORS(source_position_table, ByteArray)
+  // offset and source position or SourcePositionTableWithFrameCache.
+  DECL_ACCESSORS(source_position_table, Object)
+
+  inline ByteArray* SourcePositionTable();
 
   DECLARE_CAST(BytecodeArray)
 
@@ -3707,8 +3711,11 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [source_position_table]: ByteArray for the source positions table.
-  DECL_ACCESSORS(source_position_table, ByteArray)
+  // [source_position_table]: ByteArray for the source positions table or
+  // SourcePositionTableWithFrameCache.
+  DECL_ACCESSORS(source_position_table, Object)
+
+  inline ByteArray* SourcePositionTable();
 
   // [trap_handler_index]: An index into the trap handler's master list of code
   // objects.
@@ -4239,6 +4246,11 @@ class AbstractCode : public HeapObject {
 
   // Set the source position table.
   inline void set_source_position_table(ByteArray* source_position_table);
+
+  inline Object* stack_frame_cache();
+  static void SetStackFrameCache(Handle<AbstractCode> abstract_code,
+                                 Handle<UnseededNumberDictionary> cache);
+  void DropStackFrameCache();
 
   // Returns the size of instructions and the metadata.
   inline int SizeIncludingMetadata();
@@ -10145,6 +10157,22 @@ class StackFrameInfo : public Struct {
   static const int kIsWasmBit = 2;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackFrameInfo);
+};
+
+class SourcePositionTableWithFrameCache : public Tuple2 {
+ public:
+  DECL_ACCESSORS(source_position_table, ByteArray)
+  DECL_ACCESSORS(stack_frame_cache, UnseededNumberDictionary)
+
+  DECLARE_CAST(SourcePositionTableWithFrameCache)
+
+  static const int kSourcePositionTableIndex = Struct::kHeaderSize;
+  static const int kStackFrameCacheIndex =
+      kSourcePositionTableIndex + kPointerSize;
+  static const int kSize = kStackFrameCacheIndex + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SourcePositionTableWithFrameCache);
 };
 
 #define VISITOR_SYNCHRONIZATION_TAGS_LIST(V)                               \
