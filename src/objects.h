@@ -8203,8 +8203,11 @@ class String: public Name {
   // GetSubstitution(matched, str, position, captures, replacement)
   // Expand the $-expressions in the string and return a new string with
   // the result.
+  // A {start_index} can be passed to specify where to start scanning the
+  // replacement string.
   MUST_USE_RESULT static MaybeHandle<String> GetSubstitution(
-      Isolate* isolate, Match* match, Handle<String> replacement);
+      Isolate* isolate, Match* match, Handle<String> replacement,
+      int start_index = 0);
 
   // String equality operations.
   inline bool Equals(String* other);

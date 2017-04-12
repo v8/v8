@@ -519,7 +519,7 @@ namespace internal {
   F(StoreLookupSlot_Strict, 2, 1)
 
 #define FOR_EACH_INTRINSIC_STRINGS(F)     \
-  F(GetSubstitution, 4, 1)                \
+  F(GetSubstitution, 5, 1)                \
   F(StringReplaceOneCharWithString, 3, 1) \
   F(StringIndexOf, 3, 1)                  \
   F(StringIndexOfUnchecked, 3, 1)         \

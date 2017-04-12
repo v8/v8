@@ -19,6 +19,11 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   explicit StringBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
+  // ES#sec-getsubstitution
+  Node* GetSubstitution(Node* context, Node* subject_string,
+                        Node* match_start_index, Node* match_end_index,
+                        Node* replace_string);
+
  protected:
   Node* DirectStringData(Node* string, Node* string_instance_type) {
     // Compute the effective offset of the first character.
@@ -111,6 +116,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void StringIndexOf(Node* receiver, Node* instance_type, Node* search_string,
                      Node* search_string_instance_type, Node* position,
                      std::function<void(Node*)> f_return);
+
+  Node* IndexOfDollarChar(Node* const context, Node* const string);
 
   Node* IsNullOrUndefined(Node* const value);
   void RequireObjectCoercible(Node* const context, Node* const value,
@@ -991,6 +998,60 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   BIND(&out);
 }
 
+compiler::Node* StringBuiltinsAssembler::IndexOfDollarChar(Node* const context,
+                                                           Node* const string) {
+  CSA_ASSERT(this, IsString(string));
+
+  Node* const dollar_string = HeapConstant(
+      isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
+  Node* const dollar_ix = CallBuiltin(Builtins::kStringIndexOf, context, string,
+                                      dollar_string, SmiConstant(0));
+
+  CSA_ASSERT(this, TaggedIsSmi(dollar_ix));
+  return dollar_ix;
+}
+
+compiler::Node* StringBuiltinsAssembler::GetSubstitution(
+    Node* context, Node* subject_string, Node* match_start_index,
+    Node* match_end_index, Node* replace_string) {
+  CSA_ASSERT(this, IsString(subject_string));
+  CSA_ASSERT(this, IsString(replace_string));
+  CSA_ASSERT(this, TaggedIsPositiveSmi(match_start_index));
+  CSA_ASSERT(this, TaggedIsPositiveSmi(match_end_index));
+
+  VARIABLE(var_result, MachineRepresentation::kTagged, replace_string);
+  Label runtime(this), out(this);
+
+  // In this primitive implementation we simply look for the next '$' char in
+  // {replace_string}. If it doesn't exist, we can simply return
+  // {replace_string} itself. If it does, then we delegate to
+  // String::GetSubstitution, passing in the index of the first '$' to avoid
+  // repeated scanning work.
+  // TODO(jgruber): Possibly extend this in the future to handle more complex
+  // cases without runtime calls.
+
+  Node* const dollar_index = IndexOfDollarChar(context, replace_string);
+  Branch(SmiIsNegative(dollar_index), &out, &runtime);
+
+  BIND(&runtime);
+  {
+    CSA_ASSERT(this, TaggedIsPositiveSmi(dollar_index));
+
+    Callable substring_callable = CodeFactory::SubString(isolate());
+    Node* const matched = CallStub(substring_callable, context, subject_string,
+                                   match_start_index, match_end_index);
+    Node* const replacement_string =
+        CallRuntime(Runtime::kGetSubstitution, context, matched, subject_string,
+                    match_start_index, replace_string, dollar_index);
+    var_result.Bind(replacement_string);
+
+    Goto(&out);
+  }
+
+  BIND(&out);
+  return var_result.value();
+}
+
 // ES6 #sec-string.prototype.replace
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
@@ -1033,7 +1094,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Node* const subject_length = LoadStringLength(subject_string);
   Node* const search_length = LoadStringLength(search_string);
 
-  // Fast-path single-char {search}, long {receiver}, and simple string
+  // Fast-path single-char {search}, long cons {receiver}, and simple string
   // {replace}.
   {
     Label next(this);
@@ -1043,11 +1104,10 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     GotoIf(TaggedIsSmi(replace), &next);
     GotoIfNot(IsString(replace), &next);
 
-    Node* const dollar_string = HeapConstant(
-        isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
-    Node* const dollar_ix =
-        CallStub(indexof_callable, context, replace, dollar_string, smi_zero);
-    GotoIfNot(SmiIsNegative(dollar_ix), &next);
+    Node* const subject_instance_type = LoadInstanceType(subject_string);
+    GotoIfNot(IsConsStringInstanceType(subject_instance_type), &next);
+
+    GotoIf(TaggedIsPositiveSmi(IndexOfDollarChar(context, replace)), &next);
 
     // Searching by traversing a cons string tree and replace with cons of
     // slices works only when the replaced string is a single character, being
@@ -1136,15 +1196,11 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   BIND(&if_notcallablereplace);
   {
     Node* const replace_string = CallStub(tostring_callable, context, replace);
-
-    // TODO(jgruber): Simplified GetSubstitution implementation in CSA.
-    Node* const matched = CallStub(substring_callable, context, subject_string,
-                                   match_start_index, match_end_index);
-    Node* const replacement_string =
-        CallRuntime(Runtime::kGetSubstitution, context, matched, subject_string,
-                    match_start_index, replace_string);
-    var_result.Bind(CallStub(stringadd_callable, context, var_result.value(),
-                             replacement_string));
+    Node* const replacement =
+        GetSubstitution(context, subject_string, match_start_index,
+                        match_end_index, replace_string);
+    var_result.Bind(
+        CallStub(stringadd_callable, context, var_result.value(), replacement));
     Goto(&out);
   }
 

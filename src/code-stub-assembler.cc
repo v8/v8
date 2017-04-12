@@ -3009,6 +3009,13 @@ Node* CodeStubAssembler::IsSequentialStringInstanceType(Node* instance_type) {
       Int32Constant(kSeqStringTag));
 }
 
+Node* CodeStubAssembler::IsConsStringInstanceType(Node* instance_type) {
+  CSA_ASSERT(this, IsStringInstanceType(instance_type));
+  return Word32Equal(
+      Word32And(instance_type, Int32Constant(kStringRepresentationMask)),
+      Int32Constant(kConsStringTag));
+}
+
 Node* CodeStubAssembler::IsExternalStringInstanceType(Node* instance_type) {
   CSA_ASSERT(this, IsStringInstanceType(instance_type));
   return Word32Equal(

@@ -708,6 +708,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsExternalStringInstanceType(Node* instance_type);
   Node* IsShortExternalStringInstanceType(Node* instance_type);
   Node* IsSequentialStringInstanceType(Node* instance_type);
+  Node* IsConsStringInstanceType(Node* instance_type);
   Node* IsString(Node* object);
   Node* IsJSObject(Node* object);
   Node* IsJSGlobalProxy(Node* object);
