@@ -283,8 +283,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           CharacterRange::AddClassEscape('.', ranges, false, zone());
         }
 
-        RegExpCharacterClass* cc =
-            new (zone()) RegExpCharacterClass(ranges, false);
+        RegExpCharacterClass* cc = new (zone()) RegExpCharacterClass(ranges);
         builder->AddCharacterClass(cc);
         break;
       }
@@ -392,7 +391,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             CharacterRange::AddClassEscape(c, ranges,
                                            unicode() && ignore_case(), zone());
             RegExpCharacterClass* cc =
-                new (zone()) RegExpCharacterClass(ranges, false);
+                new (zone()) RegExpCharacterClass(ranges);
             builder->AddCharacterClass(cc);
             break;
           }
@@ -408,7 +407,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
                   return ReportError(CStrVector("Invalid property name"));
                 }
                 RegExpCharacterClass* cc =
-                    new (zone()) RegExpCharacterClass(ranges, false);
+                    new (zone()) RegExpCharacterClass(ranges);
                 builder->AddCharacterClass(cc);
               } else {
                 // With /u, no identity escapes except for syntax characters
@@ -1548,7 +1547,9 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
     ranges->Add(CharacterRange::Everything(), zone());
     is_negated = !is_negated;
   }
-  return new (zone()) RegExpCharacterClass(ranges, is_negated);
+  RegExpCharacterClass::Flags flags;
+  if (is_negated) flags = RegExpCharacterClass::NEGATED;
+  return new (zone()) RegExpCharacterClass(ranges, flags);
 }
 
 
@@ -1722,7 +1723,7 @@ void RegExpBuilder::AddCharacterClass(RegExpCharacterClass* cc) {
 
 void RegExpBuilder::AddCharacterClassForDesugaring(uc32 c) {
   AddTerm(new (zone()) RegExpCharacterClass(
-      CharacterRange::List(zone(), CharacterRange::Singleton(c)), false));
+      CharacterRange::List(zone(), CharacterRange::Singleton(c))));
 }
 
 
