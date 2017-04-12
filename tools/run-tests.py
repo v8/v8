@@ -419,6 +419,7 @@ def SetupEnvironment(options):
       'coverage=1',
       'coverage_dir=%s' % options.sancov_dir,
       symbolizer,
+      "allow_user_segv_handler=1",
     ])
 
   if options.cfi_vptr:
