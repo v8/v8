@@ -382,6 +382,19 @@
         {"name": "FastMap"},
         {"name": "ObjectMap"}
       ]
+    },
+    {
+      "name": "ForLoops",
+      "path": ["ForLoops"],
+      "main": "run.js",
+      "resources": [
+        "for_loop.js"
+      ],
+      "results_regexp": "^%s\\-ForLoop\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Let-Standard"},
+        {"name": "Var-Standard"}
+      ]
     }
   ]
 }
