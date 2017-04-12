@@ -8,6 +8,7 @@
 #include "src/bootstrapper.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
+#include "src/elements.h"
 #include "src/field-type.h"
 #include "src/layout-descriptor.h"
 #include "src/macro-assembler.h"
@@ -105,11 +106,13 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
-    case JS_ARGUMENTS_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       JSObject::cast(this)->JSObjectVerify();
+      break;
+    case JS_ARGUMENTS_TYPE:
+      JSArgumentsObject::cast(this)->JSArgumentsObjectVerify();
       break;
     case JS_GENERATOR_OBJECT_TYPE:
       JSGeneratorObject::cast(this)->JSGeneratorObjectVerify();
@@ -162,6 +165,7 @@ void HeapObject::HeapObjectVerify() {
     case JS_MAP_ITERATOR_TYPE:
       JSMapIterator::cast(this)->JSMapIteratorVerify();
       break;
+
     case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
     case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
     case JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE:
@@ -326,11 +330,7 @@ void JSObject::JSObjectVerify() {
   VerifyHeapPointer(properties());
   VerifyHeapPointer(elements());
 
-  if (HasSloppyArgumentsElements()) {
-    CHECK(this->elements()->IsFixedArray());
-    CHECK_GE(this->elements()->length(), 2);
-  }
-
+  CHECK_IMPLIES(HasSloppyArgumentsElements(), IsJSArgumentsObject());
   if (HasFastProperties()) {
     int actual_unused_property_fields = map()->GetInObjectProperties() +
                                         properties()->length() -
@@ -474,6 +474,60 @@ void TransitionArray::TransitionArrayVerify() {
         next_link()->IsTransitionArray());
 }
 
+void JSArgumentsObject::JSArgumentsObjectVerify() {
+  VerifyObjectField(kLengthOffset);
+  if (IsSloppyArgumentsElementsKind(GetElementsKind())) {
+    JSSloppyArgumentsObject::cast(this)->JSSloppyArgumentsObjectVerify();
+  }
+  JSObjectVerify();
+}
+
+void JSSloppyArgumentsObject::JSSloppyArgumentsObjectVerify() {
+  VerifyObjectField(kCalleeOffset);
+  ElementsKind kind = GetElementsKind();
+  CHECK(IsSloppyArgumentsElementsKind(kind));
+  SloppyArgumentsElements::cast(elements())
+      ->SloppyArgumentsElementsVerify(this);
+}
+
+void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
+    JSSloppyArgumentsObject* holder) {
+  Isolate* isolate = GetIsolate();
+  FixedArrayVerify();
+  // Abort verification if only partially initialized
+  if (arguments()->IsUndefined(isolate)) return;
+
+  ElementsKind kind = holder->GetElementsKind();
+  CHECK(IsFixedArray());
+  CHECK_GE(length(), 2);
+  CHECK_EQ(map(), isolate->heap()->sloppy_arguments_elements_map());
+  Context* contextObject = Context::cast(context());
+  FixedArray* argElements = FixedArray::cast(arguments());
+  if (argElements->length() == 0) {
+    CHECK(argElements == isolate->heap()->empty_fixed_array());
+    return;
+  }
+  int nofMappedParameters =
+      length() - SloppyArgumentsElements::kParameterMapStart;
+  CHECK_LE(nofMappedParameters, contextObject->length());
+  CHECK_LE(nofMappedParameters, argElements->length());
+  ElementsAccessor* accessor;
+  if (kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
+    accessor = ElementsAccessor::ForKind(FAST_HOLEY_ELEMENTS);
+  } else {
+    accessor = ElementsAccessor::ForKind(DICTIONARY_ELEMENTS);
+  }
+  for (int i = 0; i < nofMappedParameters; i++) {
+    // Verify that each mapped arguments is either the hole or a valid Smi
+    // within context length range.
+    Object* mapped = get_mapped_entry(i);
+    if (mapped->IsTheHole(isolate)) continue;
+    Object* value = contextObject->get(Smi::cast(mapped)->value());
+    CHECK(value->IsObject());
+    // None of the context-mapped entries should exist in the arguments elements
+    CHECK(!accessor->HasElement(holder, i, argElements));
+  }
+}
 
 void JSGeneratorObject::JSGeneratorObjectVerify() {
   // In an expression like "new g()", there can be a point where a generator
