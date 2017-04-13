@@ -1004,6 +1004,11 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(args, 0);
   if (index == -1) return;
+  if (index == 0 || index == data->realm_current_ ||
+      index == data->realm_switch_) {
+    Throw(args.GetIsolate(), "Invalid realm index");
+    return;
+  }
 
   Local<Context> context = Local<Context>::New(isolate, data->realms_[index]);
   v8::MaybeLocal<Value> global_object = context->Global();
