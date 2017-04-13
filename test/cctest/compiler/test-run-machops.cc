@@ -6778,6 +6778,14 @@ TEST(Regression6028) {
   CHECK_EQ(1, m.Call());
 }
 
+TEST(Regression5951_32bit) {
+  BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+  m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(0)),
+                       m.Int32Constant(0xffffffff)));
+  int32_t input = 1234;
+  CHECK_EQ(input, m.Call(input));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

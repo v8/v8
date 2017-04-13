@@ -919,7 +919,8 @@ void InstructionSelector::VisitWord32And(Node* node) {
     uint32_t mask = m.right().Value();
     uint32_t mask_width = base::bits::CountPopulation32(mask);
     uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
-    if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
+    if ((mask_width != 0) && (mask_width != 32) &&
+        (mask_msb + mask_width == 32)) {
       // The mask must be contiguous, and occupy the least-significant bits.
       DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
 
