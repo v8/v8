@@ -911,7 +911,7 @@ InlineCacheState CollectTypeProfileNexus::StateFromFeedback() const {
 }
 
 void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
-  DCHECK_GT(position, 0);
+  DCHECK_GE(position, 0);
   Isolate* isolate = GetIsolate();
 
   Object* const feedback = GetFeedback();
