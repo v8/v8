@@ -7,6 +7,7 @@
 #include "src/assembler-inl.h"
 #include "src/assert-scope.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
 #include "src/factory.h"
 #include "src/frames-inl.h"
@@ -23,6 +24,42 @@ using namespace v8::internal;
 using namespace v8::internal::wasm;
 
 namespace {
+
+template <bool internal, typename... Args>
+Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
+                                     Args... args) {
+  // Maximum length of a formatted value name ("param#%d", "local#%d",
+  // "global#%d").
+  constexpr int kMaxStrLen = 18;
+  EmbeddedVector<char, kMaxStrLen> value;
+  int len = SNPrintF(value, format, args...);
+  CHECK(len > 0 && len < value.length());
+  Vector<uint8_t> name = Vector<uint8_t>::cast(value.SubVector(0, len));
+  return internal
+             ? isolate->factory()->InternalizeOneByteString(name)
+             : isolate->factory()->NewStringFromOneByte(name).ToHandleChecked();
+}
+
+Handle<Object> WasmValToValueObject(Isolate* isolate, WasmVal value) {
+  switch (value.type) {
+    case kWasmI32:
+      if (Smi::IsValid(value.to<int32_t>()))
+        return handle(Smi::FromInt(value.to<int32_t>()), isolate);
+      return PrintFToOneByteString<false>(isolate, "%d", value.to<int32_t>());
+    case kWasmI64:
+      if (Smi::IsValid(value.to<int64_t>()))
+        return handle(Smi::FromIntptr(value.to<int64_t>()), isolate);
+      return PrintFToOneByteString<false>(isolate, "%" PRId64,
+                                          value.to<int64_t>());
+    case kWasmF32:
+      return isolate->factory()->NewNumber(value.to<float>());
+    case kWasmF64:
+      return isolate->factory()->NewNumber(value.to<double>());
+    default:
+      UNIMPLEMENTED();
+      return isolate->factory()->undefined_value();
+  }
+}
 
 // Forward declaration.
 class InterpreterHandle;
@@ -367,6 +404,88 @@ class InterpreterHandle {
     instance_.mem_start = reinterpret_cast<byte*>(new_memory->backing_store());
     CHECK(new_memory->byte_length()->ToUint32(&instance_.mem_size));
   }
+
+  Handle<JSArray> GetScopeDetails(Address frame_pointer, int frame_index,
+                                  Handle<WasmInstanceObject> instance) {
+    auto frame = GetInterpretedFrame(frame_pointer, frame_index);
+
+    Handle<FixedArray> global_scope =
+        isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
+    global_scope->set(ScopeIterator::kScopeDetailsTypeIndex,
+                      Smi::FromInt(ScopeIterator::ScopeTypeGlobal));
+    Handle<JSObject> global_scope_object =
+        isolate_->factory()->NewJSObjectWithNullProto();
+    global_scope->set(ScopeIterator::kScopeDetailsObjectIndex,
+                      *global_scope_object);
+
+    // TODO(clemensh): Add globals to the global scope.
+
+    if (instance->has_memory_buffer()) {
+      Handle<String> name = isolate_->factory()->InternalizeOneByteString(
+          STATIC_CHAR_VECTOR("memory"));
+      Handle<JSArrayBuffer> memory_buffer(instance->memory_buffer(), isolate_);
+      uint32_t byte_length;
+      CHECK(memory_buffer->byte_length()->ToUint32(&byte_length));
+      Handle<JSTypedArray> uint8_array = isolate_->factory()->NewJSTypedArray(
+          kExternalUint8Array, memory_buffer, 0, byte_length);
+      JSObject::SetOwnPropertyIgnoreAttributes(global_scope_object, name,
+                                               uint8_array, NONE)
+          .Check();
+    }
+
+    Handle<FixedArray> local_scope =
+        isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
+    local_scope->set(ScopeIterator::kScopeDetailsTypeIndex,
+                     Smi::FromInt(ScopeIterator::ScopeTypeLocal));
+    Handle<JSObject> local_scope_object =
+        isolate_->factory()->NewJSObjectWithNullProto();
+    local_scope->set(ScopeIterator::kScopeDetailsObjectIndex,
+                     *local_scope_object);
+
+    // Fill parameters and locals.
+    int num_params = frame->GetParameterCount();
+    int num_locals = frame->GetLocalCount();
+    DCHECK_LE(num_params, num_locals);
+    for (int i = 0; i < num_locals; ++i) {
+      // TODO(clemensh): Use names from name section if present.
+      const char* label = i < num_params ? "param#%d" : "local#%d";
+      Handle<String> name = PrintFToOneByteString<true>(isolate_, label, i);
+      WasmVal value = frame->GetLocalValue(i);
+      Handle<Object> value_obj = WasmValToValueObject(isolate_, value);
+      JSObject::SetOwnPropertyIgnoreAttributes(local_scope_object, name,
+                                               value_obj, NONE)
+          .Check();
+    }
+
+    // Fill stack values.
+    int stack_count = frame->GetStackHeight();
+    // Use an object without prototype instead of an Array, for nicer displaying
+    // in DevTools. For Arrays, the length field and prototype is displayed,
+    // which does not make too much sense here.
+    Handle<JSObject> stack_obj =
+        isolate_->factory()->NewJSObjectWithNullProto();
+    for (int i = 0; i < stack_count; ++i) {
+      WasmVal value = frame->GetStackValue(i);
+      Handle<Object> value_obj = WasmValToValueObject(isolate_, value);
+      JSObject::SetOwnElementIgnoreAttributes(
+          stack_obj, static_cast<uint32_t>(i), value_obj, NONE)
+          .Check();
+    }
+    Handle<String> stack_name = isolate_->factory()->InternalizeOneByteString(
+        STATIC_CHAR_VECTOR("stack"));
+    JSObject::SetOwnPropertyIgnoreAttributes(local_scope_object, stack_name,
+                                             stack_obj, NONE)
+        .Check();
+
+    Handle<JSArray> global_jsarr =
+        isolate_->factory()->NewJSArrayWithElements(global_scope);
+    Handle<JSArray> local_jsarr =
+        isolate_->factory()->NewJSArrayWithElements(local_scope);
+    Handle<FixedArray> all_scopes = isolate_->factory()->NewFixedArray(2);
+    all_scopes->set(0, *global_jsarr);
+    all_scopes->set(1, *local_jsarr);
+    return isolate_->factory()->NewJSArrayWithElements(all_scopes);
+  }
 };
 
 InterpreterHandle* GetOrCreateInterpreterHandle(
@@ -552,4 +671,13 @@ void WasmDebugInfo::UpdateMemory(JSArrayBuffer* new_memory) {
   InterpreterHandle* interp_handle = GetInterpreterHandleOrNull(this);
   if (!interp_handle) return;
   interp_handle->UpdateMemory(new_memory);
+}
+
+// static
+Handle<JSArray> WasmDebugInfo::GetScopeDetails(Handle<WasmDebugInfo> debug_info,
+                                               Address frame_pointer,
+                                               int frame_index) {
+  InterpreterHandle* interp_handle = GetInterpreterHandle(*debug_info);
+  Handle<WasmInstanceObject> instance(debug_info->wasm_instance());
+  return interp_handle->GetScopeDetails(frame_pointer, frame_index, instance);
 }

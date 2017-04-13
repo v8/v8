@@ -1350,6 +1350,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   WasmInstanceObject* wasm_instance() const;
   Script* script() const override;
   int position() const override;
+  Object* context() const override;
 
   static WasmInterpreterEntryFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm_interpreter_entry());

@@ -1833,6 +1833,10 @@ int WasmInterpreterEntryFrame::position() const {
   return FrameSummary::GetBottom(this).AsWasmInterpreted().SourcePosition();
 }
 
+Object* WasmInterpreterEntryFrame::context() const {
+  return wasm_instance()->compiled_module()->ptr_to_native_context();
+}
+
 Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
 }

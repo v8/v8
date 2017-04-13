@@ -2259,8 +2259,10 @@ class InterpretedFrameImpl {
         static_cast<size_t>(index_) + 1 == thread_->frames_.size();
     size_t stack_limit =
         is_top_frame ? thread_->stack_.size() : thread_->frames_[index_ + 1].sp;
-    DCHECK_LE(GetLocalCount(), stack_limit);
-    return static_cast<int>(stack_limit) - GetLocalCount();
+    DCHECK_LE(frame()->sp, stack_limit);
+    size_t frame_size = stack_limit - frame()->sp;
+    DCHECK_LE(GetLocalCount(), frame_size);
+    return static_cast<int>(frame_size) - GetLocalCount();
   }
 
   WasmVal GetLocalValue(int index) const {
