@@ -679,6 +679,7 @@ class RuntimeCallTimer final {
   V(UnboundScript_GetName)                                 \
   V(UnboundScript_GetSourceMappingURL)                     \
   V(UnboundScript_GetSourceURL)                            \
+  V(Value_InstanceOf)                                      \
   V(Value_TypeOf)                                          \
   V(ValueDeserializer_ReadHeader)                          \
   V(ValueDeserializer_ReadValue)                           \

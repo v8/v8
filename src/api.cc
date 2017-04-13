@@ -4181,6 +4181,18 @@ Local<String> Value::TypeOf(v8::Isolate* external_isolate) {
   return Utils::ToLocal(i::Object::TypeOf(isolate, Utils::OpenHandle(this)));
 }
 
+Maybe<bool> Value::InstanceOf(v8::Local<v8::Context> context,
+                              v8::Local<v8::Object> object) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, Value, InstanceOf, bool);
+  auto left = Utils::OpenHandle(this);
+  auto right = Utils::OpenHandle(*object);
+  i::Handle<i::Object> result;
+  has_pending_exception =
+      !i::Object::InstanceOf(isolate, left, right).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(result->IsTrue(isolate));
+}
+
 Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
                             v8::Local<Value> key, v8::Local<Value> value) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, Object, Set, bool);
@@ -5373,7 +5385,6 @@ Local<v8::Value> Function::GetBoundFunction() const {
   }
   return v8::Undefined(reinterpret_cast<v8::Isolate*>(self->GetIsolate()));
 }
-
 
 int Name::GetIdentityHash() {
   auto self = Utils::OpenHandle(this);

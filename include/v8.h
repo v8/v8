@@ -2317,6 +2317,8 @@ class V8_EXPORT Value : public Data {
 
   Local<String> TypeOf(Isolate*);
 
+  Maybe<bool> InstanceOf(Local<Context> context, Local<Object> object);
+
  private:
   V8_INLINE bool QuickIsUndefined() const;
   V8_INLINE bool QuickIsNull() const;
