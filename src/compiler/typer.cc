@@ -1804,7 +1804,8 @@ Type* Typer::Visitor::TypeCheckMaps(Node* node) {
 }
 
 Type* Typer::Visitor::TypeCheckNumber(Node* node) {
-  return typer_->operation_typer_.CheckNumber(Operand(node, 0));
+  Type* arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::Number(), zone());
 }
 
 Type* Typer::Visitor::TypeCheckReceiver(Node* node) {
@@ -1823,7 +1824,8 @@ Type* Typer::Visitor::TypeCheckString(Node* node) {
 }
 
 Type* Typer::Visitor::TypeCheckFloat64Hole(Node* node) {
-  return typer_->operation_typer_.CheckFloat64Hole(Operand(node, 0));
+  Type* type = Operand(node, 0);
+  return type;
 }
 
 Type* Typer::Visitor::TypeCheckTaggedHole(Node* node) {

@@ -3019,6 +3019,10 @@ void TranslatedValue::MaterializeSimple() {
     }
 
     case kDouble: {
+      if (double_value().is_hole_nan()) {
+        value_ = isolate()->factory()->hole_nan_value();
+        return;
+      }
       double scalar_value = double_value().get_scalar();
       value_ = Handle<Object>(isolate()->factory()->NewNumber(scalar_value));
       return;
@@ -3903,10 +3907,10 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
             Handle<FixedDoubleArray>::cast(object);
         for (int i = 0; i < length; ++i) {
           Handle<Object> value = materializer.FieldAt(value_index);
-          if (value.is_identical_to(isolate_->factory()->the_hole_value())) {
+          CHECK(value->IsNumber());
+          if (value.is_identical_to(isolate_->factory()->hole_nan_value())) {
             double_array->set_the_hole(isolate_, i);
           } else {
-            CHECK(value->IsNumber());
             double_array->set(i, value->Number());
           }
         }

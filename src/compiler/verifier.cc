@@ -1163,8 +1163,8 @@ void Verifier::Visitor::Check(Node* node) {
       break;
 
     case IrOpcode::kCheckFloat64Hole:
-      CheckValueInputIs(node, 0, Type::NumberOrHole());
-      CheckTypeIs(node, Type::NumberOrUndefined());
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckTypeIs(node, Type::Number());
       break;
     case IrOpcode::kCheckTaggedHole:
       CheckValueInputIs(node, 0, Type::Any());

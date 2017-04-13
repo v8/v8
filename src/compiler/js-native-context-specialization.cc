@@ -1990,12 +1990,10 @@ JSNativeContextSpecialization::BuildElementAccess(
     if (access_mode == AccessMode::kLoad) {
       // Compute the real element access type, which includes the hole in case
       // of holey backing stores.
-      if (IsHoleyElementsKind(elements_kind)) {
-        element_access.type =
-            Type::Union(element_type, Type::Hole(), graph()->zone());
-      }
       if (elements_kind == FAST_HOLEY_ELEMENTS ||
           elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
+        element_access.type =
+            Type::Union(element_type, Type::Hole(), graph()->zone());
         element_access.machine_type = MachineType::AnyTagged();
       }
       // Perform the actual backing store access.

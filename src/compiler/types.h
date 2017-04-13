@@ -155,7 +155,6 @@ namespace compiler {
   V(NullOrNumber,                 kNull | kNumber) \
   V(NullOrUndefined,              kNull | kUndefined) \
   V(Undetectable,                 kNullOrUndefined | kOtherUndetectable) \
-  V(NumberOrHole,                 kNumber | kHole) \
   V(NumberOrOddball,              kNumber | kNullOrUndefined | kBoolean | \
                                   kHole) \
   V(NumberOrString,               kNumber | kString) \
