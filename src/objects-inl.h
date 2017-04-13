@@ -1970,6 +1970,10 @@ void Oddball::set_to_number_raw(double value) {
   WRITE_DOUBLE_FIELD(this, kToNumberRawOffset, value);
 }
 
+void Oddball::set_to_number_raw_as_bits(uint64_t bits) {
+  WRITE_UINT64_FIELD(this, kToNumberRawOffset, bits);
+}
+
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 ACCESSORS(Oddball, type_of, String, kTypeOfOffset)

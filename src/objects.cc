@@ -12909,7 +12909,12 @@ void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
       isolate->factory()->InternalizeUtf8String(to_string);
   Handle<String> internalized_type_of =
       isolate->factory()->InternalizeUtf8String(type_of);
-  oddball->set_to_number_raw(to_number->Number());
+  if (to_number->IsHeapNumber()) {
+    oddball->set_to_number_raw_as_bits(
+        Handle<HeapNumber>::cast(to_number)->value_as_bits());
+  } else {
+    oddball->set_to_number_raw(to_number->Number());
+  }
   oddball->set_to_number(*to_number);
   oddball->set_to_string(*internalized_to_string);
   oddball->set_type_of(*internalized_type_of);

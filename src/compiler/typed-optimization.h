@@ -44,6 +44,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
  private:
   Reduction ReduceCheckHeapObject(Node* node);
   Reduction ReduceCheckMaps(Node* node);
+  Reduction ReduceCheckNumber(Node* node);
   Reduction ReduceCheckString(Node* node);
   Reduction ReduceLoadField(Node* node);
   Reduction ReduceNumberFloor(Node* node);
