@@ -3418,6 +3418,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
     if (impl()->ParsingDynamicFunctionDeclaration()) {
       // We don't want dynamic functions to actually declare their name
       // "anonymous". We just want that name in the toString().
+      if (stack_overflow()) {
+        *ok = false;
+        return impl()->EmptyExpression();
+      }
       Consume(Token::IDENTIFIER);
       DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
     } else if (peek_any_identifier()) {
@@ -4452,6 +4456,10 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
   if (impl()->ParsingDynamicFunctionDeclaration()) {
     // We don't want dynamic functions to actually declare their name
     // "anonymous". We just want that name in the toString().
+    if (stack_overflow()) {
+      *ok = false;
+      return impl()->EmptyExpression();
+    }
     Consume(Token::IDENTIFIER);
     DCHECK(scanner()->CurrentMatchesContextual(Token::ANONYMOUS));
   } else if (peek_any_identifier()) {
