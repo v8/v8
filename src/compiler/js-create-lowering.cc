@@ -598,6 +598,9 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
     Node* node, Handle<AllocationSite> site) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Node* new_target = NodeProperties::GetValueInput(node, 1);
+  Type* new_target_type = NodeProperties::GetType(new_target);
 
   ElementsKind elements_kind = site->GetElementsKind();
   AllocationSiteOverrideMode override_mode =
@@ -605,12 +608,19 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
           ? DISABLE_ALLOCATION_SITES
           : DONT_OVERRIDE;
 
+  // The Array constructor can only trigger an observable side-effect
+  // if the new.target may be a proxy.
+  Operator::Properties const properties =
+      (new_target != target || new_target_type->Maybe(Type::Proxy()))
+          ? Operator::kNoDeopt
+          : Operator::kNoDeopt | Operator::kNoWrite;
+
   if (arity == 0) {
     ArrayNoArgumentConstructorStub stub(isolate(), elements_kind,
                                         override_mode);
     CallDescriptor* desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 1,
-        CallDescriptor::kNeedsFrameState);
+        CallDescriptor::kNeedsFrameState, properties);
     node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
     node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(0));
@@ -628,7 +638,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
                                               override_mode);
       CallDescriptor* desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-          CallDescriptor::kNeedsFrameState);
+          CallDescriptor::kNeedsFrameState, properties);
       node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
       node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
       node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(1));
@@ -655,7 +665,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
                                               override_mode);
       CallDescriptor* desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-          CallDescriptor::kNeedsFrameState);
+          CallDescriptor::kNeedsFrameState, properties);
 
       Node* inputs[] = {jsgraph()->HeapConstant(stub.GetCode()),
                         node->InputAt(1),
@@ -678,7 +688,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
           isolate(), GetHoleyElementsKind(elements_kind), override_mode);
       CallDescriptor* desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-          CallDescriptor::kNeedsFrameState);
+          CallDescriptor::kNeedsFrameState, properties);
 
       Node* inputs[] = {jsgraph()->HeapConstant(stub.GetCode()),
                         node->InputAt(1),
