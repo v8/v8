@@ -193,7 +193,7 @@ class SourceFileProcessor(object):
   def IgnoreDir(self, name):
     return (name.startswith('.') or
             name in ('buildtools', 'data', 'gmock', 'gtest', 'kraken',
-                     'octane', 'sunspider'))
+                     'octane', 'sunspider', 'traces-arm64'))
 
   def IgnoreFile(self, name):
     return name.startswith('.')
