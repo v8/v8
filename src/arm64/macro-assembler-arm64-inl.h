@@ -547,42 +547,34 @@ void MacroAssembler::Extr(const Register& rd,
   extr(rd, rn, rm, lsb);
 }
 
-
-void MacroAssembler::Fabs(const FPRegister& fd, const FPRegister& fn) {
+void MacroAssembler::Fabs(const VRegister& fd, const VRegister& fn) {
   DCHECK(allow_macro_instructions_);
   fabs(fd, fn);
 }
 
-
-void MacroAssembler::Fadd(const FPRegister& fd,
-                          const FPRegister& fn,
-                          const FPRegister& fm) {
+void MacroAssembler::Fadd(const VRegister& fd, const VRegister& fn,
+                          const VRegister& fm) {
   DCHECK(allow_macro_instructions_);
   fadd(fd, fn, fm);
 }
 
-
-void MacroAssembler::Fccmp(const FPRegister& fn,
-                           const FPRegister& fm,
-                           StatusFlags nzcv,
-                           Condition cond) {
+void MacroAssembler::Fccmp(const VRegister& fn, const VRegister& fm,
+                           StatusFlags nzcv, Condition cond) {
   DCHECK(allow_macro_instructions_);
   DCHECK((cond != al) && (cond != nv));
   fccmp(fn, fm, nzcv, cond);
 }
 
-
-void MacroAssembler::Fcmp(const FPRegister& fn, const FPRegister& fm) {
+void MacroAssembler::Fcmp(const VRegister& fn, const VRegister& fm) {
   DCHECK(allow_macro_instructions_);
   fcmp(fn, fm);
 }
 
-
-void MacroAssembler::Fcmp(const FPRegister& fn, double value) {
+void MacroAssembler::Fcmp(const VRegister& fn, double value) {
   DCHECK(allow_macro_instructions_);
   if (value != 0.0) {
     UseScratchRegisterScope temps(this);
-    FPRegister tmp = temps.AcquireSameSizeAs(fn);
+    VRegister tmp = temps.AcquireSameSizeAs(fn);
     Fmov(tmp, value);
     fcmp(fn, tmp);
   } else {
@@ -590,271 +582,204 @@ void MacroAssembler::Fcmp(const FPRegister& fn, double value) {
   }
 }
 
-
-void MacroAssembler::Fcsel(const FPRegister& fd,
-                           const FPRegister& fn,
-                           const FPRegister& fm,
-                           Condition cond) {
+void MacroAssembler::Fcsel(const VRegister& fd, const VRegister& fn,
+                           const VRegister& fm, Condition cond) {
   DCHECK(allow_macro_instructions_);
   DCHECK((cond != al) && (cond != nv));
   fcsel(fd, fn, fm, cond);
 }
 
-
-void MacroAssembler::Fcvt(const FPRegister& fd, const FPRegister& fn) {
+void MacroAssembler::Fcvt(const VRegister& fd, const VRegister& fn) {
   DCHECK(allow_macro_instructions_);
   fcvt(fd, fn);
 }
 
-
-void MacroAssembler::Fcvtas(const Register& rd, const FPRegister& fn) {
+void MacroAssembler::Fcvtas(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions_);
   DCHECK(!rd.IsZero());
   fcvtas(rd, fn);
 }
 
-
-void MacroAssembler::Fcvtau(const Register& rd, const FPRegister& fn) {
+void MacroAssembler::Fcvtau(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions_);
   DCHECK(!rd.IsZero());
   fcvtau(rd, fn);
 }
 
-
-void MacroAssembler::Fcvtms(const Register& rd, const FPRegister& fn) {
+void MacroAssembler::Fcvtms(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions_);
   DCHECK(!rd.IsZero());
   fcvtms(rd, fn);
 }
 
-
-void MacroAssembler::Fcvtmu(const Register& rd, const FPRegister& fn) {
+void MacroAssembler::Fcvtmu(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions_);
   DCHECK(!rd.IsZero());
   fcvtmu(rd, fn);
 }
 
-
-void MacroAssembler::Fcvtns(const Register& rd, const FPRegister& fn) {
+void MacroAssembler::Fcvtns(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions_);
   DCHECK(!rd.IsZero());
   fcvtns(rd, fn);
 }
 
-
-void MacroAssembler::Fcvtnu(const Register& rd, const FPRegister& fn) {
+void MacroAssembler::Fcvtnu(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions_);
   DCHECK(!rd.IsZero());
   fcvtnu(rd, fn);
 }
 
-
-void MacroAssembler::Fcvtzs(const Register& rd, const FPRegister& fn) {
+void MacroAssembler::Fcvtzs(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions_);
   DCHECK(!rd.IsZero());
   fcvtzs(rd, fn);
 }
-void MacroAssembler::Fcvtzu(const Register& rd, const FPRegister& fn) {
+void MacroAssembler::Fcvtzu(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions_);
   DCHECK(!rd.IsZero());
   fcvtzu(rd, fn);
 }
 
-
-void MacroAssembler::Fdiv(const FPRegister& fd,
-                          const FPRegister& fn,
-                          const FPRegister& fm) {
+void MacroAssembler::Fdiv(const VRegister& fd, const VRegister& fn,
+                          const VRegister& fm) {
   DCHECK(allow_macro_instructions_);
   fdiv(fd, fn, fm);
 }
 
-
-void MacroAssembler::Fmadd(const FPRegister& fd,
-                           const FPRegister& fn,
-                           const FPRegister& fm,
-                           const FPRegister& fa) {
+void MacroAssembler::Fmadd(const VRegister& fd, const VRegister& fn,
+                           const VRegister& fm, const VRegister& fa) {
   DCHECK(allow_macro_instructions_);
   fmadd(fd, fn, fm, fa);
 }
 
-
-void MacroAssembler::Fmax(const FPRegister& fd,
-                          const FPRegister& fn,
-                          const FPRegister& fm) {
+void MacroAssembler::Fmax(const VRegister& fd, const VRegister& fn,
+                          const VRegister& fm) {
   DCHECK(allow_macro_instructions_);
   fmax(fd, fn, fm);
 }
 
-
-void MacroAssembler::Fmaxnm(const FPRegister& fd,
-                            const FPRegister& fn,
-                            const FPRegister& fm) {
+void MacroAssembler::Fmaxnm(const VRegister& fd, const VRegister& fn,
+                            const VRegister& fm) {
   DCHECK(allow_macro_instructions_);
   fmaxnm(fd, fn, fm);
 }
 
-
-void MacroAssembler::Fmin(const FPRegister& fd,
-                          const FPRegister& fn,
-                          const FPRegister& fm) {
+void MacroAssembler::Fmin(const VRegister& fd, const VRegister& fn,
+                          const VRegister& fm) {
   DCHECK(allow_macro_instructions_);
   fmin(fd, fn, fm);
 }
 
-
-void MacroAssembler::Fminnm(const FPRegister& fd,
-                            const FPRegister& fn,
-                            const FPRegister& fm) {
+void MacroAssembler::Fminnm(const VRegister& fd, const VRegister& fn,
+                            const VRegister& fm) {
   DCHECK(allow_macro_instructions_);
   fminnm(fd, fn, fm);
 }
 
-
-void MacroAssembler::Fmov(FPRegister fd, FPRegister fn) {
+void MacroAssembler::Fmov(VRegister fd, VRegister fn) {
   DCHECK(allow_macro_instructions_);
   // Only emit an instruction if fd and fn are different, and they are both D
   // registers. fmov(s0, s0) is not a no-op because it clears the top word of
   // d0. Technically, fmov(d0, d0) is not a no-op either because it clears the
-  // top of q0, but FPRegister does not currently support Q registers.
+  // top of q0, but VRegister does not currently support Q registers.
   if (!fd.Is(fn) || !fd.Is64Bits()) {
     fmov(fd, fn);
   }
 }
 
-
-void MacroAssembler::Fmov(FPRegister fd, Register rn) {
+void MacroAssembler::Fmov(VRegister fd, Register rn) {
   DCHECK(allow_macro_instructions_);
   fmov(fd, rn);
 }
 
-
-void MacroAssembler::Fmov(FPRegister fd, double imm) {
+void MacroAssembler::Fmov(VRegister vd, double imm) {
   DCHECK(allow_macro_instructions_);
-  if (fd.Is32Bits()) {
-    Fmov(fd, static_cast<float>(imm));
+
+  if (vd.Is1S() || vd.Is2S() || vd.Is4S()) {
+    Fmov(vd, static_cast<float>(imm));
     return;
   }
 
-  DCHECK(fd.Is64Bits());
+  DCHECK(vd.Is1D() || vd.Is2D());
   if (IsImmFP64(imm)) {
-    fmov(fd, imm);
-  } else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0)) {
-    fmov(fd, xzr);
+    fmov(vd, imm);
   } else {
-    Ldr(fd, imm);
+    uint64_t bits = bit_cast<uint64_t>(imm);
+    if (vd.IsScalar()) {
+      if (bits == 0) {
+        fmov(vd, xzr);
+      } else {
+        Ldr(vd, imm);
+      }
+    } else {
+      // TODO(all): consider NEON support for load literal.
+      Movi(vd, bits);
+    }
   }
 }
 
-
-void MacroAssembler::Fmov(FPRegister fd, float imm) {
+void MacroAssembler::Fmov(VRegister vd, float imm) {
   DCHECK(allow_macro_instructions_);
-  if (fd.Is64Bits()) {
-    Fmov(fd, static_cast<double>(imm));
+  if (vd.Is1D() || vd.Is2D()) {
+    Fmov(vd, static_cast<double>(imm));
     return;
   }
 
-  DCHECK(fd.Is32Bits());
+  DCHECK(vd.Is1S() || vd.Is2S() || vd.Is4S());
   if (IsImmFP32(imm)) {
-    fmov(fd, imm);
-  } else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0)) {
-    fmov(fd, wzr);
+    fmov(vd, imm);
   } else {
-    UseScratchRegisterScope temps(this);
-    Register tmp = temps.AcquireW();
-    // TODO(all): Use Assembler::ldr(const FPRegister& ft, float imm).
-    Mov(tmp, float_to_rawbits(imm));
-    Fmov(fd, tmp);
+    uint32_t bits = bit_cast<uint32_t>(imm);
+    if (vd.IsScalar()) {
+      if (bits == 0) {
+        fmov(vd, wzr);
+      } else {
+        UseScratchRegisterScope temps(this);
+        Register tmp = temps.AcquireW();
+        // TODO(all): Use Assembler::ldr(const VRegister& ft, float imm).
+        Mov(tmp, bit_cast<uint32_t>(imm));
+        Fmov(vd, tmp);
+      }
+    } else {
+      // TODO(all): consider NEON support for load literal.
+      Movi(vd, bits);
+    }
   }
 }
 
-
-void MacroAssembler::Fmov(Register rd, FPRegister fn) {
+void MacroAssembler::Fmov(Register rd, VRegister fn) {
   DCHECK(allow_macro_instructions_);
   DCHECK(!rd.IsZero());
   fmov(rd, fn);
 }
 
-
-void MacroAssembler::Fmsub(const FPRegister& fd,
-                           const FPRegister& fn,
-                           const FPRegister& fm,
-                           const FPRegister& fa) {
+void MacroAssembler::Fmsub(const VRegister& fd, const VRegister& fn,
+                           const VRegister& fm, const VRegister& fa) {
   DCHECK(allow_macro_instructions_);
   fmsub(fd, fn, fm, fa);
 }
 
-
-void MacroAssembler::Fmul(const FPRegister& fd,
-                          const FPRegister& fn,
-                          const FPRegister& fm) {
+void MacroAssembler::Fmul(const VRegister& fd, const VRegister& fn,
+                          const VRegister& fm) {
   DCHECK(allow_macro_instructions_);
   fmul(fd, fn, fm);
 }
 
-
-void MacroAssembler::Fneg(const FPRegister& fd, const FPRegister& fn) {
-  DCHECK(allow_macro_instructions_);
-  fneg(fd, fn);
-}
-
-
-void MacroAssembler::Fnmadd(const FPRegister& fd,
-                            const FPRegister& fn,
-                            const FPRegister& fm,
-                            const FPRegister& fa) {
+void MacroAssembler::Fnmadd(const VRegister& fd, const VRegister& fn,
+                            const VRegister& fm, const VRegister& fa) {
   DCHECK(allow_macro_instructions_);
   fnmadd(fd, fn, fm, fa);
 }
 
-
-void MacroAssembler::Fnmsub(const FPRegister& fd,
-                            const FPRegister& fn,
-                            const FPRegister& fm,
-                            const FPRegister& fa) {
+void MacroAssembler::Fnmsub(const VRegister& fd, const VRegister& fn,
+                            const VRegister& fm, const VRegister& fa) {
   DCHECK(allow_macro_instructions_);
   fnmsub(fd, fn, fm, fa);
 }
 
-
-void MacroAssembler::Frinta(const FPRegister& fd, const FPRegister& fn) {
-  DCHECK(allow_macro_instructions_);
-  frinta(fd, fn);
-}
-
-
-void MacroAssembler::Frintm(const FPRegister& fd, const FPRegister& fn) {
-  DCHECK(allow_macro_instructions_);
-  frintm(fd, fn);
-}
-
-
-void MacroAssembler::Frintn(const FPRegister& fd, const FPRegister& fn) {
-  DCHECK(allow_macro_instructions_);
-  frintn(fd, fn);
-}
-
-
-void MacroAssembler::Frintp(const FPRegister& fd, const FPRegister& fn) {
-  DCHECK(allow_macro_instructions_);
-  frintp(fd, fn);
-}
-
-
-void MacroAssembler::Frintz(const FPRegister& fd, const FPRegister& fn) {
-  DCHECK(allow_macro_instructions_);
-  frintz(fd, fn);
-}
-
-
-void MacroAssembler::Fsqrt(const FPRegister& fd, const FPRegister& fn) {
-  DCHECK(allow_macro_instructions_);
-  fsqrt(fd, fn);
-}
-
-
-void MacroAssembler::Fsub(const FPRegister& fd,
-                          const FPRegister& fn,
-                          const FPRegister& fm) {
+void MacroAssembler::Fsub(const VRegister& fd, const VRegister& fn,
+                          const VRegister& fm) {
   DCHECK(allow_macro_instructions_);
   fsub(fd, fn, fm);
 }
@@ -887,7 +812,7 @@ void MacroAssembler::Ldr(const CPURegister& rt, const Immediate& imm) {
 void MacroAssembler::Ldr(const CPURegister& rt, double imm) {
   DCHECK(allow_macro_instructions_);
   DCHECK(rt.Is64Bits());
-  ldr(rt, Immediate(double_to_rawbits(imm)));
+  ldr(rt, Immediate(bit_cast<uint64_t>(imm)));
 }
 
 
@@ -1070,9 +995,7 @@ void MacroAssembler::Sbfx(const Register& rd,
   sbfx(rd, rn, lsb, width);
 }
 
-
-void MacroAssembler::Scvtf(const FPRegister& fd,
-                           const Register& rn,
+void MacroAssembler::Scvtf(const VRegister& fd, const Register& rn,
                            unsigned fbits) {
   DCHECK(allow_macro_instructions_);
   scvtf(fd, rn, fbits);
@@ -1174,9 +1097,7 @@ void MacroAssembler::Ubfx(const Register& rd,
   ubfx(rd, rn, lsb, width);
 }
 
-
-void MacroAssembler::Ucvtf(const FPRegister& fd,
-                           const Register& rn,
+void MacroAssembler::Ucvtf(const VRegister& fd, const Register& rn,
                            unsigned fbits) {
   DCHECK(allow_macro_instructions_);
   ucvtf(fd, rn, fbits);
@@ -1318,9 +1239,7 @@ void MacroAssembler::SmiUntag(Register dst, Register src) {
 
 void MacroAssembler::SmiUntag(Register smi) { SmiUntag(smi, smi); }
 
-
-void MacroAssembler::SmiUntagToDouble(FPRegister dst,
-                                      Register src,
+void MacroAssembler::SmiUntagToDouble(VRegister dst, Register src,
                                       UntagMode mode) {
   DCHECK(dst.Is64Bits() && src.Is64Bits());
   if (FLAG_enable_slow_asserts && (mode == kNotSpeculativeUntag)) {
@@ -1329,9 +1248,7 @@ void MacroAssembler::SmiUntagToDouble(FPRegister dst,
   Scvtf(dst, src, kSmiShift);
 }
 
-
-void MacroAssembler::SmiUntagToFloat(FPRegister dst,
-                                     Register src,
+void MacroAssembler::SmiUntagToFloat(VRegister dst, Register src,
                                      UntagMode mode) {
   DCHECK(dst.Is32Bits() && src.Is64Bits());
   if (FLAG_enable_slow_asserts && (mode == kNotSpeculativeUntag)) {

@@ -159,10 +159,9 @@ class LCodeGen: public LCodeGenBase {
                          const Register& value,
                          uint64_t mask);
 
-  template<class InstrType>
-  void EmitBranchIfNonZeroNumber(InstrType instr,
-                                 const FPRegister& value,
-                                 const FPRegister& scratch);
+  template <class InstrType>
+  void EmitBranchIfNonZeroNumber(InstrType instr, const VRegister& value,
+                                 const VRegister& scratch);
 
   template<class InstrType>
   void EmitBranchIfHeapNumber(InstrType instr,

@@ -396,88 +396,85 @@ class MacroAssembler : public Assembler {
                    const Register& rn,
                    const Register& rm,
                    unsigned lsb);
-  inline void Fabs(const FPRegister& fd, const FPRegister& fn);
-  inline void Fadd(const FPRegister& fd,
-                   const FPRegister& fn,
-                   const FPRegister& fm);
-  inline void Fccmp(const FPRegister& fn,
-                    const FPRegister& fm,
-                    StatusFlags nzcv,
+  inline void Fabs(const VRegister& fd, const VRegister& fn);
+  inline void Fadd(const VRegister& fd, const VRegister& fn,
+                   const VRegister& fm);
+  inline void Fccmp(const VRegister& fn, const VRegister& fm, StatusFlags nzcv,
                     Condition cond);
-  inline void Fcmp(const FPRegister& fn, const FPRegister& fm);
-  inline void Fcmp(const FPRegister& fn, double value);
-  inline void Fcsel(const FPRegister& fd,
-                    const FPRegister& fn,
-                    const FPRegister& fm,
-                    Condition cond);
-  inline void Fcvt(const FPRegister& fd, const FPRegister& fn);
-  inline void Fcvtas(const Register& rd, const FPRegister& fn);
-  inline void Fcvtau(const Register& rd, const FPRegister& fn);
-  inline void Fcvtms(const Register& rd, const FPRegister& fn);
-  inline void Fcvtmu(const Register& rd, const FPRegister& fn);
-  inline void Fcvtns(const Register& rd, const FPRegister& fn);
-  inline void Fcvtnu(const Register& rd, const FPRegister& fn);
-  inline void Fcvtzs(const Register& rd, const FPRegister& fn);
-  inline void Fcvtzu(const Register& rd, const FPRegister& fn);
-  inline void Fdiv(const FPRegister& fd,
-                   const FPRegister& fn,
-                   const FPRegister& fm);
-  inline void Fmadd(const FPRegister& fd,
-                    const FPRegister& fn,
-                    const FPRegister& fm,
-                    const FPRegister& fa);
-  inline void Fmax(const FPRegister& fd,
-                   const FPRegister& fn,
-                   const FPRegister& fm);
-  inline void Fmaxnm(const FPRegister& fd,
-                     const FPRegister& fn,
-                     const FPRegister& fm);
-  inline void Fmin(const FPRegister& fd,
-                   const FPRegister& fn,
-                   const FPRegister& fm);
-  inline void Fminnm(const FPRegister& fd,
-                     const FPRegister& fn,
-                     const FPRegister& fm);
-  inline void Fmov(FPRegister fd, FPRegister fn);
-  inline void Fmov(FPRegister fd, Register rn);
+  inline void Fcmp(const VRegister& fn, const VRegister& fm);
+  inline void Fcmp(const VRegister& fn, double value);
+  inline void Fcsel(const VRegister& fd, const VRegister& fn,
+                    const VRegister& fm, Condition cond);
+  inline void Fcvt(const VRegister& fd, const VRegister& fn);
+  void Fcvtl(const VRegister& vd, const VRegister& vn) {
+    DCHECK(allow_macro_instructions_);
+    fcvtl(vd, vn);
+  }
+  void Fcvtl2(const VRegister& vd, const VRegister& vn) {
+    DCHECK(allow_macro_instructions_);
+    fcvtl2(vd, vn);
+  }
+  void Fcvtn(const VRegister& vd, const VRegister& vn) {
+    DCHECK(allow_macro_instructions_);
+    fcvtn(vd, vn);
+  }
+  void Fcvtn2(const VRegister& vd, const VRegister& vn) {
+    DCHECK(allow_macro_instructions_);
+    fcvtn2(vd, vn);
+  }
+  void Fcvtxn(const VRegister& vd, const VRegister& vn) {
+    DCHECK(allow_macro_instructions_);
+    fcvtxn(vd, vn);
+  }
+  void Fcvtxn2(const VRegister& vd, const VRegister& vn) {
+    DCHECK(allow_macro_instructions_);
+    fcvtxn2(vd, vn);
+  }
+  inline void Fcvtas(const Register& rd, const VRegister& fn);
+  inline void Fcvtau(const Register& rd, const VRegister& fn);
+  inline void Fcvtms(const Register& rd, const VRegister& fn);
+  inline void Fcvtmu(const Register& rd, const VRegister& fn);
+  inline void Fcvtns(const Register& rd, const VRegister& fn);
+  inline void Fcvtnu(const Register& rd, const VRegister& fn);
+  inline void Fcvtzs(const Register& rd, const VRegister& fn);
+  inline void Fcvtzu(const Register& rd, const VRegister& fn);
+  inline void Fdiv(const VRegister& fd, const VRegister& fn,
+                   const VRegister& fm);
+  inline void Fmadd(const VRegister& fd, const VRegister& fn,
+                    const VRegister& fm, const VRegister& fa);
+  inline void Fmax(const VRegister& fd, const VRegister& fn,
+                   const VRegister& fm);
+  inline void Fmaxnm(const VRegister& fd, const VRegister& fn,
+                     const VRegister& fm);
+  inline void Fmin(const VRegister& fd, const VRegister& fn,
+                   const VRegister& fm);
+  inline void Fminnm(const VRegister& fd, const VRegister& fn,
+                     const VRegister& fm);
+  inline void Fmov(VRegister fd, VRegister fn);
+  inline void Fmov(VRegister fd, Register rn);
   // Provide explicit double and float interfaces for FP immediate moves, rather
   // than relying on implicit C++ casts. This allows signalling NaNs to be
   // preserved when the immediate matches the format of fd. Most systems convert
   // signalling NaNs to quiet NaNs when converting between float and double.
-  inline void Fmov(FPRegister fd, double imm);
-  inline void Fmov(FPRegister fd, float imm);
+  inline void Fmov(VRegister fd, double imm);
+  inline void Fmov(VRegister fd, float imm);
   // Provide a template to allow other types to be converted automatically.
-  template<typename T>
-  void Fmov(FPRegister fd, T imm) {
+  template <typename T>
+  void Fmov(VRegister fd, T imm) {
     DCHECK(allow_macro_instructions_);
     Fmov(fd, static_cast<double>(imm));
   }
-  inline void Fmov(Register rd, FPRegister fn);
-  inline void Fmsub(const FPRegister& fd,
-                    const FPRegister& fn,
-                    const FPRegister& fm,
-                    const FPRegister& fa);
-  inline void Fmul(const FPRegister& fd,
-                   const FPRegister& fn,
-                   const FPRegister& fm);
-  inline void Fneg(const FPRegister& fd, const FPRegister& fn);
-  inline void Fnmadd(const FPRegister& fd,
-                     const FPRegister& fn,
-                     const FPRegister& fm,
-                     const FPRegister& fa);
-  inline void Fnmsub(const FPRegister& fd,
-                     const FPRegister& fn,
-                     const FPRegister& fm,
-                     const FPRegister& fa);
-  inline void Frinta(const FPRegister& fd, const FPRegister& fn);
-  inline void Frintm(const FPRegister& fd, const FPRegister& fn);
-  inline void Frintn(const FPRegister& fd, const FPRegister& fn);
-  inline void Frintp(const FPRegister& fd, const FPRegister& fn);
-  inline void Frintz(const FPRegister& fd, const FPRegister& fn);
-  inline void Fsqrt(const FPRegister& fd, const FPRegister& fn);
-  inline void Fsub(const FPRegister& fd,
-                   const FPRegister& fn,
-                   const FPRegister& fm);
+  inline void Fmov(Register rd, VRegister fn);
+  inline void Fmsub(const VRegister& fd, const VRegister& fn,
+                    const VRegister& fm, const VRegister& fa);
+  inline void Fmul(const VRegister& fd, const VRegister& fn,
+                   const VRegister& fm);
+  inline void Fnmadd(const VRegister& fd, const VRegister& fn,
+                     const VRegister& fm, const VRegister& fa);
+  inline void Fnmsub(const VRegister& fd, const VRegister& fn,
+                     const VRegister& fm, const VRegister& fa);
+  inline void Fsub(const VRegister& fd, const VRegister& fn,
+                   const VRegister& fm);
   inline void Hint(SystemHint code);
   inline void Hlt(int code);
   inline void Isb();
@@ -507,6 +504,76 @@ class MacroAssembler : public Assembler {
                    const Register& ra);
   inline void Mul(const Register& rd, const Register& rn, const Register& rm);
   inline void Nop() { nop(); }
+  void Dup(const VRegister& vd, const VRegister& vn, int index) {
+    DCHECK(allow_macro_instructions_);
+    dup(vd, vn, index);
+  }
+  void Dup(const VRegister& vd, const Register& rn) {
+    DCHECK(allow_macro_instructions_);
+    dup(vd, rn);
+  }
+  void Ins(const VRegister& vd, int vd_index, const VRegister& vn,
+           int vn_index) {
+    DCHECK(allow_macro_instructions_);
+    ins(vd, vd_index, vn, vn_index);
+  }
+  void Ins(const VRegister& vd, int vd_index, const Register& rn) {
+    DCHECK(allow_macro_instructions_);
+    ins(vd, vd_index, rn);
+  }
+  void Mov(const VRegister& vd, int vd_index, const VRegister& vn,
+           int vn_index) {
+    DCHECK(allow_macro_instructions_);
+    mov(vd, vd_index, vn, vn_index);
+  }
+  void Mov(const VRegister& vd, const VRegister& vn, int index) {
+    DCHECK(allow_macro_instructions_);
+    mov(vd, vn, index);
+  }
+  void Mov(const VRegister& vd, int vd_index, const Register& rn) {
+    DCHECK(allow_macro_instructions_);
+    mov(vd, vd_index, rn);
+  }
+  void Mov(const Register& rd, const VRegister& vn, int vn_index) {
+    DCHECK(allow_macro_instructions_);
+    mov(rd, vn, vn_index);
+  }
+  void Movi(const VRegister& vd, uint64_t imm, Shift shift = LSL,
+            int shift_amount = 0);
+  void Movi(const VRegister& vd, uint64_t hi, uint64_t lo);
+  void Mvni(const VRegister& vd, const int imm8, Shift shift = LSL,
+            const int shift_amount = 0) {
+    DCHECK(allow_macro_instructions_);
+    mvni(vd, imm8, shift, shift_amount);
+  }
+  void Orr(const VRegister& vd, const int imm8, const int left_shift = 0) {
+    DCHECK(allow_macro_instructions_);
+    orr(vd, imm8, left_shift);
+  }
+  void Scvtf(const VRegister& vd, const VRegister& vn, int fbits = 0) {
+    DCHECK(allow_macro_instructions_);
+    scvtf(vd, vn, fbits);
+  }
+  void Ucvtf(const VRegister& vd, const VRegister& vn, int fbits = 0) {
+    DCHECK(allow_macro_instructions_);
+    ucvtf(vd, vn, fbits);
+  }
+  void Fcvtzs(const VRegister& vd, const VRegister& vn, int fbits = 0) {
+    DCHECK(allow_macro_instructions_);
+    fcvtzs(vd, vn, fbits);
+  }
+  void Fcvtzu(const VRegister& vd, const VRegister& vn, int fbits = 0) {
+    DCHECK(allow_macro_instructions_);
+    fcvtzu(vd, vn, fbits);
+  }
+  void Smov(const Register& rd, const VRegister& vn, int vn_index) {
+    DCHECK(allow_macro_instructions_);
+    smov(rd, vn, vn_index);
+  }
+  void Umov(const Register& rd, const VRegister& vn, int vn_index) {
+    DCHECK(allow_macro_instructions_);
+    umov(rd, vn, vn_index);
+  }
   inline void Rbit(const Register& rd, const Register& rn);
   inline void Ret(const Register& xn = lr);
   inline void Rev(const Register& rd, const Register& rn);
@@ -522,8 +589,7 @@ class MacroAssembler : public Assembler {
                    const Register& rn,
                    unsigned lsb,
                    unsigned width);
-  inline void Scvtf(const FPRegister& fd,
-                    const Register& rn,
+  inline void Scvtf(const VRegister& fd, const Register& rn,
                     unsigned fbits = 0);
   inline void Sdiv(const Register& rd, const Register& rn, const Register& rm);
   inline void Smaddl(const Register& rd,
@@ -557,8 +623,7 @@ class MacroAssembler : public Assembler {
                    const Register& rn,
                    unsigned lsb,
                    unsigned width);
-  inline void Ucvtf(const FPRegister& fd,
-                    const Register& rn,
+  inline void Ucvtf(const VRegister& fd, const Register& rn,
                     unsigned fbits = 0);
   inline void Udiv(const Register& rd, const Register& rn, const Register& rm);
   inline void Umaddl(const Register& rd,
@@ -572,6 +637,516 @@ class MacroAssembler : public Assembler {
   inline void Uxtb(const Register& rd, const Register& rn);
   inline void Uxth(const Register& rd, const Register& rn);
   inline void Uxtw(const Register& rd, const Register& rn);
+
+// NEON 3 vector register instructions.
+#define NEON_3VREG_MACRO_LIST(V) \
+  V(add, Add)                    \
+  V(addhn, Addhn)                \
+  V(addhn2, Addhn2)              \
+  V(addp, Addp)                  \
+  V(and_, And)                   \
+  V(bic, Bic)                    \
+  V(bif, Bif)                    \
+  V(bit, Bit)                    \
+  V(bsl, Bsl)                    \
+  V(cmeq, Cmeq)                  \
+  V(cmge, Cmge)                  \
+  V(cmgt, Cmgt)                  \
+  V(cmhi, Cmhi)                  \
+  V(cmhs, Cmhs)                  \
+  V(cmtst, Cmtst)                \
+  V(eor, Eor)                    \
+  V(fabd, Fabd)                  \
+  V(facge, Facge)                \
+  V(facgt, Facgt)                \
+  V(faddp, Faddp)                \
+  V(fcmeq, Fcmeq)                \
+  V(fcmge, Fcmge)                \
+  V(fcmgt, Fcmgt)                \
+  V(fmaxnmp, Fmaxnmp)            \
+  V(fmaxp, Fmaxp)                \
+  V(fminnmp, Fminnmp)            \
+  V(fminp, Fminp)                \
+  V(fmla, Fmla)                  \
+  V(fmls, Fmls)                  \
+  V(fmulx, Fmulx)                \
+  V(frecps, Frecps)              \
+  V(frsqrts, Frsqrts)            \
+  V(mla, Mla)                    \
+  V(mls, Mls)                    \
+  V(mul, Mul)                    \
+  V(orn, Orn)                    \
+  V(pmul, Pmul)                  \
+  V(pmull, Pmull)                \
+  V(pmull2, Pmull2)              \
+  V(raddhn, Raddhn)              \
+  V(raddhn2, Raddhn2)            \
+  V(rsubhn, Rsubhn)              \
+  V(rsubhn2, Rsubhn2)            \
+  V(sqadd, Sqadd)                \
+  V(sqdmlal, Sqdmlal)            \
+  V(sqdmlal2, Sqdmlal2)          \
+  V(sqdmulh, Sqdmulh)            \
+  V(sqdmull, Sqdmull)            \
+  V(sqdmull2, Sqdmull2)          \
+  V(sqrdmulh, Sqrdmulh)          \
+  V(sqrshl, Sqrshl)              \
+  V(sqshl, Sqshl)                \
+  V(sqsub, Sqsub)                \
+  V(srhadd, Srhadd)              \
+  V(srshl, Srshl)                \
+  V(sshl, Sshl)                  \
+  V(ssubl, Ssubl)                \
+  V(ssubl2, Ssubl2)              \
+  V(ssubw, Ssubw)                \
+  V(ssubw2, Ssubw2)              \
+  V(sub, Sub)                    \
+  V(subhn, Subhn)                \
+  V(subhn2, Subhn2)              \
+  V(trn1, Trn1)                  \
+  V(trn2, Trn2)                  \
+  V(orr, Orr)                    \
+  V(saba, Saba)                  \
+  V(sabal, Sabal)                \
+  V(sabal2, Sabal2)              \
+  V(sabd, Sabd)                  \
+  V(sabdl, Sabdl)                \
+  V(sabdl2, Sabdl2)              \
+  V(saddl, Saddl)                \
+  V(saddl2, Saddl2)              \
+  V(saddw, Saddw)                \
+  V(saddw2, Saddw2)              \
+  V(shadd, Shadd)                \
+  V(shsub, Shsub)                \
+  V(smax, Smax)                  \
+  V(smaxp, Smaxp)                \
+  V(smin, Smin)                  \
+  V(sminp, Sminp)                \
+  V(smlal, Smlal)                \
+  V(smlal2, Smlal2)              \
+  V(smlsl, Smlsl)                \
+  V(smlsl2, Smlsl2)              \
+  V(smull, Smull)                \
+  V(smull2, Smull2)              \
+  V(sqdmlsl, Sqdmlsl)            \
+  V(sqdmlsl2, Sqdmlsl2)          \
+  V(uaba, Uaba)                  \
+  V(uabal, Uabal)                \
+  V(uabal2, Uabal2)              \
+  V(uabd, Uabd)                  \
+  V(uabdl, Uabdl)                \
+  V(uabdl2, Uabdl2)              \
+  V(uaddl, Uaddl)                \
+  V(uaddl2, Uaddl2)              \
+  V(uaddw, Uaddw)                \
+  V(uaddw2, Uaddw2)              \
+  V(uhadd, Uhadd)                \
+  V(uhsub, Uhsub)                \
+  V(umax, Umax)                  \
+  V(umin, Umin)                  \
+  V(umlsl, Umlsl)                \
+  V(umlsl2, Umlsl2)              \
+  V(umull, Umull)                \
+  V(umull2, Umull2)              \
+  V(umaxp, Umaxp)                \
+  V(uminp, Uminp)                \
+  V(umlal, Umlal)                \
+  V(umlal2, Umlal2)              \
+  V(uqadd, Uqadd)                \
+  V(uqrshl, Uqrshl)              \
+  V(uqshl, Uqshl)                \
+  V(uqsub, Uqsub)                \
+  V(urhadd, Urhadd)              \
+  V(urshl, Urshl)                \
+  V(ushl, Ushl)                  \
+  V(usubl, Usubl)                \
+  V(usubl2, Usubl2)              \
+  V(usubw, Usubw)                \
+  V(usubw2, Usubw2)              \
+  V(uzp1, Uzp1)                  \
+  V(uzp2, Uzp2)                  \
+  V(zip1, Zip1)                  \
+  V(zip2, Zip2)
+
+#define DEFINE_MACRO_ASM_FUNC(ASM, MASM)                                     \
+  void MASM(const VRegister& vd, const VRegister& vn, const VRegister& vm) { \
+    DCHECK(allow_macro_instructions_);                                       \
+    ASM(vd, vn, vm);                                                         \
+  }
+  NEON_3VREG_MACRO_LIST(DEFINE_MACRO_ASM_FUNC)
+#undef DEFINE_MACRO_ASM_FUNC
+
+  void Ext(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+           int index) {
+    DCHECK(allow_macro_instructions_);
+    ext(vd, vn, vm, index);
+  }
+
+// NEON 2 vector register instructions.
+#define NEON_2VREG_MACRO_LIST(V) \
+  V(abs, Abs)                    \
+  V(addp, Addp)                  \
+  V(addv, Addv)                  \
+  V(cls, Cls)                    \
+  V(clz, Clz)                    \
+  V(cnt, Cnt)                    \
+  V(faddp, Faddp)                \
+  V(fcvtas, Fcvtas)              \
+  V(fcvtau, Fcvtau)              \
+  V(fcvtms, Fcvtms)              \
+  V(fcvtmu, Fcvtmu)              \
+  V(fcvtns, Fcvtns)              \
+  V(fcvtnu, Fcvtnu)              \
+  V(fcvtps, Fcvtps)              \
+  V(fcvtpu, Fcvtpu)              \
+  V(fmaxnmp, Fmaxnmp)            \
+  V(fmaxnmv, Fmaxnmv)            \
+  V(fmaxv, Fmaxv)                \
+  V(fminnmp, Fminnmp)            \
+  V(fminnmv, Fminnmv)            \
+  V(fminp, Fminp)                \
+  V(fmaxp, Fmaxp)                \
+  V(fminv, Fminv)                \
+  V(fneg, Fneg)                  \
+  V(frecpe, Frecpe)              \
+  V(frecpx, Frecpx)              \
+  V(frinta, Frinta)              \
+  V(frinti, Frinti)              \
+  V(frintm, Frintm)              \
+  V(frintn, Frintn)              \
+  V(frintp, Frintp)              \
+  V(frintx, Frintx)              \
+  V(frintz, Frintz)              \
+  V(frsqrte, Frsqrte)            \
+  V(fsqrt, Fsqrt)                \
+  V(mov, Mov)                    \
+  V(mvn, Mvn)                    \
+  V(neg, Neg)                    \
+  V(not_, Not)                   \
+  V(rbit, Rbit)                  \
+  V(rev16, Rev16)                \
+  V(rev32, Rev32)                \
+  V(rev64, Rev64)                \
+  V(sadalp, Sadalp)              \
+  V(saddlv, Saddlv)              \
+  V(smaxv, Smaxv)                \
+  V(sminv, Sminv)                \
+  V(saddlp, Saddlp)              \
+  V(sqabs, Sqabs)                \
+  V(sqneg, Sqneg)                \
+  V(sqxtn, Sqxtn)                \
+  V(sqxtn2, Sqxtn2)              \
+  V(sqxtun, Sqxtun)              \
+  V(sqxtun2, Sqxtun2)            \
+  V(suqadd, Suqadd)              \
+  V(sxtl, Sxtl)                  \
+  V(sxtl2, Sxtl2)                \
+  V(uadalp, Uadalp)              \
+  V(uaddlp, Uaddlp)              \
+  V(uaddlv, Uaddlv)              \
+  V(umaxv, Umaxv)                \
+  V(uminv, Uminv)                \
+  V(uqxtn, Uqxtn)                \
+  V(uqxtn2, Uqxtn2)              \
+  V(urecpe, Urecpe)              \
+  V(ursqrte, Ursqrte)            \
+  V(usqadd, Usqadd)              \
+  V(uxtl, Uxtl)                  \
+  V(uxtl2, Uxtl2)                \
+  V(xtn, Xtn)                    \
+  V(xtn2, Xtn2)
+
+#define DEFINE_MACRO_ASM_FUNC(ASM, MASM)                \
+  void MASM(const VRegister& vd, const VRegister& vn) { \
+    DCHECK(allow_macro_instructions_);                  \
+    ASM(vd, vn);                                        \
+  }
+  NEON_2VREG_MACRO_LIST(DEFINE_MACRO_ASM_FUNC)
+#undef DEFINE_MACRO_ASM_FUNC
+
+// NEON 2 vector register with immediate instructions.
+#define NEON_2VREG_FPIMM_MACRO_LIST(V) \
+  V(fcmeq, Fcmeq)                      \
+  V(fcmge, Fcmge)                      \
+  V(fcmgt, Fcmgt)                      \
+  V(fcmle, Fcmle)                      \
+  V(fcmlt, Fcmlt)
+
+#define DEFINE_MACRO_ASM_FUNC(ASM, MASM)                            \
+  void MASM(const VRegister& vd, const VRegister& vn, double imm) { \
+    DCHECK(allow_macro_instructions_);                              \
+    ASM(vd, vn, imm);                                               \
+  }
+  NEON_2VREG_FPIMM_MACRO_LIST(DEFINE_MACRO_ASM_FUNC)
+#undef DEFINE_MACRO_ASM_FUNC
+
+  void Bic(const VRegister& vd, const int imm8, const int left_shift = 0) {
+    DCHECK(allow_macro_instructions_);
+    bic(vd, imm8, left_shift);
+  }
+  void Cmeq(const VRegister& vd, const VRegister& vn, int imm) {
+    DCHECK(allow_macro_instructions_);
+    cmeq(vd, vn, imm);
+  }
+  void Cmge(const VRegister& vd, const VRegister& vn, int imm) {
+    DCHECK(allow_macro_instructions_);
+    cmge(vd, vn, imm);
+  }
+  void Cmgt(const VRegister& vd, const VRegister& vn, int imm) {
+    DCHECK(allow_macro_instructions_);
+    cmgt(vd, vn, imm);
+  }
+  void Cmle(const VRegister& vd, const VRegister& vn, int imm) {
+    DCHECK(allow_macro_instructions_);
+    cmle(vd, vn, imm);
+  }
+  void Cmlt(const VRegister& vd, const VRegister& vn, int imm) {
+    DCHECK(allow_macro_instructions_);
+    cmlt(vd, vn, imm);
+  }
+// NEON by element instructions.
+#define NEON_BYELEMENT_MACRO_LIST(V) \
+  V(fmul, Fmul)                      \
+  V(fmla, Fmla)                      \
+  V(fmls, Fmls)                      \
+  V(fmulx, Fmulx)                    \
+  V(mul, Mul)                        \
+  V(mla, Mla)                        \
+  V(mls, Mls)                        \
+  V(sqdmulh, Sqdmulh)                \
+  V(sqrdmulh, Sqrdmulh)              \
+  V(sqdmull, Sqdmull)                \
+  V(sqdmull2, Sqdmull2)              \
+  V(sqdmlal, Sqdmlal)                \
+  V(sqdmlal2, Sqdmlal2)              \
+  V(sqdmlsl, Sqdmlsl)                \
+  V(sqdmlsl2, Sqdmlsl2)              \
+  V(smull, Smull)                    \
+  V(smull2, Smull2)                  \
+  V(smlal, Smlal)                    \
+  V(smlal2, Smlal2)                  \
+  V(smlsl, Smlsl)                    \
+  V(smlsl2, Smlsl2)                  \
+  V(umull, Umull)                    \
+  V(umull2, Umull2)                  \
+  V(umlal, Umlal)                    \
+  V(umlal2, Umlal2)                  \
+  V(umlsl, Umlsl)                    \
+  V(umlsl2, Umlsl2)
+
+#define DEFINE_MACRO_ASM_FUNC(ASM, MASM)                                   \
+  void MASM(const VRegister& vd, const VRegister& vn, const VRegister& vm, \
+            int vm_index) {                                                \
+    DCHECK(allow_macro_instructions_);                                     \
+    ASM(vd, vn, vm, vm_index);                                             \
+  }
+  NEON_BYELEMENT_MACRO_LIST(DEFINE_MACRO_ASM_FUNC)
+#undef DEFINE_MACRO_ASM_FUNC
+
+#define NEON_2VREG_SHIFT_MACRO_LIST(V) \
+  V(rshrn, Rshrn)                      \
+  V(rshrn2, Rshrn2)                    \
+  V(shl, Shl)                          \
+  V(shll, Shll)                        \
+  V(shll2, Shll2)                      \
+  V(shrn, Shrn)                        \
+  V(shrn2, Shrn2)                      \
+  V(sli, Sli)                          \
+  V(sqrshrn, Sqrshrn)                  \
+  V(sqrshrn2, Sqrshrn2)                \
+  V(sqrshrun, Sqrshrun)                \
+  V(sqrshrun2, Sqrshrun2)              \
+  V(sqshl, Sqshl)                      \
+  V(sqshlu, Sqshlu)                    \
+  V(sqshrn, Sqshrn)                    \
+  V(sqshrn2, Sqshrn2)                  \
+  V(sqshrun, Sqshrun)                  \
+  V(sqshrun2, Sqshrun2)                \
+  V(sri, Sri)                          \
+  V(srshr, Srshr)                      \
+  V(srsra, Srsra)                      \
+  V(sshll, Sshll)                      \
+  V(sshll2, Sshll2)                    \
+  V(sshr, Sshr)                        \
+  V(ssra, Ssra)                        \
+  V(uqrshrn, Uqrshrn)                  \
+  V(uqrshrn2, Uqrshrn2)                \
+  V(uqshl, Uqshl)                      \
+  V(uqshrn, Uqshrn)                    \
+  V(uqshrn2, Uqshrn2)                  \
+  V(urshr, Urshr)                      \
+  V(ursra, Ursra)                      \
+  V(ushll, Ushll)                      \
+  V(ushll2, Ushll2)                    \
+  V(ushr, Ushr)                        \
+  V(usra, Usra)
+
+#define DEFINE_MACRO_ASM_FUNC(ASM, MASM)                           \
+  void MASM(const VRegister& vd, const VRegister& vn, int shift) { \
+    DCHECK(allow_macro_instructions_);                             \
+    ASM(vd, vn, shift);                                            \
+  }
+  NEON_2VREG_SHIFT_MACRO_LIST(DEFINE_MACRO_ASM_FUNC)
+#undef DEFINE_MACRO_ASM_FUNC
+
+  void Ld1(const VRegister& vt, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld1(vt, src);
+  }
+  void Ld1(const VRegister& vt, const VRegister& vt2, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld1(vt, vt2, src);
+  }
+  void Ld1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld1(vt, vt2, vt3, src);
+  }
+  void Ld1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld1(vt, vt2, vt3, vt4, src);
+  }
+  void Ld1(const VRegister& vt, int lane, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld1(vt, lane, src);
+  }
+  void Ld1r(const VRegister& vt, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld1r(vt, src);
+  }
+  void Ld2(const VRegister& vt, const VRegister& vt2, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld2(vt, vt2, src);
+  }
+  void Ld2(const VRegister& vt, const VRegister& vt2, int lane,
+           const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld2(vt, vt2, lane, src);
+  }
+  void Ld2r(const VRegister& vt, const VRegister& vt2, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld2r(vt, vt2, src);
+  }
+  void Ld3(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld3(vt, vt2, vt3, src);
+  }
+  void Ld3(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           int lane, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld3(vt, vt2, vt3, lane, src);
+  }
+  void Ld3r(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+            const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld3r(vt, vt2, vt3, src);
+  }
+  void Ld4(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld4(vt, vt2, vt3, vt4, src);
+  }
+  void Ld4(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, int lane, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld4(vt, vt2, vt3, vt4, lane, src);
+  }
+  void Ld4r(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+            const VRegister& vt4, const MemOperand& src) {
+    DCHECK(allow_macro_instructions_);
+    ld4r(vt, vt2, vt3, vt4, src);
+  }
+  void St1(const VRegister& vt, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st1(vt, dst);
+  }
+  void St1(const VRegister& vt, const VRegister& vt2, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st1(vt, vt2, dst);
+  }
+  void St1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st1(vt, vt2, vt3, dst);
+  }
+  void St1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st1(vt, vt2, vt3, vt4, dst);
+  }
+  void St1(const VRegister& vt, int lane, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st1(vt, lane, dst);
+  }
+  void St2(const VRegister& vt, const VRegister& vt2, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st2(vt, vt2, dst);
+  }
+  void St3(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st3(vt, vt2, vt3, dst);
+  }
+  void St4(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st4(vt, vt2, vt3, vt4, dst);
+  }
+  void St2(const VRegister& vt, const VRegister& vt2, int lane,
+           const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st2(vt, vt2, lane, dst);
+  }
+  void St3(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           int lane, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st3(vt, vt2, vt3, lane, dst);
+  }
+  void St4(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, int lane, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions_);
+    st4(vt, vt2, vt3, vt4, lane, dst);
+  }
+  void Tbl(const VRegister& vd, const VRegister& vn, const VRegister& vm) {
+    DCHECK(allow_macro_instructions_);
+    tbl(vd, vn, vm);
+  }
+  void Tbl(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vm) {
+    DCHECK(allow_macro_instructions_);
+    tbl(vd, vn, vn2, vm);
+  }
+  void Tbl(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vn3, const VRegister& vm) {
+    DCHECK(allow_macro_instructions_);
+    tbl(vd, vn, vn2, vn3, vm);
+  }
+  void Tbl(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vn3, const VRegister& vn4, const VRegister& vm) {
+    DCHECK(allow_macro_instructions_);
+    tbl(vd, vn, vn2, vn3, vn4, vm);
+  }
+  void Tbx(const VRegister& vd, const VRegister& vn, const VRegister& vm) {
+    DCHECK(allow_macro_instructions_);
+    tbx(vd, vn, vm);
+  }
+  void Tbx(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vm) {
+    DCHECK(allow_macro_instructions_);
+    tbx(vd, vn, vn2, vm);
+  }
+  void Tbx(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vn3, const VRegister& vm) {
+    DCHECK(allow_macro_instructions_);
+    tbx(vd, vn, vn2, vn3, vm);
+  }
+  void Tbx(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vn3, const VRegister& vn4, const VRegister& vm) {
+    DCHECK(allow_macro_instructions_);
+    tbx(vd, vn, vn2, vn3, vn4, vm);
+  }
 
   // Pseudo-instructions ------------------------------------------------------
 
@@ -623,7 +1198,7 @@ class MacroAssembler : public Assembler {
            const CPURegister& dst2, const CPURegister& dst3,
            const CPURegister& dst4, const CPURegister& dst5 = NoReg,
            const CPURegister& dst6 = NoReg, const CPURegister& dst7 = NoReg);
-  void Push(const Register& src0, const FPRegister& src1);
+  void Push(const Register& src0, const VRegister& src1);
 
   // Alternative forms of Push and Pop, taking a RegList or CPURegList that
   // specifies the registers that are to be pushed or popped. Higher-numbered
@@ -659,16 +1234,16 @@ class MacroAssembler : public Assembler {
     PopSizeRegList(regs, kWRegSizeInBits);
   }
   inline void PushDRegList(RegList regs) {
-    PushSizeRegList(regs, kDRegSizeInBits, CPURegister::kFPRegister);
+    PushSizeRegList(regs, kDRegSizeInBits, CPURegister::kVRegister);
   }
   inline void PopDRegList(RegList regs) {
-    PopSizeRegList(regs, kDRegSizeInBits, CPURegister::kFPRegister);
+    PopSizeRegList(regs, kDRegSizeInBits, CPURegister::kVRegister);
   }
   inline void PushSRegList(RegList regs) {
-    PushSizeRegList(regs, kSRegSizeInBits, CPURegister::kFPRegister);
+    PushSizeRegList(regs, kSRegSizeInBits, CPURegister::kVRegister);
   }
   inline void PopSRegList(RegList regs) {
-    PopSizeRegList(regs, kSRegSizeInBits, CPURegister::kFPRegister);
+    PopSizeRegList(regs, kSRegSizeInBits, CPURegister::kVRegister);
   }
 
   // Push the specified register 'count' times.
@@ -904,10 +1479,8 @@ class MacroAssembler : public Assembler {
   inline void InitializeRootRegister();
 
   void AssertFPCRState(Register fpcr = NoReg);
-  void CanonicalizeNaN(const FPRegister& dst, const FPRegister& src);
-  void CanonicalizeNaN(const FPRegister& reg) {
-    CanonicalizeNaN(reg, reg);
-  }
+  void CanonicalizeNaN(const VRegister& dst, const VRegister& src);
+  void CanonicalizeNaN(const VRegister& reg) { CanonicalizeNaN(reg, reg); }
 
   // Load an object from the root table.
   void LoadRoot(CPURegister destination,
@@ -957,11 +1530,9 @@ class MacroAssembler : public Assembler {
   inline void SmiTag(Register smi);
   inline void SmiUntag(Register dst, Register src);
   inline void SmiUntag(Register smi);
-  inline void SmiUntagToDouble(FPRegister dst,
-                               Register src,
+  inline void SmiUntagToDouble(VRegister dst, Register src,
                                UntagMode mode = kNotSpeculativeUntag);
-  inline void SmiUntagToFloat(FPRegister dst,
-                              Register src,
+  inline void SmiUntagToFloat(VRegister dst, Register src,
                               UntagMode mode = kNotSpeculativeUntag);
 
   // Tag and push in one step.
@@ -1043,9 +1614,8 @@ class MacroAssembler : public Assembler {
   // are represented as 0 and handled as a success.
   //
   // On output the Z flag is set if the operation was successful.
-  void TryRepresentDoubleAsInt32(Register as_int,
-                                 FPRegister value,
-                                 FPRegister scratch_d,
+  void TryRepresentDoubleAsInt32(Register as_int, VRegister value,
+                                 VRegister scratch_d,
                                  Label* on_successful_conversion = NULL,
                                  Label* on_failed_conversion = NULL) {
     DCHECK(as_int.Is32Bits());
@@ -1058,9 +1628,8 @@ class MacroAssembler : public Assembler {
   // are represented as 0 and handled as a success.
   //
   // On output the Z flag is set if the operation was successful.
-  void TryRepresentDoubleAsInt64(Register as_int,
-                                 FPRegister value,
-                                 FPRegister scratch_d,
+  void TryRepresentDoubleAsInt64(Register as_int, VRegister value,
+                                 VRegister scratch_d,
                                  Label* on_successful_conversion = NULL,
                                  Label* on_failed_conversion = NULL) {
     DCHECK(as_int.Is64Bits());
@@ -1323,11 +1892,9 @@ class MacroAssembler : public Assembler {
   // All registers are clobbered.
   // If no heap_number_map register is provided, the function will take care of
   // loading it.
-  void AllocateHeapNumber(Register result,
-                          Label* gc_required,
-                          Register scratch1,
-                          Register scratch2,
-                          CPURegister value = NoFPReg,
+  void AllocateHeapNumber(Register result, Label* gc_required,
+                          Register scratch1, Register scratch2,
+                          CPURegister value = NoVReg,
                           CPURegister heap_number_map = NoReg,
                           MutableMode mode = IMMUTABLE);
 
@@ -1800,7 +2367,7 @@ class MacroAssembler : public Assembler {
   // Like printf, but print at run-time from generated code.
   //
   // The caller must ensure that arguments for floating-point placeholders
-  // (such as %e, %f or %g) are FPRegisters, and that arguments for integer
+  // (such as %e, %f or %g) are VRegisters, and that arguments for integer
   // placeholders are Registers.
   //
   // At the moment it is only possible to print the value of csp if it is the
@@ -1894,6 +2461,10 @@ class MacroAssembler : public Assembler {
                  const CPURegister& dst0, const CPURegister& dst1,
                  const CPURegister& dst2, const CPURegister& dst3);
 
+  void Movi16bitHelper(const VRegister& vd, uint64_t imm);
+  void Movi32bitHelper(const VRegister& vd, uint64_t imm);
+  void Movi64bitHelper(const VRegister& vd, uint64_t imm);
+
   // Call Printf. On a native build, a simple call will be generated, but if the
   // simulator is being used then a suitable pseudo-instruction is used. The
   // arguments and stack (csp) must be prepared by the caller as for a normal
@@ -1918,9 +2489,8 @@ class MacroAssembler : public Assembler {
   // important it must be checked separately.
   //
   // On output the Z flag is set if the operation was successful.
-  void TryRepresentDoubleAsInt(Register as_int,
-                               FPRegister value,
-                               FPRegister scratch_d,
+  void TryRepresentDoubleAsInt(Register as_int, VRegister value,
+                               VRegister scratch_d,
                                Label* on_successful_conversion = NULL,
                                Label* on_failed_conversion = NULL);
 
@@ -2040,8 +2610,8 @@ class UseScratchRegisterScope {
         availablefp_(masm->FPTmpList()),
         old_available_(available_->list()),
         old_availablefp_(availablefp_->list()) {
-    DCHECK(available_->type() == CPURegister::kRegister);
-    DCHECK(availablefp_->type() == CPURegister::kFPRegister);
+    DCHECK_EQ(available_->type(), CPURegister::kRegister);
+    DCHECK_EQ(availablefp_->type(), CPURegister::kVRegister);
   }
 
   ~UseScratchRegisterScope();
@@ -2050,15 +2620,15 @@ class UseScratchRegisterScope {
   // automatically when the scope ends.
   Register AcquireW() { return AcquireNextAvailable(available_).W(); }
   Register AcquireX() { return AcquireNextAvailable(available_).X(); }
-  FPRegister AcquireS() { return AcquireNextAvailable(availablefp_).S(); }
-  FPRegister AcquireD() { return AcquireNextAvailable(availablefp_).D(); }
+  VRegister AcquireS() { return AcquireNextAvailable(availablefp_).S(); }
+  VRegister AcquireD() { return AcquireNextAvailable(availablefp_).D(); }
 
   Register UnsafeAcquire(const Register& reg) {
     return Register(UnsafeAcquire(available_, reg));
   }
 
   Register AcquireSameSizeAs(const Register& reg);
-  FPRegister AcquireSameSizeAs(const FPRegister& reg);
+  VRegister AcquireSameSizeAs(const VRegister& reg);
 
  private:
   static CPURegister AcquireNextAvailable(CPURegList* available);
@@ -2067,11 +2637,11 @@ class UseScratchRegisterScope {
 
   // Available scratch registers.
   CPURegList* available_;     // kRegister
-  CPURegList* availablefp_;   // kFPRegister
+  CPURegList* availablefp_;   // kVRegister
 
   // The state of the available lists at the start of this scope.
   RegList old_available_;     // kRegister
-  RegList old_availablefp_;   // kFPRegister
+  RegList old_availablefp_;   // kVRegister
 };
 
 MemOperand ContextMemOperand(Register context, int index = 0);
