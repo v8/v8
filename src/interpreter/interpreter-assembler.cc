@@ -54,6 +54,10 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
   }
   RegisterCallGenerationCallbacks([this] { CallPrologue(); },
                                   [this] { CallEpilogue(); });
+
+  if (Bytecodes::MakesCallAlongCriticalPath(bytecode)) {
+    SaveBytecodeOffset();
+  }
 }
 
 InterpreterAssembler::~InterpreterAssembler() {

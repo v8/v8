@@ -52,7 +52,24 @@ void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
 bool SetupInterpreter::ReuseExistingHandler(Address* dispatch_table,
                                             Bytecode bytecode,
                                             OperandScale operand_scale) {
-  // TODO(leszeks): reuse Lda[Immutable][Current]ContextSlot
+  size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
+  switch (bytecode) {
+    case Bytecode::kLdaImmutableContextSlot:
+      STATIC_ASSERT(static_cast<int>(Bytecode::kLdaContextSlot) <
+                    static_cast<int>(Bytecode::kLdaImmutableContextSlot));
+      dispatch_table[index] = dispatch_table[Interpreter::GetDispatchTableIndex(
+          Bytecode::kLdaContextSlot, operand_scale)];
+      return true;
+    case Bytecode::kLdaImmutableCurrentContextSlot:
+      STATIC_ASSERT(
+          static_cast<int>(Bytecode::kLdaCurrentContextSlot) <
+          static_cast<int>(Bytecode::kLdaImmutableCurrentContextSlot));
+      dispatch_table[index] = dispatch_table[Interpreter::GetDispatchTableIndex(
+          Bytecode::kLdaCurrentContextSlot, operand_scale)];
+      return true;
+    default:
+      return false;
+  }
   return false;
 }
 
