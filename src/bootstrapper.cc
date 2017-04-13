@@ -3029,13 +3029,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {  // length
       Descriptor d = Descriptor::DataField(
           factory->length_string(), JSSloppyArgumentsObject::kLengthIndex,
-          DONT_ENUM, Representation::Tagged());
+          DONT_ENUM, Representation::Smi());
       map->AppendDescriptor(&d);
     }
     {  // callee
       Descriptor d = Descriptor::DataField(
           factory->callee_string(), JSSloppyArgumentsObject::kCalleeIndex,
-          DONT_ENUM, Representation::Tagged());
+          DONT_ENUM, Representation::HeapObject());
       map->AppendDescriptor(&d);
     }
     // @@iterator method is added later.
@@ -3086,7 +3086,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {  // length
       Descriptor d = Descriptor::DataField(
           factory->length_string(), JSStrictArgumentsObject::kLengthIndex,
-          DONT_ENUM, Representation::Tagged());
+          DONT_ENUM, Representation::Smi());
       map->AppendDescriptor(&d);
     }
     {  // callee
