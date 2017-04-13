@@ -17,24 +17,26 @@ namespace internal {
 class LoadHandler {
  public:
   enum Kind {
-    kForElements,
-    kForNormal,
-    kForFields,
-    kForConstants,
-    kForNonExistent
+    kElement,
+    kNormal,
+    kGlobal,
+    kField,
+    kConstant,
+    kAccessor,
+    kInterceptor,
+    kNonExistent
   };
   class KindBits : public BitField<Kind, 0, 3> {};
 
   // Defines whether access rights check should be done on receiver object.
-  // Applicable to kForFields, kForConstants and kForNonExistent kinds only when
-  // loading value from prototype chain. Ignored when loading from holder.
+  // Applicable to named property kinds only when loading value from prototype
+  // chain. Ignored when loading from holder.
   class DoAccessCheckOnReceiverBits
       : public BitField<bool, KindBits::kNext, 1> {};
 
   // Defines whether a lookup should be done on receiver object before
-  // proceeding to the prototype chain. Applicable to kForFields, kForConstants
-  // and kForNonExistent kinds only when loading value from prototype chain.
-  // Ignored when loading from holder.
+  // proceeding to the prototype chain. Applicable to named property kinds only
+  // when loading value from prototype chain. Ignored when loading from holder.
   class LookupOnReceiverBits
       : public BitField<bool, DoAccessCheckOnReceiverBits::kNext, 1> {};
 
@@ -51,7 +53,7 @@ class LoadHandler {
   STATIC_ASSERT(DescriptorBits::kNext <= kSmiValueSize);
 
   //
-  // Encoding when KindBits contains kForFields.
+  // Encoding when KindBits contains kField.
   //
   class IsInobjectBits : public BitField<bool, LookupOnReceiverBits::kNext, 1> {
   };
@@ -64,7 +66,7 @@ class LoadHandler {
   STATIC_ASSERT(FieldOffsetBits::kNext <= kSmiValueSize);
 
   //
-  // Encoding when KindBits contains kForElements.
+  // Encoding when KindBits contains kElement.
   //
   class IsJsArrayBits : public BitField<bool, KindBits::kNext, 1> {};
   class ConvertHoleBits : public BitField<bool, IsJsArrayBits::kNext, 1> {};
@@ -89,38 +91,46 @@ class LoadHandler {
   static const int kFirstPrototypeIndex = 3;
 
   // Creates a Smi-handler for loading a property from a slow object.
-  static inline Handle<Object> LoadNormal(Isolate* isolate);
+  static inline Handle<Smi> LoadNormal(Isolate* isolate);
+
+  // Creates a Smi-handler for loading a property from a global object.
+  static inline Handle<Smi> LoadGlobal(Isolate* isolate);
+
+  // Creates a Smi-handler for loading a property from an object with an
+  // interceptor.
+  static inline Handle<Smi> LoadInterceptor(Isolate* isolate);
 
   // Creates a Smi-handler for loading a field from fast object.
-  static inline Handle<Object> LoadField(Isolate* isolate,
-                                         FieldIndex field_index);
+  static inline Handle<Smi> LoadField(Isolate* isolate, FieldIndex field_index);
 
   // Creates a Smi-handler for loading a constant from fast object.
-  static inline Handle<Object> LoadConstant(Isolate* isolate, int descriptor);
+  static inline Handle<Smi> LoadConstant(Isolate* isolate, int descriptor);
+
+  // Creates a Smi-handler for calling a getter on a fast object.
+  static inline Handle<Smi> LoadAccessor(Isolate* isolate, int descriptor);
 
   // Creates a Smi-handler for loading an Api getter property from fast object.
-  static inline Handle<Object> LoadApiGetter(Isolate* isolate, int descriptor);
+  static inline Handle<Smi> LoadApiGetter(Isolate* isolate, int descriptor);
 
   // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver
   // check is a part of a prototype chain check.
-  static inline Handle<Object> EnableAccessCheckOnReceiver(
-      Isolate* isolate, Handle<Object> smi_handler);
+  static inline Handle<Smi> EnableAccessCheckOnReceiver(
+      Isolate* isolate, Handle<Smi> smi_handler);
 
   // Sets LookupOnReceiverBits in given Smi-handler. The receiver
   // check is a part of a prototype chain check.
-  static inline Handle<Object> EnableLookupOnReceiver(
-      Isolate* isolate, Handle<Object> smi_handler);
+  static inline Handle<Smi> EnableLookupOnReceiver(Isolate* isolate,
+                                                   Handle<Smi> smi_handler);
 
   // Creates a Smi-handler for loading a non-existent property. Works only as
   // a part of prototype chain check.
-  static inline Handle<Object> LoadNonExistent(Isolate* isolate,
-                                               bool do_lookup_on_receiver);
+  static inline Handle<Smi> LoadNonExistent(Isolate* isolate);
 
   // Creates a Smi-handler for loading an element.
-  static inline Handle<Object> LoadElement(Isolate* isolate,
-                                           ElementsKind elements_kind,
-                                           bool convert_hole_to_undefined,
-                                           bool is_js_array);
+  static inline Handle<Smi> LoadElement(Isolate* isolate,
+                                        ElementsKind elements_kind,
+                                        bool convert_hole_to_undefined,
+                                        bool is_js_array);
 };
 
 // A set of bit fields representing Smi handlers for stores.
@@ -181,32 +191,30 @@ class StoreHandler {
   static const int kFirstPrototypeIndex = 3;
 
   // Creates a Smi-handler for storing a field to fast object.
-  static inline Handle<Object> StoreField(Isolate* isolate, int descriptor,
-                                          FieldIndex field_index,
-                                          PropertyConstness constness,
-                                          Representation representation);
+  static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,
+                                       FieldIndex field_index,
+                                       PropertyConstness constness,
+                                       Representation representation);
 
   // Creates a Smi-handler for storing a property to a slow object.
-  static inline Handle<Object> StoreNormal(Isolate* isolate);
+  static inline Handle<Smi> StoreNormal(Isolate* isolate);
 
   // Creates a Smi-handler for transitioning store to a field.
-  static inline Handle<Object> TransitionToField(Isolate* isolate,
-                                                 int descriptor,
-                                                 FieldIndex field_index,
-                                                 Representation representation,
-                                                 bool extend_storage);
+  static inline Handle<Smi> TransitionToField(Isolate* isolate, int descriptor,
+                                              FieldIndex field_index,
+                                              Representation representation,
+                                              bool extend_storage);
 
   // Creates a Smi-handler for transitioning store to a constant field (in this
   // case the only thing that needs to be done is an update of a map).
-  static inline Handle<Object> TransitionToConstant(Isolate* isolate,
-                                                    int descriptor);
+  static inline Handle<Smi> TransitionToConstant(Isolate* isolate,
+                                                 int descriptor);
 
  private:
-  static inline Handle<Object> StoreField(Isolate* isolate, Kind kind,
-                                          int descriptor,
-                                          FieldIndex field_index,
-                                          Representation representation,
-                                          bool extend_storage);
+  static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,
+                                       int descriptor, FieldIndex field_index,
+                                       Representation representation,
+                                       bool extend_storage);
 };
 
 }  // namespace internal

@@ -46,8 +46,9 @@ class ArgPassingHelper {
     std::vector<uint8_t> outer_code{bytes_outer_function};
     runner.Build(outer_code.data(), outer_code.data() + outer_code.size());
 
+    int funcs_to_redict[] = {static_cast<int>(inner_compiler.function_index())};
     WasmDebugInfo::RedirectToInterpreter(debug_info_,
-                                         inner_compiler.function_index());
+                                         ArrayVector(funcs_to_redict));
     main_fun_wrapper_ = runner.module().WrapCode(runner.function_index());
   }
 

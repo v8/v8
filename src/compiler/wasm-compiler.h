@@ -55,6 +55,7 @@ class WasmCompilationUnit final {
   Zone* graph_zone() { return graph_zone_.get(); }
   int func_index() const { return func_index_; }
 
+  void InitializeHandles();
   void ExecuteCompilation();
   Handle<Code> FinishCompilation(wasm::ErrorThrower* thrower);
 
@@ -79,6 +80,9 @@ class WasmCompilationUnit final {
   int func_index_;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_ = true;
+#if DEBUG
+  bool handles_initialized_ = false;
+#endif  // DEBUG
   ZoneVector<trap_handler::ProtectedInstructionData>
       protected_instructions_;  // Instructions that are protected by the signal
                                 // handler.
@@ -165,6 +169,19 @@ class WasmGraphBuilder {
   Node* BranchExpectTrue(Node* cond, Node** true_node, Node** false_node);
   Node* BranchExpectFalse(Node* cond, Node** true_node, Node** false_node);
 
+  Node* TrapIfTrue(wasm::TrapReason reason, Node* cond,
+                   wasm::WasmCodePosition position);
+  Node* TrapIfFalse(wasm::TrapReason reason, Node* cond,
+                    wasm::WasmCodePosition position);
+  Node* TrapIfEq32(wasm::TrapReason reason, Node* node, int32_t val,
+                   wasm::WasmCodePosition position);
+  Node* ZeroCheck32(wasm::TrapReason reason, Node* node,
+                    wasm::WasmCodePosition position);
+  Node* TrapIfEq64(wasm::TrapReason reason, Node* node, int64_t val,
+                   wasm::WasmCodePosition position);
+  Node* ZeroCheck64(wasm::TrapReason reason, Node* node,
+                    wasm::WasmCodePosition position);
+
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
   Node* IfDefault(Node* sw);
@@ -222,10 +239,10 @@ class WasmGraphBuilder {
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
-  Node* Simd128Zero();
-  Node* Simd1x4Zero();
-  Node* Simd1x8Zero();
-  Node* Simd1x16Zero();
+  Node* S128Zero();
+  Node* S1x4Zero();
+  Node* S1x8Zero();
+  Node* S1x16Zero();
 
   Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
 
@@ -261,7 +278,6 @@ class WasmGraphBuilder {
   Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
 
-  WasmTrapHelper* trap_;
   wasm::FunctionSig* sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 

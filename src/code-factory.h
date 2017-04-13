@@ -7,26 +7,13 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
+#include "src/callable.h"
 #include "src/codegen.h"
 #include "src/globals.h"
 #include "src/interface-descriptors.h"
 
 namespace v8 {
 namespace internal {
-
-// Associates a body of code with an interface descriptor.
-class Callable final BASE_EMBEDDED {
- public:
-  Callable(Handle<Code> code, CallInterfaceDescriptor descriptor)
-      : code_(code), descriptor_(descriptor) {}
-
-  Handle<Code> code() const { return code_; }
-  CallInterfaceDescriptor descriptor() const { return descriptor_; }
-
- private:
-  const Handle<Code> code_;
-  const CallInterfaceDescriptor descriptor_;
-};
 
 class V8_EXPORT_PRIVATE CodeFactory final {
  public:
@@ -54,8 +41,12 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable CallICTrampoline(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  static Callable StoreGlobalIC(Isolate* isolate, LanguageMode mode);
+  static Callable StoreGlobalICInOptimizedCode(Isolate* isolate,
+                                               LanguageMode mode);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
   static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode);
+  static Callable StoreIC_Uninitialized(Isolate* isolate, LanguageMode mode);
   static Callable StoreOwnIC(Isolate* isolate);
   static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
   static Callable KeyedStoreIC(Isolate* isolate, LanguageMode mode);
@@ -120,8 +111,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable Equal(Isolate* isolate);
   static Callable StrictEqual(Isolate* isolate);
 
-  static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
-                            PretenureFlag pretenure_flag);
+  static Callable StringAdd(Isolate* isolate,
+                            StringAddFlags flags = STRING_ADD_CHECK_NONE,
+                            PretenureFlag pretenure_flag = NOT_TENURED);
   static Callable StringCharAt(Isolate* isolate);
   static Callable StringCharCodeAt(Isolate* isolate);
   static Callable StringCompare(Isolate* isolate, Token::Value token);
@@ -181,19 +173,31 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable HasProperty(Isolate* isolate);
   static Callable ForInFilter(Isolate* isolate);
 
-  static Callable InterpreterPushArgsAndCall(Isolate* isolate,
-                                             TailCallMode tail_call_mode,
-                                             InterpreterPushArgsMode mode);
-  static Callable InterpreterPushArgsAndConstruct(Isolate* isolate,
-                                                  InterpreterPushArgsMode mode);
-  static Callable InterpreterPushArgsAndConstructArray(Isolate* isolate);
+  static Callable InterpreterPushArgsThenCall(Isolate* isolate,
+                                              ConvertReceiverMode receiver_mode,
+                                              TailCallMode tail_call_mode,
+                                              InterpreterPushArgsMode mode);
+  static Callable InterpreterPushArgsThenConstruct(
+      Isolate* isolate, InterpreterPushArgsMode mode);
+  static Callable InterpreterPushArgsThenConstructArray(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
 
   static Callable ArrayConstructor(Isolate* isolate);
   static Callable ArrayPush(Isolate* isolate);
+  static Callable ArrayFilterLoopContinuation(Isolate* isolate);
+  static Callable ArrayMapLoopContinuation(Isolate* isolate);
+  static Callable ArrayForEachLoopContinuation(Isolate* isolate);
+  static Callable ArraySomeLoopContinuation(Isolate* isolate);
+  static Callable ArrayEveryLoopContinuation(Isolate* isolate);
+  static Callable ArrayReduceLoopContinuation(Isolate* isolate);
+  static Callable ArrayReduceRightLoopContinuation(Isolate* isolate);
   static Callable FunctionPrototypeBind(Isolate* isolate);
   static Callable PromiseHandleReject(Isolate* isolate);
+
+  static Callable AsyncGeneratorResolve(Isolate* isolate);
+  static Callable AsyncGeneratorReject(Isolate* isolate);
+  static Callable AsyncGeneratorResumeNext(Isolate* isolate);
 };
 
 }  // namespace internal

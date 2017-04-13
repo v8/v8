@@ -120,6 +120,47 @@ RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
 
 #undef THROW_ERROR
 
+namespace {
+
+const char* ElementsKindToType(ElementsKind fixed_elements_kind) {
+  switch (fixed_elements_kind) {
+#define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype, size) \
+  case TYPE##_ELEMENTS:                                   \
+    return #Type "Array";
+
+    TYPED_ARRAYS(ELEMENTS_KIND_CASE)
+#undef ELEMENTS_KIND_CASE
+
+    default:
+      UNREACHABLE();
+      return "";
+  }
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_ThrowInvalidTypedArrayAlignment) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Map, map, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, problem_string, 1);
+
+  ElementsKind kind = map->elements_kind();
+
+  Handle<String> type =
+      isolate->factory()->NewStringFromAsciiChecked(ElementsKindToType(kind));
+
+  ExternalArrayType external_type =
+      isolate->factory()->GetArrayTypeFromElementsKind(kind);
+  size_t size = isolate->factory()->GetExternalArrayElementSize(external_type);
+  Handle<Object> element_size =
+      handle(Smi::FromInt(static_cast<int>(size)), isolate);
+
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewRangeError(MessageTemplate::kInvalidTypedArrayAlignment,
+                             problem_string, type, element_size));
+}
+
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
@@ -375,7 +416,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     std::unique_ptr<ParseInfo> info(new ParseInfo(location.shared()));
-    if (parsing::ParseAny(info.get())) {
+    if (parsing::ParseAny(info.get(), isolate)) {
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());
       if (str->length() > 0) return str;
@@ -414,11 +455,18 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
       isolate, NewTypeError(MessageTemplate::kNotConstructor, callsite));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowDerivedConstructorReturnedNonObject) {
+RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
+  if (FLAG_harmony_restrict_constructor_return) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kClassConstructorReturnedNonObject));
+  }
+
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kDerivedConstructorReturn));
+      isolate,
+      NewTypeError(MessageTemplate::kDerivedConstructorReturnedNonObject));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowUndefinedOrNullToObject) {

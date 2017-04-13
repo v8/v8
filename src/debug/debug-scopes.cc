@@ -109,13 +109,14 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     // Inner function.
     info.reset(new ParseInfo(shared_info));
   }
-  if (parsing::ParseAny(info.get()) && Rewriter::Rewrite(info.get())) {
+  if (parsing::ParseAny(info.get(), isolate) &&
+      Rewriter::Rewrite(info.get(), isolate)) {
     DeclarationScope* scope = info->literal()->scope();
     if (!ignore_nested_scopes || collect_non_locals) {
       CollectNonLocals(info.get(), scope);
     }
     if (!ignore_nested_scopes) {
-      DeclarationScope::Analyze(info.get(), AnalyzeMode::kDebugger);
+      DeclarationScope::Analyze(info.get(), isolate_, AnalyzeMode::kDebugger);
       RetrieveScopeChain(scope);
     }
   } else {
@@ -838,8 +839,12 @@ void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
                                         int position) {
   if (scope->is_function_scope()) {
     // Do not collect scopes of nested inner functions inside the current one.
+    // Nested arrow functions could have the same end positions.
     Handle<JSFunction> function = frame_inspector_->GetFunction();
-    if (scope->end_position() < function->shared()->end_position()) return;
+    if (scope->start_position() > function->shared()->start_position() &&
+        scope->end_position() <= function->shared()->end_position()) {
+      return;
+    }
   }
   if (scope->is_hidden()) {
     // We need to add this chain element in case the scope has a context

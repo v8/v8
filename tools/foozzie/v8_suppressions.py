@@ -157,14 +157,12 @@ ALLOWED_LINE_DIFFS = [
 # Lines matching any of the following regular expressions will be ignored.
 # Use uncompiled regular expressions - they'll be compiled later.
 IGNORE_LINES = [
-  r'^Validation of asm\.js module failed: .+$',
-  r'^.*:\d+: Invalid asm.js: .*$',
   r'^Warning: unknown flag .*$',
   r'^Warning: .+ is deprecated.*$',
   r'^Try --help for options$',
 
-  # crbug.com/677032
-  r'^.*:\d+:.*asm\.js.*: success$',
+  # crbug.com/705962
+  r'^\s\[0x[0-9a-f]+\]$',
 ]
 
 

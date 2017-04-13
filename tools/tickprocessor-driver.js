@@ -64,6 +64,9 @@ if (params.sourceMap) {
 var tickProcessor = new TickProcessor(
   new (entriesProviders[params.platform])(params.nm, params.targetRootFS),
   params.separateIc,
+  params.separateBytecodes,
+  params.separateBuiltins,
+  params.separateStubs,
   params.callGraphSize,
   params.ignoreUnknown,
   params.stateFilter,

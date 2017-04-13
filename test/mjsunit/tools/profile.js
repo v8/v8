@@ -78,9 +78,9 @@ ProfileTestDriver.prototype.addFunctions_ = function() {
   this.profile.addLibrary('lib2', 0x21000, 0x22000);
   this.profile.addStaticCode('lib2-f1', 0x21100, 0x21900);
   this.profile.addStaticCode('lib2-f2', 0x21200, 0x21500);
-  this.profile.addCode('T', 'F1', 0x50100, 0x100);
-  this.profile.addCode('T', 'F2', 0x50200, 0x100);
-  this.profile.addCode('T', 'F3', 0x50400, 0x100);
+  this.profile.addCode('T', 'F1', 1, 0x50100, 0x100);
+  this.profile.addCode('T', 'F2', 2, 0x50200, 0x100);
+  this.profile.addCode('T', 'F3', 3, 0x50400, 0x100);
 };
 
 

@@ -180,10 +180,13 @@ struct SwVfpRegister {
     SwVfpRegister r = {code};
     return r;
   }
-  void split_code(int* vm, int* m) const {
-    DCHECK(is_valid());
+  static void split_code(int reg_code, int* vm, int* m) {
+    DCHECK(from_code(reg_code).is_valid());
     *m = reg_code & 0x1;
     *vm = reg_code >> 1;
+  }
+  void split_code(int* vm, int* m) const {
+    split_code(reg_code, vm, m);
   }
 
   int reg_code;
@@ -226,10 +229,13 @@ struct DwVfpRegister {
     DwVfpRegister r = {code};
     return r;
   }
-  void split_code(int* vm, int* m) const {
-    DCHECK(is_valid());
+  static void split_code(int reg_code, int* vm, int* m) {
+    DCHECK(from_code(reg_code).is_valid());
     *m = (reg_code & 0x10) >> 4;
     *vm = reg_code & 0x0F;
+  }
+  void split_code(int* vm, int* m) const {
+    split_code(reg_code, vm, m);
   }
 
   int reg_code;
@@ -296,11 +302,14 @@ struct QwNeonRegister {
     DCHECK(is_valid());
     return reg_code;
   }
-  void split_code(int* vm, int* m) const {
-    DCHECK(is_valid());
+  static void split_code(int reg_code, int* vm, int* m) {
+    DCHECK(from_code(reg_code).is_valid());
     int encoded_code = reg_code << 1;
     *m = (encoded_code & 0x10) >> 4;
     *vm = encoded_code & 0x0F;
+  }
+  void split_code(int* vm, int* m) const {
+    split_code(reg_code, vm, m);
   }
   DwVfpRegister low() const {
     DwVfpRegister reg;
@@ -686,7 +695,9 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size)
+      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
+  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
   virtual ~Assembler();
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -726,6 +737,7 @@ class Assembler : public AssemblerBase {
                                                     Address constant_pool));
 
   // Read/Modify the code target address in the branch/call instruction at pc.
+  // The isolate argument is unused (and may be nullptr) when skipping flushing.
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
@@ -1309,33 +1321,36 @@ class Assembler : public AssemblerBase {
   void vst1(NeonSize size,
             const NeonListOperand& src,
             const NeonMemOperand& dst);
+  // dt represents the narrower type
   void vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src);
+  // dt represents the narrower type.
+  void vqmovn(NeonDataType dt, DwVfpRegister dst, QwNeonRegister src);
 
   // Only unconditional core <-> scalar moves are currently supported.
   void vmov(NeonDataType dt, DwVfpRegister dst, int index, Register src);
   void vmov(NeonDataType dt, Register dst, DwVfpRegister src, int index);
 
-  void vmov(const QwNeonRegister dst, const QwNeonRegister src);
-  void vmvn(const QwNeonRegister dst, const QwNeonRegister src);
+  void vmov(QwNeonRegister dst, QwNeonRegister src);
+  void vdup(NeonSize size, QwNeonRegister dst, Register src);
+  void vdup(QwNeonRegister dst, SwVfpRegister src);
+
+  void vcvt_f32_s32(QwNeonRegister dst, QwNeonRegister src);
+  void vcvt_f32_u32(QwNeonRegister dst, QwNeonRegister src);
+  void vcvt_s32_f32(QwNeonRegister dst, QwNeonRegister src);
+  void vcvt_u32_f32(QwNeonRegister dst, QwNeonRegister src);
+
+  void vmvn(QwNeonRegister dst, QwNeonRegister src);
   void vswp(DwVfpRegister dst, DwVfpRegister src);
   void vswp(QwNeonRegister dst, QwNeonRegister src);
-  // vdup conditional execution isn't supported.
-  void vdup(NeonSize size, const QwNeonRegister dst, const Register src);
-  void vdup(const QwNeonRegister dst, const SwVfpRegister src);
+  void vabs(QwNeonRegister dst, QwNeonRegister src);
+  void vabs(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
+  void vneg(QwNeonRegister dst, QwNeonRegister src);
+  void vneg(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
 
-  void vcvt_f32_s32(const QwNeonRegister dst, const QwNeonRegister src);
-  void vcvt_f32_u32(const QwNeonRegister dst, const QwNeonRegister src);
-  void vcvt_s32_f32(const QwNeonRegister dst, const QwNeonRegister src);
-  void vcvt_u32_f32(const QwNeonRegister dst, const QwNeonRegister src);
-
-  void vabs(const QwNeonRegister dst, const QwNeonRegister src);
-  void vabs(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);
-  void vneg(const QwNeonRegister dst, const QwNeonRegister src);
-  void vneg(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);
-  void veor(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2);
   void vand(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
-  void vbsl(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void veor(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2);
   void veor(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vbsl(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vorr(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
@@ -1374,24 +1389,26 @@ class Assembler : public AssemblerBase {
   void vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
   void vcge(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
-  void vcge(NeonDataType dt, QwNeonRegister dst,
-            QwNeonRegister src1, QwNeonRegister src2);
+  void vcge(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+            QwNeonRegister src2);
   void vcgt(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
-  void vcgt(NeonDataType dt, QwNeonRegister dst,
-            QwNeonRegister src1, QwNeonRegister src2);
-  void vext(const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2, int bytes);
-  void vzip(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);
-  void vrev16(NeonSize size, const QwNeonRegister dst,
-            const QwNeonRegister src);
-  void vrev32(NeonSize size, const QwNeonRegister dst,
-            const QwNeonRegister src);
-  void vrev64(NeonSize size, const QwNeonRegister dst,
-            const QwNeonRegister src);
-  void vtbl(const DwVfpRegister dst, const NeonListOperand& list,
-            const DwVfpRegister index);
-  void vtbx(const DwVfpRegister dst, const NeonListOperand& list,
-            const DwVfpRegister index);
+  void vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+            QwNeonRegister src2);
+  void vext(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2,
+            int bytes);
+  void vzip(NeonSize size, DwVfpRegister src1, DwVfpRegister src2);
+  void vzip(NeonSize size, QwNeonRegister src1, QwNeonRegister src2);
+  void vuzp(NeonSize size, DwVfpRegister src1, DwVfpRegister src2);
+  void vuzp(NeonSize size, QwNeonRegister src1, QwNeonRegister src2);
+  void vrev16(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
+  void vrev32(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
+  void vrev64(NeonSize size, QwNeonRegister dst, QwNeonRegister src);
+  void vtrn(NeonSize size, DwVfpRegister src1, DwVfpRegister src2);
+  void vtrn(NeonSize size, QwNeonRegister src1, QwNeonRegister src2);
+  void vtbl(DwVfpRegister dst, const NeonListOperand& list,
+            DwVfpRegister index);
+  void vtbx(DwVfpRegister dst, const NeonListOperand& list,
+            DwVfpRegister index);
 
   // Pseudo instructions
 
@@ -1691,8 +1708,7 @@ class Assembler : public AssemblerBase {
            (reg.reg_code < LowDwVfpRegister::kMaxNumLowRegisters / 2);
   }
 
- private:
-  int next_buffer_check_;  // pc offset of next buffer check
+  inline void emit(Instr x);
 
   // Code generation
   // The relocation writer's position is at least kGap bytes below the end of
@@ -1700,6 +1716,25 @@ class Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 32;
+
+  // Relocation info generation
+  // Each relocation is encoded as a variable size value
+  static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
+  RelocInfoWriter reloc_info_writer;
+
+  // ConstantPoolEntry records are used during code generation as temporary
+  // containers for constants and code target addresses until they are emitted
+  // to the constant pool. These records are temporarily stored in a separate
+  // buffer until a constant pool is emitted.
+  // If every instruction in a long sequence is accessing the pool, we need one
+  // pending relocation entry per instruction.
+
+  // The buffers of pending constant pool entries.
+  std::vector<ConstantPoolEntry> pending_32_bit_constants_;
+  std::vector<ConstantPoolEntry> pending_64_bit_constants_;
+
+ private:
+  int next_buffer_check_;  // pc offset of next buffer check
 
   // Constant pool generation
   // Pools are emitted in the instruction stream, preferably after unconditional
@@ -1728,31 +1763,13 @@ class Assembler : public AssemblerBase {
   int first_const_pool_32_use_;
   int first_const_pool_64_use_;
 
-  // Relocation info generation
-  // Each relocation is encoded as a variable size value
-  static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
-  RelocInfoWriter reloc_info_writer;
-
-  // ConstantPoolEntry records are used during code generation as temporary
-  // containers for constants and code target addresses until they are emitted
-  // to the constant pool. These records are temporarily stored in a separate
-  // buffer until a constant pool is emitted.
-  // If every instruction in a long sequence is accessing the pool, we need one
-  // pending relocation entry per instruction.
-
-  // The buffers of pending constant pool entries.
-  std::vector<ConstantPoolEntry> pending_32_bit_constants_;
-  std::vector<ConstantPoolEntry> pending_64_bit_constants_;
-
   ConstantPoolBuilder constant_pool_builder_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
-  // Code emission
   inline void CheckBuffer();
   void GrowBuffer();
-  inline void emit(Instr x);
 
   // 32-bit immediate values
   void move_32_bit_immediate(Register rd,
@@ -1789,6 +1806,15 @@ constexpr int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;
 class EnsureSpace BASE_EMBEDDED {
  public:
   INLINE(explicit EnsureSpace(Assembler* assembler));
+};
+
+class PatchingAssembler : public Assembler {
+ public:
+  PatchingAssembler(IsolateData isolate_data, byte* address, int instructions);
+  ~PatchingAssembler();
+
+  void Emit(Address addr);
+  void FlushICache(Isolate* isolate);
 };
 
 

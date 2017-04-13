@@ -15,12 +15,12 @@
 namespace v8 {
 namespace internal {
 TEST(ConcurrentMarking) {
-  i::FLAG_concurrent_marking = true;
+  if (!i::FLAG_concurrent_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   ConcurrentMarking* concurrent_marking = new ConcurrentMarking(heap);
   concurrent_marking->AddRoot(heap->undefined_value());
-  concurrent_marking->StartMarkingTask();
+  concurrent_marking->StartTask();
   concurrent_marking->WaitForTaskToComplete();
   delete concurrent_marking;
 }

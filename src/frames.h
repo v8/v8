@@ -6,11 +6,17 @@
 #define V8_FRAMES_H_
 
 #include "src/allocation.h"
+#include "src/flags.h"
 #include "src/handles.h"
+#include "src/objects.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {
+
+class AbstractCode;
+class ObjectVisitor;
+class StringStream;
 
 #if V8_TARGET_ARCH_ARM64
 typedef uint64_t RegList;
@@ -1130,6 +1136,12 @@ class StubFrame : public StandardFrame {
   // Determine the code for the frame.
   Code* unchecked_code() const override;
 
+  // Lookup exception handler for current {pc}, returns -1 if none found. Only
+  // TurboFan stub frames are supported. Also returns data associated with the
+  // handler site:
+  //  - TurboFan stub: Data is the stack slot count of the entire frame.
+  int LookupExceptionHandlerInTable(int* data);
+
  protected:
   inline explicit StubFrame(StackFrameIteratorBase* iterator);
 
@@ -1338,6 +1350,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   WasmInstanceObject* wasm_instance() const;
   Script* script() const override;
   int position() const override;
+  Object* context() const override;
 
   static WasmInterpreterEntryFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm_interpreter_entry());

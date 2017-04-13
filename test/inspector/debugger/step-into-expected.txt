@@ -916,21 +916,6 @@ break at:
     }
 
 break at:
-function return42() {
-  #return 42;
-}
-
-break at:
-  return 42;
-#}
-
-
-break at:
-  async function main() {
-    async function foo#() {
-      var resolveNested;
-
-break at:
       var resolveNested;
       var p = #new Promise(resolve => resolveNested = resolve);
       setTimeout(resolveNested, 0);

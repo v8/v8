@@ -72,6 +72,19 @@ function resolveCodeKindAndVmState(code, vmState) {
   return kind;
 }
 
+function codeEquals(code1, code2, allowDifferentKinds = false) {
+  if (!code1 || !code2) return false;
+  if (code1.name != code2.name || code1.type != code2.type) return false;
+
+  if (code1.type == 'CODE') {
+    if (!allowDifferentKinds && code1.kind != code2.kind) return false;
+  } else if (code1.type == 'JS') {
+    if (!allowDifferentKinds && code1.kind != code2.kind) return false;
+    if (code1.func != code2.func) return false;
+  }
+  return true;
+}
+
 function createNodeFromStackEntry(code, codeId) {
   let name = code ? code.name : "UNKNOWN";
 
@@ -117,6 +130,7 @@ function findNextFrame(file, stack, stackPos, step, filter) {
   while (stackPos >= 0 && stackPos < stack.length) {
     codeId = stack[stackPos];
     code = codeId >= 0 ? file.code[codeId] : undefined;
+
     if (filter) {
       let type = code ? code.type : undefined;
       let kind = code ? code.kind : undefined;
@@ -183,6 +197,31 @@ function createEmptyNode(name) {
       ownTicks : 0,
       ticks : 0
   };
+}
+
+class RuntimeCallTreeProcessor {
+  constructor() {
+    this.tree = createEmptyNode("root");
+    this.tree.delayedExpansion = { frameList : [], ascending : false };
+  }
+
+  addStack(file, tickIndex) {
+    this.tree.ticks++;
+
+    let stack = file.ticks[tickIndex].s;
+    let i;
+    for (i = 0; i < stack.length; i += 2) {
+      let codeId = stack[i];
+      if (codeId < 0) return;
+      let code = file.code[codeId];
+      if (code.type !== "CPP" && code.type !== "SHARED_LIB") {
+        i -= 2;
+        break;
+      }
+    }
+    if (i < 0 || i >= stack.length) return;
+    addOrUpdateChildNode(this.tree, file, tickIndex, i, false);
+  }
 }
 
 class PlainCallTreeProcessor {
@@ -383,36 +422,56 @@ class FunctionTimelineProcessor {
   }
 
   addStack(file, tickIndex) {
+    if (!this.functionCodeId) return;
+
     let { tm : timestamp, vm : vmState, s : stack } = file.ticks[tickIndex];
+    let functionCode = file.code[this.functionCodeId];
 
-    let codeInStack = stack.includes(this.functionCodeId);
-    if (codeInStack) {
-      let topOfStack = -1;
-      for (let i = 0; i < stack.length - 1; i += 2) {
-        let codeId = stack[i];
-        let code = codeId >= 0 ? file.code[codeId] : undefined;
-        let type = code ? code.type : undefined;
-        let kind = code ? code.kind : undefined;
-        if (!this.filter(type, kind)) continue;
+    // Find if the function is on the stack, and its position on the stack,
+    // ignoring any filtered entries.
+    let stackCode = undefined;
+    let functionPosInStack = -1;
+    let filteredI = 0
+    for (let i = 0; i < stack.length - 1; i += 2) {
+      let codeId = stack[i];
+      let code = codeId >= 0 ? file.code[codeId] : undefined;
+      let type = code ? code.type : undefined;
+      let kind = code ? code.kind : undefined;
+      if (!this.filter(type, kind)) continue;
 
-        topOfStack = i;
+      // Match other instances of the same function (e.g. unoptimised, various
+      // different optimised versions).
+      if (codeEquals(code, functionCode, true)) {
+        functionPosInStack = filteredI;
+        stackCode = code;
         break;
       }
+      filteredI++;
+    }
 
-      let codeIsTopOfStack =
-          (topOfStack !== -1 && stack[topOfStack] === this.functionCodeId);
+    if (functionPosInStack >= 0) {
+      let stackKind = resolveCodeKindAndVmState(stackCode, vmState);
+
+      let codeIsTopOfStack = (functionPosInStack == 0);
 
       if (this.currentBlock !== null) {
         this.currentBlock.end = timestamp;
 
-        if (codeIsTopOfStack === this.currentBlock.topOfStack) {
+        if (codeIsTopOfStack === this.currentBlock.topOfStack
+          && stackKind === this.currentBlock.kind) {
+          // If we haven't changed the stack top or the function kind, then
+          // we're happy just extending the current block and not starting
+          // a new one.
           return;
         }
       }
 
+      // Start a new block at the current timestamp.
       this.currentBlock = {
         start: timestamp,
         end: timestamp,
+        code: stackCode,
+        kind: stackKind,
         topOfStack: codeIsTopOfStack
       };
       this.blocks.push(this.currentBlock);
@@ -442,4 +501,94 @@ function generateTree(
   }
 
   return tickCount;
+}
+
+function computeOptimizationStats(file,
+    timeStart = -Infinity, timeEnd = Infinity) {
+  function newCollection() {
+    return { count : 0, functions : [], functionTable : [] };
+  }
+  function addToCollection(collection, code) {
+    collection.count++;
+    let funcData = collection.functionTable[code.func];
+    if (!funcData) {
+      funcData = { f : file.functions[code.func], instances : [] };
+      collection.functionTable[code.func] = funcData;
+      collection.functions.push(funcData);
+    }
+    funcData.instances.push(code);
+  }
+
+  let functionCount = 0;
+  let optimizedFunctionCount = 0;
+  let deoptimizedFunctionCount = 0;
+  let optimizations = newCollection();
+  let eagerDeoptimizations = newCollection();
+  let softDeoptimizations = newCollection();
+  let lazyDeoptimizations = newCollection();
+
+  for (let i = 0; i < file.functions.length; i++) {
+    let f = file.functions[i];
+
+    // Skip special SFIs that do not correspond to JS functions.
+    if (f.codes.length === 0) continue;
+    if (file.code[f.codes[0]].type !== "JS") continue;
+
+    functionCount++;
+    let optimized = false;
+    let deoptimized = false;
+
+    for (let j = 0; j < f.codes.length; j++) {
+      let code = file.code[f.codes[j]];
+      console.assert(code.type === "JS");
+      if (code.kind === "Opt") {
+        optimized = true;
+        if (code.tm >= timeStart && code.tm <= timeEnd) {
+          addToCollection(optimizations, code);
+        }
+      }
+      if (code.deopt) {
+        deoptimized = true;
+        if (code.deopt.tm >= timeStart && code.deopt.tm <= timeEnd) {
+          switch (code.deopt.bailoutType) {
+            case "lazy":
+              addToCollection(lazyDeoptimizations, code);
+              break;
+            case "eager":
+              addToCollection(eagerDeoptimizations, code);
+              break;
+            case "soft":
+              addToCollection(softDeoptimizations, code);
+              break;
+          }
+        }
+      }
+    }
+    if (optimized) {
+      optimizedFunctionCount++;
+    }
+    if (deoptimized) {
+      deoptimizedFunctionCount++;
+    }
+  }
+
+  function sortCollection(collection) {
+    collection.functions.sort(
+        (a, b) => a.instances.length - b.instances.length);
+  }
+
+  sortCollection(eagerDeoptimizations);
+  sortCollection(lazyDeoptimizations);
+  sortCollection(softDeoptimizations);
+  sortCollection(optimizations);
+
+  return {
+    functionCount,
+    optimizedFunctionCount,
+    deoptimizedFunctionCount,
+    optimizations,
+    eagerDeoptimizations,
+    lazyDeoptimizations,
+    softDeoptimizations,
+  };
 }

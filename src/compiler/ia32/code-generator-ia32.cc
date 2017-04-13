@@ -760,6 +760,33 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ add(esp, Immediate(kDoubleSize));                                      \
   } while (false)
 
+#define ASSEMBLE_BINOP(asm_instr)                                     \
+  do {                                                                \
+    if (AddressingModeField::decode(instr->opcode()) != kMode_None) { \
+      size_t index = 1;                                               \
+      Operand right = i.MemoryOperand(&index);                        \
+      __ asm_instr(i.InputRegister(0), right);                        \
+    } else {                                                          \
+      if (HasImmediateInput(instr, 1)) {                              \
+        __ asm_instr(i.InputOperand(0), i.InputImmediate(1));         \
+      } else {                                                        \
+        __ asm_instr(i.InputRegister(0), i.InputOperand(1));          \
+      }                                                               \
+    }                                                                 \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, mov_inst, cmpxchg_inst) \
+  do {                                                          \
+    Label binop;                                                \
+    __ bind(&binop);                                            \
+    __ mov_inst(eax, i.MemoryOperand(1));                       \
+    __ Move(i.TempRegister(0), eax);                            \
+    __ bin_inst(i.TempRegister(0), i.InputRegister(0));         \
+    __ lock();                                                  \
+    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));     \
+    __ j(not_equal, &binop);                                    \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -1130,18 +1157,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(tanh);
       break;
     case kIA32Add:
-      if (HasImmediateInput(instr, 1)) {
-        __ add(i.InputOperand(0), i.InputImmediate(1));
-      } else {
-        __ add(i.InputRegister(0), i.InputOperand(1));
-      }
+      ASSEMBLE_BINOP(add);
       break;
     case kIA32And:
-      if (HasImmediateInput(instr, 1)) {
-        __ and_(i.InputOperand(0), i.InputImmediate(1));
-      } else {
-        __ and_(i.InputRegister(0), i.InputOperand(1));
-      }
+      ASSEMBLE_BINOP(and_);
       break;
     case kIA32Cmp:
       ASSEMBLE_COMPARE(cmp);
@@ -1189,25 +1208,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ neg(i.OutputOperand());
       break;
     case kIA32Or:
-      if (HasImmediateInput(instr, 1)) {
-        __ or_(i.InputOperand(0), i.InputImmediate(1));
-      } else {
-        __ or_(i.InputRegister(0), i.InputOperand(1));
-      }
+      ASSEMBLE_BINOP(or_);
       break;
     case kIA32Xor:
-      if (HasImmediateInput(instr, 1)) {
-        __ xor_(i.InputOperand(0), i.InputImmediate(1));
-      } else {
-        __ xor_(i.InputRegister(0), i.InputOperand(1));
-      }
+      ASSEMBLE_BINOP(xor_);
       break;
     case kIA32Sub:
-      if (HasImmediateInput(instr, 1)) {
-        __ sub(i.InputOperand(0), i.InputImmediate(1));
-      } else {
-        __ sub(i.InputRegister(0), i.InputOperand(1));
-      }
+      ASSEMBLE_BINOP(sub);
       break;
     case kIA32Shl:
       if (HasImmediateInput(instr, 1)) {
@@ -1888,35 +1895,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kIA32Int32x4Splat: {
+    case kIA32I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ movd(dst, i.InputOperand(0));
       __ pshufd(dst, dst, 0x0);
       break;
     }
-    case kIA32Int32x4ExtractLane: {
+    case kIA32I32x4ExtractLane: {
       __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
-    case kIA32Int32x4ReplaceLane: {
+    case kIA32I32x4ReplaceLane: {
       __ Pinsrd(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
       break;
     }
-    case kSSEInt32x4Add: {
+    case kSSEI32x4Add: {
       __ paddd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kSSEInt32x4Sub: {
+    case kSSEI32x4Sub: {
       __ psubd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kAVXInt32x4Add: {
+    case kAVXI32x4Add: {
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vpaddd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
       break;
     }
-    case kAVXInt32x4Sub: {
+    case kAVXI32x4Sub: {
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vpsubd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
@@ -1992,6 +1999,66 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xchg(i.InputRegister(0), i.MemoryOperand(1));
       break;
     }
+    case kAtomicCompareExchangeInt8: {
+      __ lock();
+      __ cmpxchg_b(i.MemoryOperand(2), i.InputRegister(1));
+      __ movsx_b(eax, eax);
+      break;
+    }
+    case kAtomicCompareExchangeUint8: {
+      __ lock();
+      __ cmpxchg_b(i.MemoryOperand(2), i.InputRegister(1));
+      __ movzx_b(eax, eax);
+      break;
+    }
+    case kAtomicCompareExchangeInt16: {
+      __ lock();
+      __ cmpxchg_w(i.MemoryOperand(2), i.InputRegister(1));
+      __ movsx_w(eax, eax);
+      break;
+    }
+    case kAtomicCompareExchangeUint16: {
+      __ lock();
+      __ cmpxchg_w(i.MemoryOperand(2), i.InputRegister(1));
+      __ movzx_w(eax, eax);
+      break;
+    }
+    case kAtomicCompareExchangeWord32: {
+      __ lock();
+      __ cmpxchg(i.MemoryOperand(2), i.InputRegister(1));
+      break;
+    }
+#define ATOMIC_BINOP_CASE(op, inst)                \
+  case kAtomic##op##Int8: {                        \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b); \
+    __ movsx_b(eax, eax);                          \
+    break;                                         \
+  }                                                \
+  case kAtomic##op##Uint8: {                       \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b); \
+    __ movzx_b(eax, eax);                          \
+    break;                                         \
+  }                                                \
+  case kAtomic##op##Int16: {                       \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w); \
+    __ movsx_w(eax, eax);                          \
+    break;                                         \
+  }                                                \
+  case kAtomic##op##Uint16: {                      \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w); \
+    __ movzx_w(eax, eax);                          \
+    break;                                         \
+  }                                                \
+  case kAtomic##op##Word32: {                      \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov, cmpxchg);     \
+    break;                                         \
+  }
+      ATOMIC_BINOP_CASE(Add, add)
+      ATOMIC_BINOP_CASE(Sub, sub)
+      ATOMIC_BINOP_CASE(And, and_)
+      ATOMIC_BINOP_CASE(Or, or_)
+      ATOMIC_BINOP_CASE(Xor, xor_)
+#undef ATOMIC_BINOP_CASE
     case kAtomicLoadInt8:
     case kAtomicLoadUint8:
     case kAtomicLoadInt16:
@@ -2219,7 +2286,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
+  if (isolate()->NeedsSourcePositionsForProfiling()) {
+    __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
+  }
   __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   return kSuccess;
 }
@@ -2463,6 +2532,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   }
 }
 
+void CodeGenerator::FinishCode() {}
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {

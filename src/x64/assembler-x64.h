@@ -485,7 +485,9 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size)
+      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
+  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
   virtual ~Assembler() { }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -500,6 +502,7 @@ class Assembler : public AssemblerBase {
   // the absolute address of the target.
   // These functions convert between absolute Addresses of Code objects and
   // the relative displacements stored in the code.
+  // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static inline Address target_address_at(Address pc, Address constant_pool);
   static inline void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
@@ -886,6 +889,9 @@ class Assembler : public AssemblerBase {
   void ud2();
   void setcc(Condition cc, Register reg);
 
+  void pshufw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void pshufw(XMMRegister dst, const Operand& src, uint8_t shuffle);
+
   // Label operations & relative jumps (PPUM Appendix D)
   //
   // Takes a branch opcode (cc) and a label (L) and generates
@@ -925,7 +931,6 @@ class Assembler : public AssemblerBase {
   // Use a 32-bit signed displacement.
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
-  void jmp(Address entry, RelocInfo::Mode rmode);
   void jmp(Handle<Code> target, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)

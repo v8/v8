@@ -108,6 +108,7 @@ class Typer::Visitor : public Reducer {
   case IrOpcode::k##x:  \
     return UpdateType(node, TypeUnaryOp(node, x));
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
@@ -173,6 +174,7 @@ class Typer::Visitor : public Reducer {
   case IrOpcode::k##x:  \
     return TypeUnaryOp(node, x);
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
@@ -274,6 +276,7 @@ class Typer::Visitor : public Reducer {
     return t->operation_typer_.Name(type);  \
   }
   SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 #define DECLARE_METHOD(Name)                          \
   static Type* Name(Type* lhs, Type* rhs, Typer* t) { \
@@ -290,6 +293,7 @@ class Typer::Visitor : public Reducer {
   static Type* ObjectIsReceiver(Type*, Typer*);
   static Type* ObjectIsSmi(Type*, Typer*);
   static Type* ObjectIsString(Type*, Typer*);
+  static Type* ObjectIsSymbol(Type*, Typer*);
   static Type* ObjectIsUndetectable(Type*, Typer*);
 
   static ComparisonOutcome JSCompareTyper(Type*, Type*, Typer*);
@@ -301,6 +305,7 @@ class Typer::Visitor : public Reducer {
 
   static Type* JSCallTyper(Type*, Typer*);
 
+  static Type* NumberEqualTyper(Type*, Type*, Typer*);
   static Type* NumberLessThanTyper(Type*, Type*, Typer*);
   static Type* NumberLessThanOrEqualTyper(Type*, Type*, Typer*);
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
@@ -452,9 +457,14 @@ Type* Typer::Visitor::ToLength(Type* type, Typer* t) {
   type = ToInteger(type, t);
   double min = type->Min();
   double max = type->Max();
+  if (max <= 0.0) {
+    return Type::NewConstant(0, t->zone());
+  }
+  if (min >= kMaxSafeInteger) {
+    return Type::NewConstant(kMaxSafeInteger, t->zone());
+  }
   if (min <= 0.0) min = 0.0;
-  if (max > kMaxSafeInteger) max = kMaxSafeInteger;
-  if (max <= min) max = min;
+  if (max >= kMaxSafeInteger) max = kMaxSafeInteger;
   return Type::Range(min, max, t->zone());
 }
 
@@ -537,6 +547,12 @@ Type* Typer::Visitor::ObjectIsSmi(Type* type, Typer* t) {
 Type* Typer::Visitor::ObjectIsString(Type* type, Typer* t) {
   if (type->Is(Type::String())) return t->singleton_true_;
   if (!type->Maybe(Type::String())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::ObjectIsSymbol(Type* type, Typer* t) {
+  if (type->Is(Type::Symbol())) return t->singleton_true_;
+  if (!type->Maybe(Type::Symbol())) return t->singleton_false_;
   return Type::Boolean();
 }
 
@@ -1690,7 +1706,10 @@ Type* Typer::Visitor::TypeJSDebugger(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeBooleanNot(Node* node) { return Type::Boolean(); }
 
-Type* Typer::Visitor::TypeNumberEqual(Node* node) { return Type::Boolean(); }
+// static
+Type* Typer::Visitor::NumberEqualTyper(Type* lhs, Type* rhs, Typer* t) {
+  return JSEqualTyper(ToNumber(lhs, t), ToNumber(rhs, t), t);
+}
 
 // static
 Type* Typer::Visitor::NumberLessThanTyper(Type* lhs, Type* rhs, Typer* t) {
@@ -1705,6 +1724,10 @@ Type* Typer::Visitor::NumberLessThanOrEqualTyper(Type* lhs, Type* rhs,
       Invert(JSCompareTyper(ToNumber(rhs, t), ToNumber(lhs, t), t), t), t);
 }
 
+Type* Typer::Visitor::TypeNumberEqual(Node* node) {
+  return TypeBinaryOp(node, NumberEqualTyper);
+}
+
 Type* Typer::Visitor::TypeNumberLessThan(Node* node) {
   return TypeBinaryOp(node, NumberLessThanTyper);
 }
@@ -1714,7 +1737,7 @@ Type* Typer::Visitor::TypeNumberLessThanOrEqual(Node* node) {
 }
 
 Type* Typer::Visitor::TypeSpeculativeNumberEqual(Node* node) {
-  return Type::Boolean();
+  return TypeBinaryOp(node, NumberEqualTyper);
 }
 
 Type* Typer::Visitor::TypeSpeculativeNumberLessThan(Node* node) {
@@ -1787,6 +1810,9 @@ Type* Typer::Visitor::TypeStringIndexOf(Node* node) {
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   Type* index = Operand(node, 0);
   Type* length = Operand(node, 1);
+  if (index->Maybe(Type::MinusZero())) {
+    index = Type::Union(index, typer_->cache_.kSingletonZero, zone());
+  }
   index = Type::Intersect(index, Type::Integral32(), zone());
   if (!index->IsInhabited() || !length->IsInhabited()) return Type::None();
   double min = std::max(index->Min(), 0.0);
@@ -1816,8 +1842,7 @@ Type* Typer::Visitor::TypeCheckMaps(Node* node) {
 }
 
 Type* Typer::Visitor::TypeCheckNumber(Node* node) {
-  Type* arg = Operand(node, 0);
-  return Type::Intersect(arg, Type::Number(), zone());
+  return typer_->operation_typer_.CheckNumber(Operand(node, 0));
 }
 
 Type* Typer::Visitor::TypeCheckReceiver(Node* node) {
@@ -1836,8 +1861,7 @@ Type* Typer::Visitor::TypeCheckString(Node* node) {
 }
 
 Type* Typer::Visitor::TypeCheckFloat64Hole(Node* node) {
-  Type* type = Operand(node, 0);
-  return type;
+  return typer_->operation_typer_.CheckFloat64Hole(Operand(node, 0));
 }
 
 Type* Typer::Visitor::TypeCheckTaggedHole(Node* node) {
@@ -1856,7 +1880,9 @@ Type* Typer::Visitor::TypeConvertTaggedHoleToUndefined(Node* node) {
   return type;
 }
 
-Type* Typer::Visitor::TypeAllocate(Node* node) { return Type::Any(); }
+Type* Typer::Visitor::TypeAllocate(Node* node) {
+  return AllocateTypeOf(node->op());
+}
 
 Type* Typer::Visitor::TypeLoadField(Node* node) {
   return FieldAccessOf(node->op()).type;
@@ -1941,6 +1967,10 @@ Type* Typer::Visitor::TypeObjectIsSmi(Node* node) {
 
 Type* Typer::Visitor::TypeObjectIsString(Node* node) {
   return TypeUnaryOp(node, ObjectIsString);
+}
+
+Type* Typer::Visitor::TypeObjectIsSymbol(Node* node) {
+  return TypeUnaryOp(node, ObjectIsSymbol);
 }
 
 Type* Typer::Visitor::TypeObjectIsUndetectable(Node* node) {

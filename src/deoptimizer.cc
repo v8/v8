@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/accessors.h"
+#include "src/assembler-inl.h"
 #include "src/ast/prettyprinter.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
@@ -444,6 +445,24 @@ const char* Deoptimizer::MessageFor(BailoutType type) {
   return NULL;
 }
 
+namespace {
+
+CodeEventListener::DeoptKind DeoptKindOfBailoutType(
+    Deoptimizer::BailoutType bailout_type) {
+  switch (bailout_type) {
+    case Deoptimizer::EAGER:
+      return CodeEventListener::kEager;
+    case Deoptimizer::SOFT:
+      return CodeEventListener::kSoft;
+    case Deoptimizer::LAZY:
+      return CodeEventListener::kLazy;
+  }
+  UNREACHABLE();
+  return CodeEventListener::kEager;
+}
+
+}  // namespace
+
 Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
                          BailoutType type, unsigned bailout_id, Address from,
                          int fp_to_sp_delta)
@@ -508,7 +527,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   disallow_heap_allocation_ = new DisallowHeapAllocation();
 #endif  // DEBUG
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
-    PROFILE(isolate_, CodeDeoptEvent(compiled_code_, from_, fp_to_sp_delta_));
+    PROFILE(isolate_,
+            CodeDeoptEvent(compiled_code_, DeoptKindOfBailoutType(type), from_,
+                           fp_to_sp_delta_));
   }
   unsigned size = ComputeInputFrameSize();
   int parameter_count =
@@ -2280,7 +2301,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   MemoryChunk* chunk = data->deopt_entry_code_[type];
   CHECK(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
@@ -3050,10 +3071,6 @@ void TranslatedValue::MaterializeSimple() {
     }
 
     case kDouble: {
-      if (double_value().is_hole_nan()) {
-        value_ = isolate()->factory()->hole_nan_value();
-        return;
-      }
       double scalar_value = double_value().get_scalar();
       value_ = Handle<Object>(isolate()->factory()->NewNumber(scalar_value));
       return;
@@ -4092,10 +4109,10 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
             Handle<FixedDoubleArray>::cast(object);
         for (int i = 0; i < length; ++i) {
           Handle<Object> value = materializer.FieldAt(value_index);
-          CHECK(value->IsNumber());
-          if (value.is_identical_to(isolate_->factory()->hole_nan_value())) {
+          if (value.is_identical_to(isolate_->factory()->the_hole_value())) {
             double_array->set_the_hole(isolate_, i);
           } else {
+            CHECK(value->IsNumber());
             double_array->set(i, value->Number());
           }
         }
@@ -4134,6 +4151,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_REGEXP_TYPE:
@@ -4181,12 +4199,14 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:
     case BREAK_POINT_INFO_TYPE:
+    case STACK_FRAME_INFO_TYPE:
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case CONSTANT_ELEMENTS_PAIR_TYPE:
+    case ASYNC_GENERATOR_REQUEST_TYPE:
       OFStream os(stderr);
       os << "[couldn't handle instance type " << map->instance_type() << "]"
          << std::endl;

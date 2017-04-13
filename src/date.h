@@ -39,9 +39,7 @@ class DateCache {
   // It is an invariant of DateCache that cache stamp is non-negative.
   static const int kInvalidStamp = -1;
 
-  DateCache() : stamp_(0), tz_cache_(base::OS::CreateTimezoneCache()) {
-    ResetDateCache();
-  }
+  DateCache();
 
   virtual ~DateCache() {
     delete tz_cache_;
@@ -93,7 +91,12 @@ class DateCache {
     if (time_ms < 0 || time_ms > kMaxEpochTimeInMs) {
       time_ms = EquivalentTime(time_ms);
     }
-    return tz_cache_->LocalTimezone(static_cast<double>(time_ms));
+    bool is_dst = DaylightSavingsOffsetInMs(time_ms) != 0;
+    const char** name = is_dst ? &dst_tz_name_ : &tz_name_;
+    if (*name == nullptr) {
+      *name = tz_cache_->LocalTimezone(static_cast<double>(time_ms));
+    }
+    return *name;
   }
 
   // ECMA 262 - 15.9.5.26
@@ -275,6 +278,10 @@ class DateCache {
   int ymd_year_;
   int ymd_month_;
   int ymd_day_;
+
+  // Timezone name cache
+  const char* tz_name_;
+  const char* dst_tz_name_;
 
   base::TimezoneCache* tz_cache_;
 };

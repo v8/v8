@@ -295,9 +295,8 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
   effect = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   Node* value = effect = graph()->NewNode(
-      simplified()->Allocate(NOT_TENURED),
+      simplified()->Allocate(Type::OtherObject(), NOT_TENURED),
       jsgraph()->Constant(JSArrayIterator::kSize), effect, control);
-  NodeProperties::SetType(value, Type::OtherObject());
   effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                             value, jsgraph()->Constant(map), effect, control);
   effect = graph()->NewNode(
@@ -792,19 +791,19 @@ Reduction JSBuiltinReducer::ReduceArrayIsArray(Node* node) {
   control = graph()->NewNode(common()->IfTrue(), control);
 
   // Let the %ArrayIsArray runtime function deal with the JSProxy {value}.
-  value = effect =
+  value = effect = control =
       graph()->NewNode(javascript()->CallRuntime(Runtime::kArrayIsArray), value,
                        context, frame_state, effect, control);
   NodeProperties::SetType(value, Type::Boolean());
-  control = graph()->NewNode(common()->IfSuccess(), value);
 
-  // Rewire any IfException edges on {node} to {value}.
-  for (Edge edge : node->use_edges()) {
-    Node* const user = edge.from();
-    if (user->opcode() == IrOpcode::kIfException) {
-      edge.UpdateTo(value);
-      Revisit(user);
-    }
+  // Update potential {IfException} uses of {node} to point to the above
+  // %ArrayIsArray runtime call node instead.
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    NodeProperties::ReplaceControlInput(on_exception, control);
+    NodeProperties::ReplaceEffectInput(on_exception, effect);
+    control = graph()->NewNode(common()->IfSuccess(), control);
+    Revisit(on_exception);
   }
 
   // The {value} is neither a JSArray nor a JSProxy.
@@ -913,19 +912,41 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
-  Handle<Map> receiver_map;
   // We need exactly target, receiver and value parameters.
   if (node->op()->ValueInputCount() != 3) return NoChange();
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* value = NodeProperties::GetValueInput(node, 2);
-  if (GetMapWitness(node).ToHandle(&receiver_map) &&
-      CanInlineArrayResizeOperation(receiver_map)) {
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (receiver_maps.size() != 1) return NoChange();
+  DCHECK_NE(NodeProperties::kNoReceiverMaps, result);
+
+  // TODO(turbofan): Relax this to deal with multiple {receiver} maps.
+  Handle<Map> receiver_map = receiver_maps[0];
+  if (CanInlineArrayResizeOperation(receiver_map)) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
     dependencies()->AssumePropertyCell(factory()->array_protector());
     dependencies()->AssumePrototypeMapsStable(receiver_map);
+
+    // If the {receiver_maps} information is not reliable, we need
+    // to check that the {receiver} still has one of these maps.
+    if (result == NodeProperties::kUnreliableReceiverMaps) {
+      if (receiver_map->is_stable()) {
+        dependencies()->AssumeMapStable(receiver_map);
+      } else {
+        // TODO(turbofan): This is a potential - yet unlikely - deoptimization
+        // loop, since we might not learn from this deoptimization in baseline
+        // code. We need a way to learn from deoptimizations in optimized to
+        // address these problems.
+        effect = graph()->NewNode(
+            simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps),
+            receiver, effect, control);
+      }
+    }
 
     // TODO(turbofan): Perform type checks on the {value}. We are not guaranteed
     // to learn from these checks in case they fail, as the witness (i.e. the
@@ -1513,6 +1534,11 @@ Reduction JSBuiltinReducer::ReduceNumberIsInteger(Node* node) {
 // ES6 section 20.1.2.4 Number.isNaN ( number )
 Reduction JSBuiltinReducer::ReduceNumberIsNaN(Node* node) {
   JSCallReduction r(node);
+  if (r.InputsMatchZero()) {
+    // Number.isNaN() -> #false
+    Node* value = jsgraph()->FalseConstant();
+    return Replace(value);
+  }
   // Number.isNaN(a:number) -> ObjectIsNaN(a)
   Node* input = r.GetJSCallInput(0);
   Node* value = graph()->NewNode(simplified()->ObjectIsNaN(), input);
@@ -1577,7 +1603,7 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
         common()->BeginRegion(RegionObservability::kNotObservable), effect);
 
     Node* value = effect =
-        graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+        graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
                          jsgraph()->Constant(size), effect, control);
     effect =
         graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
@@ -1630,7 +1656,7 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
   effect = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   Node* value = effect =
-      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+      graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
                        jsgraph()->Constant(instance_size), effect, control);
   effect =
       graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()), value,
@@ -1802,6 +1828,37 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
   return NoChange();
 }
 
+// ES6 String.prototype.concat(...args)
+// #sec-string.prototype.concat
+Reduction JSBuiltinReducer::ReduceStringConcat(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    JSCallReduction r(node);
+    if (r.InputsMatchOne(Type::PlainPrimitive())) {
+      // String.prototype.concat(lhs:string, rhs:plain-primitive)
+      //   -> Call[StringAddStub](lhs, rhs)
+      StringAddFlags flags = r.InputsMatchOne(Type::String())
+                                 ? STRING_ADD_CHECK_NONE
+                                 : STRING_ADD_CONVERT_RIGHT;
+      // TODO(turbofan): Massage the FrameState of the {node} here once we
+      // have an artificial builtin frame type, so that it looks like the
+      // exception from StringAdd overflow came from String.prototype.concat
+      // builtin instead of the calling function.
+      Callable const callable =
+          CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
+      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), callable.descriptor(), 0,
+          CallDescriptor::kNeedsFrameState,
+          Operator::kNoDeopt | Operator::kNoWrite);
+      node->ReplaceInput(0, jsgraph()->HeapConstant(callable.code()));
+      node->ReplaceInput(1, receiver);
+      NodeProperties::ChangeOp(node, common()->Call(desc));
+      return Changed(node);
+    }
+  }
+
+  return NoChange();
+}
+
 // ES6 String.prototype.indexOf(searchString [, position])
 // #sec-string.prototype.indexof
 Reduction JSBuiltinReducer::ReduceStringIndexOf(Node* node) {
@@ -1842,9 +1899,8 @@ Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
     effect = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect);
     Node* value = effect = graph()->NewNode(
-        simplified()->Allocate(NOT_TENURED),
+        simplified()->Allocate(Type::OtherObject(), NOT_TENURED),
         jsgraph()->Constant(JSStringIterator::kSize), effect, control);
-    NodeProperties::SetType(value, Type::OtherObject());
     effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                               value, map, effect, control);
     effect = graph()->NewNode(
@@ -2203,6 +2259,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharAt(node);
     case kStringCharCodeAt:
       return ReduceStringCharCodeAt(node);
+    case kStringConcat:
+      return ReduceStringConcat(node);
     case kStringIndexOf:
       return ReduceStringIndexOf(node);
     case kStringIterator:

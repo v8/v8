@@ -14,11 +14,35 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+
+bool BinaryOperationHintToNumberOperationHint(
+    BinaryOperationHint binop_hint, NumberOperationHint* number_hint) {
+  switch (binop_hint) {
+    case BinaryOperationHint::kSignedSmall:
+      *number_hint = NumberOperationHint::kSignedSmall;
+      return true;
+    case BinaryOperationHint::kSigned32:
+      *number_hint = NumberOperationHint::kSigned32;
+      return true;
+    case BinaryOperationHint::kNumberOrOddball:
+      *number_hint = NumberOperationHint::kNumberOrOddball;
+      return true;
+    case BinaryOperationHint::kAny:
+    case BinaryOperationHint::kNone:
+    case BinaryOperationHint::kString:
+      break;
+  }
+  return false;
+}
+
+}  // namespace
+
 class JSSpeculativeBinopBuilder final {
  public:
-  JSSpeculativeBinopBuilder(JSTypeHintLowering* lowering, const Operator* op,
-                            Node* left, Node* right, Node* effect,
-                            Node* control, FeedbackSlot slot)
+  JSSpeculativeBinopBuilder(const JSTypeHintLowering* lowering,
+                            const Operator* op, Node* left, Node* right,
+                            Node* effect, Node* control, FeedbackSlot slot)
       : lowering_(lowering),
         op_(op),
         left_(left),
@@ -40,22 +64,8 @@ class JSSpeculativeBinopBuilder final {
   }
 
   bool GetBinaryNumberOperationHint(NumberOperationHint* hint) {
-    switch (GetBinaryOperationHint()) {
-      case BinaryOperationHint::kSignedSmall:
-        *hint = NumberOperationHint::kSignedSmall;
-        return true;
-      case BinaryOperationHint::kSigned32:
-        *hint = NumberOperationHint::kSigned32;
-        return true;
-      case BinaryOperationHint::kNumberOrOddball:
-        *hint = NumberOperationHint::kNumberOrOddball;
-        return true;
-      case BinaryOperationHint::kAny:
-      case BinaryOperationHint::kNone:
-      case BinaryOperationHint::kString:
-        break;
-    }
-    return false;
+    return BinaryOperationHintToNumberOperationHint(GetBinaryOperationHint(),
+                                                    hint);
   }
 
   bool GetCompareNumberOperationHint(NumberOperationHint* hint) {
@@ -112,6 +122,8 @@ class JSSpeculativeBinopBuilder final {
 
   const Operator* SpeculativeCompareOp(NumberOperationHint hint) {
     switch (op_->opcode()) {
+      case IrOpcode::kJSEqual:
+        return simplified()->SpeculativeNumberEqual(hint);
       case IrOpcode::kJSLessThan:
         return simplified()->SpeculativeNumberLessThan(hint);
       case IrOpcode::kJSGreaterThan:
@@ -170,7 +182,7 @@ class JSSpeculativeBinopBuilder final {
   }
 
  private:
-  JSTypeHintLowering* lowering_;
+  const JSTypeHintLowering* lowering_;
   const Operator* op_;
   Node* left_;
   Node* right_;
@@ -180,17 +192,18 @@ class JSSpeculativeBinopBuilder final {
 };
 
 JSTypeHintLowering::JSTypeHintLowering(JSGraph* jsgraph,
-                                       Handle<FeedbackVector> feedback_vector)
-    : jsgraph_(jsgraph), feedback_vector_(feedback_vector) {}
+                                       Handle<FeedbackVector> feedback_vector,
+                                       Flags flags)
+    : jsgraph_(jsgraph), flags_(flags), feedback_vector_(feedback_vector) {}
 
 Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
                                                     Node* left, Node* right,
                                                     Node* effect, Node* control,
-                                                    FeedbackSlot slot) {
+                                                    FeedbackSlot slot) const {
   switch (op->opcode()) {
-    case IrOpcode::kJSEqual:
     case IrOpcode::kJSStrictEqual:
       break;
+    case IrOpcode::kJSEqual:
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSGreaterThan:
     case IrOpcode::kJSLessThanOrEqual:
@@ -223,6 +236,93 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
       break;
   }
   return Reduction();
+}
+
+Reduction JSTypeHintLowering::ReduceToNumberOperation(Node* input, Node* effect,
+                                                      Node* control,
+                                                      FeedbackSlot slot) const {
+  DCHECK(!slot.IsInvalid());
+  BinaryOpICNexus nexus(feedback_vector(), slot);
+  NumberOperationHint hint;
+  if (BinaryOperationHintToNumberOperationHint(
+          nexus.GetBinaryOperationFeedback(), &hint)) {
+    Node* node = jsgraph()->graph()->NewNode(
+        jsgraph()->simplified()->SpeculativeToNumber(hint), input, effect,
+        control);
+    return Reduction(node);
+  }
+  return Reduction();
+}
+
+Reduction JSTypeHintLowering::ReduceLoadNamedOperation(
+    const Operator* op, Node* obj, Node* effect, Node* control,
+    FeedbackSlot slot) const {
+  DCHECK_EQ(IrOpcode::kJSLoadNamed, op->opcode());
+  DCHECK(!slot.IsInvalid());
+  LoadICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess)) {
+    return Reduction(node);
+  }
+  return Reduction();
+}
+
+Reduction JSTypeHintLowering::ReduceLoadKeyedOperation(
+    const Operator* op, Node* obj, Node* key, Node* effect, Node* control,
+    FeedbackSlot slot) const {
+  DCHECK_EQ(IrOpcode::kJSLoadProperty, op->opcode());
+  DCHECK(!slot.IsInvalid());
+  KeyedLoadICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess)) {
+    return Reduction(node);
+  }
+  return Reduction();
+}
+
+Reduction JSTypeHintLowering::ReduceStoreNamedOperation(
+    const Operator* op, Node* obj, Node* val, Node* effect, Node* control,
+    FeedbackSlot slot) const {
+  DCHECK(op->opcode() == IrOpcode::kJSStoreNamed ||
+         op->opcode() == IrOpcode::kJSStoreNamedOwn);
+  DCHECK(!slot.IsInvalid());
+  StoreICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess)) {
+    return Reduction(node);
+  }
+  return Reduction();
+}
+
+Reduction JSTypeHintLowering::ReduceStoreKeyedOperation(
+    const Operator* op, Node* obj, Node* key, Node* val, Node* effect,
+    Node* control, FeedbackSlot slot) const {
+  DCHECK_EQ(IrOpcode::kJSStoreProperty, op->opcode());
+  DCHECK(!slot.IsInvalid());
+  KeyedStoreICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess)) {
+    return Reduction(node);
+  }
+  return Reduction();
+}
+
+Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackNexus& nexus, Node* effect,
+                                            Node* control,
+                                            DeoptimizeReason reason) const {
+  if ((flags() & kBailoutOnUninitialized) && nexus.IsUninitialized()) {
+    Node* deoptimize = jsgraph()->graph()->NewNode(
+        jsgraph()->common()->Deoptimize(DeoptimizeKind::kSoft, reason),
+        jsgraph()->Dead(), effect, control);
+    Node* frame_state = NodeProperties::FindFrameStateBefore(deoptimize);
+    deoptimize->ReplaceInput(0, frame_state);
+    return deoptimize;
+  }
+  return nullptr;
 }
 
 }  // namespace compiler

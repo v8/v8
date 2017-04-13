@@ -15,19 +15,6 @@ var searchSymbol = utils.ImportNow("search_symbol");
 
 //-------------------------------------------------------------------
 
-// ECMA-262, section 15.5.4.6
-function StringConcat(other /* and more */) {  // length == 1
-  "use strict";
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.concat");
-  var s = TO_STRING(this);
-  var len = arguments.length;
-  for (var i = 0; i < len; ++i) {
-    s = s + TO_STRING(arguments[i]);
-  }
-  return s;
-}
-
-
 // ES6 21.1.3.11.
 function StringMatchJS(pattern) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.match");
@@ -288,7 +275,6 @@ utils.InstallFunctions(GlobalString, DONT_ENUM, [
 // Set up the non-enumerable functions on the String prototype object.
 utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "codePointAt", StringCodePointAt,
-  "concat", StringConcat,
   "match", StringMatchJS,
   "repeat", StringRepeat,
   "search", StringSearch,

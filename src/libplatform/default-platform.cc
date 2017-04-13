@@ -8,6 +8,7 @@
 #include <queue>
 
 #include "include/libplatform/libplatform.h"
+#include "src/base/debug/stack_trace.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
@@ -17,8 +18,20 @@
 namespace v8 {
 namespace platform {
 
+namespace {
+
+void PrintStackTrace() {
+  v8::base::debug::StackTrace trace;
+  trace.Print();
+  // Avoid dumping duplicate stack trace on abort signal.
+  v8::base::debug::DisableSignalStackDump();
+}
+
+}  // namespace
+
 v8::Platform* CreateDefaultPlatform(int thread_pool_size,
                                     IdleTaskSupport idle_task_support) {
+  v8::base::debug::EnableInProcessStackDumping();
   DefaultPlatform* platform = new DefaultPlatform(idle_task_support);
   platform->SetThreadPoolSize(thread_pool_size);
   platform->EnsureInitialized();
@@ -276,6 +289,10 @@ void DefaultPlatform::AddTraceStateObserver(TraceStateObserver* observer) {
 void DefaultPlatform::RemoveTraceStateObserver(TraceStateObserver* observer) {
   if (!tracing_controller_) return;
   tracing_controller_->RemoveTraceStateObserver(observer);
+}
+
+Platform::StackTracePrinter DefaultPlatform::GetStackTracePrinter() {
+  return PrintStackTrace;
 }
 
 }  // namespace platform

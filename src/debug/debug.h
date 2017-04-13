@@ -65,6 +65,11 @@ enum DebugBreakType {
   DEBUG_BREAK_SLOT_AT_TAIL_CALL,
 };
 
+enum IgnoreBreakMode {
+  kIgnoreIfAllFramesBlackboxed,
+  kIgnoreIfTopFrameBlackboxed
+};
+
 class BreakLocation {
  public:
   static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
@@ -276,7 +281,7 @@ class Debug {
   MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
                                            Handle<Object> data);
   Handle<Context> GetDebugContext();
-  void HandleDebugBreak();
+  void HandleDebugBreak(IgnoreBreakMode ignore_break_mode);
 
   // Internal logic
   bool Load();
@@ -485,7 +490,8 @@ class Debug {
   // Clear all code from instrumentation.
   void ClearAllBreakPoints();
   // Instrument a function with one-shots.
-  void FloodWithOneShot(Handle<SharedFunctionInfo> function);
+  void FloodWithOneShot(Handle<SharedFunctionInfo> function,
+                        bool returns_only = false);
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
 
@@ -559,6 +565,13 @@ class Debug {
 
     // Step action for last step performed.
     StepAction last_step_action_;
+
+    // If set, next PrepareStepIn will ignore this function until stepped into
+    // another function, at which point this will be cleared.
+    Object* ignore_step_into_function_;
+
+    // If set then we need to repeat StepOut action at return.
+    bool fast_forward_to_return_;
 
     // Source statement position from last step next action.
     int last_statement_position_;

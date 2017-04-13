@@ -454,8 +454,30 @@ class RepresentationSelector {
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
+#define DECLARE_CASE(Name)                                                \
+  case IrOpcode::k##Name: {                                               \
+    new_type =                                                            \
+        Type::Intersect(op_typer_.Name(FeedbackTypeOf(node->InputAt(0))), \
+                        info->restriction_type(), graph_zone());          \
+    break;                                                                \
+  }
+      SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
+#undef DECLARE_CASE
+
       case IrOpcode::kPlainPrimitiveToNumber:
         new_type = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
+        break;
+
+      case IrOpcode::kCheckFloat64Hole:
+        new_type = Type::Intersect(
+            op_typer_.CheckFloat64Hole(FeedbackTypeOf(node->InputAt(0))),
+            info->restriction_type(), graph_zone());
+        break;
+
+      case IrOpcode::kCheckNumber:
+        new_type = Type::Intersect(
+            op_typer_.CheckNumber(FeedbackTypeOf(node->InputAt(0))),
+            info->restriction_type(), graph_zone());
         break;
 
       case IrOpcode::kPhi: {
@@ -809,6 +831,15 @@ class RepresentationSelector {
     if (lower()) Kill(node);
   }
 
+  // Helper for no-op node.
+  void VisitNoop(Node* node, Truncation truncation) {
+    if (truncation.IsUnused()) return VisitUnused(node);
+    MachineRepresentation representation =
+        GetOutputInfoForPhi(node, TypeOf(node), truncation);
+    VisitUnop(node, UseInfo(representation, truncation), representation);
+    if (lower()) DeferReplacement(node, node->InputAt(0));
+  }
+
   // Helper for binops of the R x L -> O variety.
   void VisitBinop(Node* node, UseInfo left_use, UseInfo right_use,
                   MachineRepresentation output,
@@ -840,11 +871,12 @@ class RepresentationSelector {
   }
 
   // Helper for unops of the I -> O variety.
-  void VisitUnop(Node* node, UseInfo input_use, MachineRepresentation output) {
+  void VisitUnop(Node* node, UseInfo input_use, MachineRepresentation output,
+                 Type* restriction_type = Type::Any()) {
     DCHECK_EQ(1, node->op()->ValueInputCount());
     ProcessInput(node, 0, input_use);
     ProcessRemainingInputs(node, 1);
-    SetOutput(node, output);
+    SetOutput(node, output, restriction_type);
   }
 
   // Helper for leaf nodes.
@@ -2295,13 +2327,19 @@ class RepresentationSelector {
       case IrOpcode::kCheckBounds: {
         Type* index_type = TypeOf(node->InputAt(0));
         Type* length_type = TypeOf(node->InputAt(1));
-        if (index_type->Is(Type::Unsigned32())) {
+        if (index_type->Is(Type::Integral32OrMinusZero())) {
+          // Map -0 to 0, and the values in the [-2^31,-1] range to the
+          // [2^31,2^32-1] range, which will be considered out-of-bounds
+          // as well, because the {length_type} is limited to Unsigned31.
           VisitBinop(node, UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
-          if (lower() && index_type->Max() < length_type->Min()) {
-            // The bounds check is redundant if we already know that
-            // the index is within the bounds of [0.0, length[.
-            DeferReplacement(node, node->InputAt(0));
+          if (lower()) {
+            if (index_type->Min() >= 0.0 &&
+                index_type->Max() < length_type->Min()) {
+              // The bounds check is redundant if we already know that
+              // the index is within the bounds of [0.0, length[.
+              DeferReplacement(node, node->InputAt(0));
+            }
           }
         } else {
           VisitBinop(node, UseInfo::CheckedSigned32AsWord32(kIdentifyZeros),
@@ -2339,19 +2377,9 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckNumber: {
-        if (InputIs(node, Type::Number())) {
-          if (truncation.IsUsedAsWord32()) {
-            VisitUnop(node, UseInfo::TruncatingWord32(),
-                      MachineRepresentation::kWord32);
-          } else {
-            // TODO(jarin,bmeurer): We need to go to Tagged here, because
-            // otherwise we cannot distinguish the hole NaN (which might need to
-            // be treated as undefined). We should have a dedicated Type for
-            // that at some point, and maybe even a dedicated truncation.
-            VisitUnop(node, UseInfo::AnyTagged(),
-                      MachineRepresentation::kTagged);
-          }
-          if (lower()) DeferReplacement(node, node->InputAt(0));
+        Type* const input_type = TypeOf(node->InputAt(0));
+        if (input_type->Is(Type::Number())) {
+          VisitNoop(node, truncation);
         } else {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         }
@@ -2566,6 +2594,23 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kSpeculativeToNumber: {
+        NumberOperationHint const hint = NumberOperationHintOf(node->op());
+        switch (hint) {
+          case NumberOperationHint::kSigned32:
+          case NumberOperationHint::kSignedSmall:
+            VisitUnop(node, CheckedUseInfoAsWord32FromHint(hint),
+                      MachineRepresentation::kWord32, Type::Signed32());
+            break;
+          case NumberOperationHint::kNumber:
+          case NumberOperationHint::kNumberOrOddball:
+            VisitUnop(node, CheckedUseInfoAsFloat64FromHint(hint),
+                      MachineRepresentation::kFloat64);
+            break;
+        }
+        if (lower()) DeferReplacement(node, node->InputAt(0));
+        return;
+      }
       case IrOpcode::kObjectIsDetectableCallable: {
         VisitObjectIs(node, Type::DetectableCallable(), lowering);
         return;
@@ -2620,6 +2665,10 @@ class RepresentationSelector {
         VisitObjectIs(node, Type::String(), lowering);
         return;
       }
+      case IrOpcode::kObjectIsSymbol: {
+        VisitObjectIs(node, Type::Symbol(), lowering);
+        return;
+      }
       case IrOpcode::kObjectIsUndetectable: {
         VisitObjectIs(node, Type::Undetectable(), lowering);
         return;
@@ -2643,13 +2692,32 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckFloat64Hole: {
-        CheckFloat64HoleMode mode = CheckFloat64HoleModeOf(node->op());
-        ProcessInput(node, 0, UseInfo::TruncatingFloat64());
-        ProcessRemainingInputs(node, 1);
-        SetOutput(node, MachineRepresentation::kFloat64);
-        if (truncation.IsUsedAsFloat64() &&
-            mode == CheckFloat64HoleMode::kAllowReturnHole) {
-          if (lower()) DeferReplacement(node, node->InputAt(0));
+        Type* const input_type = TypeOf(node->InputAt(0));
+        if (input_type->Is(Type::Number())) {
+          VisitNoop(node, truncation);
+        } else {
+          CheckFloat64HoleMode mode = CheckFloat64HoleModeOf(node->op());
+          switch (mode) {
+            case CheckFloat64HoleMode::kAllowReturnHole:
+              if (truncation.IsUnused()) return VisitUnused(node);
+              if (truncation.IsUsedAsFloat64()) {
+                VisitUnop(node, UseInfo::TruncatingFloat64(),
+                          MachineRepresentation::kFloat64);
+                if (lower()) DeferReplacement(node, node->InputAt(0));
+              } else {
+                VisitUnop(
+                    node,
+                    UseInfo(MachineRepresentation::kFloat64, Truncation::Any()),
+                    MachineRepresentation::kFloat64, Type::Number());
+              }
+              break;
+            case CheckFloat64HoleMode::kNeverReturnHole:
+              VisitUnop(
+                  node,
+                  UseInfo(MachineRepresentation::kFloat64, Truncation::Any()),
+                  MachineRepresentation::kFloat64, Type::Number());
+              break;
+          }
         }
         return;
       }
@@ -2905,7 +2973,6 @@ void SimplifiedLowering::DoJSToNumberTruncatesToFloat64(
   Node* frame_state = node->InputAt(2);
   Node* effect = node->InputAt(3);
   Node* control = node->InputAt(4);
-  Node* throwing;
 
   Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), value);
   Node* branch0 =
@@ -2923,10 +2990,18 @@ void SimplifiedLowering::DoJSToNumberTruncatesToFloat64(
   Node* efalse0 = effect;
   Node* vfalse0;
   {
-    throwing = vfalse0 = efalse0 =
+    vfalse0 = efalse0 = if_false0 =
         graph()->NewNode(ToNumberOperator(), ToNumberCode(), value, context,
                          frame_state, efalse0, if_false0);
-    if_false0 = graph()->NewNode(common()->IfSuccess(), throwing);
+
+    // Update potential {IfException} uses of {node} to point to the above
+    // {ToNumber} stub call node instead.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      NodeProperties::ReplaceControlInput(on_exception, vfalse0);
+      NodeProperties::ReplaceEffectInput(on_exception, efalse0);
+      if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
+    }
 
     Node* check1 = graph()->NewNode(simplified()->ObjectIsSmi(), vfalse0);
     Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
@@ -2968,10 +3043,9 @@ void SimplifiedLowering::DoJSToNumberTruncatesToFloat64(
       if (edge.from()->opcode() == IrOpcode::kIfSuccess) {
         edge.from()->ReplaceUses(control);
         edge.from()->Kill();
-      } else if (edge.from()->opcode() == IrOpcode::kIfException) {
-        edge.UpdateTo(throwing);
       } else {
-        UNREACHABLE();
+        DCHECK(edge.from()->opcode() != IrOpcode::kIfException);
+        edge.UpdateTo(control);
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
       edge.UpdateTo(effect);
@@ -2989,7 +3063,6 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
   Node* frame_state = node->InputAt(2);
   Node* effect = node->InputAt(3);
   Node* control = node->InputAt(4);
-  Node* throwing;
 
   Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), value);
   Node* branch0 =
@@ -3004,10 +3077,18 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
   Node* efalse0 = effect;
   Node* vfalse0;
   {
-    throwing = vfalse0 = efalse0 =
+    vfalse0 = efalse0 = if_false0 =
         graph()->NewNode(ToNumberOperator(), ToNumberCode(), value, context,
                          frame_state, efalse0, if_false0);
-    if_false0 = graph()->NewNode(common()->IfSuccess(), throwing);
+
+    // Update potential {IfException} uses of {node} to point to the above
+    // {ToNumber} stub call node instead.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      NodeProperties::ReplaceControlInput(on_exception, vfalse0);
+      NodeProperties::ReplaceEffectInput(on_exception, efalse0);
+      if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
+    }
 
     Node* check1 = graph()->NewNode(simplified()->ObjectIsSmi(), vfalse0);
     Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
@@ -3045,10 +3126,9 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
       if (edge.from()->opcode() == IrOpcode::kIfSuccess) {
         edge.from()->ReplaceUses(control);
         edge.from()->Kill();
-      } else if (edge.from()->opcode() == IrOpcode::kIfException) {
-        edge.UpdateTo(throwing);
       } else {
-        UNREACHABLE();
+        DCHECK(edge.from()->opcode() != IrOpcode::kIfException);
+        edge.UpdateTo(control);
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
       edge.UpdateTo(effect);

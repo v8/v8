@@ -352,13 +352,14 @@ DECLARATION_NODE_LIST(DEF_VISIT)
 
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
-bool Rewriter::Rewrite(ParseInfo* info) {
+bool Rewriter::Rewrite(ParseInfo* info, Isolate* isolate) {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
   RuntimeCallTimerScope runtimeTimer(
-      info->isolate(), &RuntimeCallStats::CompileRewriteReturnResult);
+      info->runtime_call_stats(),
+      &RuntimeCallStats::CompileRewriteReturnResult);
 
   FunctionLiteral* function = info->literal();
   DCHECK_NOT_NULL(function);
@@ -376,9 +377,8 @@ bool Rewriter::Rewrite(ParseInfo* info) {
   if (!body->is_empty()) {
     Variable* result = scope->AsDeclarationScope()->NewTemporary(
         info->ast_value_factory()->dot_result_string());
-    Processor processor(info->isolate()->stack_guard()->real_climit(),
-                        scope->AsDeclarationScope(), result,
-                        info->ast_value_factory());
+    Processor processor(info->stack_limit(), scope->AsDeclarationScope(),
+                        result, info->ast_value_factory());
     processor.Process(body);
 
     DCHECK_IMPLIES(scope->is_module_scope(), processor.result_assigned());
@@ -400,14 +400,14 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     }
 
     // TODO(leszeks): Remove this check and releases once internalization is
-    // moved out of parsing/analysis.
-    DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
+    // moved out of parsing/analysis. Also remove the parameter once done.
+    DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
     no_deref.Release();
     no_handles.Release();
     no_allocation.Release();
 
     // Internalize any values created during rewriting.
-    info->ast_value_factory()->Internalize(info->isolate());
+    info->ast_value_factory()->Internalize(isolate);
     if (processor.HasStackOverflow()) return false;
   }
 

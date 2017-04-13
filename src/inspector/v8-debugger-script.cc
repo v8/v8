@@ -44,7 +44,11 @@ String16 calculateHash(const String16& str) {
   size_t sizeInBytes = sizeof(UChar) * str.length();
   data = reinterpret_cast<const uint32_t*>(str.characters16());
   for (size_t i = 0; i < sizeInBytes / 4; i += 4) {
+#if V8_TARGET_LITTLE_ENDIAN
     uint32_t v = data[i];
+#else
+    uint32_t v = (data[i] << 16) | (data[i] >> 16);
+#endif
     uint64_t xi = v * randomOdd[current] & 0x7FFFFFFF;
     hashes[current] = (hashes[current] + zi[current] * xi) % prime[current];
     zi[current] = (zi[current] * random[current]) % prime[current];
@@ -54,7 +58,15 @@ String16 calculateHash(const String16& str) {
     uint32_t v = 0;
     for (size_t i = sizeInBytes - sizeInBytes % 4; i < sizeInBytes; ++i) {
       v <<= 8;
+#if V8_TARGET_LITTLE_ENDIAN
       v |= reinterpret_cast<const uint8_t*>(data)[i];
+#else
+      if (i % 2) {
+        v |= reinterpret_cast<const uint8_t*>(data)[i - 1];
+      } else {
+        v |= reinterpret_cast<const uint8_t*>(data)[i + 1];
+      }
+#endif
     }
     uint64_t xi = v * randomOdd[current] & 0x7FFFFFFF;
     hashes[current] = (hashes[current] + zi[current] * xi) % prime[current];

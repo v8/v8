@@ -837,11 +837,21 @@ for(i = 0; i < typedArrayConstructors.length; i++) {
 (function TestBufferLengthTooLong() {
   try {
     var buf = new ArrayBuffer(2147483648);
-    assertThrows(function() {
-      new Int8Array(buf);
-    }, RangeError);
   } catch (e) {
     // The ArrayBuffer allocation fails on 32-bit archs, so no need to try to
     // construct the typed array.
+    return;
+  }
+  assertThrows(function() {
+    new Int8Array(buf);
+  }, RangeError);
+})();
+
+(function TestByteLengthErrorMessage() {
+  try {
+    new Uint32Array(new ArrayBuffer(17));
+  } catch (e) {
+    assertEquals("byte length of Uint32Array should be a multiple of 4",
+                 e.message);
   }
 })();

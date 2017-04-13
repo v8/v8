@@ -185,7 +185,8 @@ class Logger : public CodeEventListener {
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
-  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
+  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+                      int fp_to_sp_delta);
 
   void ICEvent(const char* type, bool keyed, const Address pc, int line,
                int column, Map* map, Object* key, char old_state,
@@ -394,7 +395,8 @@ class CodeEventLogger : public CodeEventListener {
   void SetterCallbackEvent(Name* name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
-  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) override {}
+  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+                      int fp_to_sp_delta) override {}
 
  private:
   class NameBuffer;

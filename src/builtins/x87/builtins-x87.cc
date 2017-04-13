@@ -542,6 +542,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&bytecode_array_loaded);
 
   // Check whether we should continue to use the interpreter.
+  // TODO(rmcilroy) Remove self healing once liveedit only has to deal with
+  // Ignition bytecode.
   Label switch_to_different_code_kind;
   __ Move(ecx, masm->CodeObject());  // Self-reference to this code.
   __ cmp(ecx, FieldOperand(eax, SharedFunctionInfo::kCodeOffset));
@@ -692,7 +694,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndCallImpl(
+void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     MacroAssembler* masm, TailCallMode tail_call_mode,
     InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
@@ -756,7 +758,7 @@ namespace {
 // This function modified start_addr, and only reads the contents of num_args
 // register. scratch1 and scratch2 are used as temporary registers. Their
 // original values are restored after the use.
-void Generate_InterpreterPushArgsAndReturnAddress(
+void Generate_InterpreterPushArgsThenReturnAddress(
     MacroAssembler* masm, Register num_args, Register start_addr,
     Register scratch1, Register scratch2, bool receiver_in_args,
     int num_slots_above_ret_addr, Label* stack_overflow) {
@@ -845,7 +847,7 @@ void Generate_InterpreterPushArgsAndReturnAddress(
 }  // end anonymous namespace
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
+void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     MacroAssembler* masm, InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
@@ -864,8 +866,8 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   // Push arguments and move return address to the top of stack.
   // The eax register is readonly. The ecx register will be modified. The edx
   // and edi registers will be modified but restored to their original values.
-  Generate_InterpreterPushArgsAndReturnAddress(masm, eax, ecx, edx, edi, false,
-                                               2, &stack_overflow);
+  Generate_InterpreterPushArgsThenReturnAddress(masm, eax, ecx, edx, edi, false,
+                                                2, &stack_overflow);
 
   // Restore edi and edx
   __ Pop(edx);
@@ -905,7 +907,7 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndConstructArray(
+void Builtins::Generate_InterpreterPushArgsThenConstructArray(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
@@ -923,8 +925,8 @@ void Builtins::Generate_InterpreterPushArgsAndConstructArray(
   // Push arguments and move return address to the top of stack.
   // The eax register is readonly. The ecx register will be modified. The edx
   // and edi registers will be modified but restored to their original values.
-  Generate_InterpreterPushArgsAndReturnAddress(masm, eax, ecx, edx, edi, true,
-                                               1, &stack_overflow);
+  Generate_InterpreterPushArgsThenReturnAddress(masm, eax, ecx, edx, edi, true,
+                                                1, &stack_overflow);
 
   // Restore edx.
   __ Pop(edx);
@@ -1137,10 +1139,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ bind(&gotta_call_runtime_no_stack);
 
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
-}
-
-void Builtins::Generate_CompileBaseline(MacroAssembler* masm) {
-  GenerateTailCallToReturnedCode(masm, Runtime::kCompileBaseline);
 }
 
 void Builtins::Generate_CompileOptimized(MacroAssembler* masm) {
@@ -3117,112 +3115,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     FrameScope frame(masm, StackFrame::MANUAL);
     __ CallRuntime(Runtime::kThrowStackOverflow);
     __ int3();
-  }
-}
-
-static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
-                                    Register function_template_info,
-                                    Register scratch0, Register scratch1,
-                                    Label* receiver_check_failed) {
-  // If there is no signature, return the holder.
-  __ CompareRoot(FieldOperand(function_template_info,
-                              FunctionTemplateInfo::kSignatureOffset),
-                 Heap::kUndefinedValueRootIndex);
-  Label receiver_check_passed;
-  __ j(equal, &receiver_check_passed, Label::kNear);
-
-  // Walk the prototype chain.
-  __ mov(scratch0, FieldOperand(receiver, HeapObject::kMapOffset));
-  Label prototype_loop_start;
-  __ bind(&prototype_loop_start);
-
-  // Get the constructor, if any.
-  __ GetMapConstructor(scratch0, scratch0, scratch1);
-  __ CmpInstanceType(scratch1, JS_FUNCTION_TYPE);
-  Label next_prototype;
-  __ j(not_equal, &next_prototype, Label::kNear);
-
-  // Get the constructor's signature.
-  __ mov(scratch0,
-         FieldOperand(scratch0, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(scratch0,
-         FieldOperand(scratch0, SharedFunctionInfo::kFunctionDataOffset));
-
-  // Loop through the chain of inheriting function templates.
-  Label function_template_loop;
-  __ bind(&function_template_loop);
-
-  // If the signatures match, we have a compatible receiver.
-  __ cmp(scratch0, FieldOperand(function_template_info,
-                                FunctionTemplateInfo::kSignatureOffset));
-  __ j(equal, &receiver_check_passed, Label::kNear);
-
-  // If the current type is not a FunctionTemplateInfo, load the next prototype
-  // in the chain.
-  __ JumpIfSmi(scratch0, &next_prototype, Label::kNear);
-  __ CmpObjectType(scratch0, FUNCTION_TEMPLATE_INFO_TYPE, scratch1);
-  __ j(not_equal, &next_prototype, Label::kNear);
-
-  // Otherwise load the parent function template and iterate.
-  __ mov(scratch0,
-         FieldOperand(scratch0, FunctionTemplateInfo::kParentTemplateOffset));
-  __ jmp(&function_template_loop, Label::kNear);
-
-  // Load the next prototype.
-  __ bind(&next_prototype);
-  __ mov(receiver, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ test(FieldOperand(receiver, Map::kBitField3Offset),
-          Immediate(Map::HasHiddenPrototype::kMask));
-  __ j(zero, receiver_check_failed);
-
-  __ mov(receiver, FieldOperand(receiver, Map::kPrototypeOffset));
-  __ mov(scratch0, FieldOperand(receiver, HeapObject::kMapOffset));
-  // Iterate.
-  __ jmp(&prototype_loop_start, Label::kNear);
-
-  __ bind(&receiver_check_passed);
-}
-
-void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax                : number of arguments (not including the receiver)
-  //  -- edi                : callee
-  //  -- esi                : context
-  //  -- esp[0]             : return address
-  //  -- esp[4]             : last argument
-  //  -- ...
-  //  -- esp[eax * 4]       : first argument
-  //  -- esp[(eax + 1) * 4] : receiver
-  // -----------------------------------
-
-  // Load the FunctionTemplateInfo.
-  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kFunctionDataOffset));
-
-  // Do the compatible receiver check.
-  Label receiver_check_failed;
-  __ mov(ecx, Operand(esp, eax, times_pointer_size, kPCOnStackSize));
-  __ Push(eax);
-  CompatibleReceiverCheck(masm, ecx, ebx, edx, eax, &receiver_check_failed);
-  __ Pop(eax);
-  // Get the callback offset from the FunctionTemplateInfo, and jump to the
-  // beginning of the code.
-  __ mov(edx, FieldOperand(ebx, FunctionTemplateInfo::kCallCodeOffset));
-  __ mov(edx, FieldOperand(edx, CallHandlerInfo::kFastHandlerOffset));
-  __ add(edx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ jmp(edx);
-
-  // Compatible receiver check failed: pop return address, arguments and
-  // receiver and throw an Illegal Invocation exception.
-  __ bind(&receiver_check_failed);
-  __ Pop(eax);
-  __ PopReturnAddressTo(ebx);
-  __ lea(eax, Operand(eax, times_pointer_size, 1 * kPointerSize));
-  __ add(esp, eax);
-  __ PushReturnAddressFrom(ebx);
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ TailCallRuntime(Runtime::kThrowIllegalInvocation);
   }
 }
 

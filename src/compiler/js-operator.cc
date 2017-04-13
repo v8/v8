@@ -516,6 +516,31 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   return OpParameter<CreateLiteralParameters>(op);
 }
 
+bool operator==(GeneratorStoreParameters const& lhs,
+                GeneratorStoreParameters const& rhs) {
+  return lhs.register_count() == rhs.register_count() &&
+         lhs.suspend_type() == rhs.suspend_type();
+}
+bool operator!=(GeneratorStoreParameters const& lhs,
+                GeneratorStoreParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(GeneratorStoreParameters const& p) {
+  return base::hash_combine(p.register_count(),
+                            static_cast<int>(p.suspend_type()));
+}
+
+std::ostream& operator<<(std::ostream& os, GeneratorStoreParameters const& p) {
+  const char* suspend_type = SuspendTypeFor(p.suspend_type());
+  return os << p.register_count() << " (" << suspend_type << ")";
+}
+
+const GeneratorStoreParameters& GeneratorStoreParametersOf(const Operator* op) {
+  DCHECK_EQ(op->opcode(), IrOpcode::kJSGeneratorStore);
+  return OpParameter<GeneratorStoreParameters>(op);
+}
+
 BinaryOperationHint BinaryOperationHintOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSAdd, op->opcode());
   return OpParameter<BinaryOperationHint>(op);
@@ -816,12 +841,14 @@ const Operator* JSOperatorBuilder::LoadProperty(
       access);                                             // parameter
 }
 
-const Operator* JSOperatorBuilder::GeneratorStore(int register_count) {
-  return new (zone()) Operator1<int>(                   // --
-      IrOpcode::kJSGeneratorStore, Operator::kNoThrow,  // opcode
-      "JSGeneratorStore",                               // name
-      3 + register_count, 1, 1, 0, 1, 0,                // counts
-      register_count);                                  // parameter
+const Operator* JSOperatorBuilder::GeneratorStore(int register_count,
+                                                  SuspendFlags suspend_flags) {
+  GeneratorStoreParameters parameters(register_count, suspend_flags);
+  return new (zone()) Operator1<GeneratorStoreParameters>(  // --
+      IrOpcode::kJSGeneratorStore, Operator::kNoThrow,      // opcode
+      "JSGeneratorStore",                                   // name
+      3 + register_count, 1, 1, 0, 1, 0,                    // counts
+      parameters);                                          // parameter
 }
 
 const Operator* JSOperatorBuilder::GeneratorRestoreRegister(int index) {

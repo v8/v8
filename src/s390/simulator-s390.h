@@ -309,18 +309,6 @@ class Simulator {
 
   // S390
   void Trace(Instruction* instr);
-  bool DecodeTwoByte(Instruction* instr);
-  bool DecodeFourByte(Instruction* instr);
-  bool DecodeFourByteArithmetic(Instruction* instr);
-  bool DecodeFourByteArithmetic64Bit(Instruction* instr);
-  bool DecodeFourByteFloatingPoint(Instruction* instr);
-  void DecodeFourByteFloatingPointIntConversion(Instruction* instr);
-  void DecodeFourByteFloatingPointRound(Instruction* instr);
-
-  bool DecodeSixByte(Instruction* instr);
-  bool DecodeSixByteArithmetic(Instruction* instr);
-  bool S390InstructionDecode(Instruction* instr);
-  void DecodeSixByteBitShift(Instruction* instr);
 
   // Used by the CL**BR instructions.
   template <typename T1, typename T2>
@@ -1074,6 +1062,7 @@ class Simulator {
   EVALUATE(BCTG);
   EVALUATE(STY);
   EVALUATE(MSY);
+  EVALUATE(MSC);
   EVALUATE(NY);
   EVALUATE(CLY);
   EVALUATE(OY);

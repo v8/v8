@@ -78,9 +78,10 @@ v8::Local<v8::Context> TaskRunner::GetContext(int context_group_id) {
 }
 
 int TaskRunner::GetContextGroupId(v8::Local<v8::Context> context) {
-  return reinterpret_cast<intptr_t>(
-             context->GetAlignedPointerFromEmbedderData(kContextGroupIdIndex)) /
-         2;
+  return static_cast<int>(
+      reinterpret_cast<intptr_t>(
+          context->GetAlignedPointerFromEmbedderData(kContextGroupIdIndex)) /
+      2);
 }
 
 void TaskRunner::Run() {
@@ -241,11 +242,7 @@ void ExecuteStringTask::AsyncRun(v8::Isolate* isolate,
              .ToLocal(&script))
       return;
     v8::MaybeLocal<v8::Value> result;
-    if (inspector_)
-      inspector_->willExecuteScript(local_context,
-                                    script->GetUnboundScript()->GetId());
     result = script->Run(local_context);
-    if (inspector_) inspector_->didExecuteScript(local_context);
   } else {
     v8::Local<v8::Module> module;
     if (!v8::ScriptCompiler::CompileModule(isolate, &scriptSource)

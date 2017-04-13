@@ -43,11 +43,8 @@ class AllocationBuilder final {
     effect_ = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect_);
     allocation_ =
-        graph()->NewNode(simplified()->Allocate(pretenure),
+        graph()->NewNode(simplified()->Allocate(type, pretenure),
                          jsgraph()->Constant(size), effect_, control_);
-    // TODO(turbofan): Maybe we should put the Type* onto the Allocate operator
-    // at some point, or maybe we should have a completely differnt story.
-    NodeProperties::SetType(allocation_, type);
     effect_ = allocation_;
   }
 
@@ -198,9 +195,13 @@ bool IsFastLiteral(Handle<JSObject> boilerplate, int max_depth,
 }
 
 // Maximum depth and total number of elements and properties for literal
-// graphs to be considered for fast deep-copying.
+// graphs to be considered for fast deep-copying. The limit is chosen to
+// match the maximum number of inobject properties, to ensure that the
+// performance of using object literals is not worse than using constructor
+// functions, see crbug.com/v8/6211 for details.
 const int kMaxFastLiteralDepth = 3;
-const int kMaxFastLiteralProperties = 8;
+const int kMaxFastLiteralProperties =
+    (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kPointerSizeLog2;
 
 }  // namespace
 
@@ -646,8 +647,6 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
         graph()->NewNode(common()->Branch(BranchHint::kFalse), equal, control);
     Node* call_holey;
     Node* call_packed;
-    Node* if_success_packed;
-    Node* if_success_holey;
     Node* context = NodeProperties::GetContextInput(node);
     Node* frame_state = NodeProperties::GetFrameStateInput(node);
     Node* if_equal = graph()->NewNode(common()->IfTrue(), branch);
@@ -671,7 +670,6 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
 
       call_holey =
           graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
-      if_success_holey = graph()->NewNode(common()->IfSuccess(), call_holey);
     }
     Node* if_not_equal = graph()->NewNode(common()->IfFalse(), branch);
     {
@@ -695,10 +693,8 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
 
       call_packed =
           graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
-      if_success_packed = graph()->NewNode(common()->IfSuccess(), call_packed);
     }
-    Node* merge = graph()->NewNode(common()->Merge(2), if_success_holey,
-                                   if_success_packed);
+    Node* merge = graph()->NewNode(common()->Merge(2), call_holey, call_packed);
     Node* effect_phi = graph()->NewNode(common()->EffectPhi(2), call_holey,
                                         call_packed, merge);
     Node* phi =
@@ -1107,17 +1103,7 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
   ElementAccess access = IsFastDoubleElementsKind(elements_kind)
                              ? AccessBuilder::ForFixedDoubleArrayElement()
                              : AccessBuilder::ForFixedArrayElement();
-  Node* value;
-  if (IsFastDoubleElementsKind(elements_kind)) {
-    // Load the hole NaN pattern from the canonical location.
-    value = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForExternalDoubleValue()),
-        jsgraph()->ExternalConstant(
-            ExternalReference::address_of_the_hole_nan()),
-        effect, control);
-  } else {
-    value = jsgraph()->TheHoleConstant();
-  }
+  Node* value = jsgraph()->TheHoleConstant();
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
@@ -1147,11 +1133,6 @@ Node* JSCreateLowering::AllocateFastLiteral(
 
   // Setup the properties backing store.
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
-
-  // Setup the elements backing store.
-  Node* elements = AllocateFastLiteralElements(effect, control, boilerplate,
-                                               pretenure, site_context);
-  if (elements->op()->EffectOutputCount() > 0) effect = elements;
 
   // Compute the in-object properties to store first (might have effects).
   Handle<Map> boilerplate_map(boilerplate->map(), isolate());
@@ -1217,6 +1198,11 @@ Node* JSCreateLowering::AllocateFastLiteral(
     inobject_fields.push_back(std::make_pair(access, value));
   }
 
+  // Setup the elements backing store.
+  Node* elements = AllocateFastLiteralElements(effect, control, boilerplate,
+                                               pretenure, site_context);
+  if (elements->op()->EffectOutputCount() > 0) effect = elements;
+
   // Actually allocate and initialize the object.
   AllocationBuilder builder(jsgraph(), effect, control);
   builder.Allocate(boilerplate_map->instance_size(), pretenure,
@@ -1265,18 +1251,9 @@ Node* JSCreateLowering::AllocateFastLiteralElements(
   if (elements_map->instance_type() == FIXED_DOUBLE_ARRAY_TYPE) {
     Handle<FixedDoubleArray> elements =
         Handle<FixedDoubleArray>::cast(boilerplate_elements);
-    Node* the_hole_value = nullptr;
     for (int i = 0; i < elements_length; ++i) {
       if (elements->is_the_hole(i)) {
-        if (the_hole_value == nullptr) {
-          // Load the hole NaN pattern from the canonical location.
-          the_hole_value = effect = graph()->NewNode(
-              simplified()->LoadField(AccessBuilder::ForExternalDoubleValue()),
-              jsgraph()->ExternalConstant(
-                  ExternalReference::address_of_the_hole_nan()),
-              effect, control);
-        }
-        elements_values[i] = the_hole_value;
+        elements_values[i] = jsgraph()->TheHoleConstant();
       } else {
         elements_values[i] = jsgraph()->Constant(elements->get_scalar(i));
       }

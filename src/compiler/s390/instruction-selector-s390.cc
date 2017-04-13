@@ -317,50 +317,51 @@ ArchOpcode SelectLoadOpcode(Node* node) {
   return opcode;
 }
 
-bool AutoZeroExtendsWord32ToWord64(Node* node) {
-#if !V8_TARGET_ARCH_S390X
-  return true;
-#else
-  switch (node->opcode()) {
-    case IrOpcode::kInt32Div:
-    case IrOpcode::kUint32Div:
-    case IrOpcode::kInt32MulHigh:
-    case IrOpcode::kUint32MulHigh:
-    case IrOpcode::kInt32Mod:
-    case IrOpcode::kUint32Mod:
-    case IrOpcode::kWord32Clz:
-    case IrOpcode::kWord32Popcnt:
-    case IrOpcode::kChangeUint32ToUint64:
-      return true;
-    default:
-      return false;
-  }
-  return false;
-#endif
-}
+#define RESULT_IS_WORD32_LIST(V)   \
+  /* Float unary op*/              \
+  V(BitcastFloat32ToInt32)         \
+  /* V(TruncateFloat64ToWord32) */ \
+  /* V(RoundFloat64ToInt32)     */ \
+  /* V(TruncateFloat32ToInt32)  */ \
+  /* V(TruncateFloat32ToUint32) */ \
+  /* V(TruncateFloat64ToUint32) */ \
+  /* V(ChangeFloat64ToInt32)    */ \
+  /* V(ChangeFloat64ToUint32)   */ \
+  /* Word32 unary op */            \
+  V(Word32Clz)                     \
+  V(Word32Popcnt)                  \
+  V(Float64ExtractLowWord32)       \
+  V(Float64ExtractHighWord32)      \
+  /* Word32 bin op */              \
+  V(Int32Add)                      \
+  V(Int32Sub)                      \
+  V(Int32Mul)                      \
+  V(Int32AddWithOverflow)          \
+  V(Int32SubWithOverflow)          \
+  V(Int32MulWithOverflow)          \
+  V(Int32MulHigh)                  \
+  V(Uint32MulHigh)                 \
+  V(Int32Div)                      \
+  V(Uint32Div)                     \
+  V(Int32Mod)                      \
+  V(Uint32Mod)                     \
+  V(Word32Ror)                     \
+  V(Word32And)                     \
+  V(Word32Or)                      \
+  V(Word32Xor)                     \
+  V(Word32Shl)                     \
+  V(Word32Shr)                     \
+  V(Word32Sar)
 
-bool ZeroExtendsWord32ToWord64(Node* node) {
+bool ProduceWord32Result(Node* node) {
 #if !V8_TARGET_ARCH_S390X
   return true;
 #else
   switch (node->opcode()) {
-    case IrOpcode::kInt32Add:
-    case IrOpcode::kInt32Sub:
-    case IrOpcode::kWord32And:
-    case IrOpcode::kWord32Or:
-    case IrOpcode::kWord32Xor:
-    case IrOpcode::kWord32Shl:
-    case IrOpcode::kWord32Shr:
-    case IrOpcode::kWord32Sar:
-    case IrOpcode::kInt32Mul:
-    case IrOpcode::kWord32Ror:
-    case IrOpcode::kInt32Div:
-    case IrOpcode::kUint32Div:
-    case IrOpcode::kInt32MulHigh:
-    case IrOpcode::kInt32Mod:
-    case IrOpcode::kUint32Mod:
-    case IrOpcode::kWord32Popcnt:
-      return true;
+#define VISITOR(name) case IrOpcode::k##name:
+    RESULT_IS_WORD32_LIST(VISITOR)
+#undef VISITOR
+    return true;
     // TODO(john.yan): consider the following case to be valid
     // case IrOpcode::kWord32Equal:
     // case IrOpcode::kInt32LessThan:
@@ -388,6 +389,11 @@ bool ZeroExtendsWord32ToWord64(Node* node) {
       switch (load_rep.representation()) {
         case MachineRepresentation::kWord32:
           return true;
+        case MachineRepresentation::kWord8:
+          if (load_rep.IsSigned())
+            return false;
+          else
+            return true;
         default:
           return false;
       }
@@ -398,10 +404,12 @@ bool ZeroExtendsWord32ToWord64(Node* node) {
 #endif
 }
 
-void VisitRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
-  S390OperandGenerator g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)));
+static inline bool DoZeroExtForResult(Node* node) {
+#if V8_TARGET_ARCH_S390X
+  return ProduceWord32Result(node);
+#else
+  return false;
+#endif
 }
 
 // TODO(john.yan): Create VisiteShift to match dst = src shift (R+I)
@@ -503,51 +511,59 @@ void VisitBinOp(InstructionSelector* selector, Node* node,
                 InstructionCode opcode, OperandModes operand_mode,
                 FlagsContinuation* cont, CanCombineWithLoad canCombineWithLoad);
 
-#define VISIT_OP_LIST(V)                                                       \
-  V(Word64, Unary,                                                             \
-    [](ArchOpcode opcode) { return opcode == kS390_LoadWord64; })              \
-  V(Word64, Bin, [](ArchOpcode opcode) { return opcode == kS390_LoadWord64; }) \
-  V(Float32, Unary,                                                            \
-    [](ArchOpcode opcode) { return opcode == kS390_LoadFloat32; })             \
-  V(Float64, Unary,                                                            \
-    [](ArchOpcode opcode) { return opcode == kS390_LoadDouble; })              \
-  V(Float32, Bin,                                                              \
-    [](ArchOpcode opcode) { return opcode == kS390_LoadFloat32; })             \
+// Generate The following variations:
+//   VisitWord32UnaryOp, VisitWord32BinOp,
+//   VisitWord64UnaryOp, VisitWord64BinOp,
+//   VisitFloat32UnaryOp, VisitFloat32BinOp,
+//   VisitFloat64UnaryOp, VisitFloat64BinOp
+#define VISIT_OP_LIST_32(V)                                            \
+  V(Word32, Unary, [](ArchOpcode opcode) {                             \
+    return opcode == kS390_LoadWordS32 || opcode == kS390_LoadWordU32; \
+  })                                                                   \
+  V(Word64, Unary,                                                     \
+    [](ArchOpcode opcode) { return opcode == kS390_LoadWord64; })      \
+  V(Float32, Unary,                                                    \
+    [](ArchOpcode opcode) { return opcode == kS390_LoadFloat32; })     \
+  V(Float64, Unary,                                                    \
+    [](ArchOpcode opcode) { return opcode == kS390_LoadDouble; })      \
+  V(Word32, Bin, [](ArchOpcode opcode) {                               \
+    return opcode == kS390_LoadWordS32 || opcode == kS390_LoadWordU32; \
+  })                                                                   \
+  V(Float32, Bin,                                                      \
+    [](ArchOpcode opcode) { return opcode == kS390_LoadFloat32; })     \
   V(Float64, Bin, [](ArchOpcode opcode) { return opcode == kS390_LoadDouble; })
 
+#if V8_TARGET_ARCH_S390X
+#define VISIT_OP_LIST(V)                                          \
+  VISIT_OP_LIST_32(V)                                             \
+  V(Word64, Bin, [](ArchOpcode opcode) { return opcode == kS390_LoadWord64; })
+#else
+#define VISIT_OP_LIST VISIT_OP_LIST_32
+#endif
+
 #define DECLARE_VISIT_HELPER_FUNCTIONS(type1, type2, canCombineWithLoad)  \
-  void Visit##type1##type2##Op(                                           \
+  static inline void Visit##type1##type2##Op(                             \
       InstructionSelector* selector, Node* node, InstructionCode opcode,  \
       OperandModes operand_mode, FlagsContinuation* cont) {               \
     Visit##type2##Op(selector, node, opcode, operand_mode, cont,          \
                      canCombineWithLoad);                                 \
   }                                                                       \
-  void Visit##type1##type2##Op(InstructionSelector* selector, Node* node, \
-                               InstructionCode opcode,                    \
-                               OperandModes operand_mode) {               \
+  static inline void Visit##type1##type2##Op(                             \
+      InstructionSelector* selector, Node* node, InstructionCode opcode,  \
+      OperandModes operand_mode) {                                        \
     FlagsContinuation cont;                                               \
     Visit##type1##type2##Op(selector, node, opcode, operand_mode, &cont); \
   }
 VISIT_OP_LIST(DECLARE_VISIT_HELPER_FUNCTIONS);
 #undef DECLARE_VISIT_HELPER_FUNCTIONS
+#undef VISIT_OP_LIST_32
+#undef VISIT_OP_LIST
 
 template <class CanCombineWithLoad>
 void VisitUnaryOp(InstructionSelector* selector, Node* node,
                   InstructionCode opcode, OperandModes operand_mode,
                   FlagsContinuation* cont,
                   CanCombineWithLoad canCombineWithLoad) {
-// Just to get rid of unused function warning
-#define USE_VISITOR(type1, type2, canCombineWithLoad) \
-  {                                                   \
-    VisiterType dummy = Visit##type1##type2##Op;      \
-    USE(dummy);                                       \
-  }
-  typedef void (*VisiterType)(InstructionSelector * selector, Node * node,
-                              InstructionCode opcode,
-                              OperandModes operand_mode);
-  VISIT_OP_LIST(USE_VISITOR);
-#undef USE_VISITOR
-
   S390OperandGenerator g(selector);
   InstructionOperand inputs[8];
   size_t input_count = 0;
@@ -558,6 +574,16 @@ void VisitUnaryOp(InstructionSelector* selector, Node* node,
   GenerateRightOperands(selector, node, input, opcode, operand_mode, inputs,
                         input_count, canCombineWithLoad);
 
+  bool input_is_word32 = ProduceWord32Result(input);
+
+  bool doZeroExt = DoZeroExtForResult(node);
+  bool canEliminateZeroExt = input_is_word32;
+
+  if (doZeroExt) {
+    // Add zero-ext indication
+    inputs[input_count++] = g.TempImmediate(!canEliminateZeroExt);
+  }
+
   if (cont->IsBranch()) {
     inputs[input_count++] = g.Label(cont->true_block());
     inputs[input_count++] = g.Label(cont->false_block());
@@ -567,7 +593,12 @@ void VisitUnaryOp(InstructionSelector* selector, Node* node,
     // If we can deoptimize as a result of the binop, we need to make sure
     // that the deopt inputs are not overwritten by the binop result. One way
     // to achieve that is to declare the output register as same-as-first.
-    outputs[output_count++] = g.DefineAsRegister(node);
+    if (doZeroExt && canEliminateZeroExt) {
+      // we have to make sure result and left use the same register
+      outputs[output_count++] = g.DefineSameAsFirst(node);
+    } else {
+      outputs[output_count++] = g.DefineAsRegister(node);
+    }
   } else {
     outputs[output_count++] = g.DefineSameAsFirst(node);
   }
@@ -617,6 +648,16 @@ void VisitBinOp(InstructionSelector* selector, Node* node,
   GenerateBinOpOperands(selector, node, left, right, opcode, operand_mode,
                         inputs, input_count, canCombineWithLoad);
 
+  bool left_is_word32 = ProduceWord32Result(left);
+
+  bool doZeroExt = DoZeroExtForResult(node);
+  bool canEliminateZeroExt = left_is_word32;
+
+  if (doZeroExt) {
+    // Add zero-ext indication
+    inputs[input_count++] = g.TempImmediate(!canEliminateZeroExt);
+  }
+
   if (cont->IsBranch()) {
     inputs[input_count++] = g.Label(cont->true_block());
     inputs[input_count++] = g.Label(cont->false_block());
@@ -627,7 +668,12 @@ void VisitBinOp(InstructionSelector* selector, Node* node,
       // that the deopt inputs are not overwritten by the binop result. One way
       // to achieve that is to declare the output register as same-as-first.
       !cont->IsDeoptimize()) {
-    outputs[output_count++] = g.DefineAsRegister(node);
+    if (doZeroExt && canEliminateZeroExt) {
+      // we have to make sure result and left use the same register
+      outputs[output_count++] = g.DefineSameAsFirst(node);
+    } else {
+      outputs[output_count++] = g.DefineAsRegister(node);
+    }
   } else {
     outputs[output_count++] = g.DefineSameAsFirst(node);
   }
@@ -653,98 +699,6 @@ void VisitBinOp(InstructionSelector* selector, Node* node,
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
   }
 }
-
-void VisitBin32op(InstructionSelector* selector, Node* node,
-                  InstructionCode opcode, OperandModes operand_mode,
-                  FlagsContinuation* cont) {
-  S390OperandGenerator g(selector);
-  Int32BinopMatcher m(node);
-  Node* left = m.left().node();
-  Node* right = m.right().node();
-  InstructionOperand inputs[8];
-  size_t input_count = 0;
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-
-  // match left of TruncateInt64ToInt32
-  if (m.left().IsTruncateInt64ToInt32() && selector->CanCover(node, left)) {
-    left = left->InputAt(0);
-  }
-  // match right of TruncateInt64ToInt32
-  if (m.right().IsTruncateInt64ToInt32() && selector->CanCover(node, right)) {
-    right = right->InputAt(0);
-  }
-
-#if V8_TARGET_ARCH_S390X
-  if ((ZeroExtendsWord32ToWord64(right) || g.CanBeBetterLeftOperand(right)) &&
-      node->op()->HasProperty(Operator::kCommutative) &&
-      !g.CanBeImmediate(right, operand_mode)) {
-    std::swap(left, right);
-  }
-#else
-  if (node->op()->HasProperty(Operator::kCommutative) &&
-      !g.CanBeImmediate(right, operand_mode) &&
-      (g.CanBeBetterLeftOperand(right))) {
-    std::swap(left, right);
-  }
-#endif
-
-  GenerateBinOpOperands(selector, node, left, right, opcode, operand_mode,
-                        inputs, input_count, [](ArchOpcode opcode) {
-                          return opcode == kS390_LoadWordU32 ||
-                                 opcode == kS390_LoadWordS32;
-                        });
-
-  bool doZeroExt =
-      AutoZeroExtendsWord32ToWord64(node) || !ZeroExtendsWord32ToWord64(left);
-
-  inputs[input_count++] =
-      g.TempImmediate(doZeroExt && (!AutoZeroExtendsWord32ToWord64(node)));
-
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  }
-
-  if (doZeroExt && (operand_mode & OperandMode::kAllowDistinctOps) &&
-      // If we can deoptimize as a result of the binop, we need to make sure
-      // that
-      // the deopt inputs are not overwritten by the binop result. One way
-      // to achieve that is to declare the output register as same-as-first.
-      !cont->IsDeoptimize()) {
-    outputs[output_count++] = g.DefineAsRegister(node);
-  } else {
-    outputs[output_count++] = g.DefineSameAsFirst(node);
-  }
-
-  if (cont->IsSet()) {
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
-  }
-
-  DCHECK_NE(0u, input_count);
-  DCHECK_NE(0u, output_count);
-  DCHECK_GE(arraysize(inputs), input_count);
-  DCHECK_GE(arraysize(outputs), output_count);
-
-  opcode = cont->Encode(opcode);
-
-  if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->frame_state());
-  } else if (cont->IsTrap()) {
-    inputs[input_count++] = g.UseImmediate(cont->trap_id());
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  } else {
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  }
-}
-
-void VisitBin32op(InstructionSelector* selector, Node* node, ArchOpcode opcode,
-                  OperandModes operand_mode) {
-  FlagsContinuation cont;
-  VisitBin32op(selector, node, opcode, operand_mode, &cont);
-}
-#undef VISIT_OP_LIST
 
 }  // namespace
 
@@ -1013,23 +967,6 @@ static inline bool IsContiguousMask64(uint64_t value, int* mb, int* me) {
 }
 #endif
 
-// TODO(john.yan): use list to simplify general instructions
-#define WORD32_BIN_OP_LIST(V)                         \
-  /* V(name, ArchOpcode, OperandModes) */             \
-  V(Word32And, kS390_And32, And32OperandMode)         \
-  V(Word32Or, kS390_Or32, Or32OperandMode)            \
-  V(Word32Xor, kS390_Xor32, Xor32OperandMode)         \
-  V(Word32Shl, kS390_ShiftLeft32, Shift32OperandMode) \
-  V(Word32Shr, kS390_ShiftRight32, Shift32OperandMode)
-
-#define VISITOR(name, op, mode)                       \
-  void InstructionSelector::Visit##name(Node* node) { \
-    VisitBin32op(this, node, op, mode);               \
-  }
-WORD32_BIN_OP_LIST(VISITOR);
-#undef VISITOR
-#undef WORD32_BIN_OP_LIST
-
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitWord64And(Node* node) {
   S390OperandGenerator g(this);
@@ -1080,14 +1017,6 @@ void InstructionSelector::VisitWord64And(Node* node) {
     }
   }
   VisitWord64BinOp(this, node, kS390_And64, And64OperandMode);
-}
-
-void InstructionSelector::VisitWord64Or(Node* node) {
-  VisitWord64BinOp(this, node, kS390_Or64, Or64OperandMode);
-}
-
-void InstructionSelector::VisitWord64Xor(Node* node) {
-  VisitWord64BinOp(this, node, kS390_Xor64, Xor64OperandMode);
 }
 
 void InstructionSelector::VisitWord64Shl(Node* node) {
@@ -1171,27 +1100,31 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
 }
 #endif
 
-void InstructionSelector::VisitWord32Sar(Node* node) {
-  S390OperandGenerator g(this);
+static inline bool TryMatchSignExtInt16OrInt8FromWord32Sar(
+    InstructionSelector* selector, Node* node) {
+  S390OperandGenerator g(selector);
   Int32BinopMatcher m(node);
-  // Replace with sign extension for (x << K) >> K where K is 16 or 24.
-  if (CanCover(node, m.left().node()) && m.left().IsWord32Shl()) {
+  if (selector->CanCover(node, m.left().node()) && m.left().IsWord32Shl()) {
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().Is(16) && m.right().Is(16)) {
-      bool doZeroExt = !ZeroExtendsWord32ToWord64(mleft.left().node());
-      Emit(kS390_ExtendSignWord16,
-           doZeroExt ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
-           g.UseRegister(mleft.left().node()), g.TempImmediate(doZeroExt));
-      return;
+      bool canEliminateZeroExt = ProduceWord32Result(mleft.left().node());
+      selector->Emit(kS390_ExtendSignWord16,
+                     canEliminateZeroExt ? g.DefineSameAsFirst(node)
+                                         : g.DefineAsRegister(node),
+                     g.UseRegister(mleft.left().node()),
+                     g.TempImmediate(!canEliminateZeroExt));
+      return true;
     } else if (mleft.right().Is(24) && m.right().Is(24)) {
-      bool doZeroExt = !ZeroExtendsWord32ToWord64(mleft.left().node());
-      Emit(kS390_ExtendSignWord8,
-           doZeroExt ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
-           g.UseRegister(mleft.left().node()), g.TempImmediate(doZeroExt));
-      return;
+      bool canEliminateZeroExt = ProduceWord32Result(mleft.left().node());
+      selector->Emit(kS390_ExtendSignWord8,
+                     canEliminateZeroExt ? g.DefineSameAsFirst(node)
+                                         : g.DefineAsRegister(node),
+                     g.UseRegister(mleft.left().node()),
+                     g.TempImmediate(!canEliminateZeroExt));
+      return true;
     }
   }
-  VisitBin32op(this, node, kS390_ShiftRightArith32, Shift32OperandMode);
+  return false;
 }
 
 #if !V8_TARGET_ARCH_S390X
@@ -1302,51 +1235,6 @@ void InstructionSelector::VisitWord32PairSar(Node* node) {
 }
 #endif
 
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitWord64Sar(Node* node) {
-  VisitWord64BinOp(this, node, kS390_ShiftRightArith64, Shift64OperandMode);
-}
-#endif
-
-void InstructionSelector::VisitWord32Ror(Node* node) {
-  // TODO(john): match dst = ror(src1, src2 + imm)
-  VisitBin32op(this, node, kS390_RotRight32,
-               OperandMode::kAllowRI | OperandMode::kAllowRRR |
-                   OperandMode::kAllowRRI | OperandMode::kShift32Imm);
-}
-
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitWord64Ror(Node* node) {
-  VisitWord64BinOp(this, node, kS390_RotRight64, Shift64OperandMode);
-}
-#endif
-
-void InstructionSelector::VisitWord32Clz(Node* node) {
-  VisitRR(this, kS390_Cntlz32, node);
-}
-
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitWord64Clz(Node* node) {
-  S390OperandGenerator g(this);
-  Emit(kS390_Cntlz64, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
-#endif
-
-void InstructionSelector::VisitWord32Popcnt(Node* node) {
-  S390OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kS390_Popcnt32, g.DefineAsRegister(node), g.UseRegister(value));
-}
-
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitWord64Popcnt(Node* node) {
-  S390OperandGenerator g(this);
-  Emit(kS390_Popcnt64, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
-#endif
-
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 
 #if V8_TARGET_ARCH_S390X
@@ -1358,6 +1246,14 @@ void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitWord64ReverseBits(Node* node) { UNREACHABLE(); }
 #endif
+
+void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
+  VisitWord32UnaryOp(this, node, kS390_Abs32, OperandMode::kNone);
+}
+
+void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
+  VisitWord64UnaryOp(this, node, kS390_Abs64, OperandMode::kNone);
+}
 
 void InstructionSelector::VisitWord64ReverseBytes(Node* node) {
   S390OperandGenerator g(this);
@@ -1384,222 +1280,376 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
        g.UseRegister(node->InputAt(0)));
 }
 
-void InstructionSelector::VisitInt32Add(Node* node) {
-  VisitBin32op(this, node, kS390_Add32, AddOperandMode);
-}
-
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitInt64Add(Node* node) {
-  VisitWord64BinOp(this, node, kS390_Add64, AddOperandMode);
-}
-#endif
-
-void InstructionSelector::VisitInt32Sub(Node* node) {
-  S390OperandGenerator g(this);
-  Int32BinopMatcher m(node);
+template <class Matcher, ArchOpcode neg_opcode>
+static inline bool TryMatchNegFromSub(InstructionSelector* selector,
+                                      Node* node) {
+  S390OperandGenerator g(selector);
+  Matcher m(node);
+  static_assert(neg_opcode == kS390_Neg32 || neg_opcode == kS390_Neg64,
+                "Provided opcode is not a Neg opcode.");
   if (m.left().Is(0)) {
-    Node* right = m.right().node();
-    bool doZeroExt = ZeroExtendsWord32ToWord64(right);
-    Emit(kS390_Neg32, g.DefineAsRegister(node), g.UseRegister(right),
-         g.TempImmediate(doZeroExt));
-  } else {
-    VisitBin32op(this, node, kS390_Sub32, SubOperandMode);
+    Node* value = m.right().node();
+    bool doZeroExt = DoZeroExtForResult(node);
+    bool canEliminateZeroExt = ProduceWord32Result(value);
+    if (doZeroExt) {
+      selector->Emit(neg_opcode,
+                     canEliminateZeroExt ? g.DefineSameAsFirst(node)
+                                         : g.DefineAsRegister(node),
+                     g.UseRegister(value),
+                     g.TempImmediate(!canEliminateZeroExt));
+    } else {
+      selector->Emit(neg_opcode, g.DefineAsRegister(node),
+                     g.UseRegister(value));
+    }
+    return true;
   }
+  return false;
 }
 
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitInt64Sub(Node* node) {
-  S390OperandGenerator g(this);
-  Int64BinopMatcher m(node);
-  if (m.left().Is(0)) {
-    Emit(kS390_Neg64, g.DefineAsRegister(node),
-         g.UseRegister(m.right().node()));
-  } else {
-    VisitWord64BinOp(this, node, kS390_Sub64, SubOperandMode);
-  }
-}
-#endif
-
-void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
-    return VisitBin32op(this, node, kS390_Mul32WithOverflow,
-                        OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps,
-                        &cont);
-  }
-  VisitBin32op(this, node, kS390_Mul32, MulOperandMode);
-}
-
-void InstructionSelector::VisitInt32Mul(Node* node) {
-  S390OperandGenerator g(this);
-  Int32BinopMatcher m(node);
-  Node* left = m.left().node();
-  Node* right = m.right().node();
-  if (g.CanBeImmediate(right, OperandMode::kInt32Imm) &&
-      base::bits::IsPowerOfTwo32(g.GetImmediate(right))) {
-    int power = 31 - base::bits::CountLeadingZeros32(g.GetImmediate(right));
-    bool doZeroExt = !ZeroExtendsWord32ToWord64(left);
-    InstructionOperand dst =
-        (doZeroExt && CpuFeatures::IsSupported(DISTINCT_OPS))
-            ? g.DefineAsRegister(node)
-            : g.DefineSameAsFirst(node);
-
-    Emit(kS390_ShiftLeft32, dst, g.UseRegister(left), g.UseImmediate(power),
-         g.TempImmediate(doZeroExt));
-    return;
-  }
-  VisitBin32op(this, node, kS390_Mul32, MulOperandMode);
-}
-
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitInt64Mul(Node* node) {
-  S390OperandGenerator g(this);
-  Int64BinopMatcher m(node);
+template <class Matcher, ArchOpcode shift_op>
+bool TryMatchShiftFromMul(InstructionSelector* selector, Node* node) {
+  S390OperandGenerator g(selector);
+  Matcher m(node);
   Node* left = m.left().node();
   Node* right = m.right().node();
   if (g.CanBeImmediate(right, OperandMode::kInt32Imm) &&
       base::bits::IsPowerOfTwo64(g.GetImmediate(right))) {
     int power = 63 - base::bits::CountLeadingZeros64(g.GetImmediate(right));
-    Emit(kS390_ShiftLeft64, g.DefineSameAsFirst(node), g.UseRegister(left),
-         g.UseImmediate(power));
-    return;
+    bool doZeroExt = DoZeroExtForResult(node);
+    bool canEliminateZeroExt = ProduceWord32Result(left);
+    InstructionOperand dst = (doZeroExt && !canEliminateZeroExt &&
+                              CpuFeatures::IsSupported(DISTINCT_OPS))
+                                 ? g.DefineAsRegister(node)
+                                 : g.DefineSameAsFirst(node);
+
+    if (doZeroExt) {
+      selector->Emit(shift_op, dst, g.UseRegister(left), g.UseImmediate(power),
+                     g.TempImmediate(!canEliminateZeroExt));
+    } else {
+      selector->Emit(shift_op, dst, g.UseRegister(left), g.UseImmediate(power));
+    }
+    return true;
   }
-  VisitWord64BinOp(this, node, kS390_Mul64, MulOperandMode);
-}
-#endif
-
-void InstructionSelector::VisitInt32MulHigh(Node* node) {
-  VisitBin32op(this, node, kS390_MulHigh32,
-               OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps);
+  return false;
 }
 
-void InstructionSelector::VisitUint32MulHigh(Node* node) {
-  VisitBin32op(this, node, kS390_MulHighU32,
-               OperandMode::kAllowRRM | OperandMode::kAllowRRR);
+template <ArchOpcode opcode>
+static inline bool TryMatchInt32OpWithOverflow(InstructionSelector* selector,
+                                               Node* node, OperandModes mode) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    VisitWord32BinOp(selector, node, opcode, mode, &cont);
+    return true;
+  }
+  return false;
 }
 
-void InstructionSelector::VisitInt32Div(Node* node) {
-  VisitBin32op(this, node, kS390_Div32,
-               OperandMode::kAllowRRM | OperandMode::kAllowRRR);
+static inline bool TryMatchInt32AddWithOverflow(InstructionSelector* selector,
+                                                Node* node) {
+  return TryMatchInt32OpWithOverflow<kS390_Add32>(selector, node,
+                                                  AddOperandMode);
 }
 
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitInt64Div(Node* node) {
-  VisitWord64BinOp(this, node, kS390_Div64,
-                   OperandMode::kAllowRRM | OperandMode::kAllowRRR);
-}
-#endif
-
-void InstructionSelector::VisitUint32Div(Node* node) {
-  VisitBin32op(this, node, kS390_DivU32,
-               OperandMode::kAllowRRM | OperandMode::kAllowRRR);
+static inline bool TryMatchInt32SubWithOverflow(InstructionSelector* selector,
+                                                Node* node) {
+  return TryMatchInt32OpWithOverflow<kS390_Sub32>(selector, node,
+                                                  SubOperandMode);
 }
 
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitUint64Div(Node* node) {
-  VisitWord64BinOp(this, node, kS390_DivU64,
-                   OperandMode::kAllowRRM | OperandMode::kAllowRRR);
-}
-#endif
-
-void InstructionSelector::VisitInt32Mod(Node* node) {
-  VisitBin32op(this, node, kS390_Mod32,
-               OperandMode::kAllowRRM | OperandMode::kAllowRRR);
-}
-
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitInt64Mod(Node* node) {
-  VisitWord64BinOp(this, node, kS390_Mod64,
-                   OperandMode::kAllowRRM | OperandMode::kAllowRRR);
-}
-#endif
-
-void InstructionSelector::VisitUint32Mod(Node* node) {
-  VisitBin32op(this, node, kS390_ModU32,
-               OperandMode::kAllowRRM | OperandMode::kAllowRRR);
+static inline bool TryMatchInt32MulWithOverflow(InstructionSelector* selector,
+                                                Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+      TryMatchInt32OpWithOverflow<kS390_Mul32>(
+          selector, node, OperandMode::kAllowRRR | OperandMode::kAllowRM);
+    } else {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+      VisitWord32BinOp(selector, node, kS390_Mul32WithOverflow,
+                       OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps,
+                       &cont);
+    }
+    return true;
+  }
+  return TryMatchShiftFromMul<Int32BinopMatcher, kS390_ShiftLeft32>(selector,
+                                                                    node);
 }
 
 #if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitUint64Mod(Node* node) {
-  VisitWord64BinOp(this, node, kS390_ModU64,
-                   OperandMode::kAllowRRM | OperandMode::kAllowRRR);
+template <ArchOpcode opcode>
+static inline bool TryMatchInt64OpWithOverflow(InstructionSelector* selector,
+                                               Node* node, OperandModes mode) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    VisitWord64BinOp(selector, node, opcode, mode, &cont);
+    return true;
+  }
+  return false;
+}
+
+static inline bool TryMatchInt64AddWithOverflow(InstructionSelector* selector,
+                                                Node* node) {
+  return TryMatchInt64OpWithOverflow<kS390_Add64>(selector, node,
+                                                  AddOperandMode);
+}
+
+static inline bool TryMatchInt64SubWithOverflow(InstructionSelector* selector,
+                                                Node* node) {
+  return TryMatchInt64OpWithOverflow<kS390_Sub64>(selector, node,
+                                                  SubOperandMode);
 }
 #endif
 
+static inline bool TryMatchDoubleConstructFromInsert(
+    InstructionSelector* selector, Node* node) {
+  S390OperandGenerator g(selector);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Node* lo32 = NULL;
+  Node* hi32 = NULL;
+
+  if (node->opcode() == IrOpcode::kFloat64InsertLowWord32) {
+    lo32 = right;
+  } else if (node->opcode() == IrOpcode::kFloat64InsertHighWord32) {
+    hi32 = right;
+  } else {
+    return false;  // doesn't match
+  }
+
+  if (left->opcode() == IrOpcode::kFloat64InsertLowWord32) {
+    lo32 = left->InputAt(1);
+  } else if (left->opcode() == IrOpcode::kFloat64InsertHighWord32) {
+    hi32 = left->InputAt(1);
+  } else {
+    return false;  // doesn't match
+  }
+
+  if (!lo32 || !hi32) return false;  // doesn't match
+
+  selector->Emit(kS390_DoubleConstruct, g.DefineAsRegister(node),
+                 g.UseRegister(hi32), g.UseRegister(lo32));
+  return true;
+}
+
+#define null ([]() { return false; })
 // TODO(john.yan): place kAllowRM where available
-#define VISIT_FLOAT_UNARY_OP_LIST(V)                                           \
+#define FLOAT_UNARY_OP_LIST_32(V)                                              \
   V(Float32, ChangeFloat32ToFloat64, kS390_Float32ToDouble,                    \
-    OperandMode::kAllowRM)                                                     \
+    OperandMode::kAllowRM, null)                                               \
   V(Float32, BitcastFloat32ToInt32, kS390_BitcastFloat32ToInt32,               \
-    OperandMode::kNone)                                                        \
+    OperandMode::kAllowRM, null)                                               \
   V(Float64, TruncateFloat64ToFloat32, kS390_DoubleToFloat32,                  \
-    OperandMode::kNone)                                                        \
+    OperandMode::kNone, null)                                                  \
   V(Float64, TruncateFloat64ToWord32, kArchTruncateDoubleToI,                  \
-    OperandMode::kNone)                                                        \
-  V(Float64, RoundFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone)     \
-  V(Float32, TruncateFloat32ToInt32, kS390_Float32ToInt32, OperandMode::kNone) \
+    OperandMode::kNone, null)                                                  \
+  V(Float64, RoundFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone,     \
+    null)                                                                      \
+  V(Float32, TruncateFloat32ToInt32, kS390_Float32ToInt32, OperandMode::kNone, \
+    null)                                                                      \
   V(Float32, TruncateFloat32ToUint32, kS390_Float32ToUint32,                   \
-    OperandMode::kNone)                                                        \
-  V(Float64, ChangeFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone)    \
-  V(Float64, ChangeFloat64ToUint32, kS390_DoubleToUint32, OperandMode::kNone)  \
+    OperandMode::kNone, null)                                                  \
   V(Float64, TruncateFloat64ToUint32, kS390_DoubleToUint32,                    \
-    OperandMode::kNone)                                                        \
-  V(Float64, Float64SilenceNaN, kS390_Float64SilenceNaN, OperandMode::kNone)   \
-  V(Float32, Float32Abs, kS390_AbsFloat, OperandMode::kNone)                   \
-  V(Float64, Float64Abs, kS390_AbsDouble, OperandMode::kNone)                  \
-  V(Float32, Float32Sqrt, kS390_SqrtFloat, OperandMode::kNone)                 \
-  V(Float64, Float64Sqrt, kS390_SqrtDouble, OperandMode::kNone)                \
-  V(Float32, Float32RoundDown, kS390_FloorFloat, OperandMode::kNone)           \
-  V(Float64, Float64RoundDown, kS390_FloorDouble, OperandMode::kNone)          \
-  V(Float32, Float32RoundUp, kS390_CeilFloat, OperandMode::kNone)              \
-  V(Float64, Float64RoundUp, kS390_CeilDouble, OperandMode::kNone)             \
-  V(Float32, Float32RoundTruncate, kS390_TruncateFloat, OperandMode::kNone)    \
-  V(Float64, Float64RoundTruncate, kS390_TruncateDouble, OperandMode::kNone)   \
-  V(Float64, Float64RoundTiesAway, kS390_RoundDouble, OperandMode::kNone)      \
-  V(Float32, Float32Neg, kS390_NegFloat, OperandMode::kNone)                   \
-  V(Float64, Float64Neg, kS390_NegDouble, OperandMode::kNone)
+    OperandMode::kNone, null)                                                  \
+  V(Float64, ChangeFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone,    \
+    null)                                                                      \
+  V(Float64, ChangeFloat64ToUint32, kS390_DoubleToUint32, OperandMode::kNone,  \
+    null)                                                                      \
+  V(Float64, Float64SilenceNaN, kS390_Float64SilenceNaN, OperandMode::kNone,   \
+    null)                                                                      \
+  V(Float32, Float32Abs, kS390_AbsFloat, OperandMode::kNone, null)             \
+  V(Float64, Float64Abs, kS390_AbsDouble, OperandMode::kNone, null)            \
+  V(Float32, Float32Sqrt, kS390_SqrtFloat, OperandMode::kNone, null)           \
+  V(Float64, Float64Sqrt, kS390_SqrtDouble, OperandMode::kNone, null)          \
+  V(Float32, Float32RoundDown, kS390_FloorFloat, OperandMode::kNone, null)     \
+  V(Float64, Float64RoundDown, kS390_FloorDouble, OperandMode::kNone, null)    \
+  V(Float32, Float32RoundUp, kS390_CeilFloat, OperandMode::kNone, null)        \
+  V(Float64, Float64RoundUp, kS390_CeilDouble, OperandMode::kNone, null)       \
+  V(Float32, Float32RoundTruncate, kS390_TruncateFloat, OperandMode::kNone,    \
+    null)                                                                      \
+  V(Float64, Float64RoundTruncate, kS390_TruncateDouble, OperandMode::kNone,   \
+    null)                                                                      \
+  V(Float64, Float64RoundTiesAway, kS390_RoundDouble, OperandMode::kNone,      \
+    null)                                                                      \
+  V(Float32, Float32Neg, kS390_NegFloat, OperandMode::kNone, null)             \
+  V(Float64, Float64Neg, kS390_NegDouble, OperandMode::kNone, null)            \
+  /* TODO(john.yan): can use kAllowRM */                                       \
+  V(Word32, Float64ExtractLowWord32, kS390_DoubleExtractLowWord32,             \
+    OperandMode::kNone, null)                                                  \
+  V(Word32, Float64ExtractHighWord32, kS390_DoubleExtractHighWord32,           \
+    OperandMode::kNone, null)
 
-#define VISIT_WORD64_UNARY_OP_LIST(V)                                        \
-  V(Word64, TruncateInt64ToInt32, kS390_Int64ToInt32, OperandMode::kNone)    \
-  V(Word64, RoundInt64ToFloat32, kS390_Int64ToFloat32, OperandMode::kNone)   \
-  V(Word64, RoundInt64ToFloat64, kS390_Int64ToDouble, OperandMode::kNone)    \
-  V(Word64, RoundUint64ToFloat32, kS390_Uint64ToFloat32, OperandMode::kNone) \
-  V(Word64, RoundUint64ToFloat64, kS390_Uint64ToDouble, OperandMode::kNone)  \
-  V(Word64, BitcastInt64ToFloat64, kS390_BitcastInt64ToDouble,               \
-    OperandMode::kNone)                                                      \
-  V(Float64, BitcastFloat64ToInt64, kS390_BitcastDoubleToInt64,              \
-    OperandMode::kNone)
+#define FLOAT_BIN_OP_LIST(V)                                           \
+  V(Float32, Float32Add, kS390_AddFloat, OperandMode::kAllowRM, null)  \
+  V(Float64, Float64Add, kS390_AddDouble, OperandMode::kAllowRM, null) \
+  V(Float32, Float32Sub, kS390_SubFloat, OperandMode::kAllowRM, null)  \
+  V(Float64, Float64Sub, kS390_SubDouble, OperandMode::kAllowRM, null) \
+  V(Float32, Float32Mul, kS390_MulFloat, OperandMode::kAllowRM, null)  \
+  V(Float64, Float64Mul, kS390_MulDouble, OperandMode::kAllowRM, null) \
+  V(Float32, Float32Div, kS390_DivFloat, OperandMode::kAllowRM, null)  \
+  V(Float64, Float64Div, kS390_DivDouble, OperandMode::kAllowRM, null) \
+  V(Float32, Float32Max, kS390_MaxFloat, OperandMode::kNone, null)     \
+  V(Float64, Float64Max, kS390_MaxDouble, OperandMode::kNone, null)    \
+  V(Float32, Float32Min, kS390_MinFloat, OperandMode::kNone, null)     \
+  V(Float64, Float64Min, kS390_MinDouble, OperandMode::kNone, null)
 
-#define DECLARE_UNARY_OP(type, name, op, mode)        \
-  void InstructionSelector::Visit##name(Node* node) { \
-    Visit##type##UnaryOp(this, node, op, mode);       \
-  }
+#define WORD32_UNARY_OP_LIST_32(V)                                           \
+  V(Word32, Word32Clz, kS390_Cntlz32, OperandMode::kNone, null)              \
+  V(Word32, Word32Popcnt, kS390_Popcnt32, OperandMode::kNone, null)          \
+  V(Word32, RoundInt32ToFloat32, kS390_Int32ToFloat32, OperandMode::kNone,   \
+    null)                                                                    \
+  V(Word32, RoundUint32ToFloat32, kS390_Uint32ToFloat32, OperandMode::kNone, \
+    null)                                                                    \
+  V(Word32, ChangeInt32ToFloat64, kS390_Int32ToDouble, OperandMode::kNone,   \
+    null)                                                                    \
+  V(Word32, ChangeUint32ToFloat64, kS390_Uint32ToDouble, OperandMode::kNone, \
+    null)                                                                    \
+  V(Word32, BitcastInt32ToFloat32, kS390_BitcastInt32ToFloat32,              \
+    OperandMode::kNone, null)
 
-VISIT_FLOAT_UNARY_OP_LIST(DECLARE_UNARY_OP);
+#ifdef V8_TARGET_ARCH_S390X
+#define FLOAT_UNARY_OP_LIST(V)                                                \
+  FLOAT_UNARY_OP_LIST_32(V)                                                   \
+  V(Float64, ChangeFloat64ToUint64, kS390_DoubleToUint64, OperandMode::kNone, \
+    null)                                                                     \
+  V(Float64, BitcastFloat64ToInt64, kS390_BitcastDoubleToInt64,               \
+    OperandMode::kNone, null)
+#define WORD32_UNARY_OP_LIST(V)                                             \
+  WORD32_UNARY_OP_LIST_32(V)                                                \
+  V(Word32, ChangeInt32ToInt64, kS390_ExtendSignWord32, OperandMode::kNone, \
+    null)                                                                   \
+  V(Word32, ChangeUint32ToUint64, kS390_Uint32ToUint64, OperandMode::kNone, \
+    [&]() -> bool {                                                         \
+      if (ProduceWord32Result(node->InputAt(0))) {                          \
+        EmitIdentity(node);                                                 \
+        return true;                                                        \
+      }                                                                     \
+      return false;                                                         \
+    })
 
-#if V8_TARGET_ARCH_S390X
-VISIT_WORD64_UNARY_OP_LIST(DECLARE_UNARY_OP)
+#else
+#define FLOAT_UNARY_OP_LIST(V) FLOAT_UNARY_OP_LIST_32(V)
+#define WORD32_UNARY_OP_LIST(V) WORD32_UNARY_OP_LIST_32(V)
 #endif
 
+#define WORD32_BIN_OP_LIST(V)                                                  \
+  V(Word32, Int32Add, kS390_Add32, AddOperandMode, null)                       \
+  V(Word32, Int32Sub, kS390_Sub32, SubOperandMode, ([&]() {                    \
+      return TryMatchNegFromSub<Int32BinopMatcher, kS390_Neg32>(this, node);   \
+    }))                                                                        \
+  V(Word32, Int32Mul, kS390_Mul32, MulOperandMode, ([&]() {                    \
+      return TryMatchShiftFromMul<Int32BinopMatcher, kS390_ShiftLeft32>(this,  \
+                                                                        node); \
+    }))                                                                        \
+  V(Word32, Int32AddWithOverflow, kS390_Add32, AddOperandMode,                 \
+    ([&]() { return TryMatchInt32AddWithOverflow(this, node); }))              \
+  V(Word32, Int32SubWithOverflow, kS390_Sub32, SubOperandMode,                 \
+    ([&]() { return TryMatchInt32SubWithOverflow(this, node); }))              \
+  V(Word32, Int32MulWithOverflow, kS390_Mul32, MulOperandMode,                 \
+    ([&]() { return TryMatchInt32MulWithOverflow(this, node); }))              \
+  V(Word32, Int32MulHigh, kS390_MulHigh32,                                     \
+    OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps, null)             \
+  V(Word32, Uint32MulHigh, kS390_MulHighU32,                                   \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                     \
+  V(Word32, Int32Div, kS390_Div32,                                             \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                     \
+  V(Word32, Uint32Div, kS390_DivU32,                                           \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                     \
+  V(Word32, Int32Mod, kS390_Mod32,                                             \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                     \
+  V(Word32, Uint32Mod, kS390_ModU32,                                           \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                     \
+  V(Word32, Word32Ror, kS390_RotRight32,                                       \
+    OperandMode::kAllowRI | OperandMode::kAllowRRR | OperandMode::kAllowRRI |  \
+        OperandMode::kShift32Imm,                                              \
+    null)                                                                      \
+  V(Word32, Word32And, kS390_And32, And32OperandMode, null)                    \
+  V(Word32, Word32Or, kS390_Or32, Or32OperandMode, null)                       \
+  V(Word32, Word32Xor, kS390_Xor32, Xor32OperandMode, null)                    \
+  V(Word32, Word32Shl, kS390_ShiftLeft32, Shift32OperandMode, null)            \
+  V(Word32, Word32Shr, kS390_ShiftRight32, Shift32OperandMode, null)           \
+  V(Word32, Word32Sar, kS390_ShiftRightArith32, Shift32OperandMode,            \
+    [&]() { return TryMatchSignExtInt16OrInt8FromWord32Sar(this, node); })     \
+  V(Word32, Float64InsertLowWord32, kS390_DoubleInsertLowWord32,               \
+    OperandMode::kAllowRRR,                                                    \
+    [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); })   \
+  V(Word32, Float64InsertHighWord32, kS390_DoubleInsertHighWord32,             \
+    OperandMode::kAllowRRR,                                                    \
+    [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); })
+
+#define WORD64_UNARY_OP_LIST(V)                                              \
+  V(Word64, Word64Popcnt, kS390_Popcnt64, OperandMode::kNone, null)          \
+  V(Word64, Word64Clz, kS390_Cntlz64, OperandMode::kNone, null)              \
+  V(Word64, TruncateInt64ToInt32, kS390_Int64ToInt32, OperandMode::kNone,    \
+    null)                                                                    \
+  V(Word64, RoundInt64ToFloat32, kS390_Int64ToFloat32, OperandMode::kNone,   \
+    null)                                                                    \
+  V(Word64, RoundInt64ToFloat64, kS390_Int64ToDouble, OperandMode::kNone,    \
+    null)                                                                    \
+  V(Word64, RoundUint64ToFloat32, kS390_Uint64ToFloat32, OperandMode::kNone, \
+    null)                                                                    \
+  V(Word64, RoundUint64ToFloat64, kS390_Uint64ToDouble, OperandMode::kNone,  \
+    null)                                                                    \
+  V(Word64, BitcastInt64ToFloat64, kS390_BitcastInt64ToDouble,               \
+    OperandMode::kNone, null)
+
+#define WORD64_BIN_OP_LIST(V)                                                  \
+  V(Word64, Int64Add, kS390_Add64, AddOperandMode, null)                       \
+  V(Word64, Int64Sub, kS390_Sub64, SubOperandMode, ([&]() {                    \
+      return TryMatchNegFromSub<Int64BinopMatcher, kS390_Neg64>(this, node);   \
+    }))                                                                        \
+  V(Word64, Int64AddWithOverflow, kS390_Add64, AddOperandMode,                 \
+    ([&]() { return TryMatchInt64AddWithOverflow(this, node); }))              \
+  V(Word64, Int64SubWithOverflow, kS390_Sub64, SubOperandMode,                 \
+    ([&]() { return TryMatchInt64SubWithOverflow(this, node); }))              \
+  V(Word64, Int64Mul, kS390_Mul64, MulOperandMode, ([&]() {                    \
+      return TryMatchShiftFromMul<Int64BinopMatcher, kS390_ShiftLeft64>(this,  \
+                                                                        node); \
+    }))                                                                        \
+  V(Word64, Int64Div, kS390_Div64,                                             \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                     \
+  V(Word64, Uint64Div, kS390_DivU64,                                           \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                     \
+  V(Word64, Int64Mod, kS390_Mod64,                                             \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                     \
+  V(Word64, Uint64Mod, kS390_ModU64,                                           \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                     \
+  V(Word64, Word64Sar, kS390_ShiftRightArith64, Shift64OperandMode, null)      \
+  V(Word64, Word64Ror, kS390_RotRight64, Shift64OperandMode, null)             \
+  V(Word64, Word64Or, kS390_Or64, Or64OperandMode, null)                       \
+  V(Word64, Word64Xor, kS390_Xor64, Xor64OperandMode, null)
+
+#define DECLARE_UNARY_OP(type, name, op, mode, try_extra) \
+  void InstructionSelector::Visit##name(Node* node) {     \
+    if (std::function<bool()>(try_extra)()) return;       \
+    Visit##type##UnaryOp(this, node, op, mode);           \
+  }
+
+#define DECLARE_BIN_OP(type, name, op, mode, try_extra) \
+  void InstructionSelector::Visit##name(Node* node) {   \
+    if (std::function<bool()>(try_extra)()) return;     \
+    Visit##type##BinOp(this, node, op, mode);           \
+  }
+
+WORD32_BIN_OP_LIST(DECLARE_BIN_OP);
+WORD32_UNARY_OP_LIST(DECLARE_UNARY_OP);
+FLOAT_UNARY_OP_LIST(DECLARE_UNARY_OP);
+FLOAT_BIN_OP_LIST(DECLARE_BIN_OP);
+
+#if V8_TARGET_ARCH_S390X
+WORD64_UNARY_OP_LIST(DECLARE_UNARY_OP)
+WORD64_BIN_OP_LIST(DECLARE_BIN_OP)
+#endif
+
+#undef DECLARE_BIN_OP
 #undef DECLARE_UNARY_OP
-#undef VISIT_WORD64_UNARY_OP_LIST
-#undef VISIT_FLOAT_UNARY_OP_LIST
-
-void InstructionSelector::VisitRoundInt32ToFloat32(Node* node) {
-  VisitRR(this, kS390_Int32ToFloat32, node);
-}
-
-void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
-  VisitRR(this, kS390_Uint32ToFloat32, node);
-}
-
-void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
-  VisitRR(this, kS390_Int32ToDouble, node);
-}
-
-void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
-  VisitRR(this, kS390_Uint32ToDouble, node);
-}
+#undef WORD64_BIN_OP_LIST
+#undef WORD64_UNARY_OP_LIST
+#undef WORD32_BIN_OP_LIST
+#undef WORD32_UNARY_OP_LIST
+#undef FLOAT_UNARY_OP_LIST
+#undef WORD32_UNARY_OP_LIST_32
+#undef FLOAT_BIN_OP_LIST
+#undef FLOAT_BIN_OP_LIST_32
+#undef null
 
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
@@ -1618,83 +1668,13 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
   VisitTryTruncateDouble(this, kS390_DoubleToUint64, node);
 }
 
-void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
-  // TODO(mbrandy): inspect input to see if nop is appropriate.
-  VisitRR(this, kS390_ExtendSignWord32, node);
-}
-
-void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
-  S390OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  if (ZeroExtendsWord32ToWord64(value)) {
-    // These 32-bit operations implicitly zero-extend to 64-bit on x64, so the
-    // zero-extension is a no-op.
-    return EmitIdentity(node);
-  }
-  VisitRR(this, kS390_Uint32ToUint64, node);
-}
 #endif
-
-void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
-  VisitRR(this, kS390_BitcastInt32ToFloat32, node);
-}
-
-void InstructionSelector::VisitFloat32Add(Node* node) {
-  return VisitFloat32BinOp(this, node, kS390_AddFloat, OperandMode::kAllowRM);
-}
-
-void InstructionSelector::VisitFloat64Add(Node* node) {
-  // TODO(mbrandy): detect multiply-add
-  return VisitFloat64BinOp(this, node, kS390_AddDouble, OperandMode::kAllowRM);
-}
-
-void InstructionSelector::VisitFloat32Sub(Node* node) {
-  return VisitFloat32BinOp(this, node, kS390_SubFloat, OperandMode::kAllowRM);
-}
-
-void InstructionSelector::VisitFloat64Sub(Node* node) {
-  // TODO(mbrandy): detect multiply-subtract
-  return VisitFloat64BinOp(this, node, kS390_SubDouble, OperandMode::kAllowRM);
-}
-
-void InstructionSelector::VisitFloat32Mul(Node* node) {
-  return VisitFloat32BinOp(this, node, kS390_MulFloat, OperandMode::kAllowRM);
-}
-
-void InstructionSelector::VisitFloat64Mul(Node* node) {
-  // TODO(mbrandy): detect negate
-  return VisitFloat64BinOp(this, node, kS390_MulDouble, OperandMode::kAllowRM);
-}
-
-void InstructionSelector::VisitFloat32Div(Node* node) {
-  return VisitFloat32BinOp(this, node, kS390_DivFloat, OperandMode::kAllowRM);
-}
-
-void InstructionSelector::VisitFloat64Div(Node* node) {
-  return VisitFloat64BinOp(this, node, kS390_DivDouble, OperandMode::kAllowRM);
-}
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   S390OperandGenerator g(this);
   Emit(kS390_ModDouble, g.DefineAsFixed(node, d1),
        g.UseFixed(node->InputAt(0), d1), g.UseFixed(node->InputAt(1), d2))
       ->MarkAsCall();
-}
-
-void InstructionSelector::VisitFloat32Max(Node* node) {
-  return VisitFloat32BinOp(this, node, kS390_MaxFloat, OperandMode::kNone);
-}
-
-void InstructionSelector::VisitFloat64Max(Node* node) {
-  return VisitFloat64BinOp(this, node, kS390_MaxDouble, OperandMode::kNone);
-}
-
-void InstructionSelector::VisitFloat32Min(Node* node) {
-  return VisitFloat32BinOp(this, node, kS390_MinFloat, OperandMode::kNone);
-}
-
-void InstructionSelector::VisitFloat64Min(Node* node) {
-  return VisitFloat64BinOp(this, node, kS390_MinDouble, OperandMode::kNone);
 }
 
 void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
@@ -1719,44 +1699,6 @@ void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
 void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
   UNREACHABLE();
 }
-
-void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
-  OperandModes mode = AddOperandMode;
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBin32op(this, node, kS390_Add32, mode, &cont);
-  }
-  FlagsContinuation cont;
-  VisitBin32op(this, node, kS390_Add32, mode, &cont);
-}
-
-void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
-  OperandModes mode = SubOperandMode;
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBin32op(this, node, kS390_Sub32, mode, &cont);
-  }
-  FlagsContinuation cont;
-  VisitBin32op(this, node, kS390_Sub32, mode, &cont);
-}
-
-#if V8_TARGET_ARCH_S390X
-void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitWord64BinOp(this, node, kS390_Add64, AddOperandMode, &cont);
-  }
-  VisitWord64BinOp(this, node, kS390_Add64, AddOperandMode);
-}
-
-void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitWord64BinOp(this, node, kS390_Sub64, SubOperandMode, &cont);
-  }
-  VisitWord64BinOp(this, node, kS390_Sub64, SubOperandMode);
-}
-#endif
 
 static bool CompareLogical(FlagsContinuation* cont) {
   switch (cont->condition()) {
@@ -2101,19 +2043,34 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
             switch (node->opcode()) {
               case IrOpcode::kInt32AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBin32op(selector, node, kS390_Add32, AddOperandMode,
-                                    cont);
+                return VisitWord32BinOp(selector, node, kS390_Add32,
+                                        AddOperandMode, cont);
               case IrOpcode::kInt32SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBin32op(selector, node, kS390_Sub32, SubOperandMode,
-                                    cont);
+                return VisitWord32BinOp(selector, node, kS390_Sub32,
+                                        SubOperandMode, cont);
               case IrOpcode::kInt32MulWithOverflow:
-                cont->OverwriteAndNegateIfEqual(kNotEqual);
-                return VisitBin32op(
-                    selector, node, kS390_Mul32WithOverflow,
-                    OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps,
-                    cont);
+                if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitWord32BinOp(
+                      selector, node, kS390_Mul32,
+                      OperandMode::kAllowRRR | OperandMode::kAllowRM, cont);
+                } else {
+                  cont->OverwriteAndNegateIfEqual(kNotEqual);
+                  return VisitWord32BinOp(
+                      selector, node, kS390_Mul32WithOverflow,
+                      OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps,
+                      cont);
+                }
+              case IrOpcode::kInt32AbsWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitWord32UnaryOp(selector, node, kS390_Abs32,
+                                          OperandMode::kNone, cont);
 #if V8_TARGET_ARCH_S390X
+              case IrOpcode::kInt64AbsWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitWord64UnaryOp(selector, node, kS390_Abs64,
+                                          OperandMode::kNone, cont);
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitWord64BinOp(selector, node, kS390_Add64,
@@ -2152,13 +2109,13 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
         break;
       case IrOpcode::kWord32Or:
         if (fc == kNotEqual || fc == kEqual)
-          return VisitBin32op(selector, value, kS390_Or32, Or32OperandMode,
-                              cont);
+          return VisitWord32BinOp(selector, value, kS390_Or32, Or32OperandMode,
+                                  cont);
         break;
       case IrOpcode::kWord32Xor:
         if (fc == kNotEqual || fc == kEqual)
-          return VisitBin32op(selector, value, kS390_Xor32, Xor32OperandMode,
-                              cont);
+          return VisitWord32BinOp(selector, value, kS390_Xor32,
+                                  Xor32OperandMode, cont);
         break;
       case IrOpcode::kWord32Sar:
       case IrOpcode::kWord32Shl:
@@ -2420,48 +2377,6 @@ bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 
 int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
 
-void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
-  S390OperandGenerator g(this);
-  Emit(kS390_DoubleExtractLowWord32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
-
-void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
-  S390OperandGenerator g(this);
-  Emit(kS390_DoubleExtractHighWord32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
-
-void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
-  S390OperandGenerator g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (left->opcode() == IrOpcode::kFloat64InsertHighWord32 &&
-      CanCover(node, left)) {
-    left = left->InputAt(1);
-    Emit(kS390_DoubleConstruct, g.DefineAsRegister(node), g.UseRegister(left),
-         g.UseRegister(right));
-    return;
-  }
-  Emit(kS390_DoubleInsertLowWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.UseRegister(right));
-}
-
-void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
-  S390OperandGenerator g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (left->opcode() == IrOpcode::kFloat64InsertLowWord32 &&
-      CanCover(node, left)) {
-    left = left->InputAt(1);
-    Emit(kS390_DoubleConstruct, g.DefineAsRegister(node), g.UseRegister(right),
-         g.UseRegister(left));
-    return;
-  }
-  Emit(kS390_DoubleInsertHighWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.UseRegister(right));
-}
-
 void InstructionSelector::VisitAtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   S390OperandGenerator g(this);
@@ -2523,7 +2438,7 @@ void InstructionSelector::VisitAtomicExchange(Node* node) {
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   ArchOpcode opcode = kArchNop;
-  MachineType type = AtomicExchangeRepresentationOf(node->op());
+  MachineType type = AtomicOpRepresentationOf(node->op());
   if (type == MachineType::Int8()) {
     opcode = kAtomicExchangeInt8;
   } else if (type == MachineType::Uint8()) {
@@ -2551,6 +2466,20 @@ void InstructionSelector::VisitAtomicExchange(Node* node) {
   Emit(code, 1, outputs, input_count, inputs);
 }
 
+void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitAtomicAdd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicSub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicAnd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicOr(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicXor(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
@@ -2564,6 +2493,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kWord32Popcnt |
          MachineOperatorBuilder::kWord32ReverseBytes |
          MachineOperatorBuilder::kWord64ReverseBytes |
+         MachineOperatorBuilder::kInt32AbsWithOverflow |
+         MachineOperatorBuilder::kInt64AbsWithOverflow |
          MachineOperatorBuilder::kWord64Popcnt;
 }
 

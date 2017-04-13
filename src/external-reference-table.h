@@ -34,8 +34,6 @@ class ExternalReferenceTable {
 
   static const char* ResolveSymbol(void* address);
 
-  static const int kDeoptTableSerializeEntryCount = 64;
-
  private:
   struct ExternalReferenceEntry {
     Address address;
@@ -62,7 +60,6 @@ class ExternalReferenceTable {
   void AddIsolateAddresses(Isolate* isolate);
   void AddAccessors(Isolate* isolate);
   void AddStubCache(Isolate* isolate);
-  void AddDeoptEntries(Isolate* isolate);
   void AddApiReferences(Isolate* isolate);
 
   List<ExternalReferenceEntry> refs_;

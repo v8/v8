@@ -309,6 +309,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
         case kS390_Add64:
         case kS390_Sub32:
         case kS390_Sub64:
+        case kS390_Abs64:
+        case kS390_Abs32:
+        case kS390_Mul32:
           return overflow;
         default:
           break;
@@ -320,6 +323,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
         case kS390_Add64:
         case kS390_Sub32:
         case kS390_Sub64:
+        case kS390_Abs64:
+        case kS390_Abs32:
+        case kS390_Mul32:
           return nooverflow;
         default:
           break;
@@ -489,6 +495,10 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
   return AssembleOp<1>(instr, _r, _m, _i);
 }
 
+#define ASSEMBLE_BIN_OP(_rr, _rm, _ri) AssembleBinOp(instr, _rr, _rm, _ri)
+#define ASSEMBLE_UNARY_OP(_r, _m, _i) AssembleUnaryOp(instr, _r, _m, _i)
+
+#ifdef V8_TARGET_ARCH_S390X
 #define CHECK_AND_ZERO_EXT_OUTPUT(num)                                \
   ([&](int index) {                                                   \
     DCHECK(HasImmediateInput(instr, (index)));                        \
@@ -496,11 +506,12 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     if (doZeroExt) __ LoadlW(i.OutputRegister(), i.OutputRegister()); \
   })(num)
 
-#define ASSEMBLE_BIN_OP(_rr, _rm, _ri) AssembleBinOp(instr, _rr, _rm, _ri)
-#define ASSEMBLE_UNARY_OP(_r, _m, _i) AssembleUnaryOp(instr, _r, _m, _i)
-
 #define ASSEMBLE_BIN32_OP(_rr, _rm, _ri) \
   { CHECK_AND_ZERO_EXT_OUTPUT(AssembleBinOp(instr, _rr, _rm, _ri)); }
+#else
+#define ASSEMBLE_BIN32_OP ASSEMBLE_BIN_OP
+#define CHECK_AND_ZERO_EXT_OUTPUT(num)
+#endif
 
 }  // namespace
 
@@ -1342,7 +1353,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               Operand(offset.offset()));
       break;
     }
+    case kS390_Abs32:
+      // TODO(john.yan): zero-ext
+      __ lpr(i.OutputRegister(0), i.InputRegister(0));
+      break;
+    case kS390_Abs64:
+      __ lpgr(i.OutputRegister(0), i.InputRegister(0));
+      break;
     case kS390_And32:
+      // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(nrk), RM32Instr(And), RIInstr(nilf));
       } else {
@@ -1357,6 +1376,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kS390_Or32:
+      // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(ork), RM32Instr(Or), RIInstr(oilf));
       } else {
@@ -1371,6 +1391,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kS390_Xor32:
+      // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(xrk), RM32Instr(Xor), RIInstr(xilf));
       } else {
@@ -1385,6 +1406,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kS390_ShiftLeft32:
+      // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(ShiftLeft), nullInstr, RRIInstr(ShiftLeft));
       } else {
@@ -1395,6 +1417,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(RRRInstr(sllg), nullInstr, RRIInstr(sllg));
       break;
     case kS390_ShiftRight32:
+      // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(srlk), nullInstr, RRIInstr(srlk));
       } else {
@@ -1405,6 +1428,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(RRRInstr(srlg), nullInstr, RRIInstr(srlg));
       break;
     case kS390_ShiftRightArith32:
+      // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(srak), nullInstr, RRIInstr(srak));
       } else {
@@ -1490,6 +1514,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #endif
     case kS390_RotRight32: {
+      // zero-ext
       if (HasRegisterInput(instr, 1)) {
         __ LoadComplementRR(kScratchReg, i.InputRegister(1));
         __ rll(i.OutputRegister(), i.InputRegister(0), kScratchReg);
@@ -1559,6 +1584,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kS390_Add32: {
+      // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(ark), RM32Instr(Add32), RRIInstr(Add32));
       } else {
@@ -1580,6 +1606,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(DDInstr(adbr), DMTInstr(AddFloat64), nullInstr);
       break;
     case kS390_Sub32:
+      // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
         ASSEMBLE_BIN32_OP(RRRInstr(srk), RM32Instr(Sub32), RRIInstr(Sub32));
       } else {
@@ -1600,9 +1627,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(DDInstr(sdbr), DMTInstr(SubFloat64), nullInstr);
       break;
     case kS390_Mul32:
-      ASSEMBLE_BIN32_OP(RRInstr(Mul32), RM32Instr(Mul32), RIInstr(Mul32));
+      // zero-ext
+      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+        ASSEMBLE_BIN32_OP(RRRInstr(msrkc), RM32Instr(msc), RIInstr(Mul32));
+      } else {
+        ASSEMBLE_BIN32_OP(RRInstr(Mul32), RM32Instr(Mul32), RIInstr(Mul32));
+      }
       break;
     case kS390_Mul32WithOverflow:
+      // zero-ext
       ASSEMBLE_BIN32_OP(RRRInstr(Mul32WithOverflowIfCCUnequal),
                         RRM32Instr(Mul32WithOverflowIfCCUnequal),
                         RRIInstr(Mul32WithOverflowIfCCUnequal));
@@ -1611,12 +1644,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(RRInstr(Mul64), RM64Instr(Mul64), RIInstr(Mul64));
       break;
     case kS390_MulHigh32:
-      ASSEMBLE_BIN32_OP(RRRInstr(MulHigh32), RRM32Instr(MulHigh32),
-                        RRIInstr(MulHigh32));
+      // zero-ext
+      ASSEMBLE_BIN_OP(RRRInstr(MulHigh32), RRM32Instr(MulHigh32),
+                      RRIInstr(MulHigh32));
       break;
     case kS390_MulHighU32:
-      ASSEMBLE_BIN32_OP(RRRInstr(MulHighU32), RRM32Instr(MulHighU32),
-                        RRIInstr(MulHighU32));
+      // zero-ext
+      ASSEMBLE_BIN_OP(RRRInstr(MulHighU32), RRM32Instr(MulHighU32),
+                      RRIInstr(MulHighU32));
       break;
     case kS390_MulFloat:
       ASSEMBLE_BIN_OP(DDInstr(meebr), DMTInstr(MulFloat32), nullInstr);
@@ -1628,14 +1663,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(RRRInstr(Div64), RRM64Instr(Div64), nullInstr);
       break;
     case kS390_Div32: {
-      ASSEMBLE_BIN32_OP(RRRInstr(Div32), RRM32Instr(Div32), nullInstr);
+      // zero-ext
+      ASSEMBLE_BIN_OP(RRRInstr(Div32), RRM32Instr(Div32), nullInstr);
       break;
     }
     case kS390_DivU64:
       ASSEMBLE_BIN_OP(RRRInstr(DivU64), RRM64Instr(DivU64), nullInstr);
       break;
     case kS390_DivU32: {
-      ASSEMBLE_BIN32_OP(RRRInstr(DivU32), RRM32Instr(DivU32), nullInstr);
+      // zero-ext
+      ASSEMBLE_BIN_OP(RRRInstr(DivU32), RRM32Instr(DivU32), nullInstr);
       break;
     }
     case kS390_DivFloat:
@@ -1645,10 +1682,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(DDInstr(ddbr), DMTInstr(DivFloat64), nullInstr);
       break;
     case kS390_Mod32:
-      ASSEMBLE_BIN32_OP(RRRInstr(Mod32), RRM32Instr(Mod32), nullInstr);
+      // zero-ext
+      ASSEMBLE_BIN_OP(RRRInstr(Mod32), RRM32Instr(Mod32), nullInstr);
       break;
     case kS390_ModU32:
-      ASSEMBLE_BIN32_OP(RRRInstr(ModU32), RRM32Instr(ModU32), nullInstr);
+      // zero-ext
+      ASSEMBLE_BIN_OP(RRRInstr(ModU32), RRM32Instr(ModU32), nullInstr);
       break;
     case kS390_Mod64:
       ASSEMBLE_BIN_OP(RRRInstr(Mod64), RRM64Instr(Mod64), nullInstr);
@@ -1833,6 +1872,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasRegisterInput(instr, 1)) {
         __ And(r0, i.InputRegister(0), i.InputRegister(1));
       } else {
+        // detect tmlh/tmhl/tmhh case
         Operand opnd = i.InputImmediate(1);
         if (is_uint16(opnd.immediate())) {
           __ tmll(i.InputRegister(0), opnd);
@@ -1912,7 +1952,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lhr(i.OutputRegister(), i.InputRegister(0));
       CHECK_AND_ZERO_EXT_OUTPUT(1);
       break;
-#if V8_TARGET_ARCH_S390X
     case kS390_ExtendSignWord32:
       __ lgfr(i.OutputRegister(), i.InputRegister(0));
       break;
@@ -1924,135 +1963,133 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // sign extend
       __ lgfr(i.OutputRegister(), i.InputRegister(0));
       break;
+    // Convert Fixed to Floating Point
     case kS390_Int64ToFloat32:
-      __ ConvertInt64ToFloat(i.InputRegister(0), i.OutputDoubleRegister());
+      __ ConvertInt64ToFloat(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kS390_Int64ToDouble:
-      __ ConvertInt64ToDouble(i.InputRegister(0), i.OutputDoubleRegister());
+      __ ConvertInt64ToDouble(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kS390_Uint64ToFloat32:
-      __ ConvertUnsignedInt64ToFloat(i.InputRegister(0),
-                                     i.OutputDoubleRegister());
+      __ ConvertUnsignedInt64ToFloat(i.OutputDoubleRegister(),
+                                     i.InputRegister(0));
       break;
     case kS390_Uint64ToDouble:
-      __ ConvertUnsignedInt64ToDouble(i.InputRegister(0),
-                                      i.OutputDoubleRegister());
+      __ ConvertUnsignedInt64ToDouble(i.OutputDoubleRegister(),
+                                      i.InputRegister(0));
       break;
-#endif
     case kS390_Int32ToFloat32:
-      __ ConvertIntToFloat(i.InputRegister(0), i.OutputDoubleRegister());
+      __ ConvertIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kS390_Int32ToDouble:
-      __ ConvertIntToDouble(i.InputRegister(0), i.OutputDoubleRegister());
+      __ ConvertIntToDouble(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kS390_Uint32ToFloat32:
-      __ ConvertUnsignedIntToFloat(i.InputRegister(0),
-                                   i.OutputDoubleRegister());
+      __ ConvertUnsignedIntToFloat(i.OutputDoubleRegister(),
+                                   i.InputRegister(0));
       break;
     case kS390_Uint32ToDouble:
-      __ ConvertUnsignedIntToDouble(i.InputRegister(0),
-                                    i.OutputDoubleRegister());
+      __ ConvertUnsignedIntToDouble(i.OutputDoubleRegister(),
+                                    i.InputRegister(0));
       break;
-    case kS390_DoubleToInt32:
-    case kS390_DoubleToUint32:
+    case kS390_DoubleToInt32: {
+      Label done;
+      __ ConvertDoubleToInt32(i.OutputRegister(0), i.InputDoubleRegister(0),
+                              kRoundToNearest);
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      __ lghi(i.OutputRegister(0), Operand::Zero());
+      __ bind(&done);
+      break;
+    }
+    case kS390_DoubleToUint32: {
+      Label done;
+      __ ConvertDoubleToUnsignedInt32(i.OutputRegister(0),
+                                      i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      __ lghi(i.OutputRegister(0), Operand::Zero());
+      __ bind(&done);
+      break;
+    }
     case kS390_DoubleToInt64: {
-#if V8_TARGET_ARCH_S390X
-      bool check_conversion =
-          (opcode == kS390_DoubleToInt64 && i.OutputCount() > 1);
-#endif
-      __ ConvertDoubleToInt64(i.InputDoubleRegister(0),
-#if !V8_TARGET_ARCH_S390X
-                              kScratchReg,
-#endif
-                              i.OutputRegister(0), kScratchDoubleReg);
-#if V8_TARGET_ARCH_S390X
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
+      Label done;
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand(1));
       }
-#endif
+      __ ConvertDoubleToInt64(i.OutputRegister(0), i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand::Zero());
+      } else {
+        __ lghi(i.OutputRegister(0), Operand::Zero());
+      }
+      __ bind(&done);
+      break;
+    }
+    case kS390_DoubleToUint64: {
+      Label done;
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand(1));
+      }
+      __ ConvertDoubleToUnsignedInt64(i.OutputRegister(0),
+                                      i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand::Zero());
+      } else {
+        __ lghi(i.OutputRegister(0), Operand::Zero());
+      }
+      __ bind(&done);
       break;
     }
     case kS390_Float32ToInt32: {
-      bool check_conversion = (i.OutputCount() > 1);
-      __ ConvertFloat32ToInt32(i.InputDoubleRegister(0), i.OutputRegister(0),
-                               kScratchDoubleReg, kRoundToZero);
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
-      }
+      Label done;
+      __ ConvertFloat32ToInt32(i.OutputRegister(0), i.InputDoubleRegister(0),
+                               kRoundToZero);
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      __ lghi(i.OutputRegister(0), Operand::Zero());
+      __ bind(&done);
       break;
     }
     case kS390_Float32ToUint32: {
-      bool check_conversion = (i.OutputCount() > 1);
-      __ ConvertFloat32ToUnsignedInt32(i.InputDoubleRegister(0),
-                                       i.OutputRegister(0), kScratchDoubleReg);
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
-      }
+      Label done;
+      __ ConvertFloat32ToUnsignedInt32(i.OutputRegister(0),
+                                       i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      __ lghi(i.OutputRegister(0), Operand::Zero());
+      __ bind(&done);
       break;
     }
-#if V8_TARGET_ARCH_S390X
     case kS390_Float32ToUint64: {
-      bool check_conversion = (i.OutputCount() > 1);
-      __ ConvertFloat32ToUnsignedInt64(i.InputDoubleRegister(0),
-                                       i.OutputRegister(0), kScratchDoubleReg);
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
+      Label done;
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand(1));
       }
+      __ ConvertFloat32ToUnsignedInt64(i.OutputRegister(0),
+                                       i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand::Zero());
+      } else {
+        __ lghi(i.OutputRegister(0), Operand::Zero());
+      }
+      __ bind(&done);
       break;
     }
-#endif
     case kS390_Float32ToInt64: {
-#if V8_TARGET_ARCH_S390X
-      bool check_conversion =
-          (opcode == kS390_Float32ToInt64 && i.OutputCount() > 1);
-#endif
-      __ ConvertFloat32ToInt64(i.InputDoubleRegister(0),
-#if !V8_TARGET_ARCH_S390X
-                               kScratchReg,
-#endif
-                               i.OutputRegister(0), kScratchDoubleReg);
-#if V8_TARGET_ARCH_S390X
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
+      Label done;
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand(1));
       }
-#endif
+      __ ConvertFloat32ToInt64(i.OutputRegister(0), i.InputDoubleRegister(0));
+      __ b(Condition(0xe), &done, Label::kNear);  // normal case
+      if (i.OutputCount() > 1) {
+        __ lghi(i.OutputRegister(1), Operand::Zero());
+      } else {
+        __ lghi(i.OutputRegister(0), Operand::Zero());
+      }
+      __ bind(&done);
       break;
     }
-#if V8_TARGET_ARCH_S390X
-    case kS390_DoubleToUint64: {
-      bool check_conversion = (i.OutputCount() > 1);
-      __ ConvertDoubleToUnsignedInt64(i.InputDoubleRegister(0),
-                                      i.OutputRegister(0), kScratchDoubleReg);
-      if (check_conversion) {
-        Label conversion_done;
-        __ LoadImmP(i.OutputRegister(1), Operand::Zero());
-        __ b(Condition(1), &conversion_done);  // special case
-        __ LoadImmP(i.OutputRegister(1), Operand(1));
-        __ bind(&conversion_done);
-      }
-      break;
-    }
-#endif
     case kS390_DoubleToFloat32:
       ASSEMBLE_UNARY_OP(D_DInstr(ledbr), nullInstr, nullInstr);
       break;
@@ -2069,13 +2106,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ srlg(i.OutputRegister(), i.OutputRegister(), Operand(32));
       break;
     case kS390_DoubleInsertLowWord32:
-      __ lgdr(kScratchReg, i.OutputDoubleRegister());
+      __ lgdr(kScratchReg, i.InputDoubleRegister(0));
       __ lr(kScratchReg, i.InputRegister(1));
       __ ldgr(i.OutputDoubleRegister(), kScratchReg);
       break;
     case kS390_DoubleInsertHighWord32:
       __ sllg(kScratchReg, i.InputRegister(1), Operand(32));
-      __ lgdr(r0, i.OutputDoubleRegister());
+      __ lgdr(r0, i.InputDoubleRegister(0));
       __ lr(kScratchReg, r0);
       __ ldgr(i.OutputDoubleRegister(), kScratchReg);
       break;
@@ -2512,8 +2549,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 
   // Overflow checked for add/sub only.
   DCHECK((condition != kOverflow && condition != kNotOverflow) ||
-         (op == kS390_Add32 || kS390_Add64 || op == kS390_Sub32 ||
-          op == kS390_Sub64));
+         (op == kS390_Add32 || op == kS390_Add64 || op == kS390_Sub32 ||
+          op == kS390_Sub64 || op == kS390_Mul32));
 
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
@@ -2576,7 +2613,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   // actual final call site and just bl'ing to it here, similar to what we do
   // in the lithium backend.
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
+  if (isolate()->NeedsSourcePositionsForProfiling()) {
+    __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
+  }
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   return kSuccess;
 }
@@ -2701,6 +2740,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   __ Drop(pop_count);
   __ Ret();
 }
+
+void CodeGenerator::FinishCode() {}
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {

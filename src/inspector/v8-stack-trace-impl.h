@@ -15,12 +15,10 @@
 
 namespace v8_inspector {
 
-class TracedValue;
 class V8Debugger;
 
 // Note: async stack trace may have empty top stack with non-empty tail to
-// indicate
-// that current native-only state had some async story.
+// indicate that current native-only state had some async story.
 // On the other hand, any non-top async stack is guaranteed to be non-empty.
 class V8StackTraceImpl final : public V8StackTrace {
  public:
@@ -28,22 +26,19 @@ class V8StackTraceImpl final : public V8StackTrace {
 
   class Frame {
    public:
-    Frame();
     Frame(const String16& functionName, const String16& scriptId,
           const String16& scriptName, int lineNumber, int column = 0);
-    ~Frame();
+    ~Frame() = default;
 
     const String16& functionName() const { return m_functionName; }
     const String16& scriptId() const { return m_scriptId; }
     const String16& sourceURL() const { return m_scriptName; }
     int lineNumber() const { return m_lineNumber; }
     int columnNumber() const { return m_columnNumber; }
-    Frame clone() const;
 
    private:
     friend class V8StackTraceImpl;
     std::unique_ptr<protocol::Runtime::CallFrame> buildInspectorObject() const;
-    void toTracedValue(TracedValue*) const;
 
     String16 m_functionName;
     String16 m_scriptId;
@@ -64,8 +59,8 @@ class V8StackTraceImpl final : public V8StackTrace {
   // This method drops the async chain. Use cloneImpl() instead.
   std::unique_ptr<V8StackTrace> clone() override;
   std::unique_ptr<V8StackTraceImpl> cloneImpl();
-  std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectForTail(
-      V8Debugger*) const;
+  static std::unique_ptr<protocol::Runtime::StackTrace>
+  buildInspectorObjectForTail(V8Debugger*);
   std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectImpl()
       const;
   ~V8StackTraceImpl() override;
@@ -81,12 +76,14 @@ class V8StackTraceImpl final : public V8StackTrace {
       const override;
   std::unique_ptr<StringBuffer> toString() const override;
 
-  void setCreation(std::unique_ptr<V8StackTraceImpl> creation);
-
  private:
   V8StackTraceImpl(int contextGroupId, const String16& description,
                    std::vector<Frame>& frames,
-                   std::unique_ptr<V8StackTraceImpl> parent);
+                   std::unique_ptr<V8StackTraceImpl> parent,
+                   std::unique_ptr<V8StackTraceImpl> creation);
+
+  std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectImpl(
+      V8StackTraceImpl* creation) const;
 
   int m_contextGroupId;
   String16 m_description;

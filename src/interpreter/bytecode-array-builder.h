@@ -9,8 +9,10 @@
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
@@ -25,7 +27,6 @@ namespace interpreter {
 
 class BytecodeLabel;
 class BytecodeNode;
-class BytecodePipelineStage;
 class BytecodeRegisterOptimizer;
 class Register;
 
@@ -71,7 +72,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
     return register_allocator()->maximum_register_count();
   }
 
+  Register Local(int index) const;
   Register Parameter(int parameter_index) const;
+  Register Receiver() const;
 
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadConstantPoolEntry(size_t entry);
@@ -136,6 +139,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& StoreDataPropertyInLiteral(
       Register object, Register name, DataPropertyInLiteralFlags flags,
       int feedback_slot);
+
+  // Collect type information for developer tools. The value for which we
+  // record the type is stored in the accumulator.
+  BytecodeArrayBuilder& CollectTypeProfile(int position);
 
   // Store a property named by a property name. The value to be stored should be
   // in the accumulator.
@@ -231,14 +238,35 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Pop the current context and replace with |context|.
   BytecodeArrayBuilder& PopContext(Register context);
 
-  // Call a JS function. The JSFunction or Callable to be called should be in
-  // |callable|. The arguments should be in |args|, with the receiver in
-  // |args[0]|. The call type of the expression is in |call_type|. Type feedback
-  // is recorded in the |feedback_slot| in the type feedback vector.
-  BytecodeArrayBuilder& Call(
-      Register callable, RegisterList args, int feedback_slot,
-      Call::CallType call_type,
-      TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  // Call a JS function which is known to be a property of a JS object. The
+  // JSFunction or Callable to be called should be in |callable|. The arguments
+  // should be in |args|, with the receiver in |args[0]|. The call type of the
+  // expression is in |call_type|. Type feedback is recorded in the
+  // |feedback_slot| in the type feedback vector.
+  BytecodeArrayBuilder& CallProperty(Register callable, RegisterList args,
+                                     int feedback_slot);
+
+  // Call a JS function with an known undefined receiver. The JSFunction or
+  // Callable to be called should be in |callable|. The arguments should be in
+  // |args|, with no receiver as it is implicitly set to undefined. Type
+  // feedback is recorded in the |feedback_slot| in the type feedback vector.
+  BytecodeArrayBuilder& CallUndefinedReceiver(Register callable,
+                                              RegisterList args,
+                                              int feedback_slot);
+
+  // Call a JS function with an any receiver, possibly (but not necessarily)
+  // undefined. The JSFunction or Callable to be called should be in |callable|.
+  // The arguments should be in |args|, with the receiver in |args[0]|. Type
+  // feedback is recorded in the |feedback_slot| in the type feedback vector.
+  BytecodeArrayBuilder& CallAnyReceiver(Register callable, RegisterList args,
+                                        int feedback_slot);
+
+  // Tail call into a JS function. The JSFunction or Callable to be called
+  // should be in |callable|. The arguments should be in |args|, with the
+  // receiver in |args[0]|. Type feedback is recorded in the |feedback_slot| in
+  // the type feedback vector.
+  BytecodeArrayBuilder& TailCall(Register callable, RegisterList args,
+                                 int feedback_slot);
 
   // Call a JS function. The JSFunction or Callable to be called should be in
   // |callable|, the receiver in |args[0]| and the arguments in |args[1]|
@@ -285,13 +313,21 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Type feedback will be recorded in the |feedback_slot|
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
                                         int feedback_slot);
+  BytecodeArrayBuilder& BinaryOperationSmiLiteral(Token::Value binop,
+                                                  Smi* literal,
+                                                  int feedback_slot);
 
   // Count Operators (value stored in accumulator).
   // Type feedback will be recorded in the |feedback_slot|
   BytecodeArrayBuilder& CountOperation(Token::Value op, int feedback_slot);
 
+  enum class ToBooleanMode {
+    kConvertToBoolean,  // Perform ToBoolean conversion on accumulator.
+    kAlreadyBoolean,    // Accumulator is already a Boolean.
+  };
+
   // Unary Operators.
-  BytecodeArrayBuilder& LogicalNot();
+  BytecodeArrayBuilder& LogicalNot(ToBooleanMode mode);
   BytecodeArrayBuilder& TypeOf();
 
   // Expects a heap object in the accumulator. Returns its super constructor in
@@ -305,25 +341,40 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Tests.
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
-                                         int feedback_slot = kNoFeedbackSlot);
+                                         int feedback_slot);
+  BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg);
+  BytecodeArrayBuilder& CompareUndetectable();
+  BytecodeArrayBuilder& CompareUndefined();
+  BytecodeArrayBuilder& CompareNull();
+  BytecodeArrayBuilder& CompareNil(Token::Value op, NilValue nil);
+  BytecodeArrayBuilder& CompareTypeOf(
+      TestTypeOfFlags::LiteralFlag literal_flag);
 
   // Converts accumulator and stores result in register |out|.
   BytecodeArrayBuilder& ConvertAccumulatorToObject(Register out);
   BytecodeArrayBuilder& ConvertAccumulatorToName(Register out);
-  BytecodeArrayBuilder& ConvertAccumulatorToNumber(Register out);
+  BytecodeArrayBuilder& ConvertAccumulatorToNumber(Register out,
+                                                   int feedback_slot);
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
   BytecodeArrayBuilder& Bind(const BytecodeLabel& target, BytecodeLabel* label);
 
   BytecodeArrayBuilder& Jump(BytecodeLabel* label);
-  BytecodeArrayBuilder& JumpIfTrue(BytecodeLabel* label);
-  BytecodeArrayBuilder& JumpIfFalse(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpLoop(BytecodeLabel* label, int loop_depth);
+
+  BytecodeArrayBuilder& JumpIfTrue(ToBooleanMode mode, BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfFalse(ToBooleanMode mode, BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotHole(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfJSReceiver(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfNotNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
-  BytecodeArrayBuilder& JumpLoop(BytecodeLabel* label, int loop_depth);
+  BytecodeArrayBuilder& JumpIfNotUndefined(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfNil(BytecodeLabel* label, Token::Value op,
+                                  NilValue nil);
+  BytecodeArrayBuilder& JumpIfNotNil(BytecodeLabel* label, Token::Value op,
+                                     NilValue nil);
 
   BytecodeArrayBuilder& StackCheck(int position);
 
@@ -348,7 +399,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& ForInStep(Register index);
 
   // Generators.
-  BytecodeArrayBuilder& SuspendGenerator(Register generator);
+  BytecodeArrayBuilder& SuspendGenerator(Register generator,
+                                         SuspendFlags flags);
   BytecodeArrayBuilder& ResumeGenerator(Register generator);
 
   // Exception handling.
@@ -403,6 +455,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   uint32_t GetInputRegisterListOperand(RegisterList reg_list);
   uint32_t GetOutputRegisterListOperand(RegisterList reg_list);
 
+  // Outputs raw register transfer bytecodes without going through the register
+  // optimizer.
+  void OutputLdarRaw(Register reg);
+  void OutputStarRaw(Register reg);
+  void OutputMovRaw(Register src, Register dest);
+
   // Accessors
   BytecodeRegisterAllocator* register_allocator() {
     return &register_allocator_;
@@ -439,6 +497,17 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Set position for return.
   void SetReturnPosition();
 
+  // Sets a deferred source info which should be emitted before any future
+  // source info (either attached to a following bytecode or as a nop).
+  void SetDeferredSourceInfo(BytecodeSourceInfo source_info);
+  // Either attach deferred source info to node, or emit it as a nop bytecode
+  // if node already have valid source info.
+  void AttachOrEmitDeferredSourceInfo(BytecodeNode* node);
+
+  // Write bytecode to bytecode array.
+  void Write(BytecodeNode* node);
+  void WriteJump(BytecodeNode* node, BytecodeLabel* label);
+
   // Not implemented as the illegal bytecode is used inside internally
   // to indicate a bytecode field is not valid or an error has occured
   // during bytecode generation.
@@ -452,7 +521,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayWriter* bytecode_array_writer() {
     return &bytecode_array_writer_;
   }
-  BytecodePipelineStage* pipeline() { return pipeline_; }
   ConstantArrayBuilder* constant_array_builder() {
     return &constant_array_builder_;
   }
@@ -475,14 +543,17 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   int return_position_;
   BytecodeRegisterAllocator register_allocator_;
   BytecodeArrayWriter bytecode_array_writer_;
-  BytecodePipelineStage* pipeline_;
   BytecodeRegisterOptimizer* register_optimizer_;
   BytecodeSourceInfo latest_source_info_;
+  BytecodeSourceInfo deferred_source_info_;
 
   static int const kNoFeedbackSlot = 0;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, const BytecodeArrayBuilder::ToBooleanMode& mode);
 
 }  // namespace interpreter
 }  // namespace internal

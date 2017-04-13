@@ -595,7 +595,7 @@ TEST(PreParserScopeAnalysis) {
 
       // No need to run scope analysis; preparser scope data is produced when
       // parsing.
-      CHECK(i::parsing::ParseProgram(&lazy_info));
+      CHECK(i::parsing::ParseProgram(&lazy_info, isolate));
 
       // Then parse eagerly and check against the scope data.
       inner_function = outers[outer_ix].eager_inner;
@@ -623,8 +623,8 @@ TEST(PreParserScopeAnalysis) {
       i::ParseInfo eager_normal(script);
       eager_normal.set_allow_lazy_parsing(false);
 
-      CHECK(i::parsing::ParseProgram(&eager_normal));
-      CHECK(i::Compiler::Analyze(&eager_normal));
+      CHECK(i::parsing::ParseProgram(&eager_normal, isolate));
+      CHECK(i::Compiler::Analyze(&eager_normal, isolate));
 
       i::Scope* normal_scope =
           eager_normal.literal()->scope()->inner_scope()->inner_scope();
@@ -635,7 +635,7 @@ TEST(PreParserScopeAnalysis) {
       i::ParseInfo eager_using_scope_data(script);
       eager_using_scope_data.set_allow_lazy_parsing(false);
 
-      CHECK(i::parsing::ParseProgram(&eager_using_scope_data));
+      CHECK(i::parsing::ParseProgram(&eager_using_scope_data, isolate));
       // Don't run scope analysis (that would obviously decide the correct
       // allocation for the variables).
 

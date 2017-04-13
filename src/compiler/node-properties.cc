@@ -333,23 +333,26 @@ bool NodeProperties::IsSame(Node* a, Node* b) {
 }
 
 // static
-bool NodeProperties::InferReceiverMaps(Node* receiver, Node* effect,
-                                       ZoneHandleSet<Map>* maps_return) {
+NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
+    Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return) {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
     Handle<Map> receiver_map(m.Value()->map());
     if (receiver_map->is_stable()) {
+      // The {receiver_map} is only reliable when we install a stability
+      // code dependency.
       *maps_return = ZoneHandleSet<Map>(receiver_map);
-      return true;
+      return kUnreliableReceiverMaps;
     }
   }
+  InferReceiverMapsResult result = kReliableReceiverMaps;
   while (true) {
     switch (effect->opcode()) {
       case IrOpcode::kCheckMaps: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
           *maps_return = CheckMapsParametersOf(effect->op()).maps();
-          return true;
+          return result;
         }
         break;
       }
@@ -365,12 +368,12 @@ bool NodeProperties::InferReceiverMaps(Node* receiver, Node* effect,
               if (initial_map->constructor_or_backpointer() ==
                   *mtarget.Value()) {
                 *maps_return = ZoneHandleSet<Map>(initial_map);
-                return true;
+                return result;
               }
             }
           }
           // We reached the allocation of the {receiver}.
-          return false;
+          return kNoReceiverMaps;
         }
         break;
       }
@@ -385,12 +388,12 @@ bool NodeProperties::InferReceiverMaps(Node* receiver, Node* effect,
             HeapObjectMatcher m(value);
             if (m.HasValue()) {
               *maps_return = ZoneHandleSet<Map>(Handle<Map>::cast(m.Value()));
-              return true;
+              return result;
             }
           }
           // Without alias analysis we cannot tell whether this
           // StoreField[map] affects {receiver} or not.
-          return false;
+          result = kUnreliableReceiverMaps;
         }
         break;
       }
@@ -403,10 +406,14 @@ bool NodeProperties::InferReceiverMaps(Node* receiver, Node* effect,
       }
       default: {
         DCHECK_EQ(1, effect->op()->EffectOutputCount());
-        if (effect->op()->EffectInputCount() != 1 ||
-            !effect->op()->HasProperty(Operator::kNoWrite)) {
+        if (effect->op()->EffectInputCount() != 1) {
           // Didn't find any appropriate CheckMaps node.
-          return false;
+          return kNoReceiverMaps;
+        }
+        if (!effect->op()->HasProperty(Operator::kNoWrite)) {
+          // Without alias/escape analysis we cannot tell whether this
+          // {effect} affects {receiver} or not.
+          result = kUnreliableReceiverMaps;
         }
         break;
       }

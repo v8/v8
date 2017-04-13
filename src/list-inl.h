@@ -262,7 +262,7 @@ int SortedListBSearch(const List<T>& list, P cmp) {
       low = mid + 1;
       continue;
     }
-    // Found the elememt.
+    // Found the element.
     return mid;
   }
   return -1;

@@ -2302,9 +2302,7 @@ int ActionNode::EatsAtLeast(int still_to_find,
 
 void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
                               BoyerMooreLookahead* bm, bool not_at_start) {
-  if (action_type_ == BEGIN_SUBMATCH) {
-    bm->SetRest(offset);
-  } else if (action_type_ != POSITIVE_SUBMATCH_SUCCESS) {
+  if (action_type_ != POSITIVE_SUBMATCH_SUCCESS) {
     on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
   }
   SaveBMInfo(bm, not_at_start, offset);
@@ -3329,9 +3327,8 @@ TextNode* TextNode::CreateForCharacterRanges(Zone* zone,
                                              RegExpNode* on_success) {
   DCHECK_NOT_NULL(ranges);
   ZoneList<TextElement>* elms = new (zone) ZoneList<TextElement>(1, zone);
-  elms->Add(
-      TextElement::CharClass(new (zone) RegExpCharacterClass(ranges, false)),
-      zone);
+  elms->Add(TextElement::CharClass(new (zone) RegExpCharacterClass(ranges)),
+            zone);
   return new (zone) TextNode(elms, read_backward, on_success);
 }
 
@@ -3343,12 +3340,12 @@ TextNode* TextNode::CreateForSurrogatePair(Zone* zone, CharacterRange lead,
   ZoneList<CharacterRange>* lead_ranges = CharacterRange::List(zone, lead);
   ZoneList<CharacterRange>* trail_ranges = CharacterRange::List(zone, trail);
   ZoneList<TextElement>* elms = new (zone) ZoneList<TextElement>(2, zone);
-  elms->Add(TextElement::CharClass(
-                new (zone) RegExpCharacterClass(lead_ranges, false)),
-            zone);
-  elms->Add(TextElement::CharClass(
-                new (zone) RegExpCharacterClass(trail_ranges, false)),
-            zone);
+  elms->Add(
+      TextElement::CharClass(new (zone) RegExpCharacterClass(lead_ranges)),
+      zone);
+  elms->Add(
+      TextElement::CharClass(new (zone) RegExpCharacterClass(trail_ranges)),
+      zone);
   return new (zone) TextNode(elms, read_backward, on_success);
 }
 
@@ -4853,7 +4850,7 @@ static bool CompareRanges(ZoneList<CharacterRange>* ranges,
 bool RegExpCharacterClass::is_standard(Zone* zone) {
   // TODO(lrn): Remove need for this function, by not throwing away information
   // along the way.
-  if (is_negated_) {
+  if (is_negated()) {
     return false;
   }
   if (set_.is_standard()) {
@@ -5146,7 +5143,8 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
   if (compiler->needs_unicode_case_equivalents()) {
     AddUnicodeCaseEquivalents(ranges, zone);
   }
-  if (compiler->unicode() && !compiler->one_byte()) {
+  if (compiler->unicode() && !compiler->one_byte() &&
+      !contains_split_surrogate()) {
     if (is_negated()) {
       ZoneList<CharacterRange>* negated =
           new (zone) ZoneList<CharacterRange>(2, zone);
@@ -5156,7 +5154,7 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
     if (ranges->length() == 0) {
       ranges->Add(CharacterRange::Everything(), zone);
       RegExpCharacterClass* fail =
-          new (zone) RegExpCharacterClass(ranges, true);
+          new (zone) RegExpCharacterClass(ranges, NEGATED);
       return new (zone) TextNode(fail, compiler->read_backward(), on_success);
     }
     if (standard_type() == '*') {
@@ -5354,6 +5352,7 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
   Zone* zone = compiler->zone();
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
   int length = alternatives->length();
+  const bool unicode = compiler->unicode();
 
   int write_posn = 0;
   int i = 0;
@@ -5370,6 +5369,10 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
       i++;
       continue;
     }
+    DCHECK_IMPLIES(unicode,
+                   !unibrow::Utf16::IsLeadSurrogate(atom->data().at(0)));
+    bool contains_trail_surrogate =
+        unibrow::Utf16::IsTrailSurrogate(atom->data().at(0));
     int first_in_run = i;
     i++;
     while (i < length) {
@@ -5377,6 +5380,10 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
       if (!alternative->IsAtom()) break;
       atom = alternative->AsAtom();
       if (atom->length() != 1) break;
+      DCHECK_IMPLIES(unicode,
+                     !unibrow::Utf16::IsLeadSurrogate(atom->data().at(0)));
+      contains_trail_surrogate |=
+          unibrow::Utf16::IsTrailSurrogate(atom->data().at(0));
       i++;
     }
     if (i > first_in_run + 1) {
@@ -5389,8 +5396,12 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
         DCHECK_EQ(old_atom->length(), 1);
         ranges->Add(CharacterRange::Singleton(old_atom->data().at(0)), zone);
       }
+      RegExpCharacterClass::Flags flags;
+      if (unicode && contains_trail_surrogate) {
+        flags = RegExpCharacterClass::CONTAINS_SPLIT_SURROGATE;
+      }
       alternatives->at(write_posn++) =
-          new (zone) RegExpCharacterClass(ranges, false);
+          new (zone) RegExpCharacterClass(ranges, flags);
     } else {
       // Just copy any trivial alternatives.
       for (int j = first_in_run; j < i; j++) {

@@ -30,17 +30,31 @@ function inherits(childCtor, parentCtor) {
 };
 
 
-function V8Profile(separateIc) {
+function V8Profile(separateIc, separateBytecodes, separateBuiltins,
+    separateStubs) {
   Profile.call(this);
-  if (!separateIc) {
-    this.skipThisFunction = function(name) { return V8Profile.IC_RE.test(name); };
+  var regexps = [];
+  if (!separateIc) regexps.push(V8Profile.IC_RE);
+  if (!separateBytecodes) regexps.push(V8Profile.BYTECODES_RE);
+  if (!separateBuiltins) regexps.push(V8Profile.BUILTINS_RE);
+  if (!separateStubs) regexps.push(V8Profile.STUBS_RE);
+  if (regexps.length > 0) {
+    this.skipThisFunction = function(name) {
+      for (var i=0; i<regexps.length; i++) {
+        if (regexps[i].test(name)) return true;
+      }
+      return false;
+    };
   }
 };
 inherits(V8Profile, Profile);
 
 
 V8Profile.IC_RE =
-    /^(LoadGlobalIC: )|(Handler: )|(Stub: )|(Builtin: )|(BytecodeHandler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
+    /^(LoadGlobalIC: )|(Handler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
+V8Profile.BYTECODES_RE = /^(BytecodeHandler: )/
+V8Profile.BUILTINS_RE = /^(Builtin: )/
+V8Profile.STUBS_RE = /^(Stub: )/
 
 
 /**
@@ -72,6 +86,9 @@ function parseState(s) {
 function TickProcessor(
     cppEntriesProvider,
     separateIc,
+    separateBytecodes,
+    separateBuiltins,
+    separateStubs,
     callGraphSize,
     ignoreUnknown,
     stateFilter,
@@ -88,9 +105,14 @@ function TickProcessor(
       'shared-library': { parsers: [null, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary },
       'code-creation': {
-          parsers: [null, parseInt, parseInt, parseInt, null, 'var-args'],
+          parsers: [null, parseInt, parseInt, parseInt, parseInt,
+                    null, 'var-args'],
           processor: this.processCodeCreation },
-      'code-move': { parsers: [parseInt, parseInt],
+      'code-deopt': {
+          parsers: [parseInt, parseInt, parseInt, parseInt, parseInt,
+                    null, null, null],
+          processor: this.processCodeDeopt },
+      'code-move': { parsers: [parseInt, parseInt, ],
           processor: this.processCodeMove },
       'code-delete': { parsers: [parseInt],
           processor: this.processCodeDelete },
@@ -170,7 +192,8 @@ function TickProcessor(
   if (preprocessJson) {
     this.profile_ = new JsonProfile();
   } else {
-    this.profile_ = new V8Profile(separateIc);
+    this.profile_ = new V8Profile(separateIc, separateBytecodes,
+        separateBuiltins, separateStubs);
   }
   this.codeTypes_ = {};
   // Count each tick as a time unit.
@@ -266,15 +289,23 @@ TickProcessor.prototype.processSharedLibrary = function(
 
 
 TickProcessor.prototype.processCodeCreation = function(
-    type, kind, start, size, name, maybe_func) {
+    type, kind, timestamp, start, size, name, maybe_func) {
   name = this.deserializedEntriesNames_[start] || name;
   if (maybe_func.length) {
     var funcAddr = parseInt(maybe_func[0]);
     var state = parseState(maybe_func[1]);
-    this.profile_.addFuncCode(type, name, start, size, funcAddr, state);
+    this.profile_.addFuncCode(type, name, timestamp, start, size, funcAddr, state);
   } else {
-    this.profile_.addCode(type, name, start, size);
+    this.profile_.addCode(type, name, timestamp, start, size);
   }
+};
+
+
+TickProcessor.prototype.processCodeDeopt = function(
+    timestamp, size, code, inliningId, scriptOffset, bailoutType,
+    sourcePositionText, deoptReasonText) {
+  this.profile_.deoptCode(timestamp, code, inliningId, scriptOffset,
+      bailoutType, sourcePositionText, deoptReasonText);
 };
 
 
@@ -334,7 +365,7 @@ TickProcessor.prototype.processTick = function(pc,
     // Find out, if top of stack was pointing inside a JS function
     // meaning that we have encountered a frameless invocation.
     var funcEntry = this.profile_.findEntry(tos_or_external_callback);
-    if (!funcEntry || !funcEntry.isJSFunction || !funcEntry.isJSFunction()) {
+    if (!funcEntry) {
       tos_or_external_callback = 0;
     }
   }
@@ -795,6 +826,10 @@ WindowsCppEntriesProvider.prototype.unmangleName = function(name) {
 function ArgumentsProcessor(args) {
   this.args_ = args;
   this.result_ = ArgumentsProcessor.DEFAULTS;
+  function parseBool(str) {
+    if (str == "true" || str == "1") return true;
+    return false;
+  }
 
   this.argsDispatch_ = {
     '-j': ['stateFilter', TickProcessor.VmStates.JS,
@@ -813,8 +848,14 @@ function ArgumentsProcessor(args) {
         'Set the call graph size'],
     '--ignore-unknown': ['ignoreUnknown', true,
         'Exclude ticks of unknown code entries from processing'],
-    '--separate-ic': ['separateIc', true,
+    '--separate-ic': ['separateIc', parseBool,
         'Separate IC entries'],
+    '--separate-bytecodes': ['separateBytecodes', parseBool,
+        'Separate Bytecode entries'],
+    '--separate-builtins': ['separateBuiltins', parseBool,
+        'Separate Builtin entries'],
+    '--separate-stubs': ['separateStubs', parseBool,
+        'Separate Stub entries'],
     '--unix': ['platform', 'unix',
         'Specify that we are running on *nix platform'],
     '--windows': ['platform', 'windows',
@@ -856,6 +897,9 @@ ArgumentsProcessor.DEFAULTS = {
   callGraphSize: 5,
   ignoreUnknown: false,
   separateIc: true,
+  separateBytecodes: false,
+  separateBuiltins: true,
+  separateStubs: true,
   preprocessJson: null,
   targetRootFS: '',
   nm: 'nm',
@@ -883,7 +927,14 @@ ArgumentsProcessor.prototype.parse = function() {
     }
     if (arg in this.argsDispatch_) {
       var dispatch = this.argsDispatch_[arg];
-      this.result_[dispatch[0]] = userValue == null ? dispatch[1] : userValue;
+      var property = dispatch[0];
+      var defaultValue = dispatch[1];
+      if (typeof defaultValue == "function") {
+        userValue = defaultValue(userValue);
+      } else if (userValue == null) {
+        userValue = defaultValue;
+      }
+      this.result_[property] = userValue;
     } else {
       return false;
     }

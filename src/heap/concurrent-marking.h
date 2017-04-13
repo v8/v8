@@ -25,13 +25,16 @@ class ConcurrentMarking {
 
   void AddRoot(HeapObject* object);
 
-  void StartMarkingTask();
+  void StartTask();
   void WaitForTaskToComplete();
+  bool IsTaskPending() { return is_task_pending_; }
+  void EnsureTaskCompleted();
 
  private:
   class Task;
   Heap* heap_;
-  base::Semaphore pending_task_;
+  base::Semaphore pending_task_semaphore_;
+  bool is_task_pending_;
   std::vector<HeapObject*> root_set_;
 };
 

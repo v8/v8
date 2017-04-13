@@ -55,7 +55,7 @@ Object.getOwnPropertyNames(global).forEach(function(name) {
 // Remove items as we fix them. See issue 5902.
 assertEquals(
     [
-      'RegExp', 'RegExp.prototype.constructor', 'Error.prototype',
+      'Error.prototype',
       'EvalError.prototype', 'RangeError.prototype', 'ReferenceError.prototype',
       'SyntaxError.prototype', 'TypeError.prototype', 'URIError.prototype',
       'Map', 'Map.prototype.constructor', 'Set', 'Set.prototype.constructor'

@@ -63,6 +63,21 @@ Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
   return Changed(node);
 }
 
+// ES6 section 19.3.1.1 Boolean ( value )
+Reduction JSCallReducer::ReduceBooleanConstructor(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+
+  // Replace the {node} with a proper {JSToBoolean} operator.
+  DCHECK_LE(2u, p.arity());
+  Node* value = (p.arity() == 2) ? jsgraph()->UndefinedConstant()
+                                 : NodeProperties::GetValueInput(node, 2);
+  Node* context = NodeProperties::GetContextInput(node);
+  value = graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), value,
+                           context);
+  ReplaceWithValue(node, value);
+  return Replace(value);
+}
 
 // ES6 section 20.1.1 The Number Constructor
 Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
@@ -119,16 +134,25 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     CreateArgumentsType const type = CreateArgumentsTypeOf(arg_array->op());
     Node* frame_state = NodeProperties::GetFrameStateInput(arg_array);
     FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
-    int formal_parameter_count;
     int start_index = 0;
-    {
-      Handle<SharedFunctionInfo> shared;
-      if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-      formal_parameter_count = shared->internal_formal_parameter_count();
-    }
+    // Determine the formal parameter count;
+    Handle<SharedFunctionInfo> shared;
+    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+    int formal_parameter_count = shared->internal_formal_parameter_count();
     if (type == CreateArgumentsType::kMappedArguments) {
-      // Mapped arguments (sloppy mode) cannot be handled if they are aliased.
-      if (formal_parameter_count != 0) return NoChange();
+      // Mapped arguments (sloppy mode) that are aliased can only be handled
+      // here if there's no side-effect between the {node} and the {arg_array}.
+      // TODO(turbofan): Further relax this constraint.
+      if (formal_parameter_count != 0) {
+        Node* effect = NodeProperties::GetEffectInput(node);
+        while (effect != arg_array) {
+          if (effect->op()->EffectInputCount() != 1 ||
+              !(effect->op()->properties() & Operator::kNoWrite)) {
+            return NoChange();
+          }
+          effect = NodeProperties::GetEffectInput(effect);
+        }
+      }
     } else if (type == CreateArgumentsType::kRestParameter) {
       start_index = formal_parameter_count;
     }
@@ -311,7 +335,9 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
 
   // Try to determine the {receiver} map.
   ZoneHandleSet<Map> receiver_maps;
-  if (NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps)) {
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (result != NodeProperties::kNoReceiverMaps) {
     Handle<Map> candidate_map(
         receiver_maps[0]->GetPrototypeChainRootMap(isolate()));
     Handle<Object> candidate_prototype(candidate_map->prototype(), isolate());
@@ -325,6 +351,15 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
           receiver_map->is_access_check_needed() ||
           receiver_map->prototype() != *candidate_prototype) {
         return NoChange();
+      }
+      if (result == NodeProperties::kUnreliableReceiverMaps &&
+          !receiver_map->is_stable()) {
+        return NoChange();
+      }
+    }
+    if (result == NodeProperties::kUnreliableReceiverMaps) {
+      for (size_t i = 0; i < receiver_maps.size(); ++i) {
+        dependencies()->AssumeMapStable(receiver_maps[i]);
       }
     }
     Node* value = jsgraph()->Constant(candidate_prototype);
@@ -525,6 +560,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
       // Check for known builtin functions.
       switch (shared->code()->builtin_index()) {
+        case Builtins::kBooleanConstructor:
+          return ReduceBooleanConstructor(node);
         case Builtins::kFunctionPrototypeApply:
           return ReduceFunctionPrototypeApply(node);
         case Builtins::kFunctionPrototypeCall:
@@ -616,9 +653,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     NodeProperties::ChangeOp(node, common()->Call(desc));
     return Changed(node);
   }
-
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
   Handle<Object> feedback(nexus.GetFeedback(), isolate());
   if (feedback->IsAllocationSite()) {
@@ -726,9 +760,6 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     // TODO(bmeurer): Also support optimizing bound functions and proxies here.
     return NoChange();
   }
-
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
   if (!p.feedback().IsValid()) return NoChange();
   CallICNexus nexus(p.feedback().vector(), p.feedback().slot());

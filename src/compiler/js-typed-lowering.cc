@@ -261,19 +261,7 @@ class JSBinopReduction final {
 
     // Reconnect the control output to bypass the IfSuccess node and
     // possibly disconnect from the IfException node.
-    for (Edge edge : node_->use_edges()) {
-      Node* const user = edge.from();
-      DCHECK(!user->IsDead());
-      if (NodeProperties::IsControlEdge(edge)) {
-        if (user->opcode() == IrOpcode::kIfSuccess) {
-          user->ReplaceUses(NodeProperties::GetControlInput(node_));
-          user->Kill();
-        } else {
-          DCHECK_EQ(user->opcode(), IrOpcode::kIfException);
-          edge.UpdateTo(jsgraph()->Dead());
-        }
-      }
-    }
+    lowering_->RelaxControls(node_);
 
     // Remove the frame state and the context.
     if (OperatorProperties::HasFrameStateInput(node_->op())) {
@@ -324,6 +312,8 @@ class JSBinopReduction final {
 
   const Operator* NumberOpFromSpeculativeNumberOp() {
     switch (node_->opcode()) {
+      case IrOpcode::kSpeculativeNumberEqual:
+        return simplified()->NumberEqual();
       case IrOpcode::kSpeculativeNumberLessThan:
         return simplified()->NumberLessThan();
       case IrOpcode::kSpeculativeNumberLessThanOrEqual:
@@ -414,9 +404,7 @@ class JSBinopReduction final {
     DCHECK(!NodeProperties::GetType(node)->Is(Type::PlainPrimitive()));
     Node* const n = graph()->NewNode(javascript()->ToNumber(), node, context(),
                                      frame_state, effect(), control());
-    Node* const if_success = graph()->NewNode(common()->IfSuccess(), n);
-    NodeProperties::ReplaceControlInput(node_, if_success);
-    NodeProperties::ReplaceUses(node_, node_, node_, node_, n);
+    NodeProperties::ReplaceControlInput(node_, n);
     update_effect(n);
     return n;
   }
@@ -688,25 +676,27 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
     Node* efalse = effect;
     {
       // Throw a RangeError in case of overflow.
-      Node* vfalse = efalse = graph()->NewNode(
+      Node* vfalse = efalse = if_false = graph()->NewNode(
           javascript()->CallRuntime(Runtime::kThrowInvalidStringLength),
           context, frame_state, efalse, if_false);
-      if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
+
+      // Update potential {IfException} uses of {node} to point to the
+      // %ThrowInvalidStringLength runtime call node instead.
+      Node* on_exception = nullptr;
+      if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+        NodeProperties::ReplaceControlInput(on_exception, vfalse);
+        NodeProperties::ReplaceEffectInput(on_exception, efalse);
+        if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
+        Revisit(on_exception);
+      }
+
+      // The above %ThrowInvalidStringLength runtime call is an unconditional
+      // throw, making it impossible to return a successful completion in this
+      // case. We simply connect the successful completion to the graph end.
       if_false = graph()->NewNode(common()->Throw(), efalse, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), if_false);
       Revisit(graph()->end());
-
-      // Update potential {IfException} uses of {node} to point to the
-      // %ThrowInvalidStringLength runtime call node instead.
-      for (Edge edge : node->use_edges()) {
-        if (edge.from()->opcode() == IrOpcode::kIfException) {
-          DCHECK(NodeProperties::IsControlEdge(edge) ||
-                 NodeProperties::IsEffectEdge(edge));
-          edge.UpdateTo(vfalse);
-          Revisit(edge.from());
-        }
-      }
     }
     control = graph()->NewNode(common()->IfTrue(), branch);
   }
@@ -722,9 +712,8 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   effect = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   Node* value = effect =
-      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+      graph()->NewNode(simplified()->Allocate(Type::OtherString(), NOT_TENURED),
                        jsgraph()->Constant(ConsString::kSize), effect, control);
-  NodeProperties::SetType(value, Type::OtherString());
   effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                             value, value_map, effect, control);
   effect = graph()->NewNode(
@@ -852,61 +841,7 @@ Reduction JSTypedLowering::ReduceJSTypeOf(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node) {
-  Node* input;
-  Handle<String> type;
-  HeapObjectBinopMatcher m(node);
-  if (m.left().IsJSTypeOf() && m.right().HasValue() &&
-      m.right().Value()->IsString()) {
-    input = m.left().InputAt(0);
-    type = Handle<String>::cast(m.right().Value());
-  } else if (m.right().IsJSTypeOf() && m.left().HasValue() &&
-             m.left().Value()->IsString()) {
-    input = m.right().InputAt(0);
-    type = Handle<String>::cast(m.left().Value());
-  } else {
-    return NoChange();
-  }
-  Node* value;
-  if (String::Equals(type, factory()->boolean_string())) {
-    value =
-        graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
-                         graph()->NewNode(simplified()->ReferenceEqual(), input,
-                                          jsgraph()->TrueConstant()),
-                         jsgraph()->TrueConstant(),
-                         graph()->NewNode(simplified()->ReferenceEqual(), input,
-                                          jsgraph()->FalseConstant()));
-  } else if (String::Equals(type, factory()->function_string())) {
-    value = graph()->NewNode(simplified()->ObjectIsDetectableCallable(), input);
-  } else if (String::Equals(type, factory()->number_string())) {
-    value = graph()->NewNode(simplified()->ObjectIsNumber(), input);
-  } else if (String::Equals(type, factory()->object_string())) {
-    value = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged),
-        graph()->NewNode(simplified()->ObjectIsNonCallable(), input),
-        jsgraph()->TrueConstant(),
-        graph()->NewNode(simplified()->ReferenceEqual(), input,
-                         jsgraph()->NullConstant()));
-  } else if (String::Equals(type, factory()->string_string())) {
-    value = graph()->NewNode(simplified()->ObjectIsString(), input);
-  } else if (String::Equals(type, factory()->undefined_string())) {
-    value = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged),
-        graph()->NewNode(simplified()->ReferenceEqual(), input,
-                         jsgraph()->NullConstant()),
-        jsgraph()->FalseConstant(),
-        graph()->NewNode(simplified()->ObjectIsUndetectable(), input));
-  } else {
-    return NoChange();
-  }
-  ReplaceWithValue(node, value);
-  return Replace(value);
-}
-
 Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
-  Reduction const reduction = ReduceJSEqualTypeOf(node);
-  if (reduction.Changed()) return reduction;
-
   JSBinopReduction r(this, node);
 
   if (r.BothInputsAre(Type::UniqueName())) {
@@ -933,13 +868,9 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
     return Changed(node);
   }
 
-  NumberOperationHint hint;
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
-  } else if (r.GetCompareNumberOperationHint(&hint)) {
-    return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.IsReceiverCompareOperation()) {
@@ -972,9 +903,6 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
       return Replace(replacement);
     }
   }
-
-  Reduction const reduction = ReduceJSEqualTypeOf(node);
-  if (reduction.Changed()) return reduction;
 
   if (r.BothInputsAre(Type::Unique())) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual());
@@ -1231,10 +1159,9 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, node->op()->properties());
-    rfalse = efalse = graph()->NewNode(
+    rfalse = efalse = if_false = graph()->NewNode(
         common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
         receiver, context, frame_state, efalse, if_false);
-    if_false = graph()->NewNode(common()->IfSuccess(), rfalse);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);
@@ -1504,18 +1431,18 @@ Reduction JSTypedLowering::ReduceJSOrdinaryHasInstance(Node* node) {
   Node* vfalse1;
   {
     // Slow path, need to call the %HasInPrototypeChain runtime function.
-    vfalse1 = efalse1 = graph()->NewNode(
+    vfalse1 = efalse1 = if_false1 = graph()->NewNode(
         javascript()->CallRuntime(Runtime::kHasInPrototypeChain), object,
         prototype, context, frame_state, efalse1, if_false1);
-    if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
 
-    // Replace any potential IfException on {node} to catch exceptions
+    // Replace any potential {IfException} uses of {node} to catch exceptions
     // from this %HasInPrototypeChain runtime call instead.
-    for (Edge edge : node->use_edges()) {
-      if (edge.from()->opcode() == IrOpcode::kIfException) {
-        edge.UpdateTo(vfalse1);
-        Revisit(edge.from());
-      }
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      NodeProperties::ReplaceControlInput(on_exception, vfalse1);
+      NodeProperties::ReplaceEffectInput(on_exception, efalse1);
+      if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
+      Revisit(on_exception);
     }
   }
 
@@ -2209,15 +2136,26 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState);
-    vfalse0 = efalse0 = graph()->NewNode(
+    vfalse0 = efalse0 = if_false0 = graph()->NewNode(
         common()->Call(desc), jsgraph()->HeapConstant(callable.code()), key,
         receiver, context, frame_state, effect, if_false0);
-    if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
+
+    // Update potential {IfException} uses of {node} to point to the ahove
+    // ForInFilter stub call node instead.
+    Node* if_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
+      if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
+      NodeProperties::ReplaceControlInput(if_exception, vfalse0);
+      NodeProperties::ReplaceEffectInput(if_exception, efalse0);
+      Revisit(if_exception);
+    }
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
   ReplaceWithValue(node, node, effect, control);
+
+  // Morph the {node} into a Phi.
   node->ReplaceInput(0, vtrue0);
   node->ReplaceInput(1, vfalse0);
   node->ReplaceInput(2, control);
@@ -2257,19 +2195,21 @@ Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  int register_count = OpParameter<int>(node);
+  const GeneratorStoreParameters& p = GeneratorStoreParametersOf(node->op());
 
   FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectRegisterFile();
   FieldAccess context_field = AccessBuilder::ForJSGeneratorObjectContext();
   FieldAccess continuation_field =
       AccessBuilder::ForJSGeneratorObjectContinuation();
   FieldAccess input_or_debug_pos_field =
-      AccessBuilder::ForJSGeneratorObjectInputOrDebugPos();
+      p.suspend_flags() == SuspendFlags::kAsyncGeneratorAwait
+          ? AccessBuilder::ForJSAsyncGeneratorObjectAwaitInputOrDebugPos()
+          : AccessBuilder::ForJSGeneratorObjectInputOrDebugPos();
 
   Node* array = effect = graph()->NewNode(simplified()->LoadField(array_field),
                                           generator, effect, control);
 
-  for (int i = 0; i < register_count; ++i) {
+  for (int i = 0; i < p.register_count(); ++i) {
     Node* value = NodeProperties::GetValueInput(node, 3 + i);
     effect = graph()->NewNode(
         simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)), array,
@@ -2416,6 +2356,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kSpeculativeNumberDivide:
     case IrOpcode::kSpeculativeNumberModulus:
       return ReduceSpeculativeNumberBinop(node);
+    case IrOpcode::kSpeculativeNumberEqual:
     case IrOpcode::kSpeculativeNumberLessThan:
     case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       return ReduceSpeculativeNumberComparison(node);

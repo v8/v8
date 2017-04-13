@@ -816,6 +816,10 @@ class FrameDescription {
     return OFFSET_OF(FrameDescription, register_values_.double_registers_);
   }
 
+  static int float_registers_offset() {
+    return OFFSET_OF(FrameDescription, register_values_.float_registers_);
+  }
+
   static int frame_size_offset() {
     return offsetof(FrameDescription, frame_size_);
   }
@@ -1024,7 +1028,7 @@ class MaterializedObjectStore {
   bool Remove(Address fp);
 
  private:
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() const { return isolate_; }
   Handle<FixedArray> GetStackEntries();
   Handle<FixedArray> EnsureStackEntries(int size);
 

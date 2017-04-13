@@ -32,7 +32,7 @@ static const uint8_t kMultivalBlock = 0x41;
 
 // We reuse the internal machine type to represent WebAssembly types.
 // A typedef improves readability without adding a whole new type system.
-typedef MachineRepresentation ValueType;
+using ValueType = MachineRepresentation;
 constexpr ValueType kWasmStmt = MachineRepresentation::kNone;
 constexpr ValueType kWasmI32 = MachineRepresentation::kWord32;
 constexpr ValueType kWasmI64 = MachineRepresentation::kWord64;
@@ -44,12 +44,13 @@ constexpr ValueType kWasmS1x8 = MachineRepresentation::kSimd1x8;
 constexpr ValueType kWasmS1x16 = MachineRepresentation::kSimd1x16;
 constexpr ValueType kWasmVar = MachineRepresentation::kTagged;
 
-typedef Signature<ValueType> FunctionSig;
+using FunctionSig = Signature<ValueType>;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
+bool IsJSCompatibleSignature(const FunctionSig* sig);
 
-typedef Vector<const char> WasmName;
+using WasmName = Vector<const char>;
 
-typedef int WasmCodePosition;
+using WasmCodePosition = int;
 constexpr WasmCodePosition kNoCodePosition = -1;
 
 // Control expressions and blocks.
@@ -100,7 +101,8 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I64LoadMem16S, 0x32, l_i)      \
   V(I64LoadMem16U, 0x33, l_i)      \
   V(I64LoadMem32S, 0x34, l_i)      \
-  V(I64LoadMem32U, 0x35, l_i)
+  V(I64LoadMem32U, 0x35, l_i)      \
+  V(S128LoadMem, 0xc0, s_i)
 
 // Store memory expressions.
 #define FOREACH_STORE_MEM_OPCODE(V) \
@@ -112,7 +114,8 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I32StoreMem16, 0x3b, i_ii)      \
   V(I64StoreMem8, 0x3c, l_il)       \
   V(I64StoreMem16, 0x3d, l_il)      \
-  V(I64StoreMem32, 0x3e, l_il)
+  V(I64StoreMem32, 0x3e, l_il)      \
+  V(S128StoreMem, 0xc1, s_is)
 
 // Miscellaneous memory expressions
 #define FOREACH_MISC_MEM_OPCODE(V) \
@@ -247,17 +250,17 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 
 // For compatibility with Asm.js.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
-  V(F64Acos, 0xc0, d_d)                \
-  V(F64Asin, 0xc1, d_d)                \
-  V(F64Atan, 0xc2, d_d)                \
-  V(F64Cos, 0xc3, d_d)                 \
-  V(F64Sin, 0xc4, d_d)                 \
-  V(F64Tan, 0xc5, d_d)                 \
-  V(F64Exp, 0xc6, d_d)                 \
-  V(F64Log, 0xc7, d_d)                 \
-  V(F64Atan2, 0xc8, d_dd)              \
-  V(F64Pow, 0xc9, d_dd)                \
-  V(F64Mod, 0xca, d_dd)                \
+  V(F64Acos, 0xc2, d_d)                \
+  V(F64Asin, 0xc3, d_d)                \
+  V(F64Atan, 0xc4, d_d)                \
+  V(F64Cos, 0xc5, d_d)                 \
+  V(F64Sin, 0xc6, d_d)                 \
+  V(F64Tan, 0xc7, d_d)                 \
+  V(F64Exp, 0xc8, d_d)                 \
+  V(F64Log, 0xc9, d_d)                 \
+  V(F64Atan2, 0xca, d_dd)              \
+  V(F64Pow, 0xcb, d_dd)                \
+  V(F64Mod, 0xcc, d_dd)                \
   V(I32AsmjsDivS, 0xd0, i_ii)          \
   V(I32AsmjsDivU, 0xd1, i_ii)          \
   V(I32AsmjsRemS, 0xd2, i_ii)          \
@@ -318,13 +321,17 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I32x4GtS, 0xe52a, s1x4_ss)           \
   V(I32x4GeS, 0xe52b, s1x4_ss)           \
   V(I32x4SConvertF32x4, 0xe52f, s_s)     \
+  V(I32x4UConvertF32x4, 0xe537, s_s)     \
+  V(I32x4SConvertI16x8Low, 0xe594, s_s)  \
+  V(I32x4SConvertI16x8High, 0xe595, s_s) \
+  V(I32x4UConvertI16x8Low, 0xe596, s_s)  \
+  V(I32x4UConvertI16x8High, 0xe597, s_s) \
   V(I32x4MinU, 0xe530, s_ss)             \
   V(I32x4MaxU, 0xe531, s_ss)             \
   V(I32x4LtU, 0xe533, s1x4_ss)           \
   V(I32x4LeU, 0xe534, s1x4_ss)           \
   V(I32x4GtU, 0xe535, s1x4_ss)           \
   V(I32x4GeU, 0xe536, s1x4_ss)           \
-  V(I32x4UConvertF32x4, 0xe537, s_s)     \
   V(I16x8Splat, 0xe538, s_i)             \
   V(I16x8Neg, 0xe53b, s_s)               \
   V(I16x8Add, 0xe53c, s_ss)              \
@@ -348,6 +355,12 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I16x8LeU, 0xe554, s1x8_ss)           \
   V(I16x8GtU, 0xe555, s1x8_ss)           \
   V(I16x8GeU, 0xe556, s1x8_ss)           \
+  V(I16x8SConvertI32x4, 0xe598, s_ss)    \
+  V(I16x8UConvertI32x4, 0xe599, s_ss)    \
+  V(I16x8SConvertI8x16Low, 0xe59a, s_s)  \
+  V(I16x8SConvertI8x16High, 0xe59b, s_s) \
+  V(I16x8UConvertI8x16Low, 0xe59c, s_s)  \
+  V(I16x8UConvertI8x16High, 0xe59d, s_s) \
   V(I8x16Splat, 0xe557, s_i)             \
   V(I8x16Neg, 0xe55a, s_s)               \
   V(I8x16Add, 0xe55b, s_ss)              \
@@ -371,6 +384,8 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I8x16LeU, 0xe573, s1x16_ss)          \
   V(I8x16GtU, 0xe574, s1x16_ss)          \
   V(I8x16GeU, 0xe575, s1x16_ss)          \
+  V(I8x16SConvertI16x8, 0xe59e, s_ss)    \
+  V(I8x16UConvertI16x8, 0xe59f, s_ss)    \
   V(S128And, 0xe576, s_ss)               \
   V(S128Or, 0xe577, s_ss)                \
   V(S128Xor, 0xe578, s_ss)               \
@@ -684,6 +699,8 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
       return store ? kExprF32StoreMem : kExprF32LoadMem;
     } else if (type == MachineType::Float64()) {
       return store ? kExprF64StoreMem : kExprF64LoadMem;
+    } else if (type == MachineType::Simd128()) {
+      return store ? kExprS128StoreMem : kExprS128LoadMem;
     } else {
       UNREACHABLE();
       return kExprNop;

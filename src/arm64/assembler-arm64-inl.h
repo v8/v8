@@ -16,7 +16,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
-bool CpuFeatures::SupportsSimd128() { return false; }
+bool CpuFeatures::SupportsWasmSimd128() { return false; }
 
 void RelocInfo::apply(intptr_t delta) {
   // On arm64 only internal references need extra work.
@@ -707,7 +707,7 @@ void RelocInfo::set_target_object(HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(isolate_, pc_, host_,
+  Assembler::set_target_address_at(target->GetIsolate(), pc_, host_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
@@ -741,13 +741,12 @@ Address RelocInfo::target_runtime_entry(Assembler* origin) {
   return target_address();
 }
 
-
-void RelocInfo::set_target_runtime_entry(Address target,
+void RelocInfo::set_target_runtime_entry(Isolate* isolate, Address target,
                                          WriteBarrierMode write_barrier_mode,
                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsRuntimeEntry(rmode_));
   if (target_address() != target) {
-    set_target_address(target, write_barrier_mode, icache_flush_mode);
+    set_target_address(isolate, target, write_barrier_mode, icache_flush_mode);
   }
 }
 
@@ -772,7 +771,6 @@ void RelocInfo::set_target_cell(Cell* cell,
 }
 
 
-static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 static const int kCodeAgeStubEntryOffset = 3 * kInstructionSize;
 
 Handle<Code> RelocInfo::code_age_stub_handle(Assembler* origin) {
@@ -808,27 +806,25 @@ Address RelocInfo::debug_call_address() {
   return Assembler::target_address_at(pc_, host_);
 }
 
-
-void RelocInfo::set_debug_call_address(Address target) {
+void RelocInfo::set_debug_call_address(Isolate* isolate, Address target) {
   DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
   STATIC_ASSERT(Assembler::kPatchDebugBreakSlotAddressOffset == 0);
-  Assembler::set_target_address_at(isolate_, pc_, host_, target);
+  Assembler::set_target_address_at(isolate, pc_, host_, target);
   if (host() != NULL) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
+    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  target_code);
   }
 }
 
-
-void RelocInfo::WipeOut() {
+void RelocInfo::WipeOut(Isolate* isolate) {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_));
   if (IsInternalReference(rmode_)) {
     Memory::Address_at(pc_) = NULL;
   } else {
-    Assembler::set_target_address_at(isolate_, pc_, host_, NULL);
+    Assembler::set_target_address_at(isolate, pc_, host_, NULL);
   }
 }
 

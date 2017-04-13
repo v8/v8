@@ -485,8 +485,9 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  // TODO(vitalyr): the assembler does not need an isolate.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size)
+      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
+  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
   virtual ~Assembler() { }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -495,6 +496,7 @@ class Assembler : public AssemblerBase {
   void GetCode(CodeDesc* desc);
 
   // Read/Modify the code target in the branch/call instruction at pc.
+  // The isolate argument is unused (and may be nullptr) when skipping flushing.
   inline static Address target_address_at(Address pc, Address constant_pool);
   inline static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
@@ -979,6 +981,11 @@ class Assembler : public AssemblerBase {
   void divps(XMMRegister dst, const Operand& src);
   void divps(XMMRegister dst, XMMRegister src) { divps(dst, Operand(src)); }
 
+  void minps(XMMRegister dst, const Operand& src);
+  void minps(XMMRegister dst, XMMRegister src) { minps(dst, Operand(src)); }
+  void maxps(XMMRegister dst, const Operand& src);
+  void maxps(XMMRegister dst, XMMRegister src) { maxps(dst, Operand(src)); }
+
   // SSE2 instructions
   void cvttss2si(Register dst, const Operand& src);
   void cvttss2si(Register dst, XMMRegister src) {
@@ -1027,10 +1034,6 @@ class Assembler : public AssemblerBase {
   void movmskps(Register dst, XMMRegister src);
 
   void cmpltsd(XMMRegister dst, XMMRegister src);
-  void pcmpeqd(XMMRegister dst, XMMRegister src);
-
-  void punpckldq(XMMRegister dst, XMMRegister src);
-  void punpckhdq(XMMRegister dst, XMMRegister src);
 
   void maxsd(XMMRegister dst, XMMRegister src) { maxsd(dst, Operand(src)); }
   void maxsd(XMMRegister dst, const Operand& src);
@@ -1063,13 +1066,14 @@ class Assembler : public AssemblerBase {
   void movss(XMMRegister dst, XMMRegister src) { movss(dst, Operand(src)); }
   void extractps(Register dst, XMMRegister src, byte imm8);
 
-  void pand(XMMRegister dst, XMMRegister src);
-  void pxor(XMMRegister dst, XMMRegister src);
-  void por(XMMRegister dst, XMMRegister src);
   void ptest(XMMRegister dst, XMMRegister src);
 
+  void psllw(XMMRegister reg, int8_t shift);
   void pslld(XMMRegister reg, int8_t shift);
+  void psrlw(XMMRegister reg, int8_t shift);
   void psrld(XMMRegister reg, int8_t shift);
+  void psraw(XMMRegister reg, int8_t shift);
+  void psrad(XMMRegister reg, int8_t shift);
   void psllq(XMMRegister reg, int8_t shift);
   void psllq(XMMRegister dst, XMMRegister src);
   void psrlq(XMMRegister reg, int8_t shift);
@@ -1313,6 +1317,13 @@ class Assembler : public AssemblerBase {
   }
   void vss(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
+  void vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8);
+  void vpslld(XMMRegister dst, XMMRegister src, int8_t imm8);
+  void vpsrlw(XMMRegister dst, XMMRegister src, int8_t imm8);
+  void vpsrld(XMMRegister dst, XMMRegister src, int8_t imm8);
+  void vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8);
+  void vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8);
+
   // BMI instruction
   void andn(Register dst, Register src1, Register src2) {
     andn(dst, src1, Operand(src2));
@@ -1399,7 +1410,13 @@ class Assembler : public AssemblerBase {
 
 #define PACKED_OP_LIST(V) \
   V(and, 0x54)            \
-  V(xor, 0x57)
+  V(xor, 0x57)            \
+  V(add, 0x58)            \
+  V(mul, 0x59)            \
+  V(sub, 0x5c)            \
+  V(min, 0x5d)            \
+  V(div, 0x5e)            \
+  V(max, 0x5f)
 
 #define AVX_PACKED_OP_DECLARE(name, opcode)                                  \
   void v##name##ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {    \
@@ -1444,6 +1461,31 @@ class Assembler : public AssemblerBase {
 
   SSE2_INSTRUCTION_LIST(DECLARE_SSE2_AVX_INSTRUCTION)
 #undef DECLARE_SSE2_AVX_INSTRUCTION
+
+#define DECLARE_SSE4_INSTRUCTION(instruction, prefix, escape1, escape2,     \
+                                 opcode)                                    \
+  void instruction(XMMRegister dst, XMMRegister src) {                      \
+    instruction(dst, Operand(src));                                         \
+  }                                                                         \
+  void instruction(XMMRegister dst, const Operand& src) {                   \
+    sse4_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode); \
+  }
+
+  SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
+#undef DECLARE_SSE4_INSTRUCTION
+
+#define DECLARE_SSE4_AVX_INSTRUCTION(instruction, prefix, escape1, escape2,   \
+                                     opcode)                                  \
+  void v##instruction(XMMRegister dst, XMMRegister src1, XMMRegister src2) {  \
+    v##instruction(dst, src1, Operand(src2));                                 \
+  }                                                                           \
+  void v##instruction(XMMRegister dst, XMMRegister src1,                      \
+                      const Operand& src2) {                                  \
+    vinstr(0x##opcode, dst, src1, src2, k##prefix, k##escape1##escape2, kW0); \
+  }
+
+  SSE4_INSTRUCTION_LIST(DECLARE_SSE4_AVX_INSTRUCTION)
+#undef DECLARE_SSE4_AVX_INSTRUCTION
 
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
@@ -1577,6 +1619,8 @@ class Assembler : public AssemblerBase {
 
   void sse2_instr(XMMRegister dst, const Operand& src, byte prefix, byte escape,
                   byte opcode);
+  void sse4_instr(XMMRegister dst, const Operand& src, byte prefix,
+                  byte escape1, byte escape2, byte opcode);
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w);
   // Most BMI instructions are similiar.

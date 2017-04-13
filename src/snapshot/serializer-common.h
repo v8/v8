@@ -166,14 +166,11 @@ class SerializerDeserializer : public ObjectVisitor {
   // Internal reference encoded as offsets of pc and target from code entry.
   static const int kInternalReference = 0x1b;
   static const int kInternalReferenceEncoded = 0x1c;
-  // Used for the source code of the natives, which is in the executable, but
-  // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0x1d;
-  // Used for the source code for compiled stubs, which is in the executable,
-  // but is referred to from external strings in the snapshot.
-  static const int kExtraNativesStringResource = 0x1e;
-  // Used for embedder-provided serialization data for internal fields.
-  static const int kInternalFieldsData = 0x1f;
+  // Used to encode deoptimizer entry code.
+  static const int kDeoptimizerEntryPlain = 0x1d;
+  static const int kDeoptimizerEntryFromCode = 0x1e;
+  // Used for embedder-provided serialization data for embedder fields.
+  static const int kEmbedderFieldsData = 0x1f;
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kNumberOfHotObjects = 8;
@@ -239,6 +236,11 @@ class SerializedData {
   SerializedData(byte* data, int size)
       : data_(data), size_(size), owns_data_(false) {}
   SerializedData() : data_(NULL), size_(0), owns_data_(false) {}
+  SerializedData(SerializedData&& other)
+      : data_(other.data_), size_(other.size_), owns_data_(other.owns_data_) {
+    // Ensure |other| will not attempt to destroy our data in destructor.
+    other.owns_data_ = false;
+  }
 
   ~SerializedData() {
     if (owns_data_) DeleteArray<byte>(data_);
@@ -295,6 +297,9 @@ class SerializedData {
   byte* data_;
   int size_;
   bool owns_data_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(SerializedData);
 };
 
 }  // namespace internal

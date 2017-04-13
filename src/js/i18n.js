@@ -32,6 +32,7 @@ var IntlFallbackSymbol = utils.ImportNow("intl_fallback_symbol");
 var InstallFunctions = utils.InstallFunctions;
 var InstallGetter = utils.InstallGetter;
 var InternalArray = utils.InternalArray;
+var MaxSimple;
 var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
 var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
@@ -43,6 +44,7 @@ var StringSubstring = GlobalString.prototype.substring;
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
   ArrayPush = from.ArrayPush;
+  MaxSimple = from.MaxSimple;
 });
 
 // Utilities for definitions
@@ -934,16 +936,6 @@ function BuildLanguageTagREs() {
   LANGUAGE_TAG_RE = new GlobalRegExp(languageTag, 'i');
 }
 
-var resolvedAccessor = {
-  get() {
-    %IncrementUseCounter(kIntlResolved);
-    return this[resolvedSymbol];
-  },
-  set(value) {
-    this[resolvedSymbol] = value;
-  }
-};
-
 // ECMA 402 section 8.2.1
 InstallFunction(GlobalIntl, 'getCanonicalLocales', function(locales) {
     return makeArray(canonicalizeLocaleList(locales));
@@ -1125,12 +1117,7 @@ function isWellFormedCurrencyCode(currency) {
 }
 
 
-/**
- * Returns the valid digit count for a property, or throws RangeError on
- * a value out of the range.
- */
-function getNumberOption(options, property, min, max, fallback) {
-  var value = options[property];
+function defaultNumberOption(value, min, max, fallback, property) {
   if (!IS_UNDEFINED(value)) {
     value = TO_NUMBER(value);
     if (NUMBER_IS_NAN(value) || value < min || value > max) {
@@ -1142,15 +1129,44 @@ function getNumberOption(options, property, min, max, fallback) {
   return fallback;
 }
 
-var patternAccessor = {
-  get() {
-    %IncrementUseCounter(kIntlPattern);
-    return this[patternSymbol];
-  },
-  set(value) {
-    this[patternSymbol] = value;
+/**
+ * Returns the valid digit count for a property, or throws RangeError on
+ * a value out of the range.
+ */
+function getNumberOption(options, property, min, max, fallback) {
+  var value = options[property];
+  return defaultNumberOption(value, min, max, fallback, property);
+}
+
+// ECMA 402 #sec-setnfdigitoptions
+// SetNumberFormatDigitOptions ( intlObj, options, mnfdDefault, mxfdDefault )
+function SetNumberFormatDigitOptions(internalOptions, options,
+                                     mnfdDefault, mxfdDefault) {
+  // Digit ranges.
+  var mnid = getNumberOption(options, 'minimumIntegerDigits', 1, 21, 1);
+  defineWEProperty(internalOptions, 'minimumIntegerDigits', mnid);
+
+  var mnfd = getNumberOption(options, 'minimumFractionDigits', 0, 20,
+                             mnfdDefault);
+  defineWEProperty(internalOptions, 'minimumFractionDigits', mnfd);
+
+  var mxfdActualDefault = MaxSimple(mnfd, mxfdDefault);
+
+  var mxfd = getNumberOption(options, 'maximumFractionDigits', mnfd, 20,
+                             mxfdActualDefault);
+
+  defineWEProperty(internalOptions, 'maximumFractionDigits', mxfd);
+
+  var mnsd = options['minimumSignificantDigits'];
+  var mxsd = options['maximumSignificantDigits'];
+  if (!IS_UNDEFINED(mnsd) || !IS_UNDEFINED(mxsd)) {
+    mnsd = defaultNumberOption(mnsd, 1, 21, 1, 'minimumSignificantDigits');
+    defineWEProperty(internalOptions, 'minimumSignificantDigits', mnsd);
+
+    mxsd = defaultNumberOption(mxsd, mnsd, 21, 21, 'maximumSignificantDigits');
+    defineWEProperty(internalOptions, 'maximumSignificantDigits', mxsd);
   }
-};
+}
 
 /**
  * Initializes the given object so it's a valid NumberFormat instance.
@@ -1178,41 +1194,22 @@ function CreateNumberFormat(locales, options) {
     throw %make_type_error(kCurrencyCode);
   }
 
+  var mnfdDefault, mxfdDefault;
+
   var currencyDisplay = getOption(
       'currencyDisplay', 'string', ['code', 'symbol', 'name'], 'symbol');
   if (internalOptions.style === 'currency') {
     defineWEProperty(internalOptions, 'currency', %StringToUpperCaseI18N(currency));
     defineWEProperty(internalOptions, 'currencyDisplay', currencyDisplay);
+
+    mnfdDefault = mxfdDefault = %CurrencyDigits(internalOptions.currency);
+  } else {
+    mnfdDefault = 0;
+    mxfdDefault = internalOptions.style === 'percent' ? 0 : 3;
   }
 
-  // Digit ranges.
-  var mnid = getNumberOption(options, 'minimumIntegerDigits', 1, 21, 1);
-  defineWEProperty(internalOptions, 'minimumIntegerDigits', mnid);
-
-  var mnfd = options['minimumFractionDigits'];
-  var mxfd = options['maximumFractionDigits'];
-  if (!IS_UNDEFINED(mnfd) || internalOptions.style !== 'currency') {
-    mnfd = getNumberOption(options, 'minimumFractionDigits', 0, 20, 0);
-    defineWEProperty(internalOptions, 'minimumFractionDigits', mnfd);
-  }
-
-  if (!IS_UNDEFINED(mxfd) || internalOptions.style !== 'currency') {
-    var min_mxfd = internalOptions.style === 'percent' ? 0 : 3;
-    mnfd = IS_UNDEFINED(mnfd) ? 0 : mnfd;
-    var fallback_limit = (mnfd > min_mxfd) ? mnfd : min_mxfd;
-    mxfd = getNumberOption(options, 'maximumFractionDigits', mnfd, 20, fallback_limit);
-    defineWEProperty(internalOptions, 'maximumFractionDigits', mxfd);
-  }
-
-  var mnsd = options['minimumSignificantDigits'];
-  var mxsd = options['maximumSignificantDigits'];
-  if (!IS_UNDEFINED(mnsd) || !IS_UNDEFINED(mxsd)) {
-    mnsd = getNumberOption(options, 'minimumSignificantDigits', 1, 21, 1);
-    defineWEProperty(internalOptions, 'minimumSignificantDigits', mnsd);
-
-    mxsd = getNumberOption(options, 'maximumSignificantDigits', mnsd, 21, 21);
-    defineWEProperty(internalOptions, 'maximumSignificantDigits', mxsd);
-  }
+  SetNumberFormatDigitOptions(internalOptions, options, mnfdDefault,
+                              mxfdDefault);
 
   // Grouping.
   defineWEProperty(internalOptions, 'useGrouping', getOption(
@@ -1748,11 +1745,9 @@ function FormatDateToParts(dateValue) {
   return %InternalDateFormatToParts(this, new GlobalDate(dateMs));
 }
 
-%FunctionSetLength(FormatDateToParts, 0);
 
-
-// 0 because date is optional argument.
-AddBoundMethod(GlobalIntlDateTimeFormat, 'format', formatDate, 0, 'dateformat',
+// Length is 1 as specified in ECMA 402 v2+
+AddBoundMethod(GlobalIntlDateTimeFormat, 'format', formatDate, 1, 'dateformat',
                true);
 
 
@@ -2027,33 +2022,6 @@ OverrideFunction(GlobalString.prototype, 'localeCompare', function(that) {
   }
 );
 
-
-/**
- * Unicode normalization. This method is called with one argument that
- * specifies the normalization form.
- * If none is specified, "NFC" is assumed.
- * If the form is not one of "NFC", "NFD", "NFKC", or "NFKD", then throw
- * a RangeError Exception.
- */
-
-OverrideFunction(GlobalString.prototype, 'normalize', function() {
-    CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
-    var s = TO_STRING(this);
-
-    var formArg = arguments[0];
-    var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
-
-    var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
-
-    var normalizationForm = %ArrayIndexOf(NORMALIZATION_FORMS, form, 0);
-    if (normalizationForm === -1) {
-      throw %make_range_error(kNormalizationForm,
-          %_Call(ArrayJoin, NORMALIZATION_FORMS, ', '));
-    }
-
-    return %StringNormalize(s, normalizationForm);
-  }
-);
 
 // TODO(littledan): Rewrite these two functions as C++ builtins
 function ToLowerCaseI18N() {

@@ -39,47 +39,13 @@ class MarkBit {
   }
 
   template <AccessMode mode = NON_ATOMIC>
-  inline bool Set() {
-    if (mode == ATOMIC) {
-      base::Atomic32 old_value;
-      base::Atomic32 new_value;
-      do {
-        old_value = base::NoBarrier_Load(cell_);
-        if (old_value & mask_) return false;
-        new_value = old_value | mask_;
-      } while (base::Release_CompareAndSwap(cell_, old_value, new_value) !=
-               old_value);
-    } else {
-      *cell_ |= mask_;
-    }
-    return true;
-  }
+  inline bool Set();
 
   template <AccessMode mode = NON_ATOMIC>
-  inline bool Get() {
-    if (mode == ATOMIC) {
-      return (base::Acquire_Load(cell_) & mask_) != 0;
-    } else {
-      return (base::NoBarrier_Load(cell_) & mask_) != 0;
-    }
-  }
+  inline bool Get();
 
   template <AccessMode mode = NON_ATOMIC>
-  inline bool Clear() {
-    if (mode == ATOMIC) {
-      base::Atomic32 old_value;
-      base::Atomic32 new_value;
-      do {
-        old_value = base::NoBarrier_Load(cell_);
-        if (!(old_value & mask_)) return false;
-        new_value = old_value & ~mask_;
-      } while (base::Release_CompareAndSwap(cell_, old_value, new_value) !=
-               old_value);
-    } else {
-      *cell_ &= ~mask_;
-    }
-    return true;
-  }
+  inline bool Clear();
 
   base::Atomic32* cell_;
   base::Atomic32 mask_;
@@ -88,6 +54,54 @@ class MarkBit {
   friend class ConcurrentMarkingMarkbits;
   friend class Marking;
 };
+
+template <>
+inline bool MarkBit::Set<MarkBit::NON_ATOMIC>() {
+  *cell_ |= mask_;
+  return true;
+}
+
+template <>
+inline bool MarkBit::Set<MarkBit::ATOMIC>() {
+  base::Atomic32 old_value;
+  base::Atomic32 new_value;
+  do {
+    old_value = base::NoBarrier_Load(cell_);
+    if (old_value & mask_) return false;
+    new_value = old_value | mask_;
+  } while (base::Release_CompareAndSwap(cell_, old_value, new_value) !=
+           old_value);
+  return true;
+}
+
+template <>
+inline bool MarkBit::Get<MarkBit::NON_ATOMIC>() {
+  return (base::NoBarrier_Load(cell_) & mask_) != 0;
+}
+
+template <>
+inline bool MarkBit::Get<MarkBit::ATOMIC>() {
+  return (base::Acquire_Load(cell_) & mask_) != 0;
+}
+
+template <>
+inline bool MarkBit::Clear<MarkBit::NON_ATOMIC>() {
+  *cell_ &= ~mask_;
+  return true;
+}
+
+template <>
+inline bool MarkBit::Clear<MarkBit::ATOMIC>() {
+  base::Atomic32 old_value;
+  base::Atomic32 new_value;
+  do {
+    old_value = base::NoBarrier_Load(cell_);
+    if (!(old_value & mask_)) return false;
+    new_value = old_value & ~mask_;
+  } while (base::Release_CompareAndSwap(cell_, old_value, new_value) !=
+           old_value);
+  return true;
+}
 
 // Bitmap is a sequence of cells each containing fixed number of bits.
 class Bitmap {
@@ -213,10 +227,16 @@ class Bitmap {
         if (cells()[i] != ~0u) return false;
       }
       matching_mask = (end_index_mask - 1);
-      return ((cells()[end_cell_index] & matching_mask) == matching_mask);
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) ||
+             ((cells()[end_cell_index] & matching_mask) == matching_mask);
     } else {
       matching_mask = end_index_mask - start_index_mask;
-      return (cells()[end_cell_index] & matching_mask) == matching_mask;
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) ||
+             (cells()[end_cell_index] & matching_mask) == matching_mask;
     }
   }
 
@@ -236,10 +256,14 @@ class Bitmap {
         if (cells()[i]) return false;
       }
       matching_mask = (end_index_mask - 1);
-      return !(cells()[end_cell_index] & matching_mask);
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) || !(cells()[end_cell_index] & matching_mask);
     } else {
       matching_mask = end_index_mask - start_index_mask;
-      return !(cells()[end_cell_index] & matching_mask);
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) || !(cells()[end_cell_index] & matching_mask);
     }
   }
 

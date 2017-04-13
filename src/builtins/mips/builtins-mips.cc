@@ -445,7 +445,7 @@ namespace {
 
 void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
                                     bool create_implicit_receiver,
-                                    bool check_derived_construct) {
+                                    bool disallow_non_object_return) {
   Label post_instantiation_deopt_entry;
 
   // ----------- S t a t e -------------
@@ -531,7 +531,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
                       CheckDebugStepCallWrapper());
 
     // Store offset of return address for deoptimizer.
-    if (create_implicit_receiver && !is_api_function) {
+    if (create_implicit_receiver && !disallow_non_object_return &&
+        !is_api_function) {
       masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
           masm->pc_offset());
     }
@@ -543,18 +544,32 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
       // If the result is an object (in the ECMA sense), we should get rid
       // of the receiver and use the result; see ECMA-262 section 13.2.2-7
       // on page 74.
-      Label use_receiver, exit;
+      Label use_receiver, return_value, do_throw;
 
       // If the result is a smi, it is *not* an object in the ECMA sense.
       // v0: result
       // sp[0]: receiver (newly allocated object)
       // sp[1]: number of arguments (smi-tagged)
-      __ JumpIfSmi(v0, &use_receiver);
+      // If the result is undefined, we jump out to using the implicit
+      // receiver, otherwise we do a smi check and fall through to
+      // check if the return value is a valid receiver.
+      if (disallow_non_object_return) {
+        __ JumpIfRoot(v0, Heap::kUndefinedValueRootIndex, &use_receiver);
+        __ JumpIfSmi(v0, &do_throw);
+      } else {
+        __ JumpIfSmi(v0, &use_receiver);
+      }
 
       // If the type of the result (stored in its map) is less than
       // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
       __ GetObjectType(v0, a1, a3);
-      __ Branch(&exit, greater_equal, a3, Operand(FIRST_JS_RECEIVER_TYPE));
+      __ Branch(&return_value, greater_equal, a3,
+                Operand(FIRST_JS_RECEIVER_TYPE));
+
+      if (disallow_non_object_return) {
+        __ bind(&do_throw);
+        __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
+      }
 
       // Throw away the result of the constructor invocation and use the
       // on-stack receiver as the result.
@@ -563,7 +578,7 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
 
       // Remove receiver from the stack, remove caller arguments, and
       // return.
-      __ bind(&exit);
+      __ bind(&return_value);
       // v0: result
       // sp[0]: receiver (newly allocated object)
       // sp[1]: number of arguments (smi-tagged)
@@ -576,14 +591,19 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
   }
 
   // ES6 9.2.2. Step 13+
-  // Check that the result is not a Smi, indicating that the constructor result
-  // from a derived class is neither undefined nor an Object.
-  if (check_derived_construct) {
-    Label dont_throw;
-    __ JumpIfNotSmi(v0, &dont_throw);
+  // For derived class constructors, throw a TypeError here if the result
+  // is not a JSReceiver. For the base constructor, we've already checked
+  // the result, so we omit the check.
+  if (disallow_non_object_return && !create_implicit_receiver) {
+    Label do_throw, dont_throw;
+    __ JumpIfSmi(v0, &do_throw);
+    __ GetObjectType(v0, a3, a3);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    __ Branch(&dont_throw, greater_equal, a3, Operand(FIRST_JS_RECEIVER_TYPE));
+    __ bind(&do_throw);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ CallRuntime(Runtime::kThrowDerivedConstructorReturnedNonObject);
+      __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
     }
     __ bind(&dont_throw);
   }
@@ -598,7 +618,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
   // Store offset of trampoline address for deoptimizer. This is the bailout
   // point after the receiver instantiation but before the function invocation.
   // We need to restore some registers in order to continue the above code.
-  if (create_implicit_receiver && !is_api_function) {
+  if (create_implicit_receiver && !disallow_non_object_return &&
+      !is_api_function) {
     masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
         masm->pc_offset());
 
@@ -637,6 +658,10 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSConstructStubHelper(masm, false, false, false);
+}
+
+void Builtins::Generate_JSBuiltinsConstructStubForBase(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, true, true);
 }
 
 void Builtins::Generate_JSBuiltinsConstructStubForDerived(
@@ -769,14 +794,33 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- v0 : the value to pass to the generator
   //  -- a1 : the JSGeneratorObject to resume
   //  -- a2 : the resume mode (tagged)
+  //  -- a3 : the SuspendFlags of the earlier suspend call (tagged)
   //  -- ra : return address
   // -----------------------------------
-  __ AssertGeneratorObject(a1);
+
+  __ SmiUntag(a3);
+  __ AssertGeneratorObject(a1, a3);
 
   // Store input value into generator object.
+  Label async_await, done_store_input;
+
+  __ And(t8, a3, Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
+  __ Branch(&async_await, equal, t8,
+            Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
+
   __ sw(v0, FieldMemOperand(a1, JSGeneratorObject::kInputOrDebugPosOffset));
   __ RecordWriteField(a1, JSGeneratorObject::kInputOrDebugPosOffset, v0, a3,
                       kRAHasNotBeenSaved, kDontSaveFPRegs);
+  __ jmp(&done_store_input);
+
+  __ bind(&async_await);
+  __ sw(v0, FieldMemOperand(
+                a1, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset));
+  __ RecordWriteField(a1, JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset,
+                      v0, a3, kRAHasNotBeenSaved, kDontSaveFPRegs);
+
+  __ bind(&done_store_input);
+  // `a3` no longer holds SuspendFlags
 
   // Store resume mode into generator object.
   __ sw(a2, FieldMemOperand(a1, JSGeneratorObject::kResumeModeOffset));
@@ -929,6 +973,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&bytecode_array_loaded);
 
   // Check whether we should continue to use the interpreter.
+  // TODO(rmcilroy) Remove self healing once liveedit only has to deal with
+  // Ignition bytecode.
   Label switch_to_different_code_kind;
   __ lw(a0, FieldMemOperand(a0, SharedFunctionInfo::kCodeOffset));
   __ Branch(&switch_to_different_code_kind, ne, a0,
@@ -1052,11 +1098,7 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register num_args, Register index,
-                                         Register scratch, Register scratch2,
-                                         Label* stack_overflow) {
-  Generate_StackOverflowCheck(masm, num_args, scratch, scratch2,
-                              stack_overflow);
-
+                                         Register scratch, Register scratch2) {
   // Find the address of the last argument.
   __ mov(scratch2, num_args);
   __ sll(scratch2, scratch2, kPointerSizeLog2);
@@ -1074,9 +1116,9 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndCallImpl(
-    MacroAssembler* masm, TailCallMode tail_call_mode,
-    InterpreterPushArgsMode mode) {
+void Builtins::Generate_InterpreterPushArgsThenCallImpl(
+    MacroAssembler* masm, ConvertReceiverMode receiver_mode,
+    TailCallMode tail_call_mode, InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a2 : the address of the first argument to be pushed. Subsequent
@@ -1088,8 +1130,16 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
 
   __ Addu(t0, a0, Operand(1));  // Add one for receiver.
 
+  Generate_StackOverflowCheck(masm, t0, t4, t1, &stack_overflow);
+
+  // Push "undefined" as the receiver arg if we need to.
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    __ PushRoot(Heap::kUndefinedValueRootIndex);
+    __ mov(t0, a0);  // No receiver.
+  }
+
   // This function modifies a2, t4 and t1.
-  Generate_InterpreterPushArgs(masm, t0, a2, t4, t1, &stack_overflow);
+  Generate_InterpreterPushArgs(masm, t0, a2, t4, t1);
 
   // Call the target.
   if (mode == InterpreterPushArgsMode::kJSFunction) {
@@ -1114,7 +1164,7 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
+void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     MacroAssembler* masm, InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   // -- a0 : argument count (not including receiver)
@@ -1128,8 +1178,10 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   // Push a slot for the receiver.
   __ push(zero_reg);
 
+  Generate_StackOverflowCheck(masm, a0, t1, t0, &stack_overflow);
+
   // This function modified t4, t1 and t0.
-  Generate_InterpreterPushArgs(masm, a0, t4, t1, t0, &stack_overflow);
+  Generate_InterpreterPushArgs(masm, a0, t4, t1, t0);
 
   __ AssertUndefinedOrAllocationSite(a2, t0);
   if (mode == InterpreterPushArgsMode::kJSFunction) {
@@ -1160,7 +1212,7 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndConstructArray(
+void Builtins::Generate_InterpreterPushArgsThenConstructArray(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
@@ -1172,10 +1224,13 @@ void Builtins::Generate_InterpreterPushArgsAndConstructArray(
   // -----------------------------------
   Label stack_overflow;
 
-  __ Addu(t0, a0, Operand(1));  // Add one for receiver.
+  // Push a slot for the receiver.
+  __ push(zero_reg);
 
-  // This function modifies a3, t4, and t1.
-  Generate_InterpreterPushArgs(masm, t0, a3, t1, t4, &stack_overflow);
+  Generate_StackOverflowCheck(masm, a0, t1, t4, &stack_overflow);
+
+  // This function modifies a3, t1, and t4.
+  Generate_InterpreterPushArgs(masm, a0, a3, t1, t4);
 
   // ArrayConstructor stub expects constructor in a3. Set it here.
   __ mov(a3, a1);
@@ -1382,10 +1437,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ pop(argument_count);
   __ bind(&gotta_call_runtime_no_stack);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
-}
-
-void Builtins::Generate_CompileBaseline(MacroAssembler* masm) {
-  GenerateTailCallToReturnedCode(masm, Runtime::kCompileBaseline);
 }
 
 void Builtins::Generate_CompileOptimized(MacroAssembler* masm) {
@@ -1604,104 +1655,6 @@ void Builtins::Generate_NotifySoftDeoptimized(MacroAssembler* masm) {
 
 void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
   Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
-}
-
-// Clobbers {t2, t3, t4, t5}.
-static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
-                                    Register function_template_info,
-                                    Label* receiver_check_failed) {
-  Register signature = t2;
-  Register map = t3;
-  Register constructor = t4;
-  Register scratch = t5;
-
-  // If there is no signature, return the holder.
-  __ lw(signature, FieldMemOperand(function_template_info,
-                                   FunctionTemplateInfo::kSignatureOffset));
-  Label receiver_check_passed;
-  __ JumpIfRoot(signature, Heap::kUndefinedValueRootIndex,
-                &receiver_check_passed);
-
-  // Walk the prototype chain.
-  __ lw(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  Label prototype_loop_start;
-  __ bind(&prototype_loop_start);
-
-  // Get the constructor, if any.
-  __ GetMapConstructor(constructor, map, scratch, scratch);
-  Label next_prototype;
-  __ Branch(&next_prototype, ne, scratch, Operand(JS_FUNCTION_TYPE));
-  Register type = constructor;
-  __ lw(type,
-        FieldMemOperand(constructor, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(type, FieldMemOperand(type, SharedFunctionInfo::kFunctionDataOffset));
-
-  // Loop through the chain of inheriting function templates.
-  Label function_template_loop;
-  __ bind(&function_template_loop);
-
-  // If the signatures match, we have a compatible receiver.
-  __ Branch(&receiver_check_passed, eq, signature, Operand(type),
-            USE_DELAY_SLOT);
-
-  // If the current type is not a FunctionTemplateInfo, load the next prototype
-  // in the chain.
-  __ JumpIfSmi(type, &next_prototype);
-  __ GetObjectType(type, scratch, scratch);
-  __ Branch(&next_prototype, ne, scratch, Operand(FUNCTION_TEMPLATE_INFO_TYPE));
-
-  // Otherwise load the parent function template and iterate.
-  __ lw(type,
-        FieldMemOperand(type, FunctionTemplateInfo::kParentTemplateOffset));
-  __ Branch(&function_template_loop);
-
-  // Load the next prototype and iterate.
-  __ bind(&next_prototype);
-  __ lw(scratch, FieldMemOperand(map, Map::kBitField3Offset));
-  __ DecodeField<Map::HasHiddenPrototype>(scratch);
-  __ Branch(receiver_check_failed, eq, scratch, Operand(zero_reg));
-  __ lw(receiver, FieldMemOperand(map, Map::kPrototypeOffset));
-  __ lw(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-
-  __ Branch(&prototype_loop_start);
-
-  __ bind(&receiver_check_passed);
-}
-
-void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a0                 : number of arguments excluding receiver
-  //  -- a1                 : callee
-  //  -- ra                 : return address
-  //  -- sp[0]              : last argument
-  //  -- ...
-  //  -- sp[4 * (argc - 1)] : first argument
-  //  -- sp[4 * argc]       : receiver
-  // -----------------------------------
-
-  // Load the FunctionTemplateInfo.
-  __ lw(t1, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(t1, FieldMemOperand(t1, SharedFunctionInfo::kFunctionDataOffset));
-
-  // Do the compatible receiver check.
-  Label receiver_check_failed;
-  __ Lsa(t8, sp, a0, kPointerSizeLog2);
-  __ lw(t0, MemOperand(t8));
-  CompatibleReceiverCheck(masm, t0, t1, &receiver_check_failed);
-
-  // Get the callback offset from the FunctionTemplateInfo, and jump to the
-  // beginning of the code.
-  __ lw(t2, FieldMemOperand(t1, FunctionTemplateInfo::kCallCodeOffset));
-  __ lw(t2, FieldMemOperand(t2, CallHandlerInfo::kFastHandlerOffset));
-  __ Addu(t2, t2, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(t2);
-
-  // Compatible receiver check failed: throw an Illegal Invocation exception.
-  __ bind(&receiver_check_failed);
-  // Drop the arguments (including the receiver);
-  __ Addu(t8, t8, Operand(kPointerSize));
-  __ addu(sp, t8, zero_reg);
-  __ TailCallRuntime(Runtime::kThrowIllegalInvocation);
 }
 
 static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
@@ -3105,6 +3058,31 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kThrowStackOverflow);
     __ break_(0xCC);
   }
+}
+
+void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Save all parameter registers (see wasm-linkage.cc). They might be
+    // overwritten in the runtime call below. We don't have any callee-saved
+    // registers in wasm, so no need to store anything else.
+    const RegList gp_regs = a0.bit() | a1.bit() | a2.bit() | a3.bit();
+    const RegList fp_regs = f2.bit() | f4.bit() | f6.bit() | f8.bit() |
+                            f10.bit() | f12.bit() | f14.bit();
+    __ MultiPush(gp_regs);
+    __ MultiPushFPU(fp_regs);
+
+    __ Move(kContextRegister, Smi::kZero);
+    __ CallRuntime(Runtime::kWasmCompileLazy);
+
+    // Restore registers.
+    __ MultiPopFPU(fp_regs);
+    __ MultiPop(gp_regs);
+  }
+  // Now jump to the instructions of the returned code object.
+  __ Addu(at, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Jump(at);
 }
 
 #undef __

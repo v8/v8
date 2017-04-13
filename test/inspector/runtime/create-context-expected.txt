@@ -26,7 +26,7 @@ Checks createContext().
 }
 #debugger;
 
-setTimeout(#x => x * 3, 0)
+setTimeout(x => x #* 3, 0)
 
 Reported script's execution id: 2
 {
@@ -51,8 +51,6 @@ Reported script's execution id: 2
 }
 #debugger;
 
-#debugger;
-
-setTimeout(#x => x * 3, 0)
+setTimeout(x => x #* 3, 0)
 
 Reported script's execution id: 2

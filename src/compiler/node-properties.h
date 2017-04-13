@@ -129,10 +129,15 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   static bool IsSame(Node* a, Node* b);
 
   // Walks up the {effect} chain to find a witness that provides map
-  // information about the {receiver}. Doesn't look through potentially
+  // information about the {receiver}. Can look through potentially
   // side effecting nodes.
-  static bool InferReceiverMaps(Node* receiver, Node* effect,
-                                ZoneHandleSet<Map>* maps_return);
+  enum InferReceiverMapsResult {
+    kNoReceiverMaps,         // No receiver maps inferred.
+    kReliableReceiverMaps,   // Receiver maps can be trusted.
+    kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect).
+  };
+  static InferReceiverMapsResult InferReceiverMaps(
+      Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return);
 
   // ---------------------------------------------------------------------------
   // Context.

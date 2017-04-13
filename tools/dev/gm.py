@@ -80,8 +80,16 @@ TESTSUITES_TARGETS = {"benchmarks": "d8",
 
 OUTDIR = "out"
 
-IS_GOMA_MACHINE = (os.path.exists(os.path.expanduser("~/goma")) or
-                   os.environ.get('GOMADIR'))
+def DetectGoma():
+  home_goma = os.path.expanduser("~/goma")
+  if os.path.exists(home_goma):
+    return home_goma
+  if os.environ.get("GOMADIR"):
+    return os.environ.get("GOMADIR")
+  return None
+
+GOMADIR = DetectGoma()
+IS_GOMA_MACHINE = GOMADIR is not None
 
 USE_GOMA = "true" if IS_GOMA_MACHINE else "false"
 BUILD_OPTS = BUILD_OPTS_GOMA if IS_GOMA_MACHINE else BUILD_OPTS_DEFAULT
@@ -98,7 +106,6 @@ v8_enable_verify_heap = true
 """.replace("{GOMA}", USE_GOMA)
 
 DEBUG_ARGS_TEMPLATE = """\
-gdb_index = true
 is_component_build = true
 is_debug = true
 symbol_level = 2
@@ -110,7 +117,6 @@ v8_optimized_debug = false
 """.replace("{GOMA}", USE_GOMA)
 
 OPTDEBUG_ARGS_TEMPLATE = """\
-gdb_index = false
 is_component_build = true
 is_debug = true
 symbol_level = 1
@@ -286,6 +292,10 @@ def Main(argv):
   parser = ArgumentParser()
   configs = parser.ParseArguments(argv[1:])
   return_code = 0
+  # If we have Goma but it is not running, start it.
+  if (GOMADIR is not None and
+      _Call("ps -e | grep compiler_proxy > /dev/null", silent=True) != 0):
+    _Call("%s/goma_ctl.py ensure_start" % GOMADIR)
   for c in configs:
     return_code += configs[c].Build()
   if return_code == 0:

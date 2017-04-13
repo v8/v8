@@ -132,8 +132,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
 
-  static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
-                                      ScopeInfo* scope_info,
+  static Scope* DeserializeScopeChain(Zone* zone, ScopeInfo* scope_info,
                                       DeclarationScope* script_scope,
                                       AstValueFactory* ast_value_factory,
                                       DeserializationMode deserialization_mode);
@@ -158,6 +157,20 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void DiscardScope();
 
   Zone* zone() const { return zone_; }
+
+  void SetMustUsePreParsedScopeData() {
+    if (must_use_preparsed_scope_data_) {
+      return;
+    }
+    must_use_preparsed_scope_data_ = true;
+    if (outer_scope_) {
+      outer_scope_->SetMustUsePreParsedScopeData();
+    }
+  }
+
+  bool must_use_preparsed_scope_data() const {
+    return must_use_preparsed_scope_data_;
+  }
 
   // ---------------------------------------------------------------------------
   // Declarations
@@ -571,6 +584,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
 
+  bool must_use_preparsed_scope_data_ : 1;
+
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
   Variable* NonLocal(const AstRawString* name, VariableMode mode);
@@ -703,13 +718,14 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Ignition without ScopeInfo.
   Variable* DeclareGeneratorObjectVar(const AstRawString* name);
   Variable* DeclarePromiseVar(const AstRawString* name);
+  Variable* DeclareAsyncGeneratorAwaitVar(const AstRawString* name);
 
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
   Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
                              bool is_optional, bool is_rest, bool* is_duplicate,
-                             AstValueFactory* ast_value_factory);
+                             AstValueFactory* ast_value_factory, int position);
 
   // Declares that a parameter with the name exists. Creates a Variable and
   // returns it if FLAG_preparser_scope_analysis is on.
@@ -755,7 +771,14 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   Variable* promise_var() const {
     DCHECK(is_function_scope());
     DCHECK(IsAsyncFunction(function_kind_));
+    if (IsAsyncGeneratorFunction(function_kind_)) return nullptr;
     return GetRareVariable(RareVariable::kPromise);
+  }
+
+  Variable* async_generator_await_var() const {
+    DCHECK(is_function_scope());
+    DCHECK(IsAsyncGeneratorFunction(function_kind_));
+    return GetRareVariable(RareVariable::kAsyncGeneratorAwaitResult);
   }
 
   // Parameters. The left-most parameter has index 0.
@@ -828,7 +851,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
-  static void Analyze(ParseInfo* info, AnalyzeMode mode);
+  static void Analyze(ParseInfo* info, Isolate* isolate, AnalyzeMode mode);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope for lazily compiled functions. In particular, this
@@ -865,6 +888,11 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
 
+  bool is_skipped_function() const { return is_skipped_function_; }
+  void set_is_skipped_function(bool is_skipped_function) {
+    is_skipped_function_ = is_skipped_function;
+  }
+
  private:
   void AllocateParameter(Variable* var, int index);
 
@@ -876,7 +904,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  void AllocateVariables(ParseInfo* info, AnalyzeMode mode);
+  void AllocateVariables(ParseInfo* info, Isolate* isolate, AnalyzeMode mode);
 
   void SetDefaults();
 
@@ -901,6 +929,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 #if DEBUG
   bool is_being_lazily_parsed_ : 1;
 #endif
+  bool is_skipped_function_ : 1;
 
   // Parameter list in source order.
   ZoneList<Variable*> params_;
@@ -929,7 +958,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   enum class RareVariable {
     kThisFunction = offsetof(RareData, this_function),
     kGeneratorObject = offsetof(RareData, generator_object),
-    kPromise = offsetof(RareData, promise)
+    kPromise = offsetof(RareData, promise),
+    kAsyncGeneratorAwaitResult = kPromise
   };
 
   V8_INLINE RareData* EnsureRareData() {
@@ -967,8 +997,7 @@ class ModuleScope final : public DeclarationScope {
   // The generated ModuleDescriptor does not preserve all information.  In
   // particular, its module_requests map will be empty because we no longer need
   // the map after parsing.
-  ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
-              AstValueFactory* ast_value_factory);
+  ModuleScope(Handle<ScopeInfo> scope_info, AstValueFactory* ast_value_factory);
 
   ModuleDescriptor* module() const {
     DCHECK_NOT_NULL(module_descriptor_);

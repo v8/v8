@@ -30,6 +30,7 @@
 #include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/factory.h"
+#include "src/macro-assembler-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"

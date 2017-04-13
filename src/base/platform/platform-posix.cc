@@ -382,6 +382,7 @@ double OS::TimeCurrentMillis() {
   return Time::Now().ToJsTime();
 }
 
+#if !V8_OS_AIX && !V8_OS_SOLARIS && !V8_OS_CYGWIN
 const char* PosixTimezoneCache::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(std::floor(time / msPerSecond));
@@ -399,6 +400,7 @@ double PosixTimezoneCache::LocalTimeOffset() {
   return static_cast<double>(t->tm_gmtoff * msPerSecond -
                              (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
+#endif
 
 double PosixTimezoneCache::DaylightSavingsOffset(double time) {
   if (std::isnan(time)) return std::numeric_limits<double>::quiet_NaN();

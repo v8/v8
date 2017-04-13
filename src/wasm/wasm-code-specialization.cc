@@ -41,8 +41,7 @@ int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
 class PatchDirectCallsHelper {
  public:
   PatchDirectCallsHelper(WasmInstanceObject* instance, Code* code)
-      : source_pos_it(code->source_position_table()),
-        decoder(nullptr, nullptr) {
+      : source_pos_it(code->SourcePositionTable()), decoder(nullptr, nullptr) {
     FixedArray* deopt_data = code->deoptimization_data();
     DCHECK_EQ(2, deopt_data->length());
     WasmCompiledModule* comp_mod = instance->compiled_module();
@@ -61,7 +60,9 @@ bool IsAtWasmDirectCallTarget(RelocIterator& it) {
   Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
   return code->kind() == Code::WASM_FUNCTION ||
          code->kind() == Code::WASM_TO_JS_FUNCTION ||
-         code->builtin_index() == Builtins::kIllegal;
+         code->kind() == Code::WASM_INTERPRETER_ENTRY ||
+         code->builtin_index() == Builtins::kIllegal ||
+         code->builtin_index() == Builtins::kWasmCompileLazy;
 }
 
 }  // namespace
@@ -131,32 +132,38 @@ bool CodeSpecialization::ApplyToWholeInstance(
   for (int num_wasm_functions = static_cast<int>(wasm_functions->size());
        func_index < num_wasm_functions; ++func_index) {
     Code* wasm_function = Code::cast(code_table->get(func_index));
+    if (wasm_function->builtin_index() == Builtins::kWasmCompileLazy) continue;
     changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
   }
 
-  // Patch all exported functions.
-  for (auto exp : module->export_table) {
-    if (exp.kind != kExternalFunction) continue;
-    Code* export_wrapper = Code::cast(code_table->get(func_index));
-    DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
-    // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
-    for (RelocIterator it(export_wrapper,
-                          RelocInfo::ModeMask(RelocInfo::CODE_TARGET));
-         ; it.next()) {
-      DCHECK(!it.done());
-      // Ignore calls to other builtins like ToNumber.
-      if (!IsAtWasmDirectCallTarget(it)) continue;
-      Code* new_code = Code::cast(code_table->get(exp.index));
-      DCHECK(new_code->kind() == Code::WASM_FUNCTION ||
-             new_code->kind() == Code::WASM_TO_JS_FUNCTION);
-      it.rinfo()->set_target_address(new_code->instruction_start(),
-                                     UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-      break;
+  // Patch all exported functions (if we shall relocate direct calls).
+  if (!relocate_direct_calls_instance.is_null()) {
+    // If we patch direct calls, the instance registered for that
+    // (relocate_direct_calls_instance) should match the instance we currently
+    // patch (instance).
+    DCHECK_EQ(instance, *relocate_direct_calls_instance);
+    for (auto exp : module->export_table) {
+      if (exp.kind != kExternalFunction) continue;
+      Code* export_wrapper = Code::cast(code_table->get(func_index));
+      DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
+      // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
+      for (RelocIterator it(export_wrapper,
+                            RelocInfo::ModeMask(RelocInfo::CODE_TARGET));
+           ; it.next()) {
+        DCHECK(!it.done());
+        // Ignore calls to other builtins like ToNumber.
+        if (!IsAtWasmDirectCallTarget(it)) continue;
+        Code* new_code = Code::cast(code_table->get(exp.index));
+        it.rinfo()->set_target_address(new_code->GetIsolate(),
+                                       new_code->instruction_start(),
+                                       UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+        break;
+      }
+      changed = true;
+      func_index++;
     }
-    changed = true;
-    func_index++;
+    DCHECK_EQ(code_table->length(), func_index);
   }
-  DCHECK_EQ(code_table->length(), func_index);
   return changed;
 }
 
@@ -191,20 +198,22 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
     switch (mode) {
       case RelocInfo::WASM_MEMORY_REFERENCE:
         DCHECK(reloc_mem_addr);
-        it.rinfo()->update_wasm_memory_reference(old_mem_start, new_mem_start,
+        it.rinfo()->update_wasm_memory_reference(code->GetIsolate(),
+                                                 old_mem_start, new_mem_start,
                                                  icache_flush_mode);
         changed = true;
         break;
       case RelocInfo::WASM_MEMORY_SIZE_REFERENCE:
         DCHECK(reloc_mem_size);
-        it.rinfo()->update_wasm_memory_size(old_mem_size, new_mem_size,
-                                            icache_flush_mode);
+        it.rinfo()->update_wasm_memory_size(code->GetIsolate(), old_mem_size,
+                                            new_mem_size, icache_flush_mode);
         changed = true;
         break;
       case RelocInfo::WASM_GLOBAL_REFERENCE:
         DCHECK(reloc_globals);
         it.rinfo()->update_wasm_global_reference(
-            old_globals_start, new_globals_start, icache_flush_mode);
+            code->GetIsolate(), old_globals_start, new_globals_start,
+            icache_flush_mode);
         changed = true;
         break;
       case RelocInfo::CODE_TARGET: {
@@ -230,7 +239,8 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
             relocate_direct_calls_instance->compiled_module()
                 ->ptr_to_code_table();
         Code* new_code = Code::cast(code_table->get(called_func_index));
-        it.rinfo()->set_target_address(new_code->instruction_start(),
+        it.rinfo()->set_target_address(new_code->GetIsolate(),
+                                       new_code->instruction_start(),
                                        UPDATE_WRITE_BARRIER, icache_flush_mode);
         changed = true;
       } break;
@@ -248,8 +258,8 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
       case RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE:
         DCHECK(patch_table_size);
         it.rinfo()->update_wasm_function_table_size_reference(
-            old_function_table_size, new_function_table_size,
-            icache_flush_mode);
+            code->GetIsolate(), old_function_table_size,
+            new_function_table_size, icache_flush_mode);
         changed = true;
         break;
       default:

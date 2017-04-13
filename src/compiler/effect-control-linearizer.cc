@@ -13,6 +13,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -147,8 +148,8 @@ void RemoveRegionNode(Node* node) {
   node->Kill();
 }
 
-void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
-                    CommonOperatorBuilder* common,
+void TryCloneBranch(Node* node, BasicBlock* block, Zone* temp_zone,
+                    Graph* graph, CommonOperatorBuilder* common,
                     BlockEffectControlMap* block_effects,
                     SourcePositionTable* source_positions) {
   DCHECK_EQ(IrOpcode::kBranch, node->opcode());
@@ -215,7 +216,7 @@ void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
   // Grab the IfTrue/IfFalse projections of the Branch.
   BranchMatcher matcher(branch);
   // Check/collect other Phi/EffectPhi nodes hanging off the Merge.
-  NodeVector phis(graph->zone());
+  NodeVector phis(temp_zone);
   for (Node* const use : merge->uses()) {
     if (use == branch || use == cond) continue;
     // We cannot currently deal with non-Phi/EffectPhi nodes hanging off the
@@ -455,8 +456,8 @@ void EffectControlLinearizer::Run() {
 
       case BasicBlock::kBranch:
         ProcessNode(block->control_input(), &frame_state, &effect, &control);
-        TryCloneBranch(block->control_input(), block, graph(), common(),
-                       &block_effects, source_positions_);
+        TryCloneBranch(block->control_input(), block, temp_zone(), graph(),
+                       common(), &block_effects, source_positions_);
         break;
     }
 
@@ -483,22 +484,6 @@ void EffectControlLinearizer::Run() {
     UpdateBlockControl(pending_block_control, &block_effects);
   }
 }
-
-namespace {
-
-void TryScheduleCallIfSuccess(Node* node, Node** control) {
-  // Schedule the call's IfSuccess node if there is no exception use.
-  if (!NodeProperties::IsExceptionalCall(node)) {
-    for (Edge edge : node->use_edges()) {
-      if (NodeProperties::IsControlEdge(edge) &&
-          edge.from()->opcode() == IrOpcode::kIfSuccess) {
-        *control = edge.from();
-      }
-    }
-  }
-}
-
-}  // namespace
 
 void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
                                           Node** effect, Node** control) {
@@ -583,13 +568,9 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
   for (int i = 0; i < node->op()->ControlInputCount(); i++) {
     NodeProperties::ReplaceControlInput(node, *control, i);
   }
-  // Update the current control and wire IfSuccess right after calls.
+  // Update the current control.
   if (node->op()->ControlOutputCount() > 0) {
     *control = node;
-    if (node->opcode() == IrOpcode::kCall) {
-      // Schedule the call's IfSuccess node (if there is no exception use).
-      TryScheduleCallIfSuccess(node, control);
-    }
   }
 }
 
@@ -741,6 +722,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsString:
       result = LowerObjectIsString(node);
       break;
+    case IrOpcode::kObjectIsSymbol:
+      result = LowerObjectIsSymbol(node);
+      break;
     case IrOpcode::kObjectIsUndetectable:
       result = LowerObjectIsUndetectable(node);
       break;
@@ -845,8 +829,62 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
 #define __ gasm()->
 
 Node* EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node) {
+  CheckForMinusZeroMode mode = CheckMinusZeroModeOf(node->op());
   Node* value = node->InputAt(0);
-  return AllocateHeapNumberWithValue(value);
+
+  auto done = __ MakeLabel<2>(MachineRepresentation::kTagged);
+  auto if_heapnumber =
+      __ MakeLabelFor(GraphAssemblerLabelType::kNonDeferred,
+                      1 + (mode == CheckForMinusZeroMode::kCheckForMinusZero) +
+                          !machine()->Is64());
+  auto if_int32 = __ MakeLabel<1>();
+
+  Node* value32 = __ RoundFloat64ToInt32(value);
+  __ GotoIf(__ Float64Equal(value, __ ChangeInt32ToFloat64(value32)),
+            &if_int32);
+  __ Goto(&if_heapnumber);
+
+  __ Bind(&if_int32);
+  {
+    if (mode == CheckForMinusZeroMode::kCheckForMinusZero) {
+      Node* zero = __ Int32Constant(0);
+      auto if_zero = __ MakeDeferredLabel<1>();
+      auto if_smi = __ MakeLabel<2>();
+
+      __ GotoIf(__ Word32Equal(value32, zero), &if_zero);
+      __ Goto(&if_smi);
+
+      __ Bind(&if_zero);
+      {
+        // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+        __ GotoIf(__ Int32LessThan(__ Float64ExtractHighWord32(value), zero),
+                  &if_heapnumber);
+        __ Goto(&if_smi);
+      }
+
+      __ Bind(&if_smi);
+    }
+
+    if (machine()->Is64()) {
+      Node* value_smi = ChangeInt32ToSmi(value32);
+      __ Goto(&done, value_smi);
+    } else {
+      Node* add = __ Int32AddWithOverflow(value32, value32);
+      Node* ovf = __ Projection(1, add);
+      __ GotoIf(ovf, &if_heapnumber);
+      Node* value_smi = __ Projection(0, add);
+      __ Goto(&done, value_smi);
+    }
+  }
+
+  __ Bind(&if_heapnumber);
+  {
+    Node* value_number = AllocateHeapNumberWithValue(value);
+    __ Goto(&done, value_number);
+  }
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerChangeFloat64ToTaggedPointer(Node* node) {
@@ -1881,6 +1919,28 @@ Node* EffectControlLinearizer::LowerObjectIsString(Node* node) {
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
   Node* vfalse = __ Uint32LessThan(value_instance_type,
                                    __ Uint32Constant(FIRST_NONSTRING_TYPE));
+  __ Goto(&done, vfalse);
+
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerObjectIsSymbol(Node* node) {
+  Node* value = node->InputAt(0);
+
+  auto if_smi = __ MakeDeferredLabel<1>();
+  auto done = __ MakeLabel<2>(MachineRepresentation::kBit);
+
+  Node* check = ObjectIsSmi(value);
+  __ GotoIf(check, &if_smi);
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+  Node* vfalse =
+      __ Word32Equal(value_instance_type, __ Uint32Constant(SYMBOL_TYPE));
   __ Goto(&done, vfalse);
 
   __ Bind(&if_smi);

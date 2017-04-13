@@ -180,6 +180,10 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
   Page* page = static_cast<Page*>(chunk);
   heap->incremental_marking()->SetNewSpacePageFlags(page);
   page->AllocateLocalTracker();
+  if (FLAG_minor_mc) {
+    page->AllocateYoungGenerationBitmap();
+    MarkingState::External(page).ClearLiveness();
+  }
   return page;
 }
 
@@ -212,7 +216,7 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   DCHECK(old_page->InNewSpace());
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
-  old_page->SetFlags(0, ~0);
+  old_page->SetFlags(0, static_cast<uintptr_t>(~0));
   old_space->AccountCommitted(old_page->size());
   Page* new_page = Page::Initialize<kDoNotFreeMemory>(
       old_page->heap(), old_page, NOT_EXECUTABLE, old_space);
@@ -223,54 +227,6 @@ Page* Page::ConvertNewToOld(Page* old_page) {
 void Page::InitializeFreeListCategories() {
   for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
     categories_[i].Initialize(static_cast<FreeListCategoryType>(i));
-  }
-}
-
-template <MarkingMode mode>
-void MemoryChunk::IncrementLiveBytes(HeapObject* object, int by) {
-  MemoryChunk::FromAddress(object->address())->IncrementLiveBytes<mode>(by);
-}
-
-template <MarkingMode mode>
-void MemoryChunk::TraceLiveBytes(intptr_t old_value, intptr_t new_value) {
-  if (!FLAG_trace_live_bytes) return;
-  PrintIsolate(heap()->isolate(),
-               "live-bytes[%p:%s]: %" V8PRIdPTR "-> %" V8PRIdPTR "\n",
-               static_cast<void*>(this),
-               mode == MarkingMode::FULL ? "internal" : "external", old_value,
-               new_value);
-}
-
-template <MarkingMode mode>
-void MemoryChunk::ResetLiveBytes() {
-  switch (mode) {
-    case MarkingMode::FULL:
-      TraceLiveBytes(live_byte_count_, 0);
-      live_byte_count_ = 0;
-      break;
-    case MarkingMode::YOUNG_GENERATION:
-      TraceLiveBytes(young_generation_live_byte_count_, 0);
-      young_generation_live_byte_count_ = 0;
-      break;
-  }
-}
-
-template <MarkingMode mode>
-void MemoryChunk::IncrementLiveBytes(int by) {
-  switch (mode) {
-    case MarkingMode::FULL:
-      TraceLiveBytes(live_byte_count_, live_byte_count_ + by);
-      live_byte_count_ += by;
-      DCHECK_GE(live_byte_count_, 0);
-      DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
-      break;
-    case MarkingMode::YOUNG_GENERATION:
-      TraceLiveBytes(young_generation_live_byte_count_,
-                     young_generation_live_byte_count_ + by);
-      young_generation_live_byte_count_ += by;
-      DCHECK_GE(young_generation_live_byte_count_, 0);
-      DCHECK_LE(static_cast<size_t>(young_generation_live_byte_count_), size_);
-      break;
   }
 }
 
@@ -326,16 +282,16 @@ void Page::MarkNeverAllocateForTesting() {
 
 void Page::MarkEvacuationCandidate() {
   DCHECK(!IsFlagSet(NEVER_EVACUATE));
-  DCHECK_NULL(old_to_old_slots_);
-  DCHECK_NULL(typed_old_to_old_slots_);
+  DCHECK_NULL(slot_set<OLD_TO_OLD>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
   SetFlag(EVACUATION_CANDIDATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 
 void Page::ClearEvacuationCandidate() {
   if (!IsFlagSet(COMPACTION_WAS_ABORTED)) {
-    DCHECK_NULL(old_to_old_slots_);
-    DCHECK_NULL(typed_old_to_old_slots_);
+    DCHECK_NULL(slot_set<OLD_TO_OLD>());
+    DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
   }
   ClearFlag(EVACUATION_CANDIDATE);
   InitializeFreeListCategories();

@@ -11,8 +11,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-typedef Signature<ValueType> FunctionSig;
-
 #define CASE_OP(name, str) \
   case kExpr##name:        \
     return str;
@@ -129,10 +127,12 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(INT, LoadMem8, "load8")
     CASE_SIGN_OP(INT, LoadMem16, "load16")
     CASE_SIGN_OP(I64, LoadMem32, "load32")
+    CASE_S128_OP(LoadMem, "load128")
     CASE_ALL_OP(StoreMem, "store")
     CASE_INT_OP(StoreMem8, "store8")
     CASE_INT_OP(StoreMem16, "store16")
     CASE_I64_OP(StoreMem32, "store32")
+    CASE_S128_OP(StoreMem, "store128")
 
     // Non-standard opcodes.
     CASE_OP(Try, "try")
@@ -191,6 +191,12 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F32x4_OP(Ge, "ge")
     CASE_CONVERT_OP(Convert, F32x4, I32x4, "i32", "convert")
     CASE_CONVERT_OP(Convert, I32x4, F32x4, "f32", "convert")
+    CASE_CONVERT_OP(Convert, I32x4, I16x8Low, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I32x4, I16x8High, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I16x8, I32x4, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I16x8, I8x16Low, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I16x8, I8x16High, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I8x16, I16x8, "i32", "convert")
     CASE_F32x4_OP(ExtractLane, "extract_lane")
     CASE_F32x4_OP(ReplaceLane, "replace_lane")
     CASE_SIMDI_OP(ExtractLane, "extract_lane")
@@ -267,15 +273,22 @@ bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
-  for (size_t i = 0; i < sig.return_count(); ++i) {
-    os << WasmOpcodes::ShortNameOf(sig.GetReturn(i));
+  for (auto ret : sig.returns()) {
+    os << WasmOpcodes::ShortNameOf(ret);
   }
   os << "_";
   if (sig.parameter_count() == 0) os << "v";
-  for (size_t i = 0; i < sig.parameter_count(); ++i) {
-    os << WasmOpcodes::ShortNameOf(sig.GetParam(i));
+  for (auto param : sig.parameters()) {
+    os << WasmOpcodes::ShortNameOf(param);
   }
   return os;
+}
+
+bool IsJSCompatibleSignature(const FunctionSig* sig) {
+  for (auto type : sig->all()) {
+    if (type == wasm::kWasmI64 || type == wasm::kWasmS128) return false;
+  }
+  return true;
 }
 
 #define DECLARE_SIG_ENUM(name, ...) kSigEnum_##name,

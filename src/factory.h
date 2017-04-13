@@ -166,29 +166,6 @@ class V8_EXPORT_PRIVATE Factory final {
         OneByteVector(str), pretenure).ToHandleChecked();
   }
 
-
-  // Allocates and fully initializes a String.  There are two String encodings:
-  // one-byte and two-byte. One should choose between the threestring
-  // allocation functions based on the encoding of the string buffer used to
-  // initialized the string.
-  //   - ...FromOneByte initializes the string from a buffer that is Latin1
-  //     encoded (it does not check that the buffer is Latin1 encoded) and the
-  //     result will be Latin1 encoded.
-  //   - ...FromUTF8 initializes the string from a buffer that is UTF-8
-  //     encoded.  If the characters are all ASCII characters, the result
-  //     will be Latin1 encoded, otherwise it will converted to two-byte.
-  //   - ...FromTwoByte initializes the string from a buffer that is two-byte
-  //     encoded.  If the characters are all Latin1 characters, the
-  //     result will be converted to Latin1, otherwise it will be left as
-  //     two-byte.
-
-  // TODO(dcarney): remove this function.
-  MUST_USE_RESULT inline MaybeHandle<String> NewStringFromAscii(
-      Vector<const char> str,
-      PretenureFlag pretenure = NOT_TENURED) {
-    return NewStringFromOneByte(Vector<const uint8_t>::cast(str), pretenure);
-  }
-
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
   MUST_USE_RESULT MaybeHandle<String> NewStringFromUtf8(
@@ -289,6 +266,9 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Symbol> NewSymbol();
   Handle<Symbol> NewPrivateSymbol();
 
+  // Create a promise.
+  Handle<JSPromise> NewJSPromise();
+
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();
 
@@ -344,6 +324,11 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Script> NewScript(Handle<String> source);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
+  Handle<StackFrameInfo> NewStackFrameInfo();
+  Handle<SourcePositionTableWithFrameCache>
+  NewSourcePositionTableWithFrameCache(
+      Handle<ByteArray> source_position_table,
+      Handle<UnseededNumberDictionary> stack_frame_cache);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
@@ -694,7 +679,14 @@ class V8_EXPORT_PRIVATE Factory final {
                                 bool check_number_string_cache = true);
 
   Handle<String> Uint32ToString(uint32_t value) {
-    return NumberToString(NewNumberFromUint(value));
+    Handle<String> result = NumberToString(NewNumberFromUint(value));
+
+    if (result->length() <= String::kMaxArrayIndexSize) {
+      uint32_t field =
+          StringHasher::MakeArrayIndexHash(value, result->length());
+      result->set_hash_field(field);
+    }
+    return result;
   }
 
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);

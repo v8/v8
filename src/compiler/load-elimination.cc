@@ -37,6 +37,7 @@ Aliasing QueryAlias(Node* a, Node* b) {
       break;
     }
     case IrOpcode::kFinishRegion:
+    case IrOpcode::kTypeGuard:
       return QueryAlias(a, b->InputAt(0));
     default:
       break;
@@ -53,6 +54,7 @@ Aliasing QueryAlias(Node* a, Node* b) {
       break;
     }
     case IrOpcode::kFinishRegion:
+    case IrOpcode::kTypeGuard:
       return QueryAlias(a->InputAt(0), b);
     default:
       break;
@@ -1005,8 +1007,15 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
                 !ZoneHandleSet<Map>(transition.target())
                      .contains(object_maps)) {
               state = state->KillMaps(object, zone());
-              state = state->KillField(
-                  object, FieldIndexOf(JSObject::kElementsOffset), zone());
+              switch (transition.mode()) {
+                case ElementsTransition::kFastTransition:
+                  break;
+                case ElementsTransition::kSlowTransition:
+                  // Kill the elements as well.
+                  state = state->KillField(
+                      object, FieldIndexOf(JSObject::kElementsOffset), zone());
+                  break;
+              }
             }
             break;
           }

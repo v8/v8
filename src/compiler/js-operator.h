@@ -550,6 +550,33 @@ std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
+class GeneratorStoreParameters final {
+ public:
+  GeneratorStoreParameters(int register_count, SuspendFlags flags)
+      : register_count_(register_count), suspend_flags_(flags) {}
+
+  int register_count() const { return register_count_; }
+  SuspendFlags suspend_flags() const { return suspend_flags_; }
+  SuspendFlags suspend_type() const {
+    return suspend_flags_ & SuspendFlags::kSuspendTypeMask;
+  }
+
+ private:
+  int register_count_;
+  SuspendFlags suspend_flags_;
+};
+
+bool operator==(GeneratorStoreParameters const&,
+                GeneratorStoreParameters const&);
+bool operator!=(GeneratorStoreParameters const&,
+                GeneratorStoreParameters const&);
+
+size_t hash_value(GeneratorStoreParameters const&);
+
+std::ostream& operator<<(std::ostream&, GeneratorStoreParameters const&);
+
+const GeneratorStoreParameters& GeneratorStoreParametersOf(const Operator* op);
+
 BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
 CompareOperationHint CompareOperationHintOf(const Operator* op);
@@ -666,7 +693,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreMessage();
 
   // Used to implement Ignition's SuspendGenerator bytecode.
-  const Operator* GeneratorStore(int register_count);
+  const Operator* GeneratorStore(int register_count,
+                                 SuspendFlags suspend_flags);
 
   // Used to implement Ignition's ResumeGenerator bytecode.
   const Operator* GeneratorRestoreContinuation();
