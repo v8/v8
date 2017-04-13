@@ -91,6 +91,8 @@ AsmJsParser::AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
       inside_heap_assignment_(false),
       heap_access_type_(nullptr),
       block_stack_(zone),
+      call_coercion_(nullptr),
+      call_coercion_deferred_(nullptr),
       pending_label_(0),
       global_imports_(zone) {
   InitializeStdlibTypes();
@@ -1945,14 +1947,20 @@ AsmType* AsmJsParser::BitwiseXORExpression() {
 // 6.8.15 BitwiseORExpression
 AsmType* AsmJsParser::BitwiseORExpression() {
   AsmType* a = nullptr;
+  call_coercion_deferred_position_ = scanner_.Position();
   RECURSEn(a = BitwiseXORExpression());
   while (Check('|')) {
-    // TODO(bradnelson): Make it prettier.
     AsmType* b = nullptr;
+    // Remember whether the first operand to this OR-expression has requested
+    // deferred validation of the |0 annotation.
+    // NOTE: This has to happen here to work recursively.
+    bool requires_zero = call_coercion_deferred_->IsExactly(AsmType::Signed());
+    call_coercion_deferred_ = nullptr;
+    // TODO(bradnelson): Make it prettier.
     bool zero = false;
     int old_pos;
     size_t old_code;
-    if (CheckForZero()) {
+    if (a->IsA(AsmType::Intish()) && CheckForZero()) {
       old_pos = scanner_.GetPosition();
       old_code = current_function_builder_->GetPosition();
       scanner_.Rewind();
@@ -1965,6 +1973,10 @@ AsmType* AsmJsParser::BitwiseORExpression() {
       a = AsmType::Signed();
       continue;
     }
+    // Anything not matching |0 breaks the lookahead in {ValidateCall}.
+    if (requires_zero) {
+      FAILn("Expected |0 type annotation for call");
+    }
     if (a->IsA(AsmType::Intish()) && b->IsA(AsmType::Intish())) {
       current_function_builder_->Emit(kExprI32Ior);
       a = AsmType::Signed();
@@ -1972,6 +1984,7 @@ AsmType* AsmJsParser::BitwiseORExpression() {
       FAILn("Expected intish for operator |.");
     }
   }
+  DCHECK_NULL(call_coercion_deferred_);
   return a;
 }
 
@@ -2026,6 +2039,7 @@ AsmType* AsmJsParser::ValidateCall() {
   call_coercion_ = nullptr;
   int call_pos = static_cast<int>(scanner_.Position());
   int to_number_pos = static_cast<int>(call_coercion_position_);
+  bool allow_peek = (call_coercion_deferred_position_ == scanner_.Position());
   AsmJsScanner::token_t function_name = Consume();
 
   // Distinguish between ordinary function calls and function table calls. In
@@ -2109,12 +2123,30 @@ AsmType* AsmJsParser::ValidateCall() {
   }
   EXPECT_TOKENn(')');
 
+  // Reload {VarInfo} after parsing arguments as table might have grown.
+  VarInfo* function_info = GetVarInfo(function_name);
+
   // We potentially use lookahead in order to determine the return type in case
-  // it is not yet clear from the call context.
-  // TODO(mstarzinger,6183): Several issues with look-ahead are known. Fix!
-  // TODO(bradnelson): clarify how this binds, and why only float?
-  if (Peek('|') &&
+  // it is not yet clear from the call context. Special care has to be taken to
+  // ensure the non-contextual lookahead is valid. The following restrictions
+  // substantiate the validity of the lookahead implemented below:
+  //  - All calls (except stdlib calls) require some sort of type annotation.
+  //  - The coercion to "signed" is part of the {BitwiseORExpression}, any
+  //    intermittent expressions like parenthesis in `(callsite(..))|0` are
+  //    syntactically not considered coercions.
+  //  - The coercion to "double" as part of the {UnaryExpression} has higher
+  //    precedence and wins in `+callsite(..)|0` cases. Only "float" return
+  //    types are overridden in `fround(callsite(..)|0)` expressions.
+  //  - Expected coercions to "signed" are flagged via {call_coercion_deferred}
+  //    and later on validated as part of {BitwiseORExpression} to ensure they
+  //    indeed apply to the current call expression.
+  //  - The deferred validation is only allowed if {BitwiseORExpression} did
+  //    promise to fulfill the request via {call_coercion_deferred_position}.
+  if (allow_peek && Peek('|') &&
+      function_info->kind <= VarKind::kImportedFunction &&
       (return_type == nullptr || return_type->IsA(AsmType::Float()))) {
+    DCHECK_NULL(call_coercion_deferred_);
+    call_coercion_deferred_ = AsmType::Signed();
     to_number_pos = static_cast<int>(scanner_.Position());
     return_type = AsmType::Signed();
   } else if (return_type == nullptr) {
@@ -2136,8 +2168,6 @@ AsmType* AsmJsParser::ValidateCall() {
   // Emit actual function invocation depending on the kind. At this point we
   // also determined the complete function type and can perform checking against
   // the expected type or update the expected type in case of first occurrence.
-  // Reload {VarInfo} as table might have grown.
-  VarInfo* function_info = GetVarInfo(function_name);
   if (function_info->kind == VarKind::kImportedFunction) {
     for (auto t : param_specific_types) {
       if (!t->IsA(AsmType::Extern())) {

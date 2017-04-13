@@ -143,12 +143,21 @@ class AsmJsParser {
   AsmType* stdlib_fround_;
 
   // When making calls, the return type is needed to lookup signatures.
-  // For +callsite(..) or fround(callsite(..)) use this value to pass
+  // For `+callsite(..)` or `fround(callsite(..))` use this value to pass
   // along the coercion.
   AsmType* call_coercion_;
 
   // The source position associated with the above {call_coercion}.
   size_t call_coercion_position_;
+
+  // When making calls, the coercion can also appear in the source stream
+  // syntactically "behind" the call site. For `callsite(..)|0` use this
+  // value to flag that such a coercion must happen.
+  AsmType* call_coercion_deferred_;
+
+  // The source position at which requesting a deferred coercion via the
+  // aforementioned {call_coercion_deferred} is allowed.
+  size_t call_coercion_deferred_position_;
 
   // Used to track the last label we've seen so it can be matched to later
   // statements it's attached to.
