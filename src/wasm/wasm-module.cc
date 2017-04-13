@@ -3038,6 +3038,20 @@ class AsyncCompileJob {
 
 void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
                         const ModuleWireBytes& bytes) {
+  if (!FLAG_wasm_async_compilation) {
+    ErrorThrower thrower(isolate, "WasmCompile");
+    // Compile the module.
+    MaybeHandle<WasmModuleObject> module_object =
+        SyncCompile(isolate, &thrower, bytes);
+    if (thrower.error()) {
+      RejectPromise(isolate, handle(isolate->context()), &thrower, promise);
+      return;
+    }
+    Handle<WasmModuleObject> module = module_object.ToHandleChecked();
+    ResolvePromise(isolate, handle(isolate->context()), promise, module);
+    return;
+  }
+
   // Make a copy of the wire bytes in case the user program changes them
   // during asynchronous compilation.
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
