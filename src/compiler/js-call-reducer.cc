@@ -337,7 +337,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
-  if (result == NodeProperties::kReliableReceiverMaps) {
+  if (result != NodeProperties::kNoReceiverMaps) {
     Handle<Map> candidate_map(
         receiver_maps[0]->GetPrototypeChainRootMap(isolate()));
     Handle<Object> candidate_prototype(candidate_map->prototype(), isolate());
@@ -351,6 +351,15 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
           receiver_map->is_access_check_needed() ||
           receiver_map->prototype() != *candidate_prototype) {
         return NoChange();
+      }
+      if (result == NodeProperties::kUnreliableReceiverMaps &&
+          !receiver_map->is_stable()) {
+        return NoChange();
+      }
+    }
+    if (result == NodeProperties::kUnreliableReceiverMaps) {
+      for (size_t i = 0; i < receiver_maps.size(); ++i) {
+        dependencies()->AssumeMapStable(receiver_maps[i]);
       }
     }
     Node* value = jsgraph()->Constant(candidate_prototype);
