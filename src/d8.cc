@@ -849,8 +849,10 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
 
 
 PerIsolateData::RealmScope::~RealmScope() {
-  // Drop realms to avoid keeping them alive.
-  for (int i = 0; i < data_->realm_count_; ++i) {
+  // Drop realms to avoid keeping them alive. We don't dispose the
+  // module embedder data for the first realm here, but instead do
+  // it in RunShell or in RunMain, if not running in interactive mode
+  for (int i = 1; i < data_->realm_count_; ++i) {
     Global<Context>& realm = data_->realms_[i];
     if (realm.IsEmpty()) continue;
     DisposeModuleEmbedderData(realm.Get(data_->isolate_));
@@ -2015,6 +2017,9 @@ void Shell::RunShell(Isolate* isolate) {
     ExecuteString(isolate, input, name, true, true);
   }
   printf("\n");
+  // We need to explicitly clean up the module embedder data for
+  // the interative shell context.
+  DisposeModuleEmbedderData(context);
 }
 
 class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
@@ -2619,7 +2624,8 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     }
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
-    if (last_run && options.use_interactive_shell()) {
+    bool use_existing_context = last_run && options.use_interactive_shell();
+    if (use_existing_context) {
       // Keep using the same context in the interactive shell.
       evaluation_context_.Reset(isolate, context);
     }
@@ -2629,7 +2635,9 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
       options.isolate_sources[0].Execute(isolate);
     }
-    DisposeModuleEmbedderData(context);
+    if (!use_existing_context) {
+      DisposeModuleEmbedderData(context);
+    }
     WriteLcovData(isolate, options.lcov_file);
   }
   CollectGarbage(isolate);
