@@ -312,8 +312,12 @@ bool NeedsConvertReceiver(Node* receiver, Node* effect) {
       return false;
     }
     default: {
+      // We don't really care about the exact maps here, just the instance
+      // types, which don't change across potential side-effecting operations.
       ZoneHandleSet<Map> maps;
-      if (NodeProperties::InferReceiverMaps(receiver, effect, &maps)) {
+      NodeProperties::InferReceiverMapsResult result =
+          NodeProperties::InferReceiverMaps(receiver, effect, &maps);
+      if (result != NodeProperties::kNoReceiverMaps) {
         // Check if all {maps} are actually JSReceiver maps.
         for (size_t i = 0; i < maps.size(); ++i) {
           if (!maps[i]->IsJSReceiverMap()) return true;

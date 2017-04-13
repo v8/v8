@@ -335,7 +335,9 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
 
   // Try to determine the {receiver} map.
   ZoneHandleSet<Map> receiver_maps;
-  if (NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps)) {
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (result == NodeProperties::kReliableReceiverMaps) {
     Handle<Map> candidate_map(
         receiver_maps[0]->GetPrototypeChainRootMap(isolate()));
     Handle<Object> candidate_prototype(candidate_map->prototype(), isolate());

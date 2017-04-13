@@ -912,19 +912,41 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
-  Handle<Map> receiver_map;
   // We need exactly target, receiver and value parameters.
   if (node->op()->ValueInputCount() != 3) return NoChange();
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* value = NodeProperties::GetValueInput(node, 2);
-  if (GetMapWitness(node).ToHandle(&receiver_map) &&
-      CanInlineArrayResizeOperation(receiver_map)) {
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (receiver_maps.size() != 1) return NoChange();
+  DCHECK_NE(NodeProperties::kNoReceiverMaps, result);
+
+  // TODO(turbofan): Relax this to deal with multiple {receiver} maps.
+  Handle<Map> receiver_map = receiver_maps[0];
+  if (CanInlineArrayResizeOperation(receiver_map)) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
     dependencies()->AssumePropertyCell(factory()->array_protector());
     dependencies()->AssumePrototypeMapsStable(receiver_map);
+
+    // If the {receiver_maps} information is not reliable, we need
+    // to check that the {receiver} still has one of these maps.
+    if (result == NodeProperties::kUnreliableReceiverMaps) {
+      if (receiver_map->is_stable()) {
+        dependencies()->AssumeMapStable(receiver_map);
+      } else {
+        // TODO(turbofan): This is a potential - yet unlikely - deoptimization
+        // loop, since we might not learn from this deoptimization in baseline
+        // code. We need a way to learn from deoptimizations in optimized to
+        // address these problems.
+        effect = graph()->NewNode(
+            simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps),
+            receiver, effect, control);
+      }
+    }
 
     // TODO(turbofan): Perform type checks on the {value}. We are not guaranteed
     // to learn from these checks in case they fail, as the witness (i.e. the
