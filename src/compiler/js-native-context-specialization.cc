@@ -154,11 +154,6 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
     if (function_prototype->IsConstructor()) {
       ReplaceWithValue(node, value);
       return Replace(value);
-    } else {
-      node->InsertInput(graph()->zone(), 0, value);
-      NodeProperties::ChangeOp(
-          node, javascript()->CallRuntime(Runtime::kThrowNotSuperConstructor));
-      return Changed(node);
     }
   }
 
