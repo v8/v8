@@ -17656,6 +17656,7 @@ class StringTableNoAllocateKey : public HashTableKey {
       string->set_hash_field(hash_field);
     } else {
       special_flattening_ = false;
+      one_byte_content_ = nullptr;
     }
     hash_ = string->Hash();
   }
@@ -17744,7 +17745,7 @@ class StringTableNoAllocateKey : public HashTableKey {
   bool special_flattening_;
   uint32_t hash_ = 0;
   union {
-    uint8_t* one_byte_content_ = nullptr;
+    uint8_t* one_byte_content_;
     uint16_t* two_byte_content_;
   };
 };
