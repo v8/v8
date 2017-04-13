@@ -2760,43 +2760,7 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 
 static Address GetInterruptImmediateLoadAddress(Address pc) {
   Address load_address = pc - 2 * Assembler::kInstrSize;
-  if (!FLAG_enable_embedded_constant_pool) {
-    DCHECK(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(load_address)));
-  } else if (Assembler::IsLdrPpRegOffset(Memory::int32_at(load_address))) {
-    // This is an extended constant pool lookup.
-    if (CpuFeatures::IsSupported(ARMv7)) {
-      load_address -= 2 * Assembler::kInstrSize;
-      DCHECK(Assembler::IsMovW(Memory::int32_at(load_address)));
-      DCHECK(Assembler::IsMovT(
-          Memory::int32_at(load_address + Assembler::kInstrSize)));
-    } else {
-      load_address -= 4 * Assembler::kInstrSize;
-      DCHECK(Assembler::IsMovImmed(Memory::int32_at(load_address)));
-      DCHECK(Assembler::IsOrrImmed(
-          Memory::int32_at(load_address + Assembler::kInstrSize)));
-      DCHECK(Assembler::IsOrrImmed(
-          Memory::int32_at(load_address + 2 * Assembler::kInstrSize)));
-      DCHECK(Assembler::IsOrrImmed(
-          Memory::int32_at(load_address + 3 * Assembler::kInstrSize)));
-    }
-  } else if (CpuFeatures::IsSupported(ARMv7) &&
-             Assembler::IsMovT(Memory::int32_at(load_address))) {
-    // This is a movw / movt immediate load.
-    load_address -= Assembler::kInstrSize;
-    DCHECK(Assembler::IsMovW(Memory::int32_at(load_address)));
-  } else if (!CpuFeatures::IsSupported(ARMv7) &&
-             Assembler::IsOrrImmed(Memory::int32_at(load_address))) {
-    // This is a mov / orr immediate load.
-    load_address -= 3 * Assembler::kInstrSize;
-    DCHECK(Assembler::IsMovImmed(Memory::int32_at(load_address)));
-    DCHECK(Assembler::IsOrrImmed(
-        Memory::int32_at(load_address + Assembler::kInstrSize)));
-    DCHECK(Assembler::IsOrrImmed(
-        Memory::int32_at(load_address + 2 * Assembler::kInstrSize)));
-  } else {
-    // This is a small constant pool lookup.
-    DCHECK(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(load_address)));
-  }
+  DCHECK(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(load_address)));
   return load_address;
 }
 

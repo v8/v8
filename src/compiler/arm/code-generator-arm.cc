@@ -503,9 +503,6 @@ void CodeGenerator::AssembleDeconstructFrame() {
 
 void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
-    if (FLAG_enable_embedded_constant_pool) {
-      __ ldr(cp, MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
-    }
     __ ldr(lr, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
     __ ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   }
@@ -2508,9 +2505,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
     frame->AllocateSavedCalleeRegisterSlots((last - first + 1) *
                                             (kDoubleSize / kPointerSize));
   }
-  const RegList saves = FLAG_enable_embedded_constant_pool
-                            ? (descriptor->CalleeSavedRegisters() & ~pp.bit())
-                            : descriptor->CalleeSavedRegisters();
+  const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     // Save callee-saved registers.
     frame->AllocateSavedCalleeRegisterSlots(
@@ -2522,14 +2517,8 @@ void CodeGenerator::AssembleConstructFrame() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
     if (descriptor->IsCFunctionCall()) {
-      if (FLAG_enable_embedded_constant_pool) {
-        __ Push(lr, fp, pp);
-        // Adjust FP to point to saved FP.
-        __ sub(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
-      } else {
-        __ Push(lr, fp);
-        __ mov(fp, sp);
-      }
+      __ Push(lr, fp);
+      __ mov(fp, sp);
     } else if (descriptor->IsJSFunctionCall()) {
       __ Prologue(this->info()->GeneratePreagedPrologue());
       if (descriptor->PushArgumentCount()) {
@@ -2615,9 +2604,7 @@ void CodeGenerator::AssembleConstructFrame() {
     __ vstm(db_w, sp, DwVfpRegister::from_code(first),
             DwVfpRegister::from_code(last));
   }
-  const RegList saves = FLAG_enable_embedded_constant_pool
-                            ? (descriptor->CalleeSavedRegisters() & ~pp.bit())
-                            : descriptor->CalleeSavedRegisters();
+  const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     // Save callee-saved registers.
     __ stm(db_w, sp, saves);
@@ -2629,9 +2616,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   int pop_count = static_cast<int>(descriptor->StackParameterCount());
 
   // Restore registers.
-  const RegList saves = FLAG_enable_embedded_constant_pool
-                            ? (descriptor->CalleeSavedRegisters() & ~pp.bit())
-                            : descriptor->CalleeSavedRegisters();
+  const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     __ ldm(ia_w, sp, saves);
   }

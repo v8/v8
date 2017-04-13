@@ -851,7 +851,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r2: receiver
   // r3: argc
   // r4: argv
-  // r5-r6, r8 (if !FLAG_enable_embedded_constant_pool) and cp may be clobbered
+  // r5-r6, r8 and cp may be clobbered
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Enter an internal frame.
@@ -901,9 +901,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
     __ mov(r5, Operand(r4));
     __ mov(r6, Operand(r4));
-    if (!FLAG_enable_embedded_constant_pool) {
-      __ mov(r8, Operand(r4));
-    }
+    __ mov(r8, Operand(r4));
     if (kR9Available == 1) {
       __ mov(r9, Operand(r4));
     }
@@ -1697,10 +1695,6 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
     __ add(r0, r0, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start
 
-    if (FLAG_enable_embedded_constant_pool) {
-      __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r0);
-    }
-
     // Load the OSR entrypoint offset from the deoptimization data.
     // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
     __ ldr(r1, FieldMemOperand(
@@ -1958,7 +1952,6 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(r0);
   __ mov(r4, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ stm(db_w, sp, r0.bit() | r1.bit() | r4.bit() |
-                       (FLAG_enable_embedded_constant_pool ? pp.bit() : 0) |
                        fp.bit() | lr.bit());
   __ add(fp, sp,
          Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));

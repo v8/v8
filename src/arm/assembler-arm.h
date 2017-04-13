@@ -142,7 +142,6 @@ struct Register {
 };
 
 // r7: context register
-// r8: constant pool pointer register if FLAG_enable_embedded_constant_pool.
 // r9: lithium scratch
 #define DECLARE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
 GENERAL_REGISTERS(DECLARE_REGISTER)
@@ -1558,12 +1557,6 @@ class Assembler : public AssemblerBase {
   static int GetBranchOffset(Instr instr);
   static bool IsLdrRegisterImmediate(Instr instr);
   static bool IsVldrDRegisterImmediate(Instr instr);
-  static Instr GetConsantPoolLoadPattern();
-  static Instr GetConsantPoolLoadMask();
-  static bool IsLdrPpRegOffset(Instr instr);
-  static Instr GetLdrPpRegOffsetPattern();
-  static bool IsLdrPpImmediateOffset(Instr instr);
-  static bool IsVldrDPpImmediateOffset(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
   static int GetVldrDRegisterImmediateOffset(Instr instr);
   static Instr SetLdrRegisterImmediateOffset(Instr instr, int offset);
@@ -1628,19 +1621,12 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  int EmitEmbeddedConstantPool() {
-    DCHECK(FLAG_enable_embedded_constant_pool);
-    return constant_pool_builder_.Emit(this);
-  }
-
-  bool ConstantPoolAccessIsInOverflow() const {
-    return constant_pool_builder_.NextAccess(ConstantPoolEntry::INTPTR) ==
-           ConstantPoolEntry::OVERFLOWED;
-  }
-
   void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
                                           ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type);
+                                          ConstantPoolEntry::Type type) {
+    // No embedded constant pool support.
+    UNREACHABLE();
+  }
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
@@ -1762,8 +1748,6 @@ class Assembler : public AssemblerBase {
   // since the previous constant pool was emitted.
   int first_const_pool_32_use_;
   int first_const_pool_64_use_;
-
-  ConstantPoolBuilder constant_pool_builder_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;

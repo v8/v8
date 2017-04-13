@@ -327,10 +327,9 @@ const int RelocInfo::kApplyMask = 0;
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
-  // specially coded on ARM means that it is a movw/movt instruction, or is an
-  // embedded constant pool entry.  These only occur if
-  // FLAG_enable_embedded_constant_pool is true.
-  return FLAG_enable_embedded_constant_pool;
+  // specially coded on ARM means that it is a movw/movt instruction. We don't
+  // generate those for relocatable pointers.
+  return false;
 }
 
 
@@ -503,18 +502,9 @@ const Instr kPopRegPattern =
 // ldr rd, [pc, #offset]
 const Instr kLdrPCImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
 const Instr kLdrPCImmedPattern = 5 * B24 | L | Register::kCode_pc * B16;
-// ldr rd, [pp, #offset]
-const Instr kLdrPpImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPpImmedPattern = 5 * B24 | L | Register::kCode_r8 * B16;
-// ldr rd, [pp, rn]
-const Instr kLdrPpRegMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPpRegPattern = 7 * B24 | L | Register::kCode_r8 * B16;
 // vldr dd, [pc, #offset]
 const Instr kVldrDPCMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
 const Instr kVldrDPCPattern = 13 * B24 | L | Register::kCode_pc * B16 | 11 * B8;
-// vldr dd, [pp, #offset]
-const Instr kVldrDPpMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
-const Instr kVldrDPpPattern = 13 * B24 | L | Register::kCode_r8 * B16 | 11 * B8;
 // blxcc rm
 const Instr kBlxRegMask =
     15 * B24 | 15 * B20 | 15 * B16 | 15 * B12 | 15 * B8 | 15 * B4;
@@ -554,8 +544,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
     : AssemblerBase(isolate_data, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
       pending_32_bit_constants_(),
-      pending_64_bit_constants_(),
-      constant_pool_builder_(kLdrMaxReachBits, kVldrMaxReachBits) {
+      pending_64_bit_constants_() {
   pending_32_bit_constants_.reserve(kMinNumPendingConstants);
   pending_64_bit_constants_.reserve(kMinNumPendingConstants);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
@@ -583,13 +572,9 @@ Assembler::~Assembler() {
 void Assembler::GetCode(CodeDesc* desc) {
   // Emit constant pool if necessary.
   int constant_pool_offset = 0;
-  if (FLAG_enable_embedded_constant_pool) {
-    constant_pool_offset = EmitEmbeddedConstantPool();
-  } else {
-    CheckConstPool(true, false);
-    DCHECK(pending_32_bit_constants_.empty());
-    DCHECK(pending_64_bit_constants_.empty());
-  }
+  CheckConstPool(true, false);
+  DCHECK(pending_32_bit_constants_.empty());
+  DCHECK(pending_64_bit_constants_.empty());
   // Set up code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
@@ -740,24 +725,6 @@ Register Assembler::GetRm(Instr instr) {
 }
 
 
-Instr Assembler::GetConsantPoolLoadPattern() {
-  if (FLAG_enable_embedded_constant_pool) {
-    return kLdrPpImmedPattern;
-  } else {
-    return kLdrPCImmedPattern;
-  }
-}
-
-
-Instr Assembler::GetConsantPoolLoadMask() {
-  if (FLAG_enable_embedded_constant_pool) {
-    return kLdrPpImmedMask;
-  } else {
-    return kLdrPCImmedMask;
-  }
-}
-
-
 bool Assembler::IsPush(Instr instr) {
   return ((instr & ~kRdMask) == kPushRegPattern);
 }
@@ -795,34 +762,10 @@ bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
 }
 
 
-bool Assembler::IsLdrPpImmediateOffset(Instr instr) {
-  // Check the instruction is indeed a
-  // ldr<cond> <Rd>, [pp +/- offset_12].
-  return (instr & kLdrPpImmedMask) == kLdrPpImmedPattern;
-}
-
-
-bool Assembler::IsLdrPpRegOffset(Instr instr) {
-  // Check the instruction is indeed a
-  // ldr<cond> <Rd>, [pp, +/- <Rm>].
-  return (instr & kLdrPpRegMask) == kLdrPpRegPattern;
-}
-
-
-Instr Assembler::GetLdrPpRegOffsetPattern() { return kLdrPpRegPattern; }
-
-
 bool Assembler::IsVldrDPcImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
   // vldr<cond> <Dd>, [pc +/- offset_10].
   return (instr & kVldrDPCMask) == kVldrDPCPattern;
-}
-
-
-bool Assembler::IsVldrDPpImmediateOffset(Instr instr) {
-  // Check the instruction is indeed a
-  // vldr<cond> <Dd>, [pp +/- offset_10].
-  return (instr & kVldrDPpMask) == kVldrDPpPattern;
 }
 
 
@@ -1169,10 +1112,7 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 static bool use_mov_immediate_load(const Operand& x,
                                    const Assembler* assembler) {
   DCHECK(assembler != nullptr);
-  if (FLAG_enable_embedded_constant_pool &&
-      !assembler->is_constant_pool_available()) {
-    return true;
-  } else if (x.must_output_reloc_info(assembler)) {
+  if (x.must_output_reloc_info(assembler)) {
     // Prefer constant pool if data is likely to be patched.
     return false;
   } else {
@@ -1196,14 +1136,10 @@ int Operand::instructions_required(const Assembler* assembler,
     if (use_mov_immediate_load(*this, assembler)) {
       // A movw / movt or mov / orr immediate load.
       instructions = CpuFeatures::IsSupported(ARMv7) ? 2 : 4;
-    } else if (assembler->ConstantPoolAccessIsInOverflow()) {
-      // An overflowed constant pool load.
-      instructions = CpuFeatures::IsSupported(ARMv7) ? 3 : 5;
     } else {
       // A small constant pool load.
       instructions = 1;
     }
-
     if ((instr & ~kCondMask) != 13 * B21) {  // mov, S not set
       // For a mov or mvn instruction which doesn't set the condition
       // code, the constant pool or immediate load is enough, otherwise we need
@@ -1228,51 +1164,25 @@ void Assembler::move_32_bit_immediate(Register rd,
   }
 
   if (use_mov_immediate_load(x, this)) {
+    // use_mov_immediate_load should return false when we need to output
+    // relocation info, since we prefer the constant pool for values that
+    // can be patched.
+    DCHECK(!x.must_output_reloc_info(this));
     Register target = rd.code() == pc.code() ? ip : rd;
     if (CpuFeatures::IsSupported(ARMv7)) {
       CpuFeatureScope scope(this, ARMv7);
-      if (!FLAG_enable_embedded_constant_pool &&
-          x.must_output_reloc_info(this)) {
-        // Make sure the movw/movt doesn't get separated.
-        BlockConstPoolFor(2);
-      }
       movw(target, imm32 & 0xffff, cond);
       movt(target, imm32 >> 16, cond);
-    } else {
-      DCHECK(FLAG_enable_embedded_constant_pool);
-      mov(target, Operand(imm32 & kImm8Mask), LeaveCC, cond);
-      orr(target, target, Operand(imm32 & (kImm8Mask << 8)), LeaveCC, cond);
-      orr(target, target, Operand(imm32 & (kImm8Mask << 16)), LeaveCC, cond);
-      orr(target, target, Operand(imm32 & (kImm8Mask << 24)), LeaveCC, cond);
     }
     if (target.code() != rd.code()) {
       mov(rd, target, LeaveCC, cond);
     }
   } else {
-    DCHECK(!FLAG_enable_embedded_constant_pool || is_constant_pool_available());
     ConstantPoolEntry::Access access =
         ConstantPoolAddEntry(pc_offset(), x.rmode_, x.imm32_);
-    if (access == ConstantPoolEntry::OVERFLOWED) {
-      DCHECK(FLAG_enable_embedded_constant_pool);
-      Register target = rd.code() == pc.code() ? ip : rd;
-      // Emit instructions to load constant pool offset.
-      if (CpuFeatures::IsSupported(ARMv7)) {
-        CpuFeatureScope scope(this, ARMv7);
-        movw(target, 0, cond);
-        movt(target, 0, cond);
-      } else {
-        mov(target, Operand(0), LeaveCC, cond);
-        orr(target, target, Operand(0), LeaveCC, cond);
-        orr(target, target, Operand(0), LeaveCC, cond);
-        orr(target, target, Operand(0), LeaveCC, cond);
-      }
-      // Load from constant pool at offset.
-      ldr(rd, MemOperand(pp, target), cond);
-    } else {
-      DCHECK(access == ConstantPoolEntry::REGULAR);
-      ldr(rd, MemOperand(FLAG_enable_embedded_constant_pool ? pp : pc, 0),
-          cond);
-    }
+    DCHECK(access == ConstantPoolEntry::REGULAR);
+    USE(access);
+    ldr(rd, MemOperand(pc, 0), cond);
   }
 }
 
@@ -2787,12 +2697,6 @@ void Assembler::vmov(const DwVfpRegister dst,
   DCHECK(VfpRegisterIsAvailable(dst));
   DCHECK(!scratch.is(ip));
   uint32_t enc;
-  // If the embedded constant pool is disabled, we can use the normal, inline
-  // constant pool. If the embedded constant pool is enabled (via
-  // FLAG_enable_embedded_constant_pool), we can only use it where the pool
-  // pointer (pp) is valid.
-  bool can_use_pool =
-      !FLAG_enable_embedded_constant_pool || is_constant_pool_available();
   if (CpuFeatures::IsSupported(VFPv3) && FitsVmovFPImmediate(imm, &enc)) {
     CpuFeatureScope scope(this, VFPv3);
     // The double can be encoded in the instruction.
@@ -2804,8 +2708,7 @@ void Assembler::vmov(const DwVfpRegister dst,
     int vd, d;
     dst.split_code(&vd, &d);
     emit(al | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | enc);
-  } else if (CpuFeatures::IsSupported(ARMv7) && FLAG_enable_vldr_imm &&
-             can_use_pool) {
+  } else if (CpuFeatures::IsSupported(ARMv7) && FLAG_enable_vldr_imm) {
     CpuFeatureScope scope(this, ARMv7);
     // TODO(jfb) Temporarily turned off until we have constant blinding or
     //           some equivalent mitigation: an attacker can otherwise control
@@ -2823,17 +2726,9 @@ void Assembler::vmov(const DwVfpRegister dst,
     //           that's tricky because vldr has a limited reach. Furthermore
     //           it breaks load locality.
     ConstantPoolEntry::Access access = ConstantPoolAddEntry(pc_offset(), imm);
-    if (access == ConstantPoolEntry::OVERFLOWED) {
-      DCHECK(FLAG_enable_embedded_constant_pool);
-      // Emit instructions to load constant pool offset.
-      movw(ip, 0);
-      movt(ip, 0);
-      // Load from constant pool at offset.
-      vldr(dst, MemOperand(pp, ip));
-    } else {
-      DCHECK(access == ConstantPoolEntry::REGULAR);
-      vldr(dst, MemOperand(FLAG_enable_embedded_constant_pool ? pp : pc, 0));
-    }
+    DCHECK(access == ConstantPoolEntry::REGULAR);
+    USE(access);
+    vldr(dst, MemOperand(pc, 0));
   } else {
     // Synthesise the double from ARM immediates.
     uint32_t lo, hi;
@@ -5046,52 +4941,37 @@ ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
          rmode != RelocInfo::NONE64);
   bool sharing_ok = RelocInfo::IsNone(rmode) ||
                     !(serializer_enabled() || rmode < RelocInfo::CELL);
-  if (FLAG_enable_embedded_constant_pool) {
-    return constant_pool_builder_.AddEntry(position, value, sharing_ok);
-  } else {
-    DCHECK(pending_32_bit_constants_.size() < kMaxNumPending32Constants);
-    if (pending_32_bit_constants_.empty()) {
-      first_const_pool_32_use_ = position;
-    }
-    ConstantPoolEntry entry(position, value, sharing_ok);
-    pending_32_bit_constants_.push_back(entry);
-
-    // Make sure the constant pool is not emitted in place of the next
-    // instruction for which we just recorded relocation info.
-    BlockConstPoolFor(1);
-    return ConstantPoolEntry::REGULAR;
+  DCHECK(pending_32_bit_constants_.size() < kMaxNumPending32Constants);
+  if (pending_32_bit_constants_.empty()) {
+    first_const_pool_32_use_ = position;
   }
+  ConstantPoolEntry entry(position, value, sharing_ok);
+  pending_32_bit_constants_.push_back(entry);
+
+  // Make sure the constant pool is not emitted in place of the next
+  // instruction for which we just recorded relocation info.
+  BlockConstPoolFor(1);
+  return ConstantPoolEntry::REGULAR;
 }
 
 
 ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
                                                           double value) {
-  if (FLAG_enable_embedded_constant_pool) {
-    return constant_pool_builder_.AddEntry(position, value);
-  } else {
-    DCHECK(pending_64_bit_constants_.size() < kMaxNumPending64Constants);
-    if (pending_64_bit_constants_.empty()) {
-      first_const_pool_64_use_ = position;
-    }
-    ConstantPoolEntry entry(position, value);
-    pending_64_bit_constants_.push_back(entry);
-
-    // Make sure the constant pool is not emitted in place of the next
-    // instruction for which we just recorded relocation info.
-    BlockConstPoolFor(1);
-    return ConstantPoolEntry::REGULAR;
+  DCHECK(pending_64_bit_constants_.size() < kMaxNumPending64Constants);
+  if (pending_64_bit_constants_.empty()) {
+    first_const_pool_64_use_ = position;
   }
+  ConstantPoolEntry entry(position, value);
+  pending_64_bit_constants_.push_back(entry);
+
+  // Make sure the constant pool is not emitted in place of the next
+  // instruction for which we just recorded relocation info.
+  BlockConstPoolFor(1);
+  return ConstantPoolEntry::REGULAR;
 }
 
 
 void Assembler::BlockConstPoolFor(int instructions) {
-  if (FLAG_enable_embedded_constant_pool) {
-    // Should be a no-op if using an embedded constant pool.
-    DCHECK(pending_32_bit_constants_.empty());
-    DCHECK(pending_64_bit_constants_.empty());
-    return;
-  }
-
   int pc_limit = pc_offset() + instructions * kInstrSize;
   if (no_const_pool_before_ < pc_limit) {
     // Max pool start (if we need a jump and an alignment).
@@ -5114,13 +4994,6 @@ void Assembler::BlockConstPoolFor(int instructions) {
 
 
 void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
-  if (FLAG_enable_embedded_constant_pool) {
-    // Should be a no-op if using an embedded constant pool.
-    DCHECK(pending_32_bit_constants_.empty());
-    DCHECK(pending_64_bit_constants_.empty());
-    return;
-  }
-
   // Some short sequence of instruction mustn't be broken up by constant pool
   // emission, such sequences are protected by calls to BlockConstPoolFor and
   // BlockConstPoolScope.
@@ -5331,61 +5204,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // Since a constant pool was just emitted, move the check offset forward by
   // the standard interval.
   next_buffer_check_ = pc_offset() + kCheckPoolInterval;
-}
-
-
-void Assembler::PatchConstantPoolAccessInstruction(
-    int pc_offset, int offset, ConstantPoolEntry::Access access,
-    ConstantPoolEntry::Type type) {
-  DCHECK(FLAG_enable_embedded_constant_pool);
-  Address pc = buffer_ + pc_offset;
-
-  // Patch vldr/ldr instruction with correct offset.
-  Instr instr = instr_at(pc);
-  if (access == ConstantPoolEntry::OVERFLOWED) {
-    if (CpuFeatures::IsSupported(ARMv7)) {
-      CpuFeatureScope scope(this, ARMv7);
-      // Instructions to patch must be 'movw rd, [#0]' and 'movt rd, [#0].
-      Instr next_instr = instr_at(pc + kInstrSize);
-      DCHECK((IsMovW(instr) && Instruction::ImmedMovwMovtValue(instr) == 0));
-      DCHECK((IsMovT(next_instr) &&
-              Instruction::ImmedMovwMovtValue(next_instr) == 0));
-      instr_at_put(pc, PatchMovwImmediate(instr, offset & 0xffff));
-      instr_at_put(pc + kInstrSize,
-                   PatchMovwImmediate(next_instr, offset >> 16));
-    } else {
-      // Instructions to patch must be 'mov rd, [#0]' and 'orr rd, rd, [#0].
-      Instr instr_2 = instr_at(pc + kInstrSize);
-      Instr instr_3 = instr_at(pc + 2 * kInstrSize);
-      Instr instr_4 = instr_at(pc + 3 * kInstrSize);
-      DCHECK((IsMovImmed(instr) && Instruction::Immed8Value(instr) == 0));
-      DCHECK((IsOrrImmed(instr_2) && Instruction::Immed8Value(instr_2) == 0) &&
-             GetRn(instr_2).is(GetRd(instr_2)));
-      DCHECK((IsOrrImmed(instr_3) && Instruction::Immed8Value(instr_3) == 0) &&
-             GetRn(instr_3).is(GetRd(instr_3)));
-      DCHECK((IsOrrImmed(instr_4) && Instruction::Immed8Value(instr_4) == 0) &&
-             GetRn(instr_4).is(GetRd(instr_4)));
-      instr_at_put(pc, PatchShiftImm(instr, (offset & kImm8Mask)));
-      instr_at_put(pc + kInstrSize,
-                   PatchShiftImm(instr_2, (offset & (kImm8Mask << 8))));
-      instr_at_put(pc + 2 * kInstrSize,
-                   PatchShiftImm(instr_3, (offset & (kImm8Mask << 16))));
-      instr_at_put(pc + 3 * kInstrSize,
-                   PatchShiftImm(instr_4, (offset & (kImm8Mask << 24))));
-    }
-  } else if (type == ConstantPoolEntry::DOUBLE) {
-    // Instruction to patch must be 'vldr rd, [pp, #0]'.
-    DCHECK((IsVldrDPpImmediateOffset(instr) &&
-            GetVldrDRegisterImmediateOffset(instr) == 0));
-    DCHECK(is_uint10(offset));
-    instr_at_put(pc, SetVldrDRegisterImmediateOffset(instr, offset));
-  } else {
-    // Instruction to patch must be 'ldr rd, [pp, #0]'.
-    DCHECK((IsLdrPpImmediateOffset(instr) &&
-            GetLdrRegisterImmediateOffset(instr) == 0));
-    DCHECK(is_uint12(offset));
-    instr_at_put(pc, SetLdrRegisterImmediateOffset(instr, offset));
-  }
 }
 
 PatchingAssembler::PatchingAssembler(IsolateData isolate_data, byte* address,

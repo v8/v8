@@ -77,9 +77,7 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
             kMaxAllocatableGeneralRegisterCount,
             kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_ARM
-            FLAG_enable_embedded_constant_pool
-                ? (kMaxAllocatableGeneralRegisterCount - 1)
-                : kMaxAllocatableGeneralRegisterCount,
+            kMaxAllocatableGeneralRegisterCount,
             CpuFeatures::IsSupported(VFP32DREGS)
                 ? kMaxAllocatableDoubleRegisterCount
                 : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT) 0),
