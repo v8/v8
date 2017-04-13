@@ -421,36 +421,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5601
   'intl402/PluralRules/*': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5855
-  'language/expressions/async-generators/*': ['--harmony-async-iteration'],
-  'language/statements/async-generator/*': ['--harmony-async-iteration'],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6226
-  'language/expressions/async-generator/named-yield-star-async-next': [FAIL],
-  'language/expressions/async-generator/named-yield-star-async-return': [FAIL],
-  'language/expressions/async-generator/named-yield-star-async-throw': [FAIL],
-  'language/expressions/async-generator/yield-star-async-next': [FAIL],
-  'language/expressions/async-generator/yield-star-async-return': [FAIL],
-  'language/expressions/async-generator/yield-star-async-throw': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-async-next': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-async-return': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-async-throw': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-async-next': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-async-return': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-async-throw': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-async-next': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-async-return': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-async-throw': [FAIL],
-  'language/statements/async-generator/yield-star-async-next': [FAIL],
-  'language/statements/async-generator/yield-star-async-return': [FAIL],
-  'language/statements/async-generator/yield-star-async-throw': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-async-next': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-async-return': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-async-throw': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-async-next': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-async-return': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-async-throw': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6242
   'language/expressions/async-generator/named-yield-star-sync-next': [FAIL],
   'language/expressions/async-generator/named-yield-star-sync-return': [FAIL],

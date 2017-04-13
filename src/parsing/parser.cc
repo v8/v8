@@ -4704,10 +4704,26 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
   // while (true) { ... }
   // Already defined earlier: WhileStatement* loop = ...
   {
-    Block* loop_body = factory()->NewBlock(nullptr, 4, false, nopos);
+    Block* loop_body = factory()->NewBlock(nullptr, 5, false, nopos);
     loop_body->statements()->Add(switch_mode, zone());
     loop_body->statements()->Add(if_done, zone());
     loop_body->statements()->Add(set_mode_return, zone());
+
+    if (is_async_generator()) {
+      // AsyncGeneratorYield does not yield the original iterator result,
+      // unlike sync generators. Do `output = output.value`
+      VariableProxy* output_proxy = factory()->NewVariableProxy(var_output);
+      Expression* literal = factory()->NewStringLiteral(
+          ast_value_factory()->value_string(), nopos);
+      Assignment* assign = factory()->NewAssignment(
+          Token::ASSIGN, output_proxy,
+          factory()->NewProperty(factory()->NewVariableProxy(var_output),
+                                 literal, nopos),
+          nopos);
+      loop_body->statements()->Add(
+          factory()->NewExpressionStatement(assign, nopos), zone());
+    }
+
     loop_body->statements()->Add(try_finally, zone());
 
     loop->Initialize(factory()->NewBooleanLiteral(true, nopos), loop_body);
