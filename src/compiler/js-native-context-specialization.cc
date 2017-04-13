@@ -2256,7 +2256,19 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
 bool JSNativeContextSpecialization::InferReceiverMaps(
     Node* receiver, Node* effect, MapHandleList* receiver_maps) {
   ZoneHandleSet<Map> maps;
-  if (NodeProperties::InferReceiverMaps(receiver, effect, &maps)) {
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &maps);
+  if (result == NodeProperties::kReliableReceiverMaps) {
+    for (size_t i = 0; i < maps.size(); ++i) {
+      receiver_maps->Add(maps[i]);
+    }
+    return true;
+  } else if (result == NodeProperties::kUnreliableReceiverMaps) {
+    // For untrusted receiver maps, we can still use the information
+    // if the maps are stable.
+    for (size_t i = 0; i < maps.size(); ++i) {
+      if (!maps[i]->is_stable()) return false;
+    }
     for (size_t i = 0; i < maps.size(); ++i) {
       receiver_maps->Add(maps[i]);
     }
