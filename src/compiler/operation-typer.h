@@ -48,6 +48,10 @@ class V8_EXPORT_PRIVATE OperationTyper {
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
+  // Check operators.
+  Type* CheckFloat64Hole(Type* type);
+  Type* CheckNumber(Type* type);
+
   Type* TypeTypeGuard(const Operator* sigma_op, Type* input);
 
   enum ComparisonOutcomeFlags {

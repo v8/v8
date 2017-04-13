@@ -1026,6 +1026,19 @@ Type* OperationTyper::FalsifyUndefined(ComparisonOutcome outcome) {
   return singleton_true();
 }
 
+Type* OperationTyper::CheckFloat64Hole(Type* type) {
+  if (type->Maybe(Type::Hole())) {
+    // Turn "the hole" into undefined.
+    type = Type::Intersect(type, Type::Number(), zone());
+    type = Type::Union(type, Type::Undefined(), zone());
+  }
+  return type;
+}
+
+Type* OperationTyper::CheckNumber(Type* type) {
+  return Type::Intersect(type, Type::Number(), zone());
+}
+
 Type* OperationTyper::TypeTypeGuard(const Operator* sigma_op, Type* input) {
   return Type::Intersect(input, TypeGuardTypeOf(sigma_op), zone());
 }

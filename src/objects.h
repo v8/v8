@@ -8839,6 +8839,7 @@ class Oddball: public HeapObject {
   // [to_number_raw]: Cached raw to_number computed at startup.
   inline double to_number_raw() const;
   inline void set_to_number_raw(double value);
+  inline void set_to_number_raw_as_bits(uint64_t bits);
 
   // [to_string]: Cached to_string computed at startup.
   DECL_ACCESSORS(to_string, String)
