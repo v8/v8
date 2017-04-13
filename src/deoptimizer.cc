@@ -3429,7 +3429,8 @@ Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
 // objects for the fields are not read from the TranslationIterator, but instead
 // created on-the-fly based on dynamic information in the optimized frame.
 void TranslatedState::CreateArgumentsElementsTranslatedValues(
-    int frame_index, Address input_frame_pointer, bool is_rest) {
+    int frame_index, Address input_frame_pointer, bool is_rest,
+    FILE* trace_file) {
   TranslatedFrame& frame = frames_[frame_index];
 
   int length;
@@ -3438,6 +3439,11 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 
   int object_index = static_cast<int>(object_positions_.size());
   int value_index = static_cast<int>(frame.values_.size());
+  if (trace_file != nullptr) {
+    PrintF(trace_file,
+           "arguments elements object #%d (is_rest = %d, length = %d)",
+           object_index, is_rest, length);
+  }
   object_positions_.push_back({frame_index, value_index});
   frame.Add(TranslatedValue::NewDeferredObject(
       this, length + FixedArray::kHeaderSize / kPointerSize, object_index));
@@ -3515,7 +3521,8 @@ int TranslatedState::CreateNextTranslatedValue(
 
     case Translation::ARGUMENTS_ELEMENTS: {
       bool is_rest = iterator->Next();
-      CreateArgumentsElementsTranslatedValues(frame_index, fp, is_rest);
+      CreateArgumentsElementsTranslatedValues(frame_index, fp, is_rest,
+                                              trace_file);
       return 0;
     }
 
@@ -3523,6 +3530,10 @@ int TranslatedState::CreateNextTranslatedValue(
       bool is_rest = iterator->Next();
       int length;
       ComputeArgumentsPosition(fp, is_rest, &length);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "arguments length field (is_rest = %d, length = %d)",
+               is_rest, length);
+      }
       frame.Add(TranslatedValue::NewInt32(this, length));
       return 0;
     }
