@@ -833,6 +833,11 @@ bool String::HasOnlyOneByteChars() {
          IsOneByteRepresentation();
 }
 
+bool StringShape::HasOnlyOneByteChars() {
+  return (type_ & kStringEncodingMask) == kOneByteStringTag ||
+         (type_ & kOneByteDataHintMask) == kOneByteDataHintTag;
+}
+
 bool StringShape::IsCons() {
   return (type_ & kStringRepresentationMask) == kConsStringTag;
 }

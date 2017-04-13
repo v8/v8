@@ -407,6 +407,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* CallCFunctionN(Signature<MachineType>* signature, int input_count,
                        Node* const* inputs);
 
+  // Call to a C function with one argument.
+  Node* CallCFunction1(MachineType return_type, MachineType arg0_type,
+                       Node* function, Node* arg0);
+
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,

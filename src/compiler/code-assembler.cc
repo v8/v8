@@ -709,6 +709,13 @@ Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
   return raw_assembler()->CallN(desc, input_count, inputs);
 }
 
+Node* CodeAssembler::CallCFunction1(MachineType return_type,
+                                    MachineType arg0_type, Node* function,
+                                    Node* arg0) {
+  return raw_assembler()->CallCFunction1(return_type, arg0_type, function,
+                                         arg0);
+}
+
 Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                     MachineType arg0_type,
                                     MachineType arg1_type, Node* function,

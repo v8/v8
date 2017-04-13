@@ -68,19 +68,31 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
     VARIABLE(var_index, MachineType::PointerRepresentation());
     VARIABLE(var_unique, MachineRepresentation::kTagged);
 
-    Label keyisindex(this), if_iskeyunique(this);
-    TryToName(key, &keyisindex, &var_index, &if_iskeyunique, &var_unique,
-              &call_runtime);
+    Label if_index(this), if_unique_name(this), if_notunique_name(this);
+    TryToName(key, &if_index, &var_index, &if_unique_name, &var_unique,
+              &call_runtime, &if_notunique_name);
 
-    BIND(&if_iskeyunique);
+    BIND(&if_unique_name);
     TryHasOwnProperty(object, map, instance_type, var_unique.value(),
                       &return_true, &return_false, &call_runtime);
 
-    BIND(&keyisindex);
-    // Handle negative keys in the runtime.
-    GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)), &call_runtime);
-    TryLookupElement(object, map, instance_type, var_index.value(),
-                     &return_true, &return_false, &return_false, &call_runtime);
+    BIND(&if_index);
+    {
+      // Handle negative keys in the runtime.
+      GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)),
+             &call_runtime);
+      TryLookupElement(object, map, instance_type, var_index.value(),
+                       &return_true, &return_false, &return_false,
+                       &call_runtime);
+    }
+
+    BIND(&if_notunique_name);
+    {
+      // If the string was not found in the string table, then no object can
+      // have a property with that name, so return |false|.
+      TryInternalizeString(key, &if_index, &var_index, &if_unique_name,
+                           &var_unique, &return_false, &call_runtime);
+    }
   }
   BIND(&return_true);
   Return(BooleanConstant(true));

@@ -4468,7 +4468,8 @@ void CodeStubAssembler::Use(Label* label) {
 
 void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
                                   Variable* var_index, Label* if_keyisunique,
-                                  Variable* var_unique, Label* if_bailout) {
+                                  Variable* var_unique, Label* if_bailout,
+                                  Label* if_notinternalized) {
   DCHECK_EQ(MachineType::PointerRepresentation(), var_index->rep());
   DCHECK_EQ(MachineRepresentation::kTagged, var_unique->rep());
   Comment("TryToName");
@@ -4507,7 +4508,8 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   STATIC_ASSERT(kNotInternalizedTag != 0);
   Node* not_internalized =
       Word32And(key_instance_type, Int32Constant(kIsNotInternalizedMask));
-  GotoIf(Word32NotEqual(not_internalized, Int32Constant(0)), if_bailout);
+  GotoIf(Word32NotEqual(not_internalized, Int32Constant(0)),
+         if_notinternalized != nullptr ? if_notinternalized : if_bailout);
   Goto(if_keyisunique);
 
   BIND(&if_thinstring);
@@ -4517,6 +4519,30 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   BIND(&if_hascachedindex);
   var_index->Bind(DecodeWordFromWord32<Name::ArrayIndexValueBits>(hash));
   Goto(if_keyisindex);
+}
+
+void CodeStubAssembler::TryInternalizeString(
+    Node* string, Label* if_index, Variable* var_index, Label* if_internalized,
+    Variable* var_internalized, Label* if_not_internalized, Label* if_bailout) {
+  DCHECK(var_index->rep() == MachineType::PointerRepresentation());
+  DCHECK(var_internalized->rep() == MachineRepresentation::kTagged);
+  Node* function = ExternalConstant(
+      ExternalReference::try_internalize_string_function(isolate()));
+  Node* result = CallCFunction1(MachineType::AnyTagged(),
+                                MachineType::AnyTagged(), function, string);
+  Label internalized(this);
+  GotoIf(TaggedIsNotSmi(result), &internalized);
+  Node* word_result = SmiUntag(result);
+  GotoIf(WordEqual(word_result, IntPtrConstant(ResultSentinel::kNotFound)),
+         if_not_internalized);
+  GotoIf(WordEqual(word_result, IntPtrConstant(ResultSentinel::kUnsupported)),
+         if_bailout);
+  var_index->Bind(word_result);
+  Goto(if_index);
+
+  BIND(&internalized);
+  var_internalized->Bind(result);
+  Goto(if_internalized);
 }
 
 template <typename Dictionary>

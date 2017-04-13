@@ -926,9 +926,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void Use(Label* label);
 
   // Various building blocks for stubs doing property lookups.
+
+  // |if_notinternalized| is optional; |if_bailout| will be used by default.
   void TryToName(Node* key, Label* if_keyisindex, Variable* var_index,
-                 Label* if_keyisunique, Variable* var_unique,
-                 Label* if_bailout);
+                 Label* if_keyisunique, Variable* var_unique, Label* if_bailout,
+                 Label* if_notinternalized = nullptr);
+
+  // Performs a hash computation and string table lookup for the given string,
+  // and jumps to:
+  // - |if_index| if the string is an array index like "123"; |var_index|
+  //              will contain the intptr representation of that index.
+  // - |if_internalized| if the string exists in the string table; the
+  //                     internalized version will be in |var_internalized|.
+  // - |if_not_internalized| if the string is not in the string table (but
+  //                         does not add it).
+  // - |if_bailout| for unsupported cases (e.g. uncachable array index).
+  void TryInternalizeString(Node* string, Label* if_index, Variable* var_index,
+                            Label* if_internalized, Variable* var_internalized,
+                            Label* if_not_internalized, Label* if_bailout);
 
   // Calculates array index for given dictionary entry and entry field.
   // See Dictionary::EntryToIndex().

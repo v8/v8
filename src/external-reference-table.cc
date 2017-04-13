@@ -237,6 +237,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "libc_memcpy");
   Add(ExternalReference::libc_memset_function(isolate).address(),
       "libc_memset");
+  Add(ExternalReference::try_internalize_string_function(isolate).address(),
+      "try_internalize_string_function");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

@@ -674,6 +674,8 @@ enum InlineCacheState {
 
 enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
 
+enum ResultSentinel { kNotFound = -1, kUnsupported = -2 };
+
 // The Store Buffer (GC).
 typedef enum {
   kStoreBufferFullEvent,

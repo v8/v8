@@ -313,7 +313,7 @@ class BitFieldBase {
   static const T kMax = static_cast<T>((kOne << size) - 1);
 
   // Tells whether the provided value fits into the bit field.
-  static bool is_valid(T value) {
+  static constexpr bool is_valid(T value) {
     return (static_cast<U>(value) & ~static_cast<U>(kMax)) == 0;
   }
 

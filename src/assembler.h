@@ -992,6 +992,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference libc_memcpy_function(Isolate* isolate);
   static ExternalReference libc_memset_function(Isolate* isolate);
 
+  static ExternalReference try_internalize_string_function(Isolate* isolate);
+
   static ExternalReference page_flags(Page* page);
 
   static ExternalReference ForDeoptEntry(Address entry);
