@@ -27,15 +27,15 @@
 
 // Test accessors on the global object.
 //
-// Flags: --no-harmony-strict-legacy-accessor-builtins
+// Flags: --harmony-strict-legacy-accessor-builtins
 
 var x_ = 0;
 
-__defineSetter__('x', function(x) { x_ = x; });
-__defineGetter__('x', function() { return x_; });
+this.__defineSetter__('x', function(x) { x_ = x; });
+this.__defineGetter__('x', function() { return x_; });
 
-__defineSetter__('y', function(x) { });
-__defineGetter__('y', function() { return 7; });
+this.__defineSetter__('y', function(x) { });
+this.__defineGetter__('y', function() { return 7; });
 
 function f(a) {
   x = x + a;

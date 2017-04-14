@@ -203,6 +203,8 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_async_iteration, "harmony async iteration")                 \
   V(harmony_dynamic_import, "harmony dynamic import")                   \
   V(harmony_promise_finally, "harmony Promise.prototype.finally")       \
+  V(harmony_strict_legacy_accessor_builtins,                            \
+    "treat __defineGetter__ and related functions as strict")           \
   V(harmony_restrict_constructor_return,                                \
     "harmony disallow non undefined primitive return value from class " \
     "constructor")
