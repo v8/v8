@@ -2311,7 +2311,6 @@
           'js/templates.js',
           'js/spread.js',
           'js/proxy.js',
-          'js/harmony-string-padding.js',
           'debug/mirrors.js',
           'debug/debug.js',
           'debug/liveedit.js',

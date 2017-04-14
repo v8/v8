@@ -515,7 +515,6 @@ action("js2c") {
     "src/js/templates.js",
     "src/js/spread.js",
     "src/js/proxy.js",
-    "src/js/harmony-string-padding.js",
     "src/debug/mirrors.js",
     "src/debug/debug.js",
     "src/debug/liveedit.js",
