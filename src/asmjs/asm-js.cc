@@ -189,7 +189,7 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
         Handle<JSMessageObject> error_message =
             MessageHandler::MakeMessageObject(
                 info->isolate(), MessageTemplate::kAsmJsInvalid, &location,
-                message, Handle<JSArray>::null());
+                message, Handle<FixedArray>::null());
         error_message->set_error_level(v8::Isolate::kMessageWarning);
         MessageHandler::ReportMessage(info->isolate(), &location,
                                       error_message);
@@ -275,7 +275,7 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   Handle<String> stext(info->isolate()->factory()->InternalizeUtf8String(text));
   Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
       info->isolate(), MessageTemplate::kAsmJsCompiled, &location, stext,
-      Handle<JSArray>::null());
+      Handle<FixedArray>::null());
   message->set_error_level(v8::Isolate::kMessageInfo);
   if (!FLAG_suppress_asm_messages && FLAG_trace_asm_time) {
     MessageHandler::ReportMessage(info->isolate(), &location, message);
@@ -388,7 +388,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
   Handle<String> stext(isolate->factory()->InternalizeUtf8String(text));
   Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
       isolate, MessageTemplate::kAsmJsInstantiated, &location, stext,
-      Handle<JSArray>::null());
+      Handle<FixedArray>::null());
   message->set_error_level(v8::Isolate::kMessageInfo);
   if (!FLAG_suppress_asm_messages && FLAG_trace_asm_time) {
     MessageHandler::ReportMessage(isolate, &location, message);

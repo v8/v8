@@ -2751,8 +2751,8 @@ v8::Local<v8::StackTrace> Message::GetStackTrace() const {
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> stackFramesObj(message->stack_frames(), isolate);
-  if (!stackFramesObj->IsJSArray()) return v8::Local<v8::StackTrace>();
-  auto stackTrace = i::Handle<i::JSArray>::cast(stackFramesObj);
+  if (!stackFramesObj->IsFixedArray()) return v8::Local<v8::StackTrace>();
+  auto stackTrace = i::Handle<i::FixedArray>::cast(stackFramesObj);
   return scope.Escape(Utils::StackTraceToLocal(stackTrace));
 }
 
@@ -2877,15 +2877,14 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  auto self = Utils::OpenHandle(this);
-  auto obj = i::JSReceiver::GetElement(isolate, self, index).ToHandleChecked();
+  auto obj = handle(Utils::OpenHandle(this)->get(index), isolate);
   auto info = i::Handle<i::StackFrameInfo>::cast(obj);
   return scope.Escape(Utils::StackFrameToLocal(info));
 }
 
 
 int StackTrace::GetFrameCount() const {
-  return i::Smi::cast(Utils::OpenHandle(this)->length())->value();
+  return Utils::OpenHandle(this)->length();
 }
 
 namespace {
@@ -2933,12 +2932,12 @@ i::Handle<i::JSObject> NewFrameObject(i::Isolate* isolate,
 
 Local<Array> StackTrace::AsArray() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::Handle<i::JSArray> self = Utils::OpenHandle(this);
-  int frame_count = GetFrameCount();
+  i::Handle<i::FixedArray> self = Utils::OpenHandle(this);
+  int frame_count = self->length();
   i::Handle<i::FixedArray> frames =
       isolate->factory()->NewFixedArray(frame_count);
   for (int i = 0; i < frame_count; ++i) {
-    auto obj = i::JSReceiver::GetElement(isolate, self, i).ToHandleChecked();
+    auto obj = handle(self->get(i), isolate);
     auto frame = i::Handle<i::StackFrameInfo>::cast(obj);
     i::Handle<i::JSObject> frame_obj = NewFrameObject(isolate, frame);
     frames->set(i, *frame_obj);
@@ -2954,7 +2953,7 @@ Local<StackTrace> StackTrace::CurrentStackTrace(
     StackTraceOptions options) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSArray> stackTrace =
+  i::Handle<i::FixedArray> stackTrace =
       i_isolate->CaptureCurrentStackTrace(frame_limit, options);
   return Utils::StackTraceToLocal(stackTrace);
 }

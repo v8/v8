@@ -717,9 +717,8 @@ class Isolate {
                                        void* ptr2, void* ptr3, void* ptr4,
                                        void* ptr5, void* ptr6, void* ptr7,
                                        void* ptr8, unsigned int magic2));
-  Handle<JSArray> CaptureCurrentStackTrace(
-      int frame_limit,
-      StackTrace::StackTraceOptions options);
+  Handle<FixedArray> CaptureCurrentStackTrace(
+      int frame_limit, StackTrace::StackTraceOptions options);
   Handle<Object> CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                          FrameSkipMode mode,
                                          Handle<Object> caller);
@@ -728,7 +727,7 @@ class Isolate {
   MaybeHandle<JSReceiver> CaptureAndSetSimpleStackTrace(
       Handle<JSReceiver> error_object, FrameSkipMode mode,
       Handle<Object> caller);
-  Handle<JSArray> GetDetailedStackTrace(Handle<JSObject> error_object);
+  Handle<FixedArray> GetDetailedStackTrace(Handle<JSObject> error_object);
 
   // Returns if the given context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be

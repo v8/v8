@@ -17146,7 +17146,7 @@ TEST(ErrorLevelWarning) {
     i::Handle<i::JSMessageObject> message =
         i::MessageHandler::MakeMessageObject(
             i_isolate, i::MessageTemplate::kAsmJsInvalid, &location, msg,
-            i::Handle<i::JSArray>::null());
+            i::Handle<i::FixedArray>::null());
     message->set_error_level(levels[i]);
     expected_error_level = levels[i];
     i::MessageHandler::ReportMessage(i_isolate, &location, message);

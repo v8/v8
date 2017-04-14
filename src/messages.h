@@ -735,7 +735,7 @@ class MessageHandler {
   static Handle<JSMessageObject> MakeMessageObject(
       Isolate* isolate, MessageTemplate::Template type,
       const MessageLocation* location, Handle<Object> argument,
-      Handle<JSArray> stack_frames);
+      Handle<FixedArray> stack_frames);
 
   // Report a formatted message (needs JS allocation).
   static void ReportMessage(Isolate* isolate, const MessageLocation* loc,
