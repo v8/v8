@@ -18,8 +18,8 @@ var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MaxSimple;
 var MinSimple;
-var ObjectHasOwnProperty;
-var ObjectToString = utils.ImportNow("object_to_string");
+var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
+var ObjectToString = global.Object.prototype.toString;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
@@ -28,7 +28,6 @@ utils.Import(function(from) {
   GetMethod = from.GetMethod;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  ObjectHasOwnProperty = from.ObjectHasOwnProperty;
 });
 
 // -------------------------------------------------------------------

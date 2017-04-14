@@ -1326,6 +1326,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(
         isolate->initial_object_prototype(), "propertyIsEnumerable",
         Builtins::kObjectPrototypePropertyIsEnumerable, 1, false);
+    Handle<JSFunction> object_to_string = SimpleInstallFunction(
+        isolate->initial_object_prototype(), factory->toString_string(),
+        Builtins::kObjectProtoToString, 0, true);
+    native_context()->set_object_to_string(*object_to_string);
     Handle<JSFunction> object_value_of = SimpleInstallFunction(
         isolate->initial_object_prototype(), "valueOf",
         Builtins::kObjectPrototypeValueOf, 0, true);
@@ -3403,15 +3407,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   PUBLIC_SYMBOL_LIST(EXPORT_PUBLIC_SYMBOL)
   WELL_KNOWN_SYMBOL_LIST(EXPORT_PUBLIC_SYMBOL)
 #undef EXPORT_PUBLIC_SYMBOL
-
-  {
-    Handle<JSFunction> to_string = InstallFunction(
-        container, "object_to_string", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-        MaybeHandle<JSObject>(), Builtins::kObjectProtoToString);
-    to_string->shared()->set_internal_formal_parameter_count(0);
-    to_string->shared()->set_length(0);
-    native_context->set_object_to_string(*to_string);
-  }
 
   Handle<JSObject> iterator_prototype(
       native_context->initial_iterator_prototype());

@@ -33,7 +33,7 @@ var InstallFunctions = utils.InstallFunctions;
 var InstallGetter = utils.InstallGetter;
 var InternalArray = utils.InternalArray;
 var MaxSimple;
-var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
+var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
 var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
