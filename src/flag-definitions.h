@@ -214,15 +214,15 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")              \
   V(harmony_regexp_named_captures, "harmony regexp named captures")      \
   V(harmony_regexp_property, "harmony unicode regexp property classes")  \
-  V(harmony_restrictive_generators,                                      \
-    "harmony restrictions on generator declarations")                    \
   V(harmony_object_rest_spread, "harmony object rest spread properties") \
   V(harmony_template_escapes,                                            \
     "harmony invalid escapes in tagged template literals")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V) \
-  V(harmony_trailing_commas,     \
+#define HARMONY_SHIPPING_BASE(V)                      \
+  V(harmony_restrictive_generators,                   \
+    "harmony restrictions on generator declarations") \
+  V(harmony_trailing_commas,                          \
     "harmony trailing commas in function parameter lists")
 
 #ifdef V8_I18N_SUPPORT
