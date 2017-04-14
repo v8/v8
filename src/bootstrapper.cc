@@ -4000,21 +4000,6 @@ void Genesis::InitializeGlobal_harmony_regexp_dotall() {
 }
 
 #ifdef V8_I18N_SUPPORT
-void Genesis::InitializeGlobal_datetime_format_to_parts() {
-  if (!FLAG_datetime_format_to_parts) return;
-  Handle<JSReceiver> exports_container(
-      JSReceiver::cast(native_context()->exports_container()));
-  Handle<JSObject> date_time_format_prototype(JSObject::cast(
-      native_context()->intl_date_time_format_function()->prototype()));
-  Handle<JSFunction> format_date_to_parts = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(
-          exports_container,
-          factory()->InternalizeUtf8String("FormatDateToParts"))
-          .ToHandleChecked());
-  InstallFunction(date_time_format_prototype, format_date_to_parts,
-                  factory()->InternalizeUtf8String("formatToParts"));
-}
-
 namespace {
 
 void SetFunction(Handle<JSObject> target, Handle<JSFunction> function,

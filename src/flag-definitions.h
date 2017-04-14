@@ -228,7 +228,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
 #ifdef V8_I18N_SUPPORT
 #define HARMONY_SHIPPING(V)                                        \
   HARMONY_SHIPPING_BASE(V)                                         \
-  V(datetime_format_to_parts, "Intl.DateTimeFormat.formatToParts") \
   V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
