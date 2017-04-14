@@ -142,6 +142,82 @@
           "test_flags": ["spread_literal/es6"]
         }
       ]
+    },
+    {
+      "name": "Map-Set has",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["map_set_lookup/es5.js"],
+          "test_flags": ["map_set_lookup/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["map_set_lookup/es6.js"],
+          "test_flags": ["map_set_lookup/es6"]
+        }
+      ]
+    },
+    {
+      "name": "Map-Set add-set-has",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["map_set_add/es5.js"],
+          "test_flags": ["map_set_add/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["map_set_add/es6.js"],
+          "test_flags": ["map_set_add/es6"]
+        }
+      ]
+    },
+    {
+      "name": "Map-Set add-set-has object",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["map_set_object/es5.js"],
+          "test_flags": ["map_set_object/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["map_set_object/es6.js"],
+          "test_flags": ["map_set_object/es6"]
+        }
+      ]
+    },
+    {
+      "name": "Map get string",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["map_set_add/es5.js"],
+          "test_flags": ["map_set_add/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["map_set_add/es6.js"],
+          "test_flags": ["map_set_add/es6"]
+        }
+      ]
     }
   ]
 }
