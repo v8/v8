@@ -57,15 +57,6 @@ inline int CPURegister::SizeInBytes() const {
   return reg_size / 8;
 }
 
-inline bool CPURegister::Is8Bits() const {
-  DCHECK(IsValid());
-  return reg_size == 8;
-}
-
-inline bool CPURegister::Is16Bits() const {
-  DCHECK(IsValid());
-  return reg_size == 16;
-}
 
 inline bool CPURegister::Is32Bits() const {
   DCHECK(IsValid());
@@ -78,13 +69,9 @@ inline bool CPURegister::Is64Bits() const {
   return reg_size == 64;
 }
 
-inline bool CPURegister::Is128Bits() const {
-  DCHECK(IsValid());
-  return reg_size == 128;
-}
 
 inline bool CPURegister::IsValid() const {
-  if (IsValidRegister() || IsValidVRegister()) {
+  if (IsValidRegister() || IsValidFPRegister()) {
     DCHECK(!IsNone());
     return true;
   } else {
@@ -100,13 +87,13 @@ inline bool CPURegister::IsValidRegister() const {
          ((reg_code < kNumberOfRegisters) || (reg_code == kSPRegInternalCode));
 }
 
-inline bool CPURegister::IsValidVRegister() const {
-  return IsVRegister() &&
-         ((reg_size == kBRegSizeInBits) || (reg_size == kHRegSizeInBits) ||
-          (reg_size == kSRegSizeInBits) || (reg_size == kDRegSizeInBits) ||
-          (reg_size == kQRegSizeInBits)) &&
-         (reg_code < kNumberOfVRegisters);
+
+inline bool CPURegister::IsValidFPRegister() const {
+  return IsFPRegister() &&
+         ((reg_size == kSRegSizeInBits) || (reg_size == kDRegSizeInBits)) &&
+         (reg_code < kNumberOfFPRegisters);
 }
+
 
 inline bool CPURegister::IsNone() const {
   // kNoRegister types should always have size 0 and code 0.
@@ -133,7 +120,11 @@ inline bool CPURegister::IsRegister() const {
   return reg_type == kRegister;
 }
 
-inline bool CPURegister::IsVRegister() const { return reg_type == kVRegister; }
+
+inline bool CPURegister::IsFPRegister() const {
+  return reg_type == kFPRegister;
+}
+
 
 inline bool CPURegister::IsSameSizeAndType(const CPURegister& other) const {
   return (reg_size == other.reg_size) && (reg_type == other.reg_type);
@@ -209,7 +200,7 @@ inline Register Register::XRegFromCode(unsigned code) {
   if (code == kSPRegInternalCode) {
     return csp;
   } else {
-    DCHECK_LT(code, static_cast<unsigned>(kNumberOfRegisters));
+    DCHECK(code < kNumberOfRegisters);
     return Register::Create(code, kXRegSizeInBits);
   }
 }
@@ -219,40 +210,23 @@ inline Register Register::WRegFromCode(unsigned code) {
   if (code == kSPRegInternalCode) {
     return wcsp;
   } else {
-    DCHECK_LT(code, static_cast<unsigned>(kNumberOfRegisters));
+    DCHECK(code < kNumberOfRegisters);
     return Register::Create(code, kWRegSizeInBits);
   }
 }
 
-inline VRegister VRegister::BRegFromCode(unsigned code) {
-  DCHECK_LT(code, static_cast<unsigned>(kNumberOfVRegisters));
-  return VRegister::Create(code, kBRegSizeInBits);
+
+inline FPRegister FPRegister::SRegFromCode(unsigned code) {
+  DCHECK(code < kNumberOfFPRegisters);
+  return FPRegister::Create(code, kSRegSizeInBits);
 }
 
-inline VRegister VRegister::HRegFromCode(unsigned code) {
-  DCHECK_LT(code, static_cast<unsigned>(kNumberOfVRegisters));
-  return VRegister::Create(code, kHRegSizeInBits);
+
+inline FPRegister FPRegister::DRegFromCode(unsigned code) {
+  DCHECK(code < kNumberOfFPRegisters);
+  return FPRegister::Create(code, kDRegSizeInBits);
 }
 
-inline VRegister VRegister::SRegFromCode(unsigned code) {
-  DCHECK_LT(code, static_cast<unsigned>(kNumberOfVRegisters));
-  return VRegister::Create(code, kSRegSizeInBits);
-}
-
-inline VRegister VRegister::DRegFromCode(unsigned code) {
-  DCHECK_LT(code, static_cast<unsigned>(kNumberOfVRegisters));
-  return VRegister::Create(code, kDRegSizeInBits);
-}
-
-inline VRegister VRegister::QRegFromCode(unsigned code) {
-  DCHECK_LT(code, static_cast<unsigned>(kNumberOfVRegisters));
-  return VRegister::Create(code, kQRegSizeInBits);
-}
-
-inline VRegister VRegister::VRegFromCode(unsigned code) {
-  DCHECK_LT(code, static_cast<unsigned>(kNumberOfVRegisters));
-  return VRegister::Create(code, kVRegSizeInBits);
-}
 
 inline Register CPURegister::W() const {
   DCHECK(IsValidRegister());
@@ -265,34 +239,16 @@ inline Register CPURegister::X() const {
   return Register::XRegFromCode(reg_code);
 }
 
-inline VRegister CPURegister::V() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::VRegFromCode(reg_code);
+
+inline FPRegister CPURegister::S() const {
+  DCHECK(IsValidFPRegister());
+  return FPRegister::SRegFromCode(reg_code);
 }
 
-inline VRegister CPURegister::B() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::BRegFromCode(reg_code);
-}
 
-inline VRegister CPURegister::H() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::HRegFromCode(reg_code);
-}
-
-inline VRegister CPURegister::S() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::SRegFromCode(reg_code);
-}
-
-inline VRegister CPURegister::D() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::DRegFromCode(reg_code);
-}
-
-inline VRegister CPURegister::Q() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::QRegFromCode(reg_code);
+inline FPRegister CPURegister::D() const {
+  DCHECK(IsValidFPRegister());
+  return FPRegister::DRegFromCode(reg_code);
 }
 
 
@@ -535,7 +491,7 @@ MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
 
     regoffset_ = NoReg;
   } else if (offset.IsShiftedRegister()) {
-    DCHECK((addrmode == Offset) || (addrmode == PostIndex));
+    DCHECK(addrmode == Offset);
 
     regoffset_ = offset.reg();
     shift_ = offset.shift();
@@ -921,20 +877,21 @@ LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDR_x : LDR_w;
   } else {
-    DCHECK(rt.IsVRegister());
-    switch (rt.SizeInBits()) {
-      case kBRegSizeInBits:
-        return LDR_b;
-      case kHRegSizeInBits:
-        return LDR_h;
-      case kSRegSizeInBits:
-        return LDR_s;
-      case kDRegSizeInBits:
-        return LDR_d;
-      default:
-        DCHECK(rt.IsQ());
-        return LDR_q;
-    }
+    DCHECK(rt.IsFPRegister());
+    return rt.Is64Bits() ? LDR_d : LDR_s;
+  }
+}
+
+
+LoadStorePairOp Assembler::LoadPairOpFor(const CPURegister& rt,
+                                         const CPURegister& rt2) {
+  DCHECK(AreSameSizeAndType(rt, rt2));
+  USE(rt2);
+  if (rt.IsRegister()) {
+    return rt.Is64Bits() ? LDP_x : LDP_w;
+  } else {
+    DCHECK(rt.IsFPRegister());
+    return rt.Is64Bits() ? LDP_d : LDP_s;
   }
 }
 
@@ -944,29 +901,11 @@ LoadStoreOp Assembler::StoreOpFor(const CPURegister& rt) {
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? STR_x : STR_w;
   } else {
-    DCHECK(rt.IsVRegister());
-    switch (rt.SizeInBits()) {
-      case kBRegSizeInBits:
-        return STR_b;
-      case kHRegSizeInBits:
-        return STR_h;
-      case kSRegSizeInBits:
-        return STR_s;
-      case kDRegSizeInBits:
-        return STR_d;
-      default:
-        DCHECK(rt.IsQ());
-        return STR_q;
-    }
+    DCHECK(rt.IsFPRegister());
+    return rt.Is64Bits() ? STR_d : STR_s;
   }
 }
 
-LoadStorePairOp Assembler::LoadPairOpFor(const CPURegister& rt,
-                                         const CPURegister& rt2) {
-  DCHECK_EQ(STP_w | LoadStorePairLBit, LDP_w);
-  return static_cast<LoadStorePairOp>(StorePairOpFor(rt, rt2) |
-                                      LoadStorePairLBit);
-}
 
 LoadStorePairOp Assembler::StorePairOpFor(const CPURegister& rt,
                                           const CPURegister& rt2) {
@@ -975,16 +914,8 @@ LoadStorePairOp Assembler::StorePairOpFor(const CPURegister& rt,
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? STP_x : STP_w;
   } else {
-    DCHECK(rt.IsVRegister());
-    switch (rt.SizeInBits()) {
-      case kSRegSizeInBits:
-        return STP_s;
-      case kDRegSizeInBits:
-        return STP_d;
-      default:
-        DCHECK(rt.IsQ());
-        return STP_q;
-    }
+    DCHECK(rt.IsFPRegister());
+    return rt.Is64Bits() ? STP_d : STP_s;
   }
 }
 
@@ -993,7 +924,7 @@ LoadLiteralOp Assembler::LoadLiteralOpFor(const CPURegister& rt) {
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDR_x_lit : LDR_w_lit;
   } else {
-    DCHECK(rt.IsVRegister());
+    DCHECK(rt.IsFPRegister());
     return rt.Is64Bits() ? LDR_d_lit : LDR_s_lit;
   }
 }
@@ -1177,8 +1108,9 @@ Instr Assembler::ImmLS(int imm9) {
   return truncate_to_int9(imm9) << ImmLS_offset;
 }
 
-Instr Assembler::ImmLSPair(int imm7, unsigned size) {
-  DCHECK_EQ((imm7 >> size) << size, imm7);
+
+Instr Assembler::ImmLSPair(int imm7, LSDataSize size) {
+  DCHECK(((imm7 >> size) << size) == imm7);
   int scaled_imm7 = imm7 >> size;
   DCHECK(is_int7(scaled_imm7));
   return truncate_to_int7(scaled_imm7) << ImmLSPair_offset;
@@ -1220,17 +1152,10 @@ Instr Assembler::ImmBarrierType(int imm2) {
   return imm2 << ImmBarrierType_offset;
 }
 
-unsigned Assembler::CalcLSDataSize(LoadStoreOp op) {
-  DCHECK((LSSize_offset + LSSize_width) == (kInstructionSize * 8));
-  unsigned size = static_cast<Instr>(op >> LSSize_offset);
-  if ((op & LSVector_mask) != 0) {
-    // Vector register memory operations encode the access size in the "size"
-    // and "opc" fields.
-    if ((size == 0) && ((op & LSOpc_mask) >> LSOpc_offset) >= 2) {
-      size = kQRegSizeLog2;
-    }
-  }
-  return size;
+
+LSDataSize Assembler::CalcLSDataSize(LoadStoreOp op) {
+  DCHECK((SizeLS_offset + SizeLS_width) == (kInstructionSize * 8));
+  return static_cast<LSDataSize>(op >> SizeLS_offset);
 }
 
 
@@ -1245,7 +1170,11 @@ Instr Assembler::ShiftMoveWide(int shift) {
   return shift << ShiftMoveWide_offset;
 }
 
-Instr Assembler::FPType(VRegister fd) { return fd.Is64Bits() ? FP64 : FP32; }
+
+Instr Assembler::FPType(FPRegister fd) {
+  return fd.Is64Bits() ? FP64 : FP32;
+}
+
 
 Instr Assembler::FPScale(unsigned scale) {
   DCHECK(is_uint6(scale));

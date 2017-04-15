@@ -46,7 +46,6 @@
 /src/inspector/build/closure-compiler
 /src/inspector/build/closure-compiler.tar.gz
 /test/benchmarks/data
-/test/cctest/traces-arm64
 /test/fuzzer/wasm
 /test/fuzzer/wasm.tar.gz
 /test/fuzzer/wasm_asmjs
