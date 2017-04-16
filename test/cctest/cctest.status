@@ -250,6 +250,13 @@
 }],  # 'system == macos'
 
 ##############################################################################
+['arch == arm and simulator_run == True', {
+
+  # Pass but take too long with the simulator.
+  'test-api/Threading*': [PASS, SKIP],
+}],  # 'arch == arm and simulator_run == True'
+
+##############################################################################
 ['arch == arm', {
 
   'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
