@@ -147,8 +147,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void registerAsyncTaskIfNeeded(void* task);
 
   // v8::debug::DebugEventListener implementation.
-  void PromiseEventOccurred(v8::Local<v8::Context> context,
-                            v8::debug::PromiseDebugActionType type, int id,
+  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
                             int parentId, bool createdByUser) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override;

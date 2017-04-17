@@ -2044,9 +2044,6 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
   if (in_debug_scope() || ignore_events()) return;
   if (!debug_delegate_) return;
   SuppressDebug while_processing(this);
-  DebugScope debug_scope(isolate_->debug());
-  if (debug_scope.failed()) return;
-  HandleScope scope(isolate_);
   PostponeInterruptsScope no_interrupts(isolate_);
   DisableBreak no_recursive_break(this);
   bool created_by_user = false;
@@ -2058,9 +2055,7 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
         !it.done() &&
         !IsFrameBlackboxed(it.frame());
   }
-  debug_delegate_->PromiseEventOccurred(
-      Utils::ToLocal(debug_scope.GetContext()), type, id, parent_id,
-      created_by_user);
+  debug_delegate_->PromiseEventOccurred(type, id, parent_id, created_by_user);
 }
 
 void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
@@ -2346,8 +2341,11 @@ bool Debug::PerformSideEffectCheckForCallback(Address function) {
 }
 
 void LegacyDebugDelegate::PromiseEventOccurred(
-    v8::Local<v8::Context> context, v8::debug::PromiseDebugActionType type,
-    int id, int parent_id, bool created_by_user) {
+    v8::debug::PromiseDebugActionType type, int id, int parent_id,
+    bool created_by_user) {
+  DebugScope debug_scope(isolate_->debug());
+  if (debug_scope.failed()) return;
+  HandleScope scope(isolate_);
   Handle<Object> event_data;
   if (isolate_->debug()->MakeAsyncTaskEvent(type, id).ToHandle(&event_data)) {
     ProcessDebugEvent(v8::AsyncTaskEvent, Handle<JSObject>::cast(event_data));

@@ -640,8 +640,7 @@ bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                                      end);
 }
 
-void V8Debugger::PromiseEventOccurred(v8::Local<v8::Context> context,
-                                      v8::debug::PromiseDebugActionType type,
+void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
                                       int id, int parentId,
                                       bool createdByUser) {
   // Async task events from Promises are given misaligned pointers to prevent
@@ -652,10 +651,7 @@ void V8Debugger::PromiseEventOccurred(v8::Local<v8::Context> context,
   switch (type) {
     case v8::debug::kDebugPromiseCreated:
       asyncTaskCreatedForStack(task, parentTask);
-      if (createdByUser && parentTask) {
-        v8::Context::Scope contextScope(context);
-        asyncTaskCandidateForStepping(task);
-      }
+      if (createdByUser && parentTask) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugEnqueueAsyncFunction:
       asyncTaskScheduledForStack("async function", task, true);

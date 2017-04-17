@@ -169,8 +169,7 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
 class DebugDelegate {
  public:
   virtual ~DebugDelegate() {}
-  virtual void PromiseEventOccurred(v8::Local<v8::Context> context,
-                                    debug::PromiseDebugActionType type, int id,
+  virtual void PromiseEventOccurred(debug::PromiseDebugActionType type, int id,
                                     int parent_id, bool created_by_user) {}
   virtual void ScriptCompiled(v8::Local<Script> script,
                               bool has_compile_error) {}
