@@ -2438,18 +2438,19 @@ VISIT_ATOMIC_BINOP(Or)
 VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
-#define SIMD_TYPES(V) V(I32x4)
+#define SIMD_TYPES(V) \
+  V(I32x4)            \
+  V(I16x8)
+
+#define SIMD_FORMAT_LIST(V) \
+  V(32x4)                   \
+  V(16x8)
 
 #define SIMD_ZERO_OP_LIST(V) \
   V(S128Zero)                \
   V(S1x4Zero)                \
   V(S1x8Zero)                \
   V(S1x16Zero)
-
-#define SIMD_SHIFT_OPCODES(V) \
-  V(I32x4Shl)                 \
-  V(I32x4ShrS)                \
-  V(I32x4ShrU)
 
 #define SIMD_BINOP_LIST(V) \
   V(I32x4Add)              \
@@ -2460,7 +2461,28 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4Eq)               \
   V(I32x4Ne)               \
   V(I32x4MinU)             \
-  V(I32x4MaxU)
+  V(I32x4MaxU)             \
+  V(I16x8Add)              \
+  V(I16x8AddSaturateS)     \
+  V(I16x8Sub)              \
+  V(I16x8SubSaturateS)     \
+  V(I16x8Mul)              \
+  V(I16x8MinS)             \
+  V(I16x8MaxS)             \
+  V(I16x8Eq)               \
+  V(I16x8Ne)               \
+  V(I16x8AddSaturateU)     \
+  V(I16x8SubSaturateU)     \
+  V(I16x8MinU)             \
+  V(I16x8MaxU)
+
+#define SIMD_SHIFT_OPCODES(V) \
+  V(I32x4Shl)                 \
+  V(I32x4ShrS)                \
+  V(I32x4ShrU)                \
+  V(I16x8Shl)                 \
+  V(I16x8ShrS)                \
+  V(I16x8ShrU)
 
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -2519,12 +2541,15 @@ SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
 
-void InstructionSelector::VisitS32x4Select(Node* node) {
-  X64OperandGenerator g(this);
-  Emit(kX64S32x4Select, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-       g.UseRegister(node->InputAt(2)));
-}
+#define SIMD_VISIT_SELECT_OP(format)                                       \
+  void InstructionSelector::VisitS##format##Select(Node* node) {           \
+    X64OperandGenerator g(this);                                           \
+    Emit(kX64S128Select, g.DefineSameAsFirst(node),                        \
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
+         g.UseRegister(node->InputAt(2)));                                 \
+  }
+SIMD_FORMAT_LIST(SIMD_VISIT_SELECT_OP)
+#undef SIMD_VISIT_SELECT_OP
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   UNREACHABLE();

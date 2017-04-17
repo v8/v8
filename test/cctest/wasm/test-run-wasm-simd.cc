@@ -686,8 +686,7 @@ WASM_EXEC_COMPILED_TEST(I32x4ReplaceLane) {
   CHECK_EQ(1, r.Call(1, 2));
 }
 
-#if V8_TARGET_ARCH_ARM
-
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 WASM_EXEC_COMPILED_TEST(I16x8Splat) {
   FLAG_wasm_simd_prototype = true;
 
@@ -750,7 +749,9 @@ WASM_EXEC_COMPILED_TEST(I16x8ReplaceLane) {
 
   CHECK_EQ(1, r.Call(1, 2));
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
+#if V8_TARGET_ARCH_ARM
 WASM_EXEC_COMPILED_TEST(I8x16Splat) {
   FLAG_wasm_simd_prototype = true;
 
@@ -1204,7 +1205,9 @@ WASM_EXEC_COMPILED_TEST(I16x8ConvertI32x4) {
     CHECK_EQ(1, r.Call(*i, packed_signed, packed_unsigned));
   }
 }
+#endif  // V8_TARGET_ARCH_ARM
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 void RunI16x8BinOpTest(WasmOpcode simd_op, Int16BinOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteCompiled);
@@ -1288,7 +1291,9 @@ WASM_EXEC_COMPILED_TEST(I16x8Eq) { RunI16x8CompareOpTest(kExprI16x8Eq, Equal); }
 WASM_EXEC_COMPILED_TEST(I16x8Ne) {
   RunI16x8CompareOpTest(kExprI16x8Ne, NotEqual);
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
+#if V8_TARGET_ARCH_ARM
 WASM_EXEC_COMPILED_TEST(I16x8LtS) {
   RunI16x8CompareOpTest(kExprI16x8LtS, Less);
 }
@@ -1320,7 +1325,9 @@ WASM_EXEC_COMPILED_TEST(I16x8LtU) {
 WASM_EXEC_COMPILED_TEST(I16x8LeU) {
   RunI16x8CompareOpTest(kExprI16x8LeU, UnsignedLessEqual);
 }
+#endif  // V8_TARGET_ARCH_ARM
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 void RunI16x8ShiftOpTest(WasmOpcode simd_op, Int16ShiftOp expected_op,
                          int shift) {
   FLAG_wasm_simd_prototype = true;
@@ -1347,7 +1354,9 @@ WASM_EXEC_COMPILED_TEST(I16x8ShrS) {
 WASM_EXEC_COMPILED_TEST(I16x8ShrU) {
   RunI16x8ShiftOpTest(kExprI16x8ShrU, LogicalShiftRight, 1);
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
+#if V8_TARGET_ARCH_ARM
 void RunI8x16UnOpTest(WasmOpcode simd_op, Int8UnOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, int32_t> r(kExecuteCompiled);
@@ -1577,8 +1586,11 @@ WASM_SIMD_SELECT_TEST(32x4)
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 WASM_SIMD_SELECT_TEST(16x8)
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
+
+#if V8_TARGET_ARCH_ARM
 WASM_SIMD_SELECT_TEST(8x16)
 
 // Boolean unary operations are 'AllTrue' and 'AnyTrue', which return an integer

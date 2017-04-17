@@ -2235,7 +2235,103 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xorps(dst, dst);
       break;
     }
-    case kX64S32x4Select: {
+    case kX64I16x8Splat: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ movd(dst, i.InputRegister(0));
+      __ pshuflw(dst, dst, 0x0);
+      __ pshufhw(dst, dst, 0x0);
+      __ pshufd(dst, dst, 0x0);
+      break;
+    }
+    case kX64I16x8ExtractLane: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      Register dst = i.OutputRegister();
+      __ pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ movsxwl(dst, dst);
+      break;
+    }
+    case kX64I16x8ReplaceLane: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      if (instr->InputAt(2)->IsRegister()) {
+        __ pinsrw(i.OutputSimd128Register(), i.InputRegister(2),
+                  i.InputInt8(1));
+      } else {
+        __ pinsrw(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+      }
+      break;
+    }
+    case kX64I16x8Shl: {
+      __ psllw(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kX64I16x8ShrS: {
+      __ psraw(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kX64I16x8Add: {
+      __ paddw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8AddSaturateS: {
+      __ paddsw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8Sub: {
+      __ psubw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8SubSaturateS: {
+      __ psubsw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8Mul: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ pmullw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8MinS: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ pminsw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8MaxS: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ pmaxsw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8Eq: {
+      __ pcmpeqw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8Ne: {
+      __ pcmpeqw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+      __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      break;
+    }
+    case kX64I16x8ShrU: {
+      __ psrlw(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kX64I16x8AddSaturateU: {
+      __ paddusw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8SubSaturateU: {
+      __ psubusw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8MinU: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ pminuw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I16x8MaxU: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ pmaxuw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64S128Select: {
       // Mask used here is stored in dst.
       XMMRegister dst = i.OutputSimd128Register();
       __ movaps(kScratchDoubleReg, i.InputSimd128Register(1));
