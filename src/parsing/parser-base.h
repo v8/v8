@@ -4225,11 +4225,10 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // For arrow functions, we don't need to retrieve data about function
         // parameters.
         int dummy_num_parameters = -1;
-        int dummy_function_length = -1;
         DCHECK((kind & FunctionKind::kArrowFunction) != 0);
-        LazyParsingResult result = impl()->SkipFunction(
-            kind, formal_parameters.scope, &dummy_num_parameters,
-            &dummy_function_length, false, true, CHECK_OK);
+        LazyParsingResult result =
+            impl()->SkipFunction(kind, formal_parameters.scope,
+                                 &dummy_num_parameters, false, true, CHECK_OK);
         formal_parameters.scope->ResetAfterPreparsing(
             ast_value_factory_, result == kLazyParsingAborted);
 

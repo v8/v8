@@ -471,6 +471,10 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
 
 void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
                                        Handle<SharedFunctionInfo> shared_info) {
+  // Don't overwrite values set by the bootstrapper.
+  if (!shared_info->HasLength()) {
+    shared_info->set_length(literal->function_length());
+  }
   shared_info->set_ast_node_count(literal->ast_node_count());
   shared_info->set_has_duplicate_parameters(
       literal->has_duplicate_parameters());

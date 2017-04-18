@@ -53,14 +53,11 @@ class PreParserLogger final {
   PreParserLogger()
       : end_(-1),
         num_parameters_(-1),
-        function_length_(-1),
         num_inner_functions_(-1) {}
 
-  void LogFunction(int end, int num_parameters, int function_length,
-                   int num_inner_functions) {
+  void LogFunction(int end, int num_parameters, int num_inner_functions) {
     end_ = end;
     num_parameters_ = num_parameters;
-    function_length_ = function_length;
     num_inner_functions_ = num_inner_functions;
   }
 
@@ -68,16 +65,12 @@ class PreParserLogger final {
   int num_parameters() const {
     return num_parameters_;
   }
-  int function_length() const {
-    return function_length_;
-  }
   int num_inner_functions() const { return num_inner_functions_; }
 
  private:
   int end_;
   // For function entries.
   int num_parameters_;
-  int function_length_;
   int num_inner_functions_;
 };
 
@@ -85,7 +78,7 @@ class ParserLogger final {
  public:
   ParserLogger();
 
-  void LogFunction(int start, int end, int num_parameters, int function_length,
+  void LogFunction(int start, int end, int num_parameters,
                    LanguageMode language_mode, bool uses_super_property,
                    bool calls_eval, int num_inner_functions);
 
@@ -105,7 +98,6 @@ class PreParseData final {
   struct FunctionData {
     int end;
     int num_parameters;
-    int function_length;
     int num_inner_functions;
     LanguageMode language_mode;
     bool uses_super_property : 1;
@@ -113,12 +105,11 @@ class PreParseData final {
 
     FunctionData() : end(-1) {}
 
-    FunctionData(int end, int num_parameters, int function_length,
-                 int num_inner_functions, LanguageMode language_mode,
-                 bool uses_super_property, bool calls_eval)
+    FunctionData(int end, int num_parameters, int num_inner_functions,
+                 LanguageMode language_mode, bool uses_super_property,
+                 bool calls_eval)
         : end(end),
           num_parameters(num_parameters),
-          function_length(function_length),
           num_inner_functions(num_inner_functions),
           language_mode(language_mode),
           uses_super_property(uses_super_property),

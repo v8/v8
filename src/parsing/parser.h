@@ -35,7 +35,6 @@ class FunctionEntry BASE_EMBEDDED {
     kStartPositionIndex,
     kEndPositionIndex,
     kNumParametersIndex,
-    kFunctionLengthIndex,
     kFlagsIndex,
     kNumInnerFunctionsIndex,
     kSize
@@ -62,7 +61,6 @@ class FunctionEntry BASE_EMBEDDED {
   int start_pos() const { return backing_[kStartPositionIndex]; }
   int end_pos() const { return backing_[kEndPositionIndex]; }
   int num_parameters() const { return backing_[kNumParametersIndex]; }
-  int function_length() const { return backing_[kFunctionLengthIndex]; }
   LanguageMode language_mode() const {
     return LanguageModeField::decode(backing_[kFlagsIndex]);
   }
@@ -561,9 +559,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // in order to force the function to be eagerly parsed, after all.
   LazyParsingResult SkipFunction(FunctionKind kind,
                                  DeclarationScope* function_scope,
-                                 int* num_parameters, int* function_length,
-                                 bool is_inner_function, bool may_abort,
-                                 bool* ok);
+                                 int* num_parameters, bool is_inner_function,
+                                 bool may_abort, bool* ok);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);

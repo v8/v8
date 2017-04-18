@@ -6181,6 +6181,16 @@ bool SharedFunctionInfo::is_compiled() const {
   return code() != builtins->builtin(Builtins::kCompileLazy);
 }
 
+int SharedFunctionInfo::GetLength() const {
+  DCHECK(is_compiled());
+  DCHECK(HasLength());
+  return length();
+}
+
+bool SharedFunctionInfo::HasLength() const {
+  DCHECK_IMPLIES(length() < 0, length() == kInvalidLength);
+  return length() != kInvalidLength;
+}
 
 bool SharedFunctionInfo::has_simple_parameters() {
   return scope_info()->HasSimpleParameters();

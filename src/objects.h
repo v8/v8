@@ -5855,6 +5855,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kInitialLength = kEntriesStart + kEntryLength;
 
   static const int kNotFound = -1;
+  static const int kInvalidLength = -1;
 
   // Helpers for assembly code that does a backwards walk of the optimized code
   // map.
@@ -5882,8 +5883,10 @@ class SharedFunctionInfo: public HeapObject {
   inline bool is_compiled() const;
 
   // [length]: The function length - usually the number of declared parameters.
-  // Use up to 2^30 parameters.
-  inline int length() const;
+  // Use up to 2^30 parameters. The value is only reliable when the function has
+  // been compiled.
+  inline int GetLength() const;
+  inline bool HasLength() const;
   inline void set_length(int value);
 
   // [internal formal parameter count]: The declared number of parameters.
@@ -6434,6 +6437,11 @@ class SharedFunctionInfo: public HeapObject {
   class DisabledOptimizationReasonBits : public BitField<int, 22, 8> {};
 
  private:
+  // For test-parsing.cc
+  friend class SharedFunctionInfoTestHelper;
+
+  inline int length() const;
+
 #if V8_HOST_ARCH_32_BIT
   // On 32 bit platforms, compiler hints is a smi.
   static const int kCompilerHintsSmiTagSize = kSmiTagSize;

@@ -633,7 +633,8 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
   }
 
   // length needs to be non configurable.
-  Handle<Object> value(Smi::FromInt(function->shared()->length()), isolate());
+  Handle<Object> value(Smi::FromInt(function->shared()->GetLength()),
+                       isolate());
   JSObject::SetOwnPropertyIgnoreAttributes(
       function, factory()->length_string(), value,
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
