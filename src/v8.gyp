@@ -486,6 +486,7 @@
         'builtins/builtins-call.cc',
         'builtins/builtins-call-gen.cc',
         'builtins/builtins-callsite.cc',
+        'builtins/builtins-console.cc',
         'builtins/builtins-constructor-gen.cc',
         'builtins/builtins-constructor-gen.h',
         'builtins/builtins-constructor.h',

@@ -25,19 +25,16 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
       m_humanReadableName(toString16(info.humanReadableName)),
       m_auxData(toString16(info.auxData)),
       m_reported(false) {
-  v8::Isolate* isolate = m_inspector->isolate();
   v8::debug::SetContextId(info.context, contextId);
+  if (!info.hasMemoryOnConsole) return;
+  v8::Context::Scope contextScope(info.context);
   v8::Local<v8::Object> global = info.context->Global();
-  v8::Local<v8::Object> console =
-      m_inspector->console()->createConsole(info.context);
-  if (info.hasMemoryOnConsole) {
-    m_inspector->console()->installMemoryGetter(info.context, console);
-  }
-  if (!global
-           ->Set(info.context, toV8StringInternalized(isolate, "console"),
-                 console)
-           .FromMaybe(false)) {
-    return;
+  v8::Local<v8::Value> console;
+  if (global->Get(info.context, toV8String(m_inspector->isolate(), "console"))
+          .ToLocal(&console) &&
+      console->IsObject()) {
+    m_inspector->console()->installMemoryGetter(
+        info.context, v8::Local<v8::Object>::Cast(console));
   }
 }
 

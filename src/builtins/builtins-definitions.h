@@ -345,6 +345,31 @@ namespace internal {
   CPP(CallSitePrototypeIsToplevel)                                             \
   CPP(CallSitePrototypeToString)                                               \
                                                                                \
+  /* Console */                                                                \
+  CPP(ConsoleDebug)                                                            \
+  CPP(ConsoleError)                                                            \
+  CPP(ConsoleInfo)                                                             \
+  CPP(ConsoleLog)                                                              \
+  CPP(ConsoleWarn)                                                             \
+  CPP(ConsoleDir)                                                              \
+  CPP(ConsoleDirXml)                                                           \
+  CPP(ConsoleTable)                                                            \
+  CPP(ConsoleTrace)                                                            \
+  CPP(ConsoleGroup)                                                            \
+  CPP(ConsoleGroupCollapsed)                                                   \
+  CPP(ConsoleGroupEnd)                                                         \
+  CPP(ConsoleClear)                                                            \
+  CPP(ConsoleCount)                                                            \
+  CPP(ConsoleAssert)                                                           \
+  CPP(ConsoleMarkTimeline)                                                     \
+  CPP(ConsoleProfile)                                                          \
+  CPP(ConsoleProfileEnd)                                                       \
+  CPP(ConsoleTimeline)                                                         \
+  CPP(ConsoleTimelineEnd)                                                      \
+  CPP(ConsoleTime)                                                             \
+  CPP(ConsoleTimeEnd)                                                          \
+  CPP(ConsoleTimeStamp)                                                        \
+                                                                               \
   /* DataView */                                                               \
   CPP(DataViewConstructor)                                                     \
   CPP(DataViewConstructor_ConstructStub)                                       \

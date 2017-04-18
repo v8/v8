@@ -209,6 +209,8 @@ enum Builtin {
 
 Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 
+void SetConsoleDelegate(Isolate* isolate, ConsoleDelegate* delegate);
+
 /**
  * Native wrapper around v8::internal::JSGeneratorObject object.
  */
