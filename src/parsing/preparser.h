@@ -889,10 +889,11 @@ class PreParser : public ParserBase<PreParser> {
             AstValueFactory* ast_value_factory,
             PendingCompilationErrorHandler* pending_error_handler,
             RuntimeCallStats* runtime_call_stats,
+            PreParsedScopeData* preparsed_scope_data = nullptr,
             bool parsing_on_main_thread = true)
       : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
                               ast_value_factory, runtime_call_stats,
-                              parsing_on_main_thread),
+                              preparsed_scope_data, parsing_on_main_thread),
         use_counts_(nullptr),
         preparse_data_(FLAG_use_parse_tasks ? new PreParseData() : nullptr),
         track_unresolved_variables_(false),

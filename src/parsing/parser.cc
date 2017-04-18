@@ -503,7 +503,8 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->extension(), info->ast_value_factory(),
-                         info->runtime_call_stats(), true),
+                         info->runtime_call_stats(),
+                         info->preparsed_scope_data(), true),
       scanner_(info->unicode_cache()),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
@@ -513,7 +514,6 @@ Parser::Parser(ParseInfo* info)
       total_preparse_skipped_(0),
       temp_zoned_(false),
       log_(nullptr),
-      preparsed_scope_data_(info->preparsed_scope_data()),
       parameters_end_pos_(info->parameters_end_pos()) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via

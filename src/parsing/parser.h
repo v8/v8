@@ -295,7 +295,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       reusable_preparser_ =
           new PreParser(zone(), &scanner_, stack_limit_, ast_value_factory(),
                         &pending_error_handler_, runtime_call_stats_,
-                        parsing_on_main_thread_);
+                        preparsed_scope_data_, parsing_on_main_thread_);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
       SET_ALLOW(tailcalls);
@@ -1174,8 +1174,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool allow_lazy_;
   bool temp_zoned_;
   ParserLogger* log_;
-
-  PreParsedScopeData* preparsed_scope_data_;
 
   // If not kNoSourcePosition, indicates that the first function literal
   // encountered is a dynamic function, see CreateDynamicFunction(). This field

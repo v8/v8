@@ -14,6 +14,7 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
+#include "src/parsing/preparsed-scope-data.h"
 #include "src/parsing/preparser.h"
 #include "src/unicode.h"
 #include "src/utils.h"
@@ -213,6 +214,16 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     // masks the arguments object. Declare arguments before declaring the
     // function var since the arguments object masks 'function arguments'.
     function_scope->DeclareArguments(ast_value_factory());
+
+    if (FLAG_preparser_scope_analysis && preparsed_scope_data_ != nullptr) {
+      preparsed_scope_data_->AddFunction(
+          scope()->start_position(),
+          PreParseData::FunctionData(
+              scanner()->peek_location().end_pos, scope()->num_parameters(),
+              GetLastFunctionLiteralId(), scope()->language_mode(),
+              scope()->AsDeclarationScope()->uses_super_property(),
+              scope()->calls_eval()));
+    }
   }
 
   use_counts_ = nullptr;
@@ -343,6 +354,15 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     }
   }
 
+  if (FLAG_preparser_scope_analysis && preparsed_scope_data_ != nullptr) {
+    preparsed_scope_data_->AddFunction(
+        start_position,
+        PreParseData::FunctionData(
+            end_position, scope()->num_parameters(),
+            GetLastFunctionLiteralId() - func_id, scope()->language_mode(),
+            scope()->AsDeclarationScope()->uses_super_property(),
+            scope()->calls_eval()));
+  }
   if (FLAG_trace_preparse) {
     PrintF("  [%s]: %i-%i\n",
            track_unresolved_variables_ ? "Preparse resolution"

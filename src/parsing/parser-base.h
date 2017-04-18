@@ -20,6 +20,7 @@
 namespace v8 {
 namespace internal {
 
+class PreParsedScopeData;
 
 enum FunctionNameValidity {
   kFunctionNameIsStrictReserved,
@@ -200,6 +201,7 @@ class ParserBase {
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension, AstValueFactory* ast_value_factory,
              RuntimeCallStats* runtime_call_stats,
+             PreParsedScopeData* preparsed_scope_data,
              bool parsing_on_main_thread = true)
       : scope_(nullptr),
         original_scope_(nullptr),
@@ -212,6 +214,7 @@ class ParserBase {
         parsing_on_main_thread_(parsing_on_main_thread),
         parsing_module_(false),
         stack_limit_(stack_limit),
+        preparsed_scope_data_(preparsed_scope_data),
         zone_(zone),
         classifier_(nullptr),
         scanner_(scanner),
@@ -1486,6 +1489,7 @@ class ParserBase {
   bool parsing_on_main_thread_;
   bool parsing_module_;
   uintptr_t stack_limit_;
+  PreParsedScopeData* preparsed_scope_data_;
 
   // Parser base's private field members.
 

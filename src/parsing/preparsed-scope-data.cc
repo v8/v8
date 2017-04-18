@@ -52,19 +52,12 @@ const int kFunctionDataSize = 8;
 void PreParsedScopeData::SaveData(Scope* scope) {
   DCHECK(!has_data_);
 
-  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
+  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE &&
+      !scope->AsDeclarationScope()->is_arrow_scope()) {
     // This cast is OK since we're not going to have more than 2^32 elements in
     // the data. FIXME(marja): Implement limits for the data size.
     function_data_positions_[scope->start_position()] =
         static_cast<uint32_t>(backing_store_.size());
-    // FIXME(marja): Fill in the missing field num_inner_functions.
-    function_index_.AddFunctionData(
-        scope->start_position(),
-        PreParseData::FunctionData(
-            scope->end_position(), scope->num_parameters(), -1,
-            scope->language_mode(),
-            scope->AsDeclarationScope()->uses_super_property(),
-            scope->calls_eval()));
   }
 
   if (!ScopeNeedsData(scope)) {
@@ -94,6 +87,11 @@ void PreParsedScopeData::SaveData(Scope* scope) {
   backing_store_[data_end_index] = backing_store_.size();
 }
 
+void PreParsedScopeData::AddFunction(
+    int start_position, const PreParseData::FunctionData& function_data) {
+  function_index_.AddFunctionData(start_position, function_data);
+}
+
 void PreParsedScopeData::RestoreData(DeclarationScope* scope) const {
   int index = -1;
 
@@ -118,9 +116,8 @@ void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
 
 #ifdef DEBUG
   // Data integrity check.
-  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
-    // FIXME(marja): Compare the missing fields too (function length,
-    // num_inner_functions).
+  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE &&
+      !scope->AsDeclarationScope()->is_arrow_scope()) {
     const PreParseData::FunctionData& data =
         FindFunction(scope->start_position());
     DCHECK_EQ(data.end, scope->end_position());
