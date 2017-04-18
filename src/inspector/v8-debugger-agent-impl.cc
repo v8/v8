@@ -34,7 +34,6 @@ using protocol::Debugger::BreakpointId;
 using protocol::Debugger::CallFrame;
 using protocol::Runtime::ExceptionDetails;
 using protocol::Runtime::ScriptId;
-using protocol::Runtime::StackTrace;
 using protocol::Runtime::RemoteObject;
 
 namespace DebuggerAgentState {
@@ -598,7 +597,8 @@ Response V8DebuggerAgentImpl::searchInContent(
 Response V8DebuggerAgentImpl::setScriptSource(
     const String16& scriptId, const String16& newContent, Maybe<bool> dryRun,
     Maybe<protocol::Array<protocol::Debugger::CallFrame>>* newCallFrames,
-    Maybe<bool>* stackChanged, Maybe<StackTrace>* asyncStackTrace,
+    Maybe<bool>* stackChanged,
+    Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
     Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
 
@@ -631,7 +631,7 @@ Response V8DebuggerAgentImpl::setScriptSource(
 Response V8DebuggerAgentImpl::restartFrame(
     const String16& callFrameId,
     std::unique_ptr<Array<CallFrame>>* newCallFrames,
-    Maybe<StackTrace>* asyncStackTrace) {
+    Maybe<protocol::Runtime::StackTrace>* asyncStackTrace) {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
   InjectedScript::CallFrameScope scope(m_inspector, m_session->contextGroupId(),
                                        callFrameId);
@@ -1028,9 +1028,14 @@ Response V8DebuggerAgentImpl::currentCallFrames(
   return Response::OK();
 }
 
-std::unique_ptr<StackTrace> V8DebuggerAgentImpl::currentAsyncStackTrace() {
-  if (!isPaused()) return nullptr;
-  return V8StackTraceImpl::buildInspectorObjectForTail(m_debugger);
+std::unique_ptr<protocol::Runtime::StackTrace>
+V8DebuggerAgentImpl::currentAsyncStackTrace() {
+  std::shared_ptr<AsyncStackTrace> asyncParent =
+      m_debugger->currentAsyncParent();
+  if (!asyncParent) return nullptr;
+  return asyncParent->buildInspectorObject(
+      m_debugger->currentAsyncCreation().get(),
+      m_debugger->maxAsyncCallChainDepth() - 1);
 }
 
 bool V8DebuggerAgentImpl::isPaused() const { return m_debugger->isPaused(); }
