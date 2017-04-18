@@ -31,6 +31,7 @@ GYP_FILES = [
   os.path.join(V8_BASE, 'test', 'fuzzer', 'fuzzer.gyp'),
   os.path.join(V8_BASE, 'test', 'unittests', 'unittests.gyp'),
   os.path.join(V8_BASE, 'test', 'inspector', 'inspector.gyp'),
+  os.path.join(V8_BASE, 'test', 'mkgrokdump', 'mkgrokdump.gyp'),
   os.path.join(V8_BASE, 'testing', 'gmock.gyp'),
   os.path.join(V8_BASE, 'testing', 'gtest.gyp'),
   os.path.join(V8_BASE, 'tools', 'parser-shell.gyp'),
@@ -49,6 +50,7 @@ ALL_GYP_PREFIXES = [
   os.path.join('test', 'fuzzer'),
   os.path.join('test', 'unittests'),
   os.path.join('test', 'inspector'),
+  os.path.join('test', 'mkgrokdump'),
 ]
 
 GYP_UNSUPPORTED_FEATURES = [
@@ -64,6 +66,7 @@ GN_FILES = [
   os.path.join(V8_BASE, 'test', 'cctest', 'BUILD.gn'),
   os.path.join(V8_BASE, 'test', 'unittests', 'BUILD.gn'),
   os.path.join(V8_BASE, 'test', 'inspector', 'BUILD.gn'),
+  os.path.join(V8_BASE, 'test', 'mkgrokdump', 'BUILD.gn'),
   os.path.join(V8_BASE, 'tools', 'BUILD.gn'),
 ]
 
@@ -88,6 +91,7 @@ ALL_GN_PREFIXES = [
   os.path.join('test', 'cctest'),
   os.path.join('test', 'unittests'),
   os.path.join('test', 'inspector'),
+  os.path.join('test', 'mkgrokdump'),
 ]
 
 def pathsplit(path):
