@@ -8,15 +8,15 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "94c06fe70f3f6429c59e3ec0f6acd4f6710050b2",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "15013685bdd59b8e548ffdef88b6fddae4f0e49c",
   "v8/tools/gyp":
-    Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
+    Var("chromium_url") + "/external/gyp.git" + "@" + "eb296f67da078ec01f5e3a9ea9cdc6d26d680161",
   "v8/third_party/icu":
     Var("chromium_url") + "/chromium/deps/icu.git" + "@" + "b34251f8b762f8e2112a89c587855ca4297fed96",
   "v8/third_party/instrumented_libraries":
     Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "05d5695a73e78b9cae55b8579fd8bf22b85eb283",
   "v8/buildtools":
-    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "d3074448541662f242bcee623049c13a231b5648",
+    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "88811f48a6b79786ef35be86825642fc33011151",
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "06294c8a4a6f744ef284cd63cfe54dbf61eea290",
   "v8/third_party/jinja2":
@@ -38,7 +38,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "49df471350a60efaec6951f321dd65475496ba17",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "88db8e4edd0522bce0c64d93cef8888926ca915a",
   "v8/test/wasm-js":
     Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "07fd6430f879d36928d179a62d9bdeed82286065",
 }
@@ -48,7 +48,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "b65c4776dac2cf1b80e969b3b2d4e081b9c84f29",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "9a55abab029cb9ae94f5160ded11b09a4638a955",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "49eb11f63eb4d552d634833a01d2710208ba0523",
   },
 }
 
