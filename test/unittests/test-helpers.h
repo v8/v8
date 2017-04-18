@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNITTESTS_COMPILER_DISPATCHER_COMPILER_DISPATCHER_HELPER_H_
-#define V8_UNITTESTS_COMPILER_DISPATCHER_COMPILER_DISPATCHER_HELPER_H_
+#ifndef V8_UNITTESTS_TEST_HELPERS_H_
+#define V8_UNITTESTS_TEST_HELPERS_H_
 
 #include <memory>
 
@@ -63,4 +63,4 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_UNITTESTS_COMPILER_DISPATCHER_COMPILER_DISPATCHER_HELPER_H_
+#endif  // V8_UNITTESTS_TEST_HELPERS_H_

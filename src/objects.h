@@ -6441,8 +6441,7 @@ class SharedFunctionInfo: public HeapObject {
   class DisabledOptimizationReasonBits : public BitField<int, 22, 8> {};
 
  private:
-  // For test-parsing.cc
-  friend class SharedFunctionInfoTestHelper;
+  FRIEND_TEST(PreParserTest, LazyFunctionLength);
 
   inline int length() const;
 
