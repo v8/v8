@@ -10161,3 +10161,188 @@ TEST(AsyncGeneratorErrors) {
   RunParserSyncTest(context_data, statement_data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
 }
+
+TEST(LexicalLoopVariable) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  typedef std::function<void(const i::ParseInfo& info, i::DeclarationScope*)>
+      TestCB;
+  auto TestProgram = [isolate](const char* program, TestCB test) {
+    i::Factory* const factory = isolate->factory();
+    i::Handle<i::String> source =
+        factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::ParseInfo info(script);
+
+    info.set_allow_lazy_parsing(false);
+    CHECK(i::parsing::ParseProgram(&info, isolate));
+    CHECK(i::Rewriter::Rewrite(&info, isolate));
+    i::DeclarationScope::Analyze(&info, isolate, i::AnalyzeMode::kRegular);
+    CHECK(info.literal() != NULL);
+
+    i::DeclarationScope* script_scope = info.literal()->scope();
+    CHECK(script_scope->is_script_scope());
+
+    test(info, script_scope);
+  };
+
+  // Check `let` loop variables is a stack local when not captured by an eval
+  // or closure within the area of the loop body.
+  const char* local_bindings[] = {
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; ++loop_var) {"
+      "  }"
+      "  eval('0');"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; ++loop_var) {"
+      "  }"
+      "  function foo() {}"
+      "  foo();"
+      "}",
+  };
+  for (const char* source : local_bindings) {
+    TestProgram(source, [=](const i::ParseInfo& info, i::DeclarationScope* s) {
+      i::Scope* fn = s->inner_scope();
+      CHECK(fn->is_function_scope());
+
+      i::Scope* loop_block = fn->inner_scope();
+      if (loop_block->is_function_scope()) loop_block = loop_block->sibling();
+      CHECK(loop_block->is_block_scope());
+
+      const i::AstRawString* var_name =
+          info.ast_value_factory()->GetOneByteString("loop_var");
+      i::Variable* loop_var = loop_block->LookupLocal(var_name);
+      CHECK_NOT_NULL(loop_var);
+      CHECK(loop_var->IsStackLocal());
+      CHECK_EQ(loop_block->ContextLocalCount(), 0);
+      CHECK_EQ(loop_block->inner_scope()->ContextLocalCount(), 0);
+    });
+  }
+
+  // Check `let` loop variable is not a stack local, and is duplicated in the
+  // loop body to ensure capturing can work correctly.
+  // In this version of the test, the inner loop block's duplicate `loop_var`
+  // binding is not captured, and is a local.
+  const char* context_bindings1[] = {
+      "function loop() {"
+      "  for (let loop_var = eval('0'); loop_var < 10; ++loop_var) {"
+      "  }"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = (() => (loop_var, 0))(); loop_var < 10;"
+      "       ++loop_var) {"
+      "  }"
+      "}"};
+  for (const char* source : context_bindings1) {
+    TestProgram(source, [=](const i::ParseInfo& info, i::DeclarationScope* s) {
+      i::Scope* fn = s->inner_scope();
+      CHECK(fn->is_function_scope());
+
+      i::Scope* loop_block = fn->inner_scope();
+      CHECK(loop_block->is_block_scope());
+
+      const i::AstRawString* var_name =
+          info.ast_value_factory()->GetOneByteString("loop_var");
+      i::Variable* loop_var = loop_block->LookupLocal(var_name);
+      CHECK_NOT_NULL(loop_var);
+      CHECK(loop_var->IsContextSlot());
+      CHECK_EQ(loop_block->ContextLocalCount(), 1);
+
+      i::Variable* loop_var2 = loop_block->inner_scope()->LookupLocal(var_name);
+      CHECK_NE(loop_var, loop_var2);
+      CHECK(loop_var2->IsStackLocal());
+      CHECK_EQ(loop_block->inner_scope()->ContextLocalCount(), 0);
+    });
+  }
+
+  // Check `let` loop variable is not a stack local, and is duplicated in the
+  // loop body to ensure capturing can work correctly.
+  // In this version of the test, the inner loop block's duplicate `loop_var`
+  // binding is captured, and must be context allocated.
+  const char* context_bindings2[] = {
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; ++loop_var) {"
+      "    eval('0');"
+      "  }"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < eval('10'); ++loop_var) {"
+      "  }"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; eval('++loop_var')) {"
+      "  }"
+      "}",
+  };
+
+  for (const char* source : context_bindings2) {
+    TestProgram(source, [=](const i::ParseInfo& info, i::DeclarationScope* s) {
+      i::Scope* fn = s->inner_scope();
+      CHECK(fn->is_function_scope());
+
+      i::Scope* loop_block = fn->inner_scope();
+      CHECK(loop_block->is_block_scope());
+
+      const i::AstRawString* var_name =
+          info.ast_value_factory()->GetOneByteString("loop_var");
+      i::Variable* loop_var = loop_block->LookupLocal(var_name);
+      CHECK_NOT_NULL(loop_var);
+      CHECK(loop_var->IsContextSlot());
+      CHECK_EQ(loop_block->ContextLocalCount(), 1);
+
+      i::Variable* loop_var2 = loop_block->inner_scope()->LookupLocal(var_name);
+      CHECK_NE(loop_var, loop_var2);
+      CHECK(loop_var2->IsContextSlot());
+      CHECK_EQ(loop_block->inner_scope()->ContextLocalCount(), 1);
+    });
+  }
+
+  // Similar to the above, but the first block scope's variables are not
+  // captured due to the closure occurring in a nested scope.
+  const char* context_bindings3[] = {
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; ++loop_var) {"
+      "    (() => loop_var)();"
+      "  }"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < (() => (loop_var, 10))();"
+      "       ++loop_var) {"
+      "  }"
+      "}",
+
+      "function loop() {"
+      "  for (let loop_var = 0; loop_var < 10; (() => ++loop_var)()) {"
+      "  }"
+      "}",
+  };
+
+  for (const char* source : context_bindings3) {
+    TestProgram(source, [=](const i::ParseInfo& info, i::DeclarationScope* s) {
+      i::Scope* fn = s->inner_scope();
+      CHECK(fn->is_function_scope());
+
+      i::Scope* loop_block = fn->inner_scope();
+      CHECK(loop_block->is_block_scope());
+
+      const i::AstRawString* var_name =
+          info.ast_value_factory()->GetOneByteString("loop_var");
+      i::Variable* loop_var = loop_block->LookupLocal(var_name);
+      CHECK_NOT_NULL(loop_var);
+      CHECK(loop_var->IsStackLocal());
+      CHECK_EQ(loop_block->ContextLocalCount(), 0);
+
+      i::Variable* loop_var2 = loop_block->inner_scope()->LookupLocal(var_name);
+      CHECK_NE(loop_var, loop_var2);
+      CHECK(loop_var2->IsContextSlot());
+      CHECK_EQ(loop_block->inner_scope()->ContextLocalCount(), 1);
+    });
+  }
+}

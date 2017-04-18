@@ -451,6 +451,30 @@ class ParserBase {
       next_function_is_likely_called_ = true;
     }
 
+    void RecordFunctionOrEvalCall() { contains_function_or_eval_ = true; }
+    bool contains_function_or_eval() const {
+      return contains_function_or_eval_;
+    }
+
+    class FunctionOrEvalRecordingScope {
+     public:
+      explicit FunctionOrEvalRecordingScope(FunctionState* state)
+          : state_(state) {
+        prev_value_ = state->contains_function_or_eval_;
+        state->contains_function_or_eval_ = false;
+      }
+      ~FunctionOrEvalRecordingScope() {
+        bool found = state_->contains_function_or_eval_;
+        if (!found) {
+          state_->contains_function_or_eval_ = prev_value_;
+        }
+      }
+
+     private:
+      FunctionState* state_;
+      bool prev_value_;
+    };
+
    private:
     void AddDestructuringAssignment(DestructuringAssignment pair) {
       destructuring_assignments_to_rewrite_.Add(pair, scope_->zone());
@@ -484,6 +508,9 @@ class ParserBase {
     // call set_next_function_is_likely_called.
     bool next_function_is_likely_called_;
     bool previous_function_was_likely_called_;
+
+    // Track if a function or eval occurs within this FunctionState
+    bool contains_function_or_eval_;
 
     friend Impl;
   };
@@ -656,6 +683,10 @@ class ParserBase {
     if (target_zone == nullptr) target_zone = zone();
     DeclarationScope* result = new (target_zone)
         DeclarationScope(zone(), scope(), FUNCTION_SCOPE, kind);
+
+    // Record presence of an inner function scope
+    function_state_->RecordFunctionOrEvalCall();
+
     // TODO(verwaest): Move into the DeclarationScope constructor.
     if (!IsArrowFunction(kind)) {
       result->DeclareDefaultFunctionVariables(ast_value_factory());
@@ -1340,6 +1371,7 @@ class ParserBase {
     if (impl()->IsIdentifier(expression) &&
         impl()->IsEval(impl()->AsIdentifier(expression))) {
       scope->RecordEvalCall();
+      function_state_->RecordFunctionOrEvalCall();
       if (is_sloppy(scope->language_mode())) {
         // For sloppy scopes we also have to record the call at function level,
         // in case it includes declarations that will be hoisted.
@@ -1534,7 +1566,8 @@ ParserBase<Impl>::FunctionState::FunctionState(
       non_patterns_to_rewrite_(0, scope->zone()),
       reported_errors_(16, scope->zone()),
       next_function_is_likely_called_(false),
-      previous_function_was_likely_called_(false) {
+      previous_function_was_likely_called_(false),
+      contains_function_or_eval_(false) {
   *function_state_stack = this;
   if (outer_function_state_) {
     outer_function_state_->previous_function_was_likely_called_ =
@@ -5471,6 +5504,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     ZoneList<const AstRawString*>* labels, bool* ok) {
+  typename FunctionState::FunctionOrEvalRecordingScope recording_scope(
+      function_state_);
   int stmt_pos = peek_position();
   ForInfo for_info(this);
   bool bound_names_are_lexical = false;
@@ -5480,7 +5515,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   scope()->set_start_position(scanner()->location().beg_pos);
-  scope()->set_is_hidden();
 
   StatementT init = impl()->NullStatement();
 
@@ -5538,6 +5572,7 @@ typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     int stmt_pos, ForInfo* for_info, ZoneList<const AstRawString*>* labels,
     bool* ok) {
+  scope()->set_is_hidden();
   // Just one declaration followed by in/of.
   if (for_info->parsing_result.declarations.length() != 1) {
     impl()->ReportMessageAt(for_info->parsing_result.bindings_loc,
@@ -5618,6 +5653,7 @@ typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     int stmt_pos, ExpressionT expression, int lhs_beg_pos, int lhs_end_pos,
     ForInfo* for_info, ZoneList<const AstRawString*>* labels, bool* ok) {
+  scope()->set_is_hidden();
   // Initializer is reference followed by in/of.
   if (!expression->IsArrayLiteral() && !expression->IsObjectLiteral()) {
     expression = impl()->CheckAndRewriteReferenceExpression(
@@ -5701,15 +5737,15 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     body = ParseStatement(nullptr, CHECK_OK);
   }
 
-  if (bound_names_are_lexical && for_info->bound_names.length() > 0) {
-    auto result = impl()->DesugarLexicalBindingsInForStatement(
+  scope()->set_end_position(scanner()->location().end_pos);
+  inner_scope->set_end_position(scanner()->location().end_pos);
+  if (bound_names_are_lexical && for_info->bound_names.length() > 0 &&
+      (is_resumable() || function_state_->contains_function_or_eval())) {
+    scope()->set_is_hidden();
+    return impl()->DesugarLexicalBindingsInForStatement(
         loop, init, cond, next, body, inner_scope, *for_info, CHECK_OK);
-    scope()->set_end_position(scanner()->location().end_pos);
-    inner_scope->set_end_position(scanner()->location().end_pos);
-    return result;
   }
 
-  scope()->set_end_position(scanner()->location().end_pos);
   Scope* for_scope = scope()->FinalizeBlockScope();
   if (for_scope != nullptr) {
     // Rewrite a for statement of the form
@@ -5733,6 +5769,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     BlockT block = factory()->NewBlock(nullptr, 2, false, kNoSourcePosition);
     if (!impl()->IsNullStatement(init)) {
       block->statements()->Add(init, zone());
+      init = impl()->NullStatement();
     }
     block->statements()->Add(loop, zone());
     block->set_scope(for_scope);
