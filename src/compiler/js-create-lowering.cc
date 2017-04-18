@@ -594,6 +594,66 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   return Changed(node);
 }
 
+Reduction JSCreateLowering::ReduceNewArray(Node* node,
+                                           std::vector<Node*> values,
+                                           Handle<AllocationSite> site) {
+  DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Extract transition and tenuring feedback from the {site} and add
+  // appropriate code dependencies on the {site} if deoptimization is
+  // enabled.
+  PretenureFlag pretenure = site->GetPretenureMode();
+  ElementsKind elements_kind = site->GetElementsKind();
+  DCHECK(IsFastElementsKind(elements_kind));
+  dependencies()->AssumeTenuringDecision(site);
+  dependencies()->AssumeTransitionStable(site);
+
+  // Check {values} based on the {elements_kind}. These checks are guarded
+  // by the {elements_kind} feedback on the {site}, so it's safe to just
+  // deoptimize in this case.
+  if (IsFastSmiElementsKind(elements_kind)) {
+    for (auto& value : values) {
+      if (!NodeProperties::GetType(value)->Is(Type::SignedSmall())) {
+        value = effect =
+            graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
+      }
+    }
+  } else if (IsFastDoubleElementsKind(elements_kind)) {
+    for (auto& value : values) {
+      if (!NodeProperties::GetType(value)->Is(Type::Number())) {
+        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
+                                          effect, control);
+      }
+      // Make sure we do not store signaling NaNs into double arrays.
+      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+    }
+  }
+
+  // Retrieve the initial map for the array.
+  int const array_map_index = Context::ArrayMapIndex(elements_kind);
+  Node* js_array_map = jsgraph()->HeapConstant(
+      handle(Map::cast(native_context()->get(array_map_index)), isolate()));
+
+  // Setup elements, properties and length.
+  Node* elements = effect =
+      AllocateElements(effect, control, elements_kind, values, pretenure);
+  Node* properties = jsgraph()->EmptyFixedArrayConstant();
+  Node* length = jsgraph()->Constant(static_cast<int>(values.size()));
+
+  // Perform the allocation of the actual JSArray object.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(JSArray::kSize, pretenure);
+  a.Store(AccessBuilder::ForMap(), js_array_map);
+  a.Store(AccessBuilder::ForJSObjectProperties(), properties);
+  a.Store(AccessBuilder::ForJSObjectElements(), elements);
+  a.Store(AccessBuilder::ForJSArrayLength(elements_kind), length);
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
 Reduction JSCreateLowering::ReduceNewArrayToStubCall(
     Node* node, Handle<AllocationSite> site) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
@@ -755,12 +815,25 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
     } else if (p.arity() == 1) {
       Node* length = NodeProperties::GetValueInput(node, 2);
       Type* length_type = NodeProperties::GetType(length);
+      if (!length_type->Maybe(Type::Unsigned32())) {
+        // Handle the single argument case, where we know that the value
+        // cannot be a valid Array length.
+        return ReduceNewArray(node, {length}, site);
+      }
       if (length_type->Is(Type::SignedSmall()) && length_type->Min() >= 0 &&
           length_type->Max() <= kElementLoopUnrollLimit &&
           length_type->Min() == length_type->Max()) {
         int capacity = static_cast<int>(length_type->Max());
         return ReduceNewArray(node, length, capacity, site);
       }
+    } else if (p.arity() <= JSArray::kInitialMaxFastElementArray) {
+      std::vector<Node*> values;
+      values.reserve(p.arity());
+      for (size_t i = 0; i < p.arity(); ++i) {
+        values.push_back(
+            NodeProperties::GetValueInput(node, static_cast<int>(2 + i)));
+      }
+      return ReduceNewArray(node, values, site);
     }
   }
 
@@ -1121,6 +1194,31 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
   for (int i = 0; i < capacity; ++i) {
     Node* index = jsgraph()->Constant(i);
     a.Store(access, index, value);
+  }
+  return a.Finish();
+}
+
+Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
+                                         ElementsKind elements_kind,
+                                         std::vector<Node*> const& values,
+                                         PretenureFlag pretenure) {
+  int const capacity = static_cast<int>(values.size());
+  DCHECK_LE(1, capacity);
+  DCHECK_LE(capacity, JSArray::kInitialMaxFastElementArray);
+
+  Handle<Map> elements_map = IsFastDoubleElementsKind(elements_kind)
+                                 ? factory()->fixed_double_array_map()
+                                 : factory()->fixed_array_map();
+  ElementAccess access = IsFastDoubleElementsKind(elements_kind)
+                             ? AccessBuilder::ForFixedDoubleArrayElement()
+                             : AccessBuilder::ForFixedArrayElement();
+
+  // Actually allocate the backing store.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.AllocateArray(capacity, elements_map, pretenure);
+  for (int i = 0; i < capacity; ++i) {
+    Node* index = jsgraph()->Constant(i);
+    a.Store(access, index, values[i]);
   }
   return a.Finish();
 }
