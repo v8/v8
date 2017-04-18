@@ -29,8 +29,7 @@ BUILTIN(NumberPrototypeToExponential) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
-                                  "Number.prototype.toExponential"),
-                              isolate->factory()->Number_string()));
+                                  "Number.prototype.toExponential")));
   }
   double const value_number = value->Number();
 
@@ -73,8 +72,7 @@ BUILTIN(NumberPrototypeToFixed) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
-                                  "Number.prototype.toFixed"),
-                              isolate->factory()->Number_string()));
+                                  "Number.prototype.toFixed")));
   }
   double const value_number = value->Number();
 
@@ -116,8 +114,7 @@ BUILTIN(NumberPrototypeToLocaleString) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
-                                  "Number.prototype.toLocaleString"),
-                              isolate->factory()->Number_string()));
+                                  "Number.prototype.toLocaleString")));
   }
 
   // Turn the {value} into a String.
@@ -138,8 +135,7 @@ BUILTIN(NumberPrototypeToPrecision) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
-                                  "Number.prototype.toPrecision"),
-                              isolate->factory()->Number_string()));
+                                  "Number.prototype.toPrecision")));
   }
   double const value_number = value->Number();
 
@@ -183,8 +179,7 @@ BUILTIN(NumberPrototypeToString) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
-                                  "Number.prototype.toString"),
-                              isolate->factory()->Number_string()));
+                                  "Number.prototype.toString")));
   }
   double const value_number = value->Number();
 

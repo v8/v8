@@ -312,8 +312,7 @@ BUILTIN(FunctionPrototypeToString) {
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kNotGeneric,
                             isolate->factory()->NewStringFromAsciiChecked(
-                                "Function.prototype.toString"),
-                            isolate->factory()->Function_string()));
+                                "Function.prototype.toString")));
 }
 
 }  // namespace internal
