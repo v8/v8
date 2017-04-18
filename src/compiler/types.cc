@@ -208,6 +208,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
         return kOtherCallable;
       }
       return kOtherObject;
+    case JS_ARRAY_TYPE:
+      return kArray;
     case JS_VALUE_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
@@ -216,7 +218,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
-    case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:  // TODO(rossberg): there should be a RegExp type.
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:

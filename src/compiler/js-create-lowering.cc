@@ -1216,7 +1216,7 @@ Node* JSCreateLowering::AllocateFastLiteral(
   // Actually allocate and initialize the object.
   AllocationBuilder builder(jsgraph(), effect, control);
   builder.Allocate(boilerplate_map->instance_size(), pretenure,
-                   Type::OtherObject());
+                   Type::For(boilerplate_map));
   builder.Store(AccessBuilder::ForMap(), boilerplate_map);
   builder.Store(AccessBuilder::ForJSObjectProperties(), properties);
   builder.Store(AccessBuilder::ForJSObjectElements(), elements);

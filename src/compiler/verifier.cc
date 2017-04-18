@@ -602,8 +602,8 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSCreateArray:
-      // Type is OtherObject.
-      CheckTypeIs(node, Type::OtherObject());
+      // Type is Array.
+      CheckTypeIs(node, Type::Array());
       break;
     case IrOpcode::kJSCreateClosure:
       // Type is Function.
@@ -618,6 +618,9 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSCreateLiteralArray:
+      // Type is Array.
+      CheckTypeIs(node, Type::Array());
+      break;
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
       // Type is OtherObject.
