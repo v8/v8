@@ -4642,10 +4642,14 @@ static Instr EncodeNeonSizedOp(NeonSizedOp op, NeonRegType reg_type,
 }
 
 void Assembler::vzip(NeonSize size, DwVfpRegister src1, DwVfpRegister src2) {
-  DCHECK(IsEnabled(NEON));
-  // vzip.<size>(Dn, Dm) SIMD zip (interleave).
-  // Instruction details available in ARM DDI 0406C.b, A8-1102.
-  emit(EncodeNeonSizedOp(VZIP, NEON_D, size, src1.code(), src2.code()));
+  if (size == Neon32) {  // vzip.32 Dd, Dm is a pseudo-op for vtrn.32 Dd, Dm.
+    vtrn(size, src1, src2);
+  } else {
+    DCHECK(IsEnabled(NEON));
+    // vzip.<size>(Dn, Dm) SIMD zip (interleave).
+    // Instruction details available in ARM DDI 0406C.b, A8-1102.
+    emit(EncodeNeonSizedOp(VZIP, NEON_D, size, src1.code(), src2.code()));
+  }
 }
 
 void Assembler::vzip(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
@@ -4656,10 +4660,14 @@ void Assembler::vzip(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
 }
 
 void Assembler::vuzp(NeonSize size, DwVfpRegister src1, DwVfpRegister src2) {
-  DCHECK(IsEnabled(NEON));
-  // vuzp.<size>(Dn, Dm) SIMD un-zip (de-interleave).
-  // Instruction details available in ARM DDI 0406C.b, A8-1100.
-  emit(EncodeNeonSizedOp(VUZP, NEON_D, size, src1.code(), src2.code()));
+  if (size == Neon32) {  // vuzp.32 Dd, Dm is a pseudo-op for vtrn.32 Dd, Dm.
+    vtrn(size, src1, src2);
+  } else {
+    DCHECK(IsEnabled(NEON));
+    // vuzp.<size>(Dn, Dm) SIMD un-zip (de-interleave).
+    // Instruction details available in ARM DDI 0406C.b, A8-1100.
+    emit(EncodeNeonSizedOp(VUZP, NEON_D, size, src1.code(), src2.code()));
+  }
 }
 
 void Assembler::vuzp(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
