@@ -23,7 +23,6 @@ class V8DebuggerScript;
 class V8InspectorImpl;
 class V8InspectorSessionImpl;
 class V8Regex;
-class V8StackTraceImpl;
 
 using protocol::Maybe;
 using protocol::Response;
