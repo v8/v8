@@ -1951,9 +1951,11 @@ class InstantiationHelper {
           Handle<WasmMemoryObject> memory_object;
           if (!instance->has_memory_object()) {
             // If there was no imported WebAssembly.Memory object, create one.
-            Handle<JSArrayBuffer> buffer(instance->memory_buffer(), isolate_);
             memory_object = WasmMemoryObject::New(
-                isolate_, buffer,
+                isolate_,
+                (instance->has_memory_buffer())
+                    ? handle(instance->memory_buffer())
+                    : Handle<JSArrayBuffer>::null(),
                 (module_->max_mem_pages != 0) ? module_->max_mem_pages : -1);
             instance->set_memory_object(*memory_object);
           } else {
