@@ -271,14 +271,14 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   Heap* heap_;
 
-  State state_;
-
   double start_time_ms_;
   size_t initial_old_generation_size_;
   size_t old_generation_allocation_counter_;
   size_t bytes_allocated_;
   size_t bytes_marked_ahead_of_schedule_;
   size_t unscanned_bytes_of_large_object_;
+
+  State state_;
 
   int idle_marking_delay_counter_;
   int incremental_marking_finalization_rounds_;
@@ -289,10 +289,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   bool black_allocation_;
   bool finalize_marking_completed_;
   bool trace_wrappers_toggle_;
+  IncrementalMarkingJob incremental_marking_job_;
 
   GCRequestType request_type_;
 
-  IncrementalMarkingJob incremental_marking_job_;
   Observer new_generation_observer_;
   Observer old_generation_observer_;
 

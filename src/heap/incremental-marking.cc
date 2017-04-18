@@ -23,10 +23,10 @@ namespace internal {
 
 IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
-      state_(STOPPED),
       initial_old_generation_size_(0),
       bytes_marked_ahead_of_schedule_(0),
       unscanned_bytes_of_large_object_(0),
+      state_(STOPPED),
       idle_marking_delay_counter_(0),
       incremental_marking_finalization_rounds_(0),
       is_compacting_(false),
