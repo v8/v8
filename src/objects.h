@@ -145,7 +145,6 @@
 //       - DebugInfo
 //       - BreakPointInfo
 //       - StackFrameInfo
-//       - SourcePositionTableWithFrameCache
 //       - CodeCache
 //       - PrototypeInfo
 //       - Module
@@ -713,8 +712,8 @@ enum InstanceType {
   WEAK_CELL_TYPE,
   PROPERTY_CELL_TYPE,
 
-  // TODO(yangguo): these padding types are for ABI stability. Remove after
-  // version 6.0 branch, or replace them when there is demand for new types.
+  // All the following types are subtypes of JSReceiver, which corresponds to
+  // objects in the JS sense. The first and the last type in this range are
   PADDING_TYPE_1,
   PADDING_TYPE_2,
   PADDING_TYPE_3,
@@ -1060,6 +1059,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSRegExp)                          \
   V(JSSet)                             \
   V(JSSetIterator)                     \
+  V(JSSloppyArgumentsObject)           \
   V(JSStringIterator)                  \
   V(JSTypedArray)                      \
   V(JSValue)                           \
@@ -2688,6 +2688,11 @@ class JSArgumentsObject: public JSObject {
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
 
+  DECL_ACCESSORS(length, Object)
+
+  DECLARE_VERIFIER(JSArgumentsObject)
+  DECLARE_CAST(JSArgumentsObject)
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArgumentsObject);
 };
@@ -2703,6 +2708,11 @@ class JSSloppyArgumentsObject: public JSArgumentsObject {
   // Indices of in-object properties.
   static const int kCalleeIndex = 1;
 
+  DECL_ACCESSORS(callee, Object)
+
+  DECLARE_VERIFIER(JSSloppyArgumentsObject)
+  DECLARE_CAST(JSSloppyArgumentsObject)
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSloppyArgumentsObject);
 };
@@ -2714,6 +2724,8 @@ class JSStrictArgumentsObject: public JSArgumentsObject {
  public:
   // Offsets of object fields.
   static const int kSize = JSArgumentsObject::kHeaderSize;
+
+  DECLARE_CAST(JSStrictArgumentsObject)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);
@@ -2906,6 +2918,7 @@ class FixedDoubleArray: public FixedArrayBase {
 // JSArgumentsObject:
 // - FAST_SLOPPY_ARGUMENTS_ELEMENTS: FAST_HOLEY_ELEMENTS
 // - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
+// - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
 class SloppyArgumentsElements : public FixedArray {
  public:
   static const int kContextIndex = 0;
@@ -2920,6 +2933,9 @@ class SloppyArgumentsElements : public FixedArray {
   inline void set_mapped_entry(uint32_t entry, Object* object);
 
   DECLARE_CAST(SloppyArgumentsElements)
+#ifdef VERIFY_HEAP
+  void SloppyArgumentsElementsVerify(JSSloppyArgumentsObject* holder);
+#endif
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SloppyArgumentsElements);
@@ -3300,7 +3316,7 @@ class BytecodeArray : public FixedArrayBase {
   DECL_ACCESSORS(handler_table, FixedArray)
 
   // Accessors for source position table containing mappings between byte code
-  // offset and source position or SourcePositionTableWithFrameCache.
+  // offset and source position.
   DECL_ACCESSORS(source_position_table, Object)
 
   inline ByteArray* SourcePositionTable();
@@ -3715,7 +3731,7 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [source_position_table]: ByteArray for the source positions table or
+  // [source_position_table]: ByteArray for the source positions table.
   // SourcePositionTableWithFrameCache.
   DECL_ACCESSORS(source_position_table, Object)
 
@@ -3879,8 +3895,8 @@ class Code: public HeapObject {
   inline bool marked_for_deoptimization();
   inline void set_marked_for_deoptimization(bool flag);
 
-  // [deopt_already_counted]: For kind OPTIMIZED_FUNCTION tells whether
-  // the code was already deoptimized.
+  // [is_promise_rejection]: For kind BUILTIN tells whether the exception
+  // thrown by the code will lead to promise rejection.
   inline bool deopt_already_counted();
   inline void set_deopt_already_counted(bool flag);
 
@@ -5887,7 +5903,7 @@ class SharedFunctionInfo: public HeapObject {
   inline bool is_compiled() const;
 
   // [length]: The function length - usually the number of declared parameters.
-  // Use up to 2^30 parameters. The value is only reliable when the function has
+  // Use up to 2^30 parameters.
   // been compiled.
   inline int GetLength() const;
   inline bool HasLength() const;

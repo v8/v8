@@ -207,6 +207,10 @@ bool HeapObject::IsFixedArray() const {
 
 bool HeapObject::IsSloppyArgumentsElements() const { return IsFixedArray(); }
 
+bool HeapObject::IsJSSloppyArgumentsObject() const {
+  return IsJSArgumentsObject();
+}
+
 bool HeapObject::IsJSGeneratorObject() const {
   return map()->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
          IsJSAsyncGeneratorObject();
@@ -640,6 +644,7 @@ CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HandlerTable)
 CAST_ACCESSOR(HeapObject)
+CAST_ACCESSOR(JSArgumentsObject);
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
@@ -663,6 +668,7 @@ CAST_ACCESSOR(JSPromiseCapability)
 CAST_ACCESSOR(JSPromise)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
+CAST_ACCESSOR(JSSloppyArgumentsObject)
 CAST_ACCESSOR(JSAsyncFromSyncIterator)
 CAST_ACCESSOR(JSStringIterator)
 CAST_ACCESSOR(JSArrayIterator)
@@ -5509,6 +5515,9 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
          Map::cast(value)->GetConstructor() == constructor_or_backpointer());
   set_constructor_or_backpointer(value, mode);
 }
+
+ACCESSORS(JSArgumentsObject, length, Object, kLengthOffset);
+ACCESSORS(JSSloppyArgumentsObject, callee, Object, kCalleeOffset);
 
 ACCESSORS(Map, code_cache, FixedArray, kCodeCacheOffset)
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
