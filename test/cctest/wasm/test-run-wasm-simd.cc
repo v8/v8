@@ -749,9 +749,7 @@ WASM_EXEC_COMPILED_TEST(I16x8ReplaceLane) {
 
   CHECK_EQ(1, r.Call(1, 2));
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
-#if V8_TARGET_ARCH_ARM
 WASM_EXEC_COMPILED_TEST(I8x16Splat) {
   FLAG_wasm_simd_prototype = true;
 
@@ -869,7 +867,7 @@ WASM_EXEC_COMPILED_TEST(I8x16ReplaceLane) {
 
   CHECK_EQ(1, r.Call(1, 2));
 }
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
 #if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64
@@ -1400,7 +1398,9 @@ WASM_EXEC_COMPILED_TEST(I8x16ConvertI16x8) {
     CHECK_EQ(1, r.Call(*i, packed_signed, packed_unsigned));
   }
 }
+#endif  // V8_TARGET_ARCH_ARM
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 void RunI8x16BinOpTest(WasmOpcode simd_op, Int8BinOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteCompiled);
@@ -1431,8 +1431,6 @@ WASM_EXEC_COMPILED_TEST(I8x16Sub) { RunI8x16BinOpTest(kExprI8x16Sub, Sub); }
 WASM_EXEC_COMPILED_TEST(I8x16SubSaturateS) {
   RunI8x16BinOpTest(kExprI8x16SubSaturateS, SubSaturate);
 }
-
-WASM_EXEC_COMPILED_TEST(I8x16Mul) { RunI8x16BinOpTest(kExprI8x16Mul, Mul); }
 
 WASM_EXEC_COMPILED_TEST(I8x16MinS) {
   RunI8x16BinOpTest(kExprI8x16MinS, Minimum);
@@ -1484,6 +1482,10 @@ WASM_EXEC_COMPILED_TEST(I8x16Eq) { RunI8x16CompareOpTest(kExprI8x16Eq, Equal); }
 WASM_EXEC_COMPILED_TEST(I8x16Ne) {
   RunI8x16CompareOpTest(kExprI8x16Ne, NotEqual);
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
+
+#if V8_TARGET_ARCH_ARM
+WASM_EXEC_COMPILED_TEST(I8x16Mul) { RunI8x16BinOpTest(kExprI8x16Mul, Mul); }
 
 WASM_EXEC_COMPILED_TEST(I8x16GtS) {
   RunI8x16CompareOpTest(kExprI8x16GtS, Greater);
@@ -1588,11 +1590,11 @@ WASM_SIMD_SELECT_TEST(32x4)
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 WASM_SIMD_SELECT_TEST(16x8)
+
+WASM_SIMD_SELECT_TEST(8x16)
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
 #if V8_TARGET_ARCH_ARM
-WASM_SIMD_SELECT_TEST(8x16)
-
 // Boolean unary operations are 'AllTrue' and 'AnyTrue', which return an integer
 // result. Use relational ops on numeric vectors to create the boolean vector
 // test inputs. Test inputs with all true, all false, one true, and one false.

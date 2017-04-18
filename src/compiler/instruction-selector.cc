@@ -2287,13 +2287,17 @@ void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
 void InstructionSelector::VisitI16x8LtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8LeU(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM
 
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI8x16Splat(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16ReplaceLane(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 
+#if !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Shl(Node* node) { UNIMPLEMENTED(); }
@@ -2303,7 +2307,9 @@ void InstructionSelector::VisitI8x16ShrS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16SConvertI16x8(Node* node) {
   UNIMPLEMENTED();
 }
+#endif  // !V8_TARGET_ARCH_ARM
 
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI8x16Add(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
@@ -2316,8 +2322,6 @@ void InstructionSelector::VisitI8x16SubSaturateS(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitI8x16MinS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16MaxS(Node* node) { UNIMPLEMENTED(); }
@@ -2325,6 +2329,10 @@ void InstructionSelector::VisitI8x16MaxS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16Eq(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Ne(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
+
+#if !V8_TARGET_ARCH_ARM
+void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16LtS(Node* node) { UNIMPLEMENTED(); }
 
@@ -2335,7 +2343,9 @@ void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
   UNIMPLEMENTED();
 }
+#endif  // !V8_TARGET_ARCH_ARM
 
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI8x16AddSaturateU(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2347,7 +2357,9 @@ void InstructionSelector::VisitI8x16SubSaturateU(Node* node) {
 void InstructionSelector::VisitI8x16MinU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16MaxU(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 
+#if !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI8x16LtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16LeU(Node* node) { UNIMPLEMENTED(); }
@@ -2381,11 +2393,11 @@ void InstructionSelector::VisitS32x4Select(Node* node) { UNIMPLEMENTED(); }
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitS16x8Select(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitS8x16Select(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 
 #if !V8_TARGET_ARCH_ARM
-void InstructionSelector::VisitS8x16Select(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitS1x4And(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS1x4Or(Node* node) { UNIMPLEMENTED(); }

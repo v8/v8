@@ -177,6 +177,21 @@ namespace compiler {
   V(X64I16x8SubSaturateU)          \
   V(X64I16x8MinU)                  \
   V(X64I16x8MaxU)                  \
+  V(X64I8x16Splat)                 \
+  V(X64I8x16ExtractLane)           \
+  V(X64I8x16ReplaceLane)           \
+  V(X64I8x16Add)                   \
+  V(X64I8x16AddSaturateS)          \
+  V(X64I8x16Sub)                   \
+  V(X64I8x16SubSaturateS)          \
+  V(X64I8x16MinS)                  \
+  V(X64I8x16MaxS)                  \
+  V(X64I8x16Eq)                    \
+  V(X64I8x16Ne)                    \
+  V(X64I8x16AddSaturateU)          \
+  V(X64I8x16SubSaturateU)          \
+  V(X64I8x16MinU)                  \
+  V(X64I8x16MaxU)                  \
   V(X64S128Select)                 \
   V(X64S128Zero)
 

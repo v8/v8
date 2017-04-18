@@ -157,6 +157,21 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I16x8SubSaturateU:
     case kX64I16x8MinU:
     case kX64I16x8MaxU:
+    case kX64I8x16Splat:
+    case kX64I8x16ExtractLane:
+    case kX64I8x16ReplaceLane:
+    case kX64I8x16Add:
+    case kX64I8x16AddSaturateS:
+    case kX64I8x16Sub:
+    case kX64I8x16SubSaturateS:
+    case kX64I8x16MinS:
+    case kX64I8x16MaxS:
+    case kX64I8x16Eq:
+    case kX64I8x16Ne:
+    case kX64I8x16AddSaturateU:
+    case kX64I8x16SubSaturateU:
+    case kX64I8x16MinU:
+    case kX64I8x16MaxU:
     case kX64S128Select:
     case kX64S128Zero:
       return (instr->addressing_mode() == kMode_None)

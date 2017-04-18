@@ -2440,11 +2440,13 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_TYPES(V) \
   V(I32x4)            \
-  V(I16x8)
+  V(I16x8)            \
+  V(I8x16)
 
 #define SIMD_FORMAT_LIST(V) \
   V(32x4)                   \
-  V(16x8)
+  V(16x8)                   \
+  V(8x16)
 
 #define SIMD_ZERO_OP_LIST(V) \
   V(S128Zero)                \
@@ -2474,7 +2476,19 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8AddSaturateU)     \
   V(I16x8SubSaturateU)     \
   V(I16x8MinU)             \
-  V(I16x8MaxU)
+  V(I16x8MaxU)             \
+  V(I8x16Add)              \
+  V(I8x16AddSaturateS)     \
+  V(I8x16Sub)              \
+  V(I8x16SubSaturateS)     \
+  V(I8x16MinS)             \
+  V(I8x16MaxS)             \
+  V(I8x16Eq)               \
+  V(I8x16Ne)               \
+  V(I8x16AddSaturateU)     \
+  V(I8x16SubSaturateU)     \
+  V(I8x16MinU)             \
+  V(I8x16MaxU)
 
 #define SIMD_SHIFT_OPCODES(V) \
   V(I32x4Shl)                 \
