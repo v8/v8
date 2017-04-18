@@ -1220,10 +1220,10 @@ void Builtins::Generate_InterpreterPushArgsThenConstructArray(
   // Push a slot for the receiver.
   __ push(zero_reg);
 
-  Generate_StackOverflowCheck(masm, a4, a5, a6, &stack_overflow);
+  Generate_StackOverflowCheck(masm, a0, a5, a6, &stack_overflow);
 
   // This function modifies a3, a5 and a6.
-  Generate_InterpreterPushArgs(masm, a4, a3, a5, a6);
+  Generate_InterpreterPushArgs(masm, a0, a3, a5, a6);
 
   // ArrayConstructor stub expects constructor in a3. Set it here.
   __ mov(a3, a1);
