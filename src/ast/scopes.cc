@@ -612,7 +612,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       Variable* var = DeclareVariableName(name, VAR);
       if (var != kDummyPreParserVariable &&
           var != kDummyPreParserLexicalVariable) {
-        DCHECK(FLAG_preparser_scope_analysis);
+        DCHECK(FLAG_experimental_preparser_scope_analysis);
         var->set_maybe_assigned();
       }
     }
@@ -662,7 +662,7 @@ void DeclarationScope::Analyze(ParseInfo* info, Isolate* isolate,
   scope->set_should_eager_compile();
 
   if (scope->must_use_preparsed_scope_data_) {
-    DCHECK(FLAG_preparser_scope_analysis);
+    DCHECK(FLAG_experimental_preparser_scope_analysis);
     DCHECK_NOT_NULL(info->preparsed_scope_data());
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
     info->preparsed_scope_data()->RestoreData(scope);
@@ -1044,7 +1044,7 @@ Variable* DeclarationScope::DeclareParameterName(
   if (name == ast_value_factory->arguments_string()) {
     has_arguments_parameter_ = true;
   }
-  if (FLAG_preparser_scope_analysis) {
+  if (FLAG_experimental_preparser_scope_analysis) {
     Variable* var = Declare(zone(), name, VAR);
     params_.Add(var, zone());
     return var;
@@ -1205,7 +1205,7 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
   DCHECK(scope_info_.is_null());
 
   // Declare the variable in the declaration scope.
-  if (FLAG_preparser_scope_analysis) {
+  if (FLAG_experimental_preparser_scope_analysis) {
     Variable* var = LookupLocal(name);
     DCHECK_NE(var, kDummyPreParserLexicalVariable);
     DCHECK_NE(var, kDummyPreParserVariable);
@@ -1552,7 +1552,8 @@ void DeclarationScope::AnalyzePartially(
       arguments_ = nullptr;
     }
 
-    if (FLAG_preparser_scope_analysis && preparsed_scope_data->Producing()) {
+    if (FLAG_experimental_preparser_scope_analysis &&
+        preparsed_scope_data->Producing()) {
       // Store the information needed for allocating the locals of this scope
       // and its inner scopes.
       preparsed_scope_data->SaveData(this);
@@ -2257,7 +2258,8 @@ void ModuleScope::AllocateModuleVariables() {
 
 void Scope::AllocateVariablesRecursively() {
   DCHECK(!already_resolved_);
-  DCHECK_IMPLIES(!FLAG_preparser_scope_analysis, num_stack_slots_ == 0);
+  DCHECK_IMPLIES(!FLAG_experimental_preparser_scope_analysis,
+                 num_stack_slots_ == 0);
 
   // Don't allocate variables of preparsed scopes.
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {

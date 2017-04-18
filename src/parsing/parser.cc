@@ -2860,7 +2860,7 @@ Parser::LazyParsingResult Parser::SkipFunction(FunctionKind kind,
 
   // FIXME(marja): There are 3 ways to skip functions now. Unify them.
   if (preparsed_scope_data_->Consuming()) {
-    DCHECK(FLAG_preparser_scope_analysis);
+    DCHECK(FLAG_experimental_preparser_scope_analysis);
     const PreParseData::FunctionData& data =
         preparsed_scope_data_->FindFunction(function_scope->start_position());
     if (data.is_valid()) {

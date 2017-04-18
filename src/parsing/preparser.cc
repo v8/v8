@@ -215,7 +215,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     // function var since the arguments object masks 'function arguments'.
     function_scope->DeclareArguments(ast_value_factory());
 
-    if (FLAG_preparser_scope_analysis && preparsed_scope_data_ != nullptr) {
+    if (FLAG_experimental_preparser_scope_analysis &&
+        preparsed_scope_data_ != nullptr) {
       preparsed_scope_data_->AddFunction(
           scope()->start_position(),
           PreParseData::FunctionData(
@@ -354,7 +355,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     }
   }
 
-  if (FLAG_preparser_scope_analysis && preparsed_scope_data_ != nullptr) {
+  if (FLAG_experimental_preparser_scope_analysis &&
+      preparsed_scope_data_ != nullptr) {
     preparsed_scope_data_->AddFunction(
         start_position,
         PreParseData::FunctionData(
@@ -416,7 +418,7 @@ void PreParser::DeclareAndInitializeVariables(
       declaration_descriptor->scope->RemoveUnresolved(variable);
       Variable* var = scope()->DeclareVariableName(
           variable->raw_name(), declaration_descriptor->mode);
-      if (FLAG_preparser_scope_analysis) {
+      if (FLAG_experimental_preparser_scope_analysis) {
         MarkLoopVariableAsAssigned(declaration_descriptor->scope, var);
         // This is only necessary if there is an initializer, but we don't have
         // that information here.  Consequently, the preparser sometimes says
