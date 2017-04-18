@@ -34,7 +34,7 @@ class AsmJsParser {
   explicit AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
                        int start, int end);
   bool Run();
-  const char* failure_message() const { return failure_message_.c_str(); }
+  const char* failure_message() const { return failure_message_; }
   int failure_location() const { return failure_location_; }
   WasmModuleBuilder* module_builder() { return module_builder_; }
   const AsmTyper::StdlibSet* stdlib_uses() const { return &stdlib_uses_; }
@@ -115,7 +115,7 @@ class AsmJsParser {
 
   // Error Handling related
   bool failed_;
-  std::string failure_message_;
+  const char* failure_message_;
   int failure_location_;
 
   // Module Related.

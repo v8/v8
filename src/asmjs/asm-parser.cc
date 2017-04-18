@@ -29,17 +29,17 @@ namespace wasm {
 #define FAIL_AND_RETURN(ret, msg)                                        \
   failed_ = true;                                                        \
   failure_message_ = msg;                                                \
-  failure_location_ = scanner_.GetPosition();                            \
+  failure_location_ = static_cast<int>(scanner_.Position());             \
   if (FLAG_trace_asm_parser) {                                           \
     PrintF("[asm.js failure: %s, token: '%s', see: %s:%d]\n", msg,       \
            scanner_.Name(scanner_.Token()).c_str(), __FILE__, __LINE__); \
   }                                                                      \
   return ret;
 #else
-#define FAIL_AND_RETURN(ret, msg)             \
-  failed_ = true;                             \
-  failure_message_ = msg;                     \
-  failure_location_ = scanner_.GetPosition(); \
+#define FAIL_AND_RETURN(ret, msg)                            \
+  failed_ = true;                                            \
+  failure_message_ = msg;                                    \
+  failure_location_ = static_cast<int>(scanner_.Position()); \
   return ret;
 #endif
 
@@ -1302,7 +1302,8 @@ void AsmJsParser::SwitchStatement() {
   pending_label_ = 0;
   // TODO(bradnelson): Make less weird.
   std::vector<int32_t> cases;
-  GatherCases(&cases);  // Skips { implicitly.
+  GatherCases(&cases);
+  EXPECT_TOKEN('{');
   size_t count = cases.size() + 1;
   for (size_t i = 0; i < count; ++i) {
     BareBegin(BlockKind::kOther);
@@ -1958,17 +1959,17 @@ AsmType* AsmJsParser::BitwiseORExpression() {
     call_coercion_deferred_ = nullptr;
     // TODO(bradnelson): Make it prettier.
     bool zero = false;
-    int old_pos;
+    size_t old_pos;
     size_t old_code;
     if (a->IsA(AsmType::Intish()) && CheckForZero()) {
-      old_pos = scanner_.GetPosition();
+      old_pos = scanner_.Position();
       old_code = current_function_builder_->GetPosition();
       scanner_.Rewind();
       zero = true;
     }
     RECURSEn(b = BitwiseXORExpression());
     // Handle |0 specially.
-    if (zero && old_pos == scanner_.GetPosition()) {
+    if (zero && old_pos == scanner_.Position()) {
       current_function_builder_->StashCode(nullptr, old_code);
       a = AsmType::Signed();
       continue;
@@ -2440,7 +2441,7 @@ void AsmJsParser::ValidateFloatCoercion() {
 }
 
 void AsmJsParser::GatherCases(std::vector<int32_t>* cases) {
-  int start = scanner_.GetPosition();
+  size_t start = scanner_.Position();
   int depth = 0;
   for (;;) {
     if (Peek('{')) {

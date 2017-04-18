@@ -62,10 +62,9 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   std::string Name(token_t token) const;
 #endif
 
-  // Get current position (to use with Seek).
-  int GetPosition() const;
-  // Restores old position (token after that position).
-  void Seek(int pos);
+  // Restores old position (token after that position). Note that it is not
+  // allowed to rewind right after a seek, because previous tokens are unknown.
+  void Seek(size_t pos);
 
   // Select whether identifiers are resolved in global or local scope,
   // and which scope new identifiers are added to.
