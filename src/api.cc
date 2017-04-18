@@ -1387,7 +1387,7 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
+      isolate->factory()->NewStruct(i::TUPLE2_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
@@ -1844,7 +1844,7 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   auto cons = EnsureConstructor(isolate, this);
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
   i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
+      isolate->factory()->NewStruct(i::TUPLE2_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
@@ -8617,7 +8617,7 @@ void Isolate::EnqueueMicrotask(MicrotaskCallback microtask, void* data) {
   i::HandleScope scope(isolate);
   i::Handle<i::CallHandlerInfo> callback_info =
       i::Handle<i::CallHandlerInfo>::cast(
-          isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE));
+          isolate->factory()->NewStruct(i::TUPLE2_TYPE));
   SET_FIELD_WRAPPED(callback_info, set_callback, microtask);
   SET_FIELD_WRAPPED(callback_info, set_data, data);
   isolate->EnqueueMicrotask(callback_info);

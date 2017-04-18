@@ -128,8 +128,8 @@ Handle<ContextExtension> Factory::NewContextExtension(
 
 Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
     ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
-  Handle<ConstantElementsPair> result = Handle<ConstantElementsPair>::cast(
-      NewStruct(CONSTANT_ELEMENTS_PAIR_TYPE));
+  Handle<ConstantElementsPair> result =
+      Handle<ConstantElementsPair>::cast(NewStruct(TUPLE2_TYPE));
   result->set_elements_kind(elements_kind);
   result->set_constant_values(*constant_values);
   return result;
@@ -260,7 +260,7 @@ Handle<AccessorPair> Factory::NewAccessorPair() {
 
 Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
   Handle<TypeFeedbackInfo> info =
-      Handle<TypeFeedbackInfo>::cast(NewStruct(TYPE_FEEDBACK_INFO_TYPE));
+      Handle<TypeFeedbackInfo>::cast(NewStruct(TUPLE3_TYPE));
   info->initialize_storage();
   return info;
 }
@@ -2601,7 +2601,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 
 Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
   Handle<BreakPointInfo> new_break_point_info =
-      Handle<BreakPointInfo>::cast(NewStruct(BREAK_POINT_INFO_TYPE));
+      Handle<BreakPointInfo>::cast(NewStruct(TUPLE2_TYPE));
   new_break_point_info->set_source_position(source_position);
   new_break_point_info->set_break_point_objects(*undefined_value());
   return new_break_point_info;

@@ -44,7 +44,7 @@ bytecodes: [
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
 ]
 handlers: [
 ]
@@ -90,7 +90,7 @@ bytecodes: [
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
 ]
 handlers: [
 ]
@@ -148,9 +148,9 @@ bytecodes: [
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
-  CONSTANT_ELEMENTS_PAIR_TYPE,
-  CONSTANT_ELEMENTS_PAIR_TYPE,
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
+  TUPLE2_TYPE,
+  TUPLE2_TYPE,
 ]
 handlers: [
 ]

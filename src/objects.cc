@@ -14903,7 +14903,11 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     }
 #ifdef OBJECT_PRINT
     if (!type_feedback_info()->IsUndefined(GetIsolate())) {
-      TypeFeedbackInfo::cast(type_feedback_info())->TypeFeedbackInfoPrint(os);
+      TypeFeedbackInfo* info = TypeFeedbackInfo::cast(type_feedback_info());
+      HeapObject::PrintHeader(os, "TypeFeedbackInfo");
+      os << "\n - ic_total_count: " << info->ic_total_count()
+         << ", ic_with_type_info_count: " << info->ic_with_type_info_count()
+         << ", ic_generic_count: " << info->ic_generic_count() << "\n";
       os << "\n";
     }
 #endif

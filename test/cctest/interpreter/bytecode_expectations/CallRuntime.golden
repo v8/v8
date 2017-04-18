@@ -83,7 +83,7 @@ bytecodes: [
   /*   44 S> */ B(Return),
 ]
 constant pool: [
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
 ]
 handlers: [
 ]

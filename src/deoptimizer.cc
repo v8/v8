@@ -4210,23 +4210,23 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
-    case CALL_HANDLER_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
-    case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
     case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:
-    case BREAK_POINT_INFO_TYPE:
     case STACK_FRAME_INFO_TYPE:
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
-    case CONSTANT_ELEMENTS_PAIR_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
+    case PADDING_TYPE_1:
+    case PADDING_TYPE_2:
+    case PADDING_TYPE_3:
+    case PADDING_TYPE_4:
       OFStream os(stderr);
       os << "[couldn't handle instance type " << map->instance_type() << "]"
          << std::endl;

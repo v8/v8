@@ -428,13 +428,6 @@ void Map::VerifyOmittedMapChecks() {
 }
 
 
-void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
-  VerifyObjectField(kStorage1Offset);
-  VerifyObjectField(kStorage2Offset);
-  VerifyObjectField(kStorage3Offset);
-}
-
-
 void AliasedArgumentsEntry::AliasedArgumentsEntryVerify() {
   VerifySmiField(kAliasedContextSlot);
 }
@@ -1170,12 +1163,6 @@ void ContextExtension::ContextExtensionVerify() {
   VerifyObjectField(kExtensionOffset);
 }
 
-void ConstantElementsPair::ConstantElementsPairVerify() {
-  CHECK(IsConstantElementsPair());
-  VerifySmiField(kElementsKindOffset);
-  VerifyObjectField(kConstantValuesOffset);
-}
-
 void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());
   VerifyPointer(name());
@@ -1212,13 +1199,6 @@ void InterceptorInfo::InterceptorInfoVerify() {
   VerifyPointer(enumerator());
   VerifyPointer(data());
   VerifySmiField(kFlagsOffset);
-}
-
-
-void CallHandlerInfo::CallHandlerInfoVerify() {
-  CHECK(IsCallHandlerInfo());
-  VerifyPointer(callback());
-  VerifyPointer(data());
 }
 
 
@@ -1297,11 +1277,6 @@ void DebugInfo::DebugInfoVerify() {
   VerifyPointer(break_points());
 }
 
-
-void BreakPointInfo::BreakPointInfoVerify() {
-  CHECK(IsBreakPointInfo());
-  VerifyPointer(break_point_objects());
-}
 
 void StackFrameInfo::StackFrameInfoVerify() {
   CHECK(IsStackFrameInfo());
