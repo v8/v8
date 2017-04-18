@@ -1202,6 +1202,70 @@ bool LookupSpecialPropertyValueName(const char* name,
   return true;
 }
 
+// Explicitly whitelist supported binary properties. The spec forbids supporting
+// properties outside of this set to ensure interoperability.
+bool IsSupportedBinaryProperty(UProperty property) {
+  switch (property) {
+    case UCHAR_ALPHABETIC:
+    // 'Any' is not supported by ICU. See LookupSpecialPropertyValueName.
+    // 'ASCII' is not supported by ICU. See LookupSpecialPropertyValueName.
+    case UCHAR_ASCII_HEX_DIGIT:
+    // 'Assigned' is not supported by ICU. See LookupSpecialPropertyValueName.
+    case UCHAR_BIDI_CONTROL:
+    case UCHAR_BIDI_MIRRORED:
+    case UCHAR_CASE_IGNORABLE:
+    case UCHAR_CASED:
+    case UCHAR_CHANGES_WHEN_CASEFOLDED:
+    case UCHAR_CHANGES_WHEN_CASEMAPPED:
+    case UCHAR_CHANGES_WHEN_LOWERCASED:
+    case UCHAR_CHANGES_WHEN_NFKC_CASEFOLDED:
+    case UCHAR_CHANGES_WHEN_TITLECASED:
+    case UCHAR_CHANGES_WHEN_UPPERCASED:
+    case UCHAR_DASH:
+    case UCHAR_DEFAULT_IGNORABLE_CODE_POINT:
+    case UCHAR_DEPRECATED:
+    case UCHAR_DIACRITIC:
+    case UCHAR_EMOJI:
+    // TODO(yangguo): Uncomment this once we upgrade to ICU 60.
+    //                See https://ssl.icu-project.org/trac/ticket/13062
+    // case UCHAR_EMOJI_COMPONENT:
+    case UCHAR_EMOJI_MODIFIER_BASE:
+    case UCHAR_EMOJI_MODIFIER:
+    case UCHAR_EMOJI_PRESENTATION:
+    case UCHAR_EXTENDER:
+    case UCHAR_GRAPHEME_BASE:
+    case UCHAR_GRAPHEME_EXTEND:
+    case UCHAR_HEX_DIGIT:
+    case UCHAR_ID_CONTINUE:
+    case UCHAR_ID_START:
+    case UCHAR_IDEOGRAPHIC:
+    case UCHAR_IDS_BINARY_OPERATOR:
+    case UCHAR_IDS_TRINARY_OPERATOR:
+    case UCHAR_JOIN_CONTROL:
+    case UCHAR_LOGICAL_ORDER_EXCEPTION:
+    case UCHAR_LOWERCASE:
+    case UCHAR_MATH:
+    case UCHAR_NONCHARACTER_CODE_POINT:
+    case UCHAR_PATTERN_SYNTAX:
+    case UCHAR_PATTERN_WHITE_SPACE:
+    case UCHAR_QUOTATION_MARK:
+    case UCHAR_RADICAL:
+    case UCHAR_S_TERM:
+    case UCHAR_SOFT_DOTTED:
+    case UCHAR_TERMINAL_PUNCTUATION:
+    case UCHAR_UNIFIED_IDEOGRAPH:
+    case UCHAR_UPPERCASE:
+    case UCHAR_VARIATION_SELECTOR:
+    case UCHAR_WHITE_SPACE:
+    case UCHAR_XID_CONTINUE:
+    case UCHAR_XID_START:
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
+
 }  // anonymous namespace
 
 bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
@@ -1248,8 +1312,7 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
     }
     // Then attempt to interpret as binary property name with value name 'Y'.
     UProperty property = u_getPropertyEnum(name);
-    if (property < UCHAR_BINARY_START) return false;
-    if (property >= UCHAR_BINARY_LIMIT) return false;
+    if (!IsSupportedBinaryProperty(property)) return false;
     if (!IsExactPropertyAlias(name, property)) return false;
     return LookupPropertyValueName(property, negate ? "N" : "Y", false, result,
                                    zone());
