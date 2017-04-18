@@ -895,10 +895,6 @@ DEFINE_BOOL(clear_exceptions_on_js_entry, false,
 DEFINE_INT(histogram_interval, 600000,
            "time interval in ms for aggregating memory histograms")
 
-// global-handles.cc
-DEFINE_BOOL(trace_object_groups, false,
-            "print object groups detected during each garbage collection")
-
 // heap-snapshot-generator.cc
 DEFINE_BOOL(heap_profiler_trace_objects, false,
             "Dump heap object allocations/movements/size_updates")
