@@ -32,12 +32,15 @@ namespace v8 {
 
 namespace {
 
-#define ASSIGN(type, var, expr)                   \
-  Local<type> var;                                \
-  do {                                            \
-    if (!expr.ToLocal(&var)) {                    \
-      DCHECK(i_isolate->has_pending_exception()); \
-    }                                             \
+#define ASSIGN(type, var, expr)                      \
+  Local<type> var;                                   \
+  do {                                               \
+    if (!expr.ToLocal(&var)) {                       \
+      DCHECK(i_isolate->has_scheduled_exception());  \
+      return;                                        \
+    } else {                                         \
+      DCHECK(!i_isolate->has_scheduled_exception()); \
+    }                                                \
   } while (false)
 
 // TODO(wasm): move brand check to the respective types, and don't throw
@@ -125,7 +128,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
   return i::wasm::ModuleWireBytes(start, start + length);
 }
 
-i::MaybeHandle<i::JSReceiver> GetValueAsImports(const Local<Value>& arg,
+i::MaybeHandle<i::JSReceiver> GetValueAsImports(Local<Value> arg,
                                                 ErrorThrower* thrower) {
   if (arg->IsUndefined()) return {};
 
@@ -320,8 +323,9 @@ void WebAssemblyInstantiateToPairCallback(
   const uint8_t* module_str = reinterpret_cast<const uint8_t*>("module");
   Local<Value> instance;
   if (!WebAssemblyInstantiateImpl(isolate, module, args.Data())
-           .ToLocal(&instance))
+           .ToLocal(&instance)) {
     return;
+  }
 
   Local<Object> ret = Object::New(isolate);
   Local<String> instance_name =
