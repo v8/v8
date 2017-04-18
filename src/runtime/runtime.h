@@ -322,7 +322,6 @@ namespace internal {
   F(ThrowNonCallableInInstanceOfCheck, 0, 1)       \
   F(ThrowNonObjectInInstanceOfCheck, 0, 1)         \
   F(ThrowNotConstructor, 1, 1)                     \
-  F(ThrowNotGeneric, 1, 1)                         \
   F(ThrowRangeError, -1 /* >= 1 */, 1)             \
   F(ThrowReferenceError, 1, 1)                     \
   F(ThrowStackOverflow, 0, 1)                      \
