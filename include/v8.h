@@ -3146,6 +3146,16 @@ class V8_EXPORT Object : public Value {
                            AccessControl settings = DEFAULT);
 
   /**
+   * Sets a native data property like Template::SetNativeDataProperty, but
+   * this method sets on this object directly.
+   */
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
+      Local<Context> context, Local<Name> name,
+      AccessorNameGetterCallback getter,
+      AccessorNameSetterCallback setter = nullptr,
+      Local<Value> data = Local<Value>(), PropertyAttribute attributes = None);
+
+  /**
    * Functionality for private properties.
    * This is an experimental feature, use at your own risk.
    * Note: Private properties are not inherited. Do not rely on this, since it

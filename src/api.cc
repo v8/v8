@@ -4782,21 +4782,20 @@ bool v8::Object::Has(uint32_t index) {
   return Has(context, index).FromMaybe(false);
 }
 
-
 template <typename Getter, typename Setter, typename Data>
 static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
                                      Local<Name> name, Getter getter,
                                      Setter setter, Data data,
                                      AccessControl settings,
-                                     PropertyAttribute attributes) {
+                                     PropertyAttribute attributes,
+                                     bool is_special_data_property) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, Object, SetAccessor, bool);
   if (!Utils::OpenHandle(self)->IsJSObject()) return Just(false);
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(self));
   v8::Local<AccessorSignature> signature;
-  auto info =
-      MakeAccessorInfo(name, getter, setter, data, settings, attributes,
-                       signature, i::FLAG_disable_old_api_accessors, false);
+  auto info = MakeAccessorInfo(name, getter, setter, data, settings, attributes,
+                               signature, is_special_data_property, false);
   if (info.is_null()) return Nothing<bool>();
   bool fast = obj->HasFastProperties();
   i::Handle<i::Object> result;
@@ -4817,7 +4816,8 @@ Maybe<bool> Object::SetAccessor(Local<Context> context, Local<Name> name,
                                 MaybeLocal<Value> data, AccessControl settings,
                                 PropertyAttribute attribute) {
   return ObjectSetAccessor(context, this, name, getter, setter,
-                           data.FromMaybe(Local<Value>()), settings, attribute);
+                           data.FromMaybe(Local<Value>()), settings, attribute,
+                           i::FLAG_disable_old_api_accessors);
 }
 
 
@@ -4826,7 +4826,8 @@ bool Object::SetAccessor(Local<String> name, AccessorGetterCallback getter,
                          AccessControl settings, PropertyAttribute attributes) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   return ObjectSetAccessor(context, this, name, getter, setter, data, settings,
-                           attributes).FromMaybe(false);
+                           attributes, i::FLAG_disable_old_api_accessors)
+      .FromMaybe(false);
 }
 
 
@@ -4836,7 +4837,8 @@ bool Object::SetAccessor(Local<Name> name, AccessorNameGetterCallback getter,
                          PropertyAttribute attributes) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   return ObjectSetAccessor(context, this, name, getter, setter, data, settings,
-                           attributes).FromMaybe(false);
+                           attributes, i::FLAG_disable_old_api_accessors)
+      .FromMaybe(false);
 }
 
 
@@ -4859,6 +4861,15 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
                               static_cast<i::PropertyAttributes>(attribute));
 }
 
+Maybe<bool> Object::SetNativeDataProperty(v8::Local<v8::Context> context,
+                                          v8::Local<Name> name,
+                                          AccessorNameGetterCallback getter,
+                                          AccessorNameSetterCallback setter,
+                                          v8::Local<Value> data,
+                                          PropertyAttribute attributes) {
+  return ObjectSetAccessor(context, this, name, getter, setter, data, DEFAULT,
+                           attributes, true);
+}
 
 Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context,
                                        Local<Name> key) {
