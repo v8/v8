@@ -52,7 +52,7 @@ class AsmJsParser {
 #define V(_unused0, Name, _unused1, _unused2) kMath##Name,
     STDLIB_MATH_FUNCTION_LIST(V)
 #undef V
-#define V(Name) kMath##Name,
+#define V(Name, _unused1) kMath##Name,
     STDLIB_MATH_VALUE_LIST(V)
 #undef V
   };

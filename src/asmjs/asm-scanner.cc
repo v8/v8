@@ -35,8 +35,10 @@ AsmJsScanner::AsmJsScanner()
   STDLIB_MATH_FUNCTION_LIST(V)
   STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
-#define V(name) property_names_[#name] = kToken_##name;
+#define V(name, _junk1) property_names_[#name] = kToken_##name;
   STDLIB_MATH_VALUE_LIST(V)
+#undef V
+#define V(name) property_names_[#name] = kToken_##name;
   STDLIB_OTHER_LIST(V)
 #undef V
 #define V(name) global_names_[#name] = kToken_##name;

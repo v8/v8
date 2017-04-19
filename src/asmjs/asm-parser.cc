@@ -4,11 +4,6 @@
 
 #include "src/asmjs/asm-parser.h"
 
-// Required to get M_E etc. for MSVC.
-// References from STDLIB_MATH_VALUE_LIST in asm-names.h
-#if defined(_WIN32)
-#define _USE_MATH_DEFINES
-#endif
 #include <math.h>
 #include <string.h>
 
@@ -610,10 +605,10 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   if (Check(TOK(Math))) {
     EXPECT_TOKEN('.');
     switch (Consume()) {
-#define V(name)                                             \
+#define V(name, const_value)                                \
   case TOK(name):                                           \
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64, \
-                  WasmInitExpr(M_##name));                  \
+                  WasmInitExpr(const_value));               \
     stdlib_uses_.insert(AsmTyper::kMath##name);             \
     break;
       STDLIB_MATH_VALUE_LIST(V)

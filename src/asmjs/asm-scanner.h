@@ -110,9 +110,11 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
     STDLIB_MATH_FUNCTION_LIST(V)
     STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
+#define V(name, _junk1) kToken_##name,
+    STDLIB_MATH_VALUE_LIST(V)
+#undef V
 #define V(name) kToken_##name,
     STDLIB_OTHER_LIST(V)
-    STDLIB_MATH_VALUE_LIST(V)
     KEYWORD_NAME_LIST(V)
 #undef V
 #define V(rawname, name) kToken_##name,
