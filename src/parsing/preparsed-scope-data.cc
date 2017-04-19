@@ -72,7 +72,7 @@ void PreParsedScopeData::SaveData(Scope* scope) {
   // index is needed for skipping over data for a function scope when we skip
   // parsing of the corresponding function.
   size_t data_end_index = backing_store_.size();
-  backing_store_.push_back(-1);
+  backing_store_.push_back(0);
 
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {
@@ -84,7 +84,8 @@ void PreParsedScopeData::SaveData(Scope* scope) {
 
   SaveDataForInnerScopes(scope);
 
-  backing_store_[data_end_index] = backing_store_.size();
+  // FIXME(marja): see above.
+  backing_store_[data_end_index] = static_cast<uint32_t>(backing_store_.size());
 }
 
 void PreParsedScopeData::AddFunction(
@@ -93,7 +94,7 @@ void PreParsedScopeData::AddFunction(
 }
 
 void PreParsedScopeData::RestoreData(DeclarationScope* scope) const {
-  int index = -1;
+  uint32_t index = 0;
 
   DCHECK_EQ(scope->scope_type(), ScopeType::FUNCTION_SCOPE);
 
@@ -104,7 +105,7 @@ void PreParsedScopeData::RestoreData(DeclarationScope* scope) const {
   RestoreData(scope, &index);
 }
 
-void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
+void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
   // It's possible that scope is not present in the data at all (since PreParser
   // doesn't create the corresponding scope). In this case, the Scope won't
   // contain any variables for which we need the data.
@@ -112,7 +113,7 @@ void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
     return;
   }
 
-  int& index = *index_ptr;
+  uint32_t& index = *index_ptr;
 
 #ifdef DEBUG
   // Data integrity check.
@@ -126,7 +127,7 @@ void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
     DCHECK_EQ(data.uses_super_property,
               scope->AsDeclarationScope()->uses_super_property());
     DCHECK_EQ(data.calls_eval, scope->calls_eval());
-    int index_from_data = -1;
+    uint32_t index_from_data = 0;
     FindFunctionData(scope->start_position(), &index_from_data);
     DCHECK_EQ(index_from_data, index);
   }
@@ -136,6 +137,8 @@ void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
     // This scope is a function scope representing a function we want to
     // skip. So just skip over its data.
     DCHECK(!scope->must_use_preparsed_scope_data());
+    // Check that we're moving forward (not backward) in the data.
+    DCHECK_GT(backing_store_[index + 2], index);
     index = backing_store_[index + 2];
     return;
   }
@@ -145,7 +148,7 @@ void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
   if (backing_store_[index++]) {
     scope->RecordEvalCall();
   }
-  int data_end_index = backing_store_[index++];
+  uint32_t data_end_index = backing_store_[index++];
   USE(data_end_index);
 
   if (!scope->is_hidden()) {
@@ -247,11 +250,11 @@ void PreParsedScopeData::SaveDataForVariable(Variable* var) {
 }
 
 void PreParsedScopeData::RestoreDataForVariable(Variable* var,
-                                                int* index_ptr) const {
-  int& index = *index_ptr;
+                                                uint32_t* index_ptr) const {
+  uint32_t& index = *index_ptr;
 #ifdef DEBUG
   const AstRawString* name = var->raw_name();
-  DCHECK_EQ(backing_store_[index++], name->length());
+  DCHECK_EQ(backing_store_[index++], static_cast<uint32_t>(name->length()));
   for (int i = 0; i < name->length(); ++i) {
     DCHECK_EQ(backing_store_[index++], name->raw_data()[i]);
   }
@@ -283,7 +286,7 @@ void PreParsedScopeData::SaveDataForInnerScopes(Scope* scope) {
 }
 
 void PreParsedScopeData::RestoreDataForInnerScopes(Scope* scope,
-                                                   int* index_ptr) const {
+                                                   uint32_t* index_ptr) const {
   std::vector<Scope*> scopes;
   for (Scope* inner = scope->inner_scope(); inner != nullptr;
        inner = inner->sibling()) {
@@ -294,7 +297,8 @@ void PreParsedScopeData::RestoreDataForInnerScopes(Scope* scope,
   }
 }
 
-bool PreParsedScopeData::FindFunctionData(int start_pos, int* index) const {
+bool PreParsedScopeData::FindFunctionData(int start_pos,
+                                          uint32_t* index) const {
   auto it = function_data_positions_.find(start_pos);
   if (it == function_data_positions_.end()) {
     return false;

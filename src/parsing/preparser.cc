@@ -356,7 +356,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
 
   if (FLAG_experimental_preparser_scope_analysis &&
-      preparsed_scope_data_ != nullptr) {
+      track_unresolved_variables_ && preparsed_scope_data_ != nullptr) {
     preparsed_scope_data_->AddFunction(
         start_position,
         PreParseData::FunctionData(

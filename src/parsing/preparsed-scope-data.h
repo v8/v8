@@ -79,7 +79,7 @@ class PreParsedScopeData {
 
   // Restores the information needed for allocating the Scopes's (and its
   // subscopes') variables.
-  void RestoreData(Scope* scope, int* index_ptr) const;
+  void RestoreData(Scope* scope, uint32_t* index_ptr) const;
   void RestoreData(DeclarationScope* scope) const;
 
   FixedUint32Array* Serialize(Isolate* isolate) const;
@@ -95,17 +95,17 @@ class PreParsedScopeData {
   friend class ScopeTestHelper;
 
   void SaveDataForVariable(Variable* var);
-  void RestoreDataForVariable(Variable* var, int* index_ptr) const;
+  void RestoreDataForVariable(Variable* var, uint32_t* index_ptr) const;
   void SaveDataForInnerScopes(Scope* scope);
-  void RestoreDataForInnerScopes(Scope* scope, int* index_ptr) const;
-  bool FindFunctionData(int start_pos, int* index) const;
+  void RestoreDataForInnerScopes(Scope* scope, uint32_t* index_ptr) const;
+  bool FindFunctionData(int start_pos, uint32_t* index) const;
 
   static bool ScopeNeedsData(Scope* scope);
   static bool IsSkippedFunctionScope(Scope* scope);
 
   // TODO(marja): Make the backing store more efficient once we know exactly
   // what data is needed.
-  std::vector<byte> backing_store_;
+  std::vector<uint32_t> backing_store_;
 
   // Start pos -> FunctionData. Used for creating FunctionLiterals for skipped
   // functions (when they're actually skipped).
