@@ -2926,6 +2926,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kInstanceofCacheMapRootIndex:
     case kInstanceofCacheAnswerRootIndex:
     case kCodeStubsRootIndex:
+    case kEmptyScriptRootIndex:
     case kScriptListRootIndex:
     case kMaterializedObjectsRootIndex:
     case kMicrotaskQueueRootIndex:
