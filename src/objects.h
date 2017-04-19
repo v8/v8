@@ -6724,7 +6724,8 @@ class Module : public Struct {
 
   // Implementation of spec operation ModuleDeclarationInstantiation.
   // Returns false if an exception occurred during instantiation, true
-  // otherwise.
+  // otherwise. (In the case where the callback throws an exception, that
+  // exception is propagated.)
   static MUST_USE_RESULT bool Instantiate(Handle<Module> module,
                                           v8::Local<v8::Context> context,
                                           v8::Module::ResolveCallback callback);

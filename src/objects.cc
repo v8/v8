@@ -20334,15 +20334,10 @@ bool Module::PrepareInstantiate(Handle<Module> module,
   for (int i = 0, length = module_requests->length(); i < length; ++i) {
     Handle<String> specifier(String::cast(module_requests->get(i)), isolate);
     v8::Local<v8::Module> api_requested_module;
-    // TODO(adamk): Revisit these failure cases once d8 knows how to
-    // persist a module_map across multiple top-level module loads, as
-    // the current module is left in a "half-instantiated" state.
     if (!callback(context, v8::Utils::ToLocal(specifier),
                   v8::Utils::ToLocal(module))
              .ToLocal(&api_requested_module)) {
-      // TODO(adamk): Give this a better error message. But this is a
-      // misuse of the API anyway.
-      isolate->ThrowIllegalOperation();
+      isolate->PromoteScheduledException();
       return false;
     }
     Handle<Module> requested_module = Utils::OpenHandle(*api_requested_module);
