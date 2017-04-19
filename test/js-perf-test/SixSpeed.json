@@ -28,6 +28,31 @@
       ]
     },
     {
+      "name": "Classes",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["classes/es5.js"],
+          "test_flags": ["classes/es5"]
+        },
+        {
+          "name": "Babel",
+          "main": "run.js",
+          "resources": ["classes/babel.js"],
+          "test_flags": ["classes/babel"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["classes/es6.js"],
+          "test_flags": ["classes/es6"]
+        }
+      ]
+    },
+    {
       "name": "Computed property names in object literals",
       "path": ["SixSpeed"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
