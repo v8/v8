@@ -1219,20 +1219,20 @@ void AsmJsParser::ForStatement() {
     current_function_builder_->EmitWithU8(kExprBrIf, 1);
   }
   EXPECT_TOKEN(';');
-  // Stash away INCREMENT
-  size_t increment_position = current_function_builder_->GetPosition();
-  if (!Peek(')')) {
-    RECURSE(Expression(nullptr));
-  }
-  std::vector<byte> increment_code;
-  current_function_builder_->StashCode(&increment_code, increment_position);
+  // Race past INCREMENT
+  size_t increment_position = scanner_.Position();
+  ScanToClosingParenthesis();
   EXPECT_TOKEN(')');
   //       BODY
   RECURSE(ValidateStatement());
   //       INCREMENT
-  current_function_builder_->EmitCode(
-      increment_code.data(), static_cast<uint32_t>(increment_code.size()));
+  size_t end_position = scanner_.Position();
+  scanner_.Seek(increment_position);
+  if (!Peek(')')) {
+    RECURSE(Expression(nullptr));
+  }
   current_function_builder_->EmitWithU8(kExprBr, 0);
+  scanner_.Seek(end_position);
   //   }
   End();
   // }
@@ -1970,7 +1970,7 @@ AsmType* AsmJsParser::BitwiseORExpression() {
     RECURSEn(b = BitwiseXORExpression());
     // Handle |0 specially.
     if (zero && old_pos == scanner_.Position()) {
-      current_function_builder_->StashCode(nullptr, old_code);
+      current_function_builder_->DeleteCodeAfter(old_code);
       a = AsmType::Signed();
       continue;
     }
@@ -2438,6 +2438,23 @@ void AsmJsParser::ValidateFloatCoercion() {
     FAIL("Illegal conversion to float");
   }
   EXPECT_TOKEN(')');
+}
+
+void AsmJsParser::ScanToClosingParenthesis() {
+  int depth = 0;
+  for (;;) {
+    if (Peek('(')) {
+      ++depth;
+    } else if (Peek(')')) {
+      --depth;
+      if (depth < 0) {
+        break;
+      }
+    } else if (Peek(AsmJsScanner::kEndOfInput)) {
+      break;
+    }
+    scanner_.Next();
+  }
 }
 
 void AsmJsParser::GatherCases(std::vector<int32_t>* cases) {

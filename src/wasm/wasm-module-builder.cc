@@ -185,15 +185,8 @@ void WasmFunctionBuilder::SetAsmFunctionStartPosition(int position) {
   last_asm_source_position_ = position;
 }
 
-void WasmFunctionBuilder::StashCode(std::vector<byte>* dst, size_t position) {
-  if (dst == nullptr) {
-    body_.resize(position);
-    return;
-  }
+void WasmFunctionBuilder::DeleteCodeAfter(size_t position) {
   DCHECK_LE(position, body_.size());
-  size_t len = body_.size() - position;
-  dst->resize(len);
-  memcpy(dst->data(), body_.data() + position, len);
   body_.resize(position);
 }
 

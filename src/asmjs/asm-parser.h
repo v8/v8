@@ -315,6 +315,14 @@ class AsmJsParser {
   void ValidateHeapAccess();             // 6.10 ValidateHeapAccess
   void ValidateFloatCoercion();          // 6.11 ValidateFloatCoercion
 
+  // Used as part of {ForStatement}. Scans forward to the next `)` in order to
+  // skip over the third expression in a for-statement. This is one piece that
+  // makes this parser not be a pure single-pass.
+  void ScanToClosingParenthesis();
+
+  // Used as part of {SwitchStatement}. Collects all case labels in the current
+  // switch-statement, then resets the scanner position. This is one piece that
+  // makes this parser not be a pure single-pass.
   void GatherCases(std::vector<int32_t>* cases);
 };
 

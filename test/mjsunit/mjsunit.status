@@ -669,11 +669,6 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
-['variant == asm_wasm', {
-  # Issue 6127: Currently {StashCode} breaks the source position table.
-  'wasm/asm-wasm-expr': [SKIP],
-}],  # variant == asm_wasm
-
 ['variant == wasm_traps', {
   # Skip stuff uninteresting for wasm traps
   'bugs/*': [SKIP],
