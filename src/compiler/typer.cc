@@ -1116,7 +1116,15 @@ Type* Typer::Visitor::TypeJSCreate(Node* node) { return Type::Object(); }
 
 
 Type* Typer::Visitor::TypeJSCreateArguments(Node* node) {
-  return Type::OtherObject();
+  switch (CreateArgumentsTypeOf(node->op())) {
+    case CreateArgumentsType::kRestParameter:
+      return Type::Array();
+    case CreateArgumentsType::kMappedArguments:
+    case CreateArgumentsType::kUnmappedArguments:
+      return Type::OtherObject();
+  }
+  UNREACHABLE();
+  return nullptr;
 }
 
 Type* Typer::Visitor::TypeJSCreateArray(Node* node) { return Type::Array(); }

@@ -598,8 +598,8 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Object());
       break;
     case IrOpcode::kJSCreateArguments:
-      // Type is OtherObject.
-      CheckTypeIs(node, Type::OtherObject());
+      // Type is Array \/ OtherObject.
+      CheckTypeIs(node, Type::ArrayOrOtherObject());
       break;
     case IrOpcode::kJSCreateArray:
       // Type is Array.
