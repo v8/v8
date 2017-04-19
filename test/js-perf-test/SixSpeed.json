@@ -92,6 +92,31 @@
       ]
     },
     {
+      "name": "Super",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "resources": ["super/es5.js"],
+          "test_flags": ["super/es5"]
+        },
+        {
+          "name": "Babel",
+          "main": "run.js",
+          "resources": ["super/babel.js"],
+          "test_flags": ["super/babel"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "resources": ["super/es6.js"],
+          "test_flags": ["super/es6"]
+        }
+      ]
+    },
+    {
       "name": "SuperSpread",
       "path": ["SixSpeed"],
       "flags": ["--future"],
