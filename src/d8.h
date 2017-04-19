@@ -472,8 +472,6 @@ class Shell : public i::AllStatic {
   static bool allow_new_workers_;
   static i::List<Worker*> workers_;
   static std::vector<ExternalizedContents> externalized_contents_;
-  static std::vector<std::unique_ptr<v8::String::ExternalOneByteStringResource>>
-      external_string_resources_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   // Append LCOV coverage data to file.

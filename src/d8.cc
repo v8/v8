@@ -421,8 +421,6 @@ base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 i::List<Worker*> Shell::workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
-std::vector<std::unique_ptr<String::ExternalOneByteStringResource>>
-    Shell::external_string_resources_;
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -2017,7 +2015,6 @@ Local<String> Shell::ReadFile(Isolate* isolate, const char* name) {
     String::ExternalOneByteStringResource* resource =
         new ExternalOwningOneByteStringResource(
             std::unique_ptr<const char[]>(chars), size);
-    external_string_resources_.emplace_back(resource);
     result = String::NewExternalOneByte(isolate, resource).ToLocalChecked();
   } else {
     result = String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size)
