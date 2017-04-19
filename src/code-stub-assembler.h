@@ -1140,6 +1140,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
 
+  // Check if a property name might require protector invalidation when it is
+  // used for a property store or deletion.
+  void CheckForAssociatedProtector(Node* name, Label* if_protector);
+
   Node* LoadReceiverMap(Node* receiver);
 
   // Emits keyed sloppy arguments load. Returns either the loaded value.

@@ -5796,6 +5796,21 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
                          SKIP_WRITE_BARRIER);
 }
 
+void CodeStubAssembler::CheckForAssociatedProtector(Node* name,
+                                                    Label* if_protector) {
+  // This list must be kept in sync with LookupIterator::UpdateProtector!
+  // TODO(jkummerow): Would it be faster to have a bit in Symbol::flags()?
+  GotoIf(WordEqual(name, LoadRoot(Heap::kconstructor_stringRootIndex)),
+         if_protector);
+  GotoIf(WordEqual(name, LoadRoot(Heap::kiterator_symbolRootIndex)),
+         if_protector);
+  GotoIf(WordEqual(name, LoadRoot(Heap::kspecies_symbolRootIndex)),
+         if_protector);
+  GotoIf(WordEqual(name, LoadRoot(Heap::kis_concat_spreadable_symbolRootIndex)),
+         if_protector);
+  // Fall through if no case matched.
+}
+
 Node* CodeStubAssembler::LoadReceiverMap(Node* receiver) {
   return Select(TaggedIsSmi(receiver),
                 [=] { return LoadRoot(Heap::kHeapNumberMapRootIndex); },
