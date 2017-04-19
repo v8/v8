@@ -4195,45 +4195,51 @@ void FixedTypedArray<Traits>::set(int index, ElementType value) {
   ptr[index] = value;
 }
 
-
 template <class Traits>
-typename Traits::ElementType FixedTypedArray<Traits>::from_int(int value) {
+typename Traits::ElementType FixedTypedArray<Traits>::from(int value) {
   return static_cast<ElementType>(value);
 }
 
-
-template <> inline
-uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from_int(int value) {
+template <>
+inline uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from(int value) {
   if (value < 0) return 0;
   if (value > 0xFF) return 0xFF;
   return static_cast<uint8_t>(value);
 }
 
+template <class Traits>
+typename Traits::ElementType FixedTypedArray<Traits>::from(uint32_t value) {
+  return static_cast<ElementType>(value);
+}
+
+template <>
+inline uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from(uint32_t value) {
+  // We need this special case for Uint32 -> Uint8Clamped, because the highest
+  // Uint32 values will be negative as an int, clamping to 0, rather than 255.
+  if (value > 0xFF) return 0xFF;
+  return static_cast<uint8_t>(value);
+}
 
 template <class Traits>
-typename Traits::ElementType FixedTypedArray<Traits>::from_double(
-    double value) {
+typename Traits::ElementType FixedTypedArray<Traits>::from(double value) {
   return static_cast<ElementType>(DoubleToInt32(value));
 }
 
-
-template<> inline
-uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from_double(double value) {
+template <>
+inline uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from(double value) {
   // Handle NaNs and less than zero values which clamp to zero.
   if (!(value > 0)) return 0;
   if (value > 0xFF) return 0xFF;
   return static_cast<uint8_t>(lrint(value));
 }
 
-
-template<> inline
-float FixedTypedArray<Float32ArrayTraits>::from_double(double value) {
+template <>
+inline float FixedTypedArray<Float32ArrayTraits>::from(double value) {
   return static_cast<float>(value);
 }
 
-
-template<> inline
-double FixedTypedArray<Float64ArrayTraits>::from_double(double value) {
+template <>
+inline double FixedTypedArray<Float64ArrayTraits>::from(double value) {
   return value;
 }
 
@@ -4249,10 +4255,10 @@ void FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
   ElementType cast_value = Traits::defaultValue();
   if (value->IsSmi()) {
     int int_value = Smi::cast(value)->value();
-    cast_value = from_int(int_value);
+    cast_value = from(int_value);
   } else if (value->IsHeapNumber()) {
     double double_value = HeapNumber::cast(value)->value();
-    cast_value = from_double(double_value);
+    cast_value = from(double_value);
   } else {
     // Clamp undefined to the default value. All other types have been
     // converted to a number type further up in the call chain.

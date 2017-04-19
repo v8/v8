@@ -249,9 +249,6 @@ function TypedArraySetFromArrayLike(target, source, sourceLength, offset) {
   }
 }
 
-%InstallToContext([
-  'typed_array_set_from_array_like', TypedArraySetFromArrayLike]);
-
 function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   var sourceElementSize = source.BYTES_PER_ELEMENT;
   var targetElementSize = target.BYTES_PER_ELEMENT;

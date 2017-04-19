@@ -1002,6 +1002,18 @@ class ElementsAccessorBase : public ElementsAccessor {
                                kPackedSizeNotKnown, size);
   }
 
+  Object* CopyElements(Handle<JSReceiver> source, Handle<JSObject> destination,
+                       size_t length) final {
+    return Subclass::CopyElementsHandleImpl(source, destination, length);
+  }
+
+  static Object* CopyElementsHandleImpl(Handle<JSReceiver> source,
+                                        Handle<JSObject> destination,
+                                        size_t length) {
+    UNREACHABLE();
+    return *source;
+  }
+
   Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) final {
     return Subclass::NormalizeImpl(object, handle(object->elements()));
   }
@@ -2865,10 +2877,10 @@ class TypedElementsAccessor
 
     ctype value;
     if (obj_value->IsSmi()) {
-      value = BackingStore::from_int(Smi::cast(*obj_value)->value());
+      value = BackingStore::from(Smi::cast(*obj_value)->value());
     } else {
       DCHECK(obj_value->IsHeapNumber());
-      value = BackingStore::from_double(HeapNumber::cast(*obj_value)->value());
+      value = BackingStore::from(HeapNumber::cast(*obj_value)->value());
     }
 
     // Ensure indexes are within array bounds
@@ -3087,6 +3099,164 @@ class TypedElementsAccessor
       result_accessor->Set(result_array, i, *elem);
     }
     return result_array;
+  }
+
+  static bool HasSimpleRepresentation(InstanceType type) {
+    return !(type == FIXED_FLOAT32_ARRAY_TYPE ||
+             type == FIXED_FLOAT64_ARRAY_TYPE ||
+             type == FIXED_UINT8_CLAMPED_ARRAY_TYPE);
+  }
+
+  template <typename SourceTraits>
+  static void CopyBetweenBackingStores(FixedTypedArrayBase* source,
+                                       BackingStore* dest, size_t length) {
+    FixedTypedArray<SourceTraits>* source_fta =
+        FixedTypedArray<SourceTraits>::cast(source);
+    for (uint32_t i = 0; i < length; i++) {
+      typename SourceTraits::ElementType elem = source_fta->get_scalar(i);
+      dest->set(i, dest->from(elem));
+    }
+  }
+
+  static void CopyElementsHandleFromTypedArray(Handle<JSTypedArray> source,
+                                               Handle<JSTypedArray> destination,
+                                               size_t length) {
+    // The source is a typed array, so we know we don't need to do ToNumber
+    // side-effects, as the source elements will always be a number or
+    // undefined.
+    DisallowHeapAllocation no_gc;
+
+    Handle<FixedTypedArrayBase> source_elements(
+        FixedTypedArrayBase::cast(source->elements()));
+    Handle<BackingStore> destination_elements(
+        BackingStore::cast(destination->elements()));
+
+    DCHECK_EQ(source->length(), destination->length());
+    DCHECK(source->length()->IsSmi());
+    DCHECK_EQ(Smi::FromInt(static_cast<int>(length)), source->length());
+
+    InstanceType source_type = source_elements->map()->instance_type();
+    InstanceType destination_type =
+        destination_elements->map()->instance_type();
+
+    bool same_type = source_type == destination_type;
+    bool same_size = FixedTypedArrayBase::ElementSize(source_type) ==
+                     FixedTypedArrayBase::ElementSize(destination_type);
+    bool both_are_simple = HasSimpleRepresentation(source_type) &&
+                           HasSimpleRepresentation(destination_type);
+
+    // We can simply copy the backing store if the types are the same, or if
+    // we are converting e.g. Uint8 <-> Int8, as the binary representation
+    // will be the same. This is not the case for floats or clamped Uint8,
+    // which have special conversion operations.
+    if (same_type || (same_size && both_are_simple)) {
+      // We assume the source and destination don't overlap. This is always true
+      // for newly allocated TypedArrays.
+      CHECK_NE(source->buffer(), destination->buffer());
+      int element_size = FixedTypedArrayBase::ElementSize(source_type);
+
+      uint8_t* source_data = static_cast<uint8_t*>(source_elements->DataPtr());
+      uint8_t* destination_data =
+          static_cast<uint8_t*>(destination_elements->DataPtr());
+      std::memcpy(destination_data, source_data, length * element_size);
+    } else {
+      // We use scalar accessors below to avoid boxing/unboxing, so there are
+      // no allocations.
+      switch (source->GetElementsKind()) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)   \
+  case TYPE##_ELEMENTS:                                   \
+    CopyBetweenBackingStores<Type##ArrayTraits>(          \
+        *source_elements, *destination_elements, length); \
+    break;
+        TYPED_ARRAYS(TYPED_ARRAY_CASE)
+        default:
+          UNREACHABLE();
+          break;
+      }
+#undef TYPED_ARRAY_CASE
+    }
+  }
+
+  static bool TryCopyElementsHandleFastNumber(Handle<JSArray> source,
+                                              Handle<JSTypedArray> destination,
+                                              size_t length) {
+    DisallowHeapAllocation no_gc;
+    ElementsKind kind = source->GetElementsKind();
+    BackingStore* dest = BackingStore::cast(destination->elements());
+
+    if (kind == FAST_SMI_ELEMENTS) {
+      // Fastpath for packed Smi kind.
+      FixedArray* source_store = FixedArray::cast(source->elements());
+
+      for (uint32_t i = 0; i < length; i++) {
+        Object* elem = source_store->get(i);
+        DCHECK(elem->IsSmi());
+        int int_value = Smi::cast(elem)->value();
+        dest->set(i, dest->from(int_value));
+      }
+      return true;
+    } else if (kind == FAST_DOUBLE_ELEMENTS) {
+      // Fastpath for packed double kind. We avoid boxing and then immediately
+      // unboxing the double here by using get_scalar.
+      FixedDoubleArray* source_store =
+          FixedDoubleArray::cast(source->elements());
+
+      for (uint32_t i = 0; i < length; i++) {
+        // Use the from_double conversion for this specific TypedArray type,
+        // rather than relying on C++ to convert elem.
+        double elem = source_store->get_scalar(i);
+        dest->set(i, dest->from(elem));
+      }
+      return true;
+    }
+    return false;
+  }
+
+  static Object* CopyElementsHandleSlow(Handle<JSReceiver> source,
+                                        Handle<JSTypedArray> destination,
+                                        size_t length) {
+    Isolate* isolate = source->GetIsolate();
+    Handle<BackingStore> destination_elements(
+        BackingStore::cast(destination->elements()));
+    for (uint32_t i = 0; i < length; i++) {
+      LookupIterator it(isolate, source, i, source);
+      Handle<Object> elem;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
+                                         Object::GetProperty(&it));
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem, Object::ToNumber(elem));
+      // We don't need to check for buffer neutering here, because the
+      // source cannot be a TypedArray.
+      // The spec says we store the length, then get each element, so we don't
+      // need to check changes to length.
+      destination_elements->SetValue(i, *elem);
+    }
+    return Smi::kZero;
+  }
+
+  static Object* CopyElementsHandleImpl(Handle<JSReceiver> source,
+                                        Handle<JSObject> destination,
+                                        size_t length) {
+    Handle<JSTypedArray> destination_ta =
+        Handle<JSTypedArray>::cast(destination);
+
+    // All conversions from TypedArrays can be done without allocation.
+    if (source->IsJSTypedArray()) {
+      Handle<JSTypedArray> source_ta = Handle<JSTypedArray>::cast(source);
+      CopyElementsHandleFromTypedArray(source_ta, destination_ta, length);
+      return Smi::kZero;
+    }
+
+    // Fast cases for packed numbers kinds where we don't need to allocate.
+    if (source->IsJSArray()) {
+      Handle<JSArray> source_array = Handle<JSArray>::cast(source);
+      if (TryCopyElementsHandleFastNumber(source_array, destination_ta,
+                                          length)) {
+        return Smi::kZero;
+      }
+    }
+    // Final generic case that handles prototype chain lookups, getters, proxies
+    // and observable side effects via valueOf, etc.
+    return CopyElementsHandleSlow(source, destination_ta, length);
   }
 };
 

@@ -3464,6 +3464,7 @@ class FixedTypedArrayBase: public FixedArrayBase {
 
   static inline int TypedArraySize(InstanceType type, int length);
   inline int TypedArraySize(InstanceType type);
+  static inline int ElementSize(InstanceType type);
 
   // Use with care: returns raw pointer into heap.
   inline void* DataPtr();
@@ -3471,8 +3472,6 @@ class FixedTypedArrayBase: public FixedArrayBase {
   inline int DataSize();
 
  private:
-  static inline int ElementSize(InstanceType type);
-
   inline int DataSize(InstanceType type);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
@@ -3491,8 +3490,9 @@ class FixedTypedArray: public FixedTypedArrayBase {
   static inline Handle<Object> get(FixedTypedArray* array, int index);
   inline void set(int index, ElementType value);
 
-  static inline ElementType from_int(int value);
-  static inline ElementType from_double(double value);
+  static inline ElementType from(int value);
+  static inline ElementType from(uint32_t value);
+  static inline ElementType from(double value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.

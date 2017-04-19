@@ -568,15 +568,12 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   Node* source_kind = LoadMapElementsKind(LoadMap(array_like));
   GotoIf(Word32Equal(holder_kind, source_kind), &fast_copy);
 
-  // Call to JS to copy the contents of the array in.
-  Callable callable = CodeFactory::Call(isolate());
-  Node* copy_array_contents = LoadContextElement(
-      LoadNativeContext(context), Context::TYPED_ARRAY_SET_FROM_ARRAY_LIKE);
-  CallJS(callable, context, copy_array_contents, UndefinedConstant(), holder,
-         array_like, length, SmiConstant(0));
+  // Copy using the elements accessor.
+  CallRuntime(Runtime::kTypedArrayCopyElements, context, holder, array_like,
+              length);
   Return(UndefinedConstant());
 
-  BIND(&fast_copy);
+  Bind(&fast_copy);
   {
     Node* holder_data_ptr = LoadDataPtr(holder);
     Node* source_data_ptr = LoadDataPtr(array_like);
