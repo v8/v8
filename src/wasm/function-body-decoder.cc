@@ -411,6 +411,17 @@ class WasmDecoder : public Decoder {
     }
   }
 
+  inline bool Validate(const byte* pc, WasmOpcode opcode,
+                       SimdConcatOperand<true>& operand) {
+    DCHECK_EQ(wasm::kExprS8x16Concat, opcode);
+    if (operand.bytes <= 0 || operand.bytes >= kSimd128Size) {
+      error(pc_ + 2, "invalid byte amount");
+      return false;
+    } else {
+      return true;
+    }
+  }
+
   static unsigned OpcodeLength(Decoder* decoder, const byte* pc) {
     switch (static_cast<byte>(*pc)) {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
@@ -1475,6 +1486,19 @@ class WasmFullDecoder : public WasmDecoder {
     return operand.length;
   }
 
+  unsigned SimdConcatOp(WasmOpcode opcode) {
+    DCHECK_EQ(wasm::kExprS8x16Concat, opcode);
+    SimdConcatOperand<true> operand(this, pc_);
+    if (Validate(pc_, opcode, operand)) {
+      compiler::NodeVector inputs(2, zone_);
+      inputs[1] = Pop(1, ValueType::kSimd128).node;
+      inputs[0] = Pop(0, ValueType::kSimd128).node;
+      TFNode* node = BUILD(SimdConcatOp, operand.bytes, inputs);
+      Push(ValueType::kSimd128, node);
+    }
+    return operand.length;
+  }
+
   unsigned DecodeSimdOpcode(WasmOpcode opcode) {
     unsigned len = 0;
     switch (opcode) {
@@ -1508,6 +1532,10 @@ class WasmFullDecoder : public WasmDecoder {
       case kExprI8x16ShrS:
       case kExprI8x16ShrU: {
         len = SimdShiftOp(opcode);
+        break;
+      }
+      case kExprS8x16Concat: {
+        len = SimdConcatOp(opcode);
         break;
       }
       default: {

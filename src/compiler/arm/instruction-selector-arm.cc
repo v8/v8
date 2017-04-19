@@ -91,6 +91,27 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
                  g.UseRegister(node->InputAt(1)));
 }
 
+void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
+                     Node* node) {
+  ArmOperandGenerator g(selector);
+  // Swap inputs to save an instruction in the CodeGenerator for High ops.
+  if (opcode == kArmS32x4ZipRight || opcode == kArmS32x4UnzipRight ||
+      opcode == kArmS32x4TransposeRight || opcode == kArmS16x8ZipRight ||
+      opcode == kArmS16x8UnzipRight || opcode == kArmS16x8TransposeRight ||
+      opcode == kArmS8x16ZipRight || opcode == kArmS8x16UnzipRight ||
+      opcode == kArmS8x16TransposeRight) {
+    Node* in0 = node->InputAt(0);
+    Node* in1 = node->InputAt(1);
+    node->ReplaceInput(0, in1);
+    node->ReplaceInput(1, in0);
+  }
+  // Use DefineSameAsFirst for binary ops that clobber their inputs, e.g. the
+  // NEON vzip, vuzp, and vtrn instructions.
+  selector->Emit(opcode, g.DefineSameAsFirst(node),
+                 g.UseRegister(node->InputAt(0)),
+                 g.UseRegister(node->InputAt(1)));
+}
+
 void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
   // Use DefineSameAsFirst for ternary ops that clobber their first input,
@@ -2393,6 +2414,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8UConvertI8x16High, kArmI16x8UConvertI8x16High) \
   V(I8x16Neg, kArmI8x16Neg)                             \
   V(S128Not, kArmS128Not)                               \
+  V(S32x2Reverse, kArmS32x2Reverse)                     \
+  V(S16x4Reverse, kArmS16x4Reverse)                     \
+  V(S16x2Reverse, kArmS16x2Reverse)                     \
+  V(S8x8Reverse, kArmS8x8Reverse)                       \
+  V(S8x4Reverse, kArmS8x4Reverse)                       \
+  V(S8x2Reverse, kArmS8x2Reverse)                       \
   V(S1x4Not, kArmS128Not)                               \
   V(S1x4AnyTrue, kArmS1x4AnyTrue)                       \
   V(S1x4AllTrue, kArmS1x4AllTrue)                       \
@@ -2490,6 +2517,26 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S1x16Or, kArmS128Or)                            \
   V(S1x16Xor, kArmS128Xor)
 
+#define SIMD_SHUFFLE_OP_LIST(V) \
+  V(S32x4ZipLeft)               \
+  V(S32x4ZipRight)              \
+  V(S32x4UnzipLeft)             \
+  V(S32x4UnzipRight)            \
+  V(S32x4TransposeLeft)         \
+  V(S32x4TransposeRight)        \
+  V(S16x8ZipLeft)               \
+  V(S16x8ZipRight)              \
+  V(S16x8UnzipLeft)             \
+  V(S16x8UnzipRight)            \
+  V(S16x8TransposeLeft)         \
+  V(S16x8TransposeRight)        \
+  V(S8x16ZipLeft)               \
+  V(S8x16ZipRight)              \
+  V(S8x16UnzipLeft)             \
+  V(S8x16UnzipRight)            \
+  V(S8x16TransposeLeft)         \
+  V(S8x16TransposeRight)
+
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
     VisitRR(this, kArm##Type##Splat, node);                  \
@@ -2546,6 +2593,21 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
   }
 SIMD_FORMAT_LIST(SIMD_VISIT_SELECT_OP)
 #undef SIMD_VISIT_SELECT_OP
+
+#define SIMD_VISIT_SHUFFLE_OP(Name)                   \
+  void InstructionSelector::Visit##Name(Node* node) { \
+    VisitRRRShuffle(this, kArm##Name, node);          \
+  }
+SIMD_SHUFFLE_OP_LIST(SIMD_VISIT_SHUFFLE_OP)
+#undef SIMD_VISIT_SHUFFLE_OP
+
+void InstructionSelector::VisitS8x16Concat(Node* node) {
+  ArmOperandGenerator g(this);
+  int32_t imm = OpParameter<int32_t>(node);
+  Emit(kArmS8x16Concat, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseImmediate(imm));
+}
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   UNREACHABLE();

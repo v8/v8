@@ -322,6 +322,18 @@ struct SimdShiftOperand {
   }
 };
 
+// Operand for SIMD concatenation operations.
+template <bool checked>
+struct SimdConcatOperand {
+  uint8_t bytes;
+  unsigned length;
+
+  inline SimdConcatOperand(Decoder* decoder, const byte* pc) {
+    bytes = decoder->read_u8<checked>(pc + 2, "bytes");
+    length = 1;
+  }
+};
+
 #undef CHECKED_COND
 
 }  // namespace wasm

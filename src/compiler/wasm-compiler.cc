@@ -3480,15 +3480,81 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
                               inputs[1]);
     case wasm::kExprS128Not:
       return graph()->NewNode(jsgraph()->machine()->S128Not(), inputs[0]);
+    case wasm::kExprS32x4ZipLeft:
+      return graph()->NewNode(jsgraph()->machine()->S32x4ZipLeft(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS32x4ZipRight:
+      return graph()->NewNode(jsgraph()->machine()->S32x4ZipRight(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS32x4UnzipLeft:
+      return graph()->NewNode(jsgraph()->machine()->S32x4UnzipLeft(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS32x4UnzipRight:
+      return graph()->NewNode(jsgraph()->machine()->S32x4UnzipRight(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprS32x4TransposeLeft:
+      return graph()->NewNode(jsgraph()->machine()->S32x4TransposeLeft(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprS32x4TransposeRight:
+      return graph()->NewNode(jsgraph()->machine()->S32x4TransposeRight(),
+                              inputs[0], inputs[1]);
     case wasm::kExprS32x4Select:
       return graph()->NewNode(jsgraph()->machine()->S32x4Select(), inputs[0],
                               inputs[1], inputs[2]);
+    case wasm::kExprS16x8ZipLeft:
+      return graph()->NewNode(jsgraph()->machine()->S16x8ZipLeft(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS16x8ZipRight:
+      return graph()->NewNode(jsgraph()->machine()->S16x8ZipRight(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS16x8UnzipLeft:
+      return graph()->NewNode(jsgraph()->machine()->S16x8UnzipLeft(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS16x8UnzipRight:
+      return graph()->NewNode(jsgraph()->machine()->S16x8UnzipRight(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprS16x8TransposeLeft:
+      return graph()->NewNode(jsgraph()->machine()->S16x8TransposeLeft(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprS16x8TransposeRight:
+      return graph()->NewNode(jsgraph()->machine()->S16x8TransposeRight(),
+                              inputs[0], inputs[1]);
     case wasm::kExprS16x8Select:
       return graph()->NewNode(jsgraph()->machine()->S16x8Select(), inputs[0],
                               inputs[1], inputs[2]);
+    case wasm::kExprS8x16ZipLeft:
+      return graph()->NewNode(jsgraph()->machine()->S8x16ZipLeft(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS8x16ZipRight:
+      return graph()->NewNode(jsgraph()->machine()->S8x16ZipRight(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS8x16UnzipLeft:
+      return graph()->NewNode(jsgraph()->machine()->S8x16UnzipLeft(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS8x16UnzipRight:
+      return graph()->NewNode(jsgraph()->machine()->S8x16UnzipRight(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprS8x16TransposeLeft:
+      return graph()->NewNode(jsgraph()->machine()->S8x16TransposeLeft(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprS8x16TransposeRight:
+      return graph()->NewNode(jsgraph()->machine()->S8x16TransposeRight(),
+                              inputs[0], inputs[1]);
     case wasm::kExprS8x16Select:
       return graph()->NewNode(jsgraph()->machine()->S8x16Select(), inputs[0],
                               inputs[1], inputs[2]);
+    case wasm::kExprS32x2Reverse:
+      return graph()->NewNode(jsgraph()->machine()->S32x2Reverse(), inputs[0]);
+    case wasm::kExprS16x4Reverse:
+      return graph()->NewNode(jsgraph()->machine()->S16x4Reverse(), inputs[0]);
+    case wasm::kExprS16x2Reverse:
+      return graph()->NewNode(jsgraph()->machine()->S16x2Reverse(), inputs[0]);
+    case wasm::kExprS8x8Reverse:
+      return graph()->NewNode(jsgraph()->machine()->S8x8Reverse(), inputs[0]);
+    case wasm::kExprS8x4Reverse:
+      return graph()->NewNode(jsgraph()->machine()->S8x4Reverse(), inputs[0]);
+    case wasm::kExprS8x2Reverse:
+      return graph()->NewNode(jsgraph()->machine()->S8x2Reverse(), inputs[0]);
     case wasm::kExprS1x4And:
       return graph()->NewNode(jsgraph()->machine()->S1x4And(), inputs[0],
                               inputs[1]);
@@ -3605,22 +3671,10 @@ Node* WasmGraphBuilder::SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
   }
 }
 
-Node* WasmGraphBuilder::SimdSwizzleOp(wasm::WasmOpcode opcode, uint32_t swizzle,
-                                      const NodeVector& inputs) {
+Node* WasmGraphBuilder::SimdConcatOp(uint8_t bytes, const NodeVector& inputs) {
   has_simd_ = true;
-  switch (opcode) {
-    case wasm::kExprS32x4Swizzle:
-      return graph()->NewNode(jsgraph()->machine()->S32x4Swizzle(swizzle),
-                              inputs[0]);
-    case wasm::kExprS16x8Swizzle:
-      return graph()->NewNode(jsgraph()->machine()->S16x8Swizzle(swizzle),
-                              inputs[0]);
-    case wasm::kExprS8x16Swizzle:
-      return graph()->NewNode(jsgraph()->machine()->S8x16Swizzle(swizzle),
-                              inputs[0]);
-    default:
-      return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
-  }
+  return graph()->NewNode(jsgraph()->machine()->S8x16Concat(bytes), inputs[0],
+                          inputs[1]);
 }
 
 static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,

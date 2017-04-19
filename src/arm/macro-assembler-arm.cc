@@ -1171,64 +1171,6 @@ void MacroAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
   VmovExtended(s_code, src_lane.code(), scratch);
 }
 
-void MacroAssembler::Swizzle(QwNeonRegister dst, QwNeonRegister src,
-                             Register scratch, NeonSize size, uint32_t lanes) {
-  // TODO(bbudge) Handle Int16x8, Int8x16 vectors.
-  DCHECK_EQ(Neon32, size);
-  DCHECK_IMPLIES(size == Neon32, lanes < 0xFFFFu);
-  if (size == Neon32) {
-    switch (lanes) {
-      // TODO(bbudge) Handle more special cases.
-      case 0x3210:  // Identity.
-        Move(dst, src);
-        return;
-      case 0x1032:  // Swap top and bottom.
-        vext(dst, src, src, 8);
-        return;
-      case 0x2103:  // Rotation.
-        vext(dst, src, src, 12);
-        return;
-      case 0x0321:  // Rotation.
-        vext(dst, src, src, 4);
-        return;
-      case 0x0000:  // Equivalent to vdup.
-      case 0x1111:
-      case 0x2222:
-      case 0x3333: {
-        int lane_code = src.code() * 4 + (lanes & 0xF);
-        if (lane_code >= SwVfpRegister::kMaxNumRegisters) {
-          // TODO(bbudge) use vdup (vdup.32 dst, D<src>[lane]) once implemented.
-          int temp_code = kScratchDoubleReg.code() * 2;
-          VmovExtended(temp_code, lane_code, scratch);
-          lane_code = temp_code;
-        }
-        vdup(dst, SwVfpRegister::from_code(lane_code));
-        return;
-      }
-      case 0x2301:  // Swap lanes 0, 1 and lanes 2, 3.
-        vrev64(Neon32, dst, src);
-        return;
-      default:  // Handle all other cases with vmovs.
-        int src_code = src.code() * 4;
-        int dst_code = dst.code() * 4;
-        bool in_place = src.is(dst);
-        if (in_place) {
-          vmov(kScratchQuadReg, src);
-          src_code = kScratchQuadReg.code() * 4;
-        }
-        for (int i = 0; i < 4; i++) {
-          int lane = (lanes >> (i * 4) & 0xF);
-          VmovExtended(dst_code + i, src_code + lane, scratch);
-        }
-        if (in_place) {
-          // Restore zero reg.
-          veor(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero);
-        }
-        return;
-    }
-  }
-}
-
 void MacroAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              Register scratch, Register shift) {

@@ -368,6 +368,8 @@ T RecipSqrtRefine(T a, T b) {
 #define WASM_SIMD_UNOP(op, x) x, WASM_SIMD_OP(op)
 #define WASM_SIMD_BINOP(op, x, y) x, y, WASM_SIMD_OP(op)
 #define WASM_SIMD_SHIFT_OP(op, shift, x) x, WASM_SIMD_OP(op), TO_BYTE(shift)
+#define WASM_SIMD_CONCAT_OP(op, bytes, x, y) \
+  x, y, WASM_SIMD_OP(op), TO_BYTE(bytes)
 #define WASM_SIMD_SELECT(format, x, y, z) \
   x, y, z, WASM_SIMD_OP(kExprS##format##Select)
 // Since boolean vectors can't be checked directly, materialize them into
@@ -1595,6 +1597,211 @@ WASM_SIMD_SELECT_TEST(8x16)
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
 #if V8_TARGET_ARCH_ARM
+template <typename T>
+void RunUnaryPermuteOpTest(
+    WasmOpcode simd_op,
+    const std::array<T, kSimd128Size / sizeof(T)>& expected) {
+  FLAG_wasm_simd_prototype = true;
+  WasmRunner<int32_t> r(kExecuteCompiled);
+  // Set up a test pattern as a global, e.g. [0, 1, 2, 3].
+  T* global = r.module().AddGlobal<T>(kWasmS128);
+  static const size_t kElems = kSimd128Size / sizeof(T);
+  for (size_t i = 0; i < kElems; i++) {
+    global[i] = i;
+  }
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(simd_op, WASM_GET_GLOBAL(0))),
+        WASM_ONE);
+
+  CHECK_EQ(1, r.Call());
+  for (size_t i = 0; i < kElems; i++) {
+    CHECK_EQ(global[i], expected[i]);
+  }
+}
+
+WASM_EXEC_COMPILED_TEST(S32x2Reverse) {
+  RunUnaryPermuteOpTest<int32_t>(kExprS32x2Reverse, {{1, 0, 3, 2}});
+}
+
+WASM_EXEC_COMPILED_TEST(S16x4Reverse) {
+  RunUnaryPermuteOpTest<int16_t>(kExprS16x4Reverse, {{3, 2, 1, 0, 7, 6, 5, 4}});
+}
+
+WASM_EXEC_COMPILED_TEST(S16x2Reverse) {
+  RunUnaryPermuteOpTest<int16_t>(kExprS16x2Reverse, {{1, 0, 3, 2, 5, 4, 7, 6}});
+}
+
+WASM_EXEC_COMPILED_TEST(S8x8Reverse) {
+  RunUnaryPermuteOpTest<int8_t>(kExprS8x8Reverse, {{7, 6, 5, 4, 3, 2, 1, 0, 15,
+                                                    14, 13, 12, 11, 10, 9, 8}});
+}
+
+WASM_EXEC_COMPILED_TEST(S8x4Reverse) {
+  RunUnaryPermuteOpTest<int8_t>(kExprS8x4Reverse, {{3, 2, 1, 0, 7, 6, 5, 4, 11,
+                                                    10, 9, 8, 15, 14, 13, 12}});
+}
+
+WASM_EXEC_COMPILED_TEST(S8x2Reverse) {
+  RunUnaryPermuteOpTest<int8_t>(
+      kExprS8x2Reverse,
+      {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14}});
+}
+
+template <typename T>
+void RunBinaryPermuteOpTest(
+    WasmOpcode simd_op,
+    const std::array<T, kSimd128Size / sizeof(T)>& expected) {
+  FLAG_wasm_simd_prototype = true;
+  WasmRunner<int32_t> r(kExecuteCompiled);
+  // Set up two test patterns as globals, e.g. [0, 1, 2, 3] and [4, 5, 6, 7].
+  T* global1 = r.module().AddGlobal<T>(kWasmS128);
+  T* global2 = r.module().AddGlobal<T>(kWasmS128);
+  static const size_t kElems = kSimd128Size / sizeof(T);
+  for (size_t i = 0; i < kElems; i++) {
+    global1[i] = i;
+    global2[i] = kElems + i;
+  }
+  BUILD(r,
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(simd_op, WASM_GET_GLOBAL(0),
+                                           WASM_GET_GLOBAL(1))),
+        WASM_ONE);
+
+  CHECK_EQ(1, r.Call());
+  for (size_t i = 0; i < expected.size(); i++) {
+    CHECK_EQ(global1[i], expected[i]);
+  }
+}
+
+WASM_EXEC_COMPILED_TEST(S32x4ZipLeft) {
+  RunBinaryPermuteOpTest<int32_t>(kExprS32x4ZipLeft, {{0, 4, 1, 5}});
+}
+
+WASM_EXEC_COMPILED_TEST(S32x4ZipRight) {
+  RunBinaryPermuteOpTest<int32_t>(kExprS32x4ZipRight, {{2, 6, 3, 7}});
+}
+
+WASM_EXEC_COMPILED_TEST(S32x4UnzipLeft) {
+  RunBinaryPermuteOpTest<int32_t>(kExprS32x4UnzipLeft, {{0, 2, 4, 6}});
+}
+
+WASM_EXEC_COMPILED_TEST(S32x4UnzipRight) {
+  RunBinaryPermuteOpTest<int32_t>(kExprS32x4UnzipRight, {{1, 3, 5, 7}});
+}
+
+WASM_EXEC_COMPILED_TEST(S32x4TransposeLeft) {
+  RunBinaryPermuteOpTest<int32_t>(kExprS32x4TransposeLeft, {{0, 4, 2, 6}});
+}
+
+WASM_EXEC_COMPILED_TEST(S32x4TransposeRight) {
+  RunBinaryPermuteOpTest<int32_t>(kExprS32x4TransposeRight, {{1, 5, 3, 7}});
+}
+
+WASM_EXEC_COMPILED_TEST(S16x8ZipLeft) {
+  RunBinaryPermuteOpTest<int16_t>(kExprS16x8ZipLeft,
+                                  {{0, 8, 1, 9, 2, 10, 3, 11}});
+}
+
+WASM_EXEC_COMPILED_TEST(S16x8ZipRight) {
+  RunBinaryPermuteOpTest<int16_t>(kExprS16x8ZipRight,
+                                  {{4, 12, 5, 13, 6, 14, 7, 15}});
+}
+
+WASM_EXEC_COMPILED_TEST(S16x8UnzipLeft) {
+  RunBinaryPermuteOpTest<int16_t>(kExprS16x8UnzipLeft,
+                                  {{0, 2, 4, 6, 8, 10, 12, 14}});
+}
+
+WASM_EXEC_COMPILED_TEST(S16x8UnzipRight) {
+  RunBinaryPermuteOpTest<int16_t>(kExprS16x8UnzipRight,
+                                  {{1, 3, 5, 7, 9, 11, 13, 15}});
+}
+
+WASM_EXEC_COMPILED_TEST(S16x8TransposeLeft) {
+  RunBinaryPermuteOpTest<int16_t>(kExprS16x8TransposeLeft,
+                                  {{0, 8, 2, 10, 4, 12, 6, 14}});
+}
+
+WASM_EXEC_COMPILED_TEST(S16x8TransposeRight) {
+  RunBinaryPermuteOpTest<int16_t>(kExprS16x8TransposeRight,
+                                  {{1, 9, 3, 11, 5, 13, 7, 15}});
+}
+
+WASM_EXEC_COMPILED_TEST(S8x16ZipLeft) {
+  RunBinaryPermuteOpTest<int8_t>(
+      kExprS8x16ZipLeft,
+      {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}});
+}
+
+WASM_EXEC_COMPILED_TEST(S8x16ZipRight) {
+  RunBinaryPermuteOpTest<int8_t>(
+      kExprS8x16ZipRight,
+      {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31}});
+}
+
+WASM_EXEC_COMPILED_TEST(S8x16UnzipLeft) {
+  RunBinaryPermuteOpTest<int8_t>(
+      kExprS8x16UnzipLeft,
+      {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30}});
+}
+
+WASM_EXEC_COMPILED_TEST(S8x16UnzipRight) {
+  RunBinaryPermuteOpTest<int8_t>(
+      kExprS8x16UnzipRight,
+      {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31}});
+}
+
+WASM_EXEC_COMPILED_TEST(S8x16TransposeLeft) {
+  RunBinaryPermuteOpTest<int8_t>(
+      kExprS8x16TransposeLeft,
+      {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30}});
+}
+
+WASM_EXEC_COMPILED_TEST(S8x16TransposeRight) {
+  RunBinaryPermuteOpTest<int8_t>(
+      kExprS8x16TransposeRight,
+      {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31}});
+}
+
+template <typename T>
+void RunConcatOpTest(WasmOpcode simd_op, int bytes,
+                     const std::array<T, kSimd128Size / sizeof(T)>& expected) {
+  FLAG_wasm_simd_prototype = true;
+  WasmRunner<int32_t> r(kExecuteCompiled);
+  // Set up two test patterns as globals, e.g. [0, 1, 2, 3] and [4, 5, 6, 7].
+  T* global1 = r.module().AddGlobal<T>(kWasmS128);
+  T* global2 = r.module().AddGlobal<T>(kWasmS128);
+  static const size_t kElems = kSimd128Size / sizeof(T);
+  for (size_t i = 0; i < kElems; i++) {
+    global1[i] = i;
+    global2[i] = kElems + i;
+  }
+  BUILD(
+      r,
+      WASM_SET_GLOBAL(0, WASM_SIMD_CONCAT_OP(simd_op, bytes, WASM_GET_GLOBAL(0),
+                                             WASM_GET_GLOBAL(1))),
+      WASM_ONE);
+
+  CHECK_EQ(1, r.Call());
+  for (size_t i = 0; i < expected.size(); i++) {
+    CHECK_EQ(global1[i], expected[i]);
+  }
+}
+
+WASM_EXEC_COMPILED_TEST(S8x16Concat) {
+  std::array<int8_t, kSimd128Size> expected;
+  for (int k = 1; k < 16; k++) {
+    int j = 0;
+    // last 16 - k bytes of first vector.
+    for (int i = k; i < kSimd128Size; i++) {
+      expected[j++] = i;
+    }
+    // first k bytes of second vector
+    for (int i = 0; i < k; i++) {
+      expected[j++] = i + kSimd128Size;
+    }
+    RunConcatOpTest<int8_t>(kExprS8x16Concat, k, expected);
+  }
+}
+
 // Boolean unary operations are 'AllTrue' and 'AnyTrue', which return an integer
 // result. Use relational ops on numeric vectors to create the boolean vector
 // test inputs. Test inputs with all true, all false, one true, and one false.
@@ -1769,7 +1976,9 @@ WASM_EXEC_COMPILED_TEST(S1x16And) { RunS1x16BinOpTest(kExprS1x16And, And); }
 WASM_EXEC_COMPILED_TEST(S1x16Or) { RunS1x16BinOpTest(kExprS1x16Or, Or); }
 
 WASM_EXEC_COMPILED_TEST(S1x16Xor) { RunS1x16BinOpTest(kExprS1x16Xor, Xor); }
+#endif  // !V8_TARGET_ARCH_ARM
 
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(SimdI32x4ExtractWithF32x4) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);

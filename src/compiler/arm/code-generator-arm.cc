@@ -2156,6 +2156,197 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(2));
       break;
     }
+    case kArmS32x4ZipLeft: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [0, 1, 2, 3], src1 = [4, 5, 6, 7]
+      __ vmov(dst.high(), src1.low());         // dst = [0, 1, 4, 5]
+      __ vtrn(Neon32, dst.low(), dst.high());  // dst = [0, 4, 1, 5]
+      break;
+    }
+    case kArmS32x4ZipRight: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [4, 5, 6, 7], src1 = [0, 1, 2, 3] (flipped from ZipLeft).
+      __ vmov(dst.low(), src1.high());         // dst = [2, 3, 6, 7]
+      __ vtrn(Neon32, dst.low(), dst.high());  // dst = [2, 6, 3, 7]
+      break;
+    }
+    case kArmS32x4UnzipLeft: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [0, 1, 2, 3], src1 = [4, 5, 6, 7]
+      __ vmov(kScratchQuadReg, src1);
+      __ vuzp(Neon32, dst, kScratchQuadReg);  // dst = [0, 2, 4, 6]
+      break;
+    }
+    case kArmS32x4UnzipRight: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [4, 5, 6, 7], src1 = [0, 1, 2, 3] (flipped from UnzipLeft).
+      __ vmov(kScratchQuadReg, src1);
+      __ vuzp(Neon32, kScratchQuadReg, dst);  // dst = [1, 3, 5, 7]
+      break;
+    }
+    case kArmS32x4TransposeLeft: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [0, 1, 2, 3], src1 = [4, 5, 6, 7]
+      __ vmov(kScratchQuadReg, src1);
+      __ vtrn(Neon32, dst, kScratchQuadReg);  // dst = [0, 4, 2, 6]
+      break;
+    }
+    case kArmS32x4TransposeRight: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [4, 5, 6, 7], src1 = [0, 1, 2, 3] (flipped from TransposeLeft).
+      __ vmov(kScratchQuadReg, src1);
+      __ vtrn(Neon32, kScratchQuadReg, dst);  // dst = [1, 5, 3, 7]
+      break;
+    }
+    case kArmS16x8ZipLeft: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      // src0 = [0, 1, 2, 3, ... 7], src1 = [8, 9, 10, 11, ... 15]
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      __ vmov(dst.high(), src1.low());         // dst = [0, 1, 2, 3, 8, ... 11]
+      __ vzip(Neon16, dst.low(), dst.high());  // dst = [0, 8, 1, 9, ... 11]
+      break;
+    }
+    case kArmS16x8ZipRight: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [8, 9, 10, 11, ... 15], src1 = [0, 1, 2, 3, ... 7] (flipped).
+      __ vmov(dst.low(), src1.high());
+      __ vzip(Neon16, dst.low(), dst.high());  // dst = [4, 12, 5, 13, ... 15]
+      break;
+    }
+    case kArmS16x8UnzipLeft: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [0, 1, 2, 3, ... 7], src1 = [8, 9, 10, 11, ... 15]
+      __ vmov(kScratchQuadReg, src1);
+      __ vuzp(Neon16, dst, kScratchQuadReg);  // dst = [0, 2, 4, 6, ... 14]
+      break;
+    }
+    case kArmS16x8UnzipRight: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [8, 9, 10, 11, ... 15], src1 = [0, 1, 2, 3, ... 7] (flipped).
+      __ vmov(kScratchQuadReg, src1);
+      __ vuzp(Neon16, kScratchQuadReg, dst);  // dst = [1, 3, 5, 7, ... 15]
+      break;
+    }
+    case kArmS16x8TransposeLeft: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [0, 1, 2, 3, ... 7], src1 = [8, 9, 10, 11, ... 15]
+      __ vmov(kScratchQuadReg, src1);
+      __ vtrn(Neon16, dst, kScratchQuadReg);  // dst = [0, 8, 2, 10, ... 14]
+      break;
+    }
+    case kArmS16x8TransposeRight: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [8, 9, 10, 11, ... 15], src1 = [0, 1, 2, 3, ... 7] (flipped).
+      __ vmov(kScratchQuadReg, src1);
+      __ vtrn(Neon16, kScratchQuadReg, dst);  // dst = [1, 9, 3, 11, ... 15]
+      break;
+    }
+    case kArmS8x16ZipLeft: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [0, 1, 2, 3, ... 15], src1 = [16, 17, 18, 19, ... 31]
+      __ vmov(dst.high(), src1.low());
+      __ vzip(Neon8, dst.low(), dst.high());  // dst = [0, 16, 1, 17, ... 23]
+      break;
+    }
+    case kArmS8x16ZipRight: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [16, 17, 18, 19, ... 31], src1 = [0, 1, 2, 3, ... 15] (flipped).
+      __ vmov(dst.low(), src1.high());
+      __ vzip(Neon8, dst.low(), dst.high());  // dst = [8, 24, 9, 25, ... 31]
+      break;
+    }
+    case kArmS8x16UnzipLeft: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [0, 1, 2, 3, ... 15], src1 = [16, 17, 18, 19, ... 31]
+      __ vmov(kScratchQuadReg, src1);
+      __ vuzp(Neon8, dst, kScratchQuadReg);  // dst = [0, 2, 4, 6, ... 30]
+      break;
+    }
+    case kArmS8x16UnzipRight: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [16, 17, 18, 19, ... 31], src1 = [0, 1, 2, 3, ... 15] (flipped).
+      __ vmov(kScratchQuadReg, src1);
+      __ vuzp(Neon8, kScratchQuadReg, dst);  // dst = [1, 3, 5, 7, ... 31]
+      break;
+    }
+    case kArmS8x16TransposeLeft: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [0, 1, 2, 3, ... 15], src1 = [16, 17, 18, 19, ... 31]
+      __ vmov(kScratchQuadReg, src1);
+      __ vtrn(Neon8, dst, kScratchQuadReg);  // dst = [0, 16, 2, 18, ... 30]
+      break;
+    }
+    case kArmS8x16TransposeRight: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src1 = i.InputSimd128Register(1);
+      DCHECK(dst.is(i.InputSimd128Register(0)));
+      // src0 = [16, 17, 18, 19, ... 31], src1 = [0, 1, 2, 3, ... 15] (flipped).
+      __ vmov(kScratchQuadReg, src1);
+      __ vtrn(Neon8, kScratchQuadReg, dst);  // dst = [1, 17, 3, 19, ... 31]
+      break;
+    }
+    case kArmS8x16Concat: {
+      __ vext(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1), i.InputInt4(2));
+      break;
+    }
+    case kArmS32x2Reverse: {
+      __ vrev64(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmS16x4Reverse: {
+      __ vrev64(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmS16x2Reverse: {
+      __ vrev32(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmS8x8Reverse: {
+      __ vrev64(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmS8x4Reverse: {
+      __ vrev32(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmS8x2Reverse: {
+      __ vrev16(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kArmS1x4AnyTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       __ vpmax(NeonU32, kScratchDoubleReg, src.low(), src.high());

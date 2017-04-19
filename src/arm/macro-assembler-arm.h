@@ -571,8 +571,6 @@ class MacroAssembler: public Assembler {
                    NeonDataType dt, int lane);
   void ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
                    SwVfpRegister src_lane, Register scratch, int lane);
-  void Swizzle(QwNeonRegister dst, QwNeonRegister src, Register scratch,
-               NeonSize size, uint32_t lanes);
 
   void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, Register scratch, Register shift);
