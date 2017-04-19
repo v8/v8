@@ -342,7 +342,7 @@ class ErrorUtils : public AllStatic {
   T(NotConstructor, "% is not a constructor")                                  \
   T(NotDateObject, "this is not a Date object.")                               \
   T(NotIntlObject, "% is not an i18n object.")                                 \
-  T(NotGeneric, "% is not generic")                                            \
+  T(NotGeneric, "% requires that 'this' be a %")                               \
   T(NotIterable, "% is not iterable")                                          \
   T(NotPropertyName, "% is not a valid property name")                         \
   T(NotTypedArray, "this is not a typed array.")                               \
