@@ -48,7 +48,7 @@ void calculateAsyncChain(V8Debugger* debugger, int contextGroupId,
   // Do not accidentally append async call chain from another group. This should
   // not happen if we have proper instrumentation, but let's double-check to be
   // safe.
-  if (contextGroupId && *asyncParent && (*asyncParent)->contextGroupId() &&
+  if (contextGroupId && *asyncParent &&
       (*asyncParent)->contextGroupId() != contextGroupId) {
     asyncParent->reset();
     asyncCreation->reset();
@@ -274,6 +274,10 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
     return asyncParent;
   }
 
+  DCHECK(contextGroupId || asyncParent);
+  if (!contextGroupId && asyncParent) {
+    contextGroupId = asyncParent->m_contextGroupId;
+  }
   return std::shared_ptr<AsyncStackTrace>(new AsyncStackTrace(
       contextGroupId, description, frames, asyncParent, asyncCreation));
 }
@@ -287,7 +291,9 @@ AsyncStackTrace::AsyncStackTrace(
       m_description(description),
       m_frames(frames),
       m_asyncParent(asyncParent),
-      m_asyncCreation(asyncCreation) {}
+      m_asyncCreation(asyncCreation) {
+  DCHECK(m_contextGroupId);
+}
 
 std::unique_ptr<protocol::Runtime::StackTrace>
 AsyncStackTrace::buildInspectorObject(AsyncStackTrace* asyncCreation,
