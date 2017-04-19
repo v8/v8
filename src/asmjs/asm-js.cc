@@ -172,6 +172,7 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   base::ElapsedTimer asm_wasm_timer;
   asm_wasm_timer.Start();
   wasm::AsmWasmBuilder builder(info);
+  size_t asm_wasm_zone_start = info->zone()->allocation_size();
   if (FLAG_fast_validate_asm) {
     wasm::AsmJsParser parser(info->isolate(), info->zone(), info->script(),
                              info->literal()->start_position(),
@@ -233,6 +234,12 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   }
 
   double asm_wasm_time = asm_wasm_timer.Elapsed().InMillisecondsF();
+  size_t asm_wasm_zone = info->zone()->allocation_size() - asm_wasm_zone_start;
+  if (FLAG_trace_asm_parser) {
+    PrintF("[asm.js translation successful: time=%0.3fms, zone=%" PRIuS "KB]\n",
+           asm_wasm_time, asm_wasm_zone / KB);
+  }
+
   Vector<const byte> asm_offsets_vec(asm_offsets->begin(),
                                      static_cast<int>(asm_offsets->size()));
 
