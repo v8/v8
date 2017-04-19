@@ -6945,7 +6945,7 @@ class JSFunction: public JSObject {
   static void SetPrototype(Handle<JSFunction> function,
                            Handle<Object> value);
   static void SetInstancePrototype(Handle<JSFunction> function,
-                                   Handle<Object> value);
+                                   Handle<JSReceiver> value);
 
   // After prototype is removed, it will not be created when accessed, and
   // [[Construct]] from this function will not be allowed.

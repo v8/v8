@@ -573,8 +573,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     // prototype, otherwise the missing initial_array_prototype will cause
     // assertions during startup.
     native_context()->set_initial_array_prototype(*object_function_prototype);
-    Accessors::FunctionSetPrototype(object_fun, object_function_prototype)
-        .Assert();
+    JSFunction::SetPrototype(object_fun, object_function_prototype);
   }
 
   // Allocate the empty function as the prototype for function - ES6 19.2.3
@@ -1188,7 +1187,7 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
                 .FromMaybe(false));
     }
 
-    Accessors::FunctionSetPrototype(error_fun, prototype).Assert();
+    JSFunction::SetPrototype(error_fun, prototype);
   }
 
   Handle<Map> initial_map(error_fun->initial_map());
@@ -1592,7 +1591,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSValue> prototype =
         Handle<JSValue>::cast(factory->NewJSObject(number_fun, TENURED));
     prototype->set_value(Smi::kZero);
-    Accessors::FunctionSetPrototype(number_fun, prototype).Assert();
+    JSFunction::SetPrototype(number_fun, prototype);
 
     // Install the "constructor" property on the {prototype}.
     JSObject::AddProperty(prototype, factory->constructor_string(), number_fun,
@@ -1709,7 +1708,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSValue> prototype =
         Handle<JSValue>::cast(factory->NewJSObject(boolean_fun, TENURED));
     prototype->set_value(isolate->heap()->false_value());
-    Accessors::FunctionSetPrototype(boolean_fun, prototype).Assert();
+    JSFunction::SetPrototype(boolean_fun, prototype);
 
     // Install the "constructor" property on the {prototype}.
     JSObject::AddProperty(prototype, factory->constructor_string(), boolean_fun,
@@ -1761,7 +1760,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSValue> prototype =
         Handle<JSValue>::cast(factory->NewJSObject(string_fun, TENURED));
     prototype->set_value(isolate->heap()->empty_string());
-    Accessors::FunctionSetPrototype(string_fun, prototype).Assert();
+    JSFunction::SetPrototype(string_fun, prototype);
 
     // Install the "constructor" property on the {prototype}.
     JSObject::AddProperty(prototype, factory->constructor_string(), string_fun,
@@ -2473,8 +2472,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- J S O N
     Handle<String> name = factory->InternalizeUtf8String("JSON");
     Handle<JSFunction> cons = factory->NewFunction(name);
-    JSFunction::SetInstancePrototype(cons,
-        Handle<Object>(native_context()->initial_object_prototype(), isolate));
+    JSFunction::SetInstancePrototype(cons, isolate->initial_object_prototype());
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     DCHECK(json_object->IsJSObject());
     JSObject::AddProperty(global, name, json_object, DONT_ENUM);
@@ -2490,9 +2488,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- M a t h
     Handle<String> name = factory->InternalizeUtf8String("Math");
     Handle<JSFunction> cons = factory->NewFunction(name);
-    JSFunction::SetInstancePrototype(
-        cons,
-        Handle<Object>(native_context()->initial_object_prototype(), isolate));
+    JSFunction::SetInstancePrototype(cons, isolate->initial_object_prototype());
     Handle<JSObject> math = factory->NewJSObject(cons, TENURED);
     DCHECK(math->IsJSObject());
     JSObject::AddProperty(global, name, math, DONT_ENUM);
@@ -2610,9 +2606,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- I n t l
     Handle<String> name = factory->InternalizeUtf8String("Intl");
     Handle<JSFunction> cons = factory->NewFunction(name);
-    JSFunction::SetInstancePrototype(
-        cons,
-        Handle<Object>(native_context()->initial_object_prototype(), isolate));
+    JSFunction::SetInstancePrototype(cons, isolate->initial_object_prototype());
     Handle<JSObject> intl = factory->NewJSObject(cons, TENURED);
     DCHECK(intl->IsJSObject());
     JSObject::AddProperty(global, name, intl, DONT_ENUM);
@@ -3557,7 +3551,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         isolate->initial_object_prototype(), Builtins::kUnsupportedThrower);
     Handle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
-    Accessors::FunctionSetPrototype(script_fun, prototype).Assert();
+    JSFunction::SetPrototype(script_fun, prototype);
     native_context->set_script_function(*script_fun);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
@@ -3811,7 +3805,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         SimpleInstallFunction(proto, info.name, info.id, 0, true, attrs);
       }
 
-      Accessors::FunctionSetPrototype(callsite_fun, proto).Assert();
+      JSFunction::SetPrototype(callsite_fun, proto);
     }
   }
   isolate->native_context()->set_exports_container(*container);
@@ -3906,9 +3900,7 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
 
   Handle<String> name = factory->InternalizeUtf8String("Atomics");
   Handle<JSFunction> cons = factory->NewFunction(name);
-  JSFunction::SetInstancePrototype(
-      cons,
-      Handle<Object>(native_context()->initial_object_prototype(), isolate));
+  JSFunction::SetInstancePrototype(cons, isolate->initial_object_prototype());
   Handle<JSObject> atomics_object = factory->NewJSObject(cons, TENURED);
   DCHECK(atomics_object->IsJSObject());
   JSObject::AddProperty(global, name, atomics_object, DONT_ENUM);
@@ -4224,7 +4216,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
         isolate()->initial_object_prototype(), JS_VALUE_TYPE, JSValue::kSize);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
-    Accessors::FunctionSetPrototype(opaque_reference_fun, prototype).Assert();
+    JSFunction::SetPrototype(opaque_reference_fun, prototype);
     native_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 

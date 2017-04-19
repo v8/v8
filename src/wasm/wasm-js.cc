@@ -865,8 +865,7 @@ void WasmJs::Install(Isolate* isolate) {
   // Setup WebAssembly
   Handle<String> name = v8_str(isolate, "WebAssembly");
   Handle<JSFunction> cons = factory->NewFunction(name);
-  JSFunction::SetInstancePrototype(
-      cons, Handle<Object>(context->initial_object_prototype(), isolate));
+  JSFunction::SetInstancePrototype(cons, isolate->initial_object_prototype());
   cons->shared()->set_instance_class_name(*name);
   Handle<JSObject> webassembly = factory->NewJSObject(cons, TENURED);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
