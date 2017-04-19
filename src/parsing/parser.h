@@ -48,14 +48,11 @@ class FunctionEntry BASE_EMBEDDED {
   class LanguageModeField : public BitField<LanguageMode, 0, 1> {};
   class UsesSuperPropertyField
       : public BitField<bool, LanguageModeField::kNext, 1> {};
-  class CallsEvalField
-      : public BitField<bool, UsesSuperPropertyField::kNext, 1> {};
 
   static uint32_t EncodeFlags(LanguageMode language_mode,
-                              bool uses_super_property, bool calls_eval) {
+                              bool uses_super_property) {
     return LanguageModeField::encode(language_mode) |
-           UsesSuperPropertyField::encode(uses_super_property) |
-           CallsEvalField::encode(calls_eval);
+           UsesSuperPropertyField::encode(uses_super_property);
   }
 
   int start_pos() const { return backing_[kStartPositionIndex]; }
@@ -66,9 +63,6 @@ class FunctionEntry BASE_EMBEDDED {
   }
   bool uses_super_property() const {
     return UsesSuperPropertyField::decode(backing_[kFlagsIndex]);
-  }
-  bool calls_eval() const {
-    return CallsEvalField::decode(backing_[kFlagsIndex]);
   }
   int num_inner_functions() const { return backing_[kNumInnerFunctionsIndex]; }
 

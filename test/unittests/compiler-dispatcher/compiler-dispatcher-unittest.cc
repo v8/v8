@@ -891,8 +891,8 @@ TEST_F(CompilerDispatcherTest, EnqueueWithoutSFI) {
   ASSERT_TRUE(callback->result() == nullptr);
   ASSERT_TRUE(dispatcher.Enqueue(CreateSource(i_isolate(), resource.get()), 0,
                                  static_cast<int>(resource->length()), SLOPPY,
-                                 1, false, false, false, false, 0,
-                                 callback.get(), nullptr));
+                                 1, false, false, false, 0, callback.get(),
+                                 nullptr));
   ASSERT_TRUE(!dispatcher.jobs_.empty());
   ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
               CompileJobStatus::kReadyToParse);

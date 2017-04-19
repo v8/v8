@@ -222,8 +222,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
           PreParseData::FunctionData(
               scanner()->peek_location().end_pos, scope()->num_parameters(),
               GetLastFunctionLiteralId(), scope()->language_mode(),
-              scope()->AsDeclarationScope()->uses_super_property(),
-              scope()->calls_eval()));
+              scope()->AsDeclarationScope()->uses_super_property()));
     }
   }
 
@@ -343,8 +342,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
         start_position, PreParseData::FunctionData(
                             end_position, formals.num_parameters(),
                             GetLastFunctionLiteralId() - func_id, language_mode,
-                            function_scope->uses_super_property(),
-                            function_scope->calls_eval()));
+                            function_scope->uses_super_property()));
     // TODO(wiktorg) spin-off a parse task
     if (FLAG_trace_parse_tasks) {
       PrintF("Saved function at %d to %d with:\n", start_position,
@@ -362,8 +360,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
         PreParseData::FunctionData(
             end_position, scope()->num_parameters(),
             GetLastFunctionLiteralId() - func_id, scope()->language_mode(),
-            scope()->AsDeclarationScope()->uses_super_property(),
-            scope()->calls_eval()));
+            scope()->AsDeclarationScope()->uses_super_property()));
   }
   if (FLAG_trace_preparse) {
     PrintF("  [%s]: %i-%i\n",

@@ -80,7 +80,7 @@ class ParserLogger final {
 
   void LogFunction(int start, int end, int num_parameters,
                    LanguageMode language_mode, bool uses_super_property,
-                   bool calls_eval, int num_inner_functions);
+                   int num_inner_functions);
 
   ScriptData* GetScriptData();
 
@@ -101,19 +101,16 @@ class PreParseData final {
     int num_inner_functions;
     LanguageMode language_mode;
     bool uses_super_property : 1;
-    bool calls_eval : 1;
 
     FunctionData() : end(-1) {}
 
     FunctionData(int end, int num_parameters, int num_inner_functions,
-                 LanguageMode language_mode, bool uses_super_property,
-                 bool calls_eval)
+                 LanguageMode language_mode, bool uses_super_property)
         : end(end),
           num_parameters(num_parameters),
           num_inner_functions(num_inner_functions),
           language_mode(language_mode),
-          uses_super_property(uses_super_property),
-          calls_eval(calls_eval) {}
+          uses_super_property(uses_super_property) {}
 
     bool is_valid() const { return end > 0; }
   };

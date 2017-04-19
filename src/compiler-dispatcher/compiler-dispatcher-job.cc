@@ -65,7 +65,7 @@ CompilerDispatcherJob::CompilerDispatcherJob(
     CompilerDispatcherTracer* tracer, size_t max_stack_size,
     Handle<String> source, int start_position, int end_position,
     LanguageMode language_mode, int function_literal_id, bool native,
-    bool module, bool is_named_expression, bool calls_eval, uint32_t hash_seed,
+    bool module, bool is_named_expression, uint32_t hash_seed,
     AccountingAllocator* zone_allocator, int compiler_hints,
     const AstStringConstants* ast_string_constants,
     CompileJobFinishCallback* finish_callback)
@@ -94,7 +94,6 @@ CompilerDispatcherJob::CompilerDispatcherJob(
   parse_info_->set_native(native);
   parse_info_->set_module(module);
   parse_info_->set_is_named_expression(is_named_expression);
-  parse_info_->set_calls_eval(calls_eval);
 
   parser_.reset(new Parser(parse_info_.get()));
   parser_->DeserializeScopeChain(parse_info_.get(), MaybeHandle<ScopeInfo>());

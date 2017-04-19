@@ -74,10 +74,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_ast_value_factory_owned)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
                 set_is_named_expression)
-  FLAG_ACCESSOR(kCallsEval, calls_eval, set_calls_eval)
   FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
   FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
-  FLAG_ACCESSOR(kScopeInfoIsEmpty, scope_info_is_empty, set_scope_info_is_empty)
   FLAG_ACCESSOR(kTailCallEliminationEnabled, is_tail_call_elimination_enabled,
                 set_tail_call_elimination_enabled)
 
@@ -262,12 +260,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kModule = 1 << 6,
     kAllowLazyParsing = 1 << 7,
     kIsNamedExpression = 1 << 8,
-    kCallsEval = 1 << 9,
-    kDebug = 1 << 10,
-    kSerializing = 1 << 11,
-    kScopeInfoIsEmpty = 1 << 12,
-    kTailCallEliminationEnabled = 1 << 13,
-    kAstValueFactoryOwned = 1 << 14,
+    kDebug = 1 << 9,
+    kSerializing = 1 << 10,
+    kTailCallEliminationEnabled = 1 << 11,
+    kAstValueFactoryOwned = 1 << 12,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

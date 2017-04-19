@@ -966,8 +966,6 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
   DCHECK_NULL(target_stack_);
   DCHECK_IMPLIES(result,
                  info->function_literal_id() == result->function_literal_id());
-  DCHECK_IMPLIES(!info->scope_info_is_empty() && result,
-                 info->calls_eval() == result->scope()->calls_eval());
   return result;
 }
 
@@ -2822,7 +2820,6 @@ Parser::LazyParsingResult Parser::SkipFunction(FunctionKind kind,
       SetLanguageMode(function_scope, entry.language_mode());
       if (entry.uses_super_property())
         function_scope->RecordSuperPropertyUsage();
-      if (entry.calls_eval()) function_scope->RecordEvalCall();
       SkipFunctionLiterals(entry.num_inner_functions());
       return kLazyParsingComplete;
     }
@@ -2850,9 +2847,6 @@ Parser::LazyParsingResult Parser::SkipFunction(FunctionKind kind,
       if (data.uses_super_property) {
         function_scope->RecordSuperPropertyUsage();
       }
-      if (data.calls_eval) {
-        function_scope->RecordEvalCall();
-      }
       SkipFunctionLiterals(data.num_inner_functions);
       return kLazyParsingComplete;
     }
@@ -2874,9 +2868,6 @@ Parser::LazyParsingResult Parser::SkipFunction(FunctionKind kind,
       SetLanguageMode(function_scope, data.language_mode);
       if (data.uses_super_property) {
         function_scope->RecordSuperPropertyUsage();
-      }
-      if (data.calls_eval) {
-        function_scope->RecordEvalCall();
       }
       SkipFunctionLiterals(data.num_inner_functions);
       return kLazyParsingComplete;
@@ -2916,10 +2907,10 @@ Parser::LazyParsingResult Parser::SkipFunction(FunctionKind kind,
   SkipFunctionLiterals(logger->num_inner_functions());
   if (!is_inner_function && produce_cached_parse_data()) {
     DCHECK(log_);
-    log_->LogFunction(
-        function_scope->start_position(), function_scope->end_position(),
-        *num_parameters, language_mode(), function_scope->uses_super_property(),
-        function_scope->calls_eval(), logger->num_inner_functions());
+    log_->LogFunction(function_scope->start_position(),
+                      function_scope->end_position(), *num_parameters,
+                      language_mode(), function_scope->uses_super_property(),
+                      logger->num_inner_functions());
   }
   return kLazyParsingComplete;
 }

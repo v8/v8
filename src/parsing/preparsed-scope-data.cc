@@ -20,7 +20,7 @@ class VariableMaybeAssignedField
 class VariableContextAllocatedField
     : public BitField16<bool, VariableMaybeAssignedField::kNext, 1> {};
 
-const int kFunctionDataSize = 8;
+const int kFunctionDataSize = 7;
 
 }  // namespace
 
@@ -126,7 +126,6 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
     DCHECK_EQ(data.language_mode, scope->language_mode());
     DCHECK_EQ(data.uses_super_property,
               scope->AsDeclarationScope()->uses_super_property());
-    DCHECK_EQ(data.calls_eval, scope->calls_eval());
     uint32_t index_from_data = 0;
     FindFunctionData(scope->start_position(), &index_from_data);
     DCHECK_EQ(index_from_data, index);
@@ -185,7 +184,6 @@ FixedUint32Array* PreParsedScopeData::Serialize(Isolate* isolate) const {
     array->set(i++, function_data.num_inner_functions);
     array->set(i++, function_data.language_mode);
     array->set(i++, function_data.uses_super_property);
-    array->set(i++, function_data.calls_eval);
   }
 
   for (size_t j = 0; j < backing_store_.size(); ++j) {
@@ -214,7 +212,7 @@ void PreParsedScopeData::Deserialize(Handle<FixedUint32Array> array) {
         PreParseData::FunctionData(
             array->get_scalar(i + 2), array->get_scalar(i + 3),
             array->get_scalar(i + 4), LanguageMode(array->get_scalar(i + 5)),
-            array->get_scalar(i + 6), array->get_scalar(i + 7)));
+            array->get_scalar(i + 6)));
   }
   CHECK_EQ(function_index_.size(), function_count);
 
