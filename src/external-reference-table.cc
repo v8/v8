@@ -239,6 +239,19 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "libc_memset");
   Add(ExternalReference::try_internalize_string_function(isolate).address(),
       "try_internalize_string_function");
+  Add(ExternalReference::search_string_raw<const uint8_t, const uint8_t>(
+          isolate)
+          .address(),
+      "search_string_raw<1-byte, 1-byte>");
+  Add(ExternalReference::search_string_raw<const uint8_t, const uc16>(isolate)
+          .address(),
+      "search_string_raw<1-byte, 2-byte>");
+  Add(ExternalReference::search_string_raw<const uc16, const uint8_t>(isolate)
+          .address(),
+      "search_string_raw<2-byte, 1-byte>");
+  Add(ExternalReference::search_string_raw<const uc16, const uc16>(isolate)
+          .address(),
+      "search_string_raw<1-byte, 2-byte>");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

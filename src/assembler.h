@@ -994,6 +994,9 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference try_internalize_string_function(Isolate* isolate);
 
+  template <typename SubjectChar, typename PatternChar>
+  static ExternalReference search_string_raw(Isolate* isolate);
+
   static ExternalReference page_flags(Page* page);
 
   static ExternalReference ForDeoptEntry(Address entry);

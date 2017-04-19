@@ -421,6 +421,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                        MachineType arg1_type, MachineType arg2_type,
                        Node* function, Node* arg0, Node* arg1, Node* arg2);
 
+  // Call to a C function with six arguments.
+  Node* CallCFunction6(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       MachineType arg3_type, MachineType arg4_type,
+                       MachineType arg5_type, Node* function, Node* arg0,
+                       Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                       Node* arg5);
+
   // Exception handling support.
   void GotoIfException(Node* node, Label* if_exception,
                        Variable* exception_var = nullptr);

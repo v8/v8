@@ -59,48 +59,74 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
     return var_data.value();
   }
 
-  Node* LoadOneByteChar(Node* string, Node* index) {
-    return Load(MachineType::Uint8(), string, OneByteCharOffset(index));
-  }
+  void DispatchOnStringEncodings(Node* const lhs_instance_type,
+                                 Node* const rhs_instance_type,
+                                 Label* if_one_one, Label* if_one_two,
+                                 Label* if_two_one, Label* if_two_two) {
+    STATIC_ASSERT(kStringEncodingMask == 0x8);
+    STATIC_ASSERT(kTwoByteStringTag == 0x0);
+    STATIC_ASSERT(kOneByteStringTag == 0x8);
 
-  Node* OneByteCharAddress(Node* string, Node* index) {
-    Node* offset = OneByteCharOffset(index);
-    return IntPtrAdd(string, offset);
-  }
+    // First combine the encodings.
 
-  Node* OneByteCharOffset(Node* index) {
-    return CharOffset(String::ONE_BYTE_ENCODING, index);
-  }
+    Node* const encoding_mask = Int32Constant(kStringEncodingMask);
+    Node* const lhs_encoding = Word32And(lhs_instance_type, encoding_mask);
+    Node* const rhs_encoding = Word32And(rhs_instance_type, encoding_mask);
 
-  Node* CharOffset(String::Encoding encoding, Node* index) {
-    const int header = SeqOneByteString::kHeaderSize - kHeapObjectTag;
-    Node* offset = index;
-    if (encoding == String::TWO_BYTE_ENCODING) {
-      offset = IntPtrAdd(offset, offset);
-    }
-    offset = IntPtrAdd(offset, IntPtrConstant(header));
-    return offset;
-  }
+    Node* const combined_encodings =
+        Word32Or(lhs_encoding, Word32Shr(rhs_encoding, 1));
 
-  void DispatchOnStringInstanceType(Node* const instance_type,
-                                    Label* if_onebyte_sequential,
-                                    Label* if_onebyte_external,
-                                    Label* if_otherwise) {
-    const int kMask = kStringRepresentationMask | kStringEncodingMask;
-    Node* const encoding_and_representation =
-        Word32And(instance_type, Int32Constant(kMask));
+    // Then dispatch on the combined encoding.
+
+    Label unreachable(this, Label::kDeferred);
 
     int32_t values[] = {
-        kOneByteStringTag | kSeqStringTag,
-        kOneByteStringTag | kExternalStringTag,
+        kOneByteStringTag | (kOneByteStringTag >> 1),
+        kOneByteStringTag | (kTwoByteStringTag >> 1),
+        kTwoByteStringTag | (kOneByteStringTag >> 1),
+        kTwoByteStringTag | (kTwoByteStringTag >> 1),
     };
     Label* labels[] = {
-        if_onebyte_sequential, if_onebyte_external,
+        if_one_one, if_one_two, if_two_one, if_two_two,
     };
-    STATIC_ASSERT(arraysize(values) == arraysize(labels));
 
-    Switch(encoding_and_representation, if_otherwise, values, labels,
-           arraysize(values));
+    STATIC_ASSERT(arraysize(values) == arraysize(labels));
+    Switch(combined_encodings, &unreachable, values, labels, arraysize(values));
+
+    BIND(&unreachable);
+    Unreachable();
+  }
+
+  template <typename SubjectChar, typename PatternChar>
+  Node* CallSearchStringRaw(Node* const subject_ptr, Node* const subject_length,
+                            Node* const search_ptr, Node* const search_length,
+                            Node* const start_position) {
+    Node* const function_addr = ExternalConstant(
+        ExternalReference::search_string_raw<SubjectChar, PatternChar>(
+            isolate()));
+    Node* const isolate_ptr =
+        ExternalConstant(ExternalReference::isolate_address(isolate()));
+
+    MachineType type_ptr = MachineType::Pointer();
+    MachineType type_intptr = MachineType::IntPtr();
+
+    Node* const result = CallCFunction6(
+        type_intptr, type_ptr, type_ptr, type_intptr, type_ptr, type_intptr,
+        type_intptr, function_addr, isolate_ptr, subject_ptr, subject_length,
+        search_ptr, search_length, start_position);
+
+    return result;
+  }
+
+  Node* PointerToStringDataAtIndex(Node* const string_data, Node* const index,
+                                   String::Encoding encoding) {
+    const ElementsKind kind = (encoding == String::ONE_BYTE_ENCODING)
+                                  ? UINT8_ELEMENTS
+                                  : UINT16_ELEMENTS;
+
+    Node* const offset_in_bytes =
+        ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS);
+    return IntPtrAdd(string_data, offset_in_bytes);
   }
 
   void GenerateStringEqual(Node* context, Node* left, Node* right);
@@ -113,8 +139,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   Node* LoadSurrogatePairAt(Node* string, Node* length, Node* index,
                             UnicodeEncoding encoding);
 
-  void StringIndexOf(Node* receiver, Node* instance_type, Node* search_string,
-                     Node* search_string_instance_type, Node* position,
+  void StringIndexOf(Node* const subject_string,
+                     Node* const subject_instance_type,
+                     Node* const search_string,
+                     Node* const search_instance_type, Node* const position,
                      std::function<void(Node*)> f_return);
 
   Node* IndexOfDollarChar(Node* const context, Node* const string);
@@ -712,103 +740,148 @@ TF_BUILTIN(StringPrototypeConcat, CodeStubAssembler) {
 }
 
 void StringBuiltinsAssembler::StringIndexOf(
-    Node* receiver, Node* instance_type, Node* search_string,
-    Node* search_string_instance_type, Node* position,
-    std::function<void(Node*)> f_return) {
-  CSA_ASSERT(this, IsString(receiver));
+    Node* const subject_string, Node* const subject_instance_type,
+    Node* const search_string, Node* const search_instance_type,
+    Node* const position, std::function<void(Node*)> f_return) {
+  CSA_ASSERT(this, IsString(subject_string));
   CSA_ASSERT(this, IsString(search_string));
   CSA_ASSERT(this, TaggedIsSmi(position));
 
-  Label zero_length_needle(this),
-      call_runtime_unchecked(this, Label::kDeferred), return_minus_1(this),
-      check_search_string(this), continue_fast_path(this);
-
   Node* const int_zero = IntPtrConstant(0);
+
   VARIABLE(var_needle_byte, MachineType::PointerRepresentation(), int_zero);
   VARIABLE(var_string_addr, MachineType::PointerRepresentation(), int_zero);
 
-  Node* needle_length = SmiUntag(LoadStringLength(search_string));
-  // Use faster/complex runtime fallback for long search strings.
-  GotoIf(IntPtrLessThan(IntPtrConstant(1), needle_length),
-         &call_runtime_unchecked);
-  Node* string_length = SmiUntag(LoadStringLength(receiver));
-  Node* start_position = IntPtrMax(SmiUntag(position), int_zero);
+  Node* const search_length = SmiUntag(LoadStringLength(search_string));
+  Node* const subject_length = SmiUntag(LoadStringLength(subject_string));
+  Node* const start_position = IntPtrMax(SmiUntag(position), int_zero);
 
-  GotoIf(IntPtrEqual(int_zero, needle_length), &zero_length_needle);
-  // Check that the needle fits in the start position.
-  GotoIfNot(IntPtrLessThanOrEqual(needle_length,
-                                  IntPtrSub(string_length, start_position)),
-            &return_minus_1);
-
-  // Load the string address.
+  Label zero_length_needle(this), return_minus_1(this);
   {
-    Label if_onebyte_sequential(this);
-    Label if_onebyte_external(this, Label::kDeferred);
+    GotoIf(IntPtrEqual(int_zero, search_length), &zero_length_needle);
 
-    // Only support one-byte strings on the fast path.
-    DispatchOnStringInstanceType(instance_type, &if_onebyte_sequential,
-                                 &if_onebyte_external, &call_runtime_unchecked);
+    // Check that the needle fits in the start position.
+    GotoIfNot(IntPtrLessThanOrEqual(search_length,
+                                    IntPtrSub(subject_length, start_position)),
+              &return_minus_1);
+  }
 
-    BIND(&if_onebyte_sequential);
+  // Try to unpack subject and search strings. Bail to runtime if either needs
+  // to be flattened.
+  ToDirectStringAssembler subject_to_direct(state(), subject_string);
+  ToDirectStringAssembler search_to_direct(state(), search_string);
+
+  Label call_runtime_unchecked(this, Label::kDeferred);
+
+  subject_to_direct.TryToDirect(&call_runtime_unchecked);
+  search_to_direct.TryToDirect(&call_runtime_unchecked);
+
+  // Load pointers to string data.
+  Node* const subject_ptr =
+      subject_to_direct.PointerToData(&call_runtime_unchecked);
+  Node* const search_ptr =
+      search_to_direct.PointerToData(&call_runtime_unchecked);
+
+  Node* const subject_offset = subject_to_direct.offset();
+  Node* const search_offset = search_to_direct.offset();
+
+  // Like String::IndexOf, the actual matching is done by the optimized
+  // SearchString method in string-search.h. Dispatch based on string instance
+  // types, then call straight into C++ for matching.
+
+  CSA_ASSERT(this, IntPtrGreaterThan(search_length, int_zero));
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(start_position, int_zero));
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(subject_length, start_position));
+  CSA_ASSERT(this,
+             IntPtrLessThanOrEqual(search_length,
+                                   IntPtrSub(subject_length, start_position)));
+
+  Label one_one(this), one_two(this), two_one(this), two_two(this);
+  DispatchOnStringEncodings(subject_to_direct.instance_type(),
+                            search_to_direct.instance_type(), &one_one,
+                            &one_two, &two_one, &two_two);
+
+  typedef const uint8_t onebyte_t;
+  typedef const uc16 twobyte_t;
+
+  BIND(&one_one);
+  {
+    Node* const adjusted_subject_ptr = PointerToStringDataAtIndex(
+        subject_ptr, subject_offset, String::ONE_BYTE_ENCODING);
+    Node* const adjusted_search_ptr = PointerToStringDataAtIndex(
+        search_ptr, search_offset, String::ONE_BYTE_ENCODING);
+
+    Label direct_memchr_call(this), generic_fast_path(this);
+    Branch(IntPtrEqual(search_length, IntPtrConstant(1)), &direct_memchr_call,
+           &generic_fast_path);
+
+    // An additional fast path that calls directly into memchr for 1-length
+    // search strings.
+    BIND(&direct_memchr_call);
     {
-      var_string_addr.Bind(
-          OneByteCharAddress(BitcastTaggedToWord(receiver), start_position));
-      Goto(&check_search_string);
+      Node* const string_addr = IntPtrAdd(adjusted_subject_ptr, start_position);
+      Node* const search_length = IntPtrSub(subject_length, start_position);
+      Node* const search_byte =
+          ChangeInt32ToIntPtr(Load(MachineType::Uint8(), adjusted_search_ptr));
+
+      Node* const memchr =
+          ExternalConstant(ExternalReference::libc_memchr_function(isolate()));
+      Node* const result_address =
+          CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
+                         MachineType::IntPtr(), MachineType::UintPtr(), memchr,
+                         string_addr, search_byte, search_length);
+      GotoIf(WordEqual(result_address, int_zero), &return_minus_1);
+      Node* const result_index =
+          IntPtrAdd(IntPtrSub(result_address, string_addr), start_position);
+      f_return(SmiTag(result_index));
     }
 
-    BIND(&if_onebyte_external);
+    BIND(&generic_fast_path);
     {
-      Node* const unpacked = TryDerefExternalString(receiver, instance_type,
-                                                    &call_runtime_unchecked);
-      var_string_addr.Bind(OneByteCharAddress(unpacked, start_position));
-      Goto(&check_search_string);
+      Node* const result = CallSearchStringRaw<onebyte_t, onebyte_t>(
+          adjusted_subject_ptr, subject_length, adjusted_search_ptr,
+          search_length, start_position);
+      f_return(SmiTag(result));
     }
   }
 
-  // Load the needle character.
-  BIND(&check_search_string);
+  BIND(&one_two);
   {
-    Label if_onebyte_sequential(this);
-    Label if_onebyte_external(this, Label::kDeferred);
+    Node* const adjusted_subject_ptr = PointerToStringDataAtIndex(
+        subject_ptr, subject_offset, String::ONE_BYTE_ENCODING);
+    Node* const adjusted_search_ptr = PointerToStringDataAtIndex(
+        search_ptr, search_offset, String::TWO_BYTE_ENCODING);
 
-    DispatchOnStringInstanceType(search_string_instance_type,
-                                 &if_onebyte_sequential, &if_onebyte_external,
-                                 &call_runtime_unchecked);
-
-    BIND(&if_onebyte_sequential);
-    {
-      var_needle_byte.Bind(
-          ChangeInt32ToIntPtr(LoadOneByteChar(search_string, int_zero)));
-      Goto(&continue_fast_path);
-    }
-
-    BIND(&if_onebyte_external);
-    {
-      Node* const unpacked = TryDerefExternalString(
-          search_string, search_string_instance_type, &call_runtime_unchecked);
-      var_needle_byte.Bind(
-          ChangeInt32ToIntPtr(LoadOneByteChar(unpacked, int_zero)));
-      Goto(&continue_fast_path);
-    }
+    Node* const result = CallSearchStringRaw<onebyte_t, twobyte_t>(
+        adjusted_subject_ptr, subject_length, adjusted_search_ptr,
+        search_length, start_position);
+    f_return(SmiTag(result));
   }
 
-  BIND(&continue_fast_path);
+  BIND(&two_one);
   {
-    Node* needle_byte = var_needle_byte.value();
-    Node* string_addr = var_string_addr.value();
-    Node* search_length = IntPtrSub(string_length, start_position);
-    // Call out to the highly optimized memchr to perform the actual byte
-    // search.
-    Node* memchr =
-        ExternalConstant(ExternalReference::libc_memchr_function(isolate()));
-    Node* result_address =
-        CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
-                       MachineType::IntPtr(), MachineType::UintPtr(), memchr,
-                       string_addr, needle_byte, search_length);
-    GotoIf(WordEqual(result_address, int_zero), &return_minus_1);
-    Node* result_index =
-        IntPtrAdd(IntPtrSub(result_address, string_addr), start_position);
-    f_return(SmiTag(result_index));
+    Node* const adjusted_subject_ptr = PointerToStringDataAtIndex(
+        subject_ptr, subject_offset, String::TWO_BYTE_ENCODING);
+    Node* const adjusted_search_ptr = PointerToStringDataAtIndex(
+        search_ptr, search_offset, String::ONE_BYTE_ENCODING);
+
+    Node* const result = CallSearchStringRaw<twobyte_t, onebyte_t>(
+        adjusted_subject_ptr, subject_length, adjusted_search_ptr,
+        search_length, start_position);
+    f_return(SmiTag(result));
+  }
+
+  BIND(&two_two);
+  {
+    Node* const adjusted_subject_ptr = PointerToStringDataAtIndex(
+        subject_ptr, subject_offset, String::TWO_BYTE_ENCODING);
+    Node* const adjusted_search_ptr = PointerToStringDataAtIndex(
+        search_ptr, search_offset, String::TWO_BYTE_ENCODING);
+
+    Node* const result = CallSearchStringRaw<twobyte_t, twobyte_t>(
+        adjusted_subject_ptr, subject_length, adjusted_search_ptr,
+        search_length, start_position);
+    f_return(SmiTag(result));
   }
 
   BIND(&return_minus_1);
@@ -817,7 +890,7 @@ void StringBuiltinsAssembler::StringIndexOf(
   BIND(&zero_length_needle);
   {
     Comment("0-length search_string");
-    f_return(SmiTag(IntPtrMin(string_length, start_position)));
+    f_return(SmiTag(IntPtrMin(subject_length, start_position)));
   }
 
   BIND(&call_runtime_unchecked);
@@ -826,7 +899,7 @@ void StringBuiltinsAssembler::StringIndexOf(
     // are already known due to type checks in this stub.
     Comment("Call Runtime Unchecked");
     Node* result = CallRuntime(Runtime::kStringIndexOfUnchecked, SmiConstant(0),
-                               receiver, search_string, position);
+                               subject_string, search_string, position);
     f_return(result);
   }
 }
