@@ -75,13 +75,13 @@ namespace internal {
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
-  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13)               \
+  V(d8)  V(d9)  V(d10) V(d11) V(d12)                      \
   V(d16) V(d17) V(d18) V(d19) V(d20) V(d21) V(d22) V(d23) \
   V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
 
 #define ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(V)          \
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
-  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13)               \
+  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15)               \
 // clang-format on
 
 // CPU Registers.
@@ -423,11 +423,11 @@ constexpr QwNeonRegister q15 = { 15 };
 // Aliases for double registers.
 constexpr LowDwVfpRegister kFirstCalleeSavedDoubleReg = d8;
 constexpr LowDwVfpRegister kLastCalleeSavedDoubleReg = d15;
-// kDoubleRegZero and kScratchDoubleReg must pair to form kScratchQuadReg. SIMD
-// code depends on kDoubleRegZero before kScratchDoubleReg.
-constexpr LowDwVfpRegister kDoubleRegZero  = d14;
-constexpr LowDwVfpRegister kScratchDoubleReg = d15;
-// After using kScratchQuadReg, kDoubleRegZero must be reset to 0.
+constexpr LowDwVfpRegister kDoubleRegZero  = d13;
+constexpr LowDwVfpRegister kScratchDoubleReg = d14;
+// This scratch q-register aliases d14 (kScratchDoubleReg) and d15, but is only
+// used when NEON is supported. d15 is still allocatable if there are only 16
+// VFP registers.
 constexpr QwNeonRegister kScratchQuadReg = q7;
 
 // Coprocessor register

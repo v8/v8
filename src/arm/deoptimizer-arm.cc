@@ -124,8 +124,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   const int kFloatRegsSize = kFloatSize * SwVfpRegister::kMaxNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
-  DCHECK(kDoubleRegZero.code() == 14);
-  DCHECK(kScratchDoubleReg.code() == 15);
+  DCHECK(kDoubleRegZero.code() == 13);
+  DCHECK(kScratchDoubleReg.code() == 14);
 
   {
     // We use a run-time check for VFP32DREGS.

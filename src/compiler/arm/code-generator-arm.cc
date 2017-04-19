@@ -2822,7 +2822,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ add(kScratchReg, dst.rn(), Operand(dst.offset()));
         __ vst1(Neon8, NeonListOperand(kScratchQuadReg.low(), 2),
                 NeonMemOperand(kScratchReg));
-        __ veor(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero);
       }
     }
   } else {
@@ -2905,40 +2904,41 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
                 NeonMemOperand(kScratchReg));
         __ vst1(Neon8, NeonListOperand(kScratchQuadReg.low(), 2),
                 NeonMemOperand(kScratchReg));
-        __ veor(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero);
       }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPStackSlot());
-    MemOperand src = g.ToMemOperand(source);
-    MemOperand dst = g.ToMemOperand(destination);
+    Register temp_0 = kScratchReg;
+    LowDwVfpRegister temp_1 = kScratchDoubleReg;
+    MemOperand src0 = g.ToMemOperand(source);
+    MemOperand dst0 = g.ToMemOperand(destination);
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kFloat64) {
-      __ vldr(kScratchDoubleReg, dst);
-      __ vldr(kDoubleRegZero, src);
-      __ vstr(kScratchDoubleReg, src);
-      __ vstr(kDoubleRegZero, dst);
-      // Restore the 0 register.
-      __ veor(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero);
+      MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
+      MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
+      __ vldr(temp_1, dst0);  // Save destination in temp_1.
+      __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
+      __ str(temp_0, dst0);
+      __ ldr(temp_0, src1);
+      __ str(temp_0, dst1);
+      __ vstr(temp_1, src0);
     } else if (rep == MachineRepresentation::kFloat32) {
-      __ vldr(kScratchDoubleReg.low(), dst);
-      __ vldr(kScratchDoubleReg.high(), src);
-      __ vstr(kScratchDoubleReg.low(), src);
-      __ vstr(kScratchDoubleReg.high(), dst);
+      __ vldr(temp_1.low(), dst0);  // Save destination in temp_1.
+      __ ldr(temp_0, src0);  // Then use temp_0 to copy source to destination.
+      __ str(temp_0, dst0);
+      __ vstr(temp_1.low(), src0);
     } else {
       DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-      __ vldr(kScratchDoubleReg, dst);
-      __ vldr(kDoubleRegZero, src);
-      __ vstr(kScratchDoubleReg, src);
-      __ vstr(kDoubleRegZero, dst);
-      src.set_offset(src.offset() + kDoubleSize);
-      dst.set_offset(dst.offset() + kDoubleSize);
-      __ vldr(kScratchDoubleReg, dst);
-      __ vldr(kDoubleRegZero, src);
-      __ vstr(kScratchDoubleReg, src);
-      __ vstr(kDoubleRegZero, dst);
-      // Restore the 0 register.
-      __ veor(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero);
+      MemOperand src1(src0.rn(), src0.offset() + kDoubleSize);
+      MemOperand dst1(dst0.rn(), dst0.offset() + kDoubleSize);
+      __ vldr(kScratchQuadReg.low(), dst0);
+      __ vldr(kScratchQuadReg.high(), src0);
+      __ vstr(kScratchQuadReg.low(), src0);
+      __ vstr(kScratchQuadReg.high(), dst0);
+      __ vldr(kScratchQuadReg.low(), dst1);
+      __ vldr(kScratchQuadReg.high(), src1);
+      __ vstr(kScratchQuadReg.low(), src1);
+      __ vstr(kScratchQuadReg.high(), dst1);
     }
   } else {
     // No other combinations are possible.
