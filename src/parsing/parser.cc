@@ -806,7 +806,8 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
         source, shared_info->start_position(), shared_info->end_position()));
     Handle<String> name(String::cast(shared_info->name()));
     scanner_.Initialize(stream.get());
-    result = DoParseFunction(info, ast_value_factory()->GetString(name));
+    info->set_function_name(ast_value_factory()->GetString(name));
+    result = DoParseFunction(info);
     if (result != nullptr) {
       Handle<String> inferred_name(shared_info->inferred_name());
       result->set_inferred_name(inferred_name);
@@ -835,8 +836,25 @@ static FunctionLiteral::FunctionType ComputeFunctionType(ParseInfo* info) {
   return FunctionLiteral::kAnonymousExpression;
 }
 
-FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
-                                         const AstRawString* raw_name) {
+FunctionLiteral* Parser::DoParseFunction(ParseInfo* info) {
+  const AstRawString* raw_name = info->function_name();
+  FunctionNameValidity function_name_validity = kSkipFunctionNameCheck;
+  if (!raw_name) {
+    bool ok = true;
+    if (peek() == Token::LPAREN) {
+      const AstRawString* variable_name;
+      impl()->GetDefaultStrings(&raw_name, &variable_name);
+    } else {
+      bool is_strict_reserved = true;
+      raw_name = ParseIdentifierOrStrictReservedWord(info->function_kind(),
+                                                     &is_strict_reserved, &ok);
+      if (!ok) return nullptr;
+      function_name_validity = is_strict_reserved
+                                   ? kFunctionNameIsStrictReserved
+                                   : kFunctionNameValidityUnknown;
+    }
+  }
+
   DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
   DCHECK_NULL(target_stack_);
@@ -955,7 +973,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
                                   info->start_position(), info->end_position());
     } else {
       result = ParseFunctionLiteral(
-          raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
+          raw_name, Scanner::Location::invalid(), function_name_validity, kind,
           kNoSourcePosition, function_type, info->language_mode(), &ok);
     }
     // Make sure the results agree.
@@ -3546,12 +3564,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
     fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
     result = DoParseProgram(info);
   } else {
-    const AstRawString* function_name = info->function_name();
-    if (!function_name) {
-      // FIXME(wiktorg) solve fni in parse tasks
-      function_name = ast_value_factory()->empty_string();
-    }
-    result = DoParseFunction(info, function_name);
+    result = DoParseFunction(info);
   }
 
   info->set_literal(result);
