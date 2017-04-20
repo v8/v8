@@ -292,7 +292,6 @@ class ShellOptions {
         stress_runs(1),
         interactive_shell(false),
         test_shell(false),
-        dump_heap_constants(false),
         expected_to_throw(false),
         mock_arraybuffer_allocator(false),
         enable_inspector(false),
@@ -323,7 +322,6 @@ class ShellOptions {
   int stress_runs;
   bool interactive_shell;
   bool test_shell;
-  bool dump_heap_constants;
   bool expected_to_throw;
   bool mock_arraybuffer_allocator;
   bool enable_inspector;

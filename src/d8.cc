@@ -2553,9 +2553,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       continue;
     } else if (strcmp(argv[i], "--isolate") == 0) {
       options.num_isolates++;
-    } else if (strcmp(argv[i], "--dump-heap-constants") == 0) {
-      options.dump_heap_constants = true;
-      argv[i] = NULL;
     } else if (strcmp(argv[i], "--throws") == 0) {
       options.expected_to_throw = true;
       argv[i] = NULL;
@@ -2936,73 +2933,6 @@ void Shell::CleanupWorkers() {
   externalized_contents_.clear();
 }
 
-
-static void DumpHeapConstants(i::Isolate* isolate) {
-  i::Heap* heap = isolate->heap();
-  printf(
-      "# Copyright 2017 the V8 project authors. All rights reserved.\n"
-      "# Use of this source code is governed by a BSD-style license that can\n"
-      "# be found in the LICENSE file.\n\n");
-  // Dump the INSTANCE_TYPES table to the console.
-  printf("# List of known V8 instance types.\n");
-#define DUMP_TYPE(T) printf("  %d: \"%s\",\n", i::T, #T);
-  printf("INSTANCE_TYPES = {\n");
-  INSTANCE_TYPE_LIST(DUMP_TYPE)
-  printf("}\n");
-#undef DUMP_TYPE
-
-  // Dump the KNOWN_MAP table to the console.
-  printf("\n# List of known V8 maps.\n");
-#define ROOT_LIST_CASE(type, name, camel_name) \
-  if (n == NULL && o == heap->name()) n = #camel_name;
-#define STRUCT_LIST_CASE(upper_name, camel_name, name) \
-  if (n == NULL && o == heap->name##_map()) n = #camel_name "Map";
-  i::HeapObjectIterator it(heap->map_space());
-  printf("KNOWN_MAPS = {\n");
-  for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
-    i::Map* m = i::Map::cast(o);
-    const char* n = NULL;
-    intptr_t p = reinterpret_cast<intptr_t>(m) & 0x7ffff;
-    int t = m->instance_type();
-    ROOT_LIST(ROOT_LIST_CASE)
-    STRUCT_LIST(STRUCT_LIST_CASE)
-    if (n == NULL) continue;
-    printf("  0x%05" V8PRIxPTR ": (%d, \"%s\"),\n", p, t, n);
-  }
-  printf("}\n");
-#undef STRUCT_LIST_CASE
-#undef ROOT_LIST_CASE
-
-  // Dump the KNOWN_OBJECTS table to the console.
-  printf("\n# List of known V8 objects.\n");
-#define ROOT_LIST_CASE(type, name, camel_name) \
-  if (n == NULL && o == heap->name()) n = #camel_name;
-  i::OldSpaces spit(heap);
-  printf("KNOWN_OBJECTS = {\n");
-  for (i::PagedSpace* s = spit.next(); s != NULL; s = spit.next()) {
-    i::HeapObjectIterator it(s);
-    const char* sname = AllocationSpaceName(s->identity());
-    for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
-      const char* n = NULL;
-      intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7ffff;
-      ROOT_LIST(ROOT_LIST_CASE)
-      if (n == NULL) continue;
-      printf("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", sname, p, n);
-    }
-  }
-  printf("}\n");
-#undef ROOT_LIST_CASE
-
-  // Dump frame markers
-  printf("\n# List of known V8 Frame Markers.\n");
-#define DUMP_MARKER(T, class) printf("  \"%s\",\n", #T);
-  printf("FRAME_MARKERS = (\n");
-  STACK_FRAME_TYPE_LIST(DUMP_MARKER)
-  printf(")\n");
-#undef DUMP_TYPE
-}
-
-
 int Shell::Main(int argc, char* argv[]) {
   std::ofstream trace_file;
 #if (defined(_WIN32) || defined(_WIN64))
@@ -3105,11 +3035,6 @@ int Shell::Main(int argc, char* argv[]) {
             platform::tracing::TraceConfig::CreateDefaultTraceConfig();
       }
       tracing_controller->StartTracing(trace_config);
-    }
-
-    if (options.dump_heap_constants) {
-      DumpHeapConstants(reinterpret_cast<i::Isolate*>(isolate));
-      return 0;
     }
 
     if (options.stress_opt || options.stress_deopt) {

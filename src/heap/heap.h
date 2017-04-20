@@ -136,6 +136,17 @@ using v8::MemoryPressureLevel;
   V(Map, fixed_float32_array_map, FixedFloat32ArrayMap)                        \
   V(Map, fixed_float64_array_map, FixedFloat64ArrayMap)                        \
   V(Map, fixed_uint8_clamped_array_map, FixedUint8ClampedArrayMap)             \
+  /* Oddball maps */                                                           \
+  V(Map, undefined_map, UndefinedMap)                                          \
+  V(Map, the_hole_map, TheHoleMap)                                             \
+  V(Map, null_map, NullMap)                                                    \
+  V(Map, boolean_map, BooleanMap)                                              \
+  V(Map, uninitialized_map, UninitializedMap)                                  \
+  V(Map, arguments_marker_map, ArgumentsMarkerMap)                             \
+  V(Map, exception_map, ExceptionMap)                                          \
+  V(Map, termination_exception_map, TerminationExceptionMap)                   \
+  V(Map, optimized_out_map, OptimizedOutMap)                                   \
+  V(Map, stale_register_map, StaleRegisterMap)                                 \
   /* Canonical empty values */                                                 \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
@@ -155,6 +166,7 @@ using v8::MemoryPressureLevel;
     EmptySlowElementDictionary)                                                \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
+  V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   /* Protectors */                                                             \
   V(PropertyCell, array_protector, ArrayProtector)                             \
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
@@ -201,25 +213,13 @@ using v8::MemoryPressureLevel;
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(FixedArray, serialized_templates, SerializedTemplates)                     \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)     \
-  /* Configured values */                                                      \
   V(TemplateList, message_listeners, MessageListeners)                         \
-  V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
-  V(Code, js_entry_code, JsEntryCode)                                          \
-  V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
-  /* Oddball maps */                                                           \
-  V(Map, undefined_map, UndefinedMap)                                          \
-  V(Map, the_hole_map, TheHoleMap)                                             \
-  V(Map, null_map, NullMap)                                                    \
-  V(Map, boolean_map, BooleanMap)                                              \
-  V(Map, uninitialized_map, UninitializedMap)                                  \
-  V(Map, arguments_marker_map, ArgumentsMarkerMap)                             \
-  V(Map, exception_map, ExceptionMap)                                          \
-  V(Map, termination_exception_map, TerminationExceptionMap)                   \
-  V(Map, optimized_out_map, OptimizedOutMap)                                   \
-  V(Map, stale_register_map, StaleRegisterMap)                                 \
   /* per-Isolate map for JSPromiseCapability. */                               \
   /* TODO(caitp): Make this a Struct */                                        \
-  V(Map, js_promise_capability_map, JSPromiseCapabilityMap)
+  V(Map, js_promise_capability_map, JSPromiseCapabilityMap)                    \
+  /* JS Entries */                                                             \
+  V(Code, js_entry_code, JsEntryCode)                                          \
+  V(Code, js_construct_entry_code, JsConstructEntryCode)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
@@ -248,64 +248,93 @@ using v8::MemoryPressureLevel;
 // Heap roots that are known to be immortal immovable, for which we can safely
 // skip write barriers. This list is not complete and has omissions.
 #define IMMORTAL_IMMOVABLE_ROOT_LIST(V) \
+  V(ArgumentsMarker)                    \
+  V(ArgumentsMarkerMap)                 \
+  V(ArrayBufferNeuteringProtector)      \
+  V(ArrayIteratorProtector)             \
+  V(ArrayProtector)                     \
+  V(BlockContextMap)                    \
+  V(BooleanMap)                         \
   V(ByteArrayMap)                       \
   V(BytecodeArrayMap)                   \
-  V(FreeSpaceMap)                       \
-  V(OnePointerFillerMap)                \
-  V(TwoPointerFillerMap)                \
-  V(UndefinedValue)                     \
-  V(TheHoleValue)                       \
-  V(NullValue)                          \
-  V(TrueValue)                          \
-  V(FalseValue)                         \
-  V(UninitializedValue)                 \
+  V(CatchContextMap)                    \
   V(CellMap)                            \
-  V(GlobalPropertyCellMap)              \
-  V(SharedFunctionInfoMap)              \
-  V(MetaMap)                            \
-  V(HeapNumberMap)                      \
-  V(MutableHeapNumberMap)               \
-  V(NativeContextMap)                   \
-  V(FixedArrayMap)                      \
   V(CodeMap)                            \
-  V(ScopeInfoMap)                       \
-  V(ModuleInfoMap)                      \
-  V(FixedCOWArrayMap)                   \
-  V(FixedDoubleArrayMap)                \
-  V(WeakCellMap)                        \
-  V(TransitionArrayMap)                 \
-  V(HashTableMap)                       \
-  V(OrderedHashTableMap)                \
-  V(EmptyFixedArray)                    \
   V(EmptyByteArray)                     \
   V(EmptyDescriptorArray)               \
-  V(ArgumentsMarker)                    \
-  V(SymbolMap)                          \
-  V(SloppyArgumentsElementsMap)         \
-  V(FunctionContextMap)                 \
-  V(CatchContextMap)                    \
-  V(WithContextMap)                     \
-  V(BlockContextMap)                    \
-  V(ModuleContextMap)                   \
-  V(EvalContextMap)                     \
-  V(ScriptContextMap)                   \
-  V(UndefinedMap)                       \
-  V(TheHoleMap)                         \
-  V(NullMap)                            \
-  V(BooleanMap)                         \
-  V(UninitializedMap)                   \
-  V(ArgumentsMarkerMap)                 \
-  V(JSMessageObjectMap)                 \
-  V(ForeignMap)                         \
-  V(NoClosuresCellMap)                  \
-  V(OneClosureCellMap)                  \
-  V(ManyClosuresCellMap)                \
-  V(NanValue)                           \
-  V(InfinityValue)                      \
-  V(MinusZeroValue)                     \
-  V(MinusInfinityValue)                 \
-  V(EmptyWeakCell)                      \
+  V(EmptyFixedArray)                    \
+  V(EmptyFixedFloat32Array)             \
+  V(EmptyFixedFloat64Array)             \
+  V(EmptyFixedInt16Array)               \
+  V(EmptyFixedInt32Array)               \
+  V(EmptyFixedInt8Array)                \
+  V(EmptyFixedUint16Array)              \
+  V(EmptyFixedUint32Array)              \
+  V(EmptyFixedUint8Array)               \
+  V(EmptyFixedUint8ClampedArray)        \
+  V(EmptyPropertyCell)                  \
+  V(EmptyScopeInfo)                     \
+  V(EmptyScript)                        \
+  V(EmptySloppyArgumentsElements)       \
+  V(EmptySlowElementDictionary)         \
   V(empty_string)                       \
+  V(EmptyWeakCell)                      \
+  V(EvalContextMap)                     \
+  V(Exception)                          \
+  V(FalseValue)                         \
+  V(FastArrayIterationProtector)        \
+  V(FixedArrayMap)                      \
+  V(FixedCOWArrayMap)                   \
+  V(FixedDoubleArrayMap)                \
+  V(ForeignMap)                         \
+  V(FreeSpaceMap)                       \
+  V(FunctionContextMap)                 \
+  V(GlobalPropertyCellMap)              \
+  V(HashTableMap)                       \
+  V(HeapNumberMap)                      \
+  V(HoleNanValue)                       \
+  V(InfinityValue)                      \
+  V(IsConcatSpreadableProtector)        \
+  V(JsConstructEntryCode)               \
+  V(JsEntryCode)                        \
+  V(JSMessageObjectMap)                 \
+  V(ManyClosuresCellMap)                \
+  V(MetaMap)                            \
+  V(MinusInfinityValue)                 \
+  V(MinusZeroValue)                     \
+  V(ModuleContextMap)                   \
+  V(ModuleInfoMap)                      \
+  V(MutableHeapNumberMap)               \
+  V(NanValue)                           \
+  V(NativeContextMap)                   \
+  V(NoClosuresCellMap)                  \
+  V(NullMap)                            \
+  V(NullValue)                          \
+  V(OneClosureCellMap)                  \
+  V(OnePointerFillerMap)                \
+  V(OptimizedOut)                       \
+  V(OrderedHashTableMap)                \
+  V(ScopeInfoMap)                       \
+  V(ScriptContextMap)                   \
+  V(SharedFunctionInfoMap)              \
+  V(SloppyArgumentsElementsMap)         \
+  V(SpeciesProtector)                   \
+  V(StaleRegister)                      \
+  V(StringLengthProtector)              \
+  V(SymbolMap)                          \
+  V(TerminationException)               \
+  V(TheHoleMap)                         \
+  V(TheHoleValue)                       \
+  V(TransitionArrayMap)                 \
+  V(TrueValue)                          \
+  V(TwoPointerFillerMap)                \
+  V(UndefinedCell)                      \
+  V(UndefinedMap)                       \
+  V(UndefinedValue)                     \
+  V(UninitializedMap)                   \
+  V(UninitializedValue)                 \
+  V(WeakCellMap)                        \
+  V(WithContextMap)                     \
   PRIVATE_SYMBOL_LIST(V)
 
 // Forward declarations.
@@ -666,7 +695,7 @@ class Heap {
   static void FatalProcessOutOfMemory(const char* location,
                                       bool is_heap_oom = false);
 
-  static bool RootIsImmortalImmovable(int root_index);
+  V8_EXPORT_PRIVATE static bool RootIsImmortalImmovable(int root_index);
 
   // Checks whether the space is valid.
   static bool IsValidAllocationSpace(AllocationSpace space);
