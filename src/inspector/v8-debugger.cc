@@ -21,7 +21,7 @@ namespace v8_inspector {
 
 namespace {
 
-static const int kMaxAsyncTaskStacks = 1024 * 1024;
+static const int kMaxAsyncTaskStacks = 128 * 1024;
 
 inline v8::Local<v8::Boolean> v8Boolean(bool value, v8::Isolate* isolate) {
   return value ? v8::True(isolate) : v8::False(isolate);
@@ -851,7 +851,7 @@ void V8Debugger::asyncTaskCreatedForStack(void* task, void* parentTask) {
   // Passing one as maxStackSize forces no async chain for the new stack.
   if (asyncCreation && !asyncCreation->isEmpty()) {
     m_asyncTaskCreationStacks[task] = asyncCreation;
-    m_allAsyncStacks.push_back(asyncCreation);
+    m_allAsyncStacks.push_back(std::move(asyncCreation));
     ++m_asyncStacksCount;
     collectOldAsyncStacksIfNeeded();
   }
@@ -888,8 +888,7 @@ void V8Debugger::asyncTaskScheduledForStack(const String16& taskName,
   if (asyncStack) {
     m_asyncTaskStacks[task] = asyncStack;
     if (recurring) m_recurringTasks.insert(task);
-
-    m_allAsyncStacks.push_back(asyncStack);
+    m_allAsyncStacks.push_back(std::move(asyncStack));
     ++m_asyncStacksCount;
     collectOldAsyncStacksIfNeeded();
   }
@@ -916,15 +915,15 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
   // - asyncTaskCanceled <-- canceled before finished
   //   <-- async stack requested here -->
   // - asyncTaskFinished
-  std::shared_ptr<AsyncStackTrace> asyncParent;
-  if (stackIt != m_asyncTaskStacks.end()) asyncParent = stackIt->second.lock();
+  std::weak_ptr<AsyncStackTrace> asyncParent;
+  if (stackIt != m_asyncTaskStacks.end()) asyncParent = stackIt->second;
   auto itCreation = m_asyncTaskCreationStacks.find(task);
-  if (asyncParent && itCreation != m_asyncTaskCreationStacks.end()) {
+  if (asyncParent.lock() && itCreation != m_asyncTaskCreationStacks.end()) {
     m_currentAsyncCreation.push_back(itCreation->second.lock());
   } else {
-    m_currentAsyncCreation.push_back(nullptr);
+    m_currentAsyncCreation.emplace_back();
   }
-  m_currentAsyncParent.push_back(asyncParent);
+  m_currentAsyncParent.push_back(asyncParent.lock());
 }
 
 void V8Debugger::asyncTaskFinishedForStack(void* task) {
@@ -1023,6 +1022,20 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
   }
   removeOldAsyncTasks(m_asyncTaskStacks);
   removeOldAsyncTasks(m_asyncTaskCreationStacks);
+  protocol::HashSet<void*> recurringLeft;
+  for (auto task : m_recurringTasks) {
+    if (m_asyncTaskStacks.find(task) == m_asyncTaskStacks.end()) continue;
+    recurringLeft.insert(task);
+  }
+  m_recurringTasks.swap(recurringLeft);
+  protocol::HashMap<void*, void*> parentLeft;
+  for (auto it : m_parentTask) {
+    if (m_asyncTaskCreationStacks.find(it.second) == m_asyncTaskStacks.end()) {
+      continue;
+    }
+    parentLeft.insert(it);
+  }
+  m_parentTask.swap(parentLeft);
 }
 
 void V8Debugger::removeOldAsyncTasks(AsyncTaskToStackTrace& map) {

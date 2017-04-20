@@ -185,8 +185,10 @@ class V8Debugger : public v8::debug::DebugDelegate {
       protocol::HashMap<void*, std::weak_ptr<AsyncStackTrace>>;
   AsyncTaskToStackTrace m_asyncTaskStacks;
   AsyncTaskToStackTrace m_asyncTaskCreationStacks;
-  int m_maxAsyncCallStacks;
   protocol::HashSet<void*> m_recurringTasks;
+  protocol::HashMap<void*, void*> m_parentTask;
+
+  int m_maxAsyncCallStacks;
   int m_maxAsyncCallStackDepth;
 
   std::vector<void*> m_currentTasks;
@@ -201,8 +203,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
   std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;
 
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
-  protocol::HashMap<void*, void*> m_parentTask;
-  protocol::HashMap<void*, void*> m_firstNextTask;
   void* m_taskWithScheduledBreak = nullptr;
 
   std::unique_ptr<ScheduleStepIntoAsyncCallback> m_stepIntoAsyncCallback;
