@@ -1361,11 +1361,6 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
   Isolate* isolate = it->isolate();
   Handle<Object> structure = it->GetAccessors();
   Handle<Object> receiver = it->GetReceiver();
-  // In case of global IC, the receiver is the global object. Replace by the
-  // global proxy.
-  if (receiver->IsJSGlobalObject()) {
-    receiver = handle(JSGlobalObject::cast(*receiver)->global_proxy(), isolate);
-  }
 
   // We should never get here to initialize a const with the hole value since a
   // const declaration would conflict with the getter.
@@ -1458,11 +1453,6 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
   Isolate* isolate = it->isolate();
   Handle<Object> structure = it->GetAccessors();
   Handle<Object> receiver = it->GetReceiver();
-  // In case of global IC, the receiver is the global object. Replace by the
-  // global proxy.
-  if (receiver->IsJSGlobalObject()) {
-    receiver = handle(JSGlobalObject::cast(*receiver)->global_proxy(), isolate);
-  }
 
   // We should never get here to initialize a const with the hole value since a
   // const declaration would conflict with the setter.

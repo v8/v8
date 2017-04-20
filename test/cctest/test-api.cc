@@ -26511,24 +26511,6 @@ TEST(SetPrototypeTemplate) {
   ExpectTrue("Image.prototype === HTMLImageElement.prototype");
 }
 
-void ensure_receiver_is_global_proxy(
-    v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSGlobalProxy());
-}
-
-THREADED_TEST(GlobalAccessorInfo) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New(isolate);
-  global_template->SetAccessor(
-      v8::String::NewFromUtf8(isolate, "prop", v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-      &ensure_receiver_is_global_proxy);
-  LocalContext env(NULL, global_template);
-  CompileRun("for (var i = 0; i < 10; i++) this.prop");
-  CompileRun("for (var i = 0; i < 10; i++) prop");
-}
-
 UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
   using namespace i;
   v8::Isolate::CreateParams create_params;
