@@ -1030,7 +1030,8 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
   m_recurringTasks.swap(recurringLeft);
   protocol::HashMap<void*, void*> parentLeft;
   for (auto it : m_parentTask) {
-    if (m_asyncTaskCreationStacks.find(it.second) == m_asyncTaskStacks.end()) {
+    if (m_asyncTaskCreationStacks.find(it.second) ==
+        m_asyncTaskCreationStacks.end()) {
       continue;
     }
     parentLeft.insert(it);
