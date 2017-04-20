@@ -810,8 +810,9 @@ void MacroAssembler::ConvertDoubleToUnsignedInt64(
 void MacroAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
                                    Register src_low, Register src_high,
                                    Register scratch, Register shift) {
-  DCHECK(!AreAliased(dst_low, src_high, shift));
-  DCHECK(!AreAliased(dst_high, src_low, shift));
+  DCHECK(!AreAliased(dst_low, src_high));
+  DCHECK(!AreAliased(dst_high, src_low));
+  DCHECK(!AreAliased(dst_low, dst_high, shift));
   Label less_than_32;
   Label done;
   cmpi(shift, Operand(32));
@@ -856,8 +857,9 @@ void MacroAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
 void MacroAssembler::ShiftRightPair(Register dst_low, Register dst_high,
                                     Register src_low, Register src_high,
                                     Register scratch, Register shift) {
-  DCHECK(!AreAliased(dst_low, src_high, shift));
-  DCHECK(!AreAliased(dst_high, src_low, shift));
+  DCHECK(!AreAliased(dst_low, src_high));
+  DCHECK(!AreAliased(dst_high, src_low));
+  DCHECK(!AreAliased(dst_low, dst_high, shift));
   Label less_than_32;
   Label done;
   cmpi(shift, Operand(32));
