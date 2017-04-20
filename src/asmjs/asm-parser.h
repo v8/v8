@@ -5,14 +5,12 @@
 #ifndef V8_ASMJS_ASM_PARSER_H_
 #define V8_ASMJS_ASM_PARSER_H_
 
-#include <list>
 #include <string>
 #include <vector>
 
 #include "src/asmjs/asm-scanner.h"
 #include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-types.h"
-#include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/zone/zone-containers.h"
 
@@ -61,8 +59,7 @@ class AsmJsParser {
   struct FunctionImportInfo {
     char* function_name;
     size_t function_name_size;
-    SignatureMap cache;
-    std::vector<uint32_t> cache_index;
+    WasmModuleBuilder::SignatureMap cache;
   };
 
   struct VarInfo {
@@ -100,9 +97,8 @@ class AsmJsParser {
   WasmModuleBuilder* module_builder_;
   WasmFunctionBuilder* current_function_builder_;
   AsmType* return_type_;
-  std::uintptr_t stack_limit_;
+  uintptr_t stack_limit_;
   AsmTyper::StdlibSet stdlib_uses_;
-  std::list<FunctionImportInfo> function_import_info_;
   ZoneVector<VarInfo> global_var_info_;
   ZoneVector<VarInfo> local_var_info_;
 

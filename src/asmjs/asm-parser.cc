@@ -550,8 +550,9 @@ bool AsmJsParser::ValidateModuleVarImport(VarInfo* info,
       return true;
     }
     info->kind = VarKind::kImportedFunction;
-    function_import_info_.resize(function_import_info_.size() + 1);
-    info->import = &function_import_info_.back();
+    info->import =
+        new (zone()->New(sizeof(FunctionImportInfo))) FunctionImportInfo(
+            {nullptr, 0, WasmModuleBuilder::SignatureMap(zone())});
     // TODO(bradnelson): Refactor memory management here.
     // AsmModuleBuilder should really own import names.
     info->import->function_name = zone()->NewArray<char>(import_name.size());
@@ -2162,16 +2163,16 @@ AsmType* AsmJsParser::ValidateCall() {
     }
     DCHECK(function_info->import != nullptr);
     // TODO(bradnelson): Factor out.
-    uint32_t cache_index = function_info->import->cache.FindOrInsert(sig);
     uint32_t index;
-    if (cache_index >= function_info->import->cache_index.size()) {
+    auto it = function_info->import->cache.find(sig);
+    if (it != function_info->import->cache.end()) {
+      index = it->second;
+    } else {
       index = module_builder_->AddImport(
           function_info->import->function_name,
           static_cast<uint32_t>(function_info->import->function_name_size),
           sig);
-      function_info->import->cache_index.push_back(index);
-    } else {
-      index = function_info->import->cache_index[cache_index];
+      function_info->import->cache[sig] = index;
     }
     current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
     current_function_builder_->Emit(kExprCallFunction);
