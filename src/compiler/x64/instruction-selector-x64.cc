@@ -26,7 +26,8 @@ class X64OperandGenerator final : public OperandGenerator {
         return true;
       case IrOpcode::kInt64Constant: {
         const int64_t value = OpParameter<int64_t>(node);
-        return value == static_cast<int64_t>(static_cast<int32_t>(value));
+        return std::numeric_limits<int32_t>::min() < value &&
+               value <= std::numeric_limits<int32_t>::max();
       }
       case IrOpcode::kNumberConstant: {
         const double value = OpParameter<double>(node);
