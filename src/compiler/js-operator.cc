@@ -891,12 +891,11 @@ const Operator* JSOperatorBuilder::StoreNamedOwn(
       parameters);                                          // parameter
 }
 
-const Operator* JSOperatorBuilder::DeleteProperty(LanguageMode language_mode) {
-  return new (zone()) Operator1<LanguageMode>(               // --
+const Operator* JSOperatorBuilder::DeleteProperty() {
+  return new (zone()) Operator(                              // --
       IrOpcode::kJSDeleteProperty, Operator::kNoProperties,  // opcode
       "JSDeleteProperty",                                    // name
-      2, 1, 1, 1, 1, 2,                                      // counts
-      language_mode);                                        // parameter
+      3, 1, 1, 1, 1, 2);                                     // counts
 }
 
 

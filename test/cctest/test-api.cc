@@ -2938,6 +2938,7 @@ THREADED_TEST(SymbolProperties) {
   v8::Local<v8::Symbol> sym1 = v8::Symbol::New(isolate);
   v8::Local<v8::Symbol> sym2 = v8::Symbol::New(isolate, v8_str("my-symbol"));
   v8::Local<v8::Symbol> sym3 = v8::Symbol::New(isolate, v8_str("sym3"));
+  v8::Local<v8::Symbol> sym4 = v8::Symbol::New(isolate, v8_str("native"));
 
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 
@@ -3023,6 +3024,23 @@ THREADED_TEST(SymbolProperties) {
             .ToLocalChecked()
             ->Equals(env.local(), v8::Integer::New(isolate, 42))
             .FromJust());
+
+  CHECK(obj->SetNativeDataProperty(env.local(), sym4, SymbolAccessorGetter)
+            .FromJust());
+  CHECK(obj->Get(env.local(), sym4).ToLocalChecked()->IsUndefined());
+  CHECK(obj->Set(env.local(), v8_str("accessor_native"),
+                 v8::Integer::New(isolate, 123))
+            .FromJust());
+  CHECK_EQ(123, obj->Get(env.local(), sym4)
+                    .ToLocalChecked()
+                    ->Int32Value(env.local())
+                    .FromJust());
+  CHECK(obj->Set(env.local(), sym4, v8::Integer::New(isolate, 314)).FromJust());
+  CHECK(obj->Get(env.local(), sym4)
+            .ToLocalChecked()
+            ->Equals(env.local(), v8::Integer::New(isolate, 314))
+            .FromJust());
+  CHECK(obj->Delete(env.local(), v8_str("accessor_native")).FromJust());
 
   // Add another property and delete it afterwards to force the object in
   // slow case.
@@ -17146,7 +17164,7 @@ TEST(ErrorLevelWarning) {
     i::Handle<i::JSMessageObject> message =
         i::MessageHandler::MakeMessageObject(
             i_isolate, i::MessageTemplate::kAsmJsInvalid, &location, msg,
-            i::Handle<i::JSArray>::null());
+            i::Handle<i::FixedArray>::null());
     message->set_error_level(levels[i]);
     expected_error_level = levels[i];
     i::MessageHandler::ReportMessage(i_isolate, &location, message);
@@ -22846,10 +22864,12 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%GetProperty(other, 'x')");
   CheckCorrectThrow("%SetProperty(other, 'x', 'foo', 0)");
   CheckCorrectThrow("%AddNamedProperty(other, 'x', 'foo', 1)");
-  CheckCorrectThrow("%DeleteProperty_Sloppy(other, 'x')");
-  CheckCorrectThrow("%DeleteProperty_Strict(other, 'x')");
-  CheckCorrectThrow("%DeleteProperty_Sloppy(other, '1')");
-  CheckCorrectThrow("%DeleteProperty_Strict(other, '1')");
+  STATIC_ASSERT(i::SLOPPY == 0);
+  STATIC_ASSERT(i::STRICT == 1);
+  CheckCorrectThrow("%DeleteProperty(other, 'x', 0)");  // 0 == SLOPPY
+  CheckCorrectThrow("%DeleteProperty(other, 'x', 1)");  // 1 == STRICT
+  CheckCorrectThrow("%DeleteProperty(other, '1', 0)");
+  CheckCorrectThrow("%DeleteProperty(other, '1', 1)");
   CheckCorrectThrow("Object.prototype.hasOwnProperty.call(other, 'x')");
   CheckCorrectThrow("%HasProperty(other, 'x')");
   CheckCorrectThrow("Object.prototype.propertyIsEnumerable(other, 'x')");

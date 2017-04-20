@@ -29,7 +29,7 @@
         isolate_->factory()->InternalizeOneByteString(msg));           \
     error_message_ = MessageHandler::MakeMessageObject(                \
         isolate_, MessageTemplate::kAsmJsInvalid, (location), message, \
-        Handle<JSArray>::null());                                      \
+        Handle<FixedArray>::null());                                   \
     error_message_->set_error_level(v8::Isolate::kMessageWarning);     \
     message_location_ = *(location);                                   \
     return AsmType::None();                                            \

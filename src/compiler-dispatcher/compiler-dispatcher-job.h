@@ -61,9 +61,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
                         Handle<String> source, int start_position,
                         int end_position, LanguageMode language_mode,
                         int function_literal_id, bool native, bool module,
-                        bool is_named_expression, bool calls_eval,
-                        uint32_t hash_seed, AccountingAllocator* zone_allocator,
-                        int compiler_hints,
+                        bool is_named_expression, uint32_t hash_seed,
+                        AccountingAllocator* zone_allocator, int compiler_hints,
                         const AstStringConstants* ast_string_constants,
                         CompileJobFinishCallback* finish_callback);
   // Creates a CompilerDispatcherJob in the analyzed state.

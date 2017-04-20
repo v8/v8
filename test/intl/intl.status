@@ -29,6 +29,9 @@
 [ALWAYS, {
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
+
+  # BUG(v8:6252).
+  'date-format/timezone': [PASS, FAIL],
 }],  # ALWAYS
 
 ['variant == wasm_traps', {

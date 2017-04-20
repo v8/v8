@@ -2090,15 +2090,15 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   VARIABLE(var_index, MachineType::PointerRepresentation());
   VARIABLE(var_unique, MachineRepresentation::kTagged);
   var_unique.Bind(p->name);  // Dummy initialization.
-  Label if_index(this), if_unique_name(this), slow(this);
+  Label if_index(this), if_unique_name(this), if_notunique(this), slow(this);
 
   Node* receiver = p->receiver;
   GotoIf(TaggedIsSmi(receiver), &slow);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
 
-  TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique,
-            &slow);
+  TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique, &slow,
+            &if_notunique);
 
   BIND(&if_index);
   {
@@ -2110,6 +2110,22 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   {
     GenericPropertyLoad(receiver, receiver_map, instance_type,
                         var_unique.value(), p, &slow);
+  }
+
+  BIND(&if_notunique);
+  {
+    if (FLAG_internalize_on_the_fly) {
+      Label not_in_string_table(this);
+      TryInternalizeString(p->name, &if_index, &var_index, &if_unique_name,
+                           &var_unique, &not_in_string_table, &slow);
+
+      BIND(&not_in_string_table);
+      // If the string was not found in the string table, then no object can
+      // have a property with that name.
+      Return(UndefinedConstant());
+    } else {
+      Goto(&slow);
+    }
   }
 
   BIND(&slow);

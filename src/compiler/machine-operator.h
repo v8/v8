@@ -556,15 +556,35 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* S128Xor();
   const Operator* S128Not();
 
+  const Operator* S32x4ZipLeft();
+  const Operator* S32x4ZipRight();
+  const Operator* S32x4UnzipLeft();
+  const Operator* S32x4UnzipRight();
+  const Operator* S32x4TransposeLeft();
+  const Operator* S32x4TransposeRight();
   const Operator* S32x4Select();
-  const Operator* S32x4Swizzle(uint32_t);
-  const Operator* S32x4Shuffle();
+  const Operator* S16x8ZipLeft();
+  const Operator* S16x8ZipRight();
+  const Operator* S16x8UnzipLeft();
+  const Operator* S16x8UnzipRight();
+  const Operator* S16x8TransposeLeft();
+  const Operator* S16x8TransposeRight();
   const Operator* S16x8Select();
-  const Operator* S16x8Swizzle(uint32_t);
-  const Operator* S16x8Shuffle();
+  const Operator* S8x16ZipLeft();
+  const Operator* S8x16ZipRight();
+  const Operator* S8x16UnzipLeft();
+  const Operator* S8x16UnzipRight();
+  const Operator* S8x16TransposeLeft();
+  const Operator* S8x16TransposeRight();
   const Operator* S8x16Select();
-  const Operator* S8x16Swizzle(uint32_t);
-  const Operator* S8x16Shuffle();
+  const Operator* S8x16Concat(int32_t);
+
+  const Operator* S32x2Reverse();
+  const Operator* S16x4Reverse();
+  const Operator* S16x2Reverse();
+  const Operator* S8x8Reverse();
+  const Operator* S8x4Reverse();
+  const Operator* S8x2Reverse();
 
   const Operator* S1x4Zero();
   const Operator* S1x4And();

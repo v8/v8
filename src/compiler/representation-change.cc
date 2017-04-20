@@ -654,7 +654,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
                use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedFloat64ToInt32(
           output_type->Maybe(Type::MinusZero())
-              ? CheckForMinusZeroMode::kCheckForMinusZero
+              ? use_info.minus_zero_check()
               : CheckForMinusZeroMode::kDontCheckForMinusZero);
     } else if (output_type->Is(Type::Unsigned32())) {
       op = machine()->ChangeFloat64ToUint32();
@@ -686,7 +686,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedTaggedToInt32(
           output_type->Maybe(Type::MinusZero())
-              ? CheckForMinusZeroMode::kCheckForMinusZero
+              ? use_info.minus_zero_check()
               : CheckForMinusZeroMode::kDontCheckForMinusZero);
     } else if (output_type->Is(Type::Unsigned32())) {
       op = simplified()->ChangeTaggedToUint32();

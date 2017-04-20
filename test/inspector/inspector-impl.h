@@ -40,6 +40,7 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
 
   void setCurrentTimeMSForTest(double time);
   void setMemoryInfoForTest(v8::Local<v8::Value> memory_info);
+  void setLogConsoleApiMessageCalls(bool log);
 
  private:
   // V8InspectorClient implementation.
@@ -51,7 +52,12 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
                                        v8::Local<v8::Context>) override;
   void runMessageLoopOnPause(int context_group_id) override;
   void quitMessageLoopOnPause() override;
-
+  void consoleAPIMessage(int contextGroupId,
+                         v8::Isolate::MessageErrorLevel level,
+                         const v8_inspector::StringView& message,
+                         const v8_inspector::StringView& url,
+                         unsigned lineNumber, unsigned columnNumber,
+                         v8_inspector::V8StackTrace*) override;
   friend class SendMessageToBackendTask;
 
   friend class ConnectTask;
@@ -75,6 +81,7 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
 
   bool current_time_set_for_test_ = false;
   double current_time_ = 0.0;
+  bool log_console_api_message_calls_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(InspectorClientImpl);
 };

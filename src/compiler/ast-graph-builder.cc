@@ -2120,7 +2120,8 @@ void AstGraphBuilder::VisitDelete(UnaryOperation* expr) {
     VisitForValue(property->key());
     Node* key = environment()->Pop();
     Node* object = environment()->Pop();
-    value = NewNode(javascript()->DeleteProperty(language_mode()), object, key);
+    Node* mode = jsgraph()->Constant(static_cast<int32_t>(language_mode()));
+    value = NewNode(javascript()->DeleteProperty(), object, key, mode);
     PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   } else {
     VisitForEffect(expr->expression());
@@ -2453,8 +2454,9 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Node* name = jsgraph()->Constant(variable->name());
-      const Operator* op = javascript()->DeleteProperty(language_mode());
-      Node* result = NewNode(op, global, name);
+      Node* mode = jsgraph()->Constant(static_cast<int32_t>(language_mode()));
+      const Operator* op = javascript()->DeleteProperty();
+      Node* result = NewNode(op, global, name, mode);
       PrepareFrameState(result, bailout_id, combine);
       return result;
     }

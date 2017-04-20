@@ -50,6 +50,20 @@ function TestConstructFromArrayWithSideEffectsHoley(constr) {
   assertEquals(4, ta[3]);
 }
 
+function TestConstructFromArrayNoIteratorWithGetter(constr) {
+  var arr = [1, 2, 3];
+  arr[Symbol.iterator] = undefined;
+
+  Object.defineProperty(arr, "2", {
+    get() {
+      return 22;
+    }
+  });
+
+  var ta = new constr(arr);
+
+  assertArrayEquals([1, 2, 22], ta);
+}
 
 function TestConstructFromArray(constr) {
   var n = 64;
@@ -81,12 +95,81 @@ function TestConstructFromTypedArray(constr) {
   }
 }
 
+(function TestUint8ClampedIsNotBitCopied() {
+  var arr = new Int8Array([-1.0, 0, 1.1, 255, 256]);
+  assertArrayEquals([-1, 0, 1, -1, 0], arr);
+  var expected = new Uint8ClampedArray([0, 0, 1, 0, 0]);
+
+  var converted = new Uint8ClampedArray(arr);
+
+  assertArrayEquals([0, 0, 1, 0, 0], converted);
+})();
+
+(function TestInt8ArrayCopying() {
+  var source = new Uint8Array([0, 1, 127, 128, 255, 256]);
+  assertArrayEquals([0, 1, 127, 128, 255, 0], source);
+
+  var converted = new Int8Array(source);
+
+  assertArrayEquals([0, 1, 127, -128, -1, 0], converted);
+})();
+
+(function TestInt16ArrayCopying() {
+  var source = new Uint16Array([0, 1, 32767, 32768, 65535, 65536]);
+  assertArrayEquals([0, 1, 32767, 32768, 65535, 0], source);
+
+  var converted = new Int16Array(source);
+
+  assertArrayEquals([0, 1, 32767, -32768, -1, 0], converted);
+})();
+
+(function TestInt32ArrayCopying() {
+  var source =
+      new Uint32Array([0, 1, 2147483647, 2147483648, 4294967295, 4294967296]);
+  assertArrayEquals([0, 1, 2147483647, 2147483648, 4294967295, 0], source);
+
+  var converted = new Int32Array(source);
+
+  assertArrayEquals([0, 1, 2147483647, -2147483648, -1, 0], converted);
+})();
+
 function TestLengthIsMaxSmi(constr) {
   var myObject = { 0: 5, 1: 6, length: %_MaxSmi() + 1 };
 
   assertThrows(function() {
     new constr(myObject);
   }, RangeError);
+}
+
+function TestProxyHoleConverted(constr) {
+  var source = {0: 0, 2: 2, length: 3};
+  var proxy = new Proxy(source, {});
+
+  var converted = new constr(proxy);
+
+  assertArrayEquals([0, defaultValue(constr), 2], converted);
+}
+
+function TestProxyToObjectValueOfCalled(constr) {
+  var thrower = { valueOf: function() { throw new TypeError(); } };
+  var source = {0: 0, 1: thrower, length: 2};
+  var proxy = new Proxy(source, {});
+
+  assertThrows(() => new constr(proxy), TypeError);
+}
+
+function TestObjectValueOfCalled(constr) {
+  var thrower = { valueOf: function() { throw new TypeError(); } };
+
+  var obj = {0: 0, 1: thrower, length: 2};
+  assertThrows(() => new constr(obj), TypeError);
+}
+
+function TestSmiPackedArray(constr) {
+  var ta = new constr([1, 2, 3, 4, 127]);
+
+  assertEquals(5 * constr.BYTES_PER_ELEMENT, ta.byteLength);
+  assertArrayEquals([1, 2, 3, 4, 127], ta);
 }
 
 function TestOffsetIsUsedRunner(constr, n) {
@@ -120,10 +203,20 @@ Test(TestConstructSmallObject);
 Test(TestConstructLargeObject);
 Test(TestConstructFromArrayWithSideEffects);
 Test(TestConstructFromArrayWithSideEffectsHoley);
+Test(TestConstructFromArrayNoIteratorWithGetter);
 Test(TestConstructFromArray);
 Test(TestConstructFromTypedArray);
 Test(TestLengthIsMaxSmi);
+Test(TestProxyHoleConverted);
+Test(TestProxyToObjectValueOfCalled);
+Test(TestObjectValueOfCalled);
+Test(TestSmiPackedArray);
 Test(TestOffsetIsUsed);
+
+function defaultValue(constr) {
+  if (constr == Float32Array || constr == Float64Array) return NaN;
+  return 0;
+}
 
 function Test(func) {
   func(Uint8Array);

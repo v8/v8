@@ -338,7 +338,7 @@ bool CompilerDispatcher::Enqueue(Handle<String> source, int start_position,
                                  int end_position, LanguageMode language_mode,
                                  int function_literal_id, bool native,
                                  bool module, bool is_named_expression,
-                                 bool calls_eval, int compiler_hints,
+                                 int compiler_hints,
                                  CompileJobFinishCallback* finish_callback,
                                  JobId* job_id) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -353,8 +353,8 @@ bool CompilerDispatcher::Enqueue(Handle<String> source, int start_position,
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       tracer_.get(), max_stack_size_, source, start_position, end_position,
       language_mode, function_literal_id, native, module, is_named_expression,
-      calls_eval, isolate_->heap()->HashSeed(), isolate_->allocator(),
-      compiler_hints, isolate_->ast_string_constants(), finish_callback));
+      isolate_->heap()->HashSeed(), isolate_->allocator(), compiler_hints,
+      isolate_->ast_string_constants(), finish_callback));
   JobId id = Enqueue(std::move(job));
   if (job_id != nullptr) {
     *job_id = id;

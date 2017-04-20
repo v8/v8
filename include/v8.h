@@ -150,6 +150,9 @@ class FunctionCallbackArguments;
 class GlobalHandles;
 }  // namespace internal
 
+namespace debug {
+class ConsoleCallArguments;
+}  // namespace debug
 
 // --- Handles ---
 
@@ -1092,7 +1095,8 @@ class V8_EXPORT Module {
   /**
    * ModuleDeclarationInstantiation
    *
-   * Returns false if an exception occurred during instantiation.
+   * Returns false if an exception occurred during instantiation. (In the case
+   * where the callback throws an exception, that exception is propagated.)
    */
   V8_WARN_UNUSED_RESULT bool Instantiate(Local<Context> context,
                                          ResolveCallback callback);
@@ -3143,6 +3147,16 @@ class V8_EXPORT Object : public Value {
                            AccessControl settings = DEFAULT);
 
   /**
+   * Sets a native data property like Template::SetNativeDataProperty, but
+   * this method sets on this object directly.
+   */
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
+      Local<Context> context, Local<Name> name,
+      AccessorNameGetterCallback getter,
+      AccessorNameSetterCallback setter = nullptr,
+      Local<Value> data = Local<Value>(), PropertyAttribute attributes = None);
+
+  /**
    * Functionality for private properties.
    * This is an experimental feature, use at your own risk.
    * Note: Private properties are not inherited. Do not rely on this, since it
@@ -3602,6 +3616,7 @@ class FunctionCallbackInfo {
  protected:
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
+  friend class debug::ConsoleCallArguments;
   static const int kHolderIndex = 0;
   static const int kIsolateIndex = 1;
   static const int kReturnValueDefaultValueIndex = 2;

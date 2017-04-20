@@ -141,7 +141,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
 
   size_t GetPosition() const { return body_.size(); }
   void FixupByte(size_t position, byte value) { body_[position] = value; }
-  void StashCode(std::vector<byte>* dst, size_t position);
+  void DeleteCodeAfter(size_t position);
 
   void WriteSignature(ZoneBuffer& buffer) const;
   void WriteExports(ZoneBuffer& buffer) const;

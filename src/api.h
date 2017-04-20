@@ -105,7 +105,7 @@ class RegisteredExtension {
   V(Message, JSMessageObject)                  \
   V(Context, Context)                          \
   V(External, Object)                          \
-  V(StackTrace, JSArray)                       \
+  V(StackTrace, FixedArray)                    \
   V(StackFrame, StackFrameInfo)                \
   V(Proxy, JSProxy)                            \
   V(NativeWeakMap, JSWeakMap)                  \
@@ -189,7 +189,7 @@ class Utils {
   static inline Local<DynamicImportResult> PromiseToDynamicImportResult(
       v8::internal::Handle<v8::internal::JSPromise> obj);
   static inline Local<StackTrace> StackTraceToLocal(
-      v8::internal::Handle<v8::internal::JSArray> obj);
+      v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<StackFrame> StackFrameToLocal(
       v8::internal::Handle<v8::internal::StackFrameInfo> obj);
   static inline Local<Number> NumberToLocal(
@@ -321,7 +321,7 @@ MAKE_TO_LOCAL(AccessorSignatureToLocal, FunctionTemplateInfo, AccessorSignature)
 MAKE_TO_LOCAL(MessageToLocal, Object, Message)
 MAKE_TO_LOCAL(PromiseToLocal, JSObject, Promise)
 MAKE_TO_LOCAL(PromiseToDynamicImportResult, JSPromise, DynamicImportResult)
-MAKE_TO_LOCAL(StackTraceToLocal, JSArray, StackTrace)
+MAKE_TO_LOCAL(StackTraceToLocal, FixedArray, StackTrace)
 MAKE_TO_LOCAL(StackFrameToLocal, StackFrameInfo, StackFrame)
 MAKE_TO_LOCAL(NumberToLocal, Object, Number)
 MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)

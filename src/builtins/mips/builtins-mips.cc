@@ -629,7 +629,7 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     // -----------------------------------
 
     __ Pop(a1);
-    __ Push(a0, a0);
+    __ Push(v0, v0);
 
     // Retrieve smi-tagged arguments count from the stack.
     __ lw(a0, MemOperand(fp, ConstructFrameConstants::kLengthOffset));

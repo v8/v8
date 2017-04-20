@@ -599,14 +599,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void TypeFeedbackInfo::TypeFeedbackInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "TypeFeedbackInfo");
-  os << "\n - ic_total_count: " << ic_total_count()
-     << ", ic_with_type_info_count: " << ic_with_type_info_count()
-     << ", ic_generic_count: " << ic_generic_count() << "\n";
-}
-
-
 void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
     std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AliasedArgumentsEntry");
@@ -1338,14 +1330,6 @@ void ContextExtension::ContextExtensionPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void ConstantElementsPair::ConstantElementsPairPrint(
-    std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "ConstantElementsPair");
-  os << "\n - elements_kind: " << static_cast<ElementsKind>(elements_kind());
-  os << "\n - constant_values: " << Brief(constant_values());
-  os << "\n";
-}
-
 void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessorPair");
   os << "\n - getter: " << Brief(getter());
@@ -1371,14 +1355,6 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - query: " << Brief(query());
   os << "\n - deleter: " << Brief(deleter());
   os << "\n - enumerator: " << Brief(enumerator());
-  os << "\n - data: " << Brief(data());
-  os << "\n";
-}
-
-
-void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "CallHandlerInfo");
-  os << "\n - callback: " << Brief(callback());
   os << "\n - data: " << Brief(data());
   os << "\n";
 }
@@ -1484,13 +1460,6 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   break_points()->Print(os);
 }
 
-
-void BreakPointInfo::BreakPointInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "BreakPointInfo");
-  os << "\n - source_position: " << source_position();
-  os << "\n - break_point_objects: " << Brief(break_point_objects());
-  os << "\n";
-}
 
 void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "StackFrame");

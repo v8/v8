@@ -535,7 +535,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
   chunk->concurrent_sweeping_state().SetValue(kSweepingDone);
-  chunk->mutex_ = new base::Mutex();
+  chunk->mutex_ = new base::RecursiveMutex();
   chunk->available_in_free_list_ = 0;
   chunk->wasted_memory_ = 0;
   chunk->young_generation_bitmap_ = nullptr;

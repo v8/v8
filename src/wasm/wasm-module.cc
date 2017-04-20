@@ -1951,9 +1951,11 @@ class InstantiationHelper {
           Handle<WasmMemoryObject> memory_object;
           if (!instance->has_memory_object()) {
             // If there was no imported WebAssembly.Memory object, create one.
-            Handle<JSArrayBuffer> buffer(instance->memory_buffer(), isolate_);
             memory_object = WasmMemoryObject::New(
-                isolate_, buffer,
+                isolate_,
+                (instance->has_memory_buffer())
+                    ? handle(instance->memory_buffer())
+                    : Handle<JSArrayBuffer>::null(),
                 (module_->max_mem_pages != 0) ? module_->max_mem_pages : -1);
             instance->set_memory_object(*memory_object);
           } else {
@@ -2603,44 +2605,6 @@ void wasm::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
                  instance_object.ToHandleChecked());
 }
 
-void wasm::AsyncCompileAndInstantiate(Isolate* isolate,
-                                      Handle<JSPromise> promise,
-                                      const ModuleWireBytes& bytes,
-                                      MaybeHandle<JSReceiver> imports) {
-  ErrorThrower thrower(isolate, nullptr);
-
-  // Compile the module.
-  MaybeHandle<WasmModuleObject> module_object =
-      SyncCompile(isolate, &thrower, bytes);
-  if (thrower.error()) {
-    RejectPromise(isolate, handle(isolate->context()), &thrower, promise);
-    return;
-  }
-  Handle<WasmModuleObject> module = module_object.ToHandleChecked();
-
-  // Instantiate the module.
-  MaybeHandle<WasmInstanceObject> instance_object = SyncInstantiate(
-      isolate, &thrower, module, imports, Handle<JSArrayBuffer>::null());
-  if (thrower.error()) {
-    RejectPromise(isolate, handle(isolate->context()), &thrower, promise);
-    return;
-  }
-
-  Handle<JSFunction> object_function =
-      Handle<JSFunction>(isolate->native_context()->object_function(), isolate);
-  Handle<JSObject> ret =
-      isolate->factory()->NewJSObject(object_function, TENURED);
-  Handle<String> module_property_name =
-      isolate->factory()->InternalizeUtf8String("module");
-  Handle<String> instance_property_name =
-      isolate->factory()->InternalizeUtf8String("instance");
-  JSObject::AddProperty(ret, module_property_name, module, NONE);
-  JSObject::AddProperty(ret, instance_property_name,
-                        instance_object.ToHandleChecked(), NONE);
-
-  ResolvePromise(isolate, handle(isolate->context()), promise, ret);
-}
-
 // Encapsulates all the state and steps of an asynchronous compilation.
 // An asynchronous compile job consists of a number of tasks that are executed
 // as foreground and background tasks. Any phase that touches the V8 heap or
@@ -3038,6 +3002,20 @@ class AsyncCompileJob {
 
 void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
                         const ModuleWireBytes& bytes) {
+  if (!FLAG_wasm_async_compilation) {
+    ErrorThrower thrower(isolate, "WasmCompile");
+    // Compile the module.
+    MaybeHandle<WasmModuleObject> module_object =
+        SyncCompile(isolate, &thrower, bytes);
+    if (thrower.error()) {
+      RejectPromise(isolate, handle(isolate->context()), &thrower, promise);
+      return;
+    }
+    Handle<WasmModuleObject> module = module_object.ToHandleChecked();
+    ResolvePromise(isolate, handle(isolate->context()), promise, module);
+    return;
+  }
+
   // Make a copy of the wire bytes in case the user program changes them
   // during asynchronous compilation.
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);

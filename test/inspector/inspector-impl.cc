@@ -85,6 +85,25 @@ void MessageHandler(v8::Local<v8::Message> message,
                              inspector->createStackTrace(stack), script_id);
 }
 
+v8::Local<v8::String> ToString(v8::Isolate* isolate,
+                               const v8_inspector::StringView& string) {
+  if (string.is8Bit())
+    return v8::String::NewFromOneByte(isolate, string.characters8(),
+                                      v8::NewStringType::kNormal,
+                                      static_cast<int>(string.length()))
+        .ToLocalChecked();
+  else
+    return v8::String::NewFromTwoByte(isolate, string.characters16(),
+                                      v8::NewStringType::kNormal,
+                                      static_cast<int>(string.length()))
+        .ToLocalChecked();
+}
+
+void Print(v8::Isolate* isolate, const v8_inspector::StringView& string) {
+  v8::Local<v8::String> v8_string = ToString(isolate, string);
+  v8::String::Utf8Value utf8_string(v8_string);
+  fwrite(*utf8_string, sizeof(**utf8_string), utf8_string.length(), stdout);
+}
 }  //  namespace
 
 class ConnectTask : public TaskRunner::Task {
@@ -207,6 +226,7 @@ void InspectorClientImpl::disconnect() {
     states_[it.first] = it.second->stateJSON();
   }
   sessions_.clear();
+  inspector_.reset();
 }
 
 void InspectorClientImpl::scheduleCreateContextGroup(
@@ -265,6 +285,10 @@ void InspectorClientImpl::setMemoryInfoForTest(
   memory_info_.Reset(isolate_, memory_info);
 }
 
+void InspectorClientImpl::setLogConsoleApiMessageCalls(bool log) {
+  log_console_api_message_calls_ = log;
+}
+
 v8::MaybeLocal<v8::Value> InspectorClientImpl::memoryInfo(
     v8::Isolate* isolate, v8::Local<v8::Context>) {
   if (memory_info_.IsEmpty()) return v8::MaybeLocal<v8::Value>();
@@ -277,6 +301,20 @@ void InspectorClientImpl::runMessageLoopOnPause(int) {
 
 void InspectorClientImpl::quitMessageLoopOnPause() {
   task_runner_->QuitMessageLoop();
+}
+
+void InspectorClientImpl::consoleAPIMessage(
+    int contextGroupId, v8::Isolate::MessageErrorLevel level,
+    const v8_inspector::StringView& message,
+    const v8_inspector::StringView& url, unsigned lineNumber,
+    unsigned columnNumber, v8_inspector::V8StackTrace* stack) {
+  if (!log_console_api_message_calls_) return;
+  Print(isolate_, message);
+  fprintf(stdout, " (");
+  Print(isolate_, url);
+  fprintf(stdout, ":%d:%d)", lineNumber, columnNumber);
+  Print(isolate_, stack->toString()->string());
+  fprintf(stdout, "\n");
 }
 
 v8_inspector::V8Inspector* InspectorClientImpl::InspectorFromContext(

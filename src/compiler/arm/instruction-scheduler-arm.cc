@@ -216,6 +216,31 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmS128Xor:
     case kArmS128Not:
     case kArmS128Select:
+    case kArmS32x4ZipLeft:
+    case kArmS32x4ZipRight:
+    case kArmS32x4UnzipLeft:
+    case kArmS32x4UnzipRight:
+    case kArmS32x4TransposeLeft:
+    case kArmS32x4TransposeRight:
+    case kArmS16x8ZipLeft:
+    case kArmS16x8ZipRight:
+    case kArmS16x8UnzipLeft:
+    case kArmS16x8UnzipRight:
+    case kArmS16x8TransposeLeft:
+    case kArmS16x8TransposeRight:
+    case kArmS8x16ZipLeft:
+    case kArmS8x16ZipRight:
+    case kArmS8x16UnzipLeft:
+    case kArmS8x16UnzipRight:
+    case kArmS8x16TransposeLeft:
+    case kArmS8x16TransposeRight:
+    case kArmS8x16Concat:
+    case kArmS32x2Reverse:
+    case kArmS16x4Reverse:
+    case kArmS16x2Reverse:
+    case kArmS8x8Reverse:
+    case kArmS8x4Reverse:
+    case kArmS8x2Reverse:
     case kArmS1x4AnyTrue:
     case kArmS1x4AllTrue:
     case kArmS1x8AnyTrue:

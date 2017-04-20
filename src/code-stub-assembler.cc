@@ -2900,10 +2900,27 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
 
   BIND(&done_throw);
   {
+    const char* primitive_name = nullptr;
+    switch (primitive_type) {
+      case PrimitiveType::kBoolean:
+        primitive_name = "Boolean";
+        break;
+      case PrimitiveType::kNumber:
+        primitive_name = "Number";
+        break;
+      case PrimitiveType::kString:
+        primitive_name = "String";
+        break;
+      case PrimitiveType::kSymbol:
+        primitive_name = "Symbol";
+        break;
+    }
+    CHECK_NOT_NULL(primitive_name);
+
     // The {value} is not a compatible receiver for this method.
-    CallRuntime(Runtime::kThrowNotGeneric, context,
-                HeapConstant(factory()->NewStringFromAsciiChecked(method_name,
-                                                                  TENURED)));
+    CallRuntime(Runtime::kThrowTypeError, context,
+                SmiConstant(MessageTemplate::kNotGeneric),
+                CStringConstant(method_name), CStringConstant(primitive_name));
     Unreachable();
   }
 
@@ -4468,7 +4485,8 @@ void CodeStubAssembler::Use(Label* label) {
 
 void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
                                   Variable* var_index, Label* if_keyisunique,
-                                  Variable* var_unique, Label* if_bailout) {
+                                  Variable* var_unique, Label* if_bailout,
+                                  Label* if_notinternalized) {
   DCHECK_EQ(MachineType::PointerRepresentation(), var_index->rep());
   DCHECK_EQ(MachineRepresentation::kTagged, var_unique->rep());
   Comment("TryToName");
@@ -4507,7 +4525,8 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   STATIC_ASSERT(kNotInternalizedTag != 0);
   Node* not_internalized =
       Word32And(key_instance_type, Int32Constant(kIsNotInternalizedMask));
-  GotoIf(Word32NotEqual(not_internalized, Int32Constant(0)), if_bailout);
+  GotoIf(Word32NotEqual(not_internalized, Int32Constant(0)),
+         if_notinternalized != nullptr ? if_notinternalized : if_bailout);
   Goto(if_keyisunique);
 
   BIND(&if_thinstring);
@@ -4517,6 +4536,30 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   BIND(&if_hascachedindex);
   var_index->Bind(DecodeWordFromWord32<Name::ArrayIndexValueBits>(hash));
   Goto(if_keyisindex);
+}
+
+void CodeStubAssembler::TryInternalizeString(
+    Node* string, Label* if_index, Variable* var_index, Label* if_internalized,
+    Variable* var_internalized, Label* if_not_internalized, Label* if_bailout) {
+  DCHECK(var_index->rep() == MachineType::PointerRepresentation());
+  DCHECK(var_internalized->rep() == MachineRepresentation::kTagged);
+  Node* function = ExternalConstant(
+      ExternalReference::try_internalize_string_function(isolate()));
+  Node* result = CallCFunction1(MachineType::AnyTagged(),
+                                MachineType::AnyTagged(), function, string);
+  Label internalized(this);
+  GotoIf(TaggedIsNotSmi(result), &internalized);
+  Node* word_result = SmiUntag(result);
+  GotoIf(WordEqual(word_result, IntPtrConstant(ResultSentinel::kNotFound)),
+         if_not_internalized);
+  GotoIf(WordEqual(word_result, IntPtrConstant(ResultSentinel::kUnsupported)),
+         if_bailout);
+  var_index->Bind(word_result);
+  Goto(if_index);
+
+  BIND(&internalized);
+  var_internalized->Bind(result);
+  Goto(if_internalized);
 }
 
 template <typename Dictionary>
@@ -4545,29 +4588,6 @@ Node* CodeStubAssembler::IntPtrMax(Node* left, Node* right) {
 Node* CodeStubAssembler::IntPtrMin(Node* left, Node* right) {
   return SelectConstant(IntPtrLessThanOrEqual(left, right), left, right,
                         MachineType::PointerRepresentation());
-}
-
-template <class Dictionary>
-Node* CodeStubAssembler::GetNumberOfElements(Node* dictionary) {
-  return LoadFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex);
-}
-
-template <class Dictionary>
-void CodeStubAssembler::SetNumberOfElements(Node* dictionary,
-                                            Node* num_elements_smi) {
-  StoreFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex,
-                         num_elements_smi, SKIP_WRITE_BARRIER);
-}
-
-template <class Dictionary>
-Node* CodeStubAssembler::GetNumberOfDeletedElements(Node* dictionary) {
-  return LoadFixedArrayElement(dictionary,
-                               Dictionary::kNumberOfDeletedElementsIndex);
-}
-
-template <class Dictionary>
-Node* CodeStubAssembler::GetCapacity(Node* dictionary) {
-  return LoadFixedArrayElement(dictionary, Dictionary::kCapacityIndex);
 }
 
 template <class Dictionary>
@@ -5751,6 +5771,21 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
   Node* combined_feedback = SmiOr(previous_feedback, feedback);
   StoreFixedArrayElement(feedback_vector, slot_id, combined_feedback,
                          SKIP_WRITE_BARRIER);
+}
+
+void CodeStubAssembler::CheckForAssociatedProtector(Node* name,
+                                                    Label* if_protector) {
+  // This list must be kept in sync with LookupIterator::UpdateProtector!
+  // TODO(jkummerow): Would it be faster to have a bit in Symbol::flags()?
+  GotoIf(WordEqual(name, LoadRoot(Heap::kconstructor_stringRootIndex)),
+         if_protector);
+  GotoIf(WordEqual(name, LoadRoot(Heap::kiterator_symbolRootIndex)),
+         if_protector);
+  GotoIf(WordEqual(name, LoadRoot(Heap::kspecies_symbolRootIndex)),
+         if_protector);
+  GotoIf(WordEqual(name, LoadRoot(Heap::kis_concat_spreadable_symbolRootIndex)),
+         if_protector);
+  // Fall through if no case matched.
 }
 
 Node* CodeStubAssembler::LoadReceiverMap(Node* receiver) {

@@ -138,8 +138,42 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I32x4ShrU:
     case kX64I32x4MinU:
     case kX64I32x4MaxU:
+    case kX64I16x8Splat:
+    case kX64I16x8ExtractLane:
+    case kX64I16x8ReplaceLane:
+    case kX64I16x8Shl:
+    case kX64I16x8ShrS:
+    case kX64I16x8Add:
+    case kX64I16x8AddSaturateS:
+    case kX64I16x8Sub:
+    case kX64I16x8SubSaturateS:
+    case kX64I16x8Mul:
+    case kX64I16x8MinS:
+    case kX64I16x8MaxS:
+    case kX64I16x8Eq:
+    case kX64I16x8Ne:
+    case kX64I16x8ShrU:
+    case kX64I16x8AddSaturateU:
+    case kX64I16x8SubSaturateU:
+    case kX64I16x8MinU:
+    case kX64I16x8MaxU:
+    case kX64I8x16Splat:
+    case kX64I8x16ExtractLane:
+    case kX64I8x16ReplaceLane:
+    case kX64I8x16Add:
+    case kX64I8x16AddSaturateS:
+    case kX64I8x16Sub:
+    case kX64I8x16SubSaturateS:
+    case kX64I8x16MinS:
+    case kX64I8x16MaxS:
+    case kX64I8x16Eq:
+    case kX64I8x16Ne:
+    case kX64I8x16AddSaturateU:
+    case kX64I8x16SubSaturateU:
+    case kX64I8x16MinU:
+    case kX64I8x16MaxU:
+    case kX64S128Select:
     case kX64S128Zero:
-    case kX64S32x4Select:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;

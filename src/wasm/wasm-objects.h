@@ -102,7 +102,7 @@ class WasmMemoryObject : public JSObject {
   };
 
   DECLARE_CASTS(WasmMemoryObject);
-  DECLARE_ACCESSORS(buffer, JSArrayBuffer);
+  DECLARE_OPTIONAL_ACCESSORS(buffer, JSArrayBuffer);
   DECLARE_OPTIONAL_ACCESSORS(instances_link, WasmInstanceWrapper);
 
   void AddInstance(Isolate* isolate, Handle<WasmInstanceObject> object);

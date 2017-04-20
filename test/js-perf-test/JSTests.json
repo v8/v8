@@ -65,7 +65,9 @@
       "units": "score",
       "results_regexp": "^%s\\-RestParameters\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Basic1"}
+        {"name": "Basic1"},
+        {"name": "ReturnArgsBabel"},
+        {"name": "ReturnArgsNative"}
       ]
     },
     {

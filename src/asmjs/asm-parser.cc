@@ -4,11 +4,6 @@
 
 #include "src/asmjs/asm-parser.h"
 
-// Required to get M_E etc. for MSVC.
-// References from STDLIB_MATH_VALUE_LIST in asm-names.h
-#if defined(_WIN32)
-#define _USE_MATH_DEFINES
-#endif
 #include <math.h>
 #include <string.h>
 
@@ -29,17 +24,17 @@ namespace wasm {
 #define FAIL_AND_RETURN(ret, msg)                                        \
   failed_ = true;                                                        \
   failure_message_ = msg;                                                \
-  failure_location_ = scanner_.GetPosition();                            \
+  failure_location_ = static_cast<int>(scanner_.Position());             \
   if (FLAG_trace_asm_parser) {                                           \
     PrintF("[asm.js failure: %s, token: '%s', see: %s:%d]\n", msg,       \
            scanner_.Name(scanner_.Token()).c_str(), __FILE__, __LINE__); \
   }                                                                      \
   return ret;
 #else
-#define FAIL_AND_RETURN(ret, msg)             \
-  failed_ = true;                             \
-  failure_message_ = msg;                     \
-  failure_location_ = scanner_.GetPosition(); \
+#define FAIL_AND_RETURN(ret, msg)                            \
+  failed_ = true;                                            \
+  failure_message_ = msg;                                    \
+  failure_location_ = static_cast<int>(scanner_.Position()); \
   return ret;
 #endif
 
@@ -610,10 +605,10 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   if (Check(TOK(Math))) {
     EXPECT_TOKEN('.');
     switch (Consume()) {
-#define V(name)                                             \
+#define V(name, const_value)                                \
   case TOK(name):                                           \
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64, \
-                  WasmInitExpr(M_##name));                  \
+                  WasmInitExpr(const_value));               \
     stdlib_uses_.insert(AsmTyper::kMath##name);             \
     break;
       STDLIB_MATH_VALUE_LIST(V)
@@ -1219,20 +1214,20 @@ void AsmJsParser::ForStatement() {
     current_function_builder_->EmitWithU8(kExprBrIf, 1);
   }
   EXPECT_TOKEN(';');
-  // Stash away INCREMENT
-  size_t increment_position = current_function_builder_->GetPosition();
-  if (!Peek(')')) {
-    RECURSE(Expression(nullptr));
-  }
-  std::vector<byte> increment_code;
-  current_function_builder_->StashCode(&increment_code, increment_position);
+  // Race past INCREMENT
+  size_t increment_position = scanner_.Position();
+  ScanToClosingParenthesis();
   EXPECT_TOKEN(')');
   //       BODY
   RECURSE(ValidateStatement());
   //       INCREMENT
-  current_function_builder_->EmitCode(
-      increment_code.data(), static_cast<uint32_t>(increment_code.size()));
+  size_t end_position = scanner_.Position();
+  scanner_.Seek(increment_position);
+  if (!Peek(')')) {
+    RECURSE(Expression(nullptr));
+  }
   current_function_builder_->EmitWithU8(kExprBr, 0);
+  scanner_.Seek(end_position);
   //   }
   End();
   // }
@@ -1302,7 +1297,8 @@ void AsmJsParser::SwitchStatement() {
   pending_label_ = 0;
   // TODO(bradnelson): Make less weird.
   std::vector<int32_t> cases;
-  GatherCases(&cases);  // Skips { implicitly.
+  GatherCases(&cases);
+  EXPECT_TOKEN('{');
   size_t count = cases.size() + 1;
   for (size_t i = 0; i < count; ++i) {
     BareBegin(BlockKind::kOther);
@@ -1958,18 +1954,18 @@ AsmType* AsmJsParser::BitwiseORExpression() {
     call_coercion_deferred_ = nullptr;
     // TODO(bradnelson): Make it prettier.
     bool zero = false;
-    int old_pos;
+    size_t old_pos;
     size_t old_code;
     if (a->IsA(AsmType::Intish()) && CheckForZero()) {
-      old_pos = scanner_.GetPosition();
+      old_pos = scanner_.Position();
       old_code = current_function_builder_->GetPosition();
       scanner_.Rewind();
       zero = true;
     }
     RECURSEn(b = BitwiseXORExpression());
     // Handle |0 specially.
-    if (zero && old_pos == scanner_.GetPosition()) {
-      current_function_builder_->StashCode(nullptr, old_code);
+    if (zero && old_pos == scanner_.Position()) {
+      current_function_builder_->DeleteCodeAfter(old_code);
       a = AsmType::Signed();
       continue;
     }
@@ -2439,8 +2435,25 @@ void AsmJsParser::ValidateFloatCoercion() {
   EXPECT_TOKEN(')');
 }
 
+void AsmJsParser::ScanToClosingParenthesis() {
+  int depth = 0;
+  for (;;) {
+    if (Peek('(')) {
+      ++depth;
+    } else if (Peek(')')) {
+      --depth;
+      if (depth < 0) {
+        break;
+      }
+    } else if (Peek(AsmJsScanner::kEndOfInput)) {
+      break;
+    }
+    scanner_.Next();
+  }
+}
+
 void AsmJsParser::GatherCases(std::vector<int32_t>* cases) {
-  int start = scanner_.GetPosition();
+  size_t start = scanner_.Position();
   int depth = 0;
   for (;;) {
     if (Peek('{')) {

@@ -1043,7 +1043,7 @@ constant pool: [
   HEAP_NUMBER_TYPE [1.23],
   HEAP_NUMBER_TYPE [1.23],
   HEAP_NUMBER_TYPE [1.23],
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
 ]
 handlers: [
 ]

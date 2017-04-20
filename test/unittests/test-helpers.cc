@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/unittests/compiler-dispatcher/compiler-dispatcher-helper.h"
+#include "test/unittests/test-helpers.h"
 
 #include "include/v8.h"
 #include "src/api.h"

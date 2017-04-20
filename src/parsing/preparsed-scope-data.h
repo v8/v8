@@ -65,9 +65,21 @@ class PreParsedScopeData {
   // subscopes') variables.
   void SaveData(Scope* scope);
 
+  // Saves data for a function that can be later skipped, or a function for
+  // which we save variable allocation data.
+
+  // FIXME(marja): We need different kinds of data for the two types of
+  // functions. For a skippable function we need the end position + the data
+  // needed for creating a FunctionLiteral. For a function which contains
+  // skippable functions, we need the data affecting context allocation status
+  // of the variables (but e.g., no end position). Currently we just save the
+  // same data for both. Here we can save less data.
+  void AddFunction(int start_position,
+                   const PreParseData::FunctionData& function_data);
+
   // Restores the information needed for allocating the Scopes's (and its
   // subscopes') variables.
-  void RestoreData(Scope* scope, int* index_ptr) const;
+  void RestoreData(Scope* scope, uint32_t* index_ptr) const;
   void RestoreData(DeclarationScope* scope) const;
 
   FixedUint32Array* Serialize(Isolate* isolate) const;
@@ -83,19 +95,20 @@ class PreParsedScopeData {
   friend class ScopeTestHelper;
 
   void SaveDataForVariable(Variable* var);
-  void RestoreDataForVariable(Variable* var, int* index_ptr) const;
+  void RestoreDataForVariable(Variable* var, uint32_t* index_ptr) const;
   void SaveDataForInnerScopes(Scope* scope);
-  void RestoreDataForInnerScopes(Scope* scope, int* index_ptr) const;
-  bool FindFunctionData(int start_pos, int* index) const;
+  void RestoreDataForInnerScopes(Scope* scope, uint32_t* index_ptr) const;
+  bool FindFunctionData(int start_pos, uint32_t* index) const;
 
   static bool ScopeNeedsData(Scope* scope);
   static bool IsSkippedFunctionScope(Scope* scope);
 
   // TODO(marja): Make the backing store more efficient once we know exactly
   // what data is needed.
-  std::vector<byte> backing_store_;
+  std::vector<uint32_t> backing_store_;
 
-  // Start pos -> FunctionData.
+  // Start pos -> FunctionData. Used for creating FunctionLiterals for skipped
+  // functions (when they're actually skipped).
   PreParseData function_index_;
   // Start pos -> position in backing_store_.
   std::unordered_map<uint32_t, uint32_t> function_data_positions_;

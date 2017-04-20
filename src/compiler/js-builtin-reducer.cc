@@ -733,10 +733,22 @@ Reduction JSBuiltinReducer::ReduceArrayIsArray(Node* node) {
     return Replace(value);
   }
   Node* value = NodeProperties::GetValueInput(node, 2);
+  Type* value_type = NodeProperties::GetType(value);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+
+  // Constant-fold based on {value} type.
+  if (value_type->Is(Type::Array())) {
+    Node* value = jsgraph()->TrueConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  } else if (!value_type->Maybe(Type::ArrayOrProxy())) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
 
   int count = 0;
   Node* values[5];

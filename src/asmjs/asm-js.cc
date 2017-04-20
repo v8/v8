@@ -6,6 +6,7 @@
 
 #include "src/api-natives.h"
 #include "src/api.h"
+#include "src/asmjs/asm-names.h"
 #include "src/asmjs/asm-parser.h"
 #include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-wasm-builder.h"
@@ -18,7 +19,6 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
-#include "src/parsing/parse-info.h"
 
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
@@ -108,8 +108,8 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
       Handle<i::Object> value = maybe_value.ToHandleChecked();
       return value->IsNaN();
     }
-#define STDLIB_MATH_FUNC(CamelName, fname)                             \
-  case wasm::AsmTyper::StandardMember::k##CamelName: {                 \
+#define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)               \
+  case wasm::AsmTyper::StandardMember::kMath##FName: {                 \
     Handle<i::Name> name(isolate->factory()->InternalizeOneByteString( \
         STATIC_CHAR_VECTOR(#fname)));                                  \
     Handle<i::Object> value = StdlibMathMember(isolate, stdlib, name); \
@@ -118,27 +118,9 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
     }                                                                  \
     Handle<i::JSFunction> func(i::JSFunction::cast(*value));           \
     return func->shared()->code() ==                                   \
-           isolate->builtins()->builtin(Builtins::k##CamelName);       \
+           isolate->builtins()->builtin(Builtins::kMath##FName);       \
   }
-      STDLIB_MATH_FUNC(MathAcos, acos)
-      STDLIB_MATH_FUNC(MathAsin, asin)
-      STDLIB_MATH_FUNC(MathAtan, atan)
-      STDLIB_MATH_FUNC(MathCos, cos)
-      STDLIB_MATH_FUNC(MathSin, sin)
-      STDLIB_MATH_FUNC(MathTan, tan)
-      STDLIB_MATH_FUNC(MathExp, exp)
-      STDLIB_MATH_FUNC(MathLog, log)
-      STDLIB_MATH_FUNC(MathCeil, ceil)
-      STDLIB_MATH_FUNC(MathFloor, floor)
-      STDLIB_MATH_FUNC(MathSqrt, sqrt)
-      STDLIB_MATH_FUNC(MathAbs, abs)
-      STDLIB_MATH_FUNC(MathClz32, clz32)
-      STDLIB_MATH_FUNC(MathMin, min)
-      STDLIB_MATH_FUNC(MathMax, max)
-      STDLIB_MATH_FUNC(MathAtan2, atan2)
-      STDLIB_MATH_FUNC(MathPow, pow)
-      STDLIB_MATH_FUNC(MathImul, imul)
-      STDLIB_MATH_FUNC(MathFround, fround)
+      STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
 #undef STDLIB_MATH_FUNC
 #define STDLIB_MATH_CONST(cname, const_value)                             \
   case wasm::AsmTyper::StandardMember::kMath##cname: {                    \
@@ -148,14 +130,7 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
     return !value.is_null() && value->IsNumber() &&                       \
            value->Number() == const_value;                                \
   }
-      STDLIB_MATH_CONST(E, 2.718281828459045)
-      STDLIB_MATH_CONST(LN10, 2.302585092994046)
-      STDLIB_MATH_CONST(LN2, 0.6931471805599453)
-      STDLIB_MATH_CONST(LOG2E, 1.4426950408889634)
-      STDLIB_MATH_CONST(LOG10E, 0.4342944819032518)
-      STDLIB_MATH_CONST(PI, 3.141592653589793)
-      STDLIB_MATH_CONST(SQRT1_2, 0.7071067811865476)
-      STDLIB_MATH_CONST(SQRT2, 1.4142135623730951)
+      STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
 #undef STDLIB_MATH_CONST
     default: { UNREACHABLE(); }
   }
@@ -172,6 +147,7 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   base::ElapsedTimer asm_wasm_timer;
   asm_wasm_timer.Start();
   wasm::AsmWasmBuilder builder(info);
+  size_t asm_wasm_zone_start = info->zone()->allocation_size();
   if (FLAG_fast_validate_asm) {
     wasm::AsmJsParser parser(info->isolate(), info->zone(), info->script(),
                              info->literal()->start_position(),
@@ -189,7 +165,7 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
         Handle<JSMessageObject> error_message =
             MessageHandler::MakeMessageObject(
                 info->isolate(), MessageTemplate::kAsmJsInvalid, &location,
-                message, Handle<JSArray>::null());
+                message, Handle<FixedArray>::null());
         error_message->set_error_level(v8::Isolate::kMessageWarning);
         MessageHandler::ReportMessage(info->isolate(), &location,
                                       error_message);
@@ -233,6 +209,12 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   }
 
   double asm_wasm_time = asm_wasm_timer.Elapsed().InMillisecondsF();
+  size_t asm_wasm_zone = info->zone()->allocation_size() - asm_wasm_zone_start;
+  if (FLAG_trace_asm_parser) {
+    PrintF("[asm.js translation successful: time=%0.3fms, zone=%" PRIuS "KB]\n",
+           asm_wasm_time, asm_wasm_zone / KB);
+  }
+
   Vector<const byte> asm_offsets_vec(asm_offsets->begin(),
                                      static_cast<int>(asm_offsets->size()));
 
@@ -275,7 +257,7 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   Handle<String> stext(info->isolate()->factory()->InternalizeUtf8String(text));
   Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
       info->isolate(), MessageTemplate::kAsmJsCompiled, &location, stext,
-      Handle<JSArray>::null());
+      Handle<FixedArray>::null());
   message->set_error_level(v8::Isolate::kMessageInfo);
   if (!FLAG_suppress_asm_messages && FLAG_trace_asm_time) {
     MessageHandler::ReportMessage(info->isolate(), &location, message);
@@ -388,7 +370,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
   Handle<String> stext(isolate->factory()->InternalizeUtf8String(text));
   Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
       isolate, MessageTemplate::kAsmJsInstantiated, &location, stext,
-      Handle<JSArray>::null());
+      Handle<FixedArray>::null());
   message->set_error_level(v8::Isolate::kMessageInfo);
   if (!FLAG_suppress_asm_messages && FLAG_trace_asm_time) {
     MessageHandler::ReportMessage(isolate, &location, message);

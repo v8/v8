@@ -789,6 +789,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
       BIND(&data_property);
       {
+        CheckForAssociatedProtector(p->name, slow);
         OverwriteExistingFastProperty(receiver, receiver_map, properties,
                                       descriptors, name_index, details,
                                       p->value, slow);
@@ -822,6 +823,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
       BIND(&overwrite);
       {
+        CheckForAssociatedProtector(p->name, slow);
         StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
                                              p->value);
         Return(p->value);
@@ -830,6 +832,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&not_found);
     {
+      CheckForAssociatedProtector(p->name, slow);
       Label extensible(this);
       GotoIf(IsPrivateSymbol(p->name), &extensible);
       Node* bitfield2 = LoadMapBitField2(receiver_map);

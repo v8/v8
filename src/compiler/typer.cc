@@ -1116,14 +1116,18 @@ Type* Typer::Visitor::TypeJSCreate(Node* node) { return Type::Object(); }
 
 
 Type* Typer::Visitor::TypeJSCreateArguments(Node* node) {
-  return Type::OtherObject();
+  switch (CreateArgumentsTypeOf(node->op())) {
+    case CreateArgumentsType::kRestParameter:
+      return Type::Array();
+    case CreateArgumentsType::kMappedArguments:
+    case CreateArgumentsType::kUnmappedArguments:
+      return Type::OtherObject();
+  }
+  UNREACHABLE();
+  return nullptr;
 }
 
-
-Type* Typer::Visitor::TypeJSCreateArray(Node* node) {
-  return Type::OtherObject();
-}
-
+Type* Typer::Visitor::TypeJSCreateArray(Node* node) { return Type::Array(); }
 
 Type* Typer::Visitor::TypeJSCreateClosure(Node* node) {
   return Type::Function();
@@ -1139,7 +1143,7 @@ Type* Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
 }
 
 Type* Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
-  return Type::OtherObject();
+  return Type::Array();
 }
 
 
@@ -1516,6 +1520,7 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
 
         // Object functions.
         case kObjectAssign:
+          return Type::Receiver();
         case kObjectCreate:
           return Type::OtherObject();
         case kObjectHasOwnProperty:
@@ -1527,7 +1532,7 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
         case kRegExpCompile:
           return Type::OtherObject();
         case kRegExpExec:
-          return Type::Union(Type::OtherObject(), Type::Null(), t->zone());
+          return Type::Union(Type::Array(), Type::Null(), t->zone());
         case kRegExpTest:
           return Type::Boolean();
         case kRegExpToString:

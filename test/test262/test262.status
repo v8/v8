@@ -278,14 +278,14 @@
   'built-ins/TypedArrays/internals/Set/conversion-operation-consistent-nan': [PASS, FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5070
-  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-configurable': [FAIL],
-  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-extensible': [FAIL],
-  'annexB/built-ins/Object/prototype/__defineGetter__/this-non-obj': [FAIL],
-  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-configurable': [FAIL],
-  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-extensible': [FAIL],
-  'annexB/built-ins/Object/prototype/__defineSetter__/this-non-obj': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': [FAIL],
+  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-configurable': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-extensible': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__defineGetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-configurable': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-extensible': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__defineSetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
+  'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4451
   # https://github.com/tc39/ecma262/issues/753
@@ -421,36 +421,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5601
   'intl402/PluralRules/*': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5855
-  'language/expressions/async-generators/*': ['--harmony-async-iteration'],
-  'language/statements/async-generator/*': ['--harmony-async-iteration'],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6226
-  'language/expressions/async-generator/named-yield-star-async-next': [FAIL],
-  'language/expressions/async-generator/named-yield-star-async-return': [FAIL],
-  'language/expressions/async-generator/named-yield-star-async-throw': [FAIL],
-  'language/expressions/async-generator/yield-star-async-next': [FAIL],
-  'language/expressions/async-generator/yield-star-async-return': [FAIL],
-  'language/expressions/async-generator/yield-star-async-throw': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-async-next': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-async-return': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-async-throw': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-async-next': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-async-return': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-async-throw': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-async-next': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-async-return': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-async-throw': [FAIL],
-  'language/statements/async-generator/yield-star-async-next': [FAIL],
-  'language/statements/async-generator/yield-star-async-return': [FAIL],
-  'language/statements/async-generator/yield-star-async-throw': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-async-next': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-async-return': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-async-throw': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-async-next': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-async-return': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-async-throw': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6242
   'language/expressions/async-generator/named-yield-star-sync-next': [FAIL],
   'language/expressions/async-generator/named-yield-star-sync-return': [FAIL],
@@ -579,6 +549,10 @@
   'intl402/NumberFormat/11.2.3_b': [FAIL],
   'intl402/NumberFormat/prototype/11.3_a': [FAIL],
   'intl402/String/prototype/localeCompare/13.1.1_7': [PASS, FAIL],
+
+  # BUG(v8:6252).
+  'intl402/DateTimeFormat/6.4_a': [FAIL],
+  'intl402/DateTimeFormat/6.4_c': [FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 

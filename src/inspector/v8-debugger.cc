@@ -21,9 +21,6 @@ namespace v8_inspector {
 
 namespace {
 
-// Based on DevTools frontend measurement, with asyncCallStackDepth = 4,
-// average async call stack tail requires ~1 Kb. Let's reserve ~ 128 Mb
-// for async stacks.
 static const int kMaxAsyncTaskStacks = 128 * 1024;
 
 inline v8::Local<v8::Boolean> v8Boolean(bool value, v8::Isolate* isolate) {
@@ -167,7 +164,6 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_runningNestedMessageLoop(false),
       m_ignoreScriptParsedEventsCounter(0),
       m_maxAsyncCallStacks(kMaxAsyncTaskStacks),
-      m_lastTaskId(0),
       m_maxAsyncCallStackDepth(0),
       m_pauseOnExceptionsState(v8::debug::NoBreakOnException),
       m_wasmTranslation(isolate) {}
@@ -640,8 +636,7 @@ bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                                      end);
 }
 
-void V8Debugger::PromiseEventOccurred(v8::Local<v8::Context> context,
-                                      v8::debug::PromiseDebugActionType type,
+void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
                                       int id, int parentId,
                                       bool createdByUser) {
   // Async task events from Promises are given misaligned pointers to prevent
@@ -652,10 +647,7 @@ void V8Debugger::PromiseEventOccurred(v8::Local<v8::Context> context,
   switch (type) {
     case v8::debug::kDebugPromiseCreated:
       asyncTaskCreatedForStack(task, parentTask);
-      if (createdByUser && parentTask) {
-        v8::Context::Scope contextScope(context);
-        asyncTaskCandidateForStepping(task);
-      }
+      if (createdByUser && parentTask) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugEnqueueAsyncFunction:
       asyncTaskScheduledForStack("async function", task, true);
@@ -666,10 +658,6 @@ void V8Debugger::PromiseEventOccurred(v8::Local<v8::Context> context,
     case v8::debug::kDebugEnqueuePromiseReject:
       asyncTaskScheduledForStack("Promise.reject", task, true);
       break;
-    case v8::debug::kDebugPromiseCollected:
-      asyncTaskCanceledForStack(task);
-      asyncTaskCanceledForStepping(task);
-      break;
     case v8::debug::kDebugWillHandle:
       asyncTaskStartedForStack(task);
       asyncTaskStartedForStepping(task);
@@ -678,17 +666,20 @@ void V8Debugger::PromiseEventOccurred(v8::Local<v8::Context> context,
       asyncTaskFinishedForStack(task);
       asyncTaskFinishedForStepping(task);
       break;
+    case v8::debug::kDebugPromiseCollected:
+      asyncTaskCanceledForStack(task);
+      asyncTaskCanceledForStepping(task);
+      break;
   }
 }
 
-V8StackTraceImpl* V8Debugger::currentAsyncCallChain() {
-  if (!m_currentStacks.size()) return nullptr;
-  return m_currentStacks.back().get();
+std::shared_ptr<AsyncStackTrace> V8Debugger::currentAsyncParent() {
+  return m_currentAsyncParent.empty() ? nullptr : m_currentAsyncParent.back();
 }
 
-V8StackTraceImpl* V8Debugger::currentAsyncTaskCreationStack() {
-  if (!m_currentCreationStacks.size()) return nullptr;
-  return m_currentCreationStacks.back().get();
+std::shared_ptr<AsyncStackTrace> V8Debugger::currentAsyncCreation() {
+  return m_currentAsyncCreation.empty() ? nullptr
+                                        : m_currentAsyncCreation.back();
 }
 
 void V8Debugger::compileDebuggerScript() {
@@ -829,8 +820,8 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
 }
 
 std::unique_ptr<V8StackTraceImpl> V8Debugger::createStackTrace(
-    v8::Local<v8::StackTrace> stackTrace) {
-  return V8StackTraceImpl::create(this, currentContextGroupId(), stackTrace,
+    v8::Local<v8::StackTrace> v8StackTrace) {
+  return V8StackTraceImpl::create(this, currentContextGroupId(), v8StackTrace,
                                   V8StackTraceImpl::maxCallStackSizeToCapture);
 }
 
@@ -851,31 +842,18 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
   if (!maxAsyncCallStackDepth) allAsyncTasksCanceled();
 }
 
-void V8Debugger::registerAsyncTaskIfNeeded(void* task) {
-  if (m_taskToId.find(task) != m_taskToId.end()) return;
-
-  int id = ++m_lastTaskId;
-  m_taskToId[task] = id;
-  m_idToTask[id] = task;
-  if (static_cast<int>(m_idToTask.size()) > m_maxAsyncCallStacks) {
-    void* taskToRemove = m_idToTask.begin()->second;
-    asyncTaskCanceledForStack(taskToRemove);
-  }
-}
-
 void V8Debugger::asyncTaskCreatedForStack(void* task, void* parentTask) {
   if (!m_maxAsyncCallStackDepth) return;
   if (parentTask) m_parentTask[task] = parentTask;
   v8::HandleScope scope(m_isolate);
-  // We don't need to pass context group id here because we get this callback
-  // from V8 for promise events only.
-  // Passing one as maxStackSize forces no async chain for the new stack and
-  // allows us to not grow exponentially.
-  std::unique_ptr<V8StackTraceImpl> creationStack =
-      V8StackTraceImpl::capture(this, 0, 1, String16());
-  if (creationStack && !creationStack->isEmpty()) {
-    m_asyncTaskCreationStacks[task] = std::move(creationStack);
-    registerAsyncTaskIfNeeded(task);
+  std::shared_ptr<AsyncStackTrace> asyncCreation =
+      AsyncStackTrace::capture(this, currentContextGroupId(), String16(), 1);
+  // Passing one as maxStackSize forces no async chain for the new stack.
+  if (asyncCreation && !asyncCreation->isEmpty()) {
+    m_asyncTaskCreationStacks[task] = asyncCreation;
+    m_allAsyncStacks.push_back(std::move(asyncCreation));
+    ++m_asyncStacksCount;
+    collectOldAsyncStacksIfNeeded();
   }
 }
 
@@ -904,13 +882,15 @@ void V8Debugger::asyncTaskScheduledForStack(const String16& taskName,
                                             void* task, bool recurring) {
   if (!m_maxAsyncCallStackDepth) return;
   v8::HandleScope scope(m_isolate);
-  std::unique_ptr<V8StackTraceImpl> chain = V8StackTraceImpl::capture(
-      this, currentContextGroupId(),
-      V8StackTraceImpl::maxCallStackSizeToCapture, taskName);
-  if (chain) {
-    m_asyncTaskStacks[task] = std::move(chain);
+  std::shared_ptr<AsyncStackTrace> asyncStack =
+      AsyncStackTrace::capture(this, currentContextGroupId(), taskName,
+                               V8StackTraceImpl::maxCallStackSizeToCapture);
+  if (asyncStack) {
+    m_asyncTaskStacks[task] = asyncStack;
     if (recurring) m_recurringTasks.insert(task);
-    registerAsyncTaskIfNeeded(task);
+    m_allAsyncStacks.push_back(std::move(asyncStack));
+    ++m_asyncStacksCount;
+    collectOldAsyncStacksIfNeeded();
   }
 }
 
@@ -920,10 +900,6 @@ void V8Debugger::asyncTaskCanceledForStack(void* task) {
   m_recurringTasks.erase(task);
   m_parentTask.erase(task);
   m_asyncTaskCreationStacks.erase(task);
-  auto it = m_taskToId.find(task);
-  if (it == m_taskToId.end()) return;
-  m_idToTask.erase(it->second);
-  m_taskToId.erase(it);
 }
 
 void V8Debugger::asyncTaskStartedForStack(void* task) {
@@ -939,28 +915,28 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
   // - asyncTaskCanceled <-- canceled before finished
   //   <-- async stack requested here -->
   // - asyncTaskFinished
-  std::unique_ptr<V8StackTraceImpl> stack;
-  if (stackIt != m_asyncTaskStacks.end() && stackIt->second)
-    stack = stackIt->second->cloneImpl();
+  std::weak_ptr<AsyncStackTrace> asyncParent;
+  if (stackIt != m_asyncTaskStacks.end()) asyncParent = stackIt->second;
   auto itCreation = m_asyncTaskCreationStacks.find(task);
-  if (stack && itCreation != m_asyncTaskCreationStacks.end()) {
-    m_currentCreationStacks.push_back(itCreation->second->cloneImpl());
+  if (asyncParent.lock() && itCreation != m_asyncTaskCreationStacks.end()) {
+    m_currentAsyncCreation.push_back(itCreation->second.lock());
   } else {
-    m_currentCreationStacks.push_back(nullptr);
+    m_currentAsyncCreation.emplace_back();
   }
-  m_currentStacks.push_back(std::move(stack));
+  m_currentAsyncParent.push_back(asyncParent.lock());
 }
 
 void V8Debugger::asyncTaskFinishedForStack(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
   // We could start instrumenting half way and the stack is empty.
-  if (!m_currentStacks.size()) return;
+  if (!m_currentTasks.size()) return;
   DCHECK(m_currentTasks.back() == task);
   m_currentTasks.pop_back();
 
-  DCHECK(m_currentStacks.size() == m_currentCreationStacks.size());
-  m_currentStacks.pop_back();
-  m_currentCreationStacks.pop_back();
+  DCHECK(m_currentAsyncParent.size() == m_currentAsyncCreation.size());
+  m_currentAsyncParent.pop_back();
+  m_currentAsyncCreation.pop_back();
+
   if (m_recurringTasks.find(task) == m_recurringTasks.end()) {
     asyncTaskCanceledForStack(task);
   }
@@ -997,14 +973,14 @@ void V8Debugger::asyncTaskCanceledForStepping(void* task) {
 void V8Debugger::allAsyncTasksCanceled() {
   m_asyncTaskStacks.clear();
   m_recurringTasks.clear();
-  m_currentStacks.clear();
-  m_currentCreationStacks.clear();
+  m_currentAsyncParent.clear();
+  m_currentAsyncCreation.clear();
   m_currentTasks.clear();
   m_parentTask.clear();
   m_asyncTaskCreationStacks.clear();
-  m_idToTask.clear();
-  m_taskToId.clear();
-  m_lastTaskId = 0;
+
+  m_allAsyncStacks.clear();
+  m_asyncStacksCount = 0;
 }
 
 void V8Debugger::muteScriptParsedEvents() {
@@ -1024,17 +1000,57 @@ std::unique_ptr<V8StackTraceImpl> V8Debugger::captureStackTrace(
   int contextGroupId = currentContextGroupId();
   if (!contextGroupId) return nullptr;
 
-  size_t stackSize =
-      fullStack ? V8StackTraceImpl::maxCallStackSizeToCapture : 1;
-  if (m_inspector->enabledRuntimeAgentForGroup(contextGroupId))
+  int stackSize = 1;
+  if (fullStack || m_inspector->enabledRuntimeAgentForGroup(contextGroupId)) {
     stackSize = V8StackTraceImpl::maxCallStackSizeToCapture;
-
+  }
   return V8StackTraceImpl::capture(this, contextGroupId, stackSize);
 }
 
 int V8Debugger::currentContextGroupId() {
   if (!m_isolate->InContext()) return 0;
   return m_inspector->contextGroupId(m_isolate->GetCurrentContext());
+}
+
+void V8Debugger::collectOldAsyncStacksIfNeeded() {
+  if (m_asyncStacksCount <= m_maxAsyncCallStacks) return;
+  int halfOfLimitRoundedUp =
+      m_maxAsyncCallStacks / 2 + m_maxAsyncCallStacks % 2;
+  while (m_asyncStacksCount > halfOfLimitRoundedUp) {
+    m_allAsyncStacks.pop_front();
+    --m_asyncStacksCount;
+  }
+  removeOldAsyncTasks(m_asyncTaskStacks);
+  removeOldAsyncTasks(m_asyncTaskCreationStacks);
+  protocol::HashSet<void*> recurringLeft;
+  for (auto task : m_recurringTasks) {
+    if (m_asyncTaskStacks.find(task) == m_asyncTaskStacks.end()) continue;
+    recurringLeft.insert(task);
+  }
+  m_recurringTasks.swap(recurringLeft);
+  protocol::HashMap<void*, void*> parentLeft;
+  for (auto it : m_parentTask) {
+    if (m_asyncTaskCreationStacks.find(it.second) ==
+        m_asyncTaskCreationStacks.end()) {
+      continue;
+    }
+    parentLeft.insert(it);
+  }
+  m_parentTask.swap(parentLeft);
+}
+
+void V8Debugger::removeOldAsyncTasks(AsyncTaskToStackTrace& map) {
+  AsyncTaskToStackTrace cleanCopy;
+  for (auto it : map) {
+    if (!it.second.expired()) cleanCopy.insert(it);
+  }
+  map.swap(cleanCopy);
+}
+
+void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {
+  m_maxAsyncCallStacks = 0;
+  collectOldAsyncStacksIfNeeded();
+  m_maxAsyncCallStacks = limit;
 }
 
 }  // namespace v8_inspector

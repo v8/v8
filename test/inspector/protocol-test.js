@@ -57,6 +57,8 @@ var utils = {};
   this.cancelPauseOnNextStatement = null;
   utils.reconnect = reconnect;
   this.reconnect = null;
+  utils.setLogConsoleApiMessageCalls = setLogConsoleApiMessageCalls;
+  this.setLogConsoleApiMessageCalls = null;
   utils.createContextGroup = createContextGroup;
   this.createContextGroup = null;
 })();

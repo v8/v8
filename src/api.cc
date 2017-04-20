@@ -25,6 +25,7 @@
 #include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
+#include "src/builtins/builtins-utils.h"
 #include "src/char-predicates-inl.h"
 #include "src/code-stubs.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
@@ -1387,7 +1388,7 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
+      isolate->factory()->NewStruct(i::TUPLE2_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
@@ -1844,7 +1845,7 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   auto cons = EnsureConstructor(isolate, this);
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
   i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
+      isolate->factory()->NewStruct(i::TUPLE2_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
@@ -2751,8 +2752,8 @@ v8::Local<v8::StackTrace> Message::GetStackTrace() const {
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> stackFramesObj(message->stack_frames(), isolate);
-  if (!stackFramesObj->IsJSArray()) return v8::Local<v8::StackTrace>();
-  auto stackTrace = i::Handle<i::JSArray>::cast(stackFramesObj);
+  if (!stackFramesObj->IsFixedArray()) return v8::Local<v8::StackTrace>();
+  auto stackTrace = i::Handle<i::FixedArray>::cast(stackFramesObj);
   return scope.Escape(Utils::StackTraceToLocal(stackTrace));
 }
 
@@ -2877,15 +2878,14 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  auto self = Utils::OpenHandle(this);
-  auto obj = i::JSReceiver::GetElement(isolate, self, index).ToHandleChecked();
+  auto obj = handle(Utils::OpenHandle(this)->get(index), isolate);
   auto info = i::Handle<i::StackFrameInfo>::cast(obj);
   return scope.Escape(Utils::StackFrameToLocal(info));
 }
 
 
 int StackTrace::GetFrameCount() const {
-  return i::Smi::cast(Utils::OpenHandle(this)->length())->value();
+  return Utils::OpenHandle(this)->length();
 }
 
 namespace {
@@ -2933,12 +2933,12 @@ i::Handle<i::JSObject> NewFrameObject(i::Isolate* isolate,
 
 Local<Array> StackTrace::AsArray() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::Handle<i::JSArray> self = Utils::OpenHandle(this);
-  int frame_count = GetFrameCount();
+  i::Handle<i::FixedArray> self = Utils::OpenHandle(this);
+  int frame_count = self->length();
   i::Handle<i::FixedArray> frames =
       isolate->factory()->NewFixedArray(frame_count);
   for (int i = 0; i < frame_count; ++i) {
-    auto obj = i::JSReceiver::GetElement(isolate, self, i).ToHandleChecked();
+    auto obj = handle(self->get(i), isolate);
     auto frame = i::Handle<i::StackFrameInfo>::cast(obj);
     i::Handle<i::JSObject> frame_obj = NewFrameObject(isolate, frame);
     frames->set(i, *frame_obj);
@@ -2954,7 +2954,7 @@ Local<StackTrace> StackTrace::CurrentStackTrace(
     StackTraceOptions options) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSArray> stackTrace =
+  i::Handle<i::FixedArray> stackTrace =
       i_isolate->CaptureCurrentStackTrace(frame_limit, options);
   return Utils::StackTraceToLocal(stackTrace);
 }
@@ -4782,21 +4782,20 @@ bool v8::Object::Has(uint32_t index) {
   return Has(context, index).FromMaybe(false);
 }
 
-
 template <typename Getter, typename Setter, typename Data>
 static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
                                      Local<Name> name, Getter getter,
                                      Setter setter, Data data,
                                      AccessControl settings,
-                                     PropertyAttribute attributes) {
+                                     PropertyAttribute attributes,
+                                     bool is_special_data_property) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, Object, SetAccessor, bool);
   if (!Utils::OpenHandle(self)->IsJSObject()) return Just(false);
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(self));
   v8::Local<AccessorSignature> signature;
-  auto info =
-      MakeAccessorInfo(name, getter, setter, data, settings, attributes,
-                       signature, i::FLAG_disable_old_api_accessors, false);
+  auto info = MakeAccessorInfo(name, getter, setter, data, settings, attributes,
+                               signature, is_special_data_property, false);
   if (info.is_null()) return Nothing<bool>();
   bool fast = obj->HasFastProperties();
   i::Handle<i::Object> result;
@@ -4817,7 +4816,8 @@ Maybe<bool> Object::SetAccessor(Local<Context> context, Local<Name> name,
                                 MaybeLocal<Value> data, AccessControl settings,
                                 PropertyAttribute attribute) {
   return ObjectSetAccessor(context, this, name, getter, setter,
-                           data.FromMaybe(Local<Value>()), settings, attribute);
+                           data.FromMaybe(Local<Value>()), settings, attribute,
+                           i::FLAG_disable_old_api_accessors);
 }
 
 
@@ -4826,7 +4826,8 @@ bool Object::SetAccessor(Local<String> name, AccessorGetterCallback getter,
                          AccessControl settings, PropertyAttribute attributes) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   return ObjectSetAccessor(context, this, name, getter, setter, data, settings,
-                           attributes).FromMaybe(false);
+                           attributes, i::FLAG_disable_old_api_accessors)
+      .FromMaybe(false);
 }
 
 
@@ -4836,7 +4837,8 @@ bool Object::SetAccessor(Local<Name> name, AccessorNameGetterCallback getter,
                          PropertyAttribute attributes) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   return ObjectSetAccessor(context, this, name, getter, setter, data, settings,
-                           attributes).FromMaybe(false);
+                           attributes, i::FLAG_disable_old_api_accessors)
+      .FromMaybe(false);
 }
 
 
@@ -4859,6 +4861,15 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
                               static_cast<i::PropertyAttributes>(attribute));
 }
 
+Maybe<bool> Object::SetNativeDataProperty(v8::Local<v8::Context> context,
+                                          v8::Local<Name> name,
+                                          AccessorNameGetterCallback getter,
+                                          AccessorNameSetterCallback setter,
+                                          v8::Local<Value> data,
+                                          PropertyAttribute attributes) {
+  return ObjectSetAccessor(context, this, name, getter, setter, data, DEFAULT,
+                           attributes, true);
+}
 
 Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context,
                                        Local<Name> key) {
@@ -8618,7 +8629,7 @@ void Isolate::EnqueueMicrotask(MicrotaskCallback microtask, void* data) {
   i::HandleScope scope(isolate);
   i::Handle<i::CallHandlerInfo> callback_info =
       i::Handle<i::CallHandlerInfo>::cast(
-          isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE));
+          isolate->factory()->NewStruct(i::TUPLE2_TYPE));
   SET_FIELD_WRAPPED(callback_info, set_callback, microtask);
   SET_FIELD_WRAPPED(callback_info, set_data, data);
   isolate->EnqueueMicrotask(callback_info);
@@ -9671,6 +9682,22 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   fun->shared()->DontAdaptArguments();
   return Utils::ToLocal(handle_scope.CloseAndEscape(fun));
 }
+
+void debug::SetConsoleDelegate(Isolate* v8_isolate, ConsoleDelegate* delegate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  isolate->set_console_delegate(delegate);
+}
+
+debug::ConsoleCallArguments::ConsoleCallArguments(
+    const v8::FunctionCallbackInfo<v8::Value>& info)
+    : v8::FunctionCallbackInfo<v8::Value>(nullptr, info.values_, info.length_) {
+}
+
+debug::ConsoleCallArguments::ConsoleCallArguments(
+    internal::BuiltinArguments& args)
+    : v8::FunctionCallbackInfo<v8::Value>(nullptr, &args[0] - 1,
+                                          args.length() - 1) {}
 
 MaybeLocal<debug::Script> debug::GeneratorObject::Script() {
   i::Handle<i::JSGeneratorObject> obj = Utils::OpenHandle(this);

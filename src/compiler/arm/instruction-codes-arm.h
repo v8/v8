@@ -232,6 +232,31 @@ namespace compiler {
   V(ArmS128Xor)                    \
   V(ArmS128Not)                    \
   V(ArmS128Select)                 \
+  V(ArmS32x4ZipLeft)               \
+  V(ArmS32x4ZipRight)              \
+  V(ArmS32x4UnzipLeft)             \
+  V(ArmS32x4UnzipRight)            \
+  V(ArmS32x4TransposeLeft)         \
+  V(ArmS32x4TransposeRight)        \
+  V(ArmS16x8ZipLeft)               \
+  V(ArmS16x8ZipRight)              \
+  V(ArmS16x8UnzipLeft)             \
+  V(ArmS16x8UnzipRight)            \
+  V(ArmS16x8TransposeLeft)         \
+  V(ArmS16x8TransposeRight)        \
+  V(ArmS8x16ZipLeft)               \
+  V(ArmS8x16ZipRight)              \
+  V(ArmS8x16UnzipLeft)             \
+  V(ArmS8x16UnzipRight)            \
+  V(ArmS8x16TransposeLeft)         \
+  V(ArmS8x16TransposeRight)        \
+  V(ArmS8x16Concat)                \
+  V(ArmS32x2Reverse)               \
+  V(ArmS16x4Reverse)               \
+  V(ArmS16x2Reverse)               \
+  V(ArmS8x8Reverse)                \
+  V(ArmS8x4Reverse)                \
+  V(ArmS8x2Reverse)                \
   V(ArmS1x4AnyTrue)                \
   V(ArmS1x4AllTrue)                \
   V(ArmS1x8AnyTrue)                \

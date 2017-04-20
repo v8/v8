@@ -5290,15 +5290,16 @@ MaybeHandle<Smi> JSFunction::GetLength(Isolate* isolate,
                                        Handle<JSFunction> function) {
   int length = 0;
   if (function->shared()->is_compiled()) {
-    length = function->shared()->length();
+    length = function->shared()->GetLength();
   } else {
     // If the function isn't compiled yet, the length is not computed
     // correctly yet. Compile it now and return the right length.
     if (Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
-      length = function->shared()->length();
+      length = function->shared()->GetLength();
     }
     if (isolate->has_pending_exception()) return MaybeHandle<Smi>();
   }
+  DCHECK_GE(length, 0);
   return handle(Smi::FromInt(length), isolate);
 }
 
@@ -13742,7 +13743,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     Handle<SharedFunctionInfo> shared_info, FunctionLiteral* lit) {
   // When adding fields here, make sure DeclarationScope::AnalyzePartially is
   // updated accordingly.
-  shared_info->set_length(lit->function_length());
   shared_info->set_internal_formal_parameter_count(lit->parameter_count());
   shared_info->set_function_token_position(lit->function_token_position());
   shared_info->set_start_position(lit->start_position());
@@ -13769,8 +13769,14 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   // SetSharedFunctionFlagsFromLiteral (compiler.cc), when the function is
   // really parsed and compiled.
   if (lit->body() != nullptr) {
+    shared_info->set_length(lit->function_length());
     shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
     shared_info->SetExpectedNofPropertiesFromEstimate(lit);
+  } else {
+    // Set an invalid length for lazy functions. This way we can set the correct
+    // value after compiling, but avoid overwriting values set manually by the
+    // bootstrapper.
+    shared_info->set_length(SharedFunctionInfo::kInvalidLength);
   }
 }
 
@@ -13816,16 +13822,16 @@ void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
   set_ic_age(new_ic_age);
   if (code()->kind() == Code::FUNCTION) {
     code()->set_profiler_ticks(0);
-    if (optimization_disabled() && opt_count() >= FLAG_max_opt_count) {
-      // Re-enable optimizations if they were disabled due to opt_count limit.
+    if (optimization_disabled() && deopt_count() >= FLAG_max_deopt_count) {
+      // Re-enable optimizations if they were disabled due to deopt_count limit.
       set_optimization_disabled(false);
     }
     set_opt_count(0);
     set_deopt_count(0);
   } else if (IsInterpreted()) {
     set_profiler_ticks(0);
-    if (optimization_disabled() && opt_count() >= FLAG_max_opt_count) {
-      // Re-enable optimizations if they were disabled due to opt_count limit.
+    if (optimization_disabled() && deopt_count() >= FLAG_max_deopt_count) {
+      // Re-enable optimizations if they were disabled due to deopt_count limit.
       set_optimization_disabled(false);
     }
     set_opt_count(0);
@@ -14898,7 +14904,11 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     }
 #ifdef OBJECT_PRINT
     if (!type_feedback_info()->IsUndefined(GetIsolate())) {
-      TypeFeedbackInfo::cast(type_feedback_info())->TypeFeedbackInfoPrint(os);
+      TypeFeedbackInfo* info = TypeFeedbackInfo::cast(type_feedback_info());
+      HeapObject::PrintHeader(os, "TypeFeedbackInfo");
+      os << "\n - ic_total_count: " << info->ic_total_count()
+         << ", ic_with_type_info_count: " << info->ic_with_type_info_count()
+         << ", ic_generic_count: " << info->ic_generic_count() << "\n";
       os << "\n";
     }
 #endif
@@ -17511,10 +17521,9 @@ void StringTable::EnsureCapacityForDeserialization(Isolate* isolate,
 namespace {
 
 template <class StringClass>
-void MigrateExternalStringResource(Isolate* isolate, Handle<String> from,
-                                   Handle<String> to) {
-  Handle<StringClass> cast_from = Handle<StringClass>::cast(from);
-  Handle<StringClass> cast_to = Handle<StringClass>::cast(to);
+void MigrateExternalStringResource(Isolate* isolate, String* from, String* to) {
+  StringClass* cast_from = StringClass::cast(from);
+  StringClass* cast_to = StringClass::cast(to);
   const typename StringClass::Resource* to_resource = cast_to->resource();
   if (to_resource == nullptr) {
     // |to| is a just-created internalized copy of |from|. Migrate the resource.
@@ -17524,7 +17533,43 @@ void MigrateExternalStringResource(Isolate* isolate, Handle<String> from,
     cast_from->set_resource(nullptr);
   } else if (to_resource != cast_from->resource()) {
     // |to| already existed and has its own resource. Finalize |from|.
-    isolate->heap()->FinalizeExternalString(*from);
+    isolate->heap()->FinalizeExternalString(from);
+  }
+}
+
+void MakeStringThin(String* string, String* internalized, Isolate* isolate) {
+  if (string->IsExternalString()) {
+    if (internalized->IsExternalOneByteString()) {
+      MigrateExternalStringResource<ExternalOneByteString>(isolate, string,
+                                                           internalized);
+    } else if (internalized->IsExternalTwoByteString()) {
+      MigrateExternalStringResource<ExternalTwoByteString>(isolate, string,
+                                                           internalized);
+    } else {
+      // If the external string is duped into an existing non-external
+      // internalized string, free its resource (it's about to be rewritten
+      // into a ThinString below).
+      isolate->heap()->FinalizeExternalString(string);
+    }
+  }
+
+  if (!string->IsInternalizedString()) {
+    DisallowHeapAllocation no_gc;
+    bool one_byte = internalized->IsOneByteRepresentation();
+    Handle<Map> map = one_byte ? isolate->factory()->thin_one_byte_string_map()
+                               : isolate->factory()->thin_string_map();
+    int old_size = string->Size();
+    DCHECK(old_size >= ThinString::kSize);
+    string->synchronized_set_map(*map);
+    ThinString* thin = ThinString::cast(string);
+    thin->set_actual(internalized);
+    Address thin_end = thin->address() + ThinString::kSize;
+    int size_delta = old_size - ThinString::kSize;
+    if (size_delta != 0) {
+      Heap* heap = isolate->heap();
+      heap->CreateFillerObjectAt(thin_end, size_delta, ClearRecordedSlots::kNo);
+      heap->AdjustLiveBytes(thin, -size_delta);
+    }
   }
 }
 
@@ -17545,44 +17590,7 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   Handle<String> result = LookupKey(isolate, &key);
 
   if (FLAG_thin_strings) {
-    if (string->IsExternalString()) {
-      if (result->IsExternalOneByteString()) {
-        MigrateExternalStringResource<ExternalOneByteString>(isolate, string,
-                                                             result);
-      } else if (result->IsExternalTwoByteString()) {
-        MigrateExternalStringResource<ExternalTwoByteString>(isolate, string,
-                                                             result);
-      } else {
-        // If the external string is duped into an existing non-external
-        // internalized string, free its resource (it's about to be rewritten
-        // into a ThinString below).
-        isolate->heap()->FinalizeExternalString(*string);
-      }
-    }
-
-    // The LookupKey() call above tries to internalize the string in-place.
-    // In cases where that wasn't possible (e.g. new-space strings), turn them
-    // into ThinStrings referring to their internalized versions now.
-    if (!string->IsInternalizedString()) {
-      DisallowHeapAllocation no_gc;
-      bool one_byte = result->IsOneByteRepresentation();
-      Handle<Map> map = one_byte
-                            ? isolate->factory()->thin_one_byte_string_map()
-                            : isolate->factory()->thin_string_map();
-      int old_size = string->Size();
-      DCHECK(old_size >= ThinString::kSize);
-      string->synchronized_set_map(*map);
-      Handle<ThinString> thin = Handle<ThinString>::cast(string);
-      thin->set_actual(*result);
-      Address thin_end = thin->address() + ThinString::kSize;
-      int size_delta = old_size - ThinString::kSize;
-      if (size_delta != 0) {
-        Heap* heap = isolate->heap();
-        heap->CreateFillerObjectAt(thin_end, size_delta,
-                                   ClearRecordedSlots::kNo);
-        heap->AdjustLiveBytes(*thin, -size_delta);
-      }
-    }
+    MakeStringThin(*string, *result, isolate);
   } else {  // !FLAG_thin_strings
     if (string->IsConsString()) {
       Handle<ConsString> cons = Handle<ConsString>::cast(string);
@@ -17632,10 +17640,173 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
   return Handle<String>::cast(string);
 }
 
+namespace {
+
+class StringTableNoAllocateKey : public HashTableKey {
+ public:
+  StringTableNoAllocateKey(String* string, uint32_t seed)
+      : string_(string), length_(string->length()) {
+    StringShape shape(string);
+    one_byte_ = shape.HasOnlyOneByteChars();
+    DCHECK(!shape.IsInternalized());
+    DCHECK(!shape.IsThin());
+    if (shape.IsCons() && length_ <= String::kMaxHashCalcLength) {
+      special_flattening_ = true;
+      uint32_t hash_field = 0;
+      if (one_byte_) {
+        one_byte_content_ = new uint8_t[length_];
+        String::WriteToFlat(string, one_byte_content_, 0, length_);
+        hash_field = StringHasher::HashSequentialString(one_byte_content_,
+                                                        length_, seed);
+      } else {
+        two_byte_content_ = new uint16_t[length_];
+        String::WriteToFlat(string, two_byte_content_, 0, length_);
+        hash_field = StringHasher::HashSequentialString(two_byte_content_,
+                                                        length_, seed);
+      }
+      string->set_hash_field(hash_field);
+    } else {
+      special_flattening_ = false;
+      one_byte_content_ = nullptr;
+    }
+    hash_ = string->Hash();
+  }
+
+  ~StringTableNoAllocateKey() {
+    if (one_byte_) {
+      delete[] one_byte_content_;
+    } else {
+      delete[] two_byte_content_;
+    }
+  }
+
+  bool IsMatch(Object* otherstring) override {
+    String* other = String::cast(otherstring);
+    DCHECK(other->IsInternalizedString());
+    DCHECK(other->IsFlat());
+    if (hash_ != other->Hash()) return false;
+    int len = length_;
+    if (len != other->length()) return false;
+
+    if (!special_flattening_) {
+      if (string_->Get(0) != other->Get(0)) return false;
+      if (string_->IsFlat()) {
+        StringShape shape1(string_);
+        StringShape shape2(other);
+        if (shape1.encoding_tag() == kOneByteStringTag &&
+            shape2.encoding_tag() == kOneByteStringTag) {
+          String::FlatContent flat1 = string_->GetFlatContent();
+          String::FlatContent flat2 = other->GetFlatContent();
+          return CompareRawStringContents(flat1.ToOneByteVector().start(),
+                                          flat2.ToOneByteVector().start(), len);
+        }
+        if (shape1.encoding_tag() == kTwoByteStringTag &&
+            shape2.encoding_tag() == kTwoByteStringTag) {
+          String::FlatContent flat1 = string_->GetFlatContent();
+          String::FlatContent flat2 = other->GetFlatContent();
+          return CompareRawStringContents(flat1.ToUC16Vector().start(),
+                                          flat2.ToUC16Vector().start(), len);
+        }
+      }
+      StringComparator comparator;
+      return comparator.Equals(string_, other);
+    }
+
+    String::FlatContent flat_content = other->GetFlatContent();
+    if (one_byte_) {
+      if (flat_content.IsOneByte()) {
+        return CompareRawStringContents(
+            one_byte_content_, flat_content.ToOneByteVector().start(), len);
+      } else {
+        DCHECK(flat_content.IsTwoByte());
+        for (int i = 0; i < len; i++) {
+          if (flat_content.Get(i) != one_byte_content_[i]) return false;
+        }
+        return true;
+      }
+    } else {
+      if (flat_content.IsTwoByte()) {
+        return CompareRawStringContents(
+            two_byte_content_, flat_content.ToUC16Vector().start(), len);
+      } else {
+        DCHECK(flat_content.IsOneByte());
+        for (int i = 0; i < len; i++) {
+          if (flat_content.Get(i) != two_byte_content_[i]) return false;
+        }
+        return true;
+      }
+    }
+  }
+
+  uint32_t Hash() override { return hash_; }
+
+  uint32_t HashForObject(Object* key) override {
+    return String::cast(key)->Hash();
+  }
+
+  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) override {
+    UNREACHABLE();
+    return Handle<String>();
+  }
+
+ private:
+  String* string_;
+  int length_;
+  bool one_byte_;
+  bool special_flattening_;
+  uint32_t hash_ = 0;
+  union {
+    uint8_t* one_byte_content_;
+    uint16_t* two_byte_content_;
+  };
+};
+
+}  // namespace
+
+// static
+Object* StringTable::LookupStringIfExists_NoAllocate(String* string) {
+  DisallowHeapAllocation no_gc;
+  Heap* heap = string->GetHeap();
+  Isolate* isolate = heap->isolate();
+  StringTable* table = heap->string_table();
+
+  StringTableNoAllocateKey key(string, heap->HashSeed());
+
+  // String could be an array index.
+  DCHECK(string->HasHashCode());
+  uint32_t hash = string->hash_field();
+
+  // Valid array indices are >= 0, so they cannot be mixed up with any of
+  // the result sentinels, which are negative.
+  STATIC_ASSERT(
+      !String::ArrayIndexValueBits::is_valid(ResultSentinel::kUnsupported));
+  STATIC_ASSERT(
+      !String::ArrayIndexValueBits::is_valid(ResultSentinel::kNotFound));
+
+  if ((hash & Name::kContainsCachedArrayIndexMask) == 0) {
+    return Smi::FromInt(String::ArrayIndexValueBits::decode(hash));
+  }
+  if ((hash & Name::kIsNotArrayIndexMask) == 0) {
+    // It is an indexed, but it's not cached.
+    return Smi::FromInt(ResultSentinel::kUnsupported);
+  }
+
+  int entry = table->FindEntry(isolate, &key, key.Hash());
+  if (entry != kNotFound) {
+    String* internalized = String::cast(table->KeyAt(entry));
+    if (FLAG_thin_strings) {
+      MakeStringThin(string, internalized, isolate);
+    }
+    return internalized;
+  }
+  // A string that's not an array index, and not in the string table,
+  // cannot have been used as a property name before.
+  return Smi::FromInt(ResultSentinel::kNotFound);
+}
 
 String* StringTable::LookupKeyIfExists(Isolate* isolate, HashTableKey* key) {
   Handle<StringTable> table = isolate->factory()->string_table();
-  int entry = table->FindEntry(key);
+  int entry = table->FindEntry(isolate, key);
   if (entry != kNotFound) return String::cast(table->KeyAt(entry));
   return NULL;
 }
@@ -18700,7 +18871,9 @@ bool OrderedHashTable<Derived, entrysize>::HasKey(Handle<Derived> table,
 Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
                                            Handle<Object> key) {
   int hash = Object::GetOrCreateHash(table->GetIsolate(), key)->value();
-  int entry = table->HashToEntry(hash);
+  int bucket = table->HashToBucket(hash);
+  int previous_entry = table->HashToEntry(hash, bucket);
+  int entry = previous_entry;
   // Walk the chain of the bucket and try finding the key.
   while (entry != kNotFound) {
     Object* candidate_key = table->KeyAt(entry);
@@ -18711,8 +18884,6 @@ Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
 
   table = OrderedHashSet::EnsureGrowable(table);
   // Read the existing bucket values.
-  int bucket = table->HashToBucket(hash);
-  int previous_entry = table->HashToEntry(hash);
   int nof = table->NumberOfElements();
   // Insert a new entry at the end,
   int new_entry = nof + table->NumberOfDeletedElements();
@@ -20164,15 +20335,10 @@ bool Module::PrepareInstantiate(Handle<Module> module,
   for (int i = 0, length = module_requests->length(); i < length; ++i) {
     Handle<String> specifier(String::cast(module_requests->get(i)), isolate);
     v8::Local<v8::Module> api_requested_module;
-    // TODO(adamk): Revisit these failure cases once d8 knows how to
-    // persist a module_map across multiple top-level module loads, as
-    // the current module is left in a "half-instantiated" state.
     if (!callback(context, v8::Utils::ToLocal(specifier),
                   v8::Utils::ToLocal(module))
              .ToLocal(&api_requested_module)) {
-      // TODO(adamk): Give this a better error message. But this is a
-      // misuse of the API anyway.
-      isolate->ThrowIllegalOperation();
+      isolate->PromoteScheduledException();
       return false;
     }
     Handle<Module> requested_module = Utils::OpenHandle(*api_requested_module);

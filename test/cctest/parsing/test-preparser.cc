@@ -28,7 +28,7 @@ enum SkipTests {
 
 TEST(PreParserScopeAnalysis) {
   i::FLAG_lazy_inner_functions = true;
-  i::FLAG_preparser_scope_analysis = true;
+  i::FLAG_experimental_preparser_scope_analysis = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
@@ -647,7 +647,7 @@ TEST(PreParserScopeAnalysis) {
       CHECK_NULL(unallocated_scope->sibling());
       CHECK(unallocated_scope->is_function_scope());
 
-      int index = 0;
+      uint32_t index = 0;
       lazy_info.preparsed_scope_data()->RestoreData(unallocated_scope, &index);
       i::ScopeTestHelper::AllocateWithoutVariableResolution(unallocated_scope);
 

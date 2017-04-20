@@ -33,7 +33,7 @@ var InstallFunctions = utils.InstallFunctions;
 var InstallGetter = utils.InstallGetter;
 var InternalArray = utils.InternalArray;
 var MaxSimple;
-var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
+var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
 var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
@@ -1723,27 +1723,29 @@ function formatDate(formatter, dateValue) {
   return %InternalDateFormat(formatter, new GlobalDate(dateMs));
 }
 
-function FormatDateToParts(dateValue) {
-  CHECK_OBJECT_COERCIBLE(this, "Intl.DateTimeFormat.prototype.formatToParts");
-  if (!IS_OBJECT(this)) {
-    throw %make_type_error(kCalledOnNonObject, this);
-  }
-  if (!%IsInitializedIntlObjectOfType(this, 'dateformat')) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                          'Intl.DateTimeFormat.prototype.formatToParts',
-                          this);
-  }
-  var dateMs;
-  if (IS_UNDEFINED(dateValue)) {
-    dateMs = %DateCurrentTime();
-  } else {
-    dateMs = TO_NUMBER(dateValue);
-  }
+InstallFunction(GlobalIntlDateTimeFormat.prototype, 'formatToParts',
+  function(dateValue) {
+    CHECK_OBJECT_COERCIBLE(this, "Intl.DateTimeFormat.prototype.formatToParts");
+    if (!IS_OBJECT(this)) {
+      throw %make_type_error(kCalledOnNonObject, this);
+    }
+    if (!%IsInitializedIntlObjectOfType(this, 'dateformat')) {
+      throw %make_type_error(kIncompatibleMethodReceiver,
+                            'Intl.DateTimeFormat.prototype.formatToParts',
+                            this);
+    }
+    var dateMs;
+    if (IS_UNDEFINED(dateValue)) {
+      dateMs = %DateCurrentTime();
+    } else {
+      dateMs = TO_NUMBER(dateValue);
+    }
 
-  if (!NUMBER_IS_FINITE(dateMs)) throw %make_range_error(kDateRange);
+    if (!NUMBER_IS_FINITE(dateMs)) throw %make_range_error(kDateRange);
 
-  return %InternalDateFormatToParts(this, new GlobalDate(dateMs));
-}
+    return %InternalDateFormatToParts(this, new GlobalDate(dateMs));
+  }
+);
 
 
 // Length is 1 as specified in ECMA 402 v2+
@@ -2127,20 +2129,17 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
   }
 );
 
-%FunctionRemovePrototype(FormatDateToParts);
 %FunctionRemovePrototype(ToLowerCaseI18N);
 %FunctionRemovePrototype(ToUpperCaseI18N);
 %FunctionRemovePrototype(ToLocaleLowerCaseI18N);
 %FunctionRemovePrototype(ToLocaleUpperCaseI18N);
 
-utils.SetFunctionName(FormatDateToParts, "formatToParts");
 utils.SetFunctionName(ToLowerCaseI18N, "toLowerCase");
 utils.SetFunctionName(ToUpperCaseI18N, "toUpperCase");
 utils.SetFunctionName(ToLocaleLowerCaseI18N, "toLocaleLowerCase");
 utils.SetFunctionName(ToLocaleUpperCaseI18N, "toLocaleUpperCase");
 
 utils.Export(function(to) {
-  to.FormatDateToParts = FormatDateToParts;
   to.ToLowerCaseI18N = ToLowerCaseI18N;
   to.ToUpperCaseI18N = ToUpperCaseI18N;
   to.ToLocaleLowerCaseI18N = ToLocaleLowerCaseI18N;

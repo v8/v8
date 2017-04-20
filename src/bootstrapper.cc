@@ -634,7 +634,8 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
   }
 
   // length needs to be non configurable.
-  Handle<Object> value(Smi::FromInt(function->shared()->length()), isolate());
+  Handle<Object> value(Smi::FromInt(function->shared()->GetLength()),
+                       isolate());
   JSObject::SetOwnPropertyIgnoreAttributes(
       function, factory()->length_string(), value,
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
@@ -1327,6 +1328,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(
         isolate->initial_object_prototype(), "propertyIsEnumerable",
         Builtins::kObjectPrototypePropertyIsEnumerable, 1, false);
+    Handle<JSFunction> object_to_string = SimpleInstallFunction(
+        isolate->initial_object_prototype(), factory->toString_string(),
+        Builtins::kObjectProtoToString, 0, true);
+    native_context()->set_object_to_string(*object_to_string);
     Handle<JSFunction> object_value_of = SimpleInstallFunction(
         isolate->initial_object_prototype(), "valueOf",
         Builtins::kObjectPrototypeValueOf, 0, true);
@@ -1416,12 +1421,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                              Builtins::kAsyncGeneratorYield, 2, false);
     InstallWithIntrinsicDefaultProto(isolate, yield,
                                      Context::ASYNC_GENERATOR_YIELD);
-
-    Handle<JSFunction> raw_yield =
-        SimpleCreateFunction(isolate, factory->empty_string(),
-                             Builtins::kAsyncGeneratorRawYield, 2, false);
-    InstallWithIntrinsicDefaultProto(isolate, raw_yield,
-                                     Context::ASYNC_GENERATOR_RAW_YIELD);
 
     Handle<Code> code =
         isolate->builtins()->AsyncGeneratorAwaitResolveClosure();
@@ -2560,6 +2559,54 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
+  {  // -- C o n s o l e
+    Handle<String> name = factory->InternalizeUtf8String("console");
+    Handle<JSFunction> cons = factory->NewFunction(name);
+    Handle<JSObject> empty = factory->NewJSObject(isolate->object_function());
+    JSFunction::SetInstancePrototype(cons, empty);
+    Handle<JSObject> console = factory->NewJSObject(cons, TENURED);
+    DCHECK(console->IsJSObject());
+    JSObject::AddProperty(global, name, console, DONT_ENUM);
+    SimpleInstallFunction(console, "debug", Builtins::kConsoleDebug, 1, false);
+    SimpleInstallFunction(console, "error", Builtins::kConsoleError, 1, false);
+    SimpleInstallFunction(console, "info", Builtins::kConsoleInfo, 1, false);
+    SimpleInstallFunction(console, "log", Builtins::kConsoleLog, 1, false);
+    SimpleInstallFunction(console, "warn", Builtins::kConsoleWarn, 1, false);
+    SimpleInstallFunction(console, "dir", Builtins::kConsoleDir, 1, false);
+    SimpleInstallFunction(console, "dirxml", Builtins::kConsoleDirXml, 1,
+                          false);
+    SimpleInstallFunction(console, "table", Builtins::kConsoleTable, 1, false);
+    SimpleInstallFunction(console, "trace", Builtins::kConsoleTrace, 1, false);
+    SimpleInstallFunction(console, "group", Builtins::kConsoleGroup, 1, false);
+    SimpleInstallFunction(console, "groupCollapsed",
+                          Builtins::kConsoleGroupCollapsed, 1, false);
+    SimpleInstallFunction(console, "groupEnd", Builtins::kConsoleGroupEnd, 1,
+                          false);
+    SimpleInstallFunction(console, "clear", Builtins::kConsoleClear, 1, false);
+    SimpleInstallFunction(console, "count", Builtins::kConsoleCount, 1, false);
+    SimpleInstallFunction(console, "assert", Builtins::kConsoleAssert, 1,
+                          false);
+    SimpleInstallFunction(console, "markTimeline",
+                          Builtins::kConsoleMarkTimeline, 1, false);
+    SimpleInstallFunction(console, "profile", Builtins::kConsoleProfile, 1,
+                          false);
+    SimpleInstallFunction(console, "profileEnd", Builtins::kConsoleProfileEnd,
+                          1, false);
+    SimpleInstallFunction(console, "timeline", Builtins::kConsoleTimeline, 1,
+                          false);
+    SimpleInstallFunction(console, "timelineEnd", Builtins::kConsoleTimelineEnd,
+                          1, false);
+    SimpleInstallFunction(console, "time", Builtins::kConsoleTime, 1, false);
+    SimpleInstallFunction(console, "timeEnd", Builtins::kConsoleTimeEnd, 1,
+                          false);
+    SimpleInstallFunction(console, "timeStamp", Builtins::kConsoleTimeStamp, 1,
+                          false);
+    JSObject::AddProperty(
+        console, factory->to_string_tag_symbol(),
+        factory->NewStringFromAsciiChecked("Object"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+  }
+
 #ifdef V8_I18N_SUPPORT
   {  // -- I n t l
     Handle<String> name = factory->InternalizeUtf8String("Intl");
@@ -3411,15 +3458,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   WELL_KNOWN_SYMBOL_LIST(EXPORT_PUBLIC_SYMBOL)
 #undef EXPORT_PUBLIC_SYMBOL
 
-  {
-    Handle<JSFunction> to_string = InstallFunction(
-        container, "object_to_string", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-        MaybeHandle<JSObject>(), Builtins::kObjectProtoToString);
-    to_string->shared()->set_internal_formal_parameter_count(0);
-    to_string->shared()->set_length(0);
-    native_context->set_object_to_string(*to_string);
-  }
-
   Handle<JSObject> iterator_prototype(
       native_context->initial_iterator_prototype());
 
@@ -3798,6 +3836,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_rest_spread)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_dynamic_import)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_template_escapes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrict_constructor_return)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_strict_legacy_accessor_builtins)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_types)
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
@@ -4013,21 +4052,6 @@ void Genesis::InitializeGlobal_harmony_regexp_dotall() {
 }
 
 #ifdef V8_I18N_SUPPORT
-void Genesis::InitializeGlobal_datetime_format_to_parts() {
-  if (!FLAG_datetime_format_to_parts) return;
-  Handle<JSReceiver> exports_container(
-      JSReceiver::cast(native_context()->exports_container()));
-  Handle<JSObject> date_time_format_prototype(JSObject::cast(
-      native_context()->intl_date_time_format_function()->prototype()));
-  Handle<JSFunction> format_date_to_parts = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(
-          exports_container,
-          factory()->InternalizeUtf8String("FormatDateToParts"))
-          .ToHandleChecked());
-  InstallFunction(date_time_format_prototype, format_date_to_parts,
-                  factory()->InternalizeUtf8String("formatToParts"));
-}
-
 namespace {
 
 void SetFunction(Handle<JSObject> target, Handle<JSFunction> function,
@@ -4189,10 +4213,8 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
                   factory()->NewStringFromAsciiChecked("isPromise"));
 
   int builtin_index = Natives::GetDebuggerCount();
-  // Only run prologue.js and runtime.js at this point.
+  // Only run prologue.js at this point.
   DCHECK_EQ(builtin_index, Natives::GetIndex("prologue"));
-  if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
-  DCHECK_EQ(builtin_index, Natives::GetIndex("runtime"));
   if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
 
   {

@@ -82,9 +82,8 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
 
   bool StateValuesRequireUpdate(Node** state_values, Node** values, int count);
   void UpdateStateValues(Node** state_values, Node** values, int count);
-  void UpdateStateValuesWithCache(Node** state_values, Node** values, int count,
-                                  const BitVector* liveness,
-                                  int liveness_offset);
+  Node* GetStateValuesFromCache(Node** values, int count,
+                                const BitVector* liveness, int liveness_offset);
 
   int RegisterToValuesIndex(interpreter::Register the_register) const;
 
@@ -105,8 +104,6 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   Node* effect_dependency_;
   NodeVector values_;
   Node* parameters_state_values_;
-  Node* registers_state_values_;
-  Node* accumulator_state_values_;
   int register_base_;
   int accumulator_base_;
 };
@@ -127,9 +124,7 @@ BytecodeGraphBuilder::Environment::Environment(BytecodeGraphBuilder* builder,
       control_dependency_(control_dependency),
       effect_dependency_(control_dependency),
       values_(builder->local_zone()),
-      parameters_state_values_(nullptr),
-      registers_state_values_(nullptr),
-      accumulator_state_values_(nullptr) {
+      parameters_state_values_(nullptr) {
   // The layout of values_ is:
   //
   // [receiver] [parameters] [registers] [accumulator]
@@ -165,9 +160,7 @@ BytecodeGraphBuilder::Environment::Environment(
       control_dependency_(other->control_dependency_),
       effect_dependency_(other->effect_dependency_),
       values_(other->zone()),
-      parameters_state_values_(nullptr),
-      registers_state_values_(nullptr),
-      accumulator_state_values_(nullptr),
+      parameters_state_values_(other->parameters_state_values_),
       register_base_(other->register_base_),
       accumulator_base_(other->accumulator_base_) {
   values_ = other->values_;
@@ -411,10 +404,9 @@ void BytecodeGraphBuilder::Environment::UpdateStateValues(Node** state_values,
   }
 }
 
-void BytecodeGraphBuilder::Environment::UpdateStateValuesWithCache(
-    Node** state_values, Node** values, int count, const BitVector* liveness,
-    int liveness_offset) {
-  *state_values = builder_->state_values_cache_.GetNodeForValues(
+Node* BytecodeGraphBuilder::Environment::GetStateValuesFromCache(
+    Node** values, int count, const BitVector* liveness, int liveness_offset) {
+  return builder_->state_values_cache_.GetNodeForValues(
       values, static_cast<size_t>(count), liveness, liveness_offset);
 }
 
@@ -424,37 +416,38 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
   if (parameter_count() == register_count()) {
     // Re-use the state-value cache if the number of local registers happens
     // to match the parameter count.
-    UpdateStateValuesWithCache(&parameters_state_values_, &values()->at(0),
-                               parameter_count(), nullptr, 0);
+    parameters_state_values_ = GetStateValuesFromCache(
+        &values()->at(0), parameter_count(), nullptr, 0);
   } else {
     UpdateStateValues(&parameters_state_values_, &values()->at(0),
                       parameter_count());
   }
 
-  UpdateStateValuesWithCache(&registers_state_values_,
-                             &values()->at(register_base()), register_count(),
-                             liveness ? &liveness->bit_vector() : nullptr, 0);
+  Node* registers_state_values =
+      GetStateValuesFromCache(&values()->at(register_base()), register_count(),
+                              liveness ? &liveness->bit_vector() : nullptr, 0);
 
   bool accumulator_is_live = !liveness || liveness->AccumulatorIsLive();
+  Node* accumulator_state_values;
   if (parameter_count() == 1 && accumulator_is_live &&
       values()->at(accumulator_base()) == values()->at(0)) {
     // Re-use the parameter state values if there happens to only be one
     // parameter and the accumulator is live and holds that parameter's value.
-    accumulator_state_values_ = parameters_state_values_;
+    accumulator_state_values = parameters_state_values_;
   } else {
     // Otherwise, use the state values cache to hopefully re-use local register
     // state values (if there is only one local register), or at the very least
     // re-use previous accumulator state values.
-    UpdateStateValuesWithCache(
-        &accumulator_state_values_, &values()->at(accumulator_base()), 1,
+    accumulator_state_values = GetStateValuesFromCache(
+        &values()->at(accumulator_base()), 1,
         liveness ? &liveness->bit_vector() : nullptr, register_count());
   }
 
   const Operator* op = common()->FrameState(
       bailout_id, combine, builder()->frame_state_function_info());
   Node* result = graph()->NewNode(
-      op, parameters_state_values_, registers_state_values_,
-      accumulator_state_values_, Context(), builder()->GetFunctionClosure(),
+      op, parameters_state_values_, registers_state_values,
+      accumulator_state_values, Context(), builder()->GetFunctionClosure(),
       builder()->graph()->start());
 
   return result;
@@ -1920,8 +1913,8 @@ void BytecodeGraphBuilder::BuildDelete(LanguageMode language_mode) {
   Node* key = environment()->LookupAccumulator();
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* node =
-      NewNode(javascript()->DeleteProperty(language_mode), object, key);
+  Node* mode = jsgraph()->Constant(static_cast<int32_t>(language_mode));
+  Node* node = NewNode(javascript()->DeleteProperty(), object, key, mode);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 

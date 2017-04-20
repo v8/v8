@@ -471,6 +471,10 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
 
 void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
                                        Handle<SharedFunctionInfo> shared_info) {
+  // Don't overwrite values set by the bootstrapper.
+  if (!shared_info->HasLength()) {
+    shared_info->set_length(literal->function_length());
+  }
   shared_info->set_ast_node_count(literal->ast_node_count());
   shared_info->set_has_duplicate_parameters(
       literal->has_duplicate_parameters());
@@ -900,9 +904,9 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   }
 
   // Limit the number of times we try to optimize functions.
-  const int kMaxOptCount =
-      FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
-  if (info->shared_info()->opt_count() > kMaxOptCount) {
+  const int kMaxDeoptCount =
+      FLAG_deopt_every_n_times == 0 ? FLAG_max_deopt_count : 1000;
+  if (info->shared_info()->deopt_count() > kMaxDeoptCount) {
     info->AbortOptimization(kDeoptimizedTooManyTimes);
     return MaybeHandle<Code>();
   }
@@ -1079,7 +1083,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   ParseInfo parse_info(handle(function->shared()));
   Zone compile_zone(isolate->allocator(), ZONE_NAME);
   CompilationInfo info(&compile_zone, &parse_info, isolate, function);
-  if (FLAG_preparser_scope_analysis) {
+  if (FLAG_experimental_preparser_scope_analysis) {
     Handle<SharedFunctionInfo> shared(function->shared());
     Handle<Script> script(Script::cast(function->shared()->script()));
     if (script->HasPreparsedScopeData()) {
@@ -1178,7 +1182,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
     if (!script.is_null()) {
       script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-      if (FLAG_preparser_scope_analysis) {
+      if (FLAG_experimental_preparser_scope_analysis) {
         Handle<FixedUint32Array> data(
             parse_info->preparsed_scope_data()->Serialize(isolate));
         script->set_preparsed_scope_data(*data);

@@ -51,7 +51,7 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     Isolate* isolate, MessageTemplate::Template message,
     const MessageLocation* location, Handle<Object> argument,
-    Handle<JSArray> stack_frames) {
+    Handle<FixedArray> stack_frames) {
   Factory* factory = isolate->factory();
 
   int start = -1;

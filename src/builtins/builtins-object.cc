@@ -86,8 +86,11 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
                              Handle<Object> name, Handle<Object> accessor) {
   // 1. Let O be ? ToObject(this value).
   Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ConvertReceiver(isolate, object));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver,
+      FLAG_harmony_strict_legacy_accessor_builtins
+          ? Object::ToObject(isolate, object)
+          : Object::ConvertReceiver(isolate, object));
   // 2. If IsCallable(getter) is false, throw a TypeError exception.
   if (!accessor->IsCallable()) {
     MessageTemplate::Template message =
@@ -114,7 +117,9 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
   // To preserve legacy behavior, we ignore errors silently rather than
   // throwing an exception.
   Maybe<bool> success = JSReceiver::DefineOwnProperty(
-      isolate, receiver, name, &desc, Object::DONT_THROW);
+      isolate, receiver, name, &desc,
+      FLAG_harmony_strict_legacy_accessor_builtins ? Object::THROW_ON_ERROR
+                                                   : Object::DONT_THROW);
   MAYBE_RETURN(success, isolate->heap()->exception());
   if (!success.FromJust()) {
     isolate->CountUsage(v8::Isolate::kDefineGetterOrSetterWouldThrow);
@@ -125,8 +130,11 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
 
 Object* ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
                              Handle<Object> key, AccessorComponent component) {
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, object,
-                                     Object::ConvertReceiver(isolate, object));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, object,
+      FLAG_harmony_strict_legacy_accessor_builtins
+          ? Object::ToObject(isolate, object)
+          : Object::ConvertReceiver(isolate, object));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
                                      Object::ToPropertyKey(isolate, key));
   bool success = false;

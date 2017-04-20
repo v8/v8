@@ -35,8 +35,10 @@ AsmJsScanner::AsmJsScanner()
   STDLIB_MATH_FUNCTION_LIST(V)
   STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
-#define V(name) property_names_[#name] = kToken_##name;
+#define V(name, _junk1) property_names_[#name] = kToken_##name;
   STDLIB_MATH_VALUE_LIST(V)
+#undef V
+#define V(name) property_names_[#name] = kToken_##name;
   STDLIB_OTHER_LIST(V)
 #undef V
 #define V(name) global_names_[#name] = kToken_##name;
@@ -210,12 +212,7 @@ std::string AsmJsScanner::Name(token_t token) const {
 }
 #endif
 
-int AsmJsScanner::GetPosition() const {
-  DCHECK(!rewind_);
-  return static_cast<int>(stream_->pos());
-}
-
-void AsmJsScanner::Seek(int pos) {
+void AsmJsScanner::Seek(size_t pos) {
   stream_->Seek(pos);
   preceding_token_ = kUninitialized;
   token_ = kUninitialized;

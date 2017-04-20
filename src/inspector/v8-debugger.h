@@ -5,6 +5,7 @@
 #ifndef V8_INSPECTOR_V8DEBUGGER_H_
 #define V8_INSPECTOR_V8DEBUGGER_H_
 
+#include <list>
 #include <vector>
 
 #include "src/base/macros.h"
@@ -20,7 +21,9 @@
 
 namespace v8_inspector {
 
+class AsyncStackTrace;
 struct ScriptBreakpoint;
+class V8Debugger;
 class V8DebuggerAgentImpl;
 class V8InspectorImpl;
 class V8StackTraceImpl;
@@ -35,6 +38,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   ~V8Debugger();
 
   bool enabled() const;
+  v8::Isolate* isolate() const { return m_isolate; }
 
   String16 setBreakpoint(const ScriptBreakpoint&, int* actualLineNumber,
                          int* actualColumnNumber);
@@ -76,9 +80,11 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::Local<v8::Context> pausedContext() { return m_pausedContext; }
 
   int maxAsyncCallChainDepth() { return m_maxAsyncCallStackDepth; }
-  V8StackTraceImpl* currentAsyncCallChain();
-  V8StackTraceImpl* currentAsyncTaskCreationStack();
   void setAsyncCallStackDepth(V8DebuggerAgentImpl*, int);
+
+  std::shared_ptr<AsyncStackTrace> currentAsyncParent();
+  std::shared_ptr<AsyncStackTrace> currentAsyncCreation();
+
   std::unique_ptr<V8StackTraceImpl> createStackTrace(v8::Local<v8::StackTrace>);
   std::unique_ptr<V8StackTraceImpl> captureStackTrace(bool fullStack);
 
@@ -99,7 +105,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   WasmTranslation* wasmTranslation() { return &m_wasmTranslation; }
 
-  void setMaxAsyncTaskStacksForTest(int limit) { m_maxAsyncCallStacks = limit; }
+  void setMaxAsyncTaskStacksForTest(int limit);
 
  private:
   void compileDebuggerScript();
@@ -144,11 +150,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void asyncTaskFinishedForStepping(void* task);
   void asyncTaskCanceledForStepping(void* task);
 
-  void registerAsyncTaskIfNeeded(void* task);
-
   // v8::debug::DebugEventListener implementation.
-  void PromiseEventOccurred(v8::Local<v8::Context> context,
-                            v8::debug::PromiseDebugActionType type, int id,
+  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
                             int parentId, bool createdByUser) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override;
@@ -179,21 +182,27 @@ class V8Debugger : public v8::debug::DebugDelegate {
   int m_targetContextGroupId = 0;
 
   using AsyncTaskToStackTrace =
-      protocol::HashMap<void*, std::unique_ptr<V8StackTraceImpl>>;
+      protocol::HashMap<void*, std::weak_ptr<AsyncStackTrace>>;
   AsyncTaskToStackTrace m_asyncTaskStacks;
   AsyncTaskToStackTrace m_asyncTaskCreationStacks;
-  int m_maxAsyncCallStacks;
-  std::map<int, void*> m_idToTask;
-  std::unordered_map<void*, int> m_taskToId;
-  int m_lastTaskId;
   protocol::HashSet<void*> m_recurringTasks;
-  int m_maxAsyncCallStackDepth;
-  std::vector<void*> m_currentTasks;
-  std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
-  std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentCreationStacks;
-  protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   protocol::HashMap<void*, void*> m_parentTask;
-  protocol::HashMap<void*, void*> m_firstNextTask;
+
+  int m_maxAsyncCallStacks;
+  int m_maxAsyncCallStackDepth;
+
+  std::vector<void*> m_currentTasks;
+  std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncParent;
+  std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncCreation;
+
+  void collectOldAsyncStacksIfNeeded();
+  void removeOldAsyncTasks(AsyncTaskToStackTrace& map);
+  int m_asyncStacksCount = 0;
+  // V8Debugger owns all the async stacks, while most of the other references
+  // are weak, which allows to collect some stacks when there are too many.
+  std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;
+
+  protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   void* m_taskWithScheduledBreak = nullptr;
 
   std::unique_ptr<ScheduleStepIntoAsyncCallback> m_stepIntoAsyncCallback;

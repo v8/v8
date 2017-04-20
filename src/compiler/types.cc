@@ -208,6 +208,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
         return kOtherCallable;
       }
       return kOtherObject;
+    case JS_ARRAY_TYPE:
+      return kArray;
     case JS_VALUE_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
@@ -216,7 +218,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
-    case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:  // TODO(rossberg): there should be a RegExp type.
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
@@ -311,15 +312,12 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
-    case CALL_HANDLER_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
-    case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
     case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:
-    case BREAK_POINT_INFO_TYPE:
     case STACK_FRAME_INFO_TYPE:
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
@@ -327,8 +325,11 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
-    case CONSTANT_ELEMENTS_PAIR_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
+    case PADDING_TYPE_1:
+    case PADDING_TYPE_2:
+    case PADDING_TYPE_3:
+    case PADDING_TYPE_4:
       UNREACHABLE();
       return kNone;
   }

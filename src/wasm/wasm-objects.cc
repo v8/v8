@@ -382,8 +382,9 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   Handle<JSObject> memory_obj =
       isolate->factory()->NewJSObject(memory_ctor, TENURED);
   memory_obj->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
-
-  memory_obj->SetEmbedderField(kArrayBuffer, *buffer);
+  buffer.is_null() ? memory_obj->SetEmbedderField(
+                         kArrayBuffer, isolate->heap()->undefined_value())
+                   : memory_obj->SetEmbedderField(kArrayBuffer, *buffer);
   Handle<Object> max = isolate->factory()->NewNumber(maximum);
   memory_obj->SetEmbedderField(kMaximum, *max);
   Handle<Symbol> memory_sym(isolate->native_context()->wasm_memory_sym());
@@ -391,7 +392,8 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   return Handle<WasmMemoryObject>::cast(memory_obj);
 }
 
-DEFINE_OBJ_ACCESSORS(WasmMemoryObject, buffer, kArrayBuffer, JSArrayBuffer)
+DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmMemoryObject, buffer, kArrayBuffer,
+                              JSArrayBuffer)
 DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmMemoryObject, instances_link, kInstancesLink,
                               WasmInstanceWrapper)
 
@@ -438,11 +440,11 @@ void WasmMemoryObject::ResetInstancesLink(Isolate* isolate) {
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
                                uint32_t pages) {
-  Handle<JSArrayBuffer> old_buffer(memory_object->buffer(), isolate);
+  Handle<JSArrayBuffer> old_buffer;
   uint32_t old_size = 0;
   Address old_mem_start = nullptr;
-  // Force byte_length to 0, if byte_length fails IsNumber() check.
-  if (!old_buffer.is_null()) {
+  if (memory_object->has_buffer()) {
+    old_buffer = handle(memory_object->buffer());
     old_size = old_buffer->byte_length()->Number();
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
   }

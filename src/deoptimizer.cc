@@ -235,6 +235,10 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 
       // Unlink this function and evict from optimized code map.
       SharedFunctionInfo* shared = function->shared();
+      if (!code->deopt_already_counted()) {
+        shared->increment_deopt_count();
+        code->set_deopt_already_counted(true);
+      }
       function->set_code(shared->code());
 
       if (FLAG_trace_deopt) {
@@ -497,17 +501,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
     function = nullptr;
   }
   DCHECK(from != nullptr);
-  if (function != nullptr && function->IsOptimized()) {
-    function->shared()->increment_deopt_count();
-    if (bailout_type_ == Deoptimizer::SOFT) {
-      isolate->counters()->soft_deopts_executed()->Increment();
-      // Soft deopts shouldn't count against the overall re-optimization count
-      // that can eventually lead to disabling optimization for a function.
-      int opt_count = function->shared()->opt_count();
-      if (opt_count > 0) opt_count--;
-      function->shared()->set_opt_count(opt_count);
-    }
-  }
   compiled_code_ = FindOptimizedCode(function);
 #if DEBUG
   DCHECK(compiled_code_ != NULL);
@@ -526,7 +519,23 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   CHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
 #endif  // DEBUG
+  if (function != nullptr && function->IsOptimized() &&
+      (compiled_code_->kind() != Code::OPTIMIZED_FUNCTION ||
+       !compiled_code_->deopt_already_counted())) {
+    // If the function is optimized, and we haven't counted that deopt yet, then
+    // increment the function's deopt count so that we can avoid optimising
+    // functions that deopt too often.
+
+    if (bailout_type_ == Deoptimizer::SOFT) {
+      // Soft deopts shouldn't count against the overall deoptimization count
+      // that can eventually lead to disabling optimization for a function.
+      isolate->counters()->soft_deopts_executed()->Increment();
+    } else {
+      function->shared()->increment_deopt_count();
+    }
+  }
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
+    compiled_code_->set_deopt_already_counted(true);
     PROFILE(isolate_,
             CodeDeoptEvent(compiled_code_, DeoptKindOfBailoutType(type), from_,
                            fp_to_sp_delta_));
@@ -3420,7 +3429,8 @@ Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
 // objects for the fields are not read from the TranslationIterator, but instead
 // created on-the-fly based on dynamic information in the optimized frame.
 void TranslatedState::CreateArgumentsElementsTranslatedValues(
-    int frame_index, Address input_frame_pointer, bool is_rest) {
+    int frame_index, Address input_frame_pointer, bool is_rest,
+    FILE* trace_file) {
   TranslatedFrame& frame = frames_[frame_index];
 
   int length;
@@ -3429,6 +3439,11 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 
   int object_index = static_cast<int>(object_positions_.size());
   int value_index = static_cast<int>(frame.values_.size());
+  if (trace_file != nullptr) {
+    PrintF(trace_file,
+           "arguments elements object #%d (is_rest = %d, length = %d)",
+           object_index, is_rest, length);
+  }
   object_positions_.push_back({frame_index, value_index});
   frame.Add(TranslatedValue::NewDeferredObject(
       this, length + FixedArray::kHeaderSize / kPointerSize, object_index));
@@ -3506,7 +3521,8 @@ int TranslatedState::CreateNextTranslatedValue(
 
     case Translation::ARGUMENTS_ELEMENTS: {
       bool is_rest = iterator->Next();
-      CreateArgumentsElementsTranslatedValues(frame_index, fp, is_rest);
+      CreateArgumentsElementsTranslatedValues(frame_index, fp, is_rest,
+                                              trace_file);
       return 0;
     }
 
@@ -3514,6 +3530,10 @@ int TranslatedState::CreateNextTranslatedValue(
       bool is_rest = iterator->Next();
       int length;
       ComputeArgumentsPosition(fp, is_rest, &length);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "arguments length field (is_rest = %d, length = %d)",
+               is_rest, length);
+      }
       frame.Add(TranslatedValue::NewInt32(this, length));
       return 0;
     }
@@ -4190,23 +4210,23 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
-    case CALL_HANDLER_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
-    case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
     case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:
-    case BREAK_POINT_INFO_TYPE:
     case STACK_FRAME_INFO_TYPE:
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
-    case CONSTANT_ELEMENTS_PAIR_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
+    case PADDING_TYPE_1:
+    case PADDING_TYPE_2:
+    case PADDING_TYPE_3:
+    case PADDING_TYPE_4:
       OFStream os(stderr);
       os << "[couldn't handle instance type " << map->instance_type() << "]"
          << std::endl;

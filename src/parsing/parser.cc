@@ -503,7 +503,8 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->extension(), info->ast_value_factory(),
-                         info->runtime_call_stats(), true),
+                         info->runtime_call_stats(),
+                         info->preparsed_scope_data(), true),
       scanner_(info->unicode_cache()),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
@@ -513,7 +514,6 @@ Parser::Parser(ParseInfo* info)
       total_preparse_skipped_(0),
       temp_zoned_(false),
       log_(nullptr),
-      preparsed_scope_data_(info->preparsed_scope_data()),
       parameters_end_pos_(info->parameters_end_pos()) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
@@ -808,7 +808,8 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
         source, shared_info->start_position(), shared_info->end_position()));
     Handle<String> name(String::cast(shared_info->name()));
     scanner_.Initialize(stream.get());
-    result = DoParseFunction(info, ast_value_factory()->GetString(name));
+    info->set_function_name(ast_value_factory()->GetString(name));
+    result = DoParseFunction(info);
     if (result != nullptr) {
       Handle<String> inferred_name(shared_info->inferred_name());
       result->set_inferred_name(inferred_name);
@@ -837,8 +838,25 @@ static FunctionLiteral::FunctionType ComputeFunctionType(ParseInfo* info) {
   return FunctionLiteral::kAnonymousExpression;
 }
 
-FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
-                                         const AstRawString* raw_name) {
+FunctionLiteral* Parser::DoParseFunction(ParseInfo* info) {
+  const AstRawString* raw_name = info->function_name();
+  FunctionNameValidity function_name_validity = kSkipFunctionNameCheck;
+  if (!raw_name) {
+    bool ok = true;
+    if (peek() == Token::LPAREN) {
+      const AstRawString* variable_name;
+      impl()->GetDefaultStrings(&raw_name, &variable_name);
+    } else {
+      bool is_strict_reserved = true;
+      raw_name = ParseIdentifierOrStrictReservedWord(info->function_kind(),
+                                                     &is_strict_reserved, &ok);
+      if (!ok) return nullptr;
+      function_name_validity = is_strict_reserved
+                                   ? kFunctionNameIsStrictReserved
+                                   : kFunctionNameValidityUnknown;
+    }
+  }
+
   DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
   DCHECK_NULL(target_stack_);
@@ -962,7 +980,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
                                   info->start_position(), info->end_position());
     } else {
       result = ParseFunctionLiteral(
-          raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
+          raw_name, Scanner::Location::invalid(), function_name_validity, kind,
           kNoSourcePosition, function_type, info->language_mode(),
           info->is_typed(), typesystem::kNormalTypes, &ok);
     }
@@ -974,8 +992,6 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
   DCHECK_NULL(target_stack_);
   DCHECK_IMPLIES(result,
                  info->function_literal_id() == result->function_literal_id());
-  DCHECK_IMPLIES(!info->scope_info_is_empty() && result,
-                 info->calls_eval() == result->scope()->calls_eval());
   return result;
 }
 
@@ -2779,9 +2795,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       Scanner::BookmarkScope bookmark(scanner());
       bookmark.Set();
       LazyParsingResult result =
-          SkipFunction(kind, scope, &num_parameters, &function_length,
-                       is_lazy_inner_function, type_flags,
-                       is_lazy_top_level_function, CHECK_OK);
+          SkipFunction(kind, scope, &num_parameters, is_lazy_inner_function,
+                       type_flags, is_lazy_top_level_function, CHECK_OK);
 
       // In the case of a function signature (i.e., literal without body),
       // return a nullptr instead of a function literal.
@@ -2884,10 +2899,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   return function_literal;
 }
 
-Parser::LazyParsingResult Parser::SkipFunction(
-    FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
-    int* function_length, bool is_inner_function,
-    typesystem::TypeFlags type_flags, bool may_abort, bool* ok) {
+Parser::LazyParsingResult Parser::SkipFunction(FunctionKind kind,
+                                               DeclarationScope* function_scope,
+                                               int* num_parameters,
+                                               bool is_inner_function,
+                                               typesystem::TypeFlags type_flags,
+                                               bool may_abort, bool* ok) {
   DCHECK_NE(kNoSourcePosition, function_scope->start_position());
   DCHECK_EQ(kNoSourcePosition, parameters_end_pos_);
   if (produce_cached_parse_data()) CHECK(log_);
@@ -2912,11 +2929,9 @@ Parser::LazyParsingResult Parser::SkipFunction(
       scanner()->SeekForward(entry.end_pos() - 1);
       Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
       *num_parameters = entry.num_parameters();
-      *function_length = entry.function_length();
       SetLanguageMode(function_scope, entry.language_mode());
       if (entry.uses_super_property())
         function_scope->RecordSuperPropertyUsage();
-      if (entry.calls_eval()) function_scope->RecordEvalCall();
       SkipFunctionLiterals(entry.num_inner_functions());
       return kLazyParsingComplete;
     }
@@ -2940,13 +2955,9 @@ Parser::LazyParsingResult Parser::SkipFunction(
       scanner()->SeekForward(data.end - 1);
       Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
       *num_parameters = data.num_parameters;
-      *function_length = data.function_length;
       SetLanguageMode(function_scope, data.language_mode);
       if (data.uses_super_property) {
         function_scope->RecordSuperPropertyUsage();
-      }
-      if (data.calls_eval) {
-        function_scope->RecordEvalCall();
       }
       SkipFunctionLiterals(data.num_inner_functions);
       return kLazyParsingComplete;
@@ -2955,7 +2966,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
 
   // FIXME(marja): There are 3 ways to skip functions now. Unify them.
   if (preparsed_scope_data_->Consuming()) {
-    DCHECK(FLAG_preparser_scope_analysis);
+    DCHECK(FLAG_experimental_preparser_scope_analysis);
     const PreParseData::FunctionData& data =
         preparsed_scope_data_->FindFunction(function_scope->start_position());
     if (data.is_valid()) {
@@ -2966,13 +2977,9 @@ Parser::LazyParsingResult Parser::SkipFunction(
       scanner()->SeekForward(data.end - 1);
       Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
       *num_parameters = data.num_parameters;
-      *function_length = data.function_length;
       SetLanguageMode(function_scope, data.language_mode);
       if (data.uses_super_property) {
         function_scope->RecordSuperPropertyUsage();
-      }
-      if (data.calls_eval) {
-        function_scope->RecordEvalCall();
       }
       SkipFunctionLiterals(data.num_inner_functions);
       return kLazyParsingComplete;
@@ -3011,15 +3018,13 @@ Parser::LazyParsingResult Parser::SkipFunction(
   total_preparse_skipped_ +=
       function_scope->end_position() - function_scope->start_position();
   *num_parameters = logger->num_parameters();
-  *function_length = logger->function_length();
   SkipFunctionLiterals(logger->num_inner_functions());
   if (!is_inner_function && produce_cached_parse_data()) {
     DCHECK(log_);
-    log_->LogFunction(
-        function_scope->start_position(), function_scope->end_position(),
-        *num_parameters, *function_length, language_mode(),
-        function_scope->uses_super_property(), function_scope->calls_eval(),
-        logger->num_inner_functions());
+    log_->LogFunction(function_scope->start_position(),
+                      function_scope->end_position(), *num_parameters,
+                      language_mode(), function_scope->uses_super_property(),
+                      logger->num_inner_functions());
   }
   return kLazyParsingComplete;
 }
@@ -3676,12 +3681,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
     fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
     result = DoParseProgram(info);
   } else {
-    const AstRawString* function_name = info->function_name();
-    if (!function_name) {
-      // FIXME(wiktorg) solve fni in parse tasks
-      function_name = ast_value_factory()->empty_string();
-    }
-    result = DoParseFunction(info, function_name);
+    result = DoParseFunction(info);
   }
 
   info->set_literal(result);
@@ -4822,10 +4822,26 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
   // while (true) { ... }
   // Already defined earlier: WhileStatement* loop = ...
   {
-    Block* loop_body = factory()->NewBlock(nullptr, 4, false, nopos);
+    Block* loop_body = factory()->NewBlock(nullptr, 5, false, nopos);
     loop_body->statements()->Add(switch_mode, zone());
     loop_body->statements()->Add(if_done, zone());
     loop_body->statements()->Add(set_mode_return, zone());
+
+    if (is_async_generator()) {
+      // AsyncGeneratorYield does not yield the original iterator result,
+      // unlike sync generators. Do `output = output.value`
+      VariableProxy* output_proxy = factory()->NewVariableProxy(var_output);
+      Expression* literal = factory()->NewStringLiteral(
+          ast_value_factory()->value_string(), nopos);
+      Assignment* assign = factory()->NewAssignment(
+          Token::ASSIGN, output_proxy,
+          factory()->NewProperty(factory()->NewVariableProxy(var_output),
+                                 literal, nopos),
+          nopos);
+      loop_body->statements()->Add(
+          factory()->NewExpressionStatement(assign, nopos), zone());
+    }
+
     loop_body->statements()->Add(try_finally, zone());
 
     loop->Initialize(factory()->NewBooleanLiteral(true, nopos), loop_body);

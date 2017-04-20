@@ -126,7 +126,7 @@ bytecodes: [
   /*   62 S> */ B(Return),
 ]
 constant pool: [
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
   SYMBOL_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
@@ -421,7 +421,7 @@ bytecodes: [
   /*  113 S> */ B(Return),
 ]
 constant pool: [
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
   SYMBOL_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
@@ -571,7 +571,7 @@ bytecodes: [
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
-  CONSTANT_ELEMENTS_PAIR_TYPE,
+  TUPLE2_TYPE,
   SYMBOL_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],

@@ -14,6 +14,7 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
+#include "src/parsing/preparsed-scope-data.h"
 #include "src/parsing/preparser.h"
 #include "src/unicode.h"
 #include "src/utils.h"
@@ -233,6 +234,16 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     // masks the arguments object. Declare arguments before declaring the
     // function var since the arguments object masks 'function arguments'.
     function_scope->DeclareArguments(ast_value_factory());
+
+    if (FLAG_experimental_preparser_scope_analysis &&
+        preparsed_scope_data_ != nullptr) {
+      preparsed_scope_data_->AddFunction(
+          scope()->start_position(),
+          PreParseData::FunctionData(
+              scanner()->peek_location().end_pos, scope()->num_parameters(),
+              GetLastFunctionLiteralId(), scope()->language_mode(),
+              scope()->AsDeclarationScope()->uses_super_property()));
+    }
   }
 
   use_counts_ = nullptr;
@@ -372,12 +383,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   if (FLAG_use_parse_tasks && is_top_level && preparse_data_) {
     preparse_data_->AddFunctionData(
-        start_position,
-        PreParseData::FunctionData(
-            end_position, formals.num_parameters(), formals.function_length,
-            GetLastFunctionLiteralId() - func_id, language_mode,
-            function_scope->uses_super_property(),
-            function_scope->calls_eval()));
+        start_position, PreParseData::FunctionData(
+                            end_position, formals.num_parameters(),
+                            GetLastFunctionLiteralId() - func_id, language_mode,
+                            function_scope->uses_super_property()));
     // TODO(wiktorg) spin-off a parse task
     if (FLAG_trace_parse_tasks) {
       PrintF("Saved function at %d to %d with:\n", start_position,
@@ -388,6 +397,15 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     }
   }
 
+  if (FLAG_experimental_preparser_scope_analysis &&
+      track_unresolved_variables_ && preparsed_scope_data_ != nullptr) {
+    preparsed_scope_data_->AddFunction(
+        start_position,
+        PreParseData::FunctionData(
+            end_position, scope()->num_parameters(),
+            GetLastFunctionLiteralId() - func_id, scope()->language_mode(),
+            scope()->AsDeclarationScope()->uses_super_property()));
+  }
   if (FLAG_trace_preparse) {
     PrintF("  [%s]: %i-%i\n",
            track_unresolved_variables_ ? "Preparse resolution"
@@ -410,7 +428,7 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   int body_end = scanner()->peek_location().end_pos;
   DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
   log_.LogFunction(body_end, formals->num_parameters(),
-                   formals->function_length, GetLastFunctionLiteralId());
+                   GetLastFunctionLiteralId());
   return kLazyParsingComplete;
 }
 
@@ -441,7 +459,7 @@ void PreParser::DeclareAndInitializeVariables(
       declaration_descriptor->scope->RemoveUnresolved(variable);
       Variable* var = scope()->DeclareVariableName(
           variable->raw_name(), declaration_descriptor->mode);
-      if (FLAG_preparser_scope_analysis) {
+      if (FLAG_experimental_preparser_scope_analysis) {
         MarkLoopVariableAsAssigned(declaration_descriptor->scope, var);
         // This is only necessary if there is an initializer, but we don't have
         // that information here.  Consequently, the preparser sometimes says

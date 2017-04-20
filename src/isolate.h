@@ -34,6 +34,10 @@ namespace base {
 class RandomNumberGenerator;
 }
 
+namespace debug {
+class ConsoleDelegate;
+}
+
 namespace internal {
 
 class AccessCompilerData;
@@ -717,9 +721,8 @@ class Isolate {
                                        void* ptr2, void* ptr3, void* ptr4,
                                        void* ptr5, void* ptr6, void* ptr7,
                                        void* ptr8, unsigned int magic2));
-  Handle<JSArray> CaptureCurrentStackTrace(
-      int frame_limit,
-      StackTrace::StackTraceOptions options);
+  Handle<FixedArray> CaptureCurrentStackTrace(
+      int frame_limit, StackTrace::StackTraceOptions options);
   Handle<Object> CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                          FrameSkipMode mode,
                                          Handle<Object> caller);
@@ -728,7 +731,7 @@ class Isolate {
   MaybeHandle<JSReceiver> CaptureAndSetSimpleStackTrace(
       Handle<JSReceiver> error_object, FrameSkipMode mode,
       Handle<Object> caller);
-  Handle<JSArray> GetDetailedStackTrace(Handle<JSObject> error_object);
+  Handle<FixedArray> GetDetailedStackTrace(Handle<JSObject> error_object);
 
   // Returns if the given context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
@@ -749,6 +752,11 @@ class Isolate {
     Throw(*exception, location);
     return MaybeHandle<T>();
   }
+
+  void set_console_delegate(debug::ConsoleDelegate* delegate) {
+    console_delegate_ = delegate;
+  }
+  debug::ConsoleDelegate* console_delegate() { return console_delegate_; }
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.
@@ -1552,6 +1560,8 @@ class Isolate {
   FutexWaitListNode futex_wait_list_node_;
 
   CancelableTaskManager* cancelable_task_manager_;
+
+  debug::ConsoleDelegate* console_delegate_ = nullptr;
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
       abort_on_uncaught_exception_callback_;

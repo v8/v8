@@ -15,6 +15,7 @@
     'intl/intl.isolate',
     'message/message.isolate',
     'mjsunit/mjsunit.isolate',
+    'mkgrokdump/mkgrokdump.isolate',
     'preparser/preparser.isolate',
     'unittests/unittests.isolate',
   ],

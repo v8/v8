@@ -709,6 +709,13 @@ Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
   return raw_assembler()->CallN(desc, input_count, inputs);
 }
 
+Node* CodeAssembler::CallCFunction1(MachineType return_type,
+                                    MachineType arg0_type, Node* function,
+                                    Node* arg0) {
+  return raw_assembler()->CallCFunction1(return_type, arg0_type, function,
+                                         arg0);
+}
+
 Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                     MachineType arg0_type,
                                     MachineType arg1_type, Node* function,
@@ -724,6 +731,16 @@ Node* CodeAssembler::CallCFunction3(MachineType return_type,
                                     Node* arg0, Node* arg1, Node* arg2) {
   return raw_assembler()->CallCFunction3(return_type, arg0_type, arg1_type,
                                          arg2_type, function, arg0, arg1, arg2);
+}
+
+Node* CodeAssembler::CallCFunction6(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
+    MachineType arg5_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+    Node* arg3, Node* arg4, Node* arg5) {
+  return raw_assembler()->CallCFunction6(
+      return_type, arg0_type, arg1_type, arg2_type, arg3_type, arg4_type,
+      arg5_type, function, arg0, arg1, arg2, arg3, arg4, arg5);
 }
 
 void CodeAssembler::Goto(Label* label) {

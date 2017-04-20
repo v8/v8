@@ -243,6 +243,8 @@ namespace internal {
   CPP(UnsupportedThrower)                                                      \
   TFJ(ReturnReceiver, 0)                                                       \
                                                                                \
+  TFS(DeleteProperty, kObject, kKey, kLanguageMode)                            \
+                                                                               \
   /* Array */                                                                  \
   ASM(ArrayCode)                                                               \
   ASM(InternalArrayCode)                                                       \
@@ -344,6 +346,31 @@ namespace internal {
   CPP(CallSitePrototypeIsNative)                                               \
   CPP(CallSitePrototypeIsToplevel)                                             \
   CPP(CallSitePrototypeToString)                                               \
+                                                                               \
+  /* Console */                                                                \
+  CPP(ConsoleDebug)                                                            \
+  CPP(ConsoleError)                                                            \
+  CPP(ConsoleInfo)                                                             \
+  CPP(ConsoleLog)                                                              \
+  CPP(ConsoleWarn)                                                             \
+  CPP(ConsoleDir)                                                              \
+  CPP(ConsoleDirXml)                                                           \
+  CPP(ConsoleTable)                                                            \
+  CPP(ConsoleTrace)                                                            \
+  CPP(ConsoleGroup)                                                            \
+  CPP(ConsoleGroupCollapsed)                                                   \
+  CPP(ConsoleGroupEnd)                                                         \
+  CPP(ConsoleClear)                                                            \
+  CPP(ConsoleCount)                                                            \
+  CPP(ConsoleAssert)                                                           \
+  CPP(ConsoleMarkTimeline)                                                     \
+  CPP(ConsoleProfile)                                                          \
+  CPP(ConsoleProfileEnd)                                                       \
+  CPP(ConsoleTimeline)                                                         \
+  CPP(ConsoleTimelineEnd)                                                      \
+  CPP(ConsoleTime)                                                             \
+  CPP(ConsoleTimeEnd)                                                          \
+  CPP(ConsoleTimeStamp)                                                        \
                                                                                \
   /* DataView */                                                               \
   CPP(DataViewConstructor)                                                     \
@@ -956,7 +983,6 @@ namespace internal {
   /* resume behaviour specific to Async Generators. Internal / not exposed */  \
   /* to JS code. */                                                            \
   TFJ(AsyncGeneratorYield, 1, kValue)                                          \
-  TFJ(AsyncGeneratorRawYield, 1, kValue)                                       \
                                                                                \
   /* Async-from-Sync Iterator */                                               \
                                                                                \

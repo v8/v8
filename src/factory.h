@@ -9,6 +9,8 @@
 #include "src/globals.h"
 #include "src/isolate.h"
 #include "src/messages.h"
+#include "src/objects/descriptor-array.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/scope-info.h"
 
 namespace v8 {

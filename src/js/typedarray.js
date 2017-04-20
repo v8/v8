@@ -29,10 +29,8 @@ var InnerArrayToLocaleString;
 var InternalArray = utils.InternalArray;
 var MaxSimple;
 var MinSimple;
-var SpeciesConstructor;
-var ToPositiveInteger;
-var ToIndex;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
@@ -67,10 +65,26 @@ utils.Import(function(from) {
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  SpeciesConstructor = from.SpeciesConstructor;
-  ToPositiveInteger = from.ToPositiveInteger;
-  ToIndex = from.ToIndex;
 });
+
+// ES2015 7.3.20
+function SpeciesConstructor(object, defaultConstructor) {
+  var constructor = object.constructor;
+  if (IS_UNDEFINED(constructor)) {
+    return defaultConstructor;
+  }
+  if (!IS_RECEIVER(constructor)) {
+    throw %make_type_error(kConstructorNotReceiver);
+  }
+  var species = constructor[speciesSymbol];
+  if (IS_NULL_OR_UNDEFINED(species)) {
+    return defaultConstructor;
+  }
+  if (%IsConstructor(species)) {
+    return species;
+  }
+  throw %make_type_error(kSpeciesNotConstructor);
+}
 
 // --------------- Typed Arrays ---------------------
 
@@ -248,9 +262,6 @@ function TypedArraySetFromArrayLike(target, source, sourceLength, offset) {
     }
   }
 }
-
-%InstallToContext([
-  'typed_array_set_from_array_like', TypedArraySetFromArrayLike]);
 
 function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   var sourceElementSize = source.BYTES_PER_ELEMENT;

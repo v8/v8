@@ -387,11 +387,10 @@ void CheckDebuggerUnloaded(bool check_functions) {
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   CcTest::CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
-  // Iterate the head and check that there are no debugger related objects left.
+  // Iterate the heap and check that there are no debugger related objects left.
   HeapIterator iterator(CcTest::heap());
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     CHECK(!obj->IsDebugInfo());
-    CHECK(!obj->IsBreakPointInfo());
 
     // If deep check of functions is requested check that no debug break code
     // is left in all functions.

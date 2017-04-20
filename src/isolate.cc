@@ -620,7 +620,7 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
   if (capture_stack_trace_for_uncaught_exceptions_) {
     // Capture stack trace for a detailed exception message.
     Handle<Name> key = factory()->detailed_stack_trace_symbol();
-    Handle<JSArray> stack_trace = CaptureCurrentStackTrace(
+    Handle<FixedArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
     RETURN_ON_EXCEPTION(
@@ -643,13 +643,13 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
   return error_object;
 }
 
-
-Handle<JSArray> Isolate::GetDetailedStackTrace(Handle<JSObject> error_object) {
+Handle<FixedArray> Isolate::GetDetailedStackTrace(
+    Handle<JSObject> error_object) {
   Handle<Name> key_detailed = factory()->detailed_stack_trace_symbol();
   Handle<Object> stack_trace =
       JSReceiver::GetDataProperty(error_object, key_detailed);
-  if (stack_trace->IsJSArray()) return Handle<JSArray>::cast(stack_trace);
-  return Handle<JSArray>();
+  if (stack_trace->IsFixedArray()) return Handle<FixedArray>::cast(stack_trace);
+  return Handle<FixedArray>();
 }
 
 
@@ -747,16 +747,14 @@ class CaptureStackTraceHelper {
   Isolate* isolate_;
 };
 
-Handle<JSArray> Isolate::CaptureCurrentStackTrace(
+Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
   DisallowJavascriptExecution no_js(this);
   CaptureStackTraceHelper helper(this);
 
   // Ensure no negative values.
   int limit = Max(frame_limit, 0);
-  Handle<JSArray> stack_trace = factory()->NewJSArray(frame_limit);
-  Handle<FixedArray> stack_trace_elems(
-      FixedArray::cast(stack_trace->elements()), this);
+  Handle<FixedArray> stack_trace_elems = factory()->NewFixedArray(limit);
 
   int frames_seen = 0;
   for (StackTraceFrameIterator it(this); !it.done() && (frames_seen < limit);
@@ -777,9 +775,8 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       frames_seen++;
     }
   }
-
-  stack_trace->set_length(Smi::FromInt(frames_seen));
-  return stack_trace;
+  stack_trace_elems->Shrink(frames_seen);
+  return stack_trace_elems;
 }
 
 
@@ -1670,7 +1667,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
 
 Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
-  Handle<JSArray> stack_trace_object;
+  Handle<FixedArray> stack_trace_object;
   if (capture_stack_trace_for_uncaught_exceptions_) {
     if (exception->IsJSError()) {
       // We fetch the stack trace that corresponds to this error object.
@@ -3397,7 +3394,7 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
                                   Handle<Object> value,
                                   v8::PromiseRejectEvent event) {
   if (promise_reject_callback_ == NULL) return;
-  Handle<JSArray> stack_trace;
+  Handle<FixedArray> stack_trace;
   if (event == v8::kPromiseRejectWithNoHandler && value->IsJSObject()) {
     stack_trace = GetDetailedStackTrace(Handle<JSObject>::cast(value));
   }

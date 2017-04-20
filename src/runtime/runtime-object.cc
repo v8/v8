@@ -459,24 +459,27 @@ Object* DeleteProperty(Isolate* isolate, Handle<Object> object,
 
 }  // namespace
 
-
-RUNTIME_FUNCTION(Runtime_DeleteProperty_Sloppy) {
+RUNTIME_FUNCTION(Runtime_DeleteProperty) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  return DeleteProperty(isolate, object, key, SLOPPY);
+  CONVERT_SMI_ARG_CHECKED(language_mode, 2);
+  return DeleteProperty(isolate, object, key,
+                        static_cast<LanguageMode>(language_mode));
 }
 
-
-RUNTIME_FUNCTION(Runtime_DeleteProperty_Strict) {
+RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  return DeleteProperty(isolate, object, key, STRICT);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+  Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
+  Handle<NameDictionary> new_properties =
+      NameDictionary::Shrink(dictionary, key);
+  receiver->set_properties(*new_properties);
+  return Smi::kZero;
 }
-
 
 // ES6 section 12.9.3, operator in.
 RUNTIME_FUNCTION(Runtime_HasProperty) {

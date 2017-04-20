@@ -254,7 +254,7 @@ TEST_F(AsmJsScannerTest, TrailingCComment) {
 TEST_F(AsmJsScannerTest, Seeking) {
   SetupSource("var eval do arguments function break\n");
   Skip(TOK(var));
-  int old_pos = scanner.GetPosition();
+  size_t old_pos = scanner.Position();
   Skip(TOK(eval));
   Skip(TOK(do));
   Skip(TOK(arguments));
@@ -262,6 +262,7 @@ TEST_F(AsmJsScannerTest, Seeking) {
   Skip(TOK(arguments));
   scanner.Rewind();
   scanner.Seek(old_pos);
+  Skip(TOK(eval));
   Skip(TOK(do));
   Skip(TOK(arguments));
   Skip(TOK(function));

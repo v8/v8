@@ -378,50 +378,6 @@ TF_BUILTIN(AsyncGeneratorYield, AsyncGeneratorBuiltinsAssembler) {
   Return(UndefinedConstant());
 }
 
-TF_BUILTIN(AsyncGeneratorRawYield, AsyncGeneratorBuiltinsAssembler) {
-  Node* const generator = Parameter(Descriptor::kReceiver);
-  Node* const iter_result = Parameter(Descriptor::kValue);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  CSA_SLOW_ASSERT(this,
-                  HasInstanceType(generator, JS_ASYNC_GENERATOR_OBJECT_TYPE));
-  CSA_ASSERT(this, IsGeneratorNotSuspendedForAwait(generator));
-
-  VARIABLE(var_value, MachineRepresentation::kTagged);
-  VARIABLE(var_done, MachineRepresentation::kTagged);
-
-  // RawYield is used for yield*, and values sent to yield* are always
-  // iterator result objects.
-  Label if_slow(this), async_generator_resolve(this);
-
-  GotoIfNot(IsFastJSIterResult(context, iter_result), &if_slow);
-  var_value.Bind(LoadObjectField(iter_result, JSIteratorResult::kValueOffset));
-  var_done.Bind(LoadObjectField(iter_result, JSIteratorResult::kDoneOffset));
-  Goto(&async_generator_resolve);
-
-  BIND(&if_slow);
-  {
-    var_value.Bind(
-        GetProperty(context, iter_result, factory()->value_string()));
-    Node* const done =
-        GetProperty(context, iter_result, factory()->done_string());
-
-    var_done.Bind(Select(
-        IsBoolean(done), [=]() { return done; },
-        [=]() { return CallBuiltin(Builtins::kToBoolean, context, done); },
-        MachineRepresentation::kTagged));
-    Goto(&async_generator_resolve);
-  }
-
-  BIND(&async_generator_resolve);
-  Node* const value = var_value.value();
-  Node* const done = var_done.value();
-  CallBuiltin(Builtins::kAsyncGeneratorResolve, context, generator, value,
-              done);
-  Return(UndefinedConstant());
-}
-
 TF_BUILTIN(AsyncGeneratorAwaitResolveClosure, AsyncGeneratorBuiltinsAssembler) {
   Node* value = Parameter(Descriptor::kValue);
   Node* context = Parameter(Descriptor::kContext);

@@ -31,6 +31,16 @@ CONFIGS = dict(
     '--hydrogen-filter=~',
     '--nocrankshaft',
   ],
+  ignition_asm=[
+    '--ignition',
+    '--turbo-filter=~',
+    '--hydrogen-filter=~',
+    '--nocrankshaft',
+    '--validate-asm',
+    '--fast-validate-asm',
+    '--stress-validate-asm',
+    '--suppress-asm-messages',
+  ],
   ignition_eager=[
     '--ignition',
     '--turbo-filter=~',

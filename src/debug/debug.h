@@ -616,8 +616,7 @@ class Debug {
 class LegacyDebugDelegate : public v8::debug::DebugDelegate {
  public:
   explicit LegacyDebugDelegate(Isolate* isolate) : isolate_(isolate) {}
-  void PromiseEventOccurred(v8::Local<v8::Context> context,
-                            v8::debug::PromiseDebugActionType type, int id,
+  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
                             int parent_id, bool created_by_user) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override;

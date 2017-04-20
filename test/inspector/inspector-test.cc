@@ -61,6 +61,7 @@ class UtilsExtension : public v8::Extension {
                       "native function schedulePauseOnNextStatement();"
                       "native function cancelPauseOnNextStatement();"
                       "native function reconnect();"
+                      "native function setLogConsoleApiMessageCalls();"
                       "native function createContextGroup();") {}
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
@@ -136,6 +137,14 @@ class UtilsExtension : public v8::Extension {
                                 .ToLocalChecked())
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate, UtilsExtension::Reconnect);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(
+                                isolate, "setLogConsoleApiMessageCalls",
+                                v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(
+          isolate, UtilsExtension::SetLogConsoleApiMessageCalls);
     } else if (name->Equals(context, v8::String::NewFromUtf8(
                                          isolate, "createContextGroup",
                                          v8::NewStringType::kNormal)
@@ -316,6 +325,16 @@ class UtilsExtension : public v8::Extension {
     v8::base::Semaphore ready_semaphore(0);
     inspector_client_->scheduleReconnect(&ready_semaphore);
     ready_semaphore.Wait();
+  }
+
+  static void SetLogConsoleApiMessageCalls(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsBoolean()) {
+      fprintf(stderr, "Internal error: setLogConsoleApiMessageCalls(bool).");
+      Exit();
+    }
+    inspector_client_->setLogConsoleApiMessageCalls(
+        args[0].As<v8::Boolean>()->Value());
   }
 
   static void CreateContextGroup(

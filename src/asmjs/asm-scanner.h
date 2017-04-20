@@ -62,10 +62,9 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   std::string Name(token_t token) const;
 #endif
 
-  // Get current position (to use with Seek).
-  int GetPosition() const;
-  // Restores old position (token after that position).
-  void Seek(int pos);
+  // Restores old position (token after that position). Note that it is not
+  // allowed to rewind right after a seek, because previous tokens are unknown.
+  void Seek(size_t pos);
 
   // Select whether identifiers are resolved in global or local scope,
   // and which scope new identifiers are added to.
@@ -111,9 +110,11 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
     STDLIB_MATH_FUNCTION_LIST(V)
     STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
+#define V(name, _junk1) kToken_##name,
+    STDLIB_MATH_VALUE_LIST(V)
+#undef V
 #define V(name) kToken_##name,
     STDLIB_OTHER_LIST(V)
-    STDLIB_MATH_VALUE_LIST(V)
     KEYWORD_NAME_LIST(V)
 #undef V
 #define V(rawname, name) kToken_##name,
