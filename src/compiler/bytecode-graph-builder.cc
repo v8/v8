@@ -1920,8 +1920,8 @@ void BytecodeGraphBuilder::BuildDelete(LanguageMode language_mode) {
   Node* key = environment()->LookupAccumulator();
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* node =
-      NewNode(javascript()->DeleteProperty(language_mode), object, key);
+  Node* mode = jsgraph()->Constant(static_cast<int32_t>(language_mode));
+  Node* node = NewNode(javascript()->DeleteProperty(), object, key, mode);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 

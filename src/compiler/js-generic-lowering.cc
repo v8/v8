@@ -309,10 +309,10 @@ void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
 }
 
 void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
-  LanguageMode language_mode = OpParameter<LanguageMode>(node);
-  ReplaceWithRuntimeCall(node, is_strict(language_mode)
-                                   ? Runtime::kDeleteProperty_Strict
-                                   : Runtime::kDeleteProperty_Sloppy);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kDeleteProperty);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 void JSGenericLowering::LowerJSGetSuperConstructor(Node* node) {

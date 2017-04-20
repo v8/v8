@@ -243,6 +243,8 @@ namespace internal {
   CPP(UnsupportedThrower)                                                      \
   TFJ(ReturnReceiver, 0)                                                       \
                                                                                \
+  TFS(DeleteProperty, kObject, kKey, kLanguageMode)                            \
+                                                                               \
   /* Array */                                                                  \
   ASM(ArrayCode)                                                               \
   ASM(InternalArrayCode)                                                       \

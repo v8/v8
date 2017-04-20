@@ -10013,12 +10013,11 @@ void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
     CHECK_ALIVE(VisitForValue(prop->key()));
     HValue* key = Pop();
     HValue* obj = Pop();
-    Add<HPushArguments>(obj, key);
-    HInstruction* instr = New<HCallRuntime>(
-        Runtime::FunctionForId(is_strict(function_language_mode())
-                                   ? Runtime::kDeleteProperty_Strict
-                                   : Runtime::kDeleteProperty_Sloppy),
-        2);
+    HValue* language_mode = Add<HConstant>(
+        static_cast<int32_t>(function_language_mode()), Representation::Smi());
+    Add<HPushArguments>(obj, key, language_mode);
+    HInstruction* instr =
+        New<HCallRuntime>(Runtime::FunctionForId(Runtime::kDeleteProperty), 3);
     return ast_context()->ReturnInstruction(instr, expr->id());
   } else if (proxy != NULL) {
     Variable* var = proxy->var();

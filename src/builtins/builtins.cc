@@ -116,11 +116,11 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
 // static
 Callable Builtins::CallableFor(Isolate* isolate, Name name) {
   switch (name) {
-#define CASE(Name, ...)                                                  \
-  case k##Name: {                                                        \
-    Handle<Code> code(Code::cast(isolate->builtins()->builtins_[name])); \
-    auto descriptor = Builtin_##Name##_InterfaceDescriptor(isolate);     \
-    return Callable(code, descriptor);                                   \
+#define CASE(Name, ...)                                              \
+  case k##Name: {                                                    \
+    Handle<Code> code = isolate->builtins()->Name();                 \
+    auto descriptor = Builtin_##Name##_InterfaceDescriptor(isolate); \
+    return Callable(code, descriptor);                               \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE, CASE,
                  CASE, IGNORE_BUILTIN, IGNORE_BUILTIN)

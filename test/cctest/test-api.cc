@@ -22864,10 +22864,12 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%GetProperty(other, 'x')");
   CheckCorrectThrow("%SetProperty(other, 'x', 'foo', 0)");
   CheckCorrectThrow("%AddNamedProperty(other, 'x', 'foo', 1)");
-  CheckCorrectThrow("%DeleteProperty_Sloppy(other, 'x')");
-  CheckCorrectThrow("%DeleteProperty_Strict(other, 'x')");
-  CheckCorrectThrow("%DeleteProperty_Sloppy(other, '1')");
-  CheckCorrectThrow("%DeleteProperty_Strict(other, '1')");
+  STATIC_ASSERT(i::SLOPPY == 0);
+  STATIC_ASSERT(i::STRICT == 1);
+  CheckCorrectThrow("%DeleteProperty(other, 'x', 0)");  // 0 == SLOPPY
+  CheckCorrectThrow("%DeleteProperty(other, 'x', 1)");  // 1 == STRICT
+  CheckCorrectThrow("%DeleteProperty(other, '1', 0)");
+  CheckCorrectThrow("%DeleteProperty(other, '1', 1)");
   CheckCorrectThrow("Object.prototype.hasOwnProperty.call(other, 'x')");
   CheckCorrectThrow("%HasProperty(other, 'x')");
   CheckCorrectThrow("Object.prototype.propertyIsEnumerable(other, 'x')");

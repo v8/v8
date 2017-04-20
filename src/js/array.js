@@ -402,7 +402,7 @@ function ArrayPop() {
 
   n--;
   var value = array[n];
-  %DeleteProperty_Strict(array, n);
+  delete array[n];
   array.length = n;
   return value;
 }

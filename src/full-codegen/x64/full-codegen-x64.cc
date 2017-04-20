@@ -2146,9 +2146,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       if (property != NULL) {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
-        CallRuntimeWithOperands(is_strict(language_mode())
-                                    ? Runtime::kDeleteProperty_Strict
-                                    : Runtime::kDeleteProperty_Sloppy);
+        PushOperand(Smi::FromInt(language_mode()));
+        CallRuntimeWithOperands(Runtime::kDeleteProperty);
         context()->Plug(rax);
       } else if (proxy != NULL) {
         Variable* var = proxy->var();
@@ -2160,7 +2159,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           __ movp(rax, NativeContextOperand());
           __ Push(ContextOperand(rax, Context::EXTENSION_INDEX));
           __ Push(var->name());
-          __ CallRuntime(Runtime::kDeleteProperty_Sloppy);
+          __ Push(Smi::FromInt(SLOPPY));
+          __ CallRuntime(Runtime::kDeleteProperty);
           context()->Plug(rax);
         } else {
           DCHECK(!var->IsLookupSlot());

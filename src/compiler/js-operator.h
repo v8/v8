@@ -662,7 +662,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                                 VectorSlotPair const& feedback);
   const Operator* StoreDataPropertyInLiteral(const VectorSlotPair& feedback);
 
-  const Operator* DeleteProperty(LanguageMode language_mode);
+  const Operator* DeleteProperty();
 
   const Operator* HasProperty();
 

@@ -1800,8 +1800,8 @@ IGNITION_HANDLER(DeletePropertyStrict, InterpreterAssembler) {
   Node* object = LoadRegister(reg_index);
   Node* key = GetAccumulator();
   Node* context = GetContext();
-  Node* result =
-      CallRuntime(Runtime::kDeleteProperty_Strict, context, object, key);
+  Node* result = CallBuiltin(Builtins::kDeleteProperty, context, object, key,
+                             SmiConstant(STRICT));
   SetAccumulator(result);
   Dispatch();
 }
@@ -1815,8 +1815,8 @@ IGNITION_HANDLER(DeletePropertySloppy, InterpreterAssembler) {
   Node* object = LoadRegister(reg_index);
   Node* key = GetAccumulator();
   Node* context = GetContext();
-  Node* result =
-      CallRuntime(Runtime::kDeleteProperty_Sloppy, context, object, key);
+  Node* result = CallBuiltin(Builtins::kDeleteProperty, context, object, key,
+                             SmiConstant(SLOPPY));
   SetAccumulator(result);
   Dispatch();
 }

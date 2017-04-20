@@ -4591,29 +4591,6 @@ Node* CodeStubAssembler::IntPtrMin(Node* left, Node* right) {
 }
 
 template <class Dictionary>
-Node* CodeStubAssembler::GetNumberOfElements(Node* dictionary) {
-  return LoadFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex);
-}
-
-template <class Dictionary>
-void CodeStubAssembler::SetNumberOfElements(Node* dictionary,
-                                            Node* num_elements_smi) {
-  StoreFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex,
-                         num_elements_smi, SKIP_WRITE_BARRIER);
-}
-
-template <class Dictionary>
-Node* CodeStubAssembler::GetNumberOfDeletedElements(Node* dictionary) {
-  return LoadFixedArrayElement(dictionary,
-                               Dictionary::kNumberOfDeletedElementsIndex);
-}
-
-template <class Dictionary>
-Node* CodeStubAssembler::GetCapacity(Node* dictionary) {
-  return LoadFixedArrayElement(dictionary, Dictionary::kCapacityIndex);
-}
-
-template <class Dictionary>
 Node* CodeStubAssembler::GetNextEnumerationIndex(Node* dictionary) {
   return LoadFixedArrayElement(dictionary,
                                Dictionary::kNextEnumerationIndexIndex);

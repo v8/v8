@@ -988,11 +988,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Stores the value for the entry with the given key_index.
   template <class ContainerType>
-  void StoreValueByKeyIndex(Node* container, Node* key_index, Node* value) {
+  void StoreValueByKeyIndex(
+      Node* container, Node* key_index, Node* value,
+      WriteBarrierMode write_barrier = UPDATE_WRITE_BARRIER) {
     const int kKeyToValueOffset =
         (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
         kPointerSize;
-    StoreFixedArrayElement(container, key_index, value, UPDATE_WRITE_BARRIER,
+    StoreFixedArrayElement(container, key_index, value, write_barrier,
                            kKeyToValueOffset);
   }
 
@@ -1000,16 +1002,34 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* HashTableComputeCapacity(Node* at_least_space_for);
 
   template <class Dictionary>
-  Node* GetNumberOfElements(Node* dictionary);
+  Node* GetNumberOfElements(Node* dictionary) {
+    return LoadFixedArrayElement(dictionary,
+                                 Dictionary::kNumberOfElementsIndex);
+  }
 
   template <class Dictionary>
-  void SetNumberOfElements(Node* dictionary, Node* num_elements_smi);
+  void SetNumberOfElements(Node* dictionary, Node* num_elements_smi) {
+    StoreFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex,
+                           num_elements_smi, SKIP_WRITE_BARRIER);
+  }
 
   template <class Dictionary>
-  Node* GetNumberOfDeletedElements(Node* dictionary);
+  Node* GetNumberOfDeletedElements(Node* dictionary) {
+    return LoadFixedArrayElement(dictionary,
+                                 Dictionary::kNumberOfDeletedElementsIndex);
+  }
 
   template <class Dictionary>
-  Node* GetCapacity(Node* dictionary);
+  void SetNumberOfDeletedElements(Node* dictionary, Node* num_deleted_smi) {
+    StoreFixedArrayElement(dictionary,
+                           Dictionary::kNumberOfDeletedElementsIndex,
+                           num_deleted_smi, SKIP_WRITE_BARRIER);
+  }
+
+  template <class Dictionary>
+  Node* GetCapacity(Node* dictionary) {
+    return LoadFixedArrayElement(dictionary, Dictionary::kCapacityIndex);
+  }
 
   template <class Dictionary>
   Node* GetNextEnumerationIndex(Node* dictionary);
@@ -1345,6 +1365,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void DescriptorLookupBinary(Node* unique_name, Node* descriptors, Node* nof,
                               Label* if_found, Variable* var_name_index,
                               Label* if_not_found);
+  // Implements DescriptorArray::ToKeyIndex.
+  // Returns an untagged IntPtr.
+  Node* DescriptorArrayToKeyIndex(Node* descriptor_number);
 
   Node* CallGetterIfAccessor(Node* value, Node* details, Node* context,
                              Node* receiver, Label* if_bailout);
@@ -1388,9 +1411,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Implements DescriptorArray::number_of_entries.
   // Returns an untagged int32.
   Node* DescriptorArrayNumberOfEntries(Node* descriptors);
-  // Implements DescriptorArray::ToKeyIndex.
-  // Returns an untagged IntPtr.
-  Node* DescriptorArrayToKeyIndex(Node* descriptor_number);
   // Implements DescriptorArray::GetSortedKeyIndex.
   // Returns an untagged int32.
   Node* DescriptorArrayGetSortedKeyIndex(Node* descriptors,
