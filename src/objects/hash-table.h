@@ -341,9 +341,9 @@ class ObjectHashSet
 // Originally attributed to Tyler Close.
 //
 // Memory layout:
-//   [0]: bucket count
-//   [1]: element count
-//   [2]: deleted element count
+//   [0]: element count
+//   [1]: deleted element count
+//   [2]: bucket count
 //   [3..(3 + NumberOfBuckets() - 1)]: "hash table", where each item is an
 //                            offset into the data table (see below) where the
 //                            first item in this bucket is stored.
