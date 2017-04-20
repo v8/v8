@@ -896,6 +896,7 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-async-iterator-gen.cc",
     "src/builtins/builtins-boolean-gen.cc",
     "src/builtins/builtins-call-gen.cc",
+    "src/builtins/builtins-console-gen.cc",
     "src/builtins/builtins-constructor-gen.cc",
     "src/builtins/builtins-constructor-gen.h",
     "src/builtins/builtins-constructor.h",

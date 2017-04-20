@@ -363,6 +363,7 @@ namespace internal {
   CPP(ConsoleClear)                                                            \
   CPP(ConsoleCount)                                                            \
   CPP(ConsoleAssert)                                                           \
+  TFJ(FastConsoleAssert, SharedFunctionInfo::kDontAdaptArgumentsSentinel)      \
   CPP(ConsoleMarkTimeline)                                                     \
   CPP(ConsoleProfile)                                                          \
   CPP(ConsoleProfileEnd)                                                       \

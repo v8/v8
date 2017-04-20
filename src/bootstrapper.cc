@@ -2583,7 +2583,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           false);
     SimpleInstallFunction(console, "clear", Builtins::kConsoleClear, 1, false);
     SimpleInstallFunction(console, "count", Builtins::kConsoleCount, 1, false);
-    SimpleInstallFunction(console, "assert", Builtins::kConsoleAssert, 1,
+    SimpleInstallFunction(console, "assert", Builtins::kFastConsoleAssert, 1,
                           false);
     SimpleInstallFunction(console, "markTimeline",
                           Builtins::kConsoleMarkTimeline, 1, false);
