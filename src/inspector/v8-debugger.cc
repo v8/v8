@@ -666,10 +666,6 @@ void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
       asyncTaskFinishedForStack(task);
       asyncTaskFinishedForStepping(task);
       break;
-    case v8::debug::kDebugPromiseCollected:
-      asyncTaskCanceledForStack(task);
-      asyncTaskCanceledForStepping(task);
-      break;
   }
 }
 
@@ -1051,6 +1047,16 @@ void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {
   m_maxAsyncCallStacks = 0;
   collectOldAsyncStacksIfNeeded();
   m_maxAsyncCallStacks = limit;
+}
+
+void V8Debugger::dumpAsyncTaskStacksStateForTest() {
+  fprintf(stdout, "Async stacks count: %d\n", m_asyncStacksCount);
+  fprintf(stdout, "Scheduled async tasks: %zu\n", m_asyncTaskStacks.size());
+  fprintf(stdout, "Created async tasks: %zu\n",
+          m_asyncTaskCreationStacks.size());
+  fprintf(stdout, "Async tasks with parent: %zu\n", m_parentTask.size());
+  fprintf(stdout, "Recurring async tasks: %zu\n", m_recurringTasks.size());
+  fprintf(stdout, "\n");
 }
 
 }  // namespace v8_inspector

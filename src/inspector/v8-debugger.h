@@ -106,6 +106,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   WasmTranslation* wasmTranslation() { return &m_wasmTranslation; }
 
   void setMaxAsyncTaskStacksForTest(int limit);
+  void dumpAsyncTaskStacksStateForTest();
 
  private:
   void compileDebuggerScript();

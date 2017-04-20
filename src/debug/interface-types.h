@@ -73,7 +73,6 @@ enum PromiseDebugActionType {
   kDebugEnqueueAsyncFunction,
   kDebugEnqueuePromiseResolve,
   kDebugEnqueuePromiseReject,
-  kDebugPromiseCollected,
   kDebugWillHandle,
   kDebugDidHandle,
 };

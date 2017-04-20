@@ -1888,32 +1888,6 @@ void Debug::OnAfterCompile(Handle<Script> script) {
 }
 
 namespace {
-struct CollectedCallbackData {
-  Object** location;
-  int id;
-  Debug* debug;
-  Isolate* isolate;
-
-  CollectedCallbackData(Object** location, int id, Debug* debug,
-                        Isolate* isolate)
-      : location(location), id(id), debug(debug), isolate(isolate) {}
-};
-
-void SendAsyncTaskEventCancel(const v8::WeakCallbackInfo<void>& info) {
-  std::unique_ptr<CollectedCallbackData> data(
-      reinterpret_cast<CollectedCallbackData*>(info.GetParameter()));
-  if (!data->debug->is_active()) return;
-  HandleScope scope(data->isolate);
-  data->debug->OnAsyncTaskEvent(debug::kDebugPromiseCollected, data->id, 0);
-}
-
-void ResetPromiseHandle(const v8::WeakCallbackInfo<void>& info) {
-  CollectedCallbackData* data =
-      reinterpret_cast<CollectedCallbackData*>(info.GetParameter());
-  GlobalHandles::Destroy(data->location);
-  info.SetSecondPassCallback(&SendAsyncTaskEventCancel);
-}
-
 // In an async function, reuse the existing stack related to the outer
 // Promise. Otherwise, e.g. in a direct call to then, save a new stack.
 // Promises with multiple reactions with one or more of them being async
@@ -1982,19 +1956,6 @@ int Debug::NextAsyncTaskId(Handle<JSObject> promise) {
       handle(Smi::FromInt(++thread_local_.async_task_count_), isolate_);
   Object::SetProperty(&it, async_id, SLOPPY, Object::MAY_BE_STORE_FROM_KEYED)
       .ToChecked();
-  Handle<Object> global_handle = isolate_->global_handles()->Create(*promise);
-  // We send EnqueueRecurring async task event when promise is fulfilled or
-  // rejected, WillHandle and DidHandle for every scheduled microtask for this
-  // promise.
-  // We need to send a cancel event when no other microtasks can be
-  // started for this promise and all current microtasks are finished.
-  // Since we holding promise when at least one microtask is scheduled (inside
-  // PromiseReactionJobInfo), we can send cancel event in weak callback.
-  GlobalHandles::MakeWeak(
-      global_handle.location(),
-      new CollectedCallbackData(global_handle.location(), async_id->value(),
-                                this, isolate_),
-      &ResetPromiseHandle, v8::WeakCallbackType::kParameter);
   return async_id->value();
 }
 

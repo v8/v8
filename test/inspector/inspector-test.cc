@@ -439,6 +439,7 @@ class InspectorExtension : public v8::Extension {
                       "native function attachInspector();"
                       "native function detachInspector();"
                       "native function setMaxAsyncTaskStacks();"
+                      "native function dumpAsyncTaskStacksStateForTest();"
                       "native function breakProgram();"
                       "native function createObjectWithStrictCheck();"
                       "native function callWithScheduledBreak();"
@@ -466,6 +467,14 @@ class InspectorExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(
           isolate, InspectorExtension::SetMaxAsyncTaskStacks);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(
+                                isolate, "dumpAsyncTaskStacksStateForTest",
+                                v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(
+          isolate, InspectorExtension::DumpAsyncTaskStacksStateForTest);
     } else if (name->Equals(context,
                             v8::String::NewFromUtf8(isolate, "breakProgram",
                                                     v8::NewStringType::kNormal)
@@ -536,6 +545,19 @@ class InspectorExtension : public v8::Extension {
     CHECK(inspector);
     v8_inspector::SetMaxAsyncTaskStacksForTest(
         inspector, args[0].As<v8::Int32>()->Value());
+  }
+
+  static void DumpAsyncTaskStacksStateForTest(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 0) {
+      fprintf(stderr, "Internal error: dumpAsyncTaskStacksStateForTest().");
+      Exit();
+    }
+    v8_inspector::V8Inspector* inspector =
+        InspectorClientImpl::InspectorFromContext(
+            args.GetIsolate()->GetCurrentContext());
+    CHECK(inspector);
+    v8_inspector::DumpAsyncTaskStacksStateForTest(inspector);
   }
 
   static void BreakProgram(const v8::FunctionCallbackInfo<v8::Value>& args) {
