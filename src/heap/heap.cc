@@ -2969,6 +2969,7 @@ bool Heap::IsUnmodifiedHeapObject(Object** p) {
   Object* maybe_constructor = js_object->map()->GetConstructor();
   if (!maybe_constructor->IsJSFunction()) return false;
   JSFunction* constructor = JSFunction::cast(maybe_constructor);
+  if (js_object->elements()->length() != 0) return false;
 
   return constructor->initial_map() == heap_object->map();
 }
