@@ -2059,13 +2059,13 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
 }
 
 void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
-  if (!script->IsUserJavaScript() && script->type() != i::Script::TYPE_WASM) {
-    return;
-  }
   // Attach the correct debug id to the script. The debug id is used by the
   // inspector to filter scripts by native context.
   script->set_context_data(isolate_->native_context()->debug_context_id());
   if (ignore_events()) return;
+  if (!script->IsUserJavaScript() && script->type() != i::Script::TYPE_WASM) {
+    return;
+  }
   if (!debug_delegate_) return;
   SuppressDebug while_processing(this);
   DebugScope debug_scope(this);
