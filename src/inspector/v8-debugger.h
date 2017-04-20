@@ -200,7 +200,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
   std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncCreation;
 
   void collectOldAsyncStacksIfNeeded();
-  void removeOldAsyncTasks(AsyncTaskToStackTrace& map);
   int m_asyncStacksCount = 0;
   // V8Debugger owns all the async stacks, while most of the other references
   // are weak, which allows to collect some stacks when there are too many.

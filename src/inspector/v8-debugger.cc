@@ -133,6 +133,17 @@ v8::MaybeLocal<v8::Object> generatorObjectLocation(
                        suspendedLocation.GetColumnNumber());
 }
 
+template <typename Map>
+void cleanupExpiredWeakPointers(Map& map) {
+  for (auto it = map.begin(); it != map.end();) {
+    if (it->second.expired()) {
+      it = map.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
 }  // namespace
 
 static bool inLiveEditScope = false;
@@ -1017,36 +1028,24 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
     m_allAsyncStacks.pop_front();
     --m_asyncStacksCount;
   }
-  removeOldAsyncTasks(m_asyncTaskStacks);
-  removeOldAsyncTasks(m_asyncTaskCreationStacks);
-  protocol::HashSet<void*> recurringLeft;
-  for (auto task : m_recurringTasks) {
-    if (m_asyncTaskStacks.find(task) == m_asyncTaskStacks.end()) continue;
-    recurringLeft.insert(task);
-  }
-  m_recurringTasks.swap(recurringLeft);
-  protocol::HashMap<void*, void*> parentLeft;
-  for (auto it : m_parentTask) {
-    if (m_asyncTaskCreationStacks.find(it.second) ==
-        m_asyncTaskCreationStacks.end()) {
-      continue;
+  cleanupExpiredWeakPointers(m_asyncTaskStacks);
+  cleanupExpiredWeakPointers(m_asyncTaskCreationStacks);
+  for (auto it = m_recurringTasks.begin(); it != m_recurringTasks.end();) {
+    if (m_asyncTaskStacks.find(*it) == m_asyncTaskStacks.end()) {
+      it = m_recurringTasks.erase(it);
+    } else {
+      ++it;
     }
-    parentLeft.insert(it);
   }
-  m_parentTask.swap(parentLeft);
-  std::map<int, std::weak_ptr<StackFrame>> framesCache;
-  for (auto it : m_framesCache) {
-    if (!it.second.expired()) framesCache.insert(it);
+  for (auto it = m_parentTask.begin(); it != m_parentTask.end();) {
+    if (m_asyncTaskCreationStacks.find(it->second) ==
+        m_asyncTaskCreationStacks.end()) {
+      it = m_parentTask.erase(it);
+    } else {
+      ++it;
+    }
   }
-  m_framesCache.swap(framesCache);
-}
-
-void V8Debugger::removeOldAsyncTasks(AsyncTaskToStackTrace& map) {
-  AsyncTaskToStackTrace cleanCopy;
-  for (auto it : map) {
-    if (!it.second.expired()) cleanCopy.insert(it);
-  }
-  map.swap(cleanCopy);
+  cleanupExpiredWeakPointers(m_framesCache);
 }
 
 std::shared_ptr<StackFrame> V8Debugger::symbolize(
