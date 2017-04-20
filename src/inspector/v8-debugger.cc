@@ -975,6 +975,7 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_parentTask.clear();
   m_asyncTaskCreationStacks.clear();
 
+  m_framesCache.clear();
   m_allAsyncStacks.clear();
   m_asyncStacksCount = 0;
 }
@@ -1033,6 +1034,11 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
     parentLeft.insert(it);
   }
   m_parentTask.swap(parentLeft);
+  std::map<int, std::weak_ptr<StackFrame>> framesCache;
+  for (auto it : m_framesCache) {
+    if (!it.second.expired()) framesCache.insert(it);
+  }
+  m_framesCache.swap(framesCache);
 }
 
 void V8Debugger::removeOldAsyncTasks(AsyncTaskToStackTrace& map) {
@@ -1041,6 +1047,25 @@ void V8Debugger::removeOldAsyncTasks(AsyncTaskToStackTrace& map) {
     if (!it.second.expired()) cleanCopy.insert(it);
   }
   map.swap(cleanCopy);
+}
+
+std::shared_ptr<StackFrame> V8Debugger::symbolize(
+    v8::Local<v8::StackFrame> v8Frame) {
+  auto it = m_framesCache.end();
+  int frameId = 0;
+  if (m_maxAsyncCallStackDepth) {
+    frameId = v8::debug::GetStackFrameId(v8Frame);
+    it = m_framesCache.find(frameId);
+  }
+  if (it != m_framesCache.end() && it->second.lock()) return it->second.lock();
+  std::shared_ptr<StackFrame> frame(new StackFrame(v8Frame));
+  // TODO(clemensh): Figure out a way to do this translation only right before
+  // sending the stack trace over wire.
+  if (v8Frame->IsWasm()) frame->translate(&m_wasmTranslation);
+  if (m_maxAsyncCallStackDepth) {
+    m_framesCache[frameId] = frame;
+  }
+  return frame;
 }
 
 void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {

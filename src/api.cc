@@ -9699,6 +9699,10 @@ debug::ConsoleCallArguments::ConsoleCallArguments(
     : v8::FunctionCallbackInfo<v8::Value>(nullptr, &args[0] - 1,
                                           args.length() - 1) {}
 
+int debug::GetStackFrameId(v8::Local<v8::StackFrame> frame) {
+  return Utils::OpenHandle(*frame)->id();
+}
+
 MaybeLocal<debug::Script> debug::GeneratorObject::Script() {
   i::Handle<i::JSGeneratorObject> obj = Utils::OpenHandle(this);
   i::Object* maybe_script = obj->function()->shared()->script();

@@ -23,6 +23,7 @@ namespace v8_inspector {
 
 class AsyncStackTrace;
 struct ScriptBreakpoint;
+class StackFrame;
 class V8Debugger;
 class V8DebuggerAgentImpl;
 class V8InspectorImpl;
@@ -84,6 +85,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   std::shared_ptr<AsyncStackTrace> currentAsyncParent();
   std::shared_ptr<AsyncStackTrace> currentAsyncCreation();
+
+  std::shared_ptr<StackFrame> symbolize(v8::Local<v8::StackFrame> v8Frame);
 
   std::unique_ptr<V8StackTraceImpl> createStackTrace(v8::Local<v8::StackTrace>);
   std::unique_ptr<V8StackTraceImpl> captureStackTrace(bool fullStack);
@@ -202,6 +205,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   // V8Debugger owns all the async stacks, while most of the other references
   // are weak, which allows to collect some stacks when there are too many.
   std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;
+  std::map<int, std::weak_ptr<StackFrame>> m_framesCache;
 
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   void* m_taskWithScheduledBreak = nullptr;

@@ -18,18 +18,14 @@ static const v8::StackTrace::StackTraceOptions stackTraceOptions =
         v8::StackTrace::kDetailed |
         v8::StackTrace::kExposeFramesAcrossSecurityOrigins);
 
-std::vector<V8StackTraceImpl::Frame> toFramesVector(
+std::vector<std::shared_ptr<StackFrame>> toFramesVector(
     V8Debugger* debugger, v8::Local<v8::StackTrace> v8StackTrace,
     int maxStackSize) {
   DCHECK(debugger->isolate()->InContext());
   int frameCount = std::min(v8StackTrace->GetFrameCount(), maxStackSize);
-  std::vector<V8StackTraceImpl::Frame> frames;
+  std::vector<std::shared_ptr<StackFrame>> frames;
   for (int i = 0; i < frameCount; ++i) {
-    v8::Local<v8::StackFrame> v8Frame = v8StackTrace->GetFrame(i);
-    frames.emplace_back(v8Frame);
-    // TODO(clemensh): Figure out a way to do this translation only right before
-    // sending the stack trace over wire.
-    if (v8Frame->IsWasm()) frames.back().translate(debugger->wasmTranslation());
+    frames.push_back(debugger->symbolize(v8StackTrace->GetFrame(i)));
   }
   return frames;
 }
@@ -66,13 +62,13 @@ void calculateAsyncChain(V8Debugger* debugger, int contextGroupId,
 }
 
 std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
-    const std::vector<V8StackTraceImpl::Frame>& frames,
+    const std::vector<std::shared_ptr<StackFrame>>& frames,
     const std::shared_ptr<AsyncStackTrace>& asyncParent,
     const std::shared_ptr<AsyncStackTrace>& asyncCreation, int maxAsyncDepth) {
   std::unique_ptr<protocol::Array<protocol::Runtime::CallFrame>>
       inspectorFrames = protocol::Array<protocol::Runtime::CallFrame>::create();
   for (size_t i = 0; i < frames.size(); i++) {
-    inspectorFrames->addItem(frames[i].buildInspectorObject());
+    inspectorFrames->addItem(frames[i]->buildInspectorObject());
   }
   std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
       protocol::Runtime::StackTrace::create()
@@ -87,7 +83,7 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
 
 }  //  namespace
 
-V8StackTraceImpl::Frame::Frame(v8::Local<v8::StackFrame> v8Frame)
+StackFrame::StackFrame(v8::Local<v8::StackFrame> v8Frame)
     : m_functionName(toProtocolString(v8Frame->GetFunctionName())),
       m_scriptId(String16::fromInteger(v8Frame->GetScriptId())),
       m_sourceURL(toProtocolString(v8Frame->GetScriptNameOrSourceURL())),
@@ -97,27 +93,23 @@ V8StackTraceImpl::Frame::Frame(v8::Local<v8::StackFrame> v8Frame)
   DCHECK(m_columnNumber + 1 != v8::Message::kNoColumnInfo);
 }
 
-void V8StackTraceImpl::Frame::translate(WasmTranslation* wasmTranslation) {
+void StackFrame::translate(WasmTranslation* wasmTranslation) {
   wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
       &m_scriptId, &m_lineNumber, &m_columnNumber);
 }
 
-const String16& V8StackTraceImpl::Frame::functionName() const {
-  return m_functionName;
-}
+const String16& StackFrame::functionName() const { return m_functionName; }
 
-const String16& V8StackTraceImpl::Frame::scriptId() const { return m_scriptId; }
+const String16& StackFrame::scriptId() const { return m_scriptId; }
 
-const String16& V8StackTraceImpl::Frame::sourceURL() const {
-  return m_sourceURL;
-}
+const String16& StackFrame::sourceURL() const { return m_sourceURL; }
 
-int V8StackTraceImpl::Frame::lineNumber() const { return m_lineNumber; }
+int StackFrame::lineNumber() const { return m_lineNumber; }
 
-int V8StackTraceImpl::Frame::columnNumber() const { return m_columnNumber; }
+int StackFrame::columnNumber() const { return m_columnNumber; }
 
-std::unique_ptr<protocol::Runtime::CallFrame>
-V8StackTraceImpl::Frame::buildInspectorObject() const {
+std::unique_ptr<protocol::Runtime::CallFrame> StackFrame::buildInspectorObject()
+    const {
   return protocol::Runtime::CallFrame::create()
       .setFunctionName(m_functionName)
       .setScriptId(m_scriptId)
@@ -143,7 +135,7 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::create(
   v8::Isolate* isolate = debugger->isolate();
   v8::HandleScope scope(isolate);
 
-  std::vector<V8StackTraceImpl::Frame> frames;
+  std::vector<std::shared_ptr<StackFrame>> frames;
   if (!v8StackTrace.IsEmpty() && v8StackTrace->GetFrameCount()) {
     frames = toFramesVector(debugger, v8StackTrace, maxStackSize);
   }
@@ -154,8 +146,8 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::create(
   calculateAsyncChain(debugger, contextGroupId, &asyncParent, &asyncCreation,
                       &maxAsyncDepth);
   if (frames.empty() && !asyncCreation && !asyncParent) return nullptr;
-  return std::unique_ptr<V8StackTraceImpl>(
-      new V8StackTraceImpl(frames, maxAsyncDepth, asyncParent, asyncCreation));
+  return std::unique_ptr<V8StackTraceImpl>(new V8StackTraceImpl(
+      std::move(frames), maxAsyncDepth, asyncParent, asyncCreation));
 }
 
 // static
@@ -174,10 +166,10 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(
 }
 
 V8StackTraceImpl::V8StackTraceImpl(
-    const std::vector<Frame> frames, int maxAsyncDepth,
+    std::vector<std::shared_ptr<StackFrame>> frames, int maxAsyncDepth,
     std::shared_ptr<AsyncStackTrace> asyncParent,
     std::shared_ptr<AsyncStackTrace> asyncCreation)
-    : m_frames(frames),
+    : m_frames(std::move(frames)),
       m_maxAsyncDepth(maxAsyncDepth),
       m_asyncParent(asyncParent),
       m_asyncCreation(asyncCreation) {}
@@ -193,23 +185,23 @@ std::unique_ptr<V8StackTrace> V8StackTraceImpl::clone() {
 bool V8StackTraceImpl::isEmpty() const { return m_frames.empty(); }
 
 StringView V8StackTraceImpl::topSourceURL() const {
-  return toStringView(m_frames[0].sourceURL());
+  return toStringView(m_frames[0]->sourceURL());
 }
 
 int V8StackTraceImpl::topLineNumber() const {
-  return m_frames[0].lineNumber() + 1;
+  return m_frames[0]->lineNumber() + 1;
 }
 
 int V8StackTraceImpl::topColumnNumber() const {
-  return m_frames[0].columnNumber() + 1;
+  return m_frames[0]->columnNumber() + 1;
 }
 
 StringView V8StackTraceImpl::topScriptId() const {
-  return toStringView(m_frames[0].scriptId());
+  return toStringView(m_frames[0]->scriptId());
 }
 
 StringView V8StackTraceImpl::topFunctionName() const {
-  return toStringView(m_frames[0].functionName());
+  return toStringView(m_frames[0]->functionName());
 }
 
 std::unique_ptr<protocol::Runtime::StackTrace>
@@ -226,7 +218,7 @@ V8StackTraceImpl::buildInspectorObject() const {
 std::unique_ptr<StringBuffer> V8StackTraceImpl::toString() const {
   String16Builder stackTrace;
   for (size_t i = 0; i < m_frames.size(); ++i) {
-    const Frame& frame = m_frames[i];
+    const StackFrame& frame = *m_frames[i];
     stackTrace.append("\n    at " + (frame.functionName().length()
                                          ? frame.functionName()
                                          : "(anonymous function)"));
@@ -251,7 +243,7 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
   v8::Isolate* isolate = debugger->isolate();
   v8::HandleScope handleScope(isolate);
 
-  std::vector<V8StackTraceImpl::Frame> frames;
+  std::vector<std::shared_ptr<StackFrame>> frames;
   if (isolate->InContext()) {
     v8::Local<v8::StackTrace> v8StackTrace = v8::StackTrace::CurrentStackTrace(
         isolate, maxStackSize, stackTraceOptions);
@@ -278,18 +270,19 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
   if (!contextGroupId && asyncParent) {
     contextGroupId = asyncParent->m_contextGroupId;
   }
-  return std::shared_ptr<AsyncStackTrace>(new AsyncStackTrace(
-      contextGroupId, description, frames, asyncParent, asyncCreation));
+  return std::shared_ptr<AsyncStackTrace>(
+      new AsyncStackTrace(contextGroupId, description, std::move(frames),
+                          asyncParent, asyncCreation));
 }
 
 AsyncStackTrace::AsyncStackTrace(
     int contextGroupId, const String16& description,
-    const std::vector<V8StackTraceImpl::Frame>& frames,
+    std::vector<std::shared_ptr<StackFrame>> frames,
     std::shared_ptr<AsyncStackTrace> asyncParent,
     std::shared_ptr<AsyncStackTrace> asyncCreation)
     : m_contextGroupId(contextGroupId),
       m_description(description),
-      m_frames(frames),
+      m_frames(std::move(frames)),
       m_asyncParent(asyncParent),
       m_asyncCreation(asyncCreation) {
   DCHECK(m_contextGroupId);
@@ -304,7 +297,7 @@ AsyncStackTrace::buildInspectorObject(AsyncStackTrace* asyncCreation,
   if (!m_description.isEmpty()) stackTrace->setDescription(m_description);
   if (asyncCreation && !asyncCreation->isEmpty()) {
     stackTrace->setPromiseCreationFrame(
-        asyncCreation->m_frames[0].buildInspectorObject());
+        asyncCreation->m_frames[0]->buildInspectorObject());
   }
   return stackTrace;
 }

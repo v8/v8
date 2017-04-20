@@ -717,6 +717,7 @@ class CaptureStackTraceHelper {
         AbstractCode::SetStackFrameCache(summ.abstract_code(), new_cache);
       }
     }
+    frame->set_id(next_id());
     return frame;
   }
 
@@ -738,11 +739,18 @@ class CaptureStackTraceHelper {
     info->set_column_number(position);
     info->set_script_id(summ.script()->id());
     info->set_is_wasm(true);
+    info->set_id(next_id());
     return info;
   }
 
  private:
   inline Factory* factory() { return isolate_->factory(); }
+
+  int next_id() const {
+    int id = isolate_->last_stack_frame_info_id() + 1;
+    isolate_->set_last_stack_frame_info_id(id);
+    return id;
+  }
 
   Isolate* isolate_;
 };

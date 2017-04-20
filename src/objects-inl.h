@@ -5899,6 +5899,7 @@ SMI_ACCESSORS(StackFrameInfo, flag, kFlagIndex)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, kIsWasmBit)
+SMI_ACCESSORS(StackFrameInfo, id, kIdIndex)
 
 ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
           kSourcePositionTableIndex)

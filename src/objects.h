@@ -10150,6 +10150,7 @@ class StackFrameInfo : public Struct {
   DECL_BOOLEAN_ACCESSORS(is_constructor)
   DECL_BOOLEAN_ACCESSORS(is_wasm)
   DECL_INT_ACCESSORS(flag)
+  DECL_INT_ACCESSORS(id)
 
   DECLARE_CAST(StackFrameInfo)
 
@@ -10166,7 +10167,8 @@ class StackFrameInfo : public Struct {
   static const int kFunctionNameIndex =
       kScriptNameOrSourceUrlIndex + kPointerSize;
   static const int kFlagIndex = kFunctionNameIndex + kPointerSize;
-  static const int kSize = kFlagIndex + kPointerSize;
+  static const int kIdIndex = kFlagIndex + kPointerSize;
+  static const int kSize = kIdIndex + kPointerSize;
 
  private:
   // Bit position in the flag, from least significant bit position.

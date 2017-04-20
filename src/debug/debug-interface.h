@@ -211,6 +211,8 @@ Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 
 void SetConsoleDelegate(Isolate* isolate, ConsoleDelegate* delegate);
 
+int GetStackFrameId(v8::Local<v8::StackFrame> frame);
+
 /**
  * Native wrapper around v8::internal::JSGeneratorObject object.
  */
