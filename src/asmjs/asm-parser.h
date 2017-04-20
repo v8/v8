@@ -76,16 +76,13 @@ class AsmJsParser {
     bool function_defined;
 
     VarInfo();
-    void DeclareGlobalImport(AsmType* type, uint32_t index);
-    void DeclareStdlibFunc(VarKind kind, AsmType* type);
   };
 
   struct GlobalImport {
     char* import_name;
     size_t import_name_size;
-    uint32_t import_index;
-    uint32_t global_index;
-    bool needs_init;
+    ValueType value_type;
+    VarInfo* var_info;
   };
 
   enum class BlockKind { kRegular, kLoop, kOther };
@@ -234,6 +231,7 @@ class AsmJsParser {
   void DeclareGlobal(VarInfo* info, bool mutable_variable, AsmType* type,
                      ValueType vtype,
                      const WasmInitExpr& init = WasmInitExpr());
+  void DeclareStdlibFunc(VarInfo* info, VarKind kind, AsmType* type);
 
   // Allocates a temporary local variable. The given {index} is absolute within
   // the function body, consider using {TemporaryVariableScope} when nesting.

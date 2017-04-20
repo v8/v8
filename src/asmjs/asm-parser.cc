@@ -231,11 +231,8 @@ wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
 }
 
 uint32_t AsmJsParser::VarIndex(VarInfo* info) {
-  if (info->import != nullptr) {
-    return info->index;
-  } else {
-    return info->index + static_cast<uint32_t>(global_imports_.size());
-  }
+  DCHECK(info->kind == VarKind::kGlobal);
+  return info->index + static_cast<uint32_t>(global_imports_.size());
 }
 
 void AsmJsParser::AddGlobalImport(std::string name, AsmType* type,
@@ -245,38 +242,14 @@ void AsmJsParser::AddGlobalImport(std::string name, AsmType* type,
   // AsmModuleBuilder should really own import names.
   char* name_data = zone()->NewArray<char>(name.size());
   memcpy(name_data, name.data(), name.size());
-  if (mutable_variable) {
-    // Allocate a separate variable for the import.
-    DeclareGlobal(info, true, type, vtype);
-    // Record the need to initialize the global from the import.
-    global_imports_.push_back({name_data, name.size(), 0, info->index, true});
-  } else {
-    // Just use the import directly.
-    global_imports_.push_back({name_data, name.size(), 0, info->index, false});
-  }
-  GlobalImport& gi = global_imports_.back();
-  // TODO(bradnelson): Reuse parse buffer memory / make wasm-module-builder
-  // managed the memory for the import name (currently have to keep our
-  // own memory for it).
-  gi.import_index = module_builder_->AddGlobalImport(
-      name_data, static_cast<int>(name.size()), vtype);
-  if (!mutable_variable) {
-    info->DeclareGlobalImport(type, gi.import_index);
-  }
-}
 
-void AsmJsParser::VarInfo::DeclareGlobalImport(AsmType* type, uint32_t index) {
-  kind = VarKind::kGlobal;
-  this->type = type;
-  this->index = index;
-  mutable_variable = false;
-}
+  // Allocate a separate variable for the import.
+  // TODO(mstarzinger): Consider using the imported global directly instead of
+  // allocating a separate global variable for immutable (i.e. const) imports.
+  DeclareGlobal(info, mutable_variable, type, vtype);
 
-void AsmJsParser::VarInfo::DeclareStdlibFunc(VarKind kind, AsmType* type) {
-  this->kind = kind;
-  this->type = type;
-  index = 0;  // unused
-  mutable_variable = false;
+  // Record the need to initialize the global from the import.
+  global_imports_.push_back({name_data, name.size(), vtype, info});
 }
 
 void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
@@ -286,6 +259,14 @@ void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
   info->type = type;
   info->index = module_builder_->AddGlobal(vtype, false, true, init);
   info->mutable_variable = mutable_variable;
+}
+
+void AsmJsParser::DeclareStdlibFunc(VarInfo* info, VarKind kind,
+                                    AsmType* type) {
+  info->kind = kind;
+  info->type = type;
+  info->index = 0;  // unused
+  info->mutable_variable = false;
 }
 
 uint32_t AsmJsParser::TempVariable(int index) {
@@ -383,12 +364,15 @@ void AsmJsParser::ValidateModule() {
   WasmFunctionBuilder* start = module_builder_->AddFunction();
   module_builder_->MarkStartFunction(start);
   for (auto global_import : global_imports_) {
-    if (global_import.needs_init) {
-      start->EmitWithVarInt(kExprGetGlobal, global_import.import_index);
-      start->EmitWithVarInt(kExprSetGlobal,
-                            static_cast<uint32_t>(global_import.global_index +
-                                                  global_imports_.size()));
-    }
+    // TODO(bradnelson): Reuse parse buffer memory / make wasm-module-builder
+    // managed the memory for the import name (currently have to keep our
+    // own memory for it).
+    uint32_t import_index = module_builder_->AddGlobalImport(
+        global_import.import_name,
+        static_cast<int>(global_import.import_name_size),
+        global_import.value_type);
+    start->EmitWithVarInt(kExprGetGlobal, import_index);
+    start->EmitWithVarInt(kExprSetGlobal, VarIndex(global_import.var_info));
   }
   start->Emit(kExprEnd);
   FunctionSig::Builder b(zone(), 0, 0);
@@ -586,7 +570,7 @@ void AsmJsParser::ValidateModuleVarNewStdlib(VarInfo* info) {
   switch (Consume()) {
 #define V(name, _junk1, _junk2, _junk3)                          \
   case TOK(name):                                                \
-    info->DeclareStdlibFunc(VarKind::kSpecial, AsmType::name()); \
+    DeclareStdlibFunc(info, VarKind::kSpecial, AsmType::name()); \
     break;
     STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
@@ -615,7 +599,7 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
 #undef V
 #define V(name, Name, op, sig)                                      \
   case TOK(name):                                                   \
-    info->DeclareStdlibFunc(VarKind::kMath##Name, stdlib_##sig##_); \
+    DeclareStdlibFunc(info, VarKind::kMath##Name, stdlib_##sig##_); \
     stdlib_uses_.insert(AsmTyper::kMath##Name);                     \
     break;
       STDLIB_MATH_FUNCTION_LIST(V)
@@ -1531,6 +1515,9 @@ AsmType* AsmJsParser::AssignmentExpression() {
       if (info->kind == VarKind::kLocal) {
         current_function_builder_->EmitTeeLocal(info->index);
       } else if (info->kind == VarKind::kGlobal) {
+        if (!info->mutable_variable) {
+          FAILn("Expected mutable variable in assignment");
+        }
         current_function_builder_->EmitWithVarUint(kExprSetGlobal,
                                                    VarIndex(info));
         current_function_builder_->EmitWithVarUint(kExprGetGlobal,
