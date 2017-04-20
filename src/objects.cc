@@ -12627,10 +12627,10 @@ Handle<Object> CacheInitialJSArrayMaps(
   return initial_map;
 }
 
-void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
-                                      Handle<JSReceiver> value) {
-  Isolate* isolate = function->GetIsolate();
+namespace {
 
+void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
+                          Handle<JSReceiver> value) {
   // Now some logic for the maps of the objects that are created by using this
   // function as a constructor.
   if (function->has_initial_map()) {
@@ -12681,11 +12681,13 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
   isolate->heap()->ClearInstanceofCache();
 }
 
+}  // anonymous namespace
 
 void JSFunction::SetPrototype(Handle<JSFunction> function,
                               Handle<Object> value) {
   DCHECK(function->IsConstructor() ||
          IsGeneratorFunction(function->shared()->kind()));
+  Isolate* isolate = function->GetIsolate();
   Handle<JSReceiver> construct_prototype;
 
   // If the value is not a JSReceiver, store the value in the map's
@@ -12701,7 +12703,6 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     JSObject::MigrateToMap(function, new_map);
     new_map->SetConstructor(*value);
     new_map->set_non_instance_prototype(true);
-    Isolate* isolate = new_map->GetIsolate();
 
     FunctionKind kind = function->shared()->kind();
     Handle<Context> native_context(function->context()->native_context());
@@ -12715,10 +12716,13 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
         isolate);
   } else {
     construct_prototype = Handle<JSReceiver>::cast(value);
-    function->map()->set_non_instance_prototype(false);
+    if (function->map()->has_non_instance_prototype()) {
+      function->map()->set_non_instance_prototype(false);
+      function->map()->SetConstructor(isolate->heap()->null_value());
+    }
   }
 
-  SetInstancePrototype(function, construct_prototype);
+  SetInstancePrototype(isolate, function, construct_prototype);
 }
 
 

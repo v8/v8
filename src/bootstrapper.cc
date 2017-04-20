@@ -2469,7 +2469,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- J S O N
     Handle<String> name = factory->InternalizeUtf8String("JSON");
     Handle<JSFunction> cons = factory->NewFunction(name);
-    JSFunction::SetInstancePrototype(cons, isolate->initial_object_prototype());
+    JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     DCHECK(json_object->IsJSObject());
     JSObject::AddProperty(global, name, json_object, DONT_ENUM);
@@ -2485,7 +2485,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- M a t h
     Handle<String> name = factory->InternalizeUtf8String("Math");
     Handle<JSFunction> cons = factory->NewFunction(name);
-    JSFunction::SetInstancePrototype(cons, isolate->initial_object_prototype());
+    JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
     Handle<JSObject> math = factory->NewJSObject(cons, TENURED);
     DCHECK(math->IsJSObject());
     JSObject::AddProperty(global, name, math, DONT_ENUM);
@@ -2555,7 +2555,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<String> name = factory->InternalizeUtf8String("console");
     Handle<JSFunction> cons = factory->NewFunction(name);
     Handle<JSObject> empty = factory->NewJSObject(isolate->object_function());
-    JSFunction::SetInstancePrototype(cons, empty);
+    JSFunction::SetPrototype(cons, empty);
     Handle<JSObject> console = factory->NewJSObject(cons, TENURED);
     DCHECK(console->IsJSObject());
     JSObject::AddProperty(global, name, console, DONT_ENUM);
@@ -2603,7 +2603,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- I n t l
     Handle<String> name = factory->InternalizeUtf8String("Intl");
     Handle<JSFunction> cons = factory->NewFunction(name);
-    JSFunction::SetInstancePrototype(cons, isolate->initial_object_prototype());
+    JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
     Handle<JSObject> intl = factory->NewJSObject(cons, TENURED);
     DCHECK(intl->IsJSObject());
     JSObject::AddProperty(global, name, intl, DONT_ENUM);
@@ -3889,7 +3889,7 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
 
   Handle<String> name = factory->InternalizeUtf8String("Atomics");
   Handle<JSFunction> cons = factory->NewFunction(name);
-  JSFunction::SetInstancePrototype(cons, isolate->initial_object_prototype());
+  JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
   Handle<JSObject> atomics_object = factory->NewJSObject(cons, TENURED);
   DCHECK(atomics_object->IsJSObject());
   JSObject::AddProperty(global, name, atomics_object, DONT_ENUM);
