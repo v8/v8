@@ -73,6 +73,10 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     Address original_address = Foreign::cast(info->getter())->foreign_address();
     Foreign::cast(info->js_getter())->set_foreign_address(original_address);
     accessor_infos_.Add(info);
+  } else if (obj->IsScript() && Script::cast(obj)->IsUserJavaScript()) {
+    // Reset type for user scripts embedded in the start-up snapshot to hide
+    // them from the debugger.
+    Script::cast(obj)->set_type(Script::TYPE_EXTENSION);
   }
 
   // Object has not yet been serialized.  Serialize it here.

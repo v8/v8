@@ -638,6 +638,11 @@ TEST(CustomSnapshotDataBlob1) {
         CompileRun("f()")->Int32Value(isolate1->GetCurrentContext());
     CHECK_EQ(42, result.FromJust());
     CHECK(CompileRun("this.g")->IsUndefined());
+    v8::Local<v8::Value> f = CompileRun("f");
+    i::Handle<i::JSFunction> function =
+        i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*f));
+    // Being part of the snapshot hides a script from the debugger.
+    CHECK(!function->shared()->IsSubjectToDebugging());
   }
   isolate1->Dispose();
 }
