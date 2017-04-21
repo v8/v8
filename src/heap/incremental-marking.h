@@ -32,6 +32,32 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
+  static void MarkGrey(Heap* heap, HeapObject* object);
+
+  static void MarkBlack(HeapObject* object, int size);
+
+  // Transfers mark bits without requiring proper object headers.
+  static void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
+
+  // Transfers color including live byte count, requiring properly set up
+  // objects.
+  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  V8_INLINE static void TransferColor(HeapObject* from, HeapObject* to) {
+    if (ObjectMarking::IsBlack<access_mode>(to, MarkingState::Internal(to))) {
+      DCHECK(to->GetHeap()->incremental_marking()->black_allocation());
+      return;
+    }
+
+    DCHECK(ObjectMarking::IsWhite<access_mode>(to, MarkingState::Internal(to)));
+    if (ObjectMarking::IsGrey<access_mode>(from,
+                                           MarkingState::Internal(from))) {
+      ObjectMarking::WhiteToGrey<access_mode>(to, MarkingState::Internal(to));
+    } else if (ObjectMarking::IsBlack<access_mode>(
+                   from, MarkingState::Internal(from))) {
+      ObjectMarking::WhiteToBlack<access_mode>(to, MarkingState::Internal(to));
+    }
+  }
+
   explicit IncrementalMarking(Heap* heap);
 
   static void Initialize();
@@ -178,26 +204,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void ClearIdleMarkingDelayCounter();
 
   bool IsIdleMarkingDelayCounterLimitReached();
-
-  static void MarkGrey(Heap* heap, HeapObject* object);
-
-  static void MarkBlack(HeapObject* object, int size);
-
-  static void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
-
-  V8_INLINE static void TransferColor(HeapObject* from, HeapObject* to) {
-    if (ObjectMarking::IsBlack(to, MarkingState::Internal(to))) {
-      DCHECK(to->GetHeap()->incremental_marking()->black_allocation());
-      return;
-    }
-
-    DCHECK(ObjectMarking::IsWhite(to, MarkingState::Internal(to)));
-    if (ObjectMarking::IsGrey(from, MarkingState::Internal(from))) {
-      ObjectMarking::WhiteToGrey(to, MarkingState::Internal(to));
-    } else if (ObjectMarking::IsBlack(from, MarkingState::Internal(from))) {
-      ObjectMarking::WhiteToBlack(to, MarkingState::Internal(to));
-    }
-  }
 
   void IterateBlackObject(HeapObject* object);
 

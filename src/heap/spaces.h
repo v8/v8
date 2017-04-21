@@ -670,9 +670,9 @@ class MarkingState {
   MarkingState(Bitmap* bitmap, intptr_t* live_bytes)
       : bitmap_(bitmap), live_bytes_(live_bytes) {}
 
-  void IncrementLiveBytes(intptr_t by) const {
-    *live_bytes_ += static_cast<int>(by);
-  }
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  inline void IncrementLiveBytes(intptr_t by) const;
+
   void SetLiveBytes(intptr_t value) const {
     *live_bytes_ = static_cast<int>(value);
   }
@@ -689,6 +689,18 @@ class MarkingState {
   Bitmap* bitmap_;
   intptr_t* live_bytes_;
 };
+
+template <>
+inline void MarkingState::IncrementLiveBytes<MarkBit::NON_ATOMIC>(
+    intptr_t by) const {
+  *live_bytes_ += by;
+}
+
+template <>
+inline void MarkingState::IncrementLiveBytes<MarkBit::ATOMIC>(
+    intptr_t by) const {
+  reinterpret_cast<base::AtomicNumber<intptr_t>*>(live_bytes_)->Increment(by);
+}
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 1MB. Large object pages may be larger.

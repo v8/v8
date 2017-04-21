@@ -80,7 +80,7 @@ class ObjectMarking : public AllStatic {
         (access_mode == MarkBit::ATOMIC || IsBlack<access_mode>(obj, state)));
     MarkBit markbit = MarkBitFrom(obj, state);
     if (!Marking::BlackToGrey<access_mode>(markbit)) return false;
-    state.IncrementLiveBytes(-obj->Size());
+    state.IncrementLiveBytes<access_mode>(-obj->Size());
     return true;
   }
 
@@ -107,7 +107,7 @@ class ObjectMarking : public AllStatic {
     DCHECK((access_mode == MarkBit::ATOMIC || IsGrey<access_mode>(obj, state)));
     MarkBit markbit = MarkBitFrom(obj, state);
     if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
-    state.IncrementLiveBytes(obj->Size());
+    state.IncrementLiveBytes<access_mode>(obj->Size());
     return true;
   }
 
