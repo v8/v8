@@ -97,7 +97,8 @@ class RegExpMacroAssemblerS390 : public NativeRegExpMacroAssembler {
   static const int kCaptureArraySize = kCallerFrame;
   static const int kStackAreaBase = kCallerFrame + kPointerSize;
   // kDirectCall again
-  static const int kIsolate = kStackAreaBase + 2 * kPointerSize;
+  static const int kSecondaryReturnAddress = kStackAreaBase + 2 * kPointerSize;
+  static const int kIsolate = kSecondaryReturnAddress + kPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.
