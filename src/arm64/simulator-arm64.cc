@@ -208,7 +208,6 @@ int64_t Simulator::CallRegExp(byte* entry,
                               int64_t output_size,
                               Address stack_base,
                               int64_t direct_call,
-                              void* return_address,
                               Isolate* isolate) {
   CallArgument args[] = {
     CallArgument(input),
@@ -219,7 +218,6 @@ int64_t Simulator::CallRegExp(byte* entry,
     CallArgument(output_size),
     CallArgument(stack_base),
     CallArgument(direct_call),
-    CallArgument(return_address),
     CallArgument(isolate),
     CallArgument::End()
   };

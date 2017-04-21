@@ -45,7 +45,6 @@ class Node;
   V(MathPow)                                  \
   V(ProfileEntryHook)                         \
   V(RecordWrite)                              \
-  V(RegExpExec)                               \
   V(StoreBufferOverflow)                      \
   V(StoreSlowElement)                         \
   V(SubString)                                \
@@ -1134,15 +1133,6 @@ class JSEntryStub : public PlatformCodeStub {
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(JSEntry, PlatformCodeStub);
-};
-
-
-class RegExpExecStub: public PlatformCodeStub {
- public:
-  explicit RegExpExecStub(Isolate* isolate) : PlatformCodeStub(isolate) { }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(RegExpExec);
-  DEFINE_PLATFORM_CODE_STUB(RegExpExec, PlatformCodeStub);
 };
 
 // TODO(bmeurer/mvstanton): Turn CallConstructStub into ConstructICStub.
