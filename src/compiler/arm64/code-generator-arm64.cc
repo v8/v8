@@ -772,8 +772,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchPrepareCallCFunction:
       // We don't need kArchPrepareCallCFunction on arm64 as the instruction
-      // selector already perform a Claim to reserve space on the stack and
-      // guarantee correct alignment of stack pointer.
+      // selector has already performed a Claim to reserve space on the stack.
+      // Frame alignment is always 16 bytes, and the stack pointer is already
+      // 16-byte aligned, therefore we do not need to align the stack pointer
+      // by an unknown value, and it is safe to continue accessing the frame
+      // via the stack pointer.
       UNREACHABLE();
       break;
     case kArchPrepareTailCall:
@@ -788,9 +791,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters, 0);
       }
-      // CallCFunction only supports register arguments so we never need to call
-      // frame()->ClearOutgoingParameterSlots() here.
-      DCHECK(frame_access_state()->sp_delta() == 0);
+      frame_access_state()->SetFrameAccessToDefault();
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchJmp:
@@ -1228,14 +1230,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register prev = __ StackPointer();
       if (prev.Is(jssp)) {
         // TODO(titzer): make this a macro-assembler method.
-        // Align the CSP and store the previous JSSP on the stack.
+        // Align the CSP and store the previous JSSP on the stack. We do not
+        // need to modify the SP delta here, as we will continue to access the
+        // frame via JSSP.
         UseScratchRegisterScope scope(masm());
         Register tmp = scope.AcquireX();
 
+        // TODO(arm64): Storing JSSP on the stack is redundant when calling a C
+        // function, as JSSP is callee-saved (we still need to do this when
+        // calling a code object that uses the CSP as the stack pointer). See
+        // the code generation for kArchCallCodeObject vs. kArchCallCFunction
+        // (the latter does not restore CSP/JSSP).
+        // MacroAssembler::CallCFunction() (safely) drops this extra slot
+        // anyway.
         int sp_alignment = __ ActivationFrameAlignment();
         __ Sub(tmp, jssp, kPointerSize);
-        __ And(tmp, tmp, Operand(~static_cast<uint64_t>(sp_alignment - 1)));
-        __ Mov(csp, tmp);
+        __ Bic(csp, tmp, sp_alignment - 1);
         __ Str(jssp, MemOperand(csp));
         if (count > 0) {
           __ SetStackPointer(csp);
@@ -1259,7 +1269,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (count > 0) {
           int even = RoundUp(count, 2);
           __ Sub(jssp, csp, count * kPointerSize);
+          // We must also update CSP to maintain stack consistency:
           __ Sub(csp, csp, even * kPointerSize);  // Must always be aligned.
+          __ AssertStackConsistency();
           frame_access_state()->IncreaseSPDelta(even);
         } else {
           __ Mov(jssp, csp);

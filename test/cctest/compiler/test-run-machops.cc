@@ -6163,6 +6163,11 @@ int32_t foo8(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f,
   return a + b + c + d + e + f + g + h;
 }
 
+int32_t foo9(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f,
+             int32_t g, int32_t h, int32_t i) {
+  return a + b + c + d + e + f + g + h + i;
+}
+
 }  // namespace
 
 
@@ -6219,6 +6224,30 @@ TEST(RunCallCFunction8) {
   FOR_INT32_INPUTS(i) {
     int32_t const x = *i;
     CHECK_EQ(x * 8, m.Call(x));
+  }
+}
+
+TEST(RunCallCFunction9) {
+  auto* foo9_ptr = &foo9;
+  RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+  Node* function = m.LoadFromPointer(&foo9_ptr, MachineType::Pointer());
+  Node* param = m.Parameter(0);
+  m.Return(m.CallCFunction9(
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+      MachineType::Int32(), function, param,
+      m.Int32Add(param, m.Int32Constant(1)),
+      m.Int32Add(param, m.Int32Constant(2)),
+      m.Int32Add(param, m.Int32Constant(3)),
+      m.Int32Add(param, m.Int32Constant(4)),
+      m.Int32Add(param, m.Int32Constant(5)),
+      m.Int32Add(param, m.Int32Constant(6)),
+      m.Int32Add(param, m.Int32Constant(7)),
+      m.Int32Add(param, m.Int32Constant(8))));
+  FOR_INT32_INPUTS(i) {
+    int32_t const x = *i;
+    CHECK_EQ(x * 9 + 36, m.Call(x));
   }
 }
 #endif  // USE_SIMULATOR

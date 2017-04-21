@@ -1776,7 +1776,8 @@ void InstructionSelector::EmitPrepareArguments(
     // TODO(titzer): it would be better to bump the csp here only
     //                and emit paired stores with increment for non c frames.
     ArchOpcode claim = to_native_stack ? kArm64ClaimCSP : kArm64ClaimJSSP;
-    // Claim(0) isn't a nop if there is a mismatch between CSP and JSSP.
+    // ClaimJSSP(0) or ClaimCSP(0) isn't a nop if there is a mismatch between
+    // CSP and JSSP.
     Emit(claim, g.NoOutput(), g.TempImmediate(claim_count));
   }
 
