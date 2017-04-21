@@ -495,8 +495,9 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
     JSSloppyArgumentsObject* holder) {
   Isolate* isolate = GetIsolate();
   FixedArrayVerify();
-  // Abort verification if only partially initialized.
-  if (arguments()->IsUndefined(isolate)) return;
+  // Abort verification if only partially initialized (can't use arguments()
+  // getter because it does FixedArray::cast()).
+  if (get(kArgumentsIndex)->IsUndefined(isolate)) return;
 
   ElementsKind kind = holder->GetElementsKind();
   CHECK(IsFixedArray());
