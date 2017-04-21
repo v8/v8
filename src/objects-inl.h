@@ -3123,7 +3123,11 @@ void HashTableBase::ElementsRemoved(int n) {
 
 // static
 int HashTableBase::ComputeCapacity(int at_least_space_for) {
-  int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for * 2);
+  // Add 50% slack to make slot collisions sufficiently unlikely.
+  // See matching computation in HashTable::HasSufficientCapacityToAdd().
+  // Must be kept in sync with CodeStubAssembler::HashTableComputeCapacity().
+  int raw_cap = at_least_space_for + (at_least_space_for >> 1);
+  int capacity = base::bits::RoundUpToPowerOfTwo32(raw_cap);
   return Max(capacity, kMinCapacity);
 }
 

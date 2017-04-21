@@ -4574,9 +4574,10 @@ template Node* CodeStubAssembler::EntryToIndex<GlobalDictionary>(Node*, int);
 template Node* CodeStubAssembler::EntryToIndex<SeededNumberDictionary>(Node*,
                                                                        int);
 
+// This must be kept in sync with HashTableBase::ComputeCapacity().
 Node* CodeStubAssembler::HashTableComputeCapacity(Node* at_least_space_for) {
-  Node* capacity = IntPtrRoundUpToPowerOfTwo32(
-      WordShl(at_least_space_for, IntPtrConstant(1)));
+  Node* capacity = IntPtrRoundUpToPowerOfTwo32(IntPtrAdd(
+      at_least_space_for, WordShr(at_least_space_for, IntPtrConstant(1))));
   return IntPtrMax(capacity, IntPtrConstant(HashTableBase::kMinCapacity));
 }
 

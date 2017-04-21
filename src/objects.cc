@@ -16726,21 +16726,19 @@ Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
     int n,
     Key key,
     PretenureFlag pretenure) {
+  if (table->HasSufficientCapacityToAdd(n)) return table;
+
   Isolate* isolate = table->GetIsolate();
   int capacity = table->Capacity();
-  int nof = table->NumberOfElements() + n;
-
-  if (table->HasSufficientCapacityToAdd(n)) return table;
+  int new_nof = table->NumberOfElements() + n;
 
   const int kMinCapacityForPretenure = 256;
   bool should_pretenure = pretenure == TENURED ||
       ((capacity > kMinCapacityForPretenure) &&
           !isolate->heap()->InNewSpace(*table));
-  Handle<Derived> new_table = HashTable::New(
-      isolate,
-      nof * 2,
-      USE_DEFAULT_MINIMUM_CAPACITY,
-      should_pretenure ? TENURED : NOT_TENURED);
+  Handle<Derived> new_table =
+      HashTable::New(isolate, new_nof, USE_DEFAULT_MINIMUM_CAPACITY,
+                     should_pretenure ? TENURED : NOT_TENURED);
 
   table->Rehash(new_table, key);
   return new_table;

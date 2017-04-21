@@ -252,7 +252,11 @@ class ArgumentParser(object):
     targets = []
     actions = []
     tests = []
-    words = argstring.split('.')
+    # Specifying a single unit test looks like "unittests/Foo.Bar".
+    if argstring.startswith("unittests/"):
+      words = [argstring]
+    else:
+      words = argstring.split('.')
     if len(words) == 1:
       word = words[0]
       if word in ACTIONS:
