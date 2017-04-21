@@ -58,11 +58,6 @@ const Register MathPowIntegerDescriptor::exponent() {
   return MathPowTaggedDescriptor::exponent();
 }
 
-const Register RegExpExecDescriptor::StringRegister() { return r0; }
-const Register RegExpExecDescriptor::LastIndexRegister() { return r1; }
-const Register RegExpExecDescriptor::StringStartRegister() { return r2; }
-const Register RegExpExecDescriptor::StringEndRegister() { return r3; }
-const Register RegExpExecDescriptor::CodeRegister() { return r4; }
 
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return r0; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return r3; }
