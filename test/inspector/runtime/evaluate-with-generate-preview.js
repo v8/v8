@@ -62,7 +62,7 @@ Object.defineProperty(parentObj, 'propNotNamedProto', {
   set: function() {}
 });
 var objInheritsGetterProperty = {__proto__: parentObj};
-allowAccessorFormatting(objInheritsGetterProperty);
+inspector.allowAccessorFormatting(objInheritsGetterProperty);
 `);
 
 InspectorTest.setupInjectedScriptEnvironment();

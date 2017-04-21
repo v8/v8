@@ -11,7 +11,7 @@ function frameworkCall(funcs) {
 }
 
 function frameworkBreakAndCall(funcs) {
-  breakProgram('', '');
+  inspector.breakProgram('', '');
   for (var f of funcs) f();
 }
 //# sourceURL=framework.js`,

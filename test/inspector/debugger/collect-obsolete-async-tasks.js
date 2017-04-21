@@ -6,24 +6,24 @@ InspectorTest.log('Checks that we collect obsolete async tasks with async stacks
 
 InspectorTest.addScript(`
 function test() {
-  setMaxAsyncTaskStacks(128);
+  inspector.setMaxAsyncTaskStacks(128);
   var p = Promise.resolve();
 
-  dumpAsyncTaskStacksStateForTest();
-  setMaxAsyncTaskStacks(128);
-  dumpAsyncTaskStacksStateForTest();
+  inspector.dumpAsyncTaskStacksStateForTest();
+  inspector.setMaxAsyncTaskStacks(128);
+  inspector.dumpAsyncTaskStacksStateForTest();
 
   p.then(() => 42).then(() => 239);
 
-  dumpAsyncTaskStacksStateForTest();
-  setMaxAsyncTaskStacks(128);
-  dumpAsyncTaskStacksStateForTest();
+  inspector.dumpAsyncTaskStacksStateForTest();
+  inspector.setMaxAsyncTaskStacks(128);
+  inspector.dumpAsyncTaskStacksStateForTest();
 
   setTimeout(() => 42, 0);
 
-  dumpAsyncTaskStacksStateForTest();
-  setMaxAsyncTaskStacks(128);
-  dumpAsyncTaskStacksStateForTest();
+  inspector.dumpAsyncTaskStacksStateForTest();
+  inspector.setMaxAsyncTaskStacks(128);
+  inspector.dumpAsyncTaskStacksStateForTest();
 }
 `);
 

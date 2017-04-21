@@ -146,11 +146,11 @@ class DisconnectTask : public TaskRunner::Task {
 class CreateContextGroupTask : public TaskRunner::Task {
  public:
   CreateContextGroupTask(InspectorClientImpl* client,
-                         v8::ExtensionConfiguration* extensions,
+                         TaskRunner::SetupGlobalTasks setup_global_tasks,
                          v8::base::Semaphore* ready_semaphore,
                          int* context_group_id)
       : client_(client),
-        extensions_(extensions),
+        setup_global_tasks_(std::move(setup_global_tasks)),
         ready_semaphore_(ready_semaphore),
         context_group_id_(context_group_id) {}
   virtual ~CreateContextGroupTask() = default;
@@ -159,13 +159,13 @@ class CreateContextGroupTask : public TaskRunner::Task {
 
   void Run(v8::Isolate* isolate,
            const v8::Global<v8::Context>& global_context) {
-    *context_group_id_ = client_->createContextGroup(extensions_);
+    *context_group_id_ = client_->createContextGroup(setup_global_tasks_);
     if (ready_semaphore_) ready_semaphore_->Signal();
   }
 
  private:
   InspectorClientImpl* client_;
-  v8::ExtensionConfiguration* extensions_;
+  TaskRunner::SetupGlobalTasks setup_global_tasks_;
   v8::base::Semaphore* ready_semaphore_;
   int* context_group_id_;
 };
@@ -230,16 +230,17 @@ void InspectorClientImpl::disconnect() {
 }
 
 void InspectorClientImpl::scheduleCreateContextGroup(
-    v8::ExtensionConfiguration* extensions,
+    TaskRunner::SetupGlobalTasks setup_global_tasks,
     v8::base::Semaphore* ready_semaphore, int* context_group_id) {
   task_runner_->Append(new CreateContextGroupTask(
-      this, extensions, ready_semaphore, context_group_id));
+      this, std::move(setup_global_tasks), ready_semaphore, context_group_id));
 }
 
 int InspectorClientImpl::createContextGroup(
-    v8::ExtensionConfiguration* extensions) {
+    const TaskRunner::SetupGlobalTasks& setup_global_tasks) {
   v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::Context> context = task_runner_->NewContextGroup();
+  v8::Local<v8::Context> context =
+      task_runner_->NewContextGroup(setup_global_tasks);
   context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this);
   int context_group_id = TaskRunner::GetContextGroupId(context);
   v8_inspector::StringView state;
@@ -371,11 +372,14 @@ class SendMessageToBackendTask : public TaskRunner::Task {
 
 TaskRunner* SendMessageToBackendExtension::backend_task_runner_ = nullptr;
 
-v8::Local<v8::FunctionTemplate>
-SendMessageToBackendExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate, v8::Local<v8::String> name) {
-  return v8::FunctionTemplate::New(
-      isolate, SendMessageToBackendExtension::SendMessageToBackend);
+void SendMessageToBackendExtension::Run(v8::Isolate* isolate,
+                                        v8::Local<v8::ObjectTemplate> global) {
+  global->Set(
+      v8::String::NewFromUtf8(isolate, "sendMessageToBackend",
+                              v8::NewStringType::kNormal)
+          .ToLocalChecked(),
+      v8::FunctionTemplate::New(
+          isolate, &SendMessageToBackendExtension::SendMessageToBackend));
 }
 
 void SendMessageToBackendExtension::SendMessageToBackend(

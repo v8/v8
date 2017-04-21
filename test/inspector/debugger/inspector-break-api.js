@@ -6,7 +6,7 @@ InspectorTest.log("Checks breakProgram,(schedule|cancel)PauseOnNextStatement tes
 
 InspectorTest.addScript(`
 function callBreakProgram() {
-  breakProgram('reason', JSON.stringify({a: 42}));
+  inspector.breakProgram('reason', JSON.stringify({a: 42}));
 }
 
 function foo() {

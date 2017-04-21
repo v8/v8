@@ -32,11 +32,11 @@ v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
 
 }  //  namespace
 
-TaskRunner::TaskRunner(v8::ExtensionConfiguration* extensions,
+TaskRunner::TaskRunner(TaskRunner::SetupGlobalTasks setup_global_tasks,
                        bool catch_exceptions,
                        v8::base::Semaphore* ready_semaphore)
     : Thread(Options("Task Runner")),
-      extensions_(extensions),
+      setup_global_tasks_(std::move(setup_global_tasks)),
       catch_exceptions_(catch_exceptions),
       ready_semaphore_(ready_semaphore),
       isolate_(nullptr),
@@ -55,15 +55,20 @@ void TaskRunner::InitializeIsolate() {
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
-  NewContextGroup();
+  NewContextGroup(setup_global_tasks_);
   if (ready_semaphore_) ready_semaphore_->Signal();
 }
 
-v8::Local<v8::Context> TaskRunner::NewContextGroup() {
+v8::Local<v8::Context> TaskRunner::NewContextGroup(
+    const TaskRunner::SetupGlobalTasks& setup_global_tasks) {
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate_);
+  for (auto it = setup_global_tasks.begin(); it != setup_global_tasks.end();
+       ++it) {
+    (*it)->Run(isolate_, global_template);
+  }
   v8::Local<v8::Context> context =
-      v8::Context::New(isolate_, extensions_, global_template);
+      v8::Context::New(isolate_, nullptr, global_template);
   context->SetAlignedPointerInEmbedderData(kTaskRunnerIndex, this);
   intptr_t context_group_id = ++last_context_group_id_;
   // Should be 2-byte aligned.

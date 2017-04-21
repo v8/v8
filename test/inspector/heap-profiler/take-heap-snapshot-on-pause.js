@@ -7,7 +7,7 @@ checks.');
 
 InspectorTest.addScript(`
 function testFunction() {
-  var array = [ createObjectWithStrictCheck() ];
+  var array = [ inspector.createObjectWithStrictCheck() ];
   debugger;
 }
 //# sourceURL=test.js`);
