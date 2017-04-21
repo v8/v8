@@ -238,12 +238,6 @@ Callable CodeFactory::RegExpExec(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::RegExpExec(Isolate* isolate) {
-  RegExpExecStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-// static
 Callable CodeFactory::StringFromCharCode(Isolate* isolate) {
   Handle<Code> code(isolate->builtins()->StringFromCharCode());
   return Callable(code, BuiltinDescriptor(isolate));
