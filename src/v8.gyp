@@ -990,8 +990,8 @@
         'heap/spaces.h',
         'heap/store-buffer.cc',
         'heap/store-buffer.h',
-        'i18n.cc',
-        'i18n.h',
+        'intl.cc',
+        'intl.h',
         'icu_util.cc',
         'icu_util.h',
         'ic/access-compiler-data.h',
@@ -1123,6 +1123,8 @@
         'objects/frame-array.h',
         'objects/frame-array-inl.h',
         'objects/hash-table.h',
+        'objects/intl-objects.cc',
+        'objects/intl-objects.h',
         'objects/literal-objects.cc',
         'objects/literal-objects.h',
         'objects/module-info.h',
@@ -1237,7 +1239,7 @@
         'runtime/runtime-error.cc',
         'runtime/runtime-futex.cc',
         'runtime/runtime-generator.cc',
-        'runtime/runtime-i18n.cc',
+        'runtime/runtime-intl.cc',
         'runtime/runtime-internal.cc',
         'runtime/runtime-interpreter.cc',
         'runtime/runtime-literals.cc',
@@ -1828,8 +1830,12 @@
           ],
         }, {  # v8_enable_i18n_support==0
           'sources!': [
-            'i18n.cc',
-            'i18n.h',
+            'builtins/builtins-intl.cc',
+            'intl.cc',
+            'intl.h',
+            'objects/intl-objects.cc',
+            'objects/intl-objects.h',
+            'runtime/runtime-intl.cc',
           ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {
@@ -2321,7 +2327,7 @@
         'libraries_experimental_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental-extras.bin',
         'conditions': [
           ['v8_enable_i18n_support==1', {
-            'library_files': ['js/i18n.js'],
+            'library_files': ['js/intl.js'],
           }],
         ],
       },

@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_INTL_SUPPORT
+#error Internationalization is expected to be enabled.
+#endif  // V8_INTL_SUPPORT
 
-#ifdef V8_I18N_SUPPORT
 #include "src/runtime/runtime-utils.h"
 
 #include <memory>
@@ -12,9 +14,10 @@
 #include "src/api.h"
 #include "src/arguments.h"
 #include "src/factory.h"
-#include "src/i18n.h"
+#include "src/intl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/intl-objects.h"
 #include "src/utils.h"
 
 #include "unicode/brkiter.h"
@@ -43,7 +46,6 @@
 #include "unicode/unum.h"
 #include "unicode/ustring.h"
 #include "unicode/uversion.h"
-
 
 namespace v8 {
 namespace internal {
@@ -84,7 +86,6 @@ RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
 
   return *factory->NewStringFromAsciiChecked(result);
 }
-
 
 RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
   HandleScope scope(isolate);
@@ -130,7 +131,6 @@ RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
   return *locales;
 }
 
-
 RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
@@ -150,7 +150,6 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
 
   return *factory->NewStringFromStaticChars("und");
 }
-
 
 RUNTIME_FUNCTION(Runtime_GetLanguageTagVariants) {
   HandleScope scope(isolate);
@@ -236,7 +235,6 @@ RUNTIME_FUNCTION(Runtime_GetLanguageTagVariants) {
   return *result;
 }
 
-
 RUNTIME_FUNCTION(Runtime_IsInitializedIntlObject) {
   HandleScope scope(isolate);
 
@@ -251,7 +249,6 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObject) {
   Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
   return isolate->heap()->ToBoolean(!tag->IsUndefined(isolate));
 }
-
 
 RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
   HandleScope scope(isolate);
@@ -270,7 +267,6 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
                                     String::cast(*tag)->Equals(*expected_type));
 }
 
-
 RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
   HandleScope scope(isolate);
 
@@ -284,7 +280,6 @@ RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
 
   return isolate->heap()->undefined_value();
 }
-
 
 RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
   HandleScope scope(isolate);
@@ -317,7 +312,6 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
                           WeakCallbackType::kInternalFields);
   return *local_object;
 }
-
 
 RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
   HandleScope scope(isolate);
@@ -406,9 +400,10 @@ bool AddElement(Handle<JSArray> array, int index, int32_t field_id,
 
   icu::UnicodeString field(formatted.tempSubStringBetween(begin, end));
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, factory->NewStringFromTwoByte(Vector<const uint16_t>(
-                          reinterpret_cast<const uint16_t*>(field.getBuffer()),
-                          field.length())),
+      isolate, value,
+      factory->NewStringFromTwoByte(Vector<const uint16_t>(
+          reinterpret_cast<const uint16_t*>(field.getBuffer()),
+          field.length())),
       false);
 
   JSObject::AddProperty(element, factory->value_string(), value, NONE);
@@ -507,7 +502,6 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
   return *local_object;
 }
 
-
 RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
   HandleScope scope(isolate);
 
@@ -587,7 +581,6 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
   return *local_object;
 }
 
-
 RUNTIME_FUNCTION(Runtime_InternalCompare) {
   HandleScope scope(isolate);
 
@@ -624,7 +617,6 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
   return *isolate->factory()->NewNumberFromInt(result);
 }
 
-
 RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   HandleScope scope(isolate);
 
@@ -660,7 +652,6 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   return *local_object;
 }
 
-
 RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
   HandleScope scope(isolate);
 
@@ -691,7 +682,6 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
   return isolate->heap()->undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_BreakIteratorFirst) {
   HandleScope scope(isolate);
 
@@ -705,7 +695,6 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorFirst) {
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->first());
 }
-
 
 RUNTIME_FUNCTION(Runtime_BreakIteratorNext) {
   HandleScope scope(isolate);
@@ -721,7 +710,6 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorNext) {
   return *isolate->factory()->NewNumberFromInt(break_iterator->next());
 }
 
-
 RUNTIME_FUNCTION(Runtime_BreakIteratorCurrent) {
   HandleScope scope(isolate);
 
@@ -735,7 +723,6 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorCurrent) {
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->current());
 }
-
 
 RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
   HandleScope scope(isolate);
@@ -768,7 +755,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
   }
 }
 
-RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
+RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
@@ -776,7 +763,7 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
   return ConvertToLower(s, isolate);
 }
 
-RUNTIME_FUNCTION(Runtime_StringToUpperCaseI18N) {
+RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
@@ -843,5 +830,3 @@ RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_I18N_SUPPORT

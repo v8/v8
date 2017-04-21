@@ -251,8 +251,8 @@ namespace internal {
   F(GeneratorGetSourcePosition, 1, 1)            \
   F(GeneratorGetResumeMode, 1, 1)
 
-#ifdef V8_I18N_SUPPORT
-#define FOR_EACH_INTRINSIC_I18N(F)           \
+#ifdef V8_INTL_SUPPORT
+#define FOR_EACH_INTRINSIC_INTL(F)           \
   F(CanonicalizeLanguageTag, 1, 1)           \
   F(AvailableLocalesOf, 1, 1)                \
   F(GetDefaultICULocale, 0, 1)               \
@@ -274,12 +274,12 @@ namespace internal {
   F(BreakIteratorNext, 1, 1)                 \
   F(BreakIteratorCurrent, 1, 1)              \
   F(BreakIteratorBreakType, 1, 1)            \
-  F(StringToLowerCaseI18N, 1, 1)             \
-  F(StringToUpperCaseI18N, 1, 1)             \
+  F(StringToLowerCaseIntl, 1, 1)             \
+  F(StringToUpperCaseIntl, 1, 1)             \
   F(StringLocaleConvertCase, 3, 1)           \
   F(DateCacheVersion, 0, 1)
 #else
-#define FOR_EACH_INTRINSIC_I18N(F)
+#define FOR_EACH_INTRINSIC_INTL(F)
 #endif
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F)             \
@@ -694,7 +694,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_INTERPRETER(F)         \
   FOR_EACH_INTRINSIC_FUNCTION(F)            \
   FOR_EACH_INTRINSIC_GENERATOR(F)           \
-  FOR_EACH_INTRINSIC_I18N(F)                \
+  FOR_EACH_INTRINSIC_INTL(F)                \
   FOR_EACH_INTRINSIC_INTERNAL(F)            \
   FOR_EACH_INTRINSIC_LITERALS(F)            \
   FOR_EACH_INTRINSIC_LIVEEDIT(F)            \

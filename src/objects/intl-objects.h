@@ -1,12 +1,14 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// limitations under the License.
 
-#ifndef V8_I18N_H_
-#define V8_I18N_H_
+#ifndef V8_INTL_SUPPORT
+#error Internationalization is expected to be enabled.
+#endif  // V8_INTL_SUPPORT
 
-#include "src/base/timezone-cache.h"
+#ifndef V8_OBJECTS_INTL_OBJECTS_H_
+#define V8_OBJECTS_INTL_OBJECTS_H_
+
 #include "src/objects.h"
 #include "unicode/uversion.h"
 
@@ -15,7 +17,6 @@ class BreakIterator;
 class Collator;
 class DecimalFormat;
 class SimpleDateFormat;
-class TimeZone;
 }
 
 namespace v8 {
@@ -29,9 +30,7 @@ class DateFormat {
   // Create a formatter for the specificied locale and options. Returns the
   // resolved settings for the locale / options.
   static icu::SimpleDateFormat* InitializeDateTimeFormat(
-      Isolate* isolate,
-      Handle<String> locale,
-      Handle<JSObject> options,
+      Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
       Handle<JSObject> resolved);
 
   // Unpacks date format object from corresponding JavaScript object.
@@ -50,16 +49,14 @@ class DateFormat {
   DateFormat();
 };
 
-
 class NumberFormat {
  public:
   // Create a formatter for the specificied locale and options. Returns the
   // resolved settings for the locale / options.
-  static icu::DecimalFormat* InitializeNumberFormat(
-      Isolate* isolate,
-      Handle<String> locale,
-      Handle<JSObject> options,
-      Handle<JSObject> resolved);
+  static icu::DecimalFormat* InitializeNumberFormat(Isolate* isolate,
+                                                    Handle<String> locale,
+                                                    Handle<JSObject> options,
+                                                    Handle<JSObject> resolved);
 
   // Unpacks number format object from corresponding JavaScript object.
   static icu::DecimalFormat* UnpackNumberFormat(Isolate* isolate,
@@ -77,16 +74,14 @@ class NumberFormat {
   NumberFormat();
 };
 
-
 class Collator {
  public:
   // Create a collator for the specificied locale and options. Returns the
   // resolved settings for the locale / options.
-  static icu::Collator* InitializeCollator(
-      Isolate* isolate,
-      Handle<String> locale,
-      Handle<JSObject> options,
-      Handle<JSObject> resolved);
+  static icu::Collator* InitializeCollator(Isolate* isolate,
+                                           Handle<String> locale,
+                                           Handle<JSObject> options,
+                                           Handle<JSObject> resolved);
 
   // Unpacks collator object from corresponding JavaScript object.
   static icu::Collator* UnpackCollator(Isolate* isolate, Handle<JSObject> obj);
@@ -107,11 +102,10 @@ class V8BreakIterator {
  public:
   // Create a BreakIterator for the specificied locale and options. Returns the
   // resolved settings for the locale / options.
-  static icu::BreakIterator* InitializeBreakIterator(
-      Isolate* isolate,
-      Handle<String> locale,
-      Handle<JSObject> options,
-      Handle<JSObject> resolved);
+  static icu::BreakIterator* InitializeBreakIterator(Isolate* isolate,
+                                                     Handle<String> locale,
+                                                     Handle<JSObject> options,
+                                                     Handle<JSObject> resolved);
 
   // Unpacks break iterator object from corresponding JavaScript object.
   static icu::BreakIterator* UnpackBreakIterator(Isolate* isolate,
@@ -130,45 +124,7 @@ class V8BreakIterator {
   V8BreakIterator();
 };
 
-const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
-                                    std::unique_ptr<uc16[]>* dest,
-                                    int32_t length);
-MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
-                                          bool is_to_upper, const char* lang);
-MUST_USE_RESULT Object* ConvertToLower(Handle<String> s, Isolate* isolate);
-MUST_USE_RESULT Object* ConvertToUpper(Handle<String> s, Isolate* isolate);
-MUST_USE_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
-                                    Isolate* isolate);
-
-// ICUTimezoneCache calls out to ICU for TimezoneCache
-// functionality in a straightforward way.
-class ICUTimezoneCache : public base::TimezoneCache {
- public:
-  ICUTimezoneCache();
-
-  ~ICUTimezoneCache() override;
-
-  const char* LocalTimezone(double time_ms) override;
-
-  double DaylightSavingsOffset(double time_ms) override;
-
-  double LocalTimeOffset() override;
-
-  void Clear() override;
-
- private:
-  icu::TimeZone* GetTimeZone();
-
-  bool GetOffsets(double time_ms, int32_t* raw_offset, int32_t* dst_offset);
-
-  icu::TimeZone* timezone_;
-
-  static const int32_t kMaxTimezoneChars = 100;
-  char timezone_name_[kMaxTimezoneChars];
-  char dst_timezone_name_[kMaxTimezoneChars];
-};
-
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_I18N_H_
+#endif  // V8_OBJECTS_INTL_OBJECTS_H_

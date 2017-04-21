@@ -338,11 +338,11 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Set byte_length.
     __ movp(arg_reg_3, rbx);
     // Isolate.
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
     if (unicode) {
       __ movp(arg_reg_4, Immediate(0));
     } else  // NOLINT
-#endif      // V8_I18N_SUPPORT
+#endif      // V8_INTL_SUPPORT
     {
       __ LoadAddress(arg_reg_4, ExternalReference::isolate_address(isolate()));
     }

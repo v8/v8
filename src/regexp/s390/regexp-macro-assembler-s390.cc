@@ -320,11 +320,11 @@ void RegExpMacroAssemblerS390::CheckNotBackReferenceIgnoreCase(
       __ SubP(r3, r3, r6);
     }
 // Isolate.
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
     if (unicode) {
       __ LoadImmP(r5, Operand::Zero());
     } else  // NOLINT
-#endif      // V8_I18N_SUPPORT
+#endif      // V8_INTL_SUPPORT
     {
       __ mov(r5, Operand(ExternalReference::isolate_address(isolate())));
     }

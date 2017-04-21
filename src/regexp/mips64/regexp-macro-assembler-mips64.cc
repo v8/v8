@@ -357,11 +357,11 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
       __ Dsubu(a1, a1, Operand(s3));
     }
     // Isolate.
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
     if (unicode) {
       __ mov(a3, zero_reg);
     } else  // NOLINT
-#endif      // V8_I18N_SUPPORT
+#endif      // V8_INTL_SUPPORT
     {
       __ li(a3, Operand(ExternalReference::isolate_address(masm_->isolate())));
     }

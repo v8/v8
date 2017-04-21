@@ -23,9 +23,9 @@
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-js.h"
 
-#if V8_I18N_SUPPORT
-#include "src/i18n.h"
-#endif  // V8_I18N_SUPPORT
+#if V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -1609,7 +1609,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, "valueOf",
                           Builtins::kNumberPrototypeValueOf, 0, true);
 
-    // Install i18n fallback functions.
+    // Install Intl fallback functions.
     SimpleInstallFunction(prototype, "toLocaleString",
                           Builtins::kNumberPrototypeToLocaleString, 0, false);
 
@@ -1783,13 +1783,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeLastIndexOf, 1, false);
     SimpleInstallFunction(prototype, "localeCompare",
                           Builtins::kStringPrototypeLocaleCompare, 1, true);
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
     SimpleInstallFunction(prototype, "normalize",
-                          Builtins::kStringPrototypeNormalizeI18N, 0, false);
+                          Builtins::kStringPrototypeNormalizeIntl, 0, false);
 #else
     SimpleInstallFunction(prototype, "normalize",
                           Builtins::kStringPrototypeNormalize, 0, false);
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
     SimpleInstallFunction(prototype, "replace",
                           Builtins::kStringPrototypeReplace, 2, true);
     SimpleInstallFunction(prototype, "split", Builtins::kStringPrototypeSplit,
@@ -2043,7 +2043,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, "toJSON", Builtins::kDatePrototypeToJson,
                           1, false);
 
-    // Install i18n fallback functions.
+    // Install Intl fallback functions.
     SimpleInstallFunction(prototype, "toLocaleString",
                           Builtins::kDatePrototypeToString, 0, false);
     SimpleInstallFunction(prototype, "toLocaleDateString",
@@ -2602,7 +2602,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
   {  // -- I n t l
     Handle<String> name = factory->InternalizeUtf8String("Intl");
     Handle<JSFunction> cons = factory->NewFunction(name);
@@ -2677,7 +2677,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate, v8_break_iterator_constructor,
         Context::INTL_V8_BREAK_ITERATOR_FUNCTION_INDEX);
   }
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
   {  // -- A r r a y B u f f e r
     Handle<JSFunction> array_buffer_fun = InstallArrayBuffer(
@@ -4033,7 +4033,7 @@ void Genesis::InitializeGlobal_harmony_regexp_dotall() {
   native_context()->set_regexp_prototype_map(*prototype_map);
 }
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 namespace {
 
 void SetFunction(Handle<JSObject> target, Handle<JSFunction> function,
@@ -4057,7 +4057,7 @@ void Genesis::InitializeGlobal_icu_case_mapping() {
     Handle<String> name = factory()->InternalizeUtf8String("toLowerCase");
     SetFunction(string_prototype,
                 SimpleCreateFunction(isolate(), name,
-                                     Builtins::kStringPrototypeToLowerCaseI18N,
+                                     Builtins::kStringPrototypeToLowerCaseIntl,
                                      0, false),
                 name);
   }
@@ -4065,7 +4065,7 @@ void Genesis::InitializeGlobal_icu_case_mapping() {
     Handle<String> name = factory()->InternalizeUtf8String("toUpperCase");
     SetFunction(string_prototype,
                 SimpleCreateFunction(isolate(), name,
-                                     Builtins::kStringPrototypeToUpperCaseI18N,
+                                     Builtins::kStringPrototypeToUpperCaseIntl,
                                      0, false),
                 name);
   }
@@ -4073,7 +4073,7 @@ void Genesis::InitializeGlobal_icu_case_mapping() {
   Handle<JSFunction> to_locale_lower_case = Handle<JSFunction>::cast(
       JSReceiver::GetProperty(
           exports_container,
-          factory()->InternalizeUtf8String("ToLocaleLowerCaseI18N"))
+          factory()->InternalizeUtf8String("ToLocaleLowerCaseIntl"))
           .ToHandleChecked());
   SetFunction(string_prototype, to_locale_lower_case,
               factory()->InternalizeUtf8String("toLocaleLowerCase"));
@@ -4081,7 +4081,7 @@ void Genesis::InitializeGlobal_icu_case_mapping() {
   Handle<JSFunction> to_locale_upper_case = Handle<JSFunction>::cast(
       JSReceiver::GetProperty(
           exports_container,
-          factory()->InternalizeUtf8String("ToLocaleUpperCaseI18N"))
+          factory()->InternalizeUtf8String("ToLocaleUpperCaseIntl"))
           .ToHandleChecked());
   SetFunction(string_prototype, to_locale_upper_case,
               factory()->InternalizeUtf8String("toLocaleUpperCase"));

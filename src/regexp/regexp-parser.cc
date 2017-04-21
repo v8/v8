@@ -12,9 +12,9 @@
 #include "src/regexp/jsregexp.h"
 #include "src/utils.h"
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -1109,7 +1109,7 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
   return result;
 }
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 
 namespace {
 
@@ -1335,14 +1335,14 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
   }
 }
 
-#else  // V8_I18N_SUPPORT
+#else  // V8_INTL_SUPPORT
 
 bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
                                       bool negate) {
   return false;
 }
 
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
 bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
   uc32 x = 0;
@@ -1867,7 +1867,7 @@ bool RegExpBuilder::NeedsDesugaringForUnicode(RegExpCharacterClass* cc) {
 
 
 bool RegExpBuilder::NeedsDesugaringForIgnoreCase(uc32 c) {
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
   if (unicode() && ignore_case()) {
     icu::UnicodeSet set(c, c);
     set.closeOver(USET_CASE_INSENSITIVE);
@@ -1876,7 +1876,7 @@ bool RegExpBuilder::NeedsDesugaringForIgnoreCase(uc32 c) {
   }
   // In the case where ICU is not included, we act as if the unicode flag is
   // not set, and do not desugar.
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
   return false;
 }
 

@@ -105,7 +105,7 @@
         'defines': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
       }],
       ['v8_enable_i18n_support==1', {
-        'defines': ['V8_I18N_SUPPORT',],
+        'defines': ['V8_INTL_SUPPORT',],
       }],
       ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
         'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],

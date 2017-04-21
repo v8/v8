@@ -299,11 +299,11 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
 //   Isolate* isolate or 0 if unicode flag.
 
     // Set isolate.
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
     if (unicode) {
       __ mov(Operand(esp, 3 * kPointerSize), Immediate(0));
     } else  // NOLINT
-#endif      // V8_I18N_SUPPORT
+#endif      // V8_INTL_SUPPORT
     {
       __ mov(Operand(esp, 3 * kPointerSize),
              Immediate(ExternalReference::isolate_address(isolate())));

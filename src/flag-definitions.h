@@ -227,7 +227,7 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_trailing_commas,                          \
     "harmony trailing commas in function parameter lists")
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)                                        \
   HARMONY_SHIPPING_BASE(V)                                         \
   V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
@@ -258,7 +258,7 @@ HARMONY_STAGED(FLAG_STAGED_FEATURES)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 DEFINE_BOOL(icu_timezone_data, false,
             "get information about timezones from ICU")
 #endif

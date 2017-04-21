@@ -9,9 +9,9 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator.h"
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -41,7 +41,7 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
   uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
   size_t length = byte_length >> 1;
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
   if (isolate == nullptr) {
     for (size_t i = 0; i < length; i++) {
       uc32 c1 = substring1[i];
@@ -67,7 +67,7 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
     }
     return 1;
   }
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
   DCHECK_NOT_NULL(isolate);
   for (size_t i = 0; i < length; i++) {
     unibrow::uchar c1 = substring1[i];

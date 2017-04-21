@@ -727,8 +727,8 @@ function addWECPropertyIfDefined(object, property, value) {
  * Returns titlecased word, aMeRricA -> America.
  */
 function toTitleCaseWord(word) {
-  return %StringToUpperCaseI18N(%_Call(StringSubstr, word, 0, 1)) +
-         %StringToLowerCaseI18N(%_Call(StringSubstr, word, 1));
+  return %StringToUpperCaseIntl(%_Call(StringSubstr, word, 0, 1)) +
+         %StringToLowerCaseIntl(%_Call(StringSubstr, word, 1));
 }
 
 /**
@@ -749,7 +749,7 @@ function toTitleCaseTimezoneLocation(location) {
     var parts = %StringSplit(match[2], separator, kMaxUint32);
     for (var i = 1; i < parts.length; i++) {
       var part = parts[i]
-      var lowercasedPart = %StringToLowerCaseI18N(part);
+      var lowercasedPart = %StringToLowerCaseIntl(part);
       result = result + separator +
           ((lowercasedPart !== 'es' &&
             lowercasedPart !== 'of' && lowercasedPart !== 'au') ?
@@ -855,7 +855,7 @@ function isStructuallyValidLanguageTag(locale) {
     return false;
   }
 
-  locale = %StringToLowerCaseI18N(locale);
+  locale = %StringToLowerCaseIntl(locale);
 
   // Just return if it's a x- form. It's all private.
   if (%StringIndexOf(locale, 'x-', 0) === 0) {
@@ -972,7 +972,7 @@ function CreateCollator(locales, options) {
 
   // TODO(jshin): ICU now can take kb, kc, etc. Switch over to using ICU
   // directly. See Collator::InitializeCollator and
-  // Collator::CreateICUCollator in src/i18n.cc
+  // Collator::CreateICUCollator in src/objects/intl-objects.cc
   // ICU can't take kb, kc... parameters through localeID, so we need to pass
   // them as options.
   // One exception is -co- which has to be part of the extension, but only for
@@ -1199,7 +1199,7 @@ function CreateNumberFormat(locales, options) {
   var currencyDisplay = getOption(
       'currencyDisplay', 'string', ['code', 'symbol', 'name'], 'symbol');
   if (internalOptions.style === 'currency') {
-    defineWEProperty(internalOptions, 'currency', %StringToUpperCaseI18N(currency));
+    defineWEProperty(internalOptions, 'currency', %StringToUpperCaseIntl(currency));
     defineWEProperty(internalOptions, 'currencyDisplay', currencyDisplay);
 
     mnfdDefault = mxfdDefault = %CurrencyDigits(internalOptions.currency);
@@ -1767,7 +1767,7 @@ function canonicalizeTimeZoneID(tzID) {
   tzID = TO_STRING(tzID);
 
   // Special case handling (UTC, GMT).
-  var upperID = %StringToUpperCaseI18N(tzID);
+  var upperID = %StringToUpperCaseIntl(tzID);
   if (upperID === 'UTC' || upperID === 'GMT' ||
       upperID === 'ETC/UTC' || upperID === 'ETC/GMT') {
     return 'UTC';
@@ -2024,31 +2024,19 @@ OverrideFunction(GlobalString.prototype, 'localeCompare', function(that) {
   }
 );
 
-
-// TODO(littledan): Rewrite these two functions as C++ builtins
-function ToLowerCaseI18N() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");
-  return %StringToLowerCaseI18N(TO_STRING(this));
-}
-
-function ToUpperCaseI18N() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.toUpperCase");
-  return %StringToUpperCaseI18N(TO_STRING(this));
-}
-
-function ToLocaleLowerCaseI18N(locales) {
+function ToLocaleLowerCaseIntl(locales) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleLowerCase");
   return LocaleConvertCase(TO_STRING(this), locales, false);
 }
 
-%FunctionSetLength(ToLocaleLowerCaseI18N, 0);
+%FunctionSetLength(ToLocaleLowerCaseIntl, 0);
 
-function ToLocaleUpperCaseI18N(locales) {
+function ToLocaleUpperCaseIntl(locales) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleUpperCase");
   return LocaleConvertCase(TO_STRING(this), locales, true);
 }
 
-%FunctionSetLength(ToLocaleUpperCaseI18N, 0);
+%FunctionSetLength(ToLocaleUpperCaseIntl, 0);
 
 
 /**
@@ -2129,21 +2117,15 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
   }
 );
 
-%FunctionRemovePrototype(ToLowerCaseI18N);
-%FunctionRemovePrototype(ToUpperCaseI18N);
-%FunctionRemovePrototype(ToLocaleLowerCaseI18N);
-%FunctionRemovePrototype(ToLocaleUpperCaseI18N);
+%FunctionRemovePrototype(ToLocaleLowerCaseIntl);
+%FunctionRemovePrototype(ToLocaleUpperCaseIntl);
 
-utils.SetFunctionName(ToLowerCaseI18N, "toLowerCase");
-utils.SetFunctionName(ToUpperCaseI18N, "toUpperCase");
-utils.SetFunctionName(ToLocaleLowerCaseI18N, "toLocaleLowerCase");
-utils.SetFunctionName(ToLocaleUpperCaseI18N, "toLocaleUpperCase");
+utils.SetFunctionName(ToLocaleLowerCaseIntl, "toLocaleLowerCase");
+utils.SetFunctionName(ToLocaleUpperCaseIntl, "toLocaleUpperCase");
 
 utils.Export(function(to) {
-  to.ToLowerCaseI18N = ToLowerCaseI18N;
-  to.ToUpperCaseI18N = ToUpperCaseI18N;
-  to.ToLocaleLowerCaseI18N = ToLocaleLowerCaseI18N;
-  to.ToLocaleUpperCaseI18N = ToLocaleUpperCaseI18N;
+  to.ToLocaleLowerCaseIntl = ToLocaleLowerCaseIntl;
+  to.ToLocaleUpperCaseIntl = ToLocaleUpperCaseIntl;
 });
 
 })
