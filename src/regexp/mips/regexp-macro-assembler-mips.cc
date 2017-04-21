@@ -38,13 +38,14 @@ namespace internal {
  *
  * The stack will have the following structure:
  *
- *  - fp[60]  Isolate* isolate   (address of the current isolate)
- *  - fp[56]  direct_call  (if 1, direct call from JavaScript code,
+ *  - fp[64]  Isolate* isolate   (address of the current isolate)
+ *  - fp[60]  direct_call  (if 1, direct call from JavaScript code,
  *                          if 0, call through the runtime system).
- *  - fp[52]  stack_area_base (High end of the memory area to use as
+ *  - fp[56]  stack_area_base (High end of the memory area to use as
  *                             backtracking stack).
- *  - fp[48]  capture array size (may fit multiple sets of matches)
- *  - fp[44]  int* capture_array (int[num_saved_registers_], for output).
+ *  - fp[52]  capture array size (may fit multiple sets of matches)
+ *  - fp[48]  int* capture_array (int[num_saved_registers_], for output).
+ *  - fp[44]  secondary link/return address used by native call.
  *  --- sp when called ---
  *  - fp[40]  return address      (lr).
  *  - fp[36]  old frame pointer   (r11).
@@ -77,14 +78,17 @@ namespace internal {
  *              int start_index,
  *              Address start,
  *              Address end,
+ *              Address secondary_return_address,  // Only used by native call.
  *              int* capture_output_array,
- *              int num_capture_registers,
  *              byte* stack_area_base,
- *              bool direct_call = false,
- *              Isolate* isolate);
+ *              bool direct_call = false)
  * The call is performed by NativeRegExpMacroAssembler::Execute()
  * (in regexp-macro-assembler.cc) via the CALL_GENERATED_REGEXP_CODE macro
  * in mips/simulator-mips.h.
+ * When calling as a non-direct call (i.e., from C++ code), the return address
+ * area is overwritten with the ra register by the RegExp code. When doing a
+ * direct call from generated code, the return address is placed there by
+ * the calling code, as in a normal exit frame.
  */
 
 #define __ ACCESS_MASM(masm_)

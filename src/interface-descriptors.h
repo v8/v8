@@ -49,6 +49,7 @@ class PlatformInterfaceDescriptor;
   V(CallTrampoline)                        \
   V(ConstructStub)                         \
   V(ConstructTrampoline)                   \
+  V(RegExpExec)                            \
   V(TransitionElementsKind)                \
   V(AllocateHeapNumber)                    \
   V(Builtin)                               \
@@ -610,6 +611,19 @@ class CallICTrampolineDescriptor : public CallInterfaceDescriptor {
 class CallConstructDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(CallConstructDescriptor, CallInterfaceDescriptor)
+};
+
+class RegExpExecDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kString, kLastIndex, kStringStart, kStringEnd, kCode)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(RegExpExecDescriptor,
+                                               CallInterfaceDescriptor)
+
+  static const Register StringRegister();
+  static const Register LastIndexRegister();
+  static const Register StringStartRegister();
+  static const Register StringEndRegister();
+  static const Register CodeRegister();
 };
 
 class TransitionElementsKindDescriptor : public CallInterfaceDescriptor {

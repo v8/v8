@@ -85,10 +85,9 @@ namespace internal {
  *              Address start,
  *              Address end,
  *              int* capture_output_array,
- *              int num_capture_registers,
+ *              bool at_start,
  *              byte* stack_area_base,
- *              bool direct_call = false,
- *              Isolate* isolate);
+ *              bool direct_call)
  */
 
 #define __ ACCESS_MASM((&masm_))
