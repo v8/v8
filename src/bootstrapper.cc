@@ -569,10 +569,6 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     object_function_prototype->set_map(*map);
 
     native_context()->set_initial_object_prototype(*object_function_prototype);
-    // For bootstrapping set the array prototype to be the same as the object
-    // prototype, otherwise the missing initial_array_prototype will cause
-    // assertions during startup.
-    native_context()->set_initial_array_prototype(*object_function_prototype);
     JSFunction::SetPrototype(object_fun, object_function_prototype);
   }
 
@@ -1477,6 +1473,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     ArrayConstructorStub array_constructor_stub(isolate);
     Handle<Code> code = array_constructor_stub.GetCode();
     array_function->shared()->SetConstructStub(*code);
+
+    // Set up %ArrayPrototype%.
+    Handle<JSArray> array_prototype =
+        Handle<JSArray>::cast(factory->NewJSObject(array_function, TENURED));
+    JSArray::Initialize(array_prototype, 0);
+    JSFunction::SetPrototype(array_function, array_prototype);
+    native_context()->set_initial_array_prototype(*array_prototype);
 
     Handle<JSFunction> is_arraylike = SimpleInstallFunction(
         array_function, isolate->factory()->InternalizeUtf8String("isArray"),
@@ -4835,8 +4838,6 @@ bool Genesis::ConfigureGlobalObjects(
 
   JSObject::ForceSetPrototype(global_proxy, global_object);
 
-  native_context()->set_initial_array_prototype(
-      JSArray::cast(native_context()->array_function()->prototype()));
   native_context()->set_array_buffer_map(
       native_context()->array_buffer_fun()->initial_map());
   native_context()->set_js_map_map(
