@@ -4008,7 +4008,7 @@ bool HOptimizedGraphBuilder::BuildGraph() {
   // Set this predicate early to avoid handle deref during graph optimization.
   graph()->set_allow_code_motion(
       current_info()->IsStub() ||
-      current_info()->shared_info()->opt_count() + 1 < FLAG_max_opt_count);
+      current_info()->shared_info()->deopt_count() + 1 < FLAG_max_deopt_count);
 
   // Perform any necessary OSR-specific cleanups or changes to the graph.
   osr()->FinishGraph();

@@ -5116,12 +5116,25 @@ bool Code::marked_for_deoptimization() {
 
 void Code::set_marked_for_deoptimization(bool flag) {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  DCHECK(!flag || AllowDeoptimization::IsAllowed(GetIsolate()));
+  DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
   int updated = MarkedForDeoptimizationField::update(previous, flag);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
+bool Code::deopt_already_counted() {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  return DeoptAlreadyCountedField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+void Code::set_deopt_already_counted(bool flag) {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = DeoptAlreadyCountedField::update(previous, flag);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
 
 bool Code::is_inline_cache_stub() {
   Kind kind = this->kind();
@@ -6267,8 +6280,10 @@ void SharedFunctionInfo::set_deopt_count(int deopt_count) {
 void SharedFunctionInfo::increment_deopt_count() {
   int value = counters();
   int deopt_count = DeoptCountBits::decode(value);
-  deopt_count = (deopt_count + 1) & DeoptCountBits::kMax;
-  set_counters(DeoptCountBits::update(value, deopt_count));
+  // Saturate the deopt count when incrementing, rather than overflowing.
+  if (deopt_count < DeoptCountBits::kMax) {
+    set_counters(DeoptCountBits::update(value, deopt_count + 1));
+  }
 }
 
 
@@ -6312,7 +6327,6 @@ void SharedFunctionInfo::TryReenableOptimization() {
   // enough power of 2.
   if (tries >= 16 && (((tries - 1) & tries) == 0)) {
     set_optimization_disabled(false);
-    set_opt_count(0);
     set_deopt_count(0);
   }
 }

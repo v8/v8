@@ -565,6 +565,7 @@ namespace internal {
   F(GetOptimizationStatus, -1, 1)             \
   F(UnblockConcurrentRecompilation, 0, 1)     \
   F(GetOptimizationCount, 1, 1)               \
+  F(GetDeoptCount, 1, 1)                      \
   F(GetUndetectable, 0, 1)                    \
   F(GetCallable, 0, 1)                        \
   F(ClearFunctionFeedback, 1, 1)              \

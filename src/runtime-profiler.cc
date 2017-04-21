@@ -245,7 +245,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
 
   // Do not record non-optimizable functions.
   if (shared->optimization_disabled()) {
-    if (shared->deopt_count() >= FLAG_max_opt_count) {
+    if (shared->deopt_count() >= FLAG_max_deopt_count) {
       // If optimization was disabled due to many deoptimizations,
       // then check if the function is hot and try to reenable optimization.
       int ticks = shared_code->profiler_ticks();
@@ -322,7 +322,7 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
   int ticks = shared->profiler_ticks();
 
   if (shared->optimization_disabled()) {
-    if (shared->deopt_count() >= FLAG_max_opt_count) {
+    if (shared->deopt_count() >= FLAG_max_deopt_count) {
       // If optimization was disabled due to many deoptimizations,
       // then check if the function is hot and try to reenable optimization.
       if (ticks >= kProfilerTicksBeforeReenablingOptimization) {

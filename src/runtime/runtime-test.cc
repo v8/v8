@@ -385,6 +385,13 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationCount) {
   return Smi::FromInt(function->shared()->opt_count());
 }
 
+RUNTIME_FUNCTION(Runtime_GetDeoptCount) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  return Smi::FromInt(function->shared()->deopt_count());
+}
+
 static void ReturnThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(args.This());
 }
