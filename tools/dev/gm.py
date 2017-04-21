@@ -142,10 +142,22 @@ def _Call(cmd, silent=False):
   if not silent: print("# %s" % cmd)
   return subprocess.call(cmd, shell=True)
 
+def _Which(cmd):
+  for path in os.environ["PATH"].split(os.pathsep):
+    if os.path.exists(os.path.join(path, cmd)):
+      return os.path.join(path, cmd)
+  return None
+
 def _Write(filename, content):
   print("# echo > %s << EOF\n%sEOF" % (filename, content))
   with open(filename, "w") as f:
     f.write(content)
+
+def _Notify(summary, body):
+  if _Which('notify-send') is not None:
+    _Call("notify-send '{}' '{}'".format(summary, body), silent=True)
+  else:
+    print("{} - {}".format(summary, body))
 
 def GetPath(arch, mode):
   subdir = "%s.%s" % (arch, mode)
@@ -302,11 +314,9 @@ def Main(argv):
     for c in configs:
       return_code += configs[c].RunTests()
   if return_code == 0:
-    _Call("notify-send 'Done!' 'V8 compilation finished successfully.'",
-          silent=True)
+    _Notify('Done!', 'V8 compilation finished successfully.')
   else:
-    _Call("notify-send 'Error!' 'V8 compilation finished with errors.'",
-          silent=True)
+    _Notify('Error!', 'V8 compilation finished with errors.')
   return return_code
 
 if __name__ == "__main__":
