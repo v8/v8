@@ -229,6 +229,7 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
       if (transition_target == nullptr) {
         receiver_maps.Add(map);
       } else {
+        DCHECK(!map->is_stable());
         transitions.push_back(std::make_pair(map, handle(transition_target)));
       }
     }

@@ -7180,6 +7180,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     Map* transitioned_map =
         map->FindElementsKindTransitionedMap(&possible_transitioned_maps);
     if (transitioned_map != nullptr) {
+      DCHECK(!map->is_stable());
       transition_target.Add(handle(transitioned_map));
     } else {
       transition_target.Add(Handle<Map>());

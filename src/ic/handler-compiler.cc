@@ -152,51 +152,5 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 
 #undef __
 
-// static
-Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
-    Handle<Map> receiver_map, Isolate* isolate) {
-  if (receiver_map->has_indexed_interceptor() &&
-      !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined(isolate) &&
-      !receiver_map->GetIndexedInterceptor()->non_masking()) {
-    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadIndexedInterceptorStub);
-    return LoadIndexedInterceptorStub(isolate).GetCode();
-  }
-  if (receiver_map->IsStringMap()) {
-    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadIndexedStringStub);
-    return isolate->builtins()->KeyedLoadIC_IndexedString();
-  }
-  InstanceType instance_type = receiver_map->instance_type();
-  if (instance_type < FIRST_JS_RECEIVER_TYPE) {
-    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_SlowStub);
-    return isolate->builtins()->KeyedLoadIC_Slow();
-  }
-
-  ElementsKind elements_kind = receiver_map->elements_kind();
-  if (IsSloppyArgumentsElementsKind(elements_kind)) {
-    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
-    return KeyedLoadSloppyArgumentsStub(isolate).GetCode();
-  }
-  bool is_js_array = instance_type == JS_ARRAY_TYPE;
-  if (elements_kind == DICTIONARY_ELEMENTS) {
-    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadElementDH);
-    return LoadHandler::LoadElement(isolate, elements_kind, false, is_js_array);
-  }
-  DCHECK(IsFastElementsKind(elements_kind) ||
-         IsFixedTypedArrayElementsKind(elements_kind));
-  // TODO(jkummerow): Use IsHoleyElementsKind(elements_kind).
-  bool convert_hole_to_undefined =
-      is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
-      *receiver_map == isolate->get_initial_js_array_map(elements_kind);
-  TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadElementDH);
-  return LoadHandler::LoadElement(isolate, elements_kind,
-                                  convert_hole_to_undefined, is_js_array);
-}
-
-void ElementHandlerCompiler::CompileElementHandlers(
-    MapHandleList* receiver_maps, List<Handle<Object>>* handlers) {
-  for (int i = 0; i < receiver_maps->length(); ++i) {
-    handlers->Add(GetKeyedLoadHandler(receiver_maps->at(i), isolate()));
-  }
-}
 }  // namespace internal
 }  // namespace v8

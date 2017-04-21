@@ -186,21 +186,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   static Register value();
 };
 
-
-class ElementHandlerCompiler : public PropertyHandlerCompiler {
- public:
-  explicit ElementHandlerCompiler(Isolate* isolate)
-      : PropertyHandlerCompiler(isolate, Code::KEYED_LOAD_IC,
-                                Handle<Map>::null(), Handle<JSObject>::null()) {
-  }
-
-  virtual ~ElementHandlerCompiler() {}
-
-  static Handle<Object> GetKeyedLoadHandler(Handle<Map> receiver_map,
-                                            Isolate* isolate);
-  void CompileElementHandlers(MapHandleList* receiver_maps,
-                              List<Handle<Object>>* handlers);
-};
 }  // namespace internal
 }  // namespace v8
 
