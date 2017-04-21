@@ -17,7 +17,9 @@ namespace v8 {
 namespace internal {
 
 #ifndef V8_INTERPRETED_REGEXP
-/*
+
+/* clang-format off
+ *
  * This assembler uses the following register assignment convention
  * - t3 : Temporarily stores the index of capture start after a matching pass
  *        for a global regexp.
@@ -41,15 +43,14 @@ namespace internal {
  *
  * The O32 stack will have the following structure:
  *
- *  - fp[76]  Isolate* isolate   (address of the current isolate)
- *  - fp[72]  direct_call  (if 1, direct call from JavaScript code,
+ *  - fp[72]  Isolate* isolate   (address of the current isolate)
+ *  - fp[68]  direct_call  (if 1, direct call from JavaScript code,
  *                          if 0, call through the runtime system).
- *  - fp[68]  stack_area_base (High end of the memory area to use as
+ *  - fp[64]  stack_area_base (High end of the memory area to use as
  *                             backtracking stack).
- *  - fp[64]  capture array size (may fit multiple sets of matches)
- *  - fp[60]  int* capture_array (int[num_saved_registers_], for output).
+ *  - fp[60]  capture array size (may fit multiple sets of matches)
  *  - fp[44..59]  MIPS O32 four argument slots
- *  - fp[40]  secondary link/return address used by native call.
+ *  - fp[40]  int* capture_array (int[num_saved_registers_], for output).
  *  --- sp when called ---
  *  - fp[36]  return address      (lr).
  *  - fp[32]  old frame pointer   (r11).
@@ -74,9 +75,8 @@ namespace internal {
  *
  * The N64 stack will have the following structure:
  *
- *  - fp[88]  Isolate* isolate   (address of the current isolate)               kIsolate
- *  - fp[80]  secondary link/return address used by exit frame on native call.  kSecondaryReturnAddress
-                                                                                kStackFrameHeader
+ *  - fp[80]  Isolate* isolate   (address of the current isolate)               kIsolate
+ *                                                                              kStackFrameHeader
  *  --- sp when called ---
  *  - fp[72]  ra                 Return from RegExp code (ra).                  kReturnAddress
  *  - fp[64]  s9, old-fp         Old fp, callee saved(s9).
@@ -112,19 +112,16 @@ namespace internal {
  *              int start_index,
  *              Address start,
  *              Address end,
- *              Address secondary_return_address,  // Only used by native call.
  *              int* capture_output_array,
+ *              int num_capture_registers,
  *              byte* stack_area_base,
  *              bool direct_call = false,
- *              void* return_address,
  *              Isolate* isolate);
  * The call is performed by NativeRegExpMacroAssembler::Execute()
  * (in regexp-macro-assembler.cc) via the CALL_GENERATED_REGEXP_CODE macro
  * in mips/simulator-mips.h.
- * When calling as a non-direct call (i.e., from C++ code), the return address
- * area is overwritten with the ra register by the RegExp code. When doing a
- * direct call from generated code, the return address is placed there by
- * the calling code, as in a normal exit frame.
+ *
+ * clang-format on
  */
 
 #define __ ACCESS_MASM(masm_)

@@ -743,6 +743,18 @@ Node* CodeAssembler::CallCFunction6(
       arg5_type, function, arg0, arg1, arg2, arg3, arg4, arg5);
 }
 
+Node* CodeAssembler::CallCFunction9(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
+    MachineType arg5_type, MachineType arg6_type, MachineType arg7_type,
+    MachineType arg8_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+    Node* arg3, Node* arg4, Node* arg5, Node* arg6, Node* arg7, Node* arg8) {
+  return raw_assembler()->CallCFunction9(
+      return_type, arg0_type, arg1_type, arg2_type, arg3_type, arg4_type,
+      arg5_type, arg6_type, arg7_type, arg8_type, function, arg0, arg1, arg2,
+      arg3, arg4, arg5, arg6, arg7, arg8);
+}
+
 void CodeAssembler::Goto(Label* label) {
   label->MergeVariables();
   raw_assembler()->Goto(label->label_);
