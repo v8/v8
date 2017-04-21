@@ -410,18 +410,17 @@ class OrderedHashTable : public FixedArray {
 
   int HashToBucket(int hash) { return hash & (NumberOfBuckets() - 1); }
 
-  int HashToEntry(int hash, int bucket) {
+  int HashToEntry(int hash) {
+    int bucket = HashToBucket(hash);
     Object* entry = this->get(kHashTableStartIndex + bucket);
     return Smi::cast(entry)->value();
   }
 
   int KeyToFirstEntry(Isolate* isolate, Object* key) {
-    Object* hash_obj = key->GetHash();
+    Object* hash = key->GetHash();
     // If the object does not have an identity hash, it was never used as a key
-    if (hash_obj->IsUndefined(isolate)) return kNotFound;
-    int hash = Smi::cast(hash_obj)->value();
-    int bucket = HashToBucket(hash);
-    return HashToEntry(hash, bucket);
+    if (hash->IsUndefined(isolate)) return kNotFound;
+    return HashToEntry(Smi::cast(hash)->value());
   }
 
   int NextChainEntry(int entry) {
