@@ -3188,8 +3188,6 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
       return graph()->NewNode(jsgraph()->machine()->F32x4Abs(), inputs[0]);
     case wasm::kExprF32x4Neg:
       return graph()->NewNode(jsgraph()->machine()->F32x4Neg(), inputs[0]);
-    case wasm::kExprF32x4Sqrt:
-      return graph()->NewNode(jsgraph()->machine()->F32x4Sqrt(), inputs[0]);
     case wasm::kExprF32x4RecipApprox:
       return graph()->NewNode(jsgraph()->machine()->F32x4RecipApprox(),
                               inputs[0]);
@@ -3205,21 +3203,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprF32x4Mul:
       return graph()->NewNode(jsgraph()->machine()->F32x4Mul(), inputs[0],
                               inputs[1]);
-    case wasm::kExprF32x4Div:
-      return graph()->NewNode(jsgraph()->machine()->F32x4Div(), inputs[0],
-                              inputs[1]);
     case wasm::kExprF32x4Min:
       return graph()->NewNode(jsgraph()->machine()->F32x4Min(), inputs[0],
                               inputs[1]);
     case wasm::kExprF32x4Max:
       return graph()->NewNode(jsgraph()->machine()->F32x4Max(), inputs[0],
                               inputs[1]);
-    case wasm::kExprF32x4RecipRefine:
-      return graph()->NewNode(jsgraph()->machine()->F32x4RecipRefine(),
-                              inputs[0], inputs[1]);
-    case wasm::kExprF32x4RecipSqrtRefine:
-      return graph()->NewNode(jsgraph()->machine()->F32x4RecipSqrtRefine(),
-                              inputs[0], inputs[1]);
     case wasm::kExprF32x4Eq:
       return graph()->NewNode(jsgraph()->machine()->F32x4Eq(), inputs[0],
                               inputs[1]);

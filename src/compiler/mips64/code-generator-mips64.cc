@@ -2112,32 +2112,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ frcp_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kMips64F32x4RecipRefine: {
-      CpuFeatureScope msa_scope(masm(), MIPS_SIMD);
-      Simd128Register dst = i.OutputSimd128Register();
-      // Emulate with 2.0f - a * b
-      __ ldi_w(kSimd128ScratchReg, 2);
-      __ ffint_u_w(kSimd128ScratchReg, kSimd128ScratchReg);
-      __ fmul_w(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
-      __ fsub_w(dst, kSimd128ScratchReg, dst);
-      break;
-    }
     case kMips64F32x4RecipSqrtApprox: {
       CpuFeatureScope msa_scope(masm(), MIPS_SIMD);
       __ frsqrt_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kMips64F32x4RecipSqrtRefine: {
-      CpuFeatureScope msa_scope(masm(), MIPS_SIMD);
-      Simd128Register dst = i.OutputSimd128Register();
-      // Emulate with (3.0f - a * b) * 0.5f;
-      __ ldi_w(kSimd128ScratchReg, 3);
-      __ ffint_u_w(kSimd128ScratchReg, kSimd128ScratchReg);
-      __ fmul_w(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
-      __ fsub_w(dst, kSimd128ScratchReg, dst);
-      __ ldi_w(kSimd128ScratchReg, 0x3f);
-      __ slli_w(kSimd128ScratchReg, kSimd128ScratchReg, 24);
-      __ fmul_w(dst, dst, kSimd128ScratchReg);
       break;
     }
     case kMips64F32x4Add: {

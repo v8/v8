@@ -1505,8 +1505,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4Neg(node);
     case IrOpcode::kF32x4RecipApprox:
       return MarkAsSimd128(node), VisitF32x4RecipApprox(node);
-    case IrOpcode::kF32x4RecipRefine:
-      return MarkAsSimd128(node), VisitF32x4RecipRefine(node);
+    case IrOpcode::kF32x4RecipSqrtApprox:
+      return MarkAsSimd128(node), VisitF32x4RecipSqrtApprox(node);
     case IrOpcode::kF32x4Add:
       return MarkAsSimd128(node), VisitF32x4Add(node);
     case IrOpcode::kF32x4Sub:
@@ -1517,10 +1517,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4Min(node);
     case IrOpcode::kF32x4Max:
       return MarkAsSimd128(node), VisitF32x4Max(node);
-    case IrOpcode::kF32x4RecipSqrtApprox:
-      return MarkAsSimd128(node), VisitF32x4RecipSqrtApprox(node);
-    case IrOpcode::kF32x4RecipSqrtRefine:
-      return MarkAsSimd128(node), VisitF32x4RecipSqrtRefine(node);
     case IrOpcode::kF32x4Eq:
       return MarkAsSimd1x4(node), VisitF32x4Eq(node);
     case IrOpcode::kF32x4Ne:
@@ -2152,10 +2148,6 @@ void InstructionSelector::VisitF32x4RecipSqrtApprox(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitF32x4RecipSqrtRefine(Node* node) {
-  UNIMPLEMENTED();
-}
-
 void InstructionSelector::VisitF32x4Add(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Sub(Node* node) { UNIMPLEMENTED(); }
@@ -2167,8 +2159,6 @@ void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4RecipApprox(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4RecipRefine(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Eq(Node* node) { UNIMPLEMENTED(); }
 

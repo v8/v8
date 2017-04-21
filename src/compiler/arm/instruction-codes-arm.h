@@ -138,8 +138,6 @@ namespace compiler {
   V(ArmF32x4Mul)                   \
   V(ArmF32x4Min)                   \
   V(ArmF32x4Max)                   \
-  V(ArmF32x4RecipRefine)           \
-  V(ArmF32x4RecipSqrtRefine)       \
   V(ArmF32x4Eq)                    \
   V(ArmF32x4Ne)                    \
   V(ArmF32x4Lt)                    \

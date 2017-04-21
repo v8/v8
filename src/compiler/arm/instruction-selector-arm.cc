@@ -2447,8 +2447,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4Mul, kArmF32x4Mul)                         \
   V(F32x4Min, kArmF32x4Min)                         \
   V(F32x4Max, kArmF32x4Max)                         \
-  V(F32x4RecipRefine, kArmF32x4RecipRefine)         \
-  V(F32x4RecipSqrtRefine, kArmF32x4RecipSqrtRefine) \
   V(F32x4Eq, kArmF32x4Eq)                           \
   V(F32x4Ne, kArmF32x4Ne)                           \
   V(F32x4Lt, kArmF32x4Lt)                           \

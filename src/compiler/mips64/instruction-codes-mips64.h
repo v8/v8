@@ -192,9 +192,7 @@ namespace compiler {
   V(Mips64F32x4Abs)                 \
   V(Mips64F32x4Neg)                 \
   V(Mips64F32x4RecipApprox)         \
-  V(Mips64F32x4RecipRefine)         \
   V(Mips64F32x4RecipSqrtApprox)     \
-  V(Mips64F32x4RecipSqrtRefine)     \
   V(Mips64F32x4Add)                 \
   V(Mips64F32x4Sub)                 \
   V(Mips64F32x4Mul)                 \

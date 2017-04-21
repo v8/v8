@@ -575,19 +575,13 @@
   V(F32x4UConvertI32x4)         \
   V(F32x4Abs)                   \
   V(F32x4Neg)                   \
-  V(F32x4Sqrt)                  \
   V(F32x4RecipApprox)           \
   V(F32x4RecipSqrtApprox)       \
   V(F32x4Add)                   \
   V(F32x4Sub)                   \
   V(F32x4Mul)                   \
-  V(F32x4Div)                   \
   V(F32x4Min)                   \
   V(F32x4Max)                   \
-  V(F32x4MinNum)                \
-  V(F32x4MaxNum)                \
-  V(F32x4RecipRefine)           \
-  V(F32x4RecipSqrtRefine)       \
   V(F32x4Eq)                    \
   V(F32x4Ne)                    \
   V(F32x4Lt)                    \

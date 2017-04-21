@@ -229,19 +229,13 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                 \
   V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                           \
   V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                           \
-  V(F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                          \
   V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                   \
   V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)               \
   V(F32x4Add, Operator::kCommutative, 2, 0, 1)                            \
   V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                            \
-  V(F32x4Div, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x4Min, Operator::kCommutative, 2, 0, 1)                            \
   V(F32x4Max, Operator::kCommutative, 2, 0, 1)                            \
-  V(F32x4MinNum, Operator::kCommutative, 2, 0, 1)                         \
-  V(F32x4MaxNum, Operator::kCommutative, 2, 0, 1)                         \
-  V(F32x4RecipRefine, Operator::kNoProperties, 2, 0, 1)                   \
-  V(F32x4RecipSqrtRefine, Operator::kNoProperties, 2, 0, 1)               \
   V(F32x4Eq, Operator::kCommutative, 2, 0, 1)                             \
   V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                             \
   V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                            \

@@ -1631,16 +1631,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmF32x4RecipRefine: {
-      __ vrecps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kArmF32x4RecipSqrtRefine: {
-      __ vrsqrts(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
     case kArmF32x4Eq: {
       __ vceq(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));

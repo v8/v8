@@ -2047,16 +2047,8 @@ void InstructionSelector::VisitF32x4RecipApprox(Node* node) {
   VisitRR(this, kMipsF32x4RecipApprox, node);
 }
 
-void InstructionSelector::VisitF32x4RecipRefine(Node* node) {
-  VisitRRR(this, kMipsF32x4RecipRefine, node);
-}
-
 void InstructionSelector::VisitF32x4RecipSqrtApprox(Node* node) {
   VisitRR(this, kMipsF32x4RecipSqrtApprox, node);
-}
-
-void InstructionSelector::VisitF32x4RecipSqrtRefine(Node* node) {
-  VisitRRR(this, kMipsF32x4RecipSqrtRefine, node);
 }
 
 void InstructionSelector::VisitF32x4Add(Node* node) {

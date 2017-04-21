@@ -266,16 +266,6 @@ T RecipSqrt(T a) {
   return 1.0f / std::sqrt(a);
 }
 
-template <typename T>
-T RecipRefine(T a, T b) {
-  return 2.0f - a * b;
-}
-
-template <typename T>
-T RecipSqrtRefine(T a, T b) {
-  return (3.0f - a * b) * 0.5f;
-}
-
 }  // namespace
 
 #define WASM_SIMD_CHECK_LANE(TYPE, value, LANE_TYPE, lane_value, lane_index) \
@@ -518,10 +508,6 @@ WASM_EXEC_COMPILED_TEST(F32x4Neg) { RunF32x4UnOpTest(kExprF32x4Neg, Negate); }
 #endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64
 
-#if SIMD_LOWERING_TARGET
-WASM_EXEC_COMPILED_TEST(F32x4Sqrt) { RunF32x4UnOpTest(kExprF32x4Sqrt, Sqrt); }
-#endif  // SIMD_LOWERING_TARGET
-
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 static const float kApproxError = 0.01f;
 
@@ -572,20 +558,6 @@ WASM_EXEC_COMPILED_TEST(F32x4_Max) {
 }
 #endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64
-
-#if SIMD_LOWERING_TARGET
-WASM_EXEC_COMPILED_TEST(F32x4Div) { RunF32x4BinOpTest(kExprF32x4Div, Div); }
-#endif  // SIMD_LOWERING_TARGET
-
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
-WASM_EXEC_COMPILED_TEST(F32x4RecipRefine) {
-  RunF32x4BinOpTest(kExprF32x4RecipRefine, RecipRefine);
-}
-
-WASM_EXEC_COMPILED_TEST(F32x4RecipSqrtRefine) {
-  RunF32x4BinOpTest(kExprF32x4RecipSqrtRefine, RecipSqrtRefine);
-}
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64

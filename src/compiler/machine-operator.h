@@ -441,7 +441,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4UConvertI32x4();
   const Operator* F32x4Abs();
   const Operator* F32x4Neg();
-  const Operator* F32x4Sqrt();
   const Operator* F32x4RecipApprox();
   const Operator* F32x4RecipSqrtApprox();
   const Operator* F32x4Add();
@@ -450,10 +449,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4Div();
   const Operator* F32x4Min();
   const Operator* F32x4Max();
-  const Operator* F32x4MinNum();
-  const Operator* F32x4MaxNum();
-  const Operator* F32x4RecipRefine();
-  const Operator* F32x4RecipSqrtRefine();
   const Operator* F32x4Eq();
   const Operator* F32x4Ne();
   const Operator* F32x4Lt();

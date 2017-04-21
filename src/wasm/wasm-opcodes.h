@@ -286,19 +286,13 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(F32x4Splat, 0xe500, s_f)             \
   V(F32x4Abs, 0xe503, s_s)               \
   V(F32x4Neg, 0xe504, s_s)               \
-  V(F32x4Sqrt, 0xe505, s_s)              \
   V(F32x4RecipApprox, 0xe506, s_s)       \
   V(F32x4RecipSqrtApprox, 0xe507, s_s)   \
   V(F32x4Add, 0xe508, s_ss)              \
   V(F32x4Sub, 0xe509, s_ss)              \
   V(F32x4Mul, 0xe50a, s_ss)              \
-  V(F32x4Div, 0xe50b, s_ss)              \
   V(F32x4Min, 0xe50c, s_ss)              \
   V(F32x4Max, 0xe50d, s_ss)              \
-  V(F32x4MinNum, 0xe50e, s_ss)           \
-  V(F32x4MaxNum, 0xe50f, s_ss)           \
-  V(F32x4RecipRefine, 0xe592, s_ss)      \
-  V(F32x4RecipSqrtRefine, 0xe593, s_ss)  \
   V(F32x4Eq, 0xe510, s1x4_ss)            \
   V(F32x4Ne, 0xe511, s1x4_ss)            \
   V(F32x4Lt, 0xe512, s1x4_ss)            \
