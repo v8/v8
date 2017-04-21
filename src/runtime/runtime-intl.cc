@@ -17,6 +17,7 @@
 #include "src/intl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/intl-objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/utils.h"
 
@@ -290,27 +291,8 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
 
-  Handle<JSFunction> constructor(
-      isolate->native_context()->intl_date_time_format_function());
-
-  Handle<JSObject> local_object;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
-                                     JSObject::New(constructor, constructor));
-
-  // Set date time formatter as embedder field of the resulting JS object.
-  icu::SimpleDateFormat* date_format =
-      DateFormat::InitializeDateTimeFormat(isolate, locale, options, resolved);
-
-  if (!date_format) return isolate->ThrowIllegalOperation();
-
-  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(date_format));
-
-  // Make object handle weak so we can delete the data format once GC kicks in.
-  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
-                          DateFormat::DeleteDateFormat,
-                          WeakCallbackType::kInternalFields);
-  return *local_object;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSIntlDateTimeFormat::New(isolate, locale, options, resolved));
 }
 
 RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
@@ -324,8 +306,10 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
   Handle<Object> value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(date));
 
-  icu::SimpleDateFormat* date_format =
-      DateFormat::UnpackDateFormat(isolate, date_format_holder);
+  Handle<JSIntlDateTimeFormat> dtf(
+      reinterpret_cast<JSIntlDateTimeFormat*>(*date_format_holder));
+
+  icu::SimpleDateFormat* date_format = dtf->simple_date_format();
   CHECK_NOT_NULL(date_format);
 
   icu::UnicodeString result;
@@ -427,7 +411,8 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormatToParts) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(date));
 
   icu::SimpleDateFormat* date_format =
-      DateFormat::UnpackDateFormat(isolate, date_format_holder);
+      reinterpret_cast<JSIntlDateTimeFormat*>(*date_format_holder)
+          ->simple_date_format();
   CHECK_NOT_NULL(date_format);
 
   icu::UnicodeString formatted;
@@ -480,26 +465,8 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
 
-  Handle<JSFunction> constructor(
-      isolate->native_context()->intl_number_format_function());
-
-  Handle<JSObject> local_object;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
-                                     JSObject::New(constructor, constructor));
-
-  // Set number formatter as embedder field of the resulting JS object.
-  icu::DecimalFormat* number_format =
-      NumberFormat::InitializeNumberFormat(isolate, locale, options, resolved);
-
-  if (!number_format) return isolate->ThrowIllegalOperation();
-
-  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(number_format));
-
-  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
-                          NumberFormat::DeleteNumberFormat,
-                          WeakCallbackType::kInternalFields);
-  return *local_object;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSIntlNumberFormat::New(isolate, locale, options, resolved));
 }
 
 RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
@@ -514,7 +481,8 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(number));
 
   icu::DecimalFormat* number_format =
-      NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
+      reinterpret_cast<JSIntlNumberFormat*>(*number_format_holder)
+          ->decimal_format();
   CHECK_NOT_NULL(number_format);
 
   icu::UnicodeString result;
@@ -559,26 +527,8 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
 
-  Handle<JSFunction> constructor(
-      isolate->native_context()->intl_collator_function());
-
-  Handle<JSObject> local_object;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
-                                     JSObject::New(constructor, constructor));
-
-  // Set collator as embedder field of the resulting JS object.
-  icu::Collator* collator =
-      Collator::InitializeCollator(isolate, locale, options, resolved);
-
-  if (!collator) return isolate->ThrowIllegalOperation();
-
-  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(collator));
-
-  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
-                          Collator::DeleteCollator,
-                          WeakCallbackType::kInternalFields);
-  return *local_object;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSIntlCollator::New(isolate, locale, options, resolved));
 }
 
 RUNTIME_FUNCTION(Runtime_InternalCompare) {
@@ -590,7 +540,8 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
   CONVERT_ARG_HANDLE_CHECKED(String, string1, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, string2, 2);
 
-  icu::Collator* collator = Collator::UnpackCollator(isolate, collator_holder);
+  icu::Collator* collator =
+      reinterpret_cast<JSIntlCollator*>(*collator_holder)->collator();
   CHECK_NOT_NULL(collator);
 
   string1 = String::Flatten(string1);
@@ -626,30 +577,8 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
 
-  Handle<JSFunction> constructor(
-      isolate->native_context()->intl_v8_break_iterator_function());
-
-  Handle<JSObject> local_object;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
-                                     JSObject::New(constructor, constructor));
-
-  // Set break iterator as embedder field of the resulting JS object.
-  icu::BreakIterator* break_iterator = V8BreakIterator::InitializeBreakIterator(
-      isolate, locale, options, resolved);
-
-  if (!break_iterator) return isolate->ThrowIllegalOperation();
-
-  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(break_iterator));
-  // Make sure that the pointer to adopted text is NULL.
-  local_object->SetEmbedderField(1, static_cast<Smi*>(nullptr));
-
-  // Make object handle weak so we can delete the break iterator once GC kicks
-  // in.
-  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
-                          V8BreakIterator::DeleteBreakIterator,
-                          WeakCallbackType::kInternalFields);
-  return *local_object;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSIntlV8BreakIterator::New(isolate, locale, options, resolved));
 }
 
 RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
@@ -660,12 +589,12 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, text, 1);
 
-  icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  Handle<JSIntlV8BreakIterator> br(
+      reinterpret_cast<JSIntlV8BreakIterator*>(*break_iterator_holder));
+  icu::BreakIterator* break_iterator = br->break_iterator();
   CHECK_NOT_NULL(break_iterator);
 
-  icu::UnicodeString* u_text = reinterpret_cast<icu::UnicodeString*>(
-      break_iterator_holder->GetEmbedderField(1));
+  icu::UnicodeString* u_text = br->unicode_string();
   delete u_text;
 
   int length = text->length();
@@ -675,7 +604,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
   std::unique_ptr<uc16[]> sap;
   const UChar* text_value = GetUCharBufferFromFlat(flat, &sap, length);
   u_text = new icu::UnicodeString(text_value, length);
-  break_iterator_holder->SetEmbedderField(1, reinterpret_cast<Smi*>(u_text));
+  br->set_unicode_string(u_text);
 
   break_iterator->setText(*u_text);
 
@@ -689,8 +618,9 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorFirst) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
 
-  icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  Handle<JSIntlV8BreakIterator> br(
+      reinterpret_cast<JSIntlV8BreakIterator*>(*break_iterator_holder));
+  icu::BreakIterator* break_iterator = br->break_iterator();
   CHECK_NOT_NULL(break_iterator);
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->first());
@@ -703,8 +633,9 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorNext) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
 
-  icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  Handle<JSIntlV8BreakIterator> br(
+      reinterpret_cast<JSIntlV8BreakIterator*>(*break_iterator_holder));
+  icu::BreakIterator* break_iterator = br->break_iterator();
   CHECK_NOT_NULL(break_iterator);
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->next());
@@ -717,8 +648,9 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorCurrent) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
 
-  icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  Handle<JSIntlV8BreakIterator> br(
+      reinterpret_cast<JSIntlV8BreakIterator*>(*break_iterator_holder));
+  icu::BreakIterator* break_iterator = br->break_iterator();
   CHECK_NOT_NULL(break_iterator);
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->current());
@@ -731,8 +663,9 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
 
-  icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
+  Handle<JSIntlV8BreakIterator> br(
+      reinterpret_cast<JSIntlV8BreakIterator*>(*break_iterator_holder));
+  icu::BreakIterator* break_iterator = br->break_iterator();
   CHECK_NOT_NULL(break_iterator);
 
   // TODO(cira): Remove cast once ICU fixes base BreakIterator class.

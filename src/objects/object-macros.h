@@ -40,3 +40,15 @@
 #else
 #define DECLARE_VERIFIER(Name)
 #endif
+
+#define FIELD_ADDR(p, offset) \
+  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
+
+#define FIELD_ADDR_CONST(p, offset) \
+  (reinterpret_cast<const byte*>(p) + offset - kHeapObjectTag)
+
+#define READ_FIELD(p, offset) \
+  (*reinterpret_cast<Object* const*>(FIELD_ADDR_CONST(p, offset)))
+
+#define WRITE_FIELD(p, offset, value) \
+  (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)

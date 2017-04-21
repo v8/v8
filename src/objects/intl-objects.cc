@@ -14,6 +14,8 @@
 #include "src/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/intl-objects-inl.h"
+
 #include "unicode/brkiter.h"
 #include "unicode/bytestream.h"
 #include "unicode/calendar.h"
@@ -693,7 +695,7 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
 }  // namespace
 
 // static
-icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
+MaybeHandle<JSIntlDateTimeFormat> JSIntlDateTimeFormat::New(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
   // Convert BCP47 into ICU locale format.
@@ -706,7 +708,7 @@ icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
     if (U_FAILURE(status) || icu_length == 0) {
-      return NULL;
+      FATAL("Locale lookup bug Intl.DateTimeFormat");
     }
     icu_locale = icu::Locale(icu_result);
   }
@@ -729,20 +731,37 @@ icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
     SetResolvedDateSettings(isolate, icu_locale, date_format, resolved);
   }
 
-  return date_format;
+  DCHECK_NOT_NULL(date_format);
+
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_date_time_format_function());
+
+  Handle<Object> dtf_object;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, dtf_object,
+                             JSObject::New(constructor, constructor),
+                             JSIntlDateTimeFormat);
+  Handle<JSIntlDateTimeFormat> dtf(
+      reinterpret_cast<JSIntlDateTimeFormat*>(*dtf_object));
+
+  dtf->set_simple_date_format(date_format);
+
+  // Make object handle weak so we can delete the data format once GC kicks in.
+  Handle<Object> wrapper = isolate->global_handles()->Create(*dtf);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          JSIntlDateTimeFormat::Delete,
+                          WeakCallbackType::kFinalizer);
+
+  return dtf;
 }
 
-icu::SimpleDateFormat* DateFormat::UnpackDateFormat(Isolate* isolate,
-                                                    Handle<JSObject> obj) {
-  return reinterpret_cast<icu::SimpleDateFormat*>(obj->GetEmbedderField(0));
+void JSIntlDateTimeFormat::Delete(const v8::WeakCallbackInfo<void>& data) {
+  Object** wrapper = reinterpret_cast<Object**>(data.GetParameter());
+  JSIntlDateTimeFormat* dtf = reinterpret_cast<JSIntlDateTimeFormat*>(*wrapper);
+  delete dtf->simple_date_format();
+  GlobalHandles::Destroy(wrapper);
 }
 
-void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
-  delete reinterpret_cast<icu::SimpleDateFormat*>(data.GetInternalField(0));
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
-}
-
-icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
+MaybeHandle<JSIntlNumberFormat> JSIntlNumberFormat::New(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
   // Convert BCP47 into ICU locale format.
@@ -755,7 +774,7 @@ icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
     if (U_FAILURE(status) || icu_length == 0) {
-      return NULL;
+      FATAL("Locale lookup bug Intl.NumberFormat");
     }
     icu_locale = icu::Locale(icu_result);
   }
@@ -779,23 +798,40 @@ icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     SetResolvedNumberSettings(isolate, icu_locale, number_format, resolved);
   }
 
-  return number_format;
+  DCHECK_NOT_NULL(number_format);
+
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_number_format_function());
+
+  Handle<Object> nf_object;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, nf_object,
+                             JSObject::New(constructor, constructor),
+                             JSIntlNumberFormat);
+  Handle<JSIntlNumberFormat> nf(
+      reinterpret_cast<JSIntlNumberFormat*>(*nf_object));
+
+  nf->set_decimal_format(number_format);
+
+  // Make object handle weak so we can delete the data format once GC kicks in.
+  Handle<Object> wrapper = isolate->global_handles()->Create(*nf);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          JSIntlNumberFormat::Delete,
+                          WeakCallbackType::kFinalizer);
+
+  return nf;
 }
 
-icu::DecimalFormat* NumberFormat::UnpackNumberFormat(Isolate* isolate,
-                                                     Handle<JSObject> obj) {
-  return reinterpret_cast<icu::DecimalFormat*>(obj->GetEmbedderField(0));
+void JSIntlNumberFormat::Delete(const v8::WeakCallbackInfo<void>& data) {
+  Object** wrapper = reinterpret_cast<Object**>(data.GetParameter());
+  JSIntlNumberFormat* nf = reinterpret_cast<JSIntlNumberFormat*>(*wrapper);
+  delete nf->decimal_format();
+  GlobalHandles::Destroy(wrapper);
 }
 
-void NumberFormat::DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data) {
-  delete reinterpret_cast<icu::DecimalFormat*>(data.GetInternalField(0));
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
-}
-
-icu::Collator* Collator::InitializeCollator(Isolate* isolate,
-                                            Handle<String> locale,
-                                            Handle<JSObject> options,
-                                            Handle<JSObject> resolved) {
+MaybeHandle<JSIntlCollator> JSIntlCollator::New(Isolate* isolate,
+                                                Handle<String> locale,
+                                                Handle<JSObject> options,
+                                                Handle<JSObject> resolved) {
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale;
@@ -806,7 +842,7 @@ icu::Collator* Collator::InitializeCollator(Isolate* isolate,
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
     if (U_FAILURE(status) || icu_length == 0) {
-      return NULL;
+      FATAL("Locale lookup bug Intl.Collator");
     }
     icu_locale = icu::Locale(icu_result);
   }
@@ -828,20 +864,35 @@ icu::Collator* Collator::InitializeCollator(Isolate* isolate,
     SetResolvedCollatorSettings(isolate, icu_locale, collator, resolved);
   }
 
-  return collator;
+  DCHECK_NOT_NULL(collator);
+
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_collator_function());
+
+  Handle<Object> coll_object;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, coll_object,
+                             JSObject::New(constructor, constructor),
+                             JSIntlCollator);
+  Handle<JSIntlCollator> coll(reinterpret_cast<JSIntlCollator*>(*coll_object));
+
+  coll->set_collator(collator);
+
+  // Make object handle weak so we can delete the data format once GC kicks in.
+  Handle<Object> wrapper = isolate->global_handles()->Create(*coll);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          JSIntlCollator::Delete, WeakCallbackType::kFinalizer);
+
+  return coll;
 }
 
-icu::Collator* Collator::UnpackCollator(Isolate* isolate,
-                                        Handle<JSObject> obj) {
-  return reinterpret_cast<icu::Collator*>(obj->GetEmbedderField(0));
+void JSIntlCollator::Delete(const v8::WeakCallbackInfo<void>& data) {
+  Object** wrapper = reinterpret_cast<Object**>(data.GetParameter());
+  JSIntlCollator* coll = reinterpret_cast<JSIntlCollator*>(*wrapper);
+  delete coll->collator();
+  GlobalHandles::Destroy(wrapper);
 }
 
-void Collator::DeleteCollator(const v8::WeakCallbackInfo<void>& data) {
-  delete reinterpret_cast<icu::Collator*>(data.GetInternalField(0));
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
-}
-
-icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
+MaybeHandle<JSIntlV8BreakIterator> JSIntlV8BreakIterator::New(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
   // Convert BCP47 into ICU locale format.
@@ -854,7 +905,7 @@ icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
     if (U_FAILURE(status) || icu_length == 0) {
-      return NULL;
+      FATAL("Locale lookup bug Intl.v8BreakIterator");
     }
     icu_locale = icu::Locale(icu_result);
   }
@@ -879,19 +930,37 @@ icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
                                      resolved);
   }
 
-  return break_iterator;
+  DCHECK_NOT_NULL(break_iterator);
+
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_v8_break_iterator_function());
+
+  Handle<Object> br_object;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, br_object,
+                             JSObject::New(constructor, constructor),
+                             JSIntlV8BreakIterator);
+  Handle<JSIntlV8BreakIterator> br(
+      reinterpret_cast<JSIntlV8BreakIterator*>(*br_object));
+
+  br->set_break_iterator(break_iterator);
+  br->set_unicode_string(nullptr);
+
+  // Make object handle weak so we can delete the data format once GC kicks in.
+  Handle<Object> wrapper = isolate->global_handles()->Create(*br);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          JSIntlV8BreakIterator::Delete,
+                          WeakCallbackType::kFinalizer);
+
+  return br;
 }
 
-icu::BreakIterator* V8BreakIterator::UnpackBreakIterator(Isolate* isolate,
-                                                         Handle<JSObject> obj) {
-  return reinterpret_cast<icu::BreakIterator*>(obj->GetEmbedderField(0));
-}
-
-void V8BreakIterator::DeleteBreakIterator(
-    const v8::WeakCallbackInfo<void>& data) {
-  delete reinterpret_cast<icu::BreakIterator*>(data.GetInternalField(0));
-  delete reinterpret_cast<icu::UnicodeString*>(data.GetInternalField(1));
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
+void JSIntlV8BreakIterator::Delete(const v8::WeakCallbackInfo<void>& data) {
+  Object** wrapper = reinterpret_cast<Object**>(data.GetParameter());
+  JSIntlV8BreakIterator* br =
+      reinterpret_cast<JSIntlV8BreakIterator*>(*wrapper);
+  delete br->break_iterator();
+  delete br->unicode_string();
+  GlobalHandles::Destroy(wrapper);
 }
 
 }  // namespace internal

@@ -17,103 +17,98 @@ class BreakIterator;
 class Collator;
 class DecimalFormat;
 class SimpleDateFormat;
+class UnicodeString;
 }
 
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
+#define DECL_PTR_ACCESSORS(name, type) \
+  inline type* name() const;           \
+  inline void set_##name(type* value);
 
-class DateFormat {
+// Intl.DateTimeFormat
+// ECMA-402#datetimeformat-objects
+class JSIntlDateTimeFormat : public JSObject {
  public:
-  // Create a formatter for the specificied locale and options. Returns the
-  // resolved settings for the locale / options.
-  static icu::SimpleDateFormat* InitializeDateTimeFormat(
+  DECL_PTR_ACCESSORS(simple_date_format, icu::SimpleDateFormat)
+
+  // Constructor for Intl.DateTimeFormat(), based on the resolved locale
+  // and user options. Writes resolved options into resolved.
+  MUST_USE_RESULT static MaybeHandle<JSIntlDateTimeFormat> New(
       Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
       Handle<JSObject> resolved);
-
-  // Unpacks date format object from corresponding JavaScript object.
-  static icu::SimpleDateFormat* UnpackDateFormat(Isolate* isolate,
-                                                 Handle<JSObject> obj);
-
-  // Release memory we allocated for the DateFormat once the JS object that
-  // holds the pointer gets garbage collected.
-  static void DeleteDateFormat(const v8::WeakCallbackInfo<void>& data);
 
   // Layout description.
   static const int kSimpleDateFormat = JSObject::kHeaderSize;
   static const int kSize = kSimpleDateFormat + kPointerSize;
 
  private:
-  DateFormat();
+  // Finalizer responsible for freeing the icu::SimpleDateFormat
+  static void Delete(const v8::WeakCallbackInfo<void>& data);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSIntlDateTimeFormat);
 };
 
-class NumberFormat {
+// Intl.NumberFormat
+// ECMA-402#numberformat-objects
+class JSIntlNumberFormat : public JSObject {
  public:
-  // Create a formatter for the specificied locale and options. Returns the
-  // resolved settings for the locale / options.
-  static icu::DecimalFormat* InitializeNumberFormat(Isolate* isolate,
-                                                    Handle<String> locale,
-                                                    Handle<JSObject> options,
-                                                    Handle<JSObject> resolved);
+  DECL_PTR_ACCESSORS(decimal_format, icu::DecimalFormat)
 
-  // Unpacks number format object from corresponding JavaScript object.
-  static icu::DecimalFormat* UnpackNumberFormat(Isolate* isolate,
-                                                Handle<JSObject> obj);
-
-  // Release memory we allocated for the NumberFormat once the JS object that
-  // holds the pointer gets garbage collected.
-  static void DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data);
+  // Constructor for Intl.NumberFormat(), based on the resolved locale
+  // and user options. Writes resolved options into resolved.
+  MUST_USE_RESULT static MaybeHandle<JSIntlNumberFormat> New(
+      Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
+      Handle<JSObject> resolved);
 
   // Layout description.
   static const int kDecimalFormat = JSObject::kHeaderSize;
   static const int kSize = kDecimalFormat + kPointerSize;
 
  private:
-  NumberFormat();
+  // Finalizer responsible for freeing the icu::DecimalFormat
+  static void Delete(const v8::WeakCallbackInfo<void>& data);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSIntlNumberFormat);
 };
 
-class Collator {
+// Intl.Collator
+// ECMA-402#collator-objects
+class JSIntlCollator : public JSObject {
  public:
-  // Create a collator for the specificied locale and options. Returns the
-  // resolved settings for the locale / options.
-  static icu::Collator* InitializeCollator(Isolate* isolate,
-                                           Handle<String> locale,
-                                           Handle<JSObject> options,
-                                           Handle<JSObject> resolved);
+  DECL_PTR_ACCESSORS(collator, icu::Collator)
 
-  // Unpacks collator object from corresponding JavaScript object.
-  static icu::Collator* UnpackCollator(Isolate* isolate, Handle<JSObject> obj);
-
-  // Release memory we allocated for the Collator once the JS object that holds
-  // the pointer gets garbage collected.
-  static void DeleteCollator(const v8::WeakCallbackInfo<void>& data);
+  // Constructor for Intl.Collator(), based on the resolved locale
+  // and user options. Writes resolved options into resolved.
+  MUST_USE_RESULT static MaybeHandle<JSIntlCollator> New(
+      Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
+      Handle<JSObject> resolved);
 
   // Layout description.
   static const int kCollator = JSObject::kHeaderSize;
   static const int kSize = kCollator + kPointerSize;
 
  private:
-  Collator();
+  // Finalizer responsible for freeing the icu::Collator
+  static void Delete(const v8::WeakCallbackInfo<void>& data);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSIntlCollator);
 };
 
-class V8BreakIterator {
+// Intl.v8BreakIterator, Custom non-standard V8 word break binding
+// TODO(littledan,jwolfe): Specify, implement and ship Intl.Segmenter,
+// allowing this interface to be deprecasted and removed.
+class JSIntlV8BreakIterator : public JSObject {
  public:
-  // Create a BreakIterator for the specificied locale and options. Returns the
-  // resolved settings for the locale / options.
-  static icu::BreakIterator* InitializeBreakIterator(Isolate* isolate,
-                                                     Handle<String> locale,
-                                                     Handle<JSObject> options,
-                                                     Handle<JSObject> resolved);
+  DECL_PTR_ACCESSORS(break_iterator, icu::BreakIterator)
+  DECL_PTR_ACCESSORS(unicode_string, icu::UnicodeString)
 
-  // Unpacks break iterator object from corresponding JavaScript object.
-  static icu::BreakIterator* UnpackBreakIterator(Isolate* isolate,
-                                                 Handle<JSObject> obj);
-
-  // Release memory we allocated for the BreakIterator once the JS object that
-  // holds the pointer gets garbage collected.
-  static void DeleteBreakIterator(const v8::WeakCallbackInfo<void>& data);
+  // Constructor for Intl.v8BreakIterator(), based on the resolved locale
+  // and user options. Writes resolved options into resolved.
+  MUST_USE_RESULT static MaybeHandle<JSIntlV8BreakIterator> New(
+      Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
+      Handle<JSObject> resolved);
 
   // Layout description.
   static const int kBreakIterator = JSObject::kHeaderSize;
@@ -121,8 +116,14 @@ class V8BreakIterator {
   static const int kSize = kUnicodeString + kPointerSize;
 
  private:
-  V8BreakIterator();
+  // Finalizer responsible for freeing the icu::BreakIterator
+  // and icu::UnicodeString
+  static void Delete(const v8::WeakCallbackInfo<void>& data);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSIntlV8BreakIterator);
 };
+
+#undef DECL_PTR_ACCESSORS
 
 }  // namespace internal
 }  // namespace v8

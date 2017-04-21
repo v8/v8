@@ -1284,15 +1284,6 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   return true;
 }
 
-#define FIELD_ADDR(p, offset) \
-  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
-
-#define FIELD_ADDR_CONST(p, offset) \
-  (reinterpret_cast<const byte*>(p) + offset - kHeapObjectTag)
-
-#define READ_FIELD(p, offset) \
-  (*reinterpret_cast<Object* const*>(FIELD_ADDR_CONST(p, offset)))
-
 #define ACQUIRE_READ_FIELD(p, offset)           \
   reinterpret_cast<Object*>(base::Acquire_Load( \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
@@ -1300,9 +1291,6 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
 #define NOBARRIER_READ_FIELD(p, offset)           \
   reinterpret_cast<Object*>(base::NoBarrier_Load( \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
-
-#define WRITE_FIELD(p, offset, value) \
-  (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
 
 #define RELEASE_WRITE_FIELD(p, offset, value)                     \
   base::Release_Store(                                            \
@@ -8343,11 +8331,7 @@ SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 #undef NOBARRIER_SMI_ACCESSORS
 #undef BOOL_GETTER
 #undef BOOL_ACCESSORS
-#undef FIELD_ADDR
-#undef FIELD_ADDR_CONST
-#undef READ_FIELD
 #undef NOBARRIER_READ_FIELD
-#undef WRITE_FIELD
 #undef NOBARRIER_WRITE_FIELD
 #undef WRITE_BARRIER
 #undef CONDITIONAL_WRITE_BARRIER
