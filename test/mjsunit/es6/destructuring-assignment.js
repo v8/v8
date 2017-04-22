@@ -533,3 +533,38 @@ assertEquals(oz, [1, 2, 3, 4, 5]);
   assertEquals(FakeNewTarget,
                Reflect.construct(ReturnNewTarget4, [], FakeNewTarget));
 })();
+
+(function testSuperCall() {
+  function ctor(body) {
+    return () => eval("(class extends Object { \n" +
+                      "  constructor() {\n" +
+                      body +
+                      "\n  }\n" +
+                      "})");
+  }
+  assertThrows(ctor("({ new: super() } = {})"), SyntaxError);
+  assertThrows(ctor("({ new: x } = { new: super() } = {})"), SyntaxError);
+  assertThrows(ctor("[super()] = []"), SyntaxError);
+  assertThrows(ctor("[x] = [super()] = []"), SyntaxError);
+  assertThrows(ctor("[...super()] = []"), SyntaxError);
+  assertThrows(ctor("[x] = [...super()] = []"), SyntaxError);
+
+  class Base { get foo() { return 1; } }
+  function ext(body) {
+    return eval("new (class extends Base {\n" +
+                "  constructor() {\n" +
+                body + ";\n" +
+                "  return { x: super.foo }" +
+                "\n  }\n" +
+                "})");
+  }
+  assertEquals(1, ext("let x; [x = super()] = []").x);
+  assertEquals(1, ext("let x, y; [y] = [x = super()] = []").x);
+  assertEquals(1, ext("let x; [x] = [super()]").x);
+  assertEquals(1, ext("let x, y; [y] = [x] = [super()]").x);
+
+  assertEquals(1, ext("let x; ({x = super()} = {})").x);
+  assertEquals(1, ext("let x, y; ({ x: y } = { x = super() } = {})").x);
+  assertEquals(1, ext("let x; ({x} = { x: super() })").x);
+  assertEquals(1, ext("let x, y; ({ x: y } = { x } = { x: super() })").x);
+})();
