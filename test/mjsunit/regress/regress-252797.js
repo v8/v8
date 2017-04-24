@@ -45,6 +45,7 @@ assertFalse(%HasFastProperties(holder));
 // Create a receiver into dictionary mode.
 var receiver = Object.create(holder, {
   killMe: {value: 0, configurable: true},
+  keepMe: {value: 0, configurable: true}
 });
 delete receiver.killMe;
 assertFalse(%HasFastProperties(receiver));

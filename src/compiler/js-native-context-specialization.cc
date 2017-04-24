@@ -2310,6 +2310,15 @@ Node* JSNativeContextSpecialization::BuildCheckMaps(
 
 Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
     Handle<Map> map, Node* properties, Node* effect, Node* control) {
+  // TODO(bmeurer/jkummerow): Property deletions can undo map transitions
+  // while keeping the backing store around, meaning that even though the
+  // map might believe that objects have no unused property fields, there
+  // might actually be some. It would be nice to not create a new backing
+  // store in that case (i.e. when properties->length() >= new_length).
+  // However, introducing branches and Phi nodes here would make it more
+  // difficult for escape analysis to get rid of the backing stores used
+  // for intermediate states of chains of property additions. That makes
+  // it unclear what the best approach is here.
   DCHECK_EQ(0, map->unused_property_fields());
   // Compute the length of the old {properties} and the new properties.
   int length = map->NextFreePropertyIndex() - map->GetInObjectProperties();
