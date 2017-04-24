@@ -566,16 +566,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void AbortCompaction();
 
-  // Determine type of object and emit deletion log event.
-  static void ReportDeleteIfNeeded(HeapObject* obj, Isolate* isolate);
-
-  // Distinguishable invalid map encodings (for single word and multiple words)
-  // that indicate free regions.
-  static const uint32_t kSingleFreeEncoding = 0;
-  static const uint32_t kMultiFreeEncoding = 1;
-
-  inline Isolate* isolate() const;
-
   CodeFlusher* code_flusher() { return code_flusher_; }
   inline bool is_code_flushing_enabled() const { return code_flusher_ != NULL; }
 

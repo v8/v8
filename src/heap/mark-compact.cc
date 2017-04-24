@@ -4124,9 +4124,6 @@ void MarkCompactCollector::StartSweepSpaces() {
   heap_->lo_space()->FreeUnmarkedObjects();
 }
 
-Isolate* MarkCompactCollector::isolate() const { return heap_->isolate(); }
-
-
 void MarkCompactCollector::Initialize() {
   MarkCompactMarkingVisitor::Initialize();
   IncrementalMarking::Initialize();
