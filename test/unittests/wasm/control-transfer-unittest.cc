@@ -58,18 +58,23 @@ class ControlTransferMatcher : public MatcherInterface<const pcdiff_t&> {
 
 class ControlTransferTest : public TestWithZone {
  public:
-  void CheckPcDeltas(const byte* start, const byte* end,
-                     ExpectedPcDelta* expected_deltas, size_t num_targets) {
-    ControlTransferMap map =
-        WasmInterpreter::ComputeControlTransfersForTesting(zone(), start, end);
+  template <int code_len>
+  void CheckPcDeltas(const byte (&code)[code_len],
+                     std::initializer_list<ExpectedPcDelta> expected_deltas) {
+    byte code_with_end[code_len + 1];  // NOLINT: code_len is a constant here
+    memcpy(code_with_end, code, code_len);
+    code_with_end[code_len] = kExprEnd;
+
+    ControlTransferMap map = WasmInterpreter::ComputeControlTransfersForTesting(
+        zone(), code_with_end, code_with_end + code_len + 1);
     // Check all control targets in the map.
-    for (size_t i = 0; i < num_targets; i++) {
-      pc_t pc = expected_deltas[i].pc;
+    for (auto& expected_delta : expected_deltas) {
+      pc_t pc = expected_delta.pc;
       auto it = map.find(pc);
       if (it == map.end()) {
-        EXPECT_TRUE(false) << "expected control target @ " << pc;
+        EXPECT_TRUE(false) << "expected control target @" << pc;
       } else {
-        pcdiff_t expected = expected_deltas[i].expected;
+        pcdiff_t expected = expected_delta.expected;
         pcdiff_t& target = it->second;
         EXPECT_THAT(target,
                     MakeMatcher(new ControlTransferMatcher(pc, expected)));
@@ -77,37 +82,27 @@ class ControlTransferTest : public TestWithZone {
     }
 
     // Check there are no other control targets.
-    CheckNoOtherTargets<ExpectedPcDelta>(start, end, map, expected_deltas,
-                                         num_targets);
+    CheckNoOtherTargets(code_with_end, code_with_end + code_len + 1, map,
+                        expected_deltas);
   }
 
-  template <typename T>
   void CheckNoOtherTargets(const byte* start, const byte* end,
-                           ControlTransferMap& map, T* targets,
-                           size_t num_targets) {
+                           ControlTransferMap& map,
+                           std::initializer_list<ExpectedPcDelta> targets) {
     // Check there are no other control targets.
     for (pc_t pc = 0; start + pc < end; pc++) {
       bool found = false;
-      for (size_t i = 0; i < num_targets; i++) {
-        if (targets[i].pc == pc) {
+      for (auto& target : targets) {
+        if (target.pc == pc) {
           found = true;
           break;
         }
       }
       if (found) continue;
-      if (map.find(pc) != map.end()) {
-        printf("expected no control @ +%zu\n", pc);
-        EXPECT_TRUE(false);
-      }
+      EXPECT_TRUE(map.count(pc) == 0) << "expected no control @ +" << pc;
     }
   }
 };
-
-#define EXPECT_PC_DELTAS(...)                                          \
-  do {                                                                 \
-    ExpectedPcDelta pairs[] = {__VA_ARGS__};                           \
-    CheckPcDeltas(code, code + sizeof(code), pairs, arraysize(pairs)); \
-  } while (false)
 
 TEST_F(ControlTransferTest, SimpleIf) {
   byte code[] = {
@@ -117,7 +112,7 @@ TEST_F(ControlTransferTest, SimpleIf) {
       kLocalVoid,     // @3
       kExprEnd        // @4
   };
-  EXPECT_PC_DELTAS({2, 2});
+  CheckPcDeltas(code, {{2, 2}});
 }
 
 TEST_F(ControlTransferTest, SimpleIf1) {
@@ -129,7 +124,7 @@ TEST_F(ControlTransferTest, SimpleIf1) {
       kExprNop,       // @4
       kExprEnd        // @5
   };
-  EXPECT_PC_DELTAS({2, 3});
+  CheckPcDeltas(code, {{2, 3}});
 }
 
 TEST_F(ControlTransferTest, SimpleIf2) {
@@ -142,7 +137,7 @@ TEST_F(ControlTransferTest, SimpleIf2) {
       kExprNop,       // @5
       kExprEnd        // @6
   };
-  EXPECT_PC_DELTAS({2, 4});
+  CheckPcDeltas(code, {{2, 4}});
 }
 
 TEST_F(ControlTransferTest, SimpleIfElse) {
@@ -154,7 +149,7 @@ TEST_F(ControlTransferTest, SimpleIfElse) {
       kExprElse,      // @4
       kExprEnd        // @5
   };
-  EXPECT_PC_DELTAS({2, 3}, {4, 2});
+  CheckPcDeltas(code, {{2, 3}, {4, 2}});
 }
 
 TEST_F(ControlTransferTest, SimpleIfElse_v1) {
@@ -170,7 +165,7 @@ TEST_F(ControlTransferTest, SimpleIfElse_v1) {
       0,              // @8
       kExprEnd        // @9
   };
-  EXPECT_PC_DELTAS({2, 5}, {6, 4});
+  CheckPcDeltas(code, {{2, 5}, {6, 4}});
 }
 
 TEST_F(ControlTransferTest, SimpleIfElse1) {
@@ -183,7 +178,7 @@ TEST_F(ControlTransferTest, SimpleIfElse1) {
       kExprNop,       // @5
       kExprEnd        // @6
   };
-  EXPECT_PC_DELTAS({2, 3}, {4, 3});
+  CheckPcDeltas(code, {{2, 3}, {4, 3}});
 }
 
 TEST_F(ControlTransferTest, IfBr) {
@@ -196,7 +191,7 @@ TEST_F(ControlTransferTest, IfBr) {
       0,              // @5
       kExprEnd        // @6
   };
-  EXPECT_PC_DELTAS({2, 4}, {4, 3});
+  CheckPcDeltas(code, {{2, 4}, {4, 3}});
 }
 
 TEST_F(ControlTransferTest, IfBrElse) {
@@ -210,7 +205,7 @@ TEST_F(ControlTransferTest, IfBrElse) {
       kExprElse,      // @6
       kExprEnd        // @7
   };
-  EXPECT_PC_DELTAS({2, 5}, {4, 4}, {6, 2});
+  CheckPcDeltas(code, {{2, 5}, {4, 4}, {6, 2}});
 }
 
 TEST_F(ControlTransferTest, IfElseBr) {
@@ -224,7 +219,7 @@ TEST_F(ControlTransferTest, IfElseBr) {
       0,              // @6
       kExprEnd        // @7
   };
-  EXPECT_PC_DELTAS({2, 3}, {4, 4}, {5, 3});
+  CheckPcDeltas(code, {{2, 3}, {4, 4}, {5, 3}});
 }
 
 TEST_F(ControlTransferTest, BlockEmpty) {
@@ -232,7 +227,7 @@ TEST_F(ControlTransferTest, BlockEmpty) {
       kExprBlock,  // @0
       kExprEnd     // @1
   };
-  CheckPcDeltas(code, code + sizeof(code), nullptr, 0);
+  CheckPcDeltas(code, {});
 }
 
 TEST_F(ControlTransferTest, Br0) {
@@ -243,7 +238,7 @@ TEST_F(ControlTransferTest, Br0) {
       0,           // @3
       kExprEnd     // @4
   };
-  EXPECT_PC_DELTAS({2, 3});
+  CheckPcDeltas(code, {{2, 3}});
 }
 
 TEST_F(ControlTransferTest, Br1) {
@@ -255,7 +250,7 @@ TEST_F(ControlTransferTest, Br1) {
       0,           // @4
       kExprEnd     // @5
   };
-  EXPECT_PC_DELTAS({3, 3});
+  CheckPcDeltas(code, {{3, 3}});
 }
 
 TEST_F(ControlTransferTest, Br_v1a) {
@@ -268,7 +263,7 @@ TEST_F(ControlTransferTest, Br_v1a) {
       0,              // @5
       kExprEnd        // @6
   };
-  EXPECT_PC_DELTAS({4, 3});
+  CheckPcDeltas(code, {{4, 3}});
 }
 
 TEST_F(ControlTransferTest, Br_v1b) {
@@ -281,7 +276,7 @@ TEST_F(ControlTransferTest, Br_v1b) {
       0,              // @5
       kExprEnd        // @6
   };
-  EXPECT_PC_DELTAS({4, 3});
+  CheckPcDeltas(code, {{4, 3}});
 }
 
 TEST_F(ControlTransferTest, Br_v1c) {
@@ -294,7 +289,7 @@ TEST_F(ControlTransferTest, Br_v1c) {
       0,              // @5
       kExprEnd        // @6
   };
-  EXPECT_PC_DELTAS({4, 3});
+  CheckPcDeltas(code, {{4, 3}});
 }
 
 TEST_F(ControlTransferTest, Br2) {
@@ -307,7 +302,7 @@ TEST_F(ControlTransferTest, Br2) {
       0,           // @5
       kExprEnd     // @6
   };
-  EXPECT_PC_DELTAS({4, 3});
+  CheckPcDeltas(code, {{4, 3}});
 }
 
 TEST_F(ControlTransferTest, Br0b) {
@@ -319,7 +314,7 @@ TEST_F(ControlTransferTest, Br0b) {
       kExprNop,    // @4
       kExprEnd     // @5
   };
-  EXPECT_PC_DELTAS({2, 4});
+  CheckPcDeltas(code, {{2, 4}});
 }
 
 TEST_F(ControlTransferTest, Br0c) {
@@ -332,7 +327,7 @@ TEST_F(ControlTransferTest, Br0c) {
       kExprNop,    // @5
       kExprEnd     // @6
   };
-  EXPECT_PC_DELTAS({2, 5});
+  CheckPcDeltas(code, {{2, 5}});
 }
 
 TEST_F(ControlTransferTest, SimpleLoop1) {
@@ -343,7 +338,7 @@ TEST_F(ControlTransferTest, SimpleLoop1) {
       0,           // @3
       kExprEnd     // @4
   };
-  EXPECT_PC_DELTAS({2, -2});
+  CheckPcDeltas(code, {{2, -2}});
 }
 
 TEST_F(ControlTransferTest, SimpleLoop2) {
@@ -355,7 +350,7 @@ TEST_F(ControlTransferTest, SimpleLoop2) {
       0,           // @4
       kExprEnd     // @5
   };
-  EXPECT_PC_DELTAS({3, -3});
+  CheckPcDeltas(code, {{3, -3}});
 }
 
 TEST_F(ControlTransferTest, SimpleLoopExit1) {
@@ -366,7 +361,7 @@ TEST_F(ControlTransferTest, SimpleLoopExit1) {
       1,           // @3
       kExprEnd     // @4
   };
-  EXPECT_PC_DELTAS({2, 3});
+  CheckPcDeltas(code, {{2, 4}});
 }
 
 TEST_F(ControlTransferTest, SimpleLoopExit2) {
@@ -378,7 +373,7 @@ TEST_F(ControlTransferTest, SimpleLoopExit2) {
       1,           // @4
       kExprEnd     // @5
   };
-  EXPECT_PC_DELTAS({3, 3});
+  CheckPcDeltas(code, {{3, 4}});
 }
 
 TEST_F(ControlTransferTest, BrTable0) {
@@ -392,7 +387,7 @@ TEST_F(ControlTransferTest, BrTable0) {
       U32V_1(0),      // @6
       kExprEnd        // @7
   };
-  EXPECT_PC_DELTAS({4, 4});
+  CheckPcDeltas(code, {{4, 4}});
 }
 
 TEST_F(ControlTransferTest, BrTable0_v1a) {
@@ -408,7 +403,7 @@ TEST_F(ControlTransferTest, BrTable0_v1a) {
       U32V_1(0),      // @8
       kExprEnd        // @9
   };
-  EXPECT_PC_DELTAS({6, 4});
+  CheckPcDeltas(code, {{6, 4}});
 }
 
 TEST_F(ControlTransferTest, BrTable0_v1b) {
@@ -424,7 +419,7 @@ TEST_F(ControlTransferTest, BrTable0_v1b) {
       U32V_1(0),      // @8
       kExprEnd        // @9
   };
-  EXPECT_PC_DELTAS({6, 4});
+  CheckPcDeltas(code, {{6, 4}});
 }
 
 TEST_F(ControlTransferTest, BrTable1) {
@@ -439,7 +434,7 @@ TEST_F(ControlTransferTest, BrTable1) {
       U32V_1(0),      // @7
       kExprEnd        // @8
   };
-  EXPECT_PC_DELTAS({4, 5}, {5, 4});
+  CheckPcDeltas(code, {{4, 5}, {5, 4}});
 }
 
 TEST_F(ControlTransferTest, BrTable2) {
@@ -458,7 +453,7 @@ TEST_F(ControlTransferTest, BrTable2) {
       kExprEnd,       // @11
       kExprEnd        // @12
   };
-  EXPECT_PC_DELTAS({6, 6}, {7, 5}, {8, 5});
+  CheckPcDeltas(code, {{6, 6}, {7, 5}, {8, 5}});
 }
 
 }  // namespace wasm
