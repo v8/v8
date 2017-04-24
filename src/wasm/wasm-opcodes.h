@@ -657,66 +657,55 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   }
 
   static ValueType ValueTypeFor(MachineType type) {
-    if (type == MachineType::Int8()) {
-      return kWasmI32;
-    } else if (type == MachineType::Uint8()) {
-      return kWasmI32;
-    } else if (type == MachineType::Int16()) {
-      return kWasmI32;
-    } else if (type == MachineType::Uint16()) {
-      return kWasmI32;
-    } else if (type == MachineType::Int32()) {
-      return kWasmI32;
-    } else if (type == MachineType::Uint32()) {
-      return kWasmI32;
-    } else if (type == MachineType::Int64()) {
-      return kWasmI64;
-    } else if (type == MachineType::Uint64()) {
-      return kWasmI64;
-    } else if (type == MachineType::Float32()) {
-      return kWasmF32;
-    } else if (type == MachineType::Float64()) {
-      return kWasmF64;
-    } else if (type == MachineType::Simd128()) {
-      return kWasmS128;
-    } else if (type == MachineType::Simd1x4()) {
-      return kWasmS1x4;
-    } else if (type == MachineType::Simd1x8()) {
-      return kWasmS1x8;
-    } else if (type == MachineType::Simd1x16()) {
-      return kWasmS1x16;
-    } else {
-      UNREACHABLE();
-      return kWasmI32;
+    switch (type.representation()) {
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return kWasmI32;
+      case MachineRepresentation::kWord64:
+        return kWasmI64;
+      case MachineRepresentation::kFloat32:
+        return kWasmF32;
+      case MachineRepresentation::kFloat64:
+        return kWasmF64;
+      case MachineRepresentation::kSimd128:
+        return kWasmS128;
+      case MachineRepresentation::kSimd1x4:
+        return kWasmS1x4;
+      case MachineRepresentation::kSimd1x8:
+        return kWasmS1x8;
+      case MachineRepresentation::kSimd1x16:
+        return kWasmS1x16;
+      default:
+        UNREACHABLE();
+        return kWasmI32;
     }
   }
 
+  // TODO(wasm): This method is only used for testing. Move to an approriate
+  // header.
   static WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
-    if (type == MachineType::Int8()) {
-      return store ? kExprI32StoreMem8 : kExprI32LoadMem8S;
-    } else if (type == MachineType::Uint8()) {
-      return store ? kExprI32StoreMem8 : kExprI32LoadMem8U;
-    } else if (type == MachineType::Int16()) {
-      return store ? kExprI32StoreMem16 : kExprI32LoadMem16S;
-    } else if (type == MachineType::Uint16()) {
-      return store ? kExprI32StoreMem16 : kExprI32LoadMem16U;
-    } else if (type == MachineType::Int32()) {
-      return store ? kExprI32StoreMem : kExprI32LoadMem;
-    } else if (type == MachineType::Uint32()) {
-      return store ? kExprI32StoreMem : kExprI32LoadMem;
-    } else if (type == MachineType::Int64()) {
-      return store ? kExprI64StoreMem : kExprI64LoadMem;
-    } else if (type == MachineType::Uint64()) {
-      return store ? kExprI64StoreMem : kExprI64LoadMem;
-    } else if (type == MachineType::Float32()) {
-      return store ? kExprF32StoreMem : kExprF32LoadMem;
-    } else if (type == MachineType::Float64()) {
-      return store ? kExprF64StoreMem : kExprF64LoadMem;
-    } else if (type == MachineType::Simd128()) {
-      return store ? kExprS128StoreMem : kExprS128LoadMem;
-    } else {
-      UNREACHABLE();
-      return kExprNop;
+    switch (type.representation()) {
+      case MachineRepresentation::kWord8:
+        return store ? kExprI32StoreMem8
+                     : type.IsSigned() ? kExprI32LoadMem8S : kExprI32LoadMem8U;
+      case MachineRepresentation::kWord16:
+        return store
+                   ? kExprI32StoreMem16
+                   : type.IsSigned() ? kExprI32LoadMem16S : kExprI32LoadMem16U;
+      case MachineRepresentation::kWord32:
+        return store ? kExprI32StoreMem : kExprI32LoadMem;
+      case MachineRepresentation::kWord64:
+        return store ? kExprI64StoreMem : kExprI64LoadMem;
+      case MachineRepresentation::kFloat32:
+        return store ? kExprF32StoreMem : kExprF32LoadMem;
+      case MachineRepresentation::kFloat64:
+        return store ? kExprF64StoreMem : kExprF64LoadMem;
+      case MachineRepresentation::kSimd128:
+        return store ? kExprS128StoreMem : kExprS128LoadMem;
+      default:
+        UNREACHABLE();
+        return kExprNop;
     }
   }
 
