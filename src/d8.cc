@@ -17,6 +17,7 @@
 #include "src/third_party/vtune/v8-vtune.h"
 #endif
 
+#include "src/d8-console.h"
 #include "src/d8.h"
 #include "src/ostreams.h"
 
@@ -2261,6 +2262,8 @@ void SourceGroup::ExecuteInThread() {
   create_params.host_import_module_dynamically_callback_ =
       Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
+  D8Console console(isolate);
+  debug::SetConsoleDelegate(isolate, &console);
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
     next_semaphore_.Wait();
     {
@@ -2401,6 +2404,8 @@ void Worker::ExecuteInThread() {
   create_params.host_import_module_dynamically_callback_ =
       Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
+  D8Console console(isolate);
+  debug::SetConsoleDelegate(isolate, &console);
   {
     Isolate::Scope iscope(isolate);
     {
@@ -3017,10 +3022,12 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   Isolate* isolate = Isolate::New(create_params);
+  D8Console console(isolate);
   {
     Isolate::Scope scope(isolate);
     Initialize(isolate);
     PerIsolateData data(isolate);
+    debug::SetConsoleDelegate(isolate, &console);
 
     if (options.trace_enabled) {
       platform::tracing::TraceConfig* trace_config;

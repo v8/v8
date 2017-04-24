@@ -209,7 +209,8 @@ enum Builtin {
 
 Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 
-void SetConsoleDelegate(Isolate* isolate, ConsoleDelegate* delegate);
+V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
+                                          ConsoleDelegate* delegate);
 
 int GetStackFrameId(v8::Local<v8::StackFrame> frame);
 

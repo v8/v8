@@ -2721,6 +2721,8 @@ if (is_component_build) {
 v8_executable("d8") {
   sources = [
     "$target_gen_dir/d8-js.cc",
+    "src/d8-console.cc",
+    "src/d8-console.h",
     "src/d8.cc",
     "src/d8.h",
   ]

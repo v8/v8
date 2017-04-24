@@ -1,0 +1,8 @@
+default: {NUMBER}
+abcd: {NUMBER}
+b: 0.000000
+a: {NUMBER}
+log more
+warn 2
+debug
+info
