@@ -478,3 +478,58 @@ assertEquals(oz, [1, 2, 3, 4, 5]);
     { firstLetter: "B", rest: ["p", "u", "p", "p", "y"] },
   ], log);
 })();
+
+(function testNewTarget() {
+  assertThrows("(function() { [...new.target] = []; })", SyntaxError);
+  assertThrows("(function() { [a] = [...new.target] = []; })", SyntaxError);
+  assertThrows("(function() { [new.target] = []; })", SyntaxError);
+  assertThrows("(function() { [a] = [new.target] = []; })", SyntaxError);
+  assertThrows("(function() { ({ a: new.target] = {a: 0}); })", SyntaxError);
+  assertThrows("(function() { ({ a } = { a: new.target } = {}); })",
+               SyntaxError);
+
+  function ReturnNewTarget1() {
+    var result;
+    [result = new.target] = [];
+    return result;
+  }
+
+  function ReturnNewTarget2() {
+    var result;
+    [result] = [new.target];
+    return result;
+  }
+
+  function ReturnNewTarget3() {
+    var result;
+    ({ result = new.target } = {});
+    return result;
+  }
+
+  function ReturnNewTarget4() {
+    var result;
+    ({ result } = { result: new.target });
+    return result;
+  }
+
+  function FakeNewTarget() {}
+  assertEquals(undefined, ReturnNewTarget1());
+  assertEquals(ReturnNewTarget1, new ReturnNewTarget1());
+  assertEquals(FakeNewTarget,
+               Reflect.construct(ReturnNewTarget1, [], FakeNewTarget));
+
+  assertEquals(undefined, ReturnNewTarget2());
+  assertEquals(ReturnNewTarget2, new ReturnNewTarget2());
+  assertEquals(FakeNewTarget,
+               Reflect.construct(ReturnNewTarget2, [], FakeNewTarget));
+
+  assertEquals(undefined, ReturnNewTarget3());
+  assertEquals(ReturnNewTarget3, new ReturnNewTarget3());
+  assertEquals(FakeNewTarget,
+               Reflect.construct(ReturnNewTarget3, [], FakeNewTarget));
+
+  assertEquals(undefined, ReturnNewTarget4());
+  assertEquals(ReturnNewTarget4, new ReturnNewTarget4());
+  assertEquals(FakeNewTarget,
+               Reflect.construct(ReturnNewTarget4, [], FakeNewTarget));
+})();
