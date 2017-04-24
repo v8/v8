@@ -3458,15 +3458,11 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     }
 
     PropertyDetails details = new_map->GetLastDescriptorDetails();
-    int target_index = details.field_index() - new_map->GetInObjectProperties();
-    bool have_space = old_map->unused_property_fields() > 0 ||
-                      (details.location() == kField && target_index >= 0 &&
-                       object->properties()->length() > target_index);
     // Either new_map adds an kDescriptor property, or a kField property for
     // which there is still space, and which does not require a mutable double
     // box (an out-of-object double).
     if (details.location() == kDescriptor ||
-        (have_space &&
+        (old_map->unused_property_fields() > 0 &&
          ((FLAG_unbox_double_fields && object->properties()->length() == 0) ||
           !details.representation().IsDouble()))) {
       object->synchronized_set_map(*new_map);
@@ -3475,7 +3471,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 
     // If there is still space in the object, we need to allocate a mutable
     // double box.
-    if (have_space) {
+    if (old_map->unused_property_fields() > 0) {
       FieldIndex index =
           FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
       DCHECK(details.representation().IsDouble());
@@ -3502,6 +3498,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     }
     DCHECK_EQ(kField, details.location());
     DCHECK_EQ(kData, details.kind());
+    int target_index = details.field_index() - new_map->GetInObjectProperties();
     DCHECK(target_index >= 0);  // Must be a backing store index.
     new_storage->set(target_index, *value);
 

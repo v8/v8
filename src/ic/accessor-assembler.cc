@@ -984,7 +984,15 @@ void AccessorAssembler::HandleStoreFieldAndReturn(Node* handler_word,
   BIND(&if_out_of_object);
   {
     if (transition_to_field) {
-      ExtendPropertiesBackingStore(holder, handler_word);
+      Label storage_extended(this);
+      GotoIfNot(IsSetWord<StoreHandler::ExtendStorageBits>(handler_word),
+                &storage_extended);
+      Comment("[ Extend storage");
+      ExtendPropertiesBackingStore(holder);
+      Comment("] Extend storage");
+      Goto(&storage_extended);
+
+      BIND(&storage_extended);
     }
 
     StoreNamedField(handler_word, holder, false, representation, prepared_value,
@@ -1045,26 +1053,13 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
   return value;
 }
 
-void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
-                                                     Node* handler_word) {
-  Label done(this);
-  GotoIfNot(IsSetWord<StoreHandler::ExtendStorageBits>(handler_word), &done);
-  Comment("[ Extend storage");
-
+void AccessorAssembler::ExtendPropertiesBackingStore(Node* object) {
   ParameterMode mode = OptimalParameterMode();
 
   Node* properties = LoadProperties(object);
   Node* length = (mode == INTPTR_PARAMETERS)
                      ? LoadAndUntagFixedArrayBaseLength(properties)
                      : LoadFixedArrayBaseLength(properties);
-
-  // Previous property deletion could have left behind unused backing store
-  // capacity even for a map that think it doesn't have any unused fields.
-  // Perform a bounds check to see if we actually have to grow the array.
-  Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
-  Node* size = ElementOffsetFromIndex(length, FAST_ELEMENTS, mode,
-                                      FixedArray::kHeaderSize);
-  GotoIf(UintPtrLessThan(offset, size), &done);
 
   Node* delta = IntPtrOrSmiConstant(JSObject::kFieldsAdded, mode);
   Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
@@ -1093,10 +1088,6 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
                          SKIP_WRITE_BARRIER, mode);
 
   StoreObjectField(object, JSObject::kPropertiesOffset, new_properties);
-  Comment("] Extend storage");
-  Goto(&done);
-
-  BIND(&done);
 }
 
 void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
