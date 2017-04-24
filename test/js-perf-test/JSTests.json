@@ -397,6 +397,22 @@
         {"name": "Let-Standard"},
         {"name": "Var-Standard"}
       ]
+    },
+    {
+      "name": "Modules",
+      "path": ["Modules"],
+      "main": "run.js",
+      "resources": ["basic-export.js", "basic-import.js", "basic-namespace.js", "value.js"],
+      "flags": [
+        "--allow-natives-syntax",
+        "--harmony-dynamic-import"
+      ],
+      "results_regexp": "^%s\\-Modules\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "BasicExport"},
+        {"name": "BasicImport"},
+        {"name": "BasicNamespace"}
+      ]
     }
   ]
 }
