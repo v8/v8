@@ -82,8 +82,8 @@ class PreParsedScopeData {
   void RestoreData(Scope* scope, uint32_t* index_ptr) const;
   void RestoreData(DeclarationScope* scope) const;
 
-  FixedUint32Array* Serialize(Isolate* isolate) const;
-  void Deserialize(Handle<FixedUint32Array> array);
+  Handle<PodArray<uint32_t>> Serialize(Isolate* isolate) const;
+  void Deserialize(PodArray<uint32_t>* array);
 
   bool Consuming() const { return has_data_; }
 
