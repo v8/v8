@@ -325,7 +325,6 @@ class BytecodeGraphBuilder {
   const BytecodeAnalysis* bytecode_analysis_;
   Environment* environment_;
   BailoutId osr_ast_id_;
-  int osr_loop_offset_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all

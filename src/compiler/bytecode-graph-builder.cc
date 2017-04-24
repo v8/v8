@@ -475,7 +475,6 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       bytecode_analysis_(nullptr),
       environment_(nullptr),
       osr_ast_id_(osr_ast_id),
-      osr_loop_offset_(-1),
       merge_environments_(local_zone),
       exception_handlers_(local_zone),
       current_exception_handler_(0),
@@ -2380,7 +2379,7 @@ void BytecodeGraphBuilder::MergeControlToLeaveFunction(Node* exit) {
 void BytecodeGraphBuilder::BuildOSRLoopEntryPoint(int current_offset) {
   DCHECK(bytecode_analysis()->IsLoopHeader(current_offset));
 
-  if (!osr_ast_id_.IsNone() && osr_loop_offset_ == current_offset) {
+  if (bytecode_analysis()->IsOSREntryPoint(current_offset)) {
     // For OSR add a special {OsrLoopEntry} node into the current loop header.
     // It will be turned into a usable entry by the OSR deconstruction.
     Environment* osr_env = environment()->Copy();
@@ -2390,15 +2389,10 @@ void BytecodeGraphBuilder::BuildOSRLoopEntryPoint(int current_offset) {
 }
 
 void BytecodeGraphBuilder::BuildOSRNormalEntryPoint() {
-  if (!osr_ast_id_.IsNone()) {
+  if (bytecode_analysis()->HasOSREntryPoint()) {
     // For OSR add an {OsrNormalEntry} as the the top-level environment start.
     // It will be replaced with {Dead} by the OSR deconstruction.
     NewNode(common()->OsrNormalEntry());
-    // Translate the offset of the jump instruction to the jump target offset of
-    // that instruction so that the derived BailoutId points to the loop header.
-    osr_loop_offset_ =
-        bytecode_analysis()->GetLoopOffsetFor(osr_ast_id_.ToInt());
-    DCHECK(bytecode_analysis()->IsLoopHeader(osr_loop_offset_));
   }
 }
 
@@ -2545,7 +2539,7 @@ Node* BytecodeGraphBuilder::TryBuildSimplifiedLoadNamed(const Operator* op,
   // TODO(mstarzinger,6112): This is a workaround for OSR loop entries being
   // pruned from the graph by a soft-deopt. It can happen that a LoadIC that
   // control-dominates the OSR entry is still in "uninitialized" state.
-  if (!osr_ast_id_.IsNone()) return nullptr;
+  if (bytecode_analysis()->HasOSREntryPoint()) return nullptr;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   Reduction early_reduction = type_hint_lowering().ReduceLoadNamedOperation(
@@ -2564,7 +2558,7 @@ Node* BytecodeGraphBuilder::TryBuildSimplifiedLoadKeyed(const Operator* op,
   // TODO(mstarzinger,6112): This is a workaround for OSR loop entries being
   // pruned from the graph by a soft-deopt. It can happen that a LoadIC that
   // control-dominates the OSR entry is still in "uninitialized" state.
-  if (!osr_ast_id_.IsNone()) return nullptr;
+  if (bytecode_analysis()->HasOSREntryPoint()) return nullptr;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   Reduction early_reduction = type_hint_lowering().ReduceLoadKeyedOperation(
@@ -2583,7 +2577,7 @@ Node* BytecodeGraphBuilder::TryBuildSimplifiedStoreNamed(const Operator* op,
   // TODO(mstarzinger,6112): This is a workaround for OSR loop entries being
   // pruned from the graph by a soft-deopt. It can happen that a LoadIC that
   // control-dominates the OSR entry is still in "uninitialized" state.
-  if (!osr_ast_id_.IsNone()) return nullptr;
+  if (bytecode_analysis()->HasOSREntryPoint()) return nullptr;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   Reduction early_reduction = type_hint_lowering().ReduceStoreNamedOperation(
@@ -2602,7 +2596,7 @@ Node* BytecodeGraphBuilder::TryBuildSimplifiedStoreKeyed(const Operator* op,
   // TODO(mstarzinger,6112): This is a workaround for OSR loop entries being
   // pruned from the graph by a soft-deopt. It can happen that a LoadIC that
   // control-dominates the OSR entry is still in "uninitialized" state.
-  if (!osr_ast_id_.IsNone()) return nullptr;
+  if (bytecode_analysis()->HasOSREntryPoint()) return nullptr;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   Reduction early_reduction = type_hint_lowering().ReduceStoreKeyedOperation(
