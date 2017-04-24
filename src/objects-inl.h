@@ -1121,9 +1121,10 @@ bool Object::ToUint32(uint32_t* value) {
 
 // static
 MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
-                                         Handle<Object> object) {
+                                         Handle<Object> object,
+                                         const char* method_name) {
   if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
-  return ToObject(isolate, object, isolate->native_context());
+  return ToObject(isolate, object, isolate->native_context(), method_name);
 }
 
 
