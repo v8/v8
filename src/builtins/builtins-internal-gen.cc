@@ -169,6 +169,84 @@ class DeletePropertyBaseAssembler : public CodeStubAssembler {
   explicit DeletePropertyBaseAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
+  void DeleteFastProperty(Node* receiver, Node* receiver_map, Node* properties,
+                          Node* name, Label* dont_delete, Label* not_found,
+                          Label* slow) {
+    // This builtin implements a special case for fast property deletion:
+    // when the last property in an object is deleted, then instead of
+    // normalizing the properties, we can undo the last map transition,
+    // with a few prerequisites:
+    // (1) The current map must not be marked stable. Otherwise there could
+    // be optimized code that depends on the assumption that no object that
+    // reached this map transitions away from it (without triggering the
+    // "deoptimize dependent code" mechanism).
+    Node* bitfield3 = LoadMapBitField3(receiver_map);
+    GotoIfNot(IsSetWord32<Map::IsUnstable>(bitfield3), slow);
+    // (2) The property to be deleted must be the last property.
+    Node* descriptors = LoadMapDescriptors(receiver_map);
+    Node* nof = DecodeWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
+    GotoIf(Word32Equal(nof, Int32Constant(0)), not_found);
+    Node* descriptor_number = Int32Sub(nof, Int32Constant(1));
+    Node* key_index = DescriptorArrayToKeyIndex(descriptor_number);
+    Node* actual_key = LoadFixedArrayElement(descriptors, key_index);
+    // TODO(jkummerow): We could implement full descriptor search in order
+    // to avoid the runtime call for deleting nonexistent properties, but
+    // that's probably a rare case.
+    GotoIf(WordNotEqual(actual_key, name), slow);
+    // (3) The property to be deleted must be deletable.
+    Node* details =
+        LoadDetailsByKeyIndex<DescriptorArray>(descriptors, key_index);
+    GotoIf(IsSetWord32(details, PropertyDetails::kAttributesDontDeleteMask),
+           dont_delete);
+    // (4) The map must have a back pointer.
+    Node* backpointer =
+        LoadObjectField(receiver_map, Map::kConstructorOrBackPointerOffset);
+    GotoIfNot(IsMap(backpointer), slow);
+    // (5) The last transition must have been caused by adding a property
+    // (and not any kind of special transition).
+    Node* previous_nof = DecodeWord32<Map::NumberOfOwnDescriptorsBits>(
+        LoadMapBitField3(backpointer));
+    GotoIfNot(Word32Equal(previous_nof, descriptor_number), slow);
+
+    // Preconditions successful, perform the map rollback!
+    // Zap the property to avoid keeping objects alive.
+    // Zapping is not necessary for properties stored in the descriptor array.
+    Label zapping_done(this);
+    GotoIf(Word32NotEqual(DecodeWord32<PropertyDetails::LocationField>(details),
+                          Int32Constant(kField)),
+           &zapping_done);
+    Node* field_index =
+        DecodeWordFromWord32<PropertyDetails::FieldIndexField>(details);
+    Node* inobject_properties = LoadMapInobjectProperties(receiver_map);
+    Label inobject(this), backing_store(this);
+    // Due to inobject slack tracking, a field currently within the object
+    // could later be between objects. Use the one pointer filler map for
+    // zapping the deleted field to make this safe.
+    Node* filler = LoadRoot(Heap::kOnePointerFillerMapRootIndex);
+    DCHECK(Heap::RootIsImmortalImmovable(Heap::kOnePointerFillerMapRootIndex));
+    Branch(UintPtrLessThan(field_index, inobject_properties), &inobject,
+           &backing_store);
+    BIND(&inobject);
+    {
+      Node* field_offset =
+          IntPtrMul(IntPtrSub(LoadMapInstanceSize(receiver_map),
+                              IntPtrSub(inobject_properties, field_index)),
+                    IntPtrConstant(kPointerSize));
+      StoreObjectFieldNoWriteBarrier(receiver, field_offset, filler);
+      Goto(&zapping_done);
+    }
+    BIND(&backing_store);
+    {
+      Node* backing_store_index = IntPtrSub(field_index, inobject_properties);
+      StoreFixedArrayElement(properties, backing_store_index, filler,
+                             SKIP_WRITE_BARRIER);
+      Goto(&zapping_done);
+    }
+    BIND(&zapping_done);
+    StoreMap(receiver, backpointer);
+    Return(TrueConstant());
+  }
+
   void DeleteDictionaryProperty(Node* receiver, Node* properties, Node* name,
                                 Node* context, Label* dont_delete,
                                 Label* notfound) {
@@ -250,8 +328,8 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
     Node* properties_map = LoadMap(properties);
     GotoIf(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
            &dictionary);
-    // TODO(jkummerow): Implement support for fast properties?
-    Goto(&slow);
+    DeleteFastProperty(receiver, receiver_map, properties, unique, &dont_delete,
+                       &if_notfound, &slow);
 
     BIND(&dictionary);
     {
