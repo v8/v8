@@ -283,12 +283,39 @@ class FullEvacuationVerifier : public EvacuationVerifier {
 #endif  // VERIFY_HEAP
 
 // =============================================================================
-// MarkCompactCollector
+// MarkCompactCollectorBase, MinorMarkCompactCollector, MarkCompactCollector
 // =============================================================================
 
+int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(
+    int pages, intptr_t live_bytes) {
+  if (!FLAG_parallel_compaction) return 1;
+  // Compute the number of needed tasks based on a target compaction time, the
+  // profiled compaction speed and marked live memory.
+  //
+  // The number of parallel compaction tasks is limited by:
+  // - #evacuation pages
+  // - #cores
+  const double kTargetCompactionTimeInMs = .5;
+
+  double compaction_speed =
+      heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
+
+  const int available_cores = Max(
+      1, static_cast<int>(
+             V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
+  int tasks;
+  if (compaction_speed > 0) {
+    tasks = 1 + static_cast<int>(live_bytes / compaction_speed /
+                                 kTargetCompactionTimeInMs);
+  } else {
+    tasks = pages;
+  }
+  const int tasks_capped_pages = Min(pages, tasks);
+  return Min(available_cores, tasks_capped_pages);
+}
+
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
-    :  // NOLINT
-      heap_(heap),
+    : MarkCompactCollectorBase(heap),
       page_parallel_job_semaphore_(0),
 #ifdef DEBUG
       state_(IDLE),
@@ -614,25 +641,6 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 
 bool MarkCompactCollector::Sweeper::AreSweeperTasksRunning() {
   return num_sweeping_tasks_.Value() != 0;
-}
-
-const char* AllocationSpaceName(AllocationSpace space) {
-  switch (space) {
-    case NEW_SPACE:
-      return "NEW_SPACE";
-    case OLD_SPACE:
-      return "OLD_SPACE";
-    case CODE_SPACE:
-      return "CODE_SPACE";
-    case MAP_SPACE:
-      return "MAP_SPACE";
-    case LO_SPACE:
-      return "LO_SPACE";
-    default:
-      UNREACHABLE();
-  }
-
-  return NULL;
 }
 
 void MarkCompactCollector::ComputeEvacuationHeuristics(
@@ -3140,7 +3148,7 @@ class Evacuator : public Malloced {
 
   virtual ~Evacuator() {}
 
-  virtual bool EvacuatePage(Page* page, const MarkingState& state) = 0;
+  bool EvacuatePage(Page* page, const MarkingState& state);
 
   // Merge back locally cached info sequentially. Note that this method needs
   // to be called from the main thread.
@@ -3151,6 +3159,8 @@ class Evacuator : public Malloced {
 
  protected:
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
+
+  virtual bool RawEvacuatePage(Page* page, const MarkingState& state) = 0;
 
   inline Heap* heap() { return heap_; }
 
@@ -3178,6 +3188,34 @@ class Evacuator : public Malloced {
   intptr_t bytes_compacted_;
 };
 
+bool Evacuator::EvacuatePage(Page* page, const MarkingState& state) {
+  bool success = false;
+  DCHECK(page->SweepingDone());
+  intptr_t saved_live_bytes = state.live_bytes();
+  double evacuation_time = 0.0;
+  {
+    AlwaysAllocateScope always_allocate(heap()->isolate());
+    TimedScope timed_scope(&evacuation_time);
+    success = RawEvacuatePage(page, state);
+  }
+  ReportCompactionProgress(evacuation_time, saved_live_bytes);
+  if (FLAG_trace_evacuation) {
+    PrintIsolate(
+        heap()->isolate(),
+        "evacuation[%p]: page=%p new_space=%d "
+        "page_evacuation=%d executable=%d contains_age_mark=%d "
+        "live_bytes=%" V8PRIdPTR " time=%f page_promotion_qualifies=%d\n",
+        static_cast<void*>(this), static_cast<void*>(page), page->InNewSpace(),
+        page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
+            page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
+        page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
+        page->Contains(heap()->new_space()->age_mark()), saved_live_bytes,
+        evacuation_time,
+        saved_live_bytes > Evacuator::PageEvacuationThreshold());
+  }
+  return success;
+}
+
 void Evacuator::Finalize() {
   heap()->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
   heap()->code_space()->MergeCompactionSpace(
@@ -3201,114 +3239,64 @@ class FullEvacuator : public Evacuator {
   FullEvacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)
       : Evacuator(heap, record_visitor) {}
 
-  bool EvacuatePage(Page* page, const MarkingState& state) override;
+ protected:
+  bool RawEvacuatePage(Page* page, const MarkingState& state) override;
 };
 
-bool FullEvacuator::EvacuatePage(Page* page, const MarkingState& state) {
+bool FullEvacuator::RawEvacuatePage(Page* page, const MarkingState& state) {
   bool success = false;
-  DCHECK(page->SweepingDone());
-  intptr_t saved_live_bytes = state.live_bytes();
-  double evacuation_time = 0.0;
-  {
-    AlwaysAllocateScope always_allocate(heap()->isolate());
-    TimedScope timed_scope(&evacuation_time);
-    LiveObjectVisitor object_visitor;
-    switch (ComputeEvacuationMode(page)) {
-      case kObjectsNewToOld:
-        success =
-            object_visitor.VisitBlackObjects(page, state, &new_space_visitor_,
-                                             LiveObjectVisitor::kClearMarkbits);
+  LiveObjectVisitor object_visitor;
+  switch (ComputeEvacuationMode(page)) {
+    case kObjectsNewToOld:
+      success = object_visitor.VisitBlackObjects(
+          page, state, &new_space_visitor_, LiveObjectVisitor::kClearMarkbits);
+      DCHECK(success);
+      ArrayBufferTracker::ProcessBuffers(
+          page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
+      break;
+    case kPageNewToOld:
+      success = object_visitor.VisitBlackObjects(
+          page, state, &new_to_old_page_visitor_,
+          LiveObjectVisitor::kKeepMarking);
+      DCHECK(success);
+      new_to_old_page_visitor_.account_moved_bytes(
+          MarkingState::Internal(page).live_bytes());
+      // ArrayBufferTracker will be updated during sweeping.
+      break;
+    case kPageNewToNew:
+      success = object_visitor.VisitBlackObjects(
+          page, state, &new_to_new_page_visitor_,
+          LiveObjectVisitor::kKeepMarking);
+      DCHECK(success);
+      new_to_new_page_visitor_.account_moved_bytes(
+          MarkingState::Internal(page).live_bytes());
+      // ArrayBufferTracker will be updated during sweeping.
+      break;
+    case kObjectsOldToOld:
+      success = object_visitor.VisitBlackObjects(
+          page, state, &old_space_visitor_, LiveObjectVisitor::kClearMarkbits);
+      if (!success) {
+        // Aborted compaction page. We have to record slots here, since we
+        // might not have recorded them in first place.
+        // Note: We mark the page as aborted here to be able to record slots
+        // for code objects in |RecordMigratedSlotVisitor|.
+        page->SetFlag(Page::COMPACTION_WAS_ABORTED);
+        EvacuateRecordOnlyVisitor record_visitor(heap());
+        success = object_visitor.VisitBlackObjects(
+            page, state, &record_visitor, LiveObjectVisitor::kKeepMarking);
+        ArrayBufferTracker::ProcessBuffers(
+            page, ArrayBufferTracker::kUpdateForwardedKeepOthers);
         DCHECK(success);
+        // We need to return failure here to indicate that we want this page
+        // added to the sweeper.
+        success = false;
+      } else {
         ArrayBufferTracker::ProcessBuffers(
             page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
-        break;
-      case kPageNewToOld:
-        success = object_visitor.VisitBlackObjects(
-            page, state, &new_to_old_page_visitor_,
-            LiveObjectVisitor::kKeepMarking);
-        DCHECK(success);
-        new_to_old_page_visitor_.account_moved_bytes(
-            MarkingState::Internal(page).live_bytes());
-        // ArrayBufferTracker will be updated during sweeping.
-        break;
-      case kPageNewToNew:
-        success = object_visitor.VisitBlackObjects(
-            page, state, &new_to_new_page_visitor_,
-            LiveObjectVisitor::kKeepMarking);
-        DCHECK(success);
-        new_to_new_page_visitor_.account_moved_bytes(
-            MarkingState::Internal(page).live_bytes());
-        // ArrayBufferTracker will be updated during sweeping.
-        break;
-      case kObjectsOldToOld:
-        success =
-            object_visitor.VisitBlackObjects(page, state, &old_space_visitor_,
-                                             LiveObjectVisitor::kClearMarkbits);
-        if (!success) {
-          // Aborted compaction page. We have to record slots here, since we
-          // might not have recorded them in first place.
-          // Note: We mark the page as aborted here to be able to record slots
-          // for code objects in |RecordMigratedSlotVisitor|.
-          page->SetFlag(Page::COMPACTION_WAS_ABORTED);
-          EvacuateRecordOnlyVisitor record_visitor(heap());
-          success = object_visitor.VisitBlackObjects(
-              page, state, &record_visitor, LiveObjectVisitor::kKeepMarking);
-          ArrayBufferTracker::ProcessBuffers(
-              page, ArrayBufferTracker::kUpdateForwardedKeepOthers);
-          DCHECK(success);
-          // We need to return failure here to indicate that we want this page
-          // added to the sweeper.
-          success = false;
-        } else {
-          ArrayBufferTracker::ProcessBuffers(
-              page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
-        }
-        break;
-    }
-  }
-  ReportCompactionProgress(evacuation_time, saved_live_bytes);
-  if (FLAG_trace_evacuation) {
-    PrintIsolate(heap()->isolate(),
-                 "evacuation[%p]: page=%p new_space=%d "
-                 "page_evacuation=%d executable=%d contains_age_mark=%d "
-                 "live_bytes=%" V8PRIdPTR " time=%f\n",
-                 static_cast<void*>(this), static_cast<void*>(page),
-                 page->InNewSpace(),
-                 page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
-                     page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
-                 page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
-                 page->Contains(heap()->new_space()->age_mark()),
-                 saved_live_bytes, evacuation_time);
+      }
+      break;
   }
   return success;
-}
-
-int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
-                                                          intptr_t live_bytes) {
-  if (!FLAG_parallel_compaction) return 1;
-  // Compute the number of needed tasks based on a target compaction time, the
-  // profiled compaction speed and marked live memory.
-  //
-  // The number of parallel compaction tasks is limited by:
-  // - #evacuation pages
-  // - #cores
-  const double kTargetCompactionTimeInMs = .5;
-
-  double compaction_speed =
-      heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
-
-  const int available_cores = Max(
-      1, static_cast<int>(
-             V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
-  int tasks;
-  if (compaction_speed > 0) {
-    tasks = 1 + static_cast<int>(live_bytes / compaction_speed /
-                                 kTargetCompactionTimeInMs);
-  } else {
-    tasks = pages;
-  }
-  const int tasks_capped_pages = Min(pages, tasks);
-  return Min(available_cores, tasks_capped_pages);
 }
 
 class EvacuationJobTraits {

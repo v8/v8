@@ -2655,6 +2655,8 @@ class AllocationObserver {
   DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
 };
 
+V8_EXPORT_PRIVATE const char* AllocationSpaceName(AllocationSpace space);
+
 }  // namespace internal
 }  // namespace v8
 

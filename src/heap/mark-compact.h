@@ -17,20 +17,13 @@
 namespace v8 {
 namespace internal {
 
-// Callback function, returns whether an object is alive. The heap size
-// of the object is returned in size. It optionally updates the offset
-// to the first live object in the page (only used for old and map objects).
-typedef bool (*IsAliveFunction)(HeapObject* obj, int* size, int* offset);
-
-// Callback function to mark an object in a given heap.
-typedef void (*MarkObjectFunction)(Heap* heap, HeapObject* object);
-
 // Forward declarations.
 class CodeFlusher;
 class HeapObjectVisitor;
 class MarkCompactCollector;
 class MinorMarkCompactCollector;
 class MarkingVisitor;
+class ThreadLocalTop;
 
 class ObjectMarking : public AllStatic {
  public:
@@ -310,10 +303,6 @@ class CodeFlusher {
   DISALLOW_COPY_AND_ASSIGN(CodeFlusher);
 };
 
-
-// Defined in isolate.h.
-class ThreadLocalTop;
-
 class MarkBitCellIterator BASE_EMBEDDED {
  public:
   MarkBitCellIterator(MemoryChunk* chunk, MarkingState state) : chunk_(chunk) {
@@ -422,41 +411,58 @@ class LiveObjectVisitor BASE_EMBEDDED {
 
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 
-class MinorMarkCompactCollector {
+// Base class for minor and full MC collectors.
+class MarkCompactCollectorBase {
  public:
-  explicit MinorMarkCompactCollector(Heap* heap)
-      : heap_(heap), marking_deque_(heap) {}
-
-  void SetUp();
-  void TearDown();
-
-  void CollectGarbage();
+  virtual ~MarkCompactCollectorBase() {}
+  virtual void SetUp() = 0;
+  virtual void TearDown() = 0;
+  virtual void CollectGarbage() = 0;
 
   inline Heap* heap() const { return heap_; }
+  inline Isolate* isolate() { return heap()->isolate(); }
+
+ protected:
+  explicit MarkCompactCollectorBase(Heap* heap) : heap_(heap) {}
+
+  virtual void MarkLiveObjects() = 0;
+
+  // The number of parallel compaction tasks, including the main thread.
+  int NumberOfParallelCompactionTasks(int pages, intptr_t live_bytes);
+
+  Heap* heap_;
+};
+
+// Collector for young-generation only.
+class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
+ public:
+  explicit MinorMarkCompactCollector(Heap* heap)
+      : MarkCompactCollectorBase(heap), marking_deque_(heap) {}
+
+  void SetUp() override;
+  void TearDown() override;
+  void CollectGarbage() override;
 
  private:
   class RootMarkingVisitor;
 
-  inline Isolate* isolate() { return heap()->isolate(); }
   inline MarkingDeque* marking_deque() { return &marking_deque_; }
 
   V8_INLINE void MarkObject(HeapObject* obj);
   V8_INLINE void PushBlack(HeapObject* obj);
 
   SlotCallbackResult CheckAndMarkObject(Heap* heap, Address slot_address);
-  void MarkLiveObjects();
+  void MarkLiveObjects() override;
   void ProcessMarkingDeque();
   void EmptyMarkingDeque();
 
-  Heap* heap_;
   MarkingDeque marking_deque_;
 
   friend class StaticYoungGenerationMarkingVisitor;
 };
 
-// -------------------------------------------------------------------------
-// Mark-Compact collector
-class MarkCompactCollector {
+// Collector for young and old generation.
+class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
   class RootMarkingVisitor;
 
@@ -543,12 +549,10 @@ class MarkCompactCollector {
 
   static void Initialize();
 
-  static SlotCallbackResult CheckAndMarkObject(Heap* heap,
-                                               Address slot_address);
-
-  void SetUp();
-
-  void TearDown();
+  void SetUp() override;
+  void TearDown() override;
+  // Performs a global garbage collection.
+  void CollectGarbage() override;
 
   void CollectEvacuationCandidates(PagedSpace* space);
 
@@ -557,9 +561,6 @@ class MarkCompactCollector {
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
   void Prepare();
-
-  // Performs a global garbage collection.
-  void CollectGarbage();
 
   bool StartCompaction();
 
@@ -573,7 +574,6 @@ class MarkCompactCollector {
   static const uint32_t kSingleFreeEncoding = 0;
   static const uint32_t kMultiFreeEncoding = 1;
 
-  inline Heap* heap() const { return heap_; }
   inline Isolate* isolate() const;
 
   CodeFlusher* code_flusher() { return code_flusher_; }
@@ -659,23 +659,6 @@ class MarkCompactCollector {
   // Finishes GC, performs heap verification if enabled.
   void Finish();
 
-  // -----------------------------------------------------------------------
-  // Phase 1: Marking live objects.
-  //
-  //  Before: The heap has been prepared for garbage collection by
-  //          MarkCompactCollector::Prepare() and is otherwise in its
-  //          normal state.
-  //
-  //   After: Live objects are marked and non-live objects are unmarked.
-
-  friend class CodeMarkingVisitor;
-  friend class IncrementalMarkingMarkingVisitor;
-  friend class MarkCompactMarkingVisitor;
-  friend class MarkingVisitor;
-  friend class RecordMigratedSlotVisitor;
-  friend class SharedFunctionInfoMarkingVisitor;
-  friend class StaticYoungGenerationMarkingVisitor;
-
   // Mark code objects that are active on the stack to prevent them
   // from being flushed.
   void PrepareThreadForCodeFlushing(Isolate* isolate, ThreadLocalTop* top);
@@ -683,7 +666,7 @@ class MarkCompactCollector {
   void PrepareForCodeFlushing();
 
   // Marking operations for objects reachable from roots.
-  void MarkLiveObjects();
+  void MarkLiveObjects() override;
 
   // Pushes a black object onto the marking stack and accounts for live bytes.
   // Note that this assumes live bytes have not yet been counted.
@@ -793,25 +776,11 @@ class MarkCompactCollector {
   void EvacuateEpilogue();
   void EvacuatePagesInParallel();
 
-  // The number of parallel compaction tasks, including the main thread.
-  int NumberOfParallelCompactionTasks(int pages, intptr_t live_bytes);
-
   void EvacuateNewSpaceAndCandidates();
 
   void UpdatePointersAfterEvacuation();
 
   void ReleaseEvacuationCandidates();
-
-
-#ifdef DEBUG
-  friend class MarkObjectVisitor;
-  static void VisitObject(HeapObject* obj);
-
-  friend class UnmarkObjectVisitor;
-  static void UnmarkObject(HeapObject* obj);
-#endif
-
-  Heap* heap_;
 
   base::Semaphore page_parallel_job_semaphore_;
 
@@ -854,10 +823,16 @@ class MarkCompactCollector {
 
   Sweeper sweeper_;
 
+  friend class CodeMarkingVisitor;
   friend class Heap;
+  friend class IncrementalMarkingMarkingVisitor;
+  friend class MarkCompactMarkingVisitor;
+  friend class MarkingVisitor;
+  friend class RecordMigratedSlotVisitor;
+  friend class SharedFunctionInfoMarkingVisitor;
+  friend class StaticYoungGenerationMarkingVisitor;
   friend class StoreBuffer;
 };
-
 
 class EvacuationScope BASE_EMBEDDED {
  public:
@@ -872,7 +847,6 @@ class EvacuationScope BASE_EMBEDDED {
   MarkCompactCollector* collector_;
 };
 
-V8_EXPORT_PRIVATE const char* AllocationSpaceName(AllocationSpace space);
 }  // namespace internal
 }  // namespace v8
 

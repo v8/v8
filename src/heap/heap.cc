@@ -6404,5 +6404,23 @@ int Heap::GetStaticVisitorIdForMap(Map* map) {
   return StaticVisitorBase::GetVisitorId(map);
 }
 
+const char* AllocationSpaceName(AllocationSpace space) {
+  switch (space) {
+    case NEW_SPACE:
+      return "NEW_SPACE";
+    case OLD_SPACE:
+      return "OLD_SPACE";
+    case CODE_SPACE:
+      return "CODE_SPACE";
+    case MAP_SPACE:
+      return "MAP_SPACE";
+    case LO_SPACE:
+      return "LO_SPACE";
+    default:
+      UNREACHABLE();
+  }
+  return NULL;
+}
+
 }  // namespace internal
 }  // namespace v8
