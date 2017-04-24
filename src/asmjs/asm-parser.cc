@@ -572,6 +572,7 @@ void AsmJsParser::ValidateModuleVarNewStdlib(VarInfo* info) {
 #define V(name, _junk1, _junk2, _junk3)                          \
   case TOK(name):                                                \
     DeclareStdlibFunc(info, VarKind::kSpecial, AsmType::name()); \
+    stdlib_uses_.insert(AsmTyper::k##name);                      \
     break;
     STDLIB_ARRAY_TYPE_LIST(V)
 #undef V

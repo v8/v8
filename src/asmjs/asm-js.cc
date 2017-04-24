@@ -73,7 +73,7 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
   if (!member_id->ToInt32(&member_kind)) {
     UNREACHABLE();
   }
-  switch (member_kind) {
+  switch (static_cast<wasm::AsmTyper::StandardMember>(member_kind)) {
     case wasm::AsmTyper::StandardMember::kNone:
     case wasm::AsmTyper::StandardMember::kModule:
     case wasm::AsmTyper::StandardMember::kStdlib:
@@ -132,8 +132,32 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
   }
       STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
 #undef STDLIB_MATH_CONST
-    default: { UNREACHABLE(); }
+#define STDLIB_ARRAY_TYPE(fname, FName)                                  \
+  case wasm::AsmTyper::StandardMember::k##FName: {                       \
+    if (stdlib.is_null()) {                                              \
+      return false;                                                      \
+    }                                                                    \
+    Handle<Name> name(isolate->factory()->InternalizeOneByteString(      \
+        STATIC_CHAR_VECTOR(#FName)));                                    \
+    Handle<Object> value;                                                \
+    MaybeHandle<Object> maybe_value = Object::GetProperty(stdlib, name); \
+    if (!maybe_value.ToHandle(&value) || !value->IsJSFunction()) {       \
+      return false;                                                      \
+    }                                                                    \
+    Handle<JSFunction> func = Handle<JSFunction>::cast(value);           \
+    return func.is_identical_to(isolate->fname());                       \
   }
+      STDLIB_ARRAY_TYPE(int8_array_fun, Int8Array)
+      STDLIB_ARRAY_TYPE(uint8_array_fun, Uint8Array)
+      STDLIB_ARRAY_TYPE(int16_array_fun, Int16Array)
+      STDLIB_ARRAY_TYPE(uint16_array_fun, Uint16Array)
+      STDLIB_ARRAY_TYPE(int32_array_fun, Int32Array)
+      STDLIB_ARRAY_TYPE(uint32_array_fun, Uint32Array)
+      STDLIB_ARRAY_TYPE(float32_array_fun, Float32Array)
+      STDLIB_ARRAY_TYPE(float64_array_fun, Float64Array)
+#undef STDLIB_ARRAY_TYPE
+  }
+  UNREACHABLE();
   return false;
 }
 
