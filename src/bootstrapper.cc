@@ -2260,6 +2260,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_regexp_last_match_info(*last_match_info);
     Handle<RegExpMatchInfo> internal_match_info = factory->NewRegExpMatchInfo();
     native_context()->set_regexp_internal_match_info(*internal_match_info);
+
+    // Force the RegExp constructor to fast properties, so that we can use the
+    // fast paths for various things like
+    //
+    //   x instanceof RegExp
+    //
+    // etc. We should probably come up with a more principled approach once
+    // the JavaScript builtins are gone.
+    JSObject::MigrateSlowToFast(regexp_fun, 0, "Bootstrapping");
   }
 
   {  // -- E r r o r
