@@ -12,7 +12,7 @@ cd ${TOOLS_DIR}/..
 rm -rf test/fuzzer/wasm
 rm -rf test/fuzzer/wasm_asmjs
 
-make x64.release -j
+tools/dev/gm.py x64.release all
 
 mkdir -p test/fuzzer/wasm
 mkdir -p test/fuzzer/wasm_asmjs
