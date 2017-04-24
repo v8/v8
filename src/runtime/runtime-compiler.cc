@@ -330,9 +330,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
         PrintF("[OSR - Entry at AST id %d, offset %d in optimized code]\n",
                ast_id.ToInt(), data->OsrPcOffset()->value());
       }
-      // TODO(titzer): this is a massive hack to make the deopt counts
-      // match. Fix heuristics for reenabling optimizations!
-      function->shared()->increment_deopt_count();
 
       if (result->is_turbofanned()) {
         // When we're waiting for concurrent optimization, set to compile on
