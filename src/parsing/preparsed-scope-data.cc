@@ -163,14 +163,13 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
   DCHECK_EQ(data_end_index, index);
 }
 
-Handle<PodArray<uint32_t>> PreParsedScopeData::Serialize(
-    Isolate* isolate) const {
+FixedUint32Array* PreParsedScopeData::Serialize(Isolate* isolate) const {
   // FIXME(marja): save space by using a byte array and converting
   // function_index_ to bytes.
-  size_t length =
-      function_index_.size() * kFunctionDataSize + backing_store_.size() + 1;
-  Handle<PodArray<uint32_t>> array =
-      PodArray<uint32_t>::New(isolate, static_cast<int>(length), TENURED);
+  Handle<JSTypedArray> js_array = isolate->factory()->NewJSTypedArray(
+      UINT32_ELEMENTS,
+      function_index_.size() * kFunctionDataSize + backing_store_.size() + 1);
+  FixedUint32Array* array = FixedUint32Array::cast(js_array->elements());
 
   array->set(0, static_cast<uint32_t>(function_index_.size()));
   int i = 1;
@@ -193,31 +192,33 @@ Handle<PodArray<uint32_t>> PreParsedScopeData::Serialize(
   return array;
 }
 
-void PreParsedScopeData::Deserialize(PodArray<uint32_t>* array) {
+void PreParsedScopeData::Deserialize(Handle<FixedUint32Array> array) {
   has_data_ = true;
-  DCHECK_NOT_NULL(array);
+  DCHECK(!array.is_null());
   if (array->length() == 0) {
     return;
   }
-  int function_count = array->get(0);
+  int function_count = array->get_scalar(0);
   CHECK(array->length() > function_count * kFunctionDataSize);
   if (function_count == 0) {
     return;
   }
   int i = 1;
   for (; i < function_count * kFunctionDataSize + 1; i += kFunctionDataSize) {
-    int start = array->get(i);
-    function_data_positions_[start] = array->get(i + 1);
+    int start = array->get_scalar(i);
+    function_data_positions_[start] = array->get_scalar(i + 1);
     function_index_.AddFunctionData(
-        start, PreParseData::FunctionData(
-                   array->get(i + 2), array->get(i + 3), array->get(i + 4),
-                   LanguageMode(array->get(i + 5)), array->get(i + 6)));
+        start,
+        PreParseData::FunctionData(
+            array->get_scalar(i + 2), array->get_scalar(i + 3),
+            array->get_scalar(i + 4), LanguageMode(array->get_scalar(i + 5)),
+            array->get_scalar(i + 6)));
   }
   CHECK_EQ(function_index_.size(), function_count);
 
   backing_store_.reserve(array->length() - i);
   for (; i < array->length(); ++i) {
-    backing_store_.push_back(array->get(i));
+    backing_store_.push_back(array->get_scalar(i));
   }
 }
 

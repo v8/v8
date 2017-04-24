@@ -5487,7 +5487,7 @@ class Script: public Struct {
   // This must only be called if the type of this script is TYPE_WASM.
   DECL_ACCESSORS(wasm_compiled_module, Object)
 
-  DECL_ACCESSORS(preparsed_scope_data, PodArray<uint32_t>)
+  DECL_ACCESSORS(preparsed_scope_data, FixedTypedArrayBase)
 
   // [compilation_type]: how the the script was compiled. Encoded in the
   // 'flags' field.
@@ -5576,6 +5576,7 @@ class Script: public Struct {
   };
 
   bool HasPreparsedScopeData() const;
+  Handle<FixedUint32Array> GetPreparsedScopeData() const;
 
   // Dispatched behavior.
   DECLARE_PRINTER(Script)
