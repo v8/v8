@@ -8942,6 +8942,10 @@ void Isolate::VisitWeakHandles(PersistentHandleVisitor* visitor) {
   isolate->global_handles()->IterateWeakRootsInNewSpaceWithClassIds(visitor);
 }
 
+void Isolate::SetAllowAtomicsWait(bool allow) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->set_allow_atomics_wait(allow);
+}
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)),

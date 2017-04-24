@@ -6619,7 +6619,7 @@ class V8_EXPORT Isolate {
 
     /**
      * Whether calling Atomics.wait (a function that may block) is allowed in
-     * this isolate.
+     * this isolate. This can also be configured via SetAllowAtomicsWait.
      */
     bool allow_atomics_wait;
 
@@ -7478,6 +7478,13 @@ class V8_EXPORT Isolate {
    * True if at least one thread Enter'ed this isolate.
    */
   bool IsInUse();
+
+  /**
+   * Set whether calling Atomics.wait (a function that may block) is allowed in
+   * this isolate. This can also be configured via
+   * CreateParams::allow_atomics_wait.
+   */
+  void SetAllowAtomicsWait(bool allow);
 
   Isolate() = delete;
   ~Isolate() = delete;

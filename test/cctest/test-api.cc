@@ -26557,3 +26557,18 @@ TEST(DeterministicRandomNumberGeneration) {
 
   v8::internal::FLAG_random_seed = previous_seed;
 }
+
+UNINITIALIZED_TEST(AllowAtomicsWait) {
+  using namespace i;
+  v8::Isolate::CreateParams create_params;
+  create_params.allow_atomics_wait = false;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  {
+    CHECK_EQ(false, i_isolate->allow_atomics_wait());
+    isolate->SetAllowAtomicsWait(true);
+    CHECK_EQ(true, i_isolate->allow_atomics_wait());
+  }
+  isolate->Dispose();
+}
