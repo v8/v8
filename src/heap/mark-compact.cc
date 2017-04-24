@@ -2384,11 +2384,12 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_MARK_OLD_TO_NEW_POINTERS);
-    RememberedSet<OLD_TO_NEW>::Iterate(heap(), [this](Address addr) {
-      return CheckAndMarkObject(heap(), addr);
-    });
+    RememberedSet<OLD_TO_NEW>::Iterate(
+        heap(), NON_SYNCHRONIZED,
+        [this](Address addr) { return CheckAndMarkObject(heap(), addr); });
     RememberedSet<OLD_TO_NEW>::IterateTyped(
-        heap(), [this](SlotType type, Address host_addr, Address addr) {
+        heap(), NON_SYNCHRONIZED,
+        [this](SlotType type, Address host_addr, Address addr) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
               isolate(), type, addr, [this](Object** addr) {
                 return CheckAndMarkObject(heap(),
@@ -3986,7 +3987,7 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
                                                      AllocationSpace identity) {
   int max_freed = 0;
   {
-    base::LockGuard<base::Mutex> guard(page->mutex());
+    base::LockGuard<base::RecursiveMutex> guard(page->mutex());
     // If this page was already swept in the meantime, we can return here.
     if (page->SweepingDone()) return 0;
     DCHECK_EQ(Page::kSweepingPending,
