@@ -980,11 +980,6 @@ namespace internal {
   TFJ(AsyncGeneratorAwaitResolveClosure, 1, kValue)                            \
   TFJ(AsyncGeneratorAwaitRejectClosure, 1, kValue)                             \
                                                                                \
-  /* GeneratorYield (proposal-async-iteration/#sec-generatoryield) with */     \
-  /* resume behaviour specific to Async Generators. Internal / not exposed */  \
-  /* to JS code. */                                                            \
-  TFJ(AsyncGeneratorYield, 1, kValue)                                          \
-                                                                               \
   /* Async-from-Sync Iterator */                                               \
                                                                                \
   /* %AsyncFromSyncIteratorPrototype% */                                       \

@@ -1410,12 +1410,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate, await_uncaught,
                                      Context::ASYNC_GENERATOR_AWAIT_UNCAUGHT);
 
-    Handle<JSFunction> yield =
-        SimpleCreateFunction(isolate, factory->empty_string(),
-                             Builtins::kAsyncGeneratorYield, 2, false);
-    InstallWithIntrinsicDefaultProto(isolate, yield,
-                                     Context::ASYNC_GENERATOR_YIELD);
-
     Handle<Code> code =
         isolate->builtins()->AsyncGeneratorAwaitResolveClosure();
     Handle<SharedFunctionInfo> info =

@@ -86,9 +86,7 @@ enum ContextLookupFlags {
   V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                       \
   V(PROMISE_HANDLE_REJECT_INDEX, JSFunction, promise_handle_reject)         \
   V(ASYNC_GENERATOR_AWAIT_CAUGHT, JSFunction, async_generator_await_caught) \
-  V(ASYNC_GENERATOR_AWAIT_UNCAUGHT, JSFunction,                             \
-    async_generator_await_uncaught)                                         \
-  V(ASYNC_GENERATOR_YIELD, JSFunction, async_generator_yield)
+  V(ASYNC_GENERATOR_AWAIT_UNCAUGHT, JSFunction, async_generator_await_uncaught)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \
   V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                             \

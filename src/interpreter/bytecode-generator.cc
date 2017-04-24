@@ -2394,14 +2394,16 @@ void BytecodeGenerator::VisitSuspend(Suspend* expr) {
   if (expr->IsNonInitialAsyncGeneratorYield()) {
     // AsyncGenerator yields (with the exception of the initial yield) delegate
     // to AsyncGeneratorResolve(), implemented via the runtime call below.
-    RegisterList args = register_allocator()->NewRegisterList(2);
+    RegisterList args = register_allocator()->NewRegisterList(3);
 
     // AsyncGeneratorYield:
     // perform AsyncGeneratorResolve(<generator>, <value>, false).
     builder()
         ->MoveRegister(generator, args[0])
         .MoveRegister(value, args[1])
-        .CallJSRuntime(Context::ASYNC_GENERATOR_YIELD, args);
+        .LoadFalse()
+        .StoreAccumulatorInRegister(args[2])
+        .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
   } else {
     builder()->LoadAccumulatorWithRegister(value);
   }
