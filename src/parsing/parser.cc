@@ -2621,11 +2621,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   DCHECK_IMPLIES(parse_lazily(), allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension_ == nullptr);
 
-  bool can_preparse = parse_lazily() &&
-                      eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
-
-  bool is_lazy_top_level_function =
-      can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
+  const bool is_lazy =
+      eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
+  const bool is_top_level =
+      impl()->AllowsLazyParsingWithoutUnresolvedVariables();
+  const bool is_lazy_top_level_function = is_lazy && is_top_level;
+  const bool is_lazy_inner_function = is_lazy && !is_top_level;
+  const bool is_declaration = function_type == FunctionLiteral::kDeclaration;
 
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
@@ -2649,22 +2651,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // Inner functions will be parsed using a temporary Zone. After parsing, we
   // will migrate unresolved variable into a Scope in the main Zone.
-  // TODO(marja): Refactor parsing modes: simplify this.
-  bool use_temp_zone =
-      (FLAG_aggressive_lazy_inner_functions
-           ? can_preparse
-           : (is_lazy_top_level_function ||
-              (parse_lazily() &&
-               function_type == FunctionLiteral::kDeclaration &&
-               eager_compile_hint == FunctionLiteral::kShouldLazyCompile)));
 
-  DCHECK_IMPLIES(
-      (is_lazy_top_level_function ||
-       (parse_lazily() && function_type == FunctionLiteral::kDeclaration &&
-        eager_compile_hint == FunctionLiteral::kShouldLazyCompile)),
-      can_preparse);
-  bool is_lazy_inner_function =
-      use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
+  const bool should_preparse_inner =
+      parse_lazily() && FLAG_lazy_inner_functions && is_lazy_inner_function &&
+      (is_declaration || FLAG_aggressive_lazy_inner_functions);
+
+  // This may be modified later to reflect preparsing decision taken
+  bool should_preparse =
+      (parse_lazily() && is_lazy_top_level_function) || should_preparse_inner;
 
   ZoneList<Statement*>* body = nullptr;
   int expected_property_count = -1;
@@ -2689,7 +2683,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // to do scope analysis correctly after full parsing, we migrate needed
     // information when the function is parsed.
     Zone temp_zone(zone()->allocator(), ZONE_NAME);
-    DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
+    DiscardableZoneScope zone_scope(this, &temp_zone, should_preparse);
 
     // This Scope lives in the main zone. We'll migrate data into that zone
     // later.
@@ -2697,7 +2691,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     SetLanguageMode(scope, language_mode);
 #ifdef DEBUG
     scope->SetScopeName(function_name);
-    if (use_temp_zone) scope->set_needs_migration();
+    if (should_preparse) scope->set_needs_migration();
 #endif
 
     Expect(Token::LPAREN, CHECK_OK);
@@ -2708,7 +2702,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // abort lazy parsing if it suspects that wasn't a good idea. If so (in
     // which case the parser is expected to have backtracked), or if we didn't
     // try to lazy parse in the first place, we'll have to parse eagerly.
-    if (is_lazy_top_level_function || is_lazy_inner_function) {
+    if (should_preparse) {
+      DCHECK(parse_lazily());
+      DCHECK(is_lazy_top_level_function || is_lazy_inner_function);
       Scanner::BookmarkScope bookmark(scanner());
       bookmark.Set();
       LazyParsingResult result =
@@ -2718,9 +2714,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       if (result == kLazyParsingAborted) {
         DCHECK(is_lazy_top_level_function);
         bookmark.Apply();
-        // Trigger eager (re-)parsing, just below this block.
-        is_lazy_top_level_function = false;
-
         // This is probably an initialization function. Inform the compiler it
         // should also eager-compile this function, and that we expect it to be
         // used once.
@@ -2728,48 +2721,44 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         should_be_used_once_hint = true;
         scope->ResetAfterPreparsing(ast_value_factory(), true);
         zone_scope.Reset();
-        use_temp_zone = false;
+        // Trigger eager (re-)parsing, just below this block.
+        should_preparse = false;
       }
     }
 
-    if (!is_lazy_top_level_function && !is_lazy_inner_function) {
+    if (should_preparse) {
+      scope->AnalyzePartially(&previous_zone_ast_node_factory,
+                              preparsed_scope_data_);
+    } else {
       body = ParseFunction(function_name, pos, kind, function_type, scope,
                            &num_parameters, &function_length,
                            &has_duplicate_parameters, &expected_property_count,
                            CHECK_OK);
     }
 
-    DCHECK(use_temp_zone || !is_lazy_top_level_function);
-    if (use_temp_zone) {
-      // If the preconditions are correct the function body should never be
-      // accessed, but do this anyway for better behaviour if they're wrong.
-      body = nullptr;
-      scope->AnalyzePartially(&previous_zone_ast_node_factory,
-                              preparsed_scope_data_);
-    }
-
-    DCHECK_IMPLIES(use_temp_zone, temp_zoned_);
-    if (FLAG_trace_preparse) {
+    DCHECK_EQ(should_preparse, temp_zoned_);
+    if (V8_UNLIKELY(FLAG_trace_preparse)) {
       PrintF("  [%s]: %i-%i %.*s\n",
-             is_lazy_top_level_function
-                 ? "Preparse no-resolution"
-                 : (temp_zoned_ ? "Preparse resolution" : "Full parse"),
+             should_preparse ? (is_top_level ? "Preparse no-resolution"
+                                             : "Preparse resolution")
+                             : "Full parse",
              scope->start_position(), scope->end_position(),
              function_name->byte_length(), function_name->raw_data());
     }
     if (V8_UNLIKELY(FLAG_runtime_stats)) {
-      if (is_lazy_top_level_function) {
-        RuntimeCallStats::CorrectCurrentCounterId(
-            runtime_call_stats_,
-            parsing_on_main_thread_
-                ? &RuntimeCallStats::PreParseNoVariableResolution
-                : &RuntimeCallStats::PreParseBackgroundNoVariableResolution);
-      } else if (temp_zoned_) {
-        RuntimeCallStats::CorrectCurrentCounterId(
-            runtime_call_stats_,
+      if (should_preparse) {
+        RuntimeCallStats::CounterId counter_id =
             parsing_on_main_thread_
                 ? &RuntimeCallStats::PreParseWithVariableResolution
-                : &RuntimeCallStats::PreParseBackgroundWithVariableResolution);
+                : &RuntimeCallStats::PreParseBackgroundWithVariableResolution;
+        if (is_top_level) {
+          counter_id =
+              parsing_on_main_thread_
+                  ? &RuntimeCallStats::PreParseNoVariableResolution
+                  : &RuntimeCallStats::PreParseBackgroundNoVariableResolution;
+        }
+        RuntimeCallStats::CorrectCurrentCounterId(runtime_call_stats_,
+                                                  counter_id);
       }
     }
 
