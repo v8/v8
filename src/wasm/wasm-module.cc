@@ -2617,6 +2617,9 @@ void wasm::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
 // immediately before returning. Thus we handle the predictable mode specially,
 // e.g. when we synchronizing tasks or when we delete the AyncCompileJob.
 class AsyncCompileJob {
+  // TODO(ahaas): Fix https://bugs.chromium.org/p/v8/issues/detail?id=6263 to
+  // make sure that d8 does not shut down before the AsyncCompileJob is
+  // finished.
  public:
   explicit AsyncCompileJob(Isolate* isolate, std::unique_ptr<byte[]> bytes_copy,
                            int length, Handle<Context> context,
@@ -2659,7 +2662,6 @@ class AsyncCompileJob {
   Handle<WasmCompiledModule> compiled_module_;
   Handle<FixedArray> code_table_;
   std::unique_ptr<WasmInstance> temp_instance_ = nullptr;
-  std::unique_ptr<uint32_t[]> task_ids_ = nullptr;
   size_t outstanding_units_ = 0;
   size_t num_background_tasks_ = 0;
 
@@ -2781,10 +2783,8 @@ class AsyncCompileJob {
 
     // Reopen all handles which should survive in the DeferredHandleScope.
     ReopenHandlesInDeferredScope();
-    task_ids_ =
-        std::unique_ptr<uint32_t[]>(new uint32_t[num_background_tasks_]);
     for (size_t i = 0; i < num_background_tasks_; ++i) {
-      DoAsync(&AsyncCompileJob::ExecuteCompilationUnits, &(task_ids_.get())[i]);
+      DoAsync(&AsyncCompileJob::ExecuteCompilationUnits);
     }
     return true;
   }
@@ -2848,13 +2848,8 @@ class AsyncCompileJob {
     // Special handling for predictable mode, see above.
     if (!FLAG_verify_predictable) {
       for (size_t i = 0; i < num_background_tasks_; ++i) {
-        // If the task has not started yet, then we abort it. Otherwise we wait
-        // for it to finish.
-
-        if (isolate_->cancelable_task_manager()->TryAbort(task_ids_.get()[i]) !=
-            CancelableTaskManager::kTaskAborted) {
-          module_->pending_tasks.get()->Wait();
-        }
+        // We wait for it to finish.
+        module_->pending_tasks.get()->Wait();
       }
     }
     if (failed_) {
@@ -2966,9 +2961,8 @@ class AsyncCompileJob {
   }
 
   // Run the given member method as an asynchronous task.
-  bool DoAsync(bool (AsyncCompileJob::*func)(), uint32_t* task_id = nullptr) {
-    auto task = new Task(this, func);
-    if (task_id) *task_id = task->id();
+  bool DoAsync(bool (AsyncCompileJob::*func)()) {
+    auto task = new AsyncCompileTask(this, func);
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
         task, v8::Platform::kShortRunningTask);
     return true;  // more work to do.
@@ -2977,19 +2971,20 @@ class AsyncCompileJob {
   // Run the given member method as a synchronous task.
   bool DoSync(bool (AsyncCompileJob::*func)()) {
     V8::GetCurrentPlatform()->CallOnForegroundThread(
-        reinterpret_cast<v8::Isolate*>(isolate_), new Task(this, func));
+        reinterpret_cast<v8::Isolate*>(isolate_),
+        new AsyncCompileTask(this, func));
     return true;  // more work to do.
   }
 
   // A helper closure to run a particular member method as a task.
-  class Task : public CancelableTask {
+  class AsyncCompileTask : NON_EXPORTED_BASE(public v8::Task) {
    public:
     AsyncCompileJob* job_;
     bool (AsyncCompileJob::*func_)();
-    explicit Task(AsyncCompileJob* job, bool (AsyncCompileJob::*func)())
-        : CancelableTask(job->isolate_), job_(job), func_(func) {}
+    AsyncCompileTask(AsyncCompileJob* job, bool (AsyncCompileJob::*func)())
+        : v8::Task(), job_(job), func_(func) {}
 
-    void RunInternal() override {
+    void Run() {
       bool more = (job_->*func_)();  // run the task.
       if (!more) {
         // If no more work, then this job is done. Predictable mode is handled
