@@ -327,39 +327,41 @@ JSCallReducer::HolderLookup JSCallReducer::LookupHolder(
   return kHolderNotFound;
 }
 
-// ES6 section B.2.2.1.1 get Object.prototype.__proto__
-Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
+Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  // Try to determine the {receiver} map.
-  ZoneHandleSet<Map> receiver_maps;
+  // Try to determine the {object} map.
+  ZoneHandleSet<Map> object_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+      NodeProperties::InferReceiverMaps(object, effect, &object_maps);
   if (result != NodeProperties::kNoReceiverMaps) {
     Handle<Map> candidate_map(
-        receiver_maps[0]->GetPrototypeChainRootMap(isolate()));
+        object_maps[0]->GetPrototypeChainRootMap(isolate()));
     Handle<Object> candidate_prototype(candidate_map->prototype(), isolate());
 
+    // We cannot deal with primitives here.
+    if (candidate_map->IsPrimitiveMap()) return NoChange();
+
     // Check if we can constant-fold the {candidate_prototype}.
-    for (size_t i = 0; i < receiver_maps.size(); ++i) {
-      Handle<Map> const receiver_map(
-          receiver_maps[i]->GetPrototypeChainRootMap(isolate()));
-      if (receiver_map->IsJSProxyMap() ||
-          receiver_map->has_hidden_prototype() ||
-          receiver_map->is_access_check_needed() ||
-          receiver_map->prototype() != *candidate_prototype) {
+    for (size_t i = 0; i < object_maps.size(); ++i) {
+      Handle<Map> const object_map(
+          object_maps[i]->GetPrototypeChainRootMap(isolate()));
+      if (object_map->IsSpecialReceiverMap() ||
+          object_map->has_hidden_prototype() ||
+          object_map->prototype() != *candidate_prototype) {
+        // We exclude special receivers, like JSProxy or API objects that
+        // might require access checks here; we also don't want to deal
+        // with hidden prototypes at this point.
         return NoChange();
       }
       if (result == NodeProperties::kUnreliableReceiverMaps &&
-          !receiver_map->is_stable()) {
+          !object_map->is_stable()) {
         return NoChange();
       }
     }
     if (result == NodeProperties::kUnreliableReceiverMaps) {
-      for (size_t i = 0; i < receiver_maps.size(); ++i) {
-        dependencies()->AssumeMapStable(receiver_maps[i]);
+      for (size_t i = 0; i < object_maps.size(); ++i) {
+        dependencies()->AssumeMapStable(object_maps[i]);
       }
     }
     Node* value = jsgraph()->Constant(candidate_prototype);
@@ -368,6 +370,31 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   }
 
   return NoChange();
+}
+
+// ES6 section 19.1.2.11 Object.getPrototypeOf ( O )
+Reduction JSCallReducer::ReduceObjectGetPrototypeOf(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* object = (node->op()->ValueInputCount() >= 3)
+                     ? NodeProperties::GetValueInput(node, 2)
+                     : jsgraph()->UndefinedConstant();
+  return ReduceObjectGetPrototype(node, object);
+}
+
+// ES6 section B.2.2.1.1 get Object.prototype.__proto__
+Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  return ReduceObjectGetPrototype(node, receiver);
+}
+
+// ES6 section 26.1.7 Reflect.getPrototypeOf ( target )
+Reduction JSCallReducer::ReduceReflectGetPrototypeOf(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* target = (node->op()->ValueInputCount() >= 3)
+                     ? NodeProperties::GetValueInput(node, 2)
+                     : jsgraph()->UndefinedConstant();
+  return ReduceObjectGetPrototype(node, target);
 }
 
 Reduction JSCallReducer::ReduceCallApiFunction(
@@ -570,8 +597,12 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceFunctionPrototypeHasInstance(node);
         case Builtins::kNumberConstructor:
           return ReduceNumberConstructor(node);
+        case Builtins::kObjectGetPrototypeOf:
+          return ReduceObjectGetPrototypeOf(node);
         case Builtins::kObjectPrototypeGetProto:
           return ReduceObjectPrototypeGetProto(node);
+        case Builtins::kReflectGetPrototypeOf:
+          return ReduceReflectGetPrototypeOf(node);
         default:
           break;
       }
