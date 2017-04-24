@@ -203,10 +203,21 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
   return true;
 }
 
-
 bool AccessInfoFactory::ComputeElementAccessInfos(
     MapHandleList const& maps, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) {
+  if (access_mode == AccessMode::kLoad) {
+    // For polymorphic loads of similar elements kinds (i.e. all tagged or all
+    // double), always use the "worst case" code without a transition.  This is
+    // much faster than transitioning the elements to the worst case, trading a
+    // TransitionElementsKind for a CheckMaps, avoiding mutation of the array.
+    ElementAccessInfo access_info;
+    if (ConsolidateElementLoad(maps, &access_info)) {
+      access_infos->push_back(access_info);
+      return true;
+    }
+  }
+
   // Collect possible transition targets.
   MapHandleList possible_transition_targets(maps.length());
   for (Handle<Map> map : maps) {
@@ -464,6 +475,50 @@ bool AccessInfoFactory::ComputePropertyAccessInfos(
   return true;
 }
 
+namespace {
+
+Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
+                                           ElementsKind that_kind) {
+  if (IsHoleyElementsKind(this_kind)) {
+    that_kind = GetHoleyElementsKind(that_kind);
+  } else if (IsHoleyElementsKind(that_kind)) {
+    this_kind = GetHoleyElementsKind(this_kind);
+  }
+  if (this_kind == that_kind) return Just(this_kind);
+  if (IsFastDoubleElementsKind(that_kind) ==
+      IsFastDoubleElementsKind(this_kind)) {
+    if (IsMoreGeneralElementsKindTransition(that_kind, this_kind)) {
+      return Just(this_kind);
+    }
+    if (IsMoreGeneralElementsKindTransition(this_kind, that_kind)) {
+      return Just(that_kind);
+    }
+  }
+  return Nothing<ElementsKind>();
+}
+
+}  // namespace
+
+bool AccessInfoFactory::ConsolidateElementLoad(MapHandleList const& maps,
+                                               ElementAccessInfo* access_info) {
+  if (maps.is_empty()) return false;
+  InstanceType instance_type = maps.first()->instance_type();
+  ElementsKind elements_kind = maps.first()->elements_kind();
+  MapList receiver_maps(maps.length());
+  for (int i = 0; i < maps.length(); ++i) {
+    Handle<Map> map = maps[i];
+    if (!CanInlineElementAccess(map) || map->instance_type() != instance_type) {
+      return false;
+    }
+    if (!GeneralizeElementsKind(elements_kind, map->elements_kind())
+             .To(&elements_kind)) {
+      return false;
+    }
+    receiver_maps[i] = map;
+  }
+  *access_info = ElementAccessInfo(receiver_maps, elements_kind);
+  return true;
+}
 
 bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
