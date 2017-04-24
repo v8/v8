@@ -407,6 +407,9 @@ int32_t GrowWebAssemblyMemory(Isolate* isolate,
 int32_t GrowMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
                    uint32_t pages);
 
+void DetachWebAssemblyMemoryBuffer(Isolate* isolate,
+                                   Handle<JSArrayBuffer> buffer);
+
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, Handle<JSFunction> js_function);
 
