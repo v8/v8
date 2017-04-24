@@ -137,13 +137,58 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     BIND(&true_continue);
     // iii. If selected is true, then...
     {
-      // 1. Perform ? CreateDataPropertyOrThrow(A, ToString(to), kValue).
-      CallRuntime(Runtime::kCreateDataProperty, context(), a(), to_.value(),
-                  k_value);
+      Label after_work(this, &to_);
+      Node* kind = nullptr;
 
-      // 2. Increase to by 1.
-      to_.Bind(NumberInc(to_.value()));
-      Goto(&false_continue);
+      // If a() is a JSArray, we can have a fast path.
+      Label fast(this);
+      Label runtime(this);
+      Label object_push_pre(this), object_push(this), double_push(this);
+      BranchIfFastJSArray(a(), context(), FastJSArrayAccessMode::ANY_ACCESS,
+                          &fast, &runtime);
+
+      BIND(&fast);
+      {
+        kind = EnsureArrayPushable(a(), &runtime);
+        GotoIf(IsElementsKindGreaterThan(kind, FAST_HOLEY_SMI_ELEMENTS),
+               &object_push_pre);
+
+        BuildAppendJSArray(FAST_SMI_ELEMENTS, a(), k_value, &runtime);
+        Goto(&after_work);
+      }
+
+      BIND(&object_push_pre);
+      {
+        Branch(IsElementsKindGreaterThan(kind, FAST_HOLEY_ELEMENTS),
+               &double_push, &object_push);
+      }
+
+      BIND(&object_push);
+      {
+        BuildAppendJSArray(FAST_ELEMENTS, a(), k_value, &runtime);
+        Goto(&after_work);
+      }
+
+      BIND(&double_push);
+      {
+        BuildAppendJSArray(FAST_DOUBLE_ELEMENTS, a(), k_value, &runtime);
+        Goto(&after_work);
+      }
+
+      BIND(&runtime);
+      {
+        // 1. Perform ? CreateDataPropertyOrThrow(A, ToString(to), kValue).
+        CallRuntime(Runtime::kCreateDataProperty, context(), a(), to_.value(),
+                    k_value);
+        Goto(&after_work);
+      }
+
+      BIND(&after_work);
+      {
+        // 2. Increase to by 1.
+        to_.Bind(NumberInc(to_.value()));
+        Goto(&false_continue);
+      }
     }
     BIND(&false_continue);
     return a();
@@ -160,8 +205,58 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Node* mappedValue = CallJS(CodeFactory::Call(isolate()), context(),
                                callbackfn(), this_arg(), k_value, k, o());
 
-    // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
-    CallRuntime(Runtime::kCreateDataProperty, context(), a(), k, mappedValue);
+    Label finished(this);
+    Node* kind = nullptr;
+    Node* elements = nullptr;
+
+    // If a() is a JSArray, we can have a fast path.
+    // mode is SMI_PARAMETERS because k has tagged representation.
+    ParameterMode mode = SMI_PARAMETERS;
+    Label fast(this);
+    Label runtime(this);
+    Label object_push_pre(this), object_push(this), double_push(this);
+    BranchIfFastJSArray(a(), context(), FastJSArrayAccessMode::ANY_ACCESS,
+                        &fast, &runtime);
+
+    BIND(&fast);
+    {
+      kind = EnsureArrayPushable(a(), &runtime);
+      elements = LoadElements(a());
+      GotoIf(IsElementsKindGreaterThan(kind, FAST_HOLEY_SMI_ELEMENTS),
+             &object_push_pre);
+      TryStoreArrayElement(FAST_SMI_ELEMENTS, mode, &runtime, elements, k,
+                           mappedValue);
+      Goto(&finished);
+    }
+
+    BIND(&object_push_pre);
+    {
+      Branch(IsElementsKindGreaterThan(kind, FAST_HOLEY_ELEMENTS), &double_push,
+             &object_push);
+    }
+
+    BIND(&object_push);
+    {
+      TryStoreArrayElement(FAST_ELEMENTS, mode, &runtime, elements, k,
+                           mappedValue);
+      Goto(&finished);
+    }
+
+    BIND(&double_push);
+    {
+      TryStoreArrayElement(FAST_DOUBLE_ELEMENTS, mode, &runtime, elements, k,
+                           mappedValue);
+      Goto(&finished);
+    }
+
+    BIND(&runtime);
+    {
+      // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+      CallRuntime(Runtime::kCreateDataProperty, context(), a(), k, mappedValue);
+      Goto(&finished);
+    }
+
+    BIND(&finished);
     return a();
   }
 
@@ -575,7 +670,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Node* o_map = LoadMap(o());
     Node* bit_field2 = LoadMapBitField2(o_map);
     Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
-    Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
+    Branch(IsElementsKindGreaterThan(kind, FAST_HOLEY_ELEMENTS),
            &maybe_double_elements, &fast_elements);
 
     ParameterMode mode = OptimalParameterMode();
@@ -591,8 +686,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     }
 
     BIND(&maybe_double_elements);
-    Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
-           slow, &fast_double_elements);
+    Branch(IsElementsKindGreaterThan(kind, FAST_HOLEY_DOUBLE_ELEMENTS), slow,
+           &fast_double_elements);
 
     BIND(&fast_double_elements);
     {
@@ -644,39 +739,13 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
 
   BIND(&fast);
   {
-    // Disallow pushing onto prototypes. It might be the JSArray prototype.
-    // Disallow pushing onto non-extensible objects.
-    Comment("Disallow pushing onto prototypes");
-    Node* map = LoadMap(receiver);
-    Node* bit_field2 = LoadMapBitField2(map);
-    int mask = static_cast<int>(Map::IsPrototypeMapBits::kMask) |
-               (1 << Map::kIsExtensible);
-    Node* test = Word32And(bit_field2, Int32Constant(mask));
-    GotoIf(Word32NotEqual(test, Int32Constant(1 << Map::kIsExtensible)),
-           &runtime);
-
-    // Disallow pushing onto arrays in dictionary named property mode. We need
-    // to figure out whether the length property is still writable.
-    Comment("Disallow pushing onto arrays in dictionary named property mode");
-    GotoIf(IsDictionaryMap(map), &runtime);
-
-    // Check whether the length property is writable. The length property is the
-    // only default named property on arrays. It's nonconfigurable, hence is
-    // guaranteed to stay the first property.
-    Node* descriptors = LoadMapDescriptors(map);
-    Node* details =
-        LoadFixedArrayElement(descriptors, DescriptorArray::ToDetailsIndex(0));
-    GotoIf(IsSetSmi(details, PropertyDetails::kAttributesReadOnlyMask),
-           &runtime);
-
     arg_index.Bind(IntPtrConstant(0));
-    kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
-
-    GotoIf(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_SMI_ELEMENTS)),
+    kind = EnsureArrayPushable(receiver, &runtime);
+    GotoIf(IsElementsKindGreaterThan(kind, FAST_HOLEY_SMI_ELEMENTS),
            &object_push_pre);
 
-    Node* new_length = BuildAppendJSArray(FAST_SMI_ELEMENTS, context, receiver,
-                                          args, arg_index, &smi_transition);
+    Node* new_length = BuildAppendJSArray(FAST_SMI_ELEMENTS, receiver, args,
+                                          arg_index, &smi_transition);
     args.PopAndReturn(new_length);
   }
 
@@ -708,22 +777,21 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
 
   BIND(&object_push_pre);
   {
-    Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
-           &double_push, &object_push);
+    Branch(IsElementsKindGreaterThan(kind, FAST_HOLEY_ELEMENTS), &double_push,
+           &object_push);
   }
 
   BIND(&object_push);
   {
-    Node* new_length = BuildAppendJSArray(FAST_ELEMENTS, context, receiver,
-                                          args, arg_index, &default_label);
+    Node* new_length = BuildAppendJSArray(FAST_ELEMENTS, receiver, args,
+                                          arg_index, &default_label);
     args.PopAndReturn(new_length);
   }
 
   BIND(&double_push);
   {
-    Node* new_length =
-        BuildAppendJSArray(FAST_DOUBLE_ELEMENTS, context, receiver, args,
-                           arg_index, &double_transition);
+    Node* new_length = BuildAppendJSArray(FAST_DOUBLE_ELEMENTS, receiver, args,
+                                          arg_index, &double_transition);
     args.PopAndReturn(new_length);
   }
 

@@ -20,7 +20,6 @@ var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalArrayBufferPrototype = GlobalArrayBuffer.prototype;
 var GlobalObject = global.Object;
-var InnerArrayFilter;
 var InnerArrayFind;
 var InnerArrayFindIndex;
 var InnerArrayJoin;
@@ -57,7 +56,6 @@ utils.Import(function(from) {
   ArrayValues = from.ArrayValues;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
-  InnerArrayFilter = from.InnerArrayFilter;
   InnerArrayFind = from.InnerArrayFind;
   InnerArrayFindIndex = from.InnerArrayFindIndex;
   InnerArrayJoin = from.InnerArrayJoin;
@@ -415,6 +413,23 @@ function TypedArrayForEach(f, receiver) {
 }
 %FunctionSetLength(TypedArrayForEach, 1);
 
+// The following functions cannot be made efficient on sparse arrays while
+// preserving the semantics, since the calls to the receiver function can add
+// or delete elements from the array.
+function InnerTypedArrayFilter(f, receiver, array, length, result) {
+  var result_length = 0;
+  for (var i = 0; i < length; i++) {
+    if (i in array) {
+      var element = array[i];
+      if (%_Call(f, receiver, element, i, array)) {
+        %CreateDataProperty(result, result_length, element);
+        result_length++;
+      }
+    }
+  }
+  return result;
+}
+
 
 // ES6 draft 07-15-13, section 22.2.3.9
 function TypedArrayFilter(f, thisArg) {
@@ -423,7 +438,7 @@ function TypedArrayFilter(f, thisArg) {
   var length = %_TypedArrayGetLength(this);
   if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
   var result = new InternalArray();
-  InnerArrayFilter(f, thisArg, this, length, result);
+  InnerTypedArrayFilter(f, thisArg, this, length, result);
   var captured = result.length;
   var output = TypedArraySpeciesCreate(this, captured);
   for (var i = 0; i < captured; i++) {

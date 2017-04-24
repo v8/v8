@@ -1523,8 +1523,53 @@ Node* CodeStubAssembler::StoreFixedDoubleArrayElement(
   return StoreNoWriteBarrier(rep, object, offset, value);
 }
 
-Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* context,
-                                            Node* array,
+Node* CodeStubAssembler::EnsureArrayPushable(Node* receiver, Label* bailout) {
+  // Disallow pushing onto prototypes. It might be the JSArray prototype.
+  // Disallow pushing onto non-extensible objects.
+  Comment("Disallow pushing onto prototypes");
+  Node* map = LoadMap(receiver);
+  Node* bit_field2 = LoadMapBitField2(map);
+  int mask = static_cast<int>(Map::IsPrototypeMapBits::kMask) |
+             (1 << Map::kIsExtensible);
+  Node* test = Word32And(bit_field2, Int32Constant(mask));
+  GotoIf(Word32NotEqual(test, Int32Constant(1 << Map::kIsExtensible)), bailout);
+
+  // Disallow pushing onto arrays in dictionary named property mode. We need
+  // to figure out whether the length property is still writable.
+  Comment("Disallow pushing onto arrays in dictionary named property mode");
+  GotoIf(IsDictionaryMap(map), bailout);
+
+  // Check whether the length property is writable. The length property is the
+  // only default named property on arrays. It's nonconfigurable, hence is
+  // guaranteed to stay the first property.
+  Node* descriptors = LoadMapDescriptors(map);
+  Node* details =
+      LoadFixedArrayElement(descriptors, DescriptorArray::ToDetailsIndex(0));
+  GotoIf(IsSetSmi(details, PropertyDetails::kAttributesReadOnlyMask), bailout);
+
+  Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
+  return kind;
+}
+
+void CodeStubAssembler::PossiblyGrowElementsCapacity(
+    ParameterMode mode, ElementsKind kind, Node* array, Node* length,
+    Variable* var_elements, Node* growth, Label* bailout) {
+  Label fits(this, var_elements);
+  Node* capacity =
+      TaggedToParameter(LoadFixedArrayBaseLength(var_elements->value()), mode);
+  // length and growth nodes are already in a ParameterMode appropriate
+  // representation.
+  Node* new_length = IntPtrOrSmiAdd(growth, length, mode);
+  GotoIfNot(IntPtrOrSmiGreaterThan(new_length, capacity, mode), &fits);
+  Node* new_capacity = CalculateNewElementsCapacity(new_length, mode);
+  var_elements->Bind(GrowElementsCapacity(array, var_elements->value(), kind,
+                                          kind, capacity, new_capacity, mode,
+                                          bailout));
+  Goto(&fits);
+  BIND(&fits);
+}
+
+Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* array,
                                             CodeStubArguments& args,
                                             Variable& arg_index,
                                             Label* bailout) {
@@ -1536,46 +1581,22 @@ Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* context,
   VARIABLE(var_length, OptimalParameterRepresentation(),
            TaggedToParameter(LoadJSArrayLength(array), mode));
   VARIABLE(var_elements, MachineRepresentation::kTagged, LoadElements(array));
-  Node* capacity =
-      TaggedToParameter(LoadFixedArrayBaseLength(var_elements.value()), mode);
 
   // Resize the capacity of the fixed array if it doesn't fit.
-  Label fits(this, &var_elements);
   Node* first = arg_index.value();
-  Node* growth = IntPtrSub(args.GetLength(), first);
-  Node* new_length =
-      IntPtrOrSmiAdd(WordToParameter(growth, mode), var_length.value(), mode);
-  GotoIfNot(IntPtrOrSmiGreaterThan(new_length, capacity, mode), &fits);
-  Node* new_capacity = CalculateNewElementsCapacity(new_length, mode);
-  var_elements.Bind(GrowElementsCapacity(array, var_elements.value(), kind,
-                                         kind, capacity, new_capacity, mode,
-                                         &pre_bailout));
-  Goto(&fits);
-  BIND(&fits);
-  Node* elements = var_elements.value();
+  Node* growth = WordToParameter(IntPtrSub(args.GetLength(), first), mode);
+  PossiblyGrowElementsCapacity(mode, kind, array, var_length.value(),
+                               &var_elements, growth, &pre_bailout);
 
   // Push each argument onto the end of the array now that there is enough
   // capacity.
   CodeStubAssembler::VariableList push_vars({&var_length}, zone());
+  Node* elements = var_elements.value();
   args.ForEach(
       push_vars,
       [this, kind, mode, elements, &var_length, &pre_bailout](Node* arg) {
-        if (IsFastSmiElementsKind(kind)) {
-          GotoIf(TaggedIsNotSmi(arg), &pre_bailout);
-        } else if (IsFastDoubleElementsKind(kind)) {
-          GotoIfNotNumber(arg, &pre_bailout);
-        }
-        if (IsFastDoubleElementsKind(kind)) {
-          Node* double_value = ChangeNumberToFloat64(arg);
-          StoreFixedDoubleArrayElement(elements, var_length.value(),
-                                       Float64SilenceNaN(double_value), mode);
-        } else {
-          WriteBarrierMode barrier_mode = IsFastSmiElementsKind(kind)
-                                              ? SKIP_WRITE_BARRIER
-                                              : UPDATE_WRITE_BARRIER;
-          StoreFixedArrayElement(elements, var_length.value(), arg,
-                                 barrier_mode, 0, mode);
-        }
+        TryStoreArrayElement(kind, mode, &pre_bailout, elements,
+                             var_length.value(), arg);
         Increment(var_length, 1, mode);
       },
       first, nullptr);
@@ -1598,6 +1619,49 @@ Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* context,
 
   BIND(&success);
   return var_tagged_length.value();
+}
+
+void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
+                                             ParameterMode mode, Label* bailout,
+                                             Node* elements, Node* index,
+                                             Node* value) {
+  if (IsFastSmiElementsKind(kind)) {
+    GotoIf(TaggedIsNotSmi(value), bailout);
+  } else if (IsFastDoubleElementsKind(kind)) {
+    GotoIfNotNumber(value, bailout);
+  }
+  if (IsFastDoubleElementsKind(kind)) {
+    Node* double_value = ChangeNumberToFloat64(value);
+    StoreFixedDoubleArrayElement(elements, index,
+                                 Float64SilenceNaN(double_value), mode);
+  } else {
+    WriteBarrierMode barrier_mode =
+        IsFastSmiElementsKind(kind) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
+    StoreFixedArrayElement(elements, index, value, barrier_mode, 0, mode);
+  }
+}
+
+void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* array,
+                                           Node* value, Label* bailout) {
+  Comment("BuildAppendJSArray: %s", ElementsKindToString(kind));
+  ParameterMode mode = OptimalParameterMode();
+  VARIABLE(var_length, OptimalParameterRepresentation(),
+           TaggedToParameter(LoadJSArrayLength(array), mode));
+  VARIABLE(var_elements, MachineRepresentation::kTagged, LoadElements(array));
+
+  // Resize the capacity of the fixed array if it doesn't fit.
+  Node* growth = IntPtrOrSmiConstant(1, mode);
+  PossiblyGrowElementsCapacity(mode, kind, array, var_length.value(),
+                               &var_elements, growth, bailout);
+
+  // Push each argument onto the end of the array now that there is enough
+  // capacity.
+  TryStoreArrayElement(kind, mode, bailout, var_elements.value(),
+                       var_length.value(), value);
+  Increment(var_length, 1, mode);
+
+  Node* length = ParameterToTagged(var_length.value(), mode);
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
 }
 
 Node* CodeStubAssembler::AllocateHeapNumber(MutableMode mode) {
@@ -8483,6 +8547,11 @@ Node* CodeStubAssembler::IsHoleyFastElementsKind(Node* elements_kind) {
   // Check prototype chain if receiver does not have packed elements.
   Node* holey_elements = Word32And(elements_kind, Int32Constant(1));
   return Word32Equal(holey_elements, Int32Constant(1));
+}
+
+Node* CodeStubAssembler::IsElementsKindGreaterThan(
+    Node* target_kind, ElementsKind reference_kind) {
+  return Int32GreaterThan(target_kind, Int32Constant(reference_kind));
 }
 
 Node* CodeStubAssembler::IsDebugActive() {

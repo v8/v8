@@ -1807,9 +1807,8 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     Variable arg_index(this, MachineType::PointerRepresentation());
     Label bailout(this);
     arg_index.Bind(IntPtrConstant(0));
-    Node* length = BuildAppendJSArray(
-        kind_, HeapConstant(Handle<HeapObject>(isolate->context(), isolate)),
-        HeapConstant(array), args, arg_index, &bailout);
+    Node* length = BuildAppendJSArray(kind_, HeapConstant(array), args,
+                                      arg_index, &bailout);
     Return(length);
 
     Bind(&bailout);
