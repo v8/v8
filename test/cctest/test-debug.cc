@@ -6712,3 +6712,29 @@ TEST(DebugGetPossibleBreakpointsReturnLocations) {
     CHECK(returns_count == 1);
   }
 }
+
+TEST(DebugEvaluateNoSideEffect) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  i::List<i::Handle<i::JSFunction>> list;
+  {
+    i::HeapIterator iterator(isolate->heap());
+    while (i::HeapObject* obj = iterator.next()) {
+      if (!obj->IsJSFunction()) continue;
+      i::JSFunction* fun = i::JSFunction::cast(obj);
+      list.Add(i::Handle<i::JSFunction>(fun));
+    }
+  }
+
+  // Perform side effect check on all built-in functions. The side effect check
+  // itself contains additional sanity checks.
+  for (i::Handle<i::JSFunction> fun : list) {
+    bool failed = false;
+    {
+      i::NoSideEffectScope scope(isolate, true);
+      failed = !isolate->debug()->PerformSideEffectCheck(fun);
+    }
+    if (failed) isolate->clear_pending_exception();
+  }
+}
