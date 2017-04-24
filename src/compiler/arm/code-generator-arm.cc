@@ -496,6 +496,41 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     DCHECK_EQ(LeaveCC, i.OutputSBit());                                        \
   } while (0)
 
+#define ASSEMBLE_NEON_NARROWING_OP(dt)                \
+  do {                                                \
+    Simd128Register dst = i.OutputSimd128Register(),  \
+                    src0 = i.InputSimd128Register(0), \
+                    src1 = i.InputSimd128Register(1); \
+    if (dst.is(src0) && dst.is(src1)) {               \
+      __ vqmovn(dt, dst.low(), src0);                 \
+      __ vmov(dst.high(), dst.low());                 \
+    } else if (dst.is(src0)) {                        \
+      __ vqmovn(dt, dst.low(), src0);                 \
+      __ vqmovn(dt, dst.high(), src1);                \
+    } else {                                          \
+      __ vqmovn(dt, dst.high(), src1);                \
+      __ vqmovn(dt, dst.low(), src0);                 \
+    }                                                 \
+  } while (0)
+
+#define ASSEMBLE_NEON_PAIRWISE_OP(op, size)               \
+  do {                                                    \
+    Simd128Register dst = i.OutputSimd128Register(),      \
+                    src0 = i.InputSimd128Register(0),     \
+                    src1 = i.InputSimd128Register(1);     \
+    if (dst.is(src0)) {                                   \
+      __ op(size, dst.low(), src0.low(), src0.high());    \
+      if (dst.is(src1)) {                                 \
+        __ vmov(dst.high(), dst.low());                   \
+      } else {                                            \
+        __ op(size, dst.high(), src1.low(), src1.high()); \
+      }                                                   \
+    } else {                                              \
+      __ op(size, dst.high(), src1.low(), src1.high());   \
+      __ op(size, dst.low(), src0.low(), src0.high());    \
+    }                                                     \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
@@ -1611,6 +1646,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmF32x4AddHoriz: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      // Make sure we don't overwrite source data before it's used.
+      if (dst.is(src0)) {
+        __ vpadd(dst.low(), src0.low(), src0.high());
+        if (dst.is(src1)) {
+          __ vmov(dst.high(), dst.low());
+        } else {
+          __ vpadd(dst.high(), src1.low(), src1.high());
+        }
+      } else {
+        __ vpadd(dst.high(), src1.low(), src1.high());
+        __ vpadd(dst.low(), src0.low(), src0.high());
+      }
+      break;
+    }
     case kArmF32x4Sub: {
       __ vsub(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1699,6 +1752,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmI32x4AddHoriz:
+      ASSEMBLE_NEON_PAIRWISE_OP(vpadd, Neon32);
+      break;
     case kArmI32x4Sub: {
       __ vsub(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1818,25 +1874,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt4(1));
       break;
     }
-    case kArmI16x8SConvertI32x4: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      // Take care not to overwrite a source register before it's used.
-      if (dst.is(src0) && dst.is(src1)) {
-        __ vqmovn(NeonS16, dst.low(), src0);
-        __ vmov(dst.high(), dst.low());
-      } else if (dst.is(src0)) {
-        // dst is src0, so narrow src0 first.
-        __ vqmovn(NeonS16, dst.low(), src0);
-        __ vqmovn(NeonS16, dst.high(), src1);
-      } else {
-        // dst may alias src1, so narrow src1 first.
-        __ vqmovn(NeonS16, dst.high(), src1);
-        __ vqmovn(NeonS16, dst.low(), src0);
-      }
+    case kArmI16x8SConvertI32x4:
+      ASSEMBLE_NEON_NARROWING_OP(NeonS16);
       break;
-    }
     case kArmI16x8Add: {
       __ vadd(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1847,6 +1887,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(1));
       break;
     }
+    case kArmI16x8AddHoriz:
+      ASSEMBLE_NEON_PAIRWISE_OP(vpadd, Neon16);
+      break;
     case kArmI16x8Sub: {
       __ vsub(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1909,25 +1952,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt4(1));
       break;
     }
-    case kArmI16x8UConvertI32x4: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      // Take care not to overwrite a source register before it's used.
-      if (dst.is(src0) && dst.is(src1)) {
-        __ vqmovn(NeonU16, dst.low(), src0);
-        __ vmov(dst.high(), dst.low());
-      } else if (dst.is(src0)) {
-        // dst is src0, so narrow src0 first.
-        __ vqmovn(NeonU16, dst.low(), src0);
-        __ vqmovn(NeonU16, dst.high(), src1);
-      } else {
-        // dst may alias src1, so narrow src1 first.
-        __ vqmovn(NeonU16, dst.high(), src1);
-        __ vqmovn(NeonU16, dst.low(), src0);
-      }
+    case kArmI16x8UConvertI32x4:
+      ASSEMBLE_NEON_NARROWING_OP(NeonU16);
       break;
-    }
     case kArmI16x8AddSaturateU: {
       __ vqadd(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
@@ -1986,25 +2013,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt3(1));
       break;
     }
-    case kArmI8x16SConvertI16x8: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      // Take care not to overwrite a source register before it's used.
-      if (dst.is(src0) && dst.is(src1)) {
-        __ vqmovn(NeonS8, dst.low(), src0);
-        __ vmov(dst.high(), dst.low());
-      } else if (dst.is(src0)) {
-        // dst is src0, so narrow src0 first.
-        __ vqmovn(NeonS8, dst.low(), src0);
-        __ vqmovn(NeonS8, dst.high(), src1);
-      } else {
-        // dst may alias src1, so narrow src1 first.
-        __ vqmovn(NeonS8, dst.high(), src1);
-        __ vqmovn(NeonS8, dst.low(), src0);
-      }
+    case kArmI8x16SConvertI16x8:
+      ASSEMBLE_NEON_NARROWING_OP(NeonS8);
       break;
-    }
     case kArmI8x16Add: {
       __ vadd(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -2066,25 +2077,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt3(1));
       break;
     }
-    case kArmI8x16UConvertI16x8: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      // Take care not to overwrite a source register before it's used.
-      if (dst.is(src0) && dst.is(src1)) {
-        __ vqmovn(NeonU8, dst.low(), src0);
-        __ vmov(dst.high(), dst.low());
-      } else if (dst.is(src0)) {
-        // dst is src0, so narrow src0 first.
-        __ vqmovn(NeonU8, dst.low(), src0);
-        __ vqmovn(NeonU8, dst.high(), src1);
-      } else {
-        // dst may alias src1, so narrow src1 first.
-        __ vqmovn(NeonU8, dst.high(), src1);
-        __ vqmovn(NeonU8, dst.low(), src0);
-      }
+    case kArmI8x16UConvertI16x8:
+      ASSEMBLE_NEON_NARROWING_OP(NeonU8);
       break;
-    }
     case kArmI8x16AddSaturateU: {
       __ vqadd(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));

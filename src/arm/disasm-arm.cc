@@ -1950,6 +1950,13 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
                        op, size, Vd, Vn, Vm);
           break;
         }
+        case 0xb: {
+          // vpadd.i<size> Dd, Dm, Dn.
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vpadd.i%d d%d, d%d, d%d",
+                       size, Vd, Vn, Vm);
+          break;
+        }
         case 0xd: {
           if (instr->Bit(4) == 0) {
             const char* op = (instr->Bits(21, 20) == 0) ? "vadd" : "vsub";
@@ -2130,10 +2137,16 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           break;
         }
         case 0xd: {
-          if (instr->Bit(21) == 0 && instr->Bit(6) == 1 && instr->Bit(4) == 1) {
-            // vmul.f32 Qd, Qn, Qm
+          if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
+              instr->Bit(4) == 1) {
+            // vmul.f32 Qd, Qm, Qn
             out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                         "vmul.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 0 &&
+                     instr->Bit(4) == 0) {
+            // vpadd.f32 Dd, Dm, Dn.
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vpadd.f32 d%d, d%d, d%d", Vd, Vn, Vm);
           } else {
             Unknown(instr);
           }

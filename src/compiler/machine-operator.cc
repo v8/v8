@@ -232,6 +232,7 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                   \
   V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)               \
   V(F32x4Add, Operator::kCommutative, 2, 0, 1)                            \
+  V(F32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
   V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                            \
   V(F32x4Min, Operator::kCommutative, 2, 0, 1)                            \
@@ -246,6 +247,7 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)             \
   V(I32x4Neg, Operator::kNoProperties, 1, 0, 1)                           \
   V(I32x4Add, Operator::kCommutative, 2, 0, 1)                            \
+  V(I32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
   V(I32x4Sub, Operator::kNoProperties, 2, 0, 1)                           \
   V(I32x4Mul, Operator::kCommutative, 2, 0, 1)                            \
   V(I32x4MinS, Operator::kCommutative, 2, 0, 1)                           \
@@ -268,6 +270,7 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                 \
   V(I16x8Add, Operator::kCommutative, 2, 0, 1)                            \
   V(I16x8AddSaturateS, Operator::kCommutative, 2, 0, 1)                   \
+  V(I16x8AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
   V(I16x8Sub, Operator::kNoProperties, 2, 0, 1)                           \
   V(I16x8SubSaturateS, Operator::kNoProperties, 2, 0, 1)                  \
   V(I16x8Mul, Operator::kCommutative, 2, 0, 1)                            \

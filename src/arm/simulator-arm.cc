@@ -4278,6 +4278,20 @@ void PairwiseMinMax(Simulator* simulator, int Vd, int Vm, int Vn, bool min) {
   simulator->set_neon_register<T, kDoubleSize>(Vd, dst);
 }
 
+template <typename T>
+void PairwiseAdd(Simulator* simulator, int Vd, int Vm, int Vn) {
+  static const int kElems = kDoubleSize / sizeof(T);
+  static const int kPairs = kElems / 2;
+  T dst[kElems], src1[kElems], src2[kElems];
+  simulator->get_neon_register<T, kDoubleSize>(Vn, src1);
+  simulator->get_neon_register<T, kDoubleSize>(Vm, src2);
+  for (int i = 0; i < kPairs; i++) {
+    dst[i] = src1[i * 2] + src1[i * 2 + 1];
+    dst[i + kPairs] = src2[i * 2] + src2[i * 2 + 1];
+  }
+  simulator->set_neon_register<T, kDoubleSize>(Vd, dst);
+}
+
 void Simulator::DecodeSpecialCondition(Instruction* instr) {
   switch (instr->SpecialValue()) {
     case 4: {
@@ -4482,6 +4496,25 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               break;
             case Neon32:
               PairwiseMinMax<int32_t>(this, Vd, Vm, Vn, min);
+              break;
+            default:
+              UNREACHABLE();
+              break;
+          }
+          break;
+        }
+        case 0xb: {
+          // vpadd.i<size> Dd, Dm, Dn.
+          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+          switch (size) {
+            case Neon8:
+              PairwiseAdd<int8_t>(this, Vd, Vm, Vn);
+              break;
+            case Neon16:
+              PairwiseAdd<int16_t>(this, Vd, Vm, Vn);
+              break;
+            case Neon32:
+              PairwiseAdd<int32_t>(this, Vd, Vm, Vn);
               break;
             default:
               UNREACHABLE();
@@ -4837,7 +4870,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           break;
         }
         case 0xd: {
-          if (instr->Bit(21) == 0 && instr->Bit(6) == 1 && instr->Bit(4) == 1) {
+          if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
+              instr->Bit(4) == 1) {
             // vmul.f32 Qd, Qn, Qm
             float src1[4], src2[4];
             get_neon_register(Vn, src1);
@@ -4846,6 +4880,10 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               src1[i] = src1[i] * src2[i];
             }
             set_neon_register(Vd, src1);
+          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 0 &&
+                     instr->Bit(4) == 0) {
+            // vpadd.f32 Dd, Dn, Dm
+            PairwiseAdd<float>(this, Vd, Vm, Vn);
           } else {
             UNIMPLEMENTED();
           }

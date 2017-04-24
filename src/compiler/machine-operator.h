@@ -444,6 +444,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4RecipApprox();
   const Operator* F32x4RecipSqrtApprox();
   const Operator* F32x4Add();
+  const Operator* F32x4AddHoriz();
   const Operator* F32x4Sub();
   const Operator* F32x4Mul();
   const Operator* F32x4Div();
@@ -464,6 +465,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4Shl(int32_t);
   const Operator* I32x4ShrS(int32_t);
   const Operator* I32x4Add();
+  const Operator* I32x4AddHoriz();
   const Operator* I32x4Sub();
   const Operator* I32x4Mul();
   const Operator* I32x4MinS();
@@ -493,6 +495,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8SConvertI32x4();
   const Operator* I16x8Add();
   const Operator* I16x8AddSaturateS();
+  const Operator* I16x8AddHoriz();
   const Operator* I16x8Sub();
   const Operator* I16x8SubSaturateS();
   const Operator* I16x8Mul();

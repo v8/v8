@@ -289,6 +289,7 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(F32x4RecipApprox, 0xe506, s_s)       \
   V(F32x4RecipSqrtApprox, 0xe507, s_s)   \
   V(F32x4Add, 0xe508, s_ss)              \
+  V(F32x4AddHoriz, 0xe5b9, s_ss)         \
   V(F32x4Sub, 0xe509, s_ss)              \
   V(F32x4Mul, 0xe50a, s_ss)              \
   V(F32x4Min, 0xe50c, s_ss)              \
@@ -304,6 +305,7 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I32x4Splat, 0xe51b, s_i)             \
   V(I32x4Neg, 0xe51e, s_s)               \
   V(I32x4Add, 0xe51f, s_ss)              \
+  V(I32x4AddHoriz, 0xe5ba, s_ss)         \
   V(I32x4Sub, 0xe520, s_ss)              \
   V(I32x4Mul, 0xe521, s_ss)              \
   V(I32x4MinS, 0xe522, s_ss)             \
@@ -330,6 +332,7 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I16x8Neg, 0xe53b, s_s)               \
   V(I16x8Add, 0xe53c, s_ss)              \
   V(I16x8AddSaturateS, 0xe53d, s_ss)     \
+  V(I16x8AddHoriz, 0xe5bb, s_ss)         \
   V(I16x8Sub, 0xe53e, s_ss)              \
   V(I16x8SubSaturateS, 0xe53f, s_ss)     \
   V(I16x8Mul, 0xe540, s_ss)              \

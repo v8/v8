@@ -1297,9 +1297,10 @@ TEST(15) {
     uint32_t vabs_s8[4], vabs_s16[4], vabs_s32[4];
     uint32_t vneg_s8[4], vneg_s16[4], vneg_s32[4];
     uint32_t veor[4], vand[4], vorr[4];
-    float vdupf[4], vaddf[4], vsubf[4], vmulf[4];
+    float vdupf[4], vaddf[4], vpaddf[2], vsubf[4], vmulf[4];
     uint32_t vmin_s8[4], vmin_u16[4], vmin_s32[4];
     uint32_t vmax_s8[4], vmax_u16[4], vmax_s32[4];
+    uint32_t vpadd_i8[2], vpadd_i16[2], vpadd_i32[2];
     uint32_t vpmin_s8[2], vpmin_u16[2], vpmin_s32[2];
     uint32_t vpmax_s8[2], vpmax_u16[2], vpmax_s32[2];
     uint32_t vadd8[4], vadd16[4], vadd32[4];
@@ -1545,6 +1546,13 @@ TEST(15) {
     __ vadd(q1, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vaddf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vpadd (float).
+    __ vmov(s0, 1.0);
+    __ vmov(s1, 2.0);
+    __ vmov(s2, 3.0);
+    __ vmov(s3, 4.0);
+    __ vpadd(d2, d0, d1);
+    __ vstr(d2, r0, offsetof(T, vpaddf));
     // vsub (float).
     __ vmov(s4, 2.0);
     __ vdup(q0, s4);
@@ -1636,6 +1644,17 @@ TEST(15) {
     __ vmax(NeonS32, q2, q0, q1);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmax_s32))));
     __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    // vpadd integer.
+    __ mov(r4, Operand(0x03));
+    __ vdup(Neon16, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vpadd(Neon8, d0, d0, d2);
+    __ vstr(d0, r0, offsetof(T, vpadd_i8));
+    __ vpadd(Neon16, d0, d0, d2);
+    __ vstr(d0, r0, offsetof(T, vpadd_i16));
+    __ vpadd(Neon32, d0, d0, d2);
+    __ vstr(d0, r0, offsetof(T, vpadd_i32));
 
     // vpmin/vpmax integer.
     __ mov(r4, Operand(0x03));
@@ -2115,6 +2134,7 @@ TEST(15) {
     CHECK_EQ_SPLAT(vand, 0x00fe00feu);
     CHECK_EQ_SPLAT(vorr, 0x00ff00ffu);
     CHECK_EQ_SPLAT(vaddf, 2.0);
+    CHECK_EQ_32X2(vpaddf, 3.0, 7.0);
     CHECK_EQ_SPLAT(vminf, 1.0);
     CHECK_EQ_SPLAT(vmaxf, 2.0);
     CHECK_EQ_SPLAT(vsubf, -1.0);
@@ -2137,6 +2157,9 @@ TEST(15) {
     CHECK_EQ_SPLAT(vmin_s32, 0xffffffffu);
     CHECK_EQ_SPLAT(vmax_s32, 0xffu);
     // [0, 3, 0, 3, ...] and [3, 3, 3, 3, ...]
+    CHECK_EQ_32X2(vpadd_i8, 0x03030303u, 0x06060606u);
+    CHECK_EQ_32X2(vpadd_i16, 0x0c0c0606u, 0x06060606u);
+    CHECK_EQ_32X2(vpadd_i32, 0x12120c0cu, 0x06060606u);
     CHECK_EQ_32X2(vpmin_s8, 0x00000000u, 0x03030303u);
     CHECK_EQ_32X2(vpmax_s8, 0x03030303u, 0x03030303u);
     // [0, ffff, 0, ffff] and [ffff, ffff]

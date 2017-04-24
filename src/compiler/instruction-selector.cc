@@ -1509,6 +1509,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4RecipSqrtApprox(node);
     case IrOpcode::kF32x4Add:
       return MarkAsSimd128(node), VisitF32x4Add(node);
+    case IrOpcode::kF32x4AddHoriz:
+      return MarkAsSimd128(node), VisitF32x4AddHoriz(node);
     case IrOpcode::kF32x4Sub:
       return MarkAsSimd128(node), VisitF32x4Sub(node);
     case IrOpcode::kF32x4Mul:
@@ -1545,6 +1547,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4ShrS(node);
     case IrOpcode::kI32x4Add:
       return MarkAsSimd128(node), VisitI32x4Add(node);
+    case IrOpcode::kI32x4AddHoriz:
+      return MarkAsSimd128(node), VisitI32x4AddHoriz(node);
     case IrOpcode::kI32x4Sub:
       return MarkAsSimd128(node), VisitI32x4Sub(node);
     case IrOpcode::kI32x4Mul:
@@ -1599,6 +1603,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8Add(node);
     case IrOpcode::kI16x8AddSaturateS:
       return MarkAsSimd128(node), VisitI16x8AddSaturateS(node);
+    case IrOpcode::kI16x8AddHoriz:
+      return MarkAsSimd128(node), VisitI16x8AddHoriz(node);
     case IrOpcode::kI16x8Sub:
       return MarkAsSimd128(node), VisitI16x8Sub(node);
     case IrOpcode::kI16x8SubSaturateS:
@@ -2149,7 +2155,13 @@ void InstructionSelector::VisitF32x4RecipSqrtApprox(Node* node) {
 }
 
 void InstructionSelector::VisitF32x4Add(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 
+#if !V8_TARGET_ARCH_ARM
+void InstructionSelector::VisitF32x4AddHoriz(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM
+
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitF32x4Sub(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Mul(Node* node) { UNIMPLEMENTED(); }
@@ -2207,6 +2219,10 @@ void InstructionSelector::VisitI32x4ShrU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS &&
         // !V8_TARGET_ARCH_MIPS64
 
+#if !V8_TARGET_ARCH_ARM
+void InstructionSelector::VisitI32x4AddHoriz(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM
+
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
   UNIMPLEMENTED();
@@ -2261,7 +2277,13 @@ void InstructionSelector::VisitI16x8Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI16x8AddSaturateS(Node* node) {
   UNIMPLEMENTED();
 }
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 
+#if !V8_TARGET_ARCH_ARM
+void InstructionSelector::VisitI16x8AddHoriz(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM
+
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI16x8Sub(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8SubSaturateS(Node* node) {
@@ -2355,7 +2377,9 @@ void InstructionSelector::VisitI8x16Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
   UNIMPLEMENTED();
 }
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI8x16Sub(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16SubSaturateS(Node* node) {

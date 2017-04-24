@@ -1044,6 +1044,14 @@ TEST(Neon) {
               "f3142670       vmin.u16 q1, q2, q8");
       COMPARE(vmax(NeonS32, q15, q0, q8),
               "f260e660       vmax.s32 q15, q0, q8");
+      COMPARE(vpadd(d0, d1, d2),
+              "f3010d02       vpadd.f32 d0, d1, d2");
+      COMPARE(vpadd(Neon8, d0, d1, d2),
+              "f2010b12       vpadd.i8 d0, d1, d2");
+      COMPARE(vpadd(Neon16, d0, d1, d2),
+              "f2110b12       vpadd.i16 d0, d1, d2");
+      COMPARE(vpadd(Neon32, d0, d1, d2),
+              "f2210b12       vpadd.i32 d0, d1, d2");
       COMPARE(vpmax(NeonS8, d0, d1, d2),
               "f2010a02       vpmax.s8 d0, d1, d2");
       COMPARE(vpmin(NeonU16, d1, d2, d8),

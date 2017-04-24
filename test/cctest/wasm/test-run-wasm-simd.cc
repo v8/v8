@@ -1569,8 +1569,9 @@ WASM_SIMD_SELECT_TEST(8x16)
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
 #if V8_TARGET_ARCH_ARM
+// Test unary ops with a lane test pattern, all lanes distinct.
 template <typename T>
-void RunUnaryPermuteOpTest(
+void RunUnaryLaneOpTest(
     WasmOpcode simd_op,
     const std::array<T, kSimd128Size / sizeof(T)>& expected) {
   FLAG_wasm_simd_prototype = true;
@@ -1591,35 +1592,35 @@ void RunUnaryPermuteOpTest(
 }
 
 WASM_EXEC_COMPILED_TEST(S32x2Reverse) {
-  RunUnaryPermuteOpTest<int32_t>(kExprS32x2Reverse, {{1, 0, 3, 2}});
+  RunUnaryLaneOpTest<int32_t>(kExprS32x2Reverse, {{1, 0, 3, 2}});
 }
 
 WASM_EXEC_COMPILED_TEST(S16x4Reverse) {
-  RunUnaryPermuteOpTest<int16_t>(kExprS16x4Reverse, {{3, 2, 1, 0, 7, 6, 5, 4}});
+  RunUnaryLaneOpTest<int16_t>(kExprS16x4Reverse, {{3, 2, 1, 0, 7, 6, 5, 4}});
 }
 
 WASM_EXEC_COMPILED_TEST(S16x2Reverse) {
-  RunUnaryPermuteOpTest<int16_t>(kExprS16x2Reverse, {{1, 0, 3, 2, 5, 4, 7, 6}});
+  RunUnaryLaneOpTest<int16_t>(kExprS16x2Reverse, {{1, 0, 3, 2, 5, 4, 7, 6}});
 }
 
 WASM_EXEC_COMPILED_TEST(S8x8Reverse) {
-  RunUnaryPermuteOpTest<int8_t>(kExprS8x8Reverse, {{7, 6, 5, 4, 3, 2, 1, 0, 15,
-                                                    14, 13, 12, 11, 10, 9, 8}});
+  RunUnaryLaneOpTest<int8_t>(kExprS8x8Reverse, {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14,
+                                                 13, 12, 11, 10, 9, 8}});
 }
 
 WASM_EXEC_COMPILED_TEST(S8x4Reverse) {
-  RunUnaryPermuteOpTest<int8_t>(kExprS8x4Reverse, {{3, 2, 1, 0, 7, 6, 5, 4, 11,
-                                                    10, 9, 8, 15, 14, 13, 12}});
+  RunUnaryLaneOpTest<int8_t>(kExprS8x4Reverse, {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10,
+                                                 9, 8, 15, 14, 13, 12}});
 }
 
 WASM_EXEC_COMPILED_TEST(S8x2Reverse) {
-  RunUnaryPermuteOpTest<int8_t>(
-      kExprS8x2Reverse,
-      {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14}});
+  RunUnaryLaneOpTest<int8_t>(kExprS8x2Reverse, {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8,
+                                                 11, 10, 13, 12, 15, 14}});
 }
 
+// Test binary ops with two lane test patterns, all lanes distinct.
 template <typename T>
-void RunBinaryPermuteOpTest(
+void RunBinaryLaneOpTest(
     WasmOpcode simd_op,
     const std::array<T, kSimd128Size / sizeof(T)>& expected) {
   FLAG_wasm_simd_prototype = true;
@@ -1643,92 +1644,104 @@ void RunBinaryPermuteOpTest(
   }
 }
 
+WASM_EXEC_COMPILED_TEST(F32x4AddHoriz) {
+  RunBinaryLaneOpTest<float>(kExprF32x4AddHoriz, {{1.0f, 5.0f, 9.0f, 13.0f}});
+}
+
+WASM_EXEC_COMPILED_TEST(I32x4AddHoriz) {
+  RunBinaryLaneOpTest<int32_t>(kExprI32x4AddHoriz, {{1, 5, 9, 13}});
+}
+
+WASM_EXEC_COMPILED_TEST(I16x8AddHoriz) {
+  RunBinaryLaneOpTest<int16_t>(kExprI16x8AddHoriz,
+                               {{1, 5, 9, 13, 17, 21, 25, 29}});
+}
+
 WASM_EXEC_COMPILED_TEST(S32x4ZipLeft) {
-  RunBinaryPermuteOpTest<int32_t>(kExprS32x4ZipLeft, {{0, 4, 1, 5}});
+  RunBinaryLaneOpTest<int32_t>(kExprS32x4ZipLeft, {{0, 4, 1, 5}});
 }
 
 WASM_EXEC_COMPILED_TEST(S32x4ZipRight) {
-  RunBinaryPermuteOpTest<int32_t>(kExprS32x4ZipRight, {{2, 6, 3, 7}});
+  RunBinaryLaneOpTest<int32_t>(kExprS32x4ZipRight, {{2, 6, 3, 7}});
 }
 
 WASM_EXEC_COMPILED_TEST(S32x4UnzipLeft) {
-  RunBinaryPermuteOpTest<int32_t>(kExprS32x4UnzipLeft, {{0, 2, 4, 6}});
+  RunBinaryLaneOpTest<int32_t>(kExprS32x4UnzipLeft, {{0, 2, 4, 6}});
 }
 
 WASM_EXEC_COMPILED_TEST(S32x4UnzipRight) {
-  RunBinaryPermuteOpTest<int32_t>(kExprS32x4UnzipRight, {{1, 3, 5, 7}});
+  RunBinaryLaneOpTest<int32_t>(kExprS32x4UnzipRight, {{1, 3, 5, 7}});
 }
 
 WASM_EXEC_COMPILED_TEST(S32x4TransposeLeft) {
-  RunBinaryPermuteOpTest<int32_t>(kExprS32x4TransposeLeft, {{0, 4, 2, 6}});
+  RunBinaryLaneOpTest<int32_t>(kExprS32x4TransposeLeft, {{0, 4, 2, 6}});
 }
 
 WASM_EXEC_COMPILED_TEST(S32x4TransposeRight) {
-  RunBinaryPermuteOpTest<int32_t>(kExprS32x4TransposeRight, {{1, 5, 3, 7}});
+  RunBinaryLaneOpTest<int32_t>(kExprS32x4TransposeRight, {{1, 5, 3, 7}});
 }
 
 WASM_EXEC_COMPILED_TEST(S16x8ZipLeft) {
-  RunBinaryPermuteOpTest<int16_t>(kExprS16x8ZipLeft,
-                                  {{0, 8, 1, 9, 2, 10, 3, 11}});
+  RunBinaryLaneOpTest<int16_t>(kExprS16x8ZipLeft, {{0, 8, 1, 9, 2, 10, 3, 11}});
 }
 
 WASM_EXEC_COMPILED_TEST(S16x8ZipRight) {
-  RunBinaryPermuteOpTest<int16_t>(kExprS16x8ZipRight,
-                                  {{4, 12, 5, 13, 6, 14, 7, 15}});
+  RunBinaryLaneOpTest<int16_t>(kExprS16x8ZipRight,
+                               {{4, 12, 5, 13, 6, 14, 7, 15}});
 }
 
 WASM_EXEC_COMPILED_TEST(S16x8UnzipLeft) {
-  RunBinaryPermuteOpTest<int16_t>(kExprS16x8UnzipLeft,
-                                  {{0, 2, 4, 6, 8, 10, 12, 14}});
+  RunBinaryLaneOpTest<int16_t>(kExprS16x8UnzipLeft,
+                               {{0, 2, 4, 6, 8, 10, 12, 14}});
 }
 
 WASM_EXEC_COMPILED_TEST(S16x8UnzipRight) {
-  RunBinaryPermuteOpTest<int16_t>(kExprS16x8UnzipRight,
-                                  {{1, 3, 5, 7, 9, 11, 13, 15}});
+  RunBinaryLaneOpTest<int16_t>(kExprS16x8UnzipRight,
+                               {{1, 3, 5, 7, 9, 11, 13, 15}});
 }
 
 WASM_EXEC_COMPILED_TEST(S16x8TransposeLeft) {
-  RunBinaryPermuteOpTest<int16_t>(kExprS16x8TransposeLeft,
-                                  {{0, 8, 2, 10, 4, 12, 6, 14}});
+  RunBinaryLaneOpTest<int16_t>(kExprS16x8TransposeLeft,
+                               {{0, 8, 2, 10, 4, 12, 6, 14}});
 }
 
 WASM_EXEC_COMPILED_TEST(S16x8TransposeRight) {
-  RunBinaryPermuteOpTest<int16_t>(kExprS16x8TransposeRight,
-                                  {{1, 9, 3, 11, 5, 13, 7, 15}});
+  RunBinaryLaneOpTest<int16_t>(kExprS16x8TransposeRight,
+                               {{1, 9, 3, 11, 5, 13, 7, 15}});
 }
 
 WASM_EXEC_COMPILED_TEST(S8x16ZipLeft) {
-  RunBinaryPermuteOpTest<int8_t>(
+  RunBinaryLaneOpTest<int8_t>(
       kExprS8x16ZipLeft,
       {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}});
 }
 
 WASM_EXEC_COMPILED_TEST(S8x16ZipRight) {
-  RunBinaryPermuteOpTest<int8_t>(
+  RunBinaryLaneOpTest<int8_t>(
       kExprS8x16ZipRight,
       {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31}});
 }
 
 WASM_EXEC_COMPILED_TEST(S8x16UnzipLeft) {
-  RunBinaryPermuteOpTest<int8_t>(
+  RunBinaryLaneOpTest<int8_t>(
       kExprS8x16UnzipLeft,
       {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30}});
 }
 
 WASM_EXEC_COMPILED_TEST(S8x16UnzipRight) {
-  RunBinaryPermuteOpTest<int8_t>(
+  RunBinaryLaneOpTest<int8_t>(
       kExprS8x16UnzipRight,
       {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31}});
 }
 
 WASM_EXEC_COMPILED_TEST(S8x16TransposeLeft) {
-  RunBinaryPermuteOpTest<int8_t>(
+  RunBinaryLaneOpTest<int8_t>(
       kExprS8x16TransposeLeft,
       {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30}});
 }
 
 WASM_EXEC_COMPILED_TEST(S8x16TransposeRight) {
-  RunBinaryPermuteOpTest<int8_t>(
+  RunBinaryLaneOpTest<int8_t>(
       kExprS8x16TransposeRight,
       {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31}});
 }

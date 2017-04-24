@@ -4486,13 +4486,16 @@ void Assembler::vrsqrts(QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VRSQRTS, dst, src1, src2));
 }
 
-enum NeonPairwiseOp { VPMIN, VPMAX };
+enum NeonPairwiseOp { VPADD, VPMIN, VPMAX };
 
 static Instr EncodeNeonPairwiseOp(NeonPairwiseOp op, NeonDataType dt,
                                   DwVfpRegister dst, DwVfpRegister src1,
                                   DwVfpRegister src2) {
   int op_encoding = 0;
   switch (op) {
+    case VPADD:
+      op_encoding = 0xB * B8 | B4;
+      break;
     case VPMIN:
       op_encoding = 0xA * B8 | B4;
       break;
@@ -4513,6 +4516,30 @@ static Instr EncodeNeonPairwiseOp(NeonPairwiseOp op, NeonDataType dt,
   int u = NeonU(dt);
   return 0x1E4U * B23 | u * B24 | d * B22 | size * B20 | vn * B16 | vd * B12 |
          n * B7 | m * B5 | vm | op_encoding;
+}
+
+void Assembler::vpadd(DwVfpRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vpadd(Dn, Dm) SIMD integer pairwise ADD.
+  // Instruction details available in ARM DDI 0406C.b, A8-982.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+
+  emit(0x1E6U * B23 | d * B22 | vn * B16 | vd * B12 | 0xD * B8 | n * B7 |
+       m * B5 | vm);
+}
+
+void Assembler::vpadd(NeonSize size, DwVfpRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vpadd(Dn, Dm) SIMD integer pairwise ADD.
+  // Instruction details available in ARM DDI 0406C.b, A8-980.
+  emit(EncodeNeonPairwiseOp(VPADD, NeonSizeToDatatype(size), dst, src1, src2));
 }
 
 void Assembler::vpmin(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,

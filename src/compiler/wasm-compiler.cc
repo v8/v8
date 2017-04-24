@@ -3197,6 +3197,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprF32x4Add:
       return graph()->NewNode(jsgraph()->machine()->F32x4Add(), inputs[0],
                               inputs[1]);
+    case wasm::kExprF32x4AddHoriz:
+      return graph()->NewNode(jsgraph()->machine()->F32x4AddHoriz(), inputs[0],
+                              inputs[1]);
     case wasm::kExprF32x4Sub:
       return graph()->NewNode(jsgraph()->machine()->F32x4Sub(), inputs[0],
                               inputs[1]);
@@ -3245,6 +3248,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
       return graph()->NewNode(jsgraph()->machine()->I32x4Neg(), inputs[0]);
     case wasm::kExprI32x4Add:
       return graph()->NewNode(jsgraph()->machine()->I32x4Add(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI32x4AddHoriz:
+      return graph()->NewNode(jsgraph()->machine()->I32x4AddHoriz(), inputs[0],
                               inputs[1]);
     case wasm::kExprI32x4Sub:
       return graph()->NewNode(jsgraph()->machine()->I32x4Sub(), inputs[0],
@@ -3319,6 +3325,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI16x8AddSaturateS:
       return graph()->NewNode(jsgraph()->machine()->I16x8AddSaturateS(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI16x8AddHoriz:
+      return graph()->NewNode(jsgraph()->machine()->I16x8AddHoriz(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8Sub:
       return graph()->NewNode(jsgraph()->machine()->I16x8Sub(), inputs[0],
                               inputs[1]);

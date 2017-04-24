@@ -1371,6 +1371,9 @@ class Assembler : public AssemblerBase {
   void vmax(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vmax(NeonDataType dt, QwNeonRegister dst,
             QwNeonRegister src1, QwNeonRegister src2);
+  void vpadd(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2);
+  void vpadd(NeonSize size, DwVfpRegister dst, DwVfpRegister src1,
+             DwVfpRegister src2);
   void vpmin(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
              DwVfpRegister src2);
   void vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
