@@ -1796,6 +1796,7 @@ static const int kRegisterPassedArguments = 8;
 void MacroAssembler::CallCFunction(Register function,
                                    int num_of_reg_args,
                                    int num_of_double_args) {
+  DCHECK_LE(num_of_reg_args + num_of_double_args, kMaxCParameters);
   DCHECK(has_frame());
 
   // If we're passing doubles, we're limited to the following prototypes

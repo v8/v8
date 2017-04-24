@@ -65,6 +65,9 @@ enum AllocationFlags {
 namespace v8 {
 namespace internal {
 
+// Simulators only support C calls with up to kMaxCParameters parameters.
+static constexpr int kMaxCParameters = 9;
+
 class FrameScope {
  public:
   explicit FrameScope(MacroAssembler* masm, StackFrame::Type type)

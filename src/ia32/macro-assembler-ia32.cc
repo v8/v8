@@ -2480,6 +2480,7 @@ void MacroAssembler::CallCFunction(ExternalReference function,
 
 void MacroAssembler::CallCFunction(Register function,
                                    int num_arguments) {
+  DCHECK_LE(num_arguments, kMaxCParameters);
   DCHECK(has_frame());
   // Check stack alignment.
   if (emit_debug_code()) {

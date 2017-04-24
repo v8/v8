@@ -1984,12 +1984,11 @@ void Simulator::Format(Instruction* instr, const char* format) {
 // 64 bits of result. If they don't, the v1 result register contains a bogus
 // value, which is fine because it is caller-saved.
 
-typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0,
-                                        int64_t arg1,
-                                        int64_t arg2,
-                                        int64_t arg3,
-                                        int64_t arg4,
-                                        int64_t arg5);
+typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0, int64_t arg1,
+                                           int64_t arg2, int64_t arg3,
+                                           int64_t arg4, int64_t arg5,
+                                           int64_t arg6, int64_t arg7,
+                                           int64_t arg8);
 
 typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int64_t arg0, int64_t arg1,
                                                    int64_t arg2, int64_t arg3,
@@ -2022,14 +2021,19 @@ void Simulator::SoftwareInterrupt() {
   // We first check if we met a call_rt_redirected.
   if (instr_.InstructionBits() == rtCallRedirInstr) {
     Redirection* redirection = Redirection::FromSwiInstruction(instr_.instr());
+
+    int64_t* stack_pointer = reinterpret_cast<int64_t*>(get_register(sp));
+
     int64_t arg0 = get_register(a0);
     int64_t arg1 = get_register(a1);
     int64_t arg2 = get_register(a2);
     int64_t arg3 = get_register(a3);
-    int64_t arg4, arg5;
-
-    arg4 = get_register(a4);  // Abi n64 register a4.
-    arg5 = get_register(a5);  // Abi n64 register a5.
+    int64_t arg4 = get_register(a4);
+    int64_t arg5 = get_register(a5);
+    int64_t arg6 = get_register(a6);
+    int64_t arg7 = get_register(a7);
+    int64_t arg8 = stack_pointer[0];
+    STATIC_ASSERT(kMaxCParameters == 9);
 
     bool fp_call =
          (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
@@ -2224,14 +2228,13 @@ void Simulator::SoftwareInterrupt() {
         PrintF(
             "Call to host function at %p "
             "args %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
-            " , %08" PRIx64 " , %08" PRIx64 " \n",
+            " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
+            " , %08" PRIx64 " \n",
             static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
-            arg4, arg5);
+            arg4, arg5, arg6, arg7, arg8);
       }
-      // int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
-      // set_register(v0, static_cast<int32_t>(result));
-      // set_register(v1, static_cast<int32_t>(result >> 32));
-      ObjectPair result = target(arg0, arg1, arg2, arg3, arg4, arg5);
+      ObjectPair result =
+          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
       set_register(v0, (int64_t)(result.x));
       set_register(v1, (int64_t)(result.y));
     }

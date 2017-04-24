@@ -1706,12 +1706,11 @@ void Simulator::HandleVList(Instruction* instr) {
 // 64-bit value. With the code below we assume that all runtime calls return
 // 64 bits of result. If they don't, the r1 result register contains a bogus
 // value, which is fine because it is caller-saved.
-typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
-                                        int32_t arg1,
-                                        int32_t arg2,
-                                        int32_t arg3,
-                                        int32_t arg4,
-                                        int32_t arg5);
+typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0, int32_t arg1,
+                                        int32_t arg2, int32_t arg3,
+                                        int32_t arg4, int32_t arg5,
+                                        int32_t arg6, int32_t arg7,
+                                        int32_t arg8);
 
 typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int32_t arg0, int32_t arg1,
                                                    int32_t arg2, int32_t arg3,
@@ -1752,6 +1751,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       int32_t* stack_pointer = reinterpret_cast<int32_t*>(get_register(sp));
       int32_t arg4 = stack_pointer[0];
       int32_t arg5 = stack_pointer[1];
+      int32_t arg6 = stack_pointer[2];
+      int32_t arg7 = stack_pointer[3];
+      int32_t arg8 = stack_pointer[4];
+      STATIC_ASSERT(kMaxCParameters == 9);
+
       bool fp_call =
          (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
          (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
@@ -1939,16 +1943,17 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF(
               "Call to host function at %p "
-              "args %08x, %08x, %08x, %08x, %08x, %08x",
+              "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x",
               static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
-              arg4, arg5);
+              arg4, arg5, arg6, arg7, arg8);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
+        int64_t result =
+            target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
         if (::v8::internal::FLAG_trace_sim) {
