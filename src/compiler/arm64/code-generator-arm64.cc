@@ -2006,6 +2006,53 @@ void CodeGenerator::AssembleConstructFrame() {
       osr_pc_offset_ = __ pc_offset();
       shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
     }
+
+    if (info()->IsWasm() && shrink_slots > 128) {
+      // For WebAssembly functions with big frames we have to do the stack
+      // overflow check before we construct the frame. Otherwise we may not
+      // have enough space on the stack to call the runtime for the stack
+      // overflow.
+      Label done;
+      // If the frame is bigger than the stack, we throw the stack overflow
+      // exception unconditionally. Thereby we can avoid the integer overflow
+      // check in the condition code.
+      if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
+        UseScratchRegisterScope scope(masm());
+        Register scratch = scope.AcquireX();
+        __ Mov(
+            scratch,
+            Operand(ExternalReference::address_of_real_stack_limit(isolate())));
+        __ Ldr(scratch, MemOperand(scratch));
+        __ Add(scratch, scratch, Operand(shrink_slots * kPointerSize));
+        __ Cmp(__ StackPointer(), scratch);
+        __ B(cs, &done);
+      }
+
+      if (!frame_access_state()->has_frame()) {
+        __ set_has_frame(true);
+        // There is no need to leave the frame, we will not return from the
+        // runtime call.
+        __ EnterFrame(StackFrame::WASM_COMPILED);
+      }
+      DCHECK(__ StackPointer().Is(csp));
+      __ SetStackPointer(jssp);
+      __ AssertStackConsistency();
+      // Initialize the jssp because it is required for the runtime call.
+      __ Mov(jssp, csp);
+      __ Move(cp, Smi::kZero);
+      __ CallRuntime(Runtime::kThrowWasmStackOverflow);
+      // We come from WebAssembly, there are no references for the GC.
+      ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+      RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                      Safepoint::kNoLazyDeopt);
+      if (FLAG_debug_code) {
+        __ Brk(0);
+      }
+      __ SetStackPointer(csp);
+      __ AssertStackConsistency();
+      __ bind(&done);
+    }
+
     // Build remainder of frame, including accounting for and filling-in
     // frame-specific header information, e.g. claiming the extra slot that
     // other platforms explicitly push for STUB frames and frames recording
