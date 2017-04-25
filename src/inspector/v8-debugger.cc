@@ -354,11 +354,14 @@ bool V8Debugger::canBreakProgram() {
   return !v8::debug::AllFramesOnStackAreBlackboxed(m_isolate);
 }
 
-void V8Debugger::breakProgram() {
+bool V8Debugger::breakProgram(int targetContextGroupId) {
   // Don't allow nested breaks.
-  if (isPaused()) return;
-  if (!canBreakProgram()) return;
+  if (isPaused()) return true;
+  if (!canBreakProgram()) return true;
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
   v8::debug::BreakRightNow(m_isolate);
+  return m_inspector->enabledDebuggerAgentForGroup(targetContextGroupId);
 }
 
 void V8Debugger::continueProgram(int targetContextGroupId) {

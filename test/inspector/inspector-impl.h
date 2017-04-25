@@ -26,6 +26,7 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   virtual ~InspectorClientImpl();
 
   void scheduleReconnect(v8::base::Semaphore* ready_semaphore);
+  void scheduleDisconnect(v8::base::Semaphore* ready_semaphore);
   void scheduleCreateContextGroup(
       TaskRunner::SetupGlobalTasks setup_global_tasks,
       v8::base::Semaphore* ready_semaphore, int* context_group_id);
@@ -63,7 +64,7 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   friend class ConnectTask;
   void connect(v8::Local<v8::Context> context);
   friend class DisconnectTask;
-  void disconnect();
+  void disconnect(bool reset_inspector);
   friend class CreateContextGroupTask;
   int createContextGroup(
       const TaskRunner::SetupGlobalTasks& setup_global_tasks);

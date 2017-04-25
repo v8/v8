@@ -129,18 +129,25 @@ class ConnectTask : public TaskRunner::Task {
 
 class DisconnectTask : public TaskRunner::Task {
  public:
-  explicit DisconnectTask(InspectorClientImpl* client) : client_(client) {}
+  explicit DisconnectTask(InspectorClientImpl* client, bool reset_inspector,
+                          v8::base::Semaphore* ready_semaphore)
+      : client_(client),
+        reset_inspector_(reset_inspector),
+        ready_semaphore_(ready_semaphore) {}
   virtual ~DisconnectTask() = default;
 
   bool is_inspector_task() final { return true; }
 
   void Run(v8::Isolate* isolate,
            const v8::Global<v8::Context>& global_context) {
-    client_->disconnect();
+    client_->disconnect(reset_inspector_);
+    if (ready_semaphore_) ready_semaphore_->Signal();
   }
 
  private:
   InspectorClientImpl* client_;
+  bool reset_inspector_;
+  v8::base::Semaphore* ready_semaphore_;
 };
 
 class CreateContextGroupTask : public TaskRunner::Task {
@@ -217,16 +224,23 @@ void InspectorClientImpl::connect(v8::Local<v8::Context> context) {
 
 void InspectorClientImpl::scheduleReconnect(
     v8::base::Semaphore* ready_semaphore) {
-  task_runner_->Append(new DisconnectTask(this));
+  task_runner_->Append(
+      new DisconnectTask(this, /* reset_inspector */ true, nullptr));
   task_runner_->Append(new ConnectTask(this, ready_semaphore));
 }
 
-void InspectorClientImpl::disconnect() {
+void InspectorClientImpl::scheduleDisconnect(
+    v8::base::Semaphore* ready_semaphore) {
+  task_runner_->Append(
+      new DisconnectTask(this, /* reset_inspector */ false, ready_semaphore));
+}
+
+void InspectorClientImpl::disconnect(bool reset_inspector) {
   for (const auto& it : sessions_) {
     states_[it.first] = it.second->stateJSON();
   }
   sessions_.clear();
-  inspector_.reset();
+  if (reset_inspector) inspector_.reset();
 }
 
 void InspectorClientImpl::scheduleCreateContextGroup(
@@ -359,7 +373,7 @@ class SendMessageToBackendTask : public TaskRunner::Task {
                       ->sessions_[context_group_id_]
                       .get();
       }
-      CHECK(session);
+      if (!session) return;
     }
     v8_inspector::StringView message_view(message_.start(), message_.length());
     session->dispatchProtocolMessage(message_view);

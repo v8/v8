@@ -84,6 +84,8 @@ class UtilsExtension : public TaskRunner::SetupGlobalTask {
                    isolate, &UtilsExtension::CancelPauseOnNextStatement));
     utils->Set(ToV8String(isolate, "reconnect"),
                v8::FunctionTemplate::New(isolate, &UtilsExtension::Reconnect));
+    utils->Set(ToV8String(isolate, "disconnect"),
+               v8::FunctionTemplate::New(isolate, &UtilsExtension::Disconnect));
     utils->Set(ToV8String(isolate, "setLogConsoleApiMessageCalls"),
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::SetLogConsoleApiMessageCalls));
@@ -261,6 +263,16 @@ class UtilsExtension : public TaskRunner::SetupGlobalTask {
     }
     v8::base::Semaphore ready_semaphore(0);
     inspector_client_->scheduleReconnect(&ready_semaphore);
+    ready_semaphore.Wait();
+  }
+
+  static void Disconnect(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 0) {
+      fprintf(stderr, "Internal error: disconnect().");
+      Exit();
+    }
+    v8::base::Semaphore ready_semaphore(0);
+    inspector_client_->scheduleDisconnect(&ready_semaphore);
     ready_semaphore.Wait();
   }
 
