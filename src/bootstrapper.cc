@@ -2558,40 +2558,52 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSObject> console = factory->NewJSObject(cons, TENURED);
     DCHECK(console->IsJSObject());
     JSObject::AddProperty(global, name, console, DONT_ENUM);
-    SimpleInstallFunction(console, "debug", Builtins::kConsoleDebug, 1, false);
-    SimpleInstallFunction(console, "error", Builtins::kConsoleError, 1, false);
-    SimpleInstallFunction(console, "info", Builtins::kConsoleInfo, 1, false);
-    SimpleInstallFunction(console, "log", Builtins::kConsoleLog, 1, false);
-    SimpleInstallFunction(console, "warn", Builtins::kConsoleWarn, 1, false);
-    SimpleInstallFunction(console, "dir", Builtins::kConsoleDir, 1, false);
-    SimpleInstallFunction(console, "dirxml", Builtins::kConsoleDirXml, 1,
-                          false);
-    SimpleInstallFunction(console, "table", Builtins::kConsoleTable, 1, false);
-    SimpleInstallFunction(console, "trace", Builtins::kConsoleTrace, 1, false);
-    SimpleInstallFunction(console, "group", Builtins::kConsoleGroup, 1, false);
+    SimpleInstallFunction(console, "debug", Builtins::kConsoleDebug, 1, false,
+                          NONE);
+    SimpleInstallFunction(console, "error", Builtins::kConsoleError, 1, false,
+                          NONE);
+    SimpleInstallFunction(console, "info", Builtins::kConsoleInfo, 1, false,
+                          NONE);
+    SimpleInstallFunction(console, "log", Builtins::kConsoleLog, 1, false,
+                          NONE);
+    SimpleInstallFunction(console, "warn", Builtins::kConsoleWarn, 1, false,
+                          NONE);
+    SimpleInstallFunction(console, "dir", Builtins::kConsoleDir, 1, false,
+                          NONE);
+    SimpleInstallFunction(console, "dirxml", Builtins::kConsoleDirXml, 1, false,
+                          NONE);
+    SimpleInstallFunction(console, "table", Builtins::kConsoleTable, 1, false,
+                          NONE);
+    SimpleInstallFunction(console, "trace", Builtins::kConsoleTrace, 1, false,
+                          NONE);
+    SimpleInstallFunction(console, "group", Builtins::kConsoleGroup, 1, false,
+                          NONE);
     SimpleInstallFunction(console, "groupCollapsed",
-                          Builtins::kConsoleGroupCollapsed, 1, false);
+                          Builtins::kConsoleGroupCollapsed, 1, false, NONE);
     SimpleInstallFunction(console, "groupEnd", Builtins::kConsoleGroupEnd, 1,
-                          false);
-    SimpleInstallFunction(console, "clear", Builtins::kConsoleClear, 1, false);
-    SimpleInstallFunction(console, "count", Builtins::kConsoleCount, 1, false);
+                          false, NONE);
+    SimpleInstallFunction(console, "clear", Builtins::kConsoleClear, 1, false,
+                          NONE);
+    SimpleInstallFunction(console, "count", Builtins::kConsoleCount, 1, false,
+                          NONE);
     SimpleInstallFunction(console, "assert", Builtins::kFastConsoleAssert, 1,
-                          false);
+                          false, NONE);
     SimpleInstallFunction(console, "markTimeline",
-                          Builtins::kConsoleMarkTimeline, 1, false);
+                          Builtins::kConsoleMarkTimeline, 1, false, NONE);
     SimpleInstallFunction(console, "profile", Builtins::kConsoleProfile, 1,
-                          false);
+                          false, NONE);
     SimpleInstallFunction(console, "profileEnd", Builtins::kConsoleProfileEnd,
-                          1, false);
+                          1, false, NONE);
     SimpleInstallFunction(console, "timeline", Builtins::kConsoleTimeline, 1,
-                          false);
+                          false, NONE);
     SimpleInstallFunction(console, "timelineEnd", Builtins::kConsoleTimelineEnd,
-                          1, false);
-    SimpleInstallFunction(console, "time", Builtins::kConsoleTime, 1, false);
+                          1, false, NONE);
+    SimpleInstallFunction(console, "time", Builtins::kConsoleTime, 1, false,
+                          NONE);
     SimpleInstallFunction(console, "timeEnd", Builtins::kConsoleTimeEnd, 1,
-                          false);
+                          false, NONE);
     SimpleInstallFunction(console, "timeStamp", Builtins::kConsoleTimeStamp, 1,
-                          false);
+                          false, NONE);
     JSObject::AddProperty(
         console, factory->to_string_tag_symbol(),
         factory->NewStringFromAsciiChecked("Object"),

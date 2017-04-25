@@ -18,3 +18,12 @@ true
 
 Running test: consoleToString
 [object Object]
+
+Running test: consoleMethodPropertyDescriptor
+{
+    configurable : true
+    enumerable : true
+    value : {
+    }
+    writable : true
+}
