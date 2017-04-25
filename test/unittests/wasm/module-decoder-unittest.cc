@@ -8,8 +8,8 @@
 #include "src/objects-inl.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
 namespace internal {

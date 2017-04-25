@@ -8,6 +8,7 @@ v8_executable("unittests") {
   testonly = true
 
   sources = [
+    "../../test/common/wasm/wasm-macro-gen.h",
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
     "api/access-check-unittest.cc",

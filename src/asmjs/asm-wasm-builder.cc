@@ -14,7 +14,6 @@
 #include "src/asmjs/asm-wasm-builder.h"
 #include "src/asmjs/switch-logic.h"
 
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"
 
 #include "src/ast/ast.h"

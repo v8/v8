@@ -9,11 +9,11 @@
 #include "src/assembler-inl.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/utils.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -1083,10 +1083,10 @@ WASM_EXEC_TEST(LoadMaxUint32Offset) {
   r.module().AddMemoryElems<int32_t>(8);
 
   BUILD(r, kExprI32Const, 0,  // index
-        static_cast<byte>(v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(
-            MachineType::Int32(), false)),  // --
-        0,                                  // alignment
-        U32V_5(0xffffffff));                // offset
+        static_cast<byte>(
+            LoadStoreOpcodeOf(MachineType::Int32(), false)),  // load opcode
+        0,                                                    // alignment
+        U32V_5(0xffffffff));                                  // offset
 
   CHECK_TRAP32(r.Call());
 }
@@ -2352,8 +2352,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     ADD_CODE(code, WASM_CALL_FUNCTION0(t.function_index()));
 
     // Store the result in memory.
-    ADD_CODE(code,
-             static_cast<byte>(WasmOpcodes::LoadStoreOpcodeOf(result, true)),
+    ADD_CODE(code, static_cast<byte>(LoadStoreOpcodeOf(result, true)),
              ZERO_ALIGNMENT, ZERO_OFFSET);
 
     // Return the expected value.

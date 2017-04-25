@@ -13,7 +13,6 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/parsing/scanner-character-streams.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {

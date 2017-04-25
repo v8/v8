@@ -9,12 +9,12 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/objects-inl.h"
-#include "src/wasm/wasm-macro-gen.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 // If the target architecture is 64-bit, enable all tests.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
@@ -1627,8 +1627,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     ADD_CODE(code, WASM_CALL_FUNCTION0(t.function_index()));
 
     // Store the result in memory.
-    ADD_CODE(code,
-             static_cast<byte>(WasmOpcodes::LoadStoreOpcodeOf(result, true)),
+    ADD_CODE(code, static_cast<byte>(LoadStoreOpcodeOf(result, true)),
              ZERO_ALIGNMENT, ZERO_OFFSET);
 
     // Return the expected value.

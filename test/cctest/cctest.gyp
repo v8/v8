@@ -337,6 +337,7 @@
       ],
       'sources': [
         '../common/wasm/test-signatures.h',
+        '../common/wasm/wasm-macro-gen.h',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
         '<@(cctest_sources)',

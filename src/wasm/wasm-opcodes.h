@@ -686,33 +686,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
     }
   }
 
-  // TODO(wasm): This method is only used for testing. Move to an approriate
-  // header.
-  static WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
-    switch (type.representation()) {
-      case MachineRepresentation::kWord8:
-        return store ? kExprI32StoreMem8
-                     : type.IsSigned() ? kExprI32LoadMem8S : kExprI32LoadMem8U;
-      case MachineRepresentation::kWord16:
-        return store
-                   ? kExprI32StoreMem16
-                   : type.IsSigned() ? kExprI32LoadMem16S : kExprI32LoadMem16U;
-      case MachineRepresentation::kWord32:
-        return store ? kExprI32StoreMem : kExprI32LoadMem;
-      case MachineRepresentation::kWord64:
-        return store ? kExprI64StoreMem : kExprI64LoadMem;
-      case MachineRepresentation::kFloat32:
-        return store ? kExprF32StoreMem : kExprF32LoadMem;
-      case MachineRepresentation::kFloat64:
-        return store ? kExprF64StoreMem : kExprF64LoadMem;
-      case MachineRepresentation::kSimd128:
-        return store ? kExprS128StoreMem : kExprS128LoadMem;
-      default:
-        UNREACHABLE();
-        return kExprNop;
-    }
-  }
-
   static char ShortNameOf(ValueType type) {
     switch (type) {
       case kWasmI32:

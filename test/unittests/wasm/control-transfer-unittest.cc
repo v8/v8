@@ -6,9 +6,9 @@
 #include "testing/gmock/include/gmock/gmock.h"
 
 #include "src/v8.h"
-
 #include "src/wasm/wasm-interpreter.h"
-#include "src/wasm/wasm-macro-gen.h"
+
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using testing::MakeMatcher;
 using testing::Matcher;

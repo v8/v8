@@ -144,10 +144,10 @@
 #define WASM_ZERO kExprI32Const, 0
 #define WASM_ONE kExprI32Const, 1
 
-#define I32V_MIN(length) -(1 << (6 + (7 * ((length) - 1))))
-#define I32V_MAX(length) ((1 << (6 + (7 * ((length) - 1)))) - 1)
-#define I64V_MIN(length) -(1LL << (6 + (7 * ((length) - 1))))
-#define I64V_MAX(length) ((1LL << (6 + 7 * ((length) - 1))) - 1)
+#define I32V_MIN(length) -(1 << (6 + (7 * ((length)-1))))
+#define I32V_MAX(length) ((1 << (6 + (7 * ((length)-1)))) - 1)
+#define I64V_MIN(length) -(1LL << (6 + (7 * ((length)-1))))
+#define I64V_MAX(length) ((1LL << (6 + 7 * ((length)-1))) - 1)
 
 #define I32V_IN_RANGE(value, length) \
   ((value) >= I32V_MIN(length) && (value) <= I32V_MAX(length))
@@ -168,6 +168,30 @@ inline void CheckI32v(int32_t value, int length) {
 inline void CheckI64v(int64_t value, int length) {
   DCHECK(length >= 1 && length <= 10);
   DCHECK(length == 10 || I64V_IN_RANGE(value, length));
+}
+
+inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
+  switch (type.representation()) {
+    case MachineRepresentation::kWord8:
+      return store ? kExprI32StoreMem8
+                   : type.IsSigned() ? kExprI32LoadMem8S : kExprI32LoadMem8U;
+    case MachineRepresentation::kWord16:
+      return store ? kExprI32StoreMem16
+                   : type.IsSigned() ? kExprI32LoadMem16S : kExprI32LoadMem16U;
+    case MachineRepresentation::kWord32:
+      return store ? kExprI32StoreMem : kExprI32LoadMem;
+    case MachineRepresentation::kWord64:
+      return store ? kExprI64StoreMem : kExprI64LoadMem;
+    case MachineRepresentation::kFloat32:
+      return store ? kExprF32StoreMem : kExprF32LoadMem;
+    case MachineRepresentation::kFloat64:
+      return store ? kExprF64StoreMem : kExprF64LoadMem;
+    case MachineRepresentation::kSimd128:
+      return store ? kExprS128StoreMem : kExprS128LoadMem;
+    default:
+      UNREACHABLE();
+      return kExprNop;
+  }
 }
 
 }  // namespace wasm
@@ -305,32 +329,29 @@ inline void CheckI64v(int64_t value, int length) {
 #define WASM_GET_GLOBAL(index) kExprGetGlobal, static_cast<byte>(index)
 #define WASM_SET_GLOBAL(index, val) \
   val, kExprSetGlobal, static_cast<byte>(index)
-#define WASM_LOAD_MEM(type, index)                                             \
-  index, static_cast<byte>(                                                    \
-             v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, false)), \
+#define WASM_LOAD_MEM(type, index)                                           \
+  index,                                                                     \
+      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
       ZERO_ALIGNMENT, ZERO_OFFSET
-#define WASM_STORE_MEM(type, index, val)                                   \
-  index, val,                                                              \
-      static_cast<byte>(                                                   \
-          v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, true)), \
+#define WASM_STORE_MEM(type, index, val)                                    \
+  index, val,                                                               \
+      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
       ZERO_ALIGNMENT, ZERO_OFFSET
-#define WASM_LOAD_MEM_OFFSET(type, offset, index)                              \
-  index, static_cast<byte>(                                                    \
-             v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, false)), \
+#define WASM_LOAD_MEM_OFFSET(type, offset, index)                            \
+  index,                                                                     \
+      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
       ZERO_ALIGNMENT, static_cast<byte>(offset)
-#define WASM_STORE_MEM_OFFSET(type, offset, index, val)                    \
-  index, val,                                                              \
-      static_cast<byte>(                                                   \
-          v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, true)), \
+#define WASM_STORE_MEM_OFFSET(type, offset, index, val)                     \
+  index, val,                                                               \
+      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
       ZERO_ALIGNMENT, static_cast<byte>(offset)
-#define WASM_LOAD_MEM_ALIGNMENT(type, index, alignment)                        \
-  index, static_cast<byte>(                                                    \
-             v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, false)), \
+#define WASM_LOAD_MEM_ALIGNMENT(type, index, alignment)                      \
+  index,                                                                     \
+      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
       alignment, ZERO_OFFSET
-#define WASM_STORE_MEM_ALIGNMENT(type, index, alignment, val)              \
-  index, val,                                                              \
-      static_cast<byte>(                                                   \
-          v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, true)), \
+#define WASM_STORE_MEM_ALIGNMENT(type, index, alignment, val)               \
+  index, val,                                                               \
+      static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
       alignment, ZERO_OFFSET
 
 #define WASM_CALL_FUNCTION0(index) kExprCallFunction, static_cast<byte>(index)
