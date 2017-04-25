@@ -73,7 +73,6 @@ enum ContextLookupFlags {
     typed_array_construct_by_array_like)                                    \
   V(TYPED_ARRAY_CONSTRUCT_BY_LENGTH_INDEX, JSFunction,                      \
     typed_array_construct_by_length)                                        \
-  V(TYPED_ARRAY_INITIALIZE_INDEX, JSFunction, typed_array_initialize)       \
   V(MATH_FLOOR_INDEX, JSFunction, math_floor)                               \
   V(MATH_POW_INDEX, JSFunction, math_pow)                                   \
   V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)       \

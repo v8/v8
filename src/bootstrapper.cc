@@ -2770,12 +2770,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
 
-    // %typed_array_initialize
-    Handle<JSFunction> typed_array_initialize = SimpleCreateFunction(
-        isolate, factory->NewStringFromAsciiChecked("typedArrayInitialize"),
-        Builtins::kTypedArrayInitialize, 6, false);
-    native_context()->set_typed_array_initialize(*typed_array_initialize);
-
     // %typed_array_construct_by_length
     Handle<JSFunction> construct_by_length = SimpleCreateFunction(
         isolate,

@@ -3227,6 +3227,10 @@ Node* CodeStubAssembler::IsJSTypedArray(Node* object) {
   return HasInstanceType(object, JS_TYPED_ARRAY_TYPE);
 }
 
+Node* CodeStubAssembler::IsJSArrayBuffer(Node* object) {
+  return HasInstanceType(object, JS_ARRAY_BUFFER_TYPE);
+}
+
 Node* CodeStubAssembler::IsFixedTypedArray(Node* object) {
   Node* instance_type = LoadInstanceType(object);
   return Word32And(

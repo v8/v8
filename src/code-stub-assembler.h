@@ -759,6 +759,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsConstructorMap(Node* map);
   Node* IsJSFunction(Node* object);
   Node* IsJSTypedArray(Node* object);
+  Node* IsJSArrayBuffer(Node* object);
   Node* IsFixedTypedArray(Node* object);
   Node* IsJSRegExp(Node* object);
 

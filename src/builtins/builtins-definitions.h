@@ -897,6 +897,9 @@ namespace internal {
   TFJ(SymbolPrototypeValueOf, 0)                                               \
                                                                                \
   /* TypedArray */                                                             \
+  TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize)       \
+  TFS(TypedArrayInitializeWithBuffer, kHolder, kLength, kBuffer, kElementSize, \
+      kByteOffset)                                                             \
   /* ES6 #sec-typedarray-buffer-byteoffset-length */                           \
   TFJ(TypedArrayConstructByArrayBuffer, 5, kHolder, kBuffer, kByteOffset,      \
       kLength, kElementSize)                                                   \
@@ -904,8 +907,6 @@ namespace internal {
       kElementSize)                                                            \
   /* ES6 #sec-typedarray-length */                                             \
   TFJ(TypedArrayConstructByLength, 3, kHolder, kLength, kElementSize)          \
-  TFJ(TypedArrayInitialize, 6, kHolder, kLength, kBuffer, kByteOffset,         \
-      kByteLength, kInitialize)                                                \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \
   TFJ(TypedArrayPrototypeByteLength, 0)                                        \
