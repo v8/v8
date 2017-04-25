@@ -172,7 +172,6 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_inspector(inspector),
       m_enableCount(0),
       m_breakpointsActivated(true),
-      m_runningNestedMessageLoop(false),
       m_ignoreScriptParsedEventsCounter(0),
       m_maxAsyncCallStacks(kMaxAsyncTaskStacks),
       m_maxAsyncCallStackDepth(0),
@@ -362,7 +361,8 @@ void V8Debugger::breakProgram() {
   v8::debug::BreakRightNow(m_isolate);
 }
 
-void V8Debugger::continueProgram() {
+void V8Debugger::continueProgram(int targetContextGroupId) {
+  if (m_pausedContextGroupId != targetContextGroupId) return;
   if (isPaused()) m_inspector->client()->quitMessageLoopOnPause();
   m_pausedContext.Clear();
   m_executionState.Clear();
@@ -374,7 +374,7 @@ void V8Debugger::stepIntoStatement(int targetContextGroupId) {
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
   v8::debug::PrepareStep(m_isolate, v8::debug::StepIn);
-  continueProgram();
+  continueProgram(targetContextGroupId);
 }
 
 void V8Debugger::stepOverStatement(int targetContextGroupId) {
@@ -383,7 +383,7 @@ void V8Debugger::stepOverStatement(int targetContextGroupId) {
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
   v8::debug::PrepareStep(m_isolate, v8::debug::StepNext);
-  continueProgram();
+  continueProgram(targetContextGroupId);
 }
 
 void V8Debugger::stepOutOfFunction(int targetContextGroupId) {
@@ -392,7 +392,7 @@ void V8Debugger::stepOutOfFunction(int targetContextGroupId) {
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
   v8::debug::PrepareStep(m_isolate, v8::debug::StepOut);
-  continueProgram();
+  continueProgram(targetContextGroupId);
 }
 
 void V8Debugger::scheduleStepIntoAsync(
@@ -568,7 +568,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
 
   m_pausedContext = pausedContext;
   m_executionState = executionState;
-  m_runningNestedMessageLoop = true;
+  m_pausedContextGroupId = contextGroupId;
   agent->didPause(InspectedContext::contextId(pausedContext), exception,
                   breakpointIds, isPromiseRejection, isUncaught,
                   m_scheduledOOMBreak);
@@ -580,7 +580,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
     CHECK(!context.IsEmpty() &&
           context != v8::debug::GetDebugContext(m_isolate));
     m_inspector->client()->runMessageLoopOnPause(groupId);
-    m_runningNestedMessageLoop = false;
+    m_pausedContextGroupId = 0;
   }
   // The agent may have been removed in the nested loop.
   agent = m_inspector->enabledDebuggerAgentForGroup(groupId);

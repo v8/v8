@@ -51,7 +51,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
   bool canBreakProgram();
   void breakProgram();
-  void continueProgram();
+  void continueProgram(int targetContextGroupId);
 
   void setPauseOnNextStatement(bool, int targetContextGroupId);
   void stepIntoStatement(int targetContextGroupId);
@@ -77,7 +77,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void enable();
   void disable();
 
-  bool isPaused() const { return m_runningNestedMessageLoop; }
+  bool isPaused() const { return m_pausedContextGroupId; }
   v8::Local<v8::Context> pausedContext() { return m_pausedContext; }
 
   int maxAsyncCallChainDepth() { return m_maxAsyncCallStackDepth; }
@@ -180,10 +180,10 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::Global<v8::Context> m_debuggerContext;
   v8::Local<v8::Object> m_executionState;
   v8::Local<v8::Context> m_pausedContext;
-  bool m_runningNestedMessageLoop;
   int m_ignoreScriptParsedEventsCounter;
   bool m_scheduledOOMBreak = false;
   int m_targetContextGroupId = 0;
+  int m_pausedContextGroupId = 0;
 
   using AsyncTaskToStackTrace =
       protocol::HashMap<void*, std::weak_ptr<AsyncStackTrace>>;

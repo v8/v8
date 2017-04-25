@@ -237,7 +237,7 @@ Response V8DebuggerAgentImpl::disable() {
                       v8::debug::NoBreakOnException);
   m_state->setInteger(DebuggerAgentState::asyncCallStackDepth, 0);
 
-  if (isPaused()) m_debugger->continueProgram();
+  if (isPaused()) m_debugger->continueProgram(m_session->contextGroupId());
   m_debugger->disable();
   JavaScriptCallFrames emptyCallFrames;
   m_pausedCallFrames.swap(emptyCallFrames);
@@ -715,7 +715,7 @@ Response V8DebuggerAgentImpl::pause() {
 Response V8DebuggerAgentImpl::resume() {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  m_debugger->continueProgram();
+  m_debugger->continueProgram(m_session->contextGroupId());
   return Response::OK();
 }
 
