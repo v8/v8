@@ -270,6 +270,9 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
     Node* node = calls[i];
     Reduction const reduction = inliner_.ReduceJSCall(node);
     if (reduction.Changed()) {
+      // Killing the call node is not strictly necessary, but it is safer to
+      // make sure we do not resurrect the node.
+      node->Kill();
       cumulative_count_ += function->shared()->ast_node_count();
     }
   }
