@@ -13,6 +13,7 @@
 
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-macro-gen.h"

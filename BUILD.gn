@@ -1940,6 +1940,8 @@ v8_source_set("v8_base") {
     "src/wasm/function-body-decoder.cc",
     "src/wasm/function-body-decoder.h",
     "src/wasm/leb-helper.h",
+    "src/wasm/local-decl-encoder.cc",
+    "src/wasm/local-decl-encoder.h",
     "src/wasm/module-decoder.cc",
     "src/wasm/module-decoder.h",
     "src/wasm/signature-map.cc",

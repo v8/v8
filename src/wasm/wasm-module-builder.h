@@ -9,6 +9,7 @@
 #include "src/zone/zone-containers.h"
 
 #include "src/wasm/leb-helper.h"
+#include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
