@@ -217,6 +217,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
     if (FLAG_experimental_preparser_scope_analysis &&
         preparsed_scope_data_ != nullptr) {
+      // We're not going to skip this function, but it might contain skippable
+      // functions inside it.
       preparsed_scope_data_->AddFunction(
           scope()->start_position(),
           PreParseData::FunctionData(
@@ -355,7 +357,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   if (FLAG_experimental_preparser_scope_analysis &&
       track_unresolved_variables_ && preparsed_scope_data_ != nullptr) {
-    preparsed_scope_data_->AddFunction(
+    preparsed_scope_data_->AddSkippableFunction(
         start_position,
         PreParseData::FunctionData(
             end_position, scope()->num_parameters(),

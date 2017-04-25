@@ -20,7 +20,7 @@ class VariableMaybeAssignedField
 class VariableContextAllocatedField
     : public BitField16<bool, VariableMaybeAssignedField::kNext, 1> {};
 
-const int kFunctionDataSize = 7;
+const int kFunctionDataSize = 8;
 
 }  // namespace
 
@@ -88,6 +88,12 @@ void PreParsedScopeData::SaveData(Scope* scope) {
   backing_store_[data_end_index] = static_cast<uint32_t>(backing_store_.size());
 }
 
+void PreParsedScopeData::AddSkippableFunction(
+    int start_position, const PreParseData::FunctionData& function_data) {
+  AddFunction(start_position, function_data);
+  skippable_functions_.insert(start_position);
+}
+
 void PreParsedScopeData::AddFunction(
     int start_position, const PreParseData::FunctionData& function_data) {
   function_index_.AddFunctionData(start_position, function_data);
@@ -120,7 +126,7 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE &&
       !scope->AsDeclarationScope()->is_arrow_scope()) {
     const PreParseData::FunctionData& data =
-        FindFunction(scope->start_position());
+        function_index_.GetFunctionData(scope->start_position());
     DCHECK_EQ(data.end, scope->end_position());
     // FIXME(marja): unify num_parameters too and DCHECK here.
     DCHECK_EQ(data.language_mode, scope->language_mode());
@@ -185,11 +191,14 @@ Handle<PodArray<uint32_t>> PreParsedScopeData::Serialize(
     array->set(i++, function_data.num_inner_functions);
     array->set(i++, function_data.language_mode);
     array->set(i++, function_data.uses_super_property);
+    array->set(i++, skippable_functions_.find(item.first) !=
+                        skippable_functions_.end());
   }
 
   for (size_t j = 0; j < backing_store_.size(); ++j) {
     array->set(i++, static_cast<uint32_t>(backing_store_[j]));
   }
+  DCHECK_EQ(array->length(), length);
   return array;
 }
 
@@ -212,6 +221,9 @@ void PreParsedScopeData::Deserialize(PodArray<uint32_t>* array) {
         start, PreParseData::FunctionData(
                    array->get(i + 2), array->get(i + 3), array->get(i + 4),
                    LanguageMode(array->get(i + 5)), array->get(i + 6)));
+    if (array->get(i + 7)) {
+      skippable_functions_.insert(start);
+    }
   }
   CHECK_EQ(function_index_.size(), function_count);
 
@@ -221,8 +233,11 @@ void PreParsedScopeData::Deserialize(PodArray<uint32_t>* array) {
   }
 }
 
-PreParseData::FunctionData PreParsedScopeData::FindFunction(
+PreParseData::FunctionData PreParsedScopeData::FindSkippableFunction(
     int start_pos) const {
+  if (skippable_functions_.find(start_pos) == skippable_functions_.end()) {
+    return PreParseData::FunctionData();
+  }
   return function_index_.GetFunctionData(start_pos);
 }
 

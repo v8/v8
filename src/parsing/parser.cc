@@ -2863,7 +2863,8 @@ Parser::LazyParsingResult Parser::SkipFunction(FunctionKind kind,
   if (preparsed_scope_data_->Consuming()) {
     DCHECK(FLAG_experimental_preparser_scope_analysis);
     const PreParseData::FunctionData& data =
-        preparsed_scope_data_->FindFunction(function_scope->start_position());
+        preparsed_scope_data_->FindSkippableFunction(
+            function_scope->start_position());
     if (data.is_valid()) {
       function_scope->set_is_skipped_function(true);
       function_scope->outer_scope()->SetMustUsePreParsedScopeData();
