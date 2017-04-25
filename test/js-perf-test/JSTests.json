@@ -413,6 +413,28 @@
         {"name": "BasicImport"},
         {"name": "BasicNamespace"}
       ]
+    },
+    {
+      "name": "BytecodeHandlers",
+      "path": ["BytecodeHandlers"],
+      "main": "run.js",
+      "resources": [ "compare.js" ],
+      "flags": [ "--no-opt" ],
+      "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Smi-StrictEquals"},
+        {"name": "Number-StrictEquals"},
+        {"name": "String-StrictEquals"},
+        {"name": "SmiString-StrictEquals"},
+        {"name": "Smi-Equals"},
+        {"name": "Number-Equals"},
+        {"name": "String-Equals"},
+        {"name": "SmiString-Equals"},
+        {"name": "Smi-RelationalCompare"},
+        {"name": "Number-RelationalCompare"},
+        {"name": "String-RelationalCompare"},
+        {"name": "SmiString-RelationalCompare"}
+      ]
     }
   ]
 }
