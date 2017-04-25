@@ -37,6 +37,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysis {
   bool IsCyclicObjectState(Node* effect, Node* node);
   bool ExistsVirtualAllocate();
   bool SetReplacement(Node* node, Node* rep);
+  bool AllObjectsComplete();
 
  private:
   void RunObjectAnalysis();
