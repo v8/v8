@@ -45,7 +45,8 @@ class TaskRunner : public v8::base::Thread {
   using SetupGlobalTasks = std::vector<std::unique_ptr<SetupGlobalTask>>;
 
   TaskRunner(SetupGlobalTasks setup_global_tasks, bool catch_exceptions,
-             v8::base::Semaphore* ready_semaphore);
+             v8::base::Semaphore* ready_semaphore,
+             v8::StartupData* startup_data);
   virtual ~TaskRunner();
 
   // Thread implementation.
@@ -78,6 +79,7 @@ class TaskRunner : public v8::base::Thread {
   Task* GetNext(bool only_protocol);
 
   SetupGlobalTasks setup_global_tasks_;
+  v8::StartupData* startup_data_;
   bool catch_exceptions_;
   v8::base::Semaphore* ready_semaphore_;
 

@@ -34,9 +34,11 @@ v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
 
 TaskRunner::TaskRunner(TaskRunner::SetupGlobalTasks setup_global_tasks,
                        bool catch_exceptions,
-                       v8::base::Semaphore* ready_semaphore)
+                       v8::base::Semaphore* ready_semaphore,
+                       v8::StartupData* startup_data)
     : Thread(Options("Task Runner")),
       setup_global_tasks_(std::move(setup_global_tasks)),
+      startup_data_(startup_data),
       catch_exceptions_(catch_exceptions),
       ready_semaphore_(ready_semaphore),
       isolate_(nullptr),
@@ -51,6 +53,7 @@ void TaskRunner::InitializeIsolate() {
   v8::Isolate::CreateParams params;
   params.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+  params.snapshot_blob = startup_data_;
   isolate_ = v8::Isolate::New(params);
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
   v8::Isolate::Scope isolate_scope(isolate_);
