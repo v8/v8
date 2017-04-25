@@ -104,7 +104,7 @@ class WasmGenerator {
       const ValueType break_type = blocks_[target_block];
 
       Generate(break_type, data);
-      builder_->EmitWithVarInt(kExprBr, target_block);
+      builder_->EmitWithI32V(kExprBr, target_block);
       builder_->Emit(kExprEnd);
       blocks_.pop_back();
     };
@@ -205,8 +205,7 @@ void WasmGenerator::Generate<kWasmI32>(DataRange data) {
 template <>
 void WasmGenerator::Generate<kWasmI64>(DataRange data) {
   if (data.size() <= sizeof(uint64_t)) {
-    const uint8_t bytes[] = {WASM_I64V(data.get<uint64_t>())};
-    builder_->EmitCode(bytes, arraysize(bytes));
+    builder_->EmitI64Const(data.get<int64_t>());
   } else {
     const std::function<void(DataRange)> alternates[] = {
         op<kExprI64Add, kWasmI64, kWasmI64>(),
@@ -244,10 +243,8 @@ void WasmGenerator::Generate<kWasmI64>(DataRange data) {
 
 template <>
 void WasmGenerator::Generate<kWasmF32>(DataRange data) {
-  if (data.size() <= sizeof(uint32_t)) {
-    const uint32_t i = data.get<uint32_t>();
-    builder_->Emit(kExprF32Const);
-    builder_->EmitCode(reinterpret_cast<const uint8_t*>(&i), sizeof(i));
+  if (data.size() <= sizeof(float)) {
+    builder_->EmitF32Const(data.get<float>());
   } else {
     const std::function<void(DataRange)> alternates[] = {
         op<kExprF32Add, kWasmF32, kWasmF32>(),
@@ -266,15 +263,8 @@ void WasmGenerator::Generate<kWasmF32>(DataRange data) {
 
 template <>
 void WasmGenerator::Generate<kWasmF64>(DataRange data) {
-  if (data.size() <= sizeof(uint64_t)) {
-    // TODO (eholk): generate full 64-bit constants
-    uint64_t i = 0;
-    while (data.size() > 0) {
-      i <<= 8;
-      i |= data.get<uint8_t>();
-    }
-    builder_->Emit(kExprF64Const);
-    builder_->EmitCode(reinterpret_cast<uint8_t*>(&i), sizeof(i));
+  if (data.size() <= sizeof(double)) {
+    builder_->EmitF64Const(data.get<double>());
   } else {
     const std::function<void(DataRange)> alternates[] = {
         op<kExprF64Add, kWasmF64, kWasmF64>(),
