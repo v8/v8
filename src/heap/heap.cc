@@ -5662,6 +5662,10 @@ void Heap::TracePossibleWrapper(JSObject* js_object) {
 
 void Heap::RegisterExternallyReferencedObject(Object** object) {
   HeapObject* heap_object = HeapObject::cast(*object);
+  if (heap_object == nullptr) {
+    // We might encounter non-empty handles that point to nullptr.
+    return;
+  }
   DCHECK(Contains(heap_object));
   if (FLAG_incremental_marking_wrappers && incremental_marking()->IsMarking()) {
     IncrementalMarking::MarkGrey(this, heap_object);
