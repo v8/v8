@@ -3439,6 +3439,8 @@ class SloppyArgumentsElementsAccessor
     uint32_t entry = ArgumentsAccessor::GetEntryForIndexImpl(
         isolate, holder, arguments, index, filter);
     if (entry == kMaxUInt32) return kMaxUInt32;
+    // Arguments entries could overlap with the dictionary entries, hence offset
+    // them by the number of context mapped entries.
     return elements->parameter_map_length() + entry;
   }
 
@@ -3462,17 +3464,21 @@ class SloppyArgumentsElementsAccessor
   }
 
   static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
-    SloppyArgumentsElements* elements =
-        SloppyArgumentsElements::cast(obj->elements());
+    Handle<SloppyArgumentsElements> elements(
+        SloppyArgumentsElements::cast(obj->elements()));
     uint32_t length = elements->parameter_map_length();
     if (entry < length) {
-      // TODO(kmillikin): We could check if this was the last aliased
-      // parameter, and revert to normal elements in that case.  That
-      // would enable GC of the context.
       elements->set_mapped_entry(entry, obj->GetHeap()->the_hole_value());
-    } else {
-      Subclass::DeleteFromArguments(obj, entry - length);
+      entry = kMaxUInt32;
     }
+    Subclass::SloppyDeleteImpl(obj, elements, entry);
+  }
+
+  static void SloppyDeleteImpl(Handle<JSObject> obj,
+                               Handle<SloppyArgumentsElements> elements,
+                               uint32_t entry) {
+    // Implemented in subclasses.
+    UNREACHABLE();
   }
 
   static void CollectElementIndicesImpl(Handle<JSObject> object,
@@ -3625,17 +3631,21 @@ class SlowSloppyArgumentsElementsAccessor
     }
     return result;
   }
-  static void DeleteFromArguments(Handle<JSObject> obj, uint32_t entry) {
+  static void SloppyDeleteImpl(Handle<JSObject> obj,
+                               Handle<SloppyArgumentsElements> elements,
+                               uint32_t entry) {
+    // No need to delete a context mapped entry from the arguments elements.
+    if (entry == kMaxUInt32) return;
     Isolate* isolate = obj->GetIsolate();
-    Handle<SloppyArgumentsElements> elements(
-        SloppyArgumentsElements::cast(obj->elements()), isolate);
     Handle<SeededNumberDictionary> dict(
         SeededNumberDictionary::cast(elements->arguments()), isolate);
     // TODO(verwaest): Remove reliance on index in Shrink.
     uint32_t index = GetIndexForEntryImpl(*dict, entry);
-    Handle<Object> result = SeededNumberDictionary::DeleteProperty(dict, entry);
+    int length = elements->parameter_map_length();
+    Handle<Object> result =
+        SeededNumberDictionary::DeleteProperty(dict, entry - length);
     USE(result);
-    DCHECK(result->IsTrue(dict->GetIsolate()));
+    DCHECK(result->IsTrue(isolate));
     Handle<FixedArray> new_elements =
         SeededNumberDictionary::Shrink(dict, index);
     elements->set_arguments(*new_elements);
@@ -3759,10 +3769,28 @@ class FastSloppyArgumentsElementsAccessor
     return FastHoleyObjectElementsAccessor::NormalizeImpl(object, arguments);
   }
 
-  static void DeleteFromArguments(Handle<JSObject> obj, uint32_t entry) {
-    Handle<FixedArray> arguments =
-        GetArguments(obj->GetIsolate(), obj->elements());
-    FastHoleyObjectElementsAccessor::DeleteCommon(obj, entry, arguments);
+  static Handle<SeededNumberDictionary> NormalizeArgumentsElements(
+      Handle<JSObject> object, Handle<SloppyArgumentsElements> elements,
+      uint32_t* entry) {
+    Handle<SeededNumberDictionary> dictionary =
+        JSObject::NormalizeElements(object);
+    elements->set_arguments(*dictionary);
+    // kMaxUInt32 indicates that a context mapped element got deleted. In this
+    // case we only normalize the elements (aka. migrate to SLOW_SLOPPY).
+    if (*entry == kMaxUInt32) return dictionary;
+    uint32_t length = elements->parameter_map_length();
+    if (*entry >= length) {
+      *entry = dictionary->FindEntry(*entry - length) + length;
+    }
+    return dictionary;
+  }
+
+  static void SloppyDeleteImpl(Handle<JSObject> obj,
+                               Handle<SloppyArgumentsElements> elements,
+                               uint32_t entry) {
+    // Always normalize element on deleting an entry.
+    NormalizeArgumentsElements(obj, elements, &entry);
+    SlowSloppyArgumentsElementsAccessor::SloppyDeleteImpl(obj, elements, entry);
   }
 
   static void AddImpl(Handle<JSObject> object, uint32_t index,
@@ -3790,14 +3818,10 @@ class FastSloppyArgumentsElementsAccessor
                               Handle<FixedArrayBase> store, uint32_t entry,
                               Handle<Object> value,
                               PropertyAttributes attributes) {
-    Handle<SeededNumberDictionary> dictionary =
-        JSObject::NormalizeElements(object);
-    SloppyArgumentsElements* elements = SloppyArgumentsElements::cast(*store);
-    elements->set_arguments(*dictionary);
-    uint32_t length = elements->parameter_map_length();
-    if (entry >= length) {
-      entry = dictionary->FindEntry(entry - length) + length;
-    }
+    DCHECK_EQ(object->elements(), *store);
+    Handle<SloppyArgumentsElements> elements(
+        SloppyArgumentsElements::cast(*store));
+    NormalizeArgumentsElements(object, elements, &entry);
     SlowSloppyArgumentsElementsAccessor::ReconfigureImpl(object, store, entry,
                                                          value, attributes);
   }
