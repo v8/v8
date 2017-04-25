@@ -57,8 +57,7 @@ class AsmJsParser {
   // clang-format on
 
   struct FunctionImportInfo {
-    char* function_name;
-    size_t function_name_size;
+    Vector<const char> function_name;
     WasmModuleBuilder::SignatureMap cache;
   };
 
@@ -76,8 +75,7 @@ class AsmJsParser {
   };
 
   struct GlobalImport {
-    char* import_name;
-    size_t import_name_size;
+    Vector<const char> import_name;
     ValueType value_type;
     VarInfo* var_info;
   };
@@ -156,8 +154,8 @@ class AsmJsParser {
   // statements it's attached to.
   AsmJsScanner::token_t pending_label_;
 
-  // Global imports.
-  // NOTE: Holds the strings referenced in wasm-module-builder for imports.
+  // Global imports. The list of imported variables that are copied during
+  // module instantiation into a corresponding global variable.
   ZoneLinkedList<GlobalImport> global_imports_;
 
   Zone* zone() { return zone_; }
@@ -228,13 +226,15 @@ class AsmJsParser {
                      ValueType vtype,
                      const WasmInitExpr& init = WasmInitExpr());
   void DeclareStdlibFunc(VarInfo* info, VarKind kind, AsmType* type);
+  void AddGlobalImport(Vector<const char> name, AsmType* type, ValueType vtype,
+                       bool mutable_variable, VarInfo* info);
 
   // Allocates a temporary local variable. The given {index} is absolute within
   // the function body, consider using {TemporaryVariableScope} when nesting.
   uint32_t TempVariable(int index);
 
-  void AddGlobalImport(std::string name, AsmType* type, ValueType vtype,
-                       bool mutable_variable, VarInfo* info);
+  // Preserves a copy of the scanner's current identifier string in the zone.
+  Vector<const char> CopyCurrentIdentifierString();
 
   // Use to set up block stack layers (including synthetic ones for if-else).
   // Begin/Loop/End below are implemented with these plus code generation.

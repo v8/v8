@@ -235,21 +235,16 @@ uint32_t AsmJsParser::VarIndex(VarInfo* info) {
   return info->index + static_cast<uint32_t>(global_imports_.size());
 }
 
-void AsmJsParser::AddGlobalImport(std::string name, AsmType* type,
+void AsmJsParser::AddGlobalImport(Vector<const char> name, AsmType* type,
                                   ValueType vtype, bool mutable_variable,
                                   VarInfo* info) {
-  // TODO(bradnelson): Refactor memory management here.
-  // AsmModuleBuilder should really own import names.
-  char* name_data = zone()->NewArray<char>(name.size());
-  memcpy(name_data, name.data(), name.size());
-
   // Allocate a separate variable for the import.
   // TODO(mstarzinger): Consider using the imported global directly instead of
   // allocating a separate global variable for immutable (i.e. const) imports.
   DeclareGlobal(info, mutable_variable, type, vtype);
 
   // Record the need to initialize the global from the import.
-  global_imports_.push_back({name_data, name.size(), vtype, info});
+  global_imports_.push_back({name, vtype, info});
 }
 
 void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
@@ -274,6 +269,13 @@ uint32_t AsmJsParser::TempVariable(int index) {
     function_temp_locals_used_ = index + 1;
   }
   return function_temp_locals_offset_ + index;
+}
+
+Vector<const char> AsmJsParser::CopyCurrentIdentifierString() {
+  const std::string& str = scanner_.GetIdentifierString();
+  char* buffer = zone()->NewArray<char>(str.size());
+  str.copy(buffer, str.size());
+  return Vector<const char>(buffer, static_cast<int>(str.size()));
 }
 
 void AsmJsParser::SkipSemicolon() {
@@ -363,13 +365,9 @@ void AsmJsParser::ValidateModule() {
   // Add start function to init things.
   WasmFunctionBuilder* start = module_builder_->AddFunction();
   module_builder_->MarkStartFunction(start);
-  for (auto global_import : global_imports_) {
-    // TODO(bradnelson): Reuse parse buffer memory / make wasm-module-builder
-    // managed the memory for the import name (currently have to keep our
-    // own memory for it).
+  for (auto& global_import : global_imports_) {
     uint32_t import_index = module_builder_->AddGlobalImport(
-        global_import.import_name,
-        static_cast<int>(global_import.import_name_size),
+        global_import.import_name.start(), global_import.import_name.length(),
         global_import.value_type);
     start->EmitWithVarInt(kExprGetGlobal, import_index);
     start->EmitWithVarInt(kExprSetGlobal, VarIndex(global_import.var_info));
@@ -533,31 +531,24 @@ bool AsmJsParser::ValidateModuleVarImport(VarInfo* info,
   if (Check('+')) {
     EXPECT_TOKENf(foreign_name_);
     EXPECT_TOKENf('.');
-    AddGlobalImport(scanner_.GetIdentifierString(), AsmType::Double(), kWasmF64,
-                    mutable_variable, info);
+    Vector<const char> name = CopyCurrentIdentifierString();
+    AddGlobalImport(name, AsmType::Double(), kWasmF64, mutable_variable, info);
     scanner_.Next();
     return true;
   } else if (Check(foreign_name_)) {
     EXPECT_TOKENf('.');
-    std::string import_name = scanner_.GetIdentifierString();
+    Vector<const char> name = CopyCurrentIdentifierString();
     scanner_.Next();
     if (Check('|')) {
       if (!CheckForZero()) {
         FAILf("Expected |0 type annotation for foreign integer import");
       }
-      AddGlobalImport(import_name, AsmType::Int(), kWasmI32, mutable_variable,
-                      info);
+      AddGlobalImport(name, AsmType::Int(), kWasmI32, mutable_variable, info);
       return true;
     }
     info->kind = VarKind::kImportedFunction;
-    info->import =
-        new (zone()->New(sizeof(FunctionImportInfo))) FunctionImportInfo(
-            {nullptr, 0, WasmModuleBuilder::SignatureMap(zone())});
-    // TODO(bradnelson): Refactor memory management here.
-    // AsmModuleBuilder should really own import names.
-    info->import->function_name = zone()->NewArray<char>(import_name.size());
-    memcpy(info->import->function_name, import_name.data(), import_name.size());
-    info->import->function_name_size = import_name.size();
+    info->import = new (zone()->New(sizeof(FunctionImportInfo)))
+        FunctionImportInfo({name, WasmModuleBuilder::SignatureMap(zone())});
     return true;
   }
   return false;
@@ -629,7 +620,7 @@ void AsmJsParser::ValidateExport() {
   // clang format on
   if (Check('{')) {
     for (;;) {
-      std::string name = scanner_.GetIdentifierString();
+      Vector<const char> name = CopyCurrentIdentifierString();
       if (!scanner_.IsGlobal() && !scanner_.IsLocal()) {
         FAIL("Illegal export name");
       }
@@ -642,8 +633,7 @@ void AsmJsParser::ValidateExport() {
       if (info->kind != VarKind::kFunction) {
         FAIL("Expected function");
       }
-      info->function_builder->ExportAs(
-          {name.c_str(), static_cast<int>(name.size())});
+      info->function_builder->ExportAs(name);
       if (Check(',')) {
         if (!Peek('}')) {
           continue;
@@ -727,7 +717,7 @@ void AsmJsParser::ValidateFunction() {
     FAIL("Expected function name");
   }
 
-  std::string function_name_raw = scanner_.GetIdentifierString();
+  Vector<const char> function_name_str = CopyCurrentIdentifierString();
   AsmJsScanner::token_t function_name = Consume();
   VarInfo* function_info = GetVarInfo(function_name);
   if (function_info->kind == VarKind::kUnused) {
@@ -741,12 +731,7 @@ void AsmJsParser::ValidateFunction() {
   }
 
   function_info->function_defined = true;
-  // TODO(bradnelson): Cleanup memory management here.
-  // WasmModuleBuilder should own these.
-  char* function_name_chr = zone()->NewArray<char>(function_name_raw.size());
-  memcpy(function_name_chr, function_name_raw.data(), function_name_raw.size());
-  function_info->function_builder->SetName(
-      {function_name_chr, static_cast<int>(function_name_raw.size())});
+  function_info->function_builder->SetName(function_name_str);
   current_function_builder_ = function_info->function_builder;
   return_type_ = nullptr;
 
@@ -2099,7 +2084,6 @@ AsmType* AsmJsParser::ValidateCall() {
     } else if (t->IsA(AsmType::Double())) {
       param_types.push_back(AsmType::Double());
     } else {
-      std::string a = t->Name();
       FAILn("Bad function argument type");
     }
     if (!Peek(')')) {
@@ -2170,9 +2154,8 @@ AsmType* AsmJsParser::ValidateCall() {
       index = it->second;
     } else {
       index = module_builder_->AddImport(
-          function_info->import->function_name,
-          static_cast<uint32_t>(function_info->import->function_name_size),
-          sig);
+          function_info->import->function_name.start(),
+          function_info->import->function_name.length(), sig);
       function_info->import->cache[sig] = index;
     }
     current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);

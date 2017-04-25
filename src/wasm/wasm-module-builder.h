@@ -225,6 +225,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   explicit WasmModuleBuilder(Zone* zone);
 
   // Building methods.
+  // TODO(mstarzinger): Refactor to take Vector<const char> instead.
   uint32_t AddImport(const char* name, int name_length, FunctionSig* sig);
   void SetImportName(uint32_t index, const char* name, int name_length) {
     function_imports_[index].name = name;
@@ -233,6 +234,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
   uint32_t AddGlobal(ValueType type, bool exported, bool mutability = true,
                      const WasmInitExpr& init = WasmInitExpr());
+  // TODO(mstarzinger): Refactor to take Vector<const char> instead.
   uint32_t AddGlobalImport(const char* name, int name_length, ValueType type);
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);

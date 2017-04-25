@@ -43,12 +43,15 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   void Next();
   // Back up by one token.
   void Rewind();
-  // Get raw string for current identifier.
+
+  // Get raw string for current identifier. Note that the returned string will
+  // become invalid when the scanner advances, create a copy to preserve it.
   const std::string& GetIdentifierString() const {
     // Identifier strings don't work after a rewind.
     DCHECK(!rewind_);
     return identifier_string_;
   }
+
   // Check if we just passed a newline.
   bool IsPrecededByNewline() const {
     // Newline tracking doesn't work if you back up.
