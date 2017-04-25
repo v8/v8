@@ -83,7 +83,8 @@ class PropertyAccessInfo final {
 
   PropertyAccessInfo();
 
-  bool Merge(PropertyAccessInfo const* that) WARN_UNUSED_RESULT;
+  bool Merge(PropertyAccessInfo const* that, AccessMode access_mode,
+             Zone* zone) WARN_UNUSED_RESULT;
 
   bool IsNotFound() const { return kind() == kNotFound; }
   bool IsDataConstant() const { return kind() == kDataConstant; }
