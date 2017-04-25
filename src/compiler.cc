@@ -1087,7 +1087,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     Handle<Script> script(Script::cast(function->shared()->script()));
     if (script->HasPreparsedScopeData()) {
       parse_info.preparsed_scope_data()->Deserialize(
-          script->GetPreparsedScopeData());
+          script->preparsed_scope_data());
     }
   }
   Compiler::ConcurrencyMode inner_function_mode =
@@ -1182,8 +1182,8 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     if (!script.is_null()) {
       script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
       if (FLAG_experimental_preparser_scope_analysis) {
-        Handle<FixedUint32Array> data(
-            parse_info->preparsed_scope_data()->Serialize(isolate));
+        Handle<PodArray<uint32_t>> data =
+            parse_info->preparsed_scope_data()->Serialize(isolate);
         script->set_preparsed_scope_data(*data);
       }
     }

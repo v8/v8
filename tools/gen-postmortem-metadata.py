@@ -493,7 +493,7 @@ def parse_field(call):
         if (kind == 'ACCESSORS' or kind == 'ACCESSORS_GCSAFE'):
                 klass = args[0];
                 field = args[1];
-                dtype = args[2];
+                dtype = args[2].replace('<', '_').replace('>', '_')
                 offset = args[3];
 
                 return ({
