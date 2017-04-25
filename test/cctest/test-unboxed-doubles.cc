@@ -916,6 +916,10 @@ TEST(Regress436816) {
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
+  // Force a GC to free up space before we allocate objects whose
+  // mid-test states would fail heap verification.
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+
   const int kPropsCount = kSmiValueSize * 3;
   TestPropertyKind props[kPropsCount];
   for (int i = 0; i < kPropsCount; i++) {

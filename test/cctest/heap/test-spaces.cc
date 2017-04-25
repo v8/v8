@@ -637,6 +637,12 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
 
     Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
+    // Clear out any pre-existing garbage to make the test consistent
+    // across snapshot/no-snapshot builds.
+    i_isolate->heap()->CollectAllGarbage(
+        i::Heap::kFinalizeIncrementalMarkingMask,
+        i::GarbageCollectionReason::kTesting);
+
     NewSpace* new_space = i_isolate->heap()->new_space();
 
     Observer observer1(512);
