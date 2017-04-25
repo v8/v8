@@ -92,8 +92,6 @@ void Deserializer::Deserialize(Isolate* isolate) {
   DCHECK(isolate_->handle_scope_implementer()->blocks()->is_empty());
   // Partial snapshot cache is not yet populated.
   DCHECK(isolate_->partial_snapshot_cache()->is_empty());
-  // Builtins are not yet created.
-  DCHECK(!isolate_->builtins()->is_initialized());
 
   {
     DisallowHeapAllocation no_gc;
@@ -123,8 +121,6 @@ void Deserializer::Deserialize(Isolate* isolate) {
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
   LOG_CODE_EVENT(isolate_, LogBytecodeHandlers());
   LOG_CODE_EVENT(isolate_, LogCompiledFunctions());
-
-  isolate_->builtins()->MarkInitialized();
 }
 
 MaybeHandle<Object> Deserializer::DeserializePartial(
