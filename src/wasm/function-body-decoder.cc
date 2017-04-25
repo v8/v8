@@ -515,6 +515,68 @@ class WasmDecoder : public Decoder {
         return 1;
     }
   }
+
+  std::pair<uint32_t, uint32_t> StackEffect(const byte* pc) {
+    WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
+    // Handle "simple" opcodes with a fixed signature first.
+    FunctionSig* sig = WasmOpcodes::Signature(opcode);
+    if (!sig) sig = WasmOpcodes::AsmjsSignature(opcode);
+    if (sig) return {sig->parameter_count(), sig->return_count()};
+
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+    // clang-format off
+    switch (opcode) {
+      case kExprSelect:
+        return {3, 1};
+      FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
+        return {2, 0};
+      FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
+      case kExprTeeLocal:
+      case kExprGrowMemory:
+        return {1, 1};
+      case kExprSetLocal:
+      case kExprSetGlobal:
+      case kExprDrop:
+      case kExprBrIf:
+      case kExprBrTable:
+      case kExprIf:
+        return {1, 0};
+      case kExprGetLocal:
+      case kExprGetGlobal:
+      case kExprI32Const:
+      case kExprI64Const:
+      case kExprF32Const:
+      case kExprF64Const:
+      case kExprMemorySize:
+        return {0, 1};
+      case kExprCallFunction: {
+        CallFunctionOperand<true> operand(this, pc);
+        CHECK(Complete(pc, operand));
+        return {operand.sig->parameter_count(), operand.sig->return_count()};
+      }
+      case kExprCallIndirect: {
+        CallIndirectOperand<true> operand(this, pc);
+        CHECK(Complete(pc, operand));
+        // Indirect calls pop an additional argument for the table index.
+        return {operand.sig->parameter_count() + 1,
+                operand.sig->return_count()};
+      }
+      case kExprBr:
+      case kExprBlock:
+      case kExprLoop:
+      case kExprEnd:
+      case kExprElse:
+      case kExprNop:
+      case kExprReturn:
+      case kExprUnreachable:
+        return {0, 0};
+      default:
+        V8_Fatal(__FILE__, __LINE__, "unimplemented opcode: %x", opcode);
+        return {0, 0};
+    }
+#undef DECLARE_OPCODE_CASE
+    // clang-format on
+  }
 };
 
 static const int32_t kNullCatch = -1;
@@ -2053,6 +2115,13 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
 unsigned OpcodeLength(const byte* pc, const byte* end) {
   Decoder decoder(pc, end);
   return WasmDecoder::OpcodeLength(&decoder, pc);
+}
+
+std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
+                                          FunctionSig* sig, const byte* pc,
+                                          const byte* end) {
+  WasmDecoder decoder(module, sig, pc, end);
+  return decoder.StackEffect(pc);
 }
 
 void PrintRawWasmCode(const byte* start, const byte* end) {

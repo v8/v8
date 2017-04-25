@@ -286,6 +286,17 @@ bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
       return false;
   }
 }
+bool WasmOpcodes::IsControlOpcode(WasmOpcode opcode) {
+  switch (opcode) {
+#define CHECK_OPCODE(name, opcode, _) \
+  case kExpr##name:                   \
+    return true;
+    FOREACH_CONTROL_OPCODE(CHECK_OPCODE)
+#undef CHECK_OPCODE
+    default:
+      return false;
+  }
+}
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";

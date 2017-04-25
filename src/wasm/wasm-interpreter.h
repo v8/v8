@@ -21,16 +21,27 @@ namespace wasm {
 // forward declarations.
 struct ModuleBytesEnv;
 struct WasmFunction;
+struct WasmModule;
 class WasmInterpreterInternals;
 
-typedef size_t pc_t;
-typedef size_t sp_t;
-typedef int32_t pcdiff_t;
-typedef uint32_t spdiff_t;
+using pc_t = size_t;
+using sp_t = size_t;
+using pcdiff_t = int32_t;
+using spdiff_t = uint32_t;
 
-const pc_t kInvalidPc = 0x80000000;
+constexpr pc_t kInvalidPc = 0x80000000;
 
-typedef ZoneMap<pc_t, pcdiff_t> ControlTransferMap;
+struct ControlTransferEntry {
+  // Distance from the instruction to the label to jump to (forward, but can be
+  // negative).
+  pcdiff_t pc_diff;
+  // Delta by which to decrease the stack height.
+  spdiff_t sp_diff;
+  // Arity of the block we jump to.
+  uint32_t target_arity;
+};
+
+using ControlTransferMap = ZoneMap<pc_t, ControlTransferEntry>;
 
 // Macro for defining union members.
 #define FOREACH_UNION_MEMBER(V) \
@@ -258,9 +269,8 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
   // Computes the control transfers for the given bytecode. Used internally in
   // the interpreter, but exposed for testing.
-  static ControlTransferMap ComputeControlTransfersForTesting(Zone* zone,
-                                                              const byte* start,
-                                                              const byte* end);
+  static ControlTransferMap ComputeControlTransfersForTesting(
+      Zone* zone, const WasmModule* module, const byte* start, const byte* end);
 
  private:
   Zone zone_;

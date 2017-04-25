@@ -694,160 +694,7 @@ Handle<HeapObject> UnwrapWasmToJSWrapper(Isolate* isolate,
   return Handle<HeapObject>::null();
 }
 
-// A helper class to compute the control transfers for each bytecode offset.
-// Control transfers allow Br, BrIf, BrTable, If, Else, and End bytecodes to
-// be directly executed without the need to dynamically track blocks.
-class ControlTransfers : public ZoneObject {
- public:
-  ControlTransferMap map_;
-
-  ControlTransfers(Zone* zone, BodyLocalDecls* locals, const byte* start,
-                   const byte* end)
-      : map_(zone) {
-    // Represents a control flow label.
-    struct CLabel : public ZoneObject {
-      const byte* target;
-      ZoneVector<const byte*> refs;
-
-      explicit CLabel(Zone* zone) : target(nullptr), refs(zone) {}
-
-      // Bind this label to the given PC.
-      void Bind(ControlTransferMap* map, const byte* start, const byte* pc) {
-        DCHECK_NULL(target);
-        target = pc;
-        for (auto from_pc : refs) {
-          auto pcdiff = static_cast<pcdiff_t>(target - from_pc);
-          size_t offset = static_cast<size_t>(from_pc - start);
-          (*map)[offset] = pcdiff;
-        }
-      }
-
-      // Reference this label from the given location.
-      void Ref(ControlTransferMap* map, const byte* start,
-               const byte* from_pc) {
-        if (target) {
-          // Target being bound before a reference means this is a loop.
-          DCHECK_EQ(kExprLoop, *target);
-          auto pcdiff = static_cast<pcdiff_t>(target - from_pc);
-          size_t offset = static_cast<size_t>(from_pc - start);
-          (*map)[offset] = pcdiff;
-        } else {
-          refs.push_back(from_pc);
-        }
-      }
-    };
-
-    // An entry in the control stack.
-    struct Control {
-      const byte* pc;
-      CLabel* end_label;
-      CLabel* else_label;
-
-      void Ref(ControlTransferMap* map, const byte* start,
-               const byte* from_pc) {
-        end_label->Ref(map, start, from_pc);
-      }
-    };
-
-    // Compute the ControlTransfer map.
-    // This algorithm maintains a stack of control constructs similar to the
-    // AST decoder. The {control_stack} allows matching {br,br_if,br_table}
-    // bytecodes with their target, as well as determining whether the current
-    // bytecodes are within the true or false block of an else.
-    std::vector<Control> control_stack;
-    CLabel* func_label = new (zone) CLabel(zone);
-    control_stack.push_back({start, func_label, nullptr});
-    for (BytecodeIterator i(start, end, locals); i.has_next(); i.next()) {
-      WasmOpcode opcode = i.current();
-      TRACE("@%u: control %s\n", i.pc_offset(),
-            WasmOpcodes::OpcodeName(opcode));
-      switch (opcode) {
-        case kExprBlock: {
-          TRACE("control @%u: Block\n", i.pc_offset());
-          CLabel* label = new (zone) CLabel(zone);
-          control_stack.push_back({i.pc(), label, nullptr});
-          break;
-        }
-        case kExprLoop: {
-          TRACE("control @%u: Loop\n", i.pc_offset());
-          CLabel* label = new (zone) CLabel(zone);
-          control_stack.push_back({i.pc(), label, nullptr});
-          label->Bind(&map_, start, i.pc());
-          break;
-        }
-        case kExprIf: {
-          TRACE("control @%u: If\n", i.pc_offset());
-          CLabel* end_label = new (zone) CLabel(zone);
-          CLabel* else_label = new (zone) CLabel(zone);
-          control_stack.push_back({i.pc(), end_label, else_label});
-          else_label->Ref(&map_, start, i.pc());
-          break;
-        }
-        case kExprElse: {
-          Control* c = &control_stack.back();
-          TRACE("control @%u: Else\n", i.pc_offset());
-          c->end_label->Ref(&map_, start, i.pc());
-          DCHECK_NOT_NULL(c->else_label);
-          c->else_label->Bind(&map_, start, i.pc() + 1);
-          c->else_label = nullptr;
-          break;
-        }
-        case kExprEnd: {
-          Control* c = &control_stack.back();
-          TRACE("control @%u: End\n", i.pc_offset());
-          if (c->end_label->target) {
-            // only loops have bound labels.
-            DCHECK_EQ(kExprLoop, *c->pc);
-          } else {
-            if (c->else_label) c->else_label->Bind(&map_, start, i.pc());
-            c->end_label->Bind(&map_, start, i.pc() + 1);
-          }
-          control_stack.pop_back();
-          break;
-        }
-        case kExprBr: {
-          BreakDepthOperand<false> operand(&i, i.pc());
-          TRACE("control @%u: Br[depth=%u]\n", i.pc_offset(), operand.depth);
-          Control* c = &control_stack[control_stack.size() - operand.depth - 1];
-          c->Ref(&map_, start, i.pc());
-          break;
-        }
-        case kExprBrIf: {
-          BreakDepthOperand<false> operand(&i, i.pc());
-          TRACE("control @%u: BrIf[depth=%u]\n", i.pc_offset(), operand.depth);
-          Control* c = &control_stack[control_stack.size() - operand.depth - 1];
-          c->Ref(&map_, start, i.pc());
-          break;
-        }
-        case kExprBrTable: {
-          BranchTableOperand<false> operand(&i, i.pc());
-          BranchTableIterator<false> iterator(&i, operand);
-          TRACE("control @%u: BrTable[count=%u]\n", i.pc_offset(),
-                operand.table_count);
-          while (iterator.has_next()) {
-            uint32_t j = iterator.cur_index();
-            uint32_t target = iterator.next();
-            Control* c = &control_stack[control_stack.size() - target - 1];
-            c->Ref(&map_, start, i.pc() + j);
-          }
-          break;
-        }
-        default: {
-          break;
-        }
-      }
-    }
-    if (!func_label->target) func_label->Bind(&map_, start, end);
-  }
-
-  pcdiff_t Lookup(pc_t from) {
-    auto result = map_.find(from);
-    if (result == map_.end()) {
-      V8_Fatal(__FILE__, __LINE__, "no control target for pc %zu", from);
-    }
-    return result->second;
-  }
-};
+class ControlTransfers;
 
 // Code and metadata needed to execute a function.
 struct InterpreterCode {
@@ -860,6 +707,201 @@ struct InterpreterCode {
   ControlTransfers* targets;     // helper for control flow.
 
   const byte* at(pc_t pc) { return start + pc; }
+};
+
+// A helper class to compute the control transfers for each bytecode offset.
+// Control transfers allow Br, BrIf, BrTable, If, Else, and End bytecodes to
+// be directly executed without the need to dynamically track blocks.
+class ControlTransfers : public ZoneObject {
+ public:
+  ControlTransferMap map_;
+
+  ControlTransfers(Zone* zone, const WasmModule* module, InterpreterCode* code)
+      : map_(zone) {
+    // Create a zone for all temporary objects.
+    Zone control_transfer_zone(zone->allocator(), ZONE_NAME);
+
+    // Represents a control flow label.
+    class CLabel : public ZoneObject {
+      explicit CLabel(Zone* zone, uint32_t target_stack_height, uint32_t arity)
+          : target(nullptr),
+            target_stack_height(target_stack_height),
+            arity(arity),
+            refs(zone) {}
+
+     public:
+      struct Ref {
+        const byte* from_pc;
+        const uint32_t stack_height;
+      };
+      const byte* target;
+      uint32_t target_stack_height;
+      const uint32_t arity;
+      // TODO(clemensh): Fix ZoneAllocator and make this ZoneVector<const Ref>.
+      ZoneVector<Ref> refs;
+
+      static CLabel* New(Zone* zone, uint32_t stack_height, uint32_t arity) {
+        return new (zone) CLabel(zone, stack_height, arity);
+      }
+
+      // Bind this label to the given PC.
+      void Bind(const byte* pc) {
+        DCHECK_NULL(target);
+        target = pc;
+      }
+
+      // Reference this label from the given location.
+      void Ref(const byte* from_pc, uint32_t stack_height) {
+        // Target being bound before a reference means this is a loop.
+        DCHECK_IMPLIES(target, *target == kExprLoop);
+        refs.push_back({from_pc, stack_height});
+      }
+
+      void Finish(ControlTransferMap* map, const byte* start) {
+        DCHECK_NOT_NULL(target);
+        for (auto ref : refs) {
+          size_t offset = static_cast<size_t>(ref.from_pc - start);
+          auto pcdiff = static_cast<pcdiff_t>(target - ref.from_pc);
+          DCHECK_GE(ref.stack_height, target_stack_height);
+          spdiff_t spdiff =
+              static_cast<spdiff_t>(ref.stack_height - target_stack_height);
+          TRACE("control transfer @%zu: Δpc %d, stack %u->%u = -%u\n", offset,
+                pcdiff, ref.stack_height, target_stack_height, spdiff);
+          ControlTransferEntry& entry = (*map)[offset];
+          entry.pc_diff = pcdiff;
+          entry.sp_diff = spdiff;
+          entry.target_arity = arity;
+        }
+      }
+    };
+
+    // An entry in the control stack.
+    struct Control {
+      const byte* pc;
+      CLabel* end_label;
+      CLabel* else_label;
+
+      void Finish(ControlTransferMap* map, const byte* start) {
+        end_label->Finish(map, start);
+        if (else_label) else_label->Finish(map, start);
+      }
+    };
+
+    // Compute the ControlTransfer map.
+    // This algorithm maintains a stack of control constructs similar to the
+    // AST decoder. The {control_stack} allows matching {br,br_if,br_table}
+    // bytecodes with their target, as well as determining whether the current
+    // bytecodes are within the true or false block of an else.
+    ZoneVector<Control> control_stack(&control_transfer_zone);
+    uint32_t stack_height = 0;
+    uint32_t func_arity =
+        static_cast<uint32_t>(code->function->sig->return_count());
+    CLabel* func_label =
+        CLabel::New(&control_transfer_zone, stack_height, func_arity);
+    control_stack.push_back({code->orig_start, func_label, nullptr});
+    for (BytecodeIterator i(code->orig_start, code->orig_end, &code->locals);
+         i.has_next(); i.next()) {
+      WasmOpcode opcode = i.current();
+      auto stack_effect =
+          StackEffect(module, code->function->sig, i.pc(), i.end());
+      TRACE("@%u: control %s (sp %d - %d + %d)\n", i.pc_offset(),
+            WasmOpcodes::OpcodeName(opcode), stack_height, stack_effect.first,
+            stack_effect.second);
+      DCHECK_GE(stack_height, stack_effect.first);
+      stack_height = stack_height - stack_effect.first + stack_effect.second;
+      switch (opcode) {
+        case kExprBlock:
+        case kExprLoop: {
+          bool loop = opcode == kExprLoop;
+          BlockTypeOperand<false> operand(&i, i.pc());
+          TRACE("control @%u: %s, arity %d\n", i.pc_offset(),
+                loop ? "Loop" : "Block", operand.arity);
+          CLabel* label =
+              CLabel::New(&control_transfer_zone, stack_height, operand.arity);
+          control_stack.push_back({i.pc(), label, nullptr});
+          if (loop) label->Bind(i.pc());
+          break;
+        }
+        case kExprIf: {
+          TRACE("control @%u: If\n", i.pc_offset());
+          BlockTypeOperand<false> operand(&i, i.pc());
+          CLabel* end_label =
+              CLabel::New(&control_transfer_zone, stack_height, operand.arity);
+          CLabel* else_label =
+              CLabel::New(&control_transfer_zone, stack_height, 0);
+          control_stack.push_back({i.pc(), end_label, else_label});
+          else_label->Ref(i.pc(), stack_height);
+          break;
+        }
+        case kExprElse: {
+          Control* c = &control_stack.back();
+          TRACE("control @%u: Else\n", i.pc_offset());
+          c->end_label->Ref(i.pc(), stack_height);
+          DCHECK_NOT_NULL(c->else_label);
+          c->else_label->Bind(i.pc() + 1);
+          c->else_label->Finish(&map_, code->orig_start);
+          c->else_label = nullptr;
+          DCHECK_GE(stack_height, c->end_label->target_stack_height);
+          stack_height = c->end_label->target_stack_height;
+          break;
+        }
+        case kExprEnd: {
+          Control* c = &control_stack.back();
+          TRACE("control @%u: End\n", i.pc_offset());
+          // Only loops have bound labels.
+          DCHECK_IMPLIES(c->end_label->target, *c->pc == kExprLoop);
+          if (!c->end_label->target) {
+            if (c->else_label) c->else_label->Bind(i.pc());
+            c->end_label->Bind(i.pc() + 1);
+          }
+          c->Finish(&map_, code->orig_start);
+          DCHECK_GE(stack_height, c->end_label->target_stack_height);
+          stack_height =
+              c->end_label->target_stack_height + c->end_label->arity;
+          control_stack.pop_back();
+          break;
+        }
+        case kExprBr: {
+          BreakDepthOperand<false> operand(&i, i.pc());
+          TRACE("control @%u: Br[depth=%u]\n", i.pc_offset(), operand.depth);
+          Control* c = &control_stack[control_stack.size() - operand.depth - 1];
+          c->end_label->Ref(i.pc(), stack_height);
+          break;
+        }
+        case kExprBrIf: {
+          BreakDepthOperand<false> operand(&i, i.pc());
+          TRACE("control @%u: BrIf[depth=%u]\n", i.pc_offset(), operand.depth);
+          Control* c = &control_stack[control_stack.size() - operand.depth - 1];
+          c->end_label->Ref(i.pc(), stack_height);
+          break;
+        }
+        case kExprBrTable: {
+          BranchTableOperand<false> operand(&i, i.pc());
+          BranchTableIterator<false> iterator(&i, operand);
+          TRACE("control @%u: BrTable[count=%u]\n", i.pc_offset(),
+                operand.table_count);
+          while (iterator.has_next()) {
+            uint32_t j = iterator.cur_index();
+            uint32_t target = iterator.next();
+            Control* c = &control_stack[control_stack.size() - target - 1];
+            c->end_label->Ref(i.pc() + j, stack_height);
+          }
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+    DCHECK_EQ(0, control_stack.size());
+    DCHECK_EQ(func_arity, stack_height);
+  }
+
+  ControlTransferEntry& Lookup(pc_t from) {
+    auto result = map_.find(from);
+    DCHECK(result != map_.end());
+    return result->second;
+  }
 };
 
 struct ExternalCallResult {
@@ -982,8 +1024,7 @@ class CodeMap {
     DCHECK_EQ(code->function->imported, code->start == nullptr);
     if (code->targets == nullptr && code->start != nullptr) {
       // Compute the control targets map and the local declarations.
-      code->targets = new (zone_) ControlTransfers(
-          zone_, &code->locals, code->orig_start, code->orig_end);
+      code->targets = new (zone_) ControlTransfers(zone_, module_, code);
     }
     return code;
   }
@@ -1122,7 +1163,6 @@ class ThreadImpl {
         instance_(instance),
         stack_(zone),
         frames_(zone),
-        blocks_(zone),
         activations_(zone) {}
 
   //==========================================================================
@@ -1279,7 +1319,6 @@ class ThreadImpl {
   WasmInstance* instance_;
   ZoneVector<WasmVal> stack_;
   ZoneVector<Frame> frames_;
-  ZoneVector<Block> blocks_;
   WasmInterpreter::State state_ = WasmInterpreter::STOPPED;
   pc_t break_pc_ = kInvalidPc;
   TrapReason trap_reason_ = kTrapCount;
@@ -1308,9 +1347,6 @@ class ThreadImpl {
     // The parameters will overlap the arguments already on the stack.
     DCHECK_GE(stack_.size(), arity);
     frames_.push_back({code, 0, stack_.size() - arity});
-    blocks_.push_back(
-        {0, stack_.size(), frames_.size(),
-         static_cast<uint32_t>(code->function->sig->return_count())});
     frames_.back().pc = InitLocals(code);
     TRACE("  => PushFrame #%zu (#%u @%zu)\n", frames_.size() - 1,
           code->function->func_index, frames_.back().pc);
@@ -1349,16 +1385,15 @@ class ThreadImpl {
     return false;
   }
 
-  int LookupTarget(InterpreterCode* code, pc_t pc) {
-    return static_cast<int>(code->targets->Lookup(pc));
+  int LookupTargetDelta(InterpreterCode* code, pc_t pc) {
+    return static_cast<int>(code->targets->Lookup(pc).pc_diff);
   }
 
   int DoBreak(InterpreterCode* code, pc_t pc, size_t depth) {
-    size_t bp = blocks_.size() - depth - 1;
-    Block* target = &blocks_[bp];
-    DoStackTransfer(target->sp, target->arity);
-    blocks_.resize(bp);
-    return LookupTarget(code, pc);
+    ControlTransferEntry& control_transfer_entry = code->targets->Lookup(pc);
+    DoStackTransfer(stack_.size() - control_transfer_entry.sp_diff,
+                    control_transfer_entry.target_arity);
+    return control_transfer_entry.pc_diff;
   }
 
   pc_t ReturnPc(Decoder* decoder, InterpreterCode* code, pc_t pc) {
@@ -1380,11 +1415,6 @@ class ThreadImpl {
   bool DoReturn(Decoder* decoder, InterpreterCode** code, pc_t* pc, pc_t* limit,
                 size_t arity) {
     DCHECK_GT(frames_.size(), 0);
-    // Pop all blocks for this frame.
-    while (!blocks_.empty() && blocks_.back().fp == frames_.size()) {
-      blocks_.pop_back();
-    }
-
     sp_t dest = frames_.back().sp;
     frames_.pop_back();
     if (frames_.size() == current_activation().fp) {
@@ -1551,18 +1581,27 @@ class ThreadImpl {
       TraceValueStack();
       TRACE("\n");
 
+#ifdef DEBUG
+      // Compute the stack effect of this opcode, and verify later that the
+      // stack was modified accordingly.
+      std::pair<uint32_t, uint32_t> stack_effect = wasm::StackEffect(
+          codemap_->module(), frames_.back().code->function->sig,
+          code->orig_start + pc, code->orig_end);
+      uint32_t expected_new_stack_height =
+          static_cast<uint32_t>(stack_.size()) - stack_effect.first +
+          stack_effect.second;
+#endif
+
       switch (orig) {
         case kExprNop:
           break;
         case kExprBlock: {
           BlockTypeOperand<false> operand(&decoder, code->at(pc));
-          blocks_.push_back({pc, stack_.size(), frames_.size(), operand.arity});
           len = 1 + operand.length;
           break;
         }
         case kExprLoop: {
           BlockTypeOperand<false> operand(&decoder, code->at(pc));
-          blocks_.push_back({pc, stack_.size(), frames_.size(), 0});
           len = 1 + operand.length;
           break;
         }
@@ -1570,20 +1609,18 @@ class ThreadImpl {
           BlockTypeOperand<false> operand(&decoder, code->at(pc));
           WasmVal cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
-          blocks_.push_back({pc, stack_.size(), frames_.size(), operand.arity});
           if (is_true) {
             // fall through to the true block.
             len = 1 + operand.length;
             TRACE("  true => fallthrough\n");
           } else {
-            len = LookupTarget(code, pc);
+            len = LookupTargetDelta(code, pc);
             TRACE("  false => @%zu\n", pc + len);
           }
           break;
         }
         case kExprElse: {
-          blocks_.pop_back();
-          len = LookupTarget(code, pc);
+          len = LookupTargetDelta(code, pc);
           TRACE("  end => @%zu\n", pc + len);
           break;
         }
@@ -1637,7 +1674,6 @@ class ThreadImpl {
           return DoTrap(kTrapUnreachable, pc);
         }
         case kExprEnd: {
-          blocks_.pop_back();
           break;
         }
         case kExprI32Const: {
@@ -1964,6 +2000,12 @@ class ThreadImpl {
                    code->start[pc], OpcodeName(code->start[pc]));
           UNREACHABLE();
       }
+
+#ifdef DEBUG
+      if (!WasmOpcodes::IsControlOpcode(static_cast<WasmOpcode>(opcode))) {
+        DCHECK_EQ(expected_new_stack_height, stack_.size());
+      }
+#endif
 
       pc += len;
       if (pc == limit) {
@@ -2485,8 +2527,16 @@ void WasmInterpreter::SetFunctionCodeForTesting(const WasmFunction* function,
 }
 
 ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
-    Zone* zone, const byte* start, const byte* end) {
-  ControlTransfers targets(zone, nullptr, start, end);
+    Zone* zone, const WasmModule* module, const byte* start, const byte* end) {
+  // Create some dummy structures, to avoid special-casing the implementation
+  // just for testing.
+  FunctionSig sig(0, 0, nullptr);
+  WasmFunction function{&sig, 0, 0, 0, 0, 0, 0, false, false};
+  InterpreterCode code{
+      &function, BodyLocalDecls(zone), start, end, nullptr, nullptr, nullptr};
+
+  // Now compute and return the control transfers.
+  ControlTransfers targets(zone, module, &code);
   return targets.map_;
 }
 
