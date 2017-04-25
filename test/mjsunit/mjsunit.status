@@ -195,6 +195,9 @@
 
   # BUG(v8:6113).
   'es6/array-iterator-turbo': [SKIP],
+
+  # BUG(v8:6306).
+  'wasm/huge-memory': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
