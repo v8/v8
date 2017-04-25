@@ -404,6 +404,13 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
         // These never change the map of objects.
         break;
       }
+      case IrOpcode::kFinishRegion: {
+        // FinishRegion renames the output of allocations, so we need
+        // to update the {receiver} that we are looking for, if the
+        // {receiver} matches the current {effect}.
+        if (IsSame(receiver, effect)) receiver = GetValueInput(effect, 0);
+        break;
+      }
       default: {
         DCHECK_EQ(1, effect->op()->EffectOutputCount());
         if (effect->op()->EffectInputCount() != 1) {
@@ -418,6 +425,12 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
         break;
       }
     }
+
+    // Stop walking the effect chain once we hit the definition of
+    // the {receiver} along the {effect}s.
+    if (IsSame(receiver, effect)) return kNoReceiverMaps;
+
+    // Continue with the next {effect}.
     DCHECK_EQ(1, effect->op()->EffectInputCount());
     effect = NodeProperties::GetEffectInput(effect);
   }
