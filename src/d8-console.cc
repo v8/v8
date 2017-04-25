@@ -21,7 +21,7 @@ void WriteToFile(FILE* file, Isolate* isolate,
 
     if (arg->IsSymbol()) arg = Local<Symbol>::Cast(arg)->Name();
     if (!arg->ToString(isolate->GetCurrentContext()).ToLocal(&str_obj)) {
-      try_catch.ReThrow();
+      Shell::ReportException(isolate, &try_catch);
       return;
     }
 
@@ -68,7 +68,7 @@ void D8Console::Time(const debug::ConsoleCallArguments& args) {
     Local<String> label;
     v8::TryCatch try_catch(isolate_);
     if (!arg->ToString(isolate_->GetCurrentContext()).ToLocal(&label)) {
-      try_catch.ReThrow();
+      Shell::ReportException(isolate_, &try_catch);
       return;
     }
     v8::String::Utf8Value utf8(label);
@@ -94,7 +94,7 @@ void D8Console::TimeEnd(const debug::ConsoleCallArguments& args) {
     Local<String> label;
     v8::TryCatch try_catch(isolate_);
     if (!arg->ToString(isolate_->GetCurrentContext()).ToLocal(&label)) {
-      try_catch.ReThrow();
+      Shell::ReportException(isolate_, &try_catch);
       return;
     }
     v8::String::Utf8Value utf8(label);
