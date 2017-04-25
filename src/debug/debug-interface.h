@@ -129,7 +129,6 @@ class V8_EXPORT_PRIVATE Script {
 
   ScriptOriginOptions OriginOptions() const;
   bool WasCompiled() const;
-  bool IsEmbedded() const;
   int Id() const;
   int LineOffset() const;
   int ColumnOffset() const;
@@ -137,7 +136,7 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> Name() const;
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;
-  Maybe<int> ContextId() const;
+  MaybeLocal<Value> ContextData() const;
   MaybeLocal<String> Source() const;
   bool IsWasm() const;
   bool IsModule() const;

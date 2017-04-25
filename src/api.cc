@@ -9287,11 +9287,6 @@ bool debug::Script::WasCompiled() const {
          i::Script::COMPILATION_STATE_COMPILED;
 }
 
-bool debug::Script::IsEmbedded() const {
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
-  return script->context_data() == script->GetHeap()->uninitialized_symbol();
-}
-
 int debug::Script::Id() const { return Utils::OpenHandle(this)->id(); }
 
 int debug::Script::LineOffset() const {
@@ -9348,13 +9343,12 @@ MaybeLocal<String> debug::Script::SourceMappingURL() const {
       handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
 }
 
-Maybe<int> debug::Script::ContextId() const {
+MaybeLocal<Value> debug::Script::ContextData() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  i::Object* value = script->context_data();
-  if (value->IsSmi()) return Just(i::Smi::cast(value)->value());
-  return Nothing<int>();
+  i::Handle<i::Object> value(script->context_data(), isolate);
+  return Utils::ToLocal(handle_scope.CloseAndEscape(value));
 }
 
 MaybeLocal<String> debug::Script::Source() const {
