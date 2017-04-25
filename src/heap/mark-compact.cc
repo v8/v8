@@ -1650,24 +1650,25 @@ void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
   }
 }
 
-class RecordMigratedSlotVisitor final : public ObjectVisitor {
+class RecordMigratedSlotVisitor : public ObjectVisitor {
  public:
   explicit RecordMigratedSlotVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
   inline void VisitPointer(HeapObject* host, Object** p) final {
-    RecordMigratedSlot(*p, reinterpret_cast<Address>(p));
+    RecordMigratedSlot(host, *p, reinterpret_cast<Address>(p));
   }
 
   inline void VisitPointers(HeapObject* host, Object** start,
                             Object** end) final {
     while (start < end) {
-      RecordMigratedSlot(*start, reinterpret_cast<Address>(start));
+      RecordMigratedSlot(host, *start, reinterpret_cast<Address>(start));
       ++start;
     }
   }
 
-  inline void VisitCodeEntry(JSFunction* host, Address code_entry_slot) final {
+  inline void VisitCodeEntry(JSFunction* host,
+                             Address code_entry_slot) override {
     Address code_entry = Memory::Address_at(code_entry_slot);
     if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
       RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(code_entry_slot),
@@ -1676,7 +1677,7 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     }
   }
 
-  inline void VisitCodeTarget(Code* host, RelocInfo* rinfo) final {
+  inline void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -1686,7 +1687,7 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
-  inline void VisitDebugTarget(Code* host, RelocInfo* rinfo) final {
+  inline void VisitDebugTarget(Code* host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
            rinfo->IsPatchedDebugBreakSlotSequence());
@@ -1697,7 +1698,7 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
-  inline void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final {
+  inline void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     HeapObject* object = HeapObject::cast(rinfo->target_object());
@@ -1705,7 +1706,7 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     collector_->RecordRelocSlot(host, rinfo, object);
   }
 
-  inline void VisitCellPointer(Code* host, RelocInfo* rinfo) final {
+  inline void VisitCellPointer(Code* host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(rinfo->rmode() == RelocInfo::CELL);
     Cell* cell = rinfo->target_cell();
@@ -1716,7 +1717,7 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
   }
 
   // Entries that will never move.
-  inline void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) final {
+  inline void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
     Code* stub = rinfo->code_age_stub();
@@ -1730,8 +1731,9 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
   inline void VisitRuntimeEntry(Code* host, RelocInfo* rinfo) final {}
   inline void VisitInternalReference(Code* host, RelocInfo* rinfo) final {}
 
- private:
-  inline void RecordMigratedSlot(Object* value, Address slot) {
+ protected:
+  inline virtual void RecordMigratedSlot(HeapObject* host, Object* value,
+                                         Address slot) {
     if (value->IsHeapObject()) {
       Page* p = Page::FromAddress(reinterpret_cast<Address>(value));
       if (p->InNewSpace()) {
