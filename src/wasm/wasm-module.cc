@@ -1865,6 +1865,7 @@ class InstantiationHelper {
     PropertyDescriptor desc;
     desc.set_writable(module_->is_asm_js());
     desc.set_enumerable(true);
+    desc.set_configurable(module_->is_asm_js());
 
     // Count up export indexes.
     int export_index = 0;
