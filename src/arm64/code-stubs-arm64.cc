@@ -3031,9 +3031,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     __ Ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
   }
 
-  if (!call_data_undefined()) {
-    __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
-  }
+  __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
   Register isolate_reg = x5;
   __ Mov(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
 

@@ -9102,7 +9102,6 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
   }
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data_obj(api_call_info->data(), isolate());
-  bool call_data_undefined = call_data_obj->IsUndefined(isolate());
   HValue* call_data = Add<HConstant>(call_data_obj);
   ApiFunction fun(v8::ToCData<Address>(api_call_info->callback()));
   ExternalReference ref = ExternalReference(&fun,
@@ -9116,7 +9115,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
   HInstruction* call = nullptr;
   CHECK(argc <= CallApiCallbackStub::kArgMax);
   if (!is_function) {
-    CallApiCallbackStub stub(isolate(), is_store, call_data_undefined,
+    CallApiCallbackStub stub(isolate(), is_store,
                              !optimization.is_constant_call());
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
@@ -9124,7 +9123,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
         code_value, argc + 1, stub.GetCallInterfaceDescriptor(),
         Vector<HValue*>(op_vals, arraysize(op_vals)), syntactic_tail_call_mode);
   } else {
-    CallApiCallbackStub stub(isolate(), argc, call_data_undefined, false);
+    CallApiCallbackStub stub(isolate(), argc, false);
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
     call = New<HCallWithDescriptor>(

@@ -2976,9 +2976,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   }
 
   Register scratch = call_data;
-  if (!call_data_undefined()) {
-    __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
-  }
+  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   // Push return value and default return value.
   __ Push(scratch, scratch);
   __ li(scratch, Operand(ExternalReference::isolate_address(masm->isolate())));

@@ -2215,7 +2215,7 @@ JSNativeContextSpecialization::InlineApiCall(
   int const argc = value == nullptr ? 0 : 1;
   // The stub always expects the receiver as the first param on the stack.
   CallApiCallbackStub stub(
-      isolate(), argc, call_data_object->IsUndefined(isolate()),
+      isolate(), argc,
       true /* FunctionTemplateInfo doesn't have an associated context. */);
   CallInterfaceDescriptor call_interface_descriptor =
       stub.GetCallInterfaceDescriptor();

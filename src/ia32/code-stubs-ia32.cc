@@ -2780,23 +2780,16 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // call data
   __ push(call_data);
 
-  Register scratch = call_data;
-  if (!call_data_undefined()) {
-    // return value
-    __ push(Immediate(masm->isolate()->factory()->undefined_value()));
-    // return value default
-    __ push(Immediate(masm->isolate()->factory()->undefined_value()));
-  } else {
-    // return value
-    __ push(scratch);
-    // return value default
-    __ push(scratch);
-  }
+  // return value
+  __ push(Immediate(masm->isolate()->factory()->undefined_value()));
+  // return value default
+  __ push(Immediate(masm->isolate()->factory()->undefined_value()));
   // isolate
   __ push(Immediate(reinterpret_cast<int>(masm->isolate())));
   // holder
   __ push(holder);
 
+  Register scratch = call_data;
   __ mov(scratch, esp);
 
   // push return address

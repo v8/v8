@@ -439,7 +439,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   // the receiver (which is implicitly counted by CallApiCallbackStub) from the
   // arguments count.
   int const argc = static_cast<int>(params.arity() - 2);
-  CallApiCallbackStub stub(isolate, argc, data->IsUndefined(isolate), false);
+  CallApiCallbackStub stub(isolate, argc, false);
   CallInterfaceDescriptor cid = stub.GetCallInterfaceDescriptor();
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
       isolate, zone, cid,
