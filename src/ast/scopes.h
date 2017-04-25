@@ -456,11 +456,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Check that all Scopes in the scope tree use the same Zone.
   void CheckZones();
-
-  bool replaced_from_parse_task() const { return replaced_from_parse_task_; }
-  void set_replaced_from_parse_task(bool replaced_from_parse_task) {
-    replaced_from_parse_task_ = replaced_from_parse_task;
-  }
 #endif
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
@@ -540,10 +535,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // True if this scope may contain objects from a temp zone that needs to be
   // fixed up.
   bool needs_migration_;
-
-  // True if scope comes from other zone - as a result of being created in a
-  // parse tasks.
-  bool replaced_from_parse_task_ = false;
 #endif
 
   // Source positions.

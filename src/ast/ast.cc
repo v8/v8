@@ -350,23 +350,6 @@ bool FunctionLiteral::NeedsHomeObject(Expression* expr) {
   return expr->AsFunctionLiteral()->scope()->NeedsHomeObject();
 }
 
-void FunctionLiteral::ReplaceBodyAndScope(FunctionLiteral* other) {
-  DCHECK_NULL(body_);
-  DCHECK_NOT_NULL(scope_);
-  DCHECK_NOT_NULL(other->scope());
-
-  Scope* outer_scope = scope_->outer_scope();
-
-  body_ = other->body();
-  scope_ = other->scope();
-  scope_->ReplaceOuterScope(outer_scope);
-#ifdef DEBUG
-  scope_->set_replaced_from_parse_task(true);
-#endif
-
-  function_length_ = other->function_length_;
-}
-
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
                                              Kind kind, bool is_computed_name)
     : LiteralProperty(key, value, is_computed_name),

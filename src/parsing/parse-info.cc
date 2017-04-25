@@ -40,10 +40,7 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       function_name_(nullptr),
       runtime_call_stats_(nullptr),
       literal_(nullptr),
-      deferred_handles_(nullptr),
-      child_infos_(FLAG_use_parse_tasks
-                       ? new std::map<int, std::unique_ptr<ParseInfo>>()
-                       : nullptr) {}
+      deferred_handles_(nullptr) {}
 
 ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
     : ParseInfo(shared->GetIsolate()->allocator()) {
@@ -165,13 +162,6 @@ void ParseInfo::InitFromIsolate(Isolate* isolate) {
       isolate->is_tail_call_elimination_enabled());
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
   set_ast_string_constants(isolate->ast_string_constants());
-}
-
-void ParseInfo::ParseFinished(std::unique_ptr<ParseInfo> info) {
-  if (info->literal()) {
-    int start_position = info->literal()->start_position();
-    child_infos_->insert(std::make_pair(start_position, std::move(info)));
-  }
 }
 
 #ifdef DEBUG
