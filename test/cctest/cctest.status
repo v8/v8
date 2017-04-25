@@ -299,6 +299,9 @@
   'test-parsing/TooManyArguments': [SKIP],
   'test-api/Threading5': [SKIP],
   'test-api/Threading6': [SKIP],
+
+  # BUG(v8:5193): Flaky timeout.
+  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
