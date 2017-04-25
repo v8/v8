@@ -1102,9 +1102,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ lw(a1, MemOperand(a1));
   __ li(a2, Operand(pending_handler_offset_address));
   __ lw(a2, MemOperand(a2));
-  __ Addu(a1, a1, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Addu(t9, a1, a2);
-  __ Jump(t9);
+  __ Jump(t9, Code::kHeaderSize - kHeapObjectTag);
 }
 
 
@@ -1237,8 +1236,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ lw(t9, MemOperand(t0));  // Deref address.
 
   // Call JSEntryTrampoline.
-  __ addiu(t9, t9, Code::kHeaderSize - kHeapObjectTag);
-  __ Call(t9);
+  __ Call(t9, Code::kHeaderSize - kHeapObjectTag);
 
   // Unlink this frame from the handler chain.
   __ PopStackHandler();
@@ -1421,8 +1419,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // context at this point).
   __ lw(t0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(t0, FieldMemOperand(t0, SharedFunctionInfo::kConstructStubOffset));
-  __ Addu(at, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(at);
+  __ Jump(at, t0, Code::kHeaderSize - kHeapObjectTag);
 
   __ bind(&non_function);
   __ mov(a3, a1);

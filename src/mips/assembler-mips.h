@@ -439,6 +439,8 @@ class Operand BASE_EMBEDDED {
 
   Register rm() const { return rm_; }
 
+  RelocInfo::Mode rmode() const { return rmode_; }
+
  private:
   Register rm_;
   int32_t imm32_;  // Valid if rm_ == no_reg.
@@ -594,10 +596,19 @@ class Assembler : public AssemblerBase {
   inline static void deserialization_set_special_target_at(
       Isolate* isolate, Address instruction_payload, Code* code,
       Address target) {
-    set_target_address_at(
-        isolate,
-        instruction_payload - kInstructionsFor32BitConstant * kInstrSize, code,
-        target);
+    if (IsMipsArchVariant(kMips32r6)) {
+      // On R6 the address location is shifted by one instruction
+      set_target_address_at(
+          isolate,
+          instruction_payload -
+              (kInstructionsFor32BitConstant - 1) * kInstrSize,
+          code, target);
+    } else {
+      set_target_address_at(
+          isolate,
+          instruction_payload - kInstructionsFor32BitConstant * kInstrSize,
+          code, target);
+    }
   }
 
   // This sets the internal reference at the pc.
@@ -628,7 +639,7 @@ class Assembler : public AssemblerBase {
   // Distance between the instruction referring to the address of the call
   // target and the return address.
 #ifdef _MIPS_ARCH_MIPS32R6
-  static constexpr int kCallTargetAddressOffset = 3 * kInstrSize;
+  static constexpr int kCallTargetAddressOffset = 2 * kInstrSize;
 #else
   static constexpr int kCallTargetAddressOffset = 4 * kInstrSize;
 #endif

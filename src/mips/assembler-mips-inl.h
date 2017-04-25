@@ -121,8 +121,17 @@ Address RelocInfo::target_address_address() {
   // place, ready to be patched with the target. After jump optimization,
   // that is the address of the instruction that follows J/JAL/JR/JALR
   // instruction.
-  return reinterpret_cast<Address>(
-    pc_ + Assembler::kInstructionsFor32BitConstant * Assembler::kInstrSize);
+  if (IsMipsArchVariant(kMips32r6)) {
+    // On R6 we don't move to the end of the instructions to be patched, but one
+    // instruction before, because if these instructions are at the end of the
+    // code object it can cause errors in the deserializer.
+    return reinterpret_cast<Address>(
+        pc_ +
+        (Assembler::kInstructionsFor32BitConstant - 1) * Assembler::kInstrSize);
+  } else {
+    return reinterpret_cast<Address>(
+        pc_ + Assembler::kInstructionsFor32BitConstant * Assembler::kInstrSize);
+  }
 }
 
 

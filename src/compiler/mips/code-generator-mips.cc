@@ -622,8 +622,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Call(Handle<Code>::cast(i.InputHeapObject(0)),
                 RelocInfo::CODE_TARGET);
       } else {
-        __ addiu(at, i.InputRegister(0), Code::kHeaderSize - kHeapObjectTag);
-        __ Call(at);
+        __ Call(at, i.InputRegister(0), Code::kHeaderSize - kHeapObjectTag);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -640,8 +639,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Jump(Handle<Code>::cast(i.InputHeapObject(0)),
                 RelocInfo::CODE_TARGET);
       } else {
-        __ addiu(at, i.InputRegister(0), Code::kHeaderSize - kHeapObjectTag);
-        __ Jump(at);
+        __ Jump(at, i.InputRegister(0), Code::kHeaderSize - kHeapObjectTag);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();

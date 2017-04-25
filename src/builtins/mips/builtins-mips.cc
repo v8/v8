@@ -396,8 +396,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
 static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
   __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kCodeOffset));
-  __ Addu(at, a2, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(at);
+  __ Jump(at, a2, Code::kHeaderSize - kHeapObjectTag);
 }
 
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
@@ -421,8 +420,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     __ SmiUntag(a0);
   }
 
-  __ Addu(at, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(at);
+  __ Jump(at, v0, Code::kHeaderSize - kHeapObjectTag);
 }
 
 void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
@@ -1191,8 +1189,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     // context at this point).
     __ lw(t0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
     __ lw(t0, FieldMemOperand(t0, SharedFunctionInfo::kConstructStubOffset));
-    __ Addu(at, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ Jump(at);
+    __ Jump(at, t0, Code::kHeaderSize - kHeapObjectTag);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // Call the constructor with a0, a1, and a3 unmodified.
     __ Jump(masm->isolate()->builtins()->ConstructWithSpread(),
@@ -1572,8 +1569,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ PushStandardFrame(a1);
 
   // Jump to point after the code-age stub.
-  __ Addu(a0, a0, Operand(kNoCodeAgeSequenceLength));
-  __ Jump(a0);
+  __ Jump(a0, kNoCodeAgeSequenceLength);
 }
 
 void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
@@ -2492,8 +2488,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm,
   __ li(at, Operand(ExternalReference(Builtins::kCall_ReceiverIsAny,
                                       masm->isolate())));
   __ lw(at, MemOperand(at));
-  __ Addu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(at);
+  __ Jump(at, Code::kHeaderSize - kHeapObjectTag);
 }
 
 // static
@@ -2717,8 +2712,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // context at this point).
   __ lw(t0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(t0, FieldMemOperand(t0, SharedFunctionInfo::kConstructStubOffset));
-  __ Addu(at, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(at);
+  __ Jump(at, t0, Code::kHeaderSize - kHeapObjectTag);
 }
 
 // static
@@ -2808,8 +2802,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   __ lw(a1, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
   __ li(at, Operand(ExternalReference(Builtins::kConstruct, masm->isolate())));
   __ lw(at, MemOperand(at));
-  __ Addu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(at);
+  __ Jump(at, Code::kHeaderSize - kHeapObjectTag);
 }
 
 // static
@@ -3081,8 +3074,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ MultiPop(gp_regs);
   }
   // Now jump to the instructions of the returned code object.
-  __ Addu(at, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(at);
+  __ Jump(at, v0, Code::kHeaderSize - kHeapObjectTag);
 }
 
 #undef __
