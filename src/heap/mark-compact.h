@@ -418,6 +418,12 @@ enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 class MarkCompactCollectorBase {
  public:
   virtual ~MarkCompactCollectorBase() {}
+
+  // Note: Make sure to refer to the instances by their concrete collector
+  // type to avoid vtable lookups marking state methods when used in hot paths.
+  virtual MarkingState marking_state(HeapObject* object) const = 0;
+  virtual MarkingState marking_state(MemoryChunk* chunk) const = 0;
+
   virtual void SetUp() = 0;
   virtual void TearDown() = 0;
   virtual void CollectGarbage() = 0;
@@ -441,6 +447,14 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
  public:
   explicit MinorMarkCompactCollector(Heap* heap)
       : MarkCompactCollectorBase(heap), marking_deque_(heap) {}
+
+  MarkingState marking_state(HeapObject* object) const override {
+    return MarkingState::External(object);
+  }
+
+  MarkingState marking_state(MemoryChunk* chunk) const override {
+    return MarkingState::External(chunk);
+  }
 
   void SetUp() override;
   void TearDown() override;
@@ -551,6 +565,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   };
 
   static void Initialize();
+
+  MarkingState marking_state(HeapObject* object) const override {
+    return MarkingState::Internal(object);
+  }
+
+  MarkingState marking_state(MemoryChunk* chunk) const override {
+    return MarkingState::Internal(chunk);
+  }
 
   void SetUp() override;
   void TearDown() override;

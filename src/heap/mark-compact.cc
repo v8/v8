@@ -3195,7 +3195,7 @@ class Evacuator : public Malloced {
 
   virtual ~Evacuator() {}
 
-  bool EvacuatePage(Page* page, const MarkingState& state);
+  bool EvacuatePage(Page* page);
 
   // Merge back locally cached info sequentially. Note that this method needs
   // to be called from the main thread.
@@ -3207,7 +3207,8 @@ class Evacuator : public Malloced {
  protected:
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
-  virtual bool RawEvacuatePage(Page* page, const MarkingState& state) = 0;
+  // |saved_live_bytes| returns the live bytes of the page that was processed.
+  virtual bool RawEvacuatePage(Page* page, intptr_t* saved_live_bytes) = 0;
 
   inline Heap* heap() { return heap_; }
 
@@ -3235,15 +3236,15 @@ class Evacuator : public Malloced {
   intptr_t bytes_compacted_;
 };
 
-bool Evacuator::EvacuatePage(Page* page, const MarkingState& state) {
+bool Evacuator::EvacuatePage(Page* page) {
   bool success = false;
   DCHECK(page->SweepingDone());
-  intptr_t saved_live_bytes = state.live_bytes();
+  intptr_t saved_live_bytes = 0;
   double evacuation_time = 0.0;
   {
     AlwaysAllocateScope always_allocate(heap()->isolate());
     TimedScope timed_scope(&evacuation_time);
-    success = RawEvacuatePage(page, state);
+    success = RawEvacuatePage(page, &saved_live_bytes);
   }
   ReportCompactionProgress(evacuation_time, saved_live_bytes);
   if (FLAG_trace_evacuation) {
@@ -3283,16 +3284,21 @@ void Evacuator::Finalize() {
 
 class FullEvacuator : public Evacuator {
  public:
-  FullEvacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)
-      : Evacuator(heap, record_visitor) {}
+  FullEvacuator(MarkCompactCollector* collector,
+                RecordMigratedSlotVisitor* record_visitor)
+      : Evacuator(collector->heap(), record_visitor), collector_(collector) {}
 
  protected:
-  bool RawEvacuatePage(Page* page, const MarkingState& state) override;
+  bool RawEvacuatePage(Page* page, intptr_t* live_bytes) override;
+
+  MarkCompactCollector* collector_;
 };
 
-bool FullEvacuator::RawEvacuatePage(Page* page, const MarkingState& state) {
+bool FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
   bool success = false;
   LiveObjectVisitor object_visitor;
+  const MarkingState state = collector_->marking_state(page);
+  *live_bytes = state.live_bytes();
   switch (ComputeEvacuationMode(page)) {
     case kObjectsNewToOld:
       success = object_visitor.VisitBlackObjects(
@@ -3306,8 +3312,7 @@ bool FullEvacuator::RawEvacuatePage(Page* page, const MarkingState& state) {
           page, state, &new_to_old_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
       DCHECK(success);
-      new_to_old_page_visitor_.account_moved_bytes(
-          MarkingState::Internal(page).live_bytes());
+      new_to_old_page_visitor_.account_moved_bytes(state.live_bytes());
       // ArrayBufferTracker will be updated during sweeping.
       break;
     case kPageNewToNew:
@@ -3315,8 +3320,7 @@ bool FullEvacuator::RawEvacuatePage(Page* page, const MarkingState& state) {
           page, state, &new_to_new_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
       DCHECK(success);
-      new_to_new_page_visitor_.account_moved_bytes(
-          MarkingState::Internal(page).live_bytes());
+      new_to_new_page_visitor_.account_moved_bytes(state.live_bytes());
       // ArrayBufferTracker will be updated during sweeping.
       break;
     case kObjectsOldToOld:
@@ -3355,8 +3359,7 @@ class EvacuationJobTraits {
 
   static bool ProcessPageInParallel(Heap* heap, PerTaskData evacuator,
                                     MemoryChunk* chunk, PerPageData) {
-    return evacuator->EvacuatePage(reinterpret_cast<Page*>(chunk),
-                                   MarkingState::Internal(chunk));
+    return evacuator->EvacuatePage(reinterpret_cast<Page*>(chunk));
   }
 
   static void FinalizePageSequentially(Heap* heap, MemoryChunk* chunk,
@@ -3434,7 +3437,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   FullEvacuator** evacuators = new FullEvacuator*[wanted_num_tasks];
   RecordMigratedSlotVisitor record_visitor(this);
   for (int i = 0; i < wanted_num_tasks; i++) {
-    evacuators[i] = new FullEvacuator(heap(), &record_visitor);
+    evacuators[i] = new FullEvacuator(this, &record_visitor);
   }
   job.Run(wanted_num_tasks, [evacuators](int i) { return evacuators[i]; });
   const Address top = heap()->new_space()->top();
