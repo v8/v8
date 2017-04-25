@@ -230,14 +230,7 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
  protected:
   explicit EvacuationVerifier(Heap* heap) : heap_(heap) {}
 
-  void VerifyPointers(Object** start, Object** end) {
-    for (Object** current = start; current < end; current++) {
-      if ((*current)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*current);
-        CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
-      }
-    }
-  }
+  virtual void VerifyPointers(Object** start, Object** end) = 0;
 
   void VerifyRoots(VisitMode mode);
   void VerifyEvacuationOnPage(Address start, Address end);
@@ -293,6 +286,16 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     VerifyEvacuation(heap_->old_space());
     VerifyEvacuation(heap_->code_space());
     VerifyEvacuation(heap_->map_space());
+  }
+
+ protected:
+  void VerifyPointers(Object** start, Object** end) override {
+    for (Object** current = start; current < end; current++) {
+      if ((*current)->IsHeapObject()) {
+        HeapObject* object = HeapObject::cast(*current);
+        CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
+      }
+    }
   }
 };
 
