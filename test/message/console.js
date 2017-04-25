@@ -21,5 +21,3 @@ console.warn("warn", { toString: () => 2 });
 console.error("error");
 console.debug("debug");
 console.info("info");
-
-console.info({ toString: () => {throw new Error("exception");} })
