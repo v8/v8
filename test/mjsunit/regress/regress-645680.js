@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-gc --allow-natives-syntax
-
+// Flags: --expose-gc
+//
 function getRandomProperty(v, rand) {
   var properties = Object.getOwnPropertyNames(v);
   if ("constructor" && v.constructor.hasOwnProperty()) {; }
@@ -11,12 +11,10 @@ function getRandomProperty(v, rand) {
   return properties[rand % properties.length];
 }
 
-var args = (function( b) { return arguments; })("foo", NaN, "bar");
-args.__p_293850326 = "foo";
-%HeapObjectVerify(args);
-args.__defineGetter__(getRandomProperty( 990787501), function() {
+var __v_18 = (function( b) { return arguments; })("foo", NaN, "bar");
+__v_18.__p_293850326 = "foo";
+__v_18.__defineGetter__(getRandomProperty( 990787501), function() {
   gc();
-  return args.__p_293850326;
+  return __v_18.__p_293850326;
 });
-%HeapObjectVerify(args);
-Array.prototype.indexOf.call(args)
+Array.prototype.indexOf.call(__v_18)

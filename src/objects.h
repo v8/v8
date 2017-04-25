@@ -2707,7 +2707,7 @@ class JSSloppyArgumentsObject: public JSArgumentsObject {
   static const int kCalleeOffset = JSArgumentsObject::kHeaderSize;
   static const int kSize = kCalleeOffset + kPointerSize;
   // Indices of in-object properties.
-  static const int kCalleeIndex = kLengthIndex + 1;
+  static const int kCalleeIndex = 1;
 
   DECL_ACCESSORS(callee, Object)
 

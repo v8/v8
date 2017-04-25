@@ -25,10 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-
 // Check that slicing array of holes keeps it as array of holes
-
 (function() {
   var array = new Array(10);
   for (var i = 0; i < 7; i++) {
@@ -225,9 +222,7 @@
 // Check slicing on arguments object.
 (function() {
   function func(expected, a0, a1, a2) {
-    let result =  Array.prototype.slice.call(arguments, 1);
-    assertEquals(expected, result);
-    %HeapObjectVerify(result);
+    assertEquals(expected, Array.prototype.slice.call(arguments, 1));
   }
 
   func([]);
@@ -245,9 +240,7 @@
     assertEquals(undefined, y);
     y = 239;
     assertEquals(1, arguments.length);  // arguments length is the same.
-    let result = Array.prototype.slice.call(arguments, 0);
-    assertEquals([x], result);
-    %HeapObjectVerify(result);
+    assertEquals([x], Array.prototype.slice.call(arguments, 0));
   }
 
   func('a');
@@ -258,10 +251,7 @@
   function func(x, y) {
     assertEquals(1, arguments.length);
     arguments.length = 7;
-    let result = Array.prototype.slice.call(arguments, 0);
-    assertEquals([x,,,,,,,], result);
-    %HeapObjectVerify(result);
-    %HeapObjectVerify(arguments);
+    assertEquals([x,,,,,,,], Array.prototype.slice.call(arguments, 0));
   }
 
   func('a');
@@ -273,10 +263,7 @@
   function func(x, y) {
     assertEquals(1, arguments.length);
     arguments.length = 'foobar';
-    let result = Array.prototype.slice.call(arguments, 0);
-    assertEquals([], result);
-    %HeapObjectVerify(result);
-    %HeapObjectVerify(arguments);
+    assertEquals([], Array.prototype.slice.call(arguments, 0));
   }
 
   func('a');
@@ -288,9 +275,7 @@
   function func(x, y) {
     assertEquals(1, arguments.length);
     arguments[3] = 239;
-    let result = Array.prototype.slice.call(arguments, 0);
-    assertEquals([x], result);
-    %HeapObjectVerify(result);
+    assertEquals([x], Array.prototype.slice.call(arguments, 0));
   }
 
   func('a');
@@ -301,9 +286,7 @@
   function func(x, y, z) {
     assertEquals(3, arguments.length);
     delete arguments[1];
-    let result = Array.prototype.slice.call(arguments, 0);
-    assertEquals([x,,z], result);
-    %HeapObjectVerify(result);
+    assertEquals([x,,z], Array.prototype.slice.call(arguments, 0));
   }
 
   func('a', 'b', 'c');
@@ -317,7 +300,6 @@
     var result = Array.prototype.slice.call(arguments);
     delete arguments.__proto__[1];
     assertEquals([1,5,3], result);
-    %HeapObjectVerify(result);
   }
   f(1,2,3);
 })();
