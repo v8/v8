@@ -54,7 +54,7 @@ class ConcurrentMarkingVisitor : public ObjectVisitor {
  public:
   ConcurrentMarkingVisitor() : bytes_marked_(0) {}
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
       if (!(*p)->IsHeapObject()) continue;
       MarkObject(HeapObject::cast(*p));

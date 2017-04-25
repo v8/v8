@@ -127,6 +127,28 @@ void CodeFlusher::ClearNextCandidate(SharedFunctionInfo* candidate) {
   candidate->code()->set_gc_metadata(NULL, SKIP_WRITE_BARRIER);
 }
 
+void CodeFlusher::VisitListHeads(RootVisitor* visitor) {
+  visitor->VisitRootPointer(
+      Root::kCodeFlusher,
+      reinterpret_cast<Object**>(&jsfunction_candidates_head_));
+  visitor->VisitRootPointer(
+      Root::kCodeFlusher,
+      reinterpret_cast<Object**>(&shared_function_info_candidates_head_));
+}
+
+template <typename StaticVisitor>
+void CodeFlusher::IteratePointersToFromSpace() {
+  Heap* heap = isolate_->heap();
+  JSFunction* candidate = jsfunction_candidates_head_;
+  while (candidate != nullptr) {
+    JSFunction** slot = GetNextCandidateSlot(candidate);
+    if (heap->InFromSpace(*slot)) {
+      StaticVisitor::VisitPointer(heap, candidate,
+                                  reinterpret_cast<Object**>(slot));
+    }
+    candidate = GetNextCandidate(candidate);
+  }
+}
 
 template <LiveObjectIterationMode T>
 HeapObject* LiveObjectIterator<T>::Next() {

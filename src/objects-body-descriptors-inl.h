@@ -79,7 +79,7 @@ DISABLE_CFI_PERF void BodyDescriptorBase::IteratePointers(HeapObject* obj,
                                                           int start_offset,
                                                           int end_offset,
                                                           ObjectVisitor* v) {
-  v->VisitPointers(HeapObject::RawField(obj, start_offset),
+  v->VisitPointers(obj, HeapObject::RawField(obj, start_offset),
                    HeapObject::RawField(obj, end_offset));
 }
 
@@ -96,7 +96,7 @@ DISABLE_CFI_PERF void BodyDescriptorBase::IteratePointers(Heap* heap,
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IteratePointer(HeapObject* obj, int offset,
                                         ObjectVisitor* v) {
-  v->VisitPointer(HeapObject::RawField(obj, offset));
+  v->VisitPointer(obj, HeapObject::RawField(obj, offset));
 }
 
 template <typename StaticVisitor>
@@ -175,7 +175,8 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
     IteratePointers(obj, kPropertiesOffset, kNonWeakFieldsEndOffset, v);
 
     if (body_visiting_policy & kVisitCodeEntry) {
-      v->VisitCodeEntry(obj->address() + kCodeEntryOffset);
+      v->VisitCodeEntry(JSFunction::cast(obj),
+                        obj->address() + kCodeEntryOffset);
     }
 
     if (body_visiting_policy & kVisitNextFunction) {
@@ -334,8 +335,9 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    v->VisitExternalReference(reinterpret_cast<Address*>(
-        HeapObject::RawField(obj, kForeignAddressOffset)));
+    v->VisitExternalReference(Foreign::cast(obj),
+                              reinterpret_cast<Address*>(HeapObject::RawField(
+                                  obj, kForeignAddressOffset)));
   }
 
   template <typename StaticVisitor>
@@ -408,9 +410,10 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
                     RelocInfo::kDebugBreakSlotMask;
 
     IteratePointers(obj, kRelocationInfoOffset, kNextCodeLinkOffset, v);
-    v->VisitNextCodeLink(HeapObject::RawField(obj, kNextCodeLinkOffset));
+    v->VisitNextCodeLink(Code::cast(obj),
+                         HeapObject::RawField(obj, kNextCodeLinkOffset));
 
-    RelocIterator it(reinterpret_cast<Code*>(obj), mode_mask);
+    RelocIterator it(Code::cast(obj), mode_mask);
     Isolate* isolate = obj->GetIsolate();
     for (; !it.done(); it.next()) {
       it.rinfo()->Visit(isolate, v);
@@ -440,7 +443,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     StaticVisitor::VisitNextCodeLink(
         heap, HeapObject::RawField(obj, kNextCodeLinkOffset));
 
-    RelocIterator it(reinterpret_cast<Code*>(obj), mode_mask);
+    RelocIterator it(Code::cast(obj), mode_mask);
     for (; !it.done(); it.next()) {
       it.rinfo()->template Visit<StaticVisitor>(heap);
     }

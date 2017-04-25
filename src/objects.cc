@@ -13881,69 +13881,55 @@ Code* SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
   return result;
 }
 
-
-void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
+void ObjectVisitor::VisitCodeTarget(Code* host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
   Object* old_pointer = Code::GetCodeFromTargetAddress(rinfo->target_address());
   Object* new_pointer = old_pointer;
-  VisitPointer(&new_pointer);
+  VisitPointer(host, &new_pointer);
   DCHECK_EQ(old_pointer, new_pointer);
 }
 
-
-void ObjectVisitor::VisitCodeAgeSequence(RelocInfo* rinfo) {
+void ObjectVisitor::VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
   Object* old_pointer = rinfo->code_age_stub();
   Object* new_pointer = old_pointer;
   if (old_pointer != nullptr) {
-    VisitPointer(&new_pointer);
+    VisitPointer(host, &new_pointer);
     DCHECK_EQ(old_pointer, new_pointer);
   }
 }
 
-
-void ObjectVisitor::VisitCodeEntry(Address entry_address) {
+void ObjectVisitor::VisitCodeEntry(JSFunction* host, Address entry_address) {
   Object* old_pointer = Code::GetObjectFromEntryAddress(entry_address);
   Object* new_pointer = old_pointer;
-  VisitPointer(&new_pointer);
+  VisitPointer(host, &new_pointer);
   DCHECK_EQ(old_pointer, new_pointer);
 }
 
-
-void ObjectVisitor::VisitCell(RelocInfo* rinfo) {
+void ObjectVisitor::VisitCellPointer(Code* host, RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::CELL);
   Object* old_pointer = rinfo->target_cell();
   Object* new_pointer = old_pointer;
-  VisitPointer(&new_pointer);
+  VisitPointer(host, &new_pointer);
   DCHECK_EQ(old_pointer, new_pointer);
 }
 
-
-void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
+void ObjectVisitor::VisitDebugTarget(Code* host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
          rinfo->IsPatchedDebugBreakSlotSequence());
   Object* old_pointer =
       Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
   Object* new_pointer = old_pointer;
-  VisitPointer(&new_pointer);
+  VisitPointer(host, &new_pointer);
   DCHECK_EQ(old_pointer, new_pointer);
 }
 
-
-void ObjectVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
+void ObjectVisitor::VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   Object* old_pointer = rinfo->target_object();
   Object* new_pointer = old_pointer;
-  VisitPointer(&new_pointer);
+  VisitPointer(host, &new_pointer);
   DCHECK_EQ(old_pointer, new_pointer);
-}
-
-
-void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
-  Address old_reference = rinfo->target_external_reference();
-  Address new_reference = old_reference;
-  VisitExternalReference(&new_reference);
-  DCHECK_EQ(old_reference, new_reference);
 }
 
 

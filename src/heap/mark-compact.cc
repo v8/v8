@@ -62,7 +62,7 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
 
   virtual void VerifyPointers(Object** start, Object** end) = 0;
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     VerifyPointers(start, end);
   }
 
@@ -171,19 +171,18 @@ class FullMarkingVerifier : public MarkingVerifier {
     }
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    if (!rinfo->host()->IsWeakObject(rinfo->target_object())) {
+    if (!host->IsWeakObject(rinfo->target_object())) {
       Object* p = rinfo->target_object();
-      VisitPointer(&p);
+      VisitPointer(host, &p);
     }
   }
 
-  void VisitCell(RelocInfo* rinfo) override {
-    Code* code = rinfo->host();
+  void VisitCellPointer(Code* host, RelocInfo* rinfo) override {
     DCHECK(rinfo->rmode() == RelocInfo::CELL);
-    if (!code->IsWeakObject(rinfo->target_cell())) {
-      ObjectVisitor::VisitCell(rinfo);
+    if (!host->IsWeakObject(rinfo->target_cell())) {
+      ObjectVisitor::VisitCellPointer(host, rinfo);
     }
   }
 };
@@ -220,7 +219,7 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
  public:
   virtual void Run() = 0;
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     VerifyPointers(start, end);
   }
 
@@ -1148,20 +1147,6 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
 }
 
 
-void CodeFlusher::IteratePointersToFromSpace(ObjectVisitor* v) {
-  Heap* heap = isolate_->heap();
-
-  JSFunction** slot = &jsfunction_candidates_head_;
-  JSFunction* candidate = jsfunction_candidates_head_;
-  while (candidate != NULL) {
-    if (heap->InFromSpace(candidate)) {
-      v->VisitPointer(reinterpret_cast<Object**>(slot));
-    }
-    candidate = GetNextCandidate(*slot);
-    slot = GetNextCandidateSlot(*slot);
-  }
-}
-
 class StaticYoungGenerationMarkingVisitor
     : public StaticNewSpaceVisitor<StaticYoungGenerationMarkingVisitor> {
  public:
@@ -1381,11 +1366,13 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor,
   explicit SharedFunctionInfoMarkingVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) MarkObject(p);
   }
 
-  void VisitPointer(Object** slot) override { MarkObject(slot); }
+  void VisitPointer(HeapObject* host, Object** slot) override {
+    MarkObject(slot);
+  }
 
   void VisitRootPointers(Root root, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) MarkObject(p);
@@ -1491,9 +1478,11 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
   explicit RootMarkingVisitor(Heap* heap)
       : collector_(heap->mark_compact_collector()) {}
 
-  void VisitPointer(Object** p) override { MarkObjectByPointer(p); }
+  void VisitPointer(HeapObject* host, Object** p) override {
+    MarkObjectByPointer(p);
+  }
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
   }
 
@@ -1507,7 +1496,7 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
 
   // Skip the weak next code link in a code object, which is visited in
   // ProcessTopOptimizedFrame.
-  void VisitNextCodeLink(Object** p) override {}
+  void VisitNextCodeLink(Code* host, Object** p) override {}
 
  private:
   void MarkObjectByPointer(Object** p) {
@@ -1541,7 +1530,7 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
   InternalizedStringTableCleaner(Heap* heap, HeapObject* table)
       : heap_(heap), pointers_removed_(0), table_(table) {}
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     // Visit all HeapObject pointers in [start, end).
     MarkCompactCollector* collector = heap_->mark_compact_collector();
     Object* the_hole = heap_->the_hole_value();
@@ -1666,18 +1655,19 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
   explicit RecordMigratedSlotVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
-  inline void VisitPointer(Object** p) final {
+  inline void VisitPointer(HeapObject* host, Object** p) final {
     RecordMigratedSlot(*p, reinterpret_cast<Address>(p));
   }
 
-  inline void VisitPointers(Object** start, Object** end) final {
+  inline void VisitPointers(HeapObject* host, Object** start,
+                            Object** end) final {
     while (start < end) {
       RecordMigratedSlot(*start, reinterpret_cast<Address>(start));
       ++start;
     }
   }
 
-  inline void VisitCodeEntry(Address code_entry_slot) final {
+  inline void VisitCodeEntry(JSFunction* host, Address code_entry_slot) final {
     Address code_entry = Memory::Address_at(code_entry_slot);
     if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
       RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(code_entry_slot),
@@ -1686,39 +1676,39 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     }
   }
 
-  inline void VisitCodeTarget(RelocInfo* rinfo) final {
+  inline void VisitCodeTarget(Code* host, RelocInfo* rinfo) final {
+    DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    Code* host = rinfo->host();
     // The target is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
     DCHECK(!collector_->heap()->InNewSpace(target));
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
-  inline void VisitDebugTarget(RelocInfo* rinfo) final {
+  inline void VisitDebugTarget(Code* host, RelocInfo* rinfo) final {
+    DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
            rinfo->IsPatchedDebugBreakSlotSequence());
     Code* target = Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
-    Code* host = rinfo->host();
     // The target is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
     DCHECK(!collector_->heap()->InNewSpace(target));
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
-  inline void VisitEmbeddedPointer(RelocInfo* rinfo) final {
+  inline void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final {
+    DCHECK_EQ(host, rinfo->host());
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     HeapObject* object = HeapObject::cast(rinfo->target_object());
-    Code* host = rinfo->host();
     collector_->heap()->RecordWriteIntoCode(host, rinfo, object);
     collector_->RecordRelocSlot(host, rinfo, object);
   }
 
-  inline void VisitCell(RelocInfo* rinfo) final {
+  inline void VisitCellPointer(Code* host, RelocInfo* rinfo) final {
+    DCHECK_EQ(host, rinfo->host());
     DCHECK(rinfo->rmode() == RelocInfo::CELL);
     Cell* cell = rinfo->target_cell();
-    Code* host = rinfo->host();
     // The cell is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
     DCHECK(!collector_->heap()->InNewSpace(cell));
@@ -1726,7 +1716,8 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
   }
 
   // Entries that will never move.
-  inline void VisitCodeAgeSequence(RelocInfo* rinfo) final {
+  inline void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) final {
+    DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
     Code* stub = rinfo->code_age_stub();
     USE(stub);
@@ -1734,10 +1725,10 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
   }
 
   // Entries that are skipped for recording.
-  inline void VisitExternalReference(RelocInfo* rinfo) final {}
-  inline void VisitExternalReference(Address* p) final {}
-  inline void VisitRuntimeEntry(RelocInfo* rinfo) final {}
-  inline void VisitInternalReference(RelocInfo* rinfo) final {}
+  inline void VisitExternalReference(Code* host, RelocInfo* rinfo) final {}
+  inline void VisitExternalReference(Foreign* host, Address* p) final {}
+  inline void VisitRuntimeEntry(Code* host, RelocInfo* rinfo) final {}
+  inline void VisitInternalReference(Code* host, RelocInfo* rinfo) final {}
 
  private:
   inline void RecordMigratedSlot(Object* value, Address slot) {
@@ -3092,9 +3083,9 @@ static inline SlotCallbackResult UpdateSlot(Object** slot) {
 // nevers visits code objects.
 class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  public:
-  void VisitPointer(Object** p) override { UpdateSlot(p); }
+  void VisitPointer(HeapObject* host, Object** p) override { UpdateSlot(p); }
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) UpdateSlot(p);
   }
 
@@ -3104,23 +3095,23 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
     for (Object** p = start; p < end; p++) UpdateSlot(p);
   }
 
-  void VisitCell(RelocInfo* rinfo) override {
+  void VisitCellPointer(Code* host, RelocInfo* rinfo) override {
     UpdateTypedSlotHelper::UpdateCell(rinfo, UpdateSlot);
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
     UpdateTypedSlotHelper::UpdateEmbeddedPointer(rinfo, UpdateSlot);
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override {
+  void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
     UpdateTypedSlotHelper::UpdateCodeTarget(rinfo, UpdateSlot);
   }
 
-  void VisitCodeEntry(Address entry_address) override {
+  void VisitCodeEntry(JSFunction* host, Address entry_address) override {
     UpdateTypedSlotHelper::UpdateCodeEntry(entry_address, UpdateSlot);
   }
 
-  void VisitDebugTarget(RelocInfo* rinfo) override {
+  void VisitDebugTarget(Code* host, RelocInfo* rinfo) override {
     UpdateTypedSlotHelper::UpdateDebugTarget(rinfo, UpdateSlot);
   }
 };

@@ -2489,7 +2489,8 @@ class AlwaysAllocateScope {
 // objects in a heap space but above the allocation pointer.
 class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
  public:
-  inline void VisitPointers(Object** start, Object** end) override;
+  inline void VisitPointers(HeapObject* host, Object** start,
+                            Object** end) override;
   inline void VisitRootPointers(Root root, Object** start,
                                 Object** end) override;
 

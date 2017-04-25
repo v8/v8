@@ -973,12 +973,12 @@ class IndexedReferencesExtractor : public ObjectVisitor {
         parent_end_(HeapObject::RawField(parent_obj_, parent_obj_->Size())),
         parent_(parent),
         next_index_(0) {}
-  void VisitCodeEntry(Address entry_address) override {
-     Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
-     generator_->SetInternalReference(parent_obj_, parent_, "code", code);
-     generator_->TagCodeObject(code);
+  void VisitCodeEntry(JSFunction* host, Address entry_address) override {
+    Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
+    generator_->SetInternalReference(parent_obj_, parent_, "code", code);
+    generator_->TagCodeObject(code);
   }
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
       int index = static_cast<int>(p - HeapObject::RawField(parent_obj_, 0));
       ++next_index_;

@@ -46,6 +46,7 @@ enum class Root {
   ROOT_ID_LIST(DECLARE_ENUM)
 #undef DECLARE_ENUM
   // TODO(ulan): Merge with the ROOT_ID_LIST.
+  kCodeFlusher,
   kPartialSnapshotCache,
   kWeakCollections
 };

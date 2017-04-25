@@ -460,13 +460,6 @@ void Scavenger::SelectScavengingVisitorsTable() {
 
 Isolate* Scavenger::isolate() { return heap()->isolate(); }
 
-void RootScavengeVisitor::VisitPointer(Object** p) { ScavengePointer(p); }
-
-void RootScavengeVisitor::VisitPointers(Object** start, Object** end) {
-  // Copy all HeapObject pointers in [start, end)
-  for (Object** p = start; p < end; p++) ScavengePointer(p);
-}
-
 void RootScavengeVisitor::VisitRootPointer(Root root, Object** p) {
   ScavengePointer(p);
 }

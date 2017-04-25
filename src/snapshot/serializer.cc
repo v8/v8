@@ -598,7 +598,8 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   OutputRawData(object_->address() + size);
 }
 
-void Serializer::ObjectSerializer::VisitPointers(Object** start, Object** end) {
+void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
+                                                 Object** start, Object** end) {
   Object** current = start;
   while (current < end) {
     while (current < end && (*current)->IsSmi()) current++;
@@ -636,7 +637,8 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start, Object** end) {
   }
 }
 
-void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code* host,
+                                                        RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
@@ -646,7 +648,8 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitExternalReference(Address* p) {
+void Serializer::ObjectSerializer::VisitExternalReference(Foreign* host,
+                                                          Address* p) {
   int skip = OutputRawData(reinterpret_cast<Address>(p),
                            kCanReturnSkipInsteadOfSkipping);
   Address target = *p;
@@ -658,7 +661,8 @@ void Serializer::ObjectSerializer::VisitExternalReference(Address* p) {
   bytes_processed_so_far_ += kPointerSize;
 }
 
-void Serializer::ObjectSerializer::VisitExternalReference(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
+                                                          RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
@@ -673,7 +677,8 @@ void Serializer::ObjectSerializer::VisitExternalReference(RelocInfo* rinfo) {
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitInternalReference(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitInternalReference(Code* host,
+                                                          RelocInfo* rinfo) {
   // We can only reference to internal references of code that has been output.
   DCHECK(object_->IsCode() && code_has_been_output_);
   // We do not use skip from last patched pc to find the pc to patch, since
@@ -697,7 +702,8 @@ void Serializer::ObjectSerializer::VisitInternalReference(RelocInfo* rinfo) {
   sink_->PutInt(static_cast<uintptr_t>(target_offset), "internal ref value");
 }
 
-void Serializer::ObjectSerializer::VisitRuntimeEntry(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
+                                                     RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
@@ -711,7 +717,8 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(RelocInfo* rinfo) {
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitCodeTarget(Code* host,
+                                                   RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
   Code* object = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -719,14 +726,16 @@ void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitCodeEntry(Address entry_address) {
+void Serializer::ObjectSerializer::VisitCodeEntry(JSFunction* host,
+                                                  Address entry_address) {
   int skip = OutputRawData(entry_address, kCanReturnSkipInsteadOfSkipping);
   Code* object = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
   serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
   bytes_processed_so_far_ += kPointerSize;
 }
 
-void Serializer::ObjectSerializer::VisitCell(RelocInfo* rinfo) {
+void Serializer::ObjectSerializer::VisitCellPointer(Code* host,
+                                                    RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->pc(), kCanReturnSkipInsteadOfSkipping);
   Cell* object = Cell::cast(rinfo->target_cell());
   serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);

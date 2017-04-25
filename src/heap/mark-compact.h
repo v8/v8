@@ -277,7 +277,10 @@ class CodeFlusher {
     ProcessJSFunctionCandidates();
   }
 
-  void IteratePointersToFromSpace(ObjectVisitor* v);
+  inline void VisitListHeads(RootVisitor* v);
+
+  template <typename StaticVisitor>
+  inline void IteratePointersToFromSpace();
 
  private:
   void ProcessJSFunctionCandidates();

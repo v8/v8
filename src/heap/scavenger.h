@@ -46,14 +46,9 @@ class Scavenger {
 
 // Helper class for turning the scavenger into an object visitor that is also
 // filtering out non-HeapObjects and objects which do not reside in new space.
-// TODO(ulan): ObjectVisitor is needed only for code flusher. Remove it after
-// changing the scanvenger to treat JSFunction->next_link strongly.
-class RootScavengeVisitor : public ObjectVisitor, public RootVisitor {
+class RootScavengeVisitor : public RootVisitor {
  public:
   explicit RootScavengeVisitor(Heap* heap) : heap_(heap) {}
-
-  void VisitPointer(Object** p) override;
-  void VisitPointers(Object** start, Object** end) override;
 
   void VisitRootPointer(Root root, Object** p) override;
   void VisitRootPointers(Root root, Object** start, Object** end) override;

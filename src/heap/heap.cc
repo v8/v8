@@ -1137,7 +1137,7 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
 // Helper class for verifying the string table.
 class StringTableVerifier : public ObjectVisitor {
  public:
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
       if ((*p)->IsHeapObject()) {
@@ -1758,8 +1758,9 @@ void Heap::Scavenge() {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_CODE_FLUSH_CANDIDATES);
     MarkCompactCollector* collector = mark_compact_collector();
     if (collector->is_code_flushing_enabled()) {
-      collector->code_flusher()->IteratePointersToFromSpace(
-          &root_scavenge_visitor);
+      collector->code_flusher()->VisitListHeads(&root_scavenge_visitor);
+      collector->code_flusher()
+          ->IteratePointersToFromSpace<StaticScavengeVisitor>();
     }
   }
 
@@ -4816,7 +4817,9 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
                                            bool record_slots)
       : heap_(heap), target_(target), record_slots_(record_slots) {}
 
-  inline void VisitPointers(Object** start, Object** end) override {
+  inline void VisitPointers(HeapObject* host, Object** start,
+                            Object** end) override {
+    DCHECK_EQ(host, target_);
     Address slot_address = reinterpret_cast<Address>(start);
     Page* page = Page::FromAddress(slot_address);
 
@@ -4847,7 +4850,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     }
   }
 
-  inline void VisitCodeEntry(Address code_entry_slot) override {
+  inline void VisitCodeEntry(JSFunction* host,
+                             Address code_entry_slot) override {
     // Black allocation requires us to process objects referenced by
     // promoted objects.
     if (heap_->incremental_marking()->black_allocation()) {
@@ -4876,6 +4880,8 @@ void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size,
         ObjectMarking::IsBlack(target, MarkingState::Internal(target));
   }
 
+  // TODO(ulan): remove the target, the visitor now gets the host object
+  // in each visit method.
   IterateAndScavengePromotedObjectsVisitor visitor(this, target, record_slots);
   if (target->IsJSFunction()) {
     // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for
@@ -6124,7 +6130,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
    public:
     MarkingVisitor() : marking_stack_(10) {}
 
-    void VisitPointers(Object** start, Object** end) override {
+    void VisitPointers(HeapObject* host, Object** start,
+                       Object** end) override {
       MarkPointers(start, end);
     }
 

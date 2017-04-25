@@ -856,7 +856,8 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_.Decrement(1);
 }
 
-void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
+void VerifyPointersVisitor::VisitPointers(HeapObject* host, Object** start,
+                                          Object** end) {
   VerifyPointers(start, end);
 }
 
