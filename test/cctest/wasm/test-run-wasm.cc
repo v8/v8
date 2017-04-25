@@ -1082,11 +1082,9 @@ WASM_EXEC_TEST(LoadMaxUint32Offset) {
   WasmRunner<int32_t> r(execution_mode);
   r.module().AddMemoryElems<int32_t>(8);
 
-  BUILD(r, kExprI32Const, 0,  // index
-        static_cast<byte>(
-            LoadStoreOpcodeOf(MachineType::Int32(), false)),  // load opcode
-        0,                                                    // alignment
-        U32V_5(0xffffffff));                                  // offset
+  BUILD(r, WASM_LOAD_MEM_OFFSET(MachineType::Int32(),  // type
+                                U32V_5(0xffffffff),    // offset
+                                WASM_ZERO));           // index
 
   CHECK_TRAP32(r.Call());
 }
@@ -1593,10 +1591,10 @@ WASM_EXEC_TEST(LoadMemI32_offset) {
 WASM_EXEC_TEST(LoadMemI32_const_oob_misaligned) {
   // TODO(eholk): Fix this test for the trap handler.
   if (trap_handler::UseTrapHandler()) return;
-  const int kMemSize = 12;
+  constexpr byte kMemSize = 12;
   // TODO(titzer): Fix misaligned accesses on MIPS and re-enable.
-  for (int offset = 0; offset < kMemSize + 5; ++offset) {
-    for (int index = 0; index < kMemSize + 5; ++index) {
+  for (byte offset = 0; offset < kMemSize + 5; ++offset) {
+    for (byte index = 0; index < kMemSize + 5; ++index) {
       WasmRunner<int32_t> r(execution_mode);
       r.module().AddMemoryElems<byte>(kMemSize);
       r.module().RandomizeMemory();
@@ -1604,7 +1602,7 @@ WASM_EXEC_TEST(LoadMemI32_const_oob_misaligned) {
       BUILD(r, WASM_LOAD_MEM_OFFSET(MachineType::Int32(), offset,
                                     WASM_I32V_2(index)));
 
-      if ((offset + index) <= static_cast<int>((kMemSize - sizeof(int32_t)))) {
+      if (offset + index <= (kMemSize - sizeof(int32_t))) {
         CHECK_EQ(r.module().raw_val_at<int32_t>(offset + index), r.Call());
       } else {
         CHECK_TRAP(r.Call());
@@ -1616,9 +1614,9 @@ WASM_EXEC_TEST(LoadMemI32_const_oob_misaligned) {
 WASM_EXEC_TEST(LoadMemI32_const_oob) {
   // TODO(eholk): Fix this test for the trap handler.
   if (trap_handler::UseTrapHandler()) return;
-  const int kMemSize = 24;
-  for (int offset = 0; offset < kMemSize + 5; offset += 4) {
-    for (int index = 0; index < kMemSize + 5; index += 4) {
+  constexpr byte kMemSize = 24;
+  for (byte offset = 0; offset < kMemSize + 5; offset += 4) {
+    for (byte index = 0; index < kMemSize + 5; index += 4) {
       WasmRunner<int32_t> r(execution_mode);
       r.module().AddMemoryElems<byte>(kMemSize);
       r.module().RandomizeMemory();
@@ -1626,7 +1624,7 @@ WASM_EXEC_TEST(LoadMemI32_const_oob) {
       BUILD(r, WASM_LOAD_MEM_OFFSET(MachineType::Int32(), offset,
                                     WASM_I32V_2(index)));
 
-      if ((offset + index) <= static_cast<int>((kMemSize - sizeof(int32_t)))) {
+      if (offset + index <= (kMemSize - sizeof(int32_t))) {
         CHECK_EQ(r.module().raw_val_at<int32_t>(offset + index), r.Call());
       } else {
         CHECK_TRAP(r.Call());
@@ -2339,9 +2337,6 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     // =========================================================================
     std::vector<byte> code;
 
-    // Load the offset for the store.
-    ADD_CODE(code, WASM_ZERO);
-
     // Load the arguments.
     for (int i = 0; i < num_params; ++i) {
       int offset = (i + 1) * kElemSize;
@@ -2351,9 +2346,13 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     // Call the selector function.
     ADD_CODE(code, WASM_CALL_FUNCTION0(t.function_index()));
 
+    // Store the result in a local.
+    byte local_index = r.AllocateLocal(WasmOpcodes::ValueTypeFor(result));
+    ADD_CODE(code, kExprSetLocal, local_index);
+
     // Store the result in memory.
-    ADD_CODE(code, static_cast<byte>(LoadStoreOpcodeOf(result, true)),
-             ZERO_ALIGNMENT, ZERO_OFFSET);
+    ADD_CODE(code,
+             WASM_STORE_MEM(result, WASM_ZERO, WASM_GET_LOCAL(local_index)));
 
     // Return the expected value.
     ADD_CODE(code, WASM_I32V_2(kExpected));

@@ -1295,7 +1295,7 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset) {
   TestModuleEnv module_env;
   module = &module_env;
   module_env.InitializeMemory();
-  for (int offset = 0; offset < 128; offset += 7) {
+  for (byte offset = 0; offset < 128; offset += 7) {
     byte code[] = {WASM_STORE_MEM_OFFSET(MachineType::Int32(), offset,
                                          WASM_ZERO, WASM_ZERO)};
     EXPECT_VERIFIES_C(v_i, code);

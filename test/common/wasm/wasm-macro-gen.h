@@ -340,11 +340,11 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_LOAD_MEM_OFFSET(type, offset, index)                            \
   index,                                                                     \
       static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
-      ZERO_ALIGNMENT, static_cast<byte>(offset)
+      ZERO_ALIGNMENT, offset
 #define WASM_STORE_MEM_OFFSET(type, offset, index, val)                     \
   index, val,                                                               \
       static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
-      ZERO_ALIGNMENT, static_cast<byte>(offset)
+      ZERO_ALIGNMENT, offset
 #define WASM_LOAD_MEM_ALIGNMENT(type, index, alignment)                      \
   index,                                                                     \
       static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \
