@@ -8,6 +8,7 @@
 #include "src/cancelable-task.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
+#include "src/visitors.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -608,7 +609,7 @@ bool GlobalHandles::IsWeak(Object** location) {
 }
 
 DISABLE_CFI_PERF
-void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
+void GlobalHandles::IterateWeakRoots(RootVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     Node* node = it.node();
     if (node->IsWeakRetainer()) {
@@ -620,7 +621,7 @@ void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
         node->CollectPhantomCallbackData(isolate(),
                                          &pending_phantom_callbacks_);
       } else {
-        v->VisitPointer(node->location());
+        v->VisitRootPointer(Root::kGlobalHandles, node->location());
       }
     }
   }
@@ -635,14 +636,13 @@ void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
   }
 }
 
-
-void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v) {
+void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(RootVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     if (node->IsStrongRetainer() ||
         (node->IsWeakRetainer() && !node->is_independent() &&
          node->is_active())) {
-      v->VisitPointer(node->location());
+      v->VisitRootPointer(Root::kGlobalHandles, node->location());
     }
   }
 }
@@ -660,8 +660,7 @@ void GlobalHandles::IdentifyNewSpaceWeakIndependentHandles(
   }
 }
 
-
-void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
+void GlobalHandles::IterateNewSpaceWeakIndependentRoots(RootVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     DCHECK(node->is_in_new_space_list());
@@ -674,7 +673,7 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
         node->CollectPhantomCallbackData(isolate(),
                                          &pending_phantom_callbacks_);
       } else {
-        v->VisitPointer(node->location());
+        v->VisitRootPointer(Root::kGlobalHandles, node->location());
       }
     }
   }
@@ -705,7 +704,7 @@ void GlobalHandles::MarkNewSpaceWeakUnmodifiedObjectsPending(
 }
 
 template <GlobalHandles::IterationMode mode>
-void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v) {
+void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(RootVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     DCHECK(node->is_in_new_space_list());
@@ -727,7 +726,7 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v) {
       } else {
         if (mode == IterationMode::VISIT_OTHERS ||
             mode == IterationMode::HANDLE_PHANTOM_NODES_VISIT_OTHERS) {
-          v->VisitPointer(node->location());
+          v->VisitRootPointer(Root::kGlobalHandles, node->location());
         }
       }
     }
@@ -735,13 +734,13 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v) {
 }
 
 template void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots<
-    GlobalHandles::HANDLE_PHANTOM_NODES>(ObjectVisitor* v);
+    GlobalHandles::HANDLE_PHANTOM_NODES>(RootVisitor* v);
 
 template void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots<
-    GlobalHandles::VISIT_OTHERS>(ObjectVisitor* v);
+    GlobalHandles::VISIT_OTHERS>(RootVisitor* v);
 
 template void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots<
-    GlobalHandles::HANDLE_PHANTOM_NODES_VISIT_OTHERS>(ObjectVisitor* v);
+    GlobalHandles::HANDLE_PHANTOM_NODES_VISIT_OTHERS>(RootVisitor* v);
 
 void GlobalHandles::InvokeSecondPassPhantomCallbacks(
     List<PendingPhantomCallback>* callbacks, Isolate* isolate) {
@@ -928,21 +927,20 @@ int GlobalHandles::PostGarbageCollectionProcessing(
   return freed_nodes;
 }
 
-
-void GlobalHandles::IterateStrongRoots(ObjectVisitor* v) {
+void GlobalHandles::IterateStrongRoots(RootVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     if (it.node()->IsStrongRetainer()) {
-      v->VisitPointer(it.node()->location());
+      v->VisitRootPointer(Root::kGlobalHandles, it.node()->location());
     }
   }
 }
 
 
 DISABLE_CFI_PERF
-void GlobalHandles::IterateAllRoots(ObjectVisitor* v) {
+void GlobalHandles::IterateAllRoots(RootVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     if (it.node()->IsRetainer()) {
-      v->VisitPointer(it.node()->location());
+      v->VisitRootPointer(Root::kGlobalHandles, it.node()->location());
     }
   }
 }
@@ -1089,21 +1087,21 @@ EternalHandles::~EternalHandles() {
   for (int i = 0; i < blocks_.length(); i++) delete[] blocks_[i];
 }
 
-
-void EternalHandles::IterateAllRoots(ObjectVisitor* visitor) {
+void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
   int limit = size_;
   for (int i = 0; i < blocks_.length(); i++) {
     DCHECK(limit > 0);
     Object** block = blocks_[i];
-    visitor->VisitPointers(block, block + Min(limit, kSize));
+    visitor->VisitRootPointers(Root::kEternalHandles, block,
+                               block + Min(limit, kSize));
     limit -= kSize;
   }
 }
 
-
-void EternalHandles::IterateNewSpaceRoots(ObjectVisitor* visitor) {
+void EternalHandles::IterateNewSpaceRoots(RootVisitor* visitor) {
   for (int i = 0; i < new_space_indices_.length(); i++) {
-    visitor->VisitPointer(GetLocation(new_space_indices_[i]));
+    visitor->VisitRootPointer(Root::kEternalHandles,
+                              GetLocation(new_space_indices_[i]));
   }
 }
 

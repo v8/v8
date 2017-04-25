@@ -706,18 +706,20 @@ void Heap::ExternalStringTable::AddString(String* string) {
   }
 }
 
-void Heap::ExternalStringTable::IterateNewSpaceStrings(ObjectVisitor* v) {
+void Heap::ExternalStringTable::IterateNewSpaceStrings(RootVisitor* v) {
   if (!new_space_strings_.is_empty()) {
     Object** start = &new_space_strings_[0];
-    v->VisitPointers(start, start + new_space_strings_.length());
+    v->VisitRootPointers(Root::kExternalStringsTable, start,
+                         start + new_space_strings_.length());
   }
 }
 
-void Heap::ExternalStringTable::IterateAll(ObjectVisitor* v) {
+void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
   IterateNewSpaceStrings(v);
   if (!old_space_strings_.is_empty()) {
     Object** start = &old_space_strings_[0];
-    v->VisitPointers(start, start + old_space_strings_.length());
+    v->VisitRootPointers(Root::kExternalStringsTable, start,
+                         start + old_space_strings_.length());
   }
 }
 
@@ -850,13 +852,20 @@ AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
   heap_->always_allocate_scope_count_.Increment(1);
 }
 
-
 AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_.Decrement(1);
 }
 
-
 void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
+  VerifyPointers(start, end);
+}
+
+void VerifyPointersVisitor::VisitRootPointers(Root root, Object** start,
+                                              Object** end) {
+  VerifyPointers(start, end);
+}
+
+void VerifyPointersVisitor::VerifyPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsHeapObject()) {
       HeapObject* object = HeapObject::cast(*current);
@@ -868,8 +877,8 @@ void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
   }
 }
 
-
-void VerifySmisVisitor::VisitPointers(Object** start, Object** end) {
+void VerifySmisVisitor::VisitRootPointers(Root root, Object** start,
+                                          Object** end) {
   for (Object** current = start; current < end; current++) {
     CHECK((*current)->IsSmi());
   }

@@ -17,6 +17,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -280,15 +281,17 @@ void IncrementalMarking::IterateBlackObject(HeapObject* object) {
   }
 }
 
-class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
+class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
  public:
   explicit IncrementalMarkingRootMarkingVisitor(
       IncrementalMarking* incremental_marking)
       : heap_(incremental_marking->heap()) {}
 
-  void VisitPointer(Object** p) override { MarkObjectByPointer(p); }
+  void VisitRootPointer(Root root, Object** p) override {
+    MarkObjectByPointer(p);
+  }
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
   }
 

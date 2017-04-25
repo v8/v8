@@ -4178,10 +4178,9 @@ TEST(LargeObjectSlotRecording) {
   }
 }
 
-
-class DummyVisitor : public ObjectVisitor {
+class DummyVisitor : public RootVisitor {
  public:
-  void VisitPointers(Object** start, Object** end) override {}
+  void VisitRootPointers(Root root, Object** start, Object** end) override {}
 };
 
 

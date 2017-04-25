@@ -51,7 +51,7 @@ STATIC_ASSERT(Heap::kMinObjectSizeInWords >= 2);
 #ifdef VERIFY_HEAP
 namespace {
 
-class MarkingVerifier : public ObjectVisitor {
+class MarkingVerifier : public ObjectVisitor, public RootVisitor {
  public:
   virtual void Run() = 0;
 
@@ -59,6 +59,16 @@ class MarkingVerifier : public ObjectVisitor {
   explicit MarkingVerifier(Heap* heap) : heap_(heap) {}
 
   virtual MarkingState marking_state(MemoryChunk* chunk) = 0;
+
+  virtual void VerifyPointers(Object** start, Object** end) = 0;
+
+  void VisitPointers(Object** start, Object** end) override {
+    VerifyPointers(start, end);
+  }
+
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
+    VerifyPointers(start, end);
+  }
 
   void VerifyRoots(VisitMode mode);
   void VerifyMarkingOnPage(const Page& page, const MarkingState& state,
@@ -152,7 +162,7 @@ class FullMarkingVerifier : public MarkingVerifier {
     return MarkingState::Internal(object);
   }
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VerifyPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
@@ -195,7 +205,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     VerifyMarking(heap_->new_space());
   }
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VerifyPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
@@ -206,11 +216,22 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
   }
 };
 
-class EvacuationVerifier : public ObjectVisitor {
+class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
  public:
   virtual void Run() = 0;
 
   void VisitPointers(Object** start, Object** end) override {
+    VerifyPointers(start, end);
+  }
+
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
+    VerifyPointers(start, end);
+  }
+
+ protected:
+  explicit EvacuationVerifier(Heap* heap) : heap_(heap) {}
+
+  void VerifyPointers(Object** start, Object** end) {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
@@ -218,9 +239,6 @@ class EvacuationVerifier : public ObjectVisitor {
       }
     }
   }
-
- protected:
-  explicit EvacuationVerifier(Heap* heap) : heap_(heap) {}
 
   void VerifyRoots(VisitMode mode);
   void VerifyEvacuationOnPage(Address start, Address end);
@@ -1357,17 +1375,26 @@ class CodeMarkingVisitor : public ThreadVisitor {
   MarkCompactCollector* collector_;
 };
 
-
-class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
+class SharedFunctionInfoMarkingVisitor : public ObjectVisitor,
+                                         public RootVisitor {
  public:
   explicit SharedFunctionInfoMarkingVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
   void VisitPointers(Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) VisitPointer(p);
+    for (Object** p = start; p < end; p++) MarkObject(p);
   }
 
-  void VisitPointer(Object** slot) override {
+  void VisitPointer(Object** slot) override { MarkObject(slot); }
+
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
+    for (Object** p = start; p < end; p++) MarkObject(p);
+  }
+
+  void VisitRootPointer(Root root, Object** slot) override { MarkObject(slot); }
+
+ private:
+  void MarkObject(Object** slot) {
     Object* obj = *slot;
     if (obj->IsSharedFunctionInfo()) {
       SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(obj);
@@ -1375,8 +1402,6 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
       collector_->MarkObject(shared);
     }
   }
-
- private:
   MarkCompactCollector* collector_;
 };
 
@@ -1421,20 +1446,18 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   ProcessMarkingDeque();
 }
 
-class MinorMarkCompactCollector::RootMarkingVisitor : public ObjectVisitor {
+class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
  public:
   explicit RootMarkingVisitor(MinorMarkCompactCollector* collector)
       : collector_(collector) {}
 
-  void VisitPointer(Object** p) override { MarkObjectByPointer(p); }
-
-  void VisitPointers(Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+  void VisitRootPointer(Root root, Object** p) override {
+    MarkObjectByPointer(p);
   }
 
-  // Skip the weak next code link in a code object, which is visited in
-  // ProcessTopOptimizedFrame.
-  void VisitNextCodeLink(Object** p) override {}
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
+    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+  }
 
  private:
   void MarkObjectByPointer(Object** p) {
@@ -1460,7 +1483,10 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public ObjectVisitor {
 };
 
 // Visitor class for marking heap roots.
-class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor {
+// TODO(ulan): Remove ObjectVisitor base class after fixing marking of
+// the string table and the top optimized code.
+class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
+                                                 public RootVisitor {
  public:
   explicit RootMarkingVisitor(Heap* heap)
       : collector_(heap->mark_compact_collector()) {}
@@ -1468,6 +1494,14 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor {
   void VisitPointer(Object** p) override { MarkObjectByPointer(p); }
 
   void VisitPointers(Object** start, Object** end) override {
+    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+  }
+
+  void VisitRootPointer(Root root, Object** p) override {
+    MarkObjectByPointer(p);
+  }
+
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
   }
 
@@ -1502,38 +1536,25 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor {
   MarkCompactCollector* collector_;
 };
 
-
-// Helper class for pruning the string table.
-template <bool finalize_external_strings, bool record_slots>
-class StringTableCleaner : public ObjectVisitor {
+class InternalizedStringTableCleaner : public ObjectVisitor {
  public:
-  StringTableCleaner(Heap* heap, HeapObject* table)
-      : heap_(heap), pointers_removed_(0), table_(table) {
-    DCHECK(!record_slots || table != nullptr);
-  }
+  InternalizedStringTableCleaner(Heap* heap, HeapObject* table)
+      : heap_(heap), pointers_removed_(0), table_(table) {}
 
   void VisitPointers(Object** start, Object** end) override {
     // Visit all HeapObject pointers in [start, end).
     MarkCompactCollector* collector = heap_->mark_compact_collector();
+    Object* the_hole = heap_->the_hole_value();
     for (Object** p = start; p < end; p++) {
       Object* o = *p;
       if (o->IsHeapObject()) {
         HeapObject* heap_object = HeapObject::cast(o);
         if (ObjectMarking::IsWhite(heap_object,
                                    MarkingState::Internal(heap_object))) {
-          if (finalize_external_strings) {
-            if (o->IsExternalString()) {
-              heap_->FinalizeExternalString(String::cast(*p));
-            } else {
-              // The original external string may have been internalized.
-              DCHECK(o->IsThinString());
-            }
-          } else {
-            pointers_removed_++;
-          }
+          pointers_removed_++;
           // Set the entry to the_hole_value (as deleted).
-          *p = heap_->the_hole_value();
-        } else if (record_slots) {
+          *p = the_hole;
+        } else {
           // StringTable contains only old space strings.
           DCHECK(!heap_->InNewSpace(o));
           collector->RecordSlot(table_, p, o);
@@ -1543,7 +1564,6 @@ class StringTableCleaner : public ObjectVisitor {
   }
 
   int PointersRemoved() {
-    DCHECK(!finalize_external_strings);
     return pointers_removed_;
   }
 
@@ -1553,8 +1573,35 @@ class StringTableCleaner : public ObjectVisitor {
   HeapObject* table_;
 };
 
-typedef StringTableCleaner<false, true> InternalizedStringTableCleaner;
-typedef StringTableCleaner<true, false> ExternalStringTableCleaner;
+class ExternalStringTableCleaner : public RootVisitor {
+ public:
+  explicit ExternalStringTableCleaner(Heap* heap) : heap_(heap) {}
+
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
+    // Visit all HeapObject pointers in [start, end).
+    Object* the_hole = heap_->the_hole_value();
+    for (Object** p = start; p < end; p++) {
+      Object* o = *p;
+      if (o->IsHeapObject()) {
+        HeapObject* heap_object = HeapObject::cast(o);
+        if (ObjectMarking::IsWhite(heap_object,
+                                   MarkingState::Internal(heap_object))) {
+          if (o->IsExternalString()) {
+            heap_->FinalizeExternalString(String::cast(*p));
+          } else {
+            // The original external string may have been internalized.
+            DCHECK(o->IsThinString());
+          }
+          // Set the entry to the_hole_value (as deleted).
+          *p = the_hole;
+        }
+      }
+    }
+  }
+
+ private:
+  Heap* heap_;
+};
 
 // Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
 // are retained.
@@ -2151,7 +2198,7 @@ void MarkCompactCollector::ProcessMarkingDeque() {
 // Mark all objects reachable (transitively) from objects on the marking
 // stack including references only considered in the atomic marking pause.
 void MarkCompactCollector::ProcessEphemeralMarking(
-    ObjectVisitor* visitor, bool only_process_harmony_weak_collections) {
+    bool only_process_harmony_weak_collections) {
   DCHECK(marking_deque()->IsEmpty() && !marking_deque()->overflowed());
   bool work_to_do = true;
   while (work_to_do) {
@@ -2179,7 +2226,8 @@ void MarkCompactCollector::ProcessEphemeralMarking(
   CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
 }
 
-void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
+void MarkCompactCollector::ProcessTopOptimizedFrame(
+    RootMarkingVisitor* visitor) {
   for (StackFrameIterator it(isolate(), isolate()->thread_local_top());
        !it.done(); it.Advance()) {
     if (it.frame()->type() == StackFrame::JAVA_SCRIPT) {
@@ -2409,7 +2457,7 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_WEAK);
-    heap()->VisitEncounteredWeakCollections(&root_visitor);
+    heap()->IterateEncounteredWeakCollections(&root_visitor);
     ProcessMarkingDeque();
   }
 
@@ -2510,7 +2558,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL);
-      ProcessEphemeralMarking(&root_visitor, false);
+      ProcessEphemeralMarking(false);
     }
 
     // The objects reachable from the roots, weak maps or object groups
@@ -2543,7 +2591,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     // processed and no weakly reachable node can discover new objects groups.
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
-      ProcessEphemeralMarking(&root_visitor, true);
+      ProcessEphemeralMarking(true);
       {
         TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_EPILOGUE);
         heap()->local_embedder_heap_tracer()->TraceEpilogue();
@@ -2567,7 +2615,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     string_table->IterateElements(&internalized_visitor);
     string_table->ElementsRemoved(internalized_visitor.PointersRemoved());
 
-    ExternalStringTableCleaner external_visitor(heap(), nullptr);
+    ExternalStringTableCleaner external_visitor(heap());
     heap()->external_string_table_.IterateAll(&external_visitor);
     heap()->external_string_table_.CleanUpAll();
   }
@@ -3038,13 +3086,21 @@ static inline SlotCallbackResult UpdateSlot(Object** slot) {
   return REMOVE_SLOT;
 }
 
-// Visitor for updating pointers from live objects in old spaces to new space.
+// Visitor for updating root pointers and to-space pointers.
 // It does not expect to encounter pointers to dead objects.
-class PointersUpdatingVisitor : public ObjectVisitor {
+// TODO(ulan): Remove code object specific functions. This visitor
+// nevers visits code objects.
+class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  public:
   void VisitPointer(Object** p) override { UpdateSlot(p); }
 
   void VisitPointers(Object** start, Object** end) override {
+    for (Object** p = start; p < end; p++) UpdateSlot(p);
+  }
+
+  void VisitRootPointer(Root root, Object** p) override { UpdateSlot(p); }
+
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) UpdateSlot(p);
   }
 
@@ -3909,13 +3965,13 @@ void UpdateToSpacePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
 
-  PointersUpdatingVisitor updating_visitor;
 
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW);
     UpdateToSpacePointersInParallel(heap_, &page_parallel_job_semaphore_);
     // Update roots.
+    PointersUpdatingVisitor updating_visitor;
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
     UpdatePointersInParallel<OLD_TO_NEW>(heap_, &page_parallel_job_semaphore_);
   }

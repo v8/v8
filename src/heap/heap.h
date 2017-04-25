@@ -21,6 +21,7 @@
 #include "src/objects.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/string-table.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -357,6 +358,7 @@ class ObjectIterator;
 class ObjectStats;
 class Page;
 class PagedSpace;
+class RootVisitor;
 class Scavenger;
 class ScavengeJob;
 class Space;
@@ -815,9 +817,7 @@ class Heap {
   Object* encountered_weak_collections() const {
     return encountered_weak_collections_;
   }
-  void VisitEncounteredWeakCollections(ObjectVisitor* visitor) {
-    visitor->VisitPointer(&encountered_weak_collections_);
-  }
+  void IterateEncounteredWeakCollections(RootVisitor* visitor);
 
   void set_encountered_weak_cells(Object* weak_cell) {
     encountered_weak_cells_ = weak_cell;
@@ -1205,14 +1205,14 @@ class Heap {
   // ===========================================================================
 
   // Iterates over all roots in the heap.
-  void IterateRoots(ObjectVisitor* v, VisitMode mode);
+  void IterateRoots(RootVisitor* v, VisitMode mode);
   // Iterates over all strong roots in the heap.
-  void IterateStrongRoots(ObjectVisitor* v, VisitMode mode);
+  void IterateStrongRoots(RootVisitor* v, VisitMode mode);
   // Iterates over entries in the smi roots list.  Only interesting to the
   // serializer/deserializer, since GC does not care about smis.
-  void IterateSmiRoots(ObjectVisitor* v);
+  void IterateSmiRoots(RootVisitor* v);
   // Iterates over all the other roots in the heap.
-  void IterateWeakRoots(ObjectVisitor* v, VisitMode mode);
+  void IterateWeakRoots(RootVisitor* v, VisitMode mode);
 
   // Iterate pointers of promoted objects.
   void IterateAndScavengePromotedObject(HeapObject* target, int size,
@@ -1569,8 +1569,8 @@ class Heap {
     // Registers an external string.
     inline void AddString(String* string);
 
-    inline void IterateAll(ObjectVisitor* v);
-    inline void IterateNewSpaceStrings(ObjectVisitor* v);
+    inline void IterateAll(RootVisitor* v);
+    inline void IterateNewSpaceStrings(RootVisitor* v);
     inline void PromoteAllNewSpaceStrings();
 
     // Restores internal invariant and gets rid of collected strings. Must be
@@ -1853,7 +1853,7 @@ class Heap {
   void Scavenge();
   void EvacuateYoungGeneration();
 
-  Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front);
+  Address DoScavenge(Address new_space_front);
 
   void UpdateNewSpaceReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
@@ -2487,16 +2487,22 @@ class AlwaysAllocateScope {
 // point into the heap to a location that has a map pointer at its first word.
 // Caveat: Heap::Contains is an approximation because it can return true for
 // objects in a heap space but above the allocation pointer.
-class VerifyPointersVisitor : public ObjectVisitor {
+class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
  public:
   inline void VisitPointers(Object** start, Object** end) override;
+  inline void VisitRootPointers(Root root, Object** start,
+                                Object** end) override;
+
+ private:
+  inline void VerifyPointers(Object** start, Object** end);
 };
 
 
 // Verify that all objects are Smis.
-class VerifySmisVisitor : public ObjectVisitor {
+class VerifySmisVisitor : public RootVisitor {
  public:
-  inline void VisitPointers(Object** start, Object** end) override;
+  inline void VisitRootPointers(Root root, Object** start,
+                                Object** end) override;
 };
 
 

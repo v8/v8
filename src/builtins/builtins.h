@@ -18,7 +18,7 @@ class Handle;
 class Isolate;
 
 // Forward declarations.
-class ObjectVisitor;
+class RootVisitor;
 enum class InterpreterPushArgsMode : unsigned;
 namespace compiler {
 class CodeAssemblerState;
@@ -31,7 +31,7 @@ class Builtins {
   void TearDown();
 
   // Garbage collection support.
-  void IterateBuiltins(ObjectVisitor* v);
+  void IterateBuiltins(RootVisitor* v);
 
   // Disassembler support.
   const char* Lookup(byte* pc);

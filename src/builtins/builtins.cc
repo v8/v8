@@ -10,6 +10,7 @@
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -27,8 +28,9 @@ Builtins::~Builtins() {}
 
 void Builtins::TearDown() { initialized_ = false; }
 
-void Builtins::IterateBuiltins(ObjectVisitor* v) {
-  v->VisitPointers(&builtins_[0], &builtins_[0] + builtin_count);
+void Builtins::IterateBuiltins(RootVisitor* v) {
+  v->VisitRootPointers(Root::kBuiltins, &builtins_[0],
+                       &builtins_[0] + builtin_count);
 }
 
 const char* Builtins::Lookup(byte* pc) {

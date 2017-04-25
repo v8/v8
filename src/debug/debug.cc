@@ -417,10 +417,10 @@ char* Debug::RestoreDebug(char* storage) {
 
 int Debug::ArchiveSpacePerThread() { return 0; }
 
-void Debug::Iterate(ObjectVisitor* v) {
-  v->VisitPointer(&thread_local_.return_value_);
-  v->VisitPointer(&thread_local_.suspended_generator_);
-  v->VisitPointer(&thread_local_.ignore_step_into_function_);
+void Debug::Iterate(RootVisitor* v) {
+  v->VisitRootPointer(Root::kDebug, &thread_local_.return_value_);
+  v->VisitRootPointer(Root::kDebug, &thread_local_.suspended_generator_);
+  v->VisitRootPointer(Root::kDebug, &thread_local_.ignore_step_into_function_);
 }
 
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {

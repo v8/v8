@@ -1345,6 +1345,8 @@
         'vector.h',
         'version.cc',
         'version.h',
+        'visitors.cc',
+        'visitors.h',
         'vm-state-inl.h',
         'vm-state.h',
         'wasm/decoder.h',
