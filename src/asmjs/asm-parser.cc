@@ -1425,7 +1425,8 @@ AsmType* AsmJsParser::CallExpression() {
 // 6.8.5 MemberExpression
 AsmType* AsmJsParser::MemberExpression() {
   call_coercion_ = nullptr;
-  ValidateHeapAccess();
+  RECURSEn(ValidateHeapAccess());
+  DCHECK_NOT_NULL(heap_access_type_);
   if (Peek('=')) {
     inside_heap_assignment_ = true;
     return heap_access_type_->StoreType();
@@ -1452,6 +1453,7 @@ AsmType* AsmJsParser::AssignmentExpression() {
         FAILn("Invalid assignment target");
       }
       inside_heap_assignment_ = false;
+      DCHECK_NOT_NULL(heap_access_type_);
       AsmType* heap_type = heap_access_type_;
       EXPECT_TOKENn('=');
       AsmType* value;
