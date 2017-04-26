@@ -473,14 +473,31 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   JobMap::const_iterator job = GetJobFor(function);
   CHECK(job != jobs_.end());
   bool result = FinishNow(job->second.get());
-  if (!job->second->shared().is_null()) {
-    shared_to_job_id_.Delete(job->second->shared());
-  }
   RemoveIfFinished(job);
   return result;
 }
 
 void CompilerDispatcher::FinishAllNow() {
+  // First finish all jobs not running in background
+  for (auto it = jobs_.cbegin(); it != jobs_.cend();) {
+    CompilerDispatcherJob* job = it->second.get();
+    bool is_running_in_background;
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      is_running_in_background =
+          running_background_jobs_.find(job) != running_background_jobs_.end();
+      pending_background_jobs_.erase(job);
+    }
+    if (!is_running_in_background) {
+      while (!IsFinished(job)) {
+        DoNextStepOnMainThread(isolate_, job, ExceptionHandling::kThrow);
+      }
+      it = RemoveIfFinished(it);
+    } else {
+      ++it;
+    }
+  }
+  // Potentially wait for jobs that were running in background
   for (auto it = jobs_.cbegin(); it != jobs_.cend();
        it = RemoveIfFinished(it)) {
     FinishNow(it->second.get());
