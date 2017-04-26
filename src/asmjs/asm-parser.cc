@@ -1599,7 +1599,7 @@ AsmType* AsmJsParser::UnaryExpression() {
   return ret;
 }
 
-// 6.8.8 MultaplicativeExpression
+// 6.8.8 MultiplicativeExpression
 AsmType* AsmJsParser::MultiplicativeExpression() {
   uint32_t uvalue;
   if (CheckForUnsignedBelow(0x100000, &uvalue)) {
@@ -1609,14 +1609,16 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
       if (!a->IsA(AsmType::Int())) {
         FAILn("Expected int");
       }
-      current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
+      int32_t value = static_cast<int32_t>(uvalue);
+      current_function_builder_->EmitI32Const(value);
       current_function_builder_->Emit(kExprI32Mul);
       return AsmType::Intish();
     }
     scanner_.Rewind();
   } else if (Check('-')) {
     if (CheckForUnsignedBelow(0x100000, &uvalue)) {
-      current_function_builder_->EmitI32Const(-static_cast<int32_t>(uvalue));
+      int32_t value = -static_cast<int32_t>(uvalue);
+      current_function_builder_->EmitI32Const(value);
       if (Check('*')) {
         AsmType* a;
         RECURSEn(a = UnaryExpression());
@@ -1643,7 +1645,8 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
           if (!a->IsA(AsmType::Int())) {
             FAILn("Integer multiply of expects int");
           }
-          current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
+          int32_t value = -static_cast<int32_t>(uvalue);
+          current_function_builder_->EmitI32Const(value);
           current_function_builder_->Emit(kExprI32Mul);
           return AsmType::Intish();
         }
@@ -1655,7 +1658,8 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
         if (!a->IsA(AsmType::Int())) {
           FAILn("Integer multiply of expects int");
         }
-        current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
+        int32_t value = static_cast<int32_t>(uvalue);
+        current_function_builder_->EmitI32Const(value);
         current_function_builder_->Emit(kExprI32Mul);
         return AsmType::Intish();
       }

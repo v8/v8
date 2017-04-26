@@ -294,7 +294,7 @@ class AsmJsParser {
   AsmType* MemberExpression();           // 6.8.5 MemberExpression
   AsmType* AssignmentExpression();       // 6.8.6 AssignmentExpression
   AsmType* UnaryExpression();            // 6.8.7 UnaryExpression
-  AsmType* MultiplicativeExpression();   // 6.8.8 MultaplicativeExpression
+  AsmType* MultiplicativeExpression();   // 6.8.8 MultiplicativeExpression
   AsmType* AdditiveExpression();         // 6.8.9 AdditiveExpression
   AsmType* ShiftExpression();            // 6.8.10 ShiftExpression
   AsmType* RelationalExpression();       // 6.8.11 RelationalExpression
