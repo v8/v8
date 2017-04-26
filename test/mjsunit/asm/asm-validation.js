@@ -484,3 +484,15 @@ function assertValidAsm(func) {
   assertTrue(o.__single_function__ === undefined);
   assertTrue(o.__foreign_init__ === undefined);
 })();
+
+(function TestAsmExportOrderPreserved() {
+  function Module() {
+    "use asm";
+    function f() {}
+    return { a:f, b:f, x:f, c:f, d:f };
+  }
+  var m = Module();
+  assertValidAsm(Module);
+  var props = Object.getOwnPropertyNames(m);
+  assertEquals(["a","b","x","c","d"], props);
+})();

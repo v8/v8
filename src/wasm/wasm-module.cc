@@ -5,7 +5,6 @@
 #include <memory>
 
 #include "src/assembler-inl.h"
-#include "src/base/adapters.h"
 #include "src/base/atomic-utils.h"
 #include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
@@ -1867,28 +1866,23 @@ class InstantiationHelper {
     desc.set_enumerable(true);
     desc.set_configurable(module_->is_asm_js());
 
-    // Count up export indexes.
-    int export_index = 0;
-    for (auto exp : module_->export_table) {
-      if (exp.kind == kExternalFunction) {
-        ++export_index;
-      }
-    }
-
     // Store weak references to all exported functions.
     Handle<FixedArray> weak_exported_functions;
     if (compiled_module->has_weak_exported_functions()) {
       weak_exported_functions = compiled_module->weak_exported_functions();
     } else {
+      int export_count = 0;
+      for (WasmExport& exp : module_->export_table) {
+        if (exp.kind == kExternalFunction) ++export_count;
+      }
       weak_exported_functions =
-          isolate_->factory()->NewFixedArray(export_index);
+          isolate_->factory()->NewFixedArray(export_count);
       compiled_module->set_weak_exported_functions(weak_exported_functions);
     }
-    DCHECK_EQ(export_index, weak_exported_functions->length());
 
-    // Process each export in the export table (go in reverse so asm.js
-    // can skip duplicates).
-    for (auto exp : base::Reversed(module_->export_table)) {
+    // Process each export in the export table.
+    int export_index = 0;  // Index into {weak_exported_functions}.
+    for (WasmExport& exp : module_->export_table) {
       Handle<String> name =
           WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
               isolate_, compiled_module_, exp.name_offset, exp.name_length)
@@ -1907,7 +1901,7 @@ class InstantiationHelper {
           // Wrap and export the code as a JSFunction.
           WasmFunction& function = module_->functions[exp.index];
           int func_index =
-              static_cast<int>(module_->functions.size() + --export_index);
+              static_cast<int>(module_->functions.size() + export_index);
           Handle<JSFunction> js_function = js_wrappers_[exp.index];
           if (js_function.is_null()) {
             // Wrap the exported code as a JSFunction.
@@ -1931,6 +1925,7 @@ class InstantiationHelper {
               isolate_->factory()->NewWeakCell(js_function);
           DCHECK_GT(weak_exported_functions->length(), export_index);
           weak_exported_functions->set(export_index, *weak_export);
+          export_index++;
           break;
         }
         case kExternalTable: {
@@ -1998,13 +1993,6 @@ class InstantiationHelper {
           break;
       }
 
-      // Skip duplicates for asm.js.
-      if (module_->is_asm_js()) {
-        v8::Maybe<bool> status = JSReceiver::HasOwnProperty(export_to, name);
-        if (status.FromMaybe(false)) {
-          continue;
-        }
-      }
       v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(
           isolate_, export_to, name, &desc, Object::THROW_ON_ERROR);
       if (!status.IsJust()) {
@@ -2013,6 +2001,7 @@ class InstantiationHelper {
         return;
       }
     }
+    DCHECK_EQ(export_index, weak_exported_functions->length());
 
     if (module_->is_wasm()) {
       v8::Maybe<bool> success = JSReceiver::SetIntegrityLevel(
