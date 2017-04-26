@@ -2615,6 +2615,7 @@ class AsyncCompileJob {
                            int length, Handle<Context> context,
                            Handle<JSPromise> promise)
       : isolate_(isolate),
+        thrower_(isolate, "AsyncCompile"),
         bytes_copy_(std::move(bytes_copy)),
         wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length) {
     // The handles for the context and promise must be deferred.
@@ -2624,8 +2625,8 @@ class AsyncCompileJob {
     deferred_handles_.push_back(deferred.Detach());
   }
 
-  bool Start() {
-    return DoAsync(&AsyncCompileJob::DecodeModule);  // --
+  void Start() {
+    DoAsync(&AsyncCompileJob::DecodeModule);  // --
   }
 
   ~AsyncCompileJob() {
@@ -2634,6 +2635,7 @@ class AsyncCompileJob {
 
  private:
   Isolate* isolate_;
+  ErrorThrower thrower_;
   std::unique_ptr<byte[]> bytes_copy_;
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
@@ -2666,10 +2668,24 @@ class AsyncCompileJob {
     deferred_handles_.push_back(deferred.Detach());
   }
 
+  void AsyncCompileFailed() {
+    RejectPromise(isolate_, context_, &thrower_, module_promise_);
+    // The AsyncCompileJob is finished, we resolved the promise, we do not need
+    // the data anymore. We can delete the AsyncCompileJob object.
+    if (!FLAG_verify_predictable) delete this;
+  }
+
+  void AsyncCompileSucceeded(Handle<Object> result) {
+    ResolvePromise(isolate_, context_, module_promise_, result);
+    // The AsyncCompileJob is finished, we resolved the promise, we do not need
+    // the data anymore. We can delete the AsyncCompileJob object.
+    if (!FLAG_verify_predictable) delete this;
+  }
+
   //==========================================================================
   // Step 1: (async) Decode the module.
   //==========================================================================
-  bool DecodeModule() {
+  void DecodeModule() {
     {
       DisallowHandleAllocation no_handle;
       DisallowHeapAllocation no_allocation;
@@ -2681,29 +2697,28 @@ class AsyncCompileJob {
     if (result_.failed()) {
       // Decoding failure; reject the promise and clean up.
       if (result_.val) delete result_.val;
-      return DoSync(&AsyncCompileJob::DecodeFail);
+      DoSync(&AsyncCompileJob::DecodeFail);
     } else {
       // Decode passed.
       module_ = const_cast<WasmModule*>(result_.val);
-      return DoSync(&AsyncCompileJob::PrepareAndStartCompile);
+      DoSync(&AsyncCompileJob::PrepareAndStartCompile);
     }
   }
 
   //==========================================================================
   // Step 1b: (sync) Fail decoding the module.
   //==========================================================================
-  bool DecodeFail() {
+  void DecodeFail() {
     HandleScope scope(isolate_);
-    ErrorThrower thrower(isolate_, nullptr);
-    thrower.CompileFailed("Wasm decoding failed", result_);
-    RejectPromise(isolate_, context_, &thrower, module_promise_);
-    return false;
+    thrower_.CompileFailed("Wasm decoding failed", result_);
+    // {this} is deleted in AsyncCompileFailed, therefore the {return}.
+    return AsyncCompileFailed();
   }
 
   //==========================================================================
   // Step 2 (sync): Create heap-allocated data and start compile.
   //==========================================================================
-  bool PrepareAndStartCompile() {
+  void PrepareAndStartCompile() {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
     HandleScope scope(isolate_);
 
@@ -2776,13 +2791,12 @@ class AsyncCompileJob {
     for (size_t i = 0; i < num_background_tasks_; ++i) {
       DoAsync(&AsyncCompileJob::ExecuteCompilationUnits);
     }
-    return true;
   }
 
   //==========================================================================
   // Step 3 (async x K tasks): Execute compilation units.
   //==========================================================================
-  bool ExecuteCompilationUnits() {
+  void ExecuteCompilationUnits() {
     TRACE_COMPILE("(3) Compiling...\n");
     while (!failed_) {
       {
@@ -2799,22 +2813,20 @@ class AsyncCompileJob {
     // Special handling for predictable mode, see above.
     if (!FLAG_verify_predictable)
       helper_->module_->pending_tasks.get()->Signal();
-    return true;
   }
 
   //==========================================================================
   // Step 4 (sync x each function): Finish a single compilation unit.
   //==========================================================================
-  bool FinishCompilationUnit() {
+  void FinishCompilationUnit() {
     TRACE_COMPILE("(4a) Finishing compilation unit...\n");
     HandleScope scope(isolate_);
-    if (failed_) return true;  // already failed
+    if (failed_) return;  // already failed
 
     int func_index = -1;
-    ErrorThrower thrower(isolate_, nullptr);
-    Handle<Code> result = helper_->FinishCompilationUnit(&thrower, &func_index);
-    if (thrower.error()) {
-      RejectPromise(isolate_, context_, &thrower, module_promise_);
+    Handle<Code> result =
+        helper_->FinishCompilationUnit(&thrower_, &func_index);
+    if (thrower_.error()) {
       failed_ = true;
     } else {
       DCHECK(func_index >= 0);
@@ -2827,13 +2839,12 @@ class AsyncCompileJob {
       // in a background task.
       DoAsync(&AsyncCompileJob::WaitForBackgroundTasks);
     }
-    return true;
   }
 
   //==========================================================================
   // Step 4b (async): Wait for all background tasks to finish.
   //==========================================================================
-  bool WaitForBackgroundTasks() {
+  void WaitForBackgroundTasks() {
     TRACE_COMPILE("(4b) Waiting for background tasks...\n");
     // Special handling for predictable mode, see above.
     if (!FLAG_verify_predictable) {
@@ -2842,21 +2853,19 @@ class AsyncCompileJob {
         module_->pending_tasks.get()->Wait();
       }
     }
-    if (failed_) {
-      // If {failed_}, we've already rejected the promise and there
-      // is nothing more to do.
-      return false;
-    } else {
-      // Otherwise, post a synchronous task to finish the compile.
+    if (!failed_) {
       DoSync(&AsyncCompileJob::FinishCompile);
-      return true;
+    } else {
+      // Call AsyncCompileFailed with DoSync because it has to happen on the
+      // main thread.
+      DoSync(&AsyncCompileJob::AsyncCompileFailed);
     }
   }
 
   //==========================================================================
   // Step 5 (sync): Finish heap-allocated data structures.
   //==========================================================================
-  bool FinishCompile() {
+  void FinishCompile() {
     TRACE_COMPILE("(5) Finish compile...\n");
     HandleScope scope(isolate_);
     SaveContext saved_context(isolate_);
@@ -2908,13 +2917,13 @@ class AsyncCompileJob {
     compiled_module_ = handle(*compiled_module_, isolate_);
     deferred_handles_.push_back(deferred.Detach());
     // TODO(wasm): compiling wrappers should be made async as well.
-    return DoSync(&AsyncCompileJob::CompileWrappers);
+    DoSync(&AsyncCompileJob::CompileWrappers);
   }
 
   //==========================================================================
   // Step 6 (sync): Compile JS->WASM wrappers.
   //==========================================================================
-  bool CompileWrappers() {
+  void CompileWrappers() {
     TRACE_COMPILE("(6) Compile wrappers...\n");
     // Compile JS->WASM wrappers for exported functions.
     HandleScope scope(isolate_);
@@ -2933,54 +2942,47 @@ class AsyncCompileJob {
       func_index++;
     }
 
-    return DoSync(&AsyncCompileJob::FinishModule);
+    DoSync(&AsyncCompileJob::FinishModule);
   }
 
   //==========================================================================
   // Step 7 (sync): Finish the module and resolve the promise.
   //==========================================================================
-  bool FinishModule() {
+  void FinishModule() {
     TRACE_COMPILE("(7) Finish module...\n");
     HandleScope scope(isolate_);
     SaveContext saved_context(isolate_);
     isolate_->set_context(*context_);
     Handle<WasmModuleObject> result =
         WasmModuleObject::New(isolate_, compiled_module_);
-    ResolvePromise(isolate_, context_, module_promise_, result);
-    return false;  // no more work to do.
+    // {this} is deleted in AsyncCompileSucceeded, therefore the {return}.
+    return AsyncCompileSucceeded(result);
   }
 
   // Run the given member method as an asynchronous task.
-  bool DoAsync(bool (AsyncCompileJob::*func)()) {
+  void DoAsync(void (AsyncCompileJob::*func)()) {
     auto task = new AsyncCompileTask(this, func);
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
         task, v8::Platform::kShortRunningTask);
-    return true;  // more work to do.
   }
 
   // Run the given member method as a synchronous task.
-  bool DoSync(bool (AsyncCompileJob::*func)()) {
+  void DoSync(void (AsyncCompileJob::*func)()) {
     V8::GetCurrentPlatform()->CallOnForegroundThread(
         reinterpret_cast<v8::Isolate*>(isolate_),
         new AsyncCompileTask(this, func));
-    return true;  // more work to do.
   }
 
   // A helper closure to run a particular member method as a task.
   class AsyncCompileTask : NON_EXPORTED_BASE(public v8::Task) {
    public:
     AsyncCompileJob* job_;
-    bool (AsyncCompileJob::*func_)();
-    AsyncCompileTask(AsyncCompileJob* job, bool (AsyncCompileJob::*func)())
+    void (AsyncCompileJob::*func_)();
+    AsyncCompileTask(AsyncCompileJob* job, void (AsyncCompileJob::*func)())
         : v8::Task(), job_(job), func_(func) {}
 
-    void Run() {
-      bool more = (job_->*func_)();  // run the task.
-      if (!more) {
-        // If no more work, then this job is done. Predictable mode is handled
-        // specially though, see above.
-        if (!FLAG_verify_predictable) delete job_;
-      }
+    void Run() override {
+      (job_->*func_)();  // run the task.
     }
   };
 };
