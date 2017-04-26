@@ -29,11 +29,8 @@ inline v8::Local<v8::Boolean> v8Boolean(bool value, v8::Isolate* isolate) {
 
 V8DebuggerAgentImpl* agentForScript(V8InspectorImpl* inspector,
                                     v8::Local<v8::debug::Script> script) {
-  v8::Local<v8::Value> contextData;
-  if (!script->ContextData().ToLocal(&contextData) || !contextData->IsInt32()) {
-    return nullptr;
-  }
-  int contextId = static_cast<int>(contextData.As<v8::Int32>()->Value());
+  int contextId;
+  if (!script->ContextId().To(&contextId)) return nullptr;
   int contextGroupId = inspector->contextGroupId(contextId);
   if (!contextGroupId) return nullptr;
   return inspector->enabledDebuggerAgentForGroup(contextGroupId);
@@ -218,10 +215,12 @@ void V8Debugger::getCompiledScripts(
   for (size_t i = 0; i < scripts.Size(); ++i) {
     v8::Local<v8::debug::Script> script = scripts.Get(i);
     if (!script->WasCompiled()) continue;
-    v8::Local<v8::Value> contextData;
-    if (!script->ContextData().ToLocal(&contextData) || !contextData->IsInt32())
+    if (script->IsEmbedded()) {
+      result.push_back(V8DebuggerScript::Create(m_isolate, script, false));
       continue;
-    int contextId = static_cast<int>(contextData.As<v8::Int32>()->Value());
+    }
+    int contextId;
+    if (!script->ContextId().To(&contextId)) continue;
     if (m_inspector->contextGroupId(contextId) != contextGroupId) continue;
     result.push_back(V8DebuggerScript::Create(m_isolate, script, false));
   }

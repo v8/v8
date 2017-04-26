@@ -601,11 +601,22 @@ int main(int argc, char* argv[]) {
 
   v8::base::Semaphore ready_semaphore(0);
 
+  v8::StartupData startup_data = {nullptr, 0};
+  for (int i = 1; i < argc; ++i) {
+    if (strcmp(argv[i], "--embed") == 0) {
+      argv[i++] = nullptr;
+      printf("Embedding script '%s'\n", argv[i]);
+      startup_data = v8::V8::CreateSnapshotDataBlob(argv[i]);
+      argv[i] = nullptr;
+    }
+  }
+
   TaskRunner::SetupGlobalTasks backend_extensions;
   backend_extensions.emplace_back(new SetTimeoutExtension());
   backend_extensions.emplace_back(new InspectorExtension());
   TaskRunner backend_runner(std::move(backend_extensions), false,
-                            &ready_semaphore);
+                            &ready_semaphore,
+                            startup_data.data ? &startup_data : nullptr);
   ready_semaphore.Wait();
   SendMessageToBackendExtension::set_backend_task_runner(&backend_runner);
   UtilsExtension::set_backend_task_runner(&backend_runner);
@@ -614,7 +625,7 @@ int main(int argc, char* argv[]) {
   frontend_extensions.emplace_back(new UtilsExtension());
   frontend_extensions.emplace_back(new SendMessageToBackendExtension());
   TaskRunner frontend_runner(std::move(frontend_extensions), true,
-                             &ready_semaphore);
+                             &ready_semaphore, nullptr);
   ready_semaphore.Wait();
 
   FrontendChannelImpl frontend_channel(&frontend_runner);
@@ -628,7 +639,7 @@ int main(int argc, char* argv[]) {
 
   for (int i = 1; i < argc; ++i) {
     // Ignore unknown flags.
-    if (argv[i][0] == '-') continue;
+    if (argv[i] == nullptr || argv[i][0] == '-') continue;
 
     bool exists = false;
     v8::internal::Vector<const char> chars =
@@ -643,5 +654,7 @@ int main(int argc, char* argv[]) {
 
   frontend_runner.Join();
   backend_runner.Join();
+
+  delete startup_data.data;
   return 0;
 }
