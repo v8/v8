@@ -1531,11 +1531,14 @@ class RepresentationSelector {
             // BooleanNot(x: kRepBit) => Word32Equal(x, #0)
             node->AppendInput(jsgraph_->zone(), jsgraph_->Int32Constant(0));
             NodeProperties::ChangeOp(node, lowering->machine()->Word32Equal());
-          } else {
-            DCHECK(CanBeTaggedPointer(input_info->representation()));
+          } else if (CanBeTaggedPointer(input_info->representation())) {
             // BooleanNot(x: kRepTagged) => WordEqual(x, #false)
             node->AppendInput(jsgraph_->zone(), jsgraph_->FalseConstant());
             NodeProperties::ChangeOp(node, lowering->machine()->WordEqual());
+          } else {
+            DCHECK_EQ(MachineRepresentation::kNone,
+                      input_info->representation());
+            DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
           }
         } else {
           // No input representation requirement; adapt during lowering.
@@ -2779,8 +2782,13 @@ class RepresentationSelector {
         // We just get rid of the sigma here. In principle, it should be
         // possible to refine the truncation and representation based on
         // the sigma's type.
+
+        // For now, we just handle specially the impossible case.
         MachineRepresentation output =
-            GetOutputInfoForPhi(node, TypeOf(node->InputAt(0)), truncation);
+            TypeOf(node)->IsInhabited()
+                ? GetOutputInfoForPhi(node, TypeOf(node->InputAt(0)),
+                                      truncation)
+                : MachineRepresentation::kNone;
         VisitUnop(node, UseInfo(output, truncation), output);
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
