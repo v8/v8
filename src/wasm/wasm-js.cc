@@ -951,19 +951,6 @@ void WasmJs::Install(Isolate* isolate) {
   JSObject::AddProperty(memory_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Memory"), ro_attributes);
 
-#if DEBUG && V8_TRAP_HANDLER_SUPPORTED
-  // Make sure the guard regions are the correct size. We do this check
-  // dynamically to avoid introducing static initializers when computing this
-  // constant.
-  //
-  // kWasmMaxHeapOffset is the largest offset that a Wasm program can compute.
-  // We round up to the page size, since this all must be done on page
-  // granularities, and then multiply by 2 because we add guard regions before
-  // and after the Wasm heap so we can protect against negative offsets.
-  DCHECK(wasm::kTotalGuardRegionSize ==
-         2 * RoundUp(wasm::kWasmMaxHeapOffset, base::OS::CommitPageSize()));
-#endif
-
   // Setup errors
   attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   Handle<JSFunction> compile_error(

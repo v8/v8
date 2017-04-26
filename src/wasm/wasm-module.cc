@@ -60,19 +60,13 @@ static void MemoryFinalizer(const v8::WeakCallbackInfo<void>& data) {
   JSArrayBuffer* buffer = *p;
 
   if (!buffer->was_neutered()) {
-#if V8_TARGET_ARCH_64_BIT
     void* memory = buffer->backing_store();
     DCHECK(memory != nullptr);
-    base::OS::Free(GetGuardRegionStartFromMemoryStart(memory),
-                   kTotalGuardRegionSize);
+    base::OS::Free(memory,
+                   RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize()));
 
     data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
         -buffer->byte_length()->Number());
-#else
-    DCHECK(false &&
-           "Attempting to free guarded memory when trap handlers are not "
-           "supported");
-#endif
   }
 
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
@@ -99,22 +93,20 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
   // things that would be unsafe if they expected guard pages where there
   // weren't any.
   if (enable_guard_regions && kGuardRegionsSupported) {
-#if V8_TARGET_ARCH_64_BIT
     // TODO(eholk): On Windows we want to make sure we don't commit the guard
     // pages yet.
 
     // We always allocate the largest possible offset into the heap, so the
     // addressable memory after the guard page can be made inaccessible.
-    const size_t alloc_size = kTotalGuardRegionSize;
+    const size_t alloc_size =
+        RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize());
     DCHECK_EQ(0, size % base::OS::CommitPageSize());
 
     // AllocateGuarded makes the whole region inaccessible by default.
-    void* guard_region = base::OS::AllocateGuarded(alloc_size);
-    if (guard_region == nullptr) {
+    void* memory = base::OS::AllocateGuarded(alloc_size);
+    if (memory == nullptr) {
       return nullptr;
     }
-
-    void* memory = GetMemoryStartFromGuardRegionStart(guard_region);
 
     // Make the part we care about accessible.
     base::OS::Unprotect(memory, size);
@@ -124,10 +116,6 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
 
     is_external = true;
     return memory;
-#else
-    DCHECK(false && "Guard regions are not supported on this platform.");
-    return nullptr;
-#endif
   } else {
     void* memory = isolate->array_buffer_allocator()->Allocate(size);
     return memory;
