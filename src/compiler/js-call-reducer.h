@@ -41,8 +41,7 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayConstructor(Node* node);
   Reduction ReduceBooleanConstructor(Node* node);
   Reduction ReduceCallApiFunction(
-      Node* node, Node* target,
-      Handle<FunctionTemplateInfo> function_template_info);
+      Node* node, Handle<FunctionTemplateInfo> function_template_info);
   Reduction ReduceNumberConstructor(Node* node);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
@@ -57,17 +56,12 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSCall(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
 
-  enum HolderLookup { kHolderNotFound, kHolderIsReceiver, kHolderFound };
-
-  HolderLookup LookupHolder(Handle<JSObject> object,
-                            Handle<FunctionTemplateInfo> function_template_info,
-                            Handle<JSObject>* holder);
-
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
   Factory* factory() const;
   Handle<Context> native_context() const { return native_context_; }
+  Handle<JSGlobalProxy> global_proxy() const;
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;

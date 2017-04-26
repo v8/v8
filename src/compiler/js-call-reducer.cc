@@ -12,6 +12,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/feedback-vector-inl.h"
+#include "src/ic/call-optimization.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -272,61 +273,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeHasInstance(Node* node) {
   return Changed(node);
 }
 
-namespace {
-
-bool CanInlineApiCall(Isolate* isolate, Node* node,
-                      Handle<FunctionTemplateInfo> function_template_info) {
-  DCHECK(node->opcode() == IrOpcode::kJSCall);
-  if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
-  if (function_template_info->call_code()->IsUndefined(isolate)) {
-    return false;
-  }
-  CallParameters const& params = CallParametersOf(node->op());
-  // CallApiCallbackStub expects the target in a register, so we count it out,
-  // and counts the receiver as an implicit argument, so we count the receiver
-  // out too.
-  int const argc = static_cast<int>(params.arity()) - 2;
-  if (argc > CallApiCallbackStub::kArgMax || !params.feedback().IsValid()) {
-    return false;
-  }
-  HeapObjectMatcher receiver(NodeProperties::GetValueInput(node, 1));
-  if (!receiver.HasValue()) {
-    return false;
-  }
-  return receiver.Value()->IsUndefined(isolate) ||
-         (receiver.Value()->map()->IsJSObjectMap() &&
-          !receiver.Value()->map()->is_access_check_needed());
-}
-
-}  // namespace
-
-JSCallReducer::HolderLookup JSCallReducer::LookupHolder(
-    Handle<JSObject> object,
-    Handle<FunctionTemplateInfo> function_template_info,
-    Handle<JSObject>* holder) {
-  DCHECK(object->map()->IsJSObjectMap());
-  Handle<Map> object_map(object->map());
-  Handle<FunctionTemplateInfo> expected_receiver_type;
-  if (!function_template_info->signature()->IsUndefined(isolate())) {
-    expected_receiver_type =
-        handle(FunctionTemplateInfo::cast(function_template_info->signature()));
-  }
-  if (expected_receiver_type.is_null() ||
-      expected_receiver_type->IsTemplateFor(*object_map)) {
-    *holder = Handle<JSObject>::null();
-    return kHolderIsReceiver;
-  }
-  while (object_map->has_hidden_prototype()) {
-    Handle<JSObject> prototype(JSObject::cast(object_map->prototype()));
-    object_map = handle(prototype->map());
-    if (expected_receiver_type->IsTemplateFor(*object_map)) {
-      *holder = prototype;
-      return kHolderFound;
-    }
-  }
-  return kHolderNotFound;
-}
-
 Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   Node* effect = NodeProperties::GetEffectInput(node);
 
@@ -398,64 +344,90 @@ Reduction JSCallReducer::ReduceReflectGetPrototypeOf(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceCallApiFunction(
-    Node* node, Node* target,
-    Handle<FunctionTemplateInfo> function_template_info) {
-  Isolate* isolate = this->isolate();
-  CHECK(!isolate->serializer_enabled());
-  HeapObjectMatcher m(target);
-  DCHECK(m.HasValue() && m.Value()->IsJSFunction());
-  if (!CanInlineApiCall(isolate, node, function_template_info)) {
-    return NoChange();
+    Node* node, Handle<FunctionTemplateInfo> function_template_info) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  int const argc = static_cast<int>(p.arity()) - 2;
+  Node* receiver = (p.convert_mode() == ConvertReceiverMode::kNullOrUndefined)
+                       ? jsgraph()->HeapConstant(global_proxy())
+                       : NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+
+  // CallApiCallbackStub expects the target in a register, so we count it out,
+  // and counts the receiver as an implicit argument, so we count the receiver
+  // out too.
+  if (argc > CallApiCallbackStub::kArgMax) return NoChange();
+
+  // Infer the {receiver} maps, and check if we can inline the API function
+  // callback based on those.
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+  for (size_t i = 0; i < receiver_maps.size(); ++i) {
+    Handle<Map> receiver_map = receiver_maps[i];
+    if (!receiver_map->IsJSObjectMap() ||
+        (!function_template_info->accept_any_receiver() &&
+         receiver_map->is_access_check_needed())) {
+      return NoChange();
+    }
+    // In case of unreliable {receiver} information, the {receiver_maps}
+    // must all be stable in order to consume the information.
+    if (result == NodeProperties::kUnreliableReceiverMaps) {
+      if (!receiver_map->is_stable()) return NoChange();
+    }
   }
+
+  // See if we can constant-fold the compatible receiver checks.
+  CallOptimization call_optimization(function_template_info);
+  if (!call_optimization.is_simple_api_call()) return NoChange();
+  CallOptimization::HolderLookup lookup;
+  Handle<JSObject> api_holder =
+      call_optimization.LookupHolderOfExpectedType(receiver_maps[0], &lookup);
+  if (lookup == CallOptimization::kHolderNotFound) return NoChange();
+  for (size_t i = 1; i < receiver_maps.size(); ++i) {
+    CallOptimization::HolderLookup lookupi;
+    Handle<JSObject> holder = call_optimization.LookupHolderOfExpectedType(
+        receiver_maps[i], &lookupi);
+    if (lookup != lookupi) return NoChange();
+    if (!api_holder.is_identical_to(holder)) return NoChange();
+  }
+
+  // Install stability dependencies for unreliable {receiver_maps}.
+  if (result == NodeProperties::kUnreliableReceiverMaps) {
+    for (size_t i = 0; i < receiver_maps.size(); ++i) {
+      dependencies()->AssumeMapStable(receiver_maps[i]);
+    }
+  }
+
+  // CallApiCallbackStub's register arguments: code, target, call data, holder,
+  // function address.
+  // TODO(turbofan): Consider introducing a JSCallApiCallback operator for
+  // this and lower it during JSGenericLowering, and unify this with the
+  // JSNativeContextSpecialization::InlineApiCall method a bit.
   Handle<CallHandlerInfo> call_handler_info(
-      handle(CallHandlerInfo::cast(function_template_info->call_code())));
-  Handle<Object> data(call_handler_info->data(), isolate);
-
-  Node* receiver_node = NodeProperties::GetValueInput(node, 1);
-  CallParameters const& params = CallParametersOf(node->op());
-
-  Handle<HeapObject> receiver = HeapObjectMatcher(receiver_node).Value();
-  bool const receiver_is_undefined = receiver->IsUndefined(isolate);
-  if (receiver_is_undefined) {
-    receiver = handle(Handle<JSFunction>::cast(m.Value())->global_proxy());
-  } else {
-    DCHECK(receiver->map()->IsJSObjectMap() &&
-           !receiver->map()->is_access_check_needed());
-  }
-
-  Handle<JSObject> holder;
-  HolderLookup lookup = LookupHolder(Handle<JSObject>::cast(receiver),
-                                     function_template_info, &holder);
-  if (lookup == kHolderNotFound) return NoChange();
-  if (receiver_is_undefined) {
-    receiver_node = jsgraph()->HeapConstant(receiver);
-    NodeProperties::ReplaceValueInput(node, receiver_node, 1);
-  }
-  Node* holder_node =
-      lookup == kHolderFound ? jsgraph()->HeapConstant(holder) : receiver_node;
-
-  Zone* zone = graph()->zone();
-  // Same as CanInlineApiCall: exclude the target (which goes in a register) and
-  // the receiver (which is implicitly counted by CallApiCallbackStub) from the
-  // arguments count.
-  int const argc = static_cast<int>(params.arity() - 2);
-  CallApiCallbackStub stub(isolate, argc, false);
+      CallHandlerInfo::cast(function_template_info->call_code()), isolate());
+  Handle<Object> data(call_handler_info->data(), isolate());
+  CallApiCallbackStub stub(isolate(), argc, false);
   CallInterfaceDescriptor cid = stub.GetCallInterfaceDescriptor();
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate, zone, cid,
+      isolate(), graph()->zone(), cid,
       cid.GetStackParameterCount() + argc + 1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
       MachineType::AnyTagged(), 1);
   ApiFunction api_function(v8::ToCData<Address>(call_handler_info->callback()));
+  Node* holder = lookup == CallOptimization::kHolderFound
+                     ? jsgraph()->HeapConstant(api_holder)
+                     : receiver;
   ExternalReference function_reference(
-      &api_function, ExternalReference::DIRECT_API_CALL, isolate);
-
-  // CallApiCallbackStub's register arguments: code, target, call data, holder,
-  // function address.
-  node->InsertInput(zone, 0, jsgraph()->HeapConstant(stub.GetCode()));
-  node->InsertInput(zone, 2, jsgraph()->Constant(data));
-  node->InsertInput(zone, 3, holder_node);
-  node->InsertInput(zone, 4, jsgraph()->ExternalConstant(function_reference));
+      &api_function, ExternalReference::DIRECT_API_CALL, isolate());
+  node->InsertInput(graph()->zone(), 0,
+                    jsgraph()->HeapConstant(stub.GetCode()));
+  node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(data));
+  node->InsertInput(graph()->zone(), 3, holder);
+  node->InsertInput(graph()->zone(), 4,
+                    jsgraph()->ExternalConstant(function_reference));
+  node->ReplaceInput(5, receiver);
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
 }
@@ -612,10 +584,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         return ReduceArrayConstructor(node);
       }
 
-      if (shared->IsApiFunction()) {
-        return ReduceCallApiFunction(
-            node, target,
-            handle(FunctionTemplateInfo::cast(shared->function_data())));
+      if (!FLAG_runtime_stats && shared->IsApiFunction()) {
+        Handle<FunctionTemplateInfo> function_template_info(
+            FunctionTemplateInfo::cast(shared->function_data()), isolate());
+        return ReduceCallApiFunction(node, function_template_info);
       }
     } else if (m.Value()->IsJSBoundFunction()) {
       Handle<JSBoundFunction> function =
@@ -865,6 +837,11 @@ Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }
 Isolate* JSCallReducer::isolate() const { return jsgraph()->isolate(); }
 
 Factory* JSCallReducer::factory() const { return isolate()->factory(); }
+
+Handle<JSGlobalProxy> JSCallReducer::global_proxy() const {
+  return handle(JSGlobalProxy::cast(native_context()->global_proxy()),
+                isolate());
+}
 
 CommonOperatorBuilder* JSCallReducer::common() const {
   return jsgraph()->common();
