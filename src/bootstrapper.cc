@@ -3826,14 +3826,6 @@ void Genesis::InstallOneBuiltinFunction(Handle<Object> prototype,
 void Genesis::InitializeGlobal_experimental_fast_array_builtins() {
   if (!FLAG_experimental_fast_array_builtins) return;
   {
-    Handle<JSFunction> array_constructor(native_context()->array_function());
-    Handle<Object> array_prototype(array_constructor->prototype(), isolate());
-    // Insert experimental fast Array builtins here.
-    InstallOneBuiltinFunction(array_prototype, "filter",
-                              Builtins::kArrayFilter);
-    InstallOneBuiltinFunction(array_prototype, "map", Builtins::kArrayMap);
-  }
-  {
     Handle<Object> typed_array_prototype(
         native_context()->typed_array_prototype(), isolate());
     // Insert experimental fast TypedArray builtins here.
@@ -4339,6 +4331,12 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
         proto, "forEach", Builtins::kArrayForEach, 2);
     // Add forEach to the context.
     native_context()->set_array_for_each_iterator(*forEach);
+
+    // Install Array.prototype.filter
+    InstallArrayBuiltinFunction(proto, "filter", Builtins::kArrayFilter, 2);
+
+    // Install Array.prototype.map
+    InstallArrayBuiltinFunction(proto, "map", Builtins::kArrayMap, 2);
 
     // Install Array.prototype.every
     InstallArrayBuiltinFunction(proto, "every", Builtins::kArrayEvery, 2);
