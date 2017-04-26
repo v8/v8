@@ -12721,10 +12721,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
         isolate);
   } else {
     construct_prototype = Handle<JSReceiver>::cast(value);
-    if (function->map()->has_non_instance_prototype()) {
-      function->map()->set_non_instance_prototype(false);
-      function->map()->SetConstructor(isolate->heap()->null_value());
-    }
+    function->map()->set_non_instance_prototype(false);
   }
 
   SetInstancePrototype(isolate, function, construct_prototype);
