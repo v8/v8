@@ -325,7 +325,7 @@ class RelocInfo {
 
   enum Mode {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
-    CODE_TARGET,  // Code target which is not any of the above.
+    CODE_TARGET,
     CODE_TARGET_WITH_ID,
     EMBEDDED_OBJECT,
     // To relocate pointers into the wasm memory embedded in wasm code
