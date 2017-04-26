@@ -716,8 +716,8 @@ FieldAccess AccessBuilder::ForValue() {
 FieldAccess AccessBuilder::ForArgumentsLength() {
   FieldAccess access = {kTaggedBase,         JSArgumentsObject::kLengthOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
-                        Type::SignedSmall(), MachineType::TaggedSigned(),
-                        kNoWriteBarrier};
+                        Type::NonInternal(), MachineType::AnyTagged(),
+                        kFullWriteBarrier};
   return access;
 }
 
