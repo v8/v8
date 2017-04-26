@@ -90,6 +90,10 @@ CompilerDispatcherJob::CompilerDispatcherJob(
   parse_info_->set_language_mode(language_mode);
   parse_info_->set_function_literal_id(function_literal_id);
   parse_info_->set_ast_string_constants(ast_string_constants);
+  if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
+    parse_info_->set_runtime_call_stats(new (parse_info_->zone())
+                                            RuntimeCallStats());
+  }
 
   parse_info_->set_native(native);
   parse_info_->set_module(module);
@@ -266,6 +270,10 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   parse_info_->set_unicode_cache(unicode_cache_.get());
   parse_info_->set_language_mode(shared_->language_mode());
   parse_info_->set_function_literal_id(shared_->function_literal_id());
+  if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
+    parse_info_->set_runtime_call_stats(new (parse_info_->zone())
+                                            RuntimeCallStats());
+  }
 
   parser_.reset(new Parser(parse_info_.get()));
   MaybeHandle<ScopeInfo> outer_scope_info;
@@ -334,6 +342,7 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
     status_ = CompileJobStatus::kReadyToAnalyze;
   }
   parser_->UpdateStatistics(isolate_, script);
+  parse_info_->UpdateStatisticsAfterBackgroundParse(isolate_);
 
   DeferredHandleScope scope(isolate_);
   {

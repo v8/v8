@@ -243,6 +243,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
     }
   }
 
+  void UpdateStatisticsAfterBackgroundParse(Isolate* isolate);
+
 #ifdef DEBUG
   bool script_is_native() const;
 #endif  // DEBUG
