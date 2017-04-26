@@ -113,8 +113,10 @@ MaybeHandle<Map> GetMapWitness(Node* node) {
   ZoneHandleSet<Map> maps;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
-  if (NodeProperties::InferReceiverMaps(receiver, effect, &maps)) {
-    if (maps.size() == 1) return MaybeHandle<Map>(maps[0]);
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &maps);
+  if (result == NodeProperties::kReliableReceiverMaps && maps.size() == 1) {
+    return maps[0];
   }
   return MaybeHandle<Map>();
 }
