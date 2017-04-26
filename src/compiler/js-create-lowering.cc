@@ -815,7 +815,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
     } else if (p.arity() == 1) {
       Node* length = NodeProperties::GetValueInput(node, 2);
       Type* length_type = NodeProperties::GetType(length);
-      if (!length_type->Maybe(Type::Unsigned32())) {
+      if (!length_type->Maybe(Type::Number())) {
         // Handle the single argument case, where we know that the value
         // cannot be a valid Array length.
         return ReduceNewArray(node, {length}, site);
