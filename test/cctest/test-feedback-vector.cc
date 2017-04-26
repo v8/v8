@@ -220,7 +220,7 @@ TEST(VectorCallICStates) {
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
 
   // After a collection, state should remain GENERIC.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
 }
 
@@ -245,7 +245,7 @@ TEST(VectorCallFeedbackForArray) {
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   CHECK(nexus.GetFeedback()->IsAllocationSite());
 
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
   // It should stay monomorphic even after a GC.
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
@@ -359,7 +359,7 @@ TEST(VectorLoadICStates) {
   CHECK(!nexus.FindFirstMap());
 
   // After a collection, state should not be reset to PREMONOMORPHIC.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
   CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
 }
 

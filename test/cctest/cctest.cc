@@ -113,6 +113,10 @@ void CcTest::CollectGarbage(i::AllocationSpace space) {
   heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
 }
 
+void CcTest::CollectAllGarbage() {
+  CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+}
+
 void CcTest::CollectAllGarbage(int flags) {
   heap()->CollectAllGarbage(flags, i::GarbageCollectionReason::kTesting);
 }

@@ -384,7 +384,7 @@ void CheckDebuggerUnloaded(bool check_functions) {
   CHECK(!CcTest::i_isolate()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
   // Iterate the heap and check that there are no debugger related objects left.
@@ -812,7 +812,7 @@ static void DebugEventBreakPointCollectGarbage(
       CcTest::CollectGarbage(v8::internal::NEW_SPACE);
     } else {
       // Mark sweep compact.
-      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+      CcTest::CollectAllGarbage();
     }
   }
 }
@@ -1223,7 +1223,7 @@ static void CallAndGC(v8::Local<v8::Context> context,
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+    CcTest::CollectAllGarbage();
     f->Call(context, recv, 0, NULL).ToLocalChecked();
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
@@ -1947,7 +1947,7 @@ TEST(ScriptBreakPointLineTopLevel) {
           ->Get(context, v8_str(env->GetIsolate(), "f"))
           .ToLocalChecked());
 
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 
   SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test.html", 3, -1);
 

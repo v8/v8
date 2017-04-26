@@ -738,7 +738,7 @@ TEST(CanonicalHandleScope) {
   Handle<String> string2(*string1);
   CHECK_EQ(number1.location(), number2.location());
   CHECK_EQ(string1.location(), string2.location());
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
   Handle<HeapNumber> number3(*number2);
   Handle<String> string3(*string2);
   CHECK_EQ(number1.location(), number3.location());

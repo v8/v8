@@ -132,7 +132,7 @@ TEST(ArrayBuffer_Compaction) {
   heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(*buf1));
 
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 
   Page* page_after_gc = Page::FromAddress(buf1->address());
   CHECK(IsTracked(*buf1));

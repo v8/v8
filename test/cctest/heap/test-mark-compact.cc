@@ -90,8 +90,8 @@ TEST(Promotion) {
 
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
-    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+    CcTest::CollectAllGarbage();
+    CcTest::CollectAllGarbage();
     CHECK(heap->InSpace(*array, OLD_SPACE));
   }
 }
@@ -115,8 +115,8 @@ HEAP_TEST(NoPromotion) {
     heap->set_force_oom(true);
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
-    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+    CcTest::CollectAllGarbage();
+    CcTest::CollectAllGarbage();
     CHECK(heap->InSpace(*array, NEW_SPACE));
   }
 }
