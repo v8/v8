@@ -127,14 +127,10 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE, CASE,
                  CASE, IGNORE_BUILTIN, IGNORE_BUILTIN)
 #undef CASE
-#define CASE(Name, ...)                                \
-  case k##Name: {                                      \
-    Handle<Code> code = isolate->builtins()->Name();   \
-    return Callable(code, BuiltinDescriptor(isolate)); \
-  }
-    BUILTIN_LIST(CASE, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN,
-                 IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
-#undef CASE
+    case kConsoleAssert: {
+      Handle<Code> code = isolate->builtins()->ConsoleAssert();
+      return Callable(code, BuiltinDescriptor(isolate));
+    }
     default:
       UNREACHABLE();
       return Callable(Handle<Code>::null(), VoidDescriptor(isolate));
