@@ -4,7 +4,11 @@
 
 // Flags: --allow-natives-syntax
 
-function TestConstructSmallObject(constr) {
+var tests = [];
+
+// Tests that will be called with each TypedArray constructor.
+
+tests.push(function TestConstructSmallObject(constr) {
   var myObject = { 0: 5, 1: 6, length: 2 };
 
   arr = new constr(myObject);
@@ -12,9 +16,9 @@ function TestConstructSmallObject(constr) {
   assertEquals(2, arr.length);
   assertEquals(5, arr[0]);
   assertEquals(6, arr[1]);
-};
+});
 
-function TestConstructLargeObject(constr) {
+tests.push(function TestConstructLargeObject(constr) {
   var myObject = {};
   const n = 128;
   for (var i = 0; i < n; i++) {
@@ -28,18 +32,18 @@ function TestConstructLargeObject(constr) {
   for (var i = 0; i < n; i++) {
     assertEquals(i, arr[i]);
   }
-}
+});
 
-function TestConstructFromArrayWithSideEffects(constr) {
+tests.push(function TestConstructFromArrayWithSideEffects(constr) {
   var arr = [{ valueOf() { arr[1] = 20; return 1; }}, 2];
 
   var ta = new constr(arr);
 
   assertEquals(1, ta[0]);
   assertEquals(2, ta[1]);
-}
+});
 
-function TestConstructFromArrayWithSideEffectsHoley(constr) {
+tests.push(function TestConstructFromArrayWithSideEffectsHoley(constr) {
   var arr = [{ valueOf() { arr[1] = 20; return 1; }}, 2, , 4];
 
   var ta = new constr(arr);
@@ -48,9 +52,60 @@ function TestConstructFromArrayWithSideEffectsHoley(constr) {
   assertEquals(2, ta[1]);
   // ta[2] will be the default value, but we aren't testing that here.
   assertEquals(4, ta[3]);
-}
+});
 
-function TestConstructFromArrayNoIteratorWithGetter(constr) {
+tests.push(function TestConstructFromArrayHoleySmi(constr) {
+  var arr = [0, 1, , 3];
+
+  var ta = new constr(arr);
+
+  assertArrayEquals([0, 1, defaultValue(constr), 3], ta);
+});
+
+tests.push(function TestConstructFromArrayHoleyDouble(constr) {
+  var arr = [0.0, 1.0, , 3.0];
+
+  var ta = new constr(arr);
+
+  assertArrayEquals([0, 1, defaultValue(constr), 3], ta);
+});
+
+tests.push(function TestConstructFromArrayHoleySmiWithOtherPrototype(constr) {
+  var arr = [0, 1, , 3];
+  Object.setPrototypeOf(arr, { 2: 2 });
+
+  var ta = new constr(arr);
+
+  assertArrayEquals([0, 1, 2, 3], ta);
+});
+
+tests.push(function TestConstructFromArrayWithProxyPrototype(constr) {
+  var arr = [0, 1, , 3];
+  var proxy = new Proxy([], {
+    get: function(target, name) {
+      if (name === Symbol.iterator) return undefined;
+      if (name == 2) return 2;
+      return target[name];
+    }
+  });
+  Object.setPrototypeOf(arr, proxy);
+
+  var ta = new constr(arr);
+
+  assertArrayEquals([0, 1, 2, 3], ta);
+});
+
+tests.push(function TestConstructFromArrayHoleySmiWithSubclass(constr) {
+  class SubArray extends Array {}
+  var arr = new SubArray(0, 1);
+  arr[3] = 3;
+
+  var ta = new constr(arr);
+
+  assertArrayEquals([0, 1, defaultValue(constr), 3], ta);
+});
+
+tests.push(function TestConstructFromArrayNoIteratorWithGetter(constr) {
   var arr = [1, 2, 3];
   arr[Symbol.iterator] = undefined;
 
@@ -63,9 +118,9 @@ function TestConstructFromArrayNoIteratorWithGetter(constr) {
   var ta = new constr(arr);
 
   assertArrayEquals([1, 2, 22], ta);
-}
+});
 
-function TestConstructFromArray(constr) {
+tests.push(function TestConstructFromArray(constr) {
   var n = 64;
   var jsArray = [];
   for (var i = 0; i < n; i++) {
@@ -78,9 +133,9 @@ function TestConstructFromArray(constr) {
   for (var i = 0; i < n; i++) {
     assertEquals(i, arr[i]);
   }
-}
+});
 
-function TestConstructFromTypedArray(constr) {
+tests.push(function TestConstructFromTypedArray(constr) {
   var n = 64;
   var ta = new constr(n);
   for (var i = 0; i < ta.length; i++) {
@@ -93,7 +148,97 @@ function TestConstructFromTypedArray(constr) {
   for (var i = 0; i < n; i++) {
     assertEquals(i, arr[i]);
   }
+});
+
+tests.push(function TestLengthIsMaxSmi(constr) {
+  var myObject = { 0: 5, 1: 6, length: %_MaxSmi() + 1 };
+
+  assertThrows(function() {
+    new constr(myObject);
+  }, RangeError);
+});
+
+tests.push(function TestProxyHoleConverted(constr) {
+  var source = {0: 0, 2: 2, length: 3};
+  var proxy = new Proxy(source, {});
+
+  var converted = new constr(proxy);
+
+  assertArrayEquals([0, defaultValue(constr), 2], converted);
+});
+
+tests.push(function TestProxyToObjectValueOfCalled(constr) {
+  var thrower = { valueOf: function() { throw new TypeError(); } };
+  var source = {0: 0, 1: thrower, length: 2};
+  var proxy = new Proxy(source, {});
+
+  assertThrows(() => new constr(proxy), TypeError);
+});
+
+tests.push(function TestObjectValueOfCalled(constr) {
+  var thrower = { valueOf: function() { throw new TypeError(); } };
+
+  var obj = {0: 0, 1: thrower, length: 2};
+  assertThrows(() => new constr(obj), TypeError);
+});
+
+tests.push(function TestSmiPackedArray(constr) {
+  var ta = new constr([1, 2, 3, 4, 127]);
+
+  assertEquals(5 * constr.BYTES_PER_ELEMENT, ta.byteLength);
+  assertArrayEquals([1, 2, 3, 4, 127], ta);
+});
+
+tests.push(function TestOffsetIsUsed(constr) {
+  TestOffsetIsUsedRunner(constr, 4);
+  TestOffsetIsUsedRunner(constr, 16);
+  TestOffsetIsUsedRunner(constr, 32);
+  TestOffsetIsUsedRunner(constr, 128);
+});
+
+// Helpers for above tests.
+
+function TestOffsetIsUsedRunner(constr, n) {
+  var buffer = new ArrayBuffer(constr.BYTES_PER_ELEMENT * n);
+
+  var whole_ta = new constr(buffer);
+  assertEquals(n, whole_ta.length);
+  for (var i = 0; i < whole_ta.length; i++) {
+    whole_ta[i] = i;
+  }
+
+  var half_ta = new constr(buffer, constr.BYTES_PER_ELEMENT * n / 2);
+  assertEquals(n / 2, half_ta.length);
+
+  var arr = new constr(half_ta);
+
+  assertEquals(n / 2, arr.length);
+  for (var i = 0; i < arr.length; i++) {
+    assertEquals(n / 2 + i, arr[i]);
+  }
 }
+
+function defaultValue(constr) {
+  if (constr == Float32Array || constr == Float64Array) return NaN;
+  return 0;
+}
+
+tests.forEach(f => Test(f));
+
+
+function Test(func) {
+  func(Uint8Array);
+  func(Int8Array);
+  func(Uint16Array);
+  func(Int16Array);
+  func(Uint32Array);
+  func(Int32Array);
+  func(Float32Array);
+  func(Float64Array);
+  func(Uint8ClampedArray);
+}
+
+// Other, standalone tests.
 
 (function TestUint8ClampedIsNotBitCopied() {
   var arr = new Int8Array([-1.0, 0, 1.1, 255, 256]);
@@ -132,100 +277,3 @@ function TestConstructFromTypedArray(constr) {
 
   assertArrayEquals([0, 1, 2147483647, -2147483648, -1, 0], converted);
 })();
-
-function TestLengthIsMaxSmi(constr) {
-  var myObject = { 0: 5, 1: 6, length: %_MaxSmi() + 1 };
-
-  assertThrows(function() {
-    new constr(myObject);
-  }, RangeError);
-}
-
-function TestProxyHoleConverted(constr) {
-  var source = {0: 0, 2: 2, length: 3};
-  var proxy = new Proxy(source, {});
-
-  var converted = new constr(proxy);
-
-  assertArrayEquals([0, defaultValue(constr), 2], converted);
-}
-
-function TestProxyToObjectValueOfCalled(constr) {
-  var thrower = { valueOf: function() { throw new TypeError(); } };
-  var source = {0: 0, 1: thrower, length: 2};
-  var proxy = new Proxy(source, {});
-
-  assertThrows(() => new constr(proxy), TypeError);
-}
-
-function TestObjectValueOfCalled(constr) {
-  var thrower = { valueOf: function() { throw new TypeError(); } };
-
-  var obj = {0: 0, 1: thrower, length: 2};
-  assertThrows(() => new constr(obj), TypeError);
-}
-
-function TestSmiPackedArray(constr) {
-  var ta = new constr([1, 2, 3, 4, 127]);
-
-  assertEquals(5 * constr.BYTES_PER_ELEMENT, ta.byteLength);
-  assertArrayEquals([1, 2, 3, 4, 127], ta);
-}
-
-function TestOffsetIsUsedRunner(constr, n) {
-  var buffer = new ArrayBuffer(constr.BYTES_PER_ELEMENT * n);
-
-  var whole_ta = new constr(buffer);
-  assertEquals(n, whole_ta.length);
-  for (var i = 0; i < whole_ta.length; i++) {
-    whole_ta[i] = i;
-  }
-
-  var half_ta = new constr(buffer, constr.BYTES_PER_ELEMENT * n / 2);
-  assertEquals(n / 2, half_ta.length);
-
-  var arr = new constr(half_ta);
-
-  assertEquals(n / 2, arr.length);
-  for (var i = 0; i < arr.length; i++) {
-    assertEquals(n / 2 + i, arr[i]);
-  }
-}
-
-function TestOffsetIsUsed(constr, n) {
-  TestOffsetIsUsedRunner(constr, 4);
-  TestOffsetIsUsedRunner(constr, 16);
-  TestOffsetIsUsedRunner(constr, 32);
-  TestOffsetIsUsedRunner(constr, 128);
-}
-
-Test(TestConstructSmallObject);
-Test(TestConstructLargeObject);
-Test(TestConstructFromArrayWithSideEffects);
-Test(TestConstructFromArrayWithSideEffectsHoley);
-Test(TestConstructFromArrayNoIteratorWithGetter);
-Test(TestConstructFromArray);
-Test(TestConstructFromTypedArray);
-Test(TestLengthIsMaxSmi);
-Test(TestProxyHoleConverted);
-Test(TestProxyToObjectValueOfCalled);
-Test(TestObjectValueOfCalled);
-Test(TestSmiPackedArray);
-Test(TestOffsetIsUsed);
-
-function defaultValue(constr) {
-  if (constr == Float32Array || constr == Float64Array) return NaN;
-  return 0;
-}
-
-function Test(func) {
-  func(Uint8Array);
-  func(Int8Array);
-  func(Uint16Array);
-  func(Int16Array);
-  func(Uint32Array);
-  func(Int32Array);
-  func(Float32Array);
-  func(Float64Array);
-  func(Uint8ClampedArray);
-}

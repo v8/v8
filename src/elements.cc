@@ -3177,15 +3177,41 @@ class TypedElementsAccessor
     }
   }
 
+  static bool HoleyPrototypeLookupRequired(Isolate* isolate,
+                                           Handle<JSArray> source) {
+    Object* source_proto = source->map()->prototype();
+    // Null prototypes are OK - we don't need to do prototype chain lookups on
+    // them.
+    if (source_proto->IsNull(isolate)) return false;
+    if (source_proto->IsJSProxy()) return true;
+    DCHECK(source_proto->IsJSObject());
+    if (!isolate->is_initial_array_prototype(JSObject::cast(source_proto))) {
+      return true;
+    }
+    return !isolate->IsFastArrayConstructorPrototypeChainIntact();
+  }
+
   static bool TryCopyElementsHandleFastNumber(Handle<JSArray> source,
                                               Handle<JSTypedArray> destination,
                                               size_t length) {
+    Isolate* isolate = source->GetIsolate();
     DisallowHeapAllocation no_gc;
+    DisallowJavascriptExecution no_js(isolate);
+
     ElementsKind kind = source->GetElementsKind();
     BackingStore* dest = BackingStore::cast(destination->elements());
 
+    // When we find the hole, we normally have to look up the element on the
+    // prototype chain, which is not handled here and we return false instead.
+    // When the array has the original array prototype, and that prototype has
+    // not been changed in a way that would affect lookups, we can just convert
+    // the hole into undefined.
+    if (HoleyPrototypeLookupRequired(isolate, source)) return false;
+
+    Object* undefined = isolate->heap()->undefined_value();
+
+    // Fastpath for packed Smi kind.
     if (kind == FAST_SMI_ELEMENTS) {
-      // Fastpath for packed Smi kind.
       FixedArray* source_store = FixedArray::cast(source->elements());
 
       for (uint32_t i = 0; i < length; i++) {
@@ -3193,6 +3219,19 @@ class TypedElementsAccessor
         DCHECK(elem->IsSmi());
         int int_value = Smi::cast(elem)->value();
         dest->set(i, dest->from(int_value));
+      }
+      return true;
+    } else if (kind == FAST_HOLEY_SMI_ELEMENTS) {
+      FixedArray* source_store = FixedArray::cast(source->elements());
+      for (uint32_t i = 0; i < length; i++) {
+        if (source_store->is_the_hole(isolate, i)) {
+          dest->SetValue(i, undefined);
+        } else {
+          Object* elem = source_store->get(i);
+          DCHECK(elem->IsSmi());
+          int int_value = Smi::cast(elem)->value();
+          dest->set(i, dest->from(int_value));
+        }
       }
       return true;
     } else if (kind == FAST_DOUBLE_ELEMENTS) {
@@ -3206,6 +3245,18 @@ class TypedElementsAccessor
         // rather than relying on C++ to convert elem.
         double elem = source_store->get_scalar(i);
         dest->set(i, dest->from(elem));
+      }
+      return true;
+    } else if (kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
+      FixedDoubleArray* source_store =
+          FixedDoubleArray::cast(source->elements());
+      for (uint32_t i = 0; i < length; i++) {
+        if (source_store->is_the_hole(i)) {
+          dest->SetValue(i, undefined);
+        } else {
+          double elem = source_store->get_scalar(i);
+          dest->set(i, dest->from(elem));
+        }
       }
       return true;
     }
