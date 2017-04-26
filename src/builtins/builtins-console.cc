@@ -45,6 +45,8 @@ namespace internal {
     if (isolate->console_delegate()) {            \
       debug::ConsoleCallArguments wrapper(args);  \
       isolate->console_delegate()->name(wrapper); \
+      CHECK(!isolate->has_pending_exception());   \
+      CHECK(!isolate->has_scheduled_exception()); \
     }                                             \
     return isolate->heap()->undefined_value();    \
   }
