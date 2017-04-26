@@ -2218,7 +2218,9 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   __ bind(&arguments_done);
 
   Label stack_empty, stack_done, stack_overflow;
+#if !V8_TARGET_ARCH_S390X
   __ SmiUntag(r2);
+#endif
   __ SubP(r2, r2, r4);
   __ CmpP(r2, Operand::Zero());
   __ ble(&stack_empty);

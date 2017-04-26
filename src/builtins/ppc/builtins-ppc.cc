@@ -2208,7 +2208,9 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   __ bind(&arguments_done);
 
   Label stack_empty, stack_done, stack_overflow;
+#if !V8_TARGET_ARCH_PPC64
   __ SmiUntag(r3);
+#endif
   __ sub(r3, r3, r5);
   __ cmpi(r3, Operand::Zero());
   __ ble(&stack_empty);
