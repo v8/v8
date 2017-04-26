@@ -117,7 +117,6 @@
   'built-ins/TypedArray/prototype/slice/detached-buffer-custom-ctor-other-targettype': [FAIL],
   'built-ins/TypedArray/prototype/slice/detached-buffer-custom-ctor-same-targettype': [FAIL],
   'built-ins/TypedArray/prototype/slice/detached-buffer-get-ctor': [FAIL],
-  'built-ins/TypedArray/prototype/slice/detached-buffer-speciesctor-get-species-custom-ctor-throws': [FAIL],
   'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/sort/detached-buffer-comparefn': [FAIL],
   # DataView functions should also throw on detached buffers
@@ -157,27 +156,6 @@
   'built-ins/DataView/prototype/setUint32/detached-buffer-before-outofrange-byteoffset': [FAIL],
   'built-ins/DataView/prototype/setUint8/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/setUint8/detached-buffer-before-outofrange-byteoffset': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4648
-  'built-ins/TypedArray/prototype/copyWithin/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/every/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/fill/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/filter/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/find/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/findIndex/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/forEach/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/includes/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/indexOf/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/join/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/lastIndexOf/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/map/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/reverse/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/slice/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/some/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/sort/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/toLocaleString/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/toString/detached-buffer': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4034
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
@@ -558,19 +536,6 @@
 
   # https://code.google.com/p/v8/issues/detail?id=4693
   'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4953
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor-abrupt': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor-inherited': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor-returns-throws': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-abrupt': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-invocation': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-returns-another-instance': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-throws': [FAIL],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-returns-throws': [FAIL],
 
   # We do not expose Array.prototype.values due to webcompat issues.
   # Most recent incompatability: https://crbug.com/615873

@@ -13,7 +13,6 @@
 
 // array.js has to come before typedarray.js for this to work
 var ArrayToString = utils.ImportNow("ArrayToString");
-var ArrayValues;
 var GetIterator;
 var GetMethod;
 var GlobalArray = global.Array;
@@ -53,7 +52,6 @@ TYPED_ARRAYS(DECLARE_GLOBALS)
 var GlobalTypedArray = %object_get_prototype_of(GlobalUint8Array);
 
 utils.Import(function(from) {
-  ArrayValues = from.ArrayValues;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
   InnerArrayFind = from.InnerArrayFind;
@@ -86,6 +84,14 @@ function SpeciesConstructor(object, defaultConstructor) {
 
 // --------------- Typed Arrays ---------------------
 
+// ES6 section 22.2.3.5.1 ValidateTypedArray ( O )
+function ValidateTypedArray(array, methodName) {
+  if (!IS_TYPEDARRAY(array)) throw %make_type_error(kNotTypedArray);
+
+  if (%_ArrayBufferViewWasNeutered(array))
+    throw %make_type_error(kDetachedOperation, methodName);
+}
+
 function TypedArrayDefaultConstructor(typedArray) {
   switch (%_ClassOf(typedArray)) {
 macro TYPED_ARRAY_CONSTRUCTOR_CASE(NAME, ELEMENT_SIZE)
@@ -106,20 +112,16 @@ function TypedArrayCreate(constructor, arg0, arg1, arg2) {
   } else {
     var newTypedArray = new constructor(arg0, arg1, arg2);
   }
-  if (!IS_TYPEDARRAY(newTypedArray)) throw %make_type_error(kNotTypedArray);
-  // TODO(littledan): Check for being detached, here and elsewhere
-  // All callers where the first argument is a Number have no additional
-  // arguments.
+  ValidateTypedArray(newTypedArray, "TypedArrayCreate");
   if (IS_NUMBER(arg0) && %_TypedArrayGetLength(newTypedArray) < arg0) {
     throw %make_type_error(kTypedArrayTooShort);
   }
   return newTypedArray;
 }
 
-function TypedArraySpeciesCreate(exemplar, arg0, arg1, arg2, conservative) {
+function TypedArraySpeciesCreate(exemplar, arg0, arg1, arg2) {
   var defaultConstructor = TypedArrayDefaultConstructor(exemplar);
-  var constructor = SpeciesConstructor(exemplar, defaultConstructor,
-                                       conservative);
+  var constructor = SpeciesConstructor(exemplar, defaultConstructor);
   return TypedArrayCreate(constructor, arg0, arg1, arg2);
 }
 
@@ -224,10 +226,8 @@ function NAMESubArray(begin, end) {
   var newLength = endInt - beginInt;
   var beginByteOffset =
       %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
-  // BUG(v8:4665): For web compatibility, subarray needs to always build an
-  // instance of the default constructor.
-  // TODO(littledan): Switch to the standard or standardize the fix
-  return new GlobalNAME(%TypedArrayGetBuffer(this), beginByteOffset, newLength);
+  return TypedArraySpeciesCreate(this, %TypedArrayGetBuffer(this),
+                                 beginByteOffset, newLength);
 }
 endmacro
 
@@ -242,7 +242,7 @@ endmacro
 TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
   }
   throw %make_type_error(kIncompatibleMethodReceiver,
-                      "get TypedArray.prototype.subarray", this);
+                      "get %TypedArray%.prototype.subarray", this);
 }
 %SetForceInlineFlag(TypedArraySubArray);
 
@@ -375,7 +375,7 @@ function InnerTypedArrayEvery(f, receiver, array, length) {
 
 // ES6 draft 05-05-15, section 22.2.3.7
 function TypedArrayEvery(f, receiver) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.every");
 
   var length = %_TypedArrayGetLength(this);
 
@@ -405,7 +405,7 @@ function InnerTypedArrayForEach(f, receiver, array, length) {
 
 // ES6 draft 08-24-14, section 22.2.3.12
 function TypedArrayForEach(f, receiver) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.forEach");
 
   var length = %_TypedArrayGetLength(this);
 
@@ -433,7 +433,7 @@ function InnerTypedArrayFilter(f, receiver, array, length, result) {
 
 // ES6 draft 07-15-13, section 22.2.3.9
 function TypedArrayFilter(f, thisArg) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypeArray%.prototype.filter");
 
   var length = %_TypedArrayGetLength(this);
   if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
@@ -451,7 +451,7 @@ function TypedArrayFilter(f, thisArg) {
 
 // ES6 draft 07-15-13, section 22.2.3.10
 function TypedArrayFind(predicate, thisArg) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.find");
 
   var length = %_TypedArrayGetLength(this);
 
@@ -462,7 +462,7 @@ function TypedArrayFind(predicate, thisArg) {
 
 // ES6 draft 07-15-13, section 22.2.3.11
 function TypedArrayFindIndex(predicate, thisArg) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.findIndex");
 
   var length = %_TypedArrayGetLength(this);
 
@@ -473,7 +473,7 @@ function TypedArrayFindIndex(predicate, thisArg) {
 
 // ES6 draft 05-18-15, section 22.2.3.25
 function TypedArraySort(comparefn) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.sort");
 
   var length = %_TypedArrayGetLength(this);
 
@@ -487,7 +487,7 @@ function TypedArraySort(comparefn) {
 
 // ES6 draft 07-15-13, section 22.2.3.18
 function TypedArrayMap(f, thisArg) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.map");
 
   var length = %_TypedArrayGetLength(this);
   var result = TypedArraySpeciesCreate(this, length);
@@ -514,7 +514,7 @@ function InnerTypedArraySome(f, receiver, array, length) {
 
 // ES6 draft 05-05-15, section 22.2.3.24
 function TypedArraySome(f, receiver) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.some");
 
   var length = %_TypedArrayGetLength(this);
 
@@ -525,7 +525,7 @@ function TypedArraySome(f, receiver) {
 
 // ES6 section 22.2.3.27
 function TypedArrayToLocaleString() {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.toLocaleString");
 
   var length = %_TypedArrayGetLength(this);
 
@@ -535,7 +535,7 @@ function TypedArrayToLocaleString() {
 
 // ES6 section 22.2.3.14
 function TypedArrayJoin(separator) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.join");
 
   var length = %_TypedArrayGetLength(this);
 
@@ -570,7 +570,7 @@ function InnerTypedArrayReduce(
 
 // ES6 draft 07-15-13, section 22.2.3.19
 function TypedArrayReduce(callback, current) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.reduce");
 
   var length = %_TypedArrayGetLength(this);
   return InnerTypedArrayReduce(
@@ -606,7 +606,7 @@ function InnerArrayReduceRight(callback, current, array, length,
 
 // ES6 draft 07-15-13, section 22.2.3.19
 function TypedArrayReduceRight(callback, current) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  ValidateTypedArray(this, "%TypedArray%.prototype.reduceRight");
 
   var length = %_TypedArrayGetLength(this);
   return InnerArrayReduceRight(callback, current, this, length,

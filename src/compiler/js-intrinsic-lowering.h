@@ -68,6 +68,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   // TODO(turbofan): typedarray.js support; drop once TypedArrays are
   // converted to proper CodeStubAssembler based builtins.
   Reduction ReduceArrayBufferViewField(Node* node, FieldAccess const& access);
+  Reduction ReduceArrayBufferViewWasNeutered(Node* node);
   Reduction ReduceMaxSmi(Node* node);
   Reduction ReduceTypedArrayMaxSizeInHeap(Node* node);
 

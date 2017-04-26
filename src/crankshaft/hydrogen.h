@@ -2179,6 +2179,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   F(TypedArrayMaxSizeInHeap)           \
   F(ArrayBufferViewGetByteLength)      \
   F(ArrayBufferViewGetByteOffset)      \
+  F(ArrayBufferViewWasNeutered)        \
   F(TypedArrayGetLength)               \
   /* ArrayBuffer */                    \
   F(ArrayBufferGetByteLength)          \
