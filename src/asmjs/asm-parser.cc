@@ -437,7 +437,7 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
   }
   EXPECT_TOKEN('=');
   double dvalue = 0.0;
-  uint64_t uvalue = 0;
+  uint32_t uvalue = 0;
   if (CheckForDouble(&dvalue)) {
     DeclareGlobal(info, mutable_variable, AsmType::Double(), kWasmF64,
                   WasmInitExpr(dvalue));
@@ -504,7 +504,7 @@ void AsmJsParser::ValidateModuleVarFromGlobal(VarInfo* info,
     negate = true;
   }
   double dvalue = 0.0;
-  uint64_t uvalue = 0;
+  uint32_t uvalue = 0;
   if (CheckForDouble(&dvalue)) {
     if (negate) {
       dvalue = -dvalue;
@@ -871,7 +871,7 @@ void AsmJsParser::ValidateFunctionLocals(
       // Store types.
       EXPECT_TOKEN('=');
       double dvalue = 0.0;
-      uint64_t uvalue = 0;
+      uint32_t uvalue = 0;
       if (Check('-')) {
         if (CheckForDouble(&dvalue)) {
           info->kind = VarKind::kLocal;
@@ -1298,7 +1298,7 @@ void AsmJsParser::ValidateCase() {
   if (Check('-')) {
     negate = true;
   }
-  uint64_t uvalue;
+  uint32_t uvalue;
   if (!CheckForUnsigned(&uvalue)) {
     FAIL("Expected numeric literal");
   }
@@ -1359,7 +1359,7 @@ AsmType* AsmJsParser::Expression(AsmType* expected) {
 AsmType* AsmJsParser::NumericLiteral() {
   call_coercion_ = nullptr;
   double dvalue = 0.0;
-  uint64_t uvalue = 0;
+  uint32_t uvalue = 0;
   if (CheckForDouble(&dvalue)) {
     current_function_builder_->EmitF64Const(dvalue);
     return AsmType::Double();
@@ -1519,7 +1519,7 @@ AsmType* AsmJsParser::AssignmentExpression() {
 AsmType* AsmJsParser::UnaryExpression() {
   AsmType* ret;
   if (Check('-')) {
-    uint64_t uvalue;
+    uint32_t uvalue;
     if (CheckForUnsigned(&uvalue)) {
       // TODO(bradnelson): was supposed to be 0x7fffffff, check errata.
       if (uvalue <= 0x80000000) {
@@ -1601,7 +1601,7 @@ AsmType* AsmJsParser::UnaryExpression() {
 
 // 6.8.8 MultaplicativeExpression
 AsmType* AsmJsParser::MultiplicativeExpression() {
-  uint64_t uvalue;
+  uint32_t uvalue;
   if (CheckForUnsignedBelow(0x100000, &uvalue)) {
     if (Check('*')) {
       AsmType* a;
@@ -1634,7 +1634,7 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
   RECURSEn(a = UnaryExpression());
   for (;;) {
     if (Check('*')) {
-      uint64_t uvalue;
+      uint32_t uvalue;
       if (Check('-')) {
         if (CheckForUnsigned(&uvalue)) {
           if (uvalue >= 0x100000) {
@@ -2014,10 +2014,12 @@ AsmType* AsmJsParser::ValidateCall() {
   if (Check('[')) {
     RECURSEn(EqualityExpression());
     EXPECT_TOKENn('&');
-    uint64_t mask = 0;
+    uint32_t mask = 0;
     if (!CheckForUnsigned(&mask)) {
       FAILn("Expected mask literal");
     }
+    // TODO(mstarzinger): Clarify and explain where this limit is coming from,
+    // as it is not mandated by the spec directly.
     if (mask > 0x7fffffff) {
       FAILn("Expected power of 2 mask");
     }
@@ -2326,10 +2328,14 @@ void AsmJsParser::ValidateHeapAccess() {
   VarInfo* info = GetVarInfo(Consume());
   int32_t size = info->type->ElementSizeInBytes();
   EXPECT_TOKEN('[');
-  uint64_t offset;
+  uint32_t offset;
   if (CheckForUnsigned(&offset)) {
     // TODO(bradnelson): Check more things.
-    if (offset > 0x7fffffff || offset * size > 0x7fffffff) {
+    // TODO(mstarzinger): Clarify and explain where this limit is coming from,
+    // as it is not mandated by the spec directly.
+    if (offset > 0x7fffffff ||
+        static_cast<uint64_t>(offset) * static_cast<uint64_t>(size) >
+            0x7fffffff) {
       FAIL("Heap access out of range");
     }
     if (Check(']')) {
@@ -2349,7 +2355,7 @@ void AsmJsParser::ValidateHeapAccess() {
   } else {
     RECURSE(index_type = AdditiveExpression());
     EXPECT_TOKEN(TOK(SAR));
-    uint64_t shift;
+    uint32_t shift;
     if (!CheckForUnsigned(&shift)) {
       FAIL("Expected shift of word size");
     }
@@ -2430,7 +2436,7 @@ void AsmJsParser::GatherCases(std::vector<int32_t>* cases) {
     } else if (depth == 1 && Peek(TOK(case))) {
       scanner_.Next();
       int32_t value;
-      uint64_t uvalue;
+      uint32_t uvalue;
       if (Check('-')) {
         if (!CheckForUnsigned(&uvalue)) {
           break;

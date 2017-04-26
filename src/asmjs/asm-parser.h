@@ -192,7 +192,7 @@ class AsmJsParser {
     }
   }
 
-  inline bool CheckForUnsigned(uint64_t* value) {
+  inline bool CheckForUnsigned(uint32_t* value) {
     if (scanner_.IsUnsigned()) {
       *value = scanner_.AsUnsigned();
       scanner_.Next();
@@ -202,7 +202,7 @@ class AsmJsParser {
     }
   }
 
-  inline bool CheckForUnsignedBelow(uint64_t limit, uint64_t* value) {
+  inline bool CheckForUnsignedBelow(uint32_t limit, uint32_t* value) {
     if (scanner_.IsUnsigned() && scanner_.AsUnsigned() < limit) {
       *value = scanner_.AsUnsigned();
       scanner_.Next();

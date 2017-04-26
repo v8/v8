@@ -92,12 +92,19 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
     return token - kGlobalsStart;
   }
 
-  // Methods to check if the current token is an asm.js "number" (contains a
-  // dot) or an "unsigned" (a number without a dot).
+  // Methods to check if the current token is a numeric literal considered an
+  // asm.js "double" (contains a dot) or an "unsigned" (without a dot). Note
+  // that numbers without a dot outside the [0 .. 2^32) range are errors.
   bool IsUnsigned() const { return Token() == kUnsigned; }
-  uint64_t AsUnsigned() const { return unsigned_value_; }
+  uint32_t AsUnsigned() const {
+    DCHECK(IsUnsigned());
+    return unsigned_value_;
+  }
   bool IsDouble() const { return Token() == kDouble; }
-  double AsDouble() const { return double_value_; }
+  double AsDouble() const {
+    DCHECK(IsDouble());
+    return double_value_;
+  }
 
   // clang-format off
   enum {
@@ -146,7 +153,7 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   std::unordered_map<std::string, token_t> property_names_;
   int global_count_;
   double double_value_;
-  uint64_t unsigned_value_;
+  uint32_t unsigned_value_;
   bool preceded_by_newline_;
 
   // Consume multiple characters.

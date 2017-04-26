@@ -209,6 +209,26 @@ TEST_F(AsmJsScannerTest, Numbers) {
   CheckForEnd();
 }
 
+TEST_F(AsmJsScannerTest, UnsignedNumbers) {
+  SetupSource("0x7fffffff 0x80000000 0xffffffff 0x100000000");
+
+  CHECK(scanner.IsUnsigned());
+  CHECK_EQ(0x7fffffff, scanner.AsUnsigned());
+  scanner.Next();
+
+  CHECK(scanner.IsUnsigned());
+  CHECK_EQ(0x80000000, scanner.AsUnsigned());
+  scanner.Next();
+
+  CHECK(scanner.IsUnsigned());
+  CHECK_EQ(0xffffffff, scanner.AsUnsigned());
+  scanner.Next();
+
+  // Numeric "unsigned" literals with a payload of more than 32-bit are rejected
+  // by asm.js in all contexts, we hence consider `0x100000000` to be an error.
+  CheckForParseError();
+}
+
 TEST_F(AsmJsScannerTest, BadNumber) {
   SetupSource(".123fe");
   Skip('.');
