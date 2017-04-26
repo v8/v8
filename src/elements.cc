@@ -3131,7 +3131,7 @@ class TypedElementsAccessor
     Handle<BackingStore> destination_elements(
         BackingStore::cast(destination->elements()));
 
-    DCHECK_EQ(source->length(), destination->length());
+    DCHECK_GE(destination->length(), source->length());
     DCHECK(source->length()->IsSmi());
     DCHECK_EQ(Smi::FromInt(static_cast<int>(length)), source->length());
 
@@ -3284,6 +3284,9 @@ class TypedElementsAccessor
     return Smi::kZero;
   }
 
+  // This doesn't guarantee that the destination array will be completely
+  // filled. The caller must do this by passing a source with equal length, if
+  // that is required.
   static Object* CopyElementsHandleImpl(Handle<JSReceiver> source,
                                         Handle<JSObject> destination,
                                         size_t length) {
