@@ -90,6 +90,12 @@ class Builtins {
 
   bool is_initialized() const { return initialized_; }
 
+  // Used by SetupIsolateDelegate and Deserializer.
+  void MarkInitialized() {
+    DCHECK(!initialized_);
+    initialized_ = true;
+  }
+
   MUST_USE_RESULT static MaybeHandle<Object> InvokeApiFunction(
       Isolate* isolate, bool is_construct, Handle<HeapObject> function,
       Handle<Object> receiver, int argc, Handle<Object> args[],
@@ -105,11 +111,6 @@ class Builtins {
 
  private:
   Builtins();
-  // Used by SetupIsolateDelegate.
-  void MarkInitialized() {
-    DCHECK(!initialized_);
-    initialized_ = true;
-  }
 
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode,
