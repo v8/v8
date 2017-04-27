@@ -339,7 +339,7 @@ class MemoryChunk {
       + kPointerSize            // TypedSlotSet* typed_old_to_old_slots_
       + kPointerSize            // SkipList* skip_list_
       + kPointerSize            // AtomicValue high_water_mark_
-      + kPointerSize            // base::Mutex* mutex_
+      + kPointerSize            // base::RecursiveMutex* mutex_
       + kPointerSize            // base::AtomicWord concurrent_sweeping_
       + 2 * kSizetSize          // AtomicNumber free-list statistics
       + kPointerSize            // AtomicValue next_chunk_
@@ -397,7 +397,7 @@ class MemoryChunk {
 
   Address address() { return reinterpret_cast<Address>(this); }
 
-  base::Mutex* mutex() { return mutex_; }
+  base::RecursiveMutex* mutex() { return mutex_; }
 
   bool Contains(Address addr) {
     return addr >= area_start() && addr < area_end();
@@ -626,7 +626,7 @@ class MemoryChunk {
   // count highest number of bytes ever allocated on the page.
   base::AtomicValue<intptr_t> high_water_mark_;
 
-  base::Mutex* mutex_;
+  base::RecursiveMutex* mutex_;
 
   base::AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
 
