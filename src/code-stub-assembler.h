@@ -28,6 +28,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(BooleanMap, BooleanMap)                           \
   V(CodeMap, CodeMap)                                 \
   V(empty_string, EmptyString)                        \
+  V(length_string, LengthString)                      \
   V(EmptyFixedArray, EmptyFixedArray)                 \
   V(FalseValue, False)                                \
   V(FixedArrayMap, FixedArrayMap)                     \
@@ -743,6 +744,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsCallable(Node* object);
   Node* IsBoolean(Node* object);
   Node* IsPropertyCell(Node* object);
+  Node* IsAccessorInfo(Node* object);
   Node* IsAccessorPair(Node* object);
   Node* IsHeapNumber(Node* object);
   Node* IsName(Node* object);

@@ -3164,6 +3164,10 @@ Node* CodeStubAssembler::IsPropertyCell(Node* object) {
   return IsPropertyCellMap(LoadMap(object));
 }
 
+Node* CodeStubAssembler::IsAccessorInfo(Node* object) {
+  return IsAccessorInfoMap(LoadMap(object));
+}
+
 Node* CodeStubAssembler::IsAccessorPair(Node* object) {
   return IsAccessorPairMap(LoadMap(object));
 }
@@ -5322,18 +5326,17 @@ Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
                                               Node* context, Node* receiver,
                                               Label* if_bailout) {
   VARIABLE(var_value, MachineRepresentation::kTagged, value);
-  Label done(this);
+  Label done(this), if_accessor_info(this, Label::kDeferred);
 
   Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
   GotoIf(Word32Equal(kind, Int32Constant(kData)), &done);
 
   // Accessor case.
+  GotoIfNot(IsAccessorPair(value), &if_accessor_info);
+
+  // AccessorPair case.
   {
     Node* accessor_pair = value;
-    GotoIf(Word32Equal(LoadInstanceType(accessor_pair),
-                       Int32Constant(ACCESSOR_INFO_TYPE)),
-           if_bailout);
-    CSA_ASSERT(this, IsAccessorPair(accessor_pair));
     Node* getter = LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
     Node* getter_map = LoadMap(getter);
     Node* instance_type = LoadMapInstanceType(getter_map);
@@ -5350,6 +5353,21 @@ Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
     Callable callable = CodeFactory::Call(isolate());
     Node* result = CallJS(callable, context, getter, receiver);
     var_value.Bind(result);
+    Goto(&done);
+  }
+
+  // AccessorInfo case.
+  BIND(&if_accessor_info);
+  {
+    // TODO(ishell): Consider doing this for the Function.prototype and the
+    // String.length accessor infos as well.
+    CSA_ASSERT(this, IsAccessorInfo(value));
+    CSA_ASSERT(this, TaggedIsNotSmi(receiver));
+    GotoIfNot(IsJSArray(receiver), if_bailout);
+    // The only AccessorInfo on JSArray is the "length" property.
+    CSA_ASSERT(this, IsLengthString(
+                         LoadObjectField(value, AccessorInfo::kNameOffset)));
+    var_value.Bind(LoadJSArrayLength(receiver));
     Goto(&done);
   }
 
