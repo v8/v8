@@ -63,12 +63,8 @@ Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
 }
 
 bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
-                         Handle<Object> member_id) {
-  int32_t member_kind;
-  if (!member_id->ToInt32(&member_kind)) {
-    UNREACHABLE();
-  }
-  switch (static_cast<wasm::AsmTyper::StandardMember>(member_kind)) {
+                         wasm::AsmTyper::StandardMember member) {
+  switch (member) {
     case wasm::AsmTyper::StandardMember::kNone:
     case wasm::AsmTyper::StandardMember::kModule:
     case wasm::AsmTyper::StandardMember::kStdlib:
@@ -286,28 +282,29 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   return result;
 }
 
-bool AsmJs::IsStdlibValid(Isolate* isolate, Handle<FixedArray> wasm_data,
-                          Handle<JSReceiver> stdlib) {
-  Handle<FixedArray> uses(FixedArray::cast(wasm_data->get(kWasmDataUsesArray)));
-  for (int i = 0; i < uses->length(); ++i) {
-    if (!IsStdlibMemberValid(isolate, stdlib,
-                             uses->GetValueChecked<Object>(isolate, i))) {
-      return false;
-    }
-  }
-  return true;
-}
-
 MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
                                               Handle<FixedArray> wasm_data,
-                                              Handle<JSArrayBuffer> memory,
-                                              Handle<JSReceiver> foreign) {
+                                              Handle<JSReceiver> stdlib,
+                                              Handle<JSReceiver> foreign,
+                                              Handle<JSArrayBuffer> memory) {
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
+  Handle<FixedArray> stdlib_uses(
+      FixedArray::cast(wasm_data->get(kWasmDataUsesArray)));
   Handle<WasmModuleObject> module(
       WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)));
   Handle<FixedArray> foreign_globals(
       FixedArray::cast(wasm_data->get(kWasmDataForeignGlobals)));
+
+  // Check that all used stdlib members are valid.
+  for (int i = 0; i < stdlib_uses->length(); ++i) {
+    int member_id = Smi::cast(stdlib_uses->get(i))->value();
+    wasm::AsmTyper::StandardMember member =
+        static_cast<wasm::AsmTyper::StandardMember>(member_id);
+    if (!IsStdlibMemberValid(isolate, stdlib, member)) {
+      return MaybeHandle<Object>();
+    }
+  }
 
   // Create the ffi object for foreign functions {"": foreign}.
   Handle<JSObject> ffi_object;
