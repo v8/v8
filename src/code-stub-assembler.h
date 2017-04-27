@@ -501,23 +501,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Node* object, Node* index, Node* value,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
-  // EnsureArrayPushable verifies that receiver is:
-  //   1. Is not a prototype.
-  //   2. Is not a dictionary.
-  //   3. Has a writeable length property.
-  // It returns ElementsKind as a node for further division into cases.
-  Node* EnsureArrayPushable(Node* receiver, Label* bailout);
-
-  void TryStoreArrayElement(ElementsKind kind, ParameterMode mode,
-                            Label* bailout, Node* elements, Node* index,
-                            Node* value);
-  // Consumes args into the array, and returns tagged new length.
-  Node* BuildAppendJSArray(ElementsKind kind, Node* array,
+  Node* BuildAppendJSArray(ElementsKind kind, Node* context, Node* array,
                            CodeStubArguments& args, Variable& arg_index,
                            Label* bailout);
-  // Pushes value onto the end of array.
-  void BuildAppendJSArray(ElementsKind kind, Node* array, Node* value,
-                          Label* bailout);
 
   void StoreFieldsNoWriteBarrier(Node* start_address, Node* end_address,
                                  Node* value);
@@ -677,14 +663,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                              Node* capacity, Node* new_capacity,
                              ParameterMode mode, Label* bailout);
 
-  // Given a need to grow by |growth|, allocate an appropriate new capacity
-  // if necessary, and return a new elements FixedArray object. Label |bailout|
-  // is followed for allocation failure.
-  void PossiblyGrowElementsCapacity(ParameterMode mode, ElementsKind kind,
-                                    Node* array, Node* length,
-                                    Variable* var_elements, Node* growth,
-                                    Label* bailout);
-
   // Allocation site manipulation
   void InitializeAllocationMemento(Node* base_allocation,
                                    int base_allocation_size,
@@ -771,8 +749,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // ElementsKind helpers:
   Node* IsFastElementsKind(Node* elements_kind);
   Node* IsHoleyFastElementsKind(Node* elements_kind);
-  Node* IsElementsKindGreaterThan(Node* target_kind,
-                                  ElementsKind reference_kind);
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
