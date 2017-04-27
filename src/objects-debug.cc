@@ -480,12 +480,12 @@ void JSArgumentsObject::JSArgumentsObjectVerify() {
 
 void JSSloppyArgumentsObject::JSSloppyArgumentsObjectVerify() {
   Isolate* isolate = GetIsolate();
+  if (!map()->is_dictionary_map()) VerifyObjectField(kCalleeOffset);
   if (isolate->IsInAnyContext(map(), Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
       isolate->IsInAnyContext(map(),
                               Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
       isolate->IsInAnyContext(map(),
                               Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
-    // We can only verify the in-object fields for the original maps.
     VerifyObjectField(kLengthOffset);
     VerifyObjectField(kCalleeOffset);
   }
@@ -504,6 +504,7 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
   if (get(kArgumentsIndex)->IsUndefined(isolate)) return;
 
   ElementsKind kind = holder->GetElementsKind();
+  bool is_fast = kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
   CHECK(IsFixedArray());
   CHECK_GE(length(), 2);
   CHECK_EQ(map(), isolate->heap()->sloppy_arguments_elements_map());
@@ -518,7 +519,7 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
   CHECK_LE(nofMappedParameters, context_object->length());
   CHECK_LE(nofMappedParameters, arg_elements->length());
   ElementsAccessor* accessor;
-  if (kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
+  if (is_fast) {
     accessor = ElementsAccessor::ForKind(FAST_HOLEY_ELEMENTS);
   } else {
     accessor = ElementsAccessor::ForKind(DICTIONARY_ELEMENTS);
@@ -527,12 +528,18 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
     Object* mapped = get_mapped_entry(i);
-    if (mapped->IsTheHole(isolate)) continue;
+    if (mapped->IsTheHole(isolate)) {
+      // Slow sloppy arguments can be holey.
+      if (!is_fast) continue;
+      // Fast sloppy arguments elements are never holey. Either the element is
+      // context-mapped or present in the arguments elements.
+      CHECK(accessor->HasElement(holder, i, arg_elements));
+      continue;
+    }
     Object* value = context_object->get(Smi::cast(mapped)->value());
     CHECK(value->IsObject());
     // None of the context-mapped entries should exist in the arguments
-    // elements unless they have been deleted and readded, which would leave
-    // the_hole in the parameter map.
+    // elements.
     CHECK(!accessor->HasElement(holder, i, arg_elements));
   }
 }
