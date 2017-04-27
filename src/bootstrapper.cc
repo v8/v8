@@ -569,6 +569,20 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
     native_context()->set_initial_object_prototype(*object_function_prototype);
     JSFunction::SetPrototype(object_fun, object_function_prototype);
+
+    {
+      // Set up slow map for Object.create(null) instances without in-object
+      // properties.
+      Handle<Map> map(object_fun->initial_map(), isolate);
+      map = Map::CopyInitialMapNormalized(map);
+      Map::SetPrototype(map, isolate->factory()->null_value());
+      native_context()->set_slow_object_with_null_prototype_map(*map);
+
+      // Set up slow map for literals with too many properties.
+      map = Map::Copy(map, "slow_object_with_object_prototype_map");
+      Map::SetPrototype(map, object_function_prototype);
+      native_context()->set_slow_object_with_object_prototype_map(*map);
+    }
   }
 
   // Allocate the empty function as the prototype for function - ES6 19.2.3
@@ -4247,20 +4261,13 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
   // Store the map for the %ObjectPrototype% after the natives has been compiled
   // and the Object function has been set up.
-  Handle<JSFunction> object_function(native_context()->object_function());
-  DCHECK(JSObject::cast(object_function->initial_map()->prototype())
-             ->HasFastProperties());
-  native_context()->set_object_function_prototype_map(
-      HeapObject::cast(object_function->initial_map()->prototype())->map());
-
-  // Set up the map for Object.create(null) instances.
-  Handle<Map> slow_object_with_null_prototype_map =
-      Map::CopyInitialMap(handle(object_function->initial_map(), isolate()));
-  slow_object_with_null_prototype_map->set_dictionary_map(true);
-  Map::SetPrototype(slow_object_with_null_prototype_map,
-                    isolate()->factory()->null_value());
-  native_context()->set_slow_object_with_null_prototype_map(
-      *slow_object_with_null_prototype_map);
+  {
+    Handle<JSFunction> object_function(native_context()->object_function());
+    DCHECK(JSObject::cast(object_function->initial_map()->prototype())
+               ->HasFastProperties());
+    native_context()->set_object_function_prototype_map(
+        HeapObject::cast(object_function->initial_map()->prototype())->map());
+  }
 
   // Store the map for the %StringPrototype% after the natives has been compiled
   // and the String function has been set up.

@@ -750,7 +750,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE static bool IsBoilerplateProperty(
       ObjectLiteral::Property* property) {
-    return ObjectLiteral::IsBoilerplateProperty(property);
+    return !property->IsPrototype();
   }
 
   V8_INLINE bool IsNative(Expression* expr) const {

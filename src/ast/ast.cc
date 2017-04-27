@@ -490,7 +490,7 @@ void ObjectLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
     ObjectLiteral::Property* property = properties()->at(property_index);
 
     Expression* value = property->value();
-    if (property->kind() != ObjectLiteral::Property::PROTOTYPE) {
+    if (!property->IsPrototype()) {
       if (FunctionLiteral::NeedsHomeObject(value)) {
         property->SetSlot(spec->AddStoreICSlot(language_mode));
       }
@@ -512,7 +512,7 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (property->is_computed_name()) continue;
-    if (property->kind() == ObjectLiteral::Property::PROTOTYPE) continue;
+    if (property->IsPrototype()) continue;
     Literal* literal = property->key()->AsLiteral();
     DCHECK(!literal->IsNullLiteral());
 
@@ -532,31 +532,42 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   }
 }
 
-
-bool ObjectLiteral::IsBoilerplateProperty(ObjectLiteral::Property* property) {
-  return property != NULL &&
-         property->kind() != ObjectLiteral::Property::PROTOTYPE;
+void ObjectLiteral::InitFlagsForPendingNullPrototype(int i) {
+  // We still check for __proto__:null after computed property names.
+  for (; i < properties()->length(); i++) {
+    if (properties()->at(i)->IsNullPrototype()) {
+      set_has_null_protoype(true);
+      break;
+    }
+  }
 }
 
 void ObjectLiteral::InitDepthAndFlags() {
-  if (depth_ > 0) return;
-
-  int position = 0;
-  // Accumulate the value in local variables and store it at the end.
+  if (is_initialized()) return;
   bool is_simple = true;
+  bool has_seen_prototype = false;
   int depth_acc = 1;
-  uint32_t max_element_index = 0;
+  uint32_t nof_properties = 0;
   uint32_t elements = 0;
+  uint32_t max_element_index = 0;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
-    if (!IsBoilerplateProperty(property)) {
+    if (property->IsPrototype()) {
+      has_seen_prototype = true;
+      // __proto__:null has no side-effects and is set directly on the
+      // boilerplate.
+      if (property->IsNullPrototype()) {
+        set_has_null_protoype(true);
+        continue;
+      }
+      DCHECK(!has_null_prototype());
       is_simple = false;
       continue;
     }
-
-    if (static_cast<uint32_t>(position) == boilerplate_properties_ * 2) {
+    if (nof_properties == boilerplate_properties_) {
       DCHECK(property->is_computed_name());
       is_simple = false;
+      if (!has_seen_prototype) InitFlagsForPendingNullPrototype(i);
       break;
     }
     DCHECK(!property->is_computed_name());
@@ -596,15 +607,12 @@ void ObjectLiteral::InitDepthAndFlags() {
       elements++;
     }
 
-    // Increment the position for the key and the value.
-    position += 2;
+    nof_properties++;
   }
 
-  bit_field_ = FastElementsField::update(
-      bit_field_,
-      (max_element_index <= 32) || ((2 * elements) >= max_element_index));
-  bit_field_ = HasElementsField::update(bit_field_, elements > 0);
-
+  set_fast_elements((max_element_index <= 32) ||
+                    ((2 * elements) >= max_element_index));
+  set_has_elements(elements > 0);
   set_is_simple(is_simple);
   set_depth(depth_acc);
 }
@@ -616,7 +624,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   bool has_seen_proto = false;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
-    if (!IsBoilerplateProperty(property)) {
+    if (property->IsPrototype()) {
       has_seen_proto = true;
       continue;
     }
@@ -641,9 +649,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   int position = 0;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
-    if (!IsBoilerplateProperty(property)) {
-      continue;
-    }
+    if (property->IsPrototype()) continue;
 
     if (static_cast<uint32_t>(position) == boilerplate_properties_ * 2) {
       DCHECK(property->is_computed_name());
@@ -693,7 +699,7 @@ ElementsKind ArrayLiteral::constant_elements_kind() const {
 void ArrayLiteral::InitDepthAndFlags() {
   DCHECK_LT(first_spread_index_, 0);
 
-  if (depth_ > 0) return;
+  if (is_initialized()) return;
 
   int constants_length = values()->length();
 

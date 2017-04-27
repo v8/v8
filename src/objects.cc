@@ -8707,9 +8707,8 @@ Handle<Map> Map::TransitionToImmutableProto(Handle<Map> map) {
   return new_map;
 }
 
-Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
-                                int in_object_properties,
-                                int unused_property_fields) {
+namespace {
+void EnsureInitialMap(Handle<Map> map) {
 #ifdef DEBUG
   Isolate* isolate = map->GetIsolate();
   // Strict function maps have Function as a constructor but the
@@ -8727,7 +8726,21 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
   DCHECK(map->owns_descriptors());
   DCHECK_EQ(map->NumberOfOwnDescriptors(),
             map->instance_descriptors()->number_of_descriptors());
+}
+}  // namespace
 
+// static
+Handle<Map> Map::CopyInitialMapNormalized(Handle<Map> map,
+                                          PropertyNormalizationMode mode) {
+  EnsureInitialMap(map);
+  return CopyNormalized(map, mode);
+}
+
+// static
+Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
+                                int in_object_properties,
+                                int unused_property_fields) {
+  EnsureInitialMap(map);
   Handle<Map> result = RawCopy(map, instance_size);
 
   // Please note instance_type and instance_size are set when allocated.

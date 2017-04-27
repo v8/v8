@@ -251,18 +251,12 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   Handle<Map> map =
       Map::GetObjectCreateMap(Handle<HeapObject>::cast(prototype));
 
-  bool is_dictionary_map = map->is_dictionary_map();
-  Handle<FixedArray> object_properties;
-  if (is_dictionary_map) {
-    // Allocate the actual properties dictionay up front to avoid invalid object
-    // state.
-    object_properties =
-        NameDictionary::New(isolate, NameDictionary::kInitialCapacity);
-  }
   // Actually allocate the object.
-  Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(map);
-  if (is_dictionary_map) {
-    object->set_properties(*object_properties);
+  Handle<JSObject> object;
+  if (map->is_dictionary_map()) {
+    object = isolate->factory()->NewSlowJSObjectFromMap(map);
+  } else {
+    object = isolate->factory()->NewJSObjectFromMap(map);
   }
 
   // Define the properties if properties was specified and is not undefined.

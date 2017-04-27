@@ -2047,6 +2047,21 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
   return result;
 }
 
+Node* CodeStubAssembler::CopyNameDictionary(Node* dictionary,
+                                            Label* large_object_fallback) {
+  Comment("Copy boilerplate property dict");
+  Label done(this);
+  Node* length = SmiUntag(LoadFixedArrayBaseLength(dictionary));
+  GotoIf(
+      IntPtrGreaterThan(length, IntPtrConstant(FixedArray::kMaxRegularLength)),
+      large_object_fallback);
+  Node* properties =
+      AllocateNameDictionary(SmiUntag(GetCapacity<NameDictionary>(dictionary)));
+  CopyFixedArrayElements(FAST_ELEMENTS, dictionary, properties, length,
+                         SKIP_WRITE_BARRIER, INTPTR_PARAMETERS);
+  return properties;
+}
+
 Node* CodeStubAssembler::AllocateJSObjectFromMap(Node* map, Node* properties,
                                                  Node* elements,
                                                  AllocationFlags flags) {

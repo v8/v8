@@ -349,7 +349,7 @@ bytecodes: [
                 B(StaContextSlot), R(1), U8(9), U8(0),
                 B(Mov), R(context), R(10),
                 B(Mov), R(context), R(11),
-  /*   30 S> */ B(CreateArrayLiteral), U8(1), U8(2), U8(9),
+  /*   30 S> */ B(CreateArrayLiteral), U8(1), U8(2), U8(17),
                 B(Star), R(12),
                 B(LdaNamedProperty), R(12), U8(2), U8(3),
                 B(Star), R(13),

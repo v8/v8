@@ -343,6 +343,8 @@ enum ContextLookupFlags {
   V(SLOW_ALIASED_ARGUMENTS_MAP_INDEX, Map, slow_aliased_arguments_map)         \
   V(SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP, Map,                                  \
     slow_object_with_null_prototype_map)                                       \
+  V(SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP, Map,                                \
+    slow_object_with_object_prototype_map)                                     \
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, UnseededNumberDictionary,        \
     slow_template_instantiations_cache)                                        \
   V(STRICT_ARGUMENTS_MAP_INDEX, Map, strict_arguments_map)                     \

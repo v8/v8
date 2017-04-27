@@ -569,6 +569,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* AllocateNameDictionary(int capacity);
   Node* AllocateNameDictionary(Node* capacity);
+  Node* CopyNameDictionary(Node* dictionary, Label* large_object_fallback);
 
   Node* AllocateJSObjectFromMap(Node* map, Node* properties = nullptr,
                                 Node* elements = nullptr,

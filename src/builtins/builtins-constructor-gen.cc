@@ -617,30 +617,48 @@ TF_BUILTIN(FastCloneShallowArrayDontTrack, ConstructorBuiltinsAssembler) {
 
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     Label* call_runtime, Node* closure, Node* literals_index,
-    Node* properties_count) {
+    Node* fast_properties_count) {
   Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
   Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
   Node* allocation_site = LoadFixedArrayElement(
       feedback_vector, literals_index, 0, CodeStubAssembler::SMI_PARAMETERS);
   GotoIf(IsUndefined(allocation_site), call_runtime);
 
+  Node* boilerplate =
+      LoadObjectField(allocation_site, AllocationSite::kTransitionInfoOffset);
+  Node* boilerplate_map = LoadMap(boilerplate);
+  Variable properties(this, MachineRepresentation::kTagged,
+                      EmptyFixedArrayConstant());
+  // TODO(cbruni): directly use the property count from the boilerplate map.
+  Variable in_object_property_count(this, MachineType::PointerRepresentation(),
+                                    fast_properties_count);
+  // Directly copy over the property store for dict-mode boilerplates.
+  Label dict_properties(this), allocate_object(this);
+  Branch(IsDictionaryMap(boilerplate_map), &dict_properties, &allocate_object);
+  Bind(&dict_properties);
+  {
+    properties.Bind(
+        CopyNameDictionary(LoadProperties(boilerplate), call_runtime));
+    in_object_property_count.Bind(IntPtrConstant(0));
+    Goto(&allocate_object);
+  }
+  Bind(&allocate_object);
+
   // Calculate the object and allocation size based on the properties count.
-  Node* object_size = IntPtrAdd(WordShl(properties_count, kPointerSizeLog2),
-                                IntPtrConstant(JSObject::kHeaderSize));
+  Node* object_size =
+      IntPtrAdd(WordShl(in_object_property_count.value(), kPointerSizeLog2),
+                IntPtrConstant(JSObject::kHeaderSize));
   Node* allocation_size = object_size;
   if (FLAG_allocation_site_pretenuring) {
     allocation_size =
         IntPtrAdd(object_size, IntPtrConstant(AllocationMemento::kSize));
   }
-  Node* boilerplate =
-      LoadObjectField(allocation_site, AllocationSite::kTransitionInfoOffset);
-  Node* boilerplate_map = LoadMap(boilerplate);
+
   Node* instance_size = LoadMapInstanceSize(boilerplate_map);
   Node* size_in_words = WordShr(object_size, kPointerSizeLog2);
   GotoIfNot(WordEqual(instance_size, size_in_words), call_runtime);
 
   Node* copy = AllocateInNewSpace(allocation_size);
-
   // Copy boilerplate elements.
   VARIABLE(offset, MachineType::PointerRepresentation());
   offset.Bind(IntPtrConstant(-kHeapObjectTag));
@@ -663,6 +681,9 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
     GotoIfNot(IntPtrGreaterThanOrEqual(offset.value(), end_offset), &loop_body);
   }
+
+  StoreObjectFieldNoWriteBarrier(copy, JSObject::kPropertiesOffset,
+                                 properties.value());
 
   if (FLAG_allocation_site_pretenuring) {
     Node* memento = InnerAllocate(copy, object_size);
