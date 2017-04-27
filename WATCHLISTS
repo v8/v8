@@ -90,7 +90,6 @@
     ],
     'gc_changes': [
       'hpayer@chromium.org',
-      'ulan@chromium.org',
     ],
     'arm': [
       'v8-mips-ports@googlegroups.com',
