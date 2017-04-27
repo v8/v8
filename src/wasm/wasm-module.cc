@@ -2502,8 +2502,7 @@ Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
   return array_object;
 }
 
-bool wasm::SyncValidate(Isolate* isolate, ErrorThrower* thrower,
-                        const ModuleWireBytes& bytes) {
+bool wasm::SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
   if (bytes.start() == nullptr || bytes.length() == 0) return false;
   ModuleResult result =
       DecodeWasmModule(isolate, bytes.start(), bytes.end(), true, kWasmOrigin);
