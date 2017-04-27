@@ -10,6 +10,8 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking.h"
+#include "src/heap/objects-visiting-inl.h"
+#include "src/heap/objects-visiting.h"
 #include "src/isolate.h"
 #include "src/locked-queue-inl.h"
 #include "src/utils-inl.h"
@@ -50,8 +52,11 @@ class ConcurrentMarkingMarkbits {
   std::unordered_map<MemoryChunk*, Bitmap*> bitmap_;
 };
 
-class ConcurrentMarkingVisitor : public ObjectVisitor {
+class ConcurrentMarkingVisitor final
+    : public HeapVisitor<int, ConcurrentMarkingVisitor> {
  public:
+  using BaseClass = HeapVisitor<int, ConcurrentMarkingVisitor>;
+
   ConcurrentMarkingVisitor() : bytes_marked_(0) {}
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
@@ -61,9 +66,95 @@ class ConcurrentMarkingVisitor : public ObjectVisitor {
     }
   }
 
+  // ===========================================================================
+  // JS object =================================================================
+  // ===========================================================================
+
+  int VisitJSObject(Map* map, JSObject* object) override {
+    // TODO(ulan): impement snapshot iteration.
+    return BaseClass::VisitJSObject(map, object);
+  }
+
+  int VisitJSObjectFast(Map* map, JSObject* object) override {
+    return VisitJSObject(map, object);
+  }
+
+  int VisitJSApiObject(Map* map, JSObject* object) override {
+    return VisitJSObject(map, object);
+  }
+
+  // ===========================================================================
+  // Fixed array object ========================================================
+  // ===========================================================================
+
+  int VisitFixedArray(Map* map, FixedArray* object) override {
+    // TODO(ulan): implement iteration with prefetched length.
+    return BaseClass::VisitFixedArray(map, object);
+  }
+
+  // ===========================================================================
+  // Code object ===============================================================
+  // ===========================================================================
+
+  int VisitCode(Map* map, Code* object) override {
+    // TODO(ulan): push the object to the bail-out deque.
+    return 0;
+  }
+
+  // ===========================================================================
+  // Objects with weak fields and/or side-effectiful visitation.
+  // ===========================================================================
+
+  int VisitBytecodeArray(Map* map, BytecodeArray* object) override {
+    // TODO(ulan): implement iteration of strong fields and push the object to
+    // the bailout deque.
+    return 0;
+  }
+
+  int VisitJSFunction(Map* map, JSFunction* object) override {
+    // TODO(ulan): implement iteration of strong fields and push the object to
+    // the bailout deque.
+    return 0;
+  }
+
+  int VisitMap(Map* map, Map* object) override {
+    // TODO(ulan): implement iteration of strong fields and push the object to
+    // the bailout deque.
+    return 0;
+  }
+
+  int VisitNativeContext(Map* map, Context* object) override {
+    // TODO(ulan): implement iteration of strong fields and push the object to
+    // the bailout deque.
+    return 0;
+  }
+
+  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) override {
+    // TODO(ulan): implement iteration of strong fields and push the object to
+    // the bailout deque.
+    return 0;
+  }
+
+  int VisitTransitionArray(Map* map, TransitionArray* object) override {
+    // TODO(ulan): implement iteration of strong fields and push the object to
+    // the bailout deque.
+    return 0;
+  }
+
+  int VisitWeakCell(Map* map, WeakCell* object) override {
+    // TODO(ulan): implement iteration of strong fields and push the object to
+    // the bailout deque.
+    return 0;
+  }
+
+  int VisitJSWeakCollection(Map* map, JSWeakCollection* object) override {
+    // TODO(ulan): implement iteration of strong fields and push the object to
+    // the bailout deque.
+    return 0;
+  }
+
   void MarkObject(HeapObject* obj) {
     if (markbits_.Mark(obj)) {
-      bytes_marked_ += obj->Size();
       marking_stack_.push(obj);
     }
   }
@@ -72,7 +163,7 @@ class ConcurrentMarkingVisitor : public ObjectVisitor {
     while (!marking_stack_.empty()) {
       HeapObject* obj = marking_stack_.top();
       marking_stack_.pop();
-      obj->Iterate(this);
+      bytes_marked_ += IterateBody(obj);
     }
   }
 

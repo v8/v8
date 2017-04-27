@@ -239,6 +239,22 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class ByteArray::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) { return false; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {}
+
+  template <typename StaticVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size) {}
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return reinterpret_cast<ByteArray*>(obj)->ByteArraySize();
+  }
+};
+
 class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(HeapObject* obj, int offset) {
@@ -264,6 +280,23 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
     return reinterpret_cast<BytecodeArray*>(obj)->BytecodeArraySize();
+  }
+};
+
+class FixedDoubleArray::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) { return false; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {}
+
+  template <typename StaticVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size) {}
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return FixedDoubleArray::SizeFor(
+        reinterpret_cast<FixedDoubleArray*>(obj)->length());
   }
 };
 
@@ -459,6 +492,39 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class SeqOneByteString::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) { return false; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {}
+
+  template <typename StaticVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size) {}
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    SeqOneByteString* string = SeqOneByteString::cast(obj);
+    return string->SizeFor(string->length());
+  }
+};
+
+class SeqTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) { return false; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {}
+
+  template <typename StaticVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size) {}
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    SeqTwoByteString* string = SeqTwoByteString::cast(obj);
+    return string->SizeFor(string->length());
+  }
+};
 
 template <typename Op, typename ReturnType, typename T1, typename T2,
           typename T3>
