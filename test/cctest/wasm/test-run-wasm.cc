@@ -2970,3 +2970,34 @@ WASM_EXEC_TEST(Int32RemS_dead) {
   CHECK_TRAP(r.Call(-1001, 0));
   CHECK_TRAP(r.Call(kMin, 0));
 }
+
+WASM_EXEC_TEST(BrToLoopWithValue) {
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
+  // Subtracts <1> times 3 from <0> and returns the result.
+  BUILD(r,
+        // loop i32
+        kExprLoop, kLocalI32,
+        // decrement <0> by 3.
+        WASM_SET_LOCAL(0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V_1(3))),
+        // decrement <1> by 1.
+        WASM_SET_LOCAL(1, WASM_I32_SUB(WASM_GET_LOCAL(1), WASM_ONE)),
+        // load return value <0>, br_if will drop if if the branch is taken.
+        WASM_GET_LOCAL(0),
+        // continue loop if <1> is != 0.
+        WASM_BR_IF(0, WASM_GET_LOCAL(1)),
+        // end of loop, value loaded above is the return value.
+        kExprEnd);
+  CHECK_EQ(12, r.Call(27, 5));
+}
+
+WASM_EXEC_TEST(BrToLoopWithoutValue) {
+  // This was broken in the interpreter, see http://crbug.com/715454
+  WasmRunner<int32_t, int32_t> r(execution_mode);
+  BUILD(
+      r, kExprLoop, kLocalI32,                                       // loop i32
+      WASM_SET_LOCAL(0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_ONE)),  // dec <0>
+      WASM_BR_IF(0, WASM_GET_LOCAL(0)),  // br_if <0> != 0
+      kExprUnreachable,                  // unreachable
+      kExprEnd);                         // end
+  CHECK_TRAP32(r.Call(2));
+}

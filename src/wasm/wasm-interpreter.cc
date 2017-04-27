@@ -814,16 +814,20 @@ class SideTable : public ZoneObject {
       stack_height = stack_height - stack_effect.first + stack_effect.second;
       if (stack_height > max_stack_height_) max_stack_height_ = stack_height;
       switch (opcode) {
-        case kExprBlock:
-        case kExprLoop: {
-          bool loop = opcode == kExprLoop;
+        case kExprBlock: {
           BlockTypeOperand<false> operand(&i, i.pc());
-          TRACE("control @%u: %s, arity %d\n", i.pc_offset(),
-                loop ? "Loop" : "Block", operand.arity);
+          TRACE("control @%u: Block, arity %d\n", i.pc_offset(), operand.arity);
           CLabel* label =
               CLabel::New(&control_transfer_zone, stack_height, operand.arity);
           control_stack.push_back({i.pc(), label, nullptr});
-          if (loop) label->Bind(i.pc());
+          break;
+        }
+        case kExprLoop: {
+          TRACE("control @%u: Loop\n", i.pc_offset());
+          // Arity is always 0 for loop labels.
+          CLabel* label = CLabel::New(&control_transfer_zone, stack_height, 0);
+          control_stack.push_back({i.pc(), label, nullptr});
+          label->Bind(i.pc());
           break;
         }
         case kExprIf: {
