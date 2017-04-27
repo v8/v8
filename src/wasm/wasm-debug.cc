@@ -362,6 +362,7 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   Isolate* isolate = instance->GetIsolate();
   Factory* factory = isolate->factory();
   Handle<FixedArray> arr = factory->NewFixedArray(kFieldCount, TENURED);
+  arr->set(kWrapperTracerHeader, Smi::kZero);
   arr->set(kInstance, *instance);
   return Handle<WasmDebugInfo>::cast(arr);
 }
