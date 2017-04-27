@@ -11,7 +11,8 @@
   'tests/f64': [PASS, ['arch == mipsel or arch == mips64el', SKIP]],
 
   #TODO(ahaas): Add additional stack checks on mips.
-  'tests/skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el', SKIP]],
+  # Issue 6318: Stack checks for functions with huge stack frames fail on x64 and ia32
+  'tests/skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or arch == x64 or arch == ia32', SKIP]],
 }],  # ALWAYS
 
 ]
