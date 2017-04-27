@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 
+from common_includes import FileToText
 import backport_node
 
 # Base paths.
@@ -61,6 +62,10 @@ class TestUpdateNode(unittest.TestCase):
         cwd=node_cwd,
     )
     self.assertIn('+zonk', gitlog.strip())
+
+    # Check version.
+    version_file = os.path.join(node_cwd, "deps", "v8", "include", "v8-version.h")
+    self.assertIn('#define V8_PATCH_LEVEL 4322', FileToText(version_file))
 
 if __name__ == "__main__":
   unittest.main()

@@ -14,7 +14,8 @@ Usage:
   $ backport_node.py <path_to_v8> <path_to_node> <commit-hash>
 
   This will apply the commit to <path_to_node>/deps/v8 and create a commit in
-  the Node.js checkout and copy over the original commit message.
+  the Node.js checkout, increment patch level, and copy over the original
+  commit message.
 
 Optional flags:
   --no-review  Run `gclient sync` on the V8 checkout before updating.
@@ -23,9 +24,19 @@ Optional flags:
 import argparse
 import os
 import subprocess
+import re
 import sys
 
+from common_includes import *
+
 TARGET_SUBDIR = os.path.join("deps", "v8")
+VERSION_FILE = os.path.join("include", "v8-version.h")
+VERSION_PATTERN = r'(?<=#define V8_PATCH_LEVEL )\d+'
+
+def Clean(options):
+  print ">> Cleaning target directory."
+  subprocess.check_call(["git", "clean", "-fd"],
+                        cwd = os.path.join(options.node_path, TARGET_SUBDIR))
 
 def CherryPick(options):
   print ">> Apply patch."
@@ -41,6 +52,16 @@ def CherryPick(options):
     print ">> Finally continue by entering RESOLVED."
     while raw_input("[RESOLVED]") != "RESOLVED":
       print ">> You need to type RESOLVED"
+
+def UpdateVersion(options):
+  print ">> Increment patch level."
+  version_file = os.path.join(options.node_path, TARGET_SUBDIR, VERSION_FILE)
+  text = FileToText(version_file)
+  def increment(match):
+    patch = int(match.group(0))
+    return str(patch + 1)
+  text = re.sub(VERSION_PATTERN, increment, text, flags=re.MULTILINE)
+  TextToFile(text, version_file)
 
 def CreateCommit(options):
   print ">> Creating commit."
@@ -84,8 +105,10 @@ def ParseOptions(args):
 
 def Main(args):
   options = ParseOptions(args)
+  Clean(options)
   try:
     CherryPick(options)
+    UpdateVersion(options)
     CreateCommit(options)
   except:
     print ">> Failed. Resetting."
