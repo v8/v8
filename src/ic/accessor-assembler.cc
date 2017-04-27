@@ -1521,7 +1521,10 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     TryProbeStubCache(isolate()->load_stub_cache(), receiver, key,
                       &found_handler, &var_handler, &stub_cache_miss);
     BIND(&found_handler);
-    { HandleLoadICHandlerCase(p, var_handler.value(), slow, &direct_exit); }
+    {
+      HandleLoadICHandlerCase(p, var_handler.value(), &stub_cache_miss,
+                              &direct_exit);
+    }
 
     BIND(&stub_cache_miss);
     {
