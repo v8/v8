@@ -63,7 +63,8 @@ Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
 }
 
 bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
-                         wasm::AsmTyper::StandardMember member) {
+                         wasm::AsmTyper::StandardMember member,
+                         bool* is_typed_array) {
   switch (member) {
     case wasm::AsmTyper::StandardMember::kNone:
     case wasm::AsmTyper::StandardMember::kModule:
@@ -125,6 +126,7 @@ bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
 #undef STDLIB_MATH_CONST
 #define STDLIB_ARRAY_TYPE(fname, FName)                                  \
   case wasm::AsmTyper::StandardMember::k##FName: {                       \
+    *is_typed_array = true;                                              \
     if (stdlib.is_null()) {                                              \
       return false;                                                      \
     }                                                                    \
@@ -297,11 +299,13 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       FixedArray::cast(wasm_data->get(kWasmDataForeignGlobals)));
 
   // Check that all used stdlib members are valid.
+  bool stdlib_use_of_typed_array_present = false;
   for (int i = 0; i < stdlib_uses->length(); ++i) {
     int member_id = Smi::cast(stdlib_uses->get(i))->value();
     wasm::AsmTyper::StandardMember member =
         static_cast<wasm::AsmTyper::StandardMember>(member_id);
-    if (!IsStdlibMemberValid(isolate, stdlib, member)) {
+    if (!IsStdlibMemberValid(isolate, stdlib, member,
+                             &stdlib_use_of_typed_array_present)) {
       return MaybeHandle<Object>();
     }
   }
@@ -314,6 +318,17 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     ffi_object = isolate->factory()->NewJSObject(object_function);
     JSObject::AddProperty(ffi_object, isolate->factory()->empty_string(),
                           foreign, NONE);
+  }
+
+  // Check that a valid heap buffer is provided if required.
+  if (stdlib_use_of_typed_array_present) {
+    if (memory.is_null()) return MaybeHandle<Object>();
+    size_t size = NumberToSize(memory->byte_length());
+    // TODO(mstarzinger): We currently only limit byte length of the buffer to
+    // be a multiple of 8, we should enforce the stricter spec limits here.
+    if (size % FixedTypedArrayBase::kMaxElementSize != 0) {
+      return MaybeHandle<Object>();
+    }
   }
 
   wasm::ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
