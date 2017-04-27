@@ -564,8 +564,13 @@ void MacroAssembler::Subu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     subu(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm32_) && !MustUseReg(rt.rmode_)) {
+    if (is_int16(-rt.imm32_) && !MustUseReg(rt.rmode_)) {
       addiu(rd, rs, -rt.imm32_);  // No subiu instr, use addiu(x, y, -imm).
+    } else if (!(-rt.imm32_ & kHiMask) && !MustUseReg(rt.rmode_)) {  // Use load
+      // -imm and addu for cases where loading -imm generates one instruction.
+      DCHECK(!rs.is(at));
+      li(at, -rt.imm32_);
+      addu(rd, rs, at);
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
