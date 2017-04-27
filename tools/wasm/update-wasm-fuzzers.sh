@@ -5,9 +5,9 @@
 
 set -e
 
-TOOLS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+TOOLS_WASM_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-cd ${TOOLS_DIR}/..
+cd ${TOOLS_WASM_DIR}/../..
 
 rm -rf test/fuzzer/wasm
 rm -rf test/fuzzer/wasm_asmjs
@@ -24,13 +24,13 @@ mkdir -p test/fuzzer/wasm_asmjs
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
   --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm_asmjs/" mjsunit/asm/*
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_asmjs/" mjsunit/regress/asm/*
 # WASM
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
   --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm/" unittests
+./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
+  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
+  --dump-wasm-module-path=./test/fuzzer/wasm/" wasm-spec-tests/*
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
   --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm/" mjsunit/wasm/*

@@ -16,8 +16,6 @@ class WasmSpecTestsTestSuite(testsuite.TestSuite):
     for dirname, dirs, files in os.walk(self.root):
       for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
-      dirs.sort()
-      files.sort()
       for filename in files:
         if (filename.endswith(".js")):
           fullpath = os.path.join(dirname, filename)
