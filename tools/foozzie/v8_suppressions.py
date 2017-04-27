@@ -46,25 +46,6 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/regress/regress-2989.js',
   ],
 
-  'crbug.com/681088': [
-    '/v8/test/mjsunit/asm/asm-validation.js',
-    '/v8/test/mjsunit/asm/b5528-comma.js',
-    '/v8/test/mjsunit/asm/pointer-masking.js',
-    '/v8/test/mjsunit/compiler/regress-443744.js',
-    '/v8/test/mjsunit/regress/regress-599719.js',
-    '/v8/test/mjsunit/regress/wasm/regression-647649.js',
-    '/v8/test/mjsunit/wasm/asm-wasm.js',
-    '/v8/test/mjsunit/wasm/asm-wasm-deopt.js',
-    '/v8/test/mjsunit/wasm/asm-wasm-heap.js',
-    '/v8/test/mjsunit/wasm/asm-wasm-literals.js',
-    '/v8/test/mjsunit/wasm/asm-wasm-stack.js',
-  ],
-
-  'crbug.com/681241': [
-    '/v8/test/mjsunit/regress/regress-617526.js',
-    '/v8/test/mjsunit/regress/wasm/regression-02862.js',
-  ],
-
   'crbug.com/688159': [
     '/v8/test/mjsunit/es7/exponentiation-operator.js',
   ],
@@ -107,16 +88,8 @@ IGNORE_OUTPUT = {
         re.compile(r'RangeError(?!: byte length)', re.S),
     'crbug.com/667678':
         re.compile(r'\[native code\]', re.S),
-    'crbug.com/681806':
-        re.compile(r'WebAssembly\.Instance', re.S),
-    'crbug.com/681088':
-        re.compile(r'TypeError: Cannot read property \w+ of undefined', re.S),
     'crbug.com/689877':
         re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
-  },
-  'validate_asm': {
-    'validate_asm':
-        re.compile(r'TypeError'),
   },
 }
 
@@ -142,10 +115,6 @@ ALLOWED_LINE_DIFFS = [
   # Some test cases just print the message.
   r'^.* is not a function(.*)$',
   r'^(.*) is not a .*$',
-
-  # crbug.com/662840
-  r"^.*(?:Trying to access ')?(\w*)(?:(?:' through proxy)|"
-  r"(?: is not defined))$",
 
   # crbug.com/680064. This subsumes one of the above expressions.
   r'^(.*)TypeError: .* function$',
