@@ -18,6 +18,7 @@
     'mkgrokdump/mkgrokdump.isolate',
     'preparser/preparser.isolate',
     'unittests/unittests.isolate',
+    'wasm-spec-tests/wasm-spec-tests.isolate',
     'webkit/webkit.isolate',
   ],
 }

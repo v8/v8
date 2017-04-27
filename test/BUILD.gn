@@ -52,6 +52,7 @@ group("default_tests") {
       ":mkgrokdump_run",
       ":preparser_run",
       ":unittests_run",
+      ":wasm_spec_tests_run",
     ]
   }
 }
@@ -196,6 +197,14 @@ v8_isolate_run("unittests") {
   ]
 
   isolate = "unittests/unittests.isolate"
+}
+
+v8_isolate_run("wasm_spec_tests") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "wasm-spec-tests/wasm-spec-tests.isolate"
 }
 
 v8_isolate_run("webkit") {

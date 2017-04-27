@@ -202,6 +202,17 @@ hooks = [
     ],
   },
   {
+    "name": "wasm_spec_tests",
+    "pattern": ".",
+    "action": [ "download_from_google_storage",
+                "--no_resume",
+                "--no_auth",
+                "-u",
+                "--bucket", "v8-wasm-spec-tests",
+                "-s", "v8/test/wasm-spec-tests/tests.tar.gz.sha1",
+    ],
+  },
+  {
     "name": "wasm_fuzzer",
     "pattern": ".",
     "action": [ "download_from_google_storage",
