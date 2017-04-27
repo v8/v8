@@ -2143,9 +2143,9 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
     Object* fun = it.frame()->function();
     if (fun && fun->IsJSFunction()) {
       HandleScope scope(isolate_);
+      Handle<JSFunction> function(JSFunction::cast(fun), isolate_);
       // Don't stop in builtin and blackboxed functions.
-      Handle<SharedFunctionInfo> shared(JSFunction::cast(fun)->shared(),
-                                        isolate_);
+      Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
       bool ignore_break = ignore_break_mode == kIgnoreIfTopFrameBlackboxed
                               ? IsBlackboxed(shared)
                               : AllFramesOnStackAreBlackboxed();
@@ -2158,12 +2158,11 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
         // TODO(yangguo): introduce break_on_function_entry since current
         // implementation is slow.
         if (isolate_->stack_guard()->CheckDebugBreak()) {
-          Deoptimizer::DeoptimizeFunction(JSFunction::cast(fun));
+          Deoptimizer::DeoptimizeFunction(*function);
         }
         return;
       }
-      JSGlobalObject* global =
-          JSFunction::cast(fun)->context()->global_object();
+      JSGlobalObject* global = function->context()->global_object();
       // Don't stop in debugger functions.
       if (IsDebugGlobal(global)) return;
       // Don't stop if the break location is muted.
