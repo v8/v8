@@ -225,6 +225,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       RECURSE(Visit(stmt));
       if (typer_failed_) break;
+      // Not stopping when a jump statement is found.
     }
   }
 
