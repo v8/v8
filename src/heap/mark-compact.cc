@@ -230,6 +230,8 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
  protected:
   explicit EvacuationVerifier(Heap* heap) : heap_(heap) {}
 
+  inline Heap* heap() { return heap_; }
+
   virtual void VerifyPointers(Object** start, Object** end) = 0;
 
   void VerifyRoots(VisitMode mode);
@@ -293,6 +295,9 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
+        if (heap()->InNewSpace(object)) {
+          CHECK(heap()->InToSpace(object));
+        }
         CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
       }
     }
