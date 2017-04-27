@@ -365,7 +365,7 @@ TickProcessor.prototype.processTick = function(pc,
     // Find out, if top of stack was pointing inside a JS function
     // meaning that we have encountered a frameless invocation.
     var funcEntry = this.profile_.findEntry(tos_or_external_callback);
-    if (!funcEntry) {
+    if (!funcEntry || !funcEntry.isJSFunction || !funcEntry.isJSFunction()) {
       tos_or_external_callback = 0;
     }
   }
