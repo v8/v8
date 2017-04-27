@@ -449,7 +449,7 @@ void GrowDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
 //============================================================================
 //== Compilation and instantiation ===========================================
 //============================================================================
-V8_EXPORT_PRIVATE bool SyncValidate(Isolate* isolate,
+V8_EXPORT_PRIVATE bool SyncValidate(Isolate* isolate, ErrorThrower* thrower,
                                     const ModuleWireBytes& bytes);
 
 V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
