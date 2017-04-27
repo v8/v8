@@ -2083,11 +2083,9 @@ class ThreadImpl {
   void EnsureStackSpace(size_t size) {
     if (V8_LIKELY(static_cast<size_t>(stack_limit_ - sp_) >= size)) return;
     size_t old_size = stack_limit_ - stack_start_;
-    size_t new_size = Max(size_t{8}, 2 * old_size);
-    while (new_size < (sp_ - stack_start_) + size) {
-      DCHECK_GE(std::numeric_limits<decltype(new_size)>::max() / 4, new_size);
-      new_size *= 2;
-    }
+    size_t requested_size =
+        base::bits::RoundUpToPowerOfTwo64((sp_ - stack_start_) + size);
+    size_t new_size = Max(size_t{8}, Max(2 * old_size, requested_size));
     WasmVal* new_stack = zone_->NewArray<WasmVal>(new_size);
     memcpy(new_stack, stack_start_, old_size * sizeof(*sp_));
     sp_ = new_stack + (sp_ - stack_start_);
