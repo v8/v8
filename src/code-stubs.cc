@@ -856,6 +856,10 @@ TF_STUB(GetPropertyStub, CodeStubAssembler) {
         Goto(if_bailout);
       };
 
+  // Ensure that the {object} is actually a JSReceiver.
+  Callable callable = CodeFactory::ToObject(isolate());
+  object = CallStub(callable, context, object);
+
   TryPrototypeChainLookup(object, key, lookup_property_in_holder,
                           lookup_element_in_holder, &return_undefined,
                           &call_runtime);
