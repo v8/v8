@@ -1793,8 +1793,6 @@ class V8_EXPORT ValueSerializer {
     virtual void FreeBufferMemory(void* buffer);
   };
 
-  static uint32_t GetCurrentDataFormatVersion();
-
   explicit ValueSerializer(Isolate* isolate);
   ValueSerializer(Isolate* isolate, Delegate* delegate);
   ~ValueSerializer();
