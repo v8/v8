@@ -76,6 +76,7 @@ void Serializer::OutputStatistics(const char* name) {
     for (uint32_t chunk_size : completed_chunks_[space]) s += chunk_size;
     PrintF("%16" PRIuS, s);
   }
+  PrintF("%16d", num_maps_ * Map::kSize);
   PrintF("%16d\n", large_objects_total_size_);
 #ifdef OBJECT_PRINT
   PrintF("  Instance types (count and bytes):\n");
