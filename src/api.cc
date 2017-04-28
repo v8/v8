@@ -6326,11 +6326,11 @@ template <>
 struct InvokeBootstrapper<i::Context> {
   i::Handle<i::Context> Invoke(
       i::Isolate* isolate, i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
-      v8::Local<v8::ObjectTemplate> global_object_template,
+      v8::Local<v8::ObjectTemplate> global_proxy_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
       v8::DeserializeInternalFieldsCallback embedder_fields_deserializer) {
     return isolate->bootstrapper()->CreateEnvironment(
-        maybe_global_proxy, global_object_template, extensions,
+        maybe_global_proxy, global_proxy_template, extensions,
         context_snapshot_index, embedder_fields_deserializer);
   }
 };
@@ -6339,13 +6339,13 @@ template <>
 struct InvokeBootstrapper<i::JSGlobalProxy> {
   i::Handle<i::JSGlobalProxy> Invoke(
       i::Isolate* isolate, i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
-      v8::Local<v8::ObjectTemplate> global_object_template,
+      v8::Local<v8::ObjectTemplate> global_proxy_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
       v8::DeserializeInternalFieldsCallback embedder_fields_deserializer) {
     USE(extensions);
     USE(context_snapshot_index);
     return isolate->bootstrapper()->NewRemoteContext(maybe_global_proxy,
-                                                     global_object_template);
+                                                     global_proxy_template);
   }
 };
 
