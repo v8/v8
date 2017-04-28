@@ -1402,30 +1402,6 @@ class RepresentationSelector {
     return;
   }
 
-  void VisitOsrGuard(Node* node) {
-    VisitInputs(node);
-
-    // Insert a dynamic check for the OSR value type if necessary.
-    switch (OsrGuardTypeOf(node->op())) {
-      case OsrGuardType::kUninitialized:
-        // At this point, we should always have a type for the OsrValue.
-        UNREACHABLE();
-        break;
-      case OsrGuardType::kSignedSmall:
-        if (lower()) {
-          NodeProperties::ChangeOp(node,
-                                   simplified()->CheckedTaggedToTaggedSigned());
-        }
-        return SetOutput(node, MachineRepresentation::kTaggedSigned);
-      case OsrGuardType::kAny:  // Nothing to check.
-        if (lower()) {
-          DeferReplacement(node, node->InputAt(0));
-        }
-        return SetOutput(node, MachineRepresentation::kTagged);
-    }
-    UNREACHABLE();
-  }
-
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
   void VisitNode(Node* node, Truncation truncation,
@@ -2794,9 +2770,6 @@ class RepresentationSelector {
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
-
-      case IrOpcode::kOsrGuard:
-        return VisitOsrGuard(node);
 
       case IrOpcode::kFinishRegion:
         VisitInputs(node);

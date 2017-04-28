@@ -3016,8 +3016,9 @@ void AstGraphBuilder::Environment::PrepareForOsrEntry() {
   // Set the control and effect to the OSR loop entry.
   Node* osr_loop_entry = graph->NewNode(builder_->common()->OsrLoopEntry(),
                                         graph->start(), graph->start());
+  Node* effect = osr_loop_entry;
   UpdateControlDependency(osr_loop_entry);
-  UpdateEffectDependency(osr_loop_entry);
+  UpdateEffectDependency(effect);
 
   // Set OSR values.
   for (int i = 0; i < size; ++i) {
@@ -3030,30 +3031,11 @@ void AstGraphBuilder::Environment::PrepareForOsrEntry() {
       builder_->common()->OsrValue(Linkage::kOsrContextSpillSlotIndex);
   contexts()->back() = graph->NewNode(op_inner, osr_loop_entry);
 
-  // Create a checkpoint.
-  Node* frame_state = Checkpoint(builder_->info()->osr_ast_id());
-  Node* checkpoint = graph->NewNode(common()->Checkpoint(), frame_state,
-                                    osr_loop_entry, osr_loop_entry);
-  UpdateEffectDependency(checkpoint);
-
-  // Create the OSR guard nodes.
-  const Operator* guard_op =
-      builder_->info()->is_deoptimization_enabled()
-          ? builder_->common()->OsrGuard(OsrGuardType::kUninitialized)
-          : builder_->common()->OsrGuard(OsrGuardType::kAny);
-  Node* effect = checkpoint;
-  for (int i = 0; i < size; ++i) {
-    values()->at(i) = effect =
-        graph->NewNode(guard_op, values()->at(i), effect, osr_loop_entry);
-  }
-  contexts()->back() = effect =
-      graph->NewNode(guard_op, contexts()->back(), effect, osr_loop_entry);
-
   // The innermost context is the OSR value, and the outer contexts are
   // reconstructed by dynamically walking up the context chain.
   const Operator* load_op =
       builder_->javascript()->LoadContext(0, Context::PREVIOUS_INDEX, true);
-  Node* osr_context = effect = contexts()->back();
+  Node* osr_context = contexts()->back();
   int last = static_cast<int>(contexts()->size() - 1);
   for (int i = last - 1; i >= 0; i--) {
     osr_context = effect = graph->NewNode(load_op, osr_context, effect);
