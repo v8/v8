@@ -1059,12 +1059,18 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   GotoIf(IsNullOrUndefined(object), &out);
 
   // Fall back to a slow lookup of {object[symbol]}.
+  //
+  // The spec uses GetMethod({object}, {symbol}), which has a few quirks:
+  // * null values are turned into undefined, and
+  // * an exception is thrown if the value is not undefined, null, or callable.
+  // We handle the former by jumping to {out} for null values as well, while
+  // the latter is already handled by the Call({maybe_func}) operation.
 
   Node* const maybe_func = GetProperty(context, object, symbol);
   GotoIf(IsUndefined(maybe_func), &out);
+  GotoIf(IsNull(maybe_func), &out);
 
   // Attempt to call the function.
-
   Node* const result = generic_call(maybe_func);
   Return(result);
 
