@@ -1029,7 +1029,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ b(eq, &no_descriptors);
 
   __ LoadInstanceDescriptors(r0, r2);
-  __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheOffset));
+  __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheBridgeOffset));
   __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.

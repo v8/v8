@@ -2738,25 +2738,25 @@ inline int DescriptorArray::number_of_entries() {
 
 
 bool DescriptorArray::HasEnumCache() {
-  return !IsEmpty() && !get(kEnumCacheIndex)->IsSmi();
+  return !IsEmpty() && !get(kEnumCacheBridgeIndex)->IsSmi();
 }
 
 
 void DescriptorArray::CopyEnumCacheFrom(DescriptorArray* array) {
-  set(kEnumCacheIndex, array->get(kEnumCacheIndex));
+  set(kEnumCacheBridgeIndex, array->get(kEnumCacheBridgeIndex));
 }
 
 
 FixedArray* DescriptorArray::GetEnumCache() {
   DCHECK(HasEnumCache());
-  FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
+  FixedArray* bridge = FixedArray::cast(get(kEnumCacheBridgeIndex));
   return FixedArray::cast(bridge->get(kEnumCacheBridgeCacheIndex));
 }
 
 
 bool DescriptorArray::HasEnumIndicesCache() {
   if (IsEmpty()) return false;
-  Object* object = get(kEnumCacheIndex);
+  Object* object = get(kEnumCacheBridgeIndex);
   if (object->IsSmi()) return false;
   FixedArray* bridge = FixedArray::cast(object);
   return !bridge->get(kEnumCacheBridgeIndicesCacheIndex)->IsSmi();
@@ -2765,16 +2765,10 @@ bool DescriptorArray::HasEnumIndicesCache() {
 
 FixedArray* DescriptorArray::GetEnumIndicesCache() {
   DCHECK(HasEnumIndicesCache());
-  FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
+  FixedArray* bridge = FixedArray::cast(get(kEnumCacheBridgeIndex));
   return FixedArray::cast(bridge->get(kEnumCacheBridgeIndicesCacheIndex));
 }
 
-
-Object** DescriptorArray::GetEnumCacheSlot() {
-  DCHECK(HasEnumCache());
-  return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
-                              kEnumCacheOffset);
-}
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>

@@ -1023,7 +1023,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Branch(&no_descriptors, eq, a1, Operand(Smi::kZero));
 
   __ LoadInstanceDescriptors(v0, a2);
-  __ lw(a2, FieldMemOperand(a2, DescriptorArray::kEnumCacheOffset));
+  __ lw(a2, FieldMemOperand(a2, DescriptorArray::kEnumCacheBridgeOffset));
   __ lw(a2, FieldMemOperand(a2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.

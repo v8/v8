@@ -1017,7 +1017,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Cbz(x1, &no_descriptors);
 
   __ LoadInstanceDescriptors(x0, x2);
-  __ Ldr(x2, FieldMemOperand(x2, DescriptorArray::kEnumCacheOffset));
+  __ Ldr(x2, FieldMemOperand(x2, DescriptorArray::kEnumCacheBridgeOffset));
   __ Ldr(x2,
          FieldMemOperand(x2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 

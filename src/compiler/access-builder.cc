@@ -412,9 +412,9 @@ FieldAccess AccessBuilder::ForFixedTypedArrayBaseExternalPointer() {
 }
 
 // static
-FieldAccess AccessBuilder::ForDescriptorArrayEnumCache() {
+FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridge() {
   FieldAccess access = {
-      kTaggedBase,           DescriptorArray::kEnumCacheOffset,
+      kTaggedBase,           DescriptorArray::kEnumCacheBridgeOffset,
       Handle<Name>(),        MaybeHandle<Map>(),
       Type::OtherInternal(), MachineType::TaggedPointer(),
       kPointerWriteBarrier};

@@ -954,7 +954,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ beq(&no_descriptors, Label::kNear);
 
   __ LoadInstanceDescriptors(r2, r4);
-  __ LoadP(r4, FieldMemOperand(r4, DescriptorArray::kEnumCacheOffset));
+  __ LoadP(r4, FieldMemOperand(r4, DescriptorArray::kEnumCacheBridgeOffset));
   __ LoadP(r4,
            FieldMemOperand(r4, DescriptorArray::kEnumCacheBridgeCacheOffset));
 

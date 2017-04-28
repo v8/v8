@@ -5318,7 +5318,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   __ bind(&load_cache);
   __ LoadInstanceDescriptors(map, result);
   __ lw(result,
-        FieldMemOperand(result, DescriptorArray::kEnumCacheOffset));
+        FieldMemOperand(result, DescriptorArray::kEnumCacheBridgeOffset));
   __ lw(result,
         FieldMemOperand(result, FixedArray::SizeFor(instr->idx())));
   DeoptimizeIf(eq, instr, DeoptimizeReason::kNoCache, result,
