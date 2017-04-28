@@ -432,7 +432,7 @@ OptimizationReason RuntimeProfiler::ShouldOptimizeIgnition(
 void RuntimeProfiler::MarkCandidatesForOptimization() {
   HandleScope scope(isolate_);
 
-  if (!isolate_->use_crankshaft()) return;
+  if (!isolate_->use_optimizer()) return;
 
   DisallowHeapAllocation no_gc;
 

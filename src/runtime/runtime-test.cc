@@ -340,7 +340,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1 || args.length() == 2);
   int status = 0;
-  if (!isolate->use_crankshaft()) {
+  if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
   if (FLAG_always_opt || FLAG_prepare_always_opt) {

@@ -343,7 +343,6 @@ DEFINE_STRING(trace_ignition_dispatches_output_file, nullptr,
               "written (by default, the table is not written to a file)")
 
 // Flags for Crankshaft.
-DEFINE_BOOL(crankshaft, true, "use crankshaft")
 DEFINE_STRING(hydrogen_filter, "*", "optimization filter")
 DEFINE_BOOL(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_INT(gvn_iterations, 3, "maximum number of GVN fix-point iterations")
@@ -525,7 +524,7 @@ DEFINE_BOOL(minimal, false,
             "simplifies execution model to make porting "
             "easier (e.g. always use Ignition, never use Crankshaft")
 DEFINE_IMPLICATION(minimal, ignition)
-DEFINE_NEG_IMPLICATION(minimal, crankshaft)
+DEFINE_NEG_IMPLICATION(minimal, opt)
 DEFINE_NEG_IMPLICATION(minimal, use_ic)
 
 // Flags for native WebAssembly.

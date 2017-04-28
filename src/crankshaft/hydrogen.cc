@@ -117,7 +117,7 @@ class HOptimizedGraphBuilderWithPositions : public HOptimizedGraphBuilder {
 };
 
 HCompilationJob::Status HCompilationJob::PrepareJobImpl() {
-  if (!isolate()->use_crankshaft() ||
+  if (!isolate()->use_optimizer() ||
       info()->shared_info()->must_use_ignition_turbo()) {
     // Crankshaft is entirely disabled.
     return FAILED;

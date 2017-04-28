@@ -2671,7 +2671,7 @@ TEST(WeakContainers) {
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  if (!CcTest::i_isolate()->use_crankshaft()) return;
+  if (!CcTest::i_isolate()->use_optimizer()) return;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   CompileRun(
       "function foo(a) { return a.x; }\n"

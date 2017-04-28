@@ -997,7 +997,7 @@ class Isolate {
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
 
-  bool use_crankshaft();
+  bool use_optimizer();
 
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
