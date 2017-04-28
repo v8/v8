@@ -270,6 +270,7 @@ HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
                                   size_t size,
                                   unsigned trace_node_id) {
   HeapEntry entry(this, type, name, id, size, trace_node_id);
+  DCHECK(sorted_entries_.is_empty());
   entries_.Add(entry);
   return &entries_.last();
 }
