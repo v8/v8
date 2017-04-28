@@ -73,6 +73,13 @@
   '*': [SKIP],
 }],  # variant == wasm_traps
 
+##############################################################################
+['arch == arm and not simulator_run', {
+  # Too slow on chromebooks.
+  'debug/ignition/debug-step-prefix-bytecodes': [SKIP],
+}],  # 'arch == arm and not simulator_run'
+
+##############################################################################
 ['arch == s390 or arch == s390x', {
 
   # Stack manipulations in LiveEdit is not implemented for this arch.

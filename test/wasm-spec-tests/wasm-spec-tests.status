@@ -15,4 +15,9 @@
   'tests/skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or arch == x64 or arch == ia32', SKIP]],
 }],  # ALWAYS
 
+['arch == arm and not simulator_run', {
+  # Too slow on chromebooks.
+  'tests/br_table': [SKIP],
+}],  # 'arch == arm and not simulator_run'
+
 ]
