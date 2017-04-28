@@ -986,6 +986,20 @@ class Assembler : public AssemblerBase {
   void maxps(XMMRegister dst, const Operand& src);
   void maxps(XMMRegister dst, XMMRegister src) { maxps(dst, Operand(src)); }
 
+  void cmpps(XMMRegister dst, const Operand& src, int8_t cmp);
+#define SSE_CMP_P(instr, imm8)                       \
+  void instr##ps(XMMRegister dst, XMMRegister src) { \
+    cmpps(dst, Operand(src), imm8);                  \
+  }                                                  \
+  void instr##ps(XMMRegister dst, const Operand& src) { cmpps(dst, src, imm8); }
+
+  SSE_CMP_P(cmpeq, 0x0);
+  SSE_CMP_P(cmplt, 0x1);
+  SSE_CMP_P(cmple, 0x2);
+  SSE_CMP_P(cmpneq, 0x4);
+
+#undef SSE_CMP_P
+
   // SSE2 instructions
   void cvttss2si(Register dst, const Operand& src);
   void cvttss2si(Register dst, XMMRegister src) {
@@ -1437,6 +1451,23 @@ class Assembler : public AssemblerBase {
   void vps(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
+  void vcmpps(XMMRegister dst, XMMRegister src1, const Operand& src2,
+              int8_t cmp);
+#define AVX_CMP_P(instr, imm8)                                             \
+  void instr##ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {    \
+    vcmpps(dst, src1, Operand(src2), imm8);                                \
+  }                                                                        \
+  void instr##ps(XMMRegister dst, XMMRegister src1, const Operand& src2) { \
+    vcmpps(dst, src1, src2, imm8);                                         \
+  }
+
+  AVX_CMP_P(vcmpeq, 0x0);
+  AVX_CMP_P(vcmplt, 0x1);
+  AVX_CMP_P(vcmple, 0x2);
+  AVX_CMP_P(vcmpneq, 0x4);
+
+#undef AVX_CMP_P
 
 // Other SSE and AVX instructions
 #define DECLARE_SSE2_INSTRUCTION(instruction, prefix, escape, opcode) \

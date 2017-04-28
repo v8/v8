@@ -1028,6 +1028,16 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0xC2: {
+        const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
+                                         "neq", "nlt", "nle", "ord"};
+        AppendToBuffer("vcmpps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(", (%s)", pseudo_op[*current]);
+        current++;
+        break;
+      }
       default:
         UnimplementedInstruction();
     }
@@ -1568,6 +1578,16 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             AppendToBuffer("movmskps %s,%s",
                            NameOfCPURegister(regop),
                            NameOfXMMRegister(rm));
+            data++;
+          } else if (f0byte == 0xC2) {
+            data += 2;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
+                                             "neq", "nlt", "nle", "ord"};
+            AppendToBuffer("cmpps %s, ", NameOfXMMRegister(regop));
+            data += PrintRightXMMOperand(data);
+            AppendToBuffer(", (%s)", pseudo_op[*data]);
             data++;
           } else if (f0byte== 0xC6) {
             // shufps xmm, xmm/m128, imm8
