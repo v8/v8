@@ -224,8 +224,6 @@ typedef List<Handle<Code> > CodeHandleList;
 // being searched.
 template <typename T, class P>
 int SortedListBSearch(const List<T>& list, P cmp);
-template <typename T>
-int SortedListBSearch(const List<T>& list, T elem);
 
 
 }  // namespace internal

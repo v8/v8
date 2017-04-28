@@ -280,13 +280,6 @@ class ElementCmp {
   T elem_;
 };
 
-
-template <typename T>
-int SortedListBSearch(const List<T>& list, T elem) {
-  return SortedListBSearch<T, ElementCmp<T> > (list, ElementCmp<T>(elem));
-}
-
-
 }  // namespace internal
 }  // namespace v8
 
