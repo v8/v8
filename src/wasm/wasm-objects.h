@@ -16,6 +16,8 @@ namespace internal {
 namespace wasm {
 class InterpretedFrame;
 struct WasmModule;
+struct WasmInstance;
+class WasmInterpreter;
 }
 
 class WasmCompiledModule;
@@ -549,6 +551,13 @@ class WasmDebugInfo : public FixedArray {
 
   static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject>);
 
+  // Setup a WasmDebugInfo with an existing WasmInstance struct.
+  // Returns a pointer to the interpreter instantiated inside this
+  // WasmDebugInfo.
+  // Use for testing only.
+  static wasm::WasmInterpreter* SetupForTesting(Handle<WasmInstanceObject>,
+                                                wasm::WasmInstance*);
+
   static bool IsDebugInfo(Object*);
   static WasmDebugInfo* cast(Object*);
 
@@ -660,8 +669,11 @@ class WasmInstanceWrapper : public FixedArray {
   };
 };
 
+#undef DECLARE_CASTS
+#undef DECLARE_GETTER
 #undef DECLARE_ACCESSORS
 #undef DECLARE_OPTIONAL_ACCESSORS
+#undef DECLARE_OPTIONAL_GETTER
 
 }  // namespace internal
 }  // namespace v8

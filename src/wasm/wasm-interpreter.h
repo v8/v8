@@ -256,6 +256,8 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   size_t GetMemorySize();
   WasmVal ReadMemory(size_t offset);
   void WriteMemory(size_t offset, WasmVal val);
+  // Update the memory region, e.g. after external GrowMemory.
+  void UpdateMemory(byte* mem_start, uint32_t mem_size);
 
   //==========================================================================
   // Testing functionality.

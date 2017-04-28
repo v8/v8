@@ -325,19 +325,11 @@ TEST(GrowMemoryPreservesData) {
 }
 
 TEST(GrowMemoryInvalidSize) {
-  {
-    // Grow memory by an invalid amount without initial memory.
-    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
-    BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
-    CHECK_EQ(-1, r.Call(1048575));
-  }
-  {
-    // Grow memory by an invalid amount without initial memory.
-    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
-    r.module().AddMemory(WasmModule::kPageSize);
-    BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
-    CHECK_EQ(-1, r.Call(1048575));
-  }
+  // Grow memory by an invalid amount without initial memory.
+  WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
+  r.module().AddMemory(WasmModule::kPageSize);
+  BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
+  CHECK_EQ(-1, r.Call(1048575));
 }
 
 TEST(TestPossibleNondeterminism) {
@@ -431,6 +423,7 @@ TEST(WasmInterpreterActivations) {
 
 TEST(InterpreterLoadWithoutMemory) {
   WasmRunner<int32_t, int32_t> r(kExecuteInterpreted);
+  r.module().AddMemory(0);
   BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
   CHECK_TRAP32(r.Call(0));
 }
