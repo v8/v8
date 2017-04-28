@@ -118,7 +118,8 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
     // Rebox the result.
     result->VerifyApiCallResultType();
-    if (!is_construct || result->IsJSObject()) return handle(*result, isolate);
+    if (!is_construct || result->IsJSReceiver())
+      return handle(*result, isolate);
   }
 
   return js_receiver;

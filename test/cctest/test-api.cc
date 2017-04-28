@@ -11261,47 +11261,78 @@ THREADED_TEST(ConstructorForObject) {
     Local<Function> function =
         function_template->GetFunction(context.local()).ToLocalChecked();
     Local<Object> instance1 = function;
+    CHECK(instance1->IsObject());
+    CHECK(instance1->IsFunction());
     CHECK(context->Global()
               ->Set(context.local(), v8_str("obj4"), instance1)
               .FromJust());
     v8::TryCatch try_catch(isolate);
-    Local<Value> value;
     CHECK(!try_catch.HasCaught());
 
-    CHECK(instance1->IsObject());
-    CHECK(instance1->IsFunction());
+    {
+      Local<Value> value = CompileRun("new obj4(28)");
+      CHECK(!try_catch.HasCaught());
+      CHECK(value->IsObject());
 
-    value = CompileRun("new obj4(28)");
-    CHECK(!try_catch.HasCaught());
-    CHECK(value->IsObject());
+      Local<Value> args[] = {v8_num(28)};
+      value = instance1->CallAsConstructor(context.local(), 1, args)
+                  .ToLocalChecked();
+      CHECK(!try_catch.HasCaught());
+      CHECK(value->IsObject());
+    }
 
-    Local<Value> args1[] = {v8_num(28)};
-    value = instance1->CallAsConstructor(context.local(), 1, args1)
-                .ToLocalChecked();
+    Local<Value> proxy = CompileRun("proxy = new Proxy({},{})");
     CHECK(!try_catch.HasCaught());
-    CHECK(value->IsObject());
+    CHECK(proxy->IsProxy());
+
+    {
+      Local<Value> value = CompileRun("new obj4(proxy)");
+      CHECK(!try_catch.HasCaught());
+      CHECK(value->IsProxy());
+      CHECK(value->SameValue(proxy));
+
+      Local<Value> args[] = {proxy};
+      value = instance1->CallAsConstructor(context.local(), 1, args)
+                  .ToLocalChecked();
+      CHECK(!try_catch.HasCaught());
+      CHECK(value->SameValue(proxy));
+    }
 
     Local<ObjectTemplate> instance_template = ObjectTemplate::New(isolate);
     instance_template->SetCallAsFunctionHandler(FakeConstructorCallback);
     Local<Object> instance2 =
         instance_template->NewInstance(context.local()).ToLocalChecked();
+    CHECK(instance2->IsObject());
+    CHECK(instance2->IsFunction());
     CHECK(context->Global()
               ->Set(context.local(), v8_str("obj5"), instance2)
               .FromJust());
     CHECK(!try_catch.HasCaught());
 
-    CHECK(instance2->IsObject());
-    CHECK(instance2->IsFunction());
+    {
+      Local<Value> value = CompileRun("new obj5(28)");
+      CHECK(!try_catch.HasCaught());
+      CHECK(!value->IsObject());
 
-    value = CompileRun("new obj5(28)");
-    CHECK(!try_catch.HasCaught());
-    CHECK(!value->IsObject());
+      Local<Value> args[] = {v8_num(28)};
+      value = instance2->CallAsConstructor(context.local(), 1, args)
+                  .ToLocalChecked();
+      CHECK(!try_catch.HasCaught());
+      CHECK(!value->IsObject());
+    }
 
-    Local<Value> args2[] = {v8_num(28)};
-    value = instance2->CallAsConstructor(context.local(), 1, args2)
-                .ToLocalChecked();
-    CHECK(!try_catch.HasCaught());
-    CHECK(!value->IsObject());
+    {
+      Local<Value> value = CompileRun("new obj5(proxy)");
+      CHECK(!try_catch.HasCaught());
+      CHECK(value->IsProxy());
+      CHECK(value->SameValue(proxy));
+
+      Local<Value> args[] = {proxy};
+      value = instance2->CallAsConstructor(context.local(), 1, args)
+                  .ToLocalChecked();
+      CHECK(!try_catch.HasCaught());
+      CHECK(value->SameValue(proxy));
+    }
   }
 }
 
