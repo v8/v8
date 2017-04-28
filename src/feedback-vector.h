@@ -483,9 +483,6 @@ class FeedbackNexus {
     return NULL;
   }
 
-  // TODO(mvstanton): remove FindAllMaps, it didn't survive a code review.
-  void FindAllMaps(MapHandleList* maps) const { ExtractMaps(maps); }
-
   virtual InlineCacheState StateFromFeedback() const = 0;
   virtual int ExtractMaps(MapHandleList* maps) const;
   virtual MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const;
