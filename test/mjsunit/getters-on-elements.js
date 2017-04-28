@@ -25,17 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --max-opt-count=100 --noalways-opt
-// Flags: --nocollect-maps --opt
-
-// We specify max-opt-count because we opt/deopt the same function many
-// times.
-
-// We specify nocollect-maps because in gcstress we can end up deoptimizing
-// a function in a gc in the stack guard at the beginning of the (optimized)
-// function due to leftover map clearing work that results in deoptimizing
-// dependent code from those maps. The choice is to insert strategic gc()
-// calls or specify this flag.
+// Flags: --allow-natives-syntax --noalways-opt --opt
 
 // It's nice to run this in other browsers too.
 var standalone = false;
