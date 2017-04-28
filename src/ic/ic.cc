@@ -1372,7 +1372,13 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
 
   List<Handle<Object>> handlers(target_receiver_maps.length());
   LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers);
-  ConfigureVectorState(Handle<Name>(), &target_receiver_maps, &handlers);
+  DCHECK_LE(1, target_receiver_maps.length());
+  if (target_receiver_maps.length() == 1) {
+    ConfigureVectorState(Handle<Name>(), target_receiver_maps.at(0),
+                         handlers.at(0));
+  } else {
+    ConfigureVectorState(Handle<Name>(), &target_receiver_maps, &handlers);
+  }
 }
 
 Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map) {
@@ -1419,6 +1425,11 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     MapHandleList* receiver_maps, List<Handle<Object>>* handlers) {
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Handle<Map> receiver_map(receiver_maps->at(i));
+    if (receiver_map->is_deprecated()) {
+      // Filter out deprecated maps to ensure their instances get migrated.
+      receiver_maps->Remove(i--);
+      continue;
+    }
 
     // Mark all stable receiver maps that have elements kind transition map
     // among receiver_maps as unstable because the optimizing compilers may
@@ -2017,7 +2028,13 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   List<Handle<Object>> handlers(target_receiver_maps.length());
   StoreElementPolymorphicHandlers(&target_receiver_maps, &handlers, store_mode);
-  ConfigureVectorState(Handle<Name>(), &target_receiver_maps, &handlers);
+  DCHECK_LE(1, target_receiver_maps.length());
+  if (target_receiver_maps.length() == 1) {
+    ConfigureVectorState(Handle<Name>(), target_receiver_maps.at(0),
+                         handlers.at(0));
+  } else {
+    ConfigureVectorState(Handle<Name>(), &target_receiver_maps, &handlers);
+  }
 }
 
 
@@ -2091,6 +2108,12 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
 
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Handle<Map> receiver_map(receiver_maps->at(i));
+    if (receiver_map->is_deprecated()) {
+      // Filter out deprecated maps to ensure their instances get migrated.
+      receiver_maps->Remove(i--);
+      continue;
+    }
+
     Handle<Object> handler;
     Handle<Map> transitioned_map;
 
