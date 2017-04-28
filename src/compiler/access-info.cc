@@ -235,20 +235,16 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
 bool AccessInfoFactory::ComputeElementAccessInfos(
     MapHandleList const& maps, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) {
-  // For polymorphic loads of similar elements kinds (i.e. all tagged or all
-  // double), always use the "worst case" code without a transition. This is
-  // much faster than transitioning the elements to the worst case, trading a
-  // TransitionElementsKind for a CheckMaps, avoiding mutation of the array.
-  //
-  // Similarly, for polymorphic stores of compatible elements kind that
-  // differ only in holeyness, always use the "holey case" code without a
-  // transition. This is beneficial, because CheckMaps can often be optimized
-  // whereas TransitionElementsKind can block optimizations. And as above, we
-  // avoid mutation of the array (we still mutate the array contents).
-  ElementAccessInfo access_info;
-  if (ConsolidateElementAccess(maps, access_mode, &access_info)) {
-    access_infos->push_back(access_info);
-    return true;
+  if (access_mode == AccessMode::kLoad) {
+    // For polymorphic loads of similar elements kinds (i.e. all tagged or all
+    // double), always use the "worst case" code without a transition.  This is
+    // much faster than transitioning the elements to the worst case, trading a
+    // TransitionElementsKind for a CheckMaps, avoiding mutation of the array.
+    ElementAccessInfo access_info;
+    if (ConsolidateElementLoad(maps, &access_info)) {
+      access_infos->push_back(access_info);
+      return true;
+    }
   }
 
   // Collect possible transition targets.
@@ -508,9 +504,32 @@ bool AccessInfoFactory::ComputePropertyAccessInfos(
   return true;
 }
 
-bool AccessInfoFactory::ConsolidateElementAccess(
-    MapHandleList const& maps, AccessMode access_mode,
-    ElementAccessInfo* access_info) {
+namespace {
+
+Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
+                                           ElementsKind that_kind) {
+  if (IsHoleyElementsKind(this_kind)) {
+    that_kind = GetHoleyElementsKind(that_kind);
+  } else if (IsHoleyElementsKind(that_kind)) {
+    this_kind = GetHoleyElementsKind(this_kind);
+  }
+  if (this_kind == that_kind) return Just(this_kind);
+  if (IsFastDoubleElementsKind(that_kind) ==
+      IsFastDoubleElementsKind(this_kind)) {
+    if (IsMoreGeneralElementsKindTransition(that_kind, this_kind)) {
+      return Just(this_kind);
+    }
+    if (IsMoreGeneralElementsKindTransition(this_kind, that_kind)) {
+      return Just(that_kind);
+    }
+  }
+  return Nothing<ElementsKind>();
+}
+
+}  // namespace
+
+bool AccessInfoFactory::ConsolidateElementLoad(MapHandleList const& maps,
+                                               ElementAccessInfo* access_info) {
   if (maps.is_empty()) return false;
   InstanceType instance_type = maps.first()->instance_type();
   ElementsKind elements_kind = maps.first()->elements_kind();
@@ -520,24 +539,9 @@ bool AccessInfoFactory::ConsolidateElementAccess(
     if (!CanInlineElementAccess(map) || map->instance_type() != instance_type) {
       return false;
     }
-    ElementsKind other_kind = map->elements_kind();
-    if (IsHoleyElementsKind(elements_kind)) {
-      other_kind = GetHoleyElementsKind(other_kind);
-    } else if (IsHoleyElementsKind(other_kind)) {
-      elements_kind = GetHoleyElementsKind(elements_kind);
-    }
-    if (elements_kind != other_kind) {
-      if (access_mode != AccessMode::kLoad) return false;
-      if (IsFastDoubleElementsKind(elements_kind) !=
-          IsFastDoubleElementsKind(other_kind)) {
-        return false;
-      }
-      if (IsMoreGeneralElementsKindTransition(elements_kind, other_kind)) {
-        elements_kind = other_kind;
-      } else if (!IsMoreGeneralElementsKindTransition(other_kind,
-                                                      elements_kind)) {
-        return false;
-      }
+    if (!GeneralizeElementsKind(elements_kind, map->elements_kind())
+             .To(&elements_kind)) {
+      return false;
     }
     receiver_maps[i] = map;
   }
