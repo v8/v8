@@ -4811,13 +4811,11 @@ void Heap::ZapFromSpace() {
 
 class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
  public:
-  IterateAndScavengePromotedObjectsVisitor(Heap* heap, HeapObject* target,
-                                           bool record_slots)
-      : heap_(heap), target_(target), record_slots_(record_slots) {}
+  IterateAndScavengePromotedObjectsVisitor(Heap* heap, bool record_slots)
+      : heap_(heap), record_slots_(record_slots) {}
 
   inline void VisitPointers(HeapObject* host, Object** start,
                             Object** end) override {
-    DCHECK_EQ(host, target_);
     Address slot_address = reinterpret_cast<Address>(start);
     Page* page = Page::FromAddress(slot_address);
 
@@ -4840,7 +4838,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
         } else if (record_slots_ &&
                    MarkCompactCollector::IsOnEvacuationCandidate(
                        HeapObject::cast(target))) {
-          heap_->mark_compact_collector()->RecordSlot(target_, slot, target);
+          heap_->mark_compact_collector()->RecordSlot(host, slot, target);
         }
       }
 
@@ -4860,7 +4858,6 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
  private:
   Heap* heap_;
-  HeapObject* target_;
   bool record_slots_;
 };
 
@@ -4878,9 +4875,7 @@ void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size,
         ObjectMarking::IsBlack(target, MarkingState::Internal(target));
   }
 
-  // TODO(ulan): remove the target, the visitor now gets the host object
-  // in each visit method.
-  IterateAndScavengePromotedObjectsVisitor visitor(this, target, record_slots);
+  IterateAndScavengePromotedObjectsVisitor visitor(this, record_slots);
   if (target->IsJSFunction()) {
     // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for
     // this links are recorded during processing of weak lists.
