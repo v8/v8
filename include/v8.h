@@ -1266,11 +1266,6 @@ class V8_EXPORT ScriptCompiler {
      * length of the data returned. When the data ends, GetMoreData should
      * return 0. Caller takes ownership of the data.
      *
-     * When streaming UTF-8 data, V8 handles multi-byte characters split between
-     * two data chunks, but doesn't handle multi-byte characters split between
-     * more than two data chunks. The embedder can avoid this problem by always
-     * returning at least 2 bytes of data.
-     *
      * If the embedder wants to cancel the streaming, they should make the next
      * GetMoreData call return 0. V8 will interpret it as end of data (and most
      * probably, parsing will fail). The streaming task will return as soon as
