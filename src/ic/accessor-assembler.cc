@@ -1877,34 +1877,6 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
                          LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
                          SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
 
-  Label not_function_prototype(this);
-  GotoIf(Word32NotEqual(instance_type, Int32Constant(JS_FUNCTION_TYPE)),
-         &not_function_prototype);
-  GotoIfNot(WordEqual(p->name, LoadRoot(Heap::kprototype_stringRootIndex)),
-            &not_function_prototype);
-  Node* bit_field = LoadMapBitField(receiver_map);
-  GotoIf(IsSetWord32(bit_field, 1 << Map::kHasNonInstancePrototype),
-         &not_function_prototype);
-  // Function.prototype load.
-  {
-    // TODO(jkummerow): Unify with LoadIC_FunctionPrototype builtin
-    // (when we have a shared CSA base class for all builtins).
-    Node* proto_or_map =
-        LoadObjectField(receiver, JSFunction::kPrototypeOrInitialMapOffset);
-    GotoIf(IsTheHole(proto_or_map), &miss);
-
-    VARIABLE(var_result, MachineRepresentation::kTagged, proto_or_map);
-    Label done(this, &var_result);
-    GotoIfNot(IsMap(proto_or_map), &done);
-
-    var_result.Bind(LoadMapPrototype(proto_or_map));
-    Goto(&done);
-
-    BIND(&done);
-    Return(var_result.value());
-  }
-  BIND(&not_function_prototype);
-
   GenericPropertyLoad(receiver, receiver_map, instance_type, p->name, p, &miss,
                       kDontUseStubCache);
 

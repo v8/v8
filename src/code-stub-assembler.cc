@@ -1430,6 +1430,27 @@ Node* CodeStubAssembler::LoadJSArrayElementsMap(ElementsKind kind,
   return LoadContextElement(native_context, Context::ArrayMapIndex(kind));
 }
 
+Node* CodeStubAssembler::LoadJSFunctionPrototype(Node* function,
+                                                 Label* if_bailout) {
+  CSA_ASSERT(this, TaggedIsNotSmi(function));
+  CSA_ASSERT(this, IsJSFunction(function));
+  CSA_ASSERT(this, IsClearWord32(LoadMapBitField(LoadMap(function)),
+                                 1 << Map::kHasNonInstancePrototype));
+  Node* proto_or_map =
+      LoadObjectField(function, JSFunction::kPrototypeOrInitialMapOffset);
+  GotoIf(IsTheHole(proto_or_map), if_bailout);
+
+  VARIABLE(var_result, MachineRepresentation::kTagged, proto_or_map);
+  Label done(this, &var_result);
+  GotoIfNot(IsMap(proto_or_map), &done);
+
+  var_result.Bind(LoadMapPrototype(proto_or_map));
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
   return StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value,
                                         MachineRepresentation::kFloat64);
@@ -3159,12 +3180,28 @@ Node* CodeStubAssembler::IsMap(Node* map) {
   return HasInstanceType(map, MAP_TYPE);
 }
 
-Node* CodeStubAssembler::IsJSValue(Node* map) {
-  return HasInstanceType(map, JS_VALUE_TYPE);
+Node* CodeStubAssembler::IsJSValueInstanceType(Node* instance_type) {
+  return Word32Equal(instance_type, Int32Constant(JS_VALUE_TYPE));
+}
+
+Node* CodeStubAssembler::IsJSValue(Node* object) {
+  return IsJSValueMap(LoadMap(object));
+}
+
+Node* CodeStubAssembler::IsJSValueMap(Node* map) {
+  return IsJSValueInstanceType(LoadMapInstanceType(map));
+}
+
+Node* CodeStubAssembler::IsJSArrayInstanceType(Node* instance_type) {
+  return Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE));
 }
 
 Node* CodeStubAssembler::IsJSArray(Node* object) {
-  return HasInstanceType(object, JS_ARRAY_TYPE);
+  return IsJSArrayMap(LoadMap(object));
+}
+
+Node* CodeStubAssembler::IsJSArrayMap(Node* map) {
+  return IsJSArrayInstanceType(LoadMapInstanceType(map));
 }
 
 Node* CodeStubAssembler::IsWeakCell(Node* object) {
@@ -3238,8 +3275,16 @@ Node* CodeStubAssembler::IsUnseededNumberDictionary(Node* object) {
                    LoadRoot(Heap::kUnseededNumberDictionaryMapRootIndex));
 }
 
+Node* CodeStubAssembler::IsJSFunctionInstanceType(Node* instance_type) {
+  return Word32Equal(instance_type, Int32Constant(JS_FUNCTION_TYPE));
+}
+
 Node* CodeStubAssembler::IsJSFunction(Node* object) {
-  return HasInstanceType(object, JS_FUNCTION_TYPE);
+  return IsJSFunctionMap(LoadMap(object));
+}
+
+Node* CodeStubAssembler::IsJSFunctionMap(Node* map) {
+  return IsJSFunctionInstanceType(LoadMapInstanceType(map));
 }
 
 Node* CodeStubAssembler::IsJSTypedArray(Node* object) {
@@ -5374,16 +5419,56 @@ Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
   // AccessorInfo case.
   BIND(&if_accessor_info);
   {
-    // TODO(ishell): Consider doing this for the Function.prototype and the
-    // String.length accessor infos as well.
+    Node* accessor_info = value;
     CSA_ASSERT(this, IsAccessorInfo(value));
     CSA_ASSERT(this, TaggedIsNotSmi(receiver));
-    GotoIfNot(IsJSArray(receiver), if_bailout);
-    // The only AccessorInfo on JSArray is the "length" property.
-    CSA_ASSERT(this, IsLengthString(
-                         LoadObjectField(value, AccessorInfo::kNameOffset)));
-    var_value.Bind(LoadJSArrayLength(receiver));
-    Goto(&done);
+    Label if_array(this), if_function(this), if_value(this);
+
+    // Dispatch based on {receiver} instance type.
+    Node* receiver_map = LoadMap(receiver);
+    Node* receiver_instance_type = LoadMapInstanceType(receiver_map);
+    GotoIf(IsJSArrayInstanceType(receiver_instance_type), &if_array);
+    GotoIf(IsJSFunctionInstanceType(receiver_instance_type), &if_function);
+    Branch(IsJSValueInstanceType(receiver_instance_type), &if_value,
+           if_bailout);
+
+    // JSArray AccessorInfo case.
+    BIND(&if_array);
+    {
+      // The only AccessorInfo on JSArray is the "length" property.
+      CSA_ASSERT(this, IsLengthString(LoadObjectField(
+                           accessor_info, AccessorInfo::kNameOffset)));
+      var_value.Bind(LoadJSArrayLength(receiver));
+      Goto(&done);
+    }
+
+    // JSFunction AccessorInfo case.
+    BIND(&if_function);
+    {
+      // We only deal with the "prototype" accessor on JSFunction here.
+      GotoIfNot(IsPrototypeString(
+                    LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
+                if_bailout);
+      GotoIf(IsSetWord32(LoadMapBitField(receiver_map),
+                         1 << Map::kHasNonInstancePrototype),
+             if_bailout);
+      var_value.Bind(LoadJSFunctionPrototype(receiver, if_bailout));
+      Goto(&done);
+    }
+
+    // JSValue AccessorInfo case.
+    BIND(&if_value);
+    {
+      // We only deal with the "length" accessor on JSValue string wrappers.
+      GotoIfNot(IsLengthString(
+                    LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
+                if_bailout);
+      Node* receiver_value = LoadJSValueValue(receiver);
+      GotoIfNot(TaggedIsNotSmi(receiver_value), if_bailout);
+      GotoIfNot(IsString(receiver_value), if_bailout);
+      var_value.Bind(LoadStringLength(receiver_value));
+      Goto(&done);
+    }
   }
 
   BIND(&done);
