@@ -97,6 +97,7 @@ class AsyncStackTrace {
       AsyncStackTrace* asyncCreation, int maxAsyncDepth) const;
 
   int contextGroupId() const;
+  const String16& description() const;
   std::weak_ptr<AsyncStackTrace> parent() const;
   std::weak_ptr<AsyncStackTrace> creation() const;
   bool isEmpty() const;

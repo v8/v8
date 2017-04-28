@@ -913,10 +913,6 @@ void V8Debugger::asyncTaskCanceledForStack(void* task) {
 
 void V8Debugger::asyncTaskStartedForStack(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
-  m_currentTasks.push_back(task);
-  auto parentIt = m_parentTask.find(task);
-  AsyncTaskToStackTrace::iterator stackIt = m_asyncTaskStacks.find(
-      parentIt == m_parentTask.end() ? task : parentIt->second);
   // Needs to support following order of events:
   // - asyncTaskScheduled
   //   <-- attached here -->
@@ -924,15 +920,21 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
   // - asyncTaskCanceled <-- canceled before finished
   //   <-- async stack requested here -->
   // - asyncTaskFinished
-  std::weak_ptr<AsyncStackTrace> asyncParent;
-  if (stackIt != m_asyncTaskStacks.end()) asyncParent = stackIt->second;
+  m_currentTasks.push_back(task);
+  auto parentIt = m_parentTask.find(task);
+  AsyncTaskToStackTrace::iterator stackIt = m_asyncTaskStacks.find(
+      parentIt == m_parentTask.end() ? task : parentIt->second);
+  if (stackIt != m_asyncTaskStacks.end()) {
+    m_currentAsyncParent.push_back(stackIt->second.lock());
+  } else {
+    m_currentAsyncParent.emplace_back();
+  }
   auto itCreation = m_asyncTaskCreationStacks.find(task);
-  if (asyncParent.lock() && itCreation != m_asyncTaskCreationStacks.end()) {
+  if (itCreation != m_asyncTaskCreationStacks.end()) {
     m_currentAsyncCreation.push_back(itCreation->second.lock());
   } else {
     m_currentAsyncCreation.emplace_back();
   }
-  m_currentAsyncParent.push_back(asyncParent.lock());
 }
 
 void V8Debugger::asyncTaskFinishedForStack(void* task) {
@@ -1041,7 +1043,8 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
   }
   for (auto it = m_parentTask.begin(); it != m_parentTask.end();) {
     if (m_asyncTaskCreationStacks.find(it->second) ==
-        m_asyncTaskCreationStacks.end()) {
+            m_asyncTaskCreationStacks.end() &&
+        m_asyncTaskStacks.find(it->second) == m_asyncTaskStacks.end()) {
       it = m_parentTask.erase(it);
     } else {
       ++it;

@@ -63,8 +63,14 @@ void calculateAsyncChain(V8Debugger* debugger, int contextGroupId,
 
 std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
     const std::vector<std::shared_ptr<StackFrame>>& frames,
+    const String16& description,
     const std::shared_ptr<AsyncStackTrace>& asyncParent,
     const std::shared_ptr<AsyncStackTrace>& asyncCreation, int maxAsyncDepth) {
+  if (asyncParent && frames.empty() &&
+      description == asyncParent->description() && !asyncCreation) {
+    return asyncParent->buildInspectorObject(nullptr, maxAsyncDepth);
+  }
+
   std::unique_ptr<protocol::Array<protocol::Runtime::CallFrame>>
       inspectorFrames = protocol::Array<protocol::Runtime::CallFrame>::create();
   for (size_t i = 0; i < frames.size(); i++) {
@@ -74,6 +80,7 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
       protocol::Runtime::StackTrace::create()
           .setCallFrames(std::move(inspectorFrames))
           .build();
+  if (!description.isEmpty()) stackTrace->setDescription(description);
   if (asyncParent && maxAsyncDepth > 0) {
     stackTrace->setParent(asyncParent->buildInspectorObject(asyncCreation.get(),
                                                             maxAsyncDepth - 1));
@@ -206,7 +213,7 @@ StringView V8StackTraceImpl::topFunctionName() const {
 
 std::unique_ptr<protocol::Runtime::StackTrace>
 V8StackTraceImpl::buildInspectorObjectImpl() const {
-  return buildInspectorObjectCommon(m_frames, m_asyncParent.lock(),
+  return buildInspectorObjectCommon(m_frames, String16(), m_asyncParent.lock(),
                                     m_asyncCreation.lock(), m_maxAsyncDepth);
 }
 
@@ -292,9 +299,8 @@ std::unique_ptr<protocol::Runtime::StackTrace>
 AsyncStackTrace::buildInspectorObject(AsyncStackTrace* asyncCreation,
                                       int maxAsyncDepth) const {
   std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
-      buildInspectorObjectCommon(m_frames, m_asyncParent.lock(),
+      buildInspectorObjectCommon(m_frames, m_description, m_asyncParent.lock(),
                                  m_asyncCreation.lock(), maxAsyncDepth);
-  if (!m_description.isEmpty()) stackTrace->setDescription(m_description);
   if (asyncCreation && !asyncCreation->isEmpty()) {
     stackTrace->setPromiseCreationFrame(
         asyncCreation->m_frames[0]->buildInspectorObject());
@@ -303,6 +309,8 @@ AsyncStackTrace::buildInspectorObject(AsyncStackTrace* asyncCreation,
 }
 
 int AsyncStackTrace::contextGroupId() const { return m_contextGroupId; }
+
+const String16& AsyncStackTrace::description() const { return m_description; }
 
 std::weak_ptr<AsyncStackTrace> AsyncStackTrace::parent() const {
   return m_asyncParent;
