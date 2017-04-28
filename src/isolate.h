@@ -395,7 +395,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
-typedef List<HeapObject*> DebugObjectCache;
+typedef std::vector<HeapObject*> DebugObjectCache;
 
 #define ISOLATE_INIT_LIST(V)                                                  \
   /* Assembler state. */                                                      \
