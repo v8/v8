@@ -629,10 +629,9 @@ uint32_t WasmInstanceObject::GetMaxMemoryPages() {
   }
   uint32_t compiled_max_pages = compiled_module()->module()->max_mem_pages;
   Isolate* isolate = GetIsolate();
-  auto* histogram = (compiled_module()->module()->is_wasm()
-                         ? isolate->counters()->wasm_wasm_max_mem_pages_count()
-                         : isolate->counters()->wasm_asm_max_mem_pages_count());
-  histogram->AddSample(compiled_max_pages);
+  assert(compiled_module()->module()->is_wasm());
+  isolate->counters()->wasm_wasm_max_mem_pages_count()->AddSample(
+      compiled_max_pages);
   if (compiled_max_pages != 0) return compiled_max_pages;
   return FLAG_wasm_max_mem_pages;
 }

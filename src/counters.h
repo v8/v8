@@ -1027,7 +1027,6 @@ class RuntimeCallTimerScope {
      V8.WasmCompileFunctionPeakMemoryBytes)                              \
   HM(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm)          \
   HM(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm)        \
-  HM(wasm_asm_max_mem_pages_count, V8.WasmMaxMemPagesCount.asm)          \
   HM(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm)        \
   HM(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm)         \
   HM(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm)       \
