@@ -298,7 +298,8 @@
     'gn_debug_simulate_arm64_asan_edge': [
       'gn', 'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
     'gn_debug_simulate_arm64_no_snap': [
-      'gn', 'debug_bot', 'simulate_arm64', 'swarming', 'v8_snapshot_none'],
+      'gn', 'debug', 'simulate_arm64', 'shared', 'goma',
+      'v8_optimized_debug', 'swarming', 'v8_snapshot_none'],
     'gn_debug_simulate_mipsel_asan_edge': [
       'gn', 'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
 
