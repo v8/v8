@@ -292,19 +292,6 @@ void HeapSnapshot::FillChildren() {
   }
 }
 
-
-class FindEntryById {
- public:
-  explicit FindEntryById(SnapshotObjectId id) : id_(id) { }
-  int operator()(HeapEntry* const* entry) {
-    if ((*entry)->id() == id_) return 0;
-    return (*entry)->id() < id_ ? -1 : 1;
-  }
- private:
-  SnapshotObjectId id_;
-};
-
-
 HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) {
   List<HeapEntry*>* entries_by_id = GetSortedEntriesList();
 
