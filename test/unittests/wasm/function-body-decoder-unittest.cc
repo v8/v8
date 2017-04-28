@@ -134,11 +134,11 @@ class FunctionBodyDecoderTest : public TestWithZone {
         start, end);
 
     if (result.ok() != expected_success) {
-      uint32_t pc = result.error_offset;
+      uint32_t pc = result.error_offset();
       std::ostringstream str;
       if (expected_success) {
         str << "Verification failed: pc = +" << pc
-            << ", msg = " << result.error_msg;
+            << ", msg = " << result.error_msg();
       } else {
         str << "Verification successed, expected failure; pc = +" << pc;
       }

@@ -206,13 +206,10 @@ class Decoder {
   Result<U> toResult(T&& val) {
     Result<U> result(std::forward<T>(val));
     if (failed()) {
-      // The error message must not be empty, otherwise Result::failed() will be
-      // false.
-      DCHECK(!error_msg_.empty());
       TRACE("Result error: %s\n", error_msg_.c_str());
       DCHECK_GE(error_pc_, start_);
-      result.error_offset = static_cast<uint32_t>(error_pc_ - start_);
-      result.error_msg = std::move(error_msg_);
+      result.error(static_cast<uint32_t>(error_pc_ - start_),
+                   std::move(error_msg_));
     }
     return result;
   }

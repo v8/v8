@@ -876,7 +876,7 @@ class ModuleDecoder : public Decoder {
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream str;
-      str << "in function " << func_name << ": " << result.error_msg;
+      str << "in function " << func_name << ": " << result.error_msg();
 
       // Set error code and location, if this is the first error.
       if (intermediate_result_.ok()) {

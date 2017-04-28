@@ -15,6 +15,42 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace {
+
+PRINTF_FORMAT(3, 0)
+void VPrintFToString(std::string& str, size_t str_offset, const char* format,
+                     va_list args) {
+  DCHECK_LE(str_offset, str.size());
+  size_t len = str_offset + strlen(format);
+  // Allocate increasingly large buffers until the message fits.
+  for (;; len = base::bits::RoundUpToPowerOfTwo64(len + 1)) {
+    DCHECK_GE(kMaxInt, len);
+    str.resize(len);
+    int written = VSNPrintF(Vector<char>(&str.front() + str_offset,
+                                         static_cast<int>(len - str_offset)),
+                            format, args);
+    if (written < 0) continue;  // not enough space.
+    str.resize(str_offset + written);
+    return;
+  }
+}
+
+}  // namespace
+
+void ResultBase::error(uint32_t offset, std::string error_msg) {
+  // The error message must not be empty, otherwise Result::failed() will be
+  // false.
+  DCHECK(!error_msg.empty());
+  error_offset_ = offset;
+  error_msg_ = std::move(error_msg);
+}
+
+void ResultBase::verror(const char* format, va_list args) {
+  VPrintFToString(error_msg_, 0, format, args);
+  // Assign default message such that ok() and failed() work.
+  if (error_msg_.empty() == 0) error_msg_.assign("Error");
+}
+
 void ErrorThrower::Format(i::Handle<i::JSFunction> constructor,
                           const char* format, va_list args) {
   // Only report the first error.

@@ -3946,7 +3946,7 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   if (graph_construction_result_.failed()) {
     if (FLAG_trace_wasm_compiler) {
       OFStream os(stdout);
-      os << "Compilation failed: " << graph_construction_result_.error_msg
+      os << "Compilation failed: " << graph_construction_result_.error_msg()
          << std::endl;
     }
     return nullptr;
