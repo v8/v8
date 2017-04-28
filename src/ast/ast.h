@@ -977,11 +977,11 @@ class CaseClause final : public Expression {
   CaseClause(Expression* label, ZoneList<Statement*>* statements, int pos);
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
+  FeedbackSlot feedback_slot_;
   Expression* label_;
   Label body_target_;
   ZoneList<Statement*>* statements_;
   AstType* compare_type_;
-  FeedbackSlot feedback_slot_;
 };
 
 
@@ -2183,10 +2183,10 @@ class BinaryOperation final : public Expression {
 
   BinaryOperation(Token::Value op, Expression* left, Expression* right, int pos)
       : Expression(pos, kBinaryOperation),
-        has_fixed_right_arg_(false),
-        fixed_right_arg_value_(0),
         left_(left),
-        right_(right) {
+        right_(right),
+        has_fixed_right_arg_(false),
+        fixed_right_arg_value_(0) {
     bit_field_ |= OperatorField::encode(op);
     DCHECK(Token::IsBinaryOp(op));
   }
@@ -2194,14 +2194,14 @@ class BinaryOperation final : public Expression {
   static int parent_num_ids() { return Expression::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
+  FeedbackSlot feedback_slot_;
+  Expression* left_;
+  Expression* right_;
+  Handle<AllocationSite> allocation_site_;
   // TODO(rossberg): the fixed arg should probably be represented as a Constant
   // type for the RHS. Currenty it's actually a Maybe<int>
   bool has_fixed_right_arg_;
   int fixed_right_arg_value_;
-  Expression* left_;
-  Expression* right_;
-  Handle<AllocationSite> allocation_site_;
-  FeedbackSlot feedback_slot_;
 
   class OperatorField
       : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
@@ -2329,11 +2329,11 @@ class CompareOperation final : public Expression {
   static int parent_num_ids() { return Expression::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
+  FeedbackSlot feedback_slot_;
   Expression* left_;
   Expression* right_;
-
   AstType* combined_type_;
-  FeedbackSlot feedback_slot_;
+
   class OperatorField
       : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
 };
@@ -2932,9 +2932,9 @@ class NativeFunctionLiteral final : public Expression {
         name_(name),
         extension_(extension) {}
 
+  FeedbackSlot literal_feedback_slot_;
   const AstRawString* name_;
   v8::Extension* extension_;
-  FeedbackSlot literal_feedback_slot_;
 };
 
 
