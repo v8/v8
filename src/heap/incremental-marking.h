@@ -32,35 +32,41 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
-  static void MarkGrey(Heap* heap, HeapObject* object);
+  static void Initialize();
 
-  static void MarkBlack(HeapObject* object, int size);
+  explicit IncrementalMarking(Heap* heap);
+
+  MarkingState marking_state(HeapObject* object) const {
+    return MarkingState::Internal(object);
+  }
+
+  MarkingState marking_state(MemoryChunk* chunk) const {
+    return MarkingState::Internal(chunk);
+  }
+
+  void MarkBlack(HeapObject* object, int size);
+  void MarkGrey(HeapObject* object);
 
   // Transfers mark bits without requiring proper object headers.
-  static void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
+  void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
 
   // Transfers color including live byte count, requiring properly set up
   // objects.
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
-  V8_INLINE static void TransferColor(HeapObject* from, HeapObject* to) {
-    if (ObjectMarking::IsBlack<access_mode>(to, MarkingState::Internal(to))) {
-      DCHECK(to->GetHeap()->incremental_marking()->black_allocation());
+  V8_INLINE void TransferColor(HeapObject* from, HeapObject* to) {
+    if (ObjectMarking::IsBlack<access_mode>(to, marking_state(to))) {
+      DCHECK(black_allocation());
       return;
     }
 
-    DCHECK(ObjectMarking::IsWhite<access_mode>(to, MarkingState::Internal(to)));
-    if (ObjectMarking::IsGrey<access_mode>(from,
-                                           MarkingState::Internal(from))) {
-      ObjectMarking::WhiteToGrey<access_mode>(to, MarkingState::Internal(to));
-    } else if (ObjectMarking::IsBlack<access_mode>(
-                   from, MarkingState::Internal(from))) {
-      ObjectMarking::WhiteToBlack<access_mode>(to, MarkingState::Internal(to));
+    DCHECK(ObjectMarking::IsWhite<access_mode>(to, marking_state(to)));
+    if (ObjectMarking::IsGrey<access_mode>(from, marking_state(from))) {
+      ObjectMarking::WhiteToGrey<access_mode>(to, marking_state(to));
+    } else if (ObjectMarking::IsBlack<access_mode>(from, marking_state(from))) {
+      ObjectMarking::WhiteToBlack<access_mode>(to, marking_state(to));
     }
   }
 
-  explicit IncrementalMarking(Heap* heap);
-
-  static void Initialize();
 
   State state() {
     DCHECK(state_ == STOPPED || FLAG_incremental_marking);
@@ -219,6 +225,15 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   void AbortBlackAllocation();
 
+  MarkingDeque* marking_deque() {
+    SLOW_DCHECK(marking_deque_ != nullptr);
+    return marking_deque_;
+  }
+
+  void set_marking_deque(MarkingDeque* marking_deque) {
+    marking_deque_ = marking_deque;
+  }
+
  private:
   class Observer : public AllocationObserver {
    public:
@@ -276,6 +291,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   size_t StepSizeToMakeProgress();
 
   Heap* heap_;
+  MarkingDeque* marking_deque_;
 
   double start_time_ms_;
   size_t initial_old_generation_size_;

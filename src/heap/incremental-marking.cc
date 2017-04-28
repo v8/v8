@@ -24,6 +24,7 @@ namespace internal {
 
 IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
+      marking_deque_(nullptr),
       initial_old_generation_size_(0),
       bytes_marked_ahead_of_schedule_(0),
       unscanned_bytes_of_large_object_(0),
@@ -43,13 +44,12 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
 bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);
   DCHECK(!ObjectMarking::IsImpossible(value_heap_obj,
-                                      MarkingState::Internal(value_heap_obj)));
-  DCHECK(!ObjectMarking::IsImpossible(obj, MarkingState::Internal(obj)));
-  const bool is_black =
-      ObjectMarking::IsBlack(obj, MarkingState::Internal(obj));
+                                      marking_state(value_heap_obj)));
+  DCHECK(!ObjectMarking::IsImpossible(obj, marking_state(obj)));
+  const bool is_black = ObjectMarking::IsBlack(obj, marking_state(obj));
 
-  if (is_black && ObjectMarking::IsWhite(
-                      value_heap_obj, MarkingState::Internal(value_heap_obj))) {
+  if (is_black &&
+      ObjectMarking::IsWhite(value_heap_obj, marking_state(value_heap_obj))) {
     WhiteToGreyAndPush(value_heap_obj);
     RestartIfNotMarking();
   }
@@ -122,8 +122,8 @@ void IncrementalMarking::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
 }
 
 void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj) {
-  ObjectMarking::WhiteToGrey(obj, MarkingState::Internal(obj));
-  heap_->mark_compact_collector()->marking_deque()->Push(obj);
+  ObjectMarking::WhiteToGrey(obj, marking_state(obj));
+  marking_deque()->Push(obj);
 }
 
 void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
@@ -133,24 +133,22 @@ void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
   DCHECK(MemoryChunk::FromAddress(from->address()) ==
          MemoryChunk::FromAddress(to->address()));
 
-  if (!heap->incremental_marking()->IsMarking()) return;
+  if (!IsMarking()) return;
 
   // If the mark doesn't move, we don't check the color of the object.
   // It doesn't matter whether the object is black, since it hasn't changed
   // size, so the adjustment to the live data count will be zero anyway.
   if (from == to) return;
 
-  MarkBit new_mark_bit =
-      ObjectMarking::MarkBitFrom(to, MarkingState::Internal(to));
-  MarkBit old_mark_bit =
-      ObjectMarking::MarkBitFrom(from, MarkingState::Internal(from));
+  MarkBit new_mark_bit = ObjectMarking::MarkBitFrom(to, marking_state(to));
+  MarkBit old_mark_bit = ObjectMarking::MarkBitFrom(from, marking_state(from));
 
   if (Marking::IsBlack(old_mark_bit)) {
     Marking::MarkBlack(new_mark_bit);
   } else if (Marking::IsGrey(old_mark_bit)) {
     Marking::WhiteToGrey(new_mark_bit);
-    heap->mark_compact_collector()->marking_deque()->Push(to);
-    heap->incremental_marking()->RestartIfNotMarking();
+    marking_deque()->Push(to);
+    RestartIfNotMarking();
   }
 }
 
@@ -187,16 +185,16 @@ class IncrementalMarkingMarkingVisitor
                       HeapObject::RawField(object, end_offset));
         start_offset = end_offset;
         end_offset = Min(object_size, end_offset + kProgressBarScanningChunk);
-        scan_until_end =
-            heap->mark_compact_collector()->marking_deque()->IsFull();
+        scan_until_end = heap->incremental_marking()->marking_deque()->IsFull();
       } while (scan_until_end && start_offset < object_size);
       chunk->set_progress_bar(start_offset);
       if (start_offset < object_size) {
-        if (ObjectMarking::IsGrey(object, MarkingState::Internal(object))) {
-          heap->mark_compact_collector()->marking_deque()->Unshift(object);
+        if (ObjectMarking::IsGrey(
+                object, heap->incremental_marking()->marking_state(object))) {
+          heap->incremental_marking()->marking_deque()->Unshift(object);
         } else {
-          DCHECK(
-              ObjectMarking::IsBlack(object, MarkingState::Internal(object)));
+          DCHECK(ObjectMarking::IsBlack(
+              object, heap->incremental_marking()->marking_state(object)));
           heap->mark_compact_collector()->UnshiftBlack(object);
         }
         heap->incremental_marking()->NotifyIncompleteScanOfObject(
@@ -219,10 +217,12 @@ class IncrementalMarkingMarkingVisitor
         HeapObject* heap_obj = HeapObject::cast(cache);
         // Mark the object grey if it is white, do not enque it into the marking
         // deque.
-        if (ObjectMarking::IsWhite(heap_obj,
-                                   MarkingState::Internal(heap_obj))) {
-          ObjectMarking::WhiteToGrey(heap_obj,
-                                     MarkingState::Internal(heap_obj));
+        Heap* heap = map->GetHeap();
+        if (ObjectMarking::IsWhite(
+                heap_obj,
+                heap->incremental_marking()->marking_state(heap_obj))) {
+          ObjectMarking::WhiteToGrey(
+              heap_obj, heap->incremental_marking()->marking_state(heap_obj));
         }
       }
     }
@@ -250,17 +250,18 @@ class IncrementalMarkingMarkingVisitor
 
   // Marks the object grey and pushes it on the marking stack.
   INLINE(static void MarkObject(Heap* heap, Object* obj)) {
-    IncrementalMarking::MarkGrey(heap, HeapObject::cast(obj));
+    heap->incremental_marking()->MarkGrey(HeapObject::cast(obj));
   }
 
   // Marks the object black without pushing it on the marking stack.
   // Returns true if object needed marking and false otherwise.
   INLINE(static bool MarkObjectWithoutPush(Heap* heap, Object* obj)) {
     HeapObject* heap_object = HeapObject::cast(obj);
-    if (ObjectMarking::IsWhite(heap_object,
-                               MarkingState::Internal(heap_object))) {
-      ObjectMarking::WhiteToBlack(heap_object,
-                                  MarkingState::Internal(heap_object));
+    if (ObjectMarking::IsWhite(
+            heap_object,
+            heap->incremental_marking()->marking_state(heap_object))) {
+      ObjectMarking::WhiteToBlack(
+          heap_object, heap->incremental_marking()->marking_state(heap_object));
       return true;
     }
     return false;
@@ -268,15 +269,14 @@ class IncrementalMarkingMarkingVisitor
 };
 
 void IncrementalMarking::IterateBlackObject(HeapObject* object) {
-  if (IsMarking() &&
-      ObjectMarking::IsBlack(object, MarkingState::Internal(object))) {
+  if (IsMarking() && ObjectMarking::IsBlack(object, marking_state(object))) {
     Page* page = Page::FromAddress(object->address());
     if ((page->owner() != nullptr) && (page->owner()->identity() == LO_SPACE)) {
       // IterateBlackObject requires us to visit the whole object.
       page->ResetProgressBar();
     }
     Map* map = object->map();
-    MarkGrey(heap_, map);
+    MarkGrey(map);
     IncrementalMarkingMarkingVisitor::IterateBody(map, object);
   }
 }
@@ -300,7 +300,7 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
     Object* obj = *p;
     if (!obj->IsHeapObject()) return;
 
-    IncrementalMarking::MarkGrey(heap_, HeapObject::cast(obj));
+    heap_->incremental_marking()->MarkGrey(HeapObject::cast(obj));
   }
 
   Heap* heap_;
@@ -531,7 +531,7 @@ void IncrementalMarking::StartMarking() {
 
   PatchIncrementalMarkingRecordWriteStubs(heap_, mode);
 
-  heap_->mark_compact_collector()->marking_deque()->StartUsing();
+  marking_deque()->StartUsing();
 
   ActivateIncrementalWriteBarrier();
 
@@ -551,10 +551,9 @@ void IncrementalMarking::StartMarking() {
 
   if (FLAG_concurrent_marking) {
     ConcurrentMarking* concurrent_marking = heap_->concurrent_marking();
-    heap_->mark_compact_collector()->marking_deque()->Iterate(
-        [concurrent_marking](HeapObject* obj) {
-          concurrent_marking->AddRoot(obj);
-        });
+    marking_deque()->Iterate([concurrent_marking](HeapObject* obj) {
+      concurrent_marking->AddRoot(obj);
+    });
     concurrent_marking->StartTask();
   }
 
@@ -617,7 +616,7 @@ void IncrementalMarking::ProcessWeakCells() {
     HeapObject* value = HeapObject::cast(weak_cell->value());
     // Remove weak cells with live objects from the list, they do not need
     // clearing.
-    if (ObjectMarking::IsBlackOrGrey(value, MarkingState::Internal(value))) {
+    if (ObjectMarking::IsBlackOrGrey(value, marking_state(value))) {
       // Record slot, if value is pointing to an evacuation candidate.
       Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
       heap_->mark_compact_collector()->RecordSlot(weak_cell, slot, *slot);
@@ -646,10 +645,11 @@ bool ShouldRetainMap(Map* map, int age) {
     return false;
   }
   Object* constructor = map->GetConstructor();
+  Heap* heap = map->GetHeap();
   if (!constructor->IsHeapObject() ||
-      ObjectMarking::IsWhite(
-          HeapObject::cast(constructor),
-          MarkingState::Internal(HeapObject::cast(constructor)))) {
+      ObjectMarking::IsWhite(HeapObject::cast(constructor),
+                             heap->incremental_marking()->marking_state(
+                                 HeapObject::cast(constructor)))) {
     // The constructor is dead, no new objects with this map can
     // be created. Do not retain this map.
     return false;
@@ -679,15 +679,14 @@ void IncrementalMarking::RetainMaps() {
     int new_age;
     Map* map = Map::cast(cell->value());
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
-        ObjectMarking::IsWhite(map, MarkingState::Internal(map))) {
+        ObjectMarking::IsWhite(map, marking_state(map))) {
       if (ShouldRetainMap(map, age)) {
-        MarkGrey(heap(), map);
+        MarkGrey(map);
       }
       Object* prototype = map->prototype();
       if (age > 0 && prototype->IsHeapObject() &&
-          ObjectMarking::IsWhite(
-              HeapObject::cast(prototype),
-              MarkingState::Internal(HeapObject::cast(prototype)))) {
+          ObjectMarking::IsWhite(HeapObject::cast(prototype),
+                                 marking_state(HeapObject::cast(prototype)))) {
         // The prototype is not marked, age the map.
         new_age = age - 1;
       } else {
@@ -712,8 +711,7 @@ void IncrementalMarking::FinalizeIncrementally() {
 
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
-  int old_marking_deque_top =
-      heap_->mark_compact_collector()->marking_deque()->top();
+  int old_marking_deque_top = marking_deque()->top();
 
   // After finishing incremental marking, we try to discover all unmarked
   // objects to reduce the marking load in the final pause.
@@ -730,9 +728,7 @@ void IncrementalMarking::FinalizeIncrementally() {
   }
   ProcessWeakCells();
 
-  int marking_progress =
-      abs(old_marking_deque_top -
-          heap_->mark_compact_collector()->marking_deque()->top());
+  int marking_progress = abs(old_marking_deque_top - marking_deque()->top());
 
   marking_progress += static_cast<int>(
       heap_->local_embedder_heap_tracer()->NumberOfCachedWrappersToTrace());
@@ -767,12 +763,10 @@ void IncrementalMarking::FinalizeIncrementally() {
 void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
   if (!IsMarking()) return;
 
-  MarkingDeque* marking_deque =
-      heap_->mark_compact_collector()->marking_deque();
-  int current = marking_deque->bottom();
-  int mask = marking_deque->mask();
-  int limit = marking_deque->top();
-  HeapObject** array = marking_deque->array();
+  int current = marking_deque()->bottom();
+  int mask = marking_deque()->mask();
+  int limit = marking_deque()->top();
+  HeapObject** array = marking_deque()->array();
   int new_top = current;
 
   Map* filler_map = heap_->one_pointer_filler_map();
@@ -791,41 +785,39 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
       // them.
       if (map_word.IsForwardingAddress()) {
         HeapObject* dest = map_word.ToForwardingAddress();
-        if (ObjectMarking::IsBlack(dest, MarkingState::Internal(dest)))
-          continue;
+        if (ObjectMarking::IsBlack(dest, marking_state(dest))) continue;
         array[new_top] = dest;
         new_top = ((new_top + 1) & mask);
-        DCHECK(new_top != marking_deque->bottom());
-        DCHECK(ObjectMarking::IsGrey(obj, MarkingState::Internal(obj)) ||
+        DCHECK(new_top != marking_deque()->bottom());
+        DCHECK(ObjectMarking::IsGrey(obj, marking_state(obj)) ||
                (obj->IsFiller() &&
-                ObjectMarking::IsWhite(obj, MarkingState::Internal(obj))));
+                ObjectMarking::IsWhite(obj, marking_state(obj))));
       }
     } else if (obj->map() != filler_map) {
       // Skip one word filler objects that appear on the
       // stack when we perform in place array shift.
       array[new_top] = obj;
       new_top = ((new_top + 1) & mask);
-      DCHECK(new_top != marking_deque->bottom());
-      DCHECK(ObjectMarking::IsGrey(obj, MarkingState::Internal(obj)) ||
+      DCHECK(new_top != marking_deque()->bottom());
+      DCHECK(ObjectMarking::IsGrey(obj, marking_state(obj)) ||
              (obj->IsFiller() &&
-              ObjectMarking::IsWhite(obj, MarkingState::Internal(obj))) ||
+              ObjectMarking::IsWhite(obj, marking_state(obj))) ||
              (MemoryChunk::FromAddress(obj->address())
                   ->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
-              ObjectMarking::IsBlack(obj, MarkingState::Internal(obj))));
+              ObjectMarking::IsBlack(obj, marking_state(obj))));
     }
   }
-  marking_deque->set_top(new_top);
+  marking_deque()->set_top(new_top);
 }
 
 
 void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
-  MarkGrey(heap_, map);
+  MarkGrey(map);
 
   IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
 
 #if ENABLE_SLOW_DCHECKS
-  MarkBit mark_bit =
-      ObjectMarking::MarkBitFrom(obj, MarkingState::Internal(obj));
+  MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj, marking_state(obj));
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   SLOW_DCHECK(Marking::IsGrey(mark_bit) ||
               (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
@@ -834,30 +826,28 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
   MarkBlack(obj, size);
 }
 
-void IncrementalMarking::MarkGrey(Heap* heap, HeapObject* object) {
-  if (ObjectMarking::IsWhite(object, MarkingState::Internal(object))) {
-    heap->incremental_marking()->WhiteToGreyAndPush(object);
+void IncrementalMarking::MarkGrey(HeapObject* object) {
+  if (ObjectMarking::IsWhite(object, marking_state(object))) {
+    WhiteToGreyAndPush(object);
   }
 }
 
 void IncrementalMarking::MarkBlack(HeapObject* obj, int size) {
-  if (ObjectMarking::IsBlack(obj, MarkingState::Internal(obj))) return;
-  ObjectMarking::GreyToBlack(obj, MarkingState::Internal(obj));
+  if (ObjectMarking::IsBlack(obj, marking_state(obj))) return;
+  ObjectMarking::GreyToBlack(obj, marking_state(obj));
 }
 
 intptr_t IncrementalMarking::ProcessMarkingDeque(
     intptr_t bytes_to_process, ForceCompletionAction completion) {
   intptr_t bytes_processed = 0;
-  MarkingDeque* marking_deque =
-      heap_->mark_compact_collector()->marking_deque();
-  while (!marking_deque->IsEmpty() && (bytes_processed < bytes_to_process ||
-                                       completion == FORCE_COMPLETION)) {
-    HeapObject* obj = marking_deque->Pop();
+  while (!marking_deque()->IsEmpty() && (bytes_processed < bytes_to_process ||
+                                         completion == FORCE_COMPLETION)) {
+    HeapObject* obj = marking_deque()->Pop();
 
     // Left trimming may result in white, grey, or black filler objects on the
     // marking deque. Ignore these objects.
     if (obj->IsFiller()) {
-      DCHECK(!ObjectMarking::IsImpossible(obj, MarkingState::Internal(obj)));
+      DCHECK(!ObjectMarking::IsImpossible(obj, marking_state(obj)));
       continue;
     }
 
@@ -882,7 +872,7 @@ void IncrementalMarking::Hurry() {
   // forced e.g. in tests. It should not happen when COMPLETE was set when
   // incremental marking finished and a regular GC was triggered after that
   // because should_hurry_ will force a full GC.
-  if (!heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
+  if (!marking_deque()->IsEmpty()) {
     double start = 0.0;
     if (FLAG_trace_incremental_marking) {
       start = heap_->MonotonicallyIncreasingTimeInMs();
@@ -912,8 +902,8 @@ void IncrementalMarking::Hurry() {
     HeapObject* cache = HeapObject::cast(
         Context::cast(context)->get(Context::NORMALIZED_MAP_CACHE_INDEX));
     if (!cache->IsUndefined(heap_->isolate())) {
-      if (ObjectMarking::IsGrey(cache, MarkingState::Internal(cache))) {
-        ObjectMarking::GreyToBlack(cache, MarkingState::Internal(cache));
+      if (ObjectMarking::IsGrey(cache, marking_state(cache))) {
+        ObjectMarking::GreyToBlack(cache, marking_state(cache));
       }
     }
     context = Context::cast(context)->next_context_link();
@@ -1043,7 +1033,7 @@ double IncrementalMarking::AdvanceIncrementalMarking(
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
   } while (remaining_time_in_ms >= kStepSizeInMs && !IsComplete() &&
-           !heap()->mark_compact_collector()->marking_deque()->IsEmpty());
+           !marking_deque()->IsEmpty());
   return remaining_time_in_ms;
 }
 
@@ -1143,7 +1133,7 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
       bytes_marked_ahead_of_schedule_ += bytes_processed;
     }
 
-    if (heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
+    if (marking_deque()->IsEmpty()) {
       if (heap_->local_embedder_heap_tracer()
               ->ShouldFinalizeIncrementalMarking()) {
         if (completion == FORCE_COMPLETION ||

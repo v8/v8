@@ -3201,8 +3201,8 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
       !Marking::IsBlack(ObjectMarking::MarkBitFrom(
           HeapObject::FromAddress(new_start),
           MarkingState::Internal(HeapObject::FromAddress(new_start))))) {
-    IncrementalMarking::TransferMark(this, object,
-                                     HeapObject::FromAddress(new_start));
+    incremental_marking()->TransferMark(this, object,
+                                        HeapObject::FromAddress(new_start));
   }
 
   // Technically in new space this write might be omitted (except for
@@ -4287,7 +4287,7 @@ void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
 void Heap::NotifyObjectLayoutChange(HeapObject* object,
                                     const DisallowHeapAllocation&) {
   if (FLAG_incremental_marking && incremental_marking()->IsMarking()) {
-    incremental_marking()->MarkGrey(this, object);
+    incremental_marking()->MarkGrey(object);
   }
 #ifdef VERIFY_HEAP
   DCHECK(pending_layout_change_object_ == nullptr);
@@ -4852,7 +4852,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     // promoted objects.
     if (heap_->incremental_marking()->black_allocation()) {
       Code* code = Code::cast(Code::GetObjectFromEntryAddress(code_entry_slot));
-      IncrementalMarking::MarkGrey(heap_, code);
+      heap_->incremental_marking()->MarkGrey(code);
     }
   }
 
@@ -4891,7 +4891,7 @@ void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size,
   // regular visiting and IteratePromotedObjectPointers.
   if (!was_marked_black) {
     if (incremental_marking()->black_allocation()) {
-      IncrementalMarking::MarkGrey(this, target->map());
+      incremental_marking()->MarkGrey(target->map());
       incremental_marking()->IterateBlackObject(target);
     }
   }
@@ -5494,7 +5494,6 @@ bool Heap::SetUp() {
   store_buffer_ = new StoreBuffer(this);
 
   incremental_marking_ = new IncrementalMarking(this);
-
   concurrent_marking_ = new ConcurrentMarking(this);
 
   for (int i = 0; i <= LAST_SPACE; i++) {
@@ -5542,6 +5541,8 @@ bool Heap::SetUp() {
   tracer_ = new GCTracer(this);
   scavenge_collector_ = new Scavenger(this);
   mark_compact_collector_ = new MarkCompactCollector(this);
+  incremental_marking_->set_marking_deque(
+      mark_compact_collector_->marking_deque());
   if (FLAG_minor_mc)
     minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
   gc_idle_time_handler_ = new GCIdleTimeHandler();
@@ -5653,7 +5654,7 @@ void Heap::RegisterExternallyReferencedObject(Object** object) {
   HeapObject* heap_object = HeapObject::cast(*object);
   DCHECK(Contains(heap_object));
   if (FLAG_incremental_marking_wrappers && incremental_marking()->IsMarking()) {
-    IncrementalMarking::MarkGrey(this, heap_object);
+    incremental_marking()->MarkGrey(heap_object);
   } else {
     DCHECK(mark_compact_collector()->in_use());
     mark_compact_collector()->MarkObject(heap_object);
