@@ -417,6 +417,13 @@
 }],  # variant == turbofan
 
 ##############################################################################
+['variant == noturbofan and no_snap', {
+  # Too slow for old pipeline and nosnap.
+  'test-lockers/SeparateIsolatesLocksNonexclusive': [SKIP],
+  'test-lockers/ExtensionsRegistration': [SKIP],
+}],  # variant == noturbofan and no_snap
+
+##############################################################################
 ['variant == wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],

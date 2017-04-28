@@ -653,6 +653,13 @@
 }],  # variant == nooptimization
 
 ##############################################################################
+['variant == noturbofan and no_snap', {
+  # Too slow for old pipeline and nosnap.
+  'regress/regress-2249': [SKIP],
+  'harmony/futex': [SKIP],
+}],  # variant == noturbofan and no_snap
+
+##############################################################################
 ['variant == turbofan_opt', {
   'es6/array-iterator-turbo': [SKIP],
 
