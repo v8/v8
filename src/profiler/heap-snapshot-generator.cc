@@ -306,11 +306,13 @@ class FindEntryById {
 
 HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) {
   List<HeapEntry*>* entries_by_id = GetSortedEntriesList();
-  // Perform a binary search by id.
-  int index = SortedListBSearch(*entries_by_id, FindEntryById(id));
-  if (index == -1)
-    return NULL;
-  return entries_by_id->at(index);
+
+  auto it = std::lower_bound(
+      entries_by_id->begin(), entries_by_id->end(), id,
+      [](HeapEntry* first, SnapshotObjectId val) { return first->id() < val; });
+
+  if (it == entries_by_id->end() || (*it)->id() != id) return NULL;
+  return *it;
 }
 
 

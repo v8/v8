@@ -161,13 +161,6 @@ int Compare(const T& a, const T& b) {
     return 1;
 }
 
-
-template <typename T>
-int PointerValueCompare(const T* a, const T* b) {
-  return Compare<T>(*a, *b);
-}
-
-
 // Compare function to compare the object pointer value of two
 // handlified objects. The handles are passed as pointers to the
 // handles.

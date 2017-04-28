@@ -245,41 +245,6 @@ void List<T, P>::StableSort() {
   ToVector().StableSort();
 }
 
-
-template <typename T, typename P>
-int SortedListBSearch(const List<T>& list, P cmp) {
-  int low = 0;
-  int high = list.length() - 1;
-  while (low <= high) {
-    int mid = low + (high - low) / 2;
-    T mid_elem = list[mid];
-
-    if (cmp(&mid_elem) > 0) {
-      high = mid - 1;
-      continue;
-    }
-    if (cmp(&mid_elem) < 0) {
-      low = mid + 1;
-      continue;
-    }
-    // Found the element.
-    return mid;
-  }
-  return -1;
-}
-
-
-template<typename T>
-class ElementCmp {
- public:
-  explicit ElementCmp(T e) : elem_(e) {}
-  int operator()(const T* other) {
-    return PointerValueCompare(other, &elem_);
-  }
- private:
-  T elem_;
-};
-
 }  // namespace internal
 }  // namespace v8
 
