@@ -22,11 +22,11 @@ namespace internal {
 
 void Deserializer::DecodeReservation(
     Vector<const SerializedData::Reservation> res) {
-  DCHECK_EQ(0, reservations_[NEW_SPACE].length());
+  DCHECK_EQ(0, reservations_[NEW_SPACE].size());
   STATIC_ASSERT(NEW_SPACE == 0);
   int current_space = NEW_SPACE;
   for (auto& r : res) {
-    reservations_[current_space].Add({r.chunk_size(), NULL, NULL});
+    reservations_[current_space].push_back({r.chunk_size(), NULL, NULL});
     if (r.is_last()) current_space++;
   }
   DCHECK_EQ(kNumberOfSpaces, current_space);
@@ -57,7 +57,7 @@ void Deserializer::FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects() {
 bool Deserializer::ReserveSpace() {
 #ifdef DEBUG
   for (int i = NEW_SPACE; i < kNumberOfSpaces; ++i) {
-    CHECK(reservations_[i].length() > 0);
+    CHECK(reservations_[i].size() > 0);
   }
 #endif  // DEBUG
   DCHECK(allocated_maps_.is_empty());
@@ -187,7 +187,7 @@ Deserializer::~Deserializer() {
   while (source_.HasMore()) CHECK_EQ(kNop, source_.Get());
   for (int space = 0; space < kNumberOfPreallocatedSpaces; space++) {
     int chunk_index = current_chunk_[space];
-    CHECK_EQ(reservations_[space].length(), chunk_index + 1);
+    CHECK_EQ(reservations_[space].size(), chunk_index + 1);
     CHECK_EQ(reservations_[space][chunk_index].end, high_water_[space]);
   }
   CHECK_EQ(allocated_maps_.length(), next_map_index_);
@@ -793,7 +793,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         CHECK_EQ(reservation[chunk_index].end, high_water_[space]);
         // Move to next reserved chunk.
         chunk_index = ++current_chunk_[space];
-        CHECK_LT(chunk_index, reservation.length());
+        CHECK_LT(chunk_index, reservation.size());
         high_water_[space] = reservation[chunk_index].start;
         break;
       }

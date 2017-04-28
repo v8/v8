@@ -614,7 +614,7 @@ class Heap {
     Address start;
     Address end;
   };
-  typedef List<Chunk> Reservation;
+  typedef std::vector<Chunk> Reservation;
 
   static const int kInitalOldGenerationLimitFactor = 2;
 

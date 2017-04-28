@@ -1166,13 +1166,13 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
     for (int space = NEW_SPACE; space < SerializerDeserializer::kNumberOfSpaces;
          space++) {
       Reservation* reservation = &reservations[space];
-      DCHECK_LE(1, reservation->length());
+      DCHECK_LE(1, reservation->size());
       if (reservation->at(0).size == 0) continue;
       bool perform_gc = false;
       if (space == MAP_SPACE) {
         // We allocate each map individually to avoid fragmentation.
         maps->Clear();
-        DCHECK_EQ(1, reservation->length());
+        DCHECK_EQ(1, reservation->size());
         int num_maps = reservation->at(0).size / Map::kSize;
         for (int i = 0; i < num_maps; i++) {
           // The deserializer will update the skip list.
@@ -1193,7 +1193,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
         }
       } else if (space == LO_SPACE) {
         // Just check that we can allocate during deserialization.
-        DCHECK_EQ(1, reservation->length());
+        DCHECK_EQ(1, reservation->size());
         perform_gc = !CanExpandOldGeneration(reservation->at(0).size);
       } else {
         for (auto& chunk : *reservation) {
