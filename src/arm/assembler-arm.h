@@ -1723,6 +1723,9 @@ class Assembler : public AssemblerBase {
   std::vector<ConstantPoolEntry> pending_64_bit_constants_;
 
  private:
+  // Avoid overflows for displacements etc.
+  static const int kMaximalBufferSize = 512 * MB;
+
   int next_buffer_check_;  // pc offset of next buffer check
 
   // Constant pool generation

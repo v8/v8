@@ -291,18 +291,14 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
     : isolate_(isolate),
       code_range_(nullptr),
       capacity_(0),
-      capacity_executable_(0),
       size_(0),
       size_executable_(0),
       lowest_ever_allocated_(reinterpret_cast<void*>(-1)),
       highest_ever_allocated_(reinterpret_cast<void*>(0)),
       unmapper_(this) {}
 
-bool MemoryAllocator::SetUp(size_t capacity, size_t capacity_executable,
-                            size_t code_range_size) {
+bool MemoryAllocator::SetUp(size_t capacity, size_t code_range_size) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
-  capacity_executable_ = RoundUp(capacity_executable, Page::kPageSize);
-  DCHECK_GE(capacity_, capacity_executable_);
 
   size_ = 0;
   size_executable_ = 0;
@@ -322,7 +318,6 @@ void MemoryAllocator::TearDown() {
   // TODO(gc) this will be true again when we fix FreeMemory.
   // DCHECK(size_executable_ == 0);
   capacity_ = 0;
-  capacity_executable_ = 0;
 
   if (last_chunk_.IsReserved()) {
     last_chunk_.Release();
@@ -697,13 +692,6 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     chunk_size = RoundUp(CodePageAreaStartOffset() + reserve_area_size,
                          GetCommitPageSize()) +
                  CodePageGuardSize();
-
-    // Check executable memory limit.
-    if ((size_executable_.Value() + chunk_size) > capacity_executable_) {
-      LOG(isolate_, StringEvent("MemoryAllocator::AllocateRawMemory",
-                                "V8 Executable Allocation capacity exceeded"));
-      return NULL;
-    }
 
     // Size of header (not executable) plus area (executable).
     size_t commit_size = RoundUp(CodePageGuardStartOffset() + commit_area_size,

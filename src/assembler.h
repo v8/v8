@@ -69,9 +69,7 @@ class AssemblerBase: public Malloced {
     IsolateData(const IsolateData&) = default;
 
     bool serializer_enabled_;
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
     size_t max_old_generation_size_;
-#endif
 #if V8_TARGET_ARCH_X64
     Address code_range_start_;
 #endif

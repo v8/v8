@@ -1016,7 +1016,7 @@ class Heap {
   // Configure heap size in MB before setup. Return false if the heap has been
   // set up already.
   bool ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
-                     size_t max_executable_size, size_t code_range_size);
+                     size_t code_range_size);
   bool ConfigureHeapDefault();
 
   // Prepares the heap, setting up memory areas that are needed in the isolate
@@ -1370,7 +1370,6 @@ class Heap {
   size_t MaxSemiSpaceSize() { return max_semi_space_size_; }
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   size_t MaxOldGenerationSize() { return max_old_generation_size_; }
-  size_t MaxExecutableSize() { return max_executable_size_; }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -2189,7 +2188,6 @@ class Heap {
   size_t initial_max_old_generation_size_;
   size_t initial_old_generation_size_;
   bool old_generation_size_configured_;
-  size_t max_executable_size_;
   size_t maximum_committed_;
 
   // For keeping track of how much data has survived

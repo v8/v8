@@ -874,7 +874,7 @@ void SetResourceConstraints(i::Isolate* isolate,
   if (semi_space_size != 0 || old_space_size != 0 ||
       max_executable_size != 0 || code_range_size != 0) {
     isolate->heap()->ConfigureHeap(semi_space_size, old_space_size,
-                                   max_executable_size, code_range_size);
+                                   code_range_size);
   }
   isolate->allocator()->ConfigureSegmentPool(max_pool_size);
 

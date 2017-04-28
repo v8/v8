@@ -140,11 +140,8 @@ const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 // Implementation of AssemblerBase
 
 AssemblerBase::IsolateData::IsolateData(Isolate* isolate)
-    : serializer_enabled_(isolate->serializer_enabled())
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-      ,
+    : serializer_enabled_(isolate->serializer_enabled()),
       max_old_generation_size_(isolate->heap()->MaxOldGenerationSize())
-#endif
 #if V8_TARGET_ARCH_X64
       ,
       code_range_start_(

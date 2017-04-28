@@ -1976,6 +1976,9 @@ class Assembler : public AssemblerBase {
   inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
 
  private:
+  // Avoid overflows for displacements etc.
+  static const int kMaximalBufferSize = 512 * MB;
+
   // Buffer size and constant pool distance are checked together at regular
   // intervals of kBufferCheckInterval emitted bytes.
   static constexpr int kBufferCheckInterval = 1 * KB / 2;

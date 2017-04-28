@@ -87,7 +87,6 @@ Heap::Heap()
       initial_old_generation_size_(max_old_generation_size_ /
                                    kInitalOldGenerationLimitFactor),
       old_generation_size_configured_(false),
-      max_executable_size_(256ul * (kPointerSize / 4) * MB),
       // Variables set based on semispace_size_ and old_generation_size_ in
       // ConfigureHeap.
       // Will be 4 * reserved_semispace_size_ to ensure that young
@@ -5067,7 +5066,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
 bool Heap::ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
-                         size_t max_executable_size, size_t code_range_size) {
+                         size_t code_range_size) {
   if (HasBeenSetUp()) return false;
 
   // Overwrite default configuration.
@@ -5076,9 +5075,6 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
   }
   if (max_old_space_size != 0) {
     max_old_generation_size_ = max_old_space_size * MB;
-  }
-  if (max_executable_size != 0) {
-    max_executable_size_ = max_executable_size * MB;
   }
 
   // If max space size flags are specified overwrite the configuration.
@@ -5089,15 +5085,11 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
     max_old_generation_size_ =
         static_cast<size_t>(FLAG_max_old_space_size) * MB;
   }
-  if (FLAG_max_executable_size > 0) {
-    max_executable_size_ = static_cast<size_t>(FLAG_max_executable_size) * MB;
-  }
 
   if (Page::kPageSize > MB) {
     max_semi_space_size_ = ROUND_UP(max_semi_space_size_, Page::kPageSize);
     max_old_generation_size_ =
         ROUND_UP(max_old_generation_size_, Page::kPageSize);
-    max_executable_size_ = ROUND_UP(max_executable_size_, Page::kPageSize);
   }
 
   if (FLAG_stress_compaction) {
@@ -5138,12 +5130,6 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
   initial_max_old_generation_size_ = max_old_generation_size_ =
       Max(static_cast<size_t>(paged_space_count * Page::kPageSize),
           max_old_generation_size_);
-
-  // The max executable size must be less than or equal to the max old
-  // generation size.
-  if (max_executable_size_ > max_old_generation_size_) {
-    max_executable_size_ = max_old_generation_size_;
-  }
 
   if (FLAG_initial_old_space_size > 0) {
     initial_old_generation_size_ = FLAG_initial_old_space_size * MB;
@@ -5189,9 +5175,7 @@ void Heap::GetFromRingBuffer(char* buffer) {
   memcpy(buffer + copied, trace_ring_buffer_, ring_buffer_end_);
 }
 
-
-bool Heap::ConfigureHeapDefault() { return ConfigureHeap(0, 0, 0, 0); }
-
+bool Heap::ConfigureHeapDefault() { return ConfigureHeap(0, 0, 0); }
 
 void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->start_marker = HeapStats::kStartMarker;
@@ -5510,9 +5494,7 @@ bool Heap::SetUp() {
 
   // Set up memory allocator.
   memory_allocator_ = new MemoryAllocator(isolate_);
-  if (!memory_allocator_->SetUp(MaxReserved(), MaxExecutableSize(),
-                                code_range_size_))
-    return false;
+  if (!memory_allocator_->SetUp(MaxReserved(), code_range_size_)) return false;
 
   store_buffer_ = new StoreBuffer(this);
 

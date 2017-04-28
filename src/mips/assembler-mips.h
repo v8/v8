@@ -1927,6 +1927,9 @@ class Assembler : public AssemblerBase {
   inline void CheckBuffer();
 
  private:
+  // Avoid overflows for displacements etc.
+  static const int kMaximalBufferSize = 512 * MB;
+
   inline static void set_target_internal_reference_encoded_at(Address pc,
                                                               Address target);
 

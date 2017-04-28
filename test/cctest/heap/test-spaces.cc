@@ -156,8 +156,7 @@ static void VerifyMemoryChunk(Isolate* isolate,
                               size_t second_commit_area_size,
                               Executability executable) {
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
-                                0));
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   {
     TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
     TestCodeRangeScope test_code_range_scope(isolate, code_range);
@@ -208,8 +207,7 @@ TEST(Regress3540) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
-                                0));
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   CodeRange* code_range = new CodeRange(isolate);
   size_t code_range_size =
@@ -309,8 +307,7 @@ TEST(MemoryAllocator) {
 
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator != nullptr);
-  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
-                                0));
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   {
@@ -357,8 +354,7 @@ TEST(NewSpace) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
-                                0));
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   NewSpace new_space(heap);
@@ -383,8 +379,7 @@ TEST(OldSpace) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
-                                0));
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   OldSpace* s = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
