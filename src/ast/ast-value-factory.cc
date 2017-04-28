@@ -31,6 +31,7 @@
 #include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/string-hasher.h"
 #include "src/utils.h"
 
 namespace v8 {

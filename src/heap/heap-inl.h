@@ -23,6 +23,7 @@
 #include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/string-hasher.h"
 
 namespace v8 {
 namespace internal {

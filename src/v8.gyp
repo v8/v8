@@ -1300,6 +1300,8 @@
         'string-builder.h',
         'string-case.cc',
         'string-case.h',
+        'string-hasher-inl.h',
+        'string-hasher.h',
         'string-search.h',
         'string-stream.cc',
         'string-stream.h',

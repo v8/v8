@@ -12,6 +12,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/scope-info.h"
+#include "src/string-hasher.h"
 
 namespace v8 {
 namespace internal {

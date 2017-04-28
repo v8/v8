@@ -13,6 +13,7 @@
 #include "src/objects-inl.h"
 #include "src/parsing/token.h"
 #include "src/property-descriptor.h"
+#include "src/string-hasher.h"
 #include "src/transitions.h"
 #include "src/unicode-cache.h"
 
