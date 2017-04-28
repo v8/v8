@@ -134,7 +134,7 @@ var V8OptimizationStatus = {
   kInterpreted: 1 << 6
 };
 
-// Returns true if --no-crankshaft mode is on.
+// Returns true if --no-opt mode is on.
 var isNeverOptimize;
 
 // Returns true if --always-opt mode is on.
@@ -550,10 +550,10 @@ var failWithMessage;
   assertOptimized = function assertOptimized(fun, sync_opt, name_opt) {
     if (sync_opt === undefined) sync_opt = "";
     var opt_status = OptimizationStatus(fun, sync_opt);
-    // Tests that use assertOptimized() do not make sense if --no-crankshaft
-    // option is provided. Such tests must add --crankshaft to flags comment.
+    // Tests that use assertOptimized() do not make sense if --no-opt
+    // option is provided. Such tests must add --opt to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kNeverOptimize) !== 0,
-                "test does not make sense with --no-crankshaft");
+                "test does not make sense with --no-opt");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
     if ((opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
       // When --deopt-every-n-times flag is specified it's no longer guaranteed

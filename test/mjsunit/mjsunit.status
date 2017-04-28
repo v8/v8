@@ -394,7 +394,7 @@
   # Flaky with baseline?
   'regress/regress-2185-2': [SKIP],
 
-  # Slow tests with --nocrankshaft.
+  # Slow tests with --noopt.
   'compiler/osr-one': [PASS, SLOW],
   'compiler/osr-two': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],

@@ -3342,7 +3342,7 @@ TEST(ReleaseOverReservedPages) {
   if (FLAG_never_compact) return;
   i::FLAG_trace_gc = true;
   // The optimizer can allocate stuff, messing up the test.
-  i::FLAG_crankshaft = false;
+  i::FLAG_opt = false;
   i::FLAG_always_opt = false;
   // Parallel compaction increases fragmentation, depending on how existing
   // memory is distributed. Since this is non-deterministic because of
@@ -3944,7 +3944,7 @@ TEST(Regress169209) {
 
 TEST(Regress169928) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_crankshaft = false;
+  i::FLAG_opt = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   LocalContext env;
@@ -4266,7 +4266,7 @@ static int AllocationSitesCount(Heap* heap) {
 
 
 TEST(EnsureAllocationSiteDependentCodesProcessed) {
-  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  if (i::FLAG_always_opt || !i::FLAG_opt) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4337,7 +4337,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
 
 TEST(CellsInOptimizedCodeAreWeak) {
-  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  if (i::FLAG_always_opt || !i::FLAG_opt) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4381,7 +4381,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
 
 
 TEST(ObjectsInOptimizedCodeAreWeak) {
-  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  if (i::FLAG_always_opt || !i::FLAG_opt) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4422,7 +4422,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 }
 
 TEST(NewSpaceObjectsInOptimizedCode) {
-  if (i::FLAG_always_opt || !i::FLAG_crankshaft || i::FLAG_turbo) return;
+  if (i::FLAG_always_opt || !i::FLAG_opt || i::FLAG_turbo) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4483,7 +4483,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 }
 
 TEST(NoWeakHashTableLeakWithIncrementalMarking) {
-  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  if (i::FLAG_always_opt || !i::FLAG_opt) return;
   if (!i::FLAG_incremental_marking) return;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_compilation_cache = false;

@@ -289,7 +289,7 @@ TEST(GetScriptLineNumber) {
 
 
 TEST(FeedbackVectorPreservedAcrossRecompiles) {
-  if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
+  if (i::FLAG_always_opt || !i::FLAG_opt) return;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft()) return;

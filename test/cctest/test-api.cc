@@ -14359,7 +14359,7 @@ void SetFunctionEntryHookTest::RunTest() {
       CHECK_EQ(2, CountInvocations(NULL, "bar"));
       CHECK_EQ(200, CountInvocations("bar", "foo"));
       CHECK_EQ(200, CountInvocations(NULL, "foo"));
-    } else if (i::FLAG_crankshaft) {
+    } else if (i::FLAG_opt) {
       // For ignition we don't see the actual functions being called, instead
       // we see the InterpreterEntryTrampoline at least 102 times
       // (100 unoptimized calls to foo, and 2 calls to bar).
@@ -22001,7 +22001,7 @@ void TestStubCache(bool primary) {
   } else {
     FLAG_test_secondary_stub_cache = true;
   }
-  FLAG_crankshaft = false;
+  FLAG_opt = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -22920,7 +22920,7 @@ TEST(AccessCheckInIC) {
   if (FLAG_ignition || FLAG_turbo) return;
 
   FLAG_native_code_counters = true;
-  FLAG_crankshaft = false;
+  FLAG_opt = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

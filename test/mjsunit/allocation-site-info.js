@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
-// Flags: --crankshaft --no-always-opt
+// Flags: --opt --no-always-opt
 
 var elements_kind = {
   fast_smi_only            :  'fast smi only elements',
@@ -136,7 +136,7 @@ assertKind(elements_kind.fast, obj);
 obj = fastliteralcase(get_standard_literal(), 3);
 assertKind(elements_kind.fast, obj);
 
-// Make sure this works in crankshafted code too.
+// Make sure this works in optimized code too.
   %OptimizeFunctionOnNextCall(get_standard_literal);
 get_standard_literal();
 obj = get_standard_literal();
@@ -347,7 +347,7 @@ instanceof_check(realmBArray);
 assertOptimized(instanceof_check);
 
 // Try to optimize again, but first clear all type feedback, and allow it
-// to be monomorphic on first call. Only after crankshafting do we introduce
+// to be monomorphic on first call. Only after optimizing do we introduce
 // realmBArray. This should deopt the method.
   %DeoptimizeFunction(instanceof_check);
   %ClearFunctionFeedback(instanceof_check);
