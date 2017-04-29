@@ -505,48 +505,6 @@ Callable CodeFactory::ArrayPush(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::ArrayFilterLoopContinuation(Isolate* isolate) {
-  return Callable(isolate->builtins()->ArrayFilterLoopContinuation(),
-                  IteratingArrayBuiltinLoopContinuationDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ArrayMapLoopContinuation(Isolate* isolate) {
-  return Callable(isolate->builtins()->ArrayMapLoopContinuation(),
-                  IteratingArrayBuiltinLoopContinuationDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ArrayForEachLoopContinuation(Isolate* isolate) {
-  return Callable(isolate->builtins()->ArrayForEachLoopContinuation(),
-                  IteratingArrayBuiltinLoopContinuationDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ArraySomeLoopContinuation(Isolate* isolate) {
-  return Callable(isolate->builtins()->ArraySomeLoopContinuation(),
-                  IteratingArrayBuiltinLoopContinuationDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ArrayEveryLoopContinuation(Isolate* isolate) {
-  return Callable(isolate->builtins()->ArrayEveryLoopContinuation(),
-                  IteratingArrayBuiltinLoopContinuationDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ArrayReduceLoopContinuation(Isolate* isolate) {
-  return Callable(isolate->builtins()->ArrayReduceLoopContinuation(),
-                  IteratingArrayBuiltinLoopContinuationDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ArrayReduceRightLoopContinuation(Isolate* isolate) {
-  return Callable(isolate->builtins()->ArrayReduceRightLoopContinuation(),
-                  IteratingArrayBuiltinLoopContinuationDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::FunctionPrototypeBind(Isolate* isolate) {
   return Callable(isolate->builtins()->FunctionPrototypeBind(),
                   BuiltinDescriptor(isolate));

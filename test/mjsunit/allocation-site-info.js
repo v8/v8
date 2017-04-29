@@ -360,6 +360,12 @@ assertOptimized(instanceof_check);
 instanceof_check(realmBArray);
 assertUnoptimized(instanceof_check);
 
+// Perform a gc because without it the test below can experience an
+// allocation failure at an inconvenient point. Allocation mementos get
+// cleared on gc, and they can't deliver elements kind feedback when that
+// happens.
+gc();
+
 // Case: make sure nested arrays benefit from allocation site feedback as
 // well.
 (function() {

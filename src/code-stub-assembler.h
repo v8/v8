@@ -1468,11 +1468,12 @@ class CodeStubArguments {
  public:
   typedef compiler::Node Node;
 
-  // |argc| is an uint32 value which specifies the number of arguments passed
+  // |argc| is an intptr value which specifies the number of arguments passed
   // to the builtin excluding the receiver.
   CodeStubArguments(CodeStubAssembler* assembler, Node* argc)
       : CodeStubArguments(assembler, argc, nullptr,
                           CodeStubAssembler::INTPTR_PARAMETERS) {}
+  // |argc| is either a smi or intptr depending on |param_mode|
   CodeStubArguments(CodeStubAssembler* assembler, Node* argc, Node* fp,
                     CodeStubAssembler::ParameterMode param_mode);
 
@@ -1486,6 +1487,8 @@ class CodeStubArguments {
                                  CodeStubAssembler::INTPTR_PARAMETERS) const;
 
   Node* AtIndex(int index) const;
+
+  Node* GetOptionalArgumentValue(int index, Node* default_value);
 
   Node* GetLength() const { return argc_; }
 
