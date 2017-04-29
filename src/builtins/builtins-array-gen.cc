@@ -46,7 +46,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Label false_continue(this), return_true(this);
     BranchIfToBooleanIsTrue(value, &return_true, &false_continue);
     BIND(&return_true);
-    ReturnFromBuiltin(TrueConstant());
+    Return(TrueConstant());
     BIND(&false_continue);
     return a();
   }
@@ -59,12 +59,44 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Label true_continue(this), return_false(this);
     BranchIfToBooleanIsTrue(value, &true_continue, &return_false);
     BIND(&return_false);
-    ReturnFromBuiltin(FalseConstant());
+    Return(FalseConstant());
     BIND(&true_continue);
     return a();
   }
 
-  Node* ReduceResultGenerator() { return this_arg(); }
+  Node* ReduceResultGenerator() {
+    VARIABLE(a, MachineRepresentation::kTagged, UndefinedConstant());
+    Label no_initial_value(this), has_initial_value(this), done(this, {&a});
+
+    // 8. If initialValue is present, then
+    Node* parent_frame_ptr = LoadParentFramePointer();
+    Node* marker_or_function = LoadBufferObject(
+        parent_frame_ptr, CommonFrameConstants::kContextOrFrameTypeOffset);
+    GotoIf(
+        MarkerIsNotFrameType(marker_or_function, StackFrame::ARGUMENTS_ADAPTOR),
+        &has_initial_value);
+
+    // Has arguments adapter, check count.
+    Node* adapted_parameter_count = LoadBufferObject(
+        parent_frame_ptr, ArgumentsAdaptorFrameConstants::kLengthOffset);
+    Branch(SmiLessThan(adapted_parameter_count,
+                       SmiConstant(IteratingArrayBuiltinDescriptor::kThisArg)),
+           &no_initial_value, &has_initial_value);
+
+    // a. Set accumulator to initialValue.
+    BIND(&has_initial_value);
+    a.Bind(this_arg());
+    Goto(&done);
+
+    // 9. Else initialValue is not present,
+    BIND(&no_initial_value);
+
+    // a. Let kPresent be false.
+    a.Bind(TheHoleConstant());
+    Goto(&done);
+    BIND(&done);
+    return a.value();
+  }
 
   Node* ReduceProcessor(Node* k_value, Node* k) {
     VARIABLE(result, MachineRepresentation::kTagged);
@@ -234,7 +266,6 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   Node* context() { return context_; }
   Node* receiver() { return receiver_; }
   Node* new_target() { return new_target_; }
-  Node* argc() { return argc_; }
   Node* o() { return o_; }
   Node* len() { return len_; }
   Node* callbackfn() { return callbackfn_; }
@@ -242,25 +273,14 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   Node* k() { return k_.value(); }
   Node* a() { return a_.value(); }
 
-  void ReturnFromBuiltin(Node* value) {
-    if (argc_ == nullptr) {
-      Return(value);
-    } else {
-      // argc_ doesn't include the receiver, so it has to be added back in
-      // manually.
-      PopAndReturn(IntPtrAdd(argc_, IntPtrConstant(1)), value);
-    }
-  }
-
   void InitIteratingArrayBuiltinBody(Node* context, Node* receiver,
                                      Node* callbackfn, Node* this_arg,
-                                     Node* new_target, Node* argc) {
+                                     Node* new_target) {
     context_ = context;
     receiver_ = receiver;
     new_target_ = new_target;
     callbackfn_ = callbackfn;
     this_arg_ = this_arg;
-    argc_ = argc;
   }
 
   void GenerateIteratingArrayBuiltinBody(
@@ -342,10 +362,13 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
     BIND(&slow);
 
-    Node* result =
-        CallStub(slow_case_continuation, context(), receiver(), callbackfn(),
-                 this_arg(), a_.value(), o(), k_.value(), len(), to_.value());
-    ReturnFromBuiltin(result);
+    Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                                 MachineType::TaggedPointer());
+    TailCallStub(
+        slow_case_continuation, context(), target, new_target(),
+        Int32Constant(IteratingArrayBuiltinLoopContinuationDescriptor::kArity),
+        receiver(), callbackfn(), this_arg(), a_.value(), o(), k_.value(),
+        len(), to_.value());
   }
 
   void InitIteratingArrayBuiltinLoopContinuation(Node* context, Node* receiver,
@@ -356,7 +379,6 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     context_ = context;
     this_arg_ = this_arg;
     callbackfn_ = callbackfn;
-    argc_ = nullptr;
     a_.Bind(a);
     k_.Bind(initial_k);
     o_ = o;
@@ -458,7 +480,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       // No exception, return success
       BIND(&done);
       action(this);
-      ReturnFromBuiltin(a_.value());
+      Return(a_.value());
     }
   }
 
@@ -660,7 +682,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       action(this);
 
       // No exception, return success
-      ReturnFromBuiltin(a_.value());
+      Return(a_.value());
     }
 
     BIND(&maybe_double_elements);
@@ -675,7 +697,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       action(this);
 
       // No exception, return success
-      ReturnFromBuiltin(a_.value());
+      Return(a_.value());
     }
   }
 
@@ -686,7 +708,6 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   Node* context_ = nullptr;
   Node* receiver_ = nullptr;
   Node* new_target_ = nullptr;
-  Node* argc_ = nullptr;
   Variable k_;
   Variable a_;
   Variable to_;
@@ -842,25 +863,21 @@ TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 }
 
 TF_BUILTIN(ArrayForEach, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.forEach",
       &ArrayBuiltinCodeStubAssembler::ForEachResultGenerator,
       &ArrayBuiltinCodeStubAssembler::ForEachProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
-      Builtins::CallableFor(isolate(),
-                            Builtins::kArrayForEachLoopContinuation));
+      CodeFactory::ArrayForEachLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(ArraySomeLoopContinuation, ArrayBuiltinCodeStubAssembler) {
@@ -884,38 +901,32 @@ TF_BUILTIN(ArraySomeLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 }
 
 TF_BUILTIN(ArraySome, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.some",
       &ArrayBuiltinCodeStubAssembler::SomeResultGenerator,
       &ArrayBuiltinCodeStubAssembler::SomeProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
-      Builtins::CallableFor(isolate(), Builtins::kArraySomeLoopContinuation));
+      CodeFactory::ArraySomeLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(TypedArrayPrototypeSome, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.some",
@@ -945,38 +956,32 @@ TF_BUILTIN(ArrayEveryLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 }
 
 TF_BUILTIN(ArrayEvery, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.every",
       &ArrayBuiltinCodeStubAssembler::EveryResultGenerator,
       &ArrayBuiltinCodeStubAssembler::EveryProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
-      Builtins::CallableFor(isolate(), Builtins::kArrayEveryLoopContinuation));
+      CodeFactory::ArrayEveryLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(TypedArrayPrototypeEvery, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.every",
@@ -1006,38 +1011,32 @@ TF_BUILTIN(ArrayReduceLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 }
 
 TF_BUILTIN(ArrayReduce, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* initial_value = Parameter(Descriptor::kInitialValue);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.reduce",
       &ArrayBuiltinCodeStubAssembler::ReduceResultGenerator,
       &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
       &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction,
-      Builtins::CallableFor(isolate(), Builtins::kArrayReduceLoopContinuation));
+      CodeFactory::ArrayReduceLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(TypedArrayPrototypeReduce, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* initial_value = Parameter(Descriptor::kInitialValue);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.reduce",
@@ -1068,40 +1067,33 @@ TF_BUILTIN(ArrayReduceRightLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 }
 
 TF_BUILTIN(ArrayReduceRight, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* initial_value = Parameter(Descriptor::kInitialValue);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.reduceRight",
       &ArrayBuiltinCodeStubAssembler::ReduceResultGenerator,
       &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
       &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction,
-      Builtins::CallableFor(isolate(),
-                            Builtins::kArrayReduceRightLoopContinuation),
+      CodeFactory::ArrayReduceRightLoopContinuation(isolate()),
       ForEachDirection::kReverse);
 }
 
 TF_BUILTIN(TypedArrayPrototypeReduceRight, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* initial_value = Parameter(Descriptor::kInitialValue);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingTypedArrayBuiltinBody(
       "%TypedArray%.prototype.reduceRight",
@@ -1132,24 +1124,21 @@ TF_BUILTIN(ArrayFilterLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 }
 
 TF_BUILTIN(ArrayFilter, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.filter",
       &ArrayBuiltinCodeStubAssembler::FilterResultGenerator,
       &ArrayBuiltinCodeStubAssembler::FilterProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
-      Builtins::CallableFor(isolate(), Builtins::kArrayFilterLoopContinuation));
+      CodeFactory::ArrayFilterLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(ArrayMapLoopContinuation, ArrayBuiltinCodeStubAssembler) {
@@ -1173,23 +1162,20 @@ TF_BUILTIN(ArrayMapLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 }
 
 TF_BUILTIN(ArrayMap, ArrayBuiltinCodeStubAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
-  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* new_target = Parameter(Descriptor::kNewTarget);
 
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
-                                new_target, argc);
+                                new_target);
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.map", &ArrayBuiltinCodeStubAssembler::MapResultGenerator,
       &ArrayBuiltinCodeStubAssembler::MapProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
-      Builtins::CallableFor(isolate(), Builtins::kArrayMapLoopContinuation));
+      CodeFactory::ArrayMapLoopContinuation(isolate()));
 }
 
 TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {

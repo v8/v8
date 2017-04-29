@@ -177,8 +177,7 @@ class Genesis BASE_EMBEDDED {
 #undef DECLARE_FEATURE_INITIALIZATION
 
   void InstallOneBuiltinFunction(Handle<Object> prototype, const char* method,
-                                 Builtins::Name name,
-                                 int internal_formal_parameter_count);
+                                 Builtins::Name name);
   void InitializeGlobal_experimental_fast_array_builtins();
 
   Handle<JSFunction> InstallArrayBuffer(Handle<JSObject> target,
@@ -3863,17 +3862,15 @@ void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
 
 void Genesis::InstallOneBuiltinFunction(Handle<Object> prototype,
                                         const char* method_name,
-                                        Builtins::Name builtin_name,
-                                        int internal_formal_parameter_count) {
+                                        Builtins::Name builtin_name) {
   LookupIterator it(
       prototype, isolate()->factory()->NewStringFromAsciiChecked(method_name),
       LookupIterator::OWN_SKIP_INTERCEPTOR);
   Handle<Object> function = Object::GetProperty(&it).ToHandleChecked();
   Handle<JSFunction>::cast(function)->set_code(
       isolate()->builtins()->builtin(builtin_name));
-  SharedFunctionInfo* info = Handle<JSFunction>::cast(function)->shared();
-  info->set_code(isolate()->builtins()->builtin(builtin_name));
-  info->set_internal_formal_parameter_count(internal_formal_parameter_count);
+  Handle<JSFunction>::cast(function)->shared()->set_code(
+      isolate()->builtins()->builtin(builtin_name));
 }
 
 void Genesis::InitializeGlobal_experimental_fast_array_builtins() {
@@ -3883,17 +3880,13 @@ void Genesis::InitializeGlobal_experimental_fast_array_builtins() {
         native_context()->typed_array_prototype(), isolate());
     // Insert experimental fast TypedArray builtins here.
     InstallOneBuiltinFunction(typed_array_prototype, "every",
-                              Builtins::kTypedArrayPrototypeEvery,
-                              SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+                              Builtins::kTypedArrayPrototypeEvery);
     InstallOneBuiltinFunction(typed_array_prototype, "some",
-                              Builtins::kTypedArrayPrototypeSome,
-                              SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+                              Builtins::kTypedArrayPrototypeSome);
     InstallOneBuiltinFunction(typed_array_prototype, "reduce",
-                              Builtins::kTypedArrayPrototypeReduce,
-                              SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+                              Builtins::kTypedArrayPrototypeReduce);
     InstallOneBuiltinFunction(typed_array_prototype, "reduceRight",
-                              Builtins::kTypedArrayPrototypeReduceRight,
-                              SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+                              Builtins::kTypedArrayPrototypeReduceRight);
   }
 }
 
@@ -4359,40 +4352,28 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
     // Install Array.prototype.forEach
     Handle<JSFunction> forEach = InstallArrayBuiltinFunction(
-        proto, "forEach", Builtins::kArrayForEach,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+        proto, "forEach", Builtins::kArrayForEach, 2);
     // Add forEach to the context.
     native_context()->set_array_for_each_iterator(*forEach);
 
     // Install Array.prototype.filter
-    InstallArrayBuiltinFunction(
-        proto, "filter", Builtins::kArrayFilter,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "filter", Builtins::kArrayFilter, 2);
 
     // Install Array.prototype.map
-    InstallArrayBuiltinFunction(
-        proto, "map", Builtins::kArrayMap,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "map", Builtins::kArrayMap, 2);
 
     // Install Array.prototype.every
-    InstallArrayBuiltinFunction(
-        proto, "every", Builtins::kArrayEvery,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "every", Builtins::kArrayEvery, 2);
 
     // Install Array.prototype.some
-    InstallArrayBuiltinFunction(
-        proto, "some", Builtins::kArraySome,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "some", Builtins::kArraySome, 2);
 
     // Install Array.prototype.reduce
-    InstallArrayBuiltinFunction(
-        proto, "reduce", Builtins::kArrayReduce,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "reduce", Builtins::kArrayReduce, 2);
 
     // Install Array.prototype.reduceRight
-    InstallArrayBuiltinFunction(
-        proto, "reduceRight", Builtins::kArrayReduceRight,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "reduceRight",
+                                Builtins::kArrayReduceRight, 2);
   }
 
   // Install InternalArray.prototype.concat
