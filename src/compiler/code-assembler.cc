@@ -639,7 +639,7 @@ Node* CodeAssembler::CallStubR(const CallInterfaceDescriptor& descriptor,
 #define INSTANTIATE(...)                                     \
   template V8_EXPORT_PRIVATE Node* CodeAssembler::CallStubR( \
       const CallInterfaceDescriptor& descriptor, size_t, Node*, __VA_ARGS__);
-REPEAT_1_TO_8(INSTANTIATE, Node*)
+REPEAT_1_TO_11(INSTANTIATE, Node*)
 #undef INSTANTIATE
 
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,

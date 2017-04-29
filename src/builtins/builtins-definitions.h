@@ -269,33 +269,33 @@ namespace internal {
   /* ES6 #sec-array.prototype.unshift */                                       \
   CPP(ArrayUnshift)                                                            \
   /* ES6 #sec-array.prototype.foreach */                                       \
-  TFJ(ArrayForEachLoopContinuation, 7, kCallbackFn, kThisArg, kArray, kObject, \
-      kInitialK, kLength, kTo)                                                 \
-  TFJ(ArrayForEach, 2, kCallbackFn, kThisArg)                                  \
-  /* ES6 #sec-array.prototype.every */                                         \
-  TFJ(ArrayEveryLoopContinuation, 7, kCallbackFn, kThisArg, kArray, kObject,   \
-      kInitialK, kLength, kTo)                                                 \
-  TFJ(ArrayEvery, 2, kCallbackFn, kThisArg)                                    \
-  /* ES6 #sec-array.prototype.some */                                          \
-  TFJ(ArraySomeLoopContinuation, 7, kCallbackFn, kThisArg, kArray, kObject,    \
-      kInitialK, kLength, kTo)                                                 \
-  TFJ(ArraySome, 2, kCallbackFn, kThisArg)                                     \
-  /* ES6 #sec-array.prototype.filter */                                        \
-  TFJ(ArrayFilterLoopContinuation, 7, kCallbackFn, kThisArg, kArray, kObject,  \
-      kInitialK, kLength, kTo)                                                 \
-  TFJ(ArrayFilter, 2, kCallbackFn, kThisArg)                                   \
-  /* ES6 #sec-array.prototype.foreach */                                       \
-  TFJ(ArrayMapLoopContinuation, 7, kCallbackFn, kThisArg, kArray, kObject,     \
-      kInitialK, kLength, kTo)                                                 \
-  TFJ(ArrayMap, 2, kCallbackFn, kThisArg)                                      \
-  /* ES6 #sec-array.prototype.reduce */                                        \
-  TFJ(ArrayReduceLoopContinuation, 7, kCallbackFn, kThisArg, kAccumulator,     \
+  TFS(ArrayForEachLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,  \
       kObject, kInitialK, kLength, kTo)                                        \
-  TFJ(ArrayReduce, 2, kCallbackFn, kInitialValue)                              \
-  /* ES6 #sec-array.prototype.reduceRight */                                   \
-  TFJ(ArrayReduceRightLoopContinuation, 7, kCallbackFn, kThisArg,              \
+  TFJ(ArrayForEach, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
+  /* ES6 #sec-array.prototype.every */                                         \
+  TFS(ArrayEveryLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,    \
+      kObject, kInitialK, kLength, kTo)                                        \
+  TFJ(ArrayEvery, SharedFunctionInfo::kDontAdaptArgumentsSentinel)             \
+  /* ES6 #sec-array.prototype.some */                                          \
+  TFS(ArraySomeLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,     \
+      kObject, kInitialK, kLength, kTo)                                        \
+  TFJ(ArraySome, SharedFunctionInfo::kDontAdaptArgumentsSentinel)              \
+  /* ES6 #sec-array.prototype.filter */                                        \
+  TFS(ArrayFilterLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,   \
+      kObject, kInitialK, kLength, kTo)                                        \
+  TFJ(ArrayFilter, SharedFunctionInfo::kDontAdaptArgumentsSentinel)            \
+  /* ES6 #sec-array.prototype.foreach */                                       \
+  TFS(ArrayMapLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,      \
+      kObject, kInitialK, kLength, kTo)                                        \
+  TFJ(ArrayMap, SharedFunctionInfo::kDontAdaptArgumentsSentinel)               \
+  /* ES6 #sec-array.prototype.reduce */                                        \
+  TFS(ArrayReduceLoopContinuation, kReceiver, kCallbackFn, kThisArg,           \
       kAccumulator, kObject, kInitialK, kLength, kTo)                          \
-  TFJ(ArrayReduceRight, 2, kCallbackFn, kInitialValue)                         \
+  TFJ(ArrayReduce, SharedFunctionInfo::kDontAdaptArgumentsSentinel)            \
+  /* ES6 #sec-array.prototype.reduceRight */                                   \
+  TFS(ArrayReduceRightLoopContinuation, kReceiver, kCallbackFn, kThisArg,      \
+      kAccumulator, kObject, kInitialK, kLength, kTo)                          \
+  TFJ(ArrayReduceRight, SharedFunctionInfo::kDontAdaptArgumentsSentinel)       \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0)                                                \
   /* ES6 #sec-array.prototype.keys */                                          \
@@ -935,13 +935,17 @@ namespace internal {
   /* ES6 #sec-%typedarray%.prototype.slice */                                  \
   CPP(TypedArrayPrototypeSlice)                                                \
   /* ES6 %TypedArray%.prototype.every */                                       \
-  TFJ(TypedArrayPrototypeEvery, 2, kCallbackFn, kThisArg)                      \
+  TFJ(TypedArrayPrototypeEvery,                                                \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 %TypedArray%.prototype.some */                                        \
-  TFJ(TypedArrayPrototypeSome, 2, kCallbackFn, kThisArg)                       \
+  TFJ(TypedArrayPrototypeSome,                                                 \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 %TypedArray%.prototype.reduce */                                      \
-  TFJ(TypedArrayPrototypeReduce, 2, kCallbackFn, kInitialValue)                \
+  TFJ(TypedArrayPrototypeReduce,                                               \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 %TypedArray%.prototype.reduceRight */                                 \
-  TFJ(TypedArrayPrototypeReduceRight, 2, kCallbackFn, kInitialValue)           \
+  TFJ(TypedArrayPrototypeReduceRight,                                          \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \

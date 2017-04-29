@@ -8706,6 +8706,28 @@ Node* CodeStubArguments::AtIndex(int index) const {
   return AtIndex(assembler_->IntPtrConstant(index));
 }
 
+Node* CodeStubArguments::GetOptionalArgumentValue(int index,
+                                                  Node* default_value) {
+  typedef CodeStubAssembler::Variable Variable;
+  Variable result(assembler_, MachineRepresentation::kTagged);
+  CodeStubAssembler::Label argument_missing(assembler_),
+      argument_done(assembler_, &result);
+
+  assembler_->GotoIf(assembler_->UintPtrOrSmiGreaterThanOrEqual(
+                         assembler_->IntPtrOrSmiConstant(index, argc_mode_),
+                         argc_, argc_mode_),
+                     &argument_missing);
+  result.Bind(AtIndex(index));
+  assembler_->Goto(&argument_done);
+
+  assembler_->BIND(&argument_missing);
+  result.Bind(default_value);
+  assembler_->Goto(&argument_done);
+
+  assembler_->BIND(&argument_done);
+  return result.value();
+}
+
 void CodeStubArguments::ForEach(
     const CodeStubAssembler::VariableList& vars,
     const CodeStubArguments::ForEachBodyFunction& body, Node* first, Node* last,
