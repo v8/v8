@@ -95,7 +95,7 @@ class Result : public ResultBase {
 // A helper for generating error messages that bubble up to JS exceptions.
 class V8_EXPORT_PRIVATE ErrorThrower {
  public:
-  ErrorThrower(i::Isolate* isolate, const char* context)
+  ErrorThrower(Isolate* isolate, const char* context)
       : isolate_(isolate), context_(context) {}
   ~ErrorThrower();
 
@@ -112,22 +112,32 @@ class V8_EXPORT_PRIVATE ErrorThrower {
                  result.error_offset());
   }
 
-  i::Handle<i::Object> Reify() {
-    i::Handle<i::Object> result = exception_;
-    exception_ = i::Handle<i::Object>::null();
-    return result;
-  }
+  Handle<Object> Reify();
 
-  bool error() const { return !exception_.is_null(); }
-  bool wasm_error() { return wasm_error_; }
+  bool error() const { return error_type_ != kNone; }
+  bool wasm_error() { return error_type_ >= kFirstWasmError; }
 
  private:
-  void Format(i::Handle<i::JSFunction> constructor, const char* fmt, va_list);
+  enum ErrorType {
+    kNone,
+    // General errors.
+    kTypeError,
+    kRangeError,
+    // Wasm errors.
+    kCompileError,
+    kLinkError,
+    kRuntimeError,
 
-  i::Isolate* isolate_;
+    // Marker.
+    kFirstWasmError = kCompileError
+  };
+
+  void Format(ErrorType error_type_, const char* fmt, va_list);
+
+  Isolate* isolate_;
   const char* context_;
-  i::Handle<i::Object> exception_;
-  bool wasm_error_ = false;
+  ErrorType error_type_ = kNone;
+  std::string error_msg_;
 };
 
 }  // namespace wasm

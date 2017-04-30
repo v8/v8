@@ -26,13 +26,25 @@ void VPrintFToString(std::string& str, size_t str_offset, const char* format,
   for (;; len = base::bits::RoundUpToPowerOfTwo64(len + 1)) {
     DCHECK_GE(kMaxInt, len);
     str.resize(len);
+    va_list args_copy;
+    va_copy(args_copy, args);
     int written = VSNPrintF(Vector<char>(&str.front() + str_offset,
                                          static_cast<int>(len - str_offset)),
-                            format, args);
+                            format, args_copy);
+    va_end(args_copy);
     if (written < 0) continue;  // not enough space.
     str.resize(str_offset + written);
     return;
   }
+}
+
+PRINTF_FORMAT(3, 4)
+void PrintFToString(std::string& str, size_t str_offset, const char* format,
+                    ...) {
+  va_list args;
+  va_start(args, format);
+  VPrintFToString(str, str_offset, format, args);
+  va_end(args);
 }
 
 }  // namespace
@@ -51,80 +63,93 @@ void ResultBase::verror(const char* format, va_list args) {
   if (error_msg_.empty() == 0) error_msg_.assign("Error");
 }
 
-void ErrorThrower::Format(i::Handle<i::JSFunction> constructor,
-                          const char* format, va_list args) {
+void ErrorThrower::Format(ErrorType type, const char* format, va_list args) {
+  DCHECK_NE(kNone, type);
   // Only report the first error.
   if (error()) return;
 
-  constexpr int kMaxErrorMessageLength = 256;
-  EmbeddedVector<char, kMaxErrorMessageLength> buffer;
-
-  int context_len = 0;
+  size_t context_len = 0;
   if (context_) {
-    context_len = SNPrintF(buffer, "%s: ", context_);
-    CHECK_LE(0, context_len);  // check for overflow.
+    PrintFToString(error_msg_, 0, "%s: ", context_);
+    context_len = error_msg_.size();
   }
-
-  int message_len =
-      VSNPrintF(buffer.SubVector(context_len, buffer.length()), format, args);
-  CHECK_LE(0, message_len);  // check for overflow.
-
-  Vector<char> whole_message = buffer.SubVector(0, context_len + message_len);
-  i::Handle<i::String> message =
-      isolate_->factory()
-          ->NewStringFromOneByte(Vector<uint8_t>::cast(whole_message))
-          .ToHandleChecked();
-  exception_ = isolate_->factory()->NewError(constructor, message);
+  VPrintFToString(error_msg_, context_len, format, args);
+  error_type_ = type;
 }
 
 void ErrorThrower::TypeError(const char* format, ...) {
-  if (error()) return;
   va_list arguments;
   va_start(arguments, format);
-  Format(isolate_->type_error_function(), format, arguments);
+  Format(kTypeError, format, arguments);
   va_end(arguments);
 }
 
 void ErrorThrower::RangeError(const char* format, ...) {
-  if (error()) return;
   va_list arguments;
   va_start(arguments, format);
-  Format(isolate_->range_error_function(), format, arguments);
+  Format(kRangeError, format, arguments);
   va_end(arguments);
 }
 
 void ErrorThrower::CompileError(const char* format, ...) {
-  if (error()) return;
-  wasm_error_ = true;
   va_list arguments;
   va_start(arguments, format);
-  Format(isolate_->wasm_compile_error_function(), format, arguments);
+  Format(kCompileError, format, arguments);
   va_end(arguments);
 }
 
 void ErrorThrower::LinkError(const char* format, ...) {
-  if (error()) return;
-  wasm_error_ = true;
   va_list arguments;
   va_start(arguments, format);
-  Format(isolate_->wasm_link_error_function(), format, arguments);
+  Format(kLinkError, format, arguments);
   va_end(arguments);
 }
 
 void ErrorThrower::RuntimeError(const char* format, ...) {
-  if (error()) return;
-  wasm_error_ = true;
   va_list arguments;
   va_start(arguments, format);
-  Format(isolate_->wasm_runtime_error_function(), format, arguments);
+  Format(kRuntimeError, format, arguments);
   va_end(arguments);
+}
+
+Handle<Object> ErrorThrower::Reify() {
+  Handle<JSFunction> constructor;
+  switch (error_type_) {
+    case kNone:
+      UNREACHABLE();
+    case kTypeError:
+      constructor = isolate_->type_error_function();
+      break;
+    case kRangeError:
+      constructor = isolate_->range_error_function();
+      break;
+    case kCompileError:
+      constructor = isolate_->wasm_compile_error_function();
+      break;
+    case kLinkError:
+      constructor = isolate_->wasm_link_error_function();
+      break;
+    case kRuntimeError:
+      constructor = isolate_->wasm_runtime_error_function();
+      break;
+  }
+  Vector<const uint8_t> msg_vec(
+      reinterpret_cast<const uint8_t*>(error_msg_.data()),
+      static_cast<int>(error_msg_.size()));
+  Handle<String> message =
+      isolate_->factory()->NewStringFromOneByte(msg_vec).ToHandleChecked();
+  error_type_ = kNone;  // Reset.
+  Handle<Object> exception =
+      isolate_->factory()->NewError(constructor, message);
+  return exception;
 }
 
 ErrorThrower::~ErrorThrower() {
   if (error() && !isolate_->has_pending_exception()) {
-    isolate_->ScheduleThrow(*exception_);
+    isolate_->ScheduleThrow(*Reify());
   }
 }
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

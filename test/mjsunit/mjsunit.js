@@ -504,7 +504,7 @@ var failWithMessage;
       fail = result => failWithMessage("assertPromiseResult failed: " + result);
 
     eval("%IncrementWaitCount()");
-    promise.then(
+    return promise.then(
       result => {
         eval("%DecrementWaitCount()");
         success(result);
