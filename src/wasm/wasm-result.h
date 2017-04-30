@@ -97,6 +97,8 @@ class V8_EXPORT_PRIVATE ErrorThrower {
  public:
   ErrorThrower(Isolate* isolate, const char* context)
       : isolate_(isolate), context_(context) {}
+  // Explicitly allow move-construction. Disallow copy (below).
+  ErrorThrower(ErrorThrower&& other);
   ~ErrorThrower();
 
   PRINTF_FORMAT(2, 3) void TypeError(const char* fmt, ...);
@@ -138,6 +140,8 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   const char* context_;
   ErrorType error_type_ = kNone;
   std::string error_msg_;
+
+  DISALLOW_COPY_AND_ASSIGN(ErrorThrower);
 };
 
 }  // namespace wasm

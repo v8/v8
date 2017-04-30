@@ -144,6 +144,14 @@ Handle<Object> ErrorThrower::Reify() {
   return exception;
 }
 
+ErrorThrower::ErrorThrower(ErrorThrower&& other)
+    : isolate_(other.isolate_),
+      context_(other.context_),
+      error_type_(other.error_type_),
+      error_msg_(other.error_msg_) {
+  other.error_type_ = kNone;
+}
+
 ErrorThrower::~ErrorThrower() {
   if (error() && !isolate_->has_pending_exception()) {
     isolate_->ScheduleThrow(*Reify());

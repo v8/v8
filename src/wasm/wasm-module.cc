@@ -2528,11 +2528,11 @@ MaybeHandle<WasmInstanceObject> wasm::SyncInstantiate(
 namespace {
 
 void RejectPromise(Isolate* isolate, Handle<Context> context,
-                   ErrorThrower* thrower, Handle<JSPromise> promise) {
+                   ErrorThrower& thrower, Handle<JSPromise> promise) {
   v8::Local<v8::Promise::Resolver> resolver =
       v8::Utils::PromiseToLocal(promise).As<v8::Promise::Resolver>();
   auto maybe = resolver->Reject(v8::Utils::ToLocal(context),
-                   v8::Utils::ToLocal(thrower->Reify()));
+                                v8::Utils::ToLocal(thrower.Reify()));
   CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
 }
 
@@ -2554,7 +2554,7 @@ void wasm::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
   MaybeHandle<WasmInstanceObject> instance_object = SyncInstantiate(
       isolate, &thrower, module_object, imports, Handle<JSArrayBuffer>::null());
   if (thrower.error()) {
-    RejectPromise(isolate, handle(isolate->context()), &thrower, promise);
+    RejectPromise(isolate, handle(isolate->context()), thrower, promise);
     return;
   }
   ResolvePromise(isolate, handle(isolate->context()), promise,
@@ -2581,7 +2581,6 @@ class AsyncCompileJob {
                            int length, Handle<Context> context,
                            Handle<JSPromise> promise)
       : isolate_(isolate),
-        thrower_(isolate, "AsyncCompile"),
         bytes_copy_(std::move(bytes_copy)),
         wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length) {
     // The handles for the context and promise must be deferred.
@@ -2601,7 +2600,6 @@ class AsyncCompileJob {
 
  private:
   Isolate* isolate_;
-  ErrorThrower thrower_;
   std::unique_ptr<byte[]> bytes_copy_;
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
@@ -2610,7 +2608,7 @@ class AsyncCompileJob {
   std::unique_ptr<CompilationHelper> helper_ = nullptr;
   std::unique_ptr<ModuleBytesEnv> module_bytes_env_ = nullptr;
 
-  volatile bool failed_ = false;
+  bool failed_ = false;
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleWrapper> module_wrapper_;
   Handle<WasmModuleObject> module_object_;
@@ -2633,8 +2631,8 @@ class AsyncCompileJob {
     deferred_handles_.push_back(deferred.Detach());
   }
 
-  void AsyncCompileFailed() {
-    RejectPromise(isolate_, context_, &thrower_, module_promise_);
+  void AsyncCompileFailed(ErrorThrower& thrower) {
+    RejectPromise(isolate_, context_, thrower, module_promise_);
     // The AsyncCompileJob is finished, we resolved the promise, we do not need
     // the data anymore. We can delete the AsyncCompileJob object.
     if (!FLAG_verify_predictable) delete this;
@@ -2695,6 +2693,7 @@ class AsyncCompileJob {
       if (result.failed()) {
         // Decoding failure; reject the promise and clean up.
         if (result.val) delete result.val;
+        result.val = nullptr;
         job_->DoSync<DecodeFail>(std::move(result));
       } else {
         // Decode passed.
@@ -2715,9 +2714,10 @@ class AsyncCompileJob {
     ModuleResult result_;
     void Run() override {
       HandleScope scope(job_->isolate_);
-      job_->thrower_.CompileFailed("Wasm decoding failed", result_);
+      ErrorThrower thrower(job_->isolate_, "AsyncCompile");
+      thrower.CompileFailed("Wasm decoding failed", result_);
       // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
-      return job_->AsyncCompileFailed();
+      return job_->AsyncCompileFailed(thrower);
     }
   };
 
@@ -2820,7 +2820,7 @@ class AsyncCompileJob {
   class ExecuteCompilationUnits : public CompileTask<ASYNC> {
     void Run() override {
       TRACE_COMPILE("(3) Compiling...\n");
-      while (!job_->failed_) {
+      for (;;) {
         {
           DisallowHandleAllocation no_handle;
           DisallowHeapAllocation no_allocation;
@@ -2848,20 +2848,21 @@ class AsyncCompileJob {
       if (job_->failed_) return;  // already failed
 
       int func_index = -1;
+      ErrorThrower thrower(job_->isolate_, "AsyncCompile");
       Handle<Code> result =
-          job_->helper_->FinishCompilationUnit(&job_->thrower_, &func_index);
-      if (job_->thrower_.error()) {
+          job_->helper_->FinishCompilationUnit(&thrower, &func_index);
+      if (thrower.error()) {
         job_->failed_ = true;
       } else {
         DCHECK(func_index >= 0);
         job_->code_table_->set(func_index, *(result));
       }
-      if (job_->failed_ || --job_->outstanding_units_ == 0) {
+      if (thrower.error() || --job_->outstanding_units_ == 0) {
         // All compilation units are done. We still need to wait for the
         // background tasks to shut down and only then is it safe to finish the
         // compile and delete this job. We can wait for that to happen also
         // in a background task.
-        job_->DoAsync<WaitForBackgroundTasks>();
+        job_->DoAsync<WaitForBackgroundTasks>(std::move(thrower));
       }
     }
   };
@@ -2870,8 +2871,18 @@ class AsyncCompileJob {
   // Step 4b (async): Wait for all background tasks to finish.
   //==========================================================================
   class WaitForBackgroundTasks : public CompileTask<ASYNC> {
+   public:
+    explicit WaitForBackgroundTasks(ErrorThrower thrower)
+        : thrower_(std::move(thrower)) {}
+
+   private:
+    ErrorThrower thrower_;
+
     void Run() override {
       TRACE_COMPILE("(4b) Waiting for background tasks...\n");
+      // Bump next_unit_, such that background tasks stop processing the queue.
+      job_->helper_->next_unit_.SetValue(
+          job_->helper_->compilation_units_.size());
       // Special handling for predictable mode, see above.
       if (!FLAG_verify_predictable) {
         for (size_t i = 0; i < job_->num_background_tasks_; ++i) {
@@ -2879,17 +2890,37 @@ class AsyncCompileJob {
           job_->module_->pending_tasks.get()->Wait();
         }
       }
-      job_->DoSync<FinishCompile>();
+      if (thrower_.error()) {
+        job_->DoSync<FailCompile>(std::move(thrower_));
+      } else {
+        job_->DoSync<FinishCompile>();
+      }
     }
   };
 
   //==========================================================================
-  // Step 5 (sync): Finish heap-allocated data structures.
+  // Step 5a (sync): Fail compilation (reject promise).
+  //==========================================================================
+  class FailCompile : public CompileTask<SYNC> {
+   public:
+    explicit FailCompile(ErrorThrower thrower) : thrower_(std::move(thrower)) {}
+
+   private:
+    ErrorThrower thrower_;
+
+    void Run() override {
+      TRACE_COMPILE("(5a) Fail compilation...\n");
+      HandleScope scope(job_->isolate_);
+      return job_->AsyncCompileFailed(thrower_);
+    }
+  };
+
+  //==========================================================================
+  // Step 5b (sync): Finish heap-allocated data structures.
   //==========================================================================
   class FinishCompile : public CompileTask<SYNC> {
     void Run() override {
-      TRACE_COMPILE("(5) Finish compile...\n");
-      if (job_->failed_) return job_->AsyncCompileFailed();
+      TRACE_COMPILE("(5b) Finish compile...\n");
       HandleScope scope(job_->isolate_);
       SaveContext saved_context(job_->isolate_);
       job_->isolate_->set_context(*job_->context_);
@@ -3001,7 +3032,7 @@ void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
     MaybeHandle<WasmModuleObject> module_object =
         SyncCompile(isolate, &thrower, bytes);
     if (thrower.error()) {
-      RejectPromise(isolate, handle(isolate->context()), &thrower, promise);
+      RejectPromise(isolate, handle(isolate->context()), thrower, promise);
       return;
     }
     Handle<WasmModuleObject> module = module_object.ToHandleChecked();
