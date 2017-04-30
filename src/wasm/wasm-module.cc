@@ -319,8 +319,9 @@ class CompilationHelper {
 
   Isolate* isolate_;
   WasmModule* module_;
-  std::vector<compiler::WasmCompilationUnit*> compilation_units_;
-  std::queue<compiler::WasmCompilationUnit*> executed_units_;
+  std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
+      compilation_units_;
+  std::queue<std::unique_ptr<compiler::WasmCompilationUnit>> executed_units_;
   base::Mutex result_mutex_;
   base::AtomicNumber<size_t> next_unit_;
   size_t num_background_tasks_ = 0;
@@ -338,10 +339,11 @@ class CompilationHelper {
       return false;
     }
 
-    compiler::WasmCompilationUnit* unit = compilation_units_.at(index);
+    std::unique_ptr<compiler::WasmCompilationUnit> unit =
+        std::move(compilation_units_.at(index));
     unit->ExecuteCompilation();
     base::LockGuard<base::Mutex> guard(&result_mutex_);
-    executed_units_.push(unit);
+    executed_units_.push(std::move(unit));
     return true;
   }
 
@@ -355,13 +357,14 @@ class CompilationHelper {
     for (uint32_t i = start; i < num_funcs; ++i) {
       const WasmFunction* func = &functions[i];
       compilation_units_.push_back(
-          new compiler::WasmCompilationUnit(isolate_, &module_env, func));
+          std::unique_ptr<compiler::WasmCompilationUnit>(
+              new compiler::WasmCompilationUnit(isolate_, &module_env, func)));
     }
     return funcs_to_compile;
   }
 
   void InitializeHandles() {
-    for (auto unit : compilation_units_) {
+    for (auto& unit : compilation_units_) {
       unit->InitializeHandles();
     }
   }
@@ -402,16 +405,15 @@ class CompilationHelper {
   }
 
   Handle<Code> FinishCompilationUnit(ErrorThrower* thrower, int* func_index) {
-    compiler::WasmCompilationUnit* unit = nullptr;
+    std::unique_ptr<compiler::WasmCompilationUnit> unit;
     {
       base::LockGuard<base::Mutex> guard(&result_mutex_);
       if (executed_units_.empty()) return Handle<Code>::null();
-      unit = executed_units_.front();
+      unit = std::move(executed_units_.front());
       executed_units_.pop();
     }
     *func_index = unit->func_index();
     Handle<Code> result = unit->FinishCompilation(thrower);
-    delete unit;
     return result;
   }
 
@@ -2688,7 +2690,7 @@ class AsyncCompileJob {
         // Decode the module bytes.
         TRACE_COMPILE("(1) Decoding module...\n");
         result = DecodeWasmModule(job_->isolate_, job_->wire_bytes_.start(),
-                                  job_->wire_bytes_.end(), true, kWasmOrigin);
+                                  job_->wire_bytes_.end(), false, kWasmOrigin);
       }
       if (result.failed()) {
         // Decoding failure; reject the promise and clean up.
@@ -2713,6 +2715,7 @@ class AsyncCompileJob {
    private:
     ModuleResult result_;
     void Run() override {
+      TRACE_COMPILE("(1b) Decoding failed.\n");
       HandleScope scope(job_->isolate_);
       ErrorThrower thrower(job_->isolate_, "AsyncCompile");
       thrower.CompileFailed("Wasm decoding failed", result_);
