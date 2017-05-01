@@ -73,17 +73,16 @@ class WasmTableObject : public JSObject {
 
   DECLARE_CASTS(WasmTableObject);
   DECLARE_ACCESSORS(functions, FixedArray);
+  DECLARE_GETTER(dispatch_tables, FixedArray);
 
-  FixedArray* dispatch_tables();
   uint32_t current_length();
   bool has_maximum_length();
   int64_t maximum_length();  // Returns < 0 if no maximum.
+  void grow(Isolate* isolate, uint32_t count);
 
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
                                      int64_t maximum,
                                      Handle<FixedArray>* js_functions);
-  static void Grow(Isolate* isolate, Handle<WasmTableObject> table,
-                   uint32_t count);
   static Handle<FixedArray> AddDispatchTable(
       Isolate* isolate, Handle<WasmTableObject> table,
       Handle<WasmInstanceObject> instance, int table_index,

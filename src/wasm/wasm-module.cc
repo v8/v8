@@ -2083,10 +2083,8 @@ class InstantiationHelper {
       Handle<FixedArray> all_dispatch_tables;
       if (!table_instance.table_object.is_null()) {
         // Get the existing dispatch table(s) with the WebAssembly.Table object.
-        all_dispatch_tables = WasmTableObject::AddDispatchTable(
-            isolate_, table_instance.table_object,
-            Handle<WasmInstanceObject>::null(), index,
-            Handle<FixedArray>::null(), Handle<FixedArray>::null());
+        all_dispatch_tables =
+            handle(table_instance.table_object->dispatch_tables());
       }
 
       // Count the number of table exports for each function (needed for lazy
@@ -2221,37 +2219,6 @@ void wasm::DetachWebAssemblyMemoryBuffer(Isolate* isolate,
         ->AdjustAmountOfExternalAllocatedMemory(-byte_length);
   } else if (!has_guard_regions && !is_external) {
     isolate->array_buffer_allocator()->Free(backing_store, byte_length);
-  }
-}
-
-void wasm::GrowDispatchTables(Isolate* isolate,
-                              Handle<FixedArray> dispatch_tables,
-                              uint32_t old_size, uint32_t count) {
-  DCHECK_EQ(0, dispatch_tables->length() % 4);
-
-  Zone specialization_zone(isolate->allocator(), ZONE_NAME);
-  for (int i = 0; i < dispatch_tables->length(); i += 4) {
-    Handle<FixedArray> old_function_table(
-        FixedArray::cast(dispatch_tables->get(i + 2)));
-    Handle<FixedArray> old_signature_table(
-        FixedArray::cast(dispatch_tables->get(i + 3)));
-    Handle<FixedArray> new_function_table =
-        isolate->factory()->CopyFixedArrayAndGrow(old_function_table, count);
-    Handle<FixedArray> new_signature_table =
-        isolate->factory()->CopyFixedArrayAndGrow(old_signature_table, count);
-
-    // Update dispatch tables with new function/signature tables
-    dispatch_tables->set(i + 2, *new_function_table);
-    dispatch_tables->set(i + 3, *new_signature_table);
-
-    // Patch the code of the respective instance.
-    CodeSpecialization code_specialization(isolate, &specialization_zone);
-    code_specialization.PatchTableSize(old_size, old_size + count);
-    code_specialization.RelocateObject(old_function_table, new_function_table);
-    code_specialization.RelocateObject(old_signature_table,
-                                       new_signature_table);
-    code_specialization.ApplyToWholeInstance(
-        WasmInstanceObject::cast(dispatch_tables->get(i)));
   }
 }
 

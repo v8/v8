@@ -609,8 +609,7 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   int new_size = static_cast<int>(new_size64);
-  i::WasmTableObject::Grow(i_isolate, receiver,
-                           static_cast<uint32_t>(new_size - old_size));
+  receiver->grow(i_isolate, static_cast<uint32_t>(new_size - old_size));
 
   if (new_size != old_size) {
     i::Handle<i::FixedArray> new_array =
