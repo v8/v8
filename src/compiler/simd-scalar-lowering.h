@@ -28,14 +28,18 @@ class SimdScalarLowering {
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
-  enum class SimdType : uint8_t { kInt32, kFloat32, kSimd1x4 };
-
-  static const int kMaxLanes = 4;
-  static const int kLaneWidth = 16 / kMaxLanes;
+  enum class SimdType : uint8_t {
+    kFloat32x4,
+    kInt32x4,
+    kInt16x8,
+    kSimd1x4,
+    kSimd1x8
+  };
 
   struct Replacement {
-    Node* node[kMaxLanes];
-    SimdType type;  // represents what input type is expected
+    Node** node = nullptr;
+    SimdType type;  // represents output type
+    int num_replacements = 0;
   };
 
   struct NodeState {
@@ -52,24 +56,35 @@ class SimdScalarLowering {
   void LowerNode(Node* node);
   bool DefaultLowering(Node* node);
 
-  void ReplaceNode(Node* old, Node** new_nodes);
+  int NumLanes(SimdType type);
+  void ReplaceNode(Node* old, Node** new_nodes, int count);
   bool HasReplacement(size_t index, Node* node);
   Node** GetReplacements(Node* node);
+  int ReplacementCount(Node* node);
+  void Float32ToInt32(Node** replacements, Node** result);
+  void Int32ToFloat32(Node** replacements, Node** result);
   Node** GetReplacementsWithType(Node* node, SimdType type);
   SimdType ReplacementType(Node* node);
   void PreparePhiReplacement(Node* phi);
   void SetLoweredType(Node* node, Node* output);
-  void GetIndexNodes(Node* index, Node** new_indices);
+  void GetIndexNodes(Node* index, Node** new_indices, SimdType type);
   void LowerLoadOp(MachineRepresentation rep, Node* node,
-                   const Operator* load_op);
+                   const Operator* load_op, SimdType type);
   void LowerStoreOp(MachineRepresentation rep, Node* node,
                     const Operator* store_op, SimdType rep_type);
   void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op,
                      bool invert_inputs = false);
+  Node* FixUpperBits(Node* input, int32_t shift);
+  void LowerBinaryOpForSmallInt(Node* node, SimdType input_rep_type,
+                                const Operator* op);
+  Node* Mask(Node* input, int32_t mask);
+  void LowerSaturateBinaryOp(Node* node, SimdType input_rep_type,
+                             const Operator* op, bool is_signed);
   void LowerUnaryOp(Node* node, SimdType input_rep_type, const Operator* op);
-  void LowerIntMinMax(Node* node, const Operator* op, bool is_max);
+  void LowerIntMinMax(Node* node, const Operator* op, bool is_max,
+                      SimdType type);
   void LowerConvertFromFloat(Node* node, bool is_signed);
-  void LowerShiftOp(Node* node, const Operator* op);
+  void LowerShiftOp(Node* node, SimdType type);
   Node* BuildF64Trunc(Node* input);
   void LowerNotEqual(Node* node, SimdType input_rep_type, const Operator* op);
 
