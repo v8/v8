@@ -456,11 +456,15 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   }
   auto it = m_scripts.find(scriptId);
   if (it == m_scripts.end()) return Response::Error("Script not found");
-
   std::vector<v8::debug::BreakLocation> v8Locations;
-  if (!it->second->getPossibleBreakpoints(
-          v8Start, v8End, restrictToFunction.fromMaybe(false), &v8Locations)) {
-    return Response::InternalError();
+  {
+    v8::HandleScope handleScope(m_isolate);
+    v8::Local<v8::Context> debuggerContext =
+        v8::debug::GetDebugContext(m_isolate);
+    v8::Context::Scope contextScope(debuggerContext);
+    v8::TryCatch tryCatch(m_isolate);
+    it->second->getPossibleBreakpoints(
+        v8Start, v8End, restrictToFunction.fromMaybe(false), &v8Locations);
   }
 
   *locations = protocol::Array<protocol::Debugger::BreakLocation>::create();
