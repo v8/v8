@@ -5219,6 +5219,12 @@ void Parser::StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate) {
       }
     }
     FunctionLiteral* literal = *it;
+    // FIXME(wiktorg) better handling of default params for arrow functions
+    Scope* outer_scope = literal->scope()->outer_scope();
+    if (outer_scope->is_declaration_scope() &&
+        outer_scope->AsDeclarationScope()->was_lazily_parsed()) {
+      continue;
+    }
     // TODO(wiktorg) in the future internalize somewhere else (stitching may be
     // done on streamer thread)
     result->ast_value_factory()->Internalize(isolate);

@@ -45,3 +45,11 @@ var result = (function recursive(a=0) {
 })();
 
 assertEquals(result, 42);
+
+var a = 42;
+var b;
+var c = (a, b = (function z(){ return a+1; })());
+assertEquals(b, 43);
+assertEquals(c, 43);
+var c = (a, b = (function z(){ return a+1; })()) => { return b; };
+assertEquals(c(314), 315);
