@@ -496,6 +496,16 @@ function TestTypedArraySet() {
     }
   }
 
+  a = new Uint32Array();
+  a.set('');
+  assertEquals(0, a.length);
+
+  assertThrows(() => a.set('abc'), RangeError);
+
+  a = new Uint8Array(3);
+  a.set('123');
+  assertArrayEquals([1, 2, 3], a);
+
   var a11 = new Int16Array([1, 2, 3, 4, 0, -1])
   var a12 = new Uint16Array(15)
   a12.set(a11, 3)
