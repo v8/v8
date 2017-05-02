@@ -11,6 +11,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/cancelable-task.h"
 #include "src/heap/marking.h"
+#include "src/heap/sequential-marking-deque.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
 
@@ -29,6 +30,8 @@ template <typename JobTraits>
 class PageParallelJob;
 class RecordMigratedSlotVisitor;
 class ThreadLocalTop;
+
+using MarkingDeque = SequentialMarkingDeque;
 
 class ObjectMarking : public AllStatic {
  public:
@@ -112,148 +115,6 @@ class ObjectMarking : public AllStatic {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ObjectMarking);
 };
-
-// ----------------------------------------------------------------------------
-// Marking deque for tracing live objects.
-class MarkingDeque {
- public:
-  explicit MarkingDeque(Heap* heap)
-      : backing_store_(nullptr),
-        backing_store_committed_size_(0),
-        array_(nullptr),
-        top_(0),
-        bottom_(0),
-        mask_(0),
-        overflowed_(false),
-        in_use_(false),
-        uncommit_task_pending_(false),
-        heap_(heap) {}
-
-  void SetUp();
-  void TearDown();
-
-  // Ensures that the marking deque is committed and will stay committed until
-  // StopUsing() is called.
-  void StartUsing();
-  void StopUsing();
-  void Clear();
-
-  inline bool IsFull() { return ((top_ + 1) & mask_) == bottom_; }
-
-  inline bool IsEmpty() { return top_ == bottom_; }
-
-  bool overflowed() const { return overflowed_; }
-
-  void ClearOverflowed() { overflowed_ = false; }
-
-  void SetOverflowed() { overflowed_ = true; }
-
-  // Push the object on the marking stack if there is room, otherwise mark the
-  // deque as overflowed and wait for a rescan of the heap.
-  INLINE(bool Push(HeapObject* object)) {
-    DCHECK(object->IsHeapObject());
-    if (IsFull()) {
-      SetOverflowed();
-      return false;
-    } else {
-      array_[top_] = object;
-      top_ = ((top_ + 1) & mask_);
-      return true;
-    }
-  }
-
-  INLINE(HeapObject* Pop()) {
-    DCHECK(!IsEmpty());
-    top_ = ((top_ - 1) & mask_);
-    HeapObject* object = array_[top_];
-    DCHECK(object->IsHeapObject());
-    return object;
-  }
-
-  // Unshift the object into the marking stack if there is room, otherwise mark
-  // the deque as overflowed and wait for a rescan of the heap.
-  INLINE(bool Unshift(HeapObject* object)) {
-    DCHECK(object->IsHeapObject());
-    if (IsFull()) {
-      SetOverflowed();
-      return false;
-    } else {
-      bottom_ = ((bottom_ - 1) & mask_);
-      array_[bottom_] = object;
-      return true;
-    }
-  }
-
-  template <typename Callback>
-  void Iterate(Callback callback) {
-    int i = bottom_;
-    while (i != top_) {
-      callback(array_[i]);
-      i = (i + 1) & mask_;
-    }
-  }
-
-  HeapObject** array() { return array_; }
-  int bottom() { return bottom_; }
-  int top() { return top_; }
-  int mask() { return mask_; }
-  void set_top(int top) { top_ = top; }
-
- private:
-  // This task uncommits the marking_deque backing store if
-  // markin_deque->in_use_ is false.
-  class UncommitTask : public CancelableTask {
-   public:
-    explicit UncommitTask(Isolate* isolate, MarkingDeque* marking_deque)
-        : CancelableTask(isolate), marking_deque_(marking_deque) {}
-
-   private:
-    // CancelableTask override.
-    void RunInternal() override {
-      base::LockGuard<base::Mutex> guard(&marking_deque_->mutex_);
-      if (!marking_deque_->in_use_) {
-        marking_deque_->Uncommit();
-      }
-      marking_deque_->uncommit_task_pending_ = false;
-    }
-
-    MarkingDeque* marking_deque_;
-    DISALLOW_COPY_AND_ASSIGN(UncommitTask);
-  };
-
-  static const size_t kMaxSize = 4 * MB;
-  static const size_t kMinSize = 256 * KB;
-
-  // Must be called with mutex lock.
-  void EnsureCommitted();
-
-  // Must be called with mutex lock.
-  void Uncommit();
-
-  // Must be called with mutex lock.
-  void StartUncommitTask();
-
-  base::Mutex mutex_;
-
-  base::VirtualMemory* backing_store_;
-  size_t backing_store_committed_size_;
-  HeapObject** array_;
-  // array_[(top - 1) & mask_] is the top element in the deque.  The Deque is
-  // empty when top_ == bottom_.  It is full when top_ + 1 == bottom
-  // (mod mask + 1).
-  int top_;
-  int bottom_;
-  int mask_;
-  bool overflowed_;
-  // in_use_ == true after taking mutex lock implies that the marking deque is
-  // committed and will stay committed at least until in_use_ == false.
-  bool in_use_;
-  bool uncommit_task_pending_;
-  Heap* heap_;
-
-  DISALLOW_COPY_AND_ASSIGN(MarkingDeque);
-};
-
 
 // CodeFlusher collects candidates for code flushing during marking and
 // processes those candidates after marking has completed in order to
