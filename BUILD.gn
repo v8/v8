@@ -1018,6 +1018,21 @@ v8_header_set("v8_version") {
   ]
 }
 
+# This is split out to be a non-code containing target that the Chromium browser
+# can depend upon to get basic v8 types.
+v8_header_set("v8_headers") {
+  configs = [ ":internal_config" ]
+
+  sources = [
+    "include/v8.h",
+    "include/v8config.h",
+  ]
+
+  deps = [
+    ":v8_version",
+  ]
+}
+
 v8_source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -2366,9 +2381,9 @@ v8_source_set("v8_base") {
 
   defines = []
   deps = [
+    ":v8_headers",
     ":v8_libbase",
     ":v8_libsampler",
-    ":v8_version",
     "src/inspector:inspector",
   ]
 
