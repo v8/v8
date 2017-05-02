@@ -2677,6 +2677,33 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool has_duplicate_parameters = false;
   int function_literal_id = GetNextFunctionLiteralId();
 
+  Expect(Token::LPAREN, CHECK_OK);
+
+  if (should_use_parse_task) {
+    int start_pos = scanner()->location().beg_pos;
+    if (function_name_location.IsValid()) {
+      start_pos = function_name_location.beg_pos;
+    }
+    // Warning!
+    // Only sets fields in compiler_hints that are currently used.
+    int compiler_hints = SharedFunctionInfo::FunctionKindBits::encode(kind);
+    if (function_type == FunctionLiteral::kDeclaration) {
+      compiler_hints |= 1 << SharedFunctionInfo::kIsDeclaration;
+    }
+    should_use_parse_task = compiler_dispatcher_->Enqueue(
+        source_, start_pos, source_->length(), language_mode,
+        function_literal_id, allow_natives(), parsing_module_,
+        function_type == FunctionLiteral::kNamedExpression, compiler_hints,
+        main_parse_info_, nullptr);
+    if (V8_UNLIKELY(FLAG_trace_parse_tasks)) {
+      PrintF("Spining off task for function at %d: %s\n", start_pos,
+             should_use_parse_task ? "SUCCESS" : "FAILED");
+    }
+    if (!should_use_parse_task) {
+      should_preparse = false;
+    }
+  }
+
   Zone* outer_zone = zone();
   DeclarationScope* scope;
 
@@ -2702,8 +2729,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     scope->SetScopeName(function_name);
     if (should_preparse) scope->set_needs_migration();
 #endif
-
-    Expect(Token::LPAREN, CHECK_OK);
     scope->set_start_position(scanner()->location().beg_pos);
 
     // Eager or lazy parse? If is_lazy_top_level_function, we'll parse
@@ -2721,8 +2746,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           SkipFunction(kind, scope, &num_parameters, is_lazy_inner_function,
                        is_lazy_top_level_function, CHECK_OK);
 
-      // TODO(wiktorg) revisit preparsing aborted in case of parse tasks
       if (result == kLazyParsingAborted) {
+        DCHECK(is_lazy_top_level_function);
         bookmark.Apply();
         // This is probably an initialization function. Inform the compiler it
         // should also eager-compile this function, and that we expect it to be
@@ -2734,36 +2759,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         // Trigger eager (re-)parsing, just below this block.
         should_preparse = false;
         should_use_parse_task = false;
-      }
-      if (should_use_parse_task) {
-        int start_pos = scope->start_position();
-        if (function_name_location.IsValid()) {
-          start_pos = function_name_location.beg_pos;
-        }
-        // Warning!
-        // Only sets fields in compiler_hints that are currently used.
-        int compiler_hints = SharedFunctionInfo::FunctionKindBits::encode(kind);
-        if (function_type == FunctionLiteral::kDeclaration) {
-          compiler_hints |= 1 << SharedFunctionInfo::kIsDeclaration;
-        }
-        // TODO(wiktorg) enqueue parse tasks before preparsing
-        should_use_parse_task = compiler_dispatcher_->Enqueue(
-            source_, start_pos, scope->end_position(), language_mode,
-            function_literal_id, allow_natives(), parsing_module_,
-            function_type == FunctionLiteral::kNamedExpression, compiler_hints,
-            main_parse_info_, nullptr);
-        if (FLAG_trace_parse_tasks) {
-          PrintF("Spining off task for function at %d: %s\n",
-                 scope->start_position(),
-                 should_use_parse_task ? "SUCCESS" : "FAILED");
-        }
-        if (!should_use_parse_task) {
-          // Fallback to eager parsing below if we failed to enqueue parse tasks
-          bookmark.Apply();
-          scope->ResetAfterPreparsing(ast_value_factory(), true);
-          zone_scope.Reset();
-          should_preparse = false;
-        }
       }
     }
 
