@@ -2167,16 +2167,13 @@ AsmType* AsmJsParser::ValidateCall() {
     // TODO(bradnelson): Refactor AsmType to not need this.
     if (callable->CanBeInvokedWith(return_type, param_specific_types)) {
       // Return type ok.
-    } else if (return_type->IsA(AsmType::Void()) &&
-               callable->CanBeInvokedWith(AsmType::Float(),
+    } else if (callable->CanBeInvokedWith(AsmType::Float(),
                                           param_specific_types)) {
       return_type = AsmType::Float();
-    } else if (return_type->IsA(AsmType::Void()) &&
-               callable->CanBeInvokedWith(AsmType::Double(),
+    } else if (callable->CanBeInvokedWith(AsmType::Double(),
                                           param_specific_types)) {
       return_type = AsmType::Double();
-    } else if (return_type->IsA(AsmType::Void()) &&
-               callable->CanBeInvokedWith(AsmType::Signed(),
+    } else if (callable->CanBeInvokedWith(AsmType::Signed(),
                                           param_specific_types)) {
       return_type = AsmType::Signed();
     } else {
