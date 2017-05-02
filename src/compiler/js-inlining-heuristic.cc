@@ -146,6 +146,13 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       break;
   }
 
+  // Don't consider a {candidate} whose frequency is below the
+  // threshold, i.e. a call site that is only hit once every N
+  // invocations of the caller.
+  if (candidate.frequency < FLAG_min_inlining_frequency) {
+    return NoChange();
+  }
+
   // In the general case we remember the candidate for later.
   candidates_.insert(candidate);
   return NoChange();
