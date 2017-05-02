@@ -102,29 +102,13 @@ let tests = {
       %OptimizeFunctionOnNextCall(fn);
       fn(array);
 
-      // TODO(bmeurer): FAST_HOLEY_DOUBLE_ELEMENTS maps generally deopt when
-      // a hole is encountered. Test should be fixed once that is corrected.
-      let expect_deopt = /HOLEY_DOUBLE/.test(key);
-
-      if (expect_deopt) {
-        assertUnoptimized(fn, '', key);
-      } else {
-        assertOptimized(fn, '', key);
-      }
+      assertOptimized(fn, '', key);
       assertEquals(expected, fn(array), key);
-      if (expect_deopt) {
-        assertUnoptimized(fn, '', key);
-      } else {
-        assertOptimized(fn, '', key);
-      }
+      assertOptimized(fn, '', key);
 
       // Check no deopt when another array with the same map is used
       assertTrue(%HaveSameMap(array, array2), key);
-      if (expect_deopt) {
-        assertUnoptimized(fn, '', key);
-      } else {
-        assertOptimized(fn, '', key);
-      }
+      assertOptimized(fn, '', key);
       assertEquals(expected2, fn(array2), key);
 
       // CheckMaps bailout
@@ -231,6 +215,10 @@ let tests = {
       let clone = new array.constructor(array);
       %ArrayBufferNeuter(clone.buffer);
       assertThrows(() => sum(clone), TypeError);
+
+      // Clear the slate for the next iteration.
+      %DeoptimizeFunction(sum);
+      %ClearFunctionFeedback(sum);
     }
   }
 };
