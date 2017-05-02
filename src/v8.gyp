@@ -1878,6 +1878,7 @@
         'base/division-by-constant.h',
         'base/debug/stack_trace.cc',
         'base/debug/stack_trace.h',
+        'base/export-template.h',
         'base/file-utils.cc',
         'base/file-utils.h',
         'base/flags.h',

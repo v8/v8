@@ -877,7 +877,6 @@ v8_source_set("v8_builtins_generators") {
   visibility = [
     ":*",
     "test/cctest:*",
-    "test/unittests:*",
   ]
 
   deps = [
@@ -2428,6 +2427,7 @@ v8_component("v8_libbase") {
     "src/base/debug/stack_trace.h",
     "src/base/division-by-constant.cc",
     "src/base/division-by-constant.h",
+    "src/base/export-template.h",
     "src/base/file-utils.cc",
     "src/base/file-utils.h",
     "src/base/flags.h",
@@ -2730,6 +2730,31 @@ if (is_component_build) {
 
     public_configs = [ ":external_config" ]
   }
+
+  v8_component("v8_for_testing") {
+    testonly = true
+
+    sources = [
+      "src/v8dll-main.cc",
+    ]
+
+    deps = [
+      ":v8_dump_build_config",
+    ]
+
+    public_deps = [
+      ":v8_base",
+      ":v8_maybe_snapshot",
+    ]
+
+    if (v8_use_snapshot) {
+      public_deps += [ ":v8_builtins_generators" ]
+    }
+
+    configs = [ ":internal_config" ]
+
+    public_configs = [ ":external_config" ]
+  }
 } else {
   group("v8") {
     deps = [
@@ -2740,6 +2765,25 @@ if (is_component_build) {
       ":v8_base",
       ":v8_maybe_snapshot",
     ]
+
+    public_configs = [ ":external_config" ]
+  }
+
+  group("v8_for_testing") {
+    testonly = true
+
+    deps = [
+      ":v8_dump_build_config",
+    ]
+
+    public_deps = [
+      ":v8_base",
+      ":v8_maybe_snapshot",
+    ]
+
+    if (v8_use_snapshot) {
+      public_deps += [ ":v8_builtins_generators" ]
+    }
 
     public_configs = [ ":external_config" ]
   }

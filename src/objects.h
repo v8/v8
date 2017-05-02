@@ -1189,7 +1189,7 @@ class Object {
   inline double Number() const;
   INLINE(bool IsNaN() const);
   INLINE(bool IsMinusZero() const);
-  bool ToInt32(int32_t* value);
+  V8_EXPORT_PRIVATE bool ToInt32(int32_t* value);
   inline bool ToUint32(uint32_t* value);
 
   inline Representation OptimalRepresentation();
