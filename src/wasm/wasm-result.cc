@@ -144,6 +144,11 @@ Handle<Object> ErrorThrower::Reify() {
   return exception;
 }
 
+void ErrorThrower::Reset() {
+  error_type_ = kNone;
+  error_msg_.clear();
+}
+
 ErrorThrower::ErrorThrower(ErrorThrower&& other)
     : isolate_(other.isolate_),
       context_(other.context_),

@@ -180,7 +180,7 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
       i::wasm::SyncValidate(reinterpret_cast<i::Isolate*>(isolate), bytes)) {
     return_value.Set(v8::True(isolate));
   } else {
-    if (thrower.wasm_error()) thrower.Reify();  // Clear error.
+    if (thrower.wasm_error()) thrower.Reset();  // Clear error.
     return_value.Set(v8::False(isolate));
   }
 }

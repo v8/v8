@@ -114,7 +114,11 @@ class V8_EXPORT_PRIVATE ErrorThrower {
                  result.error_offset());
   }
 
-  Handle<Object> Reify();
+  // Create and return exception object.
+  MUST_USE_RESULT Handle<Object> Reify();
+
+  // Reset any error which was set on this thrower.
+  void Reset();
 
   bool error() const { return error_type_ != kNone; }
   bool wasm_error() { return error_type_ >= kFirstWasmError; }

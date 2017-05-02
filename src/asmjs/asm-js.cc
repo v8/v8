@@ -335,7 +335,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   MaybeHandle<Object> maybe_module_object =
       wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
   if (maybe_module_object.is_null()) {
-    thrower.Reify();  // Ensure exceptions do not propagate.
+    thrower.Reset();  // Ensure exceptions do not propagate.
     return MaybeHandle<Object>();
   }
   DCHECK(!thrower.error());
