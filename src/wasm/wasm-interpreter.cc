@@ -696,6 +696,7 @@ class SideTable : public ZoneObject {
       };
       const byte* target;
       uint32_t target_stack_height;
+      // Arity when branching to this label.
       const uint32_t arity;
       // TODO(clemensh): Fix ZoneAllocator and make this ZoneVector<const Ref>.
       ZoneVector<Ref> refs;
@@ -740,6 +741,18 @@ class SideTable : public ZoneObject {
       const byte* pc;
       CLabel* end_label;
       CLabel* else_label;
+      // Arity (number of values on the stack) when exiting this control
+      // structure via |end|.
+      uint32_t exit_arity;
+
+      Control(const byte* pc, CLabel* end_label, CLabel* else_label,
+              uint32_t exit_arity)
+          : pc(pc),
+            end_label(end_label),
+            else_label(else_label),
+            exit_arity(exit_arity) {}
+      Control(const byte* pc, CLabel* end_label, uint32_t exit_arity)
+          : Control(pc, end_label, nullptr, exit_arity) {}
 
       void Finish(ControlTransferMap* map, const byte* start) {
         end_label->Finish(map, start);
@@ -758,7 +771,7 @@ class SideTable : public ZoneObject {
         static_cast<uint32_t>(code->function->sig->return_count());
     CLabel* func_label =
         CLabel::New(&control_transfer_zone, stack_height, func_arity);
-    control_stack.push_back({code->orig_start, func_label, nullptr});
+    control_stack.emplace_back(code->orig_start, func_label, func_arity);
     for (BytecodeIterator i(code->orig_start, code->orig_end, &code->locals);
          i.has_next(); i.next()) {
       WasmOpcode opcode = i.current();
@@ -773,20 +786,16 @@ class SideTable : public ZoneObject {
       stack_height = stack_height - stack_effect.first + stack_effect.second;
       if (stack_height > max_stack_height_) max_stack_height_ = stack_height;
       switch (opcode) {
-        case kExprBlock: {
-          BlockTypeOperand<false> operand(&i, i.pc());
-          TRACE("control @%u: Block, arity %d\n", i.pc_offset(), operand.arity);
-          CLabel* label =
-              CLabel::New(&control_transfer_zone, stack_height, operand.arity);
-          control_stack.push_back({i.pc(), label, nullptr});
-          break;
-        }
+        case kExprBlock:
         case kExprLoop: {
-          TRACE("control @%u: Loop\n", i.pc_offset());
-          // Arity is always 0 for loop labels.
-          CLabel* label = CLabel::New(&control_transfer_zone, stack_height, 0);
-          control_stack.push_back({i.pc(), label, nullptr});
-          label->Bind(i.pc());
+          bool is_loop = opcode == kExprLoop;
+          BlockTypeOperand<false> operand(&i, i.pc());
+          TRACE("control @%u: %s, arity %d\n", i.pc_offset(),
+                is_loop ? "Loop" : "Block", operand.arity);
+          CLabel* label = CLabel::New(&control_transfer_zone, stack_height,
+                                      is_loop ? 0 : operand.arity);
+          control_stack.emplace_back(i.pc(), label, operand.arity);
+          if (is_loop) label->Bind(i.pc());
           break;
         }
         case kExprIf: {
@@ -796,7 +805,8 @@ class SideTable : public ZoneObject {
               CLabel::New(&control_transfer_zone, stack_height, operand.arity);
           CLabel* else_label =
               CLabel::New(&control_transfer_zone, stack_height, 0);
-          control_stack.push_back({i.pc(), end_label, else_label});
+          control_stack.emplace_back(i.pc(), end_label, else_label,
+                                     operand.arity);
           else_label->Ref(i.pc(), stack_height);
           break;
         }
@@ -823,8 +833,7 @@ class SideTable : public ZoneObject {
           }
           c->Finish(&map_, code->orig_start);
           DCHECK_GE(stack_height, c->end_label->target_stack_height);
-          stack_height =
-              c->end_label->target_stack_height + c->end_label->arity;
+          stack_height = c->end_label->target_stack_height + c->exit_arity;
           control_stack.pop_back();
           break;
         }

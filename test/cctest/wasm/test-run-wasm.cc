@@ -3001,3 +3001,9 @@ WASM_EXEC_TEST(BrToLoopWithoutValue) {
       kExprEnd);                         // end
   CHECK_TRAP32(r.Call(2));
 }
+
+WASM_EXEC_TEST(LoopsWithValues) {
+  WasmRunner<int32_t> r(execution_mode);
+  BUILD(r, WASM_LOOP_I(WASM_LOOP_I(WASM_ONE), WASM_ONE, kExprI32Add));
+  CHECK_EQ(2, r.Call());
+}
