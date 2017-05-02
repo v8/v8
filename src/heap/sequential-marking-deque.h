@@ -47,6 +47,11 @@ class SequentialMarkingDeque {
 
   inline bool IsEmpty() { return top_ == bottom_; }
 
+  int Size() {
+    // Return (top - bottom + capacity) % capacity, where capacity = mask + 1.
+    return (top_ - bottom_ + mask_ + 1) & mask_;
+  }
+
   bool overflowed() const { return overflowed_; }
 
   void ClearOverflowed() { overflowed_ = false; }
@@ -113,8 +118,6 @@ class SequentialMarkingDeque {
     }
     top_ = new_top;
   }
-
-  int top() { return top_; }
 
  private:
   // This task uncommits the marking_deque backing store if

@@ -711,8 +711,6 @@ void IncrementalMarking::FinalizeIncrementally() {
 
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
-  int old_marking_deque_top = marking_deque()->top();
-
   // After finishing incremental marking, we try to discover all unmarked
   // objects to reduce the marking load in the final pause.
   // 1) We scan and mark the roots again to find all changes to the root set.
@@ -728,10 +726,10 @@ void IncrementalMarking::FinalizeIncrementally() {
   }
   ProcessWeakCells();
 
-  int marking_progress = abs(old_marking_deque_top - marking_deque()->top());
-
-  marking_progress += static_cast<int>(
-      heap_->local_embedder_heap_tracer()->NumberOfCachedWrappersToTrace());
+  int marking_progress =
+      heap_->mark_compact_collector()->marking_deque()->Size() +
+      static_cast<int>(
+          heap_->local_embedder_heap_tracer()->NumberOfCachedWrappersToTrace());
 
   double end = heap_->MonotonicallyIncreasingTimeInMs();
   double delta = end - start;
