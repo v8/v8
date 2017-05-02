@@ -26,7 +26,7 @@ using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   CanonicalHandleScope canonical(isolate());
-  BytecodeArrayBuilder builder(isolate(), zone(), 0, 1, 131);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 1, 131);
   Factory* factory = isolate()->factory();
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
@@ -433,7 +433,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
   for (int locals = 0; locals < 5; locals++) {
     for (int contexts = 0; contexts < 4; contexts++) {
       for (int temps = 0; temps < 3; temps++) {
-        BytecodeArrayBuilder builder(isolate(), zone(), 0, contexts, locals);
+        BytecodeArrayBuilder builder(isolate(), zone(), 1, contexts, locals);
         BytecodeRegisterAllocator* allocator(builder.register_allocator());
         for (int i = 0; i < locals + contexts; i++) {
           builder.LoadLiteral(Smi::kZero);
@@ -483,7 +483,7 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
 
 TEST_F(BytecodeArrayBuilderTest, Constants) {
   CanonicalHandleScope canonical(isolate());
-  BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 0);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 0);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
 
@@ -512,7 +512,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   CanonicalHandleScope canonical(isolate());
   static const int kFarJumpDistance = 256 + 20;
 
-  BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 1);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 1);
 
   Register reg(0);
   BytecodeLabel far0, far1, far2, far3, far4;
@@ -628,7 +628,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
 TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   CanonicalHandleScope canonical(isolate());
-  BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 1);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 1);
 
   Register reg(0);
 
@@ -678,7 +678,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
 
 TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
   CanonicalHandleScope canonical(isolate());
-  BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 0);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 0);
 
   // Labels can only have 1 forward reference, but
   // can be referred to mulitple times once bound.
@@ -713,7 +713,7 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   CanonicalHandleScope canonical(isolate());
   static const int kRepeats = 3;
 
-  BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 0);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 0);
   for (int i = 0; i < kRepeats; i++) {
     BytecodeLabel label, after_jump0, after_jump1;
     builder.Jump(&label)

@@ -207,14 +207,10 @@ BytecodeRegisterOptimizer::BytecodeRegisterOptimizer(
 
   // Calculate offset so register index values can be mapped into
   // a vector of register metadata.
-  if (parameter_count != 0) {
-    register_info_table_offset_ =
-        -Register::FromParameterIndex(0, parameter_count).index();
-  } else {
-    // TODO(oth): This path shouldn't be necessary in bytecode generated
-    // from Javascript, but a set of tests do not include the JS receiver.
-    register_info_table_offset_ = -accumulator_.index();
-  }
+  // There is at least one parameter, which is the JS receiver.
+  DCHECK(parameter_count != 0);
+  register_info_table_offset_ =
+      -Register::FromParameterIndex(0, parameter_count).index();
 
   // Initialize register map for parameters, locals, and the
   // accumulator.
