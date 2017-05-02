@@ -76,6 +76,8 @@ class Builtins {
     return reinterpret_cast<Address>(&builtins_[name]);
   }
 
+  static int GetBuiltinParameterCount(Name name);
+
   static Callable CallableFor(Isolate* isolate, Name name);
 
   static const char* name(int index);

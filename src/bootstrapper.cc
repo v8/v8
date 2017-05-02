@@ -177,8 +177,7 @@ class Genesis BASE_EMBEDDED {
 #undef DECLARE_FEATURE_INITIALIZATION
 
   void InstallOneBuiltinFunction(Handle<Object> prototype, const char* method,
-                                 Builtins::Name name,
-                                 int internal_formal_parameter_count);
+                                 Builtins::Name name);
   void InitializeGlobal_experimental_fast_array_builtins();
 
   Handle<JSFunction> InstallArrayBuffer(Handle<JSObject> target,
@@ -397,14 +396,14 @@ Handle<JSFunction> SimpleCreateFunction(Isolate* isolate, Handle<String> name,
 
 Handle<JSFunction> InstallArrayBuiltinFunction(Handle<JSObject> base,
                                                const char* name,
-                                               Builtins::Name call,
-                                               int argument_count) {
+                                               Builtins::Name call) {
   Isolate* isolate = base->GetIsolate();
   Handle<String> str_name = isolate->factory()->InternalizeUtf8String(name);
   Handle<JSFunction> fun =
       CreateFunction(isolate, str_name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
                      MaybeHandle<JSObject>(), call, true);
-  fun->shared()->set_internal_formal_parameter_count(argument_count);
+  fun->shared()->set_internal_formal_parameter_count(
+      Builtins::GetBuiltinParameterCount(call));
 
   // Set the length to 1 to satisfy ECMA-262.
   fun->shared()->set_length(1);
@@ -3871,8 +3870,7 @@ void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
 
 void Genesis::InstallOneBuiltinFunction(Handle<Object> prototype,
                                         const char* method_name,
-                                        Builtins::Name builtin_name,
-                                        int internal_formal_parameter_count) {
+                                        Builtins::Name builtin_name) {
   LookupIterator it(
       prototype, isolate()->factory()->NewStringFromAsciiChecked(method_name),
       LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -3881,7 +3879,8 @@ void Genesis::InstallOneBuiltinFunction(Handle<Object> prototype,
       isolate()->builtins()->builtin(builtin_name));
   SharedFunctionInfo* info = Handle<JSFunction>::cast(function)->shared();
   info->set_code(isolate()->builtins()->builtin(builtin_name));
-  info->set_internal_formal_parameter_count(internal_formal_parameter_count);
+  info->set_internal_formal_parameter_count(
+      Builtins::GetBuiltinParameterCount(builtin_name));
 }
 
 void Genesis::InitializeGlobal_experimental_fast_array_builtins() {
@@ -3891,17 +3890,13 @@ void Genesis::InitializeGlobal_experimental_fast_array_builtins() {
         native_context()->typed_array_prototype(), isolate());
     // Insert experimental fast TypedArray builtins here.
     InstallOneBuiltinFunction(typed_array_prototype, "every",
-                              Builtins::kTypedArrayPrototypeEvery,
-                              SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+                              Builtins::kTypedArrayPrototypeEvery);
     InstallOneBuiltinFunction(typed_array_prototype, "some",
-                              Builtins::kTypedArrayPrototypeSome,
-                              SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+                              Builtins::kTypedArrayPrototypeSome);
     InstallOneBuiltinFunction(typed_array_prototype, "reduce",
-                              Builtins::kTypedArrayPrototypeReduce,
-                              SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+                              Builtins::kTypedArrayPrototypeReduce);
     InstallOneBuiltinFunction(typed_array_prototype, "reduceRight",
-                              Builtins::kTypedArrayPrototypeReduceRight,
-                              SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+                              Builtins::kTypedArrayPrototypeReduceRight);
   }
 }
 
@@ -4366,41 +4361,29 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     concat->shared()->set_length(1);
 
     // Install Array.prototype.forEach
-    Handle<JSFunction> forEach = InstallArrayBuiltinFunction(
-        proto, "forEach", Builtins::kArrayForEach,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    Handle<JSFunction> forEach =
+        InstallArrayBuiltinFunction(proto, "forEach", Builtins::kArrayForEach);
     // Add forEach to the context.
     native_context()->set_array_for_each_iterator(*forEach);
 
     // Install Array.prototype.filter
-    InstallArrayBuiltinFunction(
-        proto, "filter", Builtins::kArrayFilter,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "filter", Builtins::kArrayFilter);
 
     // Install Array.prototype.map
-    InstallArrayBuiltinFunction(
-        proto, "map", Builtins::kArrayMap,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "map", Builtins::kArrayMap);
 
     // Install Array.prototype.every
-    InstallArrayBuiltinFunction(
-        proto, "every", Builtins::kArrayEvery,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "every", Builtins::kArrayEvery);
 
     // Install Array.prototype.some
-    InstallArrayBuiltinFunction(
-        proto, "some", Builtins::kArraySome,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "some", Builtins::kArraySome);
 
     // Install Array.prototype.reduce
-    InstallArrayBuiltinFunction(
-        proto, "reduce", Builtins::kArrayReduce,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "reduce", Builtins::kArrayReduce);
 
     // Install Array.prototype.reduceRight
-    InstallArrayBuiltinFunction(
-        proto, "reduceRight", Builtins::kArrayReduceRight,
-        SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+    InstallArrayBuiltinFunction(proto, "reduceRight",
+                                Builtins::kArrayReduceRight);
   }
 
   // Install InternalArray.prototype.concat
