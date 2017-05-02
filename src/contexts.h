@@ -593,22 +593,22 @@ class Context: public FixedArray {
   // Removes a specific optimized code object from the optimized code map.
   // In case of non-OSR the code reference is cleared from the cache entry but
   // the entry itself is left in the map in order to proceed sharing literals.
-  void EvictFromOSROptimizedCodeCache(Code* optimized_code, const char* reason);
+  void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
 
   // Clear optimized code map.
-  void ClearOSROptimizedCodeCache();
+  void ClearOptimizedCodeMap();
 
   // A native context keeps track of all osrd optimized functions.
-  inline bool OSROptimizedCodeCacheIsCleared();
-  Code* SearchOSROptimizedCodeCache(SharedFunctionInfo* shared,
-                                    BailoutId osr_ast_id);
-  int SearchOSROptimizedCodeCacheEntry(SharedFunctionInfo* shared,
-                                       BailoutId osr_ast_id);
+  inline bool OptimizedCodeMapIsCleared();
+  Code* SearchOptimizedCodeMap(SharedFunctionInfo* shared,
+                               BailoutId osr_ast_id);
+  int SearchOptimizedCodeMapEntry(SharedFunctionInfo* shared,
+                                  BailoutId osr_ast_id);
 
-  static void AddToOSROptimizedCodeCache(Handle<Context> native_context,
-                                         Handle<SharedFunctionInfo> shared,
-                                         Handle<Code> code,
-                                         BailoutId osr_ast_id);
+  static void AddToOptimizedCodeMap(Handle<Context> native_context,
+                                    Handle<SharedFunctionInfo> shared,
+                                    Handle<Code> code,
+                                    BailoutId osr_ast_id);
 
   // A native context holds a list of all functions with optimized code.
   void AddOptimizedFunction(JSFunction* function);

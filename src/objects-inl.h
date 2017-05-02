@@ -5907,6 +5907,8 @@ ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
           UnseededNumberDictionary, kStackFrameCacheIndex)
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
+ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,
+          kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
           kFeedbackMetadataOffset)
@@ -6424,6 +6426,10 @@ bool SharedFunctionInfo::IsSubjectToDebugging() {
   return IsUserJavaScript() && !HasAsmWasmData();
 }
 
+bool SharedFunctionInfo::OptimizedCodeMapIsCleared() const {
+  return optimized_code_map() == GetHeap()->empty_fixed_array();
+}
+
 FeedbackVector* JSFunction::feedback_vector() const {
   DCHECK(feedback_vector_cell()->value()->IsFeedbackVector());
   return FeedbackVector::cast(feedback_vector_cell()->value());
@@ -6507,24 +6513,14 @@ void JSFunction::set_code_no_write_barrier(Code* value) {
   WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
 }
 
-void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
-  if (has_feedback_vector() && feedback_vector()->has_optimized_code()) {
-    if (FLAG_trace_opt) {
-      PrintF("[evicting entry from optimizing code feedback slot (%s) for ",
-             reason);
-      shared()->ShortPrint();
-      PrintF("]\n");
-    }
-    feedback_vector()->ClearOptimizedCode();
-  }
-}
 
 void JSFunction::ReplaceCode(Code* code) {
   bool was_optimized = IsOptimized();
   bool is_optimized = code->kind() == Code::OPTIMIZED_FUNCTION;
 
   if (was_optimized && is_optimized) {
-    ClearOptimizedCodeSlot("Replacing with another optimized code");
+    shared()->EvictFromOptimizedCodeMap(this->code(),
+        "Replacing with another optimized code");
   }
 
   set_code(code);

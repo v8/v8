@@ -5851,6 +5851,34 @@ class SharedFunctionInfo: public HeapObject {
   inline void ReplaceCode(Code* code);
   inline bool HasBaselineCode() const;
 
+  // [optimized_code_map]: Map from native context to optimized code
+  // and a shared literals array.
+  DECL_ACCESSORS(optimized_code_map, FixedArray)
+
+  // Returns entry from optimized code map for specified context and OSR entry.
+  Code* SearchOptimizedCodeMap(Context* native_context, BailoutId osr_ast_id);
+
+  // Clear optimized code map.
+  void ClearOptimizedCodeMap();
+
+  // Like ClearOptimizedCodeMap, but preserves literals.
+  void ClearCodeFromOptimizedCodeMap();
+
+  // We have a special root FixedArray with the right shape and values
+  // to represent the cleared optimized code map. This predicate checks
+  // if that root is installed.
+  inline bool OptimizedCodeMapIsCleared() const;
+
+  // Removes a specific optimized code object from the optimized code map.
+  // In case of non-OSR the code reference is cleared from the cache entry but
+  // the entry itself is left in the map in order to proceed sharing literals.
+  void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
+
+  // Add or update entry in the optimized code map for context-dependent code.
+  static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
+                                    Handle<Context> native_context,
+                                    Handle<Code> code, BailoutId osr_ast_id);
+
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
   V8_EXPORT_PRIVATE static void SetScript(Handle<SharedFunctionInfo> shared,
@@ -6250,7 +6278,8 @@ class SharedFunctionInfo: public HeapObject {
   // Pointer fields.
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kNameOffset = kCodeOffset + kPointerSize;
-  static const int kScopeInfoOffset = kNameOffset + kPointerSize;
+  static const int kOptimizedCodeMapOffset = kNameOffset + kPointerSize;
+  static const int kScopeInfoOffset = kOptimizedCodeMapOffset + kPointerSize;
   static const int kOuterScopeInfoOffset = kScopeInfoOffset + kPointerSize;
   static const int kConstructStubOffset = kOuterScopeInfoOffset + kPointerSize;
   static const int kInstanceClassNameOffset =
@@ -6515,6 +6544,11 @@ class SharedFunctionInfo: public HeapObject {
 #undef BYTE_OFFSET
 
  private:
+  // Returns entry from optimized code map for specified context.
+  // The result is either kNotFound, or a start index of the context-dependent
+  // entry.
+  int SearchOptimizedCodeMapEntry(Context* native_context);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
 
@@ -6880,9 +6914,6 @@ class JSFunction: public JSObject {
 
   // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInOptimizationQueue();
-
-  // Clears the optimized code slot in the function's feedback vector.
-  inline void ClearOptimizedCodeSlot(const char* reason);
 
   // Completes inobject slack tracking on initial map if it is active.
   inline void CompleteInobjectSlackTrackingIfActive();
