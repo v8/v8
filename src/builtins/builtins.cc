@@ -124,7 +124,7 @@ int Builtins::GetBuiltinParameterCount(Name name) {
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, TFJ_CASE, IGNORE_BUILTIN,
                  IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
-#undef CASE
+#undef TFJ_CASE
     default:
       UNREACHABLE();
       return 0;
