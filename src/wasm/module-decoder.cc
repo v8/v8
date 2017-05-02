@@ -264,7 +264,10 @@ class ModuleDecoder : public Decoder {
              result.ok() ? "ok" : "failed");
     std::string name(buf);
     if (FILE* wasm_file = base::OS::FOpen((path + name).c_str(), "wb")) {
-      fwrite(start_, end_ - start_, 1, wasm_file);
+      if (fwrite(start_, end_ - start_, 1, wasm_file) != 1) {
+        OFStream os(stderr);
+        os << "Error while dumping wasm file" << std::endl;
+      }
       fclose(wasm_file);
     }
   }
