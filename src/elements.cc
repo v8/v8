@@ -3140,25 +3140,27 @@ class TypedElementsAccessor
         destination_elements->map()->instance_type();
 
     bool same_type = source_type == destination_type;
-    bool same_size = FixedTypedArrayBase::ElementSize(source_type) ==
-                     FixedTypedArrayBase::ElementSize(destination_type);
+    bool same_size = source->element_size() == destination->element_size();
     bool both_are_simple = HasSimpleRepresentation(source_type) &&
                            HasSimpleRepresentation(destination_type);
+
+    // We assume the source and destination don't overlap, even though they
+    // can share the same buffer. This is always true for newly allocated
+    // TypedArrays.
+    uint8_t* source_data = static_cast<uint8_t*>(source_elements->DataPtr());
+    uint8_t* dest_data = static_cast<uint8_t*>(destination_elements->DataPtr());
+    size_t source_byte_length = NumberToSize(source->byte_offset());
+    size_t dest_byte_length = NumberToSize(destination->byte_offset());
+    CHECK(dest_data + dest_byte_length <= source_data ||
+          source_data + source_byte_length <= dest_data);
 
     // We can simply copy the backing store if the types are the same, or if
     // we are converting e.g. Uint8 <-> Int8, as the binary representation
     // will be the same. This is not the case for floats or clamped Uint8,
     // which have special conversion operations.
     if (same_type || (same_size && both_are_simple)) {
-      // We assume the source and destination don't overlap. This is always true
-      // for newly allocated TypedArrays.
-      CHECK_NE(source->buffer(), destination->buffer());
-      int element_size = FixedTypedArrayBase::ElementSize(source_type);
-
-      uint8_t* source_data = static_cast<uint8_t*>(source_elements->DataPtr());
-      uint8_t* destination_data =
-          static_cast<uint8_t*>(destination_elements->DataPtr());
-      std::memcpy(destination_data, source_data, length * element_size);
+      size_t element_size = source->element_size();
+      std::memcpy(dest_data, source_data, length * element_size);
     } else {
       // We use scalar accessors below to avoid boxing/unboxing, so there are
       // no allocations.

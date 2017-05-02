@@ -3480,7 +3480,6 @@ class FixedTypedArrayBase: public FixedArrayBase {
 
   static inline int TypedArraySize(InstanceType type, int length);
   inline int TypedArraySize(InstanceType type);
-  static inline int ElementSize(InstanceType type);
 
   // Use with care: returns raw pointer into heap.
   inline void* DataPtr();
@@ -3488,6 +3487,8 @@ class FixedTypedArrayBase: public FixedArrayBase {
   inline int DataSize();
 
  private:
+  static inline int ElementSize(InstanceType type);
+
   inline int DataSize(InstanceType type);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
