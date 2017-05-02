@@ -818,6 +818,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static void SetUp();
 
+  // These functions must use the isolate in a thread-safe way.
   typedef void* ExternalReferenceRedirector(Isolate* isolate, void* original,
                                             Type type);
 

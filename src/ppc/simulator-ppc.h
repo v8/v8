@@ -341,7 +341,7 @@ class Simulator {
   static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
                                  void* page);
 
-  // Runtime call support.
+  // Runtime call support. Uses the isolate in a thread-safe way.
   static void* RedirectExternalReference(
       Isolate* isolate, void* external_function,
       v8::internal::ExternalReference::Type type);

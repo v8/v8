@@ -493,7 +493,7 @@ class Simulator {
   // Exceptions.
   void SignalException(Exception e);
 
-  // Runtime call support.
+  // Runtime call support. Uses the isolate in a thread-safe way.
   static void* RedirectExternalReference(Isolate* isolate,
                                          void* external_function,
                                          ExternalReference::Type type);

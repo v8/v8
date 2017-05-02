@@ -1250,6 +1250,9 @@ class Isolate {
 
 #ifdef USE_SIMULATOR
   base::Mutex* simulator_i_cache_mutex() { return &simulator_i_cache_mutex_; }
+  base::Mutex* simulator_redirection_mutex() {
+    return &simulator_redirection_mutex_;
+  }
 #endif
 
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
@@ -1570,6 +1573,7 @@ class Isolate {
 
 #ifdef USE_SIMULATOR
   base::Mutex simulator_i_cache_mutex_;
+  base::Mutex simulator_redirection_mutex_;
 #endif
 
   bool allow_atomics_wait_;
