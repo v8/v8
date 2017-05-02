@@ -3509,6 +3509,7 @@ void Isolate::RunMicrotasksInternal() {
   while (pending_microtask_count() > 0) {
     HandleScope scope(this);
     int num_tasks = pending_microtask_count();
+    // Do not use factory()->microtask_queue() here; we need a fresh handle!
     Handle<FixedArray> queue(heap()->microtask_queue(), this);
     DCHECK(num_tasks <= queue->length());
     set_pending_microtask_count(0);
@@ -3652,11 +3653,11 @@ void Isolate::SetTailCallEliminationEnabled(bool enabled) {
 void Isolate::AddDetachedContext(Handle<Context> context) {
   HandleScope scope(this);
   Handle<WeakCell> cell = factory()->NewWeakCell(context);
-  Handle<FixedArray> detached_contexts = factory()->detached_contexts();
-  int length = detached_contexts->length();
-  detached_contexts = factory()->CopyFixedArrayAndGrow(detached_contexts, 2);
-  detached_contexts->set(length, Smi::kZero);
-  detached_contexts->set(length + 1, *cell);
+  Handle<FixedArray> detached_contexts =
+      factory()->CopyFixedArrayAndGrow(factory()->detached_contexts(), 2);
+  int new_length = detached_contexts->length();
+  detached_contexts->set(new_length - 2, Smi::kZero);
+  detached_contexts->set(new_length - 1, *cell);
   heap()->set_detached_contexts(*detached_contexts);
 }
 
