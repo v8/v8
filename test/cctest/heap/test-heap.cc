@@ -529,6 +529,129 @@ TEST(WeakGlobalHandlesScavenge) {
   GlobalHandles::Destroy(h2.location());
 }
 
+TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  LocalContext context;
+  Factory* factory = isolate->factory();
+  GlobalHandles* global_handles = isolate->global_handles();
+
+  WeakPointerCleared = false;
+
+  Handle<Object> h1;
+  Handle<Object> h2;
+
+  {
+    HandleScope scope(isolate);
+
+    // Create an Api object that is unmodified.
+    auto function = FunctionTemplate::New(context->GetIsolate())
+                        ->GetFunction(context.local())
+                        .ToLocalChecked();
+    auto i = function->NewInstance(context.local()).ToLocalChecked();
+    Handle<Object> u = factory->NewNumber(1.12344);
+
+    h1 = global_handles->Create(*u);
+    h2 = global_handles->Create(*(reinterpret_cast<internal::Object**>(*i)));
+  }
+
+  std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
+  GlobalHandles::MakeWeak(
+      h2.location(), reinterpret_cast<void*>(&handle_and_id),
+      &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
+
+  CcTest::CollectGarbage(NEW_SPACE);
+
+  CHECK((*h1)->IsHeapNumber());
+  CHECK(WeakPointerCleared);
+  CHECK(!global_handles->IsNearDeath(h1.location()));
+
+  GlobalHandles::Destroy(h1.location());
+}
+
+TEST(WeakGlobalApiHandleModifiedMapScavenge) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  LocalContext context;
+  GlobalHandles* global_handles = isolate->global_handles();
+
+  WeakPointerCleared = false;
+
+  Handle<Object> h1;
+
+  {
+    HandleScope scope(isolate);
+
+    // Create an API object which does not have the same map as constructor.
+    auto function_template = FunctionTemplate::New(context->GetIsolate());
+    auto instance_t = function_template->InstanceTemplate();
+    instance_t->Set(v8::String::NewFromUtf8(context->GetIsolate(), "a",
+                                            NewStringType::kNormal)
+                        .ToLocalChecked(),
+                    v8::Number::New(context->GetIsolate(), 10));
+    auto function =
+        function_template->GetFunction(context.local()).ToLocalChecked();
+    auto i = function->NewInstance(context.local()).ToLocalChecked();
+
+    h1 = global_handles->Create(*(reinterpret_cast<internal::Object**>(*i)));
+  }
+
+  std::pair<Handle<Object>*, int> handle_and_id(&h1, 1234);
+  GlobalHandles::MakeWeak(
+      h1.location(), reinterpret_cast<void*>(&handle_and_id),
+      &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
+
+  CcTest::CollectGarbage(NEW_SPACE);
+
+  CHECK(!WeakPointerCleared);
+  CHECK(!global_handles->IsNearDeath(h1.location()));
+
+  GlobalHandles::Destroy(h1.location());
+}
+
+TEST(WeakGlobalApiHandleWithElementsScavenge) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  LocalContext context;
+  GlobalHandles* global_handles = isolate->global_handles();
+
+  WeakPointerCleared = false;
+
+  Handle<Object> h1;
+
+  {
+    HandleScope scope(isolate);
+
+    // Create an API object which has elements.
+    auto function_template = FunctionTemplate::New(context->GetIsolate());
+    auto instance_t = function_template->InstanceTemplate();
+    instance_t->Set(v8::String::NewFromUtf8(context->GetIsolate(), "1",
+                                            NewStringType::kNormal)
+                        .ToLocalChecked(),
+                    v8::Number::New(context->GetIsolate(), 10));
+    instance_t->Set(v8::String::NewFromUtf8(context->GetIsolate(), "2",
+                                            NewStringType::kNormal)
+                        .ToLocalChecked(),
+                    v8::Number::New(context->GetIsolate(), 10));
+    auto function =
+        function_template->GetFunction(context.local()).ToLocalChecked();
+    auto i = function->NewInstance(context.local()).ToLocalChecked();
+
+    h1 = global_handles->Create(*(reinterpret_cast<internal::Object**>(*i)));
+  }
+
+  std::pair<Handle<Object>*, int> handle_and_id(&h1, 1234);
+  GlobalHandles::MakeWeak(
+      h1.location(), reinterpret_cast<void*>(&handle_and_id),
+      &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
+
+  CcTest::CollectGarbage(NEW_SPACE);
+
+  CHECK(!WeakPointerCleared);
+  CHECK(!global_handles->IsNearDeath(h1.location()));
+
+  GlobalHandles::Destroy(h1.location());
+}
 
 TEST(WeakGlobalHandlesMark) {
   CcTest::InitializeVM();
