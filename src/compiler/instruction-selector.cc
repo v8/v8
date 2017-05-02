@@ -2219,9 +2219,9 @@ void InstructionSelector::VisitI32x4ShrU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS &&
         // !V8_TARGET_ARCH_MIPS64
 
-#if !V8_TARGET_ARCH_ARM
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
 void InstructionSelector::VisitI32x4AddHoriz(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
@@ -2277,13 +2277,9 @@ void InstructionSelector::VisitI16x8Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI16x8AddSaturateS(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 
-#if !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI16x8AddHoriz(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI16x8Sub(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8SubSaturateS(Node* node) {
@@ -2427,7 +2423,9 @@ void InstructionSelector::VisitI8x16MaxU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16LtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16LeU(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM
 
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitS128And(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS128Or(Node* node) { UNIMPLEMENTED(); }
@@ -2435,7 +2433,7 @@ void InstructionSelector::VisitS128Or(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS128Xor(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS128Not(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && \
     !V8_TARGET_ARCH_MIPS64
