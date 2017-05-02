@@ -95,11 +95,26 @@ class SequentialMarkingDeque {
     }
   }
 
-  HeapObject** array() { return array_; }
-  int bottom() { return bottom_; }
+  // Calls the specified callback on each element of the deque and replaces
+  // the element with the result of the callback. If the callback returns
+  // nullptr then the element is removed from the deque.
+  // The callback must accept HeapObject* and return HeapObject*.
+  template <typename Callback>
+  void Update(Callback callback) {
+    int i = bottom_;
+    int new_top = bottom_;
+    while (i != top_) {
+      HeapObject* object = callback(array_[i]);
+      if (object) {
+        array_[new_top] = object;
+        new_top = (new_top + 1) & mask_;
+      }
+      i = (i + 1) & mask_;
+    }
+    top_ = new_top;
+  }
+
   int top() { return top_; }
-  int mask() { return mask_; }
-  void set_top(int top) { top_ = top; }
 
  private:
   // This task uncommits the marking_deque backing store if

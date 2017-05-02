@@ -763,51 +763,42 @@ void IncrementalMarking::FinalizeIncrementally() {
 void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
   if (!IsMarking()) return;
 
-  int current = marking_deque()->bottom();
-  int mask = marking_deque()->mask();
-  int limit = marking_deque()->top();
-  HeapObject** array = marking_deque()->array();
-  int new_top = current;
-
   Map* filler_map = heap_->one_pointer_filler_map();
 
-  while (current != limit) {
-    HeapObject* obj = array[current];
+  marking_deque()->Update([this, filler_map](HeapObject* obj) -> HeapObject* {
     DCHECK(obj->IsHeapObject());
-    current = ((current + 1) & mask);
     // Only pointers to from space have to be updated.
     if (heap_->InFromSpace(obj)) {
       MapWord map_word = obj->map_word();
-      // There may be objects on the marking deque that do not exist anymore,
-      // e.g. left trimmed objects or objects from the root set (frames).
-      // If these object are dead at scavenging time, their marking deque
-      // entries will not point to forwarding addresses. Hence, we can discard
-      // them.
-      if (map_word.IsForwardingAddress()) {
-        HeapObject* dest = map_word.ToForwardingAddress();
-        if (ObjectMarking::IsBlack(dest, marking_state(dest))) continue;
-        array[new_top] = dest;
-        new_top = ((new_top + 1) & mask);
-        DCHECK(new_top != marking_deque()->bottom());
-        DCHECK(ObjectMarking::IsGrey(obj, marking_state(obj)) ||
-               (obj->IsFiller() &&
-                ObjectMarking::IsWhite(obj, marking_state(obj))));
+      if (!map_word.IsForwardingAddress()) {
+        // There may be objects on the marking deque that do not exist anymore,
+        // e.g. left trimmed objects or objects from the root set (frames).
+        // If these object are dead at scavenging time, their marking deque
+        // entries will not point to forwarding addresses. Hence, we can discard
+        // them.
+        return nullptr;
       }
-    } else if (obj->map() != filler_map) {
-      // Skip one word filler objects that appear on the
-      // stack when we perform in place array shift.
-      array[new_top] = obj;
-      new_top = ((new_top + 1) & mask);
-      DCHECK(new_top != marking_deque()->bottom());
+      HeapObject* dest = map_word.ToForwardingAddress();
+      if (ObjectMarking::IsBlack(dest, marking_state(dest))) {
+        // The object is already processed by the marker.
+        return nullptr;
+      }
+      DCHECK(
+          ObjectMarking::IsGrey(obj, marking_state(obj)) ||
+          (obj->IsFiller() && ObjectMarking::IsWhite(obj, marking_state(obj))));
+      return dest;
+    } else {
       DCHECK(ObjectMarking::IsGrey(obj, marking_state(obj)) ||
              (obj->IsFiller() &&
               ObjectMarking::IsWhite(obj, marking_state(obj))) ||
              (MemoryChunk::FromAddress(obj->address())
                   ->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
               ObjectMarking::IsBlack(obj, marking_state(obj))));
+      // Skip one word filler objects that appear on the
+      // stack when we perform in place array shift.
+      return (obj->map() == filler_map) ? nullptr : obj;
     }
-  }
-  marking_deque()->set_top(new_top);
+  });
 }
 
 
