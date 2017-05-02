@@ -318,6 +318,15 @@ void BytecodeRegisterOptimizer::AddToEquivalenceSet(
 
 void BytecodeRegisterOptimizer::RegisterTransfer(RegisterInfo* input_info,
                                                  RegisterInfo* output_info) {
+  bool output_is_observable =
+      RegisterIsObservable(output_info->register_value());
+  bool in_same_equivalence_set =
+      output_info->IsInSameEquivalenceSet(input_info);
+  if (in_same_equivalence_set &&
+      (!output_is_observable || output_info->materialized())) {
+    return;  // Nothing more to do.
+  }
+
   // Materialize an alternate in the equivalence set that
   // |output_info| is leaving.
   if (output_info->materialized()) {
@@ -325,12 +334,10 @@ void BytecodeRegisterOptimizer::RegisterTransfer(RegisterInfo* input_info,
   }
 
   // Add |output_info| to new equivalence set.
-  if (!output_info->IsInSameEquivalenceSet(input_info)) {
+  if (!in_same_equivalence_set) {
     AddToEquivalenceSet(input_info, output_info);
   }
 
-  bool output_is_observable =
-      RegisterIsObservable(output_info->register_value());
   if (output_is_observable) {
     // Force store to be emitted when register is observable.
     output_info->set_materialized(false);
