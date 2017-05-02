@@ -1595,6 +1595,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     number_fun->shared()->SetConstructStub(
         *isolate->builtins()->NumberConstructor_ConstructStub());
     number_fun->shared()->set_length(1);
+    // https://tc39.github.io/ecma262/#sec-built-in-function-objects says
+    // that "Built-in functions that are ECMAScript function objects must
+    // be strict functions".
+    number_fun->shared()->set_language_mode(STRICT);
     InstallWithIntrinsicDefaultProto(isolate, number_fun,
                                      Context::NUMBER_FUNCTION_INDEX);
 
@@ -1740,6 +1744,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         *isolate->builtins()->StringConstructor_ConstructStub());
     string_fun->shared()->DontAdaptArguments();
     string_fun->shared()->set_length(1);
+    // https://tc39.github.io/ecma262/#sec-built-in-function-objects says
+    // that "Built-in functions that are ECMAScript function objects must
+    // be strict functions".
+    string_fun->shared()->set_language_mode(STRICT);
     InstallWithIntrinsicDefaultProto(isolate, string_fun,
                                      Context::STRING_FUNCTION_INDEX);
 
