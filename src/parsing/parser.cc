@@ -2757,9 +2757,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                  scope->start_position(),
                  should_use_parse_task ? "SUCCESS" : "FAILED");
         }
-        if (should_use_parse_task) {
-          scope->ResetAfterPreparsing(ast_value_factory(), false);
-        } else {
+        if (!should_use_parse_task) {
           // Fallback to eager parsing below if we failed to enqueue parse tasks
           bookmark.Apply();
           scope->ResetAfterPreparsing(ast_value_factory(), true);
