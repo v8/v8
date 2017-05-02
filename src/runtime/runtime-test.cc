@@ -165,6 +165,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
     return isolate->heap()->undefined_value();
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+  function->shared()->set_marked_for_tier_up(false);
 
   // If the function is not optimized, just return.
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();

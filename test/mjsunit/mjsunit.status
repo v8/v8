@@ -186,9 +186,6 @@
   #                  which makes the test useless.
   'big-object-literal': [PASS, ['mode == debug', SKIP]],
 
-  # BUG(v8:6101): This fails because of a hole deopt, need to investigate.
-  'getters-on-elements': [SKIP],
-
   # BUG(v8:6113).
   'es6/array-iterator-turbo': [SKIP],
 
