@@ -1009,9 +1009,9 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
         shared->ShortPrint();
         PrintF(" - age: %d]\n", code->GetAge());
       }
-      // Always flush the optimized code map if there is one.
-      if (!shared->OptimizedCodeMapIsCleared()) {
-        shared->ClearOptimizedCodeMap();
+      // Always flush the optimized code.
+      if (candidate->has_feedback_vector()) {
+        candidate->feedback_vector()->ClearOptimizedCode();
       }
       if (shared->HasBytecodeArray()) {
         shared->set_code(interpreter_entry_trampoline);
@@ -1060,10 +1060,6 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
         PrintF("[code-flushing clears: ");
         candidate->ShortPrint();
         PrintF(" - age: %d]\n", code->GetAge());
-      }
-      // Always flush the optimized code map if there is one.
-      if (!candidate->OptimizedCodeMapIsCleared()) {
-        candidate->ClearOptimizedCodeMap();
       }
       if (candidate->HasBytecodeArray()) {
         candidate->set_code(interpreter_entry_trampoline);

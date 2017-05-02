@@ -203,8 +203,15 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
     // Evict optimized code for this function from the cache so that it
     // doesn't get used for new closures.
-    function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
-                                                  "notify deoptimized");
+    if (function->feedback_vector()->optimized_code() == *optimized_code) {
+      function->ClearOptimizedCodeSlot("notify deoptimized");
+    }
+    // Remove the code from the osr optimized code cache.
+    DeoptimizationInputData* deopt_data =
+        DeoptimizationInputData::cast(optimized_code->deoptimization_data());
+    if (deopt_data->OsrAstId()->value() == BailoutId::None().ToInt()) {
+      isolate->EvictOSROptimizedCode(*optimized_code, "notify deoptimized");
+    }
   } else {
     // TODO(titzer): we should probably do DeoptimizeCodeList(code)
     // unconditionally if the code is not already marked for deoptimization.

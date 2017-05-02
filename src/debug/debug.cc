@@ -1301,19 +1301,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
         OptimizingCompileDispatcher::BlockingBehavior::kBlock);
   }
 
-  List<Handle<JSFunction> > functions;
-
-  // Flush all optimized code maps. Note that the below heap iteration does not
-  // cover this, because the given function might have been inlined into code
-  // for which no JSFunction exists.
-  {
-    SharedFunctionInfo::GlobalIterator iterator(isolate_);
-    while (SharedFunctionInfo* shared = iterator.Next()) {
-      shared->ClearCodeFromOptimizedCodeMap();
-    }
-  }
-
-  // The native context also has a list of OSR'd optimized code. Clear it.
+  // The native context has a list of OSR'd optimized code. Clear it.
   isolate_->ClearOSROptimizedCode();
 
   // Make sure we abort incremental marking.
@@ -1323,6 +1311,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   DCHECK(shared->is_compiled());
   bool baseline_exists = shared->HasBaselineCode();
 
+  List<Handle<JSFunction>> functions;
   {
     // TODO(yangguo): with bytecode, we still walk the heap to find all
     // optimized code for the function to deoptimize. We can probably be
@@ -1334,6 +1323,9 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
       if (obj->IsJSFunction()) {
         JSFunction* function = JSFunction::cast(obj);
         if (!function->Inlines(*shared)) continue;
+        if (function->has_feedback_vector()) {
+          function->ClearOptimizedCodeSlot("Prepare for breakpoints");
+        }
         if (function->code()->kind() == Code::OPTIMIZED_FUNCTION) {
           Deoptimizer::DeoptimizeFunction(function);
         }

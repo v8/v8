@@ -1319,76 +1319,39 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   //  -- r1 : target function (preserved for callee)
   // -----------------------------------
   // First lookup code, maybe we don't need to compile!
-  Label gotta_call_runtime, gotta_call_runtime_no_stack;
+  Label gotta_call_runtime;
   Label try_shared;
-  Label loop_top, loop_bottom;
 
-  Register argument_count = r0;
   Register closure = r1;
-  Register new_target = r3;
-  Register map = argument_count;
   Register index = r2;
 
   // Do we have a valid feedback vector?
   __ ldr(index, FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
   __ ldr(index, FieldMemOperand(index, Cell::kValueOffset));
-  __ JumpIfRoot(index, Heap::kUndefinedValueRootIndex,
-                &gotta_call_runtime_no_stack);
+  __ JumpIfRoot(index, Heap::kUndefinedValueRootIndex, &gotta_call_runtime);
 
-  __ push(argument_count);
-  __ push(new_target);
-  __ push(closure);
-
-  __ ldr(map, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(map,
-         FieldMemOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
-  __ ldr(index, FieldMemOperand(map, FixedArray::kLengthOffset));
-  __ cmp(index, Operand(Smi::FromInt(2)));
-  __ b(lt, &try_shared);
-
-  // r3  : native context
-  // r2  : length / index
-  // r0  : optimized code map
-  // stack[0] : new target
-  // stack[4] : closure
-  Register native_context = r3;
-  __ ldr(native_context, NativeContextMemOperand());
-
-  __ bind(&loop_top);
-  Register temp = r1;
-  Register array_pointer = r5;
-
-  // Does the native context match?
-  __ add(array_pointer, map, Operand::PointerOffsetFromSmiKey(index));
-  __ ldr(temp, FieldMemOperand(array_pointer,
-                               SharedFunctionInfo::kOffsetToPreviousContext));
-  __ ldr(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
-  __ cmp(temp, native_context);
-  __ b(ne, &loop_bottom);
-
-  // Code available?
+  // Is optimized code available in the feedback vector?
   Register entry = r4;
-  __ ldr(entry,
-         FieldMemOperand(array_pointer,
-                         SharedFunctionInfo::kOffsetToPreviousCachedCode));
+  __ ldr(entry, FieldMemOperand(
+                    index, FeedbackVector::kOptimizedCodeIndex * kPointerSize +
+                               FeedbackVector::kHeaderSize));
   __ ldr(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found code. Get it into the closure and return.
-  __ pop(closure);
   // Store code entry in the closure.
   __ add(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ str(entry, FieldMemOperand(closure, JSFunction::kCodeEntryOffset));
   __ RecordWriteCodeEntryField(closure, entry, r5);
 
+  // Load native context into r6.
+  Register native_context = r6;
+  __ ldr(native_context, NativeContextMemOperand());
+
   // Link the closure into the optimized function list.
-  // r4 : code entry
-  // r3 : native context
-  // r1 : closure
   __ ldr(r5,
          ContextMemOperand(native_context, Context::OPTIMIZED_FUNCTIONS_LIST));
   __ str(r5, FieldMemOperand(closure, JSFunction::kNextFunctionLinkOffset));
-  __ RecordWriteField(closure, JSFunction::kNextFunctionLinkOffset, r5, r0,
+  __ RecordWriteField(closure, JSFunction::kNextFunctionLinkOffset, r5, r2,
                       kLRHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   const int function_list_offset =
@@ -1397,36 +1360,26 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
          ContextMemOperand(native_context, Context::OPTIMIZED_FUNCTIONS_LIST));
   // Save closure before the write barrier.
   __ mov(r5, closure);
-  __ RecordWriteContextSlot(native_context, function_list_offset, closure, r0,
+  __ RecordWriteContextSlot(native_context, function_list_offset, closure, r2,
                             kLRHasNotBeenSaved, kDontSaveFPRegs);
   __ mov(closure, r5);
-  __ pop(new_target);
-  __ pop(argument_count);
   __ Jump(entry);
 
-  __ bind(&loop_bottom);
-  __ sub(index, index, Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
-  __ cmp(index, Operand(Smi::FromInt(1)));
-  __ b(gt, &loop_top);
-
-  // We found no code.
+  // We found no optimized code.
   __ bind(&try_shared);
-  __ pop(closure);
-  __ pop(new_target);
-  __ pop(argument_count);
   __ ldr(entry,
          FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   // Is the shared function marked for tier up?
   __ ldrb(r5, FieldMemOperand(entry,
                               SharedFunctionInfo::kMarkedForTierUpByteOffset));
   __ tst(r5, Operand(1 << SharedFunctionInfo::kMarkedForTierUpBitWithinByte));
-  __ b(ne, &gotta_call_runtime_no_stack);
+  __ b(ne, &gotta_call_runtime);
 
   // If SFI points to anything other than CompileLazy, install that.
   __ ldr(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
   __ Move(r5, masm->CodeObject());
   __ cmp(entry, r5);
-  __ b(eq, &gotta_call_runtime_no_stack);
+  __ b(eq, &gotta_call_runtime);
 
   // Install the SFI's code entry.
   __ add(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -1435,10 +1388,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ Jump(entry);
 
   __ bind(&gotta_call_runtime);
-  __ pop(closure);
-  __ pop(new_target);
-  __ pop(argument_count);
-  __ bind(&gotta_call_runtime_no_stack);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
 }
 

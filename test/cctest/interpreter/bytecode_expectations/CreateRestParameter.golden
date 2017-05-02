@@ -74,7 +74,7 @@ bytecodes: [
                 B(Mov), R(arg0), R(1),
                 B(Mov), R(0), R(2),
   /*   29 S> */ B(LdaZero),
-  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(2),
+  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(3),
   /*   49 S> */ B(Return),
 ]
 constant pool: [
@@ -103,11 +103,11 @@ bytecodes: [
                 B(Mov), R(arg0), R(1),
                 B(Mov), R(0), R(2),
   /*   29 S> */ B(LdaZero),
-  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(2),
+  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(3),
                 B(Star), R(4),
                 B(LdaZero),
-  /*   59 E> */ B(LdaKeyedProperty), R(3), U8(4),
-  /*   48 E> */ B(Add), R(4), U8(6),
+  /*   59 E> */ B(LdaKeyedProperty), R(3), U8(5),
+  /*   48 E> */ B(Add), R(4), U8(7),
   /*   64 S> */ B(Return),
 ]
 constant pool: [
