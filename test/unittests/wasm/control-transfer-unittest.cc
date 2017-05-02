@@ -489,14 +489,41 @@ TEST_F(ControlTransferTest, BiggerSpDiffs) {
       0,              // @7
       kExprI32Const,  // @8
       0,              // @9
-      kExprBr,        // @10
+      kExprI32Const,  // @10
       0,              // @11
-      kExprBr,        // @12
-      1,              // @13
-      kExprEnd,       // @14
-      kExprEnd        // @15
+      kExprBrIf,      // @12
+      0,              // @13
+      kExprBr,        // @14
+      1,              // @15
+      kExprEnd,       // @16
+      kExprEnd        // @17
   };
-  CheckTransfers(code, {{10, 5, 2, 0}, {12, 4, 3, 1}});
+  CheckTransfers(code, {{12, 5, 2, 0}, {14, 4, 3, 1}});
+}
+
+TEST_F(ControlTransferTest, NoInfoForUnreachableCode) {
+  byte code[] = {
+      kExprBlock,        // @0
+      kLocalVoid,        // @1
+      kExprBr,           // @2
+      0,                 // @3
+      kExprBr,           // @4 -- no control transfer entry!
+      1,                 // @5
+      kExprEnd,          // @6
+      kExprBlock,        // @7
+      kLocalVoid,        // @8
+      kExprUnreachable,  // @9
+      kExprI32Const,     // @10
+      0,                 // @11
+      kExprIf,           // @12 -- no control transfer entry!
+      kLocalVoid,        // @13
+      kExprBr,           // @14 -- no control transfer entry!
+      0,                 // @15
+      kExprElse,         // @16 -- no control transfer entry!
+      kExprEnd,          // @17
+      kExprEnd           // @18
+  };
+  CheckTransfers(code, {{2, 5, 0, 0}});
 }
 
 }  // namespace wasm

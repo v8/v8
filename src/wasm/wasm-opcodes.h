@@ -598,6 +598,9 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static FunctionSig* AtomicSignature(WasmOpcode opcode);
   static bool IsPrefixOpcode(WasmOpcode opcode);
   static bool IsControlOpcode(WasmOpcode opcode);
+  // Check whether the given opcode always jumps, i.e. all instructions after
+  // this one in the current block are dead. Returns false for |end|.
+  static bool IsUnconditionalJump(WasmOpcode opcode);
 
   static int TrapReasonToMessageId(TrapReason reason);
   static const char* TrapReasonMessage(TrapReason reason);

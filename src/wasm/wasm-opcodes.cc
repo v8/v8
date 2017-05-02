@@ -286,6 +286,7 @@ bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
       return false;
   }
 }
+
 bool WasmOpcodes::IsControlOpcode(WasmOpcode opcode) {
   switch (opcode) {
 #define CHECK_OPCODE(name, opcode, _) \
@@ -293,6 +294,18 @@ bool WasmOpcodes::IsControlOpcode(WasmOpcode opcode) {
     return true;
     FOREACH_CONTROL_OPCODE(CHECK_OPCODE)
 #undef CHECK_OPCODE
+    default:
+      return false;
+  }
+}
+
+bool WasmOpcodes::IsUnconditionalJump(WasmOpcode opcode) {
+  switch (opcode) {
+    case kExprUnreachable:
+    case kExprBr:
+    case kExprBrTable:
+    case kExprReturn:
+      return true;
     default:
       return false;
   }
