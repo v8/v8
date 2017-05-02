@@ -5494,7 +5494,6 @@ bool Heap::SetUp() {
   store_buffer_ = new StoreBuffer(this);
 
   incremental_marking_ = new IncrementalMarking(this);
-  concurrent_marking_ = new ConcurrentMarking(this);
 
   for (int i = 0; i <= LAST_SPACE; i++) {
     space_[i] = nullptr;
@@ -5543,6 +5542,8 @@ bool Heap::SetUp() {
   mark_compact_collector_ = new MarkCompactCollector(this);
   incremental_marking_->set_marking_deque(
       mark_compact_collector_->marking_deque());
+  concurrent_marking_ =
+      new ConcurrentMarking(this, mark_compact_collector_->marking_deque());
   if (FLAG_minor_mc)
     minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
   gc_idle_time_handler_ = new GCIdleTimeHandler();

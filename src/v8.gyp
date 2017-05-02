@@ -951,6 +951,7 @@
         'heap/array-buffer-tracker.h',
         'heap/code-stats.cc',
         'heap/code-stats.h',
+        'heap/concurrent-marking-deque.h',
         'heap/concurrent-marking.cc',
         'heap/concurrent-marking.h',
         'heap/embedder-tracing.cc',

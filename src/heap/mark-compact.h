@@ -10,6 +10,7 @@
 #include "src/base/bits.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/cancelable-task.h"
+#include "src/heap/concurrent-marking-deque.h"
 #include "src/heap/marking.h"
 #include "src/heap/sequential-marking-deque.h"
 #include "src/heap/spaces.h"
@@ -31,7 +32,11 @@ class PageParallelJob;
 class RecordMigratedSlotVisitor;
 class ThreadLocalTop;
 
+#ifdef V8_CONCURRENT_MARKING
+using MarkingDeque = ConcurrentMarkingDeque;
+#else
 using MarkingDeque = SequentialMarkingDeque;
+#endif
 
 class ObjectMarking : public AllStatic {
  public:

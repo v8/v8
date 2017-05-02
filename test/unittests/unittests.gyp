@@ -97,6 +97,7 @@
       'eh-frame-iterator-unittest.cc',
       'eh-frame-writer-unittest.cc',
       'heap/bitmap-unittest.cc',
+      'heap/concurrent-marking-deque-unittest.cc',
       'heap/embedder-tracing-unittest.cc',
       'heap/gc-idle-time-handler-unittest.cc',
       'heap/gc-tracer-unittest.cc',

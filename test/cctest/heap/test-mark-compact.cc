@@ -43,6 +43,7 @@
 #include "src/global-handles.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/sequential-marking-deque.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -51,10 +52,9 @@
 using namespace v8::internal;
 using v8::Just;
 
-
-TEST(MarkingDeque) {
+TEST(SequentialMarkingDeque) {
   CcTest::InitializeVM();
-  MarkingDeque s(CcTest::i_isolate()->heap());
+  SequentialMarkingDeque s(CcTest::i_isolate()->heap());
   s.SetUp();
   s.StartUsing();
   Address original_address = reinterpret_cast<Address>(&s);

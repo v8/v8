@@ -1567,6 +1567,7 @@ v8_source_set("v8_base") {
     "src/heap/array-buffer-tracker.h",
     "src/heap/code-stats.cc",
     "src/heap/code-stats.h",
+    "src/heap/concurrent-marking-deque.h",
     "src/heap/concurrent-marking.cc",
     "src/heap/concurrent-marking.h",
     "src/heap/embedder-tracing.cc",

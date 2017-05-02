@@ -91,15 +91,6 @@ class SequentialMarkingDeque {
     }
   }
 
-  template <typename Callback>
-  void Iterate(Callback callback) {
-    int i = bottom_;
-    while (i != top_) {
-      callback(array_[i]);
-      i = (i + 1) & mask_;
-    }
-  }
-
   // Calls the specified callback on each element of the deque and replaces
   // the element with the result of the callback. If the callback returns
   // nullptr then the element is removed from the deque.

@@ -551,9 +551,6 @@ void IncrementalMarking::StartMarking() {
 
   if (FLAG_concurrent_marking) {
     ConcurrentMarking* concurrent_marking = heap_->concurrent_marking();
-    marking_deque()->Iterate([concurrent_marking](HeapObject* obj) {
-      concurrent_marking->AddRoot(obj);
-    });
     concurrent_marking->StartTask();
   }
 
