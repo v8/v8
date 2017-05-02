@@ -9835,6 +9835,11 @@ class TemplateInfo: public Struct {
 
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
+  // While we could grow the slow cache until we run out of memory, we put
+  // a limit on it anyway to not crash for embedders that re-create templates
+  // instead of caching them.
+  static const int kSlowTemplateInstantiationsCacheSize = 1 * MB;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateInfo);
 };
