@@ -221,7 +221,7 @@ class CppLintProcessor(SourceFileProcessor):
     return (super(CppLintProcessor, self).IgnoreDir(name)
               or (name == 'third_party'))
 
-  IGNORE_LINT = ['flag-definitions.h']
+  IGNORE_LINT = ['export-template.h', 'flag-definitions.h']
 
   def IgnoreFile(self, name):
     return (super(CppLintProcessor, self).IgnoreFile(name)
