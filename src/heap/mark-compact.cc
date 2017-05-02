@@ -1755,6 +1755,32 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
   MarkCompactCollector* collector_;
 };
 
+class MigrationObserver {
+ public:
+  explicit MigrationObserver(Heap* heap) : heap_(heap) {}
+
+  virtual ~MigrationObserver() {}
+  virtual void Move(AllocationSpace dest, HeapObject* src, HeapObject* dst,
+                    int size) = 0;
+
+ protected:
+  Heap* heap_;
+};
+
+class ProfilingMigrationObserver final : public MigrationObserver {
+ public:
+  explicit ProfilingMigrationObserver(Heap* heap) : MigrationObserver(heap) {}
+
+  inline void Move(AllocationSpace dest, HeapObject* src, HeapObject* dst,
+                   int size) final {
+    if (dest == CODE_SPACE || (dest == OLD_SPACE && dst->IsBytecodeArray())) {
+      PROFILE(heap_->isolate(),
+              CodeMoveEvent(AbstractCode::cast(src), dst->address()));
+    }
+    heap_->OnMoveEvent(dst, src, size);
+  }
+};
+
 class HeapObjectVisitor {
  public:
   virtual ~HeapObjectVisitor() {}
@@ -1762,18 +1788,61 @@ class HeapObjectVisitor {
 };
 
 class EvacuateVisitorBase : public HeapObjectVisitor {
+ public:
+  void AddObserver(MigrationObserver* observer) {
+    migration_function_ = RawMigrateObject<MigrationMode::kObserved>;
+    observers_.push_back(observer);
+  }
+
  protected:
-  enum MigrationMode { kFast, kProfiled };
+  enum MigrationMode { kFast, kObserved };
+
+  typedef void (*MigrateFunction)(EvacuateVisitorBase* base, HeapObject* dst,
+                                  HeapObject* src, int size,
+                                  AllocationSpace dest);
+
+  template <MigrationMode mode>
+  static void RawMigrateObject(EvacuateVisitorBase* base, HeapObject* dst,
+                               HeapObject* src, int size,
+                               AllocationSpace dest) {
+    Address dst_addr = dst->address();
+    Address src_addr = src->address();
+    DCHECK(base->heap_->AllowedToBeMigrated(src, dest));
+    DCHECK(dest != LO_SPACE);
+    if (dest == OLD_SPACE) {
+      DCHECK_OBJECT_SIZE(size);
+      DCHECK(IsAligned(size, kPointerSize));
+      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      if (mode != MigrationMode::kFast)
+        base->ExecuteMigrationObservers(dest, src, dst, size);
+      dst->IterateBodyFast(dst->map()->instance_type(), size,
+                           base->record_visitor_);
+    } else if (dest == CODE_SPACE) {
+      DCHECK_CODEOBJECT_SIZE(size, base->heap_->code_space());
+      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      Code::cast(dst)->Relocate(dst_addr - src_addr);
+      if (mode != MigrationMode::kFast)
+        base->ExecuteMigrationObservers(dest, src, dst, size);
+      dst->IterateBodyFast(dst->map()->instance_type(), size,
+                           base->record_visitor_);
+    } else {
+      DCHECK_OBJECT_SIZE(size);
+      DCHECK(dest == NEW_SPACE);
+      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      if (mode != MigrationMode::kFast)
+        base->ExecuteMigrationObservers(dest, src, dst, size);
+    }
+    base::NoBarrier_Store(reinterpret_cast<base::AtomicWord*>(src_addr),
+                          reinterpret_cast<base::AtomicWord>(dst_addr));
+  }
 
   EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces,
                       RecordMigratedSlotVisitor* record_visitor)
       : heap_(heap),
         compaction_spaces_(compaction_spaces),
-        record_visitor_(record_visitor),
-        profiling_(
-            heap->isolate()->is_profiling() ||
-            heap->isolate()->logger()->is_logging_code_events() ||
-            heap->isolate()->heap_profiler()->is_tracking_object_moves()) {}
+        record_visitor_(record_visitor) {
+    migration_function_ = RawMigrateObject<MigrationMode::kFast>;
+  }
 
   inline bool TryEvacuateObject(PagedSpace* target_space, HeapObject* object,
                                 HeapObject** target_object) {
@@ -1790,51 +1859,16 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     return false;
   }
 
-  inline void MigrateObject(HeapObject* dst, HeapObject* src, int size,
-                            AllocationSpace dest) {
-    if (profiling_) {
-      MigrateObject<kProfiled>(dst, src, size, dest);
-    } else {
-      MigrateObject<kFast>(dst, src, size, dest);
+  inline void ExecuteMigrationObservers(AllocationSpace dest, HeapObject* src,
+                                        HeapObject* dst, int size) {
+    for (MigrationObserver* obs : observers_) {
+      obs->Move(dest, src, dst, size);
     }
   }
 
-  template <MigrationMode mode>
   inline void MigrateObject(HeapObject* dst, HeapObject* src, int size,
                             AllocationSpace dest) {
-    Address dst_addr = dst->address();
-    Address src_addr = src->address();
-    DCHECK(heap_->AllowedToBeMigrated(src, dest));
-    DCHECK(dest != LO_SPACE);
-    if (dest == OLD_SPACE) {
-      DCHECK_OBJECT_SIZE(size);
-      DCHECK(IsAligned(size, kPointerSize));
-      heap_->CopyBlock(dst_addr, src_addr, size);
-      if ((mode == kProfiled) && dst->IsBytecodeArray()) {
-        PROFILE(heap_->isolate(),
-                CodeMoveEvent(AbstractCode::cast(src), dst_addr));
-      }
-      dst->IterateBodyFast(dst->map()->instance_type(), size, record_visitor_);
-    } else if (dest == CODE_SPACE) {
-      DCHECK_CODEOBJECT_SIZE(size, heap_->code_space());
-      if (mode == kProfiled) {
-        PROFILE(heap_->isolate(),
-                CodeMoveEvent(AbstractCode::cast(src), dst_addr));
-      }
-      heap_->CopyBlock(dst_addr, src_addr, size);
-      Code::cast(dst)->Relocate(dst_addr - src_addr);
-      RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
-      dst->IterateBodyFast(dst->map()->instance_type(), size, record_visitor_);
-    } else {
-      DCHECK_OBJECT_SIZE(size);
-      DCHECK(dest == NEW_SPACE);
-      heap_->CopyBlock(dst_addr, src_addr, size);
-    }
-    if (mode == kProfiled) {
-      heap_->OnMoveEvent(dst, src, size);
-    }
-    base::NoBarrier_Store(reinterpret_cast<base::AtomicWord*>(src_addr),
-                          reinterpret_cast<base::AtomicWord>(dst_addr));
+    migration_function_(this, dst, src, size, dest);
   }
 
 #ifdef VERIFY_HEAP
@@ -1860,7 +1894,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   Heap* heap_;
   CompactionSpaceCollection* compaction_spaces_;
   RecordMigratedSlotVisitor* record_visitor_;
-  bool profiling_;
+  std::vector<MigrationObserver*> observers_;
+  MigrateFunction migration_function_;
 };
 
 class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
@@ -3207,6 +3242,11 @@ class Evacuator : public Malloced {
 
   bool EvacuatePage(Page* page);
 
+  void AddObserver(MigrationObserver* observer) {
+    new_space_visitor_.AddObserver(observer);
+    old_space_visitor_.AddObserver(observer);
+  }
+
   // Merge back locally cached info sequentially. Note that this method needs
   // to be called from the main thread.
   inline void Finalize();
@@ -3404,6 +3444,58 @@ class EvacuationJobTraits {
   }
 };
 
+template <class Evacuator, class Collector>
+void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
+    Collector* collector, PageParallelJob<EvacuationJobTraits>* job,
+    RecordMigratedSlotVisitor* record_visitor, const intptr_t live_bytes,
+    const int& abandoned_pages) {
+  // Used for trace summary.
+  double compaction_speed = 0;
+  if (FLAG_trace_evacuation) {
+    compaction_speed = heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
+  }
+
+  const bool profiling =
+      heap()->isolate()->is_profiling() ||
+      heap()->isolate()->logger()->is_logging_code_events() ||
+      heap()->isolate()->heap_profiler()->is_tracking_object_moves();
+  ProfilingMigrationObserver profiling_observer(heap());
+
+  const int wanted_num_tasks =
+      NumberOfParallelCompactionTasks(job->NumberOfPages(), live_bytes);
+  Evacuator** evacuators = new Evacuator*[wanted_num_tasks];
+  for (int i = 0; i < wanted_num_tasks; i++) {
+    evacuators[i] = new Evacuator(collector, record_visitor);
+    if (profiling) evacuators[i]->AddObserver(&profiling_observer);
+  }
+  job->Run(wanted_num_tasks, [evacuators](int i) { return evacuators[i]; });
+  const Address top = heap()->new_space()->top();
+  for (int i = 0; i < wanted_num_tasks; i++) {
+    evacuators[i]->Finalize();
+    // Try to find the last LAB that was used for new space allocation in
+    // evacuation tasks. If it was adjacent to the current top, move top back.
+    const AllocationInfo info = evacuators[i]->CloseNewSpaceLAB();
+    if (info.limit() != nullptr && info.limit() == top) {
+      DCHECK_NOT_NULL(info.top());
+      *heap()->new_space()->allocation_top_address() = info.top();
+    }
+    delete evacuators[i];
+  }
+  delete[] evacuators;
+
+  if (FLAG_trace_evacuation) {
+    PrintIsolate(isolate(),
+                 "%8.0f ms: evacuation-summary: parallel=%s pages=%d "
+                 "aborted=%d wanted_tasks=%d tasks=%d cores=%" PRIuS
+                 " live_bytes=%" V8PRIdPTR " compaction_speed=%.f\n",
+                 isolate()->time_millis_since_init(),
+                 FLAG_parallel_compaction ? "yes" : "no", job->NumberOfPages(),
+                 abandoned_pages, wanted_num_tasks, job->NumberOfTasks(),
+                 V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads(),
+                 live_bytes, compaction_speed);
+  }
+}
+
 void MarkCompactCollector::EvacuatePagesInParallel() {
   PageParallelJob<EvacuationJobTraits> job(
       heap_, heap_->isolate()->cancelable_task_manager(),
@@ -3436,45 +3528,9 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
   DCHECK_GE(job.NumberOfPages(), 1);
 
-  // Used for trace summary.
-  double compaction_speed = 0;
-  if (FLAG_trace_evacuation) {
-    compaction_speed = heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
-  }
-
-  const int wanted_num_tasks =
-      NumberOfParallelCompactionTasks(job.NumberOfPages(), live_bytes);
-  FullEvacuator** evacuators = new FullEvacuator*[wanted_num_tasks];
   RecordMigratedSlotVisitor record_visitor(this);
-  for (int i = 0; i < wanted_num_tasks; i++) {
-    evacuators[i] = new FullEvacuator(this, &record_visitor);
-  }
-  job.Run(wanted_num_tasks, [evacuators](int i) { return evacuators[i]; });
-  const Address top = heap()->new_space()->top();
-  for (int i = 0; i < wanted_num_tasks; i++) {
-    evacuators[i]->Finalize();
-    // Try to find the last LAB that was used for new space allocation in
-    // evacuation tasks. If it was adjacent to the current top, move top back.
-    const AllocationInfo info = evacuators[i]->CloseNewSpaceLAB();
-    if (info.limit() != nullptr && info.limit() == top) {
-      DCHECK_NOT_NULL(info.top());
-      *heap()->new_space()->allocation_top_address() = info.top();
-    }
-    delete evacuators[i];
-  }
-  delete[] evacuators;
-
-  if (FLAG_trace_evacuation) {
-    PrintIsolate(isolate(),
-                 "%8.0f ms: evacuation-summary: parallel=%s pages=%d "
-                 "aborted=%d wanted_tasks=%d tasks=%d cores=%" PRIuS
-                 " live_bytes=%" V8PRIdPTR " compaction_speed=%.f\n",
-                 isolate()->time_millis_since_init(),
-                 FLAG_parallel_compaction ? "yes" : "no", job.NumberOfPages(),
-                 abandoned_pages, wanted_num_tasks, job.NumberOfTasks(),
-                 V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads(),
-                 live_bytes, compaction_speed);
-  }
+  CreateAndExecuteEvacuationTasks<FullEvacuator>(this, &job, &record_visitor,
+                                                 live_bytes, abandoned_pages);
 }
 
 class EvacuationWeakObjectRetainer : public WeakObjectRetainer {

@@ -19,10 +19,15 @@ namespace internal {
 
 // Forward declarations.
 class CodeFlusher;
+class EvacuationJobTraits;
 class HeapObjectVisitor;
 class MarkCompactCollector;
 class MinorMarkCompactCollector;
 class MarkingVisitor;
+class MigrationObserver;
+template <typename JobTraits>
+class PageParallelJob;
+class RecordMigratedSlotVisitor;
 class ThreadLocalTop;
 
 class ObjectMarking : public AllStatic {
@@ -438,6 +443,12 @@ class MarkCompactCollectorBase {
 
   // The number of parallel compaction tasks, including the main thread.
   int NumberOfParallelCompactionTasks(int pages, intptr_t live_bytes);
+
+  template <class Evacuator, class Collector>
+  void CreateAndExecuteEvacuationTasks(
+      Collector* collector, PageParallelJob<EvacuationJobTraits>* job,
+      RecordMigratedSlotVisitor* record_visitor, const intptr_t live_bytes,
+      const int& abandoned_pages);
 
   Heap* heap_;
 };
