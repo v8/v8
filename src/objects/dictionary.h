@@ -7,9 +7,6 @@
 
 #include "src/objects/hash-table.h"
 
-#include "src/base/export-template.h"
-#include "src/globals.h"
-
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -355,12 +352,6 @@ class UnseededNumberDictionary
   static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;
 };
-
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>;
-
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>;
 
 }  // namespace internal
 }  // namespace v8

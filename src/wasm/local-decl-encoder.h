@@ -5,7 +5,6 @@
 #ifndef V8_WASM_LOCAL_DECL_ENCODER_H_
 #define V8_WASM_LOCAL_DECL_ENCODER_H_
 
-#include "src/globals.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
@@ -16,7 +15,7 @@ namespace wasm {
 
 // A helper for encoding local declarations prepended to the body of a
 // function.
-class V8_EXPORT_PRIVATE LocalDeclEncoder {
+class LocalDeclEncoder {
  public:
   explicit LocalDeclEncoder(Zone* zone, FunctionSig* s = nullptr)
       : sig(s), local_decls(zone), total(0) {}
