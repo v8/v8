@@ -31,7 +31,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(length_string, LengthString)                      \
   V(prototype_string, PrototypeString)                \
   V(EmptyFixedArray, EmptyFixedArray)                 \
+  V(EmptyWeakCell, EmptyWeakCell)                     \
   V(FalseValue, False)                                \
+  V(FeedbackVectorMap, FeedbackVectorMap)             \
   V(FixedArrayMap, FixedArrayMap)                     \
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \
   V(FixedDoubleArrayMap, FixedDoubleArrayMap)         \
@@ -776,6 +778,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSArrayBuffer(Node* object);
   Node* IsFixedTypedArray(Node* object);
   Node* IsJSRegExp(Node* object);
+  Node* IsFeedbackVector(Node* object);
 
   // True iff |object| is a Smi or a HeapNumber.
   Node* IsNumber(Node* object);
