@@ -978,7 +978,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
                           const char* collector_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
   // The VM is in the GC state until exiting this function.
-  VMState<GC> state(isolate_);
+  VMState<GC> state(isolate());
   RuntimeCallTimerScope(isolate(), &RuntimeCallStats::GC);
 
 #ifdef DEBUG

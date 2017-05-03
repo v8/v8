@@ -20,6 +20,7 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -2896,10 +2897,20 @@ HeapObject* CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
 }
 
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
+  VMState<GC> state(heap()->isolate());
+  RuntimeCallTimerScope(heap()->isolate(),
+                        &RuntimeCallStats::GC_SlowAllocateRaw);
+  return RawSlowAllocateRaw(size_in_bytes);
+}
+
+HeapObject* CompactionSpace::SlowAllocateRaw(int size_in_bytes) {
+  return RawSlowAllocateRaw(size_in_bytes);
+}
+
+HeapObject* PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
+  // Allocation in this space has failed.
   DCHECK_GE(size_in_bytes, 0);
   const int kMaxPagesToSweep = 1;
-
-  // Allocation in this space has failed.
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   // Sweeping is still in progress.

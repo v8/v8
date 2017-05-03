@@ -2183,7 +2183,9 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
       int size_in_bytes);
 
   // Slow path of AllocateRaw.  This function is space-dependent.
-  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);
+
+  MUST_USE_RESULT HeapObject* RawSlowAllocateRaw(int size_in_bytes);
 
   size_t area_size_;
 
@@ -2742,6 +2744,8 @@ class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
 
   MUST_USE_RESULT HeapObject* SweepAndRetryAllocation(
       int size_in_bytes) override;
+
+  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes) override;
 };
 
 

@@ -716,6 +716,8 @@ class RuntimeCallTimer final {
   V(FunctionCallback)                               \
   V(GC)                                             \
   V(GC_AllAvailableGarbage)                         \
+  V(GC_IncrementalMarkingJob)                       \
+  V(GC_SlowAllocateRaw)                             \
   V(GCEpilogueCallback)                             \
   V(GCPrologueCallback)                             \
   V(GenericNamedPropertyDefinerCallback)            \
