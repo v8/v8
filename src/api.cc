@@ -232,17 +232,20 @@ class CallDepthScope {
       i::Handle<i::Context> env = Utils::OpenHandle(*context);
       i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
       if (isolate->context() != nullptr &&
-          isolate->context()->native_context() == env->native_context() &&
-          impl->LastEnteredContextWas(env)) {
+          isolate->context()->native_context() == env->native_context()) {
         context_ = Local<Context>();
       } else {
-        context_->Enter();
+        impl->SaveContext(isolate->context());
+        isolate->set_context(*env);
       }
     }
     if (do_callback) isolate_->FireBeforeCallEnteredCallback();
   }
   ~CallDepthScope() {
-    if (!context_.IsEmpty()) context_->Exit();
+    if (!context_.IsEmpty()) {
+      i::HandleScopeImplementer* impl = isolate_->handle_scope_implementer();
+      isolate_->set_context(impl->RestoreContext());
+    }
     if (!escaped_) isolate_->handle_scope_implementer()->DecrementCallDepth();
     if (do_callback) isolate_->FireCallCompletedCallback();
 #ifdef DEBUG

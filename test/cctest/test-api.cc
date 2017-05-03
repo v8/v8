@@ -26601,3 +26601,69 @@ UNINITIALIZED_TEST(AllowAtomicsWait) {
   }
   isolate->Dispose();
 }
+
+enum ContextId { EnteredContext, CurrentContext };
+
+void CheckContexts(v8::Isolate* isolate) {
+  CHECK_EQ(CurrentContext, isolate->GetCurrentContext()
+                               ->GetEmbedderData(1)
+                               .As<v8::Integer>()
+                               ->Value());
+  CHECK_EQ(EnteredContext, isolate->GetEnteredContext()
+                               ->GetEmbedderData(1)
+                               .As<v8::Integer>()
+                               ->Value());
+}
+
+void ContextCheckGetter(Local<String> name,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckContexts(info.GetIsolate());
+  info.GetReturnValue().Set(true);
+}
+
+void ContextCheckSetter(Local<String> name, Local<Value>,
+                        const v8::PropertyCallbackInfo<void>& info) {
+  CheckContexts(info.GetIsolate());
+}
+
+void ContextCheckToString(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CheckContexts(info.GetIsolate());
+  info.GetReturnValue().Set(v8_str("foo"));
+}
+
+TEST(CorrectEnteredContext) {
+  v8::HandleScope scope(CcTest::isolate());
+
+  LocalContext currentContext;
+  currentContext->SetEmbedderData(
+      1, v8::Integer::New(currentContext->GetIsolate(), CurrentContext));
+  LocalContext enteredContext;
+  enteredContext->SetEmbedderData(
+      1, v8::Integer::New(enteredContext->GetIsolate(), EnteredContext));
+
+  v8::Context::Scope contextScope(enteredContext.local());
+
+  v8::Local<v8::ObjectTemplate> object_template =
+      ObjectTemplate::New(currentContext->GetIsolate());
+  object_template->SetAccessor(v8_str("p"), &ContextCheckGetter,
+                               &ContextCheckSetter);
+
+  v8::Local<v8::Object> object =
+      object_template->NewInstance(currentContext.local()).ToLocalChecked();
+
+  object->Get(currentContext.local(), v8_str("p")).ToLocalChecked();
+  object->Set(currentContext.local(), v8_str("p"), v8_int(0)).FromJust();
+
+  v8::Local<v8::Function> to_string =
+      v8::Function::New(currentContext.local(), ContextCheckToString)
+          .ToLocalChecked();
+
+  to_string->Call(currentContext.local(), object, 0, nullptr).ToLocalChecked();
+
+  object
+      ->CreateDataProperty(currentContext.local(), v8_str("toString"),
+                           to_string)
+      .FromJust();
+
+  object->ToString(currentContext.local()).ToLocalChecked();
+}
