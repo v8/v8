@@ -32,6 +32,27 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
+  class PauseBlackAllocationScope {
+   public:
+    explicit PauseBlackAllocationScope(IncrementalMarking* marking)
+        : marking_(marking), paused_(false) {
+      if (marking_->black_allocation()) {
+        paused_ = true;
+        marking_->PauseBlackAllocation();
+      }
+    }
+
+    ~PauseBlackAllocationScope() {
+      if (paused_) {
+        marking_->StartBlackAllocation();
+      }
+    }
+
+   private:
+    IncrementalMarking* marking_;
+    bool paused_;
+  };
+
   static void Initialize();
 
   explicit IncrementalMarking(Heap* heap);
@@ -254,6 +275,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void StartMarking();
 
   void StartBlackAllocation();
+  void PauseBlackAllocation();
   void FinishBlackAllocation();
 
   void MarkRoots();

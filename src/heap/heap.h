@@ -434,9 +434,8 @@ class PromotionQueue {
   inline void SetNewLimit(Address limit);
   inline bool IsBelowPromotionQueue(Address to_space_top);
 
-  inline void insert(HeapObject* target, int32_t size, bool was_marked_black);
-  inline void remove(HeapObject** target, int32_t* size,
-                     bool* was_marked_black);
+  inline void insert(HeapObject* target, int32_t size);
+  inline void remove(HeapObject** target, int32_t* size);
 
   bool is_empty() {
     return (front_ == rear_) &&
@@ -445,12 +444,10 @@ class PromotionQueue {
 
  private:
   struct Entry {
-    Entry(HeapObject* obj, int32_t size, bool was_marked_black)
-        : obj_(obj), size_(size), was_marked_black_(was_marked_black) {}
+    Entry(HeapObject* obj, int32_t size) : obj_(obj), size_(size) {}
 
     HeapObject* obj_;
-    int32_t size_ : 31;
-    bool was_marked_black_ : 1;
+    int32_t size_;
   };
 
   inline Page* GetHeadPage();
@@ -1215,8 +1212,7 @@ class Heap {
   void IterateWeakRoots(RootVisitor* v, VisitMode mode);
 
   // Iterate pointers of promoted objects.
-  void IterateAndScavengePromotedObject(HeapObject* target, int size,
-                                        bool was_marked_black);
+  void IterateAndScavengePromotedObject(HeapObject* target, int size);
 
   // ===========================================================================
   // Store buffer API. =========================================================

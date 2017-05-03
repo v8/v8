@@ -820,6 +820,7 @@ class Page : public MemoryChunk {
   size_t ShrinkToHighWaterMark();
 
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
+  void DestroyBlackArea(Address start, Address end);
 
 #ifdef DEBUG
   void Print();
@@ -2076,6 +2077,7 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   void EmptyAllocationInfo();
 
   void MarkAllocationInfoBlack();
+  void UnmarkAllocationInfo();
 
   void AccountAllocatedBytes(size_t bytes) {
     accounting_stats_.AllocateBytes(bytes);

@@ -573,6 +573,19 @@ void IncrementalMarking::StartBlackAllocation() {
   }
 }
 
+void IncrementalMarking::PauseBlackAllocation() {
+  DCHECK(FLAG_black_allocation);
+  DCHECK(IsMarking());
+  heap()->old_space()->UnmarkAllocationInfo();
+  heap()->map_space()->UnmarkAllocationInfo();
+  heap()->code_space()->UnmarkAllocationInfo();
+  if (FLAG_trace_incremental_marking) {
+    heap()->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Black allocation paused\n");
+  }
+  black_allocation_ = false;
+}
+
 void IncrementalMarking::FinishBlackAllocation() {
   if (black_allocation_) {
     black_allocation_ = false;

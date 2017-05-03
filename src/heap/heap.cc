@@ -1499,6 +1499,8 @@ void Heap::MinorMarkCompact() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_MINOR_MC);
   AlwaysAllocateScope always_allocate(isolate());
   PauseAllocationObserversScope pause_observers(this);
+  IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
+      incremental_marking());
 
   minor_mark_compact_collector()->CollectGarbage();
 
@@ -1676,6 +1678,9 @@ void Heap::Scavenge() {
   // Bump-pointer allocations done during scavenge are not real allocations.
   // Pause the inline allocation steps.
   PauseAllocationObserversScope pause_observers(this);
+
+  IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
+      incremental_marking());
 
   mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
 
@@ -2007,8 +2012,7 @@ Address Heap::DoScavenge(Address new_space_front) {
       while (!promotion_queue()->is_empty()) {
         HeapObject* target;
         int32_t size;
-        bool was_marked_black;
-        promotion_queue()->remove(&target, &size, &was_marked_black);
+        promotion_queue()->remove(&target, &size);
 
         // Promoted object might be already partially visited
         // during old space pointer iteration. Thus we search specifically
@@ -2016,8 +2020,7 @@ Address Heap::DoScavenge(Address new_space_front) {
         // to new space.
         DCHECK(!target->IsMap());
 
-        IterateAndScavengePromotedObject(target, static_cast<int>(size),
-                                         was_marked_black);
+        IterateAndScavengePromotedObject(target, static_cast<int>(size));
       }
     }
 
@@ -4834,8 +4837,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
   bool record_slots_;
 };
 
-void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size,
-                                            bool was_marked_black) {
+void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size) {
   // We are not collecting slots on new space objects during mutation
   // thus we have to scan for pointers to evacuation candidates when we
   // promote objects. But we should not record any slots in non-black
@@ -4855,18 +4857,6 @@ void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size,
     JSFunction::BodyDescriptorWeakCode::IterateBody(target, size, &visitor);
   } else {
     target->IterateBody(target->map()->instance_type(), size, &visitor);
-  }
-
-  // When black allocations is on, we have to visit not already marked black
-  // objects (in new space) promoted to black pages to keep their references
-  // alive.
-  // TODO(hpayer): Implement a special promotion visitor that incorporates
-  // regular visiting and IteratePromotedObjectPointers.
-  if (!was_marked_black) {
-    if (incremental_marking()->black_allocation()) {
-      incremental_marking()->MarkGrey(target->map());
-      incremental_marking()->IterateBlackObject(target);
-    }
   }
 }
 

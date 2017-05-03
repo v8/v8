@@ -849,6 +849,17 @@ void Page::CreateBlackArea(Address start, Address end) {
       static_cast<int>(end - start));
 }
 
+void Page::DestroyBlackArea(Address start, Address end) {
+  DCHECK(heap()->incremental_marking()->black_allocation());
+  DCHECK_EQ(Page::FromAddress(start), this);
+  DCHECK_NE(start, end);
+  DCHECK_EQ(Page::FromAddress(end - 1), this);
+  MarkingState::Internal(this).bitmap()->ClearRange(
+      AddressToMarkbitIndex(start), AddressToMarkbitIndex(end));
+  MarkingState::Internal(this).IncrementLiveBytes(
+      -static_cast<int>(end - start));
+}
+
 void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
                                         Address start_free) {
   // We do not allow partial shrink for code.
@@ -1410,6 +1421,15 @@ void PagedSpace::MarkAllocationInfoBlack() {
   if (current_top != nullptr && current_top != current_limit) {
     Page::FromAllocationAreaAddress(current_top)
         ->CreateBlackArea(current_top, current_limit);
+  }
+}
+
+void PagedSpace::UnmarkAllocationInfo() {
+  Address current_top = top();
+  Address current_limit = limit();
+  if (current_top != nullptr && current_top != current_limit) {
+    Page::FromAllocationAreaAddress(current_top)
+        ->DestroyBlackArea(current_top, current_limit);
   }
 }
 

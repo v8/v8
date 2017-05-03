@@ -191,6 +191,8 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     HeapObject* target = NULL;  // Initialization to please compiler.
     if (allocation.To(&target)) {
+      DCHECK(ObjectMarking::IsWhite(
+          target, heap->mark_compact_collector()->marking_state(target)));
       MigrateObject(heap, object, target, object_size);
 
       // Update slot to new target using CAS. A concurrent sweeper thread my
@@ -201,10 +203,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                    reinterpret_cast<base::AtomicWord>(target));
 
       if (object_contents == POINTER_OBJECT) {
-        // TODO(mlippautz): Query collector for marking state.
-        heap->promotion_queue()->insert(
-            target, object_size,
-            ObjectMarking::IsBlack(object, MarkingState::Internal(object)));
+        heap->promotion_queue()->insert(target, object_size);
       }
       heap->IncrementPromotedObjectsSize(object_size);
       return true;

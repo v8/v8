@@ -38,23 +38,21 @@ HeapObject* AllocationResult::ToObjectChecked() {
   return HeapObject::cast(object_);
 }
 
-void PromotionQueue::insert(HeapObject* target, int32_t size,
-                            bool was_marked_black) {
+void PromotionQueue::insert(HeapObject* target, int32_t size) {
   if (emergency_stack_ != NULL) {
-    emergency_stack_->Add(Entry(target, size, was_marked_black));
+    emergency_stack_->Add(Entry(target, size));
     return;
   }
 
   if ((rear_ - 1) < limit_) {
     RelocateQueueHead();
-    emergency_stack_->Add(Entry(target, size, was_marked_black));
+    emergency_stack_->Add(Entry(target, size));
     return;
   }
 
   struct Entry* entry = reinterpret_cast<struct Entry*>(--rear_);
   entry->obj_ = target;
   entry->size_ = size;
-  entry->was_marked_black_ = was_marked_black;
 
 // Assert no overflow into live objects.
 #ifdef DEBUG
@@ -63,21 +61,18 @@ void PromotionQueue::insert(HeapObject* target, int32_t size,
 #endif
 }
 
-void PromotionQueue::remove(HeapObject** target, int32_t* size,
-                            bool* was_marked_black) {
+void PromotionQueue::remove(HeapObject** target, int32_t* size) {
   DCHECK(!is_empty());
   if (front_ == rear_) {
     Entry e = emergency_stack_->RemoveLast();
     *target = e.obj_;
     *size = e.size_;
-    *was_marked_black = e.was_marked_black_;
     return;
   }
 
   struct Entry* entry = reinterpret_cast<struct Entry*>(--front_);
   *target = entry->obj_;
   *size = entry->size_;
-  *was_marked_black = entry->was_marked_black_;
 
   // Assert no underflow.
   SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
