@@ -174,16 +174,13 @@ HeapObject* LiveObjectIterator<T>::Next() {
         // However, if there is a black area at the end of the page, and the
         // last word is a one word filler, we are not allowed to advance. In
         // that case we can return immediately.
-        if (it_.Done()) {
+        if (!it_.Advance()) {
           DCHECK(HeapObject::FromAddress(addr)->map() ==
                  HeapObject::FromAddress(addr)
                      ->GetHeap()
                      ->one_pointer_filler_map());
           return nullptr;
         }
-        bool not_done = it_.Advance();
-        USE(not_done);
-        DCHECK(not_done);
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }
@@ -245,7 +242,7 @@ HeapObject* LiveObjectIterator<T>::Next() {
     }
 
     if (current_cell_ == 0) {
-      if (!it_.Done() && it_.Advance()) {
+      if (it_.Advance()) {
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }
