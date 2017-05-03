@@ -190,6 +190,7 @@ class FreeListCategory {
   FreeSpace* SearchForNodeInList(size_t minimum_size, size_t* node_size);
 
   inline FreeList* owner();
+  inline Page* page() const;
   inline bool is_linked();
   bool is_empty() { return top() == nullptr; }
   size_t available() const { return available_; }
@@ -203,8 +204,6 @@ class FreeListCategory {
   // For debug builds we accurately compute free lists lengths up until
   // {kVeryLongFreeList} by manually walking the list.
   static const int kVeryLongFreeList = 500;
-
-  inline Page* page();
 
   FreeSpace* top() { return top_; }
   void set_top(FreeSpace* top) { top_ = top; }
@@ -1722,6 +1721,21 @@ class V8_EXPORT_PRIVATE FreeList {
     return maximum_freed;
   }
 
+  static FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
+    if (size_in_bytes <= kTiniestListMax) {
+      return kTiniest;
+    } else if (size_in_bytes <= kTinyListMax) {
+      return kTiny;
+    } else if (size_in_bytes <= kSmallListMax) {
+      return kSmall;
+    } else if (size_in_bytes <= kMediumListMax) {
+      return kMedium;
+    } else if (size_in_bytes <= kLargeListMax) {
+      return kLarge;
+    }
+    return kHuge;
+  }
+
   explicit FreeList(PagedSpace* owner);
 
   // Adds a node on the free list. The block of size {size_in_bytes} starting
@@ -1793,6 +1807,9 @@ class V8_EXPORT_PRIVATE FreeList {
   void RemoveCategory(FreeListCategory* category);
   void PrintCategories(FreeListCategoryType type);
 
+  // Returns a page containing an entry for a given type, or nullptr otherwise.
+  inline Page* GetPageForCategoryType(FreeListCategoryType type);
+
 #ifdef DEBUG
   size_t SumFreeLists();
   bool IsVeryLong();
@@ -1846,21 +1863,6 @@ class V8_EXPORT_PRIVATE FreeList {
   FreeSpace* SearchForNodeInList(FreeListCategoryType type, size_t* node_size,
                                  size_t minimum_size);
 
-  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
-    if (size_in_bytes <= kTiniestListMax) {
-      return kTiniest;
-    } else if (size_in_bytes <= kTinyListMax) {
-      return kTiny;
-    } else if (size_in_bytes <= kSmallListMax) {
-      return kSmall;
-    } else if (size_in_bytes <= kMediumListMax) {
-      return kMedium;
-    } else if (size_in_bytes <= kLargeListMax) {
-      return kLarge;
-    }
-    return kHuge;
-  }
-
   // The tiny categories are not used for fast allocation.
   FreeListCategoryType SelectFastAllocationFreeListCategoryType(
       size_t size_in_bytes) {
@@ -1874,7 +1876,9 @@ class V8_EXPORT_PRIVATE FreeList {
     return kHuge;
   }
 
-  FreeListCategory* top(FreeListCategoryType type) { return categories_[type]; }
+  FreeListCategory* top(FreeListCategoryType type) const {
+    return categories_[type];
+  }
 
   PagedSpace* owner_;
   base::AtomicNumber<size_t> wasted_bytes_;
@@ -2149,6 +2153,11 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   void ShrinkImmortalImmovablePages();
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+
+  // Remove a page if it has at least |size_in_bytes| bytes available that can
+  // be used for allocation.
+  Page* RemovePageSafe(int size_in_bytes);
+  void AddPage(Page* page);
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,

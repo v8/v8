@@ -1356,6 +1356,39 @@ bool PagedSpace::ContainsSlow(Address addr) {
   return false;
 }
 
+Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
+  base::LockGuard<base::Mutex> guard(mutex());
+
+  // Check for pages that still contain free list entries. Bail out for smaller
+  // categories.
+  const int minimum_category =
+      static_cast<int>(FreeList::SelectFreeListCategoryType(size_in_bytes));
+  Page* page = free_list()->GetPageForCategoryType(kHuge);
+  if (!page && static_cast<int>(kLarge) >= minimum_category)
+    page = free_list()->GetPageForCategoryType(kLarge);
+  if (!page && static_cast<int>(kMedium) >= minimum_category)
+    page = free_list()->GetPageForCategoryType(kMedium);
+  if (!page && static_cast<int>(kSmall) >= minimum_category)
+    page = free_list()->GetPageForCategoryType(kSmall);
+  if (!page) return nullptr;
+
+  AccountUncommitted(page->size());
+  accounting_stats_.DeallocateBytes(page->LiveBytesFromFreeList());
+  accounting_stats_.DecreaseCapacity(page->area_size());
+  page->Unlink();
+  UnlinkFreeListCategories(page);
+  return page;
+}
+
+void PagedSpace::AddPage(Page* page) {
+  AccountCommitted(page->size());
+  accounting_stats_.IncreaseCapacity(page->area_size());
+  accounting_stats_.AllocateBytes(page->LiveBytesFromFreeList());
+  page->set_owner(this);
+  RelinkFreeListCategories(page);
+  page->InsertAfter(anchor()->prev_page());
+}
+
 void PagedSpace::ShrinkImmortalImmovablePages() {
   DCHECK(!heap()->deserialization_complete());
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
@@ -1366,11 +1399,17 @@ void PagedSpace::ShrinkImmortalImmovablePages() {
     DCHECK(page->IsFlagSet(Page::NEVER_EVACUATE));
     size_t unused = page->ShrinkToHighWaterMark();
     accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
-    AccountUncommitted(unused);
+    // Do not account for the unused space as uncommitted because the counter
+    // is kept in sync with page size which is also not adjusted for those
+    // chunks.
   }
 }
 
 bool PagedSpace::Expand() {
+  // Always lock against the main space as we can only adjust capacity and
+  // pages concurrently for the main paged space.
+  base::LockGuard<base::Mutex> guard(heap()->paged_space(identity())->mutex());
+
   const int size = AreaSize();
 
   if (!heap()->CanExpandOldGeneration(size)) return false;
@@ -2935,6 +2974,17 @@ HeapObject* PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
     RefillFreeList();
     if (max_freed >= size_in_bytes) {
       object = free_list_.Allocate(static_cast<size_t>(size_in_bytes));
+      if (object != nullptr) return object;
+    }
+  } else if (is_local()) {
+    // Sweeping not in progress and we are on a {CompactionSpace}. This can
+    // only happen when we are evacuating for the young generation.
+    PagedSpace* main_space = heap()->paged_space(identity());
+    Page* page = main_space->RemovePageSafe(size_in_bytes);
+    if (page != nullptr) {
+      AddPage(page);
+      HeapObject* object =
+          free_list_.Allocate(static_cast<size_t>(size_in_bytes));
       if (object != nullptr) return object;
     }
   }
