@@ -133,24 +133,29 @@ int Builtins::GetBuiltinParameterCount(Name name) {
 
 // static
 Callable Builtins::CallableFor(Isolate* isolate, Name name) {
+  Handle<Code> code(
+      reinterpret_cast<Code**>(isolate->builtins()->builtin_address(name)));
+  CallDescriptors::Key key;
   switch (name) {
-#define CASE(Name, ...)                                              \
-  case k##Name: {                                                    \
-    Handle<Code> code = isolate->builtins()->Name();                 \
-    auto descriptor = Builtin_##Name##_InterfaceDescriptor(isolate); \
-    return Callable(code, descriptor);                               \
+// This macro is deliberately crafted so as to emit very little code,
+// in order to keep binary size of this function under control.
+#define CASE(Name, ...)                                \
+  case k##Name: {                                      \
+    key = Builtin_##Name##_InterfaceDescriptor::key(); \
+    break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE, CASE,
                  CASE, IGNORE_BUILTIN, IGNORE_BUILTIN)
 #undef CASE
     case kConsoleAssert: {
-      Handle<Code> code = isolate->builtins()->ConsoleAssert();
       return Callable(code, BuiltinDescriptor(isolate));
     }
     default:
       UNREACHABLE();
       return Callable(Handle<Code>::null(), VoidDescriptor(isolate));
   }
+  CallInterfaceDescriptor descriptor(isolate, key);
+  return Callable(code, descriptor);
 }
 
 // static
