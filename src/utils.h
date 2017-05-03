@@ -979,7 +979,7 @@ void PRINTF_FORMAT(2, 3) PrintIsolate(void* isolate, const char* format, ...);
 // Safe formatting print. Ensures that str is always null-terminated.
 // Returns the number of chars written, or -1 if output was truncated.
 int PRINTF_FORMAT(2, 3) SNPrintF(Vector<char> str, const char* format, ...);
-V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 0)
+int PRINTF_FORMAT(2, 0)
     VSNPrintF(Vector<char> str, const char* format, va_list args);
 
 void StrNCpy(Vector<char> dest, const char* src, size_t n);
