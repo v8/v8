@@ -246,8 +246,6 @@ class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
     }
   }
 
-  void UpdateStatisticsAfterBackgroundParse(Isolate* isolate);
-
   // The key of the map is the FunctionLiteral's start_position
   std::map<int, ParseInfo*> child_infos() const;
 
