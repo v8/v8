@@ -126,11 +126,70 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
   return Runtime::GetObjectProperty(isolate, receiver_obj, key_obj);
 }
 
+namespace {
+
+bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
+                              Handle<Object> raw_key) {
+  // This implements a special case for fast property deletion: when the
+  // last property in an object is deleted, then instead of normalizing
+  // the properties, we can undo the last map transition, with a few
+  // prerequisites:
+  // (1) The receiver must be a regular object and the key a unique name.
+  Map* map = receiver->map();
+  if (map->IsSpecialReceiverMap()) return false;
+  if (!raw_key->IsUniqueName()) return false;
+  Handle<Name> key = Handle<Name>::cast(raw_key);
+  // (2) The property to be deleted must be the last property.
+  int nof = map->NumberOfOwnDescriptors();
+  if (nof == 0) return false;
+  int descriptor = nof - 1;
+  DescriptorArray* descriptors = map->instance_descriptors();
+  if (descriptors->GetKey(descriptor) != *key) return false;
+  // (3) The property to be deleted must be deletable.
+  PropertyDetails details = descriptors->GetDetails(descriptor);
+  if (!details.IsConfigurable()) return false;
+  // (4) The map must have a back pointer.
+  Object* backpointer = map->GetBackPointer();
+  if (!backpointer->IsMap()) return false;
+  // (5) The last transition must have been caused by adding a property
+  // (and not any kind of special transition).
+  if (Map::cast(backpointer)->NumberOfOwnDescriptors() != nof - 1) return false;
+
+  // Preconditions successful. No more bailouts after this point.
+
+  // Zap the property to avoid keeping objects alive. Zapping is not necessary
+  // for properties stored in the descriptor array.
+  if (details.location() == kField) {
+    Object* filler = isolate->heap()->one_pointer_filler_map();
+    FieldIndex index = FieldIndex::ForPropertyIndex(map, details.field_index());
+    JSObject::cast(*receiver)->RawFastPropertyAtPut(index, filler);
+    // We must clear any recorded slot for the deleted property, because
+    // subsequent object modifications might put a raw double there.
+    // Slot clearing is the reason why this entire function cannot currently
+    // be implemented in the DeleteProperty stub.
+    if (index.is_inobject() && !map->IsUnboxedDoubleField(index)) {
+      isolate->heap()->ClearRecordedSlot(
+          *receiver, HeapObject::RawField(*receiver, index.offset()));
+    }
+  }
+  // If the map was marked stable before, then there could be optimized code
+  // that depends on the assumption that no object that reached this map
+  // transitions away from it without triggering the "deoptimize dependent
+  // code" mechanism.
+  map->NotifyLeafMapLayoutChange();
+  // Finally, perform the map rollback.
+  receiver->synchronized_set_map(Map::cast(backpointer));
+  return true;
+}
+
+}  // namespace
 
 Maybe<bool> Runtime::DeleteObjectProperty(Isolate* isolate,
                                           Handle<JSReceiver> receiver,
                                           Handle<Object> key,
                                           LanguageMode language_mode) {
+  if (DeleteObjectPropertyFast(isolate, receiver, key)) return Just(true);
+
   bool success = false;
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, receiver, key, &success, LookupIterator::OWN);

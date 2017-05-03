@@ -336,12 +336,16 @@ void JSObject::JSObjectVerify() {
                                         properties()->length() -
                                         map()->NextFreePropertyIndex();
     if (map()->unused_property_fields() != actual_unused_property_fields) {
-      // This could actually happen in the middle of StoreTransitionStub
-      // when the new extended backing store is already set into the object and
-      // the allocation of the MutableHeapNumber triggers GC (in this case map
-      // is not updated yet).
-      CHECK_EQ(map()->unused_property_fields(),
-               actual_unused_property_fields - JSObject::kFieldsAdded);
+      // There are two reasons why this can happen:
+      // - in the middle of StoreTransitionStub when the new extended backing
+      //   store is already set into the object and the allocation of the
+      //   MutableHeapNumber triggers GC while the map isn't updated yet.
+      // - deletion of the last property can leave additional backing store
+      //   capacity behind.
+      CHECK_GT(actual_unused_property_fields, map()->unused_property_fields());
+      int delta =
+          actual_unused_property_fields - map()->unused_property_fields();
+      CHECK_EQ(0, delta % JSObject::kFieldsAdded);
     }
     DescriptorArray* descriptors = map()->instance_descriptors();
     Isolate* isolate = GetIsolate();
