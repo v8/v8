@@ -466,13 +466,6 @@ config("toolchain") {
     }
   }
 
-  # This really should be if (is_gcc) {}.
-  if (!is_clang && (is_linux || is_android)) {
-    # Suppress warnings about different multiple visibility annotations on
-    # symbols. See https://crbug.com/v8/6339.
-    cflags += [ "-Wno-attributes" ]
-  }
-
   if (is_win) {
     cflags += [
       "/wd4245",  # Conversion with signed/unsigned mismatch.
