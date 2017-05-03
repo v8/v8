@@ -7,6 +7,9 @@
 
 #include "src/objects.h"
 
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -63,7 +66,7 @@ class BaseShape {
   static inline Map* GetMap(Isolate* isolate);
 };
 
-class HashTableBase : public FixedArray {
+class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
  public:
   // Returns the number of elements in the hash table.
   inline int NumberOfElements();

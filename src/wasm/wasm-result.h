@@ -22,7 +22,7 @@ class Isolate;
 namespace wasm {
 
 // Base class for Result<T>.
-class ResultBase {
+class V8_EXPORT_PRIVATE ResultBase {
  protected:
   ResultBase(ResultBase&& other)
       : error_offset_(other.error_offset_),
