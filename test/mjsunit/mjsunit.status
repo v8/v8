@@ -65,6 +65,7 @@
   # Too slow in debug mode for validation of elements.
   'regress/regress-430201': [PASS, ['mode == debug', SKIP]],
   'regress/regress-430201b': [PASS, ['mode == debug', SKIP]],
+  'regress/regress-716044': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # Too slow in debug mode for GC stress mode.

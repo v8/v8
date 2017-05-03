@@ -51,7 +51,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(Tuple2Map, Tuple2Map)                             \
   V(Tuple3Map, Tuple3Map)                             \
   V(UndefinedValue, Undefined)                        \
-  V(WeakCellMap, WeakCellMap)
+  V(WeakCellMap, WeakCellMap)                         \
+  V(SpeciesProtector, SpeciesProtector)
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,

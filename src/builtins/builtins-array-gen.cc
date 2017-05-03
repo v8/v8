@@ -15,13 +15,11 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state),
         k_(this, MachineRepresentation::kTagged),
         a_(this, MachineRepresentation::kTagged),
-        to_(this, MachineRepresentation::kTagged, SmiConstant(0)) {}
-
-  typedef std::function<Node*(ArrayBuiltinCodeStubAssembler* masm)>
-      BuiltinResultGenerator;
+        to_(this, MachineRepresentation::kTagged, SmiConstant(0)),
+        fully_spec_compliant_(this, {&k_, &a_, &to_}) {}
 
   typedef std::function<void(ArrayBuiltinCodeStubAssembler* masm)>
-      BuiltinResultIndexInitializer;
+      BuiltinResultGenerator;
 
   typedef std::function<Node*(ArrayBuiltinCodeStubAssembler* masm,
                               Node* k_value, Node* k)>
@@ -30,7 +28,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   typedef std::function<void(ArrayBuiltinCodeStubAssembler* masm)>
       PostLoopAction;
 
-  Node* ForEachResultGenerator() { return UndefinedConstant(); }
+  void ForEachResultGenerator() { a_.Bind(UndefinedConstant()); }
 
   Node* ForEachProcessor(Node* k_value, Node* k) {
     CallJS(CodeFactory::Call(isolate()), context(), callbackfn(), this_arg(),
@@ -38,7 +36,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     return a();
   }
 
-  Node* SomeResultGenerator() { return FalseConstant(); }
+  void SomeResultGenerator() { a_.Bind(FalseConstant()); }
 
   Node* SomeProcessor(Node* k_value, Node* k) {
     Node* value = CallJS(CodeFactory::Call(isolate()), context(), callbackfn(),
@@ -51,7 +49,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     return a();
   }
 
-  Node* EveryResultGenerator() { return TrueConstant(); }
+  void EveryResultGenerator() { a_.Bind(TrueConstant()); }
 
   Node* EveryProcessor(Node* k_value, Node* k) {
     Node* value = CallJS(CodeFactory::Call(isolate()), context(), callbackfn(),
@@ -64,7 +62,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     return a();
   }
 
-  Node* ReduceResultGenerator() { return this_arg(); }
+  void ReduceResultGenerator() { return a_.Bind(this_arg()); }
 
   Node* ReduceProcessor(Node* k_value, Node* k) {
     VARIABLE(result, MachineRepresentation::kTagged);
@@ -91,9 +89,9 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     BIND(&ok);
   }
 
-  Node* FilterResultGenerator() {
+  void FilterResultGenerator() {
     // 7. Let A be ArraySpeciesCreate(O, 0).
-    return ArraySpeciesCreate(context(), o(), SmiConstant(0));
+    a_.Bind(ArraySpeciesCreate(context(), o(), SmiConstant(0)));
   }
 
   Node* FilterProcessor(Node* k_value, Node* k) {
@@ -162,13 +160,53 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     return a();
   }
 
-  Node* MapResultGenerator() {
-    // 5. Let A be ? ArraySpeciesCreate(O, len).
-    return ArraySpeciesCreate(context(), o(), len_);
+  void MapResultGenerator() {
+    Label runtime(this), done(this, {&a_});
+    GotoIf(DoesntHaveInstanceType(o(), JS_ARRAY_TYPE), &runtime);
+    Node* o_map = LoadMap(o());
+    Node* const initial_array_prototype = LoadContextElement(
+        LoadNativeContext(context()), Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+    Node* proto = LoadMapPrototype(o_map);
+    GotoIf(WordNotEqual(proto, initial_array_prototype), &runtime);
+
+    Node* species_protector = SpeciesProtectorConstant();
+    Node* value = LoadObjectField(species_protector, Cell::kValueOffset);
+    Node* const protector_invalid = SmiConstant(Isolate::kProtectorInvalid);
+    GotoIf(WordEqual(value, protector_invalid), &runtime);
+
+    Node* const initial_array_constructor = LoadContextElement(
+        LoadNativeContext(context()), Context::ARRAY_FUNCTION_INDEX);
+    a_.Bind(ConstructJS(CodeFactory::Construct(isolate()), context(),
+                        initial_array_constructor, len_));
+    Goto(&done);
+
+    BIND(&runtime);
+    {
+      // 5. Let A be ? ArraySpeciesCreate(O, len).
+      Node* constructor =
+          CallRuntime(Runtime::kArraySpeciesConstructor, context(), o());
+      a_.Bind(ConstructJS(CodeFactory::Construct(isolate()), context(),
+                          constructor, len_));
+      Goto(&fully_spec_compliant_);
+    }
+    BIND(&done);
   }
 
-  Node* MapProcessor(Node* k_value, Node* k) {
-    //  i. Let kValue be ? Get(O, Pk). Performed by the caller of MapProcessor.
+  Node* SpecCompliantMapProcessor(Node* k_value, Node* k) {
+    //  i. Let kValue be ? Get(O, Pk). Performed by the caller of
+    //  SpecCompliantMapProcessor.
+    // ii. Let mappedValue be ? Call(callbackfn, T, kValue, k, O).
+    Node* mappedValue = CallJS(CodeFactory::Call(isolate()), context(),
+                               callbackfn(), this_arg(), k_value, k, o());
+
+    // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+    CallRuntime(Runtime::kCreateDataProperty, context(), a(), k, mappedValue);
+    return a();
+  }
+
+  Node* FastMapProcessor(Node* k_value, Node* k) {
+    //  i. Let kValue be ? Get(O, Pk). Performed by the caller of
+    //  FastMapProcessor.
     // ii. Let mappedValue be ? Call(callbackfn, T, kValue, k, O).
     Node* mappedValue = CallJS(CodeFactory::Call(isolate()), context(),
                                callbackfn(), this_arg(), k_value, k, o());
@@ -268,8 +306,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       const CallResultProcessor& processor, const PostLoopAction& action,
       const Callable& slow_case_continuation,
       ForEachDirection direction = ForEachDirection::kForward) {
-    Label non_array(this), slow(this, {&k_, &a_, &to_}),
-        array_changes(this, {&k_, &a_, &to_});
+    Label non_array(this), array_changes(this, {&k_, &a_, &to_});
 
     // TODO(danno): Seriously? Do we really need to throw the exact error
     // message on null and undefined so that the webkit tests pass?
@@ -336,11 +373,11 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       k_.Bind(NumberDec(len()));
     }
 
-    a_.Bind(generator(this));
+    generator(this);
 
-    HandleFastElements(processor, action, &slow, direction);
+    HandleFastElements(processor, action, &fully_spec_compliant_, direction);
 
-    BIND(&slow);
+    BIND(&fully_spec_compliant_);
 
     Node* result =
         CallStub(slow_case_continuation, context(), receiver(), callbackfn(),
@@ -440,7 +477,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     } else {
       k_.Bind(NumberDec(len()));
     }
-    a_.Bind(generator(this));
+    generator(this);
     Node* elements_type = LoadInstanceType(LoadElements(o_));
     Switch(elements_type, &unexpected_instance_type, instance_types.data(),
            label_ptrs.data(), labels.size());
@@ -690,6 +727,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   Variable k_;
   Variable a_;
   Variable to_;
+  Label fully_spec_compliant_;
 };
 
 TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
@@ -1168,7 +1206,7 @@ TF_BUILTIN(ArrayMapLoopContinuation, ArrayBuiltinCodeStubAssembler) {
                                             len, to);
 
   GenerateIteratingArrayBuiltinLoopContinuation(
-      &ArrayBuiltinCodeStubAssembler::MapProcessor,
+      &ArrayBuiltinCodeStubAssembler::SpecCompliantMapProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
@@ -1187,7 +1225,7 @@ TF_BUILTIN(ArrayMap, ArrayBuiltinCodeStubAssembler) {
 
   GenerateIteratingArrayBuiltinBody(
       "Array.prototype.map", &ArrayBuiltinCodeStubAssembler::MapResultGenerator,
-      &ArrayBuiltinCodeStubAssembler::MapProcessor,
+      &ArrayBuiltinCodeStubAssembler::FastMapProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
       Builtins::CallableFor(isolate(), Builtins::kArrayMapLoopContinuation));
 }
