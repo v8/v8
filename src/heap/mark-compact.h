@@ -32,7 +32,7 @@ class PageParallelJob;
 class RecordMigratedSlotVisitor;
 class ThreadLocalTop;
 
-#ifdef V8_CONCURRENT_MARKING
+#if V8_CONCURRENT_MARKING
 using MarkingDeque = ConcurrentMarkingDeque;
 #else
 using MarkingDeque = SequentialMarkingDeque;
