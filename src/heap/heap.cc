@@ -4230,32 +4230,6 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
   }
 }
 
-bool Heap::TryFinalizeIdleIncrementalMarking(
-    double idle_time_in_ms, GarbageCollectionReason gc_reason) {
-  size_t size_of_objects = static_cast<size_t>(SizeOfObjects());
-  double final_incremental_mark_compact_speed_in_bytes_per_ms =
-      tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond();
-  if (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
-      (!incremental_marking()->finalize_marking_completed() &&
-       mark_compact_collector()->marking_deque()->IsEmpty() &&
-       local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking() &&
-       gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
-           idle_time_in_ms))) {
-    FinalizeIncrementalMarking(gc_reason);
-    return true;
-  } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_deque()->IsEmpty() &&
-              local_embedder_heap_tracer()
-                  ->ShouldFinalizeIncrementalMarking() &&
-              gc_idle_time_handler_->ShouldDoFinalIncrementalMarkCompact(
-                  idle_time_in_ms, size_of_objects,
-                  final_incremental_mark_compact_speed_in_bytes_per_ms))) {
-    CollectAllGarbage(current_gc_flags_, gc_reason);
-    return true;
-  }
-  return false;
-}
-
 void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
   // TODO(hpayer): We do not have to iterate reservations on black objects
   // for marking. We just have to execute the special visiting side effect
@@ -4332,8 +4306,7 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
               deadline_in_ms, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
               IncrementalMarking::FORCE_COMPLETION, StepOrigin::kTask);
       if (remaining_idle_time_in_ms > 0.0) {
-        TryFinalizeIdleIncrementalMarking(
-            remaining_idle_time_in_ms,
+        FinalizeIncrementalMarkingIfComplete(
             GarbageCollectionReason::kFinalizeMarkingViaTask);
       }
       result = incremental_marking()->IsStopped();

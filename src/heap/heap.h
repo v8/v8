@@ -1257,9 +1257,6 @@ class Heap {
 
   void FinalizeIncrementalMarkingIfComplete(GarbageCollectionReason gc_reason);
 
-  bool TryFinalizeIdleIncrementalMarking(double idle_time_in_ms,
-                                         GarbageCollectionReason gc_reason);
-
   void RegisterReservationsForBlackAllocation(Reservation* reservations);
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
