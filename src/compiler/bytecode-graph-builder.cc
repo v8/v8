@@ -438,7 +438,7 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 BytecodeGraphBuilder::BytecodeGraphBuilder(
     Zone* local_zone, Handle<SharedFunctionInfo> shared_info,
     Handle<FeedbackVector> feedback_vector, BailoutId osr_ast_id,
-    JSGraph* jsgraph, float invocation_frequency,
+    JSGraph* jsgraph, CallFrequency invocation_frequency,
     SourcePositionTable* source_positions, int inlining_id,
     JSTypeHintLowering::Flags flags)
     : local_zone_(local_zone),
@@ -1372,7 +1372,7 @@ void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode,
   STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
-  float const frequency = ComputeCallFrequency(slot_id);
+  CallFrequency frequency = ComputeCallFrequency(slot_id);
   const Operator* call = javascript()->Call(arg_count, frequency, feedback,
                                             receiver_mode, tail_call_mode);
   Node* value = ProcessCallArguments(call, args, static_cast<int>(arg_count));
@@ -1654,7 +1654,7 @@ void BytecodeGraphBuilder::VisitConstruct() {
   Node* new_target = environment()->LookupAccumulator();
   Node* callee = environment()->LookupRegister(callee_reg);
 
-  float const frequency = ComputeCallFrequency(slot_id);
+  CallFrequency frequency = ComputeCallFrequency(slot_id);
   const Operator* call = javascript()->Construct(
       static_cast<uint32_t>(reg_count + 2), frequency, feedback);
   Node* value =
@@ -1722,9 +1722,11 @@ CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
   return nexus.GetCompareOperationFeedback();
 }
 
-float BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
+CallFrequency BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
+  if (invocation_frequency_.IsUnknown()) return CallFrequency();
   CallICNexus nexus(feedback_vector(), feedback_vector()->ToSlot(slot_id));
-  return nexus.ComputeCallFrequency() * invocation_frequency_;
+  return CallFrequency(nexus.ComputeCallFrequency() *
+                       invocation_frequency_.value());
 }
 
 void BytecodeGraphBuilder::VisitAdd() {

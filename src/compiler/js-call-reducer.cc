@@ -495,12 +495,12 @@ Reduction JSCallReducer::ReduceSpreadCall(Node* node, int arity) {
                       parameters->InputAt(i));
   }
 
+  // TODO(turbofan): Collect call counts on spread call/construct and thread it
+  // through here.
   if (node->opcode() == IrOpcode::kJSCallWithSpread) {
-    NodeProperties::ChangeOp(
-        node, javascript()->Call(arity + 1, 7, VectorSlotPair()));
+    NodeProperties::ChangeOp(node, javascript()->Call(arity + 1));
   } else {
-    NodeProperties::ChangeOp(
-        node, javascript()->Construct(arity + 2, 7, VectorSlotPair()));
+    NodeProperties::ChangeOp(node, javascript()->Construct(arity + 2));
   }
   return Changed(node);
 }

@@ -268,9 +268,9 @@ class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
   LoopBuilder* control_;
 };
 
-
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                                 JSGraph* jsgraph, float invocation_frequency,
+                                 JSGraph* jsgraph,
+                                 CallFrequency invocation_frequency,
                                  LoopAssignmentAnalysis* loop)
     : isolate_(info->isolate()),
       local_zone_(local_zone),
@@ -1692,7 +1692,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   VisitForValues(args);
 
   // Create node to perform the function call.
-  float const frequency = ComputeCallFrequency(expr->CallFeedbackICSlot());
+  CallFrequency frequency = ComputeCallFrequency(expr->CallFeedbackICSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
   const Operator* call =
       javascript()->Call(args->length() + 2, frequency, feedback, receiver_hint,
@@ -1720,7 +1720,7 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   environment()->Push(environment()->Peek(args->length()));
 
   // Create node to perform the construct call.
-  float const frequency = ComputeCallFrequency(expr->CallNewFeedbackSlot());
+  CallFrequency frequency = ComputeCallFrequency(expr->CallNewFeedbackSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallNewFeedbackSlot());
   const Operator* call =
       javascript()->Construct(args->length() + 2, frequency, feedback);
@@ -2240,12 +2240,15 @@ void AstGraphBuilder::VisitRewritableExpression(RewritableExpression* node) {
   Visit(node->expression());
 }
 
-float AstGraphBuilder::ComputeCallFrequency(FeedbackSlot slot) const {
-  if (slot.IsInvalid()) return 0.0f;
+CallFrequency AstGraphBuilder::ComputeCallFrequency(FeedbackSlot slot) const {
+  if (invocation_frequency_.IsUnknown() || slot.IsInvalid()) {
+    return CallFrequency();
+  }
   Handle<FeedbackVector> feedback_vector(info()->closure()->feedback_vector(),
                                          isolate());
   CallICNexus nexus(feedback_vector, slot);
-  return nexus.ComputeCallFrequency() * invocation_frequency_;
+  return CallFrequency(nexus.ComputeCallFrequency() *
+                       invocation_frequency_.value());
 }
 
 Node* AstGraphBuilder::ProcessArguments(const Operator* op, int arity) {
@@ -3156,7 +3159,7 @@ Node* AstGraphBuilder::MergeValue(Node* value, Node* other, Node* control) {
 
 AstGraphBuilderWithPositions::AstGraphBuilderWithPositions(
     Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
-    float invocation_frequency, LoopAssignmentAnalysis* loop_assignment,
+    CallFrequency invocation_frequency, LoopAssignmentAnalysis* loop_assignment,
     SourcePositionTable* source_positions, int inlining_id)
     : AstGraphBuilder(local_zone, info, jsgraph, invocation_frequency,
                       loop_assignment),

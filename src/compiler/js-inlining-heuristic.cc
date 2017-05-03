@@ -149,7 +149,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   // Don't consider a {candidate} whose frequency is below the
   // threshold, i.e. a call site that is only hit once every N
   // invocations of the caller.
-  if (candidate.frequency < FLAG_min_inlining_frequency) {
+  if (candidate.frequency.IsKnown() &&
+      candidate.frequency.value() < FLAG_min_inlining_frequency) {
     return NoChange();
   }
 
@@ -171,10 +172,6 @@ void JSInliningHeuristic::Finalize() {
     auto i = candidates_.begin();
     Candidate candidate = *i;
     candidates_.erase(i);
-    // Only include candidates that we've successfully called before.
-    // The candidate list is sorted, so we can exit at the first occurance of
-    // frequency 0 in the list.
-    if (candidate.frequency <= 0.0) return;
     // Make sure we don't try to inline dead candidate nodes.
     if (!candidate.node->IsDead()) {
       Reduction const reduction = InlineCandidate(candidate);
@@ -289,9 +286,13 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
 
 bool JSInliningHeuristic::CandidateCompare::operator()(
     const Candidate& left, const Candidate& right) const {
-  if (left.frequency > right.frequency) {
+  if (right.frequency.IsUnknown()) {
     return true;
-  } else if (left.frequency < right.frequency) {
+  } else if (left.frequency.IsUnknown()) {
+    return false;
+  } else if (left.frequency.value() > right.frequency.value()) {
+    return true;
+  } else if (left.frequency.value() < right.frequency.value()) {
     return false;
   } else {
     return left.node->id() > right.node->id();
@@ -299,10 +300,12 @@ bool JSInliningHeuristic::CandidateCompare::operator()(
 }
 
 void JSInliningHeuristic::PrintCandidates() {
-  PrintF("Candidates for inlining (size=%zu):\n", candidates_.size());
+  OFStream os(stdout);
+  os << "Candidates for inlining (size=" << candidates_.size() << "):\n";
   for (const Candidate& candidate : candidates_) {
-    PrintF("  #%d:%s, frequency:%g\n", candidate.node->id(),
-           candidate.node->op()->mnemonic(), candidate.frequency);
+    os << "  #" << candidate.node->id() << ":"
+       << candidate.node->op()->mnemonic()
+       << ", frequency: " << candidate.frequency << std::endl;
     for (int i = 0; i < candidate.num_functions; ++i) {
       Handle<SharedFunctionInfo> shared =
           candidate.functions[i].is_null()

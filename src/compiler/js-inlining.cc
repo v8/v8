@@ -66,7 +66,7 @@ class JSCallAccessor {
     return call_->op()->ValueInputCount() - 2;
   }
 
-  float frequency() const {
+  CallFrequency frequency() const {
     return (call_->opcode() == IrOpcode::kJSCall)
                ? CallParametersOf(call_->op()).frequency()
                : ConstructParametersOf(call_->op()).frequency();

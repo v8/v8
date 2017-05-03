@@ -765,12 +765,12 @@ struct GraphBuilderPhase {
       BytecodeGraphBuilder graph_builder(
           temp_zone, data->info()->shared_info(),
           handle(data->info()->closure()->feedback_vector()),
-          data->info()->osr_ast_id(), data->jsgraph(), 1.0f,
+          data->info()->osr_ast_id(), data->jsgraph(), CallFrequency(1.0f),
           data->source_positions(), SourcePosition::kNotInlined, flags);
       succeeded = graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(
-          temp_zone, data->info(), data->jsgraph(), 1.0f,
+          temp_zone, data->info(), data->jsgraph(), CallFrequency(1.0f),
           data->loop_assignment(), data->source_positions());
       succeeded = graph_builder.CreateGraph();
     }
