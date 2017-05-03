@@ -2473,7 +2473,6 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
     source->parser->ReportErrors(isolate, script);
   }
   source->parser->UpdateStatistics(isolate, script);
-  source->info->UpdateStatisticsAfterBackgroundParse(isolate);
 
   i::DeferredHandleScope deferred_handle_scope(isolate);
   {

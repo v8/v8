@@ -3519,6 +3519,13 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
   }
   isolate->counters()->total_preparse_skipped()->Increment(
       total_preparse_skipped_);
+  if (!parsing_on_main_thread_ &&
+      FLAG_runtime_stats ==
+          v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE) {
+    // Copy over the counters from the background thread to the main counters on
+    // the isolate.
+    isolate->counters()->runtime_call_stats()->Add(runtime_call_stats_);
+  }
 }
 
 void Parser::ParseOnBackground(ParseInfo* info) {
@@ -3534,6 +3541,10 @@ void Parser::ParseOnBackground(ParseInfo* info) {
     } else {
       compile_options_ = ScriptCompiler::kNoCompileOptions;
     }
+  }
+  if (FLAG_runtime_stats) {
+    // Create separate runtime stats for background parsing.
+    runtime_call_stats_ = new (zone()) RuntimeCallStats();
   }
 
   std::unique_ptr<Utf16CharacterStream> stream;
@@ -5220,7 +5231,6 @@ void Parser::StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate) {
     // If the parse task failed the function will be treated as lazy function
     // and reparsed before it gets called
     if (!result) continue;
-    result->UpdateStatisticsAfterBackgroundParse(isolate);
     if (!result->literal()) continue;
     while ((*it)->start_position() != child_info.first) {
       if (++it == literals_to_stitch_.end()) {
