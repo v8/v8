@@ -499,8 +499,8 @@
     },
 
     'bb': {
-      'gn_args': 'sanitizer_coverage_flags="bb"',
-      'gyp_defines': 'sanitizer_coverage=bb',
+      'gn_args': 'sanitizer_coverage_flags="bb,trace-pc-guard"',
+      'gyp_defines': 'sanitizer_coverage=bb,trace-pc-guard',
     },
 
     'cfi': {
@@ -549,8 +549,8 @@
     },
 
     'edge': {
-      'gn_args': 'sanitizer_coverage_flags="edge"',
-      'gyp_defines': 'sanitizer_coverage=edge',
+      'gn_args': 'sanitizer_coverage_flags="trace-pc-guard"',
+      'gyp_defines': 'sanitizer_coverage=trace-pc-guard',
     },
 
     'gcc': {
