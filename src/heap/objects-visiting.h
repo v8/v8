@@ -395,9 +395,16 @@ VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
 template <typename ResultType, typename ConcreteVisitor>
 class HeapVisitor : public ObjectVisitor {
  public:
-  ResultType IterateBody(HeapObject* object);
+  ResultType Visit(HeapObject* object);
 
  protected:
+  // A guard predicate for visiting the object.
+  // If it returns false then the default implementations of the Visit*
+  // functions bailout from iterating the object pointers.
+  virtual bool ShouldVisit(HeapObject* object);
+  // A callback for visiting the map pointer in the object header.
+  virtual void VisitMapPointer(HeapObject* host, HeapObject** map);
+
 #define VISIT(type) virtual ResultType Visit##type(Map* map, type* object);
   TYPED_VISITOR_ID_LIST(VISIT)
 #undef VISIT

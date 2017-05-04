@@ -666,7 +666,7 @@ DEFINE_BOOL(age_code, true,
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_wrappers, true,
             "use incremental marking for marking wrappers")
-DEFINE_BOOL(concurrent_marking, false, "use concurrent marking")
+DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING, "use concurrent marking")
 DEFINE_BOOL(trace_concurrent_marking, false, "trace concurrent marking")
 DEFINE_INT(min_progress_during_incremental_marking_finalization, 32,
            "keep finalizing incremental marking as long as we discover at "
