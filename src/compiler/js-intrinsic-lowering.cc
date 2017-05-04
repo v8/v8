@@ -54,8 +54,22 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
+    case Runtime::kInlineIsJSGlobalProxy:
+      return ReduceIsInstanceType(node, JS_GLOBAL_PROXY_TYPE);
     case Runtime::kInlineIsJSProxy:
       return ReduceIsInstanceType(node, JS_PROXY_TYPE);
+    case Runtime::kInlineIsJSMap:
+      return ReduceIsInstanceType(node, JS_MAP_TYPE);
+    case Runtime::kInlineIsJSSet:
+      return ReduceIsInstanceType(node, JS_SET_TYPE);
+    case Runtime::kInlineIsJSMapIterator:
+      return ReduceIsInstanceType(node, JS_MAP_ITERATOR_TYPE);
+    case Runtime::kInlineIsJSSetIterator:
+      return ReduceIsInstanceType(node, JS_SET_ITERATOR_TYPE);
+    case Runtime::kInlineIsJSWeakMap:
+      return ReduceIsInstanceType(node, JS_WEAK_MAP_TYPE);
+    case Runtime::kInlineIsJSWeakSet:
+      return ReduceIsInstanceType(node, JS_WEAK_SET_TYPE);
     case Runtime::kInlineIsJSReceiver:
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
