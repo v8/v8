@@ -785,7 +785,10 @@ RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
   s = String::Flatten(s);
 
   // All the languages requiring special-handling have two-letter codes.
-  if (V8_UNLIKELY(lang_arg->length() > 2))
+  // Note that we have to check for '!= 2' here because private-use language
+  // tags (x-foo) or grandfathered irregular tags (e.g. i-enochian) would have
+  // only 'x' or 'i' when they get here.
+  if (V8_UNLIKELY(lang_arg->length() != 2))
     return ConvertCase(s, is_upper, isolate);
 
   char c1, c2;
