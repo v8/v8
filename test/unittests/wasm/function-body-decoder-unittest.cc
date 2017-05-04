@@ -2635,6 +2635,10 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
   EXPECT_LENGTH_N(3, kSimdPrefix, static_cast<byte>(kExpr##name & 0xff));
   FOREACH_SIMD_1_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
+  EXPECT_LENGTH_N(6, kSimdPrefix, static_cast<byte>(kExprS32x4Shuffle & 0xff));
+  EXPECT_LENGTH_N(10, kSimdPrefix, static_cast<byte>(kExprS16x8Shuffle & 0xff));
+  EXPECT_LENGTH_N(18, kSimdPrefix, static_cast<byte>(kExprS8x16Shuffle & 0xff));
+#undef TEST_SIMD
   // test for bad simd opcode
   EXPECT_LENGTH_N(2, kSimdPrefix, 0xff);
 }

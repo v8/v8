@@ -387,33 +387,9 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(S128Or, 0xe577, s_ss)                \
   V(S128Xor, 0xe578, s_ss)               \
   V(S128Not, 0xe579, s_s)                \
-  V(S32x4ZipLeft, 0xe5a0, s_ss)          \
-  V(S32x4ZipRight, 0xe5a1, s_ss)         \
-  V(S32x4UnzipLeft, 0xe5a2, s_ss)        \
-  V(S32x4UnzipRight, 0xe5a3, s_ss)       \
-  V(S32x4TransposeLeft, 0xe5a4, s_ss)    \
-  V(S32x4TransposeRight, 0xe5a5, s_ss)   \
   V(S32x4Select, 0xe52c, s_s1x4ss)       \
-  V(S16x8ZipLeft, 0xe5a6, s_ss)          \
-  V(S16x8ZipRight, 0xe5a7, s_ss)         \
-  V(S16x8UnzipLeft, 0xe5a8, s_ss)        \
-  V(S16x8UnzipRight, 0xe5a9, s_ss)       \
-  V(S16x8TransposeLeft, 0xe5aa, s_ss)    \
-  V(S16x8TransposeRight, 0xe5ab, s_ss)   \
   V(S16x8Select, 0xe54b, s_s1x8ss)       \
-  V(S8x16ZipLeft, 0xe5ac, s_ss)          \
-  V(S8x16ZipRight, 0xe5ad, s_ss)         \
-  V(S8x16UnzipLeft, 0xe5ae, s_ss)        \
-  V(S8x16UnzipRight, 0xe5af, s_ss)       \
-  V(S8x16TransposeLeft, 0xe5b0, s_ss)    \
-  V(S8x16TransposeRight, 0xe5b1, s_ss)   \
   V(S8x16Select, 0xe56a, s_s1x16ss)      \
-  V(S32x2Reverse, 0xe5b2, s_s)           \
-  V(S16x4Reverse, 0xe5b3, s_s)           \
-  V(S16x2Reverse, 0xe5b4, s_s)           \
-  V(S8x8Reverse, 0xe5b5, s_s)            \
-  V(S8x4Reverse, 0xe5b6, s_s)            \
-  V(S8x2Reverse, 0xe5b7, s_s)            \
   V(S1x4And, 0xe580, s1x4_s1x4s1x4)      \
   V(S1x4Or, 0xe581, s1x4_s1x4s1x4)       \
   V(S1x4Xor, 0xe582, s1x4_s1x4s1x4)      \
@@ -450,8 +426,12 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I8x16ReplaceLane, 0xe559, _)         \
   V(I8x16Shl, 0xe562, _)                 \
   V(I8x16ShrS, 0xe563, _)                \
-  V(I8x16ShrU, 0xe571, _)                \
-  V(S8x16Concat, 0xe5b8, _)
+  V(I8x16ShrU, 0xe571, _)
+
+#define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
+  V(S32x4Shuffle, 0xe52d, s_ss)             \
+  V(S16x8Shuffle, 0xe54c, s_ss)             \
+  V(S8x16Shuffle, 0xe56b, s_ss)
 
 #define FOREACH_ATOMIC_OPCODE(V)               \
   V(I32AtomicAdd8S, 0xe601, i_ii)              \
@@ -491,16 +471,17 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(I32AtomicXor, 0xe623, i_ii)
 
 // All opcodes.
-#define FOREACH_OPCODE(V)          \
-  FOREACH_CONTROL_OPCODE(V)        \
-  FOREACH_MISC_OPCODE(V)           \
-  FOREACH_SIMPLE_OPCODE(V)         \
-  FOREACH_STORE_MEM_OPCODE(V)      \
-  FOREACH_LOAD_MEM_OPCODE(V)       \
-  FOREACH_MISC_MEM_OPCODE(V)       \
-  FOREACH_ASMJS_COMPAT_OPCODE(V)   \
-  FOREACH_SIMD_0_OPERAND_OPCODE(V) \
-  FOREACH_SIMD_1_OPERAND_OPCODE(V) \
+#define FOREACH_OPCODE(V)             \
+  FOREACH_CONTROL_OPCODE(V)           \
+  FOREACH_MISC_OPCODE(V)              \
+  FOREACH_SIMPLE_OPCODE(V)            \
+  FOREACH_STORE_MEM_OPCODE(V)         \
+  FOREACH_LOAD_MEM_OPCODE(V)          \
+  FOREACH_MISC_MEM_OPCODE(V)          \
+  FOREACH_ASMJS_COMPAT_OPCODE(V)      \
+  FOREACH_SIMD_0_OPERAND_OPCODE(V)    \
+  FOREACH_SIMD_1_OPERAND_OPCODE(V)    \
+  FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
   FOREACH_ATOMIC_OPCODE(V)
 
 // All signatures.

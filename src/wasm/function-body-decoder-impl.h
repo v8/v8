@@ -322,15 +322,17 @@ struct SimdShiftOperand {
   }
 };
 
-// Operand for SIMD concatenation operations.
+// Operand for SIMD shuffle operations.
 template <bool checked>
-struct SimdConcatOperand {
-  uint8_t bytes;
-  unsigned length;
+struct SimdShuffleOperand {
+  uint8_t shuffle[16];
+  unsigned lanes;
 
-  inline SimdConcatOperand(Decoder* decoder, const byte* pc) {
-    bytes = decoder->read_u8<checked>(pc + 2, "bytes");
-    length = 1;
+  inline SimdShuffleOperand(Decoder* decoder, const byte* pc, unsigned lanes_) {
+    lanes = lanes_;
+    for (unsigned i = 0; i < lanes; i++) {
+      shuffle[i] = decoder->read_u8<checked>(pc + 2 + i, "shuffle");
+    }
   }
 };
 

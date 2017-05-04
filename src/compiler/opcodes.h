@@ -691,34 +691,12 @@
   V(S128And)                    \
   V(S128Or)                     \
   V(S128Xor)                    \
-  V(S32x4ZipLeft)               \
-  V(S32x4ZipRight)              \
-  V(S32x4UnzipLeft)             \
-  V(S32x4UnzipRight)            \
-  V(S32x4TransposeLeft)         \
-  V(S32x4TransposeRight)        \
+  V(S32x4Shuffle)               \
   V(S32x4Select)                \
-  V(S16x8ZipLeft)               \
-  V(S16x8ZipRight)              \
-  V(S16x8UnzipLeft)             \
-  V(S16x8UnzipRight)            \
-  V(S16x8TransposeLeft)         \
-  V(S16x8TransposeRight)        \
+  V(S16x8Shuffle)               \
   V(S16x8Select)                \
-  V(S8x16ZipLeft)               \
-  V(S8x16ZipRight)              \
-  V(S8x16UnzipLeft)             \
-  V(S8x16UnzipRight)            \
-  V(S8x16TransposeLeft)         \
-  V(S8x16TransposeRight)        \
+  V(S8x16Shuffle)               \
   V(S8x16Select)                \
-  V(S8x16Concat)                \
-  V(S32x2Reverse)               \
-  V(S16x4Reverse)               \
-  V(S16x2Reverse)               \
-  V(S8x8Reverse)                \
-  V(S8x4Reverse)                \
-  V(S8x2Reverse)                \
   V(S1x4Zero)                   \
   V(S1x4And)                    \
   V(S1x4Or)                     \
