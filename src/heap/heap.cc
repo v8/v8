@@ -4261,6 +4261,9 @@ void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
         }
       }
     }
+    // We potentially deserialized wrappers which require registering with the
+    // embedder as the marker will not find them.
+    local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
   }
 }
 
