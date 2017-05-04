@@ -410,26 +410,15 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
                               liveness ? &liveness->bit_vector() : nullptr, 0);
 
   bool accumulator_is_live = !liveness || liveness->AccumulatorIsLive();
-  Node* accumulator_state_values;
-  if (parameter_count() == 1 && accumulator_is_live &&
-      values()->at(accumulator_base()) == values()->at(0)) {
-    // Re-use the parameter state values if there happens to only be one
-    // parameter and the accumulator is live and holds that parameter's value.
-    accumulator_state_values = parameters_state_values_;
-  } else {
-    // Otherwise, use the state values cache to hopefully re-use local register
-    // state values (if there is only one local register), or at the very least
-    // re-use previous accumulator state values.
-    accumulator_state_values = GetStateValuesFromCache(
-        &values()->at(accumulator_base()), 1,
-        liveness ? &liveness->bit_vector() : nullptr, register_count());
-  }
+  Node* accumulator_state_value =
+      accumulator_is_live ? values()->at(accumulator_base())
+                          : builder()->jsgraph()->OptimizedOutConstant();
 
   const Operator* op = common()->FrameState(
       bailout_id, combine, builder()->frame_state_function_info());
   Node* result = graph()->NewNode(
       op, parameters_state_values_, registers_state_values,
-      accumulator_state_values, Context(), builder()->GetFunctionClosure(),
+      accumulator_state_value, Context(), builder()->GetFunctionClosure(),
       builder()->graph()->start());
 
   return result;

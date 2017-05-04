@@ -1073,6 +1073,51 @@ class RepresentationSelector {
     SetOutput(node, MachineRepresentation::kTagged);
   }
 
+  void VisitFrameState(Node* node) {
+    DCHECK_EQ(5, node->op()->ValueInputCount());
+    DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+
+    ProcessInput(node, 0, UseInfo::AnyTagged());  // Parameters.
+    ProcessInput(node, 1, UseInfo::AnyTagged());  // Registers.
+
+    // Expression stack/accumulator.
+    if (node->InputAt(2)->opcode() == IrOpcode::kStateValues ||
+        node->InputAt(2)->opcode() == IrOpcode::kTypedStateValues) {
+      // TODO(turbofan): This should only be produced by AST graph builder.
+      // Remove once we switch to bytecode graph builder exclusively.
+      ProcessInput(node, 2, UseInfo::AnyTagged());
+    } else {
+      // Accumulator is a special flower - we need to remember its type in
+      // a singleton typed-state-values node (as if it was a singleton
+      // state-values node).
+      if (propagate()) {
+        EnqueueInput(node, 2, UseInfo::Any());
+      } else if (lower()) {
+        Zone* zone = jsgraph_->zone();
+        Node* accumulator = node->InputAt(2);
+        if (accumulator == jsgraph_->OptimizedOutConstant()) {
+          node->ReplaceInput(2, jsgraph_->SingleDeadTypedStateValues());
+        } else {
+          ZoneVector<MachineType>* types =
+              new (zone->New(sizeof(ZoneVector<MachineType>)))
+                  ZoneVector<MachineType>(1, zone);
+          (*types)[0] = DeoptMachineTypeOf(
+              GetInfo(accumulator)->representation(), TypeOf(accumulator));
+
+          node->ReplaceInput(2, jsgraph_->graph()->NewNode(
+                                    jsgraph_->common()->TypedStateValues(
+                                        types, SparseInputMask::Dense()),
+                                    accumulator));
+        }
+      }
+    }
+
+    ProcessInput(node, 3, UseInfo::AnyTagged());  // Context.
+    ProcessInput(node, 4, UseInfo::AnyTagged());  // Closure.
+    ProcessInput(node, 5, UseInfo::AnyTagged());  // Outer frame state.
+    return SetOutput(node, MachineRepresentation::kTagged);
+  }
+
   void VisitObjectState(Node* node) {
     if (propagate()) {
       for (int i = 0; i < node->InputCount(); i++) {
@@ -2750,6 +2795,8 @@ class RepresentationSelector {
                   MachineRepresentation::kFloat64);
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         return;
+      case IrOpcode::kFrameState:
+        return VisitFrameState(node);
       case IrOpcode::kStateValues:
         return VisitStateValues(node);
       case IrOpcode::kObjectState:
@@ -2791,7 +2838,6 @@ class RepresentationSelector {
       case IrOpcode::kDeoptimize:
       case IrOpcode::kEffectPhi:
       case IrOpcode::kTerminate:
-      case IrOpcode::kFrameState:
       case IrOpcode::kCheckpoint:
       case IrOpcode::kLoop:
       case IrOpcode::kMerge:

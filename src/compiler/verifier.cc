@@ -492,12 +492,19 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(0, control_count);
       CHECK_EQ(0, effect_count);
       CHECK_EQ(6, input_count);
-      for (int i = 0; i < 3; ++i) {
+      // Check that the parameters and registers are kStateValues or
+      // kTypedStateValues.
+      for (int i = 0; i < 2; ++i) {
         CHECK(NodeProperties::GetValueInput(node, i)->opcode() ==
                   IrOpcode::kStateValues ||
               NodeProperties::GetValueInput(node, i)->opcode() ==
                   IrOpcode::kTypedStateValues);
       }
+      // The accumulator (InputAt(2)) cannot be kStateValues, but it can be
+      // kTypedStateValues (to signal the type). Once AST graph builder
+      // is removed, we should check this here. Until then, AST graph
+      // builder can generate expression stack as InputAt(2), which can
+      // still be kStateValues.
       break;
     }
     case IrOpcode::kStateValues:
