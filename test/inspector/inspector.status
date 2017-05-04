@@ -21,12 +21,6 @@
 }],  # variant != default
 
 ##############################################################################
-['variant == noturbofan', {
-  # Crashes due to missing source position in ToBooleanICStub?
-  'runtime/command-line-api': [SKIP],
-}],  # variant == noturbofan
-
-##############################################################################
 ['variant == wasm_traps', {
   '*': [SKIP],
 }],  # variant == wasm_traps

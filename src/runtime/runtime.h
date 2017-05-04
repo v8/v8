@@ -118,13 +118,7 @@ namespace internal {
   F(WeakCollectionHas, 3, 1)              \
   F(WeakCollectionDelete, 3, 1)           \
   F(WeakCollectionSet, 4, 1)              \
-  F(GetWeakSetValues, 2, 1)               \
-  F(IsJSMap, 1, 1)                        \
-  F(IsJSSet, 1, 1)                        \
-  F(IsJSMapIterator, 1, 1)                \
-  F(IsJSSetIterator, 1, 1)                \
-  F(IsJSWeakMap, 1, 1)                    \
-  F(IsJSWeakSet, 1, 1)
+  F(GetWeakSetValues, 2, 1)
 
 #define FOR_EACH_INTRINSIC_COMPILER(F)    \
   F(CompileLazy, 1, 1)                    \
