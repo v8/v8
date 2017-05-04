@@ -1134,7 +1134,8 @@ class PreParser : public ParserBase<PreParser> {
                                       bool is_static, bool is_constructor,
                                       ClassInfo* class_info, bool* ok) {
   }
-  V8_INLINE PreParserExpression RewriteClassLiteral(PreParserIdentifier name,
+  V8_INLINE PreParserExpression RewriteClassLiteral(Scope* scope,
+                                                    PreParserIdentifier name,
                                                     ClassInfo* class_info,
                                                     int pos, bool* ok) {
     bool has_default_constructor = !class_info->has_seen_constructor;

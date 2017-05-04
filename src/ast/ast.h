@@ -484,20 +484,12 @@ class DoExpression final : public Expression {
   void set_block(Block* b) { block_ = b; }
   VariableProxy* result() { return result_; }
   void set_result(VariableProxy* v) { result_ = v; }
-  FunctionLiteral* represented_function() { return represented_function_; }
-  void set_represented_function(FunctionLiteral* f) {
-    represented_function_ = f;
-  }
-  bool IsAnonymousFunctionDefinition() const;
 
  private:
   friend class AstNodeFactory;
 
   DoExpression(Block* block, VariableProxy* result, int pos)
-      : Expression(pos, kDoExpression),
-        block_(block),
-        result_(result),
-        represented_function_(nullptr) {
+      : Expression(pos, kDoExpression), block_(block), result_(result) {
     DCHECK_NOT_NULL(block_);
     DCHECK_NOT_NULL(result_);
   }
@@ -506,7 +498,6 @@ class DoExpression final : public Expression {
 
   Block* block_;
   VariableProxy* result_;
-  FunctionLiteral* represented_function_;
 };
 
 
@@ -2852,6 +2843,7 @@ class ClassLiteral final : public Expression {
  public:
   typedef ClassLiteralProperty Property;
 
+  Scope* scope() const { return scope_; }
   VariableProxy* class_variable_proxy() const { return class_variable_proxy_; }
   Expression* extends() const { return extends_; }
   void set_extends(Expression* e) { extends_ = e; }
@@ -2865,6 +2857,13 @@ class ClassLiteral final : public Expression {
   }
   bool has_static_computed_names() const {
     return HasStaticComputedNames::decode(bit_field_);
+  }
+
+  bool is_anonymous_expression() const {
+    return IsAnonymousExpression::decode(bit_field_);
+  }
+  bool IsAnonymousFunctionDefinition() const {
+    return is_anonymous_expression();
   }
 
   // Object literals need one feedback slot for each non-trivial value, as well
@@ -2883,23 +2882,27 @@ class ClassLiteral final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  ClassLiteral(VariableProxy* class_variable_proxy, Expression* extends,
-               FunctionLiteral* constructor, ZoneList<Property*>* properties,
-               int start_position, int end_position,
-               bool has_name_static_property, bool has_static_computed_names)
+  ClassLiteral(Scope* scope, VariableProxy* class_variable_proxy,
+               Expression* extends, FunctionLiteral* constructor,
+               ZoneList<Property*>* properties, int start_position,
+               int end_position, bool has_name_static_property,
+               bool has_static_computed_names, bool is_anonymous)
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
+        scope_(scope),
         class_variable_proxy_(class_variable_proxy),
         extends_(extends),
         constructor_(constructor),
         properties_(properties) {
     bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
-                  HasStaticComputedNames::encode(has_static_computed_names);
+                  HasStaticComputedNames::encode(has_static_computed_names) |
+                  IsAnonymousExpression::encode(is_anonymous);
   }
 
   int end_position_;
   FeedbackSlot home_object_slot_;
   FeedbackSlot proxy_slot_;
+  Scope* scope_;
   VariableProxy* class_variable_proxy_;
   Expression* extends_;
   FunctionLiteral* constructor_;
@@ -2909,6 +2912,8 @@ class ClassLiteral final : public Expression {
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
   class HasStaticComputedNames
       : public BitField<bool, HasNameStaticProperty::kNext, 1> {};
+  class IsAnonymousExpression
+      : public BitField<bool, HasStaticComputedNames::kNext, 1> {};
 };
 
 
@@ -3615,15 +3620,18 @@ class AstNodeFactory final BASE_EMBEDDED {
         ClassLiteral::Property(key, value, kind, is_static, is_computed_name);
   }
 
-  ClassLiteral* NewClassLiteral(VariableProxy* proxy, Expression* extends,
+  ClassLiteral* NewClassLiteral(Scope* scope, VariableProxy* proxy,
+                                Expression* extends,
                                 FunctionLiteral* constructor,
                                 ZoneList<ClassLiteral::Property*>* properties,
                                 int start_position, int end_position,
                                 bool has_name_static_property,
-                                bool has_static_computed_names) {
-    return new (zone_) ClassLiteral(
-        proxy, extends, constructor, properties, start_position, end_position,
-        has_name_static_property, has_static_computed_names);
+                                bool has_static_computed_names,
+                                bool is_anonymous) {
+    return new (zone_)
+        ClassLiteral(scope, proxy, extends, constructor, properties,
+                     start_position, end_position, has_name_static_property,
+                     has_static_computed_names, is_anonymous);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,

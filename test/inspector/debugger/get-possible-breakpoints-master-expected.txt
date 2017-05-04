@@ -183,7 +183,7 @@ function testCaughtException() {
 |R|}
 
 function testClasses() {
-  |_|class Cat {
+  class Cat {
     constructor(name) {
       |_|this.name = name;
     |R|}
@@ -191,7 +191,7 @@ function testClasses() {
     speak() {
     |R|}
   }
-  |_|class Lion extends Cat {
+  class Lion extends Cat {
     constructor(name) {
       |C|super(name);
     |R|}

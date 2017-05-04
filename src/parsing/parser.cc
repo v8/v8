@@ -3333,7 +3333,7 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
   class_info->properties->Add(property, zone());
 }
 
-// This method rewrites a class literal into a do-expression.
+// This method generates a ClassLiteral AST node.
 // It uses the following fields of class_info:
 //   - constructor (if missing, it updates it with a default constructor)
 //   - proxy
@@ -3341,13 +3341,14 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
 //   - properties
 //   - has_name_static_property
 //   - has_static_computed_names
-Expression* Parser::RewriteClassLiteral(const AstRawString* name,
+Expression* Parser::RewriteClassLiteral(Scope* block_scope,
+                                        const AstRawString* name,
                                         ClassInfo* class_info, int pos,
                                         bool* ok) {
+  DCHECK_NOT_NULL(block_scope);
+  DCHECK_EQ(block_scope->scope_type(), BLOCK_SCOPE);
+  DCHECK_EQ(block_scope->language_mode(), STRICT);
   int end_pos = scanner()->location().end_pos;
-  Block* do_block = factory()->NewBlock(nullptr, 1, false, pos);
-  Variable* result_var = NewTemporary(ast_value_factory()->empty_string());
-  DoExpression* do_expr = factory()->NewDoExpression(do_block, result_var, pos);
 
   bool has_extends = class_info->extends != nullptr;
   bool has_default_constructor = class_info->constructor == nullptr;
@@ -3356,7 +3357,7 @@ Expression* Parser::RewriteClassLiteral(const AstRawString* name,
         DefaultConstructor(name, has_extends, pos, end_pos);
   }
 
-  scope()->set_end_position(end_pos);
+  block_scope->set_end_position(end_pos);
 
   if (name != nullptr) {
     DCHECK_NOT_NULL(class_info->proxy);
@@ -3364,23 +3365,14 @@ Expression* Parser::RewriteClassLiteral(const AstRawString* name,
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
-      class_info->proxy, class_info->extends, class_info->constructor,
-      class_info->properties, pos, end_pos,
+      block_scope, class_info->proxy, class_info->extends,
+      class_info->constructor, class_info->properties, pos, end_pos,
       class_info->has_name_static_property,
-      class_info->has_static_computed_names);
+      class_info->has_static_computed_names, class_info->is_anonymous);
 
-  do_block->statements()->Add(
-      factory()->NewExpressionStatement(
-          factory()->NewAssignment(Token::ASSIGN,
-                                   factory()->NewVariableProxy(result_var),
-                                   class_literal, kNoSourcePosition),
-          pos),
-      zone());
-  do_block->set_scope(scope()->FinalizeBlockScope());
-  do_expr->set_represented_function(class_info->constructor);
   AddFunctionForNameInference(class_info->constructor);
 
-  return do_expr;
+  return class_literal;
 }
 
 Literal* Parser::GetLiteralUndefined(int position) {
@@ -4270,12 +4262,11 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
   DCHECK_NOT_NULL(name);
   if (!value->IsAnonymousFunctionDefinition()) return;
   auto function = value->AsFunctionLiteral();
+  if (value->IsClassLiteral()) {
+    function = value->AsClassLiteral()->constructor();
+  }
   if (function != nullptr) {
     function->set_raw_name(ast_value_factory()->NewConsString(name));
-  } else {
-    DCHECK(value->IsDoExpression());
-    value->AsDoExpression()->represented_function()->set_raw_name(
-        ast_value_factory()->NewConsString(name));
   }
 }
 

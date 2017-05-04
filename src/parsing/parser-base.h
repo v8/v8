@@ -631,7 +631,8 @@ class ParserBase {
           constructor(parser->impl()->EmptyFunctionLiteral()),
           has_seen_constructor(false),
           has_name_static_property(false),
-          has_static_computed_names(false) {}
+          has_static_computed_names(false),
+          is_anonymous(false) {}
     VariableProxy* proxy;
     ExpressionT extends;
     typename Types::ClassPropertyList properties;
@@ -639,6 +640,7 @@ class ParserBase {
     bool has_seen_constructor;
     bool has_name_static_property;
     bool has_static_computed_names;
+    bool is_anonymous;
   };
 
   DeclarationScope* NewScriptScope() const {
@@ -4390,24 +4392,30 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     IdentifierT name, Scanner::Location class_name_location,
     bool name_is_strict_reserved, int class_token_pos, bool* ok) {
+  bool is_anonymous = impl()->IsEmptyIdentifier(name);
+
   // All parts of a ClassDeclaration and ClassExpression are strict code.
-  if (name_is_strict_reserved) {
-    impl()->ReportMessageAt(class_name_location,
-                            MessageTemplate::kUnexpectedStrictReserved);
-    *ok = false;
-    return impl()->EmptyExpression();
-  }
-  if (impl()->IsEvalOrArguments(name)) {
-    impl()->ReportMessageAt(class_name_location,
-                            MessageTemplate::kStrictEvalArguments);
-    *ok = false;
-    return impl()->EmptyExpression();
+  if (!is_anonymous) {
+    if (name_is_strict_reserved) {
+      impl()->ReportMessageAt(class_name_location,
+                              MessageTemplate::kUnexpectedStrictReserved);
+      *ok = false;
+      return impl()->EmptyExpression();
+    }
+    if (impl()->IsEvalOrArguments(name)) {
+      impl()->ReportMessageAt(class_name_location,
+                              MessageTemplate::kStrictEvalArguments);
+      *ok = false;
+      return impl()->EmptyExpression();
+    }
   }
 
-  BlockState block_state(zone(), &scope_);
+  Scope* block_scope = NewScope(BLOCK_SCOPE);
+  BlockState block_state(&scope_, block_scope);
   RaiseLanguageMode(STRICT);
 
   ClassInfo class_info(this);
+  class_info.is_anonymous = is_anonymous;
   impl()->DeclareClassVariable(name, &class_info, class_token_pos, CHECK_OK);
 
   scope()->set_start_position(scanner()->location().end_pos);
@@ -4452,7 +4460,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   }
 
   Expect(Token::RBRACE, CHECK_OK);
-  return impl()->RewriteClassLiteral(name, &class_info, class_token_pos, ok);
+  return impl()->RewriteClassLiteral(block_scope, name, &class_info,
+                                     class_token_pos, ok);
 }
 
 template <typename Impl>

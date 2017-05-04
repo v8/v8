@@ -141,6 +141,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitClassLiteralProperties(ClassLiteral* expr, Register constructor,
                                    Register prototype);
   void BuildClassLiteralNameProperty(ClassLiteral* expr, Register constructor);
+  void BuildClassLiteral(ClassLiteral* expr);
   void VisitThisFunctionVariable(Variable* variable);
   void VisitNewTargetVariable(Variable* variable);
   void VisitBlockDeclarationsAndStatements(Block* stmt);

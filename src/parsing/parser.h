@@ -373,7 +373,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       ClassInfo* class_info, bool* ok);
-  V8_INLINE Expression* RewriteClassLiteral(const AstRawString* name,
+  V8_INLINE Expression* RewriteClassLiteral(Scope* block_scope,
+                                            const AstRawString* name,
                                             ClassInfo* class_info, int pos,
                                             bool* ok);
   V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos,
