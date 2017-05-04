@@ -4267,7 +4267,7 @@ void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
 void Heap::NotifyObjectLayoutChange(HeapObject* object,
                                     const DisallowHeapAllocation&) {
   if (FLAG_incremental_marking && incremental_marking()->IsMarking()) {
-    incremental_marking()->MarkGrey(object);
+    incremental_marking()->WhiteToGreyAndPush(object);
   }
 #ifdef VERIFY_HEAP
   DCHECK(pending_layout_change_object_ == nullptr);
@@ -4831,7 +4831,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     // promoted objects.
     if (heap_->incremental_marking()->black_allocation()) {
       Code* code = Code::cast(Code::GetObjectFromEntryAddress(code_entry_slot));
-      heap_->incremental_marking()->MarkGrey(code);
+      heap_->incremental_marking()->WhiteToGreyAndPush(code);
     }
   }
 
@@ -5625,7 +5625,7 @@ void Heap::RegisterExternallyReferencedObject(Object** object) {
   HeapObject* heap_object = HeapObject::cast(*object);
   DCHECK(Contains(heap_object));
   if (FLAG_incremental_marking_wrappers && incremental_marking()->IsMarking()) {
-    incremental_marking()->MarkGrey(heap_object);
+    incremental_marking()->WhiteToGreyAndPush(heap_object);
   } else {
     DCHECK(mark_compact_collector()->in_use());
     mark_compact_collector()->MarkObject(heap_object);
