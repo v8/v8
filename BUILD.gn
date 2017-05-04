@@ -480,6 +480,15 @@ config("toolchain") {
       "/wd4800",  # Forcing value to bool.
     ]
   }
+
+  if (!is_clang && !is_win) {
+    cflags += [
+      # Disable gcc warnings for optimizations based on the assumption that
+      # signed overflow does not occur. Generates false positives (see
+      # http://crbug.com/v8/6341).
+      "-Wno-strict-overflow",
+    ]
+  }
 }
 
 ###############################################################################
