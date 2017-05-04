@@ -147,7 +147,7 @@ assertThrows('/(?<𐒤>a)/u', SyntaxError);  // ID_Continue but not ID_Start.
 assertEquals("a", /(?<π>a)/.exec("bab").groups.π);
 assertEquals("a", /(?<$>a)/.exec("bab").groups.$);
 assertEquals("a", /(?<_>a)/.exec("bab").groups._);
-assertEquals("a", /(?<$𐒤>a)/.exec("bab").groups.$𐒤);
+assertThrows("/(?<$𐒤>a)/", SyntaxError);
 assertEquals("a", /(?<ಠ_ಠ>a)/.exec("bab").groups.ಠ_ಠ);
 assertThrows('/(?<❤>a)/', SyntaxError);
 assertThrows('/(?<𐒤>a)/', SyntaxError);  // ID_Continue but not ID_Start.
@@ -219,7 +219,7 @@ assertThrows("/(?<a\uDCA4>.)/", SyntaxError);  // Trail
 assertThrows("/(?<\\u{0041}>.)/", SyntaxError);  // Non-surrogate
 assertThrows("/(?<a\\u{104A4}>.)/", SyntaxError);  // Surrogate, ID_Continue
 assertTrue(RegExp("(?<\u{0041}>.)").test("a"));  // Non-surrogate
-assertTrue(RegExp("(?<a\u{104A4}>.)").test("a"));  // Surrogate, ID_Continue
+assertThrows("(?<a\u{104A4}>.)", SyntaxError);  // Surrogate, ID_Continue
 assertTrue(RegExp("(?<\\u0041>.)").test("a"));  // Non-surrogate
 
 // @@replace with a callable replacement argument (no named captures).

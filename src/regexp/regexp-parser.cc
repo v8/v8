@@ -46,13 +46,13 @@ RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
   Advance();
 }
 
-inline uc32 RegExpParser::ReadNext(bool update_position, ScanMode mode) {
+template <bool update_position>
+inline uc32 RegExpParser::ReadNext() {
   int position = next_pos_;
   uc32 c0 = in()->Get(position);
   position++;
-  const bool try_combine_surrogate_pairs =
-      (unicode() || mode == ScanMode::FORCE_COMBINE_SURROGATE_PAIRS);
-  if (try_combine_surrogate_pairs && position < in()->length() &&
+  // Read the whole surrogate pair in case of unicode flag, if possible.
+  if (unicode() && position < in()->length() &&
       unibrow::Utf16::IsLeadSurrogate(static_cast<uc16>(c0))) {
     uc16 c1 = in()->Get(position);
     if (unibrow::Utf16::IsTrailSurrogate(c1)) {
@@ -67,13 +67,13 @@ inline uc32 RegExpParser::ReadNext(bool update_position, ScanMode mode) {
 
 uc32 RegExpParser::Next() {
   if (has_next()) {
-    return ReadNext(false, ScanMode::DEFAULT);
+    return ReadNext<false>();
   } else {
     return kEndMarker;
   }
 }
 
-void RegExpParser::Advance(ScanMode mode) {
+void RegExpParser::Advance() {
   if (has_next()) {
     StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
@@ -83,7 +83,7 @@ void RegExpParser::Advance(ScanMode mode) {
     } else if (zone()->excess_allocation()) {
       ReportError(CStrVector("Regular expression too large"));
     } else {
-      current_ = ReadNext(true, mode);
+      current_ = ReadNext<true>();
     }
   } else {
     current_ = kEndMarker;
@@ -101,9 +101,9 @@ void RegExpParser::Reset(int pos) {
   Advance();
 }
 
-void RegExpParser::Advance(int dist, ScanMode mode) {
+void RegExpParser::Advance(int dist) {
   next_pos_ += dist - 1;
-  Advance(mode);
+  Advance();
 }
 
 
@@ -326,6 +326,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
               if (FLAG_harmony_regexp_named_captures) {
                 has_named_captures_ = true;
                 is_named_capture = true;
+                Advance();
                 break;
               }
             // Fall through.
@@ -761,24 +762,18 @@ static void push_code_unit(ZoneVector<uc16>* v, uint32_t code_unit) {
 
 const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
   DCHECK(FLAG_harmony_regexp_named_captures);
-  DCHECK_EQ(current(), '<');
 
   ZoneVector<uc16>* name =
       new (zone()->New(sizeof(ZoneVector<uc16>))) ZoneVector<uc16>(zone());
 
-  // Capture names can always contain surrogate pairs, and we need to scan
-  // accordingly.
-  const ScanMode scan_mode = ScanMode::FORCE_COMBINE_SURROGATE_PAIRS;
-  Advance(scan_mode);
-
   bool at_start = true;
   while (true) {
     uc32 c = current();
-    Advance(scan_mode);
+    Advance();
 
     // Convert unicode escapes.
     if (c == '\\' && current() == 'u') {
-      Advance(scan_mode);
+      Advance();
       if (!ParseUnicodeEscape(&c)) {
         ReportError(CStrVector("Invalid Unicode escape sequence"));
         return nullptr;
@@ -849,6 +844,7 @@ bool RegExpParser::ParseNamedBackReference(RegExpBuilder* builder,
     return false;
   }
 
+  Advance();
   const ZoneVector<uc16>* name = ParseCaptureGroupName();
   if (name == nullptr) {
     return false;
