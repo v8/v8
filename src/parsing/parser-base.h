@@ -1972,6 +1972,11 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
       int ellipsis_pos = position();
       int pattern_pos = peek_position();
       ExpressionT pattern = ParsePrimaryExpression(CHECK_OK);
+      if (peek() == Token::ASSIGN) {
+        ReportMessage(MessageTemplate::kRestDefaultInitializer);
+        *ok = false;
+        return result;
+      }
       ValidateBindingPattern(CHECK_OK);
       right = factory()->NewSpread(pattern, ellipsis_pos, pattern_pos);
     } else {
@@ -2715,6 +2720,10 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
         spread_arg.beg_pos = start_pos;
         spread_arg.end_pos = peek_position();
       }
+      if (argument->IsAssignment()) {
+        classifier()->RecordAsyncArrowFormalParametersError(
+            scanner()->location(), MessageTemplate::kRestDefaultInitializer);
+      }
       argument = factory()->NewSpread(argument, start_pos, expr_pos);
     }
     result->Add(argument, zone_);
@@ -2727,6 +2736,10 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
     done = (peek() != Token::COMMA);
     if (!done) {
       Next();
+      if (argument->IsSpread()) {
+        classifier()->RecordAsyncArrowFormalParametersError(
+            scanner()->location(), MessageTemplate::kParamAfterRest);
+      }
       if (allow_harmony_trailing_commas() && peek() == Token::RPAREN) {
         // allow trailing comma
         done = true;
@@ -3657,7 +3670,12 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
   }
 
   ExpressionT initializer = impl()->EmptyExpression();
-  if (!is_rest && Check(Token::ASSIGN)) {
+  if (Check(Token::ASSIGN)) {
+    if (is_rest) {
+      ReportMessage(MessageTemplate::kRestDefaultInitializer);
+      *ok = false;
+      return;
+    }
     ExpressionClassifier init_classifier(this);
     initializer = ParseAssignmentExpression(true, CHECK_OK_CUSTOM(Void));
     impl()->RewriteNonPattern(CHECK_OK_CUSTOM(Void));

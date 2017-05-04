@@ -4262,6 +4262,7 @@ TEST(ErrorsArrowFunctions) {
     "(c, a.b) => {}",
     "(a['b'], c) => {}",
     "(c, a['b']) => {}",
+    "(...a = b) => b",
 
     // crbug.com/582626
     "(...rest - a) => b",
@@ -8989,6 +8990,10 @@ TEST(AsyncAwaitErrors) {
     // v8:5148 assert that errors are still thrown for calls that may have been
     // async functions
     "async({ foo33 = 1 })",
+
+    "async(...a = b) => b",
+    "async(...a,) => b",
+    "async(...a, b) => b",
     NULL
   };
 

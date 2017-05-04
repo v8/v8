@@ -608,6 +608,8 @@ class ErrorUtils : public AllStatic {
   T(ArgStringTerminatesParametersEarly,                                        \
     "Arg string terminates parameters early")                                  \
   T(UnexpectedEndOfArgString, "Unexpected end of arg string")                  \
+  T(RestDefaultInitializer,                                                    \
+    "Rest parameter may not have a default initializer")                       \
   T(RuntimeWrongNumArgs, "Runtime function given wrong number of arguments")   \
   T(SuperNotCalled,                                                            \
     "Must call super constructor in derived class before accessing 'this' or " \
