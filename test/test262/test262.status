@@ -369,9 +369,6 @@
   'language/statements/async-function/early-errors-declaration-formals-body-duplicate': [FAIL],
 
   # Module-related tests
-  # v8:5485
-  'language/module-code/comment-multi-line-html*': [FAIL],
-  'language/module-code/comment-single-line-html*': [FAIL],
   # v8:5487
   'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
   # https://github.com/tc39/ecma262/pull/858

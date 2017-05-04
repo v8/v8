@@ -631,7 +631,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
 
   {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(source));
-    scanner_.Initialize(stream.get());
+    scanner_.Initialize(stream.get(), info->is_module());
     result = DoParseProgram(info);
   }
   if (result != NULL) {
@@ -805,7 +805,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
         source, shared_info->start_position(), shared_info->end_position()));
     Handle<String> name(String::cast(shared_info->name()));
-    scanner_.Initialize(stream.get());
+    scanner_.Initialize(stream.get(), info->is_module());
     info->set_function_name(ast_value_factory()->GetString(name));
     result = DoParseFunction(info);
     if (result != nullptr) {
@@ -3548,7 +3548,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
                                     runtime_call_stats_));
     stream_ptr = stream.get();
   }
-  scanner_.Initialize(stream_ptr);
+  scanner_.Initialize(stream_ptr, info->is_module());
   DCHECK(info->maybe_outer_scope_info().is_null());
 
   DCHECK(original_scope_);
