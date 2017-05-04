@@ -5,6 +5,8 @@
 #ifndef V8_ASMJS_ASM_JS_H_
 #define V8_ASMJS_ASM_JS_H_
 
+// Clients of this interface shouldn't depend on lots of asmjs internals.
+// Do not include anything from src/asmjs here!
 #include "src/globals.h"
 
 namespace v8 {
