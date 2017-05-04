@@ -173,7 +173,13 @@ void SetResolvedDateSettings(Isolate* isolate, const icu::Locale& icu_locale,
   icu::UnicodeString canonical_time_zone;
   icu::TimeZone::getCanonicalID(time_zone, canonical_time_zone, status);
   if (U_SUCCESS(status)) {
-    if (canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/GMT")) {
+    // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
+    // a separate timezone ID from Etc/GMT even though they're still the same
+    // timezone. We'd not have "Etc/GMT" here because we canonicalize it and
+    // other GMT-variants to "UTC" in intl.js and "UTC" is turned to "Etc/UTC"
+    // by ICU before getting here.
+    DCHECK(canonical_time_zone != UNICODE_STRING_SIMPLE("Etc/GMT"));
+    if (canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/UTC")) {
       JSObject::SetProperty(resolved,
                             factory->NewStringFromStaticChars("timeZone"),
                             factory->NewStringFromStaticChars("UTC"), SLOPPY)

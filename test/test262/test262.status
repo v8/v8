@@ -525,10 +525,6 @@
   'intl402/NumberFormat/prototype/11.3_a': [FAIL],
   'intl402/String/prototype/localeCompare/13.1.1_7': [PASS, FAIL],
 
-  # BUG(v8:6252).
-  'intl402/DateTimeFormat/6.4_a': [FAIL],
-  'intl402/DateTimeFormat/6.4_c': [FAIL],
-
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
   # https://code.google.com/p/v8/issues/detail?id=4693
