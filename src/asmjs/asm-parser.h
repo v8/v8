@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "src/asmjs/asm-scanner.h"
-#include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-types.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/zone/zone-containers.h"
@@ -29,13 +28,31 @@ namespace wasm {
 //   scopes (local + module wide).
 class AsmJsParser {
  public:
+  // clang-format off
+  enum StandardMember {
+    kInfinity,
+    kNaN,
+#define V(_unused1, name, _unused2, _unused3) kMath##name,
+    STDLIB_MATH_FUNCTION_LIST(V)
+#undef V
+#define V(name, _unused1) kMath##name,
+    STDLIB_MATH_VALUE_LIST(V)
+#undef V
+#define V(name, _unused1, _unused2, _unused3) k##name,
+    STDLIB_ARRAY_TYPE_LIST(V)
+#undef V
+  };
+  // clang-format on
+
+  typedef std::unordered_set<StandardMember, std::hash<int>> StdlibSet;
+
   explicit AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
                        int start, int end);
   bool Run();
   const char* failure_message() const { return failure_message_; }
   int failure_location() const { return failure_location_; }
   WasmModuleBuilder* module_builder() { return module_builder_; }
-  const AsmTyper::StdlibSet* stdlib_uses() const { return &stdlib_uses_; }
+  const StdlibSet* stdlib_uses() const { return &stdlib_uses_; }
 
  private:
   // clang-format off
@@ -96,7 +113,7 @@ class AsmJsParser {
   WasmFunctionBuilder* current_function_builder_;
   AsmType* return_type_;
   uintptr_t stack_limit_;
-  AsmTyper::StdlibSet stdlib_uses_;
+  StdlibSet stdlib_uses_;
   ZoneVector<VarInfo> global_var_info_;
   ZoneVector<VarInfo> local_var_info_;
 

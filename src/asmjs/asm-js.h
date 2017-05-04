@@ -22,6 +22,10 @@ class AsmJs {
                                                 Handle<JSReceiver> stdlib,
                                                 Handle<JSReceiver> foreign,
                                                 Handle<JSArrayBuffer> memory);
+
+  // Special export name used to indicate that the module exports a single
+  // function instead of a JavaScript object holding multiple functions.
+  static const char* const kSingleFunctionName;
 };
 
 }  // namespace internal

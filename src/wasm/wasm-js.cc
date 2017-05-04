@@ -4,9 +4,6 @@
 
 #include "src/api-natives.h"
 #include "src/api.h"
-#include "src/asmjs/asm-js.h"
-#include "src/asmjs/asm-typer.h"
-#include "src/asmjs/asm-wasm-builder.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
 #include "src/execution.h"

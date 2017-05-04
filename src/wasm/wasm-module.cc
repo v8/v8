@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/code-stubs.h"
@@ -17,7 +18,6 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/v8.h"
 
-#include "src/asmjs/asm-wasm-builder.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-specialization.h"
@@ -1858,12 +1858,8 @@ class InstantiationHelper {
         isolate_->factory()->InternalizeUtf8String("exports");
     JSObject::AddProperty(instance, exports_name, exports_object, NONE);
 
-    Handle<String> foreign_init_name =
-        isolate_->factory()->InternalizeUtf8String(
-            wasm::AsmWasmBuilder::foreign_init_name);
     Handle<String> single_function_name =
-        isolate_->factory()->InternalizeUtf8String(
-            wasm::AsmWasmBuilder::single_function_name);
+        isolate_->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName);
 
     PropertyDescriptor desc;
     desc.set_writable(module_->is_asm_js());
@@ -1893,8 +1889,7 @@ class InstantiationHelper {
               .ToHandleChecked();
       Handle<JSObject> export_to;
       if (module_->is_asm_js() && exp.kind == kExternalFunction &&
-          (String::Equals(name, foreign_init_name) ||
-           String::Equals(name, single_function_name))) {
+          String::Equals(name, single_function_name)) {
         export_to = instance;
       } else {
         export_to = exports_object;

@@ -9,10 +9,12 @@
 
 #include <algorithm>
 
+#include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/parsing/scanner-character-streams.h"
+#include "src/parsing/scanner.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -562,7 +564,7 @@ void AsmJsParser::ValidateModuleVarNewStdlib(VarInfo* info) {
 #define V(name, _junk1, _junk2, _junk3)                          \
   case TOK(name):                                                \
     DeclareStdlibFunc(info, VarKind::kSpecial, AsmType::name()); \
-    stdlib_uses_.insert(AsmTyper::k##name);                      \
+    stdlib_uses_.insert(StandardMember::k##name);                \
     break;
     STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
@@ -585,14 +587,14 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   case TOK(name):                                           \
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64, \
                   WasmInitExpr(const_value));               \
-    stdlib_uses_.insert(AsmTyper::kMath##name);             \
+    stdlib_uses_.insert(StandardMember::kMath##name);       \
     break;
       STDLIB_MATH_VALUE_LIST(V)
 #undef V
 #define V(name, Name, op, sig)                                      \
   case TOK(name):                                                   \
     DeclareStdlibFunc(info, VarKind::kMath##Name, stdlib_##sig##_); \
-    stdlib_uses_.insert(AsmTyper::kMath##Name);                     \
+    stdlib_uses_.insert(StandardMember::kMath##Name);               \
     break;
       STDLIB_MATH_FUNCTION_LIST(V)
 #undef V
@@ -602,11 +604,11 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
   } else if (Check(TOK(Infinity))) {
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64,
                   WasmInitExpr(std::numeric_limits<double>::infinity()));
-    stdlib_uses_.insert(AsmTyper::kInfinity);
+    stdlib_uses_.insert(StandardMember::kInfinity);
   } else if (Check(TOK(NaN))) {
     DeclareGlobal(info, false, AsmType::Double(), kWasmF64,
                   WasmInitExpr(std::numeric_limits<double>::quiet_NaN()));
-    stdlib_uses_.insert(AsmTyper::kNaN);
+    stdlib_uses_.insert(StandardMember::kNaN);
   } else {
     FAIL("Invalid member of stdlib");
   }
@@ -649,8 +651,7 @@ void AsmJsParser::ValidateExport() {
     if (info->kind != VarKind::kFunction) {
       FAIL("Single function export must be a function");
     }
-    const char* single_function_name = "__single_function__";
-    info->function_builder->ExportAs(CStrVector(single_function_name));
+    info->function_builder->ExportAs(CStrVector(AsmJs::kSingleFunctionName));
   }
 }
 

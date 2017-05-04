@@ -32,7 +32,6 @@
     'v8_code': 1,
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
     'cctest_sources': [  ### gcmole(all) ###
-      'asmjs/test-asm-typer.cc',
       'ast-types-fuzz.h',
       'compiler/c-signature.h',
       'compiler/call-tester.h',
