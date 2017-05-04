@@ -2662,6 +2662,18 @@ class AsyncCompileJob {
     void Run() override = 0;  // Force sub-classes to override Run().
   };
 
+  class SyncCompileTask : public CompileTask<SYNC> {
+   public:
+    void Run() final {
+      SaveContext saved_context(job_->isolate_);
+      job_->isolate_->set_context(*job_->context_);
+      RunImpl();
+    }
+
+   protected:
+    virtual void RunImpl() = 0;
+  };
+
   template <typename Task, typename... Args>
   void DoSync(Args... args) {
     static_assert(Task::type == SYNC, "Scheduled type must be sync");
@@ -2710,13 +2722,13 @@ class AsyncCompileJob {
   //==========================================================================
   // Step 1b: (sync) Fail decoding the module.
   //==========================================================================
-  class DecodeFail : public CompileTask<SYNC> {
+  class DecodeFail : public SyncCompileTask {
    public:
     explicit DecodeFail(ModuleResult result) : result_(std::move(result)) {}
 
    private:
     ModuleResult result_;
-    void Run() override {
+    void RunImpl() override {
       TRACE_COMPILE("(1b) Decoding failed.\n");
       HandleScope scope(job_->isolate_);
       ErrorThrower thrower(job_->isolate_, "AsyncCompile");
@@ -2729,8 +2741,8 @@ class AsyncCompileJob {
   //==========================================================================
   // Step 2 (sync): Create heap-allocated data and start compile.
   //==========================================================================
-  class PrepareAndStartCompile : public CompileTask<SYNC> {
-    void Run() override {
+  class PrepareAndStartCompile : public SyncCompileTask {
+    void RunImpl() override {
       TRACE_COMPILE("(2) Prepare and start compile...\n");
       HandleScope scope(job_->isolate_);
 
@@ -2846,8 +2858,8 @@ class AsyncCompileJob {
   //==========================================================================
   // Step 4 (sync x each function): Finish a single compilation unit.
   //==========================================================================
-  class FinishCompilationUnit : public CompileTask<SYNC> {
-    void Run() override {
+  class FinishCompilationUnit : public SyncCompileTask {
+    void RunImpl() override {
       TRACE_COMPILE("(4a) Finishing compilation unit...\n");
       HandleScope scope(job_->isolate_);
       if (job_->failed_) return;  // already failed
@@ -2906,14 +2918,14 @@ class AsyncCompileJob {
   //==========================================================================
   // Step 5a (sync): Fail compilation (reject promise).
   //==========================================================================
-  class FailCompile : public CompileTask<SYNC> {
+  class FailCompile : public SyncCompileTask {
    public:
     explicit FailCompile(ErrorThrower thrower) : thrower_(std::move(thrower)) {}
 
    private:
     ErrorThrower thrower_;
 
-    void Run() override {
+    void RunImpl() override {
       TRACE_COMPILE("(5a) Fail compilation...\n");
       HandleScope scope(job_->isolate_);
       return job_->AsyncCompileFailed(thrower_);
@@ -2923,12 +2935,10 @@ class AsyncCompileJob {
   //==========================================================================
   // Step 5b (sync): Finish heap-allocated data structures.
   //==========================================================================
-  class FinishCompile : public CompileTask<SYNC> {
-    void Run() override {
+  class FinishCompile : public SyncCompileTask {
+    void RunImpl() override {
       TRACE_COMPILE("(5b) Finish compile...\n");
       HandleScope scope(job_->isolate_);
-      SaveContext saved_context(job_->isolate_);
-      job_->isolate_->set_context(*job_->context_);
       // At this point, compilation has completed. Update the code table.
       for (size_t i = FLAG_skip_compiling_wasm_funcs;
            i < job_->temp_instance_->function_code.size(); ++i) {
@@ -2987,8 +2997,8 @@ class AsyncCompileJob {
   //==========================================================================
   // Step 6 (sync): Compile JS->WASM wrappers.
   //==========================================================================
-  class CompileWrappers : public CompileTask<SYNC> {
-    void Run() override {
+  class CompileWrappers : public SyncCompileTask {
+    void RunImpl() override {
       TRACE_COMPILE("(6) Compile wrappers...\n");
       // Compile JS->WASM wrappers for exported functions.
       HandleScope scope(job_->isolate_);
@@ -3015,12 +3025,10 @@ class AsyncCompileJob {
   //==========================================================================
   // Step 7 (sync): Finish the module and resolve the promise.
   //==========================================================================
-  class FinishModule : public CompileTask<SYNC> {
-    void Run() override {
+  class FinishModule : public SyncCompileTask {
+    void RunImpl() override {
       TRACE_COMPILE("(7) Finish module...\n");
       HandleScope scope(job_->isolate_);
-      SaveContext saved_context(job_->isolate_);
-      job_->isolate_->set_context(*job_->context_);
       Handle<WasmModuleObject> result =
           WasmModuleObject::New(job_->isolate_, job_->compiled_module_);
       // {job_} is deleted in AsyncCompileSucceeded, therefore the {return}.
