@@ -2062,11 +2062,10 @@ MUST_USE_RESULT Maybe<bool> FastAssign(
 
     if (use_set) {
       LookupIterator it(target, next_key, target);
-      bool call_to_js = it.IsFound() && it.state() != LookupIterator::DATA;
       Maybe<bool> result = Object::SetProperty(
           &it, prop_value, STRICT, Object::CERTAINLY_NOT_STORE_FROM_KEYED);
       if (result.IsNothing()) return result;
-      if (stable && call_to_js) stable = from->map() == *map;
+      if (stable) stable = from->map() == *map;
     } else {
       if (excluded_properties != nullptr &&
           HasExcludedProperty(excluded_properties, next_key)) {
