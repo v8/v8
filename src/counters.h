@@ -717,6 +717,7 @@ class RuntimeCallTimer final {
   V(GC)                                             \
   V(GC_AllAvailableGarbage)                         \
   V(GC_IncrementalMarkingJob)                       \
+  V(GC_IncrementalMarkingObserver)                  \
   V(GC_SlowAllocateRaw)                             \
   V(GCEpilogueCallback)                             \
   V(GCPrologueCallback)                             \

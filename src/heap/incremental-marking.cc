@@ -18,9 +18,18 @@
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 #include "src/visitors.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
+
+void IncrementalMarking::Observer::Step(int bytes_allocated, Address, size_t) {
+  VMState<GC> state(incremental_marking_.heap()->isolate());
+  RuntimeCallTimerScope runtime_timer(
+      incremental_marking_.heap()->isolate(),
+      &RuntimeCallStats::GC_IncrementalMarkingObserver);
+  incremental_marking_.AdvanceIncrementalMarkingOnAllocation();
+}
 
 IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
