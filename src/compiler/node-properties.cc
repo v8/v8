@@ -437,31 +437,6 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
 }
 
 // static
-MaybeHandle<Context> NodeProperties::GetSpecializationContext(
-    Node* node, MaybeHandle<Context> context) {
-  switch (node->opcode()) {
-    case IrOpcode::kHeapConstant:
-      return Handle<Context>::cast(OpParameter<Handle<HeapObject>>(node));
-    case IrOpcode::kParameter: {
-      Node* const start = NodeProperties::GetValueInput(node, 0);
-      DCHECK_EQ(IrOpcode::kStart, start->opcode());
-      int const index = ParameterIndexOf(node->op());
-      // The context is always the last parameter to a JavaScript function, and
-      // {Parameter} indices start at -1, so value outputs of {Start} look like
-      // this: closure, receiver, param0, ..., paramN, context.
-      if (index == start->op()->ValueOutputCount() - 2) {
-        return context;
-      }
-      break;
-    }
-    default:
-      break;
-  }
-  return MaybeHandle<Context>();
-}
-
-
-// static
 Node* NodeProperties::GetOuterContext(Node* node, size_t* depth) {
   Node* context = NodeProperties::GetContextInput(node);
   while (*depth > 0 &&

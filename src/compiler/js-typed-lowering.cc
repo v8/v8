@@ -1399,6 +1399,14 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
 
   int32_t cell_index = OpParameter<int32_t>(node);
   Node* module = NodeProperties::GetValueInput(node, 0);
+  Type* module_type = NodeProperties::GetType(module);
+
+  if (module_type->IsHeapConstant()) {
+    Handle<Module> module_constant =
+        Handle<Module>::cast(module_type->AsHeapConstant()->Value());
+    Handle<Cell> cell_constant(module_constant->GetCell(cell_index), isolate());
+    return jsgraph()->HeapConstant(cell_constant);
+  }
 
   FieldAccess field_access;
   int index;
