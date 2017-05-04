@@ -716,8 +716,6 @@ DEFINE_BOOL(cleanup_code_caches_at_gc, true,
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
-DEFINE_BOOL(zap_code_space, DEBUG_BOOL,
-            "Zap free memory in code space with 0xCC while sweeping.")
 DEFINE_BOOL(force_marking_deque_overflows, false,
             "force overflows of marking deque by reducing it's size "
             "to 64 words")

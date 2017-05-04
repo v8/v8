@@ -6220,9 +6220,8 @@ class V8_EXPORT HeapStatistics {
   size_t peak_malloced_memory() { return peak_malloced_memory_; }
 
   /**
-   * Returns a 0/1 boolean, which signifies whether the |--zap_code_space|
-   * option is enabled or not, which makes V8 overwrite heap garbage with a bit
-   * pattern.
+   * Returns a 0/1 boolean, which signifies whether the V8 overwrite heap
+   * garbage with a bit pattern.
    */
   size_t does_zap_garbage() { return does_zap_garbage_; }
 
