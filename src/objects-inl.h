@@ -6975,6 +6975,14 @@ void JSArrayBuffer::set_has_guard_region(bool value) {
   set_bit_field(HasGuardRegion::update(bit_field(), value));
 }
 
+bool JSArrayBuffer::is_wasm_buffer() {
+  return IsWasmBuffer::decode(bit_field());
+}
+
+void JSArrayBuffer::set_is_wasm_buffer(bool value) {
+  set_bit_field(IsWasmBuffer::update(bit_field(), value));
+}
+
 Object* JSArrayBufferView::byte_offset() const {
   if (WasNeutered()) return Smi::kZero;
   return Object::cast(READ_FIELD(this, kByteOffsetOffset));

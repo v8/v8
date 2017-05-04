@@ -817,6 +817,7 @@ Handle<JSArrayBuffer> wasm::SetupArrayBuffer(Isolate* isolate,
   JSArrayBuffer::Setup(buffer, isolate, is_external, backing_store,
                        static_cast<int>(size));
   buffer->set_is_neuterable(false);
+  buffer->set_is_wasm_buffer(true);
   buffer->set_has_guard_region(enable_guard_regions);
 
   if (is_external) {
@@ -1224,6 +1225,7 @@ class InstantiationHelper {
     if (!memory_.is_null()) {
       // Set externally passed ArrayBuffer non neuterable.
       memory_->set_is_neuterable(false);
+      memory_->set_is_wasm_buffer(true);
 
       DCHECK_IMPLIES(EnableGuardRegions(),
                      module_->is_asm_js() || memory_->has_guard_region());
