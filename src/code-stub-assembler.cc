@@ -7866,9 +7866,11 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
           }
 
           BIND(&if_lhsisnotstring);
-          GotoIfNot(IsJSReceiverInstanceType(lhs_instance_type), &if_notequal);
-          GotoIfNot(IsJSReceiverInstanceType(rhs_instance_type), &if_notequal);
           if (var_type_feedback != NULL) {
+            GotoIfNot(IsJSReceiverInstanceType(lhs_instance_type),
+                      &if_notequal);
+            GotoIfNot(IsJSReceiverInstanceType(rhs_instance_type),
+                      &if_notequal);
             var_type_feedback->Bind(
                 SmiConstant(CompareOperationFeedback::kReceiver));
           }
