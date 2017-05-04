@@ -312,6 +312,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
       intptr_t bytes_to_process,
       ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION));
 
+  INLINE(bool IsFixedArrayWithProgressBar(HeapObject* object));
   INLINE(void VisitObject(Map* map, HeapObject* obj, int size));
 
   void IncrementIdleMarkingDelayCounter();

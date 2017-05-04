@@ -835,12 +835,13 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
   });
 }
 
+bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject* obj) {
+  if (!obj->IsFixedArray()) return false;
+  MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
+  return chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR);
+}
 
 void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
-  WhiteToGreyAndPush(map);
-
-  IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
-
 #if ENABLE_SLOW_DCHECKS
   MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj, marking_state(obj));
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
@@ -848,7 +849,13 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
               (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
                Marking::IsBlack<kAtomicity>(mark_bit)));
 #endif
-  ObjectMarking::GreyToBlack<kAtomicity>(obj, marking_state(obj));
+  if (ObjectMarking::GreyToBlack<kAtomicity>(obj, marking_state(obj))) {
+    WhiteToGreyAndPush(map);
+    IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
+  } else if (IsFixedArrayWithProgressBar(obj)) {
+    DCHECK(ObjectMarking::IsBlack<kAtomicity>(obj, marking_state(obj)));
+    IncrementalMarkingMarkingVisitor::VisitFixedArrayIncremental(map, obj);
+  }
 }
 
 intptr_t IncrementalMarking::ProcessMarkingDeque(
