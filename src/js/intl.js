@@ -146,18 +146,18 @@ var AVAILABLE_LOCALES = {
  */
 var DEFAULT_ICU_LOCALE = UNDEFINED;
 
-function GetDefaultICULocaleJS() {
+function GetDefaultICULocaleJS(service) {
   if (IS_UNDEFINED(DEFAULT_ICU_LOCALE)) {
     DEFAULT_ICU_LOCALE = %GetDefaultICULocale();
-    // Check that this is a valid default, otherwise fall back to "und"
-    for (let service in AVAILABLE_LOCALES) {
-      if (IS_UNDEFINED(getAvailableLocalesOf(service)[DEFAULT_ICU_LOCALE])) {
-        DEFAULT_ICU_LOCALE = "und";
-        break;
-      }
-    }
   }
-  return DEFAULT_ICU_LOCALE;
+  // Check that this is a valid default for this service,
+  // otherwise fall back to "und"
+  // TODO(littledan,jshin): AvailableLocalesOf sometimes excludes locales
+  // which don't require tailoring, but work fine with root data. Look into
+  // exposing this fact in ICU or the way Chrome bundles data.
+  return (IS_UNDEFINED(service) ||
+          HAS_OWN_PROPERTY(getAvailableLocalesOf(service), DEFAULT_ICU_LOCALE))
+         ? DEFAULT_ICU_LOCALE : "und";
 }
 
 /**
@@ -449,7 +449,7 @@ function lookupMatcher(service, requestedLocales) {
         var extensionMatch = %regexp_internal_match(
             GetUnicodeExtensionRE(), requestedLocales[i]);
         var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
-        return {'locale': locale, 'extension': extension, 'position': i};
+        return {locale: locale, extension: extension, position: i};
       }
       // Truncate locale if possible.
       var pos = %StringLastIndexOf(locale, '-');
@@ -461,7 +461,11 @@ function lookupMatcher(service, requestedLocales) {
   }
 
   // Didn't find a match, return default.
-  return {'locale': GetDefaultICULocaleJS(), 'extension': '', 'position': -1};
+  return {
+    locale: GetDefaultICULocaleJS(service),
+    extension: '',
+    position: -1
+  };
 }
 
 

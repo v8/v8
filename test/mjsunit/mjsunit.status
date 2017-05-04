@@ -546,6 +546,7 @@
   # Setting the timezone and locale with environment variables unavailable
   'icu-date-to-string': [SKIP],
   'icu-date-lord-howe': [SKIP],
+  'regress/regress-6288': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
