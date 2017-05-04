@@ -165,7 +165,7 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   asm_wasm_timer.Start();
   wasm::AsmWasmBuilder builder(info);
   size_t asm_wasm_zone_start = info->zone()->allocation_size();
-  if (FLAG_fast_validate_asm) {
+  {
     wasm::AsmJsParser parser(info->isolate(), info->zone(), info->script(),
                              info->literal()->start_position(),
                              info->literal()->end_position());
@@ -201,26 +201,6 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
         static_cast<int>(parser.stdlib_uses()->size()));
     int count = 0;
     for (auto i : *parser.stdlib_uses()) {
-      uses_array->set(count++, Smi::FromInt(i));
-    }
-  } else {
-    auto asm_wasm_result = builder.Run(&foreign_globals);
-    if (!asm_wasm_result.success) {
-      DCHECK(!info->isolate()->has_pending_exception());
-      if (!FLAG_suppress_asm_messages) {
-        MessageHandler::ReportMessage(info->isolate(),
-                                      builder.typer()->message_location(),
-                                      builder.typer()->error_message());
-      }
-      return MaybeHandle<FixedArray>();
-    }
-    module = asm_wasm_result.module_bytes;
-    asm_offsets = asm_wasm_result.asm_offset_table;
-    wasm::AsmTyper::StdlibSet uses = builder.typer()->StdlibUses();
-    uses_array = info->isolate()->factory()->NewFixedArray(
-        static_cast<int>(uses.size()));
-    int count = 0;
-    for (auto i : uses) {
       uses_array->set(count++, Smi::FromInt(i));
     }
   }
@@ -340,37 +320,6 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   }
   DCHECK(!thrower.error());
   Handle<Object> module_object = maybe_module_object.ToHandleChecked();
-
-  if (!FLAG_fast_validate_asm) {
-    Handle<Name> init_name(isolate->factory()->InternalizeUtf8String(
-        wasm::AsmWasmBuilder::foreign_init_name));
-    Handle<Object> init =
-        Object::GetProperty(module_object, init_name).ToHandleChecked();
-
-    Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
-    Handle<Object>* foreign_args_array =
-        new Handle<Object>[foreign_globals->length()];
-    for (int j = 0; j < foreign_globals->length(); j++) {
-      if (!foreign.is_null()) {
-        MaybeHandle<Name> name = Object::ToName(
-            isolate, Handle<Object>(foreign_globals->get(j), isolate));
-        if (!name.is_null()) {
-          MaybeHandle<Object> val =
-              Object::GetProperty(foreign, name.ToHandleChecked());
-          if (!val.is_null()) {
-            foreign_args_array[j] = val.ToHandleChecked();
-            continue;
-          }
-        }
-      }
-      foreign_args_array[j] = undefined;
-    }
-    MaybeHandle<Object> retval =
-        Execution::Call(isolate, init, undefined, foreign_globals->length(),
-                        foreign_args_array);
-    delete[] foreign_args_array;
-    DCHECK(!retval.is_null());
-  }
 
   Handle<Name> single_function_name(isolate->factory()->InternalizeUtf8String(
       wasm::AsmWasmBuilder::single_function_name));

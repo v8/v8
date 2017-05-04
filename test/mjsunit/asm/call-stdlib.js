@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --validate-asm --fast-validate-asm
+// Flags: --allow-natives-syntax --validate-asm
 
 // This file contains test cases that are particularly interesting because they
 // omit the usual call-site coercion of function calls that target well-known

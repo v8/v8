@@ -37,7 +37,6 @@ CONFIGS = dict(
     '--hydrogen-filter=~',
     '--noopt',
     '--validate-asm',
-    '--fast-validate-asm',
     '--stress-validate-asm',
     '--suppress-asm-messages',
   ],
