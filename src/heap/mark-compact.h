@@ -82,6 +82,8 @@ class ObjectMarking : public AllStatic {
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
   V8_INLINE static bool BlackToGrey(HeapObject* obj,
                                     const MarkingState& state) {
+    DCHECK(
+        (access_mode == MarkBit::ATOMIC || IsBlack<access_mode>(obj, state)));
     MarkBit markbit = MarkBitFrom(obj, state);
     if (!Marking::BlackToGrey<access_mode>(markbit)) return false;
     state.IncrementLiveBytes<access_mode>(-obj->Size());
@@ -91,19 +93,24 @@ class ObjectMarking : public AllStatic {
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
   V8_INLINE static bool WhiteToGrey(HeapObject* obj,
                                     const MarkingState& state) {
+    DCHECK(
+        (access_mode == MarkBit::ATOMIC || IsWhite<access_mode>(obj, state)));
     return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj, state));
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
   V8_INLINE static bool WhiteToBlack(HeapObject* obj,
                                      const MarkingState& state) {
-    return ObjectMarking::WhiteToGrey<access_mode>(obj, state) &&
-           ObjectMarking::GreyToBlack<access_mode>(obj, state);
+    DCHECK(
+        (access_mode == MarkBit::ATOMIC || IsWhite<access_mode>(obj, state)));
+    if (!ObjectMarking::WhiteToGrey<access_mode>(obj, state)) return false;
+    return ObjectMarking::GreyToBlack<access_mode>(obj, state);
   }
 
   template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
   V8_INLINE static bool GreyToBlack(HeapObject* obj,
                                     const MarkingState& state) {
+    DCHECK((access_mode == MarkBit::ATOMIC || IsGrey<access_mode>(obj, state)));
     MarkBit markbit = MarkBitFrom(obj, state);
     if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
     state.IncrementLiveBytes<access_mode>(obj->Size());
