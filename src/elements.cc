@@ -3149,8 +3149,8 @@ class TypedElementsAccessor
     // TypedArrays.
     uint8_t* source_data = static_cast<uint8_t*>(source_elements->DataPtr());
     uint8_t* dest_data = static_cast<uint8_t*>(destination_elements->DataPtr());
-    size_t source_byte_length = NumberToSize(source->byte_offset());
-    size_t dest_byte_length = NumberToSize(destination->byte_offset());
+    size_t source_byte_length = NumberToSize(source->byte_length());
+    size_t dest_byte_length = NumberToSize(destination->byte_length());
     CHECK(dest_data + dest_byte_length <= source_data ||
           source_data + source_byte_length <= dest_data);
 
