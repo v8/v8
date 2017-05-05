@@ -1525,9 +1525,6 @@ void HeapObject::set_map_no_write_barrier(Map* value) {
   set_map_word(MapWord::FromMap(value));
 }
 
-HeapObject** HeapObject::map_slot() {
-  return reinterpret_cast<HeapObject**>(FIELD_ADDR(this, kMapOffset));
-}
 
 MapWord HeapObject::map_word() const {
   return MapWord(

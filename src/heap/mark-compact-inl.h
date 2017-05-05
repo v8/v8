@@ -38,15 +38,19 @@ void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
 }
 
 void MarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
           obj, MarkingState::Internal(obj))) {
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+        obj, MarkingState::Internal(obj));
     PushBlack(obj);
   }
 }
 
 void MinorMarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
           obj, MarkingState::External(obj))) {
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+        obj, MarkingState::External(obj));
     PushBlack(obj);
   }
 }
