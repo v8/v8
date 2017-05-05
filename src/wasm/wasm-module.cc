@@ -3191,10 +3191,9 @@ bool LazyCompilationOrchestrator::CompileFunction(
   deopt_data->set(1, Smi::FromInt(func_index));
   code->set_deoptimization_data(*deopt_data);
 
-  if (thrower.error()) {
-    if (!isolate->has_pending_exception()) isolate->Throw(*thrower.Reify());
-    return false;
-  }
+  // If we have a pending error, just return. The ErrorThrower will set the
+  // pending exception in its destructor.
+  if (thrower.error()) return false;
 
   DCHECK_EQ(Builtins::kWasmCompileLazy,
             Code::cast(compiled_module->code_table()->get(func_index))
