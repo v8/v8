@@ -193,6 +193,7 @@
         '../../src/v8.gyp:v8',
         '../../src/v8.gyp:v8_libbase',
         '../../src/v8.gyp:v8_libplatform',
+        '../../src/v8.gyp:v8_maybe_snapshot',
       ],
       'include_dirs': [
         '../..',
