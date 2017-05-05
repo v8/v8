@@ -833,7 +833,8 @@ void AsmJsParser::ValidateFunctionParams(std::vector<AsmType*>* params) {
       info->index = static_cast<uint32_t>(params->size());
       params->push_back(AsmType::Double());
     } else {
-      if (!GetVarInfo(Consume())->type->IsA(stdlib_fround_)) {
+      if (!scanner_.IsGlobal() ||
+          !GetVarInfo(Consume())->type->IsA(stdlib_fround_)) {
         FAIL("Expected fround");
       }
       EXPECT_TOKEN('(');
