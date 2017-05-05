@@ -276,7 +276,7 @@ class AsmJsParser {
   void ValidateModuleParameters();
   void ValidateModuleVars();
   void ValidateModuleVar(bool mutable_variable);
-  bool ValidateModuleVarImport(VarInfo* info, bool mutable_variable);
+  void ValidateModuleVarImport(VarInfo* info, bool mutable_variable);
   void ValidateModuleVarStdlib(VarInfo* info);
   void ValidateModuleVarNewStdlib(VarInfo* info);
   void ValidateModuleVarFromGlobal(VarInfo* info, bool mutable_variable);

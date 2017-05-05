@@ -41,7 +41,6 @@ namespace wasm {
 
 #define FAIL(msg) FAIL_AND_RETURN(, msg)
 #define FAILn(msg) FAIL_AND_RETURN(nullptr, msg)
-#define FAILf(msg) FAIL_AND_RETURN(false, msg)
 
 #define EXPECT_TOKEN_OR_RETURN(ret, token)      \
   do {                                          \
@@ -53,7 +52,6 @@ namespace wasm {
 
 #define EXPECT_TOKEN(token) EXPECT_TOKEN_OR_RETURN(, token)
 #define EXPECT_TOKENn(token) EXPECT_TOKEN_OR_RETURN(nullptr, token)
-#define EXPECT_TOKENf(token) EXPECT_TOKEN_OR_RETURN(false, token)
 
 #define RECURSE_OR_RETURN(ret, call)                                       \
   do {                                                                     \
@@ -67,7 +65,6 @@ namespace wasm {
 
 #define RECURSE(call) RECURSE_OR_RETURN(, call)
 #define RECURSEn(call) RECURSE_OR_RETURN(nullptr, call)
-#define RECURSEf(call) RECURSE_OR_RETURN(false, call)
 
 #define TOK(name) AsmJsScanner::kToken_##name
 
@@ -469,8 +466,8 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
   } else if (Check(stdlib_name_)) {
     EXPECT_TOKEN('.');
     RECURSE(ValidateModuleVarStdlib(info));
-  } else if (ValidateModuleVarImport(info, mutable_variable)) {
-    // Handled inside.
+  } else if (Peek(foreign_name_) || Peek('+')) {
+    RECURSE(ValidateModuleVarImport(info, mutable_variable));
   } else if (scanner_.IsGlobal()) {
     RECURSE(ValidateModuleVarFromGlobal(info, mutable_variable));
   } else {
@@ -527,32 +524,30 @@ void AsmJsParser::ValidateModuleVarFromGlobal(VarInfo* info,
 }
 
 // 6.1 ValidateModule - foreign imports
-bool AsmJsParser::ValidateModuleVarImport(VarInfo* info,
+void AsmJsParser::ValidateModuleVarImport(VarInfo* info,
                                           bool mutable_variable) {
   if (Check('+')) {
-    EXPECT_TOKENf(foreign_name_);
-    EXPECT_TOKENf('.');
+    EXPECT_TOKEN(foreign_name_);
+    EXPECT_TOKEN('.');
     Vector<const char> name = CopyCurrentIdentifierString();
     AddGlobalImport(name, AsmType::Double(), kWasmF64, mutable_variable, info);
     scanner_.Next();
-    return true;
-  } else if (Check(foreign_name_)) {
-    EXPECT_TOKENf('.');
+  } else {
+    EXPECT_TOKEN(foreign_name_);
+    EXPECT_TOKEN('.');
     Vector<const char> name = CopyCurrentIdentifierString();
     scanner_.Next();
     if (Check('|')) {
       if (!CheckForZero()) {
-        FAILf("Expected |0 type annotation for foreign integer import");
+        FAIL("Expected |0 type annotation for foreign integer import");
       }
       AddGlobalImport(name, AsmType::Int(), kWasmI32, mutable_variable, info);
-      return true;
+    } else {
+      info->kind = VarKind::kImportedFunction;
+      info->import = new (zone()->New(sizeof(FunctionImportInfo)))
+          FunctionImportInfo({name, WasmModuleBuilder::SignatureMap(zone())});
     }
-    info->kind = VarKind::kImportedFunction;
-    info->import = new (zone()->New(sizeof(FunctionImportInfo)))
-        FunctionImportInfo({name, WasmModuleBuilder::SignatureMap(zone())});
-    return true;
   }
-  return false;
 }
 
 // 6.1 ValidateModule - one variable
