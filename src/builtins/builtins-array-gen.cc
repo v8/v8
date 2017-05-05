@@ -730,6 +730,103 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   Label fully_spec_compliant_;
 };
 
+TF_BUILTIN(FastArrayPop, CodeStubAssembler) {
+  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  CSA_ASSERT(this, WordEqual(Parameter(BuiltinDescriptor::kNewTarget),
+                             UndefinedConstant()));
+
+  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  Node* receiver = args.GetReceiver();
+
+  Label runtime(this, Label::kDeferred);
+  Label fast(this);
+
+  // Only pop in this stub if
+  // 1) the array has fast elements
+  // 2) the length is writable,
+  // 3) the elements backing store isn't copy-on-write,
+  // 4) we aren't supposed to shrink the backing store.
+
+  // 1) Check that the array has fast elements.
+  BranchIfFastJSArray(receiver, context, FastJSArrayAccessMode::INBOUNDS_READ,
+                      &fast, &runtime);
+
+  BIND(&fast);
+  {
+    CSA_ASSERT(this, TaggedIsPositiveSmi(
+                         LoadObjectField(receiver, JSArray::kLengthOffset)));
+    Node* length = LoadAndUntagObjectField(receiver, JSArray::kLengthOffset);
+    Label return_undefined(this), fast_elements(this);
+    GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
+
+    // 2) Ensure that the lenght is writable.
+    EnsureArrayLengthWritable(LoadMap(receiver), &runtime);
+
+    // 3) Check that the elements backing store isn't copy-on-write.
+    Node* elements = LoadElements(receiver);
+    GotoIf(WordEqual(LoadMap(elements),
+                     LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
+           &runtime);
+
+    Node* new_length = IntPtrSub(length, IntPtrConstant(1));
+
+    // 4) Check that we're not supposed to shrink the backing store.
+    Node* capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
+    GotoIf(IntPtrLessThan(IntPtrAdd(new_length, new_length), capacity),
+           &runtime);
+
+    StoreObjectFieldNoWriteBarrier(receiver, JSArray::kLengthOffset,
+                                   SmiTag(new_length));
+
+    Node* elements_kind = LoadMapElementsKind(LoadMap(receiver));
+    GotoIf(Int32LessThanOrEqual(elements_kind,
+                                Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
+           &fast_elements);
+
+    Node* value = LoadFixedDoubleArrayElement(
+        elements, new_length, MachineType::Float64(), 0, INTPTR_PARAMETERS,
+        &return_undefined);
+
+    int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
+    Node* offset = ElementOffsetFromIndex(
+        new_length, FAST_HOLEY_DOUBLE_ELEMENTS, INTPTR_PARAMETERS, header_size);
+    if (Is64()) {
+      Node* double_hole = Int64Constant(kHoleNanInt64);
+      StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
+                          double_hole);
+    } else {
+      STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
+      Node* double_hole = Int32Constant(kHoleNanLower32);
+      StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
+                          double_hole);
+      StoreNoWriteBarrier(MachineRepresentation::kWord32, elements,
+                          IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
+                          double_hole);
+    }
+    args.PopAndReturn(AllocateHeapNumberWithValue(value));
+
+    Bind(&fast_elements);
+    {
+      Node* value = LoadFixedArrayElement(elements, new_length);
+      StoreFixedArrayElement(elements, new_length, TheHoleConstant());
+      GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
+      args.PopAndReturn(value);
+    }
+
+    BIND(&return_undefined);
+    { args.PopAndReturn(UndefinedConstant()); }
+  }
+
+  BIND(&runtime);
+  {
+    Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                                 MachineType::TaggedPointer());
+    TailCallStub(CodeFactory::ArrayPop(isolate()), context, target,
+                 UndefinedConstant(), argc);
+  }
+}
+
 TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   VARIABLE(arg_index, MachineType::PointerRepresentation());
   Label default_label(this, &arg_index);
@@ -744,7 +841,8 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   // arguments are reordered.
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  CSA_ASSERT(this, WordEqual(Parameter(BuiltinDescriptor::kNewTarget),
+                             UndefinedConstant()));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
   Node* receiver = args.GetReceiver();
@@ -854,8 +952,8 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   {
     Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                  MachineType::TaggedPointer());
-    TailCallStub(CodeFactory::ArrayPush(isolate()), context, target, new_target,
-                 argc);
+    TailCallStub(CodeFactory::ArrayPush(isolate()), context, target,
+                 UndefinedConstant(), argc);
   }
 }
 

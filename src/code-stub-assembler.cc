@@ -1544,6 +1544,16 @@ Node* CodeStubAssembler::StoreFixedDoubleArrayElement(
   return StoreNoWriteBarrier(rep, object, offset, value);
 }
 
+void CodeStubAssembler::EnsureArrayLengthWritable(Node* map, Label* bailout) {
+  // Check whether the length property is writable. The length property is the
+  // only default named property on arrays. It's nonconfigurable, hence is
+  // guaranteed to stay the first property.
+  Node* descriptors = LoadMapDescriptors(map);
+  Node* details =
+      LoadFixedArrayElement(descriptors, DescriptorArray::ToDetailsIndex(0));
+  GotoIf(IsSetSmi(details, PropertyDetails::kAttributesReadOnlyMask), bailout);
+}
+
 Node* CodeStubAssembler::EnsureArrayPushable(Node* receiver, Label* bailout) {
   // Disallow pushing onto prototypes. It might be the JSArray prototype.
   // Disallow pushing onto non-extensible objects.
@@ -1560,13 +1570,7 @@ Node* CodeStubAssembler::EnsureArrayPushable(Node* receiver, Label* bailout) {
   Comment("Disallow pushing onto arrays in dictionary named property mode");
   GotoIf(IsDictionaryMap(map), bailout);
 
-  // Check whether the length property is writable. The length property is the
-  // only default named property on arrays. It's nonconfigurable, hence is
-  // guaranteed to stay the first property.
-  Node* descriptors = LoadMapDescriptors(map);
-  Node* details =
-      LoadFixedArrayElement(descriptors, DescriptorArray::ToDetailsIndex(0));
-  GotoIf(IsSetSmi(details, PropertyDetails::kAttributesReadOnlyMask), bailout);
+  EnsureArrayLengthWritable(map, bailout);
 
   Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
   return kind;

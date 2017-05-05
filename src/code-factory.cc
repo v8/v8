@@ -500,6 +500,11 @@ Callable CodeFactory::ArrayConstructor(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::ArrayPop(Isolate* isolate) {
+  return Callable(isolate->builtins()->ArrayPop(), BuiltinDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::ArrayPush(Isolate* isolate) {
   return Callable(isolate->builtins()->ArrayPush(), BuiltinDescriptor(isolate));
 }

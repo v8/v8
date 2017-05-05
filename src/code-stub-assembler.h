@@ -509,6 +509,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Node* object, Node* index, Node* value,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
+  void EnsureArrayLengthWritable(Node* map, Label* bailout);
+
   // EnsureArrayPushable verifies that receiver is:
   //   1. Is not a prototype.
   //   2. Is not a dictionary.

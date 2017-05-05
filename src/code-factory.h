@@ -182,6 +182,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
 
   static Callable ArrayConstructor(Isolate* isolate);
+  static Callable ArrayPop(Isolate* isolate);
   static Callable ArrayPush(Isolate* isolate);
   static Callable FunctionPrototypeBind(Isolate* isolate);
   static Callable PromiseHandleReject(Isolate* isolate);
