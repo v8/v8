@@ -420,6 +420,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Load length field of a String object.
   Node* LoadStringLength(Node* object);
+  // Loads a pointer to the sequential String char array.
+  Node* PointerToSeqStringData(Node* seq_string);
   // Load value field of a JSValue object.
   Node* LoadJSValueValue(Node* object);
   // Load value field of a WeakCell object.
@@ -742,6 +744,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsShortExternalStringInstanceType(Node* instance_type);
   Node* IsSequentialStringInstanceType(Node* instance_type);
   Node* IsConsStringInstanceType(Node* instance_type);
+  Node* IsIndirectStringInstanceType(Node* instance_type);
   Node* IsString(Node* object);
   Node* IsJSObject(Node* object);
   Node* IsJSGlobalProxy(Node* object);
@@ -1531,19 +1534,28 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   enum StringPointerKind { PTR_TO_DATA, PTR_TO_STRING };
 
  public:
-  explicit ToDirectStringAssembler(compiler::CodeAssemblerState* state,
-                                   Node* string);
+  enum Flag {
+    kDontUnpackSlicedStrings = 1 << 0,
+  };
+  typedef base::Flags<Flag> Flags;
+
+  ToDirectStringAssembler(compiler::CodeAssemblerState* state, Node* string,
+                          Flags flags = Flags());
 
   // Converts flat cons, thin, and sliced strings and returns the direct
   // string. The result can be either a sequential or external string.
+  // Jumps to if_bailout if the string if the string is indirect and cannot
+  // be unpacked.
   Node* TryToDirect(Label* if_bailout);
 
   // Returns a pointer to the beginning of the string data.
+  // Jumps to if_bailout if the external string cannot be unpacked.
   Node* PointerToData(Label* if_bailout) {
     return TryToSequential(PTR_TO_DATA, if_bailout);
   }
 
   // Returns a pointer that, offset-wise, looks like a String.
+  // Jumps to if_bailout if the external string cannot be unpacked.
   Node* PointerToString(Label* if_bailout) {
     return TryToSequential(PTR_TO_STRING, if_bailout);
   }
@@ -1560,6 +1572,8 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   Variable var_instance_type_;
   Variable var_offset_;
   Variable var_is_external_;
+
+  const Flags flags_;
 };
 
 #ifdef DEBUG

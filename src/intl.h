@@ -30,6 +30,11 @@ MUST_USE_RESULT Object* ConvertToUpper(Handle<String> s, Isolate* isolate);
 MUST_USE_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
                                     Isolate* isolate);
 
+MUST_USE_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
+                                              Isolate* isolate);
+
+const uint8_t* ToLatin1LowerTable();
+
 // ICUTimezoneCache calls out to ICU for TimezoneCache
 // functionality in a straightforward way.
 class ICUTimezoneCache : public base::TimezoneCache {

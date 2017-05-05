@@ -1238,6 +1238,16 @@ Node* CodeStubAssembler::LoadStringLength(Node* object) {
   return LoadObjectField(object, String::kLengthOffset);
 }
 
+Node* CodeStubAssembler::PointerToSeqStringData(Node* seq_string) {
+  CSA_ASSERT(this, IsString(seq_string));
+  CSA_ASSERT(this,
+             IsSequentialStringInstanceType(LoadInstanceType(seq_string)));
+  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  return IntPtrAdd(
+      BitcastTaggedToWord(seq_string),
+      IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+}
+
 Node* CodeStubAssembler::LoadJSValueValue(Node* object) {
   CSA_ASSERT(this, IsJSValue(object));
   return LoadObjectField(object, JSValue::kValueOffset);
@@ -3137,6 +3147,13 @@ Node* CodeStubAssembler::IsConsStringInstanceType(Node* instance_type) {
       Int32Constant(kConsStringTag));
 }
 
+Node* CodeStubAssembler::IsIndirectStringInstanceType(Node* instance_type) {
+  CSA_ASSERT(this, IsStringInstanceType(instance_type));
+  STATIC_ASSERT(kIsIndirectStringMask == 0x1);
+  STATIC_ASSERT(kIsIndirectStringTag == 0x1);
+  return Word32And(instance_type, Int32Constant(kIsIndirectStringMask));
+}
+
 Node* CodeStubAssembler::IsExternalStringInstanceType(Node* instance_type) {
   CSA_ASSERT(this, IsStringInstanceType(instance_type));
   return Word32Equal(
@@ -3660,12 +3677,13 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
 }
 
 ToDirectStringAssembler::ToDirectStringAssembler(
-    compiler::CodeAssemblerState* state, Node* string)
+    compiler::CodeAssemblerState* state, Node* string, Flags flags)
     : CodeStubAssembler(state),
       var_string_(this, MachineRepresentation::kTagged, string),
       var_instance_type_(this, MachineRepresentation::kWord32),
       var_offset_(this, MachineType::PointerRepresentation()),
-      var_is_external_(this, MachineRepresentation::kWord32) {
+      var_is_external_(this, MachineRepresentation::kWord32),
+      flags_(flags) {
   CSA_ASSERT(this, TaggedIsNotSmi(string));
   CSA_ASSERT(this, IsString(string));
 
@@ -3722,16 +3740,20 @@ Node* ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   // Sliced string. Fetch parent and correct start index by offset.
   BIND(&if_issliced);
   {
-    Node* const string = var_string_.value();
-    Node* const sliced_offset =
-        LoadAndUntagObjectField(string, SlicedString::kOffsetOffset);
-    var_offset_.Bind(IntPtrAdd(var_offset_.value(), sliced_offset));
+    if (flags_ & kDontUnpackSlicedStrings) {
+      Goto(if_bailout);
+    } else {
+      Node* const string = var_string_.value();
+      Node* const sliced_offset =
+          LoadAndUntagObjectField(string, SlicedString::kOffsetOffset);
+      var_offset_.Bind(IntPtrAdd(var_offset_.value(), sliced_offset));
 
-    Node* const parent = LoadObjectField(string, SlicedString::kParentOffset);
-    var_string_.Bind(parent);
-    var_instance_type_.Bind(LoadInstanceType(parent));
+      Node* const parent = LoadObjectField(string, SlicedString::kParentOffset);
+      var_string_.Bind(parent);
+      var_instance_type_.Bind(LoadInstanceType(parent));
 
-    Goto(&dispatch);
+      Goto(&dispatch);
+    }
   }
 
   // Thin string. Fetch the actual string.

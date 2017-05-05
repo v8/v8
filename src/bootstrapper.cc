@@ -4084,7 +4084,7 @@ void Genesis::InitializeGlobal_icu_case_mapping() {
     SetFunction(string_prototype,
                 SimpleCreateFunction(isolate(), name,
                                      Builtins::kStringPrototypeToLowerCaseIntl,
-                                     0, false),
+                                     0, true),
                 name);
   }
   {

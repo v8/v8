@@ -250,6 +250,12 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "libc_memset");
   Add(ExternalReference::try_internalize_string_function(isolate).address(),
       "try_internalize_string_function");
+#ifdef V8_INTL_SUPPORT
+  Add(ExternalReference::intl_convert_one_byte_to_lower(isolate).address(),
+      "intl_convert_one_byte_to_lower");
+  Add(ExternalReference::intl_to_latin1_lower_table(isolate).address(),
+      "intl_to_latin1_lower_table");
+#endif  // V8_INTL_SUPPORT
   Add(ExternalReference::search_string_raw<const uint8_t, const uint8_t>(
           isolate)
           .address(),

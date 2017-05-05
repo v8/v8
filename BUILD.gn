@@ -919,6 +919,7 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-ic-gen.cc",
     "src/builtins/builtins-internal-gen.cc",
     "src/builtins/builtins-interpreter-gen.cc",
+    "src/builtins/builtins-intl-gen.cc",
     "src/builtins/builtins-math-gen.cc",
     "src/builtins/builtins-number-gen.cc",
     "src/builtins/builtins-object-gen.cc",
@@ -994,6 +995,10 @@ v8_source_set("v8_builtins_generators") {
       ### gcmole(arch:x87) ###
       "src/builtins/x87/builtins-x87.cc",
     ]
+  }
+
+  if (!v8_enable_i18n_support) {
+    sources -= [ "src/builtins/builtins-intl-gen.cc" ]
   }
 
   configs = [ ":internal_config" ]

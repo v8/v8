@@ -16,13 +16,6 @@
 namespace v8 {
 namespace internal {
 
-BUILTIN(StringPrototypeToLowerCaseIntl) {
-  HandleScope scope(isolate);
-  TO_THIS_STRING(string, "String.prototype.toLowerCase");
-  string = String::Flatten(string);
-  return ConvertCase(string, false, isolate);
-}
-
 BUILTIN(StringPrototypeToUpperCaseIntl) {
   HandleScope scope(isolate);
   TO_THIS_STRING(string, "String.prototype.toUpperCase");

@@ -141,6 +141,8 @@ inline int FindFirstUpperOrNonAscii(Handle<String> s, int length) {
 
 }  // namespace
 
+const uint8_t* ToLatin1LowerTable() { return &kToLower[0]; }
+
 const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
                                     std::unique_ptr<uc16[]>* dest,
                                     int32_t length) {
@@ -201,6 +203,41 @@ MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
   return *s;
 }
 
+// A stripped-down version of ConvertToLower that can only handle flat one-byte
+// strings and does not allocate.
+// Called from TF builtins.
+MUST_USE_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
+                                              Isolate* isolate) {
+  DCHECK_EQ(src->length(), dst->length());
+  DCHECK(src->IsOneByteRepresentation());
+  DCHECK(src->IsFlat());
+  DCHECK(dst->IsSeqOneByteString());
+
+  DisallowHeapAllocation no_gc;
+
+  const int length = src->length();
+
+  const uint8_t* src_data = src->GetFlatContent().ToOneByteVector().start();
+  uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars();
+
+  bool has_changed_character = false;
+  int index_to_first_unprocessed = FastAsciiConvert<true>(
+      reinterpret_cast<char*>(dst_data),
+      reinterpret_cast<const char*>(src_data), length, &has_changed_character);
+
+  if (index_to_first_unprocessed == length) {
+    return has_changed_character ? dst : src;
+  }
+
+  // If not ASCII, we keep the result up to index_to_first_unprocessed and
+  // process the rest.
+  for (int index = index_to_first_unprocessed; index < length; ++index) {
+    dst_data[index] = ToLatin1Lower(static_cast<uint16_t>(src_data[index]));
+  }
+
+  return dst;
+}
+
 MUST_USE_RESULT Object* ConvertToLower(Handle<String> s, Isolate* isolate) {
   if (!s->HasOnlyOneByteChars()) {
     // Use a slower implementation for strings with characters beyond U+00FF.
@@ -230,36 +267,27 @@ MUST_USE_RESULT Object* ConvertToLower(Handle<String> s, Isolate* isolate) {
   Handle<SeqOneByteString> result =
       isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 
+  if (s->IsOneByteRepresentation()) {
+    return ConvertOneByteToLower(*s, *result, isolate);
+  }
+
   DisallowHeapAllocation no_gc;
   DCHECK(s->IsFlat());
+  DCHECK(s->IsTwoByteRepresentation());
   String::FlatContent flat = s->GetFlatContent();
-  uint8_t* dest = result->GetChars();
-  if (flat.IsOneByte()) {
-    const uint8_t* src = flat.ToOneByteVector().start();
-    bool has_changed_character = false;
-    index_to_first_unprocessed = FastAsciiConvert<true>(
-        reinterpret_cast<char*>(dest), reinterpret_cast<const char*>(src),
-        length, &has_changed_character);
-    // If not ASCII, we keep the result up to index_to_first_unprocessed and
-    // process the rest.
-    if (index_to_first_unprocessed == length)
-      return has_changed_character ? *result : *s;
+  DCHECK(flat.IsTwoByte());
 
-    for (int index = index_to_first_unprocessed; index < length; ++index) {
-      dest[index] = ToLatin1Lower(static_cast<uint16_t>(src[index]));
-    }
-  } else {
-    if (index_to_first_unprocessed == length) {
-      DCHECK(!is_short);
-      index_to_first_unprocessed = FindFirstUpperOrNonAscii(s, length);
-    }
-    // Nothing to do if the string is all ASCII with no uppercase.
-    if (index_to_first_unprocessed == length) return *s;
-    const uint16_t* src = flat.ToUC16Vector().start();
-    CopyChars(dest, src, index_to_first_unprocessed);
-    for (int index = index_to_first_unprocessed; index < length; ++index) {
-      dest[index] = ToLatin1Lower(static_cast<uint16_t>(src[index]));
-    }
+  uint8_t* dest = result->GetChars();
+  if (index_to_first_unprocessed == length) {
+    DCHECK(!is_short);
+    index_to_first_unprocessed = FindFirstUpperOrNonAscii(s, length);
+  }
+  // Nothing to do if the string is all ASCII with no uppercase.
+  if (index_to_first_unprocessed == length) return *s;
+  const uint16_t* src = flat.ToUC16Vector().start();
+  CopyChars(dest, src, index_to_first_unprocessed);
+  for (int index = index_to_first_unprocessed; index < length; ++index) {
+    dest[index] = ToLatin1Lower(static_cast<uint16_t>(src[index]));
   }
 
   return *result;

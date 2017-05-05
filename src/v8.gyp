@@ -528,6 +528,7 @@
         'builtins/builtins-string.cc',
         'builtins/builtins-string-gen.cc',
         'builtins/builtins-intl.cc',
+        'builtins/builtins-intl-gen.cc',
         'builtins/builtins-symbol.cc',
         'builtins/builtins-symbol-gen.cc',
         'builtins/builtins-typedarray.cc',
@@ -1836,6 +1837,7 @@
         }, {  # v8_enable_i18n_support==0
           'sources!': [
             'builtins/builtins-intl.cc',
+            'builtins/builtins-intl-gen.cc',
             'intl.cc',
             'intl.h',
             'objects/intl-objects.cc',
