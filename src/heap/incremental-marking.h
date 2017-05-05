@@ -65,9 +65,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     return MarkingState::Internal(chunk);
   }
 
-  void MarkBlack(HeapObject* object, int size);
-  void MarkGrey(HeapObject* object);
-
   // Transfers mark bits without requiring proper object headers.
   void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
 
@@ -82,9 +79,15 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
     DCHECK(ObjectMarking::IsWhite<access_mode>(to, marking_state(to)));
     if (ObjectMarking::IsGrey<access_mode>(from, marking_state(from))) {
-      ObjectMarking::WhiteToGrey<access_mode>(to, marking_state(to));
+      bool success =
+          ObjectMarking::WhiteToGrey<access_mode>(to, marking_state(to));
+      DCHECK(success);
+      USE(success);
     } else if (ObjectMarking::IsBlack<access_mode>(from, marking_state(from))) {
-      ObjectMarking::WhiteToBlack<access_mode>(to, marking_state(to));
+      bool success =
+          ObjectMarking::WhiteToBlack<access_mode>(to, marking_state(to));
+      DCHECK(success);
+      USE(success);
     }
   }
 
@@ -210,7 +213,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);
 
-  void WhiteToGreyAndPush(HeapObject* obj);
+  // Returns true if the function succeeds in transitioning the object
+  // from white to grey.
+  bool WhiteToGreyAndPush(HeapObject* obj);
 
   inline void SetOldSpacePageFlags(MemoryChunk* chunk) {
     SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());
