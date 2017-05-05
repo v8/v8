@@ -81,10 +81,13 @@
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
 
   # BUG(v8:5193): Flaky.
+  'test-cpu-profiler/CollectDeoptEvents': [SKIP],
   'test-cpu-profiler/FunctionApplySample': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
+  'test-sampler/LibSamplerCollectSample': [SKIP],
 
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
