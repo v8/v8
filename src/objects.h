@@ -1669,6 +1669,9 @@ class HeapObject: public Object {
   // information.
   inline Map* map() const;
   inline void set_map(Map* value);
+
+  inline HeapObject** map_slot();
+
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps
   // of primitive (non-JS) objects like strings, heap numbers etc.
