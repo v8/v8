@@ -748,7 +748,8 @@ Node* InterpreterAssembler::CallJS(Node* function, Node* context,
                                    ConvertReceiverMode receiver_mode,
                                    TailCallMode tail_call_mode) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
-  DCHECK(Bytecodes::IsCallOrConstruct(bytecode_));
+  DCHECK(Bytecodes::IsCallOrConstruct(bytecode_) ||
+         bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), receiver_mode, tail_call_mode,

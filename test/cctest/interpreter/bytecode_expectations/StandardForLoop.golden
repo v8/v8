@@ -285,7 +285,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 357
+bytecode array length: 356
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -295,7 +295,7 @@ bytecodes: [
                 B(Star), R(4),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(4),
-                B(JumpIfTrue), U8(54),
+                B(JumpIfTrue), U8(53),
                 B(LdaSmi), I8(79),
                 B(Star), R(6),
                 B(CallRuntime), U16(Runtime::kAbort), R(6), U8(1),
@@ -310,7 +310,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(10),
                 B(Mov), R(closure), R(9),
-  /*   11 E> */ B(CallRuntime), U16(Runtime::kCreateJSGeneratorObject), R(9), U8(2),
+  /*   11 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(9), U8(2),
                 B(StaCurrentContextSlot), U8(5),
                 B(Star), R(9),
                 B(LdaImmutableCurrentContextSlot), U8(5),
@@ -459,7 +459,7 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [45, 299, 305],
+  [45, 298, 304],
 ]
 
 ---
@@ -471,7 +471,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 484
+bytecode array length: 483
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(33),
@@ -481,10 +481,10 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(60),
+                B(JumpIfTrue), U8(59),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(129),
+                B(JumpIfTrue), U8(128),
                 B(LdaSmi), I8(79),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kAbort), R(5), U8(1),
@@ -499,7 +499,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(9),
                 B(Mov), R(closure), R(8),
-  /*   11 E> */ B(CallRuntime), U16(Runtime::kCreateJSGeneratorObject), R(8), U8(2),
+  /*   11 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(8), U8(2),
                 B(StaCurrentContextSlot), U8(5),
                 B(Star), R(8),
                 B(LdaImmutableCurrentContextSlot), U8(5),
@@ -702,7 +702,7 @@ constant pool: [
   Smi [305],
 ]
 handlers: [
-  [51, 417, 423],
+  [51, 416, 422],
 ]
 
 ---
@@ -714,7 +714,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 361
+bytecode array length: 360
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(22),
@@ -735,7 +735,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(7),
                 B(Mov), R(closure), R(6),
-                B(CallRuntime), U16(Runtime::kCreateJSGeneratorObject), R(6), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(6), U8(2),
                 B(StaCurrentContextSlot), U8(5),
                 B(LdaUndefined),
                 B(Star), R(6),
@@ -892,8 +892,8 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [63, 301, 307],
-  [66, 247, 249],
+  [62, 300, 306],
+  [65, 246, 248],
 ]
 
 ---
@@ -905,7 +905,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 515
+bytecode array length: 514
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -915,7 +915,7 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(77),
+                B(JumpIfTrue), U8(76),
                 B(LdaSmi), I8(79),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kAbort), R(5), U8(1),
@@ -929,7 +929,7 @@ bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(6),
                 B(Mov), R(closure), R(5),
-                B(CallRuntime), U16(Runtime::kCreateJSGeneratorObject), R(5), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(5), U8(2),
                 B(StaCurrentContextSlot), U8(5),
                 B(LdaUndefined),
                 B(Star), R(5),
@@ -1148,7 +1148,7 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [68, 446, 452],
-  [71, 392, 394],
+  [67, 445, 451],
+  [70, 391, 393],
 ]
 

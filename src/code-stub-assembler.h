@@ -1271,6 +1271,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Create a new AllocationSite and install it into a feedback vector.
   Node* CreateAllocationSiteInFeedbackVector(Node* feedback_vector, Node* slot);
 
+  // Given a recently allocated object {object}, with map {initial_map},
+  // initialize remaining fields appropriately to comply with slack tracking.
+  void HandleSlackTracking(Node* context, Node* object, Node* initial_map,
+                           int start_offset);
+
   enum class IndexAdvanceMode { kPre, kPost };
 
   typedef std::function<void(Node* index)> FastLoopBody;

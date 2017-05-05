@@ -6639,6 +6639,81 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
   return cell;
 }
 
+void CodeStubAssembler::HandleSlackTracking(Node* context, Node* object,
+                                            Node* initial_map,
+                                            int start_offset) {
+  Node* instance_size_words = ChangeUint32ToWord(LoadObjectField(
+      initial_map, Map::kInstanceSizeOffset, MachineType::Uint8()));
+  Node* instance_size =
+      WordShl(instance_size_words, IntPtrConstant(kPointerSizeLog2));
+
+  // Perform in-object slack tracking if requested.
+  Node* bit_field3 = LoadMapBitField3(initial_map);
+  Label end(this), slack_tracking(this), finalize(this, Label::kDeferred);
+  GotoIf(IsSetWord32<Map::ConstructionCounter>(bit_field3), &slack_tracking);
+
+  // Initialize remaining fields.
+  {
+    Comment("no slack tracking");
+    InitializeFieldsWithRoot(object, IntPtrConstant(start_offset),
+                             instance_size, Heap::kUndefinedValueRootIndex);
+    Goto(&end);
+  }
+
+  {
+    BIND(&slack_tracking);
+
+    // Decrease generous allocation count.
+    STATIC_ASSERT(Map::ConstructionCounter::kNext == 32);
+    Comment("update allocation count");
+    Node* new_bit_field3 = Int32Sub(
+        bit_field3, Int32Constant(1 << Map::ConstructionCounter::kShift));
+    StoreObjectFieldNoWriteBarrier(initial_map, Map::kBitField3Offset,
+                                   new_bit_field3,
+                                   MachineRepresentation::kWord32);
+    GotoIf(IsClearWord32<Map::ConstructionCounter>(new_bit_field3), &finalize);
+
+    Node* unused_fields = LoadObjectField(
+        initial_map, Map::kUnusedPropertyFieldsOffset, MachineType::Uint8());
+    Node* used_size =
+        IntPtrSub(instance_size, WordShl(ChangeUint32ToWord(unused_fields),
+                                         IntPtrConstant(kPointerSizeLog2)));
+
+    Comment("initialize filler fields (no finalize)");
+    InitializeFieldsWithRoot(object, used_size, instance_size,
+                             Heap::kOnePointerFillerMapRootIndex);
+
+    Comment("initialize undefined fields (no finalize)");
+    InitializeFieldsWithRoot(object, IntPtrConstant(start_offset), used_size,
+                             Heap::kUndefinedValueRootIndex);
+    Goto(&end);
+  }
+
+  {
+    // Finalize the instance size.
+    BIND(&finalize);
+
+    Node* unused_fields = LoadObjectField(
+        initial_map, Map::kUnusedPropertyFieldsOffset, MachineType::Uint8());
+    Node* used_size =
+        IntPtrSub(instance_size, WordShl(ChangeUint32ToWord(unused_fields),
+                                         IntPtrConstant(kPointerSizeLog2)));
+
+    Comment("initialize filler fields (finalize)");
+    InitializeFieldsWithRoot(object, used_size, instance_size,
+                             Heap::kOnePointerFillerMapRootIndex);
+
+    Comment("initialize undefined fields (finalize)");
+    InitializeFieldsWithRoot(object, IntPtrConstant(start_offset), used_size,
+                             Heap::kUndefinedValueRootIndex);
+
+    CallRuntime(Runtime::kFinalizeInstanceSize, context, initial_map);
+    Goto(&end);
+  }
+
+  BIND(&end);
+}
+
 Node* CodeStubAssembler::BuildFastLoop(
     const CodeStubAssembler::VariableList& vars, Node* start_index,
     Node* end_index, const FastLoopBody& body, int increment,

@@ -3145,15 +3145,15 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
 }
 
 Assignment* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
-  // .generator = %CreateJSGeneratorObject(...);
+  // .generator = %_CreateJSGeneratorObject(...);
   DCHECK_NOT_NULL(function_state_->generator_object_variable());
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
   args->Add(factory()->NewThisFunction(pos), zone());
   args->Add(IsArrowFunction(kind) ? GetLiteralUndefined(pos)
                                   : ThisExpression(kNoSourcePosition),
             zone());
-  Expression* allocation =
-      factory()->NewCallRuntime(Runtime::kCreateJSGeneratorObject, args, pos);
+  Expression* allocation = factory()->NewCallRuntime(
+      Runtime::kInlineCreateJSGeneratorObject, args, pos);
   VariableProxy* proxy =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
   return factory()->NewAssignment(Token::INIT, proxy, allocation,

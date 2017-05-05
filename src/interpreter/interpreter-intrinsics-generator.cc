@@ -369,6 +369,12 @@ Node* IntrinsicsGenerator::AsyncGeneratorGetAwaitInputOrDebugPos(
   return value;
 }
 
+Node* IntrinsicsGenerator::CreateJSGeneratorObject(Node* input, Node* arg_count,
+                                                   Node* context) {
+  return IntrinsicAsBuiltinCall(input, context,
+                                Builtins::kCreateGeneratorObject);
+}
+
 Node* IntrinsicsGenerator::AsyncGeneratorReject(Node* input, Node* arg_count,
                                                 Node* context) {
   return IntrinsicAsBuiltinCall(input, context,

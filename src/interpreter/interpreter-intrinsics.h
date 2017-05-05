@@ -18,6 +18,7 @@ namespace interpreter {
     async_generator_get_await_input_or_debug_pos, 1)                 \
   V(AsyncGeneratorReject, async_generator_reject, 2)                 \
   V(AsyncGeneratorResolve, async_generator_resolve, 3)               \
+  V(CreateJSGeneratorObject, create_js_generator_object, 2)          \
   V(Call, call, -1)                                                  \
   V(ClassOf, class_of, 1)                                            \
   V(CreateIterResultObject, create_iter_result_object, 2)            \

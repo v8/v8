@@ -640,7 +640,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
            bytecode == Bytecode::kConstruct ||
            bytecode == Bytecode::kCallWithSpread ||
            bytecode == Bytecode::kConstructWithSpread ||
-           bytecode == Bytecode::kInvokeIntrinsic ||
            bytecode == Bytecode::kCallJSRuntime;
   }
 
@@ -752,7 +751,8 @@ class V8_EXPORT_PRIVATE Bytecodes final {
 
   // Returns the receiver mode of the given call bytecode.
   static ConvertReceiverMode GetReceiverMode(Bytecode bytecode) {
-    DCHECK(IsCallOrConstruct(bytecode));
+    DCHECK(IsCallOrConstruct(bytecode) ||
+           bytecode == Bytecode::kInvokeIntrinsic);
     switch (bytecode) {
       case Bytecode::kCallProperty:
       case Bytecode::kCallProperty0:
