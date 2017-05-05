@@ -168,7 +168,8 @@ class VirtualObject : public ZoneObject {
   bool IsCreatedPhi(size_t offset) { return phi_[offset]; }
 
   void SetField(size_t offset, Node* node, bool created_phi = false) {
-    TRACE("    VirtualObject(%p)[%zu] changes from #%i to #%i\n", this, offset,
+    TRACE("    VirtualObject(%p)[%zu] changes from #%i to #%i\n",
+          static_cast<void*>(this), offset,
           fields_[offset] ? fields_[offset]->id() : -1, node ? node->id() : -1);
     fields_[offset] = node;
     phi_[offset] = created_phi;
@@ -236,7 +237,8 @@ class VirtualObject : public ZoneObject {
 DEFINE_OPERATORS_FOR_FLAGS(VirtualObject::StatusFlags)
 
 bool VirtualObject::UpdateFrom(const VirtualObject& other) {
-  TRACE("%p.UpdateFrom(%p)\n", this, &other);
+  TRACE("%p.UpdateFrom(%p)\n", static_cast<void*>(this),
+        static_cast<const void*>(&other));
   bool changed = status_ != other.status_;
   status_ = other.status_;
   phi_ = other.phi_;
@@ -1253,9 +1255,10 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
   DCHECK_NOT_NULL(virtual_states_[effect->id()]);
   if (virtual_states_[node->id()]) {
     TRACE("Updating virtual state %p at %s#%d from virtual state %p at %s#%d\n",
-          virtual_states_[node->id()], node->op()->mnemonic(), node->id(),
-          virtual_states_[effect->id()], effect->op()->mnemonic(),
-          effect->id());
+          static_cast<void*>(virtual_states_[node->id()]),
+          node->op()->mnemonic(), node->id(),
+          static_cast<void*>(virtual_states_[effect->id()]),
+          effect->op()->mnemonic(), effect->id());
     virtual_states_[node->id()]->UpdateFrom(virtual_states_[effect->id()],
                                             zone());
   } else {
