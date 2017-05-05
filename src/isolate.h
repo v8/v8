@@ -1291,11 +1291,6 @@ class Isolate {
   // reset to nullptr.
   void UnregisterFromReleaseAtTeardown(ManagedObjectFinalizer** finalizer_ptr);
 
-  // Used by mjsunit tests to force d8 to wait for certain things to run.
-  inline void IncrementWaitCountForTesting() { wait_count_++; }
-  inline void DecrementWaitCountForTesting() { wait_count_--; }
-  inline int GetWaitCountForTesting() { return wait_count_; }
-
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectPrototype(Object* object);
@@ -1581,8 +1576,6 @@ class Isolate {
   ManagedObjectFinalizer managed_object_finalizers_list_;
 
   size_t total_regexp_code_generated_;
-
-  int wait_count_ = 0;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
