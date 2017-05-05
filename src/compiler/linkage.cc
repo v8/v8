@@ -179,6 +179,12 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
     case Runtime::kInlineGeneratorGetResumeMode:
     case Runtime::kInlineIsArray:
+    case Runtime::kInlineIsJSMap:
+    case Runtime::kInlineIsJSSet:
+    case Runtime::kInlineIsJSMapIterator:
+    case Runtime::kInlineIsJSSetIterator:
+    case Runtime::kInlineIsJSWeakMap:
+    case Runtime::kInlineIsJSWeakSet:
     case Runtime::kInlineIsJSReceiver:
     case Runtime::kInlineIsRegExp:
     case Runtime::kInlineIsSmi:
