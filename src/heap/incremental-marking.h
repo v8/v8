@@ -65,6 +65,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     return MarkingState::Internal(chunk);
   }
 
+  void MarkBlack(HeapObject* object, int size);
+  void MarkGrey(HeapObject* object);
+
   // Transfers mark bits without requiring proper object headers.
   void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
 
@@ -79,15 +82,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
     DCHECK(ObjectMarking::IsWhite<access_mode>(to, marking_state(to)));
     if (ObjectMarking::IsGrey<access_mode>(from, marking_state(from))) {
-      bool success =
-          ObjectMarking::WhiteToGrey<access_mode>(to, marking_state(to));
-      DCHECK(success);
-      USE(success);
+      ObjectMarking::WhiteToGrey<access_mode>(to, marking_state(to));
     } else if (ObjectMarking::IsBlack<access_mode>(from, marking_state(from))) {
-      bool success =
-          ObjectMarking::WhiteToBlack<access_mode>(to, marking_state(to));
-      DCHECK(success);
-      USE(success);
+      ObjectMarking::WhiteToBlack<access_mode>(to, marking_state(to));
     }
   }
 
@@ -182,12 +179,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   static const intptr_t kActivationThreshold = 0;
 #endif
 
-#ifdef V8_CONCURRENT_MARKING
-  static const MarkBit::AccessMode kAtomicity = MarkBit::AccessMode::ATOMIC;
-#else
-  static const MarkBit::AccessMode kAtomicity = MarkBit::AccessMode::NON_ATOMIC;
-#endif
-
   void FinalizeSweeping();
 
   size_t Step(size_t bytes_to_process, CompletionAction action,
@@ -219,9 +210,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);
 
-  // Returns true if the function succeeds in transitioning the object
-  // from white to grey.
-  bool WhiteToGreyAndPush(HeapObject* obj);
+  void WhiteToGreyAndPush(HeapObject* obj);
 
   inline void SetOldSpacePageFlags(MemoryChunk* chunk) {
     SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());
@@ -312,7 +301,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
       intptr_t bytes_to_process,
       ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION));
 
-  INLINE(bool IsFixedArrayWithProgressBar(HeapObject* object));
   INLINE(void VisitObject(Map* map, HeapObject* obj, int size));
 
   void IncrementIdleMarkingDelayCounter();
