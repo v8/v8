@@ -1196,12 +1196,10 @@ class StaticYoungGenerationMarkingVisitor
     StackLimitCheck check(heap->isolate());
     if (check.HasOverflowed()) return false;
 
-    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC>(
-            object, MarkingState::External(object)))
-      return true;
-    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
-        object, MarkingState::External(object));
-    IterateBody(object->map(), object);
+    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+            object, MarkingState::External(object))) {
+      IterateBody(object->map(), object);
+    }
     return true;
   }
 };
@@ -1237,11 +1235,7 @@ class MarkCompactMarkingVisitor
   // Marks the object black without pushing it on the marking stack.
   // Returns true if object needed marking and false otherwise.
   INLINE(static bool MarkObjectWithoutPush(Heap* heap, HeapObject* object)) {
-    if (ObjectMarking::IsWhite(object, MarkingState::Internal(object))) {
-      ObjectMarking::WhiteToBlack(object, MarkingState::Internal(object));
-      return true;
-    }
-    return false;
+    return ObjectMarking::WhiteToBlack(object, MarkingState::Internal(object));
   }
 
   // Mark object pointed to by p.
@@ -1259,14 +1253,15 @@ class MarkCompactMarkingVisitor
                                          HeapObject* obj)) {
 #ifdef DEBUG
     DCHECK(collector->heap()->Contains(obj));
-    DCHECK(ObjectMarking::IsWhite(obj, MarkingState::Internal(obj)));
 #endif
-    Map* map = obj->map();
-    Heap* heap = obj->GetHeap();
-    ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj));
-    // Mark the map pointer and the body.
-    heap->mark_compact_collector()->MarkObject(map);
-    IterateBody(map, obj);
+    if (ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj))) {
+      Map* map = obj->map();
+      Heap* heap = obj->GetHeap();
+      ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj));
+      // Mark the map pointer and the body.
+      heap->mark_compact_collector()->MarkObject(map);
+      IterateBody(map, obj);
+    }
   }
 
   // Visit all unmarked objects pointed to by [start, end).
@@ -1284,8 +1279,6 @@ class MarkCompactMarkingVisitor
       if (!o->IsHeapObject()) continue;
       collector->RecordSlot(object, p, o);
       HeapObject* obj = HeapObject::cast(o);
-      if (ObjectMarking::IsBlackOrGrey(obj, MarkingState::Internal(obj)))
-        continue;
       VisitUnmarkedObject(collector, obj);
     }
     return true;
@@ -1482,16 +1475,12 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
 
     if (!collector_->heap()->InNewSpace(object)) return;
 
-    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC>(
-            object, MarkingState::External(object)))
-      return;
-
-    Map* map = object->map();
-    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
-        object, MarkingState::External(object));
-    StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
-
-    collector_->EmptyMarkingDeque();
+    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+            object, MarkingState::External(object))) {
+      Map* map = object->map();
+      StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
+      collector_->EmptyMarkingDeque();
+    }
   }
 
   MinorMarkCompactCollector* collector_;
@@ -1532,22 +1521,16 @@ class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor,
 
     HeapObject* object = HeapObject::cast(*p);
 
-    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC>(
-            object, MarkingState::Internal(object)))
-      return;
-
-    Map* map = object->map();
-    // Mark the object.
-    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
-        object, MarkingState::Internal(object));
-
-    // Mark the map pointer and body, and push them on the marking stack.
-    collector_->MarkObject(map);
-    MarkCompactMarkingVisitor::IterateBody(map, object);
-
-    // Mark all the objects reachable from the map and body.  May leave
-    // overflowed objects in the heap.
-    collector_->EmptyMarkingDeque();
+    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+            object, MarkingState::Internal(object))) {
+      Map* map = object->map();
+      // Mark the map pointer and body, and push them on the marking stack.
+      collector_->MarkObject(map);
+      MarkCompactMarkingVisitor::IterateBody(map, object);
+      // Mark all the objects reachable from the map and body.  May leave
+      // overflowed objects in the heap.
+      collector_->EmptyMarkingDeque();
+    }
   }
 
   MarkCompactCollector* collector_;
@@ -1718,8 +1701,7 @@ void MarkCompactCollector::DiscoverGreyObjectsWithIterator(T* it) {
   Map* filler_map = heap()->one_pointer_filler_map();
   for (HeapObject* object = it->Next(); object != NULL; object = it->Next()) {
     if ((object->map() != filler_map) &&
-        ObjectMarking::IsGrey(object, MarkingState::Internal(object))) {
-      ObjectMarking::GreyToBlack(object, MarkingState::Internal(object));
+        ObjectMarking::GreyToBlack(object, MarkingState::Internal(object))) {
       PushBlack(object);
       if (marking_deque()->IsFull()) return;
     }
@@ -1731,8 +1713,10 @@ void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
   LiveObjectIterator<kGreyObjects> it(p, MarkingState::Internal(p));
   HeapObject* object = NULL;
   while ((object = it.Next()) != NULL) {
-    DCHECK(ObjectMarking::IsGrey(object, MarkingState::Internal(object)));
-    ObjectMarking::GreyToBlack(object, MarkingState::Internal(object));
+    bool success =
+        ObjectMarking::GreyToBlack(object, MarkingState::Internal(object));
+    DCHECK(success);
+    USE(success);
     PushBlack(object);
     if (marking_deque()->IsFull()) return;
   }
@@ -2295,15 +2279,12 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
 void MarkCompactCollector::MarkStringTable(RootMarkingVisitor* visitor) {
   StringTable* string_table = heap()->string_table();
   // Mark the string table itself.
-  if (ObjectMarking::IsWhite(string_table,
-                             MarkingState::Internal(string_table))) {
-    // String table could have already been marked by visiting the handles list.
-    ObjectMarking::WhiteToBlack(string_table,
-                                MarkingState::Internal(string_table));
+  if (ObjectMarking::WhiteToBlack(string_table,
+                                  MarkingState::Internal(string_table))) {
+    // Explicitly mark the prefix.
+    string_table->IteratePrefix(visitor);
+    ProcessMarkingDeque();
   }
-  // Explicitly mark the prefix.
-  string_table->IteratePrefix(visitor);
-  ProcessMarkingDeque();
 }
 
 void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {

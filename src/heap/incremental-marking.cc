@@ -57,9 +57,7 @@ bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   DCHECK(!ObjectMarking::IsImpossible(obj, marking_state(obj)));
   const bool is_black = ObjectMarking::IsBlack(obj, marking_state(obj));
 
-  if (is_black &&
-      ObjectMarking::IsWhite(value_heap_obj, marking_state(value_heap_obj))) {
-    WhiteToGreyAndPush(value_heap_obj);
+  if (is_black && WhiteToGreyAndPush(value_heap_obj)) {
     RestartIfNotMarking();
   }
   return is_compacting_ && is_black;
@@ -130,9 +128,12 @@ void IncrementalMarking::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
   }
 }
 
-void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj) {
-  ObjectMarking::WhiteToGrey(obj, marking_state(obj));
-  marking_deque()->Push(obj);
+bool IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj) {
+  if (ObjectMarking::WhiteToGrey(obj, marking_state(obj))) {
+    marking_deque()->Push(obj);
+    return true;
+  }
+  return false;
 }
 
 void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
@@ -153,9 +154,29 @@ void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
   MarkBit old_mark_bit = ObjectMarking::MarkBitFrom(from, marking_state(from));
 
   if (Marking::IsBlack(old_mark_bit)) {
-    Marking::MarkBlack(new_mark_bit);
+    if (from->address() + kPointerSize == to->address()) {
+      // The old and the new markbits overlap. The |to| object has the
+      // grey color. To make it black, we need to set second bit.
+      DCHECK(new_mark_bit.Get());
+      new_mark_bit.Next().Set();
+    } else {
+      bool success = Marking::WhiteToBlack(new_mark_bit);
+      DCHECK(success);
+      USE(success);
+    }
   } else if (Marking::IsGrey(old_mark_bit)) {
-    Marking::WhiteToGrey(new_mark_bit);
+    if (from->address() + kPointerSize == to->address()) {
+      // The old and the new markbits overlap. The |to| object has the
+      // white color. To make it black, we need to set both bits.
+      // Note that Marking::WhiteToGrey does not work here because
+      // old_mark_bit.Next() can be set by the concurrent marker at any time.
+      new_mark_bit.Set();
+      new_mark_bit.Next().Set();
+    } else {
+      bool success = Marking::WhiteToGrey(new_mark_bit);
+      DCHECK(success);
+      USE(success);
+    }
     marking_deque()->Push(to);
     RestartIfNotMarking();
   }
@@ -227,12 +248,9 @@ class IncrementalMarkingMarkingVisitor
         // Mark the object grey if it is white, do not enque it into the marking
         // deque.
         Heap* heap = map->GetHeap();
-        if (ObjectMarking::IsWhite(
-                heap_obj,
-                heap->incremental_marking()->marking_state(heap_obj))) {
-          ObjectMarking::WhiteToGrey(
-              heap_obj, heap->incremental_marking()->marking_state(heap_obj));
-        }
+        bool ignored = ObjectMarking::WhiteToGrey(
+            heap_obj, heap->incremental_marking()->marking_state(heap_obj));
+        USE(ignored);
       }
     }
     VisitNativeContext(map, context);
@@ -259,21 +277,15 @@ class IncrementalMarkingMarkingVisitor
 
   // Marks the object grey and pushes it on the marking stack.
   INLINE(static void MarkObject(Heap* heap, Object* obj)) {
-    heap->incremental_marking()->MarkGrey(HeapObject::cast(obj));
+    heap->incremental_marking()->WhiteToGreyAndPush(HeapObject::cast(obj));
   }
 
   // Marks the object black without pushing it on the marking stack.
   // Returns true if object needed marking and false otherwise.
   INLINE(static bool MarkObjectWithoutPush(Heap* heap, Object* obj)) {
     HeapObject* heap_object = HeapObject::cast(obj);
-    if (ObjectMarking::IsWhite(
-            heap_object,
-            heap->incremental_marking()->marking_state(heap_object))) {
-      ObjectMarking::WhiteToBlack(
-          heap_object, heap->incremental_marking()->marking_state(heap_object));
-      return true;
-    }
-    return false;
+    return ObjectMarking::WhiteToBlack(
+        heap_object, heap->incremental_marking()->marking_state(heap_object));
   }
 };
 
@@ -285,7 +297,7 @@ void IncrementalMarking::IterateBlackObject(HeapObject* object) {
       page->ResetProgressBar();
     }
     Map* map = object->map();
-    MarkGrey(map);
+    WhiteToGreyAndPush(map);
     IncrementalMarkingMarkingVisitor::IterateBody(map, object);
   }
 }
@@ -309,7 +321,7 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
     Object* obj = *p;
     if (!obj->IsHeapObject()) return;
 
-    heap_->incremental_marking()->MarkGrey(HeapObject::cast(obj));
+    heap_->incremental_marking()->WhiteToGreyAndPush(HeapObject::cast(obj));
   }
 
   Heap* heap_;
@@ -700,7 +712,7 @@ void IncrementalMarking::RetainMaps() {
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
         ObjectMarking::IsWhite(map, marking_state(map))) {
       if (ShouldRetainMap(map, age)) {
-        MarkGrey(map);
+        WhiteToGreyAndPush(map);
       }
       Object* prototype = map->prototype();
       if (age > 0 && prototype->IsHeapObject() &&
@@ -820,7 +832,7 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
 
 
 void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
-  MarkGrey(map);
+  WhiteToGreyAndPush(map);
 
   IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
 
@@ -831,17 +843,6 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
               (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
                Marking::IsBlack(mark_bit)));
 #endif
-  MarkBlack(obj, size);
-}
-
-void IncrementalMarking::MarkGrey(HeapObject* object) {
-  if (ObjectMarking::IsWhite(object, marking_state(object))) {
-    WhiteToGreyAndPush(object);
-  }
-}
-
-void IncrementalMarking::MarkBlack(HeapObject* obj, int size) {
-  if (ObjectMarking::IsBlack(obj, marking_state(obj))) return;
   ObjectMarking::GreyToBlack(obj, marking_state(obj));
 }
 
@@ -910,9 +911,9 @@ void IncrementalMarking::Hurry() {
     HeapObject* cache = HeapObject::cast(
         Context::cast(context)->get(Context::NORMALIZED_MAP_CACHE_INDEX));
     if (!cache->IsUndefined(heap_->isolate())) {
-      if (ObjectMarking::IsGrey(cache, marking_state(cache))) {
-        ObjectMarking::GreyToBlack(cache, marking_state(cache));
-      }
+      // Mark the cache black if it is grey.
+      bool ignored = ObjectMarking::GreyToBlack(cache, marking_state(cache));
+      USE(ignored);
     }
     context = Context::cast(context)->next_context_link();
   }
