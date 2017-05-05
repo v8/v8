@@ -3362,6 +3362,18 @@ Node* CodeStubAssembler::IsNumberNormalized(Node* number) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::IsNumberPositive(Node* number) {
+  CSA_ASSERT(this, IsNumber(number));
+  Node* const float_zero = Float64Constant(0.);
+  return Select(TaggedIsSmi(number),
+                [=] { return TaggedIsPositiveSmi(number); },
+                [=] {
+                  Node* v = LoadHeapNumberValue(number);
+                  return Float64GreaterThanOrEqual(v, float_zero);
+                },
+                MachineRepresentation::kWord32);
+}
+
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,
                                           ParameterMode parameter_mode) {
   if (parameter_mode == SMI_PARAMETERS) CSA_ASSERT(this, TaggedIsSmi(index));

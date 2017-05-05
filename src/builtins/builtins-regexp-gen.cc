@@ -306,9 +306,16 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
 
   Node* const smi_string_length = LoadStringLength(string);
 
-  // Bail out to runtime for invalid {last_index} values.
-  GotoIfNot(TaggedIsSmi(last_index), &runtime);
-  GotoIf(SmiAboveOrEqual(last_index, smi_string_length), &runtime);
+  // At this point, last_index is definitely a canonicalized non-negative
+  // number, which implies that any non-Smi last_index is greater than
+  // the maximal string length. If lastIndex > string.length then the matcher
+  // must fail.
+
+  Label if_failure(this);
+  CSA_ASSERT(this, IsNumberNormalized(last_index));
+  CSA_ASSERT(this, IsNumberPositive(last_index));
+  GotoIfNot(TaggedIsSmi(last_index), &if_failure);  // Outside Smi range.
+  GotoIf(SmiGreaterThan(last_index, smi_string_length), &if_failure);
 
   // Load the irregexp code object and offsets into the subject string. Both
   // depend on whether the string is one- or two-byte.
@@ -358,8 +365,7 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   GotoIf(TaggedIsSmi(code), &runtime);
   CSA_ASSERT(this, HasInstanceType(code, CODE_TYPE));
 
-  Label if_success(this), if_failure(this),
-      if_exception(this, Label::kDeferred);
+  Label if_success(this), if_exception(this, Label::kDeferred);
   {
     IncrementCounter(isolate()->counters()->regexp_entry_native(), 1);
 

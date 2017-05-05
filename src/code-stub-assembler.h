@@ -791,6 +791,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // True iff |number| is either a Smi, or a HeapNumber whose value is not
   // within Smi range.
   Node* IsNumberNormalized(Node* number);
+  Node* IsNumberPositive(Node* number);
 
   // ElementsKind helpers:
   Node* IsFastElementsKind(Node* elements_kind);
