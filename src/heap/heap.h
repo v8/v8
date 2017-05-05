@@ -1239,7 +1239,9 @@ class Heap {
 
   // Start incremental marking and ensure that idle time handler can perform
   // incremental steps.
-  void StartIdleIncrementalMarking(GarbageCollectionReason gc_reason);
+  void StartIdleIncrementalMarking(
+      GarbageCollectionReason gc_reason,
+      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
 
   // Starts incremental marking assuming incremental marking is currently
   // stopped.

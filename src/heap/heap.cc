@@ -1115,10 +1115,12 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
   }
 }
 
-void Heap::StartIdleIncrementalMarking(GarbageCollectionReason gc_reason) {
+void Heap::StartIdleIncrementalMarking(
+    GarbageCollectionReason gc_reason,
+    const GCCallbackFlags gc_callback_flags) {
   gc_idle_time_handler_->ResetNoProgressCounter();
   StartIncrementalMarking(kReduceMemoryFootprintMask, gc_reason,
-                          kNoGCCallbackFlags);
+                          gc_callback_flags);
 }
 
 
@@ -4232,7 +4234,7 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
              (mark_compact_collector()->marking_deque()->IsEmpty() &&
               local_embedder_heap_tracer()
                   ->ShouldFinalizeIncrementalMarking())) {
-    CollectAllGarbage(current_gc_flags_, gc_reason);
+    CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
   }
 }
 
