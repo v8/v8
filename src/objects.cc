@@ -19560,8 +19560,9 @@ bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
   // Prevent creating array buffers when serializing.
   DCHECK(!isolate->serializer_enabled());
   if (allocated_length != 0) {
-    isolate->counters()->array_buffer_big_allocations()->AddSample(
-        ConvertToMb(allocated_length));
+    if (allocated_length >= MB)
+      isolate->counters()->array_buffer_big_allocations()->AddSample(
+          ConvertToMb(allocated_length));
     if (initialize) {
       data = isolate->array_buffer_allocator()->Allocate(allocated_length);
     } else {
