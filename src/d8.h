@@ -6,6 +6,7 @@
 #define V8_D8_H_
 
 #include <iterator>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -356,6 +357,7 @@ class Shell : public i::AllStatic {
   static void OnExit(Isolate* isolate);
   static void CollectGarbage(Isolate* isolate);
   static void EmptyMessageQueues(Isolate* isolate);
+  static void CompleteMessageLoop(Isolate* isolate);
 
   static std::unique_ptr<SerializationData> SerializeValue(
       Isolate* isolate, Local<Value> value, Local<Value> transfer);
@@ -391,6 +393,8 @@ class Shell : public i::AllStatic {
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Write(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WaitUntilDone(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args);
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -454,6 +458,7 @@ class Shell : public i::AllStatic {
   static const char* kPrompt;
   static ShellOptions options;
   static ArrayBuffer::Allocator* array_buffer_allocator;
+  static std::map<Isolate*, bool> isolate_status;
 
  private:
   static Global<Context> evaluation_context_;
