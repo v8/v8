@@ -422,7 +422,6 @@ base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 i::List<Worker*> Shell::workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
-std::map<v8::Isolate*, bool> Shell::isolate_status;
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -1346,18 +1345,6 @@ void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
                  const_cast<v8::FunctionCallbackInfo<v8::Value>*>(&args));
 }
 
-void Shell::WaitUntilDone(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (isolate_status.count(args.GetIsolate()) == 0) {
-    isolate_status.insert(std::make_pair(args.GetIsolate(), true));
-  } else {
-    isolate_status[args.GetIsolate()] = true;
-  }
-}
-
-void Shell::NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  DCHECK_EQ(isolate_status.count(args.GetIsolate()), 1);
-  isolate_status[args.GetIsolate()] = false;
-}
 
 void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(
@@ -1595,19 +1582,6 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
             .ToLocalChecked(),
         FunctionTemplate::New(isolate, Quit));
   }
-  Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "testRunner", NewStringType::kNormal)
-          .ToLocalChecked(),
-      test_template);
-  test_template->Set(
-      String::NewFromUtf8(isolate, "notifyDone", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, NotifyDone));
-  test_template->Set(
-      String::NewFromUtf8(isolate, "waitUntilDone", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, WaitUntilDone));
   global_template->Set(
       String::NewFromUtf8(isolate, "version", NewStringType::kNormal)
           .ToLocalChecked(),
@@ -2292,8 +2266,6 @@ void SourceGroup::ExecuteInThread() {
   create_params.host_import_module_dynamically_callback_ =
       Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
-
-  v8::platform::EnsureEventLoopInitialized(g_platform, isolate);
   D8Console console(isolate);
   debug::SetConsoleDelegate(isolate, &console);
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
@@ -2317,8 +2289,6 @@ void SourceGroup::ExecuteInThread() {
     }
     done_semaphore_.Signal();
   }
-
-  Shell::CompleteMessageLoop(isolate);
 
   isolate->Dispose();
 }
@@ -2676,7 +2646,6 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     options.isolate_sources[i].StartExecuteInThread();
   }
   {
-    v8::platform::EnsureEventLoopInitialized(g_platform, isolate);
     if (options.lcov_file) {
       debug::Coverage::SelectMode(isolate, debug::Coverage::kPreciseCount);
     }
@@ -2699,7 +2668,6 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     WriteLcovData(isolate, options.lcov_file);
   }
   CollectGarbage(isolate);
-  CompleteMessageLoop(isolate);
   for (int i = 1; i < options.num_isolates; ++i) {
     if (last_run) {
       options.isolate_sources[i].JoinThread();
@@ -2727,28 +2695,24 @@ void Shell::CollectGarbage(Isolate* isolate) {
   }
 }
 
-void Shell::CompleteMessageLoop(Isolate* isolate) {
-  while (v8::platform::PumpMessageLoop(
-      g_platform, isolate,
-      Shell::isolate_status[isolate]
-          ? platform::MessageLoopBehavior::kWaitForWork
-          : platform::MessageLoopBehavior::kDoNotWait)) {
-    isolate->RunMicrotasks();
-  }
-  v8::platform::RunIdleTasks(g_platform, isolate,
-                             50.0 / base::Time::kMillisecondsPerSecond);
-}
-
 void Shell::EmptyMessageQueues(Isolate* isolate) {
   if (i::FLAG_verify_predictable) return;
-  // Pump the message loop until it is empty.
-  while (v8::platform::PumpMessageLoop(
-      g_platform, isolate, platform::MessageLoopBehavior::kDoNotWait)) {
-    isolate->RunMicrotasks();
+  while (true) {
+    // Pump the message loop until it is empty.
+    while (v8::platform::PumpMessageLoop(g_platform, isolate)) {
+      isolate->RunMicrotasks();
+    }
+    // Run the idle tasks.
+    v8::platform::RunIdleTasks(g_platform, isolate,
+                               50.0 / base::Time::kMillisecondsPerSecond);
+    // If there are still outstanding waiters, sleep a little (to wait for
+    // background tasks) and then try everything again.
+    if (reinterpret_cast<i::Isolate*>(isolate)->GetWaitCountForTesting() > 0) {
+      base::OS::Sleep(base::TimeDelta::FromMilliseconds(1));
+    } else {
+      break;
+    }
   }
-  // Run the idle tasks.
-  v8::platform::RunIdleTasks(g_platform, isolate,
-                             50.0 / base::Time::kMillisecondsPerSecond);
 }
 
 class Serializer : public ValueSerializer::Delegate {

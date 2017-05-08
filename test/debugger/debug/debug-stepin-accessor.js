@@ -233,8 +233,7 @@ function testProtoSetter1_2() {
 }
 
 for (var n in this) {
-  if (n.substr(0, 4) != 'test' ||
-     n == 'testRunner') {
+  if (n.substr(0, 4) != 'test') {
     continue;
   }
   state = 1;

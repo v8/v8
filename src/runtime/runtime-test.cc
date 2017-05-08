@@ -1019,5 +1019,15 @@ RUNTIME_FUNCTION(Runtime_RedirectToWasmInterpreter) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_IncrementWaitCount) {
+  isolate->IncrementWaitCountForTesting();
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DecrementWaitCount) {
+  isolate->DecrementWaitCountForTesting();
+  return isolate->heap()->undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8
