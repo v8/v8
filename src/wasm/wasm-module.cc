@@ -300,14 +300,12 @@ bool compile_lazy(const WasmModule* module) {
 // A helper for compiling an entire module.
 class CompilationHelper {
  public:
-  // The compilation helper itself does not take ownership of the {WasmModule},
-  // since there are use cases in which is must remain owned by the caller.
-  // The CompileToModuleObject method transfers ownership to the generated
-  // {WasmModuleWrapper}, so each user or this method must release ownership.
-  // TODO(clemensh): Fix this by storing the WasmModule as unique_ptr and having
-  // an explicit release_module() method.
-  CompilationHelper(Isolate* isolate, WasmModule* module)
-      : isolate_(isolate), module_(module) {}
+  // The compilation helper takes ownership of the {WasmModule}.
+  // In {CompileToModuleObject}, it will transfer ownership to the generated
+  // {WasmModuleWrapper}. If this method is not called, ownership may be
+  // reclaimed by explicitely releasing the {module_} field.
+  CompilationHelper(Isolate* isolate, std::unique_ptr<WasmModule> module)
+      : isolate_(isolate), module_(std::move(module)) {}
 
   // The actual runnable task that performs compilations in the background.
   class CompilationTask : public CancelableTask {
@@ -324,7 +322,7 @@ class CompilationHelper {
   };
 
   Isolate* isolate_;
-  WasmModule* module_;
+  std::unique_ptr<WasmModule> module_;
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
   std::queue<std::unique_ptr<compiler::WasmCompilationUnit>> executed_units_;
@@ -505,17 +503,12 @@ class CompilationHelper {
     }
   }
 
-  // This method takes ownership of the {WasmModule} stored in {module_}.
   MaybeHandle<WasmModuleObject> CompileToModuleObject(
       ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
       Handle<Script> asm_js_script,
       Vector<const byte> asm_js_offset_table_bytes) {
     Factory* factory = isolate_->factory();
-    // The {module_wrapper} will take ownership of the {WasmModule} object,
-    // and it will be destroyed when the GC reclaims the wrapper object.
-    Handle<WasmModuleWrapper> module_wrapper =
-        WasmModuleWrapper::New(isolate_, module_);
-    WasmInstance temp_instance(module_);
+    WasmInstance temp_instance(module_.get());
     temp_instance.context = isolate_->native_context();
     temp_instance.mem_size = WasmModule::kPageSize * module_->min_mem_pages;
     temp_instance.mem_start = nullptr;
@@ -540,7 +533,7 @@ class CompilationHelper {
             ? isolate_->counters()->wasm_compile_wasm_module_time()
             : isolate_->counters()->wasm_compile_asm_module_time());
 
-    ModuleBytesEnv module_env(module_, &temp_instance, wire_bytes);
+    ModuleBytesEnv module_env(module_.get(), &temp_instance, wire_bytes);
 
     // The {code_table} array contains import wrappers and functions (which
     // are both included in {functions.size()}, and export wrappers.
@@ -550,7 +543,7 @@ class CompilationHelper {
         factory->NewFixedArray(static_cast<int>(code_table_size), TENURED);
 
     // Check whether lazy compilation is enabled for this module.
-    bool lazy_compile = compile_lazy(module_);
+    bool lazy_compile = compile_lazy(module_.get());
 
     // If lazy compile: Initialize the code table with the lazy compile builtin.
     // Otherwise: Initialize with the illegal builtin. All call sites will be
@@ -592,8 +585,7 @@ class CompilationHelper {
     }
 
     // Create heap objects for script, module bytes and asm.js offset table to
-    // be
-    // stored in the shared module data.
+    // be stored in the shared module data.
     Handle<Script> script;
     Handle<ByteArray> asm_js_offset_table;
     if (asm_js_script.is_null()) {
@@ -613,6 +605,12 @@ class CompilationHelper {
                                    TENURED)
             .ToHandleChecked();
     DCHECK(module_bytes->IsSeqOneByteString());
+
+    // The {module_wrapper} will take ownership of the {WasmModule} object,
+    // and it will be destroyed when the GC reclaims the wrapper object.
+    Handle<WasmModuleWrapper> module_wrapper =
+        WasmModuleWrapper::New(isolate_, module_.release());
+    WasmModule* module = module_wrapper->get();
 
     // Create the shared module data.
     // TODO(clemensh): For the same module (same bytes / same hash), we should
@@ -641,15 +639,15 @@ class CompilationHelper {
     // Compile JS->WASM wrappers for exported functions.
     JSToWasmWrapperCache js_to_wasm_cache;
     int func_index = 0;
-    for (auto exp : module_->export_table) {
+    for (auto exp : module->export_table) {
       if (exp.kind != kExternalFunction) continue;
       Handle<Code> wasm_code = EnsureExportedLazyDeoptData(
           isolate_, Handle<WasmInstanceObject>::null(), code_table, exp.index);
       Handle<Code> wrapper_code =
-          js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(isolate_, module_,
+          js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(isolate_, module,
                                                          wasm_code, exp.index);
       int export_index =
-          static_cast<int>(module_->functions.size() + func_index);
+          static_cast<int>(module->functions.size() + func_index);
       code_table->set(export_index, *wrapper_code);
       RecordStats(isolate_, *wrapper_code);
       func_index++;
@@ -2494,7 +2492,7 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
 
   // Transfer ownership to the {WasmModuleWrapper} generated in
   // {CompileToModuleObject}.
-  CompilationHelper helper(isolate, result.val.release());
+  CompilationHelper helper(isolate, std::move(result.val));
   return helper.CompileToModuleObject(thrower, bytes, asm_js_script,
                                       asm_js_offset_table_bytes);
 }
@@ -2516,7 +2514,7 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
 
   // Transfer ownership to the {WasmModuleWrapper} generated in
   // {CompileToModuleObject}.
-  CompilationHelper helper(isolate, result.val.release());
+  CompilationHelper helper(isolate, std::move(result.val));
   return helper.CompileToModuleObject(thrower, bytes, Handle<Script>(),
                                       Vector<const byte>());
 }
@@ -2608,15 +2606,11 @@ class AsyncCompileJob {
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
   Handle<JSPromise> module_promise_;
-  // The WasmModule is owned by the WasmModuleWrapper created in step 2.
-  // It is {nullptr} before.
-  WasmModule* module_ = nullptr;
   std::unique_ptr<CompilationHelper> helper_;
   std::unique_ptr<ModuleBytesEnv> module_bytes_env_;
 
   bool failed_ = false;
   std::vector<DeferredHandles*> deferred_handles_;
-  Handle<WasmModuleWrapper> module_wrapper_;
   Handle<WasmModuleObject> module_object_;
   Handle<FixedArray> function_tables_;
   Handle<FixedArray> signature_tables_;
@@ -2628,7 +2622,6 @@ class AsyncCompileJob {
 
   void ReopenHandlesInDeferredScope() {
     DeferredHandleScope deferred(isolate_);
-    module_wrapper_ = handle(*module_wrapper_, isolate_);
     function_tables_ = handle(*function_tables_, isolate_);
     signature_tables_ = handle(*signature_tables_, isolate_);
     code_table_ = handle(*code_table_, isolate_);
@@ -2752,21 +2745,16 @@ class AsyncCompileJob {
       HandleScope scope(job_->isolate_);
 
       Factory* factory = job_->isolate_->factory();
-      // The {module_wrapper} will take ownership of the {WasmModule} object,
-      // and it will be destroyed when the GC reclaims the wrapper object.
-      job_->module_wrapper_ =
-          WasmModuleWrapper::New(job_->isolate_, module_.release());
-      job_->module_ = job_->module_wrapper_->get();
-      job_->temp_instance_.reset(new WasmInstance(job_->module_));
+      job_->temp_instance_.reset(new WasmInstance(module_.get()));
       job_->temp_instance_->context = job_->context_;
       job_->temp_instance_->mem_size =
-          WasmModule::kPageSize * job_->module_->min_mem_pages;
+          WasmModule::kPageSize * module_->min_mem_pages;
       job_->temp_instance_->mem_start = nullptr;
       job_->temp_instance_->globals_start = nullptr;
 
       // Initialize the indirect tables with placeholders.
       int function_table_count =
-          static_cast<int>(job_->module_->function_tables.size());
+          static_cast<int>(module_->function_tables.size());
       job_->function_tables_ =
           factory->NewFixedArray(function_table_count, TENURED);
       job_->signature_tables_ =
@@ -2785,29 +2773,31 @@ class AsyncCompileJob {
       // The {code_table} array contains import wrappers and functions (which
       // are both included in {functions.size()}, and export wrappers.
       // The results of compilation will be written into it.
-      int code_table_size =
-          static_cast<int>(job_->module_->functions.size() +
-                           job_->module_->num_exported_functions);
+      int code_table_size = static_cast<int>(module_->functions.size() +
+                                             module_->num_exported_functions);
       job_->code_table_ = factory->NewFixedArray(code_table_size, TENURED);
 
       // Initialize {code_table_} with the illegal builtin. All call sites
       // will be patched at instantiation.
       Handle<Code> illegal_builtin = job_->isolate_->builtins()->Illegal();
       // TODO(wasm): Fix this for lazy compilation.
-      for (uint32_t i = 0; i < job_->module_->functions.size(); ++i) {
+      for (uint32_t i = 0; i < module_->functions.size(); ++i) {
         job_->code_table_->set(static_cast<int>(i), *illegal_builtin);
         job_->temp_instance_->function_code[i] = illegal_builtin;
       }
 
       job_->isolate_->counters()->wasm_functions_per_wasm_module()->AddSample(
-          static_cast<int>(job_->module_->functions.size()));
+          static_cast<int>(module_->functions.size()));
 
-      job_->helper_.reset(new CompilationHelper(job_->isolate_, job_->module_));
+      // Transfer ownership of the {WasmModule} to the {CompilationHelper}, but
+      // keep a pointer.
+      WasmModule* module = module_.get();
+      job_->helper_.reset(
+          new CompilationHelper(job_->isolate_, std::move(module_)));
 
-      DCHECK_LE(job_->module_->num_imported_functions,
-                job_->module_->functions.size());
-      size_t num_functions = job_->module_->functions.size() -
-                             job_->module_->num_imported_functions;
+      DCHECK_LE(module->num_imported_functions, module->functions.size());
+      size_t num_functions =
+          module->functions.size() - module->num_imported_functions;
       if (num_functions == 0) {
         job_->ReopenHandlesInDeferredScope();
         // Degenerate case of an empty module.
@@ -2823,9 +2813,9 @@ class AsyncCompileJob {
                       V8::GetCurrentPlatform()
                           ->NumberOfAvailableBackgroundThreads())));
       job_->module_bytes_env_.reset(new ModuleBytesEnv(
-          job_->module_, job_->temp_instance_.get(), job_->wire_bytes_));
+          module, job_->temp_instance_.get(), job_->wire_bytes_));
       job_->outstanding_units_ = job_->helper_->InitializeParallelCompilation(
-          job_->module_->functions, *job_->module_bytes_env_);
+          module->functions, *job_->module_bytes_env_);
 
       // Reopen all handles which should survive in the DeferredHandleScope.
       job_->ReopenHandlesInDeferredScope();
@@ -2908,7 +2898,7 @@ class AsyncCompileJob {
       if (!FLAG_verify_predictable) {
         for (size_t i = 0; i < job_->num_background_tasks_; ++i) {
           // We wait for it to finish.
-          job_->module_->pending_tasks.get()->Wait();
+          job_->helper_->module_->pending_tasks.get()->Wait();
         }
       }
       if (thrower_.error()) {
@@ -2968,13 +2958,18 @@ class AsyncCompileJob {
               .ToHandleChecked();
       DCHECK(module_bytes->IsSeqOneByteString());
 
+      // The {module_wrapper} will take ownership of the {WasmModule} object,
+      // and it will be destroyed when the GC reclaims the wrapper object.
+      Handle<WasmModuleWrapper> module_wrapper = WasmModuleWrapper::New(
+          job_->isolate_, job_->helper_->module_.release());
+
       // Create the shared module data.
       // TODO(clemensh): For the same module (same bytes / same hash), we should
       // only have one WasmSharedModuleData. Otherwise, we might only set
       // breakpoints on a (potentially empty) subset of the instances.
 
       Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
-          job_->isolate_, job_->module_wrapper_,
+          job_->isolate_, module_wrapper,
           Handle<SeqOneByteString>::cast(module_bytes), script,
           asm_js_offset_table);
 
@@ -3008,15 +3003,16 @@ class AsyncCompileJob {
       HandleScope scope(job_->isolate_);
       JSToWasmWrapperCache js_to_wasm_cache;
       int func_index = 0;
-      for (auto exp : job_->module_->export_table) {
+      WasmModule* module = job_->compiled_module_->module();
+      for (auto exp : module->export_table) {
         if (exp.kind != kExternalFunction) continue;
         Handle<Code> wasm_code(Code::cast(job_->code_table_->get(exp.index)),
                                job_->isolate_);
         Handle<Code> wrapper_code =
             js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
-                job_->isolate_, job_->module_, wasm_code, exp.index);
+                job_->isolate_, module, wasm_code, exp.index);
         int export_index =
-            static_cast<int>(job_->module_->functions.size() + func_index);
+            static_cast<int>(module->functions.size() + func_index);
         job_->code_table_->set(export_index, *wrapper_code);
         RecordStats(job_->isolate_, *wrapper_code);
         func_index++;
