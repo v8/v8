@@ -1686,12 +1686,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     // Assignment to var or initializing assignment to let/const in harmony
     // mode.
     MemOperand location = VarOperand(var, ecx);
-    if (FLAG_debug_code && var->mode() == LET && op == Token::INIT) {
-      // Check for an uninitialized let binding.
-      __ mov(edx, location);
-      __ cmp(edx, isolate()->factory()->the_hole_value());
-      __ Check(equal, kLetBindingReInitialization);
-    }
     EmitStoreToStackLocalOrContextSlot(var, location);
   }
 }

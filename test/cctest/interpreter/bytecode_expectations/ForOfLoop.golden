@@ -15,11 +15,9 @@ snippet: "
 "
 frame size: 17
 parameter count: 2
-bytecode array length: 271
+bytecode array length: 262
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-                B(LdaTheHole),
-                B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(6),
                 B(Mov), R(context), R(13),
@@ -40,22 +38,18 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(5), U8(1),
                 B(LdaNamedProperty), R(5), U8(2), U8(11),
-                B(JumpIfToBooleanTrue), U8(34),
+                B(JumpIfToBooleanTrue), U8(28),
                 B(LdaNamedProperty), R(5), U8(3), U8(13),
                 B(Star), R(7),
                 B(LdaSmi), I8(2),
                 B(Star), R(6),
                 B(Mov), R(7), R(3),
   /*   20 E> */ B(StackCheck),
-                B(LdaTheHole),
-                B(Star), R(1),
-                B(Mov), R(7), R(1),
-                B(LdaTheHole),
-                B(Star), R(0),
-  /*   49 S> */ B(Mov), R(7), R(0),
+                B(Mov), R(3), R(1),
+  /*   49 S> */ B(Mov), R(1), R(0),
                 B(LdaZero),
                 B(Star), R(6),
-                B(JumpLoop), U8(59), I8(0),
+                B(JumpLoop), U8(53), I8(0),
                 B(Jump), U8(36),
                 B(Star), R(15),
                 B(Ldar), R(closure),
@@ -147,9 +141,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [10, 133, 139],
-  [13, 97, 99],
-  [199, 209, 211],
+  [7, 124, 130],
+  [10, 88, 90],
+  [190, 200, 202],
 ]
 
 ---
@@ -345,11 +339,9 @@ snippet: "
 "
 frame size: 15
 parameter count: 2
-bytecode array length: 283
+bytecode array length: 280
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-                B(LdaTheHole),
-                B(Star), R(0),
                 B(LdaZero),
                 B(Star), R(4),
                 B(Mov), R(context), R(11),
@@ -484,9 +476,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [10, 145, 151],
-  [13, 109, 111],
-  [211, 221, 223],
+  [7, 142, 148],
+  [10, 106, 108],
+  [208, 218, 220],
 ]
 
 ---
@@ -498,13 +490,9 @@ snippet: "
 "
 frame size: 20
 parameter count: 2
-bytecode array length: 315
+bytecode array length: 300
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-                B(LdaTheHole),
-                B(Star), R(3),
-                B(LdaTheHole),
-                B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(9),
                 B(Mov), R(context), R(16),
@@ -525,18 +513,14 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(8), U8(1),
                 B(LdaNamedProperty), R(8), U8(2), U8(11),
-                B(JumpIfToBooleanTrue), U8(75),
+                B(JumpIfToBooleanTrue), U8(66),
                 B(LdaNamedProperty), R(8), U8(3), U8(13),
                 B(Star), R(10),
                 B(LdaSmi), I8(2),
                 B(Star), R(9),
                 B(Mov), R(10), R(5),
   /*   20 E> */ B(StackCheck),
-                B(LdaTheHole),
-                B(Star), R(1),
-                B(LdaTheHole),
-                B(Star), R(2),
-                B(Mov), R(10), R(6),
+                B(Mov), R(5), R(6),
                 B(Ldar), R(5),
                 B(JumpIfUndefined), U8(6),
                 B(Ldar), R(6),
@@ -551,14 +535,12 @@ bytecodes: [
                 B(Star), R(1),
   /*   34 S> */ B(LdaNamedProperty), R(6), U8(6), U8(19),
                 B(Star), R(2),
-                B(LdaTheHole),
-                B(Star), R(0),
   /*   58 S> */ B(Ldar), R(2),
   /*   58 E> */ B(Add), R(1), U8(21),
                 B(Star), R(0),
                 B(LdaZero),
                 B(Star), R(9),
-                B(JumpLoop), U8(100), I8(0),
+                B(JumpLoop), U8(91), I8(0),
                 B(Jump), U8(36),
                 B(Star), R(18),
                 B(Ldar), R(closure),
@@ -652,9 +634,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [13, 177, 183],
-  [16, 141, 143],
-  [243, 253, 255],
+  [7, 162, 168],
+  [10, 126, 128],
+  [228, 238, 240],
 ]
 
 ---

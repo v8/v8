@@ -53,15 +53,13 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 61
+bytecode array length: 58
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
-                B(LdaTheHole),
-                B(Star), R(3),
   /*  128 E> */ B(StackCheck),
                 B(Mov), R(2), R(3),
   /*  140 S> */ B(Ldar), R(1),
@@ -102,15 +100,13 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 94
+bytecode array length: 91
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
-                B(LdaTheHole),
-                B(Star), R(3),
   /*  128 E> */ B(StackCheck),
                 B(Mov), R(2), R(3),
   /*  140 S> */ B(LdaUndefined),

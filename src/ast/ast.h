@@ -1682,7 +1682,11 @@ class VariableProxy final : public Expression {
   }
 
   HoleCheckMode hole_check_mode() const {
-    return HoleCheckModeField::decode(bit_field_);
+    HoleCheckMode mode = HoleCheckModeField::decode(bit_field_);
+    DCHECK_IMPLIES(mode == HoleCheckMode::kRequired,
+                   var()->binding_needs_init() ||
+                       var()->local_if_not_shadowed()->binding_needs_init());
+    return mode;
   }
   void set_needs_hole_check() {
     bit_field_ =
