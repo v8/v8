@@ -423,6 +423,13 @@ void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   }
 }
 
+void JSGenericLowering::LowerJSCreateGeneratorObject(Node* node) {
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kCreateGeneratorObject);
+  node->RemoveInput(4);  // control
+  ReplaceWithStubCall(node, callable, flags);
+}
 
 void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kCreateIterResultObject);

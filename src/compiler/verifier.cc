@@ -739,6 +739,10 @@ void Verifier::Visitor::Check(Node* node) {
       CheckNotTyped(node);
       break;
 
+    case IrOpcode::kJSCreateGeneratorObject:
+      CheckTypeIs(node, Type::OtherObject());
+      break;
+
     case IrOpcode::kJSGeneratorRestoreContinuation:
       CheckTypeIs(node, Type::SignedSmall());
       break;
@@ -1706,7 +1710,7 @@ void Verifier::VerifyNode(Node* node) {
   CHECK_EQ(OperatorProperties::GetTotalInputCount(node->op()),
            node->InputCount());
   // If this node has no effect or no control outputs,
-  // we check that no its uses are effect or control inputs.
+  // we check that none of its uses are effect or control inputs.
   bool check_no_control = node->op()->ControlOutputCount() == 0;
   bool check_no_effect = node->op()->EffectOutputCount() == 0;
   bool check_no_frame_state = node->opcode() != IrOpcode::kFrameState;

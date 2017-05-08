@@ -38,6 +38,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceDeoptimizeNow(node);
     case Runtime::kInlineGeneratorClose:
       return ReduceGeneratorClose(node);
+    case Runtime::kInlineCreateJSGeneratorObject:
+      return ReduceCreateJSGeneratorObject(node);
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
       return ReduceGeneratorGetInputOrDebugPos(node);
     case Runtime::kInlineAsyncGeneratorGetAwaitInputOrDebugPos:
@@ -157,6 +159,19 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
   node->TrimInputCount(0);
   NodeProperties::ChangeOp(node, common()->Dead());
   return Changed(node);
+}
+
+Reduction JSIntrinsicLowering::ReduceCreateJSGeneratorObject(Node* node) {
+  Node* const closure = NodeProperties::GetValueInput(node, 0);
+  Node* const receiver = NodeProperties::GetValueInput(node, 1);
+  Node* const context = NodeProperties::GetContextInput(node);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  Operator const* const op = javascript()->CreateGeneratorObject();
+  Node* create_generator =
+      graph()->NewNode(op, closure, receiver, context, effect, control);
+  ReplaceWithValue(node, create_generator, create_generator);
+  return Changed(create_generator);
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {

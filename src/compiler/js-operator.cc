@@ -904,6 +904,12 @@ const Operator* JSOperatorBuilder::DeleteProperty() {
       3, 1, 1, 1, 1, 2);                                     // counts
 }
 
+const Operator* JSOperatorBuilder::CreateGeneratorObject() {
+  return new (zone()) Operator(                                     // --
+      IrOpcode::kJSCreateGeneratorObject, Operator::kEliminatable,  // opcode
+      "JSCreateGeneratorObject",                                    // name
+      2, 1, 1, 1, 1, 0);                                            // counts
+}
 
 const Operator* JSOperatorBuilder::LoadGlobal(const Handle<Name>& name,
                                               const VectorSlotPair& feedback,

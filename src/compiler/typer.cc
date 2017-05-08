@@ -1116,6 +1116,10 @@ Type* Typer::Visitor::TypeJSCreateArguments(Node* node) {
 
 Type* Typer::Visitor::TypeJSCreateArray(Node* node) { return Type::Array(); }
 
+Type* Typer::Visitor::TypeJSCreateGeneratorObject(Node* node) {
+  return Type::OtherObject();
+}
+
 Type* Typer::Visitor::TypeJSCreateClosure(Node* node) {
   return Type::Function();
 }

@@ -146,6 +146,7 @@
   V(JSStoreDataPropertyInLiteral) \
   V(JSDeleteProperty)             \
   V(JSHasProperty)                \
+  V(JSCreateGeneratorObject)      \
   V(JSGetSuperConstructor)
 
 #define JS_CONTEXT_OP_LIST(V) \
