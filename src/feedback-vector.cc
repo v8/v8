@@ -203,7 +203,6 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
   array->set_map_no_write_barrier(isolate->heap()->feedback_vector_map());
   array->set(kSharedFunctionInfoIndex, *shared);
-  array->set(kOptimizedCodeIndex, *factory->empty_weak_cell());
   array->set(kInvocationCountIndex, Smi::kZero);
 
   // Ensure we can skip the write barrier
@@ -295,40 +294,6 @@ void FeedbackVector::AddToCodeCoverageList(Isolate* isolate,
       Handle<ArrayList>::cast(isolate->factory()->code_coverage_list());
   list = ArrayList::Add(list, vector);
   isolate->SetCodeCoverageList(*list);
-}
-
-// static
-void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
-                                      Handle<Code> code) {
-  DCHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
-  Factory* factory = vector->GetIsolate()->factory();
-  Handle<WeakCell> cell = factory->NewWeakCell(code);
-  vector->set(kOptimizedCodeIndex, *cell);
-}
-
-void FeedbackVector::ClearOptimizedCode() {
-  set(kOptimizedCodeIndex, GetIsolate()->heap()->empty_weak_cell());
-}
-
-void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
-    SharedFunctionInfo* shared, const char* reason) {
-  WeakCell* cell = WeakCell::cast(get(kOptimizedCodeIndex));
-  if (!cell->cleared()) {
-    Code* code = Code::cast(cell->value());
-    if (code->marked_for_deoptimization()) {
-      if (FLAG_trace_deopt) {
-        PrintF("[evicting optimizing code marked for deoptimization (%s) for ",
-               reason);
-        shared->ShortPrint();
-        PrintF("]\n");
-      }
-      if (!code->deopt_already_counted()) {
-        shared->increment_deopt_count();
-        code->set_deopt_already_counted(true);
-      }
-      ClearOptimizedCode();
-    }
-  }
 }
 
 void FeedbackVector::ClearSlots(JSFunction* host_function) {

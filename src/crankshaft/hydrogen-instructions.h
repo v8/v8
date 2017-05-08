@@ -5198,6 +5198,11 @@ class HObjectAccess final {
     return HObjectAccess(kInobject, SharedFunctionInfo::kCodeOffset);
   }
 
+  static HObjectAccess ForOptimizedCodeMap() {
+    return HObjectAccess(kInobject,
+                         SharedFunctionInfo::kOptimizedCodeMapOffset);
+  }
+
   static HObjectAccess ForFunctionContextPointer() {
     return HObjectAccess(kInobject, JSFunction::kContextOffset);
   }
