@@ -520,12 +520,10 @@ class WasmCompiledModule : public FixedArray {
   // call / exported function), func_index must be set. Otherwise it can be -1.
   // If patch_caller is set, then all direct calls to functions which were
   // already lazily compiled are patched (at least the given call site).
-  // Returns the Code to be called at the given call site, or an empty Handle if
-  // an error occured during lazy compilation. In this case, an exception has
-  // been set on the isolate.
-  static MaybeHandle<Code> CompileLazy(Isolate*, Handle<WasmInstanceObject>,
-                                       Handle<Code> caller, int offset,
-                                       int func_index, bool patch_caller);
+  // Returns the Code to be called at the given call site.
+  static Handle<Code> CompileLazy(Isolate*, Handle<WasmInstanceObject>,
+                                  Handle<Code> caller, int offset,
+                                  int func_index, bool patch_caller);
 
   void ReplaceCodeTableForTesting(Handle<FixedArray> testing_table) {
     set_code_table(testing_table);

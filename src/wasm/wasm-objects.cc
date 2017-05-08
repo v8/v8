@@ -1555,7 +1555,7 @@ MaybeHandle<FixedArray> WasmCompiledModule::CheckBreakPoints(int position) {
   return isolate->debug()->GetHitBreakPointObjects(breakpoint_objects);
 }
 
-MaybeHandle<Code> WasmCompiledModule::CompileLazy(
+Handle<Code> WasmCompiledModule::CompileLazy(
     Isolate* isolate, Handle<WasmInstanceObject> instance, Handle<Code> caller,
     int offset, int func_index, bool patch_caller) {
   isolate->set_context(*instance->compiled_module()->native_context());

@@ -3117,13 +3117,8 @@ Handle<Code> wasm::CompileLazy(Isolate* isolate) {
   bool patch_caller = caller_code->kind() == Code::JS_TO_WASM_FUNCTION ||
                       exp_deopt_data.is_null() || exp_deopt_data->length() <= 2;
 
-  MaybeHandle<Code> maybe_compiled_code = WasmCompiledModule::CompileLazy(
+  Handle<Code> compiled_code = WasmCompiledModule::CompileLazy(
       isolate, instance, caller_code, offset, func_index, patch_caller);
-  if (maybe_compiled_code.is_null()) {
-    DCHECK(isolate->has_pending_exception());
-    return isolate->builtins()->Illegal();
-  }
-  Handle<Code> compiled_code = maybe_compiled_code.ToHandleChecked();
   if (!exp_deopt_data.is_null() && exp_deopt_data->length() > 2) {
     // See EnsureExportedLazyDeoptData: exp_deopt_data[2...(len-1)] are pairs of
     // <export_table, index> followed by undefined values.
@@ -3146,14 +3141,15 @@ Handle<Code> wasm::CompileLazy(Isolate* isolate) {
   return compiled_code;
 }
 
-bool LazyCompilationOrchestrator::CompileFunction(
+void LazyCompilationOrchestrator::CompileFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index) {
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
                                              isolate);
   if (Code::cast(compiled_module->code_table()->get(func_index))->kind() ==
       Code::WASM_FUNCTION) {
-    return true;
+    return;
   }
+
   size_t num_function_tables =
       compiled_module->module()->function_tables.size();
   // Store a vector of handles to be embedded in the generated code.
@@ -3193,16 +3189,17 @@ bool LazyCompilationOrchestrator::CompileFunction(
   unit.ExecuteCompilation();
   Handle<Code> code = unit.FinishCompilation(&thrower);
 
+  // If there is a pending error, something really went wrong. The module was
+  // verified before starting execution with lazy compilation.
+  // This might be OOM, but then we cannot continue execution anyway.
+  CHECK(!thrower.error());
+
   Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
   Handle<WeakCell> weak_instance = isolate->factory()->NewWeakCell(instance);
   // TODO(wasm): Introduce constants for the indexes in wasm deopt data.
   deopt_data->set(0, *weak_instance);
   deopt_data->set(1, Smi::FromInt(func_index));
   code->set_deoptimization_data(*deopt_data);
-
-  // If we have a pending error, just return. The ErrorThrower will set the
-  // pending exception in its destructor.
-  if (thrower.error()) return false;
 
   DCHECK_EQ(Builtins::kWasmCompileLazy,
             Code::cast(compiled_module->code_table()->get(func_index))
@@ -3232,10 +3229,9 @@ bool LazyCompilationOrchestrator::CompileFunction(
   Assembler::FlushICache(isolate, code->instruction_start(),
                          code->instruction_size());
   RecordLazyCodeStats(isolate, *code);
-  return true;
 }
 
-MaybeHandle<Code> LazyCompilationOrchestrator::CompileLazy(
+Handle<Code> LazyCompilationOrchestrator::CompileLazy(
     Isolate* isolate, Handle<WasmInstanceObject> instance, Handle<Code> caller,
     int call_offset, int exported_func_index, bool patch_caller) {
   struct NonCompiledFunction {
@@ -3286,9 +3282,7 @@ MaybeHandle<Code> LazyCompilationOrchestrator::CompileLazy(
 
   // TODO(clemensh): compile all functions in non_compiled_functions in
   // background, wait for func_to_return_idx.
-  if (!CompileFunction(isolate, instance, func_to_return_idx)) {
-    return {};
-  }
+  CompileFunction(isolate, instance, func_to_return_idx);
 
   if (is_js_to_wasm || patch_caller) {
     DisallowHeapAllocation no_gc;
