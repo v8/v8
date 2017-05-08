@@ -562,18 +562,16 @@ class CompilationHelper {
         ->AddSample(static_cast<int>(module_->functions.size()));
 
     if (!lazy_compile) {
-      CompilationHelper helper(isolate_, module_);
       size_t funcs_to_compile =
           module_->functions.size() - module_->num_imported_functions;
       if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0 &&
           funcs_to_compile > 1) {
         // Avoid a race condition by collecting results into a second vector.
         std::vector<Handle<Code>> results(temp_instance.function_code);
-        helper.CompileInParallel(&module_env, results, thrower);
+        CompileInParallel(&module_env, results, thrower);
         temp_instance.function_code.swap(results);
       } else {
-        helper.CompileSequentially(&module_env, temp_instance.function_code,
-                                   thrower);
+        CompileSequentially(&module_env, temp_instance.function_code, thrower);
       }
       if (thrower->error()) return {};
     }
