@@ -4057,35 +4057,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_length(*array_length);
       return object;
     }
-    case JS_FUNCTION_TYPE: {
-      Handle<SharedFunctionInfo> temporary_shared =
-          isolate_->factory()->NewSharedFunctionInfo(
-              isolate_->factory()->empty_string(), MaybeHandle<Code>(), false);
-      Handle<JSFunction> object =
-          isolate_->factory()->NewFunctionFromSharedFunctionInfo(
-              map, temporary_shared, isolate_->factory()->undefined_value(),
-              NOT_TENURED);
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> prototype = materializer.FieldAt(value_index);
-      Handle<Object> shared = materializer.FieldAt(value_index);
-      Handle<Object> context = materializer.FieldAt(value_index);
-      Handle<Object> vector_cell = materializer.FieldAt(value_index);
-      Handle<Object> entry = materializer.FieldAt(value_index);
-      Handle<Object> next_link = materializer.FieldAt(value_index);
-      object->ReplaceCode(*isolate_->builtins()->CompileLazy());
-      object->set_map(*map);
-      object->set_properties(FixedArray::cast(*properties));
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_prototype_or_initial_map(*prototype);
-      object->set_shared(SharedFunctionInfo::cast(*shared));
-      object->set_context(Context::cast(*context));
-      object->set_feedback_vector_cell(Cell::cast(*vector_cell));
-      CHECK(entry->IsNumber());  // Entry to compile lazy stub.
-      CHECK(next_link->IsUndefined(isolate_));
-      return object;
-    }
     case CONS_STRING_TYPE: {
       Handle<ConsString> object = Handle<ConsString>::cast(
           isolate_->factory()
@@ -4184,6 +4155,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_VALUE_TYPE:
+    case JS_FUNCTION_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
