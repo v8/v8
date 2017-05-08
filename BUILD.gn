@@ -3048,6 +3048,7 @@ v8_source_set("wasm_fuzzer") {
 
   deps = [
     ":fuzzer_support",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3067,6 +3068,7 @@ v8_source_set("wasm_asmjs_fuzzer") {
 
   deps = [
     ":fuzzer_support",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3087,6 +3089,7 @@ v8_source_set("wasm_code_fuzzer") {
 
   deps = [
     ":fuzzer_support",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3107,6 +3110,7 @@ v8_source_set("wasm_call_fuzzer") {
 
   deps = [
     ":fuzzer_support",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3119,10 +3123,10 @@ v8_source_set("wasm_call_fuzzer") {
 v8_fuzzer("wasm_call_fuzzer") {
 }
 
-v8_source_set("lib_wasm_section_fuzzer") {
+v8_source_set("lib_wasm_fuzzer_common") {
   sources = [
-    "test/fuzzer/wasm-section-fuzzers.cc",
-    "test/fuzzer/wasm-section-fuzzers.h",
+    "test/fuzzer/wasm-fuzzer-common.cc",
+    "test/fuzzer/wasm-fuzzer-common.h",
   ]
 
   configs = [
@@ -3138,7 +3142,7 @@ v8_source_set("wasm_types_section_fuzzer") {
 
   deps = [
     ":fuzzer_support",
-    ":lib_wasm_section_fuzzer",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3158,7 +3162,7 @@ v8_source_set("wasm_names_section_fuzzer") {
 
   deps = [
     ":fuzzer_support",
-    ":lib_wasm_section_fuzzer",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3178,7 +3182,7 @@ v8_source_set("wasm_globals_section_fuzzer") {
 
   deps = [
     ":fuzzer_support",
-    ":lib_wasm_section_fuzzer",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3198,7 +3202,7 @@ v8_source_set("wasm_imports_section_fuzzer") {
 
   deps = [
     ":fuzzer_support",
-    ":lib_wasm_section_fuzzer",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3218,7 +3222,7 @@ v8_source_set("wasm_function_sigs_section_fuzzer") {
 
   deps = [
     ":fuzzer_support",
-    ":lib_wasm_section_fuzzer",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3238,7 +3242,7 @@ v8_source_set("wasm_memory_section_fuzzer") {
 
   deps = [
     ":fuzzer_support",
-    ":lib_wasm_section_fuzzer",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3258,7 +3262,7 @@ v8_source_set("wasm_data_section_fuzzer") {
 
   deps = [
     ":fuzzer_support",
-    ":lib_wasm_section_fuzzer",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
@@ -3279,6 +3283,7 @@ v8_source_set("wasm_compile_fuzzer") {
 
   deps = [
     ":fuzzer_support",
+    ":lib_wasm_fuzzer_common",
     ":wasm_module_runner",
   ]
 
