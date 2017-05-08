@@ -1137,22 +1137,22 @@ class ModuleDecoder : public Decoder {
   }
 };
 
-}  // namespace
-
-ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
-                              const byte* module_end, bool verify_functions,
-                              ModuleOrigin origin) {
-  HistogramTimerScope wasm_decode_module_time_scope(
-      IsWasm(origin) ? isolate->counters()->wasm_decode_wasm_module_time()
-                     : isolate->counters()->wasm_decode_asm_module_time());
+ModuleResult DecodeWasmModuleInternal(Isolate* isolate,
+                                      const byte* module_start,
+                                      const byte* module_end,
+                                      bool verify_functions,
+                                      ModuleOrigin origin, bool is_sync) {
   size_t size = module_end - module_start;
   if (module_start > module_end) return ModuleResult::Error("start > end");
   if (size >= kV8MaxWasmModuleSize)
     return ModuleResult::Error("size > maximum module size: %zu", size);
   // TODO(bradnelson): Improve histogram handling of size_t.
-  (IsWasm(origin) ? isolate->counters()->wasm_wasm_module_size_bytes()
-                  : isolate->counters()->wasm_asm_module_size_bytes())
-      ->AddSample(static_cast<int>(size));
+  if (is_sync)
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    (IsWasm(origin) ? isolate->counters()->wasm_wasm_module_size_bytes()
+                    : isolate->counters()->wasm_asm_module_size_bytes())
+        ->AddSample(static_cast<int>(size));
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
   Zone* zone = new Zone(isolate->allocator(), ZONE_NAME);
@@ -1162,11 +1162,32 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
   // TODO(titzer): this isn't accurate, since it doesn't count the data
   // allocated on the C++ heap.
   // https://bugs.chromium.org/p/chromium/issues/detail?id=657320
-  (IsWasm(origin)
-       ? isolate->counters()->wasm_decode_wasm_module_peak_memory_bytes()
-       : isolate->counters()->wasm_decode_asm_module_peak_memory_bytes())
-      ->AddSample(static_cast<int>(zone->allocation_size()));
+  if (is_sync)
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    (IsWasm(origin)
+         ? isolate->counters()->wasm_decode_wasm_module_peak_memory_bytes()
+         : isolate->counters()->wasm_decode_asm_module_peak_memory_bytes())
+        ->AddSample(static_cast<int>(zone->allocation_size()));
   return result;
+}
+
+}  // namespace
+
+ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
+                              const byte* module_end, bool verify_functions,
+                              ModuleOrigin origin, bool is_sync) {
+  if (is_sync) {
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    HistogramTimerScope wasm_decode_module_time_scope(
+        IsWasm(origin) ? isolate->counters()->wasm_decode_wasm_module_time()
+                       : isolate->counters()->wasm_decode_asm_module_time());
+    return DecodeWasmModuleInternal(isolate, module_start, module_end,
+                                    verify_functions, origin, true);
+  }
+  return DecodeWasmModuleInternal(isolate, module_start, module_end,
+                                  verify_functions, origin, false);
 }
 
 FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
@@ -1182,25 +1203,53 @@ WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end) {
   return decoder.DecodeInitExpr(start);
 }
 
-FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
-                                  ModuleBytesEnv* module_env,
-                                  const byte* function_start,
-                                  const byte* function_end) {
-  bool is_wasm = module_env->module_env.is_wasm();
-  HistogramTimerScope wasm_decode_function_time_scope(
-      is_wasm ? isolate->counters()->wasm_decode_wasm_function_time()
-              : isolate->counters()->wasm_decode_asm_function_time());
+namespace {
+
+FunctionResult DecodeWasmFunctionInternal(Isolate* isolate, Zone* zone,
+                                          ModuleBytesEnv* module_env,
+                                          const byte* function_start,
+                                          const byte* function_end,
+                                          bool is_sync) {
   size_t size = function_end - function_start;
   if (function_start > function_end)
     return FunctionResult::Error("start > end");
   if (size > kV8MaxWasmFunctionSize)
     return FunctionResult::Error("size > maximum function size: %zu", size);
-  (is_wasm ? isolate->counters()->wasm_wasm_function_size_bytes()
-           : isolate->counters()->wasm_asm_function_size_bytes())
-      ->AddSample(static_cast<int>(size));
+  if (is_sync) {
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    bool is_wasm = module_env->module_env.is_wasm();
+    (is_wasm ? isolate->counters()->wasm_wasm_function_size_bytes()
+             : isolate->counters()->wasm_asm_function_size_bytes())
+        ->AddSample(static_cast<int>(size));
+  }
   ModuleDecoder decoder(zone, function_start, function_end, kWasmOrigin);
   return decoder.DecodeSingleFunction(
       module_env, std::unique_ptr<WasmFunction>(new WasmFunction()));
+}
+
+}  // namespace
+
+FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
+                                  ModuleBytesEnv* module_env,
+                                  const byte* function_start,
+                                  const byte* function_end, bool is_sync) {
+  if (is_sync) {
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    size_t size = function_end - function_start;
+    bool is_wasm = module_env->module_env.is_wasm();
+    (is_wasm ? isolate->counters()->wasm_wasm_function_size_bytes()
+             : isolate->counters()->wasm_asm_function_size_bytes())
+        ->AddSample(static_cast<int>(size));
+    HistogramTimerScope wasm_decode_function_time_scope(
+        is_wasm ? isolate->counters()->wasm_decode_wasm_function_time()
+                : isolate->counters()->wasm_decode_asm_function_time());
+    return DecodeWasmFunctionInternal(isolate, zone, module_env, function_start,
+                                      function_end, true);
+  }
+  return DecodeWasmFunctionInternal(isolate, zone, module_env, function_start,
+                                    function_end, false);
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,

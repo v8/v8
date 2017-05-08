@@ -72,16 +72,22 @@ static void MemoryFinalizer(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
 }
 
-static void RecordStats(Isolate* isolate, Code* code) {
-  isolate->counters()->wasm_generated_code_size()->Increment(code->body_size());
-  isolate->counters()->wasm_reloc_size()->Increment(
-      code->relocation_info()->length());
+static void RecordStats(Isolate* isolate, Code* code, bool is_sync) {
+  if (is_sync) {
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    isolate->counters()->wasm_generated_code_size()->Increment(
+        code->body_size());
+    isolate->counters()->wasm_reloc_size()->Increment(
+        code->relocation_info()->length());
+  }
 }
 
-static void RecordStats(Isolate* isolate, Handle<FixedArray> functions) {
+static void RecordStats(Isolate* isolate, Handle<FixedArray> functions,
+                        bool is_sync) {
   DisallowHeapAllocation no_gc;
   for (int i = 0; i < functions->length(); ++i) {
-    RecordStats(isolate, Code::cast(functions->get(i)));
+    RecordStats(isolate, Code::cast(functions->get(i)), is_sync);
   }
 }
 
@@ -304,8 +310,9 @@ class CompilationHelper {
   // In {CompileToModuleObject}, it will transfer ownership to the generated
   // {WasmModuleWrapper}. If this method is not called, ownership may be
   // reclaimed by explicitely releasing the {module_} field.
-  CompilationHelper(Isolate* isolate, std::unique_ptr<WasmModule> module)
-      : isolate_(isolate), module_(std::move(module)) {}
+  CompilationHelper(Isolate* isolate, std::unique_ptr<WasmModule> module,
+                    bool is_sync)
+      : isolate_(isolate), module_(std::move(module)), is_sync_(is_sync) {}
 
   // The actual runnable task that performs compilations in the background.
   class CompilationTask : public CancelableTask {
@@ -323,6 +330,7 @@ class CompilationHelper {
 
   Isolate* isolate_;
   std::unique_ptr<WasmModule> module_;
+  bool is_sync_;
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
   std::queue<std::unique_ptr<compiler::WasmCompilationUnit>> executed_units_;
@@ -360,9 +368,11 @@ class CompilationHelper {
     compilation_units_.reserve(funcs_to_compile);
     for (uint32_t i = start; i < num_funcs; ++i) {
       const WasmFunction* func = &functions[i];
+      constexpr bool is_sync = true;
       compilation_units_.push_back(
           std::unique_ptr<compiler::WasmCompilationUnit>(
-              new compiler::WasmCompilationUnit(isolate_, &module_env, func)));
+              new compiler::WasmCompilationUnit(isolate_, &module_env, func,
+                                                !is_sync)));
     }
     return funcs_to_compile;
   }
@@ -528,12 +538,30 @@ class CompilationHelper {
       signature_tables->set(i, *temp_instance.signature_tables[i]);
     }
 
-    HistogramTimerScope wasm_compile_module_time_scope(
-        module_->is_wasm()
-            ? isolate_->counters()->wasm_compile_wasm_module_time()
-            : isolate_->counters()->wasm_compile_asm_module_time());
+    if (is_sync_) {
+      // TODO(karlschimpf): Make this work when asynchronous.
+      // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+      HistogramTimerScope wasm_compile_module_time_scope(
+          module_->is_wasm()
+              ? isolate_->counters()->wasm_compile_wasm_module_time()
+              : isolate_->counters()->wasm_compile_asm_module_time());
+      return CompileToModuleObjectInternal(
+          thrower, wire_bytes, asm_js_script, asm_js_offset_table_bytes,
+          factory, &temp_instance, &function_tables, &signature_tables);
+    }
+    return CompileToModuleObjectInternal(
+        thrower, wire_bytes, asm_js_script, asm_js_offset_table_bytes, factory,
+        &temp_instance, &function_tables, &signature_tables);
+  }
 
-    ModuleBytesEnv module_env(module_.get(), &temp_instance, wire_bytes);
+ private:
+  MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
+      ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
+      Handle<Script> asm_js_script,
+      Vector<const byte> asm_js_offset_table_bytes, Factory* factory,
+      WasmInstance* temp_instance, Handle<FixedArray>* function_tables,
+      Handle<FixedArray>* signature_tables) {
+    ModuleBytesEnv module_env(module_.get(), temp_instance, wire_bytes);
 
     // The {code_table} array contains import wrappers and functions (which
     // are both included in {functions.size()}, and export wrappers.
@@ -554,12 +582,16 @@ class CompilationHelper {
     for (int i = 0, e = static_cast<int>(module_->functions.size()); i < e;
          ++i) {
       code_table->set(i, *init_builtin);
-      temp_instance.function_code[i] = init_builtin;
+      temp_instance->function_code[i] = init_builtin;
     }
 
-    (module_->is_wasm() ? isolate_->counters()->wasm_functions_per_wasm_module()
-                        : isolate_->counters()->wasm_functions_per_asm_module())
-        ->AddSample(static_cast<int>(module_->functions.size()));
+    if (is_sync_)
+      // TODO(karlschimpf): Make this work when asynchronous.
+      // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+      (module_->is_wasm()
+           ? isolate_->counters()->wasm_functions_per_wasm_module()
+           : isolate_->counters()->wasm_functions_per_asm_module())
+          ->AddSample(static_cast<int>(module_->functions.size()));
 
     if (!lazy_compile) {
       size_t funcs_to_compile =
@@ -567,21 +599,21 @@ class CompilationHelper {
       if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0 &&
           funcs_to_compile > 1) {
         // Avoid a race condition by collecting results into a second vector.
-        std::vector<Handle<Code>> results(temp_instance.function_code);
+        std::vector<Handle<Code>> results(temp_instance->function_code);
         CompileInParallel(&module_env, results, thrower);
-        temp_instance.function_code.swap(results);
+        temp_instance->function_code.swap(results);
       } else {
-        CompileSequentially(&module_env, temp_instance.function_code, thrower);
+        CompileSequentially(&module_env, temp_instance->function_code, thrower);
       }
       if (thrower->error()) return {};
     }
 
     // At this point, compilation has completed. Update the code table.
     for (size_t i = FLAG_skip_compiling_wasm_funcs;
-         i < temp_instance.function_code.size(); ++i) {
-      Code* code = *temp_instance.function_code[i];
+         i < temp_instance->function_code.size(); ++i) {
+      Code* code = *temp_instance->function_code[i];
       code_table->set(static_cast<int>(i), code);
-      RecordStats(isolate_, code);
+      RecordStats(isolate_, code, is_sync_);
     }
 
     // Create heap objects for script, module bytes and asm.js offset table to
@@ -627,7 +659,7 @@ class CompilationHelper {
     // serializable. Instantiation may occur off a deserialized version of this
     // object.
     Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
-        isolate_, shared, code_table, function_tables, signature_tables);
+        isolate_, shared, code_table, *function_tables, *signature_tables);
 
     // If we created a wasm script, finish it now and make it public to the
     // debugger.
@@ -649,7 +681,7 @@ class CompilationHelper {
       int export_index =
           static_cast<int>(module->functions.size() + func_index);
       code_table->set(export_index, *wrapper_code);
-      RecordStats(isolate_, *wrapper_code);
+      RecordStats(isolate_, *wrapper_code, is_sync_);
       func_index++;
     }
 
@@ -1139,7 +1171,7 @@ class InstantiationHelper {
               UNREACHABLE();
           }
         }
-        RecordStats(isolate_, code_table);
+        RecordStats(isolate_, code_table, is_sync_);
       } else {
         // There was no owner, so we can reuse the original.
         compiled_module_ = original;
@@ -1416,7 +1448,7 @@ class InstantiationHelper {
       Handle<WasmExportedFunction> startup_fct = WasmExportedFunction::New(
           isolate_, instance, MaybeHandle<String>(), start_index,
           static_cast<int>(sig->parameter_count()), wrapper_code);
-      RecordStats(isolate_, *startup_code);
+      RecordStats(isolate_, *startup_code, is_sync_);
       // Call the JS function.
       Handle<Object> undefined = factory->undefined_value();
       MaybeHandle<Object> retval =
@@ -1450,6 +1482,7 @@ class InstantiationHelper {
 
   Isolate* isolate_;
   WasmModule* const module_;
+  constexpr static bool is_sync_ = true;
   ErrorThrower* thrower_;
   Handle<WasmModuleObject> module_object_;
   Handle<JSReceiver> ffi_;        // TODO(titzer): Use MaybeHandle
@@ -1621,7 +1654,7 @@ class InstantiationHelper {
             return -1;
           }
           code_table->set(num_imported_functions, *import_wrapper);
-          RecordStats(isolate_, *import_wrapper);
+          RecordStats(isolate_, *import_wrapper, is_sync_);
           num_imported_functions++;
           break;
         }
@@ -2492,7 +2525,8 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
 
   // Transfer ownership to the {WasmModuleWrapper} generated in
   // {CompileToModuleObject}.
-  CompilationHelper helper(isolate, std::move(result.val));
+  constexpr bool is_sync = true;
+  CompilationHelper helper(isolate, std::move(result.val), is_sync);
   return helper.CompileToModuleObject(thrower, bytes, asm_js_script,
                                       asm_js_offset_table_bytes);
 }
@@ -2514,7 +2548,8 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
 
   // Transfer ownership to the {WasmModuleWrapper} generated in
   // {CompileToModuleObject}.
-  CompilationHelper helper(isolate, std::move(result.val));
+  constexpr bool is_sync = true;
+  CompilationHelper helper(isolate, std::move(result.val), is_sync);
   return helper.CompileToModuleObject(thrower, bytes, Handle<Script>(),
                                       Vector<const byte>());
 }
@@ -2698,8 +2733,10 @@ class AsyncCompileJob {
         DisallowHeapAllocation no_allocation;
         // Decode the module bytes.
         TRACE_COMPILE("(1) Decoding module...\n");
+        constexpr bool is_sync = true;
         result = DecodeWasmModule(job_->isolate_, job_->wire_bytes_.start(),
-                                  job_->wire_bytes_.end(), false, kWasmOrigin);
+                                  job_->wire_bytes_.end(), false, kWasmOrigin,
+                                  !is_sync);
       }
       if (result.failed()) {
         // Decoding failure; reject the promise and clean up.
@@ -2792,8 +2829,9 @@ class AsyncCompileJob {
       // Transfer ownership of the {WasmModule} to the {CompilationHelper}, but
       // keep a pointer.
       WasmModule* module = module_.get();
+      constexpr bool is_sync = true;
       job_->helper_.reset(
-          new CompilationHelper(job_->isolate_, std::move(module_)));
+          new CompilationHelper(job_->isolate_, std::move(module_), !is_sync));
 
       DCHECK_LE(module->num_imported_functions, module->functions.size());
       size_t num_functions =
@@ -2934,10 +2972,11 @@ class AsyncCompileJob {
       TRACE_COMPILE("(5b) Finish compile...\n");
       HandleScope scope(job_->isolate_);
       // At this point, compilation has completed. Update the code table.
+      constexpr bool is_sync = true;
       for (size_t i = FLAG_skip_compiling_wasm_funcs;
            i < job_->temp_instance_->function_code.size(); ++i) {
         Code* code = Code::cast(job_->code_table_->get(static_cast<int>(i)));
-        RecordStats(job_->isolate_, code);
+        RecordStats(job_->isolate_, code, !is_sync);
       }
 
       // Create heap objects for script and module bytes to be stored in the
@@ -3003,6 +3042,7 @@ class AsyncCompileJob {
       HandleScope scope(job_->isolate_);
       JSToWasmWrapperCache js_to_wasm_cache;
       int func_index = 0;
+      constexpr bool is_sync = true;
       WasmModule* module = job_->compiled_module_->module();
       for (auto exp : module->export_table) {
         if (exp.kind != kExternalFunction) continue;
@@ -3014,7 +3054,7 @@ class AsyncCompileJob {
         int export_index =
             static_cast<int>(module->functions.size() + func_index);
         job_->code_table_->set(export_index, *wrapper_code);
-        RecordStats(job_->isolate_, *wrapper_code);
+        RecordStats(job_->isolate_, *wrapper_code, !is_sync);
         func_index++;
       }
 
