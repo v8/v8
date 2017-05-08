@@ -812,7 +812,9 @@ void WasmSharedModuleData::ReinitializeAfterDeserialization(
         DecodeWasmModule(isolate, start, end, false, kWasmOrigin);
     CHECK(result.ok());
     CHECK_NOT_NULL(result.val);
-    module = const_cast<WasmModule*>(result.val);
+    // Take ownership of the WasmModule and immediately transfer it to the
+    // WasmModuleWrapper below.
+    module = result.val.release();
   }
 
   Handle<WasmModuleWrapper> module_wrapper =

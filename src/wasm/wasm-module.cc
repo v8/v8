@@ -300,6 +300,12 @@ bool compile_lazy(const WasmModule* module) {
 // A helper for compiling an entire module.
 class CompilationHelper {
  public:
+  // The compilation helper itself does not take ownership of the {WasmModule},
+  // since there are use cases in which is must remain owned by the caller.
+  // The CompileToModuleObject method transfers ownership to the generated
+  // {WasmModuleWrapper}, so each user or this method must release ownership.
+  // TODO(clemensh): Fix this by storing the WasmModule as unique_ptr and having
+  // an explicit release_module() method.
   CompilationHelper(Isolate* isolate, WasmModule* module)
       : isolate_(isolate), module_(module) {}
 
@@ -499,6 +505,7 @@ class CompilationHelper {
     }
   }
 
+  // This method takes ownership of the {WasmModule} stored in {module_}.
   MaybeHandle<WasmModuleObject> CompileToModuleObject(
       ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
       Handle<Script> asm_js_script,
@@ -649,7 +656,7 @@ class CompilationHelper {
     }
 
     return WasmModuleObject::New(isolate_, compiled_module);
-}
+  }
 };
 
 static void MemoryInstanceFinalizer(Isolate* isolate,
@@ -2470,7 +2477,6 @@ bool wasm::SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
   if (bytes.start() == nullptr || bytes.length() == 0) return false;
   ModuleResult result =
       DecodeWasmModule(isolate, bytes.start(), bytes.end(), true, kWasmOrigin);
-  if (result.val) delete result.val;
   return result.ok();
 }
 
@@ -2482,13 +2488,13 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
   ModuleResult result = DecodeWasmModule(isolate, bytes.start(), bytes.end(),
                                          false, kAsmJsOrigin);
   if (result.failed()) {
-    // TODO(titzer): use Result<std::unique_ptr<const WasmModule*>>?
-    if (result.val) delete result.val;
     thrower->CompileFailed("Wasm decoding failed", result);
     return {};
   }
 
-  CompilationHelper helper(isolate, const_cast<WasmModule*>(result.val));
+  // Transfer ownership to the {WasmModuleWrapper} generated in
+  // {CompileToModuleObject}.
+  CompilationHelper helper(isolate, result.val.release());
   return helper.CompileToModuleObject(thrower, bytes, asm_js_script,
                                       asm_js_offset_table_bytes);
 }
@@ -2504,12 +2510,13 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
   ModuleResult result =
       DecodeWasmModule(isolate, bytes.start(), bytes.end(), false, kWasmOrigin);
   if (result.failed()) {
-    if (result.val) delete result.val;
     thrower->CompileFailed("Wasm decoding failed", result);
     return {};
   }
 
-  CompilationHelper helper(isolate, const_cast<WasmModule*>(result.val));
+  // Transfer ownership to the {WasmModuleWrapper} generated in
+  // {CompileToModuleObject}.
+  CompilationHelper helper(isolate, result.val.release());
   return helper.CompileToModuleObject(thrower, bytes, Handle<Script>(),
                                       Vector<const byte>());
 }
@@ -2601,9 +2608,11 @@ class AsyncCompileJob {
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
   Handle<JSPromise> module_promise_;
+  // The WasmModule is owned by the WasmModuleWrapper created in step 2.
+  // It is {nullptr} before.
   WasmModule* module_ = nullptr;
-  std::unique_ptr<CompilationHelper> helper_ = nullptr;
-  std::unique_ptr<ModuleBytesEnv> module_bytes_env_ = nullptr;
+  std::unique_ptr<CompilationHelper> helper_;
+  std::unique_ptr<ModuleBytesEnv> module_bytes_env_;
 
   bool failed_ = false;
   std::vector<DeferredHandles*> deferred_handles_;
@@ -2701,13 +2710,10 @@ class AsyncCompileJob {
       }
       if (result.failed()) {
         // Decoding failure; reject the promise and clean up.
-        if (result.val) delete result.val;
-        result.val = nullptr;
         job_->DoSync<DecodeFail>(std::move(result));
       } else {
         // Decode passed.
-        job_->module_ = const_cast<WasmModule*>(result.val);
-        job_->DoSync<PrepareAndStartCompile>();
+        job_->DoSync<PrepareAndStartCompile>(std::move(result.val));
       }
     }
   };
@@ -2735,6 +2741,12 @@ class AsyncCompileJob {
   // Step 2 (sync): Create heap-allocated data and start compile.
   //==========================================================================
   class PrepareAndStartCompile : public SyncCompileTask {
+   public:
+    explicit PrepareAndStartCompile(std::unique_ptr<WasmModule> module)
+        : module_(std::move(module)) {}
+
+   private:
+    std::unique_ptr<WasmModule> module_;
     void RunImpl() override {
       TRACE_COMPILE("(2) Prepare and start compile...\n");
       HandleScope scope(job_->isolate_);
@@ -2743,9 +2755,9 @@ class AsyncCompileJob {
       // The {module_wrapper} will take ownership of the {WasmModule} object,
       // and it will be destroyed when the GC reclaims the wrapper object.
       job_->module_wrapper_ =
-          WasmModuleWrapper::New(job_->isolate_, job_->module_);
-      job_->temp_instance_ =
-          std::unique_ptr<WasmInstance>(new WasmInstance(job_->module_));
+          WasmModuleWrapper::New(job_->isolate_, module_.release());
+      job_->module_ = job_->module_wrapper_->get();
+      job_->temp_instance_.reset(new WasmInstance(job_->module_));
       job_->temp_instance_->context = job_->context_;
       job_->temp_instance_->mem_size =
           WasmModule::kPageSize * job_->module_->min_mem_pages;
@@ -2810,9 +2822,8 @@ class AsyncCompileJob {
                   Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
                       V8::GetCurrentPlatform()
                           ->NumberOfAvailableBackgroundThreads())));
-      job_->module_bytes_env_ =
-          std::unique_ptr<ModuleBytesEnv>(new ModuleBytesEnv(
-              job_->module_, job_->temp_instance_.get(), job_->wire_bytes_));
+      job_->module_bytes_env_.reset(new ModuleBytesEnv(
+          job_->module_, job_->temp_instance_.get(), job_->wire_bytes_));
       job_->outstanding_units_ = job_->helper_->InitializeParallelCompilation(
           job_->module_->functions, *job_->module_bytes_env_);
 

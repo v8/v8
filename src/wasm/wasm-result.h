@@ -69,7 +69,7 @@ class Result : public ResultBase {
   Result() = default;
 
   template <typename S>
-  explicit Result(S&& value) : val(value) {}
+  explicit Result(S&& value) : val(std::forward<S>(value)) {}
 
   template <typename S>
   Result(Result<S>&& other)
