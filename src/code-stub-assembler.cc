@@ -5999,6 +5999,11 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
                          SKIP_WRITE_BARRIER);
 }
 
+void CodeStubAssembler::CombineFeedback(Variable* existing_feedback,
+                                        Node* feedback) {
+  existing_feedback->Bind(SmiOr(existing_feedback->value(), feedback));
+}
+
 void CodeStubAssembler::CheckForAssociatedProtector(Node* name,
                                                     Label* if_protector) {
   // This list must be kept in sync with LookupIterator::UpdateProtector!
@@ -7289,8 +7294,9 @@ void GenerateEqual_Same(
 
     assembler->BIND(&if_valueisnumber);
     {
-      if (var_type_feedback != NULL) {
-        var_type_feedback->Bind(
+      if (var_type_feedback != nullptr) {
+        assembler->CombineFeedback(
+            var_type_feedback,
             assembler->SmiConstant(CompareOperationFeedback::kNumber));
       }
 
@@ -7302,7 +7308,7 @@ void GenerateEqual_Same(
     }
 
     assembler->BIND(&if_valueisnotnumber);
-    if (var_type_feedback != NULL) {
+    if (var_type_feedback != nullptr) {
       // Collect type feedback.
       Node* instance_type = assembler->LoadMapInstanceType(value_map);
 
@@ -7312,17 +7318,21 @@ void GenerateEqual_Same(
 
       assembler->BIND(&if_valueisstring);
       {
-        var_type_feedback->Bind(
+        assembler->CombineFeedback(
+            var_type_feedback,
             CollectFeedbackForString(assembler, instance_type));
         assembler->Goto(if_equal);
       }
 
       assembler->Bind(&if_valueisnotstring);
       {
+        var_type_feedback->Bind(
+            assembler->SmiConstant(CompareOperationFeedback::kAny));
         assembler->GotoIfNot(assembler->IsJSReceiverInstanceType(instance_type),
                              if_equal);
 
-        var_type_feedback->Bind(
+        assembler->CombineFeedback(
+            var_type_feedback,
             assembler->SmiConstant(CompareOperationFeedback::kReceiver));
         assembler->Goto(if_equal);
       }
@@ -7332,8 +7342,9 @@ void GenerateEqual_Same(
   }
 
   assembler->BIND(&if_valueissmi);
-  if (var_type_feedback != NULL) {
-    var_type_feedback->Bind(
+  if (var_type_feedback != nullptr) {
+    assembler->CombineFeedback(
+        var_type_feedback,
         assembler->SmiConstant(CompareOperationFeedback::kSignedSmall));
   }
   assembler->Goto(if_equal);
@@ -7341,7 +7352,8 @@ void GenerateEqual_Same(
 }  // namespace
 
 // ES6 section 7.2.12 Abstract Equality Comparison
-Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
+Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
+                               Variable* var_type_feedback) {
   // This is a slightly optimized version of Object::Equals represented as
   // scheduled TurboFan graph utilizing the CodeStubAssembler. Whenever you
   // change something functionality wise in here, remember to update the
@@ -7360,8 +7372,14 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
   // conversions.
   VARIABLE(var_lhs, MachineRepresentation::kTagged, lhs);
   VARIABLE(var_rhs, MachineRepresentation::kTagged, rhs);
-  Variable* loop_vars[2] = {&var_lhs, &var_rhs};
-  Label loop(this, 2, loop_vars);
+  VariableList loop_variable_list({&var_lhs, &var_rhs}, zone());
+  if (var_type_feedback != nullptr) {
+    // Initialize the type feedback to None. The current feedback is combined
+    // with the previous feedback.
+    var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kNone));
+    loop_variable_list.Add(var_type_feedback, zone());
+  }
+  Label loop(this, loop_variable_list);
   Goto(&loop);
   BIND(&loop);
   {
@@ -7377,7 +7395,7 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
     {
       // The {lhs} and {rhs} reference the exact same value, yet we need special
       // treatment for HeapNumber, as NaN is not equal to NaN.
-      GenerateEqual_Same(this, lhs, &if_equal, &if_notequal);
+      GenerateEqual_Same(this, lhs, &if_equal, &if_notequal, var_type_feedback);
     }
 
     BIND(&if_notsame);
@@ -7395,6 +7413,10 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
         BIND(&if_rhsissmi);
         // We have already checked for {lhs} and {rhs} being the same value, so
         // if both are Smis when we get here they must not be equal.
+        if (var_type_feedback != nullptr) {
+          CombineFeedback(var_type_feedback,
+                          SmiConstant(CompareOperationFeedback::kSignedSmall));
+        }
         Goto(&if_notequal);
 
         BIND(&if_rhsisnotsmi);
@@ -7412,11 +7434,21 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
             // perform a floating point comparison.
             var_fcmp_lhs.Bind(SmiToFloat64(lhs));
             var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
+            if (var_type_feedback != nullptr) {
+              CombineFeedback(var_type_feedback,
+                              SmiConstant(CompareOperationFeedback::kNumber));
+            }
             Goto(&do_fcmp);
           }
 
           BIND(&if_rhsisnotnumber);
           {
+            // The {lhs} is Smi and {rhs} is not HeapNumber or Smi.
+            if (var_type_feedback != nullptr) {
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
+            }
+
             // Load the instance type of the {rhs}.
             Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
 
@@ -7542,6 +7574,14 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
               // string comparison then.
               Callable callable = CodeFactory::StringEqual(isolate());
               result.Bind(CallStub(callable, context, lhs, rhs));
+              if (var_type_feedback != nullptr) {
+                Node* lhs_feedback =
+                    CollectFeedbackForString(this, lhs_instance_type);
+                Node* rhs_feedback =
+                    CollectFeedbackForString(this, rhs_instance_type);
+                CombineFeedback(var_type_feedback,
+                                SmiOr(lhs_feedback, rhs_feedback));
+              }
               Goto(&end);
             }
 
@@ -7553,6 +7593,10 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
               // handling below (for {rhs} being a String).
               var_lhs.Bind(rhs);
               var_rhs.Bind(lhs);
+              if (var_type_feedback != nullptr) {
+                var_type_feedback->Bind(
+                    SmiConstant(CompareOperationFeedback::kAny));
+              }
               Goto(&loop);
             }
           }
@@ -7570,6 +7614,10 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
               // perform a floating point comparison.
               var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
               var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
+              if (var_type_feedback != nullptr) {
+                CombineFeedback(var_type_feedback,
+                                SmiConstant(CompareOperationFeedback::kNumber));
+              }
               Goto(&do_fcmp);
             }
 
@@ -7578,6 +7626,12 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
               // The {lhs} is a Number, the {rhs} is some other HeapObject.
               Label if_rhsisstring(this, Label::kDeferred),
                   if_rhsisnotstring(this);
+
+              if (var_type_feedback != nullptr) {
+                // The {lhs} is number and {rhs} is not Smi or HeapNumber.
+                var_type_feedback->Bind(
+                    SmiConstant(CompareOperationFeedback::kAny));
+              }
               Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
                      &if_rhsisnotstring);
 
@@ -7633,6 +7687,11 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
 
           BIND(&if_lhsisoddball);
           {
+            if (var_type_feedback != nullptr) {
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
+            }
+
             // The {lhs} is an Oddball and {rhs} is some other HeapObject.
             Label if_lhsisboolean(this), if_lhsisnotboolean(this);
             Node* boolean_map = BooleanMapConstant();
@@ -7676,6 +7735,11 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
 
           BIND(&if_lhsissymbol);
           {
+            if (var_type_feedback != nullptr) {
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
+            }
+
             // Check if the {rhs} is a JSReceiver.
             Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
             STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
@@ -7711,6 +7775,13 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
 
             BIND(&if_rhsisreceiver);
             {
+              if (var_type_feedback != nullptr) {
+                // The {lhs} and {rhs} are receivers.
+                CombineFeedback(
+                    var_type_feedback,
+                    SmiConstant(CompareOperationFeedback::kReceiver));
+              }
+
               // Both {lhs} and {rhs} are different JSReceiver references, so
               // this cannot be considered equal.
               Goto(&if_notequal);
@@ -7718,6 +7789,11 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
 
             BIND(&if_rhsisnotreceiver);
             {
+              if (var_type_feedback != nullptr) {
+                var_type_feedback->Bind(
+                    SmiConstant(CompareOperationFeedback::kAny));
+              }
+
               // Check if {rhs} is Null or Undefined (an undetectable check
               // is sufficient here, since we already know that {rhs} is not
               // a JSReceiver).
@@ -7839,10 +7915,6 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
   Label if_equal(this), if_notequal(this), end(this);
   VARIABLE(result, MachineRepresentation::kTagged);
 
-  if (var_type_feedback != NULL) {
-    var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kAny));
-  }
-
   // Check if {lhs} and {rhs} refer to the same object.
   Label if_same(this), if_notsame(this);
   Branch(WordEqual(lhs, rhs), &if_same, &if_notsame);
@@ -7851,6 +7923,9 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
   {
     // The {lhs} and {rhs} reference the exact same value, yet we need special
     // treatment for HeapNumber, as NaN is not equal to NaN.
+    if (var_type_feedback != nullptr) {
+      var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kNone));
+    }
     GenerateEqual_Same(this, lhs, &if_equal, &if_notequal, var_type_feedback);
   }
 
@@ -7858,6 +7933,10 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
   {
     // The {lhs} and {rhs} reference different objects, yet for Smi, HeapNumber
     // and String they can still be considered equal.
+
+    if (var_type_feedback != nullptr) {
+      var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kAny));
+    }
 
     // Check if {lhs} is a Smi or a HeapObject.
     Label if_lhsissmi(this), if_lhsisnotsmi(this);
@@ -7884,7 +7963,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
           Node* lhs_value = LoadHeapNumberValue(lhs);
           Node* rhs_value = SmiToFloat64(rhs);
 
-          if (var_type_feedback != NULL) {
+          if (var_type_feedback != nullptr) {
             var_type_feedback->Bind(
                 SmiConstant(CompareOperationFeedback::kNumber));
           }
@@ -7908,7 +7987,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
             Node* lhs_value = LoadHeapNumberValue(lhs);
             Node* rhs_value = LoadHeapNumberValue(rhs);
 
-            if (var_type_feedback != NULL) {
+            if (var_type_feedback != nullptr) {
               var_type_feedback->Bind(
                   SmiConstant(CompareOperationFeedback::kNumber));
             }
@@ -7955,7 +8034,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
             BIND(&if_rhsisstring);
             {
               Callable callable = CodeFactory::StringEqual(isolate());
-              if (var_type_feedback != NULL) {
+              if (var_type_feedback != nullptr) {
                 Node* lhs_feedback =
                     CollectFeedbackForString(this, lhs_instance_type);
                 Node* rhs_feedback =
@@ -7971,7 +8050,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
           }
 
           BIND(&if_lhsisnotstring);
-          if (var_type_feedback != NULL) {
+          if (var_type_feedback != nullptr) {
             GotoIfNot(IsJSReceiverInstanceType(lhs_instance_type),
                       &if_notequal);
             GotoIfNot(IsJSReceiverInstanceType(rhs_instance_type),
@@ -7995,7 +8074,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
       BIND(&if_rhsissmi);
-      if (var_type_feedback != NULL) {
+      if (var_type_feedback != nullptr) {
         var_type_feedback->Bind(
             SmiConstant(CompareOperationFeedback::kSignedSmall));
       }
@@ -8016,7 +8095,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
           Node* lhs_value = SmiToFloat64(lhs);
           Node* rhs_value = LoadHeapNumberValue(rhs);
 
-          if (var_type_feedback != NULL) {
+          if (var_type_feedback != nullptr) {
             var_type_feedback->Bind(
                 SmiConstant(CompareOperationFeedback::kNumber));
           }

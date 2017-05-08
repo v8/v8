@@ -1210,6 +1210,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
 
+  // Combine the new feedback with the existing_feedback.
+  void CombineFeedback(Variable* existing_feedback, Node* feedback);
+
   // Check if a property name might require protector invalidation when it is
   // used for a property store or deletion.
   void CheckForAssociatedProtector(Node* name, Label* if_protector);
@@ -1346,9 +1349,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void GotoUnlessNumberLessThan(Node* lhs, Node* rhs, Label* if_false);
 
-  Node* Equal(Node* lhs, Node* rhs, Node* context);
+  Node* Equal(Node* lhs, Node* rhs, Node* context,
+              Variable* var_type_feedback = nullptr);
 
-  Node* StrictEqual(Node* lhs, Node* rhs, Variable* var_type_feedback = NULL);
+  Node* StrictEqual(Node* lhs, Node* rhs,
+                    Variable* var_type_feedback = nullptr);
 
   // ECMA#sec-samevalue
   // Similar to StrictEqual except that NaNs are treated as equal and minus zero

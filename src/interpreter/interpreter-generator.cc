@@ -2157,9 +2157,6 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
           case Token::GTE:
             result = SelectBooleanConstant(SmiLessThanOrEqual(rhs, lhs));
             break;
-          case Token::EQ:
-            result = SelectBooleanConstant(WordEqual(lhs, rhs));
-            break;
           default:
             UNREACHABLE();
         }
@@ -2254,14 +2251,6 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
           result = SelectBooleanConstant(
               Float64GreaterThanOrEqual(lhs_float, rhs_float));
           break;
-        case Token::EQ: {
-          Label check_nan(this);
-          var_result.Bind(BooleanConstant(false));
-          Branch(Float64Equal(lhs_float, rhs_float), &check_nan,
-                 &fast_path_dispatch);
-          Bind(&check_nan);
-          result = SelectBooleanConstant(Float64Equal(lhs_float, lhs_float));
-        } break;
         default:
           UNREACHABLE();
       }
@@ -2291,104 +2280,48 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
       Variable var_type_feedback(this, MachineRepresentation::kTaggedSigned);
       var_type_feedback.Bind(SmiConstant(CompareOperationFeedback::kAny));
 
-      if (Token::IsOrderedRelationalCompareOp(compare_op)) {
-        Label check_for_oddball(this);
-        // Check for NumberOrOddball feedback.
-        Node* non_number_instance_type =
-            LoadInstanceType(non_number_value.value());
-        GotoIf(
-            Word32Equal(non_number_instance_type, Int32Constant(ODDBALL_TYPE)),
-            &check_for_oddball);
+      DCHECK(!Token::IsEqualityOp(compare_op));
+      Label check_for_oddball(this);
+      // Check for NumberOrOddball feedback.
+      Node* non_number_instance_type =
+          LoadInstanceType(non_number_value.value());
+      GotoIf(Word32Equal(non_number_instance_type, Int32Constant(ODDBALL_TYPE)),
+             &check_for_oddball);
 
-        // Check for string feedback.
-        GotoIfNot(IsStringInstanceType(non_number_instance_type),
-                  &update_feedback_and_do_compare);
+      // Check for string feedback.
+      GotoIfNot(IsStringInstanceType(non_number_instance_type),
+                &update_feedback_and_do_compare);
 
+      GotoIf(TaggedIsSmi(maybe_smi_value.value()),
+             &update_feedback_and_do_compare);
+
+      Node* maybe_smi_instance_type = LoadInstanceType(maybe_smi_value.value());
+      GotoIfNot(IsStringInstanceType(maybe_smi_instance_type),
+                &update_feedback_and_do_compare);
+
+      var_type_feedback.Bind(SmiConstant(CompareOperationFeedback::kString));
+      Goto(&update_feedback_and_do_compare);
+
+      Bind(&check_for_oddball);
+      {
+        Label compare_with_oddball_feedback(this);
         GotoIf(TaggedIsSmi(maybe_smi_value.value()),
-               &update_feedback_and_do_compare);
+               &compare_with_oddball_feedback);
 
         Node* maybe_smi_instance_type =
             LoadInstanceType(maybe_smi_value.value());
-        GotoIfNot(IsStringInstanceType(maybe_smi_instance_type),
-                  &update_feedback_and_do_compare);
+        GotoIf(Word32Equal(maybe_smi_instance_type,
+                           Int32Constant(HEAP_NUMBER_TYPE)),
+               &compare_with_oddball_feedback);
 
-        var_type_feedback.Bind(SmiConstant(CompareOperationFeedback::kString));
-        Goto(&update_feedback_and_do_compare);
+        Branch(
+            Word32Equal(maybe_smi_instance_type, Int32Constant(ODDBALL_TYPE)),
+            &compare_with_oddball_feedback, &update_feedback_and_do_compare);
 
-        Bind(&check_for_oddball);
+        Bind(&compare_with_oddball_feedback);
         {
-          Label compare_with_oddball_feedback(this);
-          GotoIf(TaggedIsSmi(maybe_smi_value.value()),
-                 &compare_with_oddball_feedback);
-
-          Node* maybe_smi_instance_type =
-              LoadInstanceType(maybe_smi_value.value());
-          GotoIf(Word32Equal(maybe_smi_instance_type,
-                             Int32Constant(HEAP_NUMBER_TYPE)),
-                 &compare_with_oddball_feedback);
-
-          Branch(
-              Word32Equal(maybe_smi_instance_type, Int32Constant(ODDBALL_TYPE)),
-              &compare_with_oddball_feedback, &update_feedback_and_do_compare);
-
-          Bind(&compare_with_oddball_feedback);
-          {
-            var_type_feedback.Bind(
-                SmiConstant(CompareOperationFeedback::kNumberOrOddball));
-            Goto(&update_feedback_and_do_compare);
-          }
-        }
-      } else {
-        Label not_string(this), both_are_strings(this);
-
-        DCHECK(Token::IsEqualityOp(compare_op));
-
-        // If one of them is a Smi and the other is not a number, record "Any"
-        // feedback. Equality comparisons do not need feedback about oddballs.
-        GotoIf(TaggedIsSmi(maybe_smi_value.value()),
-               &update_feedback_and_do_compare);
-
-        Node* maybe_smi_instance_type =
-            LoadInstanceType(maybe_smi_value.value());
-        Node* non_number_instance_type =
-            LoadInstanceType(non_number_value.value());
-        GotoIfNot(IsStringInstanceType(maybe_smi_instance_type), &not_string);
-
-        // If one value is string and other isn't record "Any" feedback.
-        Branch(IsStringInstanceType(non_number_instance_type),
-               &both_are_strings, &update_feedback_and_do_compare);
-
-        Bind(&both_are_strings);
-        {
-          Node* operand1_feedback = SelectSmiConstant(
-              Word32Equal(Word32And(maybe_smi_instance_type,
-                                    Int32Constant(kIsNotInternalizedMask)),
-                          Int32Constant(kInternalizedTag)),
-              CompareOperationFeedback::kInternalizedString,
-              CompareOperationFeedback::kString);
-
-          Node* operand2_feedback = SelectSmiConstant(
-              Word32Equal(Word32And(non_number_instance_type,
-                                    Int32Constant(kIsNotInternalizedMask)),
-                          Int32Constant(kInternalizedTag)),
-              CompareOperationFeedback::kInternalizedString,
-              CompareOperationFeedback::kString);
-
-          var_type_feedback.Bind(SmiOr(operand1_feedback, operand2_feedback));
-          Goto(&update_feedback_and_do_compare);
-        }
-
-        Bind(&not_string);
-        {
-          // Check if both operands are of type JSReceiver.
-          GotoIfNot(IsJSReceiverInstanceType(maybe_smi_instance_type),
-                    &update_feedback_and_do_compare);
-
-          GotoIfNot(IsJSReceiverInstanceType(non_number_instance_type),
-                    &update_feedback_and_do_compare);
-
           var_type_feedback.Bind(
-              SmiConstant(CompareOperationFeedback::kReceiver));
+              SmiConstant(CompareOperationFeedback::kNumberOrOddball));
           Goto(&update_feedback_and_do_compare);
         }
       }
@@ -2436,7 +2369,19 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
 //
 // Test if the value in the <src> register equals the accumulator.
 IGNITION_HANDLER(TestEqual, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Token::Value::EQ);
+  Node* reg_index = BytecodeOperandReg(0);
+  Node* lhs = LoadRegister(reg_index);
+  Node* rhs = GetAccumulator();
+  Node* context = GetContext();
+
+  Variable var_type_feedback(this, MachineRepresentation::kTaggedSigned);
+  Node* result = Equal(lhs, rhs, context, &var_type_feedback);
+
+  Node* slot_index = BytecodeOperandIdx(1);
+  Node* feedback_vector = LoadFeedbackVector();
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
+  SetAccumulator(result);
+  Dispatch();
 }
 
 // TestEqualStrict <src>
