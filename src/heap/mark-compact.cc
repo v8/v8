@@ -2610,6 +2610,8 @@ void MinorMarkCompactCollector::CollectGarbage() {
       marking_state(p).ClearLiveness();
     }
   }
+
+  heap()->account_external_memory_concurrently_freed();
 }
 
 void MinorMarkCompactCollector::ClearNonLiveReferences() {
