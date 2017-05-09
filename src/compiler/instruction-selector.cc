@@ -1900,6 +1900,14 @@ void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
   Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
+void InstructionSelector::VisitStackSlot(Node* node) {
+  int size = StackSlotSizeOf(node->op());
+  int slot = frame_->AllocateSpillSlot(size);
+  OperandGenerator g(this);
+
+  Emit(kArchStackSlot, g.DefineAsRegister(node),
+       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+}
 
 void InstructionSelector::VisitBitcastTaggedToWord(Node* node) {
   EmitIdentity(node);
