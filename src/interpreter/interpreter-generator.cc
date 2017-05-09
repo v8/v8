@@ -2124,244 +2124,41 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
     Node* lhs = LoadRegister(reg_index);
     Node* rhs = GetAccumulator();
     Node* context = GetContext();
+
+    Variable var_type_feedback(this, MachineRepresentation::kTagged);
+    Node* result;
+    switch (compare_op) {
+      case Token::EQ:
+        result = Equal(lhs, rhs, context, &var_type_feedback);
+        break;
+      case Token::EQ_STRICT:
+        result = StrictEqual(lhs, rhs, &var_type_feedback);
+        break;
+      case Token::LT:
+        result = RelationalComparison(CodeStubAssembler::kLessThan, lhs, rhs,
+                                      context, &var_type_feedback);
+        break;
+      case Token::GT:
+        result = RelationalComparison(CodeStubAssembler::kGreaterThan, lhs, rhs,
+                                      context, &var_type_feedback);
+        break;
+      case Token::LTE:
+        result = RelationalComparison(CodeStubAssembler::kLessThanOrEqual, lhs,
+                                      rhs, context, &var_type_feedback);
+        break;
+      case Token::GTE:
+        result = RelationalComparison(CodeStubAssembler::kGreaterThanOrEqual,
+                                      lhs, rhs, context, &var_type_feedback);
+        break;
+      default:
+        UNREACHABLE();
+    }
+
     Node* slot_index = BytecodeOperandIdx(1);
     Node* feedback_vector = LoadFeedbackVector();
-
-    Variable var_result(this, MachineRepresentation::kTagged),
-        var_fcmp_lhs(this, MachineRepresentation::kFloat64),
-        var_fcmp_rhs(this, MachineRepresentation::kFloat64),
-        non_number_value(this, MachineRepresentation::kTagged),
-        maybe_smi_value(this, MachineRepresentation::kTagged);
-    Label lhs_is_not_smi(this), do_fcmp(this), slow_path(this),
-        fast_path_dispatch(this);
-
-    GotoIf(TaggedIsNotSmi(lhs), &lhs_is_not_smi);
-    {
-      Label rhs_is_not_smi(this);
-      GotoIf(TaggedIsNotSmi(rhs), &rhs_is_not_smi);
-      {
-        Comment("Do integer comparison");
-        UpdateFeedback(SmiConstant(CompareOperationFeedback::kSignedSmall),
-                       feedback_vector, slot_index);
-        Node* result;
-        switch (compare_op) {
-          case Token::LT:
-            result = SelectBooleanConstant(SmiLessThan(lhs, rhs));
-            break;
-          case Token::LTE:
-            result = SelectBooleanConstant(SmiLessThanOrEqual(lhs, rhs));
-            break;
-          case Token::GT:
-            result = SelectBooleanConstant(SmiLessThan(rhs, lhs));
-            break;
-          case Token::GTE:
-            result = SelectBooleanConstant(SmiLessThanOrEqual(rhs, lhs));
-            break;
-          default:
-            UNREACHABLE();
-        }
-        var_result.Bind(result);
-        Goto(&fast_path_dispatch);
-      }
-
-      Bind(&rhs_is_not_smi);
-      {
-        Node* rhs_map = LoadMap(rhs);
-        Label rhs_is_not_number(this);
-        GotoIfNot(IsHeapNumberMap(rhs_map), &rhs_is_not_number);
-
-        Comment("Convert lhs to float and load HeapNumber value from rhs");
-        var_fcmp_lhs.Bind(SmiToFloat64(lhs));
-        var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
-        Goto(&do_fcmp);
-
-        Bind(&rhs_is_not_number);
-        {
-          non_number_value.Bind(rhs);
-          maybe_smi_value.Bind(lhs);
-          Goto(&slow_path);
-        }
-      }
-    }
-
-    Bind(&lhs_is_not_smi);
-    {
-      Label rhs_is_not_smi(this), lhs_is_not_number(this),
-          rhs_is_not_number(this);
-
-      Node* lhs_map = LoadMap(lhs);
-      GotoIfNot(IsHeapNumberMap(lhs_map), &lhs_is_not_number);
-
-      GotoIfNot(TaggedIsSmi(rhs), &rhs_is_not_smi);
-
-      Comment("Convert rhs to double and load HeapNumber value from lhs");
-      var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
-      var_fcmp_rhs.Bind(SmiToFloat64(rhs));
-      Goto(&do_fcmp);
-
-      Bind(&rhs_is_not_smi);
-      {
-        Node* rhs_map = LoadMap(rhs);
-        GotoIfNot(IsHeapNumberMap(rhs_map), &rhs_is_not_number);
-
-        Comment("Load HeapNumber values from lhs and rhs");
-        var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
-        var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
-        Goto(&do_fcmp);
-      }
-
-      Bind(&lhs_is_not_number);
-      {
-        non_number_value.Bind(lhs);
-        maybe_smi_value.Bind(rhs);
-        Goto(&slow_path);
-      }
-
-      Bind(&rhs_is_not_number);
-      {
-        non_number_value.Bind(rhs);
-        maybe_smi_value.Bind(lhs);
-        Goto(&slow_path);
-      }
-    }
-
-    Bind(&do_fcmp);
-    {
-      Comment("Do floating point comparison");
-      Node* lhs_float = var_fcmp_lhs.value();
-      Node* rhs_float = var_fcmp_rhs.value();
-      UpdateFeedback(SmiConstant(CompareOperationFeedback::kNumber),
-                     feedback_vector, slot_index);
-
-      // Perform a fast floating point comparison.
-      Node* result;
-      switch (compare_op) {
-        case Token::LT:
-          result = SelectBooleanConstant(Float64LessThan(lhs_float, rhs_float));
-          break;
-        case Token::LTE:
-          result = SelectBooleanConstant(
-              Float64LessThanOrEqual(lhs_float, rhs_float));
-          break;
-        case Token::GT:
-          result =
-              SelectBooleanConstant(Float64GreaterThan(lhs_float, rhs_float));
-          break;
-        case Token::GTE:
-          result = SelectBooleanConstant(
-              Float64GreaterThanOrEqual(lhs_float, rhs_float));
-          break;
-        default:
-          UNREACHABLE();
-      }
-      var_result.Bind(result);
-      Goto(&fast_path_dispatch);
-    }
-
-    Bind(&fast_path_dispatch);
-    {
-      SetAccumulator(var_result.value());
-      Dispatch();
-    }
-
-    // Marking a block with more than one predecessor causes register allocator
-    // to fail (v8:5998). Add a dummy block as a workaround.
-    Label slow_path_deferred(this, Label::kDeferred);
-    Bind(&slow_path);
-    Goto(&slow_path_deferred);
-
-    Bind(&slow_path_deferred);
-    {
-      // When we reach here, one of the operands is not a Smi / HeapNumber and
-      // the other operand could be of any type. The cases where both of them
-      // are HeapNumbers / Smis are handled earlier.
-      Comment("Collect feedback for non HeapNumber cases.");
-      Label update_feedback_and_do_compare(this);
-      Variable var_type_feedback(this, MachineRepresentation::kTaggedSigned);
-      var_type_feedback.Bind(SmiConstant(CompareOperationFeedback::kAny));
-
-      DCHECK(!Token::IsEqualityOp(compare_op));
-      Label check_for_oddball(this);
-      // Check for NumberOrOddball feedback.
-      Node* non_number_instance_type =
-          LoadInstanceType(non_number_value.value());
-      GotoIf(Word32Equal(non_number_instance_type, Int32Constant(ODDBALL_TYPE)),
-             &check_for_oddball);
-
-      // Check for string feedback.
-      GotoIfNot(IsStringInstanceType(non_number_instance_type),
-                &update_feedback_and_do_compare);
-
-      GotoIf(TaggedIsSmi(maybe_smi_value.value()),
-             &update_feedback_and_do_compare);
-
-      Node* maybe_smi_instance_type = LoadInstanceType(maybe_smi_value.value());
-      GotoIfNot(IsStringInstanceType(maybe_smi_instance_type),
-                &update_feedback_and_do_compare);
-
-      var_type_feedback.Bind(SmiConstant(CompareOperationFeedback::kString));
-      Goto(&update_feedback_and_do_compare);
-
-      Bind(&check_for_oddball);
-      {
-        Label compare_with_oddball_feedback(this);
-        GotoIf(TaggedIsSmi(maybe_smi_value.value()),
-               &compare_with_oddball_feedback);
-
-        Node* maybe_smi_instance_type =
-            LoadInstanceType(maybe_smi_value.value());
-        GotoIf(Word32Equal(maybe_smi_instance_type,
-                           Int32Constant(HEAP_NUMBER_TYPE)),
-               &compare_with_oddball_feedback);
-
-        Branch(
-            Word32Equal(maybe_smi_instance_type, Int32Constant(ODDBALL_TYPE)),
-            &compare_with_oddball_feedback, &update_feedback_and_do_compare);
-
-        Bind(&compare_with_oddball_feedback);
-        {
-          var_type_feedback.Bind(
-              SmiConstant(CompareOperationFeedback::kNumberOrOddball));
-          Goto(&update_feedback_and_do_compare);
-        }
-      }
-
-      Bind(&update_feedback_and_do_compare);
-      {
-        Comment("Do the full compare operation");
-        UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
-        Node* result;
-        switch (compare_op) {
-          case Token::EQ:
-            result = Equal(lhs, rhs, context);
-            break;
-          case Token::EQ_STRICT:
-            result = StrictEqual(lhs, rhs);
-            break;
-          case Token::LT:
-            result = RelationalComparison(CodeStubAssembler::kLessThan, lhs,
-                                          rhs, context);
-            break;
-          case Token::GT:
-            result = RelationalComparison(CodeStubAssembler::kGreaterThan, lhs,
-                                          rhs, context);
-            break;
-          case Token::LTE:
-            result = RelationalComparison(CodeStubAssembler::kLessThanOrEqual,
-                                          lhs, rhs, context);
-            break;
-          case Token::GTE:
-            result = RelationalComparison(
-                CodeStubAssembler::kGreaterThanOrEqual, lhs, rhs, context);
-            break;
-          default:
-            UNREACHABLE();
-        }
-        var_result.Bind(result);
-        SetAccumulator(var_result.value());
-        Dispatch();
-      }
-    }
+    UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
+    SetAccumulator(result);
+    Dispatch();
   }
 };
 
@@ -2369,37 +2166,14 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
 //
 // Test if the value in the <src> register equals the accumulator.
 IGNITION_HANDLER(TestEqual, InterpreterCompareOpAssembler) {
-  Node* reg_index = BytecodeOperandReg(0);
-  Node* lhs = LoadRegister(reg_index);
-  Node* rhs = GetAccumulator();
-  Node* context = GetContext();
-
-  Variable var_type_feedback(this, MachineRepresentation::kTaggedSigned);
-  Node* result = Equal(lhs, rhs, context, &var_type_feedback);
-
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
-  SetAccumulator(result);
-  Dispatch();
+  CompareOpWithFeedback(Token::Value::EQ);
 }
 
 // TestEqualStrict <src>
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 IGNITION_HANDLER(TestEqualStrict, InterpreterCompareOpAssembler) {
-  Node* reg_index = BytecodeOperandReg(0);
-  Node* lhs = LoadRegister(reg_index);
-  Node* rhs = GetAccumulator();
-
-  Variable var_type_feedback(this, MachineRepresentation::kTaggedSigned);
-  Node* result = StrictEqual(lhs, rhs, &var_type_feedback);
-
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
-  SetAccumulator(result);
-  Dispatch();
+  CompareOpWithFeedback(Token::Value::EQ_STRICT);
 }
 
 // TestLessThan <src>

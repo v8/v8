@@ -1351,7 +1351,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   };
 
   Node* RelationalComparison(RelationalComparisonMode mode, Node* lhs,
-                             Node* rhs, Node* context);
+                             Node* rhs, Node* context,
+                             Variable* var_type_feedback = nullptr);
 
   void BranchIfNumericRelationalComparison(RelationalComparisonMode mode,
                                            Node* lhs, Node* rhs, Label* if_true,

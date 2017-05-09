@@ -6983,7 +6983,8 @@ void CodeStubAssembler::GotoUnlessNumberLessThan(Node* lhs, Node* rhs,
 
 Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
                                               Node* lhs, Node* rhs,
-                                              Node* context) {
+                                              Node* context,
+                                              Variable* var_type_feedback) {
   Label return_true(this), return_false(this), end(this);
   VARIABLE(result, MachineRepresentation::kTagged);
 
@@ -6996,8 +6997,14 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
   // conversions.
   VARIABLE(var_lhs, MachineRepresentation::kTagged, lhs);
   VARIABLE(var_rhs, MachineRepresentation::kTagged, rhs);
-  Variable* loop_vars[2] = {&var_lhs, &var_rhs};
-  Label loop(this, 2, loop_vars);
+  VariableList loop_variable_list({&var_lhs, &var_rhs}, zone());
+  if (var_type_feedback != nullptr) {
+    // Initialize the type feedback to None. The current feedback is combined
+    // with the previous feedback.
+    var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kNone));
+    loop_variable_list.Add(var_type_feedback, zone());
+  }
+  Label loop(this, loop_variable_list);
   Goto(&loop);
   BIND(&loop);
   {
@@ -7018,6 +7025,10 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
       BIND(&if_rhsissmi);
       {
         // Both {lhs} and {rhs} are Smi, so just perform a fast Smi comparison.
+        if (var_type_feedback != nullptr) {
+          CombineFeedback(var_type_feedback,
+                          SmiConstant(CompareOperationFeedback::kSignedSmall));
+        }
         switch (mode) {
           case kLessThan:
             BranchIfSmiLessThan(lhs, rhs, &return_true, &return_false);
@@ -7047,6 +7058,10 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
         {
           // Convert the {lhs} and {rhs} to floating point values, and
           // perform a floating point comparison.
+          if (var_type_feedback != nullptr) {
+            CombineFeedback(var_type_feedback,
+                            SmiConstant(CompareOperationFeedback::kNumber));
+          }
           var_fcmp_lhs.Bind(SmiToFloat64(lhs));
           var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
           Goto(&do_fcmp);
@@ -7054,6 +7069,11 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
 
         BIND(&if_rhsisnotnumber);
         {
+          // The {rhs} is not a HeapNumber and {lhs} is an Smi.
+          if (var_type_feedback != nullptr) {
+            var_type_feedback->Bind(
+                SmiConstant(CompareOperationFeedback::kAny));
+          }
           // Convert the {rhs} to a Number; we don't need to perform the
           // dedicated ToPrimitive(rhs, hint Number) operation, as the
           // ToNumber(rhs) will by itself already invoke ToPrimitive with
@@ -7084,6 +7104,10 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
         {
           // Convert the {lhs} and {rhs} to floating point values, and
           // perform a floating point comparison.
+          if (var_type_feedback != nullptr) {
+            CombineFeedback(var_type_feedback,
+                            SmiConstant(CompareOperationFeedback::kNumber));
+          }
           var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
           var_fcmp_rhs.Bind(SmiToFloat64(rhs));
           Goto(&do_fcmp);
@@ -7091,6 +7115,11 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
 
         BIND(&if_lhsisnotnumber);
         {
+          // The {lhs} is not a HeapNumber and {rhs} is an Smi.
+          if (var_type_feedback != nullptr) {
+            var_type_feedback->Bind(
+                SmiConstant(CompareOperationFeedback::kAny));
+          }
           // Convert the {lhs} to a Number; we don't need to perform the
           // dedicated ToPrimitive(lhs, hint Number) operation, as the
           // ToNumber(lhs) will by itself already invoke ToPrimitive with
@@ -7121,6 +7150,10 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
           {
             // Convert the {lhs} and {rhs} to floating point values, and
             // perform a floating point comparison.
+            if (var_type_feedback != nullptr) {
+              CombineFeedback(var_type_feedback,
+                              SmiConstant(CompareOperationFeedback::kNumber));
+            }
             var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
             var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
             Goto(&do_fcmp);
@@ -7128,6 +7161,11 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
 
           BIND(&if_rhsisnotnumber);
           {
+            // The {rhs} is not a HeapNumber and {lhs} is a HeapNumber.
+            if (var_type_feedback != nullptr) {
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
+            }
             // Convert the {rhs} to a Number; we don't need to perform
             // dedicated ToPrimitive(rhs, hint Number) operation, as the
             // ToNumber(rhs) will by itself already invoke ToPrimitive with
@@ -7162,6 +7200,10 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
             BIND(&if_rhsisstring);
             {
               // Both {lhs} and {rhs} are strings.
+              if (var_type_feedback != nullptr) {
+                CombineFeedback(var_type_feedback,
+                                SmiConstant(CompareOperationFeedback::kString));
+              }
               switch (mode) {
                 case kLessThan:
                   result.Bind(CallStub(CodeFactory::StringLessThan(isolate()),
@@ -7191,6 +7233,11 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
 
             BIND(&if_rhsisnotstring);
             {
+              // The {lhs} is a String and {rhs} is not a String.
+              if (var_type_feedback != nullptr) {
+                var_type_feedback->Bind(
+                    SmiConstant(CompareOperationFeedback::kAny));
+              }
               // The {lhs} is a String, while {rhs} is neither a Number nor a
               // String, so we need to call ToPrimitive(rhs, hint Number) if
               // {rhs} is a receiver or ToNumber(lhs) and ToNumber(rhs) in the
@@ -7223,6 +7270,41 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
 
           BIND(&if_lhsisnotstring);
           {
+            if (var_type_feedback != nullptr) {
+              // The {lhs} is not an Smi, HeapNumber or String and {rhs} is not
+              // an Smi: collect NumberOrOddball feedback if {lhs} is an Oddball
+              // and {rhs} is either a HeapNumber or Oddball.
+              Label collect_any_feedback(this), collect_oddball_feedback(this),
+                  collect_feedback_done(this);
+              GotoIfNot(
+                  Word32Equal(lhs_instance_type, Int32Constant(ODDBALL_TYPE)),
+                  &collect_any_feedback);
+
+              Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
+              GotoIf(Word32Equal(rhs_instance_type,
+                                 Int32Constant(HEAP_NUMBER_TYPE)),
+                     &collect_oddball_feedback);
+              Branch(
+                  Word32Equal(rhs_instance_type, Int32Constant(ODDBALL_TYPE)),
+                  &collect_oddball_feedback, &collect_any_feedback);
+
+              BIND(&collect_oddball_feedback);
+              {
+                CombineFeedback(
+                    var_type_feedback,
+                    SmiConstant(CompareOperationFeedback::kNumberOrOddball));
+                Goto(&collect_feedback_done);
+              }
+
+              BIND(&collect_any_feedback);
+              {
+                var_type_feedback->Bind(
+                    SmiConstant(CompareOperationFeedback::kAny));
+                Goto(&collect_feedback_done);
+              }
+
+              BIND(&collect_feedback_done);
+            }
             // The {lhs} is neither a Number nor a String, so we need to call
             // ToPrimitive(lhs, hint Number) if {lhs} is a receiver or
             // ToNumber(lhs) and ToNumber(rhs) in the other cases.
