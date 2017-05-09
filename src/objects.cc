@@ -14954,14 +14954,16 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     iterator.Advance();
   }
 
+  os << "Constant pool (size = " << constant_pool()->length() << ")\n";
+#ifdef OBJECT_PRINT
   if (constant_pool()->length() > 0) {
-    os << "Constant pool (size = " << constant_pool()->length() << ")\n";
     constant_pool()->Print();
   }
+#endif
 
+  os << "Handler Table (size = " << handler_table()->Size() << ")\n";
 #ifdef ENABLE_DISASSEMBLER
   if (handler_table()->length() > 0) {
-    os << "Handler Table (size = " << handler_table()->Size() << ")\n";
     HandlerTable::cast(handler_table())->HandlerTableRangePrint(os);
   }
 #endif
