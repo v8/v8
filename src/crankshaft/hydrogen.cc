@@ -6914,9 +6914,11 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   }
 
   // Elements_kind transition support.
-  MapHandleList transition_target(maps->length());
+  MapHandles transition_target;
+  transition_target.reserve(maps->length());
   // Collect possible transition targets.
-  MapHandleList possible_transitioned_maps(maps->length());
+  MapHandles possible_transitioned_maps;
+  possible_transitioned_maps.reserve(maps->length());
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
     // Loads from strings or loads with a mix of string and non-string maps
@@ -6925,7 +6927,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     ElementsKind elements_kind = map->elements_kind();
     if (CanInlineElementAccess(map) && IsFastElementsKind(elements_kind) &&
         elements_kind != GetInitialFastElementsKind()) {
-      possible_transitioned_maps.Add(map);
+      possible_transitioned_maps.push_back(map);
     }
     if (IsSloppyArgumentsElementsKind(elements_kind)) {
       HInstruction* result =
@@ -6938,16 +6940,17 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
     Map* transitioned_map =
-        map->FindElementsKindTransitionedMap(&possible_transitioned_maps);
+        map->FindElementsKindTransitionedMap(possible_transitioned_maps);
     if (transitioned_map != nullptr) {
       DCHECK(!map->is_stable());
-      transition_target.Add(handle(transitioned_map));
+      transition_target.push_back(handle(transitioned_map));
     } else {
-      transition_target.Add(Handle<Map>());
+      transition_target.push_back(Handle<Map>());
     }
   }
 
-  MapHandleList untransitionable_maps(maps->length());
+  MapHandles untransitionable_maps;
+  untransitionable_maps.reserve(maps->length());
   HTransitionElementsKind* transition = NULL;
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
@@ -6959,14 +6962,14 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       transition = Add<HTransitionElementsKind>(object, map,
                                                 transition_target.at(i));
     } else {
-      untransitionable_maps.Add(map);
+      untransitionable_maps.push_back(map);
     }
   }
 
   // If only one map is left after transitioning, handle this case
   // monomorphically.
-  DCHECK(untransitionable_maps.length() >= 1);
-  if (untransitionable_maps.length() == 1) {
+  DCHECK(untransitionable_maps.size() >= 1);
+  if (untransitionable_maps.size() == 1) {
     Handle<Map> untransitionable_map = untransitionable_maps[0];
     HInstruction* instr = NULL;
     if (!CanInlineElementAccess(untransitionable_map)) {
@@ -6983,8 +6986,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
   HBasicBlock* join = graph()->CreateBasicBlock();
 
-  for (int i = 0; i < untransitionable_maps.length(); ++i) {
-    Handle<Map> map = untransitionable_maps[i];
+  for (Handle<Map> map : untransitionable_maps) {
     ElementsKind elements_kind = map->elements_kind();
     HBasicBlock* this_map = graph()->CreateBasicBlock();
     HBasicBlock* other_map = graph()->CreateBasicBlock();

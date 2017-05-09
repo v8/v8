@@ -24,21 +24,21 @@ namespace compiler {
 
 namespace {
 
-bool HasNumberMaps(MapList const& maps) {
+bool HasNumberMaps(MapHandles const& maps) {
   for (auto map : maps) {
     if (map->instance_type() == HEAP_NUMBER_TYPE) return true;
   }
   return false;
 }
 
-bool HasOnlyJSArrayMaps(MapList const& maps) {
+bool HasOnlyJSArrayMaps(MapHandles const& maps) {
   for (auto map : maps) {
     if (!map->IsJSArrayMap()) return false;
   }
   return true;
 }
 
-bool HasOnlyNumberMaps(MapList const& maps) {
+bool HasOnlyNumberMaps(MapHandles const& maps) {
   for (auto map : maps) {
     if (map->instance_type() != HEAP_NUMBER_TYPE) return false;
   }
@@ -706,9 +706,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
-    Node* node, Node* value, MapHandleList const& receiver_maps,
-    Handle<Name> name, AccessMode access_mode, LanguageMode language_mode,
-    Node* index) {
+    Node* node, Node* value, MapHandles const& receiver_maps, Handle<Name> name,
+    AccessMode access_mode, LanguageMode language_mode, Node* index) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -723,8 +722,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // Check if we have an access o.x or o.x=v where o is the current
   // native contexts' global proxy, and turn that into a direct access
   // to the current native contexts' global object instead.
-  if (receiver_maps.length() == 1) {
-    Handle<Map> receiver_map = receiver_maps.first();
+  if (receiver_maps.size() == 1) {
+    Handle<Map> receiver_map = receiver_maps.front();
     if (receiver_map->IsJSGlobalProxyMap()) {
       Object* maybe_constructor = receiver_map->GetConstructor();
       // Detached global proxies have |null| as their constructor.
@@ -841,7 +840,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       Node* this_control = fallthrough_control;
 
       // Perform map check on {receiver}.
-      MapList const& receiver_maps = access_info.receiver_maps();
+      MapHandles const& receiver_maps = access_info.receiver_maps();
       {
         // Emit a (sequence of) map checks for other {receiver}s.
         ZoneVector<Node*> this_controls(zone());
@@ -956,10 +955,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
   }
 
   // Extract receiver maps from the IC using the {nexus}.
-  MapHandleList receiver_maps;
+  MapHandles receiver_maps;
   if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
     return NoChange();
-  } else if (receiver_maps.length() == 0) {
+  } else if (receiver_maps.empty()) {
     if (flags() & kBailoutOnUninitialized) {
       return ReduceSoftDeoptimize(
           node,
@@ -1047,7 +1046,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceElementAccess(
-    Node* node, Node* index, Node* value, MapHandleList const& receiver_maps,
+    Node* node, Node* index, Node* value, MapHandles const& receiver_maps,
     AccessMode access_mode, LanguageMode language_mode,
     KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -1211,7 +1210,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                              receiver, this_effect, this_control);
 
         // Perform map check(s) on {receiver}.
-        MapList const& receiver_maps = access_info.receiver_maps();
+        MapHandles const& receiver_maps = access_info.receiver_maps();
         if (j == access_infos.size() - 1) {
           // Last map check on the fallthrough control path, do a
           // conditional eager deoptimization exit here.
@@ -1344,10 +1343,10 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   }
 
   // Extract receiver maps from the {nexus}.
-  MapHandleList receiver_maps;
+  MapHandles receiver_maps;
   if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
     return NoChange();
-  } else if (receiver_maps.length() == 0) {
+  } else if (receiver_maps.empty()) {
     if (flags() & kBailoutOnUninitialized) {
       return ReduceSoftDeoptimize(
           node,
@@ -1911,7 +1910,7 @@ JSNativeContextSpecialization::BuildElementAccess(
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
-  MapList const& receiver_maps = access_info.receiver_maps();
+  MapHandles const& receiver_maps = access_info.receiver_maps();
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
     Node* buffer;
@@ -2282,7 +2281,7 @@ Node* JSNativeContextSpecialization::BuildCheckHeapObject(Node* receiver,
 
 Node* JSNativeContextSpecialization::BuildCheckMaps(
     Node* receiver, Node* effect, Node* control,
-    std::vector<Handle<Map>> const& receiver_maps) {
+    MapHandles const& receiver_maps) {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
     Handle<Map> receiver_map(m.Value()->map(), isolate());
@@ -2356,7 +2355,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
 }
 
 void JSNativeContextSpecialization::AssumePrototypesStable(
-    std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder) {
+    MapHandles const& receiver_maps, Handle<JSObject> holder) {
   // Determine actual holder and perform prototype chain checks.
   for (auto map : receiver_maps) {
     // Perform the implicit ToObject for primitives here.
@@ -2371,7 +2370,7 @@ void JSNativeContextSpecialization::AssumePrototypesStable(
 }
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
-    std::vector<Handle<Map>> const& receiver_maps) {
+    MapHandles const& receiver_maps) {
   // Check if the array prototype chain is intact.
   if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) return false;
 
@@ -2458,8 +2457,8 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
 
 bool JSNativeContextSpecialization::ExtractReceiverMaps(
     Node* receiver, Node* effect, FeedbackNexus const& nexus,
-    MapHandleList* receiver_maps) {
-  DCHECK_EQ(0, receiver_maps->length());
+    MapHandles* receiver_maps) {
+  DCHECK_EQ(0, receiver_maps->size());
   // See if we can infer a concrete type for the {receiver}.
   if (InferReceiverMaps(receiver, effect, receiver_maps)) {
     // We can assume that the {receiver} still has the infered {receiver_maps}.
@@ -2470,11 +2469,12 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     // Try to filter impossible candidates based on infered root map.
     Handle<Map> receiver_map;
     if (InferReceiverRootMap(receiver).ToHandle(&receiver_map)) {
-      for (int i = receiver_maps->length(); --i >= 0;) {
-        if (receiver_maps->at(i)->FindRootMap() != *receiver_map) {
-          receiver_maps->Remove(i);
-        }
-      }
+      receiver_maps->erase(
+          std::remove_if(receiver_maps->begin(), receiver_maps->end(),
+                         [receiver_map](const Handle<Map>& map) {
+                           return map->FindRootMap() != *receiver_map;
+                         }),
+          receiver_maps->end());
     }
     return true;
   }
@@ -2482,13 +2482,13 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
 }
 
 bool JSNativeContextSpecialization::InferReceiverMaps(
-    Node* receiver, Node* effect, MapHandleList* receiver_maps) {
+    Node* receiver, Node* effect, MapHandles* receiver_maps) {
   ZoneHandleSet<Map> maps;
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(receiver, effect, &maps);
   if (result == NodeProperties::kReliableReceiverMaps) {
     for (size_t i = 0; i < maps.size(); ++i) {
-      receiver_maps->Add(maps[i]);
+      receiver_maps->push_back(maps[i]);
     }
     return true;
   } else if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -2498,7 +2498,7 @@ bool JSNativeContextSpecialization::InferReceiverMaps(
       if (!maps[i]->is_stable()) return false;
     }
     for (size_t i = 0; i < maps.size(); ++i) {
-      receiver_maps->Add(maps[i]);
+      receiver_maps->push_back(maps[i]);
     }
     return true;
   }

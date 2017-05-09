@@ -477,14 +477,14 @@ class FeedbackNexus {
   InlineCacheState ic_state() const { return StateFromFeedback(); }
   bool IsUninitialized() const { return StateFromFeedback() == UNINITIALIZED; }
   Map* FindFirstMap() const {
-    MapHandleList maps;
+    MapHandles maps;
     ExtractMaps(&maps);
-    if (maps.length() > 0) return *maps.at(0);
+    if (maps.size() > 0) return *maps.at(0);
     return NULL;
   }
 
   virtual InlineCacheState StateFromFeedback() const = 0;
-  virtual int ExtractMaps(MapHandleList* maps) const;
+  virtual int ExtractMaps(MapHandles* maps) const;
   virtual MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const;
   virtual bool FindHandlers(List<Handle<Object>>* code_list,
                             int length = -1) const;
@@ -508,7 +508,7 @@ class FeedbackNexus {
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
                             Handle<Object> handler);
 
-  void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
+  void ConfigurePolymorphic(Handle<Name> name, MapHandles const& maps,
                             List<Handle<Object>>* handlers);
 
  protected:
@@ -545,7 +545,7 @@ class CallICNexus final : public FeedbackNexus {
 
   InlineCacheState StateFromFeedback() const final;
 
-  int ExtractMaps(MapHandleList* maps) const final {
+  int ExtractMaps(MapHandles* maps) const final {
     // CallICs don't record map feedback.
     return 0;
   }
@@ -591,7 +591,7 @@ class LoadGlobalICNexus : public FeedbackNexus {
     DCHECK(vector->IsLoadGlobalIC(slot));
   }
 
-  int ExtractMaps(MapHandleList* maps) const final {
+  int ExtractMaps(MapHandles* maps) const final {
     // LoadGlobalICs don't record map feedback.
     return 0;
   }
@@ -684,7 +684,7 @@ class BinaryOpICNexus final : public FeedbackNexus {
   InlineCacheState StateFromFeedback() const final;
   BinaryOperationHint GetBinaryOperationFeedback() const;
 
-  int ExtractMaps(MapHandleList* maps) const final {
+  int ExtractMaps(MapHandles* maps) const final {
     // BinaryOpICs don't record map feedback.
     return 0;
   }
@@ -711,7 +711,7 @@ class CompareICNexus final : public FeedbackNexus {
   InlineCacheState StateFromFeedback() const final;
   CompareOperationHint GetCompareOperationFeedback() const;
 
-  int ExtractMaps(MapHandleList* maps) const final {
+  int ExtractMaps(MapHandles* maps) const final {
     // BinaryOpICs don't record map feedback.
     return 0;
   }

@@ -349,9 +349,9 @@ TEST(VectorLoadICStates) {
 
   CompileRun("f({ blarg: 3, torino: 10, foo: 2 })");
   CHECK_EQ(POLYMORPHIC, nexus.StateFromFeedback());
-  MapHandleList maps;
+  MapHandles maps;
   nexus.ExtractMaps(&maps);
-  CHECK_EQ(4, maps.length());
+  CHECK_EQ(4, maps.size());
 
   // Finally driven megamorphic.
   CompileRun("f({ blarg: 3, gran: 3, torino: 10, foo: 2 })");
@@ -428,9 +428,9 @@ TEST(VectorLoadICOnSmi) {
   CompileRun("f(o)");
   CHECK_EQ(POLYMORPHIC, nexus.StateFromFeedback());
 
-  MapHandleList maps;
+  MapHandles maps;
   nexus.ExtractMaps(&maps);
-  CHECK_EQ(2, maps.length());
+  CHECK_EQ(2, maps.size());
 
   // One of the maps should be the o map.
   v8::MaybeLocal<v8::Value> v8_o =
@@ -439,8 +439,7 @@ TEST(VectorLoadICOnSmi) {
       Handle<JSObject>::cast(v8::Utils::OpenHandle(*v8_o.ToLocalChecked()));
   bool number_map_found = false;
   bool o_map_found = false;
-  for (int i = 0; i < maps.length(); i++) {
-    Handle<Map> current = maps[i];
+  for (Handle<Map> current : maps) {
     if (*current == number_map)
       number_map_found = true;
     else if (*current == o->map())
@@ -451,9 +450,9 @@ TEST(VectorLoadICOnSmi) {
   // The degree of polymorphism doesn't change.
   CompileRun("f(100)");
   CHECK_EQ(POLYMORPHIC, nexus.StateFromFeedback());
-  MapHandleList maps2;
+  MapHandles maps2;
   nexus.ExtractMaps(&maps2);
-  CHECK_EQ(2, maps2.length());
+  CHECK_EQ(2, maps2.size());
 }
 
 

@@ -646,9 +646,10 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
   }
 }
 
-void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
+void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
+                                         MapHandles const& maps,
                                          List<Handle<Object>>* handlers) {
-  int receiver_count = maps->length();
+  int receiver_count = static_cast<int>(maps.size());
   DCHECK(receiver_count > 1);
   Handle<FixedArray> array;
   if (name.is_null()) {
@@ -661,14 +662,14 @@ void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
   }
 
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map = maps->at(current);
+    Handle<Map> map = maps[current];
     Handle<WeakCell> cell = Map::WeakCellForMap(map);
     array->set(current * 2, *cell);
     array->set(current * 2 + 1, *handlers->at(current));
   }
 }
 
-int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
+int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
   bool is_named_feedback = IsPropertyNameFeedback(feedback);
@@ -684,7 +685,7 @@ int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
         Map* map = Map::cast(cell->value());
-        maps->Add(handle(map, isolate));
+        maps->push_back(handle(map, isolate));
         found++;
       }
     }
@@ -693,7 +694,7 @@ int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
     WeakCell* cell = WeakCell::cast(feedback);
     if (!cell->cleared()) {
       Map* map = Map::cast(cell->value());
-      maps->Add(handle(map, isolate));
+      maps->push_back(handle(map, isolate));
       return 1;
     }
   }
@@ -791,13 +792,13 @@ Name* KeyedStoreICNexus::FindFirstName() const {
 
 KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
   KeyedAccessStoreMode mode = STANDARD_STORE;
-  MapHandleList maps;
+  MapHandles maps;
   List<Handle<Object>> handlers;
 
   if (GetKeyType() == PROPERTY) return mode;
 
   ExtractMaps(&maps);
-  FindHandlers(&handlers, maps.length());
+  FindHandlers(&handlers, static_cast<int>(maps.size()));
   for (int i = 0; i < handlers.length(); i++) {
     // The first handler that isn't the slow handler will have the bits we need.
     Handle<Object> maybe_code_handler = handlers.at(i);

@@ -96,7 +96,7 @@ class IC {
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                             Handle<Object> handler);
   // Configure the vector for POLYMORPHIC.
-  void ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
+  void ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
                             List<Handle<Object>>* handlers);
 
   char TransitionMarkFromState(IC::State state);
@@ -164,16 +164,16 @@ class IC {
     }
   }
 
-  void TargetMaps(MapHandleList* list) {
+  void TargetMaps(MapHandles* list) {
     FindTargetMaps();
-    for (int i = 0; i < target_maps_.length(); i++) {
-      list->Add(target_maps_.at(i));
+    for (Handle<Map> map : target_maps_) {
+      list->push_back(map);
     }
   }
 
   Map* FirstTargetMap() {
     FindTargetMaps();
-    return target_maps_.length() > 0 ? *target_maps_.at(0) : NULL;
+    return !target_maps_.empty() ? *target_maps_[0] : NULL;
   }
 
   Handle<FeedbackVector> vector() const { return nexus()->vector_handle(); }
@@ -223,7 +223,7 @@ class IC {
   MaybeHandle<Object> maybe_handler_;
 
   ExtraICState extra_ic_state_;
-  MapHandleList target_maps_;
+  MapHandles target_maps_;
   bool target_maps_set_;
 
   const char* slow_stub_reason_;
@@ -328,7 +328,7 @@ class KeyedLoadIC : public LoadIC {
 
   Handle<Object> LoadElementHandler(Handle<Map> receiver_map);
 
-  void LoadElementPolymorphicHandlers(MapHandleList* receiver_maps,
+  void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
                                       List<Handle<Object>>* handlers);
 };
 
@@ -414,7 +414,7 @@ class KeyedStoreIC : public StoreIC {
   Handle<Object> StoreElementHandler(Handle<Map> receiver_map,
                                      KeyedAccessStoreMode store_mode);
 
-  void StoreElementPolymorphicHandlers(MapHandleList* receiver_maps,
+  void StoreElementPolymorphicHandlers(MapHandles* receiver_maps,
                                        List<Handle<Object>>* handlers,
                                        KeyedAccessStoreMode store_mode);
 

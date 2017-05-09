@@ -232,7 +232,7 @@ void CompilationJob::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
   // TODO(turbofan): Move this to pipeline.cc once Crankshaft dies.
   Isolate* const isolate = code->GetIsolate();
   DCHECK(code->is_optimized_code());
-  std::vector<Handle<Map>> maps;
+  MapHandles maps;
   std::vector<Handle<HeapObject>> objects;
   {
     DisallowHeapAllocation no_gc;

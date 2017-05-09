@@ -61,26 +61,26 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
 
 ElementAccessInfo::ElementAccessInfo() {}
 
-ElementAccessInfo::ElementAccessInfo(MapList const& receiver_maps,
+ElementAccessInfo::ElementAccessInfo(MapHandles const& receiver_maps,
                                      ElementsKind elements_kind)
     : elements_kind_(elements_kind), receiver_maps_(receiver_maps) {}
 
 // static
-PropertyAccessInfo PropertyAccessInfo::NotFound(MapList const& receiver_maps,
+PropertyAccessInfo PropertyAccessInfo::NotFound(MapHandles const& receiver_maps,
                                                 MaybeHandle<JSObject> holder) {
   return PropertyAccessInfo(holder, receiver_maps);
 }
 
 // static
 PropertyAccessInfo PropertyAccessInfo::DataConstant(
-    MapList const& receiver_maps, Handle<Object> constant,
+    MapHandles const& receiver_maps, Handle<Object> constant,
     MaybeHandle<JSObject> holder) {
   return PropertyAccessInfo(kDataConstant, holder, constant, receiver_maps);
 }
 
 // static
 PropertyAccessInfo PropertyAccessInfo::DataField(
-    PropertyConstness constness, MapList const& receiver_maps,
+    PropertyConstness constness, MapHandles const& receiver_maps,
     FieldIndex field_index, MachineRepresentation field_representation,
     Type* field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
@@ -92,7 +92,7 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
 
 // static
 PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
-    MapList const& receiver_maps, Handle<Object> constant,
+    MapHandles const& receiver_maps, Handle<Object> constant,
     MaybeHandle<JSObject> holder) {
   return PropertyAccessInfo(kAccessorConstant, holder, constant, receiver_maps);
 }
@@ -103,7 +103,7 @@ PropertyAccessInfo::PropertyAccessInfo()
       field_type_(Type::None()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
-                                       MapList const& receiver_maps)
+                                       MapHandles const& receiver_maps)
     : kind_(kNotFound),
       receiver_maps_(receiver_maps),
       holder_(holder),
@@ -112,7 +112,7 @@ PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
 
 PropertyAccessInfo::PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
                                        Handle<Object> constant,
-                                       MapList const& receiver_maps)
+                                       MapHandles const& receiver_maps)
     : kind_(kind),
       receiver_maps_(receiver_maps),
       constant_(constant),
@@ -123,7 +123,8 @@ PropertyAccessInfo::PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
 PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, MachineRepresentation field_representation,
-    Type* field_type, MaybeHandle<Map> field_map, MapList const& receiver_maps)
+    Type* field_type, MaybeHandle<Map> field_map,
+    MapHandles const& receiver_maps)
     : kind_(kind),
       receiver_maps_(receiver_maps),
       transition_map_(transition_map),
@@ -228,12 +229,12 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
   // Check if it is safe to inline element access for the {map}.
   if (!CanInlineElementAccess(map)) return false;
   ElementsKind const elements_kind = map->elements_kind();
-  *access_info = ElementAccessInfo(MapList{map}, elements_kind);
+  *access_info = ElementAccessInfo(MapHandles{map}, elements_kind);
   return true;
 }
 
 bool AccessInfoFactory::ComputeElementAccessInfos(
-    MapHandleList const& maps, AccessMode access_mode,
+    MapHandles const& maps, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) {
   if (access_mode == AccessMode::kLoad) {
     // For polymorphic loads of similar elements kinds (i.e. all tagged or all
@@ -248,26 +249,28 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   }
 
   // Collect possible transition targets.
-  MapHandleList possible_transition_targets(maps.length());
+  MapHandles possible_transition_targets;
+  possible_transition_targets.reserve(maps.size());
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(map).ToHandle(&map)) {
       if (CanInlineElementAccess(map) &&
           IsFastElementsKind(map->elements_kind()) &&
           GetInitialFastElementsKind() != map->elements_kind()) {
-        possible_transition_targets.Add(map);
+        possible_transition_targets.push_back(map);
       }
     }
   }
 
   // Separate the actual receiver maps and the possible transition sources.
-  MapHandleList receiver_maps(maps.length());
-  MapTransitionList transitions(maps.length());
+  MapHandles receiver_maps;
+  receiver_maps.reserve(maps.size());
+  MapTransitionList transitions(maps.size());
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(map).ToHandle(&map)) {
       Map* transition_target =
-          map->FindElementsKindTransitionedMap(&possible_transition_targets);
+          map->FindElementsKindTransitionedMap(possible_transition_targets);
       if (transition_target == nullptr) {
-        receiver_maps.Add(map);
+        receiver_maps.push_back(map);
       } else {
         DCHECK(!map->is_stable());
         transitions.push_back(std::make_pair(map, handle(transition_target)));
@@ -375,7 +378,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             }
           }
           *access_info = PropertyAccessInfo::DataField(
-              details.constness(), MapList{receiver_map}, field_index,
+              details.constness(), MapHandles{receiver_map}, field_index,
               field_representation, field_type, field_map, holder);
           return true;
         } else {
@@ -389,7 +392,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
         if (details.kind() == kData) {
           DCHECK(!FLAG_track_constant_fields);
           *access_info = PropertyAccessInfo::DataConstant(
-              MapList{receiver_map},
+              MapHandles{receiver_map},
               handle(descriptors->GetValue(number), isolate()), holder);
           return true;
         } else {
@@ -420,7 +423,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             }
           }
           *access_info = PropertyAccessInfo::AccessorConstant(
-              MapList{receiver_map}, accessor, holder);
+              MapHandles{receiver_map}, accessor, holder);
           return true;
         }
       }
@@ -463,7 +466,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
         // on the language mode of the load operation.
         // Implemented according to ES6 section 9.1.8 [[Get]] (P, Receiver)
         *access_info =
-            PropertyAccessInfo::NotFound(MapList{receiver_map}, holder);
+            PropertyAccessInfo::NotFound(MapHandles{receiver_map}, holder);
         return true;
       } else {
         return false;
@@ -482,7 +485,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
 }
 
 bool AccessInfoFactory::ComputePropertyAccessInfos(
-    MapHandleList const& maps, Handle<Name> name, AccessMode access_mode,
+    MapHandles const& maps, Handle<Name> name, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* access_infos) {
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(map).ToHandle(&map)) {
@@ -528,14 +531,12 @@ Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
 
 }  // namespace
 
-bool AccessInfoFactory::ConsolidateElementLoad(MapHandleList const& maps,
+bool AccessInfoFactory::ConsolidateElementLoad(MapHandles const& maps,
                                                ElementAccessInfo* access_info) {
-  if (maps.is_empty()) return false;
-  InstanceType instance_type = maps.first()->instance_type();
-  ElementsKind elements_kind = maps.first()->elements_kind();
-  MapList receiver_maps(maps.length());
-  for (int i = 0; i < maps.length(); ++i) {
-    Handle<Map> map = maps[i];
+  if (maps.empty()) return false;
+  InstanceType instance_type = maps.front()->instance_type();
+  ElementsKind elements_kind = maps.front()->elements_kind();
+  for (Handle<Map> map : maps) {
     if (!CanInlineElementAccess(map) || map->instance_type() != instance_type) {
       return false;
     }
@@ -543,9 +544,8 @@ bool AccessInfoFactory::ConsolidateElementLoad(MapHandleList const& maps,
              .To(&elements_kind)) {
       return false;
     }
-    receiver_maps[i] = map;
   }
-  *access_info = ElementAccessInfo(receiver_maps, elements_kind);
+  *access_info = ElementAccessInfo(maps, elements_kind);
   return true;
 }
 
@@ -581,8 +581,9 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
       }
     }
     // Special fields are always mutable.
-    *access_info = PropertyAccessInfo::DataField(
-        kMutable, MapList{map}, field_index, field_representation, field_type);
+    *access_info =
+        PropertyAccessInfo::DataField(kMutable, MapHandles{map}, field_index,
+                                      field_representation, field_type);
     return true;
   }
   return false;
@@ -640,8 +641,8 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
     dependencies()->AssumeMapNotDeprecated(transition_map);
     // Transitioning stores are never stores to constant fields.
     *access_info = PropertyAccessInfo::DataField(
-        kMutable, MapList{map}, field_index, field_representation, field_type,
-        field_map, holder, transition_map);
+        kMutable, MapHandles{map}, field_index, field_representation,
+        field_type, field_map, holder, transition_map);
     return true;
   }
   return false;

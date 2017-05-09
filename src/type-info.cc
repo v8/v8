@@ -445,14 +445,14 @@ void TypeFeedbackOracle::CollectReceiverTypes(FeedbackSlot slot,
 
 void TypeFeedbackOracle::CollectReceiverTypes(FeedbackNexus* nexus,
                                               SmallMapList* types) {
-  MapHandleList maps;
+  MapHandles maps;
   if (nexus->ExtractMaps(&maps) == 0) {
     return;
   }
 
-  types->Reserve(maps.length(), zone());
-  for (int i = 0; i < maps.length(); i++) {
-    types->AddMapIfMissing(maps.at(i), zone());
+  types->Reserve(static_cast<int>(maps.size()), zone());
+  for (Handle<Map> map : maps) {
+    types->AddMapIfMissing(map, zone());
   }
 }
 

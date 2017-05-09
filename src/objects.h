@@ -4442,6 +4442,7 @@ class DependentCode: public FixedArray {
 
 class PrototypeInfo;
 
+typedef std::vector<Handle<Map>> MapHandles;
 
 // All heap objects have a Map that describes their structure.
 //  A Map contains information about:
@@ -4964,7 +4965,7 @@ class Map: public HeapObject {
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or |nullptr| if no match is
   // found at all.
-  Map* FindElementsKindTransitionedMap(MapHandleList* candidates);
+  Map* FindElementsKindTransitionedMap(MapHandles const& candidates);
 
   inline bool CanTransition();
 
