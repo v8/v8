@@ -547,13 +547,6 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
     RecordFixedArrayHelper(sfi, feedback_metadata, FEEDBACK_METADATA_SUB_TYPE,
                            0);
   }
-
-  if (!sfi->OptimizedCodeMapIsCleared()) {
-    FixedArray* optimized_code_map = sfi->optimized_code_map();
-    RecordFixedArrayHelper(sfi, optimized_code_map, OPTIMIZED_CODE_MAP_SUB_TYPE,
-                           0);
-    // Optimized code map should be small, so skip accounting.
-  }
 }
 
 void ObjectStatsCollector::RecordJSFunctionDetails(JSFunction* function) {

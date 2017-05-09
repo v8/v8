@@ -3045,7 +3045,7 @@ void Isolate::ClearOSROptimizedCode() {
   Object* context = heap()->native_contexts_list();
   while (!context->IsUndefined(this)) {
     Context* current_context = Context::cast(context);
-    current_context->ClearOptimizedCodeMap();
+    current_context->ClearOSROptimizedCodeCache();
     context = current_context->next_context_link();
   }
 }
@@ -3055,7 +3055,7 @@ void Isolate::EvictOSROptimizedCode(Code* code, const char* reason) {
   Object* context = heap()->native_contexts_list();
   while (!context->IsUndefined(this)) {
     Context* current_context = Context::cast(context);
-    current_context->EvictFromOptimizedCodeMap(code, reason);
+    current_context->EvictFromOSROptimizedCodeCache(code, reason);
     context = current_context->next_context_link();
   }
 }

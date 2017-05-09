@@ -228,7 +228,7 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
   // If used, the TypeProfileSlot is always added as the first slot and its
   // index is constant. If other slots are added before the TypeProfileSlot,
   // this number changes.
-  static const int kTypeProfileSlotIndex = 2;
+  static const int kTypeProfileSlotIndex = 3;
 
  private:
   friend class FeedbackVectorSpecBase<FeedbackVectorSpec>;
@@ -308,7 +308,8 @@ class FeedbackVector : public FixedArray {
 
   static const int kSharedFunctionInfoIndex = 0;
   static const int kInvocationCountIndex = 1;
-  static const int kReservedIndexCount = 2;
+  static const int kOptimizedCodeIndex = 2;
+  static const int kReservedIndexCount = 3;
 
   inline void ComputeCounts(int* with_type_info, int* generic,
                             int* vector_ic_count, bool code_is_interpreted);
@@ -322,6 +323,14 @@ class FeedbackVector : public FixedArray {
   inline SharedFunctionInfo* shared_function_info() const;
   inline int invocation_count() const;
   inline void clear_invocation_count();
+
+  inline Code* optimized_code() const;
+  inline bool has_optimized_code() const;
+  void ClearOptimizedCode();
+  void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo* shared,
+                                                 const char* reason);
+  static void SetOptimizedCode(Handle<FeedbackVector> vector,
+                               Handle<Code> code);
 
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) {

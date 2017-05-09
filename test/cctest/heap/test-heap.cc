@@ -4189,8 +4189,8 @@ TEST(Regress513507) {
   heap->set_allocation_timeout(5);
   FLAG_gc_interval = 1000;
   for (int i = 0; i < 10; ++i) {
-    BailoutId id = BailoutId(i);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, id);
+    BailoutId id = BailoutId(i + 1);
+    Context::AddToOSROptimizedCodeCache(context, shared, code, id);
   }
 }
 #endif  // DEBUG
@@ -4207,7 +4207,7 @@ TEST(Regress513496) {
   // Prepare an optimized closure with containing an inlined function. Then age
   // the inlined unoptimized code to trigger code flushing but make sure the
   // outer optimized code is kept in the optimized code map.
-  Handle<SharedFunctionInfo> shared;
+  Handle<SharedFunctionInfo> optimized_code;
   {
     LocalContext context;
     HandleScope inner_scope(isolate);
@@ -4235,14 +4235,15 @@ TEST(Regress513496) {
                                            ->Get(context.local(), v8_str("f"))
                                            .ToLocalChecked())));
     CHECK(f->is_compiled());
-    shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
+
+    // Lookup the optimized code and keep it alive.
+    Code* result = f->feedback_vector()->optimized_code();
+    Handle<Code> optimized_code(result, isolate);
+    optimized_code = inner_scope.CloseAndEscape(handle(result, isolate));
+
     CompileRun("f = null");
   }
 
-  // Lookup the optimized code and keep it alive.
-  Code* result = shared->SearchOptimizedCodeMap(
-      isolate->context()->native_context(), BailoutId::None());
-  Handle<Code> optimized_code(result, isolate);
 
   // Finish a full GC cycle so that the unoptimized code of 'g' is flushed even
   // though the optimized code for 'f' is reachable via the optimized code map.
