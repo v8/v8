@@ -250,7 +250,8 @@ TEST_F(AsmTypeTest, IsExactly) {
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Function(Type::Int)(Type::Float),
+      Type::FroundType(zone()),
       Type::FFIType(zone()),
       Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
@@ -285,7 +286,8 @@ TEST_F(AsmTypeTest, IsA) {
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Function(Type::Int)(Type::Float),
+      Type::FroundType(zone()),
       Type::FFIType(zone()),
       Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
@@ -470,7 +472,8 @@ TEST_F(AsmTypeTest, ToReturnType) {
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Function(Type::Int)(Type::Float),
+      Type::FroundType(zone()),
       Type::FFIType(zone()),
       Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
@@ -496,7 +499,8 @@ TEST_F(AsmTypeTest, IsReturnType) {
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Function(Type::Int)(Type::Float),
+      Type::FroundType(zone()),
       Type::FFIType(zone()),
       Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
@@ -529,7 +533,8 @@ TEST_F(AsmTypeTest, ToParameterType) {
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Function(Type::Int)(Type::Float),
+      Type::FroundType(zone()),
       Type::FFIType(zone()),
       Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
@@ -556,7 +561,8 @@ TEST_F(AsmTypeTest, IsParameterType) {
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Function(Type::Int)(Type::Float),
+      Type::FroundType(zone()),
       Type::FFIType(zone()),
       Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
@@ -584,7 +590,8 @@ TEST_F(AsmTypeTest, IsComparableType) {
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Function(Type::Int)(Type::Float),
+      Type::FroundType(zone()),
       Type::FFIType(zone()),
       Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
@@ -612,7 +619,8 @@ TEST_F(AsmTypeTest, ElementSizeInBytes) {
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Function(Type::Int)(Type::Float),
+      Type::FroundType(zone()),
       Type::FFIType(zone()),
       Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
@@ -650,7 +658,8 @@ TEST_F(AsmTypeTest, LoadType) {
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Function(Type::Int)(Type::Float),
+      Type::FroundType(zone()),
       Type::FFIType(zone()),
       Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
@@ -688,7 +697,8 @@ TEST_F(AsmTypeTest, StoreType) {
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Function(Type::Int)(Type::Float),
+      Type::FroundType(zone()),
       Type::FFIType(zone()),
       Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
