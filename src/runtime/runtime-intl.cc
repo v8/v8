@@ -44,8 +44,12 @@
 #include "unicode/uloc.h"
 #include "unicode/unistr.h"
 #include "unicode/unum.h"
-#include "unicode/ustring.h"
+#include "unicode/uvernum.h"
 #include "unicode/uversion.h"
+
+#if U_ICU_VERSION_MAJOR_NUM >= 59
+#include "unicode/char16ptr.h"
+#endif
 
 namespace v8 {
 namespace internal {

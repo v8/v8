@@ -17,13 +17,9 @@
 #include "unicode/calendar.h"
 #include "unicode/gregocal.h"
 #include "unicode/timezone.h"
-#include "unicode/uchar.h"
+#include "unicode/ustring.h"
 #include "unicode/uvernum.h"
 #include "unicode/uversion.h"
-
-#if U_ICU_VERSION_MAJOR_NUM >= 59
-#include "unicode/char16ptr.h"
-#endif
 
 namespace v8 {
 namespace internal {
