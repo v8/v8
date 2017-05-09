@@ -256,6 +256,16 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   VisitBinop(selector, node, opcode, false, kArchNop);
 }
 
+void InstructionSelector::VisitStackSlot(Node* node) {
+  StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
+  int alignment = rep.alignment();
+  int slot = frame_->AllocateSpillSlot(rep.size(), alignment);
+  OperandGenerator g(this);
+
+  Emit(kArchStackSlot, g.DefineAsRegister(node),
+       sequence()->AddImmediate(Constant(slot)),
+       sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
+}
 
 void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());

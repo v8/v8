@@ -813,8 +813,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      __ Daddu(i.OutputRegister(), offset.from_stack_pointer() ? sp : fp,
-               Operand(offset.offset()));
+      Register base_reg = offset.from_stack_pointer() ? sp : fp;
+      __ Daddu(i.OutputRegister(), base_reg, Operand(offset.offset()));
+      int alignment = i.InputInt32(1);
+      DCHECK(alignment == 0 || alignment == 4 || alignment == 8 ||
+             alignment == 16);
+      if (FLAG_debug_code && alignment > 0) {
+        // Verify that the output_register is properly aligned
+        __ And(kScratchReg, i.OutputRegister(), Operand(kPointerSize - 1));
+        __ Assert(eq, kAllocationIsNotDoubleAligned, kScratchReg,
+                  Operand(zero_reg));
+      }
+      if (alignment == 2 * kPointerSize) {
+        Label done;
+        __ Daddu(kScratchReg, base_reg, Operand(offset.offset()));
+        __ And(kScratchReg, kScratchReg, Operand(alignment - 1));
+        __ BranchShort(&done, eq, kScratchReg, Operand(zero_reg));
+        __ Daddu(i.OutputRegister(), i.OutputRegister(), kPointerSize);
+        __ bind(&done);
+      } else if (alignment > 2 * kPointerSize) {
+        Label done;
+        __ Daddu(kScratchReg, base_reg, Operand(offset.offset()));
+        __ And(kScratchReg, kScratchReg, Operand(alignment - 1));
+        __ BranchShort(&done, eq, kScratchReg, Operand(zero_reg));
+        __ li(kScratchReg2, alignment);
+        __ Dsubu(kScratchReg2, kScratchReg2, Operand(kScratchReg));
+        __ Daddu(i.OutputRegister(), i.OutputRegister(), kScratchReg2);
+        __ bind(&done);
+      }
+
       break;
     }
     case kIeee754Float64Acos:
