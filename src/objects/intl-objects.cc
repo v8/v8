@@ -178,8 +178,10 @@ void SetResolvedDateSettings(Isolate* isolate, const icu::Locale& icu_locale,
     // timezone. We'd not have "Etc/GMT" here because we canonicalize it and
     // other GMT-variants to "UTC" in intl.js and "UTC" is turned to "Etc/UTC"
     // by ICU before getting here.
-    DCHECK(canonical_time_zone != UNICODE_STRING_SIMPLE("Etc/GMT"));
-    if (canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/UTC")) {
+    // TODO(jshin): Figure out the cause of crbug.com/719609 and re-enable
+    //  DCHECK(canonical_time_zone != UNICODE_STRING_SIMPLE("Etc/GMT")) .
+    if (canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/UTC") ||
+        canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/GMT")) {
       JSObject::SetProperty(resolved,
                             factory->NewStringFromStaticChars("timeZone"),
                             factory->NewStringFromStaticChars("UTC"), SLOPPY)
