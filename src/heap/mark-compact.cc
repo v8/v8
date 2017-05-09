@@ -3784,6 +3784,9 @@ int MarkCompactCollector::Sweeper::RawSweep(
          space->identity() == CODE_SPACE || space->identity() == MAP_SPACE);
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
 
+  // Sweeper takes the marking state of the full collector.
+  const MarkingState state = MarkingState::Internal(p);
+
   // If there are old-to-new slots in that page, we have to filter out slots
   // that are in dead memory which is freed by the sweeper.
   ClearOldToNewSlotsMode slots_clearing_mode = GetClearOldToNewSlotsMode(p);
@@ -3793,7 +3796,7 @@ int MarkCompactCollector::Sweeper::RawSweep(
 
   // Before we sweep objects on the page, we free dead array buffers which
   // requires valid mark bits.
-  ArrayBufferTracker::FreeDead(p);
+  ArrayBufferTracker::FreeDead(p, state);
 
   Address free_start = p->area_start();
   DCHECK(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
@@ -3812,11 +3815,11 @@ int MarkCompactCollector::Sweeper::RawSweep(
   intptr_t max_freed_bytes = 0;
   int curr_region = -1;
 
-  LiveObjectIterator<kBlackObjects> it(p, MarkingState::Internal(p));
+  LiveObjectIterator<kBlackObjects> it(p, state);
   HeapObject* object = NULL;
 
   while ((object = it.Next()) != NULL) {
-    DCHECK(ObjectMarking::IsBlack(object, MarkingState::Internal(object)));
+    DCHECK(ObjectMarking::IsBlack(object, state));
     Address free_end = object->address();
     if (free_end != free_start) {
       CHECK_GT(free_end, free_start);
@@ -3890,7 +3893,7 @@ int MarkCompactCollector::Sweeper::RawSweep(
   }
 
   // Clear the mark bits of that page and reset live bytes count.
-  MarkingState::Internal(p).ClearLiveness();
+  state.ClearLiveness();
 
   p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
