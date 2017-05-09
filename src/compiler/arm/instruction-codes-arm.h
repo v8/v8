@@ -239,12 +239,14 @@ namespace compiler {
   V(ArmS32x4UnzipRight)            \
   V(ArmS32x4TransposeLeft)         \
   V(ArmS32x4TransposeRight)        \
+  V(ArmS32x4Shuffle)               \
   V(ArmS16x8ZipLeft)               \
   V(ArmS16x8ZipRight)              \
   V(ArmS16x8UnzipLeft)             \
   V(ArmS16x8UnzipRight)            \
   V(ArmS16x8TransposeLeft)         \
   V(ArmS16x8TransposeRight)        \
+  V(ArmS16x8Shuffle)               \
   V(ArmS8x16ZipLeft)               \
   V(ArmS8x16ZipRight)              \
   V(ArmS8x16UnzipLeft)             \
@@ -252,6 +254,7 @@ namespace compiler {
   V(ArmS8x16TransposeLeft)         \
   V(ArmS8x16TransposeRight)        \
   V(ArmS8x16Concat)                \
+  V(ArmS8x16Shuffle)               \
   V(ArmS32x2Reverse)               \
   V(ArmS16x4Reverse)               \
   V(ArmS16x2Reverse)               \

@@ -2583,8 +2583,7 @@ static const ShuffleEntry<4> arch_s32x4_shuffles[] = {
     {{1, 3, 5, 7}, kArmS32x4UnzipRight},
     {{0, 4, 2, 6}, kArmS32x4TransposeLeft},
     {{1, 5, 3, 7}, kArmS32x4TransposeRight},
-    {{1, 0, 3, 2}, kArmS32x2Reverse},
-};
+    {{1, 0, 3, 2}, kArmS32x2Reverse}};
 
 static const ShuffleEntry<8> arch_s16x8_shuffles[] = {
     {{0, 8, 1, 9, 2, 10, 3, 11}, kArmS16x8ZipLeft},
@@ -2594,8 +2593,7 @@ static const ShuffleEntry<8> arch_s16x8_shuffles[] = {
     {{0, 8, 2, 10, 4, 12, 6, 14}, kArmS16x8TransposeLeft},
     {{1, 9, 3, 11, 5, 13, 7, 15}, kArmS16x8TransposeRight},
     {{3, 2, 1, 0, 7, 6, 5, 4}, kArmS16x4Reverse},
-    {{1, 0, 3, 2, 5, 4, 7, 6}, kArmS16x2Reverse},
-};
+    {{1, 0, 3, 2, 5, 4, 7, 6}, kArmS16x2Reverse}};
 
 static const ShuffleEntry<16> arch_s8x16_shuffles[] = {
     {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
@@ -2612,8 +2610,7 @@ static const ShuffleEntry<16> arch_s8x16_shuffles[] = {
      kArmS8x16TransposeRight},
     {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8}, kArmS8x8Reverse},
     {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12}, kArmS8x4Reverse},
-    {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14}, kArmS8x2Reverse},
-};
+    {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14}, kArmS8x2Reverse}};
 
 // Use a non-shuffle opcode to signal no match.
 static const ArchOpcode kNoShuffle = kArmS128Not;
@@ -2683,6 +2680,27 @@ uint8_t CanonicalizeShuffle(InstructionSelector* selector, Node* node,
   return mask;
 }
 
+int32_t Pack4Lanes(const uint8_t* shuffle, uint8_t mask) {
+  int32_t result = 0;
+  for (int i = 3; i >= 0; i--) {
+    result <<= 8;
+    result |= shuffle[i] & mask;
+  }
+  return result;
+}
+
+void ArrangeShuffleTable(ArmOperandGenerator* g, Node* input0, Node* input1,
+                         InstructionOperand* src0, InstructionOperand* src1) {
+  if (input0 == input1) {
+    // Unary, any q-register can be the table.
+    *src0 = *src1 = g->UseRegister(input0);
+  } else {
+    // Binary, table registers must be consecutive.
+    *src0 = g->UseFixed(input0, q0);
+    *src1 = g->UseFixed(input1, q1);
+  }
+}
+
 }  // namespace
 
 void InstructionSelector::VisitS32x4Shuffle(Node* node) {
@@ -2702,7 +2720,9 @@ void InstructionSelector::VisitS32x4Shuffle(Node* node) {
          g.UseImmediate(lanes * 4));
     return;
   }
-  // TODO(bbudge) vtbl to handle all other shuffles.
+  Emit(kArmS32x4Shuffle, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseImmediate(Pack4Lanes(shuffle, mask)));
 }
 
 void InstructionSelector::VisitS16x8Shuffle(Node* node) {
@@ -2715,13 +2735,20 @@ void InstructionSelector::VisitS16x8Shuffle(Node* node) {
     return;
   }
   ArmOperandGenerator g(this);
+  Node* input0 = node->InputAt(0);
+  Node* input1 = node->InputAt(1);
   uint8_t lanes = TryMatchConcat<8>(shuffle, mask);
   if (lanes != 0) {
-    Emit(kArmS8x16Concat, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-         g.UseImmediate(lanes * 2));
+    Emit(kArmS8x16Concat, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1), g.UseImmediate(lanes * 2));
+    return;
   }
-  // TODO(bbudge) vtbl to handle all other shuffles.
+  // Code generator uses vtbl, arrange sources to form a valid lookup table.
+  InstructionOperand src0, src1;
+  ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
+  Emit(kArmS16x8Shuffle, g.DefineAsRegister(node), src0, src1,
+       g.UseImmediate(Pack4Lanes(shuffle, mask)),
+       g.UseImmediate(Pack4Lanes(shuffle + 4, mask)));
 }
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {
@@ -2734,13 +2761,22 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     return;
   }
   ArmOperandGenerator g(this);
+  Node* input0 = node->InputAt(0);
+  Node* input1 = node->InputAt(1);
   uint8_t lanes = TryMatchConcat<16>(shuffle, mask);
   if (lanes != 0) {
-    Emit(kArmS8x16Concat, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-         g.UseImmediate(lanes));
+    Emit(kArmS8x16Concat, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1), g.UseImmediate(lanes));
+    return;
   }
-  // TODO(bbudge) vtbl to handle all other shuffles.
+  // Code generator uses vtbl, arrange sources to form a valid lookup table.
+  InstructionOperand src0, src1;
+  ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
+  Emit(kArmS8x16Shuffle, g.DefineAsRegister(node), src0, src1,
+       g.UseImmediate(Pack4Lanes(shuffle, mask)),
+       g.UseImmediate(Pack4Lanes(shuffle + 4, mask)),
+       g.UseImmediate(Pack4Lanes(shuffle + 8, mask)),
+       g.UseImmediate(Pack4Lanes(shuffle + 12, mask)));
 }
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {

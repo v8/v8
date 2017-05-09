@@ -1710,6 +1710,12 @@ WASM_EXEC_COMPILED_TEST(S32x2Reverse) {
   RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{1, 0, 3, 2}});
 }
 
+// Test irregular shuffle.
+WASM_EXEC_COMPILED_TEST(S32x4Irregular) {
+  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{0, 4, 4, 5}});
+  RunBinaryLaneOpTest<int32_t>(kExprS32x4Shuffle, {{0, 0, 0, 1}});
+}
+
 WASM_EXEC_COMPILED_TEST(S16x8ZipLeft) {
   RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{0, 8, 1, 9, 2, 10, 3, 11}});
   RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{0, 0, 1, 1, 2, 2, 3, 3}});
@@ -1751,6 +1757,11 @@ WASM_EXEC_COMPILED_TEST(S16x4Reverse) {
 
 WASM_EXEC_COMPILED_TEST(S16x2Reverse) {
   RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{1, 0, 3, 2, 5, 4, 7, 6}});
+}
+
+WASM_EXEC_COMPILED_TEST(S16x8Irregular) {
+  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{0, 8, 8, 0, 2, 10, 3, 11}});
+  RunBinaryLaneOpTest<int16_t>(kExprS16x8Shuffle, {{0, 0, 0, 0, 2, 2, 3, 3}});
 }
 
 WASM_EXEC_COMPILED_TEST(S8x16ZipLeft) {
@@ -1815,6 +1826,14 @@ WASM_EXEC_COMPILED_TEST(S8x4Reverse) {
 WASM_EXEC_COMPILED_TEST(S8x2Reverse) {
   RunBinaryLaneOpTest<int8_t>(kExprS8x16Shuffle, {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8,
                                                    11, 10, 13, 12, 15, 14}});
+}
+
+WASM_EXEC_COMPILED_TEST(S8x16Irregular) {
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle,
+      {{0, 16, 0, 16, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}});
+  RunBinaryLaneOpTest<int8_t>(
+      kExprS8x16Shuffle, {{0, 0, 0, 0, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7}});
 }
 
 // Test shuffles that concatenate the two vectors.
