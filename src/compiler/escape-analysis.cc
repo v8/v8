@@ -635,6 +635,11 @@ void EscapeStatusAnalysis::ResizeStatusVector() {
 size_t EscapeStatusAnalysis::GetStatusVectorSize() { return status_.size(); }
 
 void EscapeStatusAnalysis::RunStatusAnalysis() {
+  // TODO(tebbi): This checks for faulty VirtualObject states, which can happen
+  // due to bug https://bugs.chromium.org/p/v8/issues/detail?id=6302. As a
+  // workaround, we set everything to escaped if such a faulty state was
+  // detected.
+  bool all_objects_complete = object_analysis_->AllObjectsComplete();
   ResizeStatusVector();
   while (!status_stack_.empty()) {
     Node* node = status_stack_.back();
@@ -642,6 +647,7 @@ void EscapeStatusAnalysis::RunStatusAnalysis() {
     status_[node->id()] &= ~kOnStack;
     Process(node);
     status_[node->id()] |= kVisited;
+    if (!all_objects_complete) SetEscaped(node);
   }
 }
 
@@ -992,6 +998,25 @@ bool EscapeStatusAnalysis::IsNotReachable(Node* node) {
   return aliases_[node->id()] == kNotReachable;
 }
 
+bool EscapeAnalysis::AllObjectsComplete() {
+  for (VirtualState* state : virtual_states_) {
+    if (state) {
+      for (size_t i = 0; i < state->size(); ++i) {
+        if (VirtualObject* object = state->VirtualObjectFromAlias(i)) {
+          if (!object->AllFieldsClear()) {
+            for (size_t i = 0; i < object->field_count(); ++i) {
+              if (object->GetField(i) == nullptr) {
+                return false;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
+
 void EscapeAnalysis::RunObjectAnalysis() {
   virtual_states_.resize(graph()->NodeCount());
   ZoneDeque<Node*> queue(zone());
@@ -1035,6 +1060,7 @@ void EscapeAnalysis::RunObjectAnalysis() {
       danglers.clear();
     }
   }
+
 #ifdef DEBUG
   if (FLAG_trace_turbo_escape) {
     DebugPrint();
@@ -1700,6 +1726,8 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
         for (size_t i = 0; i < vobj->field_count(); ++i) {
           if (Node* field = vobj->GetField(i)) {
             cache_->fields().push_back(ResolveReplacement(field));
+          } else {
+            return nullptr;
           }
         }
         int input_count = static_cast<int>(cache_->fields().size());
