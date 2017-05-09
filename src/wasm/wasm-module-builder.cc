@@ -308,16 +308,16 @@ void WasmModuleBuilder::SetIndirectFunction(uint32_t indirect,
   indirect_functions_[indirect] = direct;
 }
 
-uint32_t WasmModuleBuilder::AddImport(const char* name, int name_length,
+uint32_t WasmModuleBuilder::AddImport(Vector<const char> name,
                                       FunctionSig* sig) {
-  function_imports_.push_back({AddSignature(sig), name, name_length});
+  function_imports_.push_back({AddSignature(sig), name.start(), name.length()});
   return static_cast<uint32_t>(function_imports_.size() - 1);
 }
 
-uint32_t WasmModuleBuilder::AddGlobalImport(const char* name, int name_length,
+uint32_t WasmModuleBuilder::AddGlobalImport(Vector<const char> name,
                                             ValueType type) {
   global_imports_.push_back(
-      {WasmOpcodes::ValueTypeCodeFor(type), name, name_length});
+      {WasmOpcodes::ValueTypeCodeFor(type), name.start(), name.length()});
   return static_cast<uint32_t>(global_imports_.size() - 1);
 }
 

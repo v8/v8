@@ -365,8 +365,7 @@ void AsmJsParser::ValidateModule() {
   module_builder_->MarkStartFunction(start);
   for (auto& global_import : global_imports_) {
     uint32_t import_index = module_builder_->AddGlobalImport(
-        global_import.import_name.start(), global_import.import_name.length(),
-        global_import.value_type);
+        global_import.import_name, global_import.value_type);
     start->EmitWithI32V(kExprGetGlobal, import_index);
     start->EmitWithI32V(kExprSetGlobal, VarIndex(global_import.var_info));
   }
@@ -2150,9 +2149,8 @@ AsmType* AsmJsParser::ValidateCall() {
     if (it != function_info->import->cache.end()) {
       index = it->second;
     } else {
-      index = module_builder_->AddImport(
-          function_info->import->function_name.start(),
-          function_info->import->function_name.length(), sig);
+      index =
+          module_builder_->AddImport(function_info->import->function_name, sig);
       function_info->import->cache[sig] = index;
     }
     current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
