@@ -387,8 +387,10 @@ void Utf8ExternalStreamingStream::SearchPosition(size_t position) {
     //  checking whether the # bytes in a chunk are equal to the # chars, and if
     //  so avoid the expensive SkipToPosition.)
     bool ascii_only_chunk =
+        chunks_[chunk_no].start.incomplete_char ==
+            unibrow::Utf8::Utf8IncrementalBuffer(0) &&
         (chunks_[chunk_no + 1].start.bytes - chunks_[chunk_no].start.bytes) ==
-        (chunks_[chunk_no + 1].start.chars - chunks_[chunk_no].start.chars);
+            (chunks_[chunk_no + 1].start.chars - chunks_[chunk_no].start.chars);
     if (ascii_only_chunk) {
       size_t skip = position - chunks_[chunk_no].start.chars;
       current_ = {chunk_no,
