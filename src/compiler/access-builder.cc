@@ -180,6 +180,24 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectContext() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSGeneratorObjectFunction() {
+  FieldAccess access = {kTaggedBase,         JSGeneratorObject::kFunctionOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::Function(),    MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectReceiver() {
+  FieldAccess access = {kTaggedBase,         JSGeneratorObject::kReceiverOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::Internal(),    MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSGeneratorObjectContinuation() {
   FieldAccess access = {
       kTaggedBase,         JSGeneratorObject::kContinuationOffset,
@@ -199,15 +217,6 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectInputOrDebugPos() {
   return access;
 }
 
-// static
-FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectAwaitInputOrDebugPos() {
-  FieldAccess access = {
-      kTaggedBase,         JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset,
-      Handle<Name>(),      MaybeHandle<Map>(),
-      Type::NonInternal(), MachineType::AnyTagged(),
-      kFullWriteBarrier};
-  return access;
-}
 
 // static
 FieldAccess AccessBuilder::ForJSGeneratorObjectRegisterFile() {
@@ -226,6 +235,36 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectResumeMode() {
       Handle<Name>(),      MaybeHandle<Map>(),
       Type::SignedSmall(), MachineType::TaggedSigned(),
       kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectQueue() {
+  FieldAccess access = {
+      kTaggedBase,         JSAsyncGeneratorObject::kQueueOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::NonInternal(), MachineType::AnyTagged(),
+      kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectAwaitInputOrDebugPos() {
+  FieldAccess access = {
+      kTaggedBase,         JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::NonInternal(), MachineType::AnyTagged(),
+      kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectAwaitedPromise() {
+  FieldAccess access = {
+      kTaggedBase,         JSAsyncGeneratorObject::kAwaitedPromiseOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::NonInternal(), MachineType::AnyTagged(),
+      kFullWriteBarrier};
   return access;
 }
 

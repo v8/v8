@@ -82,15 +82,27 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSGeneratorObject::input_or_debug_pos() field.
   static FieldAccess ForJSGeneratorObjectInputOrDebugPos();
 
+  // Provides access to JSGeneratorObject::register_file() field.
+  static FieldAccess ForJSGeneratorObjectRegisterFile();
+
+  // Provides access to JSGeneratorObject::function() field.
+  static FieldAccess ForJSGeneratorObjectFunction();
+
+  // Provides access to JSGeneratorObject::receiver() field.
+  static FieldAccess ForJSGeneratorObjectReceiver();
+
+  // Provides access to JSGeneratorObject::resume_mode() field.
+  static FieldAccess ForJSGeneratorObjectResumeMode();
+
+  // Provides access to JSAsyncGeneratorObject::queue() field.
+  static FieldAccess ForJSAsyncGeneratorObjectQueue();
+
   // Provides access to JSAsyncGeneratorObject::await_input_or_debug_pos()
   // field.
   static FieldAccess ForJSAsyncGeneratorObjectAwaitInputOrDebugPos();
 
-  // Provides access to JSGeneratorObject::register_file() field.
-  static FieldAccess ForJSGeneratorObjectRegisterFile();
-
-  // Provides access to JSGeneratorObject::resume_mode() field.
-  static FieldAccess ForJSGeneratorObjectResumeMode();
+  // Provides access to JSAsyncGeneratorObject::awaited_promise() field.
+  static FieldAccess ForJSAsyncGeneratorObjectAwaitedPromise();
 
   // Provides access to JSArray::length() field.
   static FieldAccess ForJSArrayLength(ElementsKind elements_kind);

@@ -228,6 +228,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateCatchContext(node);
     case IrOpcode::kJSCreateBlockContext:
       return ReduceJSCreateBlockContext(node);
+    case IrOpcode::kJSCreateGeneratorObject:
+      return ReduceJSCreateGeneratorObject(node);
     default:
       break;
   }
@@ -545,6 +547,71 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
     }
   }
 
+  return NoChange();
+}
+
+Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateGeneratorObject, node->opcode());
+  Node* const closure = NodeProperties::GetValueInput(node, 0);
+  Node* const receiver = NodeProperties::GetValueInput(node, 1);
+  Node* const context = NodeProperties::GetContextInput(node);
+  Type* const closure_type = NodeProperties::GetType(closure);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  // Extract constructor and original constructor function.
+  if (closure_type->IsHeapConstant()) {
+    DCHECK(closure_type->AsHeapConstant()->Value()->IsJSFunction());
+    Handle<JSFunction> js_function =
+        Handle<JSFunction>::cast(closure_type->AsHeapConstant()->Value());
+    JSFunction::EnsureHasInitialMap(js_function);
+    Handle<Map> initial_map(js_function->initial_map());
+    initial_map->CompleteInobjectSlackTracking();
+    DCHECK(initial_map->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
+           initial_map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
+
+    // Add a dependency on the {initial_map} to make sure that this code is
+    // deoptimized whenever the {initial_map} of the {original_constructor}
+    // changes.
+    dependencies()->AssumeInitialMapCantChange(initial_map);
+
+    DCHECK(js_function->shared()->HasBytecodeArray());
+    int size = js_function->shared()->bytecode_array()->register_count();
+    Node* elements = effect = AllocateElements(
+        effect, control, FAST_HOLEY_ELEMENTS, size, NOT_TENURED);
+
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.Allocate(initial_map->instance_size());
+    Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
+    Node* undefined = jsgraph()->UndefinedConstant();
+    a.Store(AccessBuilder::ForMap(), initial_map);
+    a.Store(AccessBuilder::ForJSObjectProperties(), empty_fixed_array);
+    a.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
+    a.Store(AccessBuilder::ForJSGeneratorObjectContext(), context);
+    a.Store(AccessBuilder::ForJSGeneratorObjectFunction(), closure);
+    a.Store(AccessBuilder::ForJSGeneratorObjectReceiver(), receiver);
+    a.Store(AccessBuilder::ForJSGeneratorObjectInputOrDebugPos(), undefined);
+    a.Store(AccessBuilder::ForJSGeneratorObjectResumeMode(),
+            jsgraph()->Constant(JSGeneratorObject::kNext));
+    a.Store(AccessBuilder::ForJSGeneratorObjectContinuation(),
+            jsgraph()->Constant(JSGeneratorObject::kGeneratorExecuting));
+    a.Store(AccessBuilder::ForJSGeneratorObjectRegisterFile(), elements);
+
+    if (initial_map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
+      a.Store(AccessBuilder::ForJSAsyncGeneratorObjectQueue(), undefined);
+      a.Store(AccessBuilder::ForJSAsyncGeneratorObjectAwaitInputOrDebugPos(),
+              undefined);
+      a.Store(AccessBuilder::ForJSAsyncGeneratorObjectAwaitedPromise(),
+              undefined);
+    }
+
+    // Handle in-object properties, too.
+    for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
+      a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
+              undefined);
+    }
+    a.FinishAndChange(node);
+    return Changed(node);
+  }
   return NoChange();
 }
 
