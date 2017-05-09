@@ -34,7 +34,6 @@ const char* const AsmJs::kSingleFunctionName = "__single_function__";
 namespace {
 enum WasmDataEntries {
   kWasmDataCompiledModule,
-  kWasmDataForeignGlobals,
   kWasmDataUsesArray,
   kWasmDataScript,
   kWasmDataScriptPosition,
@@ -153,7 +152,6 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   wasm::ZoneBuffer* module = nullptr;
   wasm::ZoneBuffer* asm_offsets = nullptr;
   Handle<FixedArray> uses_array;
-  Handle<FixedArray> foreign_globals;
   base::ElapsedTimer asm_wasm_timer;
   asm_wasm_timer.Start();
   size_t asm_wasm_zone_start = info->zone()->allocation_size();
@@ -186,9 +184,6 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
     parser.module_builder()->WriteTo(*module);
     asm_offsets = new (zone) wasm::ZoneBuffer(zone);
     parser.module_builder()->WriteAsmJsOffsetTable(*asm_offsets);
-    // TODO(bradnelson): Remove foreign_globals plumbing (as we don't need it
-    // for the new parser).
-    foreign_globals = info->isolate()->factory()->NewFixedArray(0);
     uses_array = info->isolate()->factory()->NewFixedArray(
         static_cast<int>(parser.stdlib_uses()->size()));
     int count = 0;
@@ -224,7 +219,6 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   Handle<FixedArray> result =
       info->isolate()->factory()->NewFixedArray(kWasmDataEntryCount);
   result->set(kWasmDataCompiledModule, *compiled.ToHandleChecked());
-  result->set(kWasmDataForeignGlobals, *foreign_globals);
   result->set(kWasmDataUsesArray, *uses_array);
   result->set(kWasmDataScript, *info->script());
   result->set(kWasmDataScriptPosition,
@@ -267,8 +261,6 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       FixedArray::cast(wasm_data->get(kWasmDataUsesArray)));
   Handle<WasmModuleObject> module(
       WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)));
-  Handle<FixedArray> foreign_globals(
-      FixedArray::cast(wasm_data->get(kWasmDataForeignGlobals)));
 
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;
