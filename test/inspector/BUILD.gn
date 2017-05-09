@@ -28,6 +28,10 @@ v8_executable("inspector-test") {
     "//build/win:default_exe_manifest",
   ]
 
+  if (v8_enable_i18n_support) {
+    deps += [ "//third_party/icu" ]
+  }
+
   cflags = []
   ldflags = []
 }

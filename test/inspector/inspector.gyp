@@ -26,6 +26,14 @@
         'task-runner.cc',
         'task-runner.h',
       ],
+      'conditions': [
+        ['v8_enable_i18n_support==1', {
+          'dependencies': [
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
+          ],
+        }],
+      ],
     },
   ],
   'conditions': [
