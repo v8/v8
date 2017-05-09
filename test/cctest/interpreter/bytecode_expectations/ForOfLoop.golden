@@ -648,7 +648,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 2
-bytecode array length: 625
+bytecode array length: 623
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -692,11 +692,10 @@ bytecodes: [
                 B(Star), R(12),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(12),
-                B(JumpIfTrue), U8(30),
+                B(JumpIfTrue), U8(28),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(12),
-                B(JumpIfTrue), U8(21),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(19),
                 B(LdaTrue),
                 B(Star), R(14),
                 B(Mov), R(11), R(13),
@@ -930,10 +929,10 @@ constant pool: [
   Smi [449],
 ]
 handlers: [
-  [49, 558, 564],
-  [143, 340, 346],
-  [146, 296, 298],
-  [432, 448, 450],
+  [49, 556, 562],
+  [141, 338, 344],
+  [144, 294, 296],
+  [430, 446, 448],
 ]
 
 ---
@@ -945,7 +944,7 @@ snippet: "
 "
 frame size: 18
 parameter count: 2
-bytecode array length: 754
+bytecode array length: 750
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(33),
@@ -958,7 +957,7 @@ bytecodes: [
                 B(JumpIfTrue), U8(63),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(155),
+                B(JumpIfTrue), U8(153),
                 B(LdaSmi), I8(79),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kAbort), R(5), U8(1),
@@ -992,11 +991,10 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(11),
-                B(JumpIfTrue), U8(30),
+                B(JumpIfTrue), U8(28),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(11),
-                B(JumpIfTrue), U8(21),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(19),
                 B(LdaTrue),
                 B(Star), R(13),
                 B(Mov), R(10), R(12),
@@ -1049,7 +1047,7 @@ bytecodes: [
                 B(LdaContextSlot), R(1), U8(9), U8(0),
                 B(Star), R(12),
                 B(LdaNamedProperty), R(12), U8(3), U8(10),
-                B(JumpIfToBooleanTrue), U8(146),
+                B(JumpIfToBooleanTrue), U8(144),
                 B(LdaContextSlot), R(1), U8(9), U8(0),
                 B(Star), R(12),
                 B(LdaNamedProperty), R(12), U8(4), U8(12),
@@ -1086,11 +1084,10 @@ bytecodes: [
                 B(Star), R(15),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(15),
-                B(JumpIfTrue), U8(42),
+                B(JumpIfTrue), U8(40),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(15),
-                B(JumpIfTrue), U8(33),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(31),
                 B(LdaTrue),
                 B(Star), R(17),
                 B(Mov), R(14), R(16),
@@ -1110,7 +1107,7 @@ bytecodes: [
                 B(PopContext), R(2),
                 B(LdaZero),
                 B(StaContextSlot), R(1), U8(10), U8(0),
-                B(JumpLoop), U8(214), I8(0),
+                B(JumpLoop), U8(212), I8(0),
                 B(Jump), U8(44),
                 B(Star), R(12),
                 B(Ldar), R(closure),
@@ -1282,13 +1279,13 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
   FIXED_ARRAY_TYPE,
-  Smi [563],
+  Smi [561],
 ]
 handlers: [
-  [55, 678, 684],
-  [149, 440, 446],
-  [152, 396, 398],
-  [533, 549, 551],
+  [55, 674, 680],
+  [147, 436, 442],
+  [150, 392, 394],
+  [529, 545, 547],
 ]
 
 ---
@@ -1596,7 +1593,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 2
-bytecode array length: 772
+bytecode array length: 770
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -1672,7 +1669,7 @@ bytecodes: [
                 B(LdaContextSlot), R(1), U8(11), U8(0),
                 B(Star), R(13),
                 B(LdaNamedProperty), R(13), U8(3), U8(10),
-                B(JumpIfToBooleanTrue), U8(169),
+                B(JumpIfToBooleanTrue), U8(167),
                 B(LdaContextSlot), R(1), U8(11), U8(0),
                 B(Star), R(13),
                 B(LdaNamedProperty), R(13), U8(4), U8(12),
@@ -1716,11 +1713,10 @@ bytecodes: [
                 B(Star), R(16),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(16),
-                B(JumpIfTrue), U8(42),
+                B(JumpIfTrue), U8(40),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(16),
-                B(JumpIfTrue), U8(33),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(31),
                 B(LdaTrue),
                 B(Star), R(18),
                 B(Mov), R(15), R(17),
@@ -1740,7 +1736,7 @@ bytecodes: [
                 B(PopContext), R(2),
                 B(LdaZero),
                 B(StaContextSlot), R(1), U8(12), U8(0),
-                B(JumpLoop), U8(236), I8(0),
+                B(JumpLoop), U8(234), I8(0),
                 B(Jump), U8(48),
                 B(Star), R(13),
                 B(Ldar), R(closure),
@@ -1943,10 +1939,10 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [71, 703, 709],
-  [74, 649, 651],
-  [91, 408, 414],
-  [94, 360, 362],
-  [501, 517, 519],
+  [71, 701, 707],
+  [74, 647, 649],
+  [91, 406, 412],
+  [94, 358, 360],
+  [499, 515, 517],
 ]
 

@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 140
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -58,11 +58,10 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),
@@ -91,7 +90,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 140
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -136,11 +135,10 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),
@@ -171,7 +169,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 204
+bytecode array length: 202
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -216,11 +214,10 @@ bytecodes: [
                 B(Star), R(7),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(7),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(7),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(9),
                 B(Mov), R(6), R(8),
@@ -278,7 +275,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 184
+bytecode array length: 182
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -323,11 +320,10 @@ bytecodes: [
                 B(Star), R(7),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(7),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(7),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(9),
                 B(Mov), R(6), R(8),
@@ -377,7 +373,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 188
+bytecode array length: 186
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -424,11 +420,10 @@ bytecodes: [
                 B(Star), R(7),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(7),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(7),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(9),
                 B(Mov), R(6), R(8),
@@ -478,7 +473,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 2
-bytecode array length: 192
+bytecode array length: 190
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -525,11 +520,10 @@ bytecodes: [
                 B(Star), R(7),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(7),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(7),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(9),
                 B(Mov), R(6), R(8),
@@ -577,7 +571,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 153
+bytecode array length: 151
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -624,11 +618,10 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),
@@ -660,7 +653,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 186
+bytecode array length: 184
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -707,11 +700,10 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),
@@ -755,7 +747,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 140
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -800,11 +792,10 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),
@@ -833,7 +824,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 140
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -878,11 +869,10 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),
@@ -912,7 +902,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 180
+bytecode array length: 178
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(27),
@@ -961,11 +951,10 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(24),
+                B(JumpIfTrue), U8(22),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(15),
-                B(Jump), U8(2),
+                B(JumpIfTrue), U8(13),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),

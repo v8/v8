@@ -2464,7 +2464,6 @@ void BytecodeGenerator::VisitSuspend(Suspend* expr) {
     // Now dispatch on resume mode.
 
     BytecodeLabel resume_with_next;
-    BytecodeLabel resume_with_return;
     BytecodeLabel resume_with_throw;
 
     builder()
@@ -2473,24 +2472,21 @@ void BytecodeGenerator::VisitSuspend(Suspend* expr) {
         .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &resume_with_next)
         .LoadLiteral(Smi::FromInt(JSGeneratorObject::kThrow))
         .CompareOperation(Token::EQ_STRICT, resume_mode)
-        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &resume_with_throw)
-        .Jump(&resume_with_return);
+        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &resume_with_throw);
+    // Fall through for resuming with return.
 
-    builder()->Bind(&resume_with_return);
-    {
-      if (expr->is_async_generator()) {
-        // Async generator methods will produce the iter result object.
-        builder()->LoadAccumulatorWithRegister(input);
-        execution_control()->AsyncReturnAccumulator();
-      } else {
-        RegisterList args = register_allocator()->NewRegisterList(2);
-        builder()
-            ->MoveRegister(input, args[0])
-            .LoadTrue()
-            .StoreAccumulatorInRegister(args[1])
-            .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
-        execution_control()->ReturnAccumulator();
-      }
+    if (expr->is_async_generator()) {
+      // Async generator methods will produce the iter result object.
+      builder()->LoadAccumulatorWithRegister(input);
+      execution_control()->AsyncReturnAccumulator();
+    } else {
+      RegisterList args = register_allocator()->NewRegisterList(2);
+      builder()
+          ->MoveRegister(input, args[0])
+          .LoadTrue()
+          .StoreAccumulatorInRegister(args[1])
+          .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
+      execution_control()->ReturnAccumulator();
     }
 
     builder()->Bind(&resume_with_throw);
