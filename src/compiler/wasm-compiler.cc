@@ -1066,6 +1066,7 @@ static bool ReverseBytesSupported(MachineOperatorBuilder* m,
                                   size_t size_in_bytes) {
   switch (size_in_bytes) {
     case 4:
+    case 16:
       return m->Word32ReverseBytes().IsSupported();
     case 8:
       return m->Word64ReverseBytes().IsSupported();
@@ -1102,6 +1103,9 @@ Node* WasmGraphBuilder::BuildChangeEndianness(Node* node, MachineType memtype,
       // No need to change endianness for byte size, return original node
       return node;
       break;
+    case MachineRepresentation::kSimd128:
+      DCHECK(ReverseBytesSupported(m, valueSizeInBytes));
+      break;
     default:
       UNREACHABLE();
       break;
@@ -1124,6 +1128,27 @@ Node* WasmGraphBuilder::BuildChangeEndianness(Node* node, MachineType memtype,
       case 8:
         result = graph()->NewNode(m->Word64ReverseBytes().op(), value);
         break;
+      case 16: {
+        Node* byte_reversed_lanes[4];
+        for (int lane = 0; lane < 4; lane++) {
+          byte_reversed_lanes[lane] = graph()->NewNode(
+              m->Word32ReverseBytes().op(),
+              graph()->NewNode(jsgraph()->machine()->I32x4ExtractLane(lane),
+                               value));
+        }
+
+        // This is making a copy of the value.
+        result =
+            graph()->NewNode(jsgraph()->machine()->S128And(), value, value);
+
+        for (int lane = 0; lane < 4; lane++) {
+          result =
+              graph()->NewNode(jsgraph()->machine()->I32x4ReplaceLane(3 - lane),
+                               result, byte_reversed_lanes[lane]);
+        }
+
+        break;
+      }
       default:
         UNREACHABLE();
     }

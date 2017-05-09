@@ -276,15 +276,20 @@ int SimdScalarLowering::NumLanes(SimdType type) {
   return num_lanes;
 }
 
+constexpr int SimdScalarLowering::kLaneOffsets[];
+
 void SimdScalarLowering::GetIndexNodes(Node* index, Node** new_indices,
                                        SimdType type) {
-  new_indices[0] = index;
   int num_lanes = NumLanes(type);
   int lane_width = kSimd128Size / num_lanes;
+  int laneIndex = kLaneOffsets[0] / lane_width;
+  new_indices[laneIndex] = index;
   for (int i = 1; i < num_lanes; ++i) {
-    new_indices[i] = graph()->NewNode(machine()->Int32Add(), index,
-                                      graph()->NewNode(common()->Int32Constant(
-                                          static_cast<int>(i) * lane_width)));
+    laneIndex = kLaneOffsets[i * lane_width] / lane_width;
+    new_indices[laneIndex] = graph()->NewNode(
+        machine()->Int32Add(), index,
+        graph()->NewNode(
+            common()->Int32Constant(static_cast<int>(i) * lane_width)));
   }
 }
 
@@ -298,6 +303,7 @@ void SimdScalarLowering::LowerLoadOp(MachineRepresentation rep, Node* node,
     GetIndexNodes(index, indices, type);
     Node** rep_nodes = zone()->NewArray<Node*>(num_lanes);
     rep_nodes[0] = node;
+    rep_nodes[0]->ReplaceInput(1, indices[0]);
     NodeProperties::ChangeOp(rep_nodes[0], load_op);
     if (node->InputCount() > 2) {
       DCHECK(node->InputCount() > 3);
@@ -336,6 +342,7 @@ void SimdScalarLowering::LowerStoreOp(MachineRepresentation rep, Node* node,
     rep_nodes[0] = node;
     Node** rep_inputs = GetReplacementsWithType(value, rep_type);
     rep_nodes[0]->ReplaceInput(2, rep_inputs[0]);
+    rep_nodes[0]->ReplaceInput(1, indices[0]);
     NodeProperties::ChangeOp(node, store_op);
     if (node->InputCount() > 3) {
       DCHECK(node->InputCount() > 4);
@@ -348,14 +355,12 @@ void SimdScalarLowering::LowerStoreOp(MachineRepresentation rep, Node* node,
         effect_input = rep_nodes[i];
       }
       rep_nodes[0]->ReplaceInput(3, rep_nodes[1]);
-
     } else {
       for (int i = 1; i < num_lanes; ++i) {
         rep_nodes[i] =
             graph()->NewNode(store_op, base, indices[i], rep_inputs[i]);
       }
     }
-
     ReplaceNode(node, rep_nodes, num_lanes);
   } else {
     DefaultLowering(node);

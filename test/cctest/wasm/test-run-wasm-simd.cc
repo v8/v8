@@ -2025,6 +2025,7 @@ WASM_EXEC_COMPILED_TEST(S1x16Xor) { RunS1x16BinOpTest(kExprS1x16Xor, Xor); }
 #endif  // !V8_TARGET_ARCH_ARM
 
 #if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+
 WASM_EXEC_COMPILED_TEST(SimdI32x4ExtractWithF32x4) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
@@ -2171,14 +2172,37 @@ WASM_EXEC_COMPILED_TEST(SimdF32x4For) {
 #endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 
 #if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64
+
+template <typename T, int numLanes = 4>
+void SetVectorByLanes(T* v, const std::array<T, numLanes>& arr) {
+  for (int lane = 0; lane < numLanes; lane++) {
+    const T& value = arr[lane];
+#if defined(V8_TARGET_BIG_ENDIAN)
+    v[numLanes - 1 - lane] = value;
+#else
+    v[lane] = value;
+#endif
+  }
+}
+
+template <typename T>
+const T& GetScalar(T* v, int lane) {
+  constexpr int kElems = kSimd128Size / sizeof(T);
+#if defined(V8_TARGET_BIG_ENDIAN)
+  const int index = kElems - 1 - lane;
+#else
+  const int index = lane;
+#endif
+  USE(kElems);
+  DCHECK(index >= 0 && index < kElems);
+  return v[index];
+}
+
 WASM_EXEC_COMPILED_TEST(SimdI32x4GetGlobal) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
   int32_t* global = r.module().AddGlobal<int32_t>(kWasmS128);
-  *(global) = 0;
-  *(global + 1) = 1;
-  *(global + 2) = 2;
-  *(global + 3) = 3;
+  SetVectorByLanes(global, {{0, 1, 2, 3}});
   r.AllocateLocal(kWasmI32);
   BUILD(
       r, WASM_SET_LOCAL(1, WASM_I32V(1)),
@@ -2211,10 +2235,10 @@ WASM_EXEC_COMPILED_TEST(SimdI32x4SetGlobal) {
                                                         WASM_I32V(56))),
         WASM_I32V(1));
   CHECK_EQ(1, r.Call(0));
-  CHECK_EQ(*global, 23);
-  CHECK_EQ(*(global + 1), 34);
-  CHECK_EQ(*(global + 2), 45);
-  CHECK_EQ(*(global + 3), 56);
+  CHECK_EQ(GetScalar(global, 0), 23);
+  CHECK_EQ(GetScalar(global, 1), 34);
+  CHECK_EQ(GetScalar(global, 2), 45);
+  CHECK_EQ(GetScalar(global, 3), 56);
 }
 #endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64
 
@@ -2223,10 +2247,7 @@ WASM_EXEC_COMPILED_TEST(SimdF32x4GetGlobal) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
   float* global = r.module().AddGlobal<float>(kWasmS128);
-  *(global) = 0.0;
-  *(global + 1) = 1.5;
-  *(global + 2) = 2.25;
-  *(global + 3) = 3.5;
+  SetVectorByLanes<float>(global, {{0.0, 1.5, 2.25, 3.5}});
   r.AllocateLocal(kWasmI32);
   BUILD(
       r, WASM_SET_LOCAL(1, WASM_I32V(1)),
@@ -2259,10 +2280,10 @@ WASM_EXEC_COMPILED_TEST(SimdF32x4SetGlobal) {
                                                         WASM_F32(65.0))),
         WASM_I32V(1));
   CHECK_EQ(1, r.Call(0));
-  CHECK_EQ(*global, 13.5);
-  CHECK_EQ(*(global + 1), 45.5);
-  CHECK_EQ(*(global + 2), 32.25);
-  CHECK_EQ(*(global + 3), 65.0);
+  CHECK_EQ(GetScalar(global, 0), 13.5f);
+  CHECK_EQ(GetScalar(global, 1), 45.5f);
+  CHECK_EQ(GetScalar(global, 2), 32.25f);
+  CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
 #endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 
