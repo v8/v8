@@ -30,8 +30,6 @@ assertPromiseResult(
     return WebAssembly.instantiate(wrapper);
   })(),
   pair => {
-    print(2);
-    var pair = result.pair;
     assertTrue(pair.instance instanceof WebAssembly.Instance);
     assertTrue(pair.module instanceof WebAssembly.Module);
     %ResetWasmOverloads();
