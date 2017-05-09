@@ -37,8 +37,10 @@ class ConcurrentMarkingVisitor final
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
-      if (!(*p)->IsHeapObject()) continue;
-      MarkObject(HeapObject::cast(*p));
+      Object* object = reinterpret_cast<Object*>(
+          base::NoBarrier_Load(reinterpret_cast<const base::AtomicWord*>(p)));
+      if (!object->IsHeapObject()) continue;
+      MarkObject(HeapObject::cast(object));
     }
   }
 
