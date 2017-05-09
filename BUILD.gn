@@ -2400,7 +2400,9 @@ v8_source_set("v8_base") {
   ]
 
   if (v8_enable_i18n_support) {
-    deps += [ "//third_party/icu" ]
+    public_deps = [
+      "//third_party/icu",
+    ]
     if (is_win) {
       deps += [ "//third_party/icu:icudata" ]
     }
@@ -2624,10 +2626,6 @@ v8_source_set("fuzzer_support") {
     ":v8_libbase",
     ":v8_libplatform",
   ]
-
-  if (v8_enable_i18n_support) {
-    deps += [ "//third_party/icu" ]
-  }
 }
 
 ###############################################################################
@@ -2833,10 +2831,6 @@ v8_executable("d8") {
     sources += [ "src/d8-windows.cc" ]
   }
 
-  if (v8_enable_i18n_support) {
-    deps += [ "//third_party/icu" ]
-  }
-
   if (v8_correctness_fuzzer) {
     deps += [ "tools/foozzie:v8_correctness_fuzzer_resources" ]
   }
@@ -2875,10 +2869,6 @@ v8_executable("v8_hello_world") {
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
   ]
-
-  if (v8_enable_i18n_support) {
-    deps += [ "//third_party/icu" ]
-  }
 }
 
 v8_executable("v8_sample_process") {
@@ -2900,10 +2890,6 @@ v8_executable("v8_sample_process") {
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
   ]
-
-  if (v8_enable_i18n_support) {
-    deps += [ "//third_party/icu" ]
-  }
 }
 
 v8_executable("v8_parser_shell") {
@@ -2924,10 +2910,6 @@ v8_executable("v8_parser_shell") {
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
   ]
-
-  if (v8_enable_i18n_support) {
-    deps += [ "//third_party/icu" ]
-  }
 }
 
 if (want_v8_shell) {
@@ -2950,10 +2932,6 @@ if (want_v8_shell) {
       "//build/config/sanitizers:deps",
       "//build/win:default_exe_manifest",
     ]
-
-    if (v8_enable_i18n_support) {
-      deps += [ "//third_party/icu" ]
-    }
   }
 }
 
