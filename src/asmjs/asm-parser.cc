@@ -546,6 +546,7 @@ void AsmJsParser::ValidateModuleVarImport(VarInfo* info,
       info->kind = VarKind::kImportedFunction;
       info->import = new (zone()->New(sizeof(FunctionImportInfo)))
           FunctionImportInfo({name, WasmModuleBuilder::SignatureMap(zone())});
+      info->mutable_variable = false;
     }
   }
 }
@@ -1484,6 +1485,9 @@ AsmType* AsmJsParser::AssignmentExpression() {
       if (info->kind == VarKind::kUnused) {
         FAILn("Undeclared assignment target");
       }
+      if (!info->mutable_variable) {
+        FAILn("Expected mutable variable in assignment");
+      }
       DCHECK(is_local ? info->kind == VarKind::kLocal
                       : info->kind == VarKind::kGlobal);
       AsmType* value;
@@ -1494,9 +1498,6 @@ AsmType* AsmJsParser::AssignmentExpression() {
       if (info->kind == VarKind::kLocal) {
         current_function_builder_->EmitTeeLocal(info->index);
       } else if (info->kind == VarKind::kGlobal) {
-        if (!info->mutable_variable) {
-          FAILn("Expected mutable variable in assignment");
-        }
         current_function_builder_->EmitWithU32V(kExprSetGlobal, VarIndex(info));
         current_function_builder_->EmitWithU32V(kExprGetGlobal, VarIndex(info));
       } else {

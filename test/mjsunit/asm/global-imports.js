@@ -21,6 +21,7 @@ var throws = {};
 var test_count = 0;
 const stdlib = this;
 const buffer = new ArrayBuffer(1024);
+function p(x) { return x * x; }
 
 function assertThrowsOrEquals(result, fun) {
   if (result === throws) {
@@ -52,6 +53,7 @@ function Run(imp, exp, imports, result, valid) {
   RunAsmJsTest(src, imports, result, valid);
 }
 
+// Imports of values from foreign.
 Run("var x = foreign.x | 0",   "(x + int) | 0", {x:12},  13,     true);
 Run("var x = foreign.x | 0",   "(x = int) | 0", {x:12},  1,      true);
 Run("var x = foreign.x | 0",   "+(x + dbl)",    {x:12},  16.2,   false);
@@ -64,3 +66,9 @@ Run("const x = foreign.x | 0", "+(x + dbl)",    {x:12},  16.2,   false);
 Run("const x = +foreign.x",    "+(x + dbl)",    {x:1.2}, 5.4,    true);
 Run("const x = +foreign.x",    "+(x = dbl)",    {x:1.2}, throws, false);
 Run("const x = +foreign.x",    "(x + int) | 0", {x:1.2}, 2,      false);
+
+// Imports of functions and values from stdlib and foreign.
+Run("var x = foreign.x",        "x(dbl) | 0",               { x:p }, 17, true);
+Run("var x = foreign.x",        "(x = fround, x(dbl)) | 0", { x:p }, 4,  false);
+Run("var x = stdlib.Math.E",    "(x = 3.1415, 1) | 0",      {},      1,  false);
+Run("var x = stdlib.Math.imul", "(x = fround, 1) | 0",      {},      1,  false);
