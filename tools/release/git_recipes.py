@@ -32,7 +32,7 @@ SHA1_RE = re.compile('^[a-fA-F0-9]{40}$')
 ROLL_DEPS_GIT_SVN_ID_RE = re.compile('^git-svn-id: .*@([0-9]+) .*$')
 
 # Regular expression that matches a single commit footer line.
-COMMIT_FOOTER_ENTRY_RE = re.compile(r'([^:]+):\s+(.+)')
+COMMIT_FOOTER_ENTRY_RE = re.compile(r'([^:]+):\s*(.*)')
 
 # Footer metadata key for commit position.
 COMMIT_POSITION_FOOTER_KEY = 'Cr-Commit-Position'
