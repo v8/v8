@@ -61,6 +61,7 @@ class UtilsExtension : public v8::Extension {
                       "native function schedulePauseOnNextStatement();"
                       "native function cancelPauseOnNextStatement();"
                       "native function reconnect();"
+                      "native function disconnect();"
                       "native function createContextGroup();") {}
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
@@ -136,6 +137,12 @@ class UtilsExtension : public v8::Extension {
                                 .ToLocalChecked())
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate, UtilsExtension::Reconnect);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "disconnect",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, UtilsExtension::Disconnect);
     } else if (name->Equals(context, v8::String::NewFromUtf8(
                                          isolate, "createContextGroup",
                                          v8::NewStringType::kNormal)
@@ -315,6 +322,16 @@ class UtilsExtension : public v8::Extension {
     }
     v8::base::Semaphore ready_semaphore(0);
     inspector_client_->scheduleReconnect(&ready_semaphore);
+    ready_semaphore.Wait();
+  }
+
+  static void Disconnect(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 0) {
+      fprintf(stderr, "Internal error: disconnect().");
+      Exit();
+    }
+    v8::base::Semaphore ready_semaphore(0);
+    inspector_client_->scheduleDisconnect(&ready_semaphore);
     ready_semaphore.Wait();
   }
 

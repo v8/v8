@@ -45,7 +45,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::debug::ExceptionBreakState getPauseOnExceptionsState();
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
   bool canBreakProgram();
-  void breakProgram();
+  bool breakProgram(int targetContextGroupId);
   void continueProgram();
 
   void setPauseOnNextStatement(bool, int targetContextGroupId);

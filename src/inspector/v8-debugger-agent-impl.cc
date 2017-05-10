@@ -1247,7 +1247,7 @@ void V8DebuggerAgentImpl::breakProgram(
   std::vector<BreakReason> currentScheduledReason;
   currentScheduledReason.swap(m_breakReason);
   pushBreakDetails(breakReason, std::move(data));
-  m_debugger->breakProgram();
+  if (!m_debugger->breakProgram(m_session->contextGroupId())) return;
   popBreakDetails();
   m_breakReason.swap(currentScheduledReason);
   if (!m_breakReason.empty()) {
