@@ -277,6 +277,8 @@ class LiveObjectVisitor BASE_EMBEDDED {
 };
 
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
+enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
+enum MarkingTreatmentMode { KEEP, CLEAR };
 
 // Base class for minor and full MC collectors.
 class MarkCompactCollectorBase {
@@ -322,6 +324,9 @@ class MarkCompactCollectorBase {
       MigrationObserver* migration_observer, const intptr_t live_bytes,
       const int& abandoned_pages);
 
+  // Returns whether this page should be moved according to heuristics.
+  bool ShouldMovePage(Page* p, intptr_t live_bytes);
+
   Heap* heap_;
 };
 
@@ -344,6 +349,10 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void SetUp() override;
   void TearDown() override;
   void CollectGarbage() override;
+
+  void MakeIterable(Page* page, MarkingTreatmentMode marking_mode,
+                    FreeSpaceTreatmentMode free_space_mode);
+  void CleanupSweepToIteratePages();
 
  private:
   class RootMarkingVisitor;
@@ -368,6 +377,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   MarkingDeque marking_deque_;
   base::Semaphore page_parallel_job_semaphore_;
   List<Page*> new_space_evacuation_pages_;
+  std::vector<Page*> sweep_to_iterate_pages_;
 
   friend class StaticYoungGenerationMarkingVisitor;
 };
@@ -382,7 +392,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     class SweeperTask;
 
     enum FreeListRebuildingMode { REBUILD_FREE_LIST, IGNORE_FREE_LIST };
-    enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
     enum ClearOldToNewSlotsMode {
       DO_NOT_CLEAR,
       CLEAR_REGULAR_SLOTS,

@@ -821,7 +821,23 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
              (obj->IsFiller() &&
               ObjectMarking::IsWhite<kAtomicity>(obj, marking_state(obj))));
       return dest;
+    } else if (heap_->InToSpace(obj)) {
+      // The object may be on a page that was moved in new space.
+      DCHECK(
+          Page::FromAddress(obj->address())->IsFlagSet(Page::SWEEP_TO_ITERATE));
+      return ObjectMarking::IsBlack<kAtomicity>(obj,
+                                                MarkingState::External(obj))
+                 ? obj
+                 : nullptr;
     } else {
+      // The object may be on a page that was moved from new to old space.
+      if (Page::FromAddress(obj->address())
+              ->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
+        return ObjectMarking::IsBlack<kAtomicity>(obj,
+                                                  MarkingState::External(obj))
+                   ? obj
+                   : nullptr;
+      }
       DCHECK(ObjectMarking::IsGrey<kAtomicity>(obj, marking_state(obj)) ||
              (obj->IsFiller() &&
               ObjectMarking::IsWhite<kAtomicity>(obj, marking_state(obj))) ||

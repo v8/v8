@@ -5519,8 +5519,7 @@ bool Heap::SetUp() {
 #else
   concurrent_marking_ = new ConcurrentMarking(this, nullptr);
 #endif
-  if (FLAG_minor_mc)
-    minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
+  minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
   gc_idle_time_handler_ = new GCIdleTimeHandler();
   memory_reducer_ = new MemoryReducer(this);
   if (V8_UNLIKELY(FLAG_gc_stats)) {

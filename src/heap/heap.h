@@ -2409,6 +2409,7 @@ class Heap {
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
   friend class MarkCompactCollector;
+  friend class MarkCompactCollectorBase;
   friend class MinorMarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
   friend class NewSpace;
