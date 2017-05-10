@@ -35,8 +35,6 @@ namespace {
 enum WasmDataEntries {
   kWasmDataCompiledModule,
   kWasmDataUsesArray,
-  kWasmDataScript,
-  kWasmDataScriptPosition,
   kWasmDataEntryCount,
 };
 
@@ -220,9 +218,6 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
       info->isolate()->factory()->NewFixedArray(kWasmDataEntryCount);
   result->set(kWasmDataCompiledModule, *compiled.ToHandleChecked());
   result->set(kWasmDataUsesArray, *uses_array);
-  result->set(kWasmDataScript, *info->script());
-  result->set(kWasmDataScriptPosition,
-              Smi::FromInt(info->literal()->position()));
 
   MessageLocation location(info->script(), info->literal()->position(),
                            info->literal()->position());
@@ -251,6 +246,7 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
 }
 
 MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
+                                              Handle<SharedFunctionInfo> shared,
                                               Handle<FixedArray> wasm_data,
                                               Handle<JSReceiver> stdlib,
                                               Handle<JSReceiver> foreign,
@@ -314,11 +310,8 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     return single_function;
   }
 
-  Handle<Script> script(Script::cast(wasm_data->get(kWasmDataScript)));
-  int32_t position = 0;
-  if (!wasm_data->get(kWasmDataScriptPosition)->ToInt32(&position)) {
-    UNREACHABLE();
-  }
+  int position = shared->start_position();
+  Handle<Script> script(Script::cast(shared->script()));
   MessageLocation location(script, position, position);
   char text[50];
   int length;

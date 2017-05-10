@@ -86,9 +86,10 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     memory = args.at<JSArrayBuffer>(3);
   }
   if (function->shared()->HasAsmWasmData()) {
-    Handle<FixedArray> data(function->shared()->asm_wasm_data());
-    MaybeHandle<Object> result =
-        AsmJs::InstantiateAsmWasm(isolate, data, stdlib, foreign, memory);
+    Handle<SharedFunctionInfo> shared(function->shared());
+    Handle<FixedArray> data(shared->asm_wasm_data());
+    MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
+        isolate, shared, data, stdlib, foreign, memory);
     if (!result.is_null()) {
       return *result.ToHandleChecked();
     }
