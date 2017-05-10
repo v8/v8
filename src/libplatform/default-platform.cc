@@ -41,15 +41,9 @@ v8::Platform* CreateDefaultPlatform(
   return platform;
 }
 
-bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
-                     MessageLoopBehavior behavior) {
-  return reinterpret_cast<DefaultPlatform*>(platform)->PumpMessageLoop(
-      isolate, behavior);
-}
 
-void EnsureEventLoopInitialized(v8::Platform* platform, v8::Isolate* isolate) {
-  return reinterpret_cast<DefaultPlatform*>(platform)
-      ->EnsureEventLoopInitialized(isolate);
+bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate) {
+  return reinterpret_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate);
 }
 
 void RunIdleTasks(v8::Platform* platform, v8::Isolate* isolate,
@@ -164,23 +158,7 @@ IdleTask* DefaultPlatform::PopTaskInMainThreadIdleQueue(v8::Isolate* isolate) {
   return task;
 }
 
-void DefaultPlatform::EnsureEventLoopInitialized(v8::Isolate* isolate) {
-  if (event_loop_control_.count(isolate) == 0) {
-    event_loop_control_.insert(std::make_pair(
-        isolate, std::unique_ptr<base::Semaphore>(new base::Semaphore(0))));
-  }
-}
-
-void DefaultPlatform::WaitForForegroundWork(v8::Isolate* isolate) {
-  DCHECK_EQ(event_loop_control_.count(isolate), 1);
-  event_loop_control_[isolate]->Wait();
-}
-
-bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
-                                      MessageLoopBehavior behavior) {
-  if (behavior == MessageLoopBehavior::kWaitForWork) {
-    WaitForForegroundWork(isolate);
-  }
+bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
   Task* task = NULL;
   {
     base::LockGuard<base::Mutex> guard(&lock_);
@@ -188,14 +166,14 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
     // Move delayed tasks that hit their deadline to the main queue.
     task = PopTaskInMainThreadDelayedQueue(isolate);
     while (task != NULL) {
-      ScheduleOnForegroundThread(isolate, task);
+      main_thread_queue_[isolate].push(task);
       task = PopTaskInMainThreadDelayedQueue(isolate);
     }
 
     task = PopTaskInMainThreadQueue(isolate);
 
     if (task == NULL) {
-      return behavior == MessageLoopBehavior::kWaitForWork;
+      return false;
     }
   }
   task->Run();
@@ -228,17 +206,10 @@ void DefaultPlatform::CallOnBackgroundThread(Task* task,
   queue_.Append(task);
 }
 
-void DefaultPlatform::ScheduleOnForegroundThread(v8::Isolate* isolate,
-                                                 Task* task) {
-  main_thread_queue_[isolate].push(task);
-  if (event_loop_control_.count(isolate) != 0) {
-    event_loop_control_[isolate]->Signal();
-  }
-}
 
 void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
   base::LockGuard<base::Mutex> guard(&lock_);
-  ScheduleOnForegroundThread(isolate, task);
+  main_thread_queue_[isolate].push(task);
 }
 
 
