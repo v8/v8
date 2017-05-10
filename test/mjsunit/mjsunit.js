@@ -123,6 +123,9 @@ var assertMatches;
 // Assert the result of a promise.
 var assertPromiseResult;
 
+var promiseTestChain;
+var promiseTestCount = 0;
+
 // These bits must be in sync with bits defined in Runtime_GetOptimizationStatus
 var V8OptimizationStatus = {
   kIsFunction: 1 << 0,
@@ -499,21 +502,35 @@ var failWithMessage;
     // We have to patch mjsunit because normal assertion failures just throw
     // exceptions which are swallowed in a then clause.
     // We use eval here to avoid parsing issues with the natives syntax.
-    failWithMessage = (msg) => eval("%AbortJS(msg)");
-    if (!fail)
-      fail = result => failWithMessage("assertPromiseResult failed: " + result);
+    if (!success) success = () => {};
 
-    eval("%IncrementWaitCount()");
-    return promise.then(
-      result => {
-        eval("%DecrementWaitCount()");
-        success(result);
-      },
-      result => {
-        eval("%DecrementWaitCount()");
-        fail(result);
-      }
-    );
+    failWithMessage = (msg) => eval("%AbortJS(msg)");
+    if (!fail) {
+      fail = result => failWithMessage("assertPromiseResult failed: " + result);
+    }
+
+    var test_promise =
+        promise.then(
+          result => {
+            try {
+              success(result);
+            } catch (e) {
+              failWithMessage(e);
+            }
+          },
+          result => {
+            fail(result);
+          }
+        )
+        .then((x)=> {
+          if (--promiseTestCount == 0) testRunner.notifyDone();
+        });
+
+    if (!promiseTestChain) promiseTestChain = Promise.resolve();
+    // waitUntilDone is idempotent.
+    testRunner.waitUntilDone();
+    ++promiseTestCount;
+    return promiseTestChain.then(test_promise);
   };
 
   var OptimizationStatusImpl = undefined;
