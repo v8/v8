@@ -2547,8 +2547,10 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_GLOBAL_HANDLES);
     isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
         &IsUnmarkedObjectForYoungGeneration);
-    isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
-        &root_visitor);
+    isolate()
+        ->global_handles()
+        ->IterateNewSpaceWeakUnmodifiedRoots<
+            GlobalHandles::HANDLE_PHANTOM_NODES_VISIT_OTHERS>(&root_visitor);
     ProcessMarkingDeque();
   }
 
