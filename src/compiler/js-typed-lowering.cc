@@ -1205,7 +1205,8 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   if (mbase.HasValue() && mbase.Value()->IsJSTypedArray()) {
     Handle<JSTypedArray> const array =
         Handle<JSTypedArray>::cast(mbase.Value());
-    if (!array->GetBuffer()->was_neutered()) {
+    if (!array->GetBuffer()->was_neutered() &&
+        !array->GetBuffer()->is_wasm_buffer()) {
       array->GetBuffer()->set_is_neuterable(false);
       BufferAccess const access(array->type());
       size_t const k =
@@ -1257,7 +1258,8 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   if (mbase.HasValue() && mbase.Value()->IsJSTypedArray()) {
     Handle<JSTypedArray> const array =
         Handle<JSTypedArray>::cast(mbase.Value());
-    if (!array->GetBuffer()->was_neutered()) {
+    if (!array->GetBuffer()->was_neutered() &&
+        !array->GetBuffer()->is_wasm_buffer()) {
       array->GetBuffer()->set_is_neuterable(false);
       BufferAccess const access(array->type());
       size_t const k =
