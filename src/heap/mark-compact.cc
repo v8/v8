@@ -335,32 +335,20 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 // MarkCompactCollectorBase, MinorMarkCompactCollector, MarkCompactCollector
 // =============================================================================
 
-int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(
-    int pages, intptr_t live_bytes) {
+int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
   if (!FLAG_parallel_compaction) return 1;
-  // Compute the number of needed tasks based on a target compaction time, the
-  // profiled compaction speed and marked live memory.
-  //
-  // The number of parallel compaction tasks is limited by:
-  // - #evacuation pages
-  // - #cores
-  const double kTargetCompactionTimeInMs = .5;
-
-  double compaction_speed =
-      heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
-
   const int available_cores = Max(
       1, static_cast<int>(
              V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
-  int tasks;
-  if (compaction_speed > 0) {
-    tasks = 1 + static_cast<int>(live_bytes / compaction_speed /
-                                 kTargetCompactionTimeInMs);
-  } else {
-    tasks = pages;
-  }
-  const int tasks_capped_pages = Min(pages, tasks);
-  return Min(available_cores, tasks_capped_pages);
+  return Min(available_cores, pages);
+}
+
+int MarkCompactCollectorBase::NumberOfPointerUpdateTasks(int pages) {
+  if (!FLAG_parallel_pointer_update) return 1;
+  const int available_cores = Max(
+      1, static_cast<int>(
+             V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
+  return Min(available_cores, pages);
 }
 
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
@@ -3740,7 +3728,7 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
   ProfilingMigrationObserver profiling_observer(heap());
 
   const int wanted_num_tasks =
-      NumberOfParallelCompactionTasks(job->NumberOfPages(), live_bytes);
+      NumberOfParallelCompactionTasks(job->NumberOfPages());
   Evacuator** evacuators = new Evacuator*[wanted_num_tasks];
   for (int i = 0; i < wanted_num_tasks; i++) {
     evacuators[i] = new Evacuator(collector, record_visitor);
@@ -4258,18 +4246,10 @@ class PointerUpdateJobTraits {
   }
 };
 
-int NumberOfPointerUpdateTasks(int pages) {
-  if (!FLAG_parallel_pointer_update) return 1;
-  const int available_cores = Max(
-      1, static_cast<int>(
-             V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
-  const int kPagesPerTask = 4;
-  return Min(available_cores, (pages + kPagesPerTask - 1) / kPagesPerTask);
-}
-
 template <RememberedSetType type>
-void UpdatePointersInParallel(Heap* heap, base::Semaphore* semaphore,
-                              const MarkCompactCollectorBase* collector) {
+void MarkCompactCollectorBase::UpdatePointersInParallel(
+    Heap* heap, base::Semaphore* semaphore,
+    const MarkCompactCollectorBase* collector) {
   PageParallelJob<PointerUpdateJobTraits<type> > job(
       heap, heap->isolate()->cancelable_task_manager(), semaphore);
   RememberedSet<type>::IterateMemoryChunks(

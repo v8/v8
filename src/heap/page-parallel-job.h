@@ -120,7 +120,7 @@ class PageParallelJob {
   }
 
  private:
-  static const int kMaxNumberOfTasks = 10;
+  static const int kMaxNumberOfTasks = 32;
 
   enum ProcessingState { kAvailable, kProcessing, kFinished, kFailed };
 

@@ -327,6 +327,13 @@ class MarkCompactCollectorBase {
   // Returns whether this page should be moved according to heuristics.
   bool ShouldMovePage(Page* p, intptr_t live_bytes);
 
+  template <RememberedSetType type>
+  void UpdatePointersInParallel(Heap* heap, base::Semaphore* semaphore,
+                                const MarkCompactCollectorBase* collector);
+
+  int NumberOfParallelCompactionTasks(int pages);
+  int NumberOfPointerUpdateTasks(int pages);
+
   Heap* heap_;
 };
 
