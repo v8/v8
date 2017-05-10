@@ -568,7 +568,13 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
                                        Object::ToInteger(isolate, from_index));
     double fp = from_index->Number();
     if (fp > len) return Smi::FromInt(-1);
-    start_from = static_cast<int64_t>(fp);
+    if (V8_LIKELY(fp >=
+                  static_cast<double>(std::numeric_limits<int64_t>::min()))) {
+      DCHECK(fp < std::numeric_limits<int64_t>::max());
+      start_from = static_cast<int64_t>(fp);
+    } else {
+      start_from = std::numeric_limits<int64_t>::min();
+    }
   }
 
   int64_t index;
