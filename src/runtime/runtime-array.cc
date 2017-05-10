@@ -58,8 +58,8 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
   InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
   InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
   InstallBuiltin(isolate, holder, "splice", Builtins::kArraySplice);
-  InstallBuiltin(isolate, holder, "includes", Builtins::kArrayIncludes, 2);
-  InstallBuiltin(isolate, holder, "indexOf", Builtins::kArrayIndexOf, 2);
+  InstallBuiltin(isolate, holder, "includes", Builtins::kArrayIncludes);
+  InstallBuiltin(isolate, holder, "indexOf", Builtins::kArrayIndexOf);
   InstallBuiltin(isolate, holder, "keys", Builtins::kArrayPrototypeKeys, 0,
                  kArrayKeys);
   InstallBuiltin(isolate, holder, "values", Builtins::kArrayPrototypeValues, 0,
