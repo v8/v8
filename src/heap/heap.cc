@@ -4238,34 +4238,39 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
   }
 }
 
-void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
+void Heap::RegisterDeserializedObjectsForBlackAllocation(
+    Reservation* reservations, List<HeapObject*>* large_objects) {
   // TODO(hpayer): We do not have to iterate reservations on black objects
   // for marking. We just have to execute the special visiting side effect
   // code that adds objects to global data structures, e.g. for array buffers.
 
-  if (incremental_marking()->black_allocation()) {
-    // Iterate black objects in old space, code space, map space, and large
-    // object space for side effects.
-    for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
-      const Heap::Reservation& res = reservations[i];
-      for (auto& chunk : res) {
-        Address addr = chunk.start;
-        while (addr < chunk.end) {
-          HeapObject* obj = HeapObject::FromAddress(addr);
-          // There might be grey objects due to black to grey transitions in
-          // incremental marking. E.g. see VisitNativeContextIncremental.
-          DCHECK(
-              ObjectMarking::IsBlackOrGrey(obj, MarkingState::Internal(obj)));
-          if (ObjectMarking::IsBlack(obj, MarkingState::Internal(obj))) {
-            incremental_marking()->IterateBlackObject(obj);
-          }
-          addr += obj->Size();
+  if (!incremental_marking()->black_allocation()) return;
+
+  // Iterate black objects in old space, code space, map space, and large
+  // object space for side effects.
+  for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
+    const Heap::Reservation& res = reservations[i];
+    for (auto& chunk : res) {
+      Address addr = chunk.start;
+      while (addr < chunk.end) {
+        HeapObject* obj = HeapObject::FromAddress(addr);
+        // There might be grey objects due to black to grey transitions in
+        // incremental marking. E.g. see VisitNativeContextIncremental.
+        DCHECK(ObjectMarking::IsBlackOrGrey(obj, MarkingState::Internal(obj)));
+        if (ObjectMarking::IsBlack(obj, MarkingState::Internal(obj))) {
+          incremental_marking()->IterateBlackObject(obj);
         }
+        addr += obj->Size();
       }
     }
-    // We potentially deserialized wrappers which require registering with the
-    // embedder as the marker will not find them.
-    local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
+  }
+  // We potentially deserialized wrappers which require registering with the
+  // embedder as the marker will not find them.
+  local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
+
+  // Large object space doesn't use reservations, so it needs custom handling.
+  for (HeapObject* object : *large_objects) {
+    incremental_marking()->IterateBlackObject(object);
   }
 }
 
@@ -5508,7 +5513,9 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
 // The kSoftLimit means that incremental marking should be started soon.
 // The kHardLimit means that incremental marking should be started immediately.
 Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
-  if (!incremental_marking()->CanBeActivated() ||
+  // Code using an AlwaysAllocateScope assumes that the GC state does not
+  // change; that implies that no marking steps must be performed.
+  if (!incremental_marking()->CanBeActivated() || always_allocate() ||
       PromotedSpaceSizeOfObjects() <=
           IncrementalMarking::kActivationThreshold) {
     // Incremental marking is disabled or it is too early to start.

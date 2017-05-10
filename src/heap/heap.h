@@ -1245,7 +1245,8 @@ class Heap {
 
   void FinalizeIncrementalMarkingIfComplete(GarbageCollectionReason gc_reason);
 
-  void RegisterReservationsForBlackAllocation(Reservation* reservations);
+  void RegisterDeserializedObjectsForBlackAllocation(
+      Reservation* reservations, List<HeapObject*>* large_objects);
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
 
