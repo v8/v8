@@ -298,9 +298,14 @@ AsyncStackTrace::AsyncStackTrace(
 std::unique_ptr<protocol::Runtime::StackTrace>
 AsyncStackTrace::buildInspectorObject(AsyncStackTrace* asyncCreation,
                                       int maxAsyncDepth) const {
-  return buildInspectorObjectCommon(m_frames, m_description,
-                                    m_asyncParent.lock(),
-                                    m_asyncCreation.lock(), maxAsyncDepth);
+  std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
+      buildInspectorObjectCommon(m_frames, m_description, m_asyncParent.lock(),
+                                 m_asyncCreation.lock(), maxAsyncDepth);
+  if (asyncCreation && !asyncCreation->isEmpty()) {
+    stackTrace->setPromiseCreationFrame(
+        asyncCreation->m_frames[0]->buildInspectorObject());
+  }
+  return stackTrace;
 }
 
 int AsyncStackTrace::contextGroupId() const { return m_contextGroupId; }
