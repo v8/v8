@@ -249,6 +249,12 @@ bool Builtins::HasCppImplementation(int index) {
 BUILTIN_LIST_ALL(DEFINE_BUILTIN_ACCESSOR)
 #undef DEFINE_BUILTIN_ACCESSOR
 
+Handle<Code> Builtins::JSConstructStubGeneric() {
+  return FLAG_harmony_restrict_constructor_return
+             ? JSConstructStubGenericRestrictedReturn()
+             : JSConstructStubGenericUnrestrictedReturn();
+}
+
 // static
 bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                     Handle<JSObject> target_global_proxy) {

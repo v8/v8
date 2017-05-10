@@ -9538,14 +9538,14 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
       expr->IsMonomorphic() &&
       IsAllocationInlineable(expr->target())) {
     Handle<JSFunction> constructor = expr->target();
-    DCHECK(
-        constructor->shared()->construct_stub() ==
-            isolate()->builtins()->builtin(Builtins::kJSConstructStubGeneric) ||
-        constructor->shared()->construct_stub() ==
-            isolate()->builtins()->builtin(Builtins::kJSConstructStubApi) ||
-        constructor->shared()->construct_stub() ==
-            isolate()->builtins()->builtin(
-                Builtins::kJSBuiltinsConstructStubForBase));
+    DCHECK(constructor->shared()->construct_stub() ==
+               isolate()->builtins()->builtin(
+                   Builtins::kJSConstructStubGenericRestrictedReturn) ||
+           constructor->shared()->construct_stub() ==
+               isolate()->builtins()->builtin(
+                   Builtins::kJSConstructStubGenericUnrestrictedReturn) ||
+           constructor->shared()->construct_stub() ==
+               isolate()->builtins()->builtin(Builtins::kJSConstructStubApi));
     HValue* check = Add<HCheckValue>(function, constructor);
 
     // Force completion of inobject slack tracking before generating

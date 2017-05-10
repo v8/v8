@@ -65,6 +65,7 @@ class Builtins {
   Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> NewCloneShallowArray(AllocationSiteMode allocation_mode);
   Handle<Code> NewCloneShallowObject(int length);
+  Handle<Code> JSConstructStubGeneric();
 
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins

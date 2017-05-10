@@ -138,6 +138,18 @@ bool NodeProperties::IsExceptionalCall(Node* node, Node** out_exception) {
   return false;
 }
 
+// static
+Node* NodeProperties::FindSuccessfulControlProjection(Node* node) {
+  DCHECK_GT(node->op()->ControlOutputCount(), 0);
+  if (node->op()->HasProperty(Operator::kNoThrow)) return node;
+  for (Edge const edge : node->use_edges()) {
+    if (!NodeProperties::IsControlEdge(edge)) continue;
+    if (edge.from()->opcode() == IrOpcode::kIfSuccess) {
+      return edge.from();
+    }
+  }
+  return node;
+}
 
 // static
 void NodeProperties::ReplaceValueInput(Node* node, Node* value, int index) {

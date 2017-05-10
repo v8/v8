@@ -79,6 +79,10 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // the present IfException projection is returned via {out_exception}.
   static bool IsExceptionalCall(Node* node, Node** out_exception = nullptr);
 
+  // Returns the node producing the successful control output of {node}. This is
+  // the IfSuccess projection of {node} if present and {node} itself otherwise.
+  static Node* FindSuccessfulControlProjection(Node* node);
+
   // ---------------------------------------------------------------------------
   // Miscellaneous mutators.
 

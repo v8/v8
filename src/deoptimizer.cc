@@ -1556,7 +1556,10 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   int input_index = 0;
 
   Builtins* builtins = isolate_->builtins();
-  Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
+  Code* construct_stub = builtins->builtin(
+      FLAG_harmony_restrict_constructor_return
+          ? Builtins::kJSConstructStubGenericRestrictedReturn
+          : Builtins::kJSConstructStubGenericUnrestrictedReturn);
   BailoutId bailout_id = translated_frame->node_id();
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
@@ -1662,18 +1665,22 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     PrintF(trace_scope_->file(), "(%d)\n", height - 1);
   }
 
+  // The constructor function was mentioned explicitly in the
+  // CONSTRUCT_STUB_FRAME.
+  output_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(function);
+  WriteValueToOutput(function, 0, frame_index, output_offset,
+                     "constructor function ");
+
+  // The deopt info contains the implicit receiver or the new target at the
+  // position of the receiver. Copy it to the top of stack.
+  output_offset -= kPointerSize;
+  value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
+  output_frame->SetFrameSlot(output_offset, value);
   if (bailout_id == BailoutId::ConstructStubCreate()) {
-    // The function was mentioned explicitly in the CONSTRUCT_STUB_FRAME.
-    output_offset -= kPointerSize;
-    value = reinterpret_cast<intptr_t>(function);
-    WriteValueToOutput(function, 0, frame_index, output_offset, "function ");
+    DebugPrintOutputSlot(value, frame_index, output_offset, "new target\n");
   } else {
-    DCHECK(bailout_id == BailoutId::ConstructStubInvoke());
-    // The newly allocated object was passed as receiver in the artificial
-    // constructor stub environment created by HEnvironment::CopyForInlining().
-    output_offset -= kPointerSize;
-    value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
-    output_frame->SetFrameSlot(output_offset, value);
+    CHECK(bailout_id == BailoutId::ConstructStubInvoke());
     DebugPrintOutputSlot(value, frame_index, output_offset,
                          "allocated receiver\n");
   }
@@ -1684,8 +1691,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     Register result_reg = FullCodeGenerator::result_register();
     value = input_->GetRegister(result_reg.code());
     output_frame->SetFrameSlot(output_offset, value);
-    DebugPrintOutputSlot(value, frame_index, output_offset,
-                         "constructor result\n");
+    DebugPrintOutputSlot(value, frame_index, output_offset, "subcall result\n");
 
     output_frame->SetState(
         Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
