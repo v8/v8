@@ -40,24 +40,13 @@ enum WasmDataEntries {
 
 Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
                                 Handle<Name> name) {
-  if (stdlib.is_null()) {
-    return Handle<Object>();
-  }
   Handle<Name> math_name(
       isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("Math")));
-  MaybeHandle<Object> maybe_math = Object::GetProperty(stdlib, math_name);
-  if (maybe_math.is_null()) {
-    return Handle<Object>();
-  }
-  Handle<Object> math = maybe_math.ToHandleChecked();
-  if (!math->IsJSReceiver()) {
-    return Handle<Object>();
-  }
-  MaybeHandle<Object> maybe_value = Object::GetProperty(math, name);
-  if (maybe_value.is_null()) {
-    return Handle<Object>();
-  }
-  return maybe_value.ToHandleChecked();
+  Handle<Object> math = JSReceiver::GetDataProperty(stdlib, math_name);
+  if (!math->IsJSReceiver()) return isolate->factory()->undefined_value();
+  Handle<JSReceiver> math_receiver = Handle<JSReceiver>::cast(math);
+  Handle<Object> value = JSReceiver::GetDataProperty(math_receiver, name);
+  return value;
 }
 
 bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
@@ -65,29 +54,13 @@ bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
                          bool* is_typed_array) {
   switch (member) {
     case wasm::AsmJsParser::StandardMember::kInfinity: {
-      if (stdlib.is_null()) {
-        return false;
-      }
-      Handle<Name> name(isolate->factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("Infinity")));
-      MaybeHandle<Object> maybe_value = Object::GetProperty(stdlib, name);
-      if (maybe_value.is_null()) {
-        return false;
-      }
-      Handle<Object> value = maybe_value.ToHandleChecked();
+      Handle<Name> name = isolate->factory()->infinity_string();
+      Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
       return value->IsNumber() && std::isinf(value->Number());
     }
     case wasm::AsmJsParser::StandardMember::kNaN: {
-      if (stdlib.is_null()) {
-        return false;
-      }
-      Handle<Name> name(isolate->factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("NaN")));
-      MaybeHandle<Object> maybe_value = Object::GetProperty(stdlib, name);
-      if (maybe_value.is_null()) {
-        return false;
-      }
-      Handle<Object> value = maybe_value.ToHandleChecked();
+      Handle<Name> name = isolate->factory()->nan_string();
+      Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
       return value->IsNaN();
     }
 #define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)            \
@@ -95,10 +68,8 @@ bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     Handle<Name> name(isolate->factory()->InternalizeOneByteString( \
         STATIC_CHAR_VECTOR(#fname)));                               \
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name); \
-    if (value.is_null() || !value->IsJSFunction()) {                \
-      return false;                                                 \
-    }                                                               \
-    Handle<JSFunction> func(JSFunction::cast(*value));              \
+    if (!value->IsJSFunction()) return false;                       \
+    Handle<JSFunction> func = Handle<JSFunction>::cast(value);      \
     return func->shared()->code() ==                                \
            isolate->builtins()->builtin(Builtins::kMath##FName);    \
   }
@@ -109,26 +80,19 @@ bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     Handle<Name> name(isolate->factory()->InternalizeOneByteString( \
         STATIC_CHAR_VECTOR(#cname)));                               \
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name); \
-    return !value.is_null() && value->IsNumber() &&                 \
-           value->Number() == const_value;                          \
+    return value->IsNumber() && value->Number() == const_value;     \
   }
       STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
 #undef STDLIB_MATH_CONST
-#define STDLIB_ARRAY_TYPE(fname, FName)                                  \
-  case wasm::AsmJsParser::StandardMember::k##FName: {                    \
-    *is_typed_array = true;                                              \
-    if (stdlib.is_null()) {                                              \
-      return false;                                                      \
-    }                                                                    \
-    Handle<Name> name(isolate->factory()->InternalizeOneByteString(      \
-        STATIC_CHAR_VECTOR(#FName)));                                    \
-    Handle<Object> value;                                                \
-    MaybeHandle<Object> maybe_value = Object::GetProperty(stdlib, name); \
-    if (!maybe_value.ToHandle(&value) || !value->IsJSFunction()) {       \
-      return false;                                                      \
-    }                                                                    \
-    Handle<JSFunction> func = Handle<JSFunction>::cast(value);           \
-    return func.is_identical_to(isolate->fname());                       \
+#define STDLIB_ARRAY_TYPE(fname, FName)                               \
+  case wasm::AsmJsParser::StandardMember::k##FName: {                 \
+    *is_typed_array = true;                                           \
+    Handle<Name> name(isolate->factory()->InternalizeOneByteString(   \
+        STATIC_CHAR_VECTOR(#FName)));                                 \
+    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name); \
+    if (!value->IsJSFunction()) return false;                         \
+    Handle<JSFunction> func = Handle<JSFunction>::cast(value);        \
+    return func.is_identical_to(isolate->fname());                    \
   }
       STDLIB_ARRAY_TYPE(int8_array_fun, Int8Array)
       STDLIB_ARRAY_TYPE(uint8_array_fun, Uint8Array)
@@ -261,6 +225,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;
   for (int i = 0; i < stdlib_uses->length(); ++i) {
+    if (stdlib.is_null()) return MaybeHandle<Object>();
     int member_id = Smi::cast(stdlib_uses->get(i))->value();
     wasm::AsmJsParser::StandardMember member =
         static_cast<wasm::AsmJsParser::StandardMember>(member_id);
