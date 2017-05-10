@@ -590,19 +590,9 @@ class Heap {
 
   enum UpdateAllocationSiteMode { kGlobal, kCached };
 
-  // Taking this lock prevents the GC from entering a phase that relocates
+  // Taking this mutex prevents the GC from entering a phase that relocates
   // object references.
-  class RelocationLock {
-   public:
-    explicit RelocationLock(Heap* heap) : heap_(heap) {
-      heap_->relocation_mutex_.Lock();
-    }
-
-    ~RelocationLock() { heap_->relocation_mutex_.Unlock(); }
-
-   private:
-    Heap* heap_;
-  };
+  base::Mutex* relocation_mutex() { return &relocation_mutex_; }
 
   // Support for partial snapshots.  After calling this we have a linear
   // space to write objects in each space.

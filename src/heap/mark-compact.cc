@@ -2719,7 +2719,7 @@ void MinorMarkCompactCollector::EvacuateEpilogue() {
 
 void MinorMarkCompactCollector::Evacuate() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
-  Heap::RelocationLock relocation_lock(heap());
+  base::LockGuard<base::Mutex> guard(heap()->relocation_mutex());
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_PROLOGUE);
@@ -4085,7 +4085,7 @@ void MarkCompactCollector::Sweeper::AddSweptPageSafe(PagedSpace* space,
 
 void MarkCompactCollector::Evacuate() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
-  Heap::RelocationLock relocation_lock(heap());
+  base::LockGuard<base::Mutex> guard(heap()->relocation_mutex());
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_PROLOGUE);

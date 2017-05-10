@@ -738,7 +738,7 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 
 
 void HGraph::Verify(bool do_full_verify) const {
-  Heap::RelocationLock relocation_lock(isolate()->heap());
+  base::LockGuard<base::Mutex> guard(isolate()->heap()->relocation_mutex());
   AllowHandleDereference allow_deref;
   AllowDeferredHandleDereference allow_deferred_deref;
   for (int i = 0; i < blocks_.length(); i++) {

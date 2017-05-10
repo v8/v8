@@ -1356,8 +1356,7 @@ bool Heap::PerformGarbageCollection(
         break;
       case SCAVENGER:
         if ((fast_promotion_mode_ &&
-             CanExpandOldGeneration(new_space()->Size())) ||
-            concurrent_marking_->IsTaskPending()) {
+             CanExpandOldGeneration(new_space()->Size()))) {
           tracer()->NotifyYoungGenerationHandling(
               YoungGenerationHandling::kFastPromotionDuringScavenge);
           EvacuateYoungGeneration();
@@ -1633,6 +1632,7 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 void Heap::EvacuateYoungGeneration() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_EVACUATE);
+  base::LockGuard<base::Mutex> guard(relocation_mutex());
   if (!FLAG_concurrent_marking) {
     DCHECK(fast_promotion_mode_);
     DCHECK(CanExpandOldGeneration(new_space()->Size()));
@@ -1674,7 +1674,7 @@ void Heap::EvacuateYoungGeneration() {
 
 void Heap::Scavenge() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
-  RelocationLock relocation_lock(this);
+  base::LockGuard<base::Mutex> guard(relocation_mutex());
   // There are soft limits in the allocation code, designed to trigger a mark
   // sweep collection by failing allocations. There is no sense in trying to
   // trigger one during scavenge: scavenges allocation should always succeed.

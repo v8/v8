@@ -185,10 +185,12 @@ ConcurrentMarking::~ConcurrentMarking() { delete visitor_; }
 void ConcurrentMarking::Run() {
   double time_ms = heap_->MonotonicallyIncreasingTimeInMs();
   size_t bytes_marked = 0;
+  base::Mutex* relocation_mutex = heap_->relocation_mutex();
   {
     TimedScope scope(&time_ms);
     HeapObject* object;
     while ((object = deque_->Pop(MarkingThread::kConcurrent)) != nullptr) {
+      base::LockGuard<base::Mutex> guard(relocation_mutex);
       bytes_marked += visitor_->Visit(object);
     }
   }
