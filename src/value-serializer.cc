@@ -1463,11 +1463,22 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
   uint32_t raw_flags;
   Handle<JSRegExp> regexp;
   if (!ReadString().ToHandle(&pattern) ||
-      !ReadVarint<uint32_t>().To(&raw_flags) ||
+      !ReadVarint<uint32_t>().To(&raw_flags)) {
+    return MaybeHandle<JSRegExp>();
+  }
+
+  // Ensure the deserialized flags are valid. The context behind this is that
+  // the JSRegExp::Flags enum statically includes kDotAll, but it is only valid
+  // to set kDotAll if FLAG_harmony_regexp_dotall is enabled. Fuzzers don't
+  // know about this and happily set kDotAll anyways, leading to CHECK failures
+  // later on.
+  uint32_t flags_mask = static_cast<uint32_t>(-1) << JSRegExp::FlagCount();
+  if ((raw_flags & flags_mask) ||
       !JSRegExp::New(pattern, static_cast<JSRegExp::Flags>(raw_flags))
            .ToHandle(&regexp)) {
     return MaybeHandle<JSRegExp>();
   }
+
   AddObjectWithID(id, regexp);
   return regexp;
 }
