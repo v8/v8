@@ -1005,9 +1005,11 @@ class Assembler : public AssemblerBase {
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void dext_(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void dextm(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void dextu(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dextm_(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dextu_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void dins_(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dinsm_(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dinsu_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void bitswap(Register rd, Register rt);
   void dbitswap(Register rd, Register rt);
   void align(Register rd, Register rs, Register rt, uint8_t bp);

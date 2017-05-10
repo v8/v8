@@ -1216,19 +1216,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kMips64Dext: {
-      int16_t pos = i.InputInt8(1);
-      int16_t size = i.InputInt8(2);
-      if (size > 0 && size <= 32 && pos >= 0 && pos < 32) {
-        __ Dext(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
-                i.InputInt8(2));
-      } else if (size > 32 && size <= 64 && pos >= 0 && pos < 32) {
-        __ Dextm(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
-                 i.InputInt8(2));
-      } else {
-        DCHECK(size > 0 && size <= 32 && pos >= 32 && pos < 64);
-        __ Dextu(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
-                 i.InputInt8(2));
-      }
+      __ Dext(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
+              i.InputInt8(2));
       break;
     }
     case kMips64Dins:
@@ -2516,7 +2505,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         base::bits::IsPowerOfTwo64(i.InputOperand(1).immediate())) {
       uint16_t pos =
           base::bits::CountTrailingZeros64(i.InputOperand(1).immediate());
-      __ ExtractBits(result, i.InputRegister(0), pos, 1);
+      __ Dext(result, i.InputRegister(0), pos, 1);
     } else {
       __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
       __ Sltu(result, zero_reg, kScratchReg);
