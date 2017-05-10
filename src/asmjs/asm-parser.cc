@@ -613,7 +613,7 @@ void AsmJsParser::ValidateModuleVarStdlib(VarInfo* info) {
 void AsmJsParser::ValidateExport() {
   // clang-format off
   EXPECT_TOKEN(TOK(return));
-  // clang format on
+  // clang-format on
   if (Check('{')) {
     for (;;) {
       Vector<const char> name = CopyCurrentIdentifierString();
@@ -744,14 +744,23 @@ void AsmJsParser::ValidateFunction() {
   function_temp_locals_used_ = 0;
   function_temp_locals_depth_ = 0;
 
+  bool last_statement_is_return = false;
   while (!failed_ && !Peek('}')) {
+    // clang-format off
+    last_statement_is_return = Peek(TOK(return));
+    // clang-format on
     RECURSE(ValidateStatement());
   }
   EXPECT_TOKEN('}');
 
-  if (return_type_ == nullptr) {
-    return_type_ = AsmType::Void();
+  if (!last_statement_is_return) {
+    if (return_type_ == nullptr) {
+      return_type_ = AsmType::Void();
+    } else if (!return_type_->IsA(AsmType::Void())) {
+      FAIL("Expected return at end of non-void function");
+    }
   }
+  DCHECK_NOT_NULL(return_type_);
 
   // TODO(bradnelson): WasmModuleBuilder can't take this in the right order.
   //                   We should fix that so we can use it instead.
@@ -1066,7 +1075,7 @@ void AsmJsParser::IfStatement() {
 // 6.5.5 ReturnStatement
 void AsmJsParser::ReturnStatement() {
   // clang-format off
-  EXPECT_TOKEN(TOK(return ));
+  EXPECT_TOKEN(TOK(return));
   // clang-format on
   if (!Peek(';') && !Peek('}')) {
     // TODO(bradnelson): See if this can be factored out.
@@ -1081,8 +1090,10 @@ void AsmJsParser::ReturnStatement() {
     } else {
       FAIL("Invalid return type");
     }
-  } else {
+  } else if (return_type_ == nullptr) {
     return_type_ = AsmType::Void();
+  } else if (!return_type_->IsA(AsmType::Void())) {
+    FAIL("Invalid void return type");
   }
   current_function_builder_->Emit(kExprReturn);
   SkipSemicolon();
