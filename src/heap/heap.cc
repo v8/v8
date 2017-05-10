@@ -1781,11 +1781,8 @@ void Heap::Scavenge() {
   isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
       &IsUnscavengedHeapObject);
 
-  isolate()
-      ->global_handles()
-      ->IterateNewSpaceWeakUnmodifiedRoots<
-          GlobalHandles::HANDLE_PHANTOM_NODES_VISIT_OTHERS>(
-          &root_scavenge_visitor);
+  isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
+      &root_scavenge_visitor);
   new_space_front = DoScavenge(new_space_front);
 
   UpdateNewSpaceReferencesInExternalStringTable(
