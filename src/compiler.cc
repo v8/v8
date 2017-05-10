@@ -708,22 +708,15 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(
   return info->code();
 }
 
-MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
+MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
     Handle<JSFunction> function, BailoutId osr_ast_id) {
   RuntimeCallTimerScope runtimeTimer(
       function->GetIsolate(),
       &RuntimeCallStats::CompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared());
   DisallowHeapAllocation no_gc;
-  Code* code = nullptr;
-  if (osr_ast_id.IsNone()) {
-    if (function->feedback_vector_cell()->value()->IsFeedbackVector()) {
-      code = function->feedback_vector()->optimized_code();
-    }
-  } else {
-    code = function->context()->native_context()->SearchOSROptimizedCodeCache(
-        function->shared(), osr_ast_id);
-  }
+  Code* code = shared->SearchOptimizedCodeMap(
+      function->context()->native_context(), osr_ast_id);
   if (code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
     DCHECK(!code->marked_for_deoptimization());
@@ -733,7 +726,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
   return MaybeHandle<Code>();
 }
 
-void InsertCodeIntoOptimizedCodeCache(CompilationInfo* info) {
+void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   Handle<Code> code = info->code();
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
 
@@ -747,14 +740,8 @@ void InsertCodeIntoOptimizedCodeCache(CompilationInfo* info) {
   Handle<JSFunction> function = info->closure();
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<Context> native_context(function->context()->native_context());
-  if (info->osr_ast_id().IsNone()) {
-    Handle<FeedbackVector> vector =
-        handle(function->feedback_vector(), function->GetIsolate());
-    FeedbackVector::SetOptimizedCode(vector, code);
-  } else {
-    Context::AddToOSROptimizedCodeCache(native_context, shared, code,
-                                        info->osr_ast_id());
-  }
+  SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
+                                            info->osr_ast_id());
 }
 
 bool GetOptimizedCodeNow(CompilationJob* job) {
@@ -789,7 +776,7 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   // Success!
   job->RecordOptimizedCompilationStats();
   DCHECK(!isolate->has_pending_exception());
-  InsertCodeIntoOptimizedCodeCache(info);
+  InsertCodeIntoOptimizedCodeMap(info);
   RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
   return true;
 }
@@ -864,7 +851,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   DCHECK_IMPLIES(ignition_osr, FLAG_ignition_osr);
 
   Handle<Code> cached_code;
-  if (GetCodeFromOptimizedCodeCache(function, osr_ast_id)
+  if (GetCodeFromOptimizedCodeMap(function, osr_ast_id)
           .ToHandle(&cached_code)) {
     if (FLAG_trace_opt) {
       PrintF("[found optimized code for ");
@@ -1017,7 +1004,10 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
     } else if (job->FinalizeJob() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizedCompilationStats();
       RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
-      InsertCodeIntoOptimizedCodeCache(info);
+      if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
+                                         info->osr_ast_id()) == nullptr) {
+        InsertCodeIntoOptimizedCodeMap(info);
+      }
       if (FLAG_trace_opt) {
         PrintF("[completed optimizing ");
         info->closure()->ShortPrint();
@@ -1049,7 +1039,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
   Handle<Code> cached_code;
-  if (GetCodeFromOptimizedCodeCache(function, BailoutId::None())
+  if (GetCodeFromOptimizedCodeMap(function, BailoutId::None())
           .ToHandle(&cached_code)) {
     if (FLAG_trace_opt) {
       PrintF("[found optimized code for ");
@@ -1887,17 +1877,18 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     function->MarkForOptimization();
   }
 
+  Code* code = shared->SearchOptimizedCodeMap(
+      function->context()->native_context(), BailoutId::None());
+  if (code != nullptr) {
+    // Caching of optimized code enabled and optimized code found.
+    DCHECK(!code->marked_for_deoptimization());
+    DCHECK(function->shared()->is_compiled());
+    function->ReplaceCode(code);
+  }
+
   if (shared->is_compiled()) {
     // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
     JSFunction::EnsureLiterals(function);
-
-    Code* code = function->feedback_vector()->optimized_code();
-    if (code != nullptr) {
-      // Caching of optimized code enabled and optimized code found.
-      DCHECK(!code->marked_for_deoptimization());
-      DCHECK(function->shared()->is_compiled());
-      function->ReplaceCode(code);
-    }
   }
 }
 

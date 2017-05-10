@@ -3249,10 +3249,6 @@ Node* CodeStubAssembler::IsHeapNumber(Node* object) {
   return IsHeapNumberMap(LoadMap(object));
 }
 
-Node* CodeStubAssembler::IsFeedbackVector(Node* object) {
-  return IsFeedbackVectorMap(LoadMap(object));
-}
-
 Node* CodeStubAssembler::IsName(Node* object) {
   return Int32LessThanOrEqual(LoadInstanceType(object),
                               Int32Constant(LAST_NAME_TYPE));

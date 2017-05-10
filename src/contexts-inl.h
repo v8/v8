@@ -131,7 +131,7 @@ bool Context::IsScriptContext() {
   return map == map->GetHeap()->script_context_map();
 }
 
-bool Context::OSROptimizedCodeCacheIsCleared() {
+bool Context::OptimizedCodeMapIsCleared() {
   return osr_code_table() == GetHeap()->empty_fixed_array();
 }
 

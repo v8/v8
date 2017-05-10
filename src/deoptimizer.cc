@@ -230,15 +230,10 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   class SelectedCodeUnlinker: public OptimizedFunctionVisitor {
    public:
     virtual void VisitFunction(JSFunction* function) {
-      // The code in the function's optimized code feedback vector slot might
-      // be different from the code on the function - evict it if necessary.
-      function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
-          function->shared(), "unlinking code marked for deopt");
-
       Code* code = function->code();
       if (!code->marked_for_deoptimization()) return;
 
-      // Unlink this function.
+      // Unlink this function and evict from optimized code map.
       SharedFunctionInfo* shared = function->shared();
       if (!code->deopt_already_counted()) {
         shared->increment_deopt_count();
@@ -347,12 +342,12 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 #endif
     // It is finally time to die, code object.
 
-    // Remove the code from the osr optimized code cache.
+    // Remove the code from optimized code map.
     DeoptimizationInputData* deopt_data =
         DeoptimizationInputData::cast(codes[i]->deoptimization_data());
-    if (deopt_data->OsrAstId()->value() != BailoutId::None().ToInt()) {
-      isolate->EvictOSROptimizedCode(codes[i], "deoptimized code");
-    }
+    SharedFunctionInfo* shared =
+        SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
+    shared->EvictFromOptimizedCodeMap(codes[i], "deoptimized code");
 
     // Do platform-specific patching to force any activations to lazy deopt.
     PatchCodeForDeoptimization(isolate, codes[i]);

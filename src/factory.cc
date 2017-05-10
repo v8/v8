@@ -1631,13 +1631,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     DCHECK_EQ(vector->map(), *many_closures_cell_map());
   }
 
-  // Check that the optimized code in the feedback vector wasn't marked for
-  // deoptimization while not pointed to by any live JSFunction.
-  if (vector->value()->IsFeedbackVector()) {
-    FeedbackVector::cast(vector->value())
-        ->EvictOptimizedCodeMarkedForDeoptimization(
-            *info, "new function from shared function info");
-  }
   result->set_feedback_vector_cell(*vector);
   if (info->ic_age() != isolate()->heap()->global_ic_age()) {
     info->ResetForNewContext(isolate()->heap()->global_ic_age());
@@ -2474,6 +2467,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     code = isolate()->builtins()->Illegal();
   }
   share->set_code(*code);
+  share->set_optimized_code_map(*empty_fixed_array());
   share->set_scope_info(ScopeInfo::Empty(isolate()));
   share->set_outer_scope_info(*the_hole_value());
   Handle<Code> construct_stub =
