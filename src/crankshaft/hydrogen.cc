@@ -8583,7 +8583,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           Handle<JSObject>::null(), true);
 
       // Threshold for fast inlined Array.shift().
-      HConstant* inline_threshold = Add<HConstant>(static_cast<int32_t>(16));
+      HConstant* inline_threshold = Add<HConstant>(JSArray::kMaxCopyElements);
 
       Drop(args_count_no_receiver);
       HValue* result;
