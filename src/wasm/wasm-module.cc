@@ -855,7 +855,7 @@ Handle<JSArrayBuffer> wasm::SetupArrayBuffer(Isolate* isolate,
   buffer->set_is_wasm_buffer(true);
   buffer->set_has_guard_region(enable_guard_regions);
 
-  if (is_external) {
+  if (enable_guard_regions) {
     // We mark the buffer as external if we allocated it here with guard
     // pages. That means we need to arrange for it to be freed.
 
@@ -2231,7 +2231,8 @@ bool wasm::IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
 }
 
 void wasm::DetachWebAssemblyMemoryBuffer(Isolate* isolate,
-                                         Handle<JSArrayBuffer> buffer) {
+                                         Handle<JSArrayBuffer> buffer,
+                                         bool free_memory) {
   int64_t byte_length =
       buffer->byte_length()->IsNumber()
           ? static_cast<uint32_t>(buffer->byte_length()->Number())
@@ -2247,6 +2248,9 @@ void wasm::DetachWebAssemblyMemoryBuffer(Isolate* isolate,
   }
   buffer->set_is_neuterable(true);
   buffer->Neuter();
+  // Neuter but do not free, as when pages == 0, the backing store is being used
+  // by the new buffer.
+  if (!free_memory) return;
   if (has_guard_regions) {
     base::OS::Free(backing_store, RoundUp(i::wasm::kWasmMaxHeapOffset,
                                           base::OS::CommitPageSize()));

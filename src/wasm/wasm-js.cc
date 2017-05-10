@@ -740,7 +740,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.RangeError("Unable to grow instance memory.");
     return;
   }
-  i::wasm::DetachWebAssemblyMemoryBuffer(i_isolate, old_buffer);
+  bool free_memory = (delta_size != 0);
+  i::wasm::DetachWebAssemblyMemoryBuffer(i_isolate, old_buffer, free_memory);
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(ret);
 }

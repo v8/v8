@@ -476,21 +476,13 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   Handle<JSArrayBuffer> new_buffer;
   // Return current size if grow by 0.
   if (pages == 0) {
-    // Even for pages == 0, we need to attach a new JSArrayBuffer and neuter the
-    // old one to be spec compliant.
-    if (!old_buffer.is_null() && old_buffer->backing_store() != nullptr) {
+    // Even for pages == 0, we need to attach a new JSArrayBuffer with the same
+    // backing store and neuter the old one to be spec compliant.
+    if (!old_buffer.is_null() && old_size != 0) {
       new_buffer = SetupArrayBuffer(isolate, old_buffer->backing_store(),
                                     old_size, old_buffer->is_external(),
                                     old_buffer->has_guard_region());
       memory_object->set_buffer(*new_buffer);
-      old_buffer->set_is_neuterable(true);
-      if (!old_buffer->has_guard_region()) {
-        old_buffer->set_is_external(true);
-        isolate->heap()->UnregisterArrayBuffer(*old_buffer);
-      }
-      // Neuter but don't free the memory because it is now being used by
-      // new_buffer.
-      old_buffer->Neuter();
     }
     DCHECK_EQ(0, old_size % WasmModule::kPageSize);
     return old_size / WasmModule::kPageSize;

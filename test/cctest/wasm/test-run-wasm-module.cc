@@ -1112,6 +1112,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     void* backing_store = memory->backing_store();
     uint64_t byte_length = NumberToSize(memory->byte_length());
     uint32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 4);
+    wasm::DetachWebAssemblyMemoryBuffer(isolate, memory, true);
     CHECK_EQ(16, result);
     if (!memory->has_guard_region()) {
       isolate->array_buffer_allocator()->Free(backing_store, byte_length);
@@ -1130,6 +1131,27 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
       isolate->array_buffer_allocator()->Free(
           memory->backing_store(), NumberToSize(memory->byte_length()));
     }
+  }
+  Cleanup();
+}
+
+TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
+  {
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    void* backing_store =
+        isolate->array_buffer_allocator()->Allocate(16 * WasmModule::kPageSize);
+    Handle<JSArrayBuffer> buffer = wasm::SetupArrayBuffer(
+        isolate, backing_store, 16 * WasmModule::kPageSize, false, false);
+    Handle<WasmMemoryObject> mem_obj =
+        WasmMemoryObject::New(isolate, buffer, 100);
+    v8::Utils::ToLocal(buffer)->Externalize();
+    int32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 0);
+    wasm::DetachWebAssemblyMemoryBuffer(isolate, buffer, false);
+    CHECK_EQ(16, result);
+
+    isolate->array_buffer_allocator()->Free(backing_store,
+                                            16 * WasmModule::kPageSize);
   }
   Cleanup();
 }
