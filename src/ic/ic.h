@@ -325,6 +325,11 @@ class KeyedLoadIC : public LoadIC {
 
  private:
   friend class IC;
+
+  Handle<Object> LoadElementHandler(Handle<Map> receiver_map);
+
+  void LoadElementPolymorphicHandlers(MapHandleList* receiver_maps,
+                                      List<Handle<Object>>* handlers);
 };
 
 
