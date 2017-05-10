@@ -808,11 +808,11 @@ namespace internal {
                                                                                \
   TFS(RegExpReplace, kRegExp, kString, kReplaceValue)                          \
   /* ES #sec-regexp.prototype-@@replace */                                     \
-  TFJ(RegExpPrototypeReplace, 2, kString, kReplaceValue)                       \
+  TFJ(RegExpPrototypeReplace, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
                                                                                \
   TFS(RegExpSplit, kRegExp, kString, kLimit)                                   \
   /* ES #sec-regexp.prototype-@@split */                                       \
-  TFJ(RegExpPrototypeSplit, 2, kString, kLimit)                                \
+  TFJ(RegExpPrototypeSplit, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \

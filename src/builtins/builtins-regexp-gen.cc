@@ -2437,10 +2437,19 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
 // ES#sec-regexp.prototype-@@split
 // RegExp.prototype [ @@split ] ( string, limit )
 TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
-  Node* const maybe_string = Parameter(Descriptor::kString);
-  Node* const maybe_limit = Parameter(Descriptor::kLimit);
-  Node* const context = Parameter(Descriptor::kContext);
+  const int kStringArg = 0;
+  const int kLimitArg = 1;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* const maybe_receiver = args.GetReceiver();
+  Node* const maybe_string =
+      args.GetOptionalArgumentValue(kStringArg, UndefinedConstant());
+  Node* const maybe_limit =
+      args.GetOptionalArgumentValue(kLimitArg, UndefinedConstant());
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
 
   // Ensure {maybe_receiver} is a JSReceiver.
   ThrowIfNotJSReceiver(context, maybe_receiver,
@@ -2455,12 +2464,12 @@ TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
   BranchIfFastRegExp(context, receiver, &stub, &runtime);
 
   BIND(&stub);
-  Return(CallBuiltin(Builtins::kRegExpSplit, context, receiver, string,
-                     maybe_limit));
+  args.PopAndReturn(CallBuiltin(Builtins::kRegExpSplit, context, receiver,
+                                string, maybe_limit));
 
   BIND(&runtime);
-  Return(CallRuntime(Runtime::kRegExpSplit, context, receiver, string,
-                     maybe_limit));
+  args.PopAndReturn(CallRuntime(Runtime::kRegExpSplit, context, receiver,
+                                string, maybe_limit));
 }
 
 Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
@@ -2850,10 +2859,19 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
 TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
-  Node* const maybe_receiver = Parameter(Descriptor::kReceiver);
-  Node* const maybe_string = Parameter(Descriptor::kString);
-  Node* const replace_value = Parameter(Descriptor::kReplaceValue);
-  Node* const context = Parameter(Descriptor::kContext);
+  const int kStringArg = 0;
+  const int kReplaceValueArg = 1;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* const maybe_receiver = args.GetReceiver();
+  Node* const maybe_string =
+      args.GetOptionalArgumentValue(kStringArg, UndefinedConstant());
+  Node* const replace_value =
+      args.GetOptionalArgumentValue(kReplaceValueArg, UndefinedConstant());
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
 
   // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:
   //
@@ -2887,12 +2905,12 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   BranchIfFastRegExp(context, receiver, &stub, &runtime);
 
   BIND(&stub);
-  Return(CallBuiltin(Builtins::kRegExpReplace, context, receiver, string,
-                     replace_value));
+  args.PopAndReturn(CallBuiltin(Builtins::kRegExpReplace, context, receiver,
+                                string, replace_value));
 
   BIND(&runtime);
-  Return(CallRuntime(Runtime::kRegExpReplace, context, receiver, string,
-                     replace_value));
+  args.PopAndReturn(CallRuntime(Runtime::kRegExpReplace, context, receiver,
+                                string, replace_value));
 }
 
 // Simple string matching functionality for internal use which does not modify

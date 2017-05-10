@@ -2286,7 +2286,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       {
         Handle<JSFunction> fun = SimpleCreateFunction(
             isolate, factory->InternalizeUtf8String("[Symbol.replace]"),
-            Builtins::kRegExpPrototypeReplace, 2, true);
+            Builtins::kRegExpPrototypeReplace, 2, false);
         InstallFunction(prototype, fun, factory->replace_symbol(), DONT_ENUM);
       }
 
@@ -2300,7 +2300,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       {
         Handle<JSFunction> fun = SimpleCreateFunction(
             isolate, factory->InternalizeUtf8String("[Symbol.split]"),
-            Builtins::kRegExpPrototypeSplit, 2, true);
+            Builtins::kRegExpPrototypeSplit, 2, false);
         InstallFunction(prototype, fun, factory->split_symbol(), DONT_ENUM);
       }
 
