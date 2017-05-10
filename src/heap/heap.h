@@ -1535,6 +1535,7 @@ class Heap {
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.
   void Verify();
+  void VerifyRememberedSetFor(HeapObject* object);
 #endif
 
 #ifdef DEBUG

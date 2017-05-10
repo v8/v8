@@ -4779,6 +4779,137 @@ void Heap::Verify() {
     mark_compact_collector()->VerifyOmittedMapChecks();
   }
 }
+
+class SlotVerifyingVisitor : public ObjectVisitor {
+ public:
+  SlotVerifyingVisitor(std::set<Address>* untyped,
+                       std::set<std::pair<SlotType, Address> >* typed)
+      : untyped_(untyped), typed_(typed) {}
+
+  virtual bool ShouldHaveBeenRecorded(HeapObject* host, Object* target) = 0;
+
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
+    for (Object** slot = start; slot < end; slot++) {
+      if (ShouldHaveBeenRecorded(host, *slot)) {
+        CHECK_GT(untyped_->count(reinterpret_cast<Address>(slot)), 0);
+      }
+    }
+  }
+
+  void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
+    Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    if (ShouldHaveBeenRecorded(host, target)) {
+      CHECK(
+          InTypedSet(CODE_TARGET_SLOT, rinfo->pc()) ||
+          (rinfo->IsInConstantPool() &&
+           InTypedSet(CODE_ENTRY_SLOT, rinfo->constant_pool_entry_address())));
+    }
+  }
+
+  void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) override {
+    Object* target = rinfo->code_age_stub();
+    if (ShouldHaveBeenRecorded(host, target)) {
+      CHECK(
+          InTypedSet(CODE_TARGET_SLOT, rinfo->pc()) ||
+          (rinfo->IsInConstantPool() &&
+           InTypedSet(CODE_ENTRY_SLOT, rinfo->constant_pool_entry_address())));
+    }
+  }
+
+  void VisitCodeEntry(JSFunction* host, Address entry_address) override {
+    Object* target = Code::GetObjectFromEntryAddress(entry_address);
+    if (ShouldHaveBeenRecorded(host, target)) {
+      CHECK(InTypedSet(CODE_ENTRY_SLOT, entry_address));
+    }
+  }
+
+  void VisitCellPointer(Code* host, RelocInfo* rinfo) override {
+    Object* target = rinfo->target_cell();
+    if (ShouldHaveBeenRecorded(host, target)) {
+      CHECK(InTypedSet(CELL_TARGET_SLOT, rinfo->pc()) ||
+            (rinfo->IsInConstantPool() &&
+             InTypedSet(OBJECT_SLOT, rinfo->constant_pool_entry_address())));
+    }
+  }
+
+  void VisitDebugTarget(Code* host, RelocInfo* rinfo) override {
+    Object* target =
+        Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
+    if (ShouldHaveBeenRecorded(host, target)) {
+      CHECK(
+          InTypedSet(DEBUG_TARGET_SLOT, rinfo->pc()) ||
+          (rinfo->IsInConstantPool() &&
+           InTypedSet(CODE_ENTRY_SLOT, rinfo->constant_pool_entry_address())));
+    }
+  }
+
+  void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
+    Object* target = rinfo->target_object();
+    if (ShouldHaveBeenRecorded(host, target)) {
+      CHECK(InTypedSet(EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
+            (rinfo->IsInConstantPool() &&
+             InTypedSet(OBJECT_SLOT, rinfo->constant_pool_entry_address())));
+    }
+  }
+
+ private:
+  bool InTypedSet(SlotType type, Address slot) {
+    return typed_->count(std::make_pair(type, slot)) > 0;
+  }
+  std::set<Address>* untyped_;
+  std::set<std::pair<SlotType, Address> >* typed_;
+};
+
+class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
+ public:
+  OldToNewSlotVerifyingVisitor(Heap* heap, std::set<Address>* untyped,
+                               std::set<std::pair<SlotType, Address> >* typed)
+      : SlotVerifyingVisitor(untyped, typed), heap_(heap) {}
+
+  bool ShouldHaveBeenRecorded(HeapObject* host, Object* target) override {
+    return target->IsHeapObject() && heap_->InNewSpace(target) &&
+           !heap_->InNewSpace(host);
+  }
+
+ private:
+  Heap* heap_;
+};
+
+template <RememberedSetType direction>
+void CollectSlots(MemoryChunk* chunk, Address start, Address end,
+                  std::set<Address>* untyped,
+                  std::set<std::pair<SlotType, Address> >* typed) {
+  RememberedSet<direction>::Iterate(chunk, [start, end, untyped](Address slot) {
+    if (start <= slot && slot < end) {
+      untyped->insert(slot);
+    }
+    return KEEP_SLOT;
+  });
+  RememberedSet<direction>::IterateTyped(
+      chunk, [start, end, typed](SlotType type, Address host, Address slot) {
+        if (start <= slot && slot < end) {
+          typed->insert(std::make_pair(type, slot));
+        }
+        return KEEP_SLOT;
+      });
+}
+
+void Heap::VerifyRememberedSetFor(HeapObject* object) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+  base::LockGuard<base::RecursiveMutex> lock_guard(chunk->mutex());
+  Address start = object->address();
+  Address end = start + object->Size();
+  std::set<Address> old_to_new;
+  std::set<std::pair<SlotType, Address> > typed_old_to_new;
+  if (!InNewSpace(object)) {
+    store_buffer()->MoveAllEntriesToRememberedSet();
+    CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
+    OldToNewSlotVerifyingVisitor visitor(this, &old_to_new, &typed_old_to_new);
+    object->IterateBody(&visitor);
+  }
+  // TODO(ulan): Add old to old slot set verification once all weak objects
+  // have their own instance types and slots are recorded for all weal fields.
+}
 #endif
 
 
