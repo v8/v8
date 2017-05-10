@@ -8184,9 +8184,7 @@ v8::Local<v8::Context> Isolate::GetEnteredOrMicrotaskContext() {
 
 v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  // This annotation only says that V8 won't throw an exception, scheduling
-  // one via the API is fine.
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  ENTER_V8_DO_NOT_USE(isolate);
   // If we're passed an empty handle, we throw an undefined exception
   // to deal more gracefully with out of memory situations.
   if (value.IsEmpty()) {
