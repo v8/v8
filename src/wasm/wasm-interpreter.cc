@@ -698,7 +698,6 @@ class SideTable : public ZoneObject {
       uint32_t target_stack_height;
       // Arity when branching to this label.
       const uint32_t arity;
-      // TODO(clemensh): Fix ZoneAllocator and make this ZoneVector<const Ref>.
       ZoneVector<Ref> refs;
 
       static CLabel* New(Zone* zone, uint32_t stack_height, uint32_t arity) {
