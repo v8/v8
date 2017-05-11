@@ -252,29 +252,15 @@ class SmallMapList final {
   bool is_empty() const { return list_.is_empty(); }
   int length() const { return list_.length(); }
 
-  void AddMapIfMissing(Handle<Map> map, Zone* zone) {
-    if (!Map::TryUpdate(map).ToHandle(&map)) return;
-    for (int i = 0; i < length(); ++i) {
-      if (at(i).is_identical_to(map)) return;
-    }
-    Add(map, zone);
-  }
+  void AddMapIfMissing(Handle<Map> map, Zone* zone);
 
-  void FilterForPossibleTransitions(Map* root_map) {
-    for (int i = list_.length() - 1; i >= 0; i--) {
-      if (at(i)->FindRootMap() != root_map) {
-        list_.RemoveElement(list_.at(i));
-      }
-    }
-  }
+  void FilterForPossibleTransitions(Map* root_map);
 
   void Add(Handle<Map> handle, Zone* zone) {
     list_.Add(handle.location(), zone);
   }
 
-  Handle<Map> at(int i) const {
-    return Handle<Map>(list_.at(i));
-  }
+  Handle<Map> at(int i) const;
 
   Handle<Map> first() const { return at(0); }
   Handle<Map> last() const { return at(length() - 1); }
