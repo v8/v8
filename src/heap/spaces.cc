@@ -1569,7 +1569,9 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       // The object itself should look OK.
       object->ObjectVerify();
 
-      heap()->VerifyRememberedSetFor(object);
+      if (!FLAG_verify_heap_skip_remembered_set) {
+        heap()->VerifyRememberedSetFor(object);
+      }
 
       // All the interior pointers should be contained in the heap.
       int size = object->Size();
@@ -3323,7 +3325,9 @@ void LargeObjectSpace::Verify() {
     // The object itself should look OK.
     object->ObjectVerify();
 
-    heap()->VerifyRememberedSetFor(object);
+    if (!FLAG_verify_heap_skip_remembered_set) {
+      heap()->VerifyRememberedSetFor(object);
+    }
 
     // Byte arrays and strings don't have interior pointers.
     if (object->IsAbstractCode()) {
