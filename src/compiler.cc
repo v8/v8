@@ -1051,73 +1051,71 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
-  Handle<Code> cached_code;
-  if (GetCodeFromOptimizedCodeCache(function, BailoutId::None())
-          .ToHandle(&cached_code)) {
-    if (FLAG_trace_opt) {
-      PrintF("[found optimized code for ");
-      function->ShortPrint();
-      PrintF(" during unoptimized compile]\n");
-    }
-    DCHECK(function->shared()->is_compiled());
-    return cached_code;
-  }
-
-  if (function->shared()->is_compiled() &&
-      function->shared()->marked_for_tier_up()) {
-    DCHECK(FLAG_mark_shared_functions_for_tier_up);
-
-    function->shared()->set_marked_for_tier_up(false);
-
-    if (FLAG_trace_opt) {
-      PrintF("[optimizing method ");
-      function->ShortPrint();
-      PrintF(" eagerly (shared function marked for tier up)]\n");
-    }
-
-    Handle<Code> code;
-    if (GetOptimizedCodeMaybeLater(function).ToHandle(&code)) {
-      return code;
-    }
-  }
-
   if (function->shared()->is_compiled()) {
+    // Function has already been compiled, get the optimized code if possible,
+    // otherwise return baseline code.
+    Handle<Code> cached_code;
+    if (GetCodeFromOptimizedCodeCache(function, BailoutId::None())
+            .ToHandle(&cached_code)) {
+      if (FLAG_trace_opt) {
+        PrintF("[found optimized code for ");
+        function->ShortPrint();
+        PrintF(" during unoptimized compile]\n");
+      }
+      DCHECK(function->shared()->is_compiled());
+      return cached_code;
+    }
+
+    if (function->shared()->marked_for_tier_up()) {
+      DCHECK(FLAG_mark_shared_functions_for_tier_up);
+
+      function->shared()->set_marked_for_tier_up(false);
+
+      if (FLAG_trace_opt) {
+        PrintF("[optimizing method ");
+        function->ShortPrint();
+        PrintF(" eagerly (shared function marked for tier up)]\n");
+      }
+
+      Handle<Code> code;
+      if (GetOptimizedCodeMaybeLater(function).ToHandle(&code)) {
+        return code;
+      }
+    }
+
     return Handle<Code>(function->shared()->code());
-  }
+  } else {
+    // Function doesn't have any baseline compiled code, compile now.
+    DCHECK(!function->shared()->HasBytecodeArray());
 
-  if (function->shared()->HasBytecodeArray()) {
-    Handle<Code> entry = isolate->builtins()->InterpreterEntryTrampoline();
-    function->shared()->ReplaceCode(*entry);
-    return entry;
-  }
-
-  ParseInfo parse_info(handle(function->shared()));
-  Zone compile_zone(isolate->allocator(), ZONE_NAME);
-  CompilationInfo info(&compile_zone, &parse_info, isolate, function);
-  if (FLAG_experimental_preparser_scope_analysis) {
-    Handle<SharedFunctionInfo> shared(function->shared());
-    Handle<Script> script(Script::cast(function->shared()->script()));
-    if (script->HasPreparsedScopeData()) {
-      parse_info.preparsed_scope_data()->Deserialize(
-          script->preparsed_scope_data());
+    ParseInfo parse_info(handle(function->shared()));
+    Zone compile_zone(isolate->allocator(), ZONE_NAME);
+    CompilationInfo info(&compile_zone, &parse_info, isolate, function);
+    if (FLAG_experimental_preparser_scope_analysis) {
+      Handle<SharedFunctionInfo> shared(function->shared());
+      Handle<Script> script(Script::cast(function->shared()->script()));
+      if (script->HasPreparsedScopeData()) {
+        parse_info.preparsed_scope_data()->Deserialize(
+            script->preparsed_scope_data());
+      }
     }
-  }
-  Compiler::ConcurrencyMode inner_function_mode =
-      FLAG_compiler_dispatcher_eager_inner ? Compiler::CONCURRENT
-                                           : Compiler::NOT_CONCURRENT;
-  Handle<Code> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result, GetUnoptimizedCode(&info, inner_function_mode), Code);
+    Compiler::ConcurrencyMode inner_function_mode =
+        FLAG_compiler_dispatcher_eager_inner ? Compiler::CONCURRENT
+                                             : Compiler::NOT_CONCURRENT;
+    Handle<Code> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result, GetUnoptimizedCode(&info, inner_function_mode), Code);
 
-  if (FLAG_always_opt && !info.shared_info()->HasAsmWasmData()) {
-    Handle<Code> opt_code;
-    if (GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
-            .ToHandle(&opt_code)) {
-      result = opt_code;
+    if (FLAG_always_opt && !info.shared_info()->HasAsmWasmData()) {
+      Handle<Code> opt_code;
+      if (GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
+              .ToHandle(&opt_code)) {
+        result = opt_code;
+      }
     }
-  }
 
-  return result;
+    return result;
+  }
 }
 
 
