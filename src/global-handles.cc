@@ -647,19 +647,6 @@ void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(RootVisitor* v) {
   }
 }
 
-
-void GlobalHandles::IdentifyNewSpaceWeakIndependentHandles(
-    WeakSlotCallbackWithHeap f) {
-  for (int i = 0; i < new_space_nodes_.length(); ++i) {
-    Node* node = new_space_nodes_[i];
-    DCHECK(node->is_in_new_space_list());
-    if (node->is_independent() && node->IsWeak() &&
-        f(isolate_->heap(), node->location())) {
-      node->MarkPending();
-    }
-  }
-}
-
 void GlobalHandles::IterateNewSpaceWeakIndependentRoots(RootVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
@@ -703,7 +690,6 @@ void GlobalHandles::MarkNewSpaceWeakUnmodifiedObjectsPending(
   }
 }
 
-template <GlobalHandles::IterationMode mode>
 void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(RootVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
@@ -712,35 +698,17 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(RootVisitor* v) {
         node->IsWeakRetainer()) {
       // Pending weak phantom handles die immediately. Everything else survives.
       if (node->IsPendingPhantomResetHandle()) {
-        if (mode == IterationMode::HANDLE_PHANTOM_NODES ||
-            mode == IterationMode::HANDLE_PHANTOM_NODES_VISIT_OTHERS) {
-          node->ResetPhantomHandle();
-          ++number_of_phantom_handle_resets_;
-        }
+        node->ResetPhantomHandle();
+        ++number_of_phantom_handle_resets_;
       } else if (node->IsPendingPhantomCallback()) {
-        if (mode == IterationMode::HANDLE_PHANTOM_NODES ||
-            mode == IterationMode::HANDLE_PHANTOM_NODES_VISIT_OTHERS) {
-          node->CollectPhantomCallbackData(isolate(),
-                                           &pending_phantom_callbacks_);
-        }
+        node->CollectPhantomCallbackData(isolate(),
+                                         &pending_phantom_callbacks_);
       } else {
-        if (mode == IterationMode::VISIT_OTHERS ||
-            mode == IterationMode::HANDLE_PHANTOM_NODES_VISIT_OTHERS) {
-          v->VisitRootPointer(Root::kGlobalHandles, node->location());
-        }
+        v->VisitRootPointer(Root::kGlobalHandles, node->location());
       }
     }
   }
 }
-
-template void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots<
-    GlobalHandles::HANDLE_PHANTOM_NODES>(RootVisitor* v);
-
-template void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots<
-    GlobalHandles::VISIT_OTHERS>(RootVisitor* v);
-
-template void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots<
-    GlobalHandles::HANDLE_PHANTOM_NODES_VISIT_OTHERS>(RootVisitor* v);
 
 void GlobalHandles::InvokeSecondPassPhantomCallbacks(
     List<PendingPhantomCallback>* callbacks, Isolate* isolate) {
@@ -998,30 +966,6 @@ void GlobalHandles::IterateWeakRootsInNewSpaceWithClassIds(
   }
 }
 
-
-int GlobalHandles::NumberOfWeakHandles() {
-  int count = 0;
-  for (NodeIterator it(this); !it.done(); it.Advance()) {
-    if (it.node()->IsWeakRetainer()) {
-      count++;
-    }
-  }
-  return count;
-}
-
-
-int GlobalHandles::NumberOfGlobalObjectWeakHandles() {
-  int count = 0;
-  for (NodeIterator it(this); !it.done(); it.Advance()) {
-    if (it.node()->IsWeakRetainer() &&
-        it.node()->object()->IsJSGlobalObject()) {
-      count++;
-    }
-  }
-  return count;
-}
-
-
 void GlobalHandles::RecordStats(HeapStats* stats) {
   *stats->global_handle_count = 0;
   *stats->weak_global_handle_count = 0;
@@ -1081,9 +1025,7 @@ void GlobalHandles::Print() {
 
 #endif
 
-void GlobalHandles::TearDown() {
-  // TODO(1428): invoke weak callbacks.
-}
+void GlobalHandles::TearDown() {}
 
 EternalHandles::EternalHandles() : size_(0) {
   for (unsigned i = 0; i < arraysize(singleton_handles_); i++) {

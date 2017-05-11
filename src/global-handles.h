@@ -43,12 +43,6 @@ enum WeaknessType {
 
 class GlobalHandles {
  public:
-  enum IterationMode {
-    HANDLE_PHANTOM_NODES_VISIT_OTHERS,
-    VISIT_OTHERS,
-    HANDLE_PHANTOM_NODES
-  };
-
   ~GlobalHandles();
 
   // Creates a new global handle that is alive until Destroy is called.
@@ -84,13 +78,6 @@ class GlobalHandles {
   static void MakeWeak(Object*** location_addr);
 
   void RecordStats(HeapStats* stats);
-
-  // Returns the current number of weak handles.
-  int NumberOfWeakHandles();
-
-  // Returns the current number of weak handles to global objects.
-  // These handles are also included in NumberOfWeakHandles().
-  int NumberOfGlobalObjectWeakHandles();
 
   // Returns the current number of handles to global objects.
   int global_handles_count() const {
@@ -158,10 +145,6 @@ class GlobalHandles {
   // Iterates over strong and dependent handles. See the node above.
   void IterateNewSpaceStrongAndDependentRoots(RootVisitor* v);
 
-  // Finds weak independent or partially independent handles satisfying
-  // the callback predicate and marks them as pending. See the note above.
-  void IdentifyNewSpaceWeakIndependentHandles(WeakSlotCallbackWithHeap f);
-
   // Iterates over weak independent or partially independent handles.
   // See the note above.
   void IterateNewSpaceWeakIndependentRoots(RootVisitor* v);
@@ -173,7 +156,6 @@ class GlobalHandles {
 
   // Iterates over weak independent or unmodified handles.
   // See the note above.
-  template <IterationMode mode>
   void IterateNewSpaceWeakUnmodifiedRoots(RootVisitor* v);
 
   // Identify unmodified objects that are in weak state and marks them
