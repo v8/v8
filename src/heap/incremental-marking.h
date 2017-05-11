@@ -223,6 +223,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // from white to grey.
   bool WhiteToGreyAndPush(HeapObject* obj);
 
+  // This function is used to color the object black before it undergoes an
+  // unsafe layout change. This is a part of synchronization protocol with
+  // the concurrent marker.
+  void MarkBlackAndPush(HeapObject* obj);
+
   inline void SetOldSpacePageFlags(MemoryChunk* chunk) {
     SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());
   }

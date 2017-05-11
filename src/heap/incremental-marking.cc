@@ -137,6 +137,20 @@ bool IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj) {
   return false;
 }
 
+void IncrementalMarking::MarkBlackAndPush(HeapObject* obj) {
+  // Color the object black and push it into the bailout deque.
+  ObjectMarking::WhiteToGrey<kAtomicity>(obj, marking_state(obj));
+  if (ObjectMarking::GreyToBlack<kAtomicity>(obj, marking_state(obj))) {
+#if V8_CONCURRENT_MARKING
+    marking_deque()->Push(obj, MarkingThread::kMain, TargetDeque::kBailout);
+#else
+    if (!marking_deque()->Push(obj)) {
+      ObjectMarking::BlackToGrey<kAtomicity>(obj, marking_state(obj));
+    }
+#endif
+  }
+}
+
 void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
                                       HeapObject* to) {
   DCHECK(MemoryChunk::FromAddress(from->address())->SweepingDone());
@@ -813,13 +827,9 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
         return nullptr;
       }
       HeapObject* dest = map_word.ToForwardingAddress();
-      if (ObjectMarking::IsBlack<kAtomicity>(dest, marking_state(dest))) {
-        // The object is already processed by the marker.
-        return nullptr;
-      }
-      DCHECK(ObjectMarking::IsGrey<kAtomicity>(obj, marking_state(obj)) ||
-             (obj->IsFiller() &&
-              ObjectMarking::IsWhite<kAtomicity>(obj, marking_state(obj))));
+      DCHECK_IMPLIES(
+          ObjectMarking::IsWhite<kAtomicity>(obj, marking_state(obj)),
+          obj->IsFiller());
       return dest;
     } else if (heap_->InToSpace(obj)) {
       // The object may be on a page that was moved in new space.
@@ -838,12 +848,9 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
                    ? obj
                    : nullptr;
       }
-      DCHECK(ObjectMarking::IsGrey<kAtomicity>(obj, marking_state(obj)) ||
-             (obj->IsFiller() &&
-              ObjectMarking::IsWhite<kAtomicity>(obj, marking_state(obj))) ||
-             (MemoryChunk::FromAddress(obj->address())
-                  ->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
-              ObjectMarking::IsBlack<kAtomicity>(obj, marking_state(obj))));
+      DCHECK_IMPLIES(
+          ObjectMarking::IsWhite<kAtomicity>(obj, marking_state(obj)),
+          obj->IsFiller());
       // Skip one word filler objects that appear on the
       // stack when we perform in place array shift.
       return (obj->map() == filler_map) ? nullptr : obj;
@@ -858,20 +865,20 @@ bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject* obj) {
 }
 
 void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
-#if ENABLE_SLOW_DCHECKS
   MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj, marking_state(obj));
-  MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-  SLOW_DCHECK(Marking::IsGrey<kAtomicity>(mark_bit) ||
-              (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
-               Marking::IsBlack<kAtomicity>(mark_bit)));
-#endif
-  if (ObjectMarking::GreyToBlack<kAtomicity>(obj, marking_state(obj))) {
-    WhiteToGreyAndPush(map);
-    IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
-  } else if (IsFixedArrayWithProgressBar(obj)) {
-    DCHECK(ObjectMarking::IsBlack<kAtomicity>(obj, marking_state(obj)));
-    IncrementalMarkingMarkingVisitor::VisitFixedArrayIncremental(map, obj);
+  DCHECK(Marking::IsGrey<kAtomicity>(mark_bit) ||
+         Marking::IsBlack<kAtomicity>(mark_bit));
+  USE(mark_bit);
+  // The object can already be black in two cases:
+  // 1. The object is a fixed array with the progress bar.
+  // 2. The object is a JSObject that was colored black before
+  //    unsafe layout change.
+  if (!ObjectMarking::GreyToBlack<kAtomicity>(obj, marking_state(obj))) {
+    DCHECK(IsFixedArrayWithProgressBar(obj) || obj->IsJSObject());
   }
+  DCHECK(ObjectMarking::IsBlack<kAtomicity>(obj, marking_state(obj)));
+  WhiteToGreyAndPush(map);
+  IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
 }
 
 intptr_t IncrementalMarking::ProcessMarkingDeque(

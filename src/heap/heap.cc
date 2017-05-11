@@ -4274,7 +4274,7 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 void Heap::NotifyObjectLayoutChange(HeapObject* object,
                                     const DisallowHeapAllocation&) {
   if (FLAG_incremental_marking && incremental_marking()->IsMarking()) {
-    incremental_marking()->WhiteToGreyAndPush(object);
+    incremental_marking()->MarkBlackAndPush(object);
   }
 #ifdef VERIFY_HEAP
   DCHECK(pending_layout_change_object_ == nullptr);

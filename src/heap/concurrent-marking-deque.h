@@ -47,8 +47,6 @@ class ConcurrentMarkingDeque {
   // deque. The concurrent thread can push to both deques.
   bool Push(HeapObject* object, MarkingThread thread = MarkingThread::kMain,
             TargetDeque target = TargetDeque::kShared) {
-    DCHECK_IMPLIES(thread == MarkingThread::kMain,
-                   target == TargetDeque::kShared);
     switch (target) {
       case TargetDeque::kShared:
         shared_deque_.Push(object);
