@@ -1500,7 +1500,7 @@ void Heap::MinorMarkCompact() {
   SetGCState(MINOR_MARK_COMPACT);
   LOG(isolate_, ResourceEvent("MinorMarkCompact", "begin"));
 
-  TRACE_GC(tracer(), GCTracer::Scope::MC_MINOR_MC);
+  TRACE_GC(tracer(), GCTracer::Scope::MINOR_MC);
   AlwaysAllocateScope always_allocate(isolate());
   PauseAllocationObserversScope pause_observers(this);
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(

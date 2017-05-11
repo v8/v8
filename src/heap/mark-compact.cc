@@ -2580,8 +2580,12 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   marking_deque()->StartUsing();
 
-  isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
-      &Heap::IsUnmodifiedHeapObject);
+  {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MINOR_MC_MARK_IDENTIFY_GLOBAL_HANDLES);
+    isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
+        &Heap::IsUnmodifiedHeapObject);
+  }
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
@@ -2649,9 +2653,11 @@ void MinorMarkCompactCollector::EmptyMarkingDeque() {
 }
 
 void MinorMarkCompactCollector::CollectGarbage() {
-  heap()->mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
-
-  CleanupSweepToIteratePages();
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEPING);
+    heap()->mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
+    CleanupSweepToIteratePages();
+  }
 
   MarkLiveObjects();
   ClearNonLiveReferences();
@@ -2670,10 +2676,13 @@ void MinorMarkCompactCollector::CollectGarbage() {
   }
 #endif  // VERIFY_HEAP
 
-  heap()->incremental_marking()->UpdateMarkingDequeAfterScavenge();
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARKING_DEQUE);
+    heap()->incremental_marking()->UpdateMarkingDequeAfterScavenge();
+  }
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_CLEAR_LIVENESS);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_RESET_LIVENESS);
     for (Page* p : PageRange(heap()->new_space()->FromSpaceStart(),
                              heap()->new_space()->FromSpaceEnd())) {
       DCHECK(!p->IsFlagSet(Page::SWEEP_TO_ITERATE));
@@ -2735,10 +2744,10 @@ void MinorMarkCompactCollector::MakeIterable(
 }
 
 void MinorMarkCompactCollector::ClearNonLiveReferences() {
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_CLEAR);
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_STRING_TABLE);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_CLEAR_STRING_TABLE);
     // Internalized strings are always stored in old space, so there is no need
     // to clean them here.
     YoungGenerationExternalStringTableCleaner external_visitor(*this);
@@ -2747,7 +2756,7 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
   }
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_LISTS);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_CLEAR_WEAK_LISTS);
     // Process the weak references.
     MinorMarkCompactWeakObjectRetainer retainer(*this);
     heap()->ProcessYoungWeakReferences(&retainer);
@@ -2769,23 +2778,23 @@ void MinorMarkCompactCollector::EvacuateEpilogue() {
 }
 
 void MinorMarkCompactCollector::Evacuate() {
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE);
   base::LockGuard<base::Mutex> guard(heap()->relocation_mutex());
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_PROLOGUE);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_PROLOGUE);
     EvacuatePrologue();
   }
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_COPY);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_COPY);
     EvacuatePagesInParallel();
   }
 
   UpdatePointersAfterEvacuation();
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_REBALANCE);
     if (!heap()->new_space()->Rebalance()) {
       FatalProcessOutOfMemory("NewSpace::Rebalance");
     }
@@ -2795,7 +2804,7 @@ void MinorMarkCompactCollector::Evacuate() {
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_CLEAN_UP);
     for (Page* p : new_space_evacuation_pages_) {
       if (p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) ||
           p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
@@ -2809,7 +2818,7 @@ void MinorMarkCompactCollector::Evacuate() {
   }
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_EPILOGUE);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_EPILOGUE);
     EvacuateEpilogue();
   }
 }
@@ -4435,23 +4444,37 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
 }
 
 void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
+  TRACE_GC(heap()->tracer(),
+           GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS);
 
   PointersUpdatingVisitor updating_visitor;
 
   {
     TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW);
-    UpdateToSpacePointersInParallel(heap_, &page_parallel_job_semaphore_,
-                                    *this);
-    heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_MINOR_MC_UPDATE);
-    UpdatePointersInParallel<OLD_TO_NEW>(heap_, &page_parallel_job_semaphore_,
-                                         this);
+             GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW);
+    {
+      TRACE_GC(
+          heap()->tracer(),
+          GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_TOSPACE);
+      UpdateToSpacePointersInParallel(heap_, &page_parallel_job_semaphore_,
+                                      *this);
+    }
+    {
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS);
+      heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_MINOR_MC_UPDATE);
+    }
+    {
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_OLD);
+      UpdatePointersInParallel<OLD_TO_NEW>(heap_, &page_parallel_job_semaphore_,
+                                           this);
+    }
   }
 
   {
     TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK);
+             GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK);
 
     EvacuationWeakObjectRetainer evacuation_object_retainer;
     heap()->ProcessWeakListRoots(&evacuation_object_retainer);
