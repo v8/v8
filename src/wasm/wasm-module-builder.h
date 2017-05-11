@@ -189,7 +189,6 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
  private:
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
   friend class WasmModuleBuilder;
-  friend class WasmTemporary;
 
   struct DirectCallIndex {
     size_t offset;
@@ -201,8 +200,8 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   uint32_t signature_index_;
   uint32_t func_index_;
   ZoneBuffer body_;
-  ZoneVector<char> name_;
-  ZoneVector<ZoneVector<char>> exported_names_;
+  Vector<const char> name_;
+  ZoneVector<Vector<const char>> exported_names_;
   ZoneVector<uint32_t> i32_temps_;
   ZoneVector<uint32_t> i64_temps_;
   ZoneVector<uint32_t> f32_temps_;
@@ -214,45 +213,6 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   uint32_t last_asm_byte_offset_ = 0;
   uint32_t last_asm_source_position_ = 0;
   uint32_t asm_func_start_source_position_ = 0;
-};
-
-class WasmTemporary {
- public:
-  WasmTemporary(WasmFunctionBuilder* builder, ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        temporary_ = &builder->i32_temps_;
-        break;
-      case kWasmI64:
-        temporary_ = &builder->i64_temps_;
-        break;
-      case kWasmF32:
-        temporary_ = &builder->f32_temps_;
-        break;
-      case kWasmF64:
-        temporary_ = &builder->f64_temps_;
-        break;
-      default:
-        UNREACHABLE();
-        temporary_ = nullptr;
-    }
-    if (temporary_->size() == 0) {
-      // Allocate a new temporary.
-      index_ = builder->AddLocal(type);
-    } else {
-      // Reuse a previous temporary.
-      index_ = temporary_->back();
-      temporary_->pop_back();
-    }
-  }
-  ~WasmTemporary() {
-    temporary_->push_back(index_);  // return the temporary to the list.
-  }
-  uint32_t index() { return index_; }
-
- private:
-  ZoneVector<uint32_t>* temporary_;
-  uint32_t index_;
 };
 
 class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {

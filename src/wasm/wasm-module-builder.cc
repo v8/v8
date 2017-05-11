@@ -57,7 +57,6 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       signature_index_(0),
       func_index_(static_cast<uint32_t>(builder->functions_.size())),
       body_(builder->zone()),
-      name_(builder->zone()),
       exported_names_(builder->zone()),
       i32_temps_(builder->zone()),
       i64_temps_(builder->zone()),
@@ -150,14 +149,10 @@ void WasmFunctionBuilder::EmitDirectCallIndex(uint32_t index) {
 }
 
 void WasmFunctionBuilder::ExportAs(Vector<const char> name) {
-  exported_names_.push_back(ZoneVector<char>(
-      name.start(), name.start() + name.length(), builder_->zone()));
+  exported_names_.push_back(name);
 }
 
-void WasmFunctionBuilder::SetName(Vector<const char> name) {
-  name_.resize(name.length());
-  memcpy(name_.data(), name.start(), name.length());
-}
+void WasmFunctionBuilder::SetName(Vector<const char> name) { name_ = name; }
 
 void WasmFunctionBuilder::AddAsmWasmOffset(int call_position,
                                            int to_number_position) {
@@ -197,8 +192,8 @@ void WasmFunctionBuilder::WriteSignature(ZoneBuffer& buffer) const {
 
 void WasmFunctionBuilder::WriteExports(ZoneBuffer& buffer) const {
   for (auto name : exported_names_) {
-    buffer.write_size(name.size());
-    buffer.write(reinterpret_cast<const byte*>(name.data()), name.size());
+    buffer.write_size(name.length());
+    buffer.write(reinterpret_cast<const byte*>(name.start()), name.length());
     buffer.write_u8(kExternalFunction);
     buffer.write_size(func_index_ + builder_->function_imports_.size());
   }
@@ -391,7 +386,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     for (auto function : functions_) {
       function->WriteSignature(buffer);
       exports += static_cast<uint32_t>(function->exported_names_.size());
-      if (!function->name_.empty()) ++num_function_names;
+      if (!function->name_.is_empty()) ++num_function_names;
     }
     FixupSection(buffer, start);
   }
@@ -569,11 +564,11 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
       for (auto function : functions_) {
         DCHECK_EQ(function_index,
                   function->func_index() + function_imports_.size());
-        if (!function->name_.empty()) {
+        if (!function->name_.is_empty()) {
           buffer.write_u32v(function_index);
-          buffer.write_size(function->name_.size());
-          buffer.write(reinterpret_cast<const byte*>(function->name_.data()),
-                       function->name_.size());
+          buffer.write_size(function->name_.length());
+          buffer.write(reinterpret_cast<const byte*>(function->name_.start()),
+                       function->name_.length());
         }
         ++function_index;
       }
