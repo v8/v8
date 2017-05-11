@@ -945,6 +945,15 @@ void GlobalHandles::IterateAllRoots(RootVisitor* v) {
   }
 }
 
+DISABLE_CFI_PERF
+void GlobalHandles::IterateAllNewSpaceRoots(RootVisitor* v) {
+  for (int i = 0; i < new_space_nodes_.length(); ++i) {
+    Node* node = new_space_nodes_[i];
+    if (node->IsRetainer()) {
+      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+    }
+  }
+}
 
 DISABLE_CFI_PERF
 void GlobalHandles::ApplyPersistentHandleVisitor(

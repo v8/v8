@@ -130,6 +130,8 @@ class GlobalHandles {
   // Iterates over all handles.
   void IterateAllRoots(RootVisitor* v);
 
+  void IterateAllNewSpaceRoots(RootVisitor* v);
+
   // Iterates over all handles that have embedder-assigned class ID.
   void IterateAllRootsWithClassIds(v8::PersistentHandleVisitor* v);
 

@@ -4377,10 +4377,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW);
     UpdateToSpacePointersInParallel(heap_, &page_parallel_job_semaphore_,
                                     *this);
-    // TODO(mlippautz): Iteration mode is not optimal as we process all
-    // global handles. Find a way to only process the ones related to new
-    // space.
-    heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
+    heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_MINOR_MC_UPDATE);
     UpdatePointersInParallel<OLD_TO_NEW>(heap_, &page_parallel_job_semaphore_,
                                          this);
   }
