@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(kozyatinskiy): fix or remove it later with new stack traces it's almost
+// imposible to hit limit.
 InspectorTest.log('Checks that we report not more then maxDepth call chains.');
 
 InspectorTest.addScript(`

@@ -683,12 +683,15 @@ void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
 }
 
 std::shared_ptr<AsyncStackTrace> V8Debugger::currentAsyncParent() {
+  // TODO(kozyatinskiy): implement creation chain as parent without hack.
+  if (!m_currentAsyncCreation.empty() && m_currentAsyncCreation.back()) {
+    return m_currentAsyncCreation.back();
+  }
   return m_currentAsyncParent.empty() ? nullptr : m_currentAsyncParent.back();
 }
 
 std::shared_ptr<AsyncStackTrace> V8Debugger::currentAsyncCreation() {
-  return m_currentAsyncCreation.empty() ? nullptr
-                                        : m_currentAsyncCreation.back();
+  return nullptr;
 }
 
 void V8Debugger::compileDebuggerScript() {
@@ -856,7 +859,8 @@ void V8Debugger::asyncTaskCreatedForStack(void* task, void* parentTask) {
   if (parentTask) m_parentTask[task] = parentTask;
   v8::HandleScope scope(m_isolate);
   std::shared_ptr<AsyncStackTrace> asyncCreation =
-      AsyncStackTrace::capture(this, currentContextGroupId(), String16(), 1);
+      AsyncStackTrace::capture(this, currentContextGroupId(), String16(),
+                               V8StackTraceImpl::maxCallStackSizeToCapture);
   // Passing one as maxStackSize forces no async chain for the new stack.
   if (asyncCreation && !asyncCreation->isEmpty()) {
     m_asyncTaskCreationStacks[task] = asyncCreation;
@@ -932,6 +936,12 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
   auto itCreation = m_asyncTaskCreationStacks.find(task);
   if (itCreation != m_asyncTaskCreationStacks.end()) {
     m_currentAsyncCreation.push_back(itCreation->second.lock());
+    // TODO(kozyatinskiy): implement it without hack.
+    if (m_currentAsyncParent.back()) {
+      m_currentAsyncCreation.back()->setDescription(
+          m_currentAsyncParent.back()->description());
+      m_currentAsyncParent.back().reset();
+    }
   } else {
     m_currentAsyncCreation.emplace_back();
   }

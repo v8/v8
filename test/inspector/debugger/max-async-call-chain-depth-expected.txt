@@ -3,23 +3,23 @@ set async chain depth to 8
 
 Running test: testDebuggerPaused
 Run expression 'debugger;' with async chain len: 4
-actual async chain len: 4
+actual async chain len: 1
 Run expression 'debugger;' with async chain len: 8
-actual async chain len: 8
+actual async chain len: 1
 Run expression 'debugger;' with async chain len: 9
-actual async chain len: 8
+actual async chain len: 1
 Run expression 'debugger;' with async chain len: 32
-actual async chain len: 8
+actual async chain len: 1
 
 Running test: testConsoleTrace
 Run expression 'console.trace(42);' with async chain len: 4
-actual async chain len: 4
+actual async chain len: 1
 Run expression 'console.trace(42);' with async chain len: 8
-actual async chain len: 8
+actual async chain len: 1
 Run expression 'console.trace(42);' with async chain len: 9
-actual async chain len: 8
+actual async chain len: 1
 Run expression 'console.trace(42);' with async chain len: 32
-actual async chain len: 8
+actual async chain len: 1
 
 Running test: testDebuggerPausedSetTimeout
 Run expression 'debugger;' with async chain len: 4
@@ -54,56 +54,37 @@ Running test: testConsoleTraceWithEmptySync
     ]
     parent : {
         callFrames : [
+            [0] : {
+                columnNumber : 47
+                functionName : 
+                lineNumber : 0
+                scriptId : <scriptId>
+                url : 
+            }
         ]
         description : Promise.resolve
-        parent : {
-            callFrames : [
-                [0] : {
-                    columnNumber : 23
-                    functionName : resolve
-                    lineNumber : 0
-                    scriptId : <scriptId>
-                    url : 
-                }
-                [1] : {
-                    columnNumber : 0
-                    functionName : 
-                    lineNumber : 0
-                    scriptId : <scriptId>
-                    url : 
-                }
-            ]
-            description : setTimeout
-        }
-        promiseCreationFrame : {
-            columnNumber : 47
-            functionName : 
-            lineNumber : 0
-            scriptId : <scriptId>
-            url : 
-        }
     }
 }
 
 Running test: testDebuggerPausedThenableJob
 Run expression 'debugger;' with async chain len: 4
-actual async chain len: 4
+actual async chain len: 1
 Run expression 'debugger;' with async chain len: 8
-actual async chain len: 8
+actual async chain len: 1
 Run expression 'debugger;' with async chain len: 9
-actual async chain len: 8
+actual async chain len: 1
 Run expression 'debugger;' with async chain len: 32
-actual async chain len: 8
+actual async chain len: 1
 
 Running test: testConsoleTraceThenableJob
 Run expression 'console.trace(42);' with async chain len: 4
-actual async chain len: 4
+actual async chain len: 1
 Run expression 'console.trace(42);' with async chain len: 8
-actual async chain len: 8
+actual async chain len: 1
 Run expression 'console.trace(42);' with async chain len: 9
-actual async chain len: 8
+actual async chain len: 1
 Run expression 'console.trace(42);' with async chain len: 32
-actual async chain len: 8
+actual async chain len: 1
 
 Running test: twoConsoleAssert
 actual async chain len: 1

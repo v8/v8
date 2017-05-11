@@ -102,6 +102,11 @@ class AsyncStackTrace {
   std::weak_ptr<AsyncStackTrace> creation() const;
   bool isEmpty() const;
 
+  void setDescription(const String16& description) {
+    // TODO(kozyatinskiy): implement it without hack.
+    m_description = description;
+  }
+
  private:
   AsyncStackTrace(int contextGroupId, const String16& description,
                   std::vector<std::shared_ptr<StackFrame>> frames,
