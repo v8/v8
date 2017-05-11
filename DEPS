@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "5a162d85e0419cf45268182b40c3f3df89fc7ff9",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "2e684301c1c4612966d98b1f1dc03aca4f5f4ae8",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "eb296f67da078ec01f5e3a9ea9cdc6d26d680161",
   "v8/third_party/icu":
@@ -24,7 +24,7 @@ deps = {
   "v8/third_party/markupsafe":
     Var("chromium_url") + "/chromium/src/third_party/markupsafe.git" + "@" + "8f45f5cfa0009d2a70589bcda0349b8cb2b72783",
   "v8/tools/swarming_client":
-    Var('chromium_url') + '/external/swarming.client.git' + '@' + "11e31afa5d330756ff87aa12064bb5d032896cb5",
+    Var('chromium_url') + '/external/swarming.client.git' + '@' + "e6fc9383ad7c38b3464141989b7bc498391e57e4",
   "v8/testing/gtest":
     Var("chromium_url") + "/external/github.com/google/googletest.git" + "@" + "6f8a66431cb592dad629028a50b3dd418a408c87",
   "v8/testing/gmock":
@@ -48,7 +48,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "cb6bc21107001e2f2eeee2707b482b2b755baf51",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "0e86ab1c3ba9f4496ec9035e245817dc72649a76",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "27f7008827515836510b663c032e851f081af70a",
   },
 }
 
