@@ -269,7 +269,7 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
-                    default="")
+                    action="append", default=[])
   result.add_option("--isolates", help="Whether to test isolates",
                     default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
@@ -537,7 +537,7 @@ def ProcessOptions(options):
           "running tests locally.")
     options.no_network = True
   options.command_prefix = shlex.split(options.command_prefix)
-  options.extra_flags = shlex.split(options.extra_flags)
+  options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
 
   if options.gc_stress:
     options.extra_flags += GC_STRESS_FLAGS
