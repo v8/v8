@@ -247,7 +247,6 @@ class Scanner {
       AstValueFactory* ast_value_factory) const;
 
   double DoubleValue();
-  bool ContainsDot();
 
   inline bool CurrentMatches(Token::Value token) const {
     DCHECK(Token::IsKeyword(token));

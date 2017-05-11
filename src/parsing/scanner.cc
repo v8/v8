@@ -1791,13 +1791,6 @@ double Scanner::DoubleValue() {
       ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
 }
 
-
-bool Scanner::ContainsDot() {
-  DCHECK(is_literal_one_byte());
-  Vector<const uint8_t> str = literal_one_byte_string();
-  return std::find(str.begin(), str.end(), '.') != str.end();
-}
-
 bool Scanner::IsDuplicateSymbol(DuplicateFinder* duplicate_finder,
                                 AstValueFactory* ast_value_factory) const {
   DCHECK_NOT_NULL(duplicate_finder);
