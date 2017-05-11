@@ -21,15 +21,6 @@ void MarkCompactCollector::PushBlack(HeapObject* obj) {
   }
 }
 
-void MinorMarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(
-      obj, MarkingState::External(obj))));
-  if (!marking_deque()->Push(obj)) {
-    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC>(
-        obj, MarkingState::External(obj));
-  }
-}
-
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   DCHECK(ObjectMarking::IsBlack(obj, MarkingState::Internal(obj)));
   if (!marking_deque()->Unshift(obj)) {
@@ -40,13 +31,6 @@ void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
 void MarkCompactCollector::MarkObject(HeapObject* obj) {
   if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
           obj, MarkingState::Internal(obj))) {
-    PushBlack(obj);
-  }
-}
-
-void MinorMarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
-          obj, MarkingState::External(obj))) {
     PushBlack(obj);
   }
 }

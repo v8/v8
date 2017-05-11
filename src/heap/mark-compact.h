@@ -31,6 +31,7 @@ template <typename JobTraits>
 class PageParallelJob;
 class RecordMigratedSlotVisitor;
 class ThreadLocalTop;
+class YoungGenerationMarkingVisitor;
 
 #if V8_CONCURRENT_MARKING
 using MarkingDeque = ConcurrentMarkingDeque;
@@ -340,10 +341,8 @@ class MarkCompactCollectorBase {
 // Collector for young-generation only.
 class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
  public:
-  explicit MinorMarkCompactCollector(Heap* heap)
-      : MarkCompactCollectorBase(heap),
-        marking_deque_(heap),
-        page_parallel_job_semaphore_(0) {}
+  explicit MinorMarkCompactCollector(Heap* heap);
+  ~MinorMarkCompactCollector();
 
   MarkingState marking_state(HeapObject* object) const override {
     return MarkingState::External(object);
@@ -366,9 +365,6 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 
   inline MarkingDeque* marking_deque() { return &marking_deque_; }
 
-  V8_INLINE void MarkObject(HeapObject* obj);
-  V8_INLINE void PushBlack(HeapObject* obj);
-
   SlotCallbackResult CheckAndMarkObject(Heap* heap, Address slot_address);
   void MarkLiveObjects() override;
   void ProcessMarkingDeque() override;
@@ -382,11 +378,12 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void UpdatePointersAfterEvacuation() override;
 
   MarkingDeque marking_deque_;
+  YoungGenerationMarkingVisitor* marking_visitor_;
   base::Semaphore page_parallel_job_semaphore_;
   List<Page*> new_space_evacuation_pages_;
   std::vector<Page*> sweep_to_iterate_pages_;
 
-  friend class StaticYoungGenerationMarkingVisitor;
+  friend class YoungGenerationMarkingVisitor;
 };
 
 // Collector for young and old generation.
@@ -747,7 +744,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   friend class MarkingVisitor;
   friend class RecordMigratedSlotVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
-  friend class StaticYoungGenerationMarkingVisitor;
   friend class StoreBuffer;
 };
 

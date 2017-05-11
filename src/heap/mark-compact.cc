@@ -1164,36 +1164,6 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
   }
 }
 
-
-class StaticYoungGenerationMarkingVisitor
-    : public StaticNewSpaceVisitor<StaticYoungGenerationMarkingVisitor> {
- public:
-  static void Initialize(Heap* heap) {
-    StaticNewSpaceVisitor<StaticYoungGenerationMarkingVisitor>::Initialize();
-  }
-
-  inline static void VisitPointer(Heap* heap, HeapObject* object, Object** p) {
-    Object* target = *p;
-    if (heap->InNewSpace(target)) {
-      HeapObject* target_object = HeapObject::cast(target);
-      if (MarkRecursively(heap, target_object)) return;
-      heap->minor_mark_compact_collector()->MarkObject(target_object);
-    }
-  }
-
- protected:
-  inline static bool MarkRecursively(Heap* heap, HeapObject* object) {
-    StackLimitCheck check(heap->isolate());
-    if (check.HasOverflowed()) return false;
-
-    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
-            object, MarkingState::External(object))) {
-      IterateBody(object->map(), object);
-    }
-    return true;
-  }
-};
-
 class MarkCompactMarkingVisitor
     : public StaticMarkingVisitor<MarkCompactMarkingVisitor> {
  public:
@@ -1453,38 +1423,6 @@ void MinorMarkCompactCollector::CleanupSweepToIteratePages() {
   }
   sweep_to_iterate_pages_.clear();
 }
-
-class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
- public:
-  explicit RootMarkingVisitor(MinorMarkCompactCollector* collector)
-      : collector_(collector) {}
-
-  void VisitRootPointer(Root root, Object** p) override {
-    MarkObjectByPointer(p);
-  }
-
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
-  }
-
- private:
-  void MarkObjectByPointer(Object** p) {
-    if (!(*p)->IsHeapObject()) return;
-
-    HeapObject* object = HeapObject::cast(*p);
-
-    if (!collector_->heap()->InNewSpace(object)) return;
-
-    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
-            object, MarkingState::External(object))) {
-      Map* map = object->map();
-      StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
-      collector_->EmptyMarkingDeque();
-    }
-  }
-
-  MinorMarkCompactCollector* collector_;
-};
 
 // Visitor class for marking heap roots.
 // TODO(ulan): Remove ObjectVisitor base class after fixing marking of
@@ -2473,6 +2411,141 @@ void MarkCompactCollector::RecordObjectStats() {
   }
 }
 
+class YoungGenerationMarkingVisitor final
+    : public HeapVisitor<void, YoungGenerationMarkingVisitor> {
+ public:
+  using BaseClass = HeapVisitor<int, YoungGenerationMarkingVisitor>;
+
+  YoungGenerationMarkingVisitor(Heap* heap, MarkingDeque* marking_deque)
+      : heap_(heap), marking_deque_(marking_deque) {}
+
+  void VisitPointers(HeapObject* host, Object** start, Object** end) final {
+    for (Object** p = start; p < end; p++) {
+      VisitPointer(host, p);
+    }
+  }
+
+  void VisitPointer(HeapObject* host, Object** slot) final {
+    Object* target = *slot;
+    if (heap_->InNewSpace(target)) {
+      HeapObject* target_object = HeapObject::cast(target);
+      if (MarkRecursively(target_object)) return;
+      MarkObjectViaMarkingDeque(target_object);
+    }
+  }
+
+  // Special cases for young generation. Also see StaticNewSpaceVisitor.
+
+  void VisitJSFunction(Map* map, JSFunction* object) final {
+    if (!ShouldVisit(object)) return;
+    int size = JSFunction::BodyDescriptorWeakCode::SizeOf(map, object);
+    VisitMapPointer(object, object->map_slot());
+    JSFunction::BodyDescriptorWeakCode::IterateBody(object, size, this);
+    return;
+  }
+
+  void VisitNativeContext(Map* map, Context* object) final {
+    if (!ShouldVisit(object)) return;
+    int size = Context::ScavengeBodyDescriptor::SizeOf(map, object);
+    VisitMapPointer(object, object->map_slot());
+    Context::ScavengeBodyDescriptor::IterateBody(object, size, this);
+    return;
+  }
+
+  void VisitJSApiObject(Map* map, JSObject* object) final {
+    return VisitJSObject(map, object);
+  }
+
+  void VisitBytecodeArray(Map* map, BytecodeArray* object) final {
+    UNREACHABLE();
+    return;
+  }
+
+  void VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) final {
+    UNREACHABLE();
+    return;
+  }
+
+ private:
+  inline MarkingState marking_state(HeapObject* object) {
+    SLOW_DCHECK(
+        MarkingState::External(object).bitmap() ==
+        heap_->minor_mark_compact_collector()->marking_state(object).bitmap());
+    return MarkingState::External(object);
+  }
+
+  inline void MarkObjectViaMarkingDeque(HeapObject* object) {
+    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+            object, marking_state(object))) {
+      // Marking deque overflow is unsupported for the young generation.
+      CHECK(marking_deque_->Push(object));
+    }
+  }
+
+  inline bool MarkRecursively(HeapObject* object) {
+    StackLimitCheck check(heap_->isolate());
+    if (check.HasOverflowed()) return false;
+
+    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+            object, marking_state(object))) {
+      Visit(object);
+    }
+    return true;
+  }
+
+  Heap* heap_;
+  MarkingDeque* marking_deque_;
+};
+
+class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
+ public:
+  explicit RootMarkingVisitor(MinorMarkCompactCollector* collector)
+      : collector_(collector) {}
+
+  void VisitRootPointer(Root root, Object** p) override {
+    MarkObjectByPointer(p);
+  }
+
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
+    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+  }
+
+ private:
+  inline MarkingState marking_state(HeapObject* object) {
+    SLOW_DCHECK(MarkingState::External(object).bitmap() ==
+                collector_->marking_state(object).bitmap());
+    return MarkingState::External(object);
+  }
+
+  void MarkObjectByPointer(Object** p) {
+    if (!(*p)->IsHeapObject()) return;
+
+    HeapObject* object = HeapObject::cast(*p);
+
+    if (!collector_->heap()->InNewSpace(object)) return;
+
+    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+            object, marking_state(object))) {
+      collector_->marking_visitor_->Visit(object);
+      collector_->EmptyMarkingDeque();
+    }
+  }
+
+  MinorMarkCompactCollector* collector_;
+};
+
+MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
+    : MarkCompactCollectorBase(heap),
+      marking_deque_(heap),
+      marking_visitor_(
+          new YoungGenerationMarkingVisitor(heap, &marking_deque_)),
+      page_parallel_job_semaphore_(0) {}
+
+MinorMarkCompactCollector::~MinorMarkCompactCollector() {
+  DCHECK_NOT_NULL(marking_visitor_);
+  delete marking_visitor_;
+}
+
 SlotCallbackResult MinorMarkCompactCollector::CheckAndMarkObject(
     Heap* heap, Address slot_address) {
   Object* object = *reinterpret_cast<Object**>(slot_address);
@@ -2482,12 +2555,10 @@ SlotCallbackResult MinorMarkCompactCollector::CheckAndMarkObject(
     DCHECK(heap->InToSpace(object));
     HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
     const MarkingState state = MarkingState::External(heap_object);
-    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC>(heap_object, state)) {
-      return KEEP_SLOT;
+    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(heap_object, state)) {
+      heap->minor_mark_compact_collector()->marking_visitor_->Visit(
+          heap_object);
     }
-    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(heap_object, state);
-    StaticYoungGenerationMarkingVisitor::IterateBody(heap_object->map(),
-                                                     heap_object);
     return KEEP_SLOT;
   }
   return REMOVE_SLOT;
@@ -2505,7 +2576,6 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   PostponeInterruptsScope postpone(isolate());
 
-  StaticYoungGenerationMarkingVisitor::Initialize(heap());
   RootMarkingVisitor root_visitor(this);
 
   marking_deque()->StartUsing();
@@ -2572,12 +2642,11 @@ void MinorMarkCompactCollector::EmptyMarkingDeque() {
     DCHECK(heap()->Contains(object));
 
     DCHECK(!(ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
-        object, MarkingState::External(object))));
+        object, marking_state(object))));
 
-    Map* map = object->map();
     DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(
-        object, MarkingState::External(object))));
-    StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
+        object, marking_state(object))));
+    marking_visitor_->Visit(object);
   }
 }
 
