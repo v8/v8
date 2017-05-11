@@ -719,6 +719,7 @@ void AsmJsParser::ValidateFunction() {
     function_info->kind = VarKind::kFunction;
     function_info->function_builder = module_builder_->AddFunction();
     function_info->index = function_info->function_builder->func_index();
+    function_info->mutable_variable = false;
   } else if (function_info->kind != VarKind::kFunction) {
     FAIL("Function name collides with variable");
   } else if (function_info->function_defined) {
@@ -2047,6 +2048,7 @@ AsmType* AsmJsParser::ValidateCall() {
       function_info->mask = static_cast<int32_t>(mask);
       function_info->index = module_builder_->AllocateIndirectFunctions(
           static_cast<uint32_t>(mask + 1));
+      function_info->mutable_variable = false;
     } else {
       if (function_info->kind != VarKind::kTable) {
         FAILn("Expected call table");
@@ -2068,6 +2070,7 @@ AsmType* AsmJsParser::ValidateCall() {
       function_info->kind = VarKind::kFunction;
       function_info->function_builder = module_builder_->AddFunction();
       function_info->index = function_info->function_builder->func_index();
+      function_info->mutable_variable = false;
     } else {
       if (function_info->kind != VarKind::kFunction &&
           function_info->kind < VarKind::kImportedFunction) {
