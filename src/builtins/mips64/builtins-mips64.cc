@@ -587,8 +587,8 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // -----------------------------------
 
     // Restore constructor function and argument count.
-    __ ldr(a1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
-    __ ldr(a0, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ Ld(a1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
+    __ Ld(a0, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
     __ SmiUntag(a0);
 
     // Set up pointer to last argument.
