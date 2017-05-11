@@ -38,9 +38,9 @@ namespace wasm {
 class Decoder {
  public:
   Decoder(const byte* start, const byte* end)
-      : start_(start), pc_(start), end_(end), error_pc_(nullptr) {}
+      : start_(start), pc_(start), end_(end), error_offset_(0) {}
   Decoder(const byte* start, const byte* pc, const byte* end)
-      : start_(start), pc_(pc), end_(end), error_pc_(nullptr) {}
+      : start_(start), pc_(pc), end_(end), error_offset_(0) {}
 
   virtual ~Decoder() {}
 
@@ -182,7 +182,8 @@ class Decoder {
     CHECK_LT(0, len);
     va_end(arguments);
     error_msg_.assign(buffer.start(), len);
-    error_pc_ = pc;
+    DCHECK_GE(pc, start_);
+    error_offset_ = static_cast<uint32_t>(pc - start_);
     onFirstError();
   }
 
@@ -207,9 +208,7 @@ class Decoder {
     Result<U> result(std::forward<T>(val));
     if (failed()) {
       TRACE("Result error: %s\n", error_msg_.c_str());
-      DCHECK_GE(error_pc_, start_);
-      result.error(static_cast<uint32_t>(error_pc_ - start_),
-                   std::move(error_msg_));
+      result.error(error_offset_, std::move(error_msg_));
     }
     return result;
   }
@@ -219,7 +218,7 @@ class Decoder {
     start_ = start;
     pc_ = start;
     end_ = end;
-    error_pc_ = nullptr;
+    error_offset_ = 0;
     error_msg_.clear();
   }
 
@@ -236,7 +235,7 @@ class Decoder {
   const byte* start_;
   const byte* pc_;
   const byte* end_;
-  const byte* error_pc_;
+  uint32_t error_offset_;
   std::string error_msg_;
 
  private:

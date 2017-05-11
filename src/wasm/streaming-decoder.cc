@@ -239,7 +239,7 @@ StreamingDecoder::DecodeVarInt32::Next(StreamingDecoder* streaming) {
     return std::unique_ptr<DecodingState>(nullptr);
   }
   if (value() > max_value_) {
-    streaming->decoder()->errorf(nullptr, "size > maximum function size: %zu",
+    streaming->decoder()->errorf(buffer(), "size > maximum function size: %zu",
                                  value());
     return std::unique_ptr<DecodingState>(nullptr);
   }
@@ -254,14 +254,14 @@ void StreamingDecoder::DecodeModuleHeader::CheckHeader(Decoder* decoder) {
   decoder->Reset(buffer(), buffer() + size());
   uint32_t magic_word = decoder->consume_u32("wasm magic");
   if (magic_word != kWasmMagic) {
-    decoder->errorf(nullptr,
+    decoder->errorf(buffer(),
                     "expected magic word %02x %02x %02x %02x, "
                     "found %02x %02x %02x %02x",
                     BYTES(kWasmMagic), BYTES(magic_word));
   }
   uint32_t magic_version = decoder->consume_u32("wasm version");
   if (magic_version != kWasmVersion) {
-    decoder->errorf(nullptr,
+    decoder->errorf(buffer(),
                     "expected version %02x %02x %02x %02x, "
                     "found %02x %02x %02x %02x",
                     BYTES(kWasmVersion), BYTES(magic_version));
@@ -338,11 +338,11 @@ StreamingDecoder::DecodeFunctionLength::NextWithValue(
 
   // {value} is the length of the function.
   if (value() == 0) {
-    streaming->decoder()->errorf(nullptr, "Invalid function length (0)");
+    streaming->decoder()->errorf(buffer(), "Invalid function length (0)");
     return std::unique_ptr<DecodingState>(nullptr);
   } else if (buffer_offset() + bytes_needed() + value() >
              section_buffer()->length()) {
-    streaming->decoder()->errorf(nullptr, "not enough code section bytes");
+    streaming->decoder()->errorf(buffer(), "not enough code section bytes");
     return std::unique_ptr<DecodingState>(nullptr);
   }
 
@@ -359,8 +359,12 @@ StreamingDecoder::DecodeFunctionBody::Next(StreamingDecoder* streaming) {
         section_buffer(), buffer_offset() + size(), num_remaining_functions()));
   } else {
     if (buffer_offset() + size() != section_buffer()->length()) {
-      streaming->decoder()->errorf(nullptr,
-                                   "not all code section bytes were used");
+      streaming->decoder()->Reset(
+          section_buffer()->bytes(),
+          section_buffer()->bytes() + section_buffer()->length());
+      streaming->decoder()->errorf(
+          section_buffer()->bytes() + buffer_offset() + size(),
+          "not all code section bytes were used");
       return std::unique_ptr<DecodingState>(nullptr);
     }
     return std::unique_ptr<DecodingState>(new DecodeSectionID());

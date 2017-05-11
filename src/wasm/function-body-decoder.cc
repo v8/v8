@@ -670,8 +670,8 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   bool TraceFailed() {
-    TRACE("wasm-error module+%-6d func+%d: %s\n\n", baserel(error_pc_),
-          startrel(error_pc_), error_msg_.c_str());
+    TRACE("wasm-error module+%-6d func+%d: %s\n\n",
+          baserel(start_ + error_offset_), error_offset_, error_msg_.c_str());
     return false;
   }
 
