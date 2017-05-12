@@ -3575,18 +3575,17 @@ bool Evacuator::EvacuatePage(Page* page) {
   }
   ReportCompactionProgress(evacuation_time, saved_live_bytes);
   if (FLAG_trace_evacuation) {
-    PrintIsolate(
-        heap()->isolate(),
-        "evacuation[%p]: page=%p new_space=%d "
-        "page_evacuation=%d executable=%d contains_age_mark=%d "
-        "live_bytes=%" V8PRIdPTR " time=%f page_promotion_qualifies=%d\n",
-        static_cast<void*>(this), static_cast<void*>(page), page->InNewSpace(),
-        page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
-            page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
-        page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
-        page->Contains(heap()->new_space()->age_mark()), saved_live_bytes,
-        evacuation_time,
-        saved_live_bytes > Evacuator::PageEvacuationThreshold());
+    PrintIsolate(heap()->isolate(),
+                 "evacuation[%p]: page=%p new_space=%d "
+                 "page_evacuation=%d executable=%d contains_age_mark=%d "
+                 "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
+                 static_cast<void*>(this), static_cast<void*>(page),
+                 page->InNewSpace(),
+                 page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
+                     page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
+                 page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
+                 page->Contains(heap()->new_space()->age_mark()),
+                 saved_live_bytes, evacuation_time, success);
   }
   return success;
 }
@@ -3657,7 +3656,8 @@ bool FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
         // Aborted compaction page. We have to record slots here, since we
         // might not have recorded them in first place.
         // Note: We mark the page as aborted here to be able to record slots
-        // for code objects in |RecordMigratedSlotVisitor|.
+        // for code objects in |RecordMigratedSlotVisitor| and to be able
+        // to identify the page later on for post processing.
         page->SetFlag(Page::COMPACTION_WAS_ABORTED);
         EvacuateRecordOnlyVisitor record_visitor(heap());
         success = object_visitor.VisitBlackObjects(
@@ -3665,8 +3665,6 @@ bool FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
         ArrayBufferTracker::ProcessBuffers(
             page, ArrayBufferTracker::kUpdateForwardedKeepOthers);
         DCHECK(success);
-        // We need to return failure here to indicate that we want this page
-        // added to the sweeper.
         success = false;
       } else {
         ArrayBufferTracker::ProcessBuffers(
@@ -3739,49 +3737,15 @@ bool YoungGenerationEvacuator::RawEvacuatePage(Page* page,
 class EvacuationJobTraits {
  public:
   struct PageData {
-    int* abandoned_pages;  // Pointer to number of aborted pages.
     MarkingState marking_state;
   };
 
   typedef PageData PerPageData;
   typedef Evacuator* PerTaskData;
 
-  static const bool NeedSequentialFinalization = true;
-
-  static bool ProcessPageInParallel(Heap* heap, PerTaskData evacuator,
+  static void ProcessPageInParallel(Heap* heap, PerTaskData evacuator,
                                     MemoryChunk* chunk, PerPageData) {
-    return evacuator->EvacuatePage(reinterpret_cast<Page*>(chunk));
-  }
-
-  static void FinalizePageSequentially(Heap* heap, MemoryChunk* chunk,
-                                       bool success, PerPageData data) {
-    Page* p = static_cast<Page*>(chunk);
-    switch (Evacuator::ComputeEvacuationMode(p)) {
-      case Evacuator::kPageNewToOld:
-        break;
-      case Evacuator::kPageNewToNew:
-        DCHECK(success);
-        break;
-      case Evacuator::kObjectsNewToOld:
-        DCHECK(success);
-        break;
-      case Evacuator::kObjectsOldToOld:
-        if (success) {
-          DCHECK(p->IsEvacuationCandidate());
-          DCHECK(p->SweepingDone());
-          p->Unlink();
-        } else {
-          // We have partially compacted the page, i.e., some objects may have
-          // moved, others are still in place.
-          p->ClearEvacuationCandidate();
-          // Slots have already been recorded so we just need to add it to the
-          // sweeper, which will happen after updating pointers.
-          *data.abandoned_pages += 1;
-        }
-        break;
-      default:
-        UNREACHABLE();
-    }
+    evacuator->EvacuatePage(reinterpret_cast<Page*>(chunk));
   }
 };
 
@@ -3789,8 +3753,7 @@ template <class Evacuator, class Collector>
 void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
     Collector* collector, PageParallelJob<EvacuationJobTraits>* job,
     RecordMigratedSlotVisitor* record_visitor,
-    MigrationObserver* migration_observer, const intptr_t live_bytes,
-    const int& abandoned_pages) {
+    MigrationObserver* migration_observer, const intptr_t live_bytes) {
   // Used for trace summary.
   double compaction_speed = 0;
   if (FLAG_trace_evacuation) {
@@ -3830,11 +3793,11 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
   if (FLAG_trace_evacuation) {
     PrintIsolate(isolate(),
                  "%8.0f ms: evacuation-summary: parallel=%s pages=%d "
-                 "aborted=%d wanted_tasks=%d tasks=%d cores=%" PRIuS
+                 "wanted_tasks=%d tasks=%d cores=%" PRIuS
                  " live_bytes=%" V8PRIdPTR " compaction_speed=%.f\n",
                  isolate()->time_millis_since_init(),
                  FLAG_parallel_compaction ? "yes" : "no", job->NumberOfPages(),
-                 abandoned_pages, wanted_num_tasks, job->NumberOfTasks(),
+                 wanted_num_tasks, job->NumberOfTasks(),
                  V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads(),
                  live_bytes, compaction_speed);
   }
@@ -3852,12 +3815,11 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   PageParallelJob<EvacuationJobTraits> job(
       heap_, heap_->isolate()->cancelable_task_manager(),
       &page_parallel_job_semaphore_);
-
-  int abandoned_pages = 0;
   intptr_t live_bytes = 0;
+
   for (Page* page : old_space_evacuation_pages_) {
     live_bytes += MarkingState::Internal(page).live_bytes();
-    job.AddPage(page, {&abandoned_pages, marking_state(page)});
+    job.AddPage(page, {marking_state(page)});
   }
 
   for (Page* page : new_space_evacuation_pages_) {
@@ -3870,20 +3832,20 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         EvacuateNewSpacePageVisitor<NEW_TO_NEW>::Move(page);
       }
     }
-    job.AddPage(page, {&abandoned_pages, marking_state(page)});
+    job.AddPage(page, {marking_state(page)});
   }
   DCHECK_GE(job.NumberOfPages(), 1);
 
   RecordMigratedSlotVisitor record_visitor(this);
-  CreateAndExecuteEvacuationTasks<FullEvacuator>(
-      this, &job, &record_visitor, nullptr, live_bytes, abandoned_pages);
+  CreateAndExecuteEvacuationTasks<FullEvacuator>(this, &job, &record_visitor,
+                                                 nullptr, live_bytes);
+  PostProcessEvacuationCandidates();
 }
 
 void MinorMarkCompactCollector::EvacuatePagesInParallel() {
   PageParallelJob<EvacuationJobTraits> job(
       heap_, heap_->isolate()->cancelable_task_manager(),
       &page_parallel_job_semaphore_);
-  int abandoned_pages = 0;
   intptr_t live_bytes = 0;
 
   for (Page* page : new_space_evacuation_pages_) {
@@ -3896,7 +3858,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
         EvacuateNewSpacePageVisitor<NEW_TO_NEW>::Move(page);
       }
     }
-    job.AddPage(page, {&abandoned_pages, marking_state(page)});
+    job.AddPage(page, {marking_state(page)});
   }
   DCHECK_GE(job.NumberOfPages(), 1);
 
@@ -3905,7 +3867,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
   YoungGenerationRecordMigratedSlotVisitor record_visitor(
       heap()->mark_compact_collector());
   CreateAndExecuteEvacuationTasks<YoungGenerationEvacuator>(
-      this, &job, &record_visitor, &observer, live_bytes, abandoned_pages);
+      this, &job, &record_visitor, &observer, live_bytes);
 }
 
 class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
@@ -4221,14 +4183,10 @@ class PointerUpdateJobTraits {
   typedef int PerPageData;  // Per page data is not used in this job.
   typedef const MarkCompactCollectorBase* PerTaskData;
 
-  static bool ProcessPageInParallel(Heap* heap, PerTaskData task_data,
+  static void ProcessPageInParallel(Heap* heap, PerTaskData task_data,
                                     MemoryChunk* chunk, PerPageData) {
     UpdateUntypedPointers(heap, chunk, task_data);
     UpdateTypedPointers(heap, chunk, task_data);
-    return true;
-  }
-  static const bool NeedSequentialFinalization = false;
-  static void FinalizePageSequentially(Heap*, MemoryChunk*, bool, PerPageData) {
   }
 
  private:
@@ -4346,7 +4304,7 @@ class ToSpacePointerUpdateJobTraits {
   typedef PageData PerPageData;
   typedef PointersUpdatingVisitor* PerTaskData;
 
-  static bool ProcessPageInParallel(Heap* heap, PerTaskData visitor,
+  static void ProcessPageInParallel(Heap* heap, PerTaskData visitor,
                                     MemoryChunk* chunk, PerPageData page_data) {
     if (chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
       // New->new promoted pages contain garbage so they require iteration
@@ -4355,11 +4313,6 @@ class ToSpacePointerUpdateJobTraits {
     } else {
       ProcessPageInParallelVisitAll(heap, visitor, chunk, page_data);
     }
-    return true;
-  }
-
-  static const bool NeedSequentialFinalization = false;
-  static void FinalizePageSequentially(Heap*, MemoryChunk*, bool, PerPageData) {
   }
 
  private:
@@ -4483,6 +4436,24 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
     heap()->UpdateNewSpaceReferencesInExternalStringTable(
         &UpdateReferenceInExternalStringTableEntry);
     heap()->IterateEncounteredWeakCollections(&updating_visitor);
+  }
+}
+
+void MarkCompactCollector::PostProcessEvacuationCandidates() {
+  int aborted_pages = 0;
+  for (Page* p : old_space_evacuation_pages_) {
+    if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
+      p->ClearEvacuationCandidate();
+      aborted_pages++;
+    } else {
+      DCHECK(p->IsEvacuationCandidate());
+      DCHECK(p->SweepingDone());
+      p->Unlink();
+    }
+  }
+  if (FLAG_trace_evacuation && (aborted_pages > 0)) {
+    PrintIsolate(isolate(), "%8.0f ms: evacuation: aborted=%d\n",
+                 isolate()->time_millis_since_init(), aborted_pages);
   }
 }
 

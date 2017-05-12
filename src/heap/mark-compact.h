@@ -322,8 +322,7 @@ class MarkCompactCollectorBase {
   void CreateAndExecuteEvacuationTasks(
       Collector* collector, PageParallelJob<EvacuationJobTraits>* job,
       RecordMigratedSlotVisitor* record_visitor,
-      MigrationObserver* migration_observer, const intptr_t live_bytes,
-      const int& abandoned_pages);
+      MigrationObserver* migration_observer, const intptr_t live_bytes);
 
   // Returns whether this page should be moved according to heuristics.
   bool ShouldMovePage(Page* p, intptr_t live_bytes);
@@ -695,6 +694,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void UpdatePointersAfterEvacuation() override;
 
   void ReleaseEvacuationCandidates();
+  void PostProcessEvacuationCandidates();
 
   base::Semaphore page_parallel_job_semaphore_;
 
