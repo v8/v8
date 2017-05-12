@@ -1042,11 +1042,8 @@ int WriteAsCFile(const char* filename, const char* varname,
 template <typename T>
 inline void CopyWords(T* dst, const T* src, size_t num_words) {
   STATIC_ASSERT(sizeof(T) == kPointerSize);
-  // TODO(mvstanton): disabled because mac builds are bogus failing on this
-  // assert. They are doing a signed comparison. Investigate in
-  // the morning.
-  // DCHECK(Min(dst, const_cast<T*>(src)) + num_words <=
-  //       Max(dst, const_cast<T*>(src)));
+  DCHECK(Min(dst, const_cast<T*>(src)) + num_words <=
+         Max(dst, const_cast<T*>(src)));
   DCHECK(num_words > 0);
 
   // Use block copying MemCopy if the segment we're copying is
