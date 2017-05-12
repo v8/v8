@@ -5,6 +5,7 @@
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
 import("//build/config/dcheck_always_on.gni")
+import("//build/config/host_byteorder.gni")
 import("//build/config/mips.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 
@@ -107,19 +108,6 @@ declare_args() {
   v8_enable_gdbjit = ((v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
                        v8_current_cpu == "x87") && (is_linux || is_mac)) ||
                      (v8_current_cpu == "ppc64" && is_linux)
-
-  # Set v8_host_byteorder
-  v8_host_byteorder = "little"
-
-  # ppc64 can be either BE or LE
-  if (host_cpu == "ppc64") {
-    v8_host_byteorder =
-        exec_script("//tools/get_byteorder.py", [], "trim string")
-  }
-  if (host_cpu == "ppc" || host_cpu == "s390" || host_cpu == "s390x" ||
-      host_cpu == "mips" || host_cpu == "mips64") {
-    v8_host_byteorder = "big"
-  }
 }
 
 # Derived defaults.
@@ -379,7 +367,7 @@ config("toolchain") {
     if (v8_current_cpu == "s390x") {
       defines += [ "V8_TARGET_ARCH_S390X" ]
     }
-    if (v8_host_byteorder == "little") {
+    if (host_byteorder == "little") {
       defines += [ "V8_TARGET_ARCH_S390_LE_SIM" ]
     } else {
       cflags += [ "-march=z196" ]
@@ -390,9 +378,9 @@ config("toolchain") {
     if (v8_current_cpu == "ppc64") {
       defines += [ "V8_TARGET_ARCH_PPC64" ]
     }
-    if (v8_host_byteorder == "little") {
+    if (host_byteorder == "little") {
       defines += [ "V8_TARGET_ARCH_PPC_LE" ]
-    } else if (v8_host_byteorder == "big") {
+    } else if (host_byteorder == "big") {
       defines += [ "V8_TARGET_ARCH_PPC_BE" ]
       if (current_os == "aix") {
         cflags += [
@@ -406,6 +394,7 @@ config("toolchain") {
       }
     }
   }
+
   if (v8_current_cpu == "x86") {
     defines += [ "V8_TARGET_ARCH_IA32" ]
     if (is_win) {
@@ -2506,6 +2495,16 @@ v8_component("v8_libbase") {
     sources += [
       "src/base/debug/stack_trace_posix.cc",
       "src/base/platform/platform-linux.cc",
+    ]
+
+    libs = [
+      "dl",
+      "rt",
+    ]
+  } else if (current_os == "aix") {
+    sources += [
+      "src/base/debug/stack_trace_posix.cc",
+      "src/base/platform/platform-aix.cc",
     ]
 
     libs = [
