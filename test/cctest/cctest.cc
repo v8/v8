@@ -214,20 +214,6 @@ static void PrintTestList(CcTest* current) {
 }
 
 
-class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
-  virtual void* Allocate(size_t length) {
-    void* data = AllocateUninitialized(length == 0 ? 1 : length);
-    return data == NULL ? data : memset(data, 0, length);
-  }
-  virtual void* AllocateUninitialized(size_t length) {
-    return malloc(length == 0 ? 1 : length);
-  }
-  virtual void Free(void* data, size_t length) { free(data); }
-  // TODO(dslomov): Remove when v8:2823 is fixed.
-  virtual void Free(void* data) { UNREACHABLE(); }
-};
-
-
 static void SuggestTestHarness(int tests) {
   if (tests == 0) return;
   printf("Running multiple tests in sequence is deprecated and may cause "
@@ -277,8 +263,8 @@ int main(int argc, char* argv[]) {
     v8::V8::RegisterDefaultSignalHandler();
   }
 
-  CcTestArrayBufferAllocator array_buffer_allocator;
-  CcTest::set_array_buffer_allocator(&array_buffer_allocator);
+  CcTest::set_array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
   i::PrintExtension print_extension;
   v8::RegisterExtension(&print_extension);
