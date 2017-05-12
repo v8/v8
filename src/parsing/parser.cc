@@ -3132,22 +3132,6 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
   return result;
 }
 
-Assignment* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
-  // .generator = %_CreateJSGeneratorObject(...);
-  DCHECK_NOT_NULL(function_state_->generator_object_variable());
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
-  args->Add(factory()->NewThisFunction(pos), zone());
-  args->Add(IsArrowFunction(kind) ? GetLiteralUndefined(pos)
-                                  : ThisExpression(kNoSourcePosition),
-            zone());
-  Expression* allocation = factory()->NewCallRuntime(
-      Runtime::kInlineCreateJSGeneratorObject, args, pos);
-  VariableProxy* proxy =
-      factory()->NewVariableProxy(function_state_->generator_object_variable());
-  return factory()->NewAssignment(Token::INIT, proxy, allocation,
-                                  kNoSourcePosition);
-}
-
 Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
   // %ResolvePromise(.promise, value), .promise
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
@@ -3197,13 +3181,17 @@ Variable* Parser::AsyncGeneratorAwaitVariable() {
 }
 
 Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
-  Assignment* assignment = BuildCreateJSGeneratorObject(pos, kind);
-  VariableProxy* generator =
+  // We access the generator object twice: once for the {generator}
+  // member of the Suspend AST node, and once for the result of
+  // the initial yield.
+  Expression* yield_result =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  Expression* generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
   // The position of the yield is important for reporting the exception
   // caused by calling the .throw method on a generator suspended at the
   // initial yield (i.e. right after generator instantiation).
-  return BuildSuspend(generator, assignment, scope()->start_position(),
+  return BuildSuspend(generator_object, yield_result, scope()->start_position(),
                       Suspend::kOnExceptionThrow, SuspendFlags::kYield);
 }
 
@@ -3867,9 +3855,6 @@ void Parser::PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
   if (function_state_->generator_object_variable() == nullptr) {
     PrepareGeneratorVariables();
   }
-  body->Add(factory()->NewExpressionStatement(
-                BuildCreateJSGeneratorObject(pos, kind), kNoSourcePosition),
-            zone());
 }
 
 // This method completes the desugaring of the body of async_function.

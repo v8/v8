@@ -774,6 +774,12 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   // Build assignment to {new.target} variable if it is used.
   VisitNewTargetVariable(closure_scope()->new_target_var());
 
+  // Create a generator object if necessary and initialize the
+  // {.generator_object} variable.
+  if (IsResumableFunction(info()->literal()->kind())) {
+    BuildGeneratorObjectVariableInitialization();
+  }
+
   // Emit tracing call if requested to do so.
   if (FLAG_trace) builder()->CallRuntime(Runtime::kTraceEnter);
 
@@ -3524,6 +3530,20 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
   // as below flushes the entire pipeline, we should be more specific here.
   BytecodeLabel flush_state_label;
   builder()->Bind(&flush_state_label);
+}
+
+void BytecodeGenerator::BuildGeneratorObjectVariableInitialization() {
+  DCHECK(IsResumableFunction(info()->literal()->kind()));
+  DCHECK_NOT_NULL(closure_scope()->generator_object_var());
+
+  RegisterAllocationScope register_scope(this);
+  RegisterList args = register_allocator()->NewRegisterList(2);
+  builder()
+      ->MoveRegister(Register::function_closure(), args[0])
+      .MoveRegister(builder()->Receiver(), args[1])
+      .CallRuntime(Runtime::kInlineCreateJSGeneratorObject, args);
+  BuildVariableAssignment(closure_scope()->generator_object_var(), Token::INIT,
+                          FeedbackSlot::Invalid(), HoleCheckMode::kElided);
 }
 
 void BytecodeGenerator::VisitFunctionClosureForContext() {
