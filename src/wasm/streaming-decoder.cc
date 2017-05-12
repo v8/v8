@@ -20,21 +20,21 @@ using namespace v8::internal;
 using namespace v8::internal::wasm;
 
 void StreamingDecoder::OnBytesReceived(Vector<const uint8_t> bytes) {
-  int current = 0;
-  while (decoder()->ok() && current < bytes.length()) {
-    int num_bytes = static_cast<int>(
-        state_->ReadBytes(this, bytes.SubVector(current, bytes.length())));
+  size_t current = 0;
+  while (decoder()->ok() && current < bytes.size()) {
+    size_t num_bytes =
+        state_->ReadBytes(this, bytes.SubVector(current, bytes.size()));
     current += num_bytes;
     if (state_->is_finished()) {
       state_ = state_->Next(this);
     }
   }
-  total_size_ += bytes.length();
+  total_size_ += bytes.size();
 }
 
 size_t StreamingDecoder::DecodingState::ReadBytes(StreamingDecoder* streaming,
                                                   Vector<const uint8_t> bytes) {
-  size_t num_bytes = std::min(static_cast<size_t>(bytes.length()), remaining());
+  size_t num_bytes = std::min(bytes.size(), remaining());
   memcpy(buffer() + offset(), &bytes.first(), num_bytes);
   set_offset(offset() + num_bytes);
   return num_bytes;
@@ -207,8 +207,7 @@ class StreamingDecoder::DecodeFunctionBody : public DecodingState {
 
 size_t StreamingDecoder::DecodeVarInt32::ReadBytes(
     StreamingDecoder* streaming, Vector<const uint8_t> bytes) {
-  size_t bytes_read =
-      std::min(static_cast<size_t>(bytes.length()), remaining());
+  size_t bytes_read = std::min(bytes.size(), remaining());
   memcpy(buffer() + offset(), &bytes.first(), bytes_read);
   streaming->decoder()->Reset(buffer(), buffer() + offset() + bytes_read);
   value_ = streaming->decoder()->consume_i32v();
