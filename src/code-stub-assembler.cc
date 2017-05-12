@@ -3548,7 +3548,9 @@ Node* AllocAndCopyStringCharacters(CodeStubAssembler* a, Node* context,
 }  // namespace
 
 Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
-                                   Node* to) {
+                                   Node* to, SubStringFlags flags) {
+  DCHECK(flags == SubStringFlags::NONE ||
+         flags == SubStringFlags::FROM_TO_ARE_BOUNDED);
   VARIABLE(var_result, MachineRepresentation::kTagged);
   ToDirectStringAssembler to_direct(state(), string);
   Label end(this), runtime(this);
@@ -3559,8 +3561,13 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
 
   // Make sure that both from and to are non-negative smis.
 
-  GotoIfNot(TaggedIsPositiveSmi(from), &runtime);
-  GotoIfNot(TaggedIsPositiveSmi(to), &runtime);
+  if (flags == SubStringFlags::NONE) {
+    GotoIfNot(TaggedIsPositiveSmi(from), &runtime);
+    GotoIfNot(TaggedIsPositiveSmi(to), &runtime);
+  } else {
+    CSA_ASSERT(this, TaggedIsPositiveSmi(from));
+    CSA_ASSERT(this, TaggedIsPositiveSmi(to));
+  }
 
   Node* const substr_length = SmiSub(to, from);
   Node* const string_length = LoadStringLength(string);
@@ -3661,8 +3668,14 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
 
   BIND(&original_string_or_invalid_length);
   {
-    // Longer than original string's length or negative: unsafe arguments.
-    GotoIf(SmiAbove(substr_length, string_length), &runtime);
+    if (flags == SubStringFlags::NONE) {
+      // Longer than original string's length or negative: unsafe arguments.
+      GotoIf(SmiAbove(substr_length, string_length), &runtime);
+    } else {
+      // with flag SubStringFlags::FROM_TO_ARE_BOUNDED, the only way we can
+      // get here is if substr_length is equal to string_length.
+      CSA_ASSERT(this, SmiEqual(substr_length, string_length));
+    }
 
     // Equal length - check if {from, to} == {0, str.length}.
     GotoIf(SmiAbove(from, SmiConstant(Smi::kZero)), &runtime);

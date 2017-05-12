@@ -1810,6 +1810,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 #endif  // V8_INTL_SUPPORT
     SimpleInstallFunction(prototype, "replace",
                           Builtins::kStringPrototypeReplace, 2, true);
+    SimpleInstallFunction(prototype, "slice", Builtins::kStringPrototypeSlice,
+                          2, false);
     SimpleInstallFunction(prototype, "split", Builtins::kStringPrototypeSplit,
                           2, true);
     SimpleInstallFunction(prototype, "substr", Builtins::kStringPrototypeSubstr,

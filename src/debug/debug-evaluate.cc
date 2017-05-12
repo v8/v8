@@ -584,6 +584,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeIncludes:
     case Builtins::kStringPrototypeIndexOf:
     case Builtins::kStringPrototypeLastIndexOf:
+    case Builtins::kStringPrototypeSlice:
     case Builtins::kStringPrototypeStartsWith:
     case Builtins::kStringPrototypeSubstr:
     case Builtins::kStringPrototypeSubstring:

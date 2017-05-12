@@ -853,6 +853,8 @@ namespace internal {
   CPP(StringPrototypeLocaleCompare)                                            \
   /* ES6 #sec-string.prototype.replace */                                      \
   TFJ(StringPrototypeReplace, 2, kSearch, kReplace)                            \
+  /* ES6 #sec-string.prototype.slice */                                        \
+  TFJ(StringPrototypeSlice, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
   /* ES6 #sec-string.prototype.split */                                        \
   TFJ(StringPrototypeSplit, 2, kSeparator, kLimit)                             \
   /* ES6 #sec-string.prototype.substr */                                       \

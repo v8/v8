@@ -155,6 +155,41 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
     return SmiLessThan(value, SmiConstant(0));
   }
 
+  // substr and slice have a common way of handling the {start} argument.
+  void ConvertAndBoundsCheckStartArgument(Node* context, Variable* var_start,
+                                          Node* start, Node* string_length) {
+    Node* const start_int =
+        ToInteger(context, start, CodeStubAssembler::kTruncateMinusZero);
+    Node* const zero = SmiConstant(Smi::kZero);
+
+    Label done(this);
+    Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
+    Branch(TaggedIsSmi(start_int), &if_issmi, &if_isheapnumber);
+
+    BIND(&if_issmi);
+    {
+      var_start->Bind(
+          Select(SmiLessThan(start_int, zero),
+                 [&] { return SmiMax(SmiAdd(string_length, start_int), zero); },
+                 [&] { return start_int; }, MachineRepresentation::kTagged));
+      Goto(&done);
+    }
+
+    BIND(&if_isheapnumber);
+    {
+      // If {start} is a heap number, it is definitely out of bounds. If it is
+      // negative, {start} = max({string_length} + {start}),0) = 0'. If it is
+      // positive, set {start} to {string_length} which ultimately results in
+      // returning an empty string.
+      Node* const float_zero = Float64Constant(0.);
+      Node* const start_float = LoadHeapNumberValue(start_int);
+      var_start->Bind(SelectTaggedConstant(
+          Float64LessThan(start_float, float_zero), zero, string_length));
+      Goto(&done);
+    }
+    BIND(&done);
+  }
+
   // Implements boilerplate logic for {match, split, replace, search} of the
   // form:
   //
@@ -1293,6 +1328,89 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   }
 }
 
+// ES6 section 21.1.3.18 String.prototype.slice ( start, end )
+TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
+  Label out(this);
+  VARIABLE(var_start, MachineRepresentation::kTagged);
+  VARIABLE(var_end, MachineRepresentation::kTagged);
+
+  const int kStart = 0;
+  const int kEnd = 1;
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+  Node* const receiver = args.GetReceiver();
+  Node* const start =
+      args.GetOptionalArgumentValue(kStart, UndefinedConstant());
+  Node* const end = args.GetOptionalArgumentValue(kEnd, UndefinedConstant());
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
+
+  Node* const smi_zero = SmiConstant(0);
+
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  RequireObjectCoercible(context, receiver, "String.prototype.slice");
+
+  // 2. Let S be ? ToString(O).
+  Callable tostring_callable = CodeFactory::ToString(isolate());
+  Node* const subject_string = CallStub(tostring_callable, context, receiver);
+
+  // 3. Let len be the number of elements in S.
+  Node* const length = LoadStringLength(subject_string);
+
+  // Conversions and bounds-checks for {start}.
+  ConvertAndBoundsCheckStartArgument(context, &var_start, start, length);
+
+  // 5. If end is undefined, let intEnd be len;
+  var_end.Bind(length);
+  GotoIf(WordEqual(end, UndefinedConstant()), &out);
+
+  // else let intEnd be ? ToInteger(end).
+  Node* const end_int =
+      ToInteger(context, end, CodeStubAssembler::kTruncateMinusZero);
+
+  // 7. If intEnd < 0, let to be max(len + intEnd, 0);
+  //    otherwise let to be min(intEnd, len).
+  Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
+  Branch(TaggedIsSmi(end_int), &if_issmi, &if_isheapnumber);
+
+  BIND(&if_issmi);
+  {
+    Node* const length_plus_end = SmiAdd(length, end_int);
+    var_end.Bind(Select(SmiLessThan(end_int, smi_zero),
+                        [&] { return SmiMax(length_plus_end, smi_zero); },
+                        [&] { return SmiMin(length, end_int); },
+                        MachineRepresentation::kTagged));
+    Goto(&out);
+  }
+
+  BIND(&if_isheapnumber);
+  {
+    // If {end} is a heap number, it is definitely out of bounds. If it is
+    // negative, {int_end} = max({length} + {int_end}),0) = 0'. If it is
+    // positive, set {int_end} to {length} which ultimately results in
+    // returning an empty string.
+    Node* const float_zero = Float64Constant(0.);
+    Node* const end_float = LoadHeapNumberValue(end_int);
+    var_end.Bind(SelectTaggedConstant(Float64LessThan(end_float, float_zero),
+                                      smi_zero, length));
+    Goto(&out);
+  }
+
+  Label return_emptystring(this);
+  BIND(&out);
+  {
+    GotoIf(SmiLessThanOrEqual(var_end.value(), var_start.value()),
+           &return_emptystring);
+    Node* const result =
+        SubString(context, subject_string, var_start.value(), var_end.value(),
+                  SubStringFlags::FROM_TO_ARE_BOUNDED);
+    args.PopAndReturn(result);
+  }
+
+  BIND(&return_emptystring);
+  args.PopAndReturn(EmptyStringConstant());
+}
+
 // ES6 section 21.1.3.19 String.prototype.split ( separator, limit )
 TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   Label out(this);
@@ -1397,8 +1515,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 }
 
 // ES6 #sec-string.prototype.substr
-TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
-  Label out(this), handle_length(this);
+TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
+  Label out(this);
 
   VARIABLE(var_start, MachineRepresentation::kTagged);
   VARIABLE(var_length, MachineRepresentation::kTagged);
@@ -1417,94 +1535,62 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
   Node* const string_length = LoadStringLength(string);
 
   // Conversions and bounds-checks for {start}.
-  {
-    Node* const start_int =
-        ToInteger(context, start, CodeStubAssembler::kTruncateMinusZero);
-
-    Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
-    Branch(TaggedIsSmi(start_int), &if_issmi, &if_isheapnumber);
-
-    BIND(&if_issmi);
-    {
-      Node* const length_plus_start = SmiAdd(string_length, start_int);
-      var_start.Bind(Select(SmiLessThan(start_int, zero),
-                            [&] { return SmiMax(length_plus_start, zero); },
-                            [&] { return start_int; },
-                            MachineRepresentation::kTagged));
-      Goto(&handle_length);
-    }
-
-    BIND(&if_isheapnumber);
-    {
-      // If {start} is a heap number, it is definitely out of bounds. If it is
-      // negative, {start} = max({string_length} + {start}),0) = 0'. If it is
-      // positive, set {start} to {string_length} which ultimately results in
-      // returning an empty string.
-      Node* const float_zero = Float64Constant(0.);
-      Node* const start_float = LoadHeapNumberValue(start_int);
-      var_start.Bind(SelectTaggedConstant(
-          Float64LessThan(start_float, float_zero), zero, string_length));
-      Goto(&handle_length);
-    }
-  }
+  ConvertAndBoundsCheckStartArgument(context, &var_start, start, string_length);
 
   // Conversions and bounds-checks for {length}.
-  BIND(&handle_length);
+  Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
+
+  // Default to {string_length} if {length} is undefined.
   {
-    Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
+    Label if_isundefined(this, Label::kDeferred), if_isnotundefined(this);
+    Branch(WordEqual(length, UndefinedConstant()), &if_isundefined,
+           &if_isnotundefined);
 
-    // Default to {string_length} if {length} is undefined.
+    BIND(&if_isundefined);
+    var_length.Bind(string_length);
+    Goto(&if_issmi);
+
+    BIND(&if_isnotundefined);
+    var_length.Bind(
+        ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero));
+  }
+
+  Branch(TaggedIsSmi(var_length.value()), &if_issmi, &if_isheapnumber);
+
+  // Set {length} to min(max({length}, 0), {string_length} - {start}
+  BIND(&if_issmi);
+  {
+    Node* const positive_length = SmiMax(var_length.value(), zero);
+
+    Node* const minimal_length = SmiSub(string_length, var_start.value());
+    var_length.Bind(SmiMin(positive_length, minimal_length));
+
+    GotoIfNot(SmiLessThanOrEqual(var_length.value(), zero), &out);
+    Return(EmptyStringConstant());
+  }
+
+  BIND(&if_isheapnumber);
+  {
+    // If {length} is a heap number, it is definitely out of bounds. There are
+    // two cases according to the spec: if it is negative, "" is returned; if
+    // it is positive, then length is set to {string_length} - {start}.
+
+    CSA_ASSERT(this, IsHeapNumberMap(LoadMap(var_length.value())));
+
+    Label if_isnegative(this), if_ispositive(this);
+    Node* const float_zero = Float64Constant(0.);
+    Node* const length_float = LoadHeapNumberValue(var_length.value());
+    Branch(Float64LessThan(length_float, float_zero), &if_isnegative,
+           &if_ispositive);
+
+    BIND(&if_isnegative);
+    Return(EmptyStringConstant());
+
+    BIND(&if_ispositive);
     {
-      Label if_isundefined(this, Label::kDeferred), if_isnotundefined(this);
-      Branch(WordEqual(length, UndefinedConstant()), &if_isundefined,
-             &if_isnotundefined);
-
-      BIND(&if_isundefined);
-      var_length.Bind(string_length);
-      Goto(&if_issmi);
-
-      BIND(&if_isnotundefined);
-      var_length.Bind(
-          ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero));
-    }
-
-    Branch(TaggedIsSmi(var_length.value()), &if_issmi, &if_isheapnumber);
-
-    // Set {length} to min(max({length}, 0), {string_length} - {start}
-    BIND(&if_issmi);
-    {
-      Node* const positive_length = SmiMax(var_length.value(), zero);
-
-      Node* const minimal_length = SmiSub(string_length, var_start.value());
-      var_length.Bind(SmiMin(positive_length, minimal_length));
-
+      var_length.Bind(SmiSub(string_length, var_start.value()));
       GotoIfNot(SmiLessThanOrEqual(var_length.value(), zero), &out);
       Return(EmptyStringConstant());
-    }
-
-    BIND(&if_isheapnumber);
-    {
-      // If {length} is a heap number, it is definitely out of bounds. There are
-      // two cases according to the spec: if it is negative, "" is returned; if
-      // it is positive, then length is set to {string_length} - {start}.
-
-      CSA_ASSERT(this, IsHeapNumberMap(LoadMap(var_length.value())));
-
-      Label if_isnegative(this), if_ispositive(this);
-      Node* const float_zero = Float64Constant(0.);
-      Node* const length_float = LoadHeapNumberValue(var_length.value());
-      Branch(Float64LessThan(length_float, float_zero), &if_isnegative,
-             &if_ispositive);
-
-      BIND(&if_isnegative);
-      Return(EmptyStringConstant());
-
-      BIND(&if_ispositive);
-      {
-        var_length.Bind(SmiSub(string_length, var_start.value()));
-        GotoIfNot(SmiLessThanOrEqual(var_length.value(), zero), &out);
-        Return(EmptyStringConstant());
-      }
     }
   }
 

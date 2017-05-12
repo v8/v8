@@ -52,48 +52,6 @@ function StringSearch(pattern) {
 }
 
 
-// ECMA-262 section 15.5.4.13
-function StringSlice(start, end) {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.slice");
-
-  var s = TO_STRING(this);
-  var s_len = s.length;
-  var start_i = TO_INTEGER(start);
-  var end_i = s_len;
-  if (!IS_UNDEFINED(end)) {
-    end_i = TO_INTEGER(end);
-  }
-
-  if (start_i < 0) {
-    start_i += s_len;
-    if (start_i < 0) {
-      start_i = 0;
-    }
-  } else {
-    if (start_i > s_len) {
-      return '';
-    }
-  }
-
-  if (end_i < 0) {
-    end_i += s_len;
-    if (end_i < 0) {
-      return '';
-    }
-  } else {
-    if (end_i > s_len) {
-      end_i = s_len;
-    }
-  }
-
-  if (end_i <= start_i) {
-    return '';
-  }
-
-  return %_SubString(s, start_i, end_i);
-}
-
-
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2.1
 function HtmlEscape(str) {
   return %RegExpInternalReplace(/"/g, TO_STRING(str), "&quot;");
@@ -334,8 +292,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "padStart", StringPadStart,
   "repeat", StringRepeat,
   "search", StringSearch,
-  "slice", StringSlice,
-
   "link", StringLink,
   "anchor", StringAnchor,
   "fontcolor", StringFontcolor,
