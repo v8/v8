@@ -1010,10 +1010,7 @@ HandleScope::~HandleScope() {
   i::HandleScope::CloseScope(isolate_, prev_next_, prev_limit_);
 }
 
-V8_NORETURN void* HandleScope::operator new(size_t) {
-  base::OS::Abort();
-  abort();
-}
+void* HandleScope::operator new(size_t) { base::OS::Abort(); }
 
 void HandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
 
@@ -1054,10 +1051,7 @@ i::Object** EscapableHandleScope::Escape(i::Object** escape_value) {
   return escape_slot_;
 }
 
-V8_NORETURN void* EscapableHandleScope::operator new(size_t) {
-  base::OS::Abort();
-  abort();
-}
+void* EscapableHandleScope::operator new(size_t) { base::OS::Abort(); }
 
 void EscapableHandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
 
@@ -1079,10 +1073,7 @@ SealHandleScope::~SealHandleScope() {
   current->sealed_level = prev_sealed_level_;
 }
 
-V8_NORETURN void* SealHandleScope::operator new(size_t) {
-  base::OS::Abort();
-  abort();
-}
+void* SealHandleScope::operator new(size_t) { base::OS::Abort(); }
 
 void SealHandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
 
@@ -2616,10 +2607,7 @@ v8::TryCatch::~TryCatch() {
   }
 }
 
-V8_NORETURN void* v8::TryCatch::operator new(size_t) {
-  base::OS::Abort();
-  abort();
-}
+void* v8::TryCatch::operator new(size_t) { base::OS::Abort(); }
 
 void v8::TryCatch::operator delete(void*, size_t) { base::OS::Abort(); }
 
