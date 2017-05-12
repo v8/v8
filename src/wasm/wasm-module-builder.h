@@ -86,6 +86,11 @@ class ZoneBuffer : public ZoneObject {
     pos_ += size;
   }
 
+  void write_string(Vector<const char> name) {
+    write_size(name.length());
+    write(reinterpret_cast<const byte*>(name.start()), name.length());
+  }
+
   size_t reserve_u32v() {
     size_t off = offset();
     EnsureSpace(kMaxVarInt32Size);
@@ -167,7 +172,6 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitWithI32V(WasmOpcode opcode, int32_t immediate);
   void EmitWithU32V(WasmOpcode opcode, uint32_t immediate);
   void EmitDirectCallIndex(uint32_t index);
-  void ExportAs(Vector<const char> name);
   void SetName(Vector<const char> name);
   void AddAsmWasmOffset(int call_position, int to_number_position);
   void SetAsmFunctionStartPosition(int position);
@@ -179,10 +183,10 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void DeleteCodeAfter(size_t position);
 
   void WriteSignature(ZoneBuffer& buffer) const;
-  void WriteExports(ZoneBuffer& buffer) const;
   void WriteBody(ZoneBuffer& buffer) const;
   void WriteAsmWasmOffsetTable(ZoneBuffer& buffer) const;
 
+  WasmModuleBuilder* builder() const { return builder_; }
   uint32_t func_index() { return func_index_; }
   FunctionSig* signature();
 
@@ -201,7 +205,6 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   uint32_t func_index_;
   ZoneBuffer body_;
   Vector<const char> name_;
-  ZoneVector<Vector<const char>> exported_names_;
   ZoneVector<uint32_t> i32_temps_;
   ZoneVector<uint32_t> i64_temps_;
   ZoneVector<uint32_t> f32_temps_;
@@ -221,10 +224,6 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   // Building methods.
   uint32_t AddImport(Vector<const char> name, FunctionSig* sig);
-  void SetImportName(uint32_t index, Vector<const char> name) {
-    function_imports_[index].name = name.start();
-    function_imports_[index].name_length = name.length();
-  }
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
   uint32_t AddGlobal(ValueType type, bool exported, bool mutability = true,
                      const WasmInitExpr& init = WasmInitExpr());
@@ -234,6 +233,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AllocateIndirectFunctions(uint32_t count);
   void SetIndirectFunction(uint32_t indirect, uint32_t direct);
   void MarkStartFunction(WasmFunctionBuilder* builder);
+  void AddExport(Vector<const char> name, WasmFunctionBuilder* builder);
 
   // Writing methods.
   void WriteTo(ZoneBuffer& buffer) const;
@@ -252,15 +252,18 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
  private:
   struct WasmFunctionImport {
+    Vector<const char> name;
     uint32_t sig_index;
-    const char* name;
-    int name_length;
+  };
+
+  struct WasmFunctionExport {
+    Vector<const char> name;
+    uint32_t function_index;
   };
 
   struct WasmGlobalImport {
+    Vector<const char> name;
     ValueTypeCode type_code;
-    const char* name;
-    int name_length;
   };
 
   struct WasmGlobal {
@@ -279,6 +282,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   Zone* zone_;
   ZoneVector<FunctionSig*> signatures_;
   ZoneVector<WasmFunctionImport> function_imports_;
+  ZoneVector<WasmFunctionExport> function_exports_;
   ZoneVector<WasmGlobalImport> global_imports_;
   ZoneVector<WasmFunctionBuilder*> functions_;
   ZoneVector<WasmDataSegment> data_segments_;

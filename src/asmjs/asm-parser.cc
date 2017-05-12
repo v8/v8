@@ -629,7 +629,7 @@ void AsmJsParser::ValidateExport() {
       if (info->kind != VarKind::kFunction) {
         FAIL("Expected function");
       }
-      info->function_builder->ExportAs(name);
+      module_builder_->AddExport(name, info->function_builder);
       if (Check(',')) {
         if (!Peek('}')) {
           continue;
@@ -646,7 +646,8 @@ void AsmJsParser::ValidateExport() {
     if (info->kind != VarKind::kFunction) {
       FAIL("Single function export must be a function");
     }
-    info->function_builder->ExportAs(CStrVector(AsmJs::kSingleFunctionName));
+    module_builder_->AddExport(CStrVector(AsmJs::kSingleFunctionName),
+                               info->function_builder);
   }
 }
 

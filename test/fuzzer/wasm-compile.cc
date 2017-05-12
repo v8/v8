@@ -316,7 +316,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     uint8_t end_opcode = kExprEnd;
     f->EmitCode(&end_opcode, 1);
-    f->ExportAs(v8::internal::CStrVector("main"));
+    builder.AddExport(v8::internal::CStrVector("main"), f);
 
     builder.WriteTo(buffer);
 

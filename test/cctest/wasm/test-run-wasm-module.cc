@@ -62,7 +62,9 @@ void TestModuleException(Zone* zone, WasmModuleBuilder* builder) {
   isolate->clear_pending_exception();
 }
 
-void ExportAsMain(WasmFunctionBuilder* f) { f->ExportAs(CStrVector("main")); }
+void ExportAsMain(WasmFunctionBuilder* f) {
+  f->builder()->AddExport(CStrVector("main"), f);
+}
 
 #define EMIT_CODE_WITH_END(f, code)  \
   do {                               \
@@ -226,7 +228,7 @@ class WasmSerializationTest {
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
     byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add};
     EMIT_CODE_WITH_END(f, code);
-    f->ExportAs(CStrVector(kFunctionName));
+    builder->AddExport(CStrVector(kFunctionName), f);
 
     builder->WriteTo(*buffer);
   }

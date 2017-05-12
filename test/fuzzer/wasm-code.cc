@@ -29,7 +29,7 @@ class WasmCodeFuzzer : public WasmExecutionFuzzer {
     f->EmitCode(data, static_cast<uint32_t>(size));
     uint8_t end_opcode = kExprEnd;
     f->EmitCode(&end_opcode, 1);
-    f->ExportAs(CStrVector("main"));
+    builder.AddExport(CStrVector("main"), f);
 
     builder.WriteTo(buffer);
     num_args = 3;

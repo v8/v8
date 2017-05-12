@@ -489,7 +489,8 @@ function assertValidAsm(func) {
   function Module() {
     "use asm";
     function f() {}
-    return { a:f, b:f, x:f, c:f, d:f };
+    function g() {}
+    return { a:f, b:g, x:f, c:g, d:f };
   }
   var m = Module();
   assertValidAsm(Module);

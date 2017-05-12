@@ -109,7 +109,7 @@ class WasmCallFuzzer : public WasmExecutionFuzzer {
       data += code_size;
       size -= code_size;
       if (fun == 0) {
-        f->ExportAs(v8::internal::CStrVector("main"));
+        builder.AddExport(v8::internal::CStrVector("main"), f);
       }
     }
 
