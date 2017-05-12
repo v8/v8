@@ -7667,8 +7667,7 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::MaybeHandle<i::FixedArray> maybe_compiled_part =
       i::WasmCompiledModuleSerializer::DeserializeWasmModule(
-          i_isolate, &sc,
-          {wire_bytes.first, static_cast<int>(wire_bytes.second)});
+          i_isolate, &sc, {wire_bytes.first, wire_bytes.second});
   i::Handle<i::FixedArray> compiled_part;
   if (!maybe_compiled_part.ToHandle(&compiled_part)) {
     return MaybeLocal<WasmCompiledModule>();

@@ -3816,16 +3816,17 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
   }
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     const char* function_name = nullptr;
-    int function_name_size = 0;
+    size_t function_name_size = 0;
     if (!import_name.is_null()) {
       Handle<String> handle = import_name.ToHandleChecked();
       function_name = handle->ToCString().get();
-      function_name_size = handle->length();
+      function_name_size = static_cast<size_t>(handle->length());
     }
-    RecordFunctionCompilation(
-        CodeEventListener::FUNCTION_TAG, isolate, code, "wasm-to-js", index,
-        {module_name->ToCString().get(), module_name->length()},
-        {function_name, function_name_size});
+    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate, code,
+                              "wasm-to-js", index,
+                              {module_name->ToCString().get(),
+                               static_cast<size_t>(module_name->length())},
+                              {function_name, function_name_size});
   }
 
   return code;

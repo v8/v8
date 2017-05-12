@@ -294,7 +294,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
 
   const byte* start() const { return module_bytes_.start(); }
   const byte* end() const { return module_bytes_.end(); }
-  int length() const { return module_bytes_.length(); }
+  size_t length() const { return module_bytes_.length(); }
 
  private:
   const Vector<const byte> module_bytes_;

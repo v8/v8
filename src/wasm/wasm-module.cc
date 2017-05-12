@@ -144,8 +144,8 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   script->set_type(Script::TYPE_WASM);
 
   int hash = StringHasher::HashSequentialString(
-      reinterpret_cast<const char*>(wire_bytes.start()), wire_bytes.length(),
-      kZeroHashSeed);
+      reinterpret_cast<const char*>(wire_bytes.start()),
+      static_cast<int>(wire_bytes.length()), kZeroHashSeed);
 
   const int kBufferSize = 32;
   char buffer[kBufferSize];
@@ -2619,7 +2619,7 @@ class AsyncCompileJob {
   // finished.
  public:
   explicit AsyncCompileJob(Isolate* isolate, std::unique_ptr<byte[]> bytes_copy,
-                           int length, Handle<Context> context,
+                           size_t length, Handle<Context> context,
                            Handle<JSPromise> promise)
       : isolate_(isolate),
         bytes_copy_(std::move(bytes_copy)),
