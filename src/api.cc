@@ -1018,8 +1018,9 @@ HandleScope::~HandleScope() {
 }
 
 void* HandleScope::operator new(size_t) { base::OS::Abort(); }
-
+void* HandleScope::operator new[](size_t) { base::OS::Abort(); }
 void HandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
+void HandleScope::operator delete[](void*, size_t) { base::OS::Abort(); }
 
 int HandleScope::NumberOfHandles(Isolate* isolate) {
   return i::HandleScope::NumberOfHandles(
@@ -1059,8 +1060,11 @@ i::Object** EscapableHandleScope::Escape(i::Object** escape_value) {
 }
 
 void* EscapableHandleScope::operator new(size_t) { base::OS::Abort(); }
-
+void* EscapableHandleScope::operator new[](size_t) { base::OS::Abort(); }
 void EscapableHandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
+void EscapableHandleScope::operator delete[](void*, size_t) {
+  base::OS::Abort();
+}
 
 SealHandleScope::SealHandleScope(Isolate* isolate)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)) {
@@ -1081,8 +1085,9 @@ SealHandleScope::~SealHandleScope() {
 }
 
 void* SealHandleScope::operator new(size_t) { base::OS::Abort(); }
-
+void* SealHandleScope::operator new[](size_t) { base::OS::Abort(); }
 void SealHandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
+void SealHandleScope::operator delete[](void*, size_t) { base::OS::Abort(); }
 
 void Context::Enter() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
@@ -2622,8 +2627,9 @@ v8::TryCatch::~TryCatch() {
 }
 
 void* v8::TryCatch::operator new(size_t) { base::OS::Abort(); }
-
+void* v8::TryCatch::operator new[](size_t) { base::OS::Abort(); }
 void v8::TryCatch::operator delete(void*, size_t) { base::OS::Abort(); }
+void v8::TryCatch::operator delete[](void*, size_t) { base::OS::Abort(); }
 
 bool v8::TryCatch::HasCaught() const {
   return !reinterpret_cast<i::Object*>(exception_)->IsTheHole(isolate_);

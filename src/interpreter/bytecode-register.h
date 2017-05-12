@@ -89,12 +89,11 @@ class V8_EXPORT_PRIVATE Register final {
   }
 
  private:
+  DISALLOW_NEW_AND_DELETE();
+
   static const int kInvalidIndex = kMaxInt;
   static const int kRegisterFileStartOffset =
       InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize;
-
-  void* operator new(size_t size) = delete;
-  void operator delete(void* p) = delete;
 
   int index_;
 };

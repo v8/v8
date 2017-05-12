@@ -869,8 +869,6 @@ class V8_EXPORT HandleScope {
 
   HandleScope(const HandleScope&) = delete;
   void operator=(const HandleScope&) = delete;
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
  protected:
   V8_INLINE HandleScope() {}
@@ -881,6 +879,13 @@ class V8_EXPORT HandleScope {
                                          internal::Object* value);
 
  private:
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore declare them private instead to disable dynamic alloc
+  void* operator new(size_t size);
+  void* operator new[](size_t size);
+  void operator delete(void*, size_t);
+  void operator delete[](void*, size_t);
+
   // Uses heap_object to obtain the current Isolate.
   static internal::Object** CreateHandle(internal::HeapObject* heap_object,
                                          internal::Object* value);
@@ -921,10 +926,15 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
 
   EscapableHandleScope(const EscapableHandleScope&) = delete;
   void operator=(const EscapableHandleScope&) = delete;
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
  private:
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore declare them private instead to disable dynamic alloc
+  void* operator new(size_t size);
+  void* operator new[](size_t size);
+  void operator delete(void*, size_t);
+  void operator delete[](void*, size_t);
+
   internal::Object** Escape(internal::Object** escape_value);
   internal::Object** escape_slot_;
 };
@@ -941,10 +951,15 @@ class V8_EXPORT SealHandleScope {
 
   SealHandleScope(const SealHandleScope&) = delete;
   void operator=(const SealHandleScope&) = delete;
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
  private:
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore declare them private instead to disable dynamic alloc
+  void* operator new(size_t size);
+  void* operator new[](size_t size);
+  void operator delete(void*, size_t);
+  void operator delete[](void*, size_t);
+
   internal::Isolate* const isolate_;
   internal::Object** prev_limit_;
   int prev_sealed_level_;
@@ -7551,8 +7566,12 @@ class V8_EXPORT Isolate {
   ~Isolate() = delete;
   Isolate(const Isolate&) = delete;
   Isolate& operator=(const Isolate&) = delete;
+  // Deleting operator new and delete here is allowed as ctor and dtor is also
+  // deleted.
   void* operator new(size_t size) = delete;
+  void* operator new[](size_t size) = delete;
   void operator delete(void*, size_t) = delete;
+  void operator delete[](void*, size_t) = delete;
 
  private:
   template <class K, class V, class Traits>
@@ -8278,10 +8297,15 @@ class V8_EXPORT TryCatch {
 
   TryCatch(const TryCatch&) = delete;
   void operator=(const TryCatch&) = delete;
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
  private:
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore declare them private instead to disable dynamic alloc
+  void* operator new(size_t size);
+  void* operator new[](size_t size);
+  void operator delete(void*, size_t);
+  void operator delete[](void*, size_t);
+
   void ResetInternal();
 
   internal::Isolate* isolate_;
