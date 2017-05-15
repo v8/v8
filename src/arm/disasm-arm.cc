@@ -667,6 +667,28 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     case 'v': {
       return FormatVFPinstruction(instr, format);
     }
+    case 'A': {
+      // Print pc-relative address.
+      int offset = instr->Offset12Value();
+      byte* pc = reinterpret_cast<byte*>(instr) + Instruction::kPCReadOffset;
+      byte* addr;
+      switch (instr->PUField()) {
+        case db_x: {
+          addr = pc - offset;
+          break;
+        }
+        case ib_x: {
+          addr = pc + offset;
+          break;
+        }
+        default: {
+          UNREACHABLE();
+          return -1;
+        }
+      }
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%p", addr);
+      return 1;
+    }
     case 'S':
     case 'D': {
       return FormatVFPRegister(instr, format);
@@ -1033,11 +1055,19 @@ void Decoder::DecodeType2(Instruction* instr) {
       break;
     }
     case db_x: {
-      Format(instr, "'memop'cond'b 'rd, ['rn, #-'off12]'w");
+      if (instr->HasL() && (instr->RnValue() == kPCRegister)) {
+        Format(instr, "'memop'cond'b 'rd, [pc, #-'off12]'w (addr 'A)");
+      } else {
+        Format(instr, "'memop'cond'b 'rd, ['rn, #-'off12]'w");
+      }
       break;
     }
     case ib_x: {
-      Format(instr, "'memop'cond'b 'rd, ['rn, #+'off12]'w");
+      if (instr->HasL() && (instr->RnValue() == kPCRegister)) {
+        Format(instr, "'memop'cond'b 'rd, [pc, #+'off12]'w (addr 'A)");
+      } else {
+        Format(instr, "'memop'cond'b 'rd, ['rn, #+'off12]'w");
+      }
       break;
     }
     default: {
