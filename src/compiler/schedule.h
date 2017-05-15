@@ -65,6 +65,8 @@ class V8_EXPORT_PRIVATE BasicBlock final
   AssemblerDebugInfo debug_info() const { return debug_info_; }
 #endif  // DEBUG
 
+  void Print();
+
   // Predecessors.
   BasicBlockVector& predecessors() { return predecessors_; }
   const BasicBlockVector& predecessors() const { return predecessors_; }

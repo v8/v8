@@ -4,8 +4,8 @@
 
 #include "src/compiler/schedule.h"
 
-#include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -95,6 +95,8 @@ BasicBlock* BasicBlock::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
   }
   return b1;
 }
+
+void BasicBlock::Print() { OFStream(stdout) << this; }
 
 std::ostream& operator<<(std::ostream& os, const BasicBlock& block) {
   os << "B" << block.id();

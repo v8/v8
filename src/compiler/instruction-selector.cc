@@ -926,9 +926,14 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
   if (block->SuccessorCount() > 1) {
     for (BasicBlock* const successor : block->successors()) {
       for (Node* const node : *successor) {
-        // If this CHECK fails, you might have specified merged variables
-        // for a label with only one predecessor.
-        CHECK(!IrOpcode::IsPhiOpcode(node->opcode()));
+        if (IrOpcode::IsPhiOpcode(node->opcode())) {
+          std::ostringstream str;
+          str << "You might have specified merged variables for a label with "
+              << "only one predecessor." << std::endl
+              << "# Current Block: " << *successor << std::endl
+              << "#          Node: " << *node;
+          FATAL(str.str().c_str());
+        }
       }
     }
   }
