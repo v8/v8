@@ -15403,13 +15403,14 @@ static bool ShouldConvertToSlowElements(JSObject* object, uint32_t capacity,
        object->GetHeap()->InNewSpace(object))) {
     return false;
   }
-  // If the fast-case backing storage takes up roughly three times as
-  // much space (in machine words) as a dictionary backing storage
-  // would, the object should have slow elements.
+  // If the fast-case backing storage takes up much more memory than a
+  // dictionary backing storage would, the object should have slow elements.
   int used_elements = object->GetFastElementsUsage();
-  int dictionary_size = SeededNumberDictionary::ComputeCapacity(used_elements) *
-                        SeededNumberDictionary::kEntrySize;
-  return 3 * static_cast<uint32_t>(dictionary_size) <= *new_capacity;
+  uint32_t size_threshold =
+      SeededNumberDictionary::kPreferFastElementsSizeFactor *
+      SeededNumberDictionary::ComputeCapacity(used_elements) *
+      SeededNumberDictionary::kEntrySize;
+  return size_threshold <= *new_capacity;
 }
 
 

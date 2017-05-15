@@ -1886,8 +1886,6 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     // TODO(verwaest): Move this out of elements.cc.
     // If an old space backing store is larger than a certain size and
     // has too few used values, normalize it.
-    // To avoid doing the check on every delete we require at least
-    // one adjacent hole to the value being deleted.
     const int kMinLengthForSparsenessCheck = 64;
     if (backing_store->length() < kMinLengthForSparsenessCheck) return;
     if (backing_store->GetHeap()->InNewSpace(*backing_store)) return;
@@ -1897,34 +1895,48 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     } else {
       length = static_cast<uint32_t>(store->length());
     }
-    if ((entry > 0 && backing_store->is_the_hole(isolate, entry - 1)) ||
-        (entry + 1 < length &&
-         backing_store->is_the_hole(isolate, entry + 1))) {
-      if (!obj->IsJSArray()) {
-        uint32_t i;
-        for (i = entry + 1; i < length; i++) {
-          if (!backing_store->is_the_hole(isolate, i)) break;
-        }
-        if (i == length) {
-          DeleteAtEnd(obj, backing_store, entry);
+
+    // To avoid doing the check on every delete, use a counter-based heuristic.
+    const int kLengthFraction = 16;
+    // The above constant must be large enough to ensure that we check for
+    // normalization frequently enough. At a minimum, it should be large
+    // enough to reliably hit the "window" of remaining elements count where
+    // normalization would be beneficial.
+    STATIC_ASSERT(kLengthFraction >=
+                  SeededNumberDictionary::kEntrySize *
+                      SeededNumberDictionary::kPreferFastElementsSizeFactor);
+    size_t current_counter = isolate->elements_deletion_counter();
+    if (current_counter < length / kLengthFraction) {
+      isolate->set_elements_deletion_counter(current_counter + 1);
+      return;
+    }
+    // Reset the counter whenever the full check is performed.
+    isolate->set_elements_deletion_counter(0);
+
+    if (!obj->IsJSArray()) {
+      uint32_t i;
+      for (i = entry + 1; i < length; i++) {
+        if (!backing_store->is_the_hole(isolate, i)) break;
+      }
+      if (i == length) {
+        DeleteAtEnd(obj, backing_store, entry);
+        return;
+      }
+    }
+    int num_used = 0;
+    for (int i = 0; i < backing_store->length(); ++i) {
+      if (!backing_store->is_the_hole(isolate, i)) {
+        ++num_used;
+        // Bail out if a number dictionary wouldn't be able to save much space.
+        if (SeededNumberDictionary::kPreferFastElementsSizeFactor *
+                SeededNumberDictionary::ComputeCapacity(num_used) *
+                SeededNumberDictionary::kEntrySize >
+            static_cast<uint32_t>(backing_store->length())) {
           return;
         }
       }
-      int num_used = 0;
-      for (int i = 0; i < backing_store->length(); ++i) {
-        if (!backing_store->is_the_hole(isolate, i)) {
-          ++num_used;
-          // Bail out if a number dictionary wouldn't be able to save at least
-          // 75% space.
-          if (4 * SeededNumberDictionary::ComputeCapacity(num_used) *
-                  SeededNumberDictionary::kEntrySize >
-              backing_store->length()) {
-            return;
-          }
-        }
-      }
-      JSObject::NormalizeElements(obj);
     }
+    JSObject::NormalizeElements(obj);
   }
 
   static void ReconfigureImpl(Handle<JSObject> object,

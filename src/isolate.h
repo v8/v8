@@ -1291,6 +1291,11 @@ class Isolate {
   // reset to nullptr.
   void UnregisterFromReleaseAtTeardown(ManagedObjectFinalizer** finalizer_ptr);
 
+  size_t elements_deletion_counter() { return elements_deletion_counter_; }
+  void set_elements_deletion_counter(size_t value) {
+    elements_deletion_counter_ = value;
+  }
+
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectPrototype(Object* object);
@@ -1576,6 +1581,8 @@ class Isolate {
   ManagedObjectFinalizer managed_object_finalizers_list_;
 
   size_t total_regexp_code_generated_;
+
+  size_t elements_deletion_counter_ = 0;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
