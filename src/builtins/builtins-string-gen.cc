@@ -767,7 +767,7 @@ TF_BUILTIN(StringPrototypeConcat, CodeStubAssembler) {
   arguments.ForEach(
       CodeStubAssembler::VariableList({&var_result}, zone()),
       [this, context, &var_result](Node* arg) {
-        arg = CallStub(CodeFactory::ToString(isolate()), context, arg);
+        arg = ToString_Inline(context, arg);
         var_result.Bind(CallStub(CodeFactory::StringAdd(isolate()), context,
                                  var_result.value(), arg));
       });
@@ -1184,9 +1184,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   MaybeCallFunctionAtSymbol(
       context, search, isolate()->factory()->replace_symbol(),
       [=]() {
-        Callable tostring_callable = CodeFactory::ToString(isolate());
-        Node* const subject_string =
-            CallStub(tostring_callable, context, receiver);
+        Node* const subject_string = ToString_Inline(context, receiver);
 
         Callable replace_callable = CodeFactory::RegExpReplace(isolate());
         return CallStub(replace_callable, context, search, subject_string,
@@ -1199,11 +1197,10 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   // Convert {receiver} and {search} to strings.
 
-  Callable tostring_callable = CodeFactory::ToString(isolate());
   Callable indexof_callable = CodeFactory::StringIndexOf(isolate());
 
-  Node* const subject_string = CallStub(tostring_callable, context, receiver);
-  Node* const search_string = CallStub(tostring_callable, context, search);
+  Node* const subject_string = ToString_Inline(context, receiver);
+  Node* const search_string = ToString_Inline(context, search);
 
   Node* const subject_length = LoadStringLength(subject_string);
   Node* const search_length = LoadStringLength(search_string);
@@ -1257,7 +1254,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
     // TODO(jgruber): Could introduce ToStringSideeffectsStub which only
     // performs observable parts of ToString.
-    CallStub(tostring_callable, context, replace);
+    ToString_Inline(context, replace);
     Goto(&return_subject);
 
     BIND(&return_subject);
@@ -1300,8 +1297,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     Node* const replacement =
         CallJS(call_callable, context, replace, UndefinedConstant(),
                search_string, match_start_index, subject_string);
-    Node* const replacement_string =
-        CallStub(tostring_callable, context, replacement);
+    Node* const replacement_string = ToString_Inline(context, replacement);
     var_result.Bind(CallStub(stringadd_callable, context, var_result.value(),
                              replacement_string));
     Goto(&out);
@@ -1309,7 +1305,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   BIND(&if_notcallablereplace);
   {
-    Node* const replace_string = CallStub(tostring_callable, context, replace);
+    Node* const replace_string = ToString_Inline(context, replace);
     Node* const replacement =
         GetSubstitution(context, subject_string, match_start_index,
                         match_end_index, replace_string);
@@ -1429,9 +1425,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   MaybeCallFunctionAtSymbol(
       context, separator, isolate()->factory()->split_symbol(),
       [=]() {
-        Callable tostring_callable = CodeFactory::ToString(isolate());
-        Node* const subject_string =
-            CallStub(tostring_callable, context, receiver);
+        Node* const subject_string = ToString_Inline(context, receiver);
 
         Callable split_callable = CodeFactory::RegExpSplit(isolate());
         return CallStub(split_callable, context, separator, subject_string,
@@ -1447,14 +1441,12 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // but AFAIK there should not be a difference since arrays are capped at Smi
   // lengths.
 
-  Callable tostring_callable = CodeFactory::ToString(isolate());
-  Node* const subject_string = CallStub(tostring_callable, context, receiver);
+  Node* const subject_string = ToString_Inline(context, receiver);
   Node* const limit_number =
       Select(IsUndefined(limit), [=]() { return SmiConstant(Smi::kMaxValue); },
              [=]() { return ToUint32(context, limit); },
              MachineRepresentation::kTagged);
-  Node* const separator_string =
-      CallStub(tostring_callable, context, separator);
+  Node* const separator_string = ToString_Inline(context, separator);
 
   // Shortcut for {limit} == 0.
   {

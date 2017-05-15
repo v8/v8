@@ -577,8 +577,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
       BIND(&call_tolength);
       {
-        var_lastindex.Bind(
-            CallBuiltin(Builtins::kToLength, context, regexp_lastindex));
+        var_lastindex.Bind(ToLength_Inline(context, regexp_lastindex));
         Goto(&next);
       }
 
@@ -1941,7 +1940,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         if (is_fastpath) {
           CSA_ASSERT(this, TaggedIsPositiveSmi(last_index));
         } else {
-          last_index = CallBuiltin(Builtins::kToLength, context, last_index);
+          last_index = ToLength_Inline(context, last_index);
         }
 
         Node* const new_last_index =
@@ -2809,8 +2808,7 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
   // 3. Does ToString({replace_value}) contain '$'?
   BIND(&checkreplacestring);
   {
-    Node* const replace_string =
-        CallBuiltin(Builtins::kToString, context, replace_value);
+    Node* const replace_string = ToString_Inline(context, replace_value);
 
     // ToString(replaceValue) could potentially change the shape of the RegExp
     // object. Recheck that we are still on the fast path and bail to runtime
@@ -2898,7 +2896,7 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = CallBuiltin(Builtins::kToString, context, maybe_string);
+  Node* const string = ToString_Inline(context, maybe_string);
 
   // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
   Label stub(this), runtime(this, Label::kDeferred);

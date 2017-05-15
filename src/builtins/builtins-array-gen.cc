@@ -303,8 +303,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     BIND(&not_js_array);
     Node* len_property =
         GetProperty(context(), o(), isolate()->factory()->length_string());
-    merged_length.Bind(
-        CallStub(CodeFactory::ToLength(isolate()), context(), len_property));
+    merged_length.Bind(ToLength_Inline(context(), len_property));
     Goto(&has_length);
     BIND(&has_length);
     len_ = merged_length.value();
@@ -2197,8 +2196,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
         {
           Node* length =
               GetProperty(context, array, factory()->length_string());
-          Callable to_length = CodeFactory::ToLength(isolate());
-          var_length.Bind(CallStub(to_length, context, length));
+          var_length.Bind(ToLength_Inline(context, length));
           Goto(&done);
         }
 

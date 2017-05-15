@@ -4480,6 +4480,22 @@ Node* CodeStubAssembler::ToString(Node* context, Node* input) {
   return result.value();
 }
 
+Node* CodeStubAssembler::ToString_Inline(Node* const context,
+                                         Node* const input) {
+  VARIABLE(var_result, MachineRepresentation::kTagged, input);
+  Label stub_call(this, Label::kDeferred), out(this);
+
+  GotoIf(TaggedIsSmi(input), &stub_call);
+  Branch(IsString(input), &out, &stub_call);
+
+  BIND(&stub_call);
+  var_result.Bind(CallBuiltin(Builtins::kToString, context, input));
+  Goto(&out);
+
+  BIND(&out);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::JSReceiverToPrimitive(Node* context, Node* input) {
   Label if_isreceiver(this, Label::kDeferred), if_isnotreceiver(this);
   VARIABLE(result, MachineRepresentation::kTagged);
@@ -4555,6 +4571,15 @@ Node* CodeStubAssembler::ToSmiLength(Node* input, Node* const context,
 
   BIND(&done);
   return result.value();
+}
+
+Node* CodeStubAssembler::ToLength_Inline(Node* const context,
+                                         Node* const input) {
+  Node* const smi_zero = SmiConstant(0);
+  return Select(
+      TaggedIsSmi(input), [=] { return SmiMax(input, smi_zero); },
+      [=] { return CallBuiltin(Builtins::kToLength, context, input); },
+      MachineRepresentation::kTagged);
 }
 
 Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
