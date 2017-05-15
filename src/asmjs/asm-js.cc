@@ -118,6 +118,9 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   asm_wasm_timer.Start();
   size_t asm_wasm_zone_start = info->zone()->allocation_size();
   {
+    HistogramTimerScope asm_wasm_time_scope(
+        info->isolate()->counters()->asm_wasm_translation_time());
+
     wasm::AsmJsParser parser(info->isolate(), info->zone(), info->script(),
                              info->literal()->start_position(),
                              info->literal()->end_position());
