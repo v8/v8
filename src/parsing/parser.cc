@@ -3320,11 +3320,10 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
 Expression* Parser::RewriteClassLiteral(Scope* block_scope,
                                         const AstRawString* name,
                                         ClassInfo* class_info, int pos,
-                                        bool* ok) {
+                                        int end_pos, bool* ok) {
   DCHECK_NOT_NULL(block_scope);
   DCHECK_EQ(block_scope->scope_type(), BLOCK_SCOPE);
   DCHECK_EQ(block_scope->language_mode(), STRICT);
-  int end_pos = scanner()->location().end_pos;
 
   bool has_extends = class_info->extends != nullptr;
   bool has_default_constructor = class_info->constructor == nullptr;
@@ -3332,8 +3331,6 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
     class_info->constructor =
         DefaultConstructor(name, has_extends, pos, end_pos);
   }
-
-  block_scope->set_end_position(end_pos);
 
   if (name != nullptr) {
     DCHECK_NOT_NULL(class_info->proxy);

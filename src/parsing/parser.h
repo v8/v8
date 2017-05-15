@@ -376,7 +376,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE Expression* RewriteClassLiteral(Scope* block_scope,
                                             const AstRawString* name,
                                             ClassInfo* class_info, int pos,
-                                            bool* ok);
+                                            int end_pos, bool* ok);
   V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos,
                                      bool* ok);
 

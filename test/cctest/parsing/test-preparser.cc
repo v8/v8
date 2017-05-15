@@ -547,6 +547,10 @@ TEST(PreParserScopeAnalysis) {
       // Shadowing the catch variable
       {"try { } catch(var1) { var var1 = 3; }"},
       {"try { } catch(var1) { var var1 = 3; function f() { var1 = 3; } }"},
+
+      // Classes
+      // FIXME(marja): Add more complex class cases.
+      {"class MyClass {}"},
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {

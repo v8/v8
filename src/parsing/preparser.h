@@ -1127,7 +1127,12 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void DeclareClassVariable(PreParserIdentifier name,
                                       ClassInfo* class_info,
-                                      int class_token_pos, bool* ok) {}
+                                      int class_token_pos, bool* ok) {
+    if (name.string_ != nullptr) {
+      DCHECK(track_unresolved_variables_);
+      scope()->DeclareVariableName(name.string_, CONST);
+    }
+  }
   V8_INLINE void DeclareClassProperty(PreParserIdentifier class_name,
                                       PreParserExpression property,
                                       ClassLiteralProperty::Kind kind,
@@ -1137,7 +1142,8 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserExpression RewriteClassLiteral(Scope* scope,
                                                     PreParserIdentifier name,
                                                     ClassInfo* class_info,
-                                                    int pos, bool* ok) {
+                                                    int pos, int end_pos,
+                                                    bool* ok) {
     bool has_default_constructor = !class_info->has_seen_constructor;
     // Account for the default constructor.
     if (has_default_constructor) GetNextFunctionLiteralId();

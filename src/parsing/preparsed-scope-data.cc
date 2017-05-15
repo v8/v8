@@ -51,6 +51,13 @@ const int kFunctionDataSize = 8;
 
 void PreParsedScopeData::SaveData(Scope* scope) {
   DCHECK(!has_data_);
+  DCHECK_NE(scope->end_position(), kNoSourcePosition);
+
+  // We're not trying to save data for default constructors because the
+  // PreParser doesn't construct them.
+  DCHECK_IMPLIES(scope->scope_type() == ScopeType::FUNCTION_SCOPE,
+                 (scope->AsDeclarationScope()->function_kind() &
+                  kDefaultConstructor) == 0);
 
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE &&
       !scope->AsDeclarationScope()->is_arrow_scope()) {
@@ -96,6 +103,7 @@ void PreParsedScopeData::AddSkippableFunction(
 
 void PreParsedScopeData::AddFunction(
     int start_position, const PreParseData::FunctionData& function_data) {
+  DCHECK(function_data.is_valid());
   function_index_.AddFunctionData(start_position, function_data);
 }
 
@@ -127,6 +135,7 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
       !scope->AsDeclarationScope()->is_arrow_scope()) {
     const PreParseData::FunctionData& data =
         function_index_.GetFunctionData(scope->start_position());
+    DCHECK(data.is_valid());
     DCHECK_EQ(data.end, scope->end_position());
     // FIXME(marja): unify num_parameters too and DCHECK here.
     DCHECK_EQ(data.language_mode, scope->language_mode());
@@ -148,6 +157,7 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
     return;
   }
 
+  DCHECK_GE(backing_store_.size(), index + 3);
   DCHECK_EQ(backing_store_[index++], scope->scope_type());
 
   if (backing_store_[index++]) {
@@ -266,11 +276,13 @@ void PreParsedScopeData::RestoreDataForVariable(Variable* var,
   uint32_t& index = *index_ptr;
 #ifdef DEBUG
   const AstRawString* name = var->raw_name();
+  DCHECK_GT(backing_store_.size(), index + name->length());
   DCHECK_EQ(backing_store_[index++], static_cast<uint32_t>(name->length()));
   for (int i = 0; i < name->length(); ++i) {
     DCHECK_EQ(backing_store_[index++], name->raw_data()[i]);
   }
 #endif
+  DCHECK_GT(backing_store_.size(), index);
   byte variable_data = backing_store_[index++];
   if (VariableIsUsedField::decode(variable_data)) {
     var->set_is_used();
@@ -321,7 +333,10 @@ bool PreParsedScopeData::FindFunctionData(int start_pos,
 
 bool PreParsedScopeData::ScopeNeedsData(Scope* scope) {
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
-    return true;
+    // Default constructors don't need data (they cannot contain inner functions
+    // defined by the user). Other functions do.
+    return (scope->AsDeclarationScope()->function_kind() &
+            kDefaultConstructor) == 0;
   }
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {

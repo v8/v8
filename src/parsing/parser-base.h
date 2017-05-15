@@ -4478,8 +4478,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   }
 
   Expect(Token::RBRACE, CHECK_OK);
+  int end_pos = scanner()->location().end_pos;
+  block_scope->set_end_position(end_pos);
   return impl()->RewriteClassLiteral(block_scope, name, &class_info,
-                                     class_token_pos, ok);
+                                     class_token_pos, end_pos, ok);
 }
 
 template <typename Impl>
