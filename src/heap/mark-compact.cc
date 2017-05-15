@@ -335,20 +335,19 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 // MarkCompactCollectorBase, MinorMarkCompactCollector, MarkCompactCollector
 // =============================================================================
 
-int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
-  if (!FLAG_parallel_compaction) return 1;
-  const int available_cores = Max(
+static int NumberOfAvailableCores() {
+  return Max(
       1, static_cast<int>(
              V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
-  return Min(available_cores, pages);
+}
+
+int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
+  return FLAG_parallel_compaction ? Min(NumberOfAvailableCores(), pages) : 1;
 }
 
 int MarkCompactCollectorBase::NumberOfPointerUpdateTasks(int pages) {
-  if (!FLAG_parallel_pointer_update) return 1;
-  const int available_cores = Max(
-      1, static_cast<int>(
-             V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
-  return Min(available_cores, pages);
+  return FLAG_parallel_pointer_update ? Min(NumberOfAvailableCores(), pages)
+                                      : 1;
 }
 
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
