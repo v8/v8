@@ -9,7 +9,6 @@
 #include "src/heap/heap.h"
 #include "src/objects-inl.h"
 #include "src/objects/dictionary.h"
-#include "src/objects/map-inl.h"
 #include "src/objects/regexp-match-info.h"
 
 namespace v8 {

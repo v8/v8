@@ -335,9 +335,15 @@ def get_base_class(klass):
         return get_base_class(k['parent']);
 
 #
-# Loads class hierarchy and type information from "objects.h" etc.
+# Loads class hierarchy and type information from "objects.h".
 #
 def load_objects():
+        objfilename = sys.argv[2];
+        objfile = open(objfilename, 'r');
+        in_insttype = False;
+
+        typestr = '';
+
         #
         # Construct a dictionary for the classes we're sure should be present.
         #
@@ -345,29 +351,11 @@ def load_objects():
         for klass in expected_classes:
                 checktypes[klass] = True;
 
-
-        for filename in sys.argv[2:]:
-                if not filename.endswith("-inl.h"):
-                        load_objects_from_file(filename, checktypes)
-
-        if (len(checktypes) > 0):
-                for klass in checktypes:
-                        print('error: expected class \"%s\" not found' % klass);
-
-                sys.exit(1);
-
-
-def load_objects_from_file(objfilename, checktypes):
-        objfile = open(objfilename, 'r');
-        in_insttype = False;
-
-        typestr = '';
-
         #
-        # Iterate the header file line-by-line to collect type and class
-        # information. For types, we accumulate a string representing the entire
-        # InstanceType enum definition and parse it later because it's easier to
-        # do so without the embedded newlines.
+        # Iterate objects.h line-by-line to collect type and class information.
+        # For types, we accumulate a string representing the entire InstanceType
+        # enum definition and parse it later because it's easier to do so
+        # without the embedded newlines.
         #
         for line in objfile:
                 if (line.startswith('enum InstanceType {')):
@@ -494,6 +482,13 @@ def load_objects_from_file(objfilename, checktypes):
                         if (cctype in checktypes):
                                 del checktypes[cctype];
 
+        if (len(checktypes) > 0):
+                for klass in checktypes:
+                        print('error: expected class \"%s\" not found' % klass);
+
+                sys.exit(1);
+
+
 #
 # For a given macro call, pick apart the arguments and return an object
 # describing the corresponding output constant.  See load_fields().
@@ -533,16 +528,11 @@ def parse_field(call):
         });
 
 #
-# Load field offset information from objects-inl.h etc.
+# Load field offset information from objects-inl.h.
 #
 def load_fields():
-        for filename in sys.argv[2:]:
-                if filename.endswith("-inl.h"):
-                        load_fields_from_file(filename)
-
-
-def load_fields_from_file(filename):
-        inlfile = open(filename, 'r');
+        inlfilename = sys.argv[3];
+        inlfile = open(inlfilename, 'r');
 
         #
         # Each class's fields and the corresponding offsets are described in the

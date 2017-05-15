@@ -8,7 +8,6 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
-#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {

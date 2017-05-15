@@ -1128,8 +1128,6 @@
         'objects/intl-objects.h',
         'objects/literal-objects.cc',
         'objects/literal-objects.h',
-        'objects/map-inl.h',
-        'objects/map.h',
         'objects/module-info.h',
         'objects/object-macros.h',
         'objects/object-macros-undef.h',
@@ -2451,8 +2449,6 @@
         'heapobject_files': [
             'objects.h',
             'objects-inl.h',
-            'objects/map.h',
-            'objects/map-inl.h',
         ],
       },
       'actions': [

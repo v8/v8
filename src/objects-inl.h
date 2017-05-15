@@ -523,6 +523,24 @@ bool HeapObject::IsNormalizedMapCache() const {
   return NormalizedMapCache::IsNormalizedMapCache(this);
 }
 
+int NormalizedMapCache::GetIndex(Handle<Map> map) {
+  return map->Hash() % NormalizedMapCache::kEntries;
+}
+
+bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
+  if (!obj->IsFixedArray()) return false;
+  if (FixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
+    return false;
+  }
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    reinterpret_cast<NormalizedMapCache*>(const_cast<HeapObject*>(obj))
+        ->NormalizedMapCacheVerify();
+  }
+#endif
+  return true;
+}
+
 bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
 
 bool HeapObject::IsCodeCacheHashTable() const { return IsHashTable(); }
@@ -661,6 +679,7 @@ CAST_ACCESSOR(JSWeakCollection)
 CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(LayoutDescriptor)
+CAST_ACCESSOR(Map)
 CAST_ACCESSOR(ModuleInfo)
 CAST_ACCESSOR(Name)
 CAST_ACCESSOR(NameDictionary)
@@ -1974,6 +1993,18 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 
 InterceptorInfo* JSObject::GetNamedInterceptor() {
   return map()->GetNamedInterceptor();
+}
+
+InterceptorInfo* Map::GetNamedInterceptor() {
+  DCHECK(has_named_interceptor());
+  FunctionTemplateInfo* info = GetFunctionTemplateInfo();
+  return InterceptorInfo::cast(info->named_property_handler());
+}
+
+InterceptorInfo* Map::GetIndexedInterceptor() {
+  DCHECK(has_indexed_interceptor());
+  FunctionTemplateInfo* info = GetFunctionTemplateInfo();
+  return InterceptorInfo::cast(info->indexed_property_handler());
 }
 
 double Oddball::to_number_raw() const {

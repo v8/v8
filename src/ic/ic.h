@@ -10,7 +10,6 @@
 #include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"
 #include "src/messages.h"
-#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {

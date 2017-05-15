@@ -10,7 +10,6 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
-#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
