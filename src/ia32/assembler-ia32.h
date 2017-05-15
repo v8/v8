@@ -980,6 +980,10 @@ class Assembler : public AssemblerBase {
   void mulps(XMMRegister dst, XMMRegister src) { mulps(dst, Operand(src)); }
   void divps(XMMRegister dst, const Operand& src);
   void divps(XMMRegister dst, XMMRegister src) { divps(dst, Operand(src)); }
+  void rcpps(XMMRegister dst, const Operand& src);
+  void rcpps(XMMRegister dst, XMMRegister src) { rcpps(dst, Operand(src)); }
+  void rsqrtps(XMMRegister dst, const Operand& src);
+  void rsqrtps(XMMRegister dst, XMMRegister src) { rsqrtps(dst, Operand(src)); }
 
   void minps(XMMRegister dst, const Operand& src);
   void minps(XMMRegister dst, XMMRegister src) { minps(dst, Operand(src)); }
@@ -1023,6 +1027,15 @@ class Assembler : public AssemblerBase {
   void cvtsd2ss(XMMRegister dst, XMMRegister src) {
     cvtsd2ss(dst, Operand(src));
   }
+  void cvtdq2ps(XMMRegister dst, XMMRegister src) {
+    cvtdq2ps(dst, Operand(src));
+  }
+  void cvtdq2ps(XMMRegister dst, const Operand& src);
+  void cvttps2dq(XMMRegister dst, XMMRegister src) {
+    cvttps2dq(dst, Operand(src));
+  }
+  void cvttps2dq(XMMRegister dst, const Operand& src);
+
   void addsd(XMMRegister dst, XMMRegister src) { addsd(dst, Operand(src)); }
   void addsd(XMMRegister dst, const Operand& src);
   void subsd(XMMRegister dst, XMMRegister src) { subsd(dst, Operand(src)); }
@@ -1331,12 +1344,36 @@ class Assembler : public AssemblerBase {
   }
   void vss(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
+  void vrcpps(XMMRegister dst, XMMRegister src) { vrcpps(dst, Operand(src)); }
+  void vrcpps(XMMRegister dst, const Operand& src) {
+    vinstr(0x53, dst, xmm0, src, kNone, k0F, kWIG);
+  }
+  void vrsqrtps(XMMRegister dst, XMMRegister src) {
+    vrsqrtps(dst, Operand(src));
+  }
+  void vrsqrtps(XMMRegister dst, const Operand& src) {
+    vinstr(0x52, dst, xmm0, src, kNone, k0F, kWIG);
+  }
+
   void vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpslld(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrlw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrld(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8);
+
+  void vcvtdq2ps(XMMRegister dst, XMMRegister src) {
+    vcvtdq2ps(dst, Operand(src));
+  }
+  void vcvtdq2ps(XMMRegister dst, const Operand& src) {
+    vinstr(0x5B, dst, xmm0, src, kNone, k0F, kWIG);
+  }
+  void vcvttps2dq(XMMRegister dst, XMMRegister src) {
+    vcvttps2dq(dst, Operand(src));
+  }
+  void vcvttps2dq(XMMRegister dst, const Operand& src) {
+    vinstr(0x5B, dst, xmm0, src, kF3, k0F, kWIG);
+  }
 
   // BMI instruction
   void andn(Register dst, Register src1, Register src2) {

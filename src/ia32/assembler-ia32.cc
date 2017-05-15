@@ -2162,6 +2162,20 @@ void Assembler::cvtsd2ss(XMMRegister dst, const Operand& src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::cvtdq2ps(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x5B);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::cvttps2dq(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x5B);
+  emit_sse_operand(dst, src);
+}
 
 void Assembler::addsd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
@@ -2260,6 +2274,20 @@ void Assembler::divps(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0x5E);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::rcpps(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x53);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::rsqrtps(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x52);
   emit_sse_operand(dst, src);
 }
 

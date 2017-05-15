@@ -868,6 +868,10 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x5b:
+        AppendToBuffer("vcvttps2dq %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x5c:
         AppendToBuffer("vsubss %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -988,6 +992,14 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x52:
+        AppendToBuffer("vrsqrtps %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x53:
+        AppendToBuffer("vrcpps %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x54:
         AppendToBuffer("vandps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -1006,6 +1018,10 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
       case 0x59:
         AppendToBuffer("vmulps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5B:
+        AppendToBuffer("vcvtdq2ps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
       case 0x5C:
@@ -1547,28 +1563,17 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("ucomiss %s,", NameOfXMMRegister(regop));
             data += PrintRightXMMOperand(data);
-          } else if (f0byte >= 0x53 && f0byte <= 0x5F) {
+          } else if (f0byte >= 0x52 && f0byte <= 0x5F) {
             const char* const pseudo_op[] = {
-              "rcpps",
-              "andps",
-              "andnps",
-              "orps",
-              "xorps",
-              "addps",
-              "mulps",
-              "cvtps2pd",
-              "cvtdq2ps",
-              "subps",
-              "minps",
-              "divps",
-              "maxps",
+                "rsqrtps", "rcpps", "andps", "andnps",   "orps",
+                "xorps",   "addps", "mulps", "cvtps2pd", "cvtdq2ps",
+                "subps",   "minps", "divps", "maxps",
             };
 
             data += 2;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("%s %s,",
-                           pseudo_op[f0byte - 0x53],
+            AppendToBuffer("%s %s,", pseudo_op[f0byte - 0x52],
                            NameOfXMMRegister(regop));
             data += PrintRightXMMOperand(data);
           } else if (f0byte == 0x50) {
@@ -2265,6 +2270,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                 break;
               case 0x59:
                 mnem = "mulss";
+                break;
+              case 0x5B:
+                mnem = "cvttps2dq";
                 break;
               case 0x5C:
                 mnem = "subss";
