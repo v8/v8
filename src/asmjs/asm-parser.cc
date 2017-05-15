@@ -988,7 +988,7 @@ void AsmJsParser::ValidateFunctionLocals(
   }
 }
 
-// ValidateStatement
+// 6.5 ValidateStatement
 void AsmJsParser::ValidateStatement() {
   call_coercion_ = nullptr;
   if (Peek('{')) {
@@ -1172,7 +1172,11 @@ void AsmJsParser::ForStatement() {
   EXPECT_TOKEN(TOK(for));
   EXPECT_TOKEN('(');
   if (!Peek(';')) {
-    Expression(nullptr);
+    AsmType* ret;
+    RECURSE(ret = Expression(nullptr));
+    if (!ret->IsA(AsmType::Void())) {
+      current_function_builder_->Emit(kExprDrop);
+    }
   }
   EXPECT_TOKEN(';');
   // a: block {
@@ -1198,6 +1202,7 @@ void AsmJsParser::ForStatement() {
   scanner_.Seek(increment_position);
   if (!Peek(')')) {
     RECURSE(Expression(nullptr));
+    // NOTE: No explicit drop because below break is an implicit drop.
   }
   current_function_builder_->EmitWithU8(kExprBr, 0);
   scanner_.Seek(end_position);

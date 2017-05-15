@@ -271,10 +271,9 @@ class AsmJsParser {
   FunctionSig* ConvertSignature(AsmType* return_type,
                                 const std::vector<AsmType*>& params);
 
-  // 6.1 ValidateModule
-  void ValidateModule();
-  void ValidateModuleParameters();
-  void ValidateModuleVars();
+  void ValidateModule();            // 6.1 ValidateModule
+  void ValidateModuleParameters();  // 6.1 ValidateModule - parameters
+  void ValidateModuleVars();        // 6.1 ValidateModule - variables
   void ValidateModuleVar(bool mutable_variable);
   void ValidateModuleVarImport(VarInfo* info, bool mutable_variable);
   void ValidateModuleVarStdlib(VarInfo* info);
@@ -287,7 +286,7 @@ class AsmJsParser {
   void ValidateFunctionParams(std::vector<AsmType*>* params);
   void ValidateFunctionLocals(size_t param_count,
                               std::vector<ValueType>* locals);
-  void ValidateStatement();              // ValidateStatement
+  void ValidateStatement();              // 6.5 ValidateStatement
   void Block();                          // 6.5.1 Block
   void ExpressionStatement();            // 6.5.2 ExpressionStatement
   void EmptyStatement();                 // 6.5.3 EmptyStatement
