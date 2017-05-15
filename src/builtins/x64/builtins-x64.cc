@@ -696,6 +696,37 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ jmp(&stepping_prepared);
 }
 
+static void ReplaceClosureEntryWithOptimizedCode(
+    MacroAssembler* masm, Register optimized_code_entry, Register closure,
+    Register scratch1, Register scratch2, Register scratch3) {
+  Register native_context = scratch1;
+
+  // Store the optimized code in the closure.
+  __ leap(optimized_code_entry,
+          FieldOperand(optimized_code_entry, Code::kHeaderSize));
+  __ movp(FieldOperand(closure, JSFunction::kCodeEntryOffset),
+          optimized_code_entry);
+  __ RecordWriteCodeEntryField(closure, optimized_code_entry, scratch2);
+
+  // Link the closure into the optimized function list.
+  __ movp(native_context, NativeContextOperand());
+  __ movp(scratch3,
+          ContextOperand(native_context, Context::OPTIMIZED_FUNCTIONS_LIST));
+  __ movp(FieldOperand(closure, JSFunction::kNextFunctionLinkOffset), scratch3);
+  __ RecordWriteField(closure, JSFunction::kNextFunctionLinkOffset, scratch3,
+                      scratch2, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  const int function_list_offset =
+      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST);
+  __ movp(ContextOperand(native_context, Context::OPTIMIZED_FUNCTIONS_LIST),
+          closure);
+  // Save closure before the write barrier.
+  __ movp(scratch3, closure);
+  __ RecordWriteContextSlot(native_context, function_list_offset, closure,
+                            scratch2, kDontSaveFPRegs);
+  __ movp(closure, scratch3);
+}
+
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
                                   Register scratch2) {
   Register args_count = scratch1;
@@ -742,6 +773,18 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Push(rsi);  // Callee's context.
   __ Push(rdi);  // Callee's JS function.
   __ Push(rdx);  // Callee's new target.
+
+  // First check if there is optimized code in the feedback vector which we
+  // could call instead.
+  Label switch_to_optimized_code;
+  Register optimized_code_entry = rcx;
+  __ movp(rbx, FieldOperand(rdi, JSFunction::kFeedbackVectorOffset));
+  __ movp(rbx, FieldOperand(rbx, Cell::kValueOffset));
+  __ movp(rbx,
+          FieldOperand(rbx, FeedbackVector::kOptimizedCodeIndex * kPointerSize +
+                                FeedbackVector::kHeaderSize));
+  __ movp(optimized_code_entry, FieldOperand(rbx, WeakCell::kValueOffset));
+  __ JumpIfNotSmi(optimized_code_entry, &switch_to_optimized_code);
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
@@ -857,6 +900,28 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movp(FieldOperand(rdi, JSFunction::kCodeEntryOffset), rcx);
   __ RecordWriteCodeEntryField(rdi, rcx, r15);
   __ jmp(rcx);
+
+  // If there is optimized code on the type feedback vector, check if it is good
+  // to run, and if so, self heal the closure and call the optimized code.
+  __ bind(&switch_to_optimized_code);
+  __ leave();
+  Label gotta_call_runtime;
+
+  // Check if the optimized code is marked for deopt.
+  __ testl(FieldOperand(optimized_code_entry, Code::kKindSpecificFlags1Offset),
+           Immediate(1 << Code::kMarkedForDeoptimizationBit));
+  __ j(not_zero, &gotta_call_runtime);
+
+  // Optimized code is good, get it into the closure and link the closure into
+  // the optimized functions list, then tail call the optimized code.
+  ReplaceClosureEntryWithOptimizedCode(masm, optimized_code_entry, rdi, r14,
+                                       r15, rbx);
+  __ jmp(optimized_code_entry);
+
+  // Optimized code is marked for deopt, bailout to the CompileLazy runtime
+  // function which will clear the feedback vector's optimized code slot.
+  __ bind(&gotta_call_runtime);
+  GenerateTailCallToReturnedCode(masm, Runtime::kEvictOptimizedCodeSlot);
 }
 
 static void Generate_StackOverflowCheck(
@@ -1160,29 +1225,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ j(not_zero, &gotta_call_runtime);
 
   // Code is good, get it into the closure and tail call.
-  __ leap(entry, FieldOperand(entry, Code::kHeaderSize));
-  __ movp(FieldOperand(closure, JSFunction::kCodeEntryOffset), entry);
-  __ RecordWriteCodeEntryField(closure, entry, r15);
-
-  // Load native context into r14.
-  Register native_context = r14;
-  __ movp(native_context, NativeContextOperand());
-
-  // Link the closure into the optimized function list.
-  __ movp(rbx,
-          ContextOperand(native_context, Context::OPTIMIZED_FUNCTIONS_LIST));
-  __ movp(FieldOperand(closure, JSFunction::kNextFunctionLinkOffset), rbx);
-  __ RecordWriteField(closure, JSFunction::kNextFunctionLinkOffset, rbx, r15,
-                      kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  const int function_list_offset =
-      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST);
-  __ movp(ContextOperand(native_context, Context::OPTIMIZED_FUNCTIONS_LIST),
-          closure);
-  // Save closure before the write barrier.
-  __ movp(rbx, closure);
-  __ RecordWriteContextSlot(native_context, function_list_offset, closure, r15,
-                            kDontSaveFPRegs);
-  __ movp(closure, rbx);
+  ReplaceClosureEntryWithOptimizedCode(masm, entry, closure, r14, r15, rbx);
   __ jmp(entry);
 
   // We found no optimized code.
