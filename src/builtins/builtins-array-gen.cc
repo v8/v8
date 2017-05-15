@@ -1678,95 +1678,59 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
   Node* array = args.GetReceiver();
   Node* search_element =
       args.GetOptionalArgumentValue(kSearchElementArg, UndefinedConstant());
-  Node* start_from =
-      args.GetOptionalArgumentValue(kFromIndexArg, UndefinedConstant());
   Node* context = Parameter(BuiltinDescriptor::kContext);
 
   Node* intptr_zero = IntPtrConstant(0);
   Node* intptr_one = IntPtrConstant(1);
 
-  VARIABLE(len_var, MachineType::PointerRepresentation());
-  VARIABLE(index_var, MachineType::PointerRepresentation());
-  VARIABLE(start_from_var, MachineType::PointerRepresentation());
-
-  Label init_k(this), return_found(this), return_not_found(this),
+  Label init_index(this), return_found(this), return_not_found(this),
       call_runtime(this);
-
-  Label init_len(this);
-
-  index_var.Bind(intptr_zero);
-  len_var.Bind(intptr_zero);
 
   // Take slow path if not a JSArray, if retrieving elements requires
   // traversing prototype, or if access checks are required.
   BranchIfFastJSArray(array, context, FastJSArrayAccessMode::INBOUNDS_READ,
-                      &init_len, &call_runtime);
+                      &init_index, &call_runtime);
 
-  BIND(&init_len);
-  {
-    // JSArray length is always an Smi for fast arrays.
-    CSA_ASSERT(this,
-               TaggedIsSmi(LoadObjectField(array, JSArray::kLengthOffset)));
-    Node* len = LoadAndUntagObjectField(array, JSArray::kLengthOffset);
+  BIND(&init_index);
+  VARIABLE(index_var, MachineType::PointerRepresentation(), intptr_zero);
 
-    len_var.Bind(len);
-    Branch(WordEqual(len_var.value(), intptr_zero), &return_not_found, &init_k);
-  }
+  // JSArray length is always a positive Smi for fast arrays.
+  CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array)));
+  Node* array_length = SmiUntag(LoadJSArrayLength(array));
 
-  BIND(&init_k);
   {
     // For now only deal with undefined and Smis here; we must be really careful
     // with side-effects from the ToInteger conversion as the side-effects might
     // render our assumptions about the receiver being a fast JSArray and the
     // length invalid.
-    Label done(this), init_k_smi(this), init_k_other(this), init_k_zero(this),
-        init_k_n(this);
-    Branch(TaggedIsSmi(start_from), &init_k_smi, &init_k_other);
+    Label done(this);
 
-    BIND(&init_k_smi);
+    // If no fromIndex was passed, default to 0.
+    GotoIf(IntPtrLessThanOrEqual(argc, IntPtrConstant(kFromIndexArg)), &done);
+
+    // Handle Smis here and everything else in runtime.
+    Node* start_from = args.AtIndex(kFromIndexArg);
+    GotoIfNot(TaggedIsSmi(start_from), &call_runtime);
+
+    Node* intptr_start_from = SmiUntag(start_from);
+    index_var.Bind(intptr_start_from);
+
+    Label if_negative(this);
+    Branch(IntPtrLessThan(intptr_start_from, intptr_zero), &if_negative, &done);
+
+    BIND(&if_negative);
     {
-      // The fromIndex is a Smi.
-      start_from_var.Bind(SmiUntag(start_from));
-      Goto(&init_k_n);
+      Node* len_minus_start_from = IntPtrAdd(array_length, intptr_start_from);
+      index_var.Bind(IntPtrMax(len_minus_start_from, intptr_zero));
+      Goto(&done);
     }
 
-    BIND(&init_k_other);
-    {
-      // The fromIndex must be undefined then, otherwise bailout and let the
-      // runtime deal with the full ToInteger conversion.
-      GotoIfNot(IsUndefined(start_from), &call_runtime);
-      start_from_var.Bind(intptr_zero);
-      Goto(&init_k_n);
-    }
-
-    BIND(&init_k_n);
-    {
-      Label if_positive(this), if_negative(this), done(this);
-      Branch(IntPtrLessThan(start_from_var.value(), intptr_zero), &if_negative,
-             &if_positive);
-
-      BIND(&if_positive);
-      {
-        index_var.Bind(start_from_var.value());
-        Goto(&done);
-      }
-
-      BIND(&if_negative);
-      {
-        index_var.Bind(IntPtrAdd(len_var.value(), start_from_var.value()));
-        Branch(IntPtrLessThan(index_var.value(), intptr_zero), &init_k_zero,
-               &done);
-      }
-
-      BIND(&init_k_zero);
-      {
-        index_var.Bind(intptr_zero);
-        Goto(&done);
-      }
-
-      BIND(&done);
-    }
+    BIND(&done);
   }
+
+  // Fail early if startIndex >= array.length.
+  GotoIf(IntPtrGreaterThanOrEqual(index_var.value(), array_length),
+         &return_not_found);
 
   static int32_t kElementsKind[] = {
       FAST_SMI_ELEMENTS,   FAST_HOLEY_SMI_ELEMENTS, FAST_ELEMENTS,
@@ -1807,7 +1771,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
 
     BIND(&ident_loop);
     {
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
                 &return_not_found);
       Node* element_k = LoadFixedArrayElement(elements, index_var.value());
       GotoIf(WordEqual(element_k, search_element), &return_found);
@@ -1825,7 +1789,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
       BIND(&not_nan_loop);
       {
         Label continue_loop(this), not_smi(this);
-        GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+        GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
                   &return_not_found);
         Node* element_k = LoadFixedArrayElement(elements, index_var.value());
         GotoIfNot(TaggedIsSmi(element_k), &not_smi);
@@ -1845,8 +1809,9 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
 
     BIND(&string_loop);
     {
+      CSA_ASSERT(this, IsString(search_element));
       Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
                 &return_not_found);
       Node* element_k = LoadFixedArrayElement(elements, index_var.value());
       GotoIf(TaggedIsSmi(element_k), &continue_loop);
@@ -1859,7 +1824,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
              &continue_loop);
 
       BIND(&continue_loop);
-      index_var.Bind(IntPtrAdd(index_var.value(), intptr_one));
+      Increment(index_var);
       Goto(&string_loop);
     }
   }
@@ -1883,7 +1848,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
     // Search for HeapNumber
     BIND(&not_nan_loop);
     {
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
                 &return_not_found);
       Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
                                                     MachineType::Float64());
@@ -1914,7 +1879,7 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
     BIND(&not_nan_loop);
     {
       Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
                 &return_not_found);
 
       // Load double value or continue if it contains a double hole.
@@ -1937,8 +1902,12 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
   args.PopAndReturn(NumberConstant(-1));
 
   BIND(&call_runtime);
-  args.PopAndReturn(CallRuntime(Runtime::kArrayIndexOf, context, array,
-                                search_element, start_from));
+  {
+    Node* start_from =
+        args.GetOptionalArgumentValue(kFromIndexArg, UndefinedConstant());
+    args.PopAndReturn(CallRuntime(Runtime::kArrayIndexOf, context, array,
+                                  search_element, start_from));
+  }
 }
 
 class ArrayPrototypeIterationAssembler : public CodeStubAssembler {
