@@ -1161,7 +1161,8 @@ WASM_EXEC_COMPILED_TEST(I16x8ConvertI8x16) {
 }
 #endif  // V8_TARGET_ARCH_ARM
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if SIMD_LOWERING_TARGET || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 void RunI16x8UnOpTest(WasmOpcode simd_op, Int16UnOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, int32_t> r(kExecuteCompiled);
@@ -1176,7 +1177,8 @@ void RunI16x8UnOpTest(WasmOpcode simd_op, Int16UnOp expected_op) {
 }
 
 WASM_EXEC_COMPILED_TEST(I16x8Neg) { RunI16x8UnOpTest(kExprI16x8Neg, Negate); }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#endif  // SIMD_LOWERING_TARGET || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_ARM
 // Tests both signed and unsigned conversion from I32x4 (packing).

@@ -834,15 +834,20 @@ void SimdScalarLowering::LowerNode(Node* node) {
       LowerIntMinMax(node, machine()->Uint32LessThan(), false, rep_type);
       break;
     }
-    case IrOpcode::kI32x4Neg: {
+    case IrOpcode::kI32x4Neg:
+    case IrOpcode::kI16x8Neg: {
       DCHECK(node->InputCount() == 1);
       Node** rep = GetReplacementsWithType(node->InputAt(0), rep_type);
-      Node* rep_node[kNumLanes32];
+      int num_lanes = NumLanes(rep_type);
+      Node** rep_node = zone()->NewArray<Node*>(num_lanes);
       Node* zero = graph()->NewNode(common()->Int32Constant(0));
-      for (int i = 0; i < kNumLanes32; ++i) {
+      for (int i = 0; i < num_lanes; ++i) {
         rep_node[i] = graph()->NewNode(machine()->Int32Sub(), zero, rep[i]);
+        if (node->opcode() == IrOpcode::kI16x8Neg) {
+          rep_node[i] = FixUpperBits(rep_node[i], kShift16);
+        }
       }
-      ReplaceNode(node, rep_node, kNumLanes32);
+      ReplaceNode(node, rep_node, num_lanes);
       break;
     }
     case IrOpcode::kS128Not: {
