@@ -145,9 +145,12 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
 
     case kDataField:
     case kDataConstantField: {
-      // Check if we actually access the same field.
-      if (this->kind_ == that->kind_ &&
-          this->field_index_ == that->field_index_) {
+      // Check if we actually access the same field (we use the
+      // GetFieldAccessStubKey method here just like the ICs do
+      // since that way we only compare the relevant bits of the
+      // field indices).
+      if (this->field_index_.GetFieldAccessStubKey() ==
+          that->field_index_.GetFieldAccessStubKey()) {
         switch (access_mode) {
           case AccessMode::kLoad: {
             if (this->field_representation_ != that->field_representation_) {
