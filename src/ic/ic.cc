@@ -1229,6 +1229,13 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       if (lookup->is_dictionary_holder()) {
         smi_handler = LoadHandler::LoadNormal(isolate());
         if (receiver_is_holder) {
+          if (holder->IsJSGlobalObject()) {
+            // TODO(verwaest): This is a workaround for code that leaks the
+            // global object.
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobalDH);
+            smi_handler = LoadHandler::LoadGlobal(isolate());
+            return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
+          }
           DCHECK(!holder->IsJSGlobalObject());
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
           return smi_handler;
