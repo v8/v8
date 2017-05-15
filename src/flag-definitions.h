@@ -361,6 +361,8 @@ DEFINE_INT(max_inlined_nodes, 200,
            "maximum number of AST nodes considered for a single inlining")
 DEFINE_INT(max_inlined_nodes_cumulative, 400,
            "maximum cumulative number of AST nodes considered for inlining")
+DEFINE_INT(max_inlined_nodes_small, 10,
+           "maximum number of AST nodes considered for small function inlining")
 DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
 DEFINE_BOOL(loop_invariant_code_motion, true, "loop invariant code motion")
 DEFINE_BOOL(fast_math, true, "faster (but maybe less accurate) math functions")

@@ -65,6 +65,15 @@ bool CanInlineFunction(Handle<SharedFunctionInfo> shared) {
   return true;
 }
 
+bool IsSmallInlineFunction(Handle<SharedFunctionInfo> shared) {
+  // Don't forcibly inline functions that weren't compiled yet.
+  if (shared->ast_node_count() == 0) return false;
+
+  // Forcibly inline small functions.
+  if (shared->ast_node_count() <= FLAG_max_inlined_nodes_small) return true;
+  return false;
+}
+
 }  // namespace
 
 Reduction JSInliningHeuristic::Reduce(Node* node) {
@@ -91,7 +100,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   }
 
   // Functions marked with %SetForceInlineFlag are immediately inlined.
-  bool can_inline = false, force_inline = true;
+  bool can_inline = false, force_inline = true, small_inline = true;
   for (int i = 0; i < candidate.num_functions; ++i) {
     Handle<SharedFunctionInfo> shared =
         candidate.functions[i].is_null()
@@ -102,6 +111,9 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     }
     if (CanInlineFunction(shared)) {
       can_inline = true;
+    }
+    if (!IsSmallInlineFunction(shared)) {
+      small_inline = false;
     }
   }
   if (force_inline) return InlineCandidate(candidate);
@@ -152,6 +164,13 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   if (candidate.frequency.IsKnown() &&
       candidate.frequency.value() < FLAG_min_inlining_frequency) {
     return NoChange();
+  }
+
+  // Forcibly inline small functions here.
+  if (small_inline) {
+    TRACE("Inlining small function(s) at call site #%d:%s\n", node->id(),
+          node->op()->mnemonic());
+    return InlineCandidate(candidate);
   }
 
   // In the general case we remember the candidate for later.
