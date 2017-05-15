@@ -438,7 +438,8 @@ Handle<JSArrayBuffer> SetupArrayBuffer(Isolate*, void* backing_store,
                                        bool enable_guard_regions);
 
 void DetachWebAssemblyMemoryBuffer(Isolate* isolate,
-                                   Handle<JSArrayBuffer> buffer);
+                                   Handle<JSArrayBuffer> buffer,
+                                   bool free_memory);
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, Handle<JSFunction> js_function);
