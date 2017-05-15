@@ -1617,19 +1617,14 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   Run<SimplifiedLoweringPhase>();
   RunPrintAndVerify("Simplified lowering", true);
 
+  // From now on it is invalid to look at types on the nodes, because the types
+  // on the nodes might not make sense after representation selection due to the
+  // way we handle truncations; if we'd want to look at types afterwards we'd
+  // essentially need to re-type (large portions of) the graph.
+
+  // In order to catch bugs related to type access after this point, we now
+  // remove the types from the nodes (currently only in Debug builds).
 #ifdef DEBUG
-  // From now on it is invalid to look at types on the nodes, because:
-  //
-  //  (a) The remaining passes (might) run concurrent to the main thread and
-  //      therefore must not access the Heap or the Isolate in an uncontrolled
-  //      way (as done by the type system), and
-  //  (b) the types on the nodes might not make sense after representation
-  //      selection due to the way we handle truncations; if we'd want to look
-  //      at types afterwards we'd essentially need to re-type (large portions
-  //      of) the graph.
-  //
-  // In order to catch bugs related to type access after this point we remove
-  // the types from the nodes at this point (currently only in Debug builds).
   Run<UntyperPhase>();
   RunPrintAndVerify("Untyped", true);
 #endif
