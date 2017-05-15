@@ -1408,8 +1408,8 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   // Found code, check if it is marked for deopt, if so call into runtime to
   // clear the optimized code slot.
   __ Ldr(w8, FieldMemOperand(entry, Code::kKindSpecificFlags1Offset));
-  __ DecodeField<Code::MarkedForDeoptimizationField>(w8);
-  __ B(ne, &gotta_call_runtime);
+  __ TestAndBranchIfAnySet(w8, 1 << Code::kMarkedForDeoptimizationBit,
+                           &gotta_call_runtime);
 
   // Code is good, get it into the closure and tail call.
   __ Add(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
