@@ -996,7 +996,13 @@ void CodeAssemblerLabel::MergeVariables() {
 
 #if DEBUG
 void CodeAssemblerLabel::Bind(AssemblerDebugInfo debug_info) {
-  DCHECK(!bound_);
+  if (bound_) {
+    std::stringstream str;
+    str << "Cannot bind the same label twice:"
+        << "\n#    current:  " << debug_info
+        << "\n#    previous: " << *label_->block();
+    FATAL(str.str().c_str());
+  }
   state_->raw_assembler_->Bind(label_, debug_info);
   UpdateVariablesAfterBind();
 }
