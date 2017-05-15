@@ -2357,10 +2357,12 @@ class JSObject: public JSReceiver {
   // an access at key?
   bool WouldConvertToSlowElements(uint32_t index);
 
+  static const uint32_t kMinAddedElementsCapacity = 16;
+
   // Computes the new capacity when expanding the elements of a JSObject.
   static uint32_t NewElementsCapacity(uint32_t old_capacity) {
-    // (old_capacity + 50%) + 16
-    return old_capacity + (old_capacity >> 1) + 16;
+    // (old_capacity + 50%) + kMinAddedElementsCapacity
+    return old_capacity + (old_capacity >> 1) + kMinAddedElementsCapacity;
   }
 
   // These methods do not perform access checks!

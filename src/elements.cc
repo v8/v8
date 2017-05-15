@@ -769,9 +769,15 @@ class ElementsAccessorBase : public ElementsAccessor {
           backing_store = handle(array->elements(), isolate);
         }
       }
-      if (2 * length <= capacity) {
+      if (2 * length + JSObject::kMinAddedElementsCapacity <= capacity) {
         // If more than half the elements won't be used, trim the array.
-        isolate->heap()->RightTrimFixedArray(*backing_store, capacity - length);
+        // Do not trim from short arrays to prevent frequent trimming on
+        // repeated pop operations.
+        // Leave some space to allow for subsequent push operations.
+        int elements_to_trim = length + 1 == old_length
+                                   ? (capacity - length) / 2
+                                   : capacity - length;
+        isolate->heap()->RightTrimFixedArray(*backing_store, elements_to_trim);
       } else {
         // Otherwise, fill the unused tail with holes.
         BackingStore::cast(*backing_store)->FillWithHoles(length, old_length);
@@ -2150,8 +2156,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                            int hole_end) {
     Heap* heap = isolate->heap();
     Handle<BackingStore> dst_elms = Handle<BackingStore>::cast(backing_store);
-    if (heap->CanMoveObjectStart(*dst_elms) && dst_index == 0 &&
-        len > JSArray::kMaxCopyElements) {
+    if (len > JSArray::kMaxCopyElements && dst_index == 0 &&
+        heap->CanMoveObjectStart(*dst_elms)) {
       // Update all the copies of this backing_store handle.
       *dst_elms.location() =
           BackingStore::cast(heap->LeftTrimFixedArray(*dst_elms, src_index));
