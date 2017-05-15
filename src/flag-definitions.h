@@ -193,19 +193,16 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                           \
-  V(harmony_array_prototype_values, "harmony Array.prototype.values")   \
-  V(harmony_function_sent, "harmony function.sent")                     \
-  V(harmony_tailcalls, "harmony tail calls")                            \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
-  V(harmony_do_expressions, "harmony do-expressions")                   \
-  V(harmony_class_fields, "harmony public fields in class literals")    \
-  V(harmony_async_iteration, "harmony async iteration")                 \
-  V(harmony_dynamic_import, "harmony dynamic import")                   \
-  V(harmony_promise_finally, "harmony Promise.prototype.finally")       \
-  V(harmony_restrict_constructor_return,                                \
-    "harmony disallow non undefined primitive return value from class " \
-    "constructor")
+#define HARMONY_INPROGRESS(V)                                         \
+  V(harmony_array_prototype_values, "harmony Array.prototype.values") \
+  V(harmony_function_sent, "harmony function.sent")                   \
+  V(harmony_tailcalls, "harmony tail calls")                          \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
+  V(harmony_do_expressions, "harmony do-expressions")                 \
+  V(harmony_class_fields, "harmony public fields in class literals")  \
+  V(harmony_async_iteration, "harmony async iteration")               \
+  V(harmony_dynamic_import, "harmony dynamic import")                 \
+  V(harmony_promise_finally, "harmony Promise.prototype.finally")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                               \
@@ -217,7 +214,10 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_strict_legacy_accessor_builtins,                            \
     "treat __defineGetter__ and related functions as strict")           \
   V(harmony_template_escapes,                                           \
-    "harmony invalid escapes in tagged template literals")
+    "harmony invalid escapes in tagged template literals")              \
+  V(harmony_restrict_constructor_return,                                \
+    "harmony disallow non undefined primitive return value from class " \
+    "constructor")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                           \
