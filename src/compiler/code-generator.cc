@@ -99,7 +99,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
   DCHECK_EQ(0u, deoptimization_literals_.size());
   for (CompilationInfo::InlinedFunctionHolder& inlined :
        info->inlined_functions()) {
-    if (!inlined.shared_info.is_identical_to(info->shared_info())) {
+    if (!inlined.shared_info.equals(info->shared_info())) {
       int index = DefineDeoptimizationLiteral(inlined.shared_info);
       inlined.RegisterInlinedFunctionId(index);
     }
@@ -110,7 +110,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
   // functions. This ensures unoptimized code is kept alive by optimized code.
   for (const CompilationInfo::InlinedFunctionHolder& inlined :
        info->inlined_functions()) {
-    if (!inlined.shared_info.is_identical_to(info->shared_info())) {
+    if (!inlined.shared_info.equals(info->shared_info())) {
       DefineDeoptimizationLiteral(inlined.inlined_code_object_root);
     }
   }
@@ -660,7 +660,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 int CodeGenerator::DefineDeoptimizationLiteral(Handle<Object> literal) {
   int result = static_cast<int>(deoptimization_literals_.size());
   for (unsigned i = 0; i < deoptimization_literals_.size(); ++i) {
-    if (deoptimization_literals_[i].is_identical_to(literal)) return i;
+    if (deoptimization_literals_[i].equals(literal)) return i;
   }
   deoptimization_literals_.push_back(literal);
   return result;
@@ -970,7 +970,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
       default:
         UNREACHABLE();
     }
-    if (constant_object.is_identical_to(info()->closure())) {
+    if (constant_object.equals(info()->closure())) {
       translation->StoreJSFrameFunction();
     } else {
       int literal_id = DefineDeoptimizationLiteral(constant_object);
