@@ -2,219 +2,167 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-string-gen.h"
+
 #include "src/builtins/builtins-regexp-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
 #include "src/objects.h"
 
 namespace v8 {
 namespace internal {
 
 typedef CodeStubAssembler::RelationalComparisonMode RelationalComparisonMode;
+typedef compiler::Node Node;
 
-class StringBuiltinsAssembler : public CodeStubAssembler {
- public:
-  explicit StringBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+Node* StringBuiltinsAssembler::DirectStringData(Node* string,
+                                                Node* string_instance_type) {
+  // Compute the effective offset of the first character.
+  VARIABLE(var_data, MachineType::PointerRepresentation());
+  Label if_sequential(this), if_external(this), if_join(this);
+  Branch(Word32Equal(Word32And(string_instance_type,
+                               Int32Constant(kStringRepresentationMask)),
+                     Int32Constant(kSeqStringTag)),
+         &if_sequential, &if_external);
 
-  // ES#sec-getsubstitution
-  Node* GetSubstitution(Node* context, Node* subject_string,
-                        Node* match_start_index, Node* match_end_index,
-                        Node* replace_string);
-
- protected:
-  Node* DirectStringData(Node* string, Node* string_instance_type) {
-    // Compute the effective offset of the first character.
-    VARIABLE(var_data, MachineType::PointerRepresentation());
-    Label if_sequential(this), if_external(this), if_join(this);
-    Branch(Word32Equal(Word32And(string_instance_type,
-                                 Int32Constant(kStringRepresentationMask)),
-                       Int32Constant(kSeqStringTag)),
-           &if_sequential, &if_external);
-
-    BIND(&if_sequential);
-    {
-      var_data.Bind(IntPtrAdd(
-          IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag),
-          BitcastTaggedToWord(string)));
-      Goto(&if_join);
-    }
-
-    BIND(&if_external);
-    {
-      // This is only valid for ExternalStrings where the resource data
-      // pointer is cached (i.e. no short external strings).
-      CSA_ASSERT(this, Word32NotEqual(
-                           Word32And(string_instance_type,
-                                     Int32Constant(kShortExternalStringMask)),
-                           Int32Constant(kShortExternalStringTag)));
-      var_data.Bind(LoadObjectField(string, ExternalString::kResourceDataOffset,
-                                    MachineType::Pointer()));
-      Goto(&if_join);
-    }
-
-    BIND(&if_join);
-    return var_data.value();
+  BIND(&if_sequential);
+  {
+    var_data.Bind(IntPtrAdd(
+        IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag),
+        BitcastTaggedToWord(string)));
+    Goto(&if_join);
   }
 
-  void DispatchOnStringEncodings(Node* const lhs_instance_type,
-                                 Node* const rhs_instance_type,
-                                 Label* if_one_one, Label* if_one_two,
-                                 Label* if_two_one, Label* if_two_two) {
-    STATIC_ASSERT(kStringEncodingMask == 0x8);
-    STATIC_ASSERT(kTwoByteStringTag == 0x0);
-    STATIC_ASSERT(kOneByteStringTag == 0x8);
-
-    // First combine the encodings.
-
-    Node* const encoding_mask = Int32Constant(kStringEncodingMask);
-    Node* const lhs_encoding = Word32And(lhs_instance_type, encoding_mask);
-    Node* const rhs_encoding = Word32And(rhs_instance_type, encoding_mask);
-
-    Node* const combined_encodings =
-        Word32Or(lhs_encoding, Word32Shr(rhs_encoding, 1));
-
-    // Then dispatch on the combined encoding.
-
-    Label unreachable(this, Label::kDeferred);
-
-    int32_t values[] = {
-        kOneByteStringTag | (kOneByteStringTag >> 1),
-        kOneByteStringTag | (kTwoByteStringTag >> 1),
-        kTwoByteStringTag | (kOneByteStringTag >> 1),
-        kTwoByteStringTag | (kTwoByteStringTag >> 1),
-    };
-    Label* labels[] = {
-        if_one_one, if_one_two, if_two_one, if_two_two,
-    };
-
-    STATIC_ASSERT(arraysize(values) == arraysize(labels));
-    Switch(combined_encodings, &unreachable, values, labels, arraysize(values));
-
-    BIND(&unreachable);
-    Unreachable();
+  BIND(&if_external);
+  {
+    // This is only valid for ExternalStrings where the resource data
+    // pointer is cached (i.e. no short external strings).
+    CSA_ASSERT(
+        this, Word32NotEqual(Word32And(string_instance_type,
+                                       Int32Constant(kShortExternalStringMask)),
+                             Int32Constant(kShortExternalStringTag)));
+    var_data.Bind(LoadObjectField(string, ExternalString::kResourceDataOffset,
+                                  MachineType::Pointer()));
+    Goto(&if_join);
   }
 
-  template <typename SubjectChar, typename PatternChar>
-  Node* CallSearchStringRaw(Node* const subject_ptr, Node* const subject_length,
-                            Node* const search_ptr, Node* const search_length,
-                            Node* const start_position) {
-    Node* const function_addr = ExternalConstant(
-        ExternalReference::search_string_raw<SubjectChar, PatternChar>(
-            isolate()));
-    Node* const isolate_ptr =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
+  BIND(&if_join);
+  return var_data.value();
+}
 
-    MachineType type_ptr = MachineType::Pointer();
-    MachineType type_intptr = MachineType::IntPtr();
+void StringBuiltinsAssembler::DispatchOnStringEncodings(
+    Node* const lhs_instance_type, Node* const rhs_instance_type,
+    Label* if_one_one, Label* if_one_two, Label* if_two_one,
+    Label* if_two_two) {
+  STATIC_ASSERT(kStringEncodingMask == 0x8);
+  STATIC_ASSERT(kTwoByteStringTag == 0x0);
+  STATIC_ASSERT(kOneByteStringTag == 0x8);
 
-    Node* const result = CallCFunction6(
-        type_intptr, type_ptr, type_ptr, type_intptr, type_ptr, type_intptr,
-        type_intptr, function_addr, isolate_ptr, subject_ptr, subject_length,
-        search_ptr, search_length, start_position);
+  // First combine the encodings.
 
-    return result;
+  Node* const encoding_mask = Int32Constant(kStringEncodingMask);
+  Node* const lhs_encoding = Word32And(lhs_instance_type, encoding_mask);
+  Node* const rhs_encoding = Word32And(rhs_instance_type, encoding_mask);
+
+  Node* const combined_encodings =
+      Word32Or(lhs_encoding, Word32Shr(rhs_encoding, 1));
+
+  // Then dispatch on the combined encoding.
+
+  Label unreachable(this, Label::kDeferred);
+
+  int32_t values[] = {
+      kOneByteStringTag | (kOneByteStringTag >> 1),
+      kOneByteStringTag | (kTwoByteStringTag >> 1),
+      kTwoByteStringTag | (kOneByteStringTag >> 1),
+      kTwoByteStringTag | (kTwoByteStringTag >> 1),
+  };
+  Label* labels[] = {
+      if_one_one, if_one_two, if_two_one, if_two_two,
+  };
+
+  STATIC_ASSERT(arraysize(values) == arraysize(labels));
+  Switch(combined_encodings, &unreachable, values, labels, arraysize(values));
+
+  BIND(&unreachable);
+  Unreachable();
+}
+
+template <typename SubjectChar, typename PatternChar>
+Node* StringBuiltinsAssembler::CallSearchStringRaw(Node* const subject_ptr,
+                                                   Node* const subject_length,
+                                                   Node* const search_ptr,
+                                                   Node* const search_length,
+                                                   Node* const start_position) {
+  Node* const function_addr = ExternalConstant(
+      ExternalReference::search_string_raw<SubjectChar, PatternChar>(
+          isolate()));
+  Node* const isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+
+  MachineType type_ptr = MachineType::Pointer();
+  MachineType type_intptr = MachineType::IntPtr();
+
+  Node* const result = CallCFunction6(
+      type_intptr, type_ptr, type_ptr, type_intptr, type_ptr, type_intptr,
+      type_intptr, function_addr, isolate_ptr, subject_ptr, subject_length,
+      search_ptr, search_length, start_position);
+
+  return result;
+}
+
+Node* StringBuiltinsAssembler::PointerToStringDataAtIndex(
+    Node* const string_data, Node* const index, String::Encoding encoding) {
+  const ElementsKind kind = (encoding == String::ONE_BYTE_ENCODING)
+                                ? UINT8_ELEMENTS
+                                : UINT16_ELEMENTS;
+  Node* const offset_in_bytes =
+      ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS);
+  return IntPtrAdd(string_data, offset_in_bytes);
+}
+
+void StringBuiltinsAssembler::ConvertAndBoundsCheckStartArgument(
+    Node* context, Variable* var_start, Node* start, Node* string_length) {
+  Node* const start_int =
+      ToInteger(context, start, CodeStubAssembler::kTruncateMinusZero);
+  Node* const zero = SmiConstant(Smi::kZero);
+
+  Label done(this);
+  Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
+  Branch(TaggedIsSmi(start_int), &if_issmi, &if_isheapnumber);
+
+  BIND(&if_issmi);
+  {
+    var_start->Bind(
+        Select(SmiLessThan(start_int, zero),
+               [&] { return SmiMax(SmiAdd(string_length, start_int), zero); },
+               [&] { return start_int; }, MachineRepresentation::kTagged));
+    Goto(&done);
   }
 
-  Node* PointerToStringDataAtIndex(Node* const string_data, Node* const index,
-                                   String::Encoding encoding) {
-    const ElementsKind kind = (encoding == String::ONE_BYTE_ENCODING)
-                                  ? UINT8_ELEMENTS
-                                  : UINT16_ELEMENTS;
-
-    Node* const offset_in_bytes =
-        ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS);
-    return IntPtrAdd(string_data, offset_in_bytes);
+  BIND(&if_isheapnumber);
+  {
+    // If {start} is a heap number, it is definitely out of bounds. If it is
+    // negative, {start} = max({string_length} + {start}),0) = 0'. If it is
+    // positive, set {start} to {string_length} which ultimately results in
+    // returning an empty string.
+    Node* const float_zero = Float64Constant(0.);
+    Node* const start_float = LoadHeapNumberValue(start_int);
+    var_start->Bind(SelectTaggedConstant(
+        Float64LessThan(start_float, float_zero), zero, string_length));
+    Goto(&done);
   }
-
-  void GenerateStringEqual(Node* context, Node* left, Node* right);
-  void GenerateStringRelationalComparison(Node* context, Node* left,
-                                          Node* right,
-                                          RelationalComparisonMode mode);
-
-  Node* ToSmiBetweenZeroAnd(Node* context, Node* value, Node* limit);
-
-  Node* LoadSurrogatePairAt(Node* string, Node* length, Node* index,
-                            UnicodeEncoding encoding);
-
-  void StringIndexOf(Node* const subject_string,
-                     Node* const subject_instance_type,
-                     Node* const search_string,
-                     Node* const search_instance_type, Node* const position,
-                     std::function<void(Node*)> f_return);
-
-  Node* IndexOfDollarChar(Node* const context, Node* const string);
-
-  Node* IsNullOrUndefined(Node* const value);
-  void RequireObjectCoercible(Node* const context, Node* const value,
-                              const char* method_name);
-
-  Node* SmiIsNegative(Node* const value) {
-    return SmiLessThan(value, SmiConstant(0));
-  }
-
-  // substr and slice have a common way of handling the {start} argument.
-  void ConvertAndBoundsCheckStartArgument(Node* context, Variable* var_start,
-                                          Node* start, Node* string_length) {
-    Node* const start_int =
-        ToInteger(context, start, CodeStubAssembler::kTruncateMinusZero);
-    Node* const zero = SmiConstant(Smi::kZero);
-
-    Label done(this);
-    Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
-    Branch(TaggedIsSmi(start_int), &if_issmi, &if_isheapnumber);
-
-    BIND(&if_issmi);
-    {
-      var_start->Bind(
-          Select(SmiLessThan(start_int, zero),
-                 [&] { return SmiMax(SmiAdd(string_length, start_int), zero); },
-                 [&] { return start_int; }, MachineRepresentation::kTagged));
-      Goto(&done);
-    }
-
-    BIND(&if_isheapnumber);
-    {
-      // If {start} is a heap number, it is definitely out of bounds. If it is
-      // negative, {start} = max({string_length} + {start}),0) = 0'. If it is
-      // positive, set {start} to {string_length} which ultimately results in
-      // returning an empty string.
-      Node* const float_zero = Float64Constant(0.);
-      Node* const start_float = LoadHeapNumberValue(start_int);
-      var_start->Bind(SelectTaggedConstant(
-          Float64LessThan(start_float, float_zero), zero, string_length));
-      Goto(&done);
-    }
-    BIND(&done);
-  }
-
-  // Implements boilerplate logic for {match, split, replace, search} of the
-  // form:
-  //
-  //  if (!IS_NULL_OR_UNDEFINED(object)) {
-  //    var maybe_function = object[symbol];
-  //    if (!IS_UNDEFINED(maybe_function)) {
-  //      return %_Call(maybe_function, ...);
-  //    }
-  //  }
-  //
-  // Contains fast paths for Smi and RegExp objects.
-  typedef std::function<Node*()> NodeFunction0;
-  typedef std::function<Node*(Node* fn)> NodeFunction1;
-  void MaybeCallFunctionAtSymbol(Node* const context, Node* const object,
-                                 Handle<Symbol> symbol,
-                                 const NodeFunction0& regexp_call,
-                                 const NodeFunction1& generic_call);
-};
+  BIND(&done);
+}
 
 void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
                                                   Node* right) {
   // Here's pseudo-code for the algorithm below:
   //
-  // if (lhs == rhs) return true;
   // if (lhs->length() != rhs->length()) return false;
+  // restart:
+  // if (lhs == rhs) return true;
   // if (lhs->IsInternalizedString() && rhs->IsInternalizedString()) {
   //   return false;
   // }
@@ -225,97 +173,33 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
   //   return true;
   // }
   // if (lhs and/or rhs are indirect strings) {
-  //   unwrap them and restart from the beginning;
+  //   unwrap them and restart from the "restart:" label;
   // }
   // return %StringEqual(lhs, rhs);
 
   VARIABLE(var_left, MachineRepresentation::kTagged, left);
   VARIABLE(var_right, MachineRepresentation::kTagged, right);
-
   Variable* input_vars[2] = {&var_left, &var_right};
-  Label if_equal(this), if_notequal(this), restart(this, 2, input_vars);
+  Label if_equal(this), if_notequal(this), if_notbothdirectonebytestrings(this),
+      restart(this, 2, input_vars);
+
+  Node* lhs_length = LoadStringLength(left);
+  Node* rhs_length = LoadStringLength(right);
+
+  // Strings with different lengths cannot be equal.
+  GotoIf(WordNotEqual(lhs_length, rhs_length), &if_notequal);
+
   Goto(&restart);
   BIND(&restart);
   Node* lhs = var_left.value();
   Node* rhs = var_right.value();
 
-  // Fast check to see if {lhs} and {rhs} refer to the same String object.
-  GotoIf(WordEqual(lhs, rhs), &if_equal);
-
-  // Load the length of {lhs} and {rhs}.
-  Node* lhs_length = LoadStringLength(lhs);
-  Node* rhs_length = LoadStringLength(rhs);
-
-  // Strings with different lengths cannot be equal.
-  GotoIf(WordNotEqual(lhs_length, rhs_length), &if_notequal);
-
-  // Load instance types of {lhs} and {rhs}.
   Node* lhs_instance_type = LoadInstanceType(lhs);
   Node* rhs_instance_type = LoadInstanceType(rhs);
 
-  // Combine the instance types into a single 16-bit value, so we can check
-  // both of them at once.
-  Node* both_instance_types = Word32Or(
-      lhs_instance_type, Word32Shl(rhs_instance_type, Int32Constant(8)));
-
-  // Check if both {lhs} and {rhs} are internalized. Since we already know
-  // that they're not the same object, they're not equal in that case.
-  int const kBothInternalizedMask =
-      kIsNotInternalizedMask | (kIsNotInternalizedMask << 8);
-  int const kBothInternalizedTag = kInternalizedTag | (kInternalizedTag << 8);
-  GotoIf(Word32Equal(Word32And(both_instance_types,
-                               Int32Constant(kBothInternalizedMask)),
-                     Int32Constant(kBothInternalizedTag)),
-         &if_notequal);
-
-  // Check that both {lhs} and {rhs} are flat one-byte strings, and that
-  // in case of ExternalStrings the data pointer is cached..
-  STATIC_ASSERT(kShortExternalStringTag != 0);
-  int const kBothDirectOneByteStringMask =
-      kStringEncodingMask | kIsIndirectStringMask | kShortExternalStringMask |
-      ((kStringEncodingMask | kIsIndirectStringMask | kShortExternalStringMask)
-       << 8);
-  int const kBothDirectOneByteStringTag =
-      kOneByteStringTag | (kOneByteStringTag << 8);
-  Label if_bothdirectonebytestrings(this), if_notbothdirectonebytestrings(this);
-  Branch(Word32Equal(Word32And(both_instance_types,
-                               Int32Constant(kBothDirectOneByteStringMask)),
-                     Int32Constant(kBothDirectOneByteStringTag)),
-         &if_bothdirectonebytestrings, &if_notbothdirectonebytestrings);
-
-  BIND(&if_bothdirectonebytestrings);
-  {
-    // Compute the effective offset of the first character.
-    Node* lhs_data = DirectStringData(lhs, lhs_instance_type);
-    Node* rhs_data = DirectStringData(rhs, rhs_instance_type);
-
-    // Compute the first offset after the string from the length.
-    Node* length = SmiUntag(lhs_length);
-
-    // Loop over the {lhs} and {rhs} strings to see if they are equal.
-    VARIABLE(var_offset, MachineType::PointerRepresentation());
-    Label loop(this, &var_offset);
-    var_offset.Bind(IntPtrConstant(0));
-    Goto(&loop);
-    BIND(&loop);
-    {
-      // If {offset} equals {end}, no difference was found, so the
-      // strings are equal.
-      Node* offset = var_offset.value();
-      GotoIf(WordEqual(offset, length), &if_equal);
-
-      // Load the next characters from {lhs} and {rhs}.
-      Node* lhs_value = Load(MachineType::Uint8(), lhs_data, offset);
-      Node* rhs_value = Load(MachineType::Uint8(), rhs_data, offset);
-
-      // Check if the characters match.
-      GotoIf(Word32NotEqual(lhs_value, rhs_value), &if_notequal);
-
-      // Advance to next character.
-      var_offset.Bind(IntPtrAdd(offset, IntPtrConstant(1)));
-      Goto(&loop);
-    }
-  }
+  StringEqual_Core(context, lhs, lhs_instance_type, lhs_length, rhs,
+                   rhs_instance_type, &if_equal, &if_notequal,
+                   &if_notbothdirectonebytestrings);
 
   BIND(&if_notbothdirectonebytestrings);
   {
@@ -332,6 +216,80 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
 
   BIND(&if_notequal);
   Return(FalseConstant());
+}
+
+void StringBuiltinsAssembler::StringEqual_Core(
+    Node* context, Node* lhs, Node* lhs_instance_type, Node* lhs_length,
+    Node* rhs, Node* rhs_instance_type, Label* if_equal, Label* if_not_equal,
+    Label* if_notbothdirectonebyte) {
+  CSA_ASSERT(this, IsString(lhs));
+  CSA_ASSERT(this, IsString(rhs));
+  CSA_ASSERT(this, WordEqual(LoadStringLength(lhs), lhs_length));
+  CSA_ASSERT(this, WordEqual(LoadStringLength(rhs), lhs_length));
+  // Fast check to see if {lhs} and {rhs} refer to the same String object.
+  GotoIf(WordEqual(lhs, rhs), if_equal);
+
+  // Combine the instance types into a single 16-bit value, so we can check
+  // both of them at once.
+  Node* both_instance_types = Word32Or(
+      lhs_instance_type, Word32Shl(rhs_instance_type, Int32Constant(8)));
+
+  // Check if both {lhs} and {rhs} are internalized. Since we already know
+  // that they're not the same object, they're not equal in that case.
+  int const kBothInternalizedMask =
+      kIsNotInternalizedMask | (kIsNotInternalizedMask << 8);
+  int const kBothInternalizedTag = kInternalizedTag | (kInternalizedTag << 8);
+  GotoIf(Word32Equal(Word32And(both_instance_types,
+                               Int32Constant(kBothInternalizedMask)),
+                     Int32Constant(kBothInternalizedTag)),
+         if_not_equal);
+
+  // Check that both {lhs} and {rhs} are flat one-byte strings, and that
+  // in case of ExternalStrings the data pointer is cached..
+  STATIC_ASSERT(kShortExternalStringTag != 0);
+  int const kBothDirectOneByteStringMask =
+      kStringEncodingMask | kIsIndirectStringMask | kShortExternalStringMask |
+      ((kStringEncodingMask | kIsIndirectStringMask | kShortExternalStringMask)
+       << 8);
+  int const kBothDirectOneByteStringTag =
+      kOneByteStringTag | (kOneByteStringTag << 8);
+  GotoIfNot(Word32Equal(Word32And(both_instance_types,
+                                  Int32Constant(kBothDirectOneByteStringMask)),
+                        Int32Constant(kBothDirectOneByteStringTag)),
+            if_notbothdirectonebyte);
+
+  // At this point we know that we have two direct one-byte strings.
+
+  // Compute the effective offset of the first character.
+  Node* lhs_data = DirectStringData(lhs, lhs_instance_type);
+  Node* rhs_data = DirectStringData(rhs, rhs_instance_type);
+
+  // Compute the first offset after the string from the length.
+  Node* length = SmiUntag(lhs_length);
+
+  // Loop over the {lhs} and {rhs} strings to see if they are equal.
+  VARIABLE(var_offset, MachineType::PointerRepresentation());
+  Label loop(this, &var_offset);
+  var_offset.Bind(IntPtrConstant(0));
+  Goto(&loop);
+  BIND(&loop);
+  {
+    // If {offset} equals {end}, no difference was found, so the
+    // strings are equal.
+    Node* offset = var_offset.value();
+    GotoIf(WordEqual(offset, length), if_equal);
+
+    // Load the next characters from {lhs} and {rhs}.
+    Node* lhs_value = Load(MachineType::Uint8(), lhs_data, offset);
+    Node* rhs_value = Load(MachineType::Uint8(), rhs_data, offset);
+
+    // Check if the characters match.
+    GotoIf(Word32NotEqual(lhs_value, rhs_value), if_not_equal);
+
+    // Advance to next character.
+    var_offset.Bind(IntPtrAdd(offset, IntPtrConstant(1)));
+    Goto(&loop);
+  }
 }
 
 void StringBuiltinsAssembler::GenerateStringRelationalComparison(

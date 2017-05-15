@@ -527,6 +527,7 @@
         'builtins/builtins-sharedarraybuffer-gen.cc',
         'builtins/builtins-string.cc',
         'builtins/builtins-string-gen.cc',
+        'builtins/builtins-string-gen.h',
         'builtins/builtins-intl.cc',
         'builtins/builtins-intl-gen.cc',
         'builtins/builtins-symbol.cc',

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
@@ -1703,32 +1704,37 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
   Node* array_length = SmiUntag(LoadJSArrayLength(array));
 
   {
-    // For now only deal with undefined and Smis here; we must be really careful
-    // with side-effects from the ToInteger conversion as the side-effects might
-    // render our assumptions about the receiver being a fast JSArray and the
-    // length invalid.
-    Label done(this);
+    // Initialize fromIndex.
+    Label is_smi(this), is_nonsmi(this), done(this);
 
     // If no fromIndex was passed, default to 0.
     GotoIf(IntPtrLessThanOrEqual(argc, IntPtrConstant(kFromIndexArg)), &done);
 
-    // Handle Smis here and everything else in runtime.
     Node* start_from = args.AtIndex(kFromIndexArg);
-    GotoIfNot(TaggedIsSmi(start_from), &call_runtime);
+    // Handle Smis and undefined here and everything else in runtime.
+    // We must be very careful with side effects from the ToInteger conversion,
+    // as the side effects might render previously checked assumptions about
+    // the receiver being a fast JSArray and its length invalid.
+    Branch(TaggedIsSmi(start_from), &is_smi, &is_nonsmi);
 
-    Node* intptr_start_from = SmiUntag(start_from);
-    index_var.Bind(intptr_start_from);
-
-    Label if_negative(this);
-    Branch(IntPtrLessThan(intptr_start_from, intptr_zero), &if_negative, &done);
-
-    BIND(&if_negative);
+    BIND(&is_nonsmi);
     {
-      Node* len_minus_start_from = IntPtrAdd(array_length, intptr_start_from);
-      index_var.Bind(IntPtrMax(len_minus_start_from, intptr_zero));
+      GotoIfNot(IsUndefined(start_from), &call_runtime);
       Goto(&done);
     }
+    BIND(&is_smi);
+    {
+      Node* intptr_start_from = SmiUntag(start_from);
+      index_var.Bind(intptr_start_from);
 
+      GotoIf(IntPtrGreaterThanOrEqual(index_var.value(), intptr_zero), &done);
+      // The fromIndex is negative: add it to the array's length.
+      index_var.Bind(IntPtrAdd(array_length, index_var.value()));
+      // Clamp negative results at zero.
+      GotoIf(IntPtrGreaterThanOrEqual(index_var.value(), intptr_zero), &done);
+      index_var.Bind(intptr_zero);
+      Goto(&done);
+    }
     BIND(&done);
   }
 
@@ -1736,27 +1742,29 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
   GotoIf(IntPtrGreaterThanOrEqual(index_var.value(), array_length),
          &return_not_found);
 
-  static int32_t kElementsKind[] = {
-      FAST_SMI_ELEMENTS,   FAST_HOLEY_SMI_ELEMENTS, FAST_ELEMENTS,
-      FAST_HOLEY_ELEMENTS, FAST_DOUBLE_ELEMENTS,    FAST_HOLEY_DOUBLE_ELEMENTS,
-  };
-
   Label if_smiorobjects(this), if_packed_doubles(this), if_holey_doubles(this);
-  Label* element_kind_handlers[] = {&if_smiorobjects,   &if_smiorobjects,
-                                    &if_smiorobjects,   &if_smiorobjects,
-                                    &if_packed_doubles, &if_holey_doubles};
 
   Node* map = LoadMap(array);
   Node* elements_kind = LoadMapElementsKind(map);
   Node* elements = LoadElements(array);
-  Switch(elements_kind, &return_not_found, kElementsKind, element_kind_handlers,
-         arraysize(kElementsKind));
+  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_ELEMENTS == 2);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
+  GotoIf(
+      Uint32LessThanOrEqual(elements_kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
+      &if_smiorobjects);
+  GotoIf(Word32Equal(elements_kind, Int32Constant(FAST_DOUBLE_ELEMENTS)),
+         &if_packed_doubles);
+  GotoIf(Word32Equal(elements_kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
+         &if_holey_doubles);
+  Goto(&return_not_found);
 
   BIND(&if_smiorobjects);
   {
     VARIABLE(search_num, MachineRepresentation::kFloat64);
     Label ident_loop(this, &index_var), heap_num_loop(this, &search_num),
-        string_loop(this, &index_var), not_smi(this), not_heap_num(this);
+        string_loop(this), not_smi(this), not_heap_num(this);
 
     GotoIfNot(TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(SmiToFloat64(search_element));
@@ -1814,22 +1822,35 @@ TF_BUILTIN(ArrayIndexOf, CodeStubAssembler) {
     BIND(&string_loop);
     {
       CSA_ASSERT(this, IsString(search_element));
-      Label continue_loop(this);
+      Label continue_loop(this), next_iteration(this, &index_var),
+          slow_compare(this), runtime(this, Label::kDeferred);
+      Node* search_length = LoadStringLength(search_element);
+      Goto(&next_iteration);
+      BIND(&next_iteration);
       GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
                 &return_not_found);
       Node* element_k = LoadFixedArrayElement(elements, index_var.value());
       GotoIf(TaggedIsSmi(element_k), &continue_loop);
-      GotoIfNot(IsString(element_k), &continue_loop);
+      GotoIf(WordEqual(search_element, element_k), &return_found);
+      Node* element_k_type = LoadInstanceType(element_k);
+      GotoIfNot(IsStringInstanceType(element_k_type), &continue_loop);
+      Branch(WordEqual(search_length, LoadStringLength(element_k)),
+             &slow_compare, &continue_loop);
 
-      // TODO(bmeurer): Consider inlining the StringEqual logic here.
-      Callable callable = CodeFactory::StringEqual(isolate());
-      Node* result = CallStub(callable, context, search_element, element_k);
+      BIND(&slow_compare);
+      StringBuiltinsAssembler string_asm(state());
+      string_asm.StringEqual_Core(context, search_element, search_type,
+                                  search_length, element_k, element_k_type,
+                                  &return_found, &continue_loop, &runtime);
+      BIND(&runtime);
+      Node* result = CallRuntime(Runtime::kStringEqual, context, search_element,
+                                 element_k);
       Branch(WordEqual(BooleanConstant(true), result), &return_found,
              &continue_loop);
 
       BIND(&continue_loop);
       Increment(index_var);
-      Goto(&string_loop);
+      Goto(&next_iteration);
     }
   }
 
