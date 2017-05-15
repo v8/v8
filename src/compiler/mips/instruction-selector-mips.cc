@@ -2159,6 +2159,90 @@ void InstructionSelector::VisitI16x8SubSaturateS(Node* node) {
   VisitRRR(this, kMipsI16x8SubSaturateS, node);
 }
 
+void InstructionSelector::VisitI16x8Mul(Node* node) {
+  VisitRRR(this, kMipsI16x8Mul, node);
+}
+
+void InstructionSelector::VisitI16x8MaxS(Node* node) {
+  VisitRRR(this, kMipsI16x8MaxS, node);
+}
+
+void InstructionSelector::VisitI16x8MinS(Node* node) {
+  VisitRRR(this, kMipsI16x8MinS, node);
+}
+
+void InstructionSelector::VisitI16x8Eq(Node* node) {
+  VisitRRR(this, kMipsI16x8Eq, node);
+}
+
+void InstructionSelector::VisitI16x8Ne(Node* node) {
+  VisitRRR(this, kMipsI16x8Ne, node);
+}
+
+void InstructionSelector::VisitI16x8LtS(Node* node) {
+  VisitRRR(this, kMipsI16x8LtS, node);
+}
+
+void InstructionSelector::VisitI16x8LeS(Node* node) {
+  VisitRRR(this, kMipsI16x8LeS, node);
+}
+
+void InstructionSelector::VisitI16x8AddSaturateU(Node* node) {
+  VisitRRR(this, kMipsI16x8AddSaturateU, node);
+}
+
+void InstructionSelector::VisitI16x8SubSaturateU(Node* node) {
+  VisitRRR(this, kMipsI16x8SubSaturateU, node);
+}
+
+void InstructionSelector::VisitI16x8MaxU(Node* node) {
+  VisitRRR(this, kMipsI16x8MaxU, node);
+}
+
+void InstructionSelector::VisitI16x8MinU(Node* node) {
+  VisitRRR(this, kMipsI16x8MinU, node);
+}
+
+void InstructionSelector::VisitI16x8LtU(Node* node) {
+  VisitRRR(this, kMipsI16x8LtU, node);
+}
+
+void InstructionSelector::VisitI16x8LeU(Node* node) {
+  VisitRRR(this, kMipsI16x8LeU, node);
+}
+
+void InstructionSelector::VisitI8x16Splat(Node* node) {
+  VisitRR(this, kMipsI8x16Splat, node);
+}
+
+void InstructionSelector::VisitI8x16ExtractLane(Node* node) {
+  VisitRRI(this, kMipsI8x16ExtractLane, node);
+}
+
+void InstructionSelector::VisitI8x16ReplaceLane(Node* node) {
+  VisitRRIR(this, kMipsI8x16ReplaceLane, node);
+}
+
+void InstructionSelector::VisitI8x16Neg(Node* node) {
+  VisitRR(this, kMipsI8x16Neg, node);
+}
+
+void InstructionSelector::VisitI8x16Shl(Node* node) {
+  VisitRRI(this, kMipsI8x16Shl, node);
+}
+
+void InstructionSelector::VisitI8x16ShrS(Node* node) {
+  VisitRRI(this, kMipsI8x16ShrS, node);
+}
+
+void InstructionSelector::VisitS16x8Select(Node* node) {
+  VisitRRRR(this, kMipsS16x8Select, node);
+}
+
+void InstructionSelector::VisitS8x16Select(Node* node) {
+  VisitRRRR(this, kMipsS8x16Select, node);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
