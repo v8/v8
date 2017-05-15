@@ -46,6 +46,11 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/regress/regress-2989.js',
   ],
 
+  'crbug.com/718739': [
+    '/v8/test/mjsunit/regress/regress-105.js',
+    '/v8/test/mjsunit/regress/regress-crbug-599714.js',
+  ],
+
   'crbug.com/688159': [
     '/v8/test/mjsunit/es7/exponentiation-operator.js',
   ],
@@ -62,16 +67,9 @@ IGNORE_SOURCES = {
 }
 
 # Ignore by test case pattern. Map from bug->regexp.
-# Regular expressions are assumed to be compiled. We use regexp.match.
-# Make sure the code doesn't match in the preamble portion of the test case
-# (i.e. in the modified inlined mjsunit.js). You can reference the comment
-# between the two parts like so:
-#  'crbug.com/666308':
-#      re.compile(r'.*End stripped down and modified version.*'
-#                 r'\.prototype.*instanceof.*.*', re.S)
-# TODO(machenbach): Insert a JS sentinel between the two parts, because
-# comments are stripped during minimization.
+# Regular expressions are assumed to be compiled. We use regexp.search.
 IGNORE_TEST_CASES = {
+  'crbug.com/718739': re.compile(r'\.caller'),
 }
 
 # Ignore by output pattern. Map from config->bug->regexp. Config '' is used
@@ -277,8 +275,12 @@ class V8Suppression(Suppression):
     )
 
   def ignore_by_content(self, testcase):
+    # Strip off test case preamble.
+    lines = testcase.splitlines()
+    lines = lines[lines.index('print("js-mutation: start generated test case");'):]
+    content = '\n'.join(lines)
     for bug, exp in IGNORE_TEST_CASES.iteritems():
-      if exp.match(testcase):
+      if exp.search(content):
         return bug
     return False
 
