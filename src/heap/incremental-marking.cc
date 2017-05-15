@@ -1087,8 +1087,10 @@ size_t IncrementalMarking::StepSizeToMakeProgress() {
 }
 
 void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
+  // Code using an AlwaysAllocateScope assumes that the GC state does not
+  // change; that implies that no marking steps must be performed.
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
-      (state_ != SWEEPING && state_ != MARKING)) {
+      (state_ != SWEEPING && state_ != MARKING) || heap_->always_allocate()) {
     return;
   }
 
