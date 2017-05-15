@@ -188,6 +188,10 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
   if (Bytecodes::IsForwardJump(bytecode)) {
     int target_offset = accessor.GetJumpTargetOffset();
     out_liveness.Union(*liveness_map.GetInLiveness(target_offset));
+  } else if (Bytecodes::IsSwitch(bytecode)) {
+    for (const auto& entry : accessor.GetJumpTableTargetOffsets()) {
+      out_liveness.Union(*liveness_map.GetInLiveness(entry.target_offset));
+    }
   }
 
   // Update from next bytecode (unless there isn't one or this is an

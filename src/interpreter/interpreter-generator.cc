@@ -2417,7 +2417,7 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
 
 // Jump <imm>
 //
-// Jump by number of bytes represented by the immediate operand |imm|.
+// Jump by the number of bytes represented by the immediate operand |imm|.
 IGNITION_HANDLER(Jump, InterpreterAssembler) {
   Node* relative_jump = BytecodeOperandUImmWord(0);
   Jump(relative_jump);
@@ -2425,7 +2425,8 @@ IGNITION_HANDLER(Jump, InterpreterAssembler) {
 
 // JumpConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool.
 IGNITION_HANDLER(JumpConstant, InterpreterAssembler) {
   Node* index = BytecodeOperandIdx(0);
   Node* relative_jump = LoadAndUntagConstantPoolEntry(index);
@@ -2434,7 +2435,7 @@ IGNITION_HANDLER(JumpConstant, InterpreterAssembler) {
 
 // JumpIfTrue <imm>
 //
-// Jump by number of bytes represented by an immediate operand if the
+// Jump by the number of bytes represented by an immediate operand if the
 // accumulator contains true. This only works for boolean inputs, and
 // will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfTrue, InterpreterAssembler) {
@@ -2448,9 +2449,9 @@ IGNITION_HANDLER(JumpIfTrue, InterpreterAssembler) {
 
 // JumpIfTrueConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the accumulator contains true. This only works for boolean inputs, and
-// will misbehave if passed arbitrary input values.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool if the accumulator contains true. This only works for boolean inputs,
+// and will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* index = BytecodeOperandIdx(0);
@@ -2463,7 +2464,7 @@ IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
 
 // JumpIfFalse <imm>
 //
-// Jump by number of bytes represented by an immediate operand if the
+// Jump by the number of bytes represented by an immediate operand if the
 // accumulator contains false. This only works for boolean inputs, and
 // will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfFalse, InterpreterAssembler) {
@@ -2477,9 +2478,9 @@ IGNITION_HANDLER(JumpIfFalse, InterpreterAssembler) {
 
 // JumpIfFalseConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the accumulator contains false. This only works for boolean inputs, and
-// will misbehave if passed arbitrary input values.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool if the accumulator contains false. This only works for boolean inputs,
+// and will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfFalseConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* index = BytecodeOperandIdx(0);
@@ -2492,7 +2493,7 @@ IGNITION_HANDLER(JumpIfFalseConstant, InterpreterAssembler) {
 
 // JumpIfToBooleanTrue <imm>
 //
-// Jump by number of bytes represented by an immediate operand if the object
+// Jump by the number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is true when the object is cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanTrue, InterpreterAssembler) {
   Node* value = GetAccumulator();
@@ -2507,9 +2508,9 @@ IGNITION_HANDLER(JumpIfToBooleanTrue, InterpreterAssembler) {
 
 // JumpIfToBooleanTrueConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the object referenced by the accumulator is true when the object is cast
-// to boolean.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool if the object referenced by the accumulator is true when the object is
+// cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanTrueConstant, InterpreterAssembler) {
   Node* value = GetAccumulator();
   Node* index = BytecodeOperandIdx(0);
@@ -2524,7 +2525,7 @@ IGNITION_HANDLER(JumpIfToBooleanTrueConstant, InterpreterAssembler) {
 
 // JumpIfToBooleanFalse <imm>
 //
-// Jump by number of bytes represented by an immediate operand if the object
+// Jump by the number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is false when the object is cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanFalse, InterpreterAssembler) {
   Node* value = GetAccumulator();
@@ -2539,9 +2540,9 @@ IGNITION_HANDLER(JumpIfToBooleanFalse, InterpreterAssembler) {
 
 // JumpIfToBooleanFalseConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the object referenced by the accumulator is false when the object is cast
-// to boolean.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool if the object referenced by the accumulator is false when the object is
+// cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanFalseConstant, InterpreterAssembler) {
   Node* value = GetAccumulator();
   Node* index = BytecodeOperandIdx(0);
@@ -2556,7 +2557,7 @@ IGNITION_HANDLER(JumpIfToBooleanFalseConstant, InterpreterAssembler) {
 
 // JumpIfNull <imm>
 //
-// Jump by number of bytes represented by an immediate operand if the object
+// Jump by the number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is the null constant.
 IGNITION_HANDLER(JumpIfNull, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
@@ -2567,8 +2568,8 @@ IGNITION_HANDLER(JumpIfNull, InterpreterAssembler) {
 
 // JumpIfNullConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the object referenced by the accumulator is the null constant.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool if the object referenced by the accumulator is the null constant.
 IGNITION_HANDLER(JumpIfNullConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* null_value = HeapConstant(isolate()->factory()->null_value());
@@ -2579,7 +2580,7 @@ IGNITION_HANDLER(JumpIfNullConstant, InterpreterAssembler) {
 
 // JumpIfNotNull <imm>
 //
-// Jump by number of bytes represented by an immediate operand if the object
+// Jump by the number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is not the null constant.
 IGNITION_HANDLER(JumpIfNotNull, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
@@ -2590,8 +2591,8 @@ IGNITION_HANDLER(JumpIfNotNull, InterpreterAssembler) {
 
 // JumpIfNotNullConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the object referenced by the accumulator is not the null constant.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool if the object referenced by the accumulator is not the null constant.
 IGNITION_HANDLER(JumpIfNotNullConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* null_value = HeapConstant(isolate()->factory()->null_value());
@@ -2602,7 +2603,7 @@ IGNITION_HANDLER(JumpIfNotNullConstant, InterpreterAssembler) {
 
 // JumpIfUndefined <imm>
 //
-// Jump by number of bytes represented by an immediate operand if the object
+// Jump by the number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is the undefined constant.
 IGNITION_HANDLER(JumpIfUndefined, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
@@ -2613,8 +2614,8 @@ IGNITION_HANDLER(JumpIfUndefined, InterpreterAssembler) {
 
 // JumpIfUndefinedConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the object referenced by the accumulator is the undefined constant.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool if the object referenced by the accumulator is the undefined constant.
 IGNITION_HANDLER(JumpIfUndefinedConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* undefined_value = HeapConstant(isolate()->factory()->undefined_value());
@@ -2625,7 +2626,7 @@ IGNITION_HANDLER(JumpIfUndefinedConstant, InterpreterAssembler) {
 
 // JumpIfNotUndefined <imm>
 //
-// Jump by number of bytes represented by an immediate operand if the object
+// Jump by the number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is not the undefined constant.
 IGNITION_HANDLER(JumpIfNotUndefined, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
@@ -2636,8 +2637,9 @@ IGNITION_HANDLER(JumpIfNotUndefined, InterpreterAssembler) {
 
 // JumpIfNotUndefinedConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the object referenced by the accumulator is not the undefined constant.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool if the object referenced by the accumulator is not the undefined
+// constant.
 IGNITION_HANDLER(JumpIfNotUndefinedConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* undefined_value = HeapConstant(isolate()->factory()->undefined_value());
@@ -2648,7 +2650,7 @@ IGNITION_HANDLER(JumpIfNotUndefinedConstant, InterpreterAssembler) {
 
 // JumpIfJSReceiver <imm>
 //
-// Jump by number of bytes represented by an immediate operand if the object
+// Jump by the number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is a JSReceiver.
 IGNITION_HANDLER(JumpIfJSReceiver, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
@@ -2668,8 +2670,8 @@ IGNITION_HANDLER(JumpIfJSReceiver, InterpreterAssembler) {
 
 // JumpIfJSReceiverConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool if
-// the object referenced by the accumulator is a JSReceiver.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool if the object referenced by the accumulator is a JSReceiver.
 IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* index = BytecodeOperandIdx(0);
@@ -2690,7 +2692,7 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 
 // JumpIfNotHole <imm>
 //
-// Jump by number of bytes represented by an immediate operand if the object
+// Jump by the number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is the hole.
 IGNITION_HANDLER(JumpIfNotHole, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
@@ -2701,8 +2703,8 @@ IGNITION_HANDLER(JumpIfNotHole, InterpreterAssembler) {
 
 // JumpIfNotHoleConstant <idx>
 //
-// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the object referenced by the accumulator is the hole constant.
+// Jump by the number of bytes in the Smi in the |idx| entry in the constant
+// pool if the object referenced by the accumulator is the hole constant.
 IGNITION_HANDLER(JumpIfNotHoleConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* the_hole_value = HeapConstant(isolate()->factory()->the_hole_value());
@@ -2713,7 +2715,7 @@ IGNITION_HANDLER(JumpIfNotHoleConstant, InterpreterAssembler) {
 
 // JumpLoop <imm> <loop_depth>
 //
-// Jump by number of bytes represented by the immediate operand |imm|. Also
+// Jump by the number of bytes represented by the immediate operand |imm|. Also
 // performs a loop nesting check and potentially triggers OSR in case the
 // current OSR level matches (or exceeds) the specified |loop_depth|.
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
@@ -2738,6 +2740,37 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
     CallStub(callable.descriptor(), target, context);
     JumpBackward(relative_jump);
   }
+}
+
+// SwitchOnSmiNoFeedback <table_start> <table_length> <case_value_base>
+//
+// Jump by the number of bytes defined by a Smi in a table in the constant pool,
+// where the table starts at |table_start| and has |table_length| entries.
+// The table is indexed by the accumulator, minus |case_value_base|. If the
+// case_value falls outside of the table |table_length|, fall-through to the
+// next bytecode.
+IGNITION_HANDLER(SwitchOnSmiNoFeedback, InterpreterAssembler) {
+  Node* acc = GetAccumulator();
+  Node* table_start = BytecodeOperandIdx(0);
+  Node* table_length = BytecodeOperandUImmWord(1);
+  Node* case_value_base = BytecodeOperandImmIntPtr(2);
+
+  Label fall_through(this);
+
+  // The accumulator must be a Smi.
+  // TODO(leszeks): Add a bytecode with type feedback that allows other
+  // accumulator values.
+  CSA_ASSERT(this, TaggedIsSmi(acc));
+
+  Node* case_value = IntPtrSub(SmiUntag(acc), case_value_base);
+  GotoIf(IntPtrLessThan(case_value, IntPtrConstant(0)), &fall_through);
+  GotoIf(IntPtrGreaterThanOrEqual(case_value, table_length), &fall_through);
+  Node* entry = IntPtrAdd(table_start, case_value);
+  Node* relative_jump = LoadAndUntagConstantPoolEntry(entry);
+  Jump(relative_jump);
+
+  Bind(&fall_through);
+  Dispatch();
 }
 
 // CreateRegExpLiteral <pattern_idx> <literal_idx> <flags>

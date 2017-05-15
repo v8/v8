@@ -21,6 +21,7 @@ namespace interpreter {
 
 class GlobalDeclarationsBuilder;
 class LoopBuilder;
+class BytecodeJumpTable;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
@@ -133,7 +134,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalCatchContext(Scope* scope);
   void BuildNewLocalWithContext(Scope* scope);
 
-  void VisitGeneratorPrologue();
+  void BuildGeneratorPrologue();
 
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
@@ -239,7 +240,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ContextScope* execution_context_;
   ExpressionResultScope* execution_result_;
 
-  ZoneVector<BytecodeLabel> generator_resume_points_;
+  BytecodeJumpTable* generator_jump_table_;
   Register generator_state_;
   int loop_depth_;
 };

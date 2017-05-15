@@ -7,6 +7,7 @@
 #include "src/ast/scopes.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/objects-inl.h"
@@ -277,6 +278,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .LoadLiteral(ast_factory.prototype_string())
         .JumpIfJSReceiver(&end[10]);
   }
+
+  // Emit Smi table switch bytecode.
+  BytecodeJumpTable* jump_table = builder.AllocateJumpTable(1, 0);
+  builder.SwitchOnSmiNoFeedback(jump_table).Bind(jump_table, 0);
 
   // Emit set pending message bytecode.
   builder.SetPendingMessage();

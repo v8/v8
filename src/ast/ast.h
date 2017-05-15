@@ -2663,6 +2663,14 @@ class FunctionLiteral final : public Expression {
 
   bool AllowsLazyCompilation();
 
+  bool CanSuspend() {
+    if (suspend_count() > 0) {
+      DCHECK(IsResumableFunction(kind()));
+      return true;
+    }
+    return false;
+  }
+
   Handle<String> debug_name() const {
     if (raw_name_ != NULL && !raw_name_->IsEmpty()) {
       return raw_name_->string();

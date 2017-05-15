@@ -39,6 +39,7 @@ class BytecodeGraphBuilder {
 
  private:
   class Environment;
+  struct SubEnvironment;
 
   void VisitBytecodes(bool stack_check);
 

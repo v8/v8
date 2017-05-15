@@ -1052,6 +1052,7 @@
         'interpreter/bytecode-register-optimizer.h',
         'interpreter/bytecode-source-info.cc',
         'interpreter/bytecode-source-info.h',
+        'interpreter/bytecode-jump-table.h',
         'interpreter/bytecode-traits.h',
         'interpreter/constant-array-builder.cc',
         'interpreter/constant-array-builder.h',

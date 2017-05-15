@@ -19,6 +19,7 @@ namespace interpreter {
 
 class BytecodeLabel;
 class BytecodeNode;
+class BytecodeJumpTable;
 class ConstantArrayBuilder;
 
 // Class for emitting bytecode as the final stage of the bytecode
@@ -31,8 +32,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
 
   void Write(BytecodeNode* node);
   void WriteJump(BytecodeNode* node, BytecodeLabel* label);
+  void WriteSwitch(BytecodeNode* node, BytecodeJumpTable* jump_table);
   void BindLabel(BytecodeLabel* label);
   void BindLabel(const BytecodeLabel& target, BytecodeLabel* label);
+  void BindJumpTableEntry(BytecodeJumpTable* jump_table, int case_value);
   Handle<BytecodeArray> ToBytecodeArray(Isolate* isolate, int register_count,
                                         int parameter_count,
                                         Handle<FixedArray> handler_table);
@@ -61,6 +64,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
 
   void EmitBytecode(const BytecodeNode* const node);
   void EmitJump(BytecodeNode* node, BytecodeLabel* label);
+  void EmitSwitch(BytecodeNode* node, BytecodeJumpTable* jump_table);
   void UpdateSourcePositionTable(const BytecodeNode* const node);
 
   void UpdateExitSeenInBlock(Bytecode bytecode);

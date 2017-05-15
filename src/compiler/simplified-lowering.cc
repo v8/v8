@@ -2835,6 +2835,8 @@ class RepresentationSelector {
       case IrOpcode::kIfException:
       case IrOpcode::kIfTrue:
       case IrOpcode::kIfFalse:
+      case IrOpcode::kIfValue:
+      case IrOpcode::kIfDefault:
       case IrOpcode::kDeoptimize:
       case IrOpcode::kEffectPhi:
       case IrOpcode::kTerminate:
