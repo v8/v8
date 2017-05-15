@@ -28,25 +28,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kPromiseContextLength,
   };
 
-  enum class PromiseAllResolveElementContext {
-    // Whether the resolve callback was already called.
-    kAlreadyVisitedSlot = Context::MIN_CONTEXT_SLOTS,
-
-    // Index into the values array
-    kIndexSlot,
-
-    // Remaining elements count (mutable HeapNumber)
-    kRemainingElementsSlot,
-
-    // Promise capability from Promise.all
-    kCapabilitySlot,
-
-    // Values array from Promise.all
-    kValuesArraySlot,
-
-    kLength
-  };
-
   enum FunctionContextSlot {
     kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
 
@@ -98,10 +79,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* NewPromiseCapability(Node* context, Node* constructor,
                              Node* debug_event = nullptr);
-
-  // Load heap number value, increment/decrement, and return the value component
-  Node* MutableHeapNumberInc(Node* number);
-  Node* MutableHeapNumberDec(Node* number);
 
  protected:
   void PromiseInit(Node* promise);
@@ -157,10 +134,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* CreateThrowerFunctionContext(Node* reason, Node* native_context);
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
-
-  Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
-                          Node* iterator, Label* if_exception,
-                          Variable* var_exception);
 
  private:
   Node* AllocateJSPromise(Node* context);

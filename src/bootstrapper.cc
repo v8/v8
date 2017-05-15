@@ -2140,9 +2140,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     InstallSpeciesGetter(promise_fun);
 
-    SimpleInstallFunction(promise_fun, "all", Builtins::kPromiseAll, 1, true,
-                          DONT_ENUM);
-
     SimpleInstallFunction(promise_fun, "resolve", Builtins::kPromiseResolve, 1,
                           true, DONT_ENUM);
 
@@ -2224,16 +2221,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       info->set_internal_formal_parameter_count(1);
       info->set_length(1);
       native_context()->set_promise_reject_shared_fun(*info);
-    }
-
-    {
-      Handle<Code> code =
-          isolate->builtins()->PromiseAllResolveElementClosure();
-      Handle<SharedFunctionInfo> info =
-          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-      info->set_internal_formal_parameter_count(1);
-      info->set_length(1);
-      native_context()->set_promise_all_resolve_element_shared_fun(*info);
     }
   }
 

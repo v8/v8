@@ -320,8 +320,6 @@ enum ContextLookupFlags {
     promise_value_thunk_finally_shared_fun)                                    \
   V(PROMISE_THROWER_FINALLY_SHARED_FUN, SharedFunctionInfo,                    \
     promise_thrower_finally_shared_fun)                                        \
-  V(PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,                \
-    promise_all_resolve_element_shared_fun)                                    \
   V(PROMISE_PROTOTYPE_MAP_INDEX, Map, promise_prototype_map)                   \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
