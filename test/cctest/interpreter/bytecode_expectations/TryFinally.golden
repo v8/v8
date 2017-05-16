@@ -12,7 +12,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 47
+bytecode array length: 44
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
@@ -33,16 +33,15 @@ bytecodes: [
                 B(Star), R(0),
                 B(Ldar), R(3),
   /*   72 E> */ B(SetPendingMessage),
-                B(Ldar), R(1),
-                B(SwitchOnSmiNoFeedback), U8(0), U8(1), I8(0),
-                B(Jump), U8(5),
+                B(LdaZero),
+                B(TestEqualStrictNoFeedback), R(1),
+                B(JumpIfFalse), U8(5),
                 B(Ldar), R(2),
                 B(ReThrow),
                 B(LdaUndefined),
   /*   79 S> */ B(Return),
 ]
 constant pool: [
-  Smi [6],
 ]
 handlers: [
   [8, 12, 18],
@@ -55,7 +54,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 74
+bytecode array length: 71
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
@@ -89,9 +88,9 @@ bytecodes: [
                 B(Star), R(0),
                 B(Ldar), R(4),
   /*   92 E> */ B(SetPendingMessage),
-                B(Ldar), R(2),
-                B(SwitchOnSmiNoFeedback), U8(2), U8(1), I8(0),
-                B(Jump), U8(5),
+                B(LdaZero),
+                B(TestEqualStrictNoFeedback), R(2),
+                B(JumpIfFalse), U8(5),
                 B(Ldar), R(3),
                 B(ReThrow),
                 B(LdaUndefined),
@@ -100,7 +99,6 @@ bytecodes: [
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["e"],
   FIXED_ARRAY_TYPE,
-  Smi [6],
 ]
 handlers: [
   [8, 39, 45],
@@ -115,7 +113,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 97
+bytecode array length: 94
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(4),
@@ -160,9 +158,9 @@ bytecodes: [
                 B(Star), R(0),
                 B(Ldar), R(4),
   /*  116 E> */ B(SetPendingMessage),
-                B(Ldar), R(2),
-                B(SwitchOnSmiNoFeedback), U8(3), U8(1), I8(0),
-                B(Jump), U8(5),
+                B(LdaZero),
+                B(TestEqualStrictNoFeedback), R(2),
+                B(JumpIfFalse), U8(5),
                 B(Ldar), R(3),
                 B(ReThrow),
                 B(LdaUndefined),
@@ -172,7 +170,6 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["e"],
   FIXED_ARRAY_TYPE,
   FIXED_ARRAY_TYPE,
-  Smi [6],
 ]
 handlers: [
   [4, 62, 68],

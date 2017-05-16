@@ -198,19 +198,40 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
   // Applies all recorded control-flow commands after the finally-block again.
   // This generates a dynamic dispatch on the token from the entry point.
   void ApplyDeferredCommands() {
-    BytecodeJumpTable* jump_table =
-        builder()->AllocateJumpTable(static_cast<int>(deferred_.size()), 0);
+    if (deferred_.size() == 0) return;
+
     BytecodeLabel fall_through;
-    builder()
-        ->LoadAccumulatorWithRegister(token_register_)
-        .SwitchOnSmiNoFeedback(jump_table)
-        .Jump(&fall_through);
-    for (const Entry& entry : deferred_) {
+
+    if (deferred_.size() == 1) {
+      // For a single entry, just jump to the fallthrough if we don't match the
+      // entry token.
+      const Entry& entry = deferred_[0];
+
       builder()
-          ->Bind(jump_table, entry.token)
-          .LoadAccumulatorWithRegister(result_register_);
+          ->LoadLiteral(Smi::FromInt(entry.token))
+          .CompareOperation(Token::EQ_STRICT, token_register_)
+          .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &fall_through);
+
+      builder()->LoadAccumulatorWithRegister(result_register_);
       execution_control()->PerformCommand(entry.command, entry.statement);
+    } else {
+      // For multiple entries, build a jump table and switch on the token,
+      // jumping to the fallthrough if none of them match.
+
+      BytecodeJumpTable* jump_table =
+          builder()->AllocateJumpTable(static_cast<int>(deferred_.size()), 0);
+      builder()
+          ->LoadAccumulatorWithRegister(token_register_)
+          .SwitchOnSmiNoFeedback(jump_table)
+          .Jump(&fall_through);
+      for (const Entry& entry : deferred_) {
+        builder()
+            ->Bind(jump_table, entry.token)
+            .LoadAccumulatorWithRegister(result_register_);
+        execution_control()->PerformCommand(entry.command, entry.statement);
+      }
     }
+
     builder()->Bind(&fall_through);
   }
 
