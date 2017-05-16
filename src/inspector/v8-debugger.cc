@@ -414,7 +414,8 @@ void V8Debugger::scheduleStepIntoAsync(
 
 Response V8Debugger::continueToLocation(
     int targetContextGroupId,
-    std::unique_ptr<protocol::Debugger::Location> location) {
+    std::unique_ptr<protocol::Debugger::Location> location,
+    const String16& targetCallFrames) {
   DCHECK(isPaused());
   DCHECK(!m_executionState.IsEmpty());
   DCHECK(targetContextGroupId);
@@ -427,6 +428,12 @@ Response V8Debugger::continueToLocation(
   m_continueToLocationBreakpointId =
       setBreakpoint(breakpoint, &lineNumber, &columnNumber);
   if (!m_continueToLocationBreakpointId.isEmpty()) {
+    m_continueToLocationTargetCallFrames = targetCallFrames;
+    if (m_continueToLocationTargetCallFrames !=
+        protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any) {
+      m_continueToLocationStack = captureStackTrace(true);
+      DCHECK(m_continueToLocationStack);
+    }
     continueProgram(targetContextGroupId);
     // TODO(kozyatinskiy): Return actual line and column number.
     return Response::OK();
@@ -435,11 +442,26 @@ Response V8Debugger::continueToLocation(
   }
 }
 
-void V8Debugger::clearContinueToLocation() {
-  if (m_continueToLocationBreakpointId.length()) {
-    removeBreakpoint(m_continueToLocationBreakpointId);
-    m_continueToLocationBreakpointId = String16();
+bool V8Debugger::shouldContinueToCurrentLocation() {
+  if (m_continueToLocationTargetCallFrames ==
+      protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any) {
+    return true;
   }
+  std::unique_ptr<V8StackTraceImpl> currentStack = captureStackTrace(true);
+  if (m_continueToLocationTargetCallFrames ==
+      protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Current) {
+    return m_continueToLocationStack->isEqualIgnoringTopFrame(
+        currentStack.get());
+  }
+  return true;
+}
+
+void V8Debugger::clearContinueToLocation() {
+  if (m_continueToLocationBreakpointId.isEmpty()) return;
+  removeBreakpoint(m_continueToLocationBreakpointId);
+  m_continueToLocationBreakpointId = String16();
+  m_continueToLocationTargetCallFrames = String16();
+  m_continueToLocationStack.reset();
 }
 
 Response V8Debugger::setScriptSource(
@@ -596,6 +618,11 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
       DCHECK(hitBreakpointNumber->IsInt32());
       breakpointIds.push_back(String16::fromInteger(
           hitBreakpointNumber->Int32Value(debuggerContext()).FromJust()));
+    }
+    if (breakpointIds.size() == 1 &&
+        breakpointIds[0] == m_continueToLocationBreakpointId) {
+      v8::Context::Scope contextScope(pausedContext);
+      if (!shouldContinueToCurrentLocation()) return;
     }
   }
   clearContinueToLocation();

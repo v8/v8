@@ -62,7 +62,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
       int targetContextGroupId);
 
   Response continueToLocation(int targetContextGroupId,
-                              std::unique_ptr<protocol::Debugger::Location>);
+                              std::unique_ptr<protocol::Debugger::Location>,
+                              const String16& targetCallFramess);
 
   Response setScriptSource(
       const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
@@ -123,6 +124,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::Local<v8::Context> debuggerContext() const;
   void clearBreakpoints();
   void clearContinueToLocation();
+  bool shouldContinueToCurrentLocation();
 
   static void v8OOMCallback(void* data);
 
@@ -189,6 +191,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
   int m_targetContextGroupId = 0;
   int m_pausedContextGroupId = 0;
   String16 m_continueToLocationBreakpointId;
+  String16 m_continueToLocationTargetCallFrames;
+  std::unique_ptr<V8StackTraceImpl> m_continueToLocationStack;
 
   using AsyncTaskToStackTrace =
       protocol::HashMap<void*, std::weak_ptr<AsyncStackTrace>>;

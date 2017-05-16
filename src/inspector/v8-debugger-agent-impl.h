@@ -56,8 +56,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       Maybe<String16> optionalCondition, String16*,
       std::unique_ptr<protocol::Debugger::Location>* actualLocation) override;
   Response removeBreakpoint(const String16& breakpointId) override;
-  Response continueToLocation(
-      std::unique_ptr<protocol::Debugger::Location>) override;
+  Response continueToLocation(std::unique_ptr<protocol::Debugger::Location>,
+                              Maybe<String16> targetCallFrames) override;
   Response searchInContent(
       const String16& scriptId, const String16& query,
       Maybe<bool> optionalCaseSensitive, Maybe<bool> optionalIsRegex,

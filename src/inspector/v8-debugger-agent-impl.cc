@@ -483,11 +483,14 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
 }
 
 Response V8DebuggerAgentImpl::continueToLocation(
-    std::unique_ptr<protocol::Debugger::Location> location) {
+    std::unique_ptr<protocol::Debugger::Location> location,
+    Maybe<String16> targetCallFrames) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
-  return m_debugger->continueToLocation(m_session->contextGroupId(),
-                                        std::move(location));
+  return m_debugger->continueToLocation(
+      m_session->contextGroupId(), std::move(location),
+      targetCallFrames.fromMaybe(
+          protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any));
 }
 
 bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
