@@ -2453,21 +2453,30 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
       double value;
-// bit_cast of snan is converted to qnan on ia32/x64
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
-      intptr_t valueInt = (src.type() == Constant::kFloat32)
-                              ? src.ToFloat32AsInt()
-                              : src.ToFloat64AsInt();
-      if (valueInt == ((src.type() == Constant::kFloat32)
-                           ? 0x7fa00000
-                           : 0x7fa0000000000000)) {
-        value = bit_cast<double, int64_t>(0x7ff4000000000000L);
+      // casting double precision snan to single precision
+      // converts it to qnan on ia32/x64
+      if (src.type() == Constant::kFloat32) {
+        int32_t val = src.ToFloat32AsInt();
+        if ((val & 0x7f800000) == 0x7f800000) {
+          int64_t dval = static_cast<int64_t>(val);
+          dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
+                 ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29);
+          value = bit_cast<double, int64_t>(dval);
+        } else {
+          value = src.ToFloat32();
+        }
       } else {
-#endif
-        value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
-                                                   : src.ToFloat64();
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+        int64_t val = src.ToFloat64AsInt();
+        if ((val & 0x7f80000000000000) == 0x7f80000000000000) {
+          value = bit_cast<double, int64_t>(val);
+        } else {
+          value = src.ToFloat64();
+        }
       }
+#else
+      value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
+                                                   : src.ToFloat64();
 #endif
       __ LoadDoubleLiteral(dst, value, kScratchReg);
       if (destination->IsFPStackSlot()) {
