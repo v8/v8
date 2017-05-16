@@ -3529,14 +3529,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
   i::Variable* var;
   {
     // Find the variable.
-    for (auto it = input.location.begin(); it != input.location.end(); ++it) {
-      unsigned n = *it;
-      scope = scope->inner_scope();
-      while (n-- > 0) {
-        scope = scope->sibling();
-      }
-    }
-    CHECK_NOT_NULL(scope);
+    scope = i::ScopeTestHelper::FindScope(scope, input.location);
     const i::AstRawString* var_name =
         info->ast_value_factory()->GetOneByteString(variable);
     var = scope->Lookup(var_name);

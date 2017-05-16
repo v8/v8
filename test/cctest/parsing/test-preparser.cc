@@ -76,45 +76,102 @@ TEST(PreParserScopeAnalysis) {
     bool strict_outer;
     bool strict_test_function;
     bool arrow;
+    std::vector<unsigned> location;  // "Directions" to the relevant scope.
   } outers[] = {
       // Normal case (test function at the laziness boundary):
-      {"(function outer() { ", "})();", " function test(%s) { %s }",
-       "(function test(%s) { %s })()", false, false, false},
+      {"(function outer() { ",
+       "})();",
+       " function test(%s) { %s }",
+       "(function test(%s) { %s })()",
+       false,
+       false,
+       false,
+       {0, 0}},
 
       // Test function deeper:
-      {"(function outer() { ", "})();",
+      {"(function outer() { ",
+       "})();",
        " function inner() { function test(%s) { %s } }",
-       "(function inner() { function test(%s) { %s } })()", false, false,
-       false},
+       "(function inner() { function test(%s) { %s } })()",
+       false,
+       false,
+       false,
+       {0, 0}},
 
       // Arrow functions (they can never be at the laziness boundary):
-      {"(function outer() { ", "})();", " function inner() { (%s) => { %s } }",
-       "(function inner() { (%s) => { %s } })()", false, false, true},
+      {"(function outer() { ",
+       "})();",
+       " function inner() { (%s) => { %s } }",
+       "(function inner() { (%s) => { %s } })()",
+       false,
+       false,
+       true,
+       {0, 0}},
 
       // Repeat the above mentioned cases w/ outer function declaring itself
       // strict:
-      {"(function outer() { 'use strict'; ", "})();",
-       " function test(%s) { %s }", "(function test(%s) { %s })()", true, false,
-       false},
-      {"(function outer() { 'use strict'; ", "})();",
+      {"(function outer() { 'use strict'; ",
+       "})();",
+       " function test(%s) { %s }",
+       "(function test(%s) { %s })()",
+       true,
+       false,
+       false,
+       {0, 0}},
+      {"(function outer() { 'use strict'; ",
+       "})();",
        " function inner() { function test(%s) { %s } }",
-       "(function inner() { function test(%s) { %s } })()", true, false, false},
-      {"(function outer() { 'use strict'; ", "})();",
+       "(function inner() { function test(%s) { %s } })()",
+       true,
+       false,
+       false,
+       {0, 0}},
+      {"(function outer() { 'use strict'; ",
+       "})();",
        " function inner() { (%s) => { %s } }",
-       "(function inner() { (%s) => { %s } })()", true, false, true},
+       "(function inner() { (%s) => { %s } })()",
+       true,
+       false,
+       true,
+       {0, 0}},
 
       // ... and with the test function declaring itself strict:
-      {"(function outer() { ", "})();",
+      {"(function outer() { ",
+       "})();",
        " function test(%s) { 'use strict'; %s }",
-       "(function test(%s) { 'use strict'; %s })()", false, true, false},
-      {"(function outer() { ", "})();",
+       "(function test(%s) { 'use strict'; %s })()",
+       false,
+       true,
+       false,
+       {0, 0}},
+      {"(function outer() { ",
+       "})();",
        " function inner() { function test(%s) { 'use strict'; %s } }",
-       "(function inner() { function test(%s) { 'use strict'; %s } })()", false,
-       true, false},
-      {"(function outer() { ", "})();",
+       "(function inner() { function test(%s) { 'use strict'; %s } })()",
+       false,
+       true,
+       false,
+       {0, 0}},
+      {"(function outer() { ",
+       "})();",
        " function inner() { (%s) => { 'use strict'; %s } }",
-       "(function inner() { (%s) => { 'use strict'; %s } })()", false, true,
-       true},
+       "(function inner() { (%s) => { 'use strict'; %s } })()",
+       false,
+       true,
+       true,
+       {0, 0}},
+
+      // Methods containing skippable functions. Cannot test at the laziness
+      // boundary, since there's no way to force eager parsing of a method.
+      {"class MyClass { mymethod() {",
+       "} }",
+       " function test(%s) { %s }",
+       "(function test(%s) { %s })()",
+       true,
+       true,
+       false,
+       // The default constructor is scope 0 inside the class.
+       {0, 1, 0}},
 
       // FIXME(marja): Generators and async functions
   };
@@ -165,6 +222,15 @@ TEST(PreParserScopeAnalysis) {
       {"const var1 = 5;"},
       {"if (true) { const var1 = 5; }"},
       {"const var1 = 5; function f() { var1; }"},
+
+      // Functions.
+      {"function f1() { let var2; }"},
+      {"var var1 = function f1() { let var2; }"},
+      {"let var1 = function f1() { let var2; }"},
+      {"const var1 = function f1() { let var2; }"},
+      {"var var1 = function() { let var2; }"},
+      {"let var1 = function() { let var2; }"},
+      {"const var1 = function() { let var2; }"},
 
       // Redeclarations.
       {"var var1; var var1;"},
@@ -491,6 +557,9 @@ TEST(PreParserScopeAnalysis) {
        "{name9: var9, name10: var10}, ...var11",
        "", SKIP_STRICT_FUNCTION, false},
 
+      // Complicated cases from bugs.
+      {"var1 = {} = {}", "", SKIP_STRICT_FUNCTION, false},
+
       // Destructuring rest. Because we can.
       {"var1, ...[var2]", "", SKIP_STRICT_FUNCTION},
       {"var1, ...[var2]", "() => { var2; }", SKIP_STRICT_FUNCTION},
@@ -551,6 +620,24 @@ TEST(PreParserScopeAnalysis) {
       // Classes
       // FIXME(marja): Add more complex class cases.
       {"class MyClass {}"},
+      {"var1 = class MyClass {}"},
+      {"var var1 = class MyClass {}"},
+      {"let var1 = class MyClass {}"},
+      {"const var1 = class MyClass {}"},
+      {"var var1 = class {}"},
+      {"let var1 = class {}"},
+      {"const var1 = class {}"},
+
+      {"class MyClass { m() {} }"},
+      {"class MyClass { m() { var var1; } }"},
+      {"class MyClass { m() { var var1 = 11; } }"},
+      {"class MyClass { m() { var var1; function foo() { var1 = 11; } } }"},
+
+      {"class MyClass { static m() {} }"},
+      {"class MyClass { static m() { var var1; } }"},
+      {"class MyClass { static m() { var var1 = 11; } }"},
+      {"class MyClass { static m() { var var1; function foo() { var1 = 11; } } "
+       "}"},
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
@@ -630,9 +717,8 @@ TEST(PreParserScopeAnalysis) {
       CHECK(i::parsing::ParseProgram(&eager_normal, isolate));
       CHECK(i::Compiler::Analyze(&eager_normal, isolate));
 
-      i::Scope* normal_scope =
-          eager_normal.literal()->scope()->inner_scope()->inner_scope();
-      CHECK_NOT_NULL(normal_scope);
+      i::Scope* normal_scope = i::ScopeTestHelper::FindScope(
+          eager_normal.literal()->scope(), outers[outer_ix].location);
       CHECK_NULL(normal_scope->sibling());
       CHECK(normal_scope->is_function_scope());
 
@@ -643,11 +729,8 @@ TEST(PreParserScopeAnalysis) {
       // Don't run scope analysis (that would obviously decide the correct
       // allocation for the variables).
 
-      i::Scope* unallocated_scope = eager_using_scope_data.literal()
-                                        ->scope()
-                                        ->inner_scope()
-                                        ->inner_scope();
-      CHECK_NOT_NULL(unallocated_scope);
+      i::Scope* unallocated_scope = i::ScopeTestHelper::FindScope(
+          eager_using_scope_data.literal()->scope(), outers[outer_ix].location);
       CHECK_NULL(unallocated_scope->sibling());
       CHECK(unallocated_scope->is_function_scope());
 
