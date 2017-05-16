@@ -88,6 +88,9 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceSpeculativeNumberBinop(Node* node);
   Reduction ReduceSpeculativeNumberComparison(Node* node);
 
+  // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
+  Node* BuildGetModuleCell(Node* node);
+
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

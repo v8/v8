@@ -66,7 +66,6 @@
   V(Call)                   \
   V(Parameter)              \
   V(OsrValue)               \
-  V(OsrGuard)               \
   V(LoopExit)               \
   V(LoopExitValue)          \
   V(LoopExitEffect)         \
@@ -147,6 +146,7 @@
   V(JSStoreDataPropertyInLiteral) \
   V(JSDeleteProperty)             \
   V(JSHasProperty)                \
+  V(JSCreateGeneratorObject)      \
   V(JSGetSuperConstructor)
 
 #define JS_CONTEXT_OP_LIST(V) \
@@ -575,19 +575,14 @@
   V(F32x4UConvertI32x4)         \
   V(F32x4Abs)                   \
   V(F32x4Neg)                   \
-  V(F32x4Sqrt)                  \
   V(F32x4RecipApprox)           \
   V(F32x4RecipSqrtApprox)       \
   V(F32x4Add)                   \
+  V(F32x4AddHoriz)              \
   V(F32x4Sub)                   \
   V(F32x4Mul)                   \
-  V(F32x4Div)                   \
   V(F32x4Min)                   \
   V(F32x4Max)                   \
-  V(F32x4MinNum)                \
-  V(F32x4MaxNum)                \
-  V(F32x4RecipRefine)           \
-  V(F32x4RecipSqrtRefine)       \
   V(F32x4Eq)                    \
   V(F32x4Ne)                    \
   V(F32x4Lt)                    \
@@ -604,6 +599,7 @@
   V(I32x4Shl)                   \
   V(I32x4ShrS)                  \
   V(I32x4Add)                   \
+  V(I32x4AddHoriz)              \
   V(I32x4Sub)                   \
   V(I32x4Mul)                   \
   V(I32x4MinS)                  \
@@ -635,6 +631,7 @@
   V(I16x8SConvertI32x4)         \
   V(I16x8Add)                   \
   V(I16x8AddSaturateS)          \
+  V(I16x8AddHoriz)              \
   V(I16x8Sub)                   \
   V(I16x8SubSaturateS)          \
   V(I16x8Mul)                   \
@@ -695,34 +692,12 @@
   V(S128And)                    \
   V(S128Or)                     \
   V(S128Xor)                    \
-  V(S32x4ZipLeft)               \
-  V(S32x4ZipRight)              \
-  V(S32x4UnzipLeft)             \
-  V(S32x4UnzipRight)            \
-  V(S32x4TransposeLeft)         \
-  V(S32x4TransposeRight)        \
+  V(S32x4Shuffle)               \
   V(S32x4Select)                \
-  V(S16x8ZipLeft)               \
-  V(S16x8ZipRight)              \
-  V(S16x8UnzipLeft)             \
-  V(S16x8UnzipRight)            \
-  V(S16x8TransposeLeft)         \
-  V(S16x8TransposeRight)        \
+  V(S16x8Shuffle)               \
   V(S16x8Select)                \
-  V(S8x16ZipLeft)               \
-  V(S8x16ZipRight)              \
-  V(S8x16UnzipLeft)             \
-  V(S8x16UnzipRight)            \
-  V(S8x16TransposeLeft)         \
-  V(S8x16TransposeRight)        \
+  V(S8x16Shuffle)               \
   V(S8x16Select)                \
-  V(S8x16Concat)                \
-  V(S32x2Reverse)               \
-  V(S16x4Reverse)               \
-  V(S16x2Reverse)               \
-  V(S8x8Reverse)                \
-  V(S8x4Reverse)                \
-  V(S8x2Reverse)                \
   V(S1x4Zero)                   \
   V(S1x4And)                    \
   V(S1x4Or)                     \

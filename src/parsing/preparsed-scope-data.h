@@ -5,6 +5,7 @@
 #ifndef V8_PARSING_PREPARSED_SCOPE_DATA_H_
 #define V8_PARSING_PREPARSED_SCOPE_DATA_H_
 
+#include <set>
 #include <unordered_map>
 #include <vector>
 
@@ -65,8 +66,15 @@ class PreParsedScopeData {
   // subscopes') variables.
   void SaveData(Scope* scope);
 
-  // Saves data for a function that can be later skipped, or a function for
-  // which we save variable allocation data.
+  // Save data for a function we might skip later. The data is used later for
+  // creating a FunctionLiteral.
+  void AddSkippableFunction(int start_position,
+                            const PreParseData::FunctionData& function_data);
+
+  // Save variable allocation data for function which contains skippable
+  // functions.
+  void AddFunction(int start_position,
+                   const PreParseData::FunctionData& function_data);
 
   // FIXME(marja): We need different kinds of data for the two types of
   // functions. For a skippable function we need the end position + the data
@@ -74,22 +82,20 @@ class PreParsedScopeData {
   // skippable functions, we need the data affecting context allocation status
   // of the variables (but e.g., no end position). Currently we just save the
   // same data for both. Here we can save less data.
-  void AddFunction(int start_position,
-                   const PreParseData::FunctionData& function_data);
 
   // Restores the information needed for allocating the Scopes's (and its
   // subscopes') variables.
   void RestoreData(Scope* scope, uint32_t* index_ptr) const;
   void RestoreData(DeclarationScope* scope) const;
 
-  FixedUint32Array* Serialize(Isolate* isolate) const;
-  void Deserialize(Handle<FixedUint32Array> array);
+  Handle<PodArray<uint32_t>> Serialize(Isolate* isolate) const;
+  void Deserialize(PodArray<uint32_t>* array);
 
   bool Consuming() const { return has_data_; }
 
   bool Producing() const { return !has_data_; }
 
-  PreParseData::FunctionData FindFunction(int start_pos) const;
+  PreParseData::FunctionData FindSkippableFunction(int start_pos) const;
 
  private:
   friend class ScopeTestHelper;
@@ -112,6 +118,8 @@ class PreParsedScopeData {
   PreParseData function_index_;
   // Start pos -> position in backing_store_.
   std::unordered_map<uint32_t, uint32_t> function_data_positions_;
+  // Start positions of skippable functions.
+  std::set<uint32_t> skippable_functions_;
 
   bool has_data_ = false;
 

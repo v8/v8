@@ -286,6 +286,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   void SetCachedData(ParseInfo* info);
 
+  void StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate);
+
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
   }
@@ -385,9 +387,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       ClassInfo* class_info, bool* ok);
-  V8_INLINE Expression* RewriteClassLiteral(const AstRawString* name,
+  V8_INLINE Expression* RewriteClassLiteral(Scope* block_scope,
+                                            const AstRawString* name,
                                             ClassInfo* class_info, int pos,
-                                            bool* ok);
+                                            int end_pos, bool* ok);
   V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos,
                                      bool* ok);
 
@@ -741,7 +744,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE static bool IsIdentifier(Expression* expression) {
     DCHECK_NOT_NULL(expression);
     VariableProxy* operand = expression->AsVariableProxy();
-    return operand != nullptr && !operand->is_this();
+    return operand != nullptr && !operand->is_this() &&
+           !operand->is_new_target();
   }
 
   V8_INLINE static const AstRawString* AsIdentifier(Expression* expression) {
@@ -767,7 +771,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE static bool IsBoilerplateProperty(
       ObjectLiteral::Property* property) {
-    return ObjectLiteral::IsBoilerplateProperty(property);
+    return !property->IsPrototype();
   }
 
   V8_INLINE bool IsNative(Expression* expr) const {
@@ -1212,6 +1216,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Mode mode_;
+
+  std::vector<FunctionLiteral*> literals_to_stitch_;
+  Handle<String> source_;
+  CompilerDispatcher* compiler_dispatcher_ = nullptr;
+  ParseInfo* main_parse_info_ = nullptr;
 
   friend class ParserTarget;
   friend class ParserTargetScope;

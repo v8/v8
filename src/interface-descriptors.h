@@ -49,13 +49,11 @@ class PlatformInterfaceDescriptor;
   V(CallTrampoline)                        \
   V(ConstructStub)                         \
   V(ConstructTrampoline)                   \
-  V(RegExpExec)                            \
   V(TransitionElementsKind)                \
   V(AllocateHeapNumber)                    \
   V(Builtin)                               \
   V(ArrayConstructor)                      \
   V(IteratingArrayBuiltin)                 \
-  V(IteratingArrayBuiltinLoopContinuation) \
   V(ArrayNoArgumentConstructor)            \
   V(ArraySingleArgumentConstructor)        \
   V(ArrayNArgumentsConstructor)            \
@@ -227,15 +225,25 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   }                                                        \
   static inline CallDescriptors::Key key();
 
-#define DECLARE_DEFAULT_DESCRIPTOR(name, base, parameter_count)            \
-  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                 \
- protected:                                                                \
-  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)       \
-      override {                                                           \
-    DefaultInitializePlatformSpecific(data, parameter_count);              \
-  }                                                                        \
-  name(Isolate* isolate, CallDescriptors::Key key) : base(isolate, key) {} \
-                                                                           \
+static const int kMaxBuiltinRegisterParams = 5;
+
+#define DECLARE_DEFAULT_DESCRIPTOR(name, base, parameter_count)               \
+  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                    \
+ protected:                                                                   \
+  static const int kRegisterParams =                                          \
+      parameter_count > kMaxBuiltinRegisterParams ? kMaxBuiltinRegisterParams \
+                                                  : parameter_count;          \
+  static const int kStackParams = parameter_count - kRegisterParams;          \
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)          \
+      override {                                                              \
+    DefaultInitializePlatformSpecific(data, kRegisterParams);                 \
+  }                                                                           \
+  void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
+      override {                                                              \
+    data->InitializePlatformIndependent(kRegisterParams, kStackParams, NULL); \
+  }                                                                           \
+  name(Isolate* isolate, CallDescriptors::Key key) : base(isolate, key) {}    \
+                                                                              \
  public:
 
 #define DECLARE_DESCRIPTOR(name, base)                                         \
@@ -613,19 +621,6 @@ class CallConstructDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallConstructDescriptor, CallInterfaceDescriptor)
 };
 
-class RegExpExecDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kString, kLastIndex, kStringStart, kStringEnd, kCode)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(RegExpExecDescriptor,
-                                               CallInterfaceDescriptor)
-
-  static const Register StringRegister();
-  static const Register LastIndexRegister();
-  static const Register StringStartRegister();
-  static const Register StringEndRegister();
-  static const Register CodeRegister();
-};
-
 class TransitionElementsKindDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kObject, kMap)
@@ -654,14 +649,6 @@ class IteratingArrayBuiltinDescriptor : public BuiltinDescriptor {
  public:
   DEFINE_BUILTIN_PARAMETERS(kCallback, kThisArg)
   DECLARE_BUILTIN_DESCRIPTOR(IteratingArrayBuiltinDescriptor)
-};
-
-class IteratingArrayBuiltinLoopContinuationDescriptor
-    : public BuiltinDescriptor {
- public:
-  DEFINE_BUILTIN_PARAMETERS(kCallback, kThisArg, kArray, kObject, kInitialK,
-                            kLength, kTo)
-  DECLARE_BUILTIN_DESCRIPTOR(IteratingArrayBuiltinLoopContinuationDescriptor)
 };
 
 class ArrayConstructorDescriptor : public CallInterfaceDescriptor {
@@ -898,6 +885,7 @@ class WasmRuntimeCallDescriptor final : public CallInterfaceDescriptor {
 BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DEFINE_TFS_BUILTIN_DESCRIPTOR
 
+#undef DECLARE_DEFAULT_DESCRIPTOR
 #undef DECLARE_DESCRIPTOR_WITH_BASE
 #undef DECLARE_DESCRIPTOR
 #undef DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE

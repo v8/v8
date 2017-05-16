@@ -98,6 +98,7 @@
           'gn_debug_simulate_mipsel_asan_edge',
       # Misc.
       'V8 Linux gcc 4.8': 'gn_release_x86_gcc',
+      'V8 Linux64 gcc 4.8 - debug': 'gn_debug_x64_gcc',
       # FYI.
       'V8 Linux - swarming staging': 'gn_release_x64',
       # TODO(machenbach): Figure out if symbolized is still needed. The
@@ -177,6 +178,7 @@
       'v8_linux_nosnap_dbg': 'gn_debug_x86_no_snap_trybot',
       'v8_linux_gcc_compile_rel': 'gn_release_x86_gcc_minimal_symbols',
       'v8_linux_gcc_rel': 'gn_release_x86_gcc_minimal_symbols',
+      'v8_linux64_gcc_compile_dbg': 'gn_debug_x64_gcc',
       'v8_linux64_rel_ng': 'gn_release_x64_valgrind_trybot',
       'v8_linux64_verify_csa_rel_ng': 'gn_release_x64_verify_csa',
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
@@ -298,7 +300,8 @@
     'gn_debug_simulate_arm64_asan_edge': [
       'gn', 'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
     'gn_debug_simulate_arm64_no_snap': [
-      'gn', 'debug_bot', 'simulate_arm64', 'swarming', 'v8_snapshot_none'],
+      'gn', 'debug', 'simulate_arm64', 'shared', 'goma',
+      'v8_optimized_debug', 'swarming', 'v8_snapshot_none'],
     'gn_debug_simulate_mipsel_asan_edge': [
       'gn', 'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
 
@@ -377,6 +380,8 @@
       'gn', 'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
     'gn_debug_x64_custom': [
       'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
+    'gn_debug_x64_gcc': [
+      'gn', 'debug_bot', 'x64', 'gcc'],
     'gn_debug_x64_minimal_symbols': [
       'gn', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
     'gn_debug_x64_trybot': [
@@ -498,8 +503,8 @@
     },
 
     'bb': {
-      'gn_args': 'sanitizer_coverage_flags="bb"',
-      'gyp_defines': 'sanitizer_coverage=bb',
+      'gn_args': 'sanitizer_coverage_flags="bb,trace-pc-guard"',
+      'gyp_defines': 'sanitizer_coverage=bb,trace-pc-guard',
     },
 
     'cfi': {
@@ -548,8 +553,8 @@
     },
 
     'edge': {
-      'gn_args': 'sanitizer_coverage_flags="edge"',
-      'gyp_defines': 'sanitizer_coverage=edge',
+      'gn_args': 'sanitizer_coverage_flags="trace-pc-guard"',
+      'gyp_defines': 'sanitizer_coverage=trace-pc-guard',
     },
 
     'gcc': {

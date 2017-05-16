@@ -44,8 +44,8 @@ inline bool IsValidSectionCode(uint8_t byte) {
 
 const char* SectionName(SectionCode code);
 
-typedef Result<const WasmModule*> ModuleResult;
-typedef Result<WasmFunction*> FunctionResult;
+typedef Result<std::unique_ptr<WasmModule>> ModuleResult;
+typedef Result<std::unique_ptr<WasmFunction>> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
 struct AsmJsOffsetEntry {
@@ -57,11 +57,9 @@ typedef std::vector<std::vector<AsmJsOffsetEntry>> AsmJsOffsets;
 typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
 
 // Decodes the bytes of a WASM module between {module_start} and {module_end}.
-V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate,
-                                                const byte* module_start,
-                                                const byte* module_end,
-                                                bool verify_functions,
-                                                ModuleOrigin origin);
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
+    Isolate* isolate, const byte* module_start, const byte* module_end,
+    bool verify_functions, ModuleOrigin origin, bool is_sync = true);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
@@ -71,11 +69,9 @@ V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(Zone* zone,
 
 // Decodes the bytes of a WASM function between
 // {function_start} and {function_end}.
-V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(Isolate* isolate,
-                                                    Zone* zone,
-                                                    ModuleBytesEnv* env,
-                                                    const byte* function_start,
-                                                    const byte* function_end);
+V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(
+    Isolate* isolate, Zone* zone, ModuleBytesEnv* env,
+    const byte* function_start, const byte* function_end, bool is_sync = true);
 
 V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
                                                             const byte* end);

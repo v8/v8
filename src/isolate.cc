@@ -50,6 +50,7 @@
 #include "src/tracing/tracing-category-observer.h"
 #include "src/v8.h"
 #include "src/version.h"
+#include "src/visitors.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -200,8 +201,7 @@ Address Isolate::get_address_from_id(Isolate::AddressId id) {
   return isolate_addresses_[id];
 }
 
-
-char* Isolate::Iterate(ObjectVisitor* v, char* thread_storage) {
+char* Isolate::Iterate(RootVisitor* v, char* thread_storage) {
   ThreadLocalTop* thread = reinterpret_cast<ThreadLocalTop*>(thread_storage);
   Iterate(v, thread);
   return thread_storage + sizeof(ThreadLocalTop);
@@ -213,19 +213,18 @@ void Isolate::IterateThread(ThreadVisitor* v, char* t) {
   v->VisitThread(this, thread);
 }
 
-
-void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
+void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
-  v->VisitPointer(&thread->pending_exception_);
-  v->VisitPointer(&(thread->pending_message_obj_));
-  v->VisitPointer(bit_cast<Object**>(&(thread->context_)));
-  v->VisitPointer(&thread->scheduled_exception_);
+  v->VisitRootPointer(Root::kTop, &thread->pending_exception_);
+  v->VisitRootPointer(Root::kTop, &thread->pending_message_obj_);
+  v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(thread->context_)));
+  v->VisitRootPointer(Root::kTop, &thread->scheduled_exception_);
 
   for (v8::TryCatch* block = thread->try_catch_handler();
        block != NULL;
        block = block->next_) {
-    v->VisitPointer(bit_cast<Object**>(&(block->exception_)));
-    v->VisitPointer(bit_cast<Object**>(&(block->message_obj_)));
+    v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(block->exception_)));
+    v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(block->message_obj_)));
   }
 
   // Iterate over pointers on native execution stack.
@@ -234,14 +233,12 @@ void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   }
 }
 
-
-void Isolate::Iterate(ObjectVisitor* v) {
+void Isolate::Iterate(RootVisitor* v) {
   ThreadLocalTop* current_t = thread_local_top();
   Iterate(v, current_t);
 }
 
-
-void Isolate::IterateDeferredHandles(ObjectVisitor* visitor) {
+void Isolate::IterateDeferredHandles(RootVisitor* visitor) {
   for (DeferredHandles* deferred = deferred_handles_head_;
        deferred != NULL;
        deferred = deferred->next_) {
@@ -717,6 +714,7 @@ class CaptureStackTraceHelper {
         AbstractCode::SetStackFrameCache(summ.abstract_code(), new_cache);
       }
     }
+    frame->set_id(next_id());
     return frame;
   }
 
@@ -738,11 +736,18 @@ class CaptureStackTraceHelper {
     info->set_column_number(position);
     info->set_script_id(summ.script()->id());
     info->set_is_wasm(true);
+    info->set_id(next_id());
     return info;
   }
 
  private:
   inline Factory* factory() { return isolate_->factory(); }
+
+  int next_id() const {
+    int id = isolate_->last_stack_frame_info_id() + 1;
+    isolate_->set_last_stack_frame_info_id(id);
+    return id;
+  }
 
   Isolate* isolate_;
 };
@@ -3006,8 +3011,8 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
   return nullptr;
 }
 
-bool Isolate::use_crankshaft() {
-  return FLAG_opt && FLAG_crankshaft && !serializer_enabled_ &&
+bool Isolate::use_optimizer() {
+  return FLAG_opt && !serializer_enabled_ &&
          CpuFeatures::SupportsCrankshaft() && !is_precise_count_code_coverage();
 }
 
@@ -3040,7 +3045,7 @@ void Isolate::ClearOSROptimizedCode() {
   Object* context = heap()->native_contexts_list();
   while (!context->IsUndefined(this)) {
     Context* current_context = Context::cast(context);
-    current_context->ClearOptimizedCodeMap();
+    current_context->ClearOSROptimizedCodeCache();
     context = current_context->next_context_link();
   }
 }
@@ -3050,7 +3055,7 @@ void Isolate::EvictOSROptimizedCode(Code* code, const char* reason) {
   Object* context = heap()->native_contexts_list();
   while (!context->IsUndefined(this)) {
     Context* current_context = Context::cast(context);
-    current_context->EvictFromOptimizedCodeMap(code, reason);
+    current_context->EvictFromOSROptimizedCodeCache(code, reason);
     context = current_context->next_context_link();
   }
 }
@@ -3504,6 +3509,7 @@ void Isolate::RunMicrotasksInternal() {
   while (pending_microtask_count() > 0) {
     HandleScope scope(this);
     int num_tasks = pending_microtask_count();
+    // Do not use factory()->microtask_queue() here; we need a fresh handle!
     Handle<FixedArray> queue(heap()->microtask_queue(), this);
     DCHECK(num_tasks <= queue->length());
     set_pending_microtask_count(0);
@@ -3647,11 +3653,11 @@ void Isolate::SetTailCallEliminationEnabled(bool enabled) {
 void Isolate::AddDetachedContext(Handle<Context> context) {
   HandleScope scope(this);
   Handle<WeakCell> cell = factory()->NewWeakCell(context);
-  Handle<FixedArray> detached_contexts = factory()->detached_contexts();
-  int length = detached_contexts->length();
-  detached_contexts = factory()->CopyFixedArrayAndGrow(detached_contexts, 2);
-  detached_contexts->set(length, Smi::kZero);
-  detached_contexts->set(length + 1, *cell);
+  Handle<FixedArray> detached_contexts =
+      factory()->CopyFixedArrayAndGrow(factory()->detached_contexts(), 2);
+  int new_length = detached_contexts->length();
+  detached_contexts->set(new_length - 2, Smi::kZero);
+  detached_contexts->set(new_length - 1, *cell);
   heap()->set_detached_contexts(*detached_contexts);
 }
 

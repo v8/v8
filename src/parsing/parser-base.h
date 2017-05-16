@@ -674,7 +674,8 @@ class ParserBase {
           constructor(parser->impl()->EmptyFunctionLiteral()),
           has_seen_constructor(false),
           has_name_static_property(false),
-          has_static_computed_names(false) {}
+          has_static_computed_names(false),
+          is_anonymous(false) {}
     VariableProxy* proxy;
     ExpressionT extends;
     typename Types::ClassPropertyList properties;
@@ -682,6 +683,7 @@ class ParserBase {
     bool has_seen_constructor;
     bool has_name_static_property;
     bool has_static_computed_names;
+    bool is_anonymous;
   };
 
   DeclarationScope* NewScriptScope() const {
@@ -2084,6 +2086,11 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(
       int ellipsis_pos = position();
       int pattern_pos = peek_position();
       ExpressionT pattern = ParsePrimaryExpression(CHECK_OK);
+      if (peek() == Token::ASSIGN) {
+        ReportMessage(MessageTemplate::kRestDefaultInitializer);
+        *ok = false;
+        return result;
+      }
       ValidateBindingPattern(CHECK_OK);
       right = factory()->NewSpread(pattern, ellipsis_pos, pattern_pos);
     } else {
@@ -2463,12 +2470,12 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
   Token::Value name_token = peek();
 
-  int function_token_position = scanner()->peek_location().beg_pos;
+  int name_token_position = scanner()->peek_location().beg_pos;
   IdentifierT name = impl()->EmptyIdentifier();
   ExpressionT name_expression;
   if (name_token == Token::STATIC) {
     Consume(Token::STATIC);
-    function_token_position = scanner()->peek_location().beg_pos;
+    name_token_position = scanner()->peek_location().beg_pos;
     if (peek() == Token::LPAREN) {
       kind = PropertyKind::kMethodProperty;
       name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
@@ -2572,7 +2579,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       ExpressionT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          FLAG_harmony_function_tostring ? function_token_position
+          FLAG_harmony_function_tostring ? name_token_position
                                          : kNoSourcePosition,
           FunctionLiteral::kAccessorOrMethod, language_mode(), typed(),
           type_flags, CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
@@ -2618,7 +2625,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       FunctionLiteralT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          FLAG_harmony_function_tostring ? function_token_position
+          FLAG_harmony_function_tostring ? name_token_position
                                          : kNoSourcePosition,
           FunctionLiteral::kAccessorOrMethod, language_mode(), typed(),
           typesystem::kDisallowTypeParameters,
@@ -2635,7 +2642,11 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
                                                 *is_computed_name);
     }
     case PropertyKind::kSpreadProperty:
-      UNREACHABLE();
+      ReportUnexpectedTokenAt(
+          Scanner::Location(name_token_position, name_expression->position()),
+          name_token);
+      *ok = false;
+      return impl()->EmptyClassLiteralProperty();
   }
   UNREACHABLE();
   return impl()->EmptyClassLiteralProperty();
@@ -2961,6 +2972,10 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
         spread_arg.beg_pos = start_pos;
         spread_arg.end_pos = peek_position();
       }
+      if (argument->IsAssignment()) {
+        classifier()->RecordAsyncArrowFormalParametersError(
+            scanner()->location(), MessageTemplate::kRestDefaultInitializer);
+      }
       argument = factory()->NewSpread(argument, start_pos, expr_pos);
     }
     result->Add(argument, zone_);
@@ -2973,6 +2988,10 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
     done = (peek() != Token::COMMA);
     if (!done) {
       Next();
+      if (argument->IsSpread()) {
+        classifier()->RecordAsyncArrowFormalParametersError(
+            scanner()->location(), MessageTemplate::kParamAfterRest);
+      }
       if (allow_harmony_trailing_commas() && peek() == Token::RPAREN) {
         // allow trailing comma
         done = true;
@@ -3629,6 +3648,9 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
         // Explicit calls to the super constructor using super() perform an
         // implicit binding assignment to the 'this' variable.
         if (is_super_call) {
+          classifier()->RecordAssignmentPatternError(
+              Scanner::Location(pos, scanner()->location().end_pos),
+              MessageTemplate::kInvalidDestructuringTarget);
           ExpressionT this_expr = impl()->ThisExpression(pos);
           result =
               factory()->NewAssignment(Token::INIT, this_expr, result, pos);
@@ -3901,6 +3923,10 @@ ParserBase<Impl>::ParseNewTargetExpression(bool* ok) {
   int pos = position();
   ExpectMetaProperty(Token::TARGET, "new.target", pos, CHECK_OK);
 
+  classifier()->RecordAssignmentPatternError(
+      Scanner::Location(pos, scanner()->location().end_pos),
+      MessageTemplate::kInvalidDestructuringTarget);
+
   if (!GetReceiverScope()->is_function_scope()) {
     impl()->ReportMessageAt(scanner()->location(),
                             MessageTemplate::kUnexpectedNewTarget);
@@ -4015,7 +4041,12 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
   USE(type);  // TODO(nikolaos): really use it!
 
   ExpressionT initializer = impl()->EmptyExpression();
-  if (!is_rest && !optional && Check(Token::ASSIGN)) {
+  if (!optional && Check(Token::ASSIGN)) {
+    if (is_rest) {
+      ReportMessage(MessageTemplate::kRestDefaultInitializer);
+      *ok = false;
+      return;
+    }
     ExpressionClassifier init_classifier(this);
     initializer = ParseAssignmentExpression(true, typesystem::kNoCover,
                                             CHECK_OK_CUSTOM(Void));
@@ -4778,24 +4809,30 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     IdentifierT name, Scanner::Location class_name_location,
     bool name_is_strict_reserved, int class_token_pos, bool ambient, bool* ok) {
+  bool is_anonymous = impl()->IsEmptyIdentifier(name);
+
   // All parts of a ClassDeclaration and ClassExpression are strict code.
-  if (name_is_strict_reserved) {
-    impl()->ReportMessageAt(class_name_location,
-                            MessageTemplate::kUnexpectedStrictReserved);
-    *ok = false;
-    return impl()->EmptyExpression();
-  }
-  if (impl()->IsEvalOrArguments(name)) {
-    impl()->ReportMessageAt(class_name_location,
-                            MessageTemplate::kStrictEvalArguments);
-    *ok = false;
-    return impl()->EmptyExpression();
+  if (!is_anonymous) {
+    if (name_is_strict_reserved) {
+      impl()->ReportMessageAt(class_name_location,
+                              MessageTemplate::kUnexpectedStrictReserved);
+      *ok = false;
+      return impl()->EmptyExpression();
+    }
+    if (impl()->IsEvalOrArguments(name)) {
+      impl()->ReportMessageAt(class_name_location,
+                              MessageTemplate::kStrictEvalArguments);
+      *ok = false;
+      return impl()->EmptyExpression();
+    }
   }
 
-  BlockState block_state(zone(), &scope_);
+  Scope* block_scope = NewScope(BLOCK_SCOPE);
+  BlockState block_state(&scope_, block_scope);
   RaiseLanguageMode(STRICT);
 
   ClassInfo class_info(this);
+  class_info.is_anonymous = is_anonymous;
   impl()->DeclareClassVariable(name, &class_info, class_token_pos, CHECK_OK);
 
   // Parse optional type parameters.
@@ -4869,7 +4906,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   }
 
   Expect(Token::RBRACE, CHECK_OK);
-  return impl()->RewriteClassLiteral(name, &class_info, class_token_pos, ok);
+  int end_pos = scanner()->location().end_pos;
+  block_scope->set_end_position(end_pos);
+  return impl()->RewriteClassLiteral(block_scope, name, &class_info,
+                                     class_token_pos, end_pos, ok);
 }
 
 template <typename Impl>

@@ -264,7 +264,10 @@ class ModuleDecoder : public Decoder {
              result.ok() ? "ok" : "failed");
     std::string name(buf);
     if (FILE* wasm_file = base::OS::FOpen((path + name).c_str(), "wb")) {
-      fwrite(start_, end_ - start_, 1, wasm_file);
+      if (fwrite(start_, end_ - start_, 1, wasm_file) != 1) {
+        OFStream os(stderr);
+        os << "Error while dumping wasm file" << std::endl;
+      }
       fclose(wasm_file);
     }
   }
@@ -272,7 +275,7 @@ class ModuleDecoder : public Decoder {
   // Decodes an entire module.
   ModuleResult DecodeModule(bool verify_functions = true) {
     pc_ = start_;
-    WasmModule* module = new WasmModule(module_zone_);
+    std::unique_ptr<WasmModule> module(new WasmModule(module_zone_));
     module->min_mem_pages = 0;
     module->max_mem_pages = 0;
     module->mem_export = false;
@@ -354,12 +357,13 @@ class ModuleDecoder : public Decoder {
                                          true,           // imported
                                          false});        // exported
             WasmFunction* function = &module->functions.back();
-            function->sig_index = consume_sig_index(module, &function->sig);
+            function->sig_index =
+                consume_sig_index(module.get(), &function->sig);
             break;
           }
           case kExternalTable: {
             // ===== Imported table ==========================================
-            if (!AddTable(module)) break;
+            if (!AddTable(module.get())) break;
             import->index =
                 static_cast<uint32_t>(module->function_tables.size());
             module->function_tables.push_back({0, 0, false,
@@ -375,7 +379,7 @@ class ModuleDecoder : public Decoder {
           }
           case kExternalMemory: {
             // ===== Imported memory =========================================
-            if (!AddMemory(module)) break;
+            if (!AddMemory(module.get())) break;
             consume_resizable_limits(
                 "memory", "pages", FLAG_wasm_max_mem_pages,
                 &module->min_mem_pages, &module->has_max_mem,
@@ -421,7 +425,7 @@ class ModuleDecoder : public Decoder {
                                      false,       // imported
                                      false});     // exported
         WasmFunction* function = &module->functions.back();
-        function->sig_index = consume_sig_index(module, &function->sig);
+        function->sig_index = consume_sig_index(module.get(), &function->sig);
       }
       section_iter.advance();
     }
@@ -431,7 +435,7 @@ class ModuleDecoder : public Decoder {
       uint32_t table_count = consume_count("table count", kV8MaxWasmTables);
 
       for (uint32_t i = 0; ok() && i < table_count; i++) {
-        if (!AddTable(module)) break;
+        if (!AddTable(module.get())) break;
         module->function_tables.push_back({0, 0, false, std::vector<int32_t>(),
                                            false, false, SignatureMap()});
         WasmIndirectFunctionTable* table = &module->function_tables.back();
@@ -449,7 +453,7 @@ class ModuleDecoder : public Decoder {
       uint32_t memory_count = consume_count("memory count", kV8MaxWasmMemories);
 
       for (uint32_t i = 0; ok() && i < memory_count; i++) {
-        if (!AddMemory(module)) break;
+        if (!AddMemory(module.get())) break;
         consume_resizable_limits("memory", "pages", FLAG_wasm_max_mem_pages,
                                  &module->min_mem_pages, &module->has_max_mem,
                                  kSpecMaxWasmMemoryPages,
@@ -471,7 +475,7 @@ class ModuleDecoder : public Decoder {
         module->globals.push_back(
             {kWasmStmt, false, WasmInitExpr(), 0, false, false});
         WasmGlobal* global = &module->globals.back();
-        DecodeGlobalInModule(module, i + imported_globals, global);
+        DecodeGlobalInModule(module.get(), i + imported_globals, global);
       }
       section_iter.advance();
     }
@@ -500,14 +504,14 @@ class ModuleDecoder : public Decoder {
         switch (exp->kind) {
           case kExternalFunction: {
             WasmFunction* func = nullptr;
-            exp->index = consume_func_index(module, &func);
+            exp->index = consume_func_index(module.get(), &func);
             module->num_exported_functions++;
             if (func) func->exported = true;
             break;
           }
           case kExternalTable: {
             WasmIndirectFunctionTable* table = nullptr;
-            exp->index = consume_table_index(module, &table);
+            exp->index = consume_table_index(module.get(), &table);
             if (table) table->exported = true;
             break;
           }
@@ -523,7 +527,7 @@ class ModuleDecoder : public Decoder {
           }
           case kExternalGlobal: {
             WasmGlobal* global = nullptr;
-            exp->index = consume_global_index(module, &global);
+            exp->index = consume_global_index(module.get(), &global);
             if (global) {
               if (global->mutability) {
                 error("mutable globals cannot be exported");
@@ -570,7 +574,7 @@ class ModuleDecoder : public Decoder {
     if (section_iter.section_code() == kStartSectionCode) {
       WasmFunction* func;
       const byte* pos = pc_;
-      module->start_function_index = consume_func_index(module, &func);
+      module->start_function_index = consume_func_index(module.get(), &func);
       if (func &&
           (func->sig->parameter_count() > 0 || func->sig->return_count() > 0)) {
         error(pos,
@@ -595,7 +599,7 @@ class ModuleDecoder : public Decoder {
           break;
         }
         table = &module->function_tables[table_index];
-        WasmInitExpr offset = consume_init_expr(module, kWasmI32);
+        WasmInitExpr offset = consume_init_expr(module.get(), kWasmI32);
         uint32_t num_elem =
             consume_count("number of elements", kV8MaxWasmTableEntries);
         std::vector<uint32_t> vector;
@@ -603,7 +607,7 @@ class ModuleDecoder : public Decoder {
         WasmTableInit* init = &module->table_inits.back();
         for (uint32_t j = 0; ok() && j < num_elem; j++) {
           WasmFunction* func = nullptr;
-          uint32_t index = consume_func_index(module, &func);
+          uint32_t index = consume_func_index(module.get(), &func);
           DCHECK_EQ(func != nullptr, ok());
           if (!func) break;
           DCHECK_EQ(index, func->func_index);
@@ -631,7 +635,7 @@ class ModuleDecoder : public Decoder {
         function->code_start_offset = pc_offset();
         function->code_end_offset = pc_offset() + size;
         if (verify_functions) {
-          ModuleBytesEnv module_env(module, nullptr,
+          ModuleBytesEnv module_env(module.get(), nullptr,
                                     ModuleWireBytes(start_, end_));
           VerifyFunctionBody(i + module->num_imported_functions, &module_env,
                              function);
@@ -659,7 +663,7 @@ class ModuleDecoder : public Decoder {
             0                // source_size
         });
         WasmDataSegment* segment = &module->data_segments.back();
-        DecodeDataSegmentInModule(module, segment);
+        DecodeDataSegmentInModule(module.get(), segment);
       }
       section_iter.advance();
     }
@@ -714,10 +718,9 @@ class ModuleDecoder : public Decoder {
     }
 
     if (ok()) {
-      CalculateGlobalOffsets(module);
+      CalculateGlobalOffsets(module.get());
     }
-    const WasmModule* finished_module = module;
-    ModuleResult result = toResult(finished_module);
+    ModuleResult result = toResult(std::move(module));
     if (verify_functions && result.ok()) {
       // Copy error code and location.
       result.MoveErrorFrom(intermediate_result_);
@@ -728,7 +731,7 @@ class ModuleDecoder : public Decoder {
 
   // Decodes a single anonymous function starting at {start_}.
   FunctionResult DecodeSingleFunction(ModuleBytesEnv* module_env,
-                                      WasmFunction* function) {
+                                      std::unique_ptr<WasmFunction> function) {
     pc_ = start_;
     function->sig = consume_sig();            // read signature
     function->name_offset = 0;                // ---- name
@@ -736,12 +739,11 @@ class ModuleDecoder : public Decoder {
     function->code_start_offset = off(pc_);   // ---- code start
     function->code_end_offset = off(end_);    // ---- code end
 
-    if (ok()) VerifyFunctionBody(0, module_env, function);
+    if (ok()) VerifyFunctionBody(0, module_env, function.get());
 
-    FunctionResult result;
+    FunctionResult result(std::move(function));
     // Copy error code and location.
     result.MoveErrorFrom(intermediate_result_);
-    result.val = function;
     return result;
   }
 
@@ -876,7 +878,7 @@ class ModuleDecoder : public Decoder {
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream str;
-      str << "in function " << func_name << ": " << result.error_msg;
+      str << "in function " << func_name << ": " << result.error_msg();
 
       // Set error code and location, if this is the first error.
       if (intermediate_result_.ok()) {
@@ -1135,22 +1137,22 @@ class ModuleDecoder : public Decoder {
   }
 };
 
-}  // namespace
-
-ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
-                              const byte* module_end, bool verify_functions,
-                              ModuleOrigin origin) {
-  HistogramTimerScope wasm_decode_module_time_scope(
-      IsWasm(origin) ? isolate->counters()->wasm_decode_wasm_module_time()
-                     : isolate->counters()->wasm_decode_asm_module_time());
+ModuleResult DecodeWasmModuleInternal(Isolate* isolate,
+                                      const byte* module_start,
+                                      const byte* module_end,
+                                      bool verify_functions,
+                                      ModuleOrigin origin, bool is_sync) {
   size_t size = module_end - module_start;
   if (module_start > module_end) return ModuleResult::Error("start > end");
   if (size >= kV8MaxWasmModuleSize)
     return ModuleResult::Error("size > maximum module size: %zu", size);
   // TODO(bradnelson): Improve histogram handling of size_t.
-  (IsWasm(origin) ? isolate->counters()->wasm_wasm_module_size_bytes()
-                  : isolate->counters()->wasm_asm_module_size_bytes())
-      ->AddSample(static_cast<int>(size));
+  if (is_sync)
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    (IsWasm(origin) ? isolate->counters()->wasm_wasm_module_size_bytes()
+                    : isolate->counters()->wasm_asm_module_size_bytes())
+        ->AddSample(static_cast<int>(size));
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
   Zone* zone = new Zone(isolate->allocator(), ZONE_NAME);
@@ -1160,11 +1162,32 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
   // TODO(titzer): this isn't accurate, since it doesn't count the data
   // allocated on the C++ heap.
   // https://bugs.chromium.org/p/chromium/issues/detail?id=657320
-  (IsWasm(origin)
-       ? isolate->counters()->wasm_decode_wasm_module_peak_memory_bytes()
-       : isolate->counters()->wasm_decode_asm_module_peak_memory_bytes())
-      ->AddSample(static_cast<int>(zone->allocation_size()));
+  if (is_sync)
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    (IsWasm(origin)
+         ? isolate->counters()->wasm_decode_wasm_module_peak_memory_bytes()
+         : isolate->counters()->wasm_decode_asm_module_peak_memory_bytes())
+        ->AddSample(static_cast<int>(zone->allocation_size()));
   return result;
+}
+
+}  // namespace
+
+ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
+                              const byte* module_end, bool verify_functions,
+                              ModuleOrigin origin, bool is_sync) {
+  if (is_sync) {
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    HistogramTimerScope wasm_decode_module_time_scope(
+        IsWasm(origin) ? isolate->counters()->wasm_decode_wasm_module_time()
+                       : isolate->counters()->wasm_decode_asm_module_time());
+    return DecodeWasmModuleInternal(isolate, module_start, module_end,
+                                    verify_functions, origin, true);
+  }
+  return DecodeWasmModuleInternal(isolate, module_start, module_end,
+                                  verify_functions, origin, false);
 }
 
 FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
@@ -1180,25 +1203,53 @@ WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end) {
   return decoder.DecodeInitExpr(start);
 }
 
-FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
-                                  ModuleBytesEnv* module_env,
-                                  const byte* function_start,
-                                  const byte* function_end) {
-  bool is_wasm = module_env->module_env.is_wasm();
-  HistogramTimerScope wasm_decode_function_time_scope(
-      is_wasm ? isolate->counters()->wasm_decode_wasm_function_time()
-              : isolate->counters()->wasm_decode_asm_function_time());
+namespace {
+
+FunctionResult DecodeWasmFunctionInternal(Isolate* isolate, Zone* zone,
+                                          ModuleBytesEnv* module_env,
+                                          const byte* function_start,
+                                          const byte* function_end,
+                                          bool is_sync) {
   size_t size = function_end - function_start;
   if (function_start > function_end)
     return FunctionResult::Error("start > end");
   if (size > kV8MaxWasmFunctionSize)
     return FunctionResult::Error("size > maximum function size: %zu", size);
-  (is_wasm ? isolate->counters()->wasm_wasm_function_size_bytes()
-           : isolate->counters()->wasm_asm_function_size_bytes())
-      ->AddSample(static_cast<int>(size));
-  WasmFunction* function = new WasmFunction();
+  if (is_sync) {
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    bool is_wasm = module_env->module_env.is_wasm();
+    (is_wasm ? isolate->counters()->wasm_wasm_function_size_bytes()
+             : isolate->counters()->wasm_asm_function_size_bytes())
+        ->AddSample(static_cast<int>(size));
+  }
   ModuleDecoder decoder(zone, function_start, function_end, kWasmOrigin);
-  return decoder.DecodeSingleFunction(module_env, function);
+  return decoder.DecodeSingleFunction(
+      module_env, std::unique_ptr<WasmFunction>(new WasmFunction()));
+}
+
+}  // namespace
+
+FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
+                                  ModuleBytesEnv* module_env,
+                                  const byte* function_start,
+                                  const byte* function_end, bool is_sync) {
+  if (is_sync) {
+    // TODO(karlschimpf): Make this work when asynchronous.
+    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
+    size_t size = function_end - function_start;
+    bool is_wasm = module_env->module_env.is_wasm();
+    (is_wasm ? isolate->counters()->wasm_wasm_function_size_bytes()
+             : isolate->counters()->wasm_asm_function_size_bytes())
+        ->AddSample(static_cast<int>(size));
+    HistogramTimerScope wasm_decode_function_time_scope(
+        is_wasm ? isolate->counters()->wasm_decode_wasm_function_time()
+                : isolate->counters()->wasm_decode_asm_function_time());
+    return DecodeWasmFunctionInternal(isolate, zone, module_env, function_start,
+                                      function_end, true);
+  }
+  return DecodeWasmFunctionInternal(isolate, zone, module_env, function_start,
+                                    function_end, false);
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,

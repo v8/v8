@@ -1708,6 +1708,8 @@ InstructionBase::Type InstructionBase::InstructionType() const {
       switch (FunctionFieldRaw()) {
         case INS:
         case DINS:
+        case DINSM:
+        case DINSU:
         case EXT:
         case DEXT:
         case DEXTM:

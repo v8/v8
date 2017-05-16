@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
-// Flags: --no-always-opt --crankshaft
+// Flags: --no-always-opt --opt
 
 // Test element kind of objects.
 

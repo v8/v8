@@ -29,7 +29,7 @@ class BytecodeGraphBuilder {
   BytecodeGraphBuilder(
       Zone* local_zone, Handle<SharedFunctionInfo> shared,
       Handle<FeedbackVector> feedback_vector, BailoutId osr_ast_id,
-      JSGraph* jsgraph, float invocation_frequency,
+      JSGraph* jsgraph, CallFrequency invocation_frequency,
       SourcePositionTable* source_positions,
       int inlining_id = SourcePosition::kNotInlined,
       JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags);
@@ -39,6 +39,7 @@ class BytecodeGraphBuilder {
 
  private:
   class Environment;
+  struct SubEnvironment;
 
   void VisitBytecodes(bool stack_check);
 
@@ -206,7 +207,7 @@ class BytecodeGraphBuilder {
 
   // Helper function to compute call frequency from the recorded type
   // feedback.
-  float ComputeCallFrequency(int slot_id) const;
+  CallFrequency ComputeCallFrequency(int slot_id) const;
 
   // Control flow plumbing.
   void BuildJump();
@@ -315,7 +316,7 @@ class BytecodeGraphBuilder {
 
   Zone* local_zone_;
   JSGraph* jsgraph_;
-  float const invocation_frequency_;
+  CallFrequency const invocation_frequency_;
   Handle<BytecodeArray> bytecode_array_;
   Handle<HandlerTable> exception_handler_table_;
   Handle<FeedbackVector> feedback_vector_;
@@ -325,7 +326,6 @@ class BytecodeGraphBuilder {
   const BytecodeAnalysis* bytecode_analysis_;
   Environment* environment_;
   BailoutId osr_ast_id_;
-  int osr_loop_offset_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all

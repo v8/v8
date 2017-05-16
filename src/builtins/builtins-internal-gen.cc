@@ -250,7 +250,8 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
     Node* properties_map = LoadMap(properties);
     GotoIf(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
            &dictionary);
-    // TODO(jkummerow): Implement support for fast properties?
+    // Fast properties need to clear recorded slots, which can only be done
+    // in C++.
     Goto(&slow);
 
     BIND(&dictionary);

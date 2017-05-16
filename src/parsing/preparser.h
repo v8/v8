@@ -178,6 +178,11 @@ class PreParserExpression {
                                variables);
   }
 
+  static PreParserExpression NewTargetExpression() {
+    return PreParserExpression(TypeField::encode(kExpression) |
+                               ExpressionTypeField::encode(kNewTarget));
+  }
+
   static PreParserExpression ObjectLiteral(
       ZoneList<VariableProxy*>* variables) {
     return PreParserExpression(TypeField::encode(kObjectLiteralExpression),
@@ -368,7 +373,8 @@ class PreParserExpression {
     kCallEvalExpression,
     kSuperCallReference,
     kNoTemplateTagExpression,
-    kAssignment
+    kAssignment,
+    kNewTarget
   };
 
   explicit PreParserExpression(uint32_t expression_code,
@@ -397,7 +403,7 @@ class PreParserExpression {
 
   // The rest of the bits are interpreted depending on the value
   // of the Type field, so they can share the storage.
-  typedef BitField<ExpressionType, TypeField::kNext, 3> ExpressionTypeField;
+  typedef BitField<ExpressionType, TypeField::kNext, 4> ExpressionTypeField;
   typedef BitField<bool, TypeField::kNext, 1> IsUseStrictField;
   typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseAsmField;
   typedef BitField<bool, IsUseAsmField::kNext, 1> IsUseTypesField;
@@ -1199,7 +1205,6 @@ class PreParser : public ParserBase<PreParser> {
                               ast_value_factory, runtime_call_stats,
                               preparsed_scope_data, parsing_on_main_thread),
         use_counts_(nullptr),
-        preparse_data_(FLAG_use_parse_tasks ? new PreParseData() : nullptr),
         track_unresolved_variables_(false),
         pending_error_handler_(pending_error_handler) {}
 
@@ -1211,8 +1216,7 @@ class PreParser : public ParserBase<PreParser> {
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  PreParseResult PreParseProgram(bool is_module = false,
-                                 int* use_counts = nullptr);
+  PreParseResult PreParseProgram(bool is_module = false);
 
   // Parses a single function literal, from the opening parentheses before
   // parameters to the closing brace after the body.
@@ -1230,8 +1234,6 @@ class PreParser : public ParserBase<PreParser> {
                                   bool track_unresolved_variables,
                                   typesystem::TypeFlags type_flags,
                                   bool may_abort, int* use_counts);
-
-  const PreParseData* preparse_data() const { return preparse_data_.get(); }
 
  private:
   // These types form an algebra over syntactic categories that is just
@@ -1435,16 +1437,23 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void DeclareClassVariable(PreParserIdentifier name,
                                       ClassInfo* class_info,
-                                      int class_token_pos, bool* ok) {}
+                                      int class_token_pos, bool* ok) {
+    if (name.string_ != nullptr) {
+      DCHECK(track_unresolved_variables_);
+      scope()->DeclareVariableName(name.string_, CONST);
+    }
+  }
   V8_INLINE void DeclareClassProperty(PreParserIdentifier class_name,
                                       PreParserExpression property,
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       ClassInfo* class_info, bool* ok) {
   }
-  V8_INLINE PreParserExpression RewriteClassLiteral(PreParserIdentifier name,
+  V8_INLINE PreParserExpression RewriteClassLiteral(Scope* scope,
+                                                    PreParserIdentifier name,
                                                     ClassInfo* class_info,
-                                                    int pos, bool* ok) {
+                                                    int pos, int end_pos,
+                                                    bool* ok) {
     bool has_default_constructor = !class_info->has_seen_constructor;
     // Account for the default constructor.
     if (has_default_constructor) GetNextFunctionLiteralId();
@@ -1877,7 +1886,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression NewTargetExpression(int pos) {
-    return PreParserExpression::Default();
+    return PreParserExpression::NewTargetExpression();
   }
 
   V8_INLINE PreParserExpression FunctionSentExpression(int pos) {
@@ -2023,7 +2032,6 @@ class PreParser : public ParserBase<PreParser> {
   // Preparser's private field members.
 
   int* use_counts_;
-  std::unique_ptr<PreParseData> preparse_data_;
   bool track_unresolved_variables_;
   PreParserLogger log_;
   PendingCompilationErrorHandler* pending_error_handler_;

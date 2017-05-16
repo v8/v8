@@ -72,7 +72,11 @@
     },
     'value_serializer': {
       'filepath': 'src/value-serializer',
-    }
+    },
+    'parser': {
+      'filepath': 'src/ast/' \
+                  '|src/parsing/',
+    },
   },
 
   'WATCHLISTS': {
@@ -90,7 +94,6 @@
     ],
     'gc_changes': [
       'hpayer@chromium.org',
-      'ulan@chromium.org',
     ],
     'arm': [
       'v8-mips-ports@googlegroups.com',
@@ -115,5 +118,8 @@
     'value_serializer': [
       'jbroman+watch@chromium.org',
     ],
+    'parser': [
+      'marja+watch@chromium.org',
+    ]
   },
 }

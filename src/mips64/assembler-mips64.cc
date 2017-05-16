@@ -2497,7 +2497,7 @@ void Assembler::selnez(Register rd, Register rs, Register rt) {
 // Bit twiddling.
 void Assembler::clz(Register rd, Register rs) {
   if (kArchVariant != kMips64r6) {
-    // Clz instr requires same GPR number in 'rd' and 'rt' fields.
+    // clz instr requires same GPR number in 'rd' and 'rt' fields.
     GenInstrRegister(SPECIAL2, rs, rd, rd, 0, CLZ);
   } else {
     GenInstrRegister(SPECIAL, rs, zero_reg, rd, 1, CLZ_R6);
@@ -2517,7 +2517,7 @@ void Assembler::dclz(Register rd, Register rs) {
 
 void Assembler::ins_(Register rt, Register rs, uint16_t pos, uint16_t size) {
   // Should be called via MacroAssembler::Ins.
-  // Ins instr has 'rt' field as dest, and two uint5: msb, lsb.
+  // ins instr has 'rt' field as dest, and two uint5: msb, lsb.
   DCHECK((kArchVariant == kMips64r2) || (kArchVariant == kMips64r6));
   GenInstrRegister(SPECIAL3, rs, rt, pos + size - 1, pos, INS);
 }
@@ -2525,15 +2525,28 @@ void Assembler::ins_(Register rt, Register rs, uint16_t pos, uint16_t size) {
 
 void Assembler::dins_(Register rt, Register rs, uint16_t pos, uint16_t size) {
   // Should be called via MacroAssembler::Dins.
-  // Dext instr has 'rt' field as dest, and two uint5: msb, lsb.
+  // dins instr has 'rt' field as dest, and two uint5: msb, lsb.
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
   GenInstrRegister(SPECIAL3, rs, rt, pos + size - 1, pos, DINS);
 }
 
+void Assembler::dinsm_(Register rt, Register rs, uint16_t pos, uint16_t size) {
+  // Should be called via MacroAssembler::Dins.
+  // dinsm instr has 'rt' field as dest, and two uint5: msbminus32, lsb.
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, rs, rt, pos + size - 1 - 32, pos, DINSM);
+}
+
+void Assembler::dinsu_(Register rt, Register rs, uint16_t pos, uint16_t size) {
+  // Should be called via MacroAssembler::Dins.
+  // dinsu instr has 'rt' field as dest, and two uint5: msbminus32, lsbminus32.
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, rs, rt, pos + size - 1 - 32, pos - 32, DINSU);
+}
 
 void Assembler::ext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
   // Should be called via MacroAssembler::Ext.
-  // Ext instr has 'rt' field as dest, and two uint5: msb, lsb.
+  // ext instr has 'rt' field as dest, and two uint5: msbd, lsb.
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
   GenInstrRegister(SPECIAL3, rs, rt, size - 1, pos, EXT);
 }
@@ -2541,23 +2554,21 @@ void Assembler::ext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
 
 void Assembler::dext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
   // Should be called via MacroAssembler::Dext.
-  // Dext instr has 'rt' field as dest, and two uint5: msb, lsb.
+  // dext instr has 'rt' field as dest, and two uint5: msbd, lsb.
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
   GenInstrRegister(SPECIAL3, rs, rt, size - 1, pos, DEXT);
 }
 
-
-void Assembler::dextm(Register rt, Register rs, uint16_t pos, uint16_t size) {
+void Assembler::dextm_(Register rt, Register rs, uint16_t pos, uint16_t size) {
   // Should be called via MacroAssembler::Dextm.
-  // Dextm instr has 'rt' field as dest, and two uint5: msb, lsb.
+  // dextm instr has 'rt' field as dest, and two uint5: msbdminus32, lsb.
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
   GenInstrRegister(SPECIAL3, rs, rt, size - 1 - 32, pos, DEXTM);
 }
 
-
-void Assembler::dextu(Register rt, Register rs, uint16_t pos, uint16_t size) {
+void Assembler::dextu_(Register rt, Register rs, uint16_t pos, uint16_t size) {
   // Should be called via MacroAssembler::Dextu.
-  // Dext instr has 'rt' field as dest, and two uint5: msb, lsb.
+  // dextu instr has 'rt' field as dest, and two uint5: msbd, lsbminus32.
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
   GenInstrRegister(SPECIAL3, rs, rt, size - 1, pos - 32, DEXTU);
 }
@@ -3795,13 +3806,20 @@ void Assembler::GrowBuffer() {
   if (!own_buffer_) FATAL("external code buffer is too small");
 
   // Compute new buffer size.
-  CodeDesc desc;  // The new buffer.
+  CodeDesc desc;  // the new buffer
   if (buffer_size_ < 1 * MB) {
     desc.buffer_size = 2*buffer_size_;
   } else {
     desc.buffer_size = buffer_size_ + 1*MB;
   }
-  CHECK_GT(desc.buffer_size, 0);  // No overflow.
+
+  // Some internal data structures overflow for very large buffers,
+  // they must ensure that kMaximalBufferSize is not too large.
+  if (desc.buffer_size > kMaximalBufferSize ||
+      static_cast<size_t>(desc.buffer_size) >
+          isolate_data().max_old_generation_size_) {
+    V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
+  }
 
   // Set up new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);

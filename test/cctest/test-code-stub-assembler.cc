@@ -28,6 +28,45 @@ using compiler::CodeAssemblerVariableList;
 
 namespace {
 
+int sum9(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
+         int a8) {
+  return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8;
+}
+
+}  // namespace
+
+TEST(CallCFunction9) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 0;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  {
+    Node* const fun_constant = m.ExternalConstant(
+        ExternalReference(reinterpret_cast<Address>(sum9), isolate));
+
+    MachineType type_intptr = MachineType::IntPtr();
+
+    Node* const result = m.CallCFunction9(
+        type_intptr, type_intptr, type_intptr, type_intptr, type_intptr,
+        type_intptr, type_intptr, type_intptr, type_intptr, type_intptr,
+        fun_constant, m.IntPtrConstant(0), m.IntPtrConstant(1),
+        m.IntPtrConstant(2), m.IntPtrConstant(3), m.IntPtrConstant(4),
+        m.IntPtrConstant(5), m.IntPtrConstant(6), m.IntPtrConstant(7),
+        m.IntPtrConstant(8));
+    m.Return(m.SmiTag(result));
+  }
+
+  Handle<Code> code = data.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  Handle<Object> result = ft.Call().ToHandleChecked();
+  CHECK_EQ(36, Handle<Smi>::cast(result)->value());
+}
+
+namespace {
+
 void CheckToUint32Result(uint32_t expected, Handle<Object> result) {
   const int64_t result_int64 = NumberToInt64(*result);
   const uint32_t result_uint32 = NumberToUint32(*result);
@@ -1768,9 +1807,8 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     Variable arg_index(this, MachineType::PointerRepresentation());
     Label bailout(this);
     arg_index.Bind(IntPtrConstant(0));
-    Node* length = BuildAppendJSArray(
-        kind_, HeapConstant(Handle<HeapObject>(isolate->context(), isolate)),
-        HeapConstant(array), args, arg_index, &bailout);
+    Node* length = BuildAppendJSArray(kind_, HeapConstant(array), args,
+                                      arg_index, &bailout);
     Return(length);
 
     Bind(&bailout);

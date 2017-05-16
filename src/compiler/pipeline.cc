@@ -765,12 +765,12 @@ struct GraphBuilderPhase {
       BytecodeGraphBuilder graph_builder(
           temp_zone, data->info()->shared_info(),
           handle(data->info()->closure()->feedback_vector()),
-          data->info()->osr_ast_id(), data->jsgraph(), 1.0f,
+          data->info()->osr_ast_id(), data->jsgraph(), CallFrequency(1.0f),
           data->source_positions(), SourcePosition::kNotInlined, flags);
       succeeded = graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(
-          temp_zone, data->info(), data->jsgraph(), 1.0f,
+          temp_zone, data->info(), data->jsgraph(), CallFrequency(1.0f),
           data->loop_assignment(), data->source_positions());
       succeeded = graph_builder.CreateGraph();
     }
@@ -781,6 +781,30 @@ struct GraphBuilderPhase {
   }
 };
 
+namespace {
+
+Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
+  Context* current = closure->context();
+  size_t distance = 0;
+  while (!current->IsNativeContext()) {
+    if (current->IsModuleContext()) {
+      return Just(OuterContext(handle(current), distance));
+    }
+    current = current->previous();
+    distance++;
+  }
+  return Nothing<OuterContext>();
+}
+
+Maybe<OuterContext> ChooseSpecializationContext(CompilationInfo* info) {
+  if (info->is_function_context_specializing()) {
+    DCHECK(info->has_context());
+    return Just(OuterContext(handle(info->context()), 0));
+  }
+  return GetModuleContext(info->closure());
+}
+
+}  // anonymous namespace
 
 struct InliningPhase {
   static const char* phase_name() { return "inlining"; }
@@ -797,9 +821,7 @@ struct InliningPhase {
                                data->info()->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
-        data->info()->is_function_context_specializing()
-            ? handle(data->info()->context())
-            : MaybeHandle<Context>(),
+        ChooseSpecializationContext(data->info()),
         data->info()->is_function_context_specializing()
             ? data->info()->closure()
             : MaybeHandle<JSFunction>());
@@ -1595,19 +1617,14 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   Run<SimplifiedLoweringPhase>();
   RunPrintAndVerify("Simplified lowering", true);
 
+  // From now on it is invalid to look at types on the nodes, because the types
+  // on the nodes might not make sense after representation selection due to the
+  // way we handle truncations; if we'd want to look at types afterwards we'd
+  // essentially need to re-type (large portions of) the graph.
+
+  // In order to catch bugs related to type access after this point, we now
+  // remove the types from the nodes (currently only in Debug builds).
 #ifdef DEBUG
-  // From now on it is invalid to look at types on the nodes, because:
-  //
-  //  (a) The remaining passes (might) run concurrent to the main thread and
-  //      therefore must not access the Heap or the Isolate in an uncontrolled
-  //      way (as done by the type system), and
-  //  (b) the types on the nodes might not make sense after representation
-  //      selection due to the way we handle truncations; if we'd want to look
-  //      at types afterwards we'd essentially need to re-type (large portions
-  //      of) the graph.
-  //
-  // In order to catch bugs related to type access after this point we remove
-  // the types from the nodes at this point (currently only in Debug builds).
   Run<UntyperPhase>();
   RunPrintAndVerify("Untyped", true);
 #endif

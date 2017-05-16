@@ -7,7 +7,7 @@ InspectorTest.log('Checks that stepping is cleared after breakProgram.');
 InspectorTest.addScript(`
 function callBreakProgram() {
   debugger;
-  breakProgram('reason', '');
+  inspector.breakProgram('reason', '');
 }`);
 
 InspectorTest.setupScriptMap();

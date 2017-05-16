@@ -48,9 +48,10 @@ namespace compiler {
 class WasmCompilationUnit final {
  public:
   WasmCompilationUnit(Isolate* isolate, wasm::ModuleBytesEnv* module_env,
-                      const wasm::WasmFunction* function);
+                      const wasm::WasmFunction* function, bool is_sync = true);
   WasmCompilationUnit(Isolate* isolate, wasm::ModuleEnv* module_env,
-                      wasm::FunctionBody body, wasm::WasmName name, int index);
+                      wasm::FunctionBody body, wasm::WasmName name, int index,
+                      bool is_sync = true);
 
   Zone* graph_zone() { return graph_zone_.get(); }
   int func_index() const { return func_index_; }
@@ -71,6 +72,7 @@ class WasmCompilationUnit final {
   wasm::ModuleEnv* module_env_;
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
+  bool is_sync_;
   // The graph zone is deallocated at the end of ExecuteCompilation.
   std::unique_ptr<Zone> graph_zone_;
   JSGraph* jsgraph_;
@@ -86,6 +88,8 @@ class WasmCompilationUnit final {
   ZoneVector<trap_handler::ProtectedInstructionData>
       protected_instructions_;  // Instructions that are protected by the signal
                                 // handler.
+
+  void ExecuteCompilationInternal();
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };
@@ -252,7 +256,8 @@ class WasmGraphBuilder {
   Node* SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
                     const NodeVector& inputs);
 
-  Node* SimdConcatOp(uint8_t bytes, const NodeVector& inputs);
+  Node* SimdShuffleOp(uint8_t shuffle[16], unsigned lanes,
+                      const NodeVector& inputs);
 
   bool has_simd() const { return has_simd_; }
 

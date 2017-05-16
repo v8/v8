@@ -863,15 +863,10 @@ class MacroAssembler: public Assembler {
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // MIPS64 R2 instruction macro.
+  void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Dins(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
-
-  void ExtractBits(Register rt, Register rs, uint16_t pos, uint16_t size);
-
-  void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Dextm(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Dextu(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Neg_s(FPURegister fd, FPURegister fs);
   void Neg_d(FPURegister fd, FPURegister fs);
 

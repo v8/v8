@@ -347,6 +347,14 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   return kNoCondition;
 }
 
+int GetVtblTableSize(const Simd128Register& src0, const Simd128Register& src1) {
+  // If unary shuffle, table is src0 (2 d-registers).
+  if (src0.is(src1)) return 2;
+  // Binary shuffle, table is src0, src1. They must be consecutive
+  DCHECK_EQ(src0.code() + 1, src1.code());
+  return 4;  // 4 d-registers.
+}
+
 }  // namespace
 
 #define ASSEMBLE_CHECKED_LOAD_FP(Type)                         \
@@ -494,6 +502,41 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
     DCHECK_EQ(LeaveCC, i.OutputSBit());                                        \
+  } while (0)
+
+#define ASSEMBLE_NEON_NARROWING_OP(dt)                \
+  do {                                                \
+    Simd128Register dst = i.OutputSimd128Register(),  \
+                    src0 = i.InputSimd128Register(0), \
+                    src1 = i.InputSimd128Register(1); \
+    if (dst.is(src0) && dst.is(src1)) {               \
+      __ vqmovn(dt, dst.low(), src0);                 \
+      __ vmov(dst.high(), dst.low());                 \
+    } else if (dst.is(src0)) {                        \
+      __ vqmovn(dt, dst.low(), src0);                 \
+      __ vqmovn(dt, dst.high(), src1);                \
+    } else {                                          \
+      __ vqmovn(dt, dst.high(), src1);                \
+      __ vqmovn(dt, dst.low(), src0);                 \
+    }                                                 \
+  } while (0)
+
+#define ASSEMBLE_NEON_PAIRWISE_OP(op, size)               \
+  do {                                                    \
+    Simd128Register dst = i.OutputSimd128Register(),      \
+                    src0 = i.InputSimd128Register(0),     \
+                    src1 = i.InputSimd128Register(1);     \
+    if (dst.is(src0)) {                                   \
+      __ op(size, dst.low(), src0.low(), src0.high());    \
+      if (dst.is(src1)) {                                 \
+        __ vmov(dst.high(), dst.low());                   \
+      } else {                                            \
+        __ op(size, dst.high(), src1.low(), src1.high()); \
+      }                                                   \
+    } else {                                              \
+      __ op(size, dst.high(), src1.low(), src1.high());   \
+      __ op(size, dst.low(), src0.low(), src0.high());    \
+    }                                                     \
   } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -1611,6 +1654,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmF32x4AddHoriz: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      // Make sure we don't overwrite source data before it's used.
+      if (dst.is(src0)) {
+        __ vpadd(dst.low(), src0.low(), src0.high());
+        if (dst.is(src1)) {
+          __ vmov(dst.high(), dst.low());
+        } else {
+          __ vpadd(dst.high(), src1.low(), src1.high());
+        }
+      } else {
+        __ vpadd(dst.high(), src1.low(), src1.high());
+        __ vpadd(dst.low(), src0.low(), src0.high());
+      }
+      break;
+    }
     case kArmF32x4Sub: {
       __ vsub(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1629,16 +1690,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmF32x4Max: {
       __ vmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
-      break;
-    }
-    case kArmF32x4RecipRefine: {
-      __ vrecps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kArmF32x4RecipSqrtRefine: {
-      __ vrsqrts(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
       break;
     }
     case kArmF32x4Eq: {
@@ -1709,6 +1760,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmI32x4AddHoriz:
+      ASSEMBLE_NEON_PAIRWISE_OP(vpadd, Neon32);
+      break;
     case kArmI32x4Sub: {
       __ vsub(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1828,25 +1882,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt4(1));
       break;
     }
-    case kArmI16x8SConvertI32x4: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      // Take care not to overwrite a source register before it's used.
-      if (dst.is(src0) && dst.is(src1)) {
-        __ vqmovn(NeonS16, dst.low(), src0);
-        __ vmov(dst.high(), dst.low());
-      } else if (dst.is(src0)) {
-        // dst is src0, so narrow src0 first.
-        __ vqmovn(NeonS16, dst.low(), src0);
-        __ vqmovn(NeonS16, dst.high(), src1);
-      } else {
-        // dst may alias src1, so narrow src1 first.
-        __ vqmovn(NeonS16, dst.high(), src1);
-        __ vqmovn(NeonS16, dst.low(), src0);
-      }
+    case kArmI16x8SConvertI32x4:
+      ASSEMBLE_NEON_NARROWING_OP(NeonS16);
       break;
-    }
     case kArmI16x8Add: {
       __ vadd(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1857,6 +1895,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(1));
       break;
     }
+    case kArmI16x8AddHoriz:
+      ASSEMBLE_NEON_PAIRWISE_OP(vpadd, Neon16);
+      break;
     case kArmI16x8Sub: {
       __ vsub(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1919,25 +1960,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt4(1));
       break;
     }
-    case kArmI16x8UConvertI32x4: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      // Take care not to overwrite a source register before it's used.
-      if (dst.is(src0) && dst.is(src1)) {
-        __ vqmovn(NeonU16, dst.low(), src0);
-        __ vmov(dst.high(), dst.low());
-      } else if (dst.is(src0)) {
-        // dst is src0, so narrow src0 first.
-        __ vqmovn(NeonU16, dst.low(), src0);
-        __ vqmovn(NeonU16, dst.high(), src1);
-      } else {
-        // dst may alias src1, so narrow src1 first.
-        __ vqmovn(NeonU16, dst.high(), src1);
-        __ vqmovn(NeonU16, dst.low(), src0);
-      }
+    case kArmI16x8UConvertI32x4:
+      ASSEMBLE_NEON_NARROWING_OP(NeonU16);
       break;
-    }
     case kArmI16x8AddSaturateU: {
       __ vqadd(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
@@ -1996,25 +2021,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt3(1));
       break;
     }
-    case kArmI8x16SConvertI16x8: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      // Take care not to overwrite a source register before it's used.
-      if (dst.is(src0) && dst.is(src1)) {
-        __ vqmovn(NeonS8, dst.low(), src0);
-        __ vmov(dst.high(), dst.low());
-      } else if (dst.is(src0)) {
-        // dst is src0, so narrow src0 first.
-        __ vqmovn(NeonS8, dst.low(), src0);
-        __ vqmovn(NeonS8, dst.high(), src1);
-      } else {
-        // dst may alias src1, so narrow src1 first.
-        __ vqmovn(NeonS8, dst.high(), src1);
-        __ vqmovn(NeonS8, dst.low(), src0);
-      }
+    case kArmI8x16SConvertI16x8:
+      ASSEMBLE_NEON_NARROWING_OP(NeonS8);
       break;
-    }
     case kArmI8x16Add: {
       __ vadd(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -2076,25 +2085,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt3(1));
       break;
     }
-    case kArmI8x16UConvertI16x8: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      // Take care not to overwrite a source register before it's used.
-      if (dst.is(src0) && dst.is(src1)) {
-        __ vqmovn(NeonU8, dst.low(), src0);
-        __ vmov(dst.high(), dst.low());
-      } else if (dst.is(src0)) {
-        // dst is src0, so narrow src0 first.
-        __ vqmovn(NeonU8, dst.low(), src0);
-        __ vqmovn(NeonU8, dst.high(), src1);
-      } else {
-        // dst may alias src1, so narrow src1 first.
-        __ vqmovn(NeonU8, dst.high(), src1);
-        __ vqmovn(NeonU8, dst.low(), src0);
-      }
+    case kArmI8x16UConvertI16x8:
+      ASSEMBLE_NEON_NARROWING_OP(NeonU8);
       break;
-    }
     case kArmI8x16AddSaturateU: {
       __ vqadd(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
@@ -2201,6 +2194,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vtrn(Neon32, dst, kScratchQuadReg);  // dst = [0, 4, 2, 6]
       break;
     }
+    case kArmS32x4Shuffle: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      // Check for in-place shuffles.
+      // If dst == src0 == src1, then the shuffle is unary and we only use src0.
+      if (dst.is(src0)) {
+        __ vmov(kScratchQuadReg, src0);
+        src0 = kScratchQuadReg;
+      } else if (dst.is(src1)) {
+        __ vmov(kScratchQuadReg, src1);
+        src1 = kScratchQuadReg;
+      }
+      // Perform shuffle as a vmov per lane.
+      int dst_code = dst.code() * 4;
+      int src0_code = src0.code() * 4;
+      int src1_code = src1.code() * 4;
+      int32_t shuffle = i.InputInt32(2);
+      for (int i = 0; i < 4; i++) {
+        int lane = shuffle & 0x7;
+        int src_code = src0_code;
+        if (lane >= 4) {
+          src_code = src1_code;
+          lane &= 0x3;
+        }
+        __ VmovExtended(dst_code + i, src_code + lane, kScratchReg);
+        shuffle >>= 8;
+      }
+      break;
+    }
     case kArmS32x4TransposeRight: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
@@ -2264,6 +2287,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vtrn(Neon16, kScratchQuadReg, dst);  // dst = [1, 9, 3, 11, ... 15]
       break;
     }
+    case kArmS16x8Shuffle: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      DwVfpRegister table_base = src0.low();
+      int table_size = GetVtblTableSize(src0, src1);
+      // Convert the shuffle lane masks to byte masks in kScratchQuadReg.
+      int scratch_s_base = kScratchQuadReg.code() * 4;
+      for (int j = 0; j < 2; j++) {
+        int32_t four_lanes = i.InputInt32(2 + j);
+        for (int k = 0; k < 2; k++) {
+          uint8_t w0 = (four_lanes & 0xF) * kShortSize;
+          four_lanes >>= 8;
+          uint8_t w1 = (four_lanes & 0xF) * kShortSize;
+          four_lanes >>= 8;
+          int32_t mask = w0 | ((w0 + 1) << 8) | (w1 << 16) | ((w1 + 1) << 24);
+          // Ensure byte indices are in [0, 31] so masks are never NaNs.
+          four_lanes &= 0x1F1F1F1F;
+          __ vmov(SwVfpRegister::from_code(scratch_s_base + 2 * j + k),
+                  bit_cast<float>(mask));
+        }
+      }
+      NeonListOperand table(table_base, table_size);
+      if (!dst.is(src0) && !dst.is(src1)) {
+        __ vtbl(dst.low(), table, kScratchQuadReg.low());
+        __ vtbl(dst.high(), table, kScratchQuadReg.high());
+      } else {
+        __ vtbl(kScratchQuadReg.low(), table, kScratchQuadReg.low());
+        __ vtbl(kScratchQuadReg.high(), table, kScratchQuadReg.high());
+        __ vmov(dst, kScratchQuadReg);
+      }
+      break;
+    }
     case kArmS8x16ZipLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
@@ -2321,6 +2377,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS8x16Concat: {
       __ vext(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1), i.InputInt4(2));
+      break;
+    }
+    case kArmS8x16Shuffle: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      DwVfpRegister table_base = src0.low();
+      int table_size = GetVtblTableSize(src0, src1);
+      // The shuffle lane mask is a byte mask, materialize in kScratchQuadReg.
+      int scratch_s_base = kScratchQuadReg.code() * 4;
+      for (int j = 0; j < 4; j++) {
+        int32_t four_lanes = i.InputInt32(2 + j);
+        // Ensure byte indices are in [0, 31] so masks are never NaNs.
+        four_lanes &= 0x1F1F1F1F;
+        __ vmov(SwVfpRegister::from_code(scratch_s_base + j),
+                bit_cast<float>(four_lanes));
+      }
+      NeonListOperand table(table_base, table_size);
+      if (!dst.is(src0) && !dst.is(src1)) {
+        __ vtbl(dst.low(), table, kScratchQuadReg.low());
+        __ vtbl(dst.high(), table, kScratchQuadReg.high());
+      } else {
+        __ vtbl(kScratchQuadReg.low(), table, kScratchQuadReg.low());
+        __ vtbl(kScratchQuadReg.high(), table, kScratchQuadReg.high());
+        __ vmov(dst, kScratchQuadReg);
+      }
       break;
     }
     case kArmS32x2Reverse: {

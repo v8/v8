@@ -397,6 +397,51 @@
         {"name": "Let-Standard"},
         {"name": "Var-Standard"}
       ]
+    },
+    {
+      "name": "Modules",
+      "path": ["Modules"],
+      "main": "run.js",
+      "resources": ["basic-export.js", "basic-import.js", "basic-namespace.js", "value.js"],
+      "flags": [
+        "--allow-natives-syntax",
+        "--harmony-dynamic-import"
+      ],
+      "results_regexp": "^%s\\-Modules\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "BasicExport"},
+        {"name": "BasicImport"},
+        {"name": "BasicNamespace"}
+      ]
+    },
+    {
+      "name": "BytecodeHandlers",
+      "path": ["BytecodeHandlers"],
+      "main": "run.js",
+      "resources": [ "compare.js" ],
+      "flags": [ "--no-opt" ],
+      "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Smi-StrictEquals-True"},
+        {"name": "Smi-StrictEquals-False"},
+        {"name": "Number-StrictEquals-True"},
+        {"name": "Number-StrictEquals-False"},
+        {"name": "String-StrictEquals-True"},
+        {"name": "String-StrictEquals-False"},
+        {"name": "SmiString-StrictEquals"},
+        {"name": "Smi-Equals-True"},
+        {"name": "Smi-Equals-False"},
+        {"name": "Number-Equals-True"},
+        {"name": "Number-Equals-False"},
+        {"name": "String-Equals-True"},
+        {"name": "String-Equals-False"},
+        {"name": "ObjectNull-Equals"},
+        {"name": "SmiString-Equals"},
+        {"name": "Smi-RelationalCompare"},
+        {"name": "Number-RelationalCompare"},
+        {"name": "String-RelationalCompare"},
+        {"name": "SmiString-RelationalCompare"}
+      ]
     }
   ]
 }

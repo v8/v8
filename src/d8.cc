@@ -17,6 +17,7 @@
 #include "src/third_party/vtune/v8-vtune.h"
 #endif
 
+#include "src/d8-console.h"
 #include "src/d8.h"
 #include "src/ostreams.h"
 
@@ -421,6 +422,8 @@ base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 i::List<Worker*> Shell::workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
+base::LazyMutex Shell::isolate_status_lock_;
+std::map<v8::Isolate*, bool> Shell::isolate_status_;
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -1075,12 +1078,16 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
   realm->Enter();
+  int previous_index = data->realm_current_;
+  data->realm_current_ = data->realm_switch_ = index;
   Local<Value> result;
   if (!script->BindToCurrentContext()->Run(realm).ToLocal(&result)) {
     realm->Exit();
+    data->realm_current_ = data->realm_switch_ = previous_index;
     return;
   }
   realm->Exit();
+  data->realm_current_ = data->realm_switch_ = previous_index;
   args.GetReturnValue().Set(result);
 }
 
@@ -1340,6 +1347,15 @@ void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
                  const_cast<v8::FunctionCallbackInfo<v8::Value>*>(&args));
 }
 
+// Note that both WaitUntilDone and NotifyDone are no-op when
+// --verify-predictable. See comment in Shell::EnsureEventLoopInitialized.
+void Shell::WaitUntilDone(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  SetWaitUntilDone(args.GetIsolate(), true);
+}
+
+void Shell::NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  SetWaitUntilDone(args.GetIsolate(), false);
+}
 
 void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(
@@ -1577,6 +1593,19 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
             .ToLocalChecked(),
         FunctionTemplate::New(isolate, Quit));
   }
+  Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
+  global_template->Set(
+      String::NewFromUtf8(isolate, "testRunner", NewStringType::kNormal)
+          .ToLocalChecked(),
+      test_template);
+  test_template->Set(
+      String::NewFromUtf8(isolate, "notifyDone", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, NotifyDone));
+  test_template->Set(
+      String::NewFromUtf8(isolate, "waitUntilDone", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, WaitUntilDone));
   global_template->Set(
       String::NewFromUtf8(isolate, "version", NewStringType::kNormal)
           .ToLocalChecked(),
@@ -2261,6 +2290,10 @@ void SourceGroup::ExecuteInThread() {
   create_params.host_import_module_dynamically_callback_ =
       Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
+
+  Shell::EnsureEventLoopInitialized(isolate);
+  D8Console console(isolate);
+  debug::SetConsoleDelegate(isolate, &console);
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
     next_semaphore_.Wait();
     {
@@ -2279,6 +2312,7 @@ void SourceGroup::ExecuteInThread() {
         DisposeModuleEmbedderData(context);
       }
       Shell::CollectGarbage(isolate);
+      Shell::CompleteMessageLoop(isolate);
     }
     done_semaphore_.Signal();
   }
@@ -2401,6 +2435,8 @@ void Worker::ExecuteInThread() {
   create_params.host_import_module_dynamically_callback_ =
       Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
+  D8Console console(isolate);
+  debug::SetConsoleDelegate(isolate, &console);
   {
     Isolate::Scope iscope(isolate);
     {
@@ -2593,6 +2629,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--lcov=", 7) == 0) {
       options.lcov_file = argv[i] + 7;
       argv[i] = NULL;
+    } else if (strcmp(argv[i], "--disable-in-process-stack-traces") == 0) {
+      options.disable_in_process_stack_traces = true;
+      argv[i] = NULL;
     }
   }
 
@@ -2634,6 +2673,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     options.isolate_sources[i].StartExecuteInThread();
   }
   {
+    EnsureEventLoopInitialized(isolate);
     if (options.lcov_file) {
       debug::Coverage::SelectMode(isolate, debug::Coverage::kPreciseCount);
     }
@@ -2656,6 +2696,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     WriteLcovData(isolate, options.lcov_file);
   }
   CollectGarbage(isolate);
+  CompleteMessageLoop(isolate);
   for (int i = 1; i < options.num_isolates; ++i) {
     if (last_run) {
       options.isolate_sources[i].JoinThread();
@@ -2683,24 +2724,55 @@ void Shell::CollectGarbage(Isolate* isolate) {
   }
 }
 
+void Shell::EnsureEventLoopInitialized(Isolate* isolate) {
+  // When using PredictablePlatform (i.e. FLAG_verify_predictable),
+  // we don't need event loop support, because tasks are completed
+  // immediately - both background and foreground ones.
+  if (!i::FLAG_verify_predictable) {
+    v8::platform::EnsureEventLoopInitialized(g_platform, isolate);
+    SetWaitUntilDone(isolate, false);
+  }
+}
+
+void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
+  base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
+  if (isolate_status_.count(isolate) == 0) {
+    isolate_status_.insert(std::make_pair(isolate, value));
+  } else {
+    isolate_status_[isolate] = value;
+  }
+}
+
+bool Shell::IsWaitUntilDone(Isolate* isolate) {
+  base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
+  DCHECK_GT(isolate_status_.count(isolate), 0);
+  return isolate_status_[isolate];
+}
+
+void Shell::CompleteMessageLoop(Isolate* isolate) {
+  // See comment in EnsureEventLoopInitialized.
+  if (i::FLAG_verify_predictable) return;
+  while (v8::platform::PumpMessageLoop(
+      g_platform, isolate,
+      Shell::IsWaitUntilDone(isolate)
+          ? platform::MessageLoopBehavior::kWaitForWork
+          : platform::MessageLoopBehavior::kDoNotWait)) {
+    isolate->RunMicrotasks();
+  }
+  v8::platform::RunIdleTasks(g_platform, isolate,
+                             50.0 / base::Time::kMillisecondsPerSecond);
+}
+
 void Shell::EmptyMessageQueues(Isolate* isolate) {
   if (i::FLAG_verify_predictable) return;
-  while (true) {
-    // Pump the message loop until it is empty.
-    while (v8::platform::PumpMessageLoop(g_platform, isolate)) {
-      isolate->RunMicrotasks();
-    }
-    // Run the idle tasks.
-    v8::platform::RunIdleTasks(g_platform, isolate,
-                               50.0 / base::Time::kMillisecondsPerSecond);
-    // If there are still outstanding waiters, sleep a little (to wait for
-    // background tasks) and then try everything again.
-    if (reinterpret_cast<i::Isolate*>(isolate)->GetWaitCountForTesting() > 0) {
-      base::OS::Sleep(base::TimeDelta::FromMilliseconds(1));
-    } else {
-      break;
-    }
+  // Pump the message loop until it is empty.
+  while (v8::platform::PumpMessageLoop(
+      g_platform, isolate, platform::MessageLoopBehavior::kDoNotWait)) {
+    isolate->RunMicrotasks();
   }
+  // Run the idle tasks.
+  v8::platform::RunIdleTasks(g_platform, isolate,
+                             50.0 / base::Time::kMillisecondsPerSecond);
 }
 
 class Serializer : public ValueSerializer::Delegate {
@@ -2952,10 +3024,17 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // defined(_WIN32) || defined(_WIN64)
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
+
+  v8::platform::InProcessStackDumping in_process_stack_dumping =
+      options.disable_in_process_stack_traces
+          ? v8::platform::InProcessStackDumping::kDisabled
+          : v8::platform::InProcessStackDumping::kEnabled;
+
   g_platform = i::FLAG_verify_predictable
                    ? new PredictablePlatform()
                    : v8::platform::CreateDefaultPlatform(
-                         0, v8::platform::IdleTaskSupport::kEnabled);
+                         0, v8::platform::IdleTaskSupport::kEnabled,
+                         in_process_stack_dumping);
 
   platform::tracing::TracingController* tracing_controller;
   if (options.trace_enabled) {
@@ -3017,10 +3096,12 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   Isolate* isolate = Isolate::New(create_params);
+  D8Console console(isolate);
   {
     Isolate::Scope scope(isolate);
     Initialize(isolate);
     PerIsolateData data(isolate);
+    debug::SetConsoleDelegate(isolate, &console);
 
     if (options.trace_enabled) {
       platform::tracing::TraceConfig* trace_config;

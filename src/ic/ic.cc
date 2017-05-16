@@ -549,7 +549,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
   OnFeedbackChanged(isolate(), GetHostFunction());
 }
 
-void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
+void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
                               List<Handle<Object>>* handlers) {
   DCHECK(!IsLoadGlobalIC());
   // Non-keyed ICs don't track the name explicitly.
@@ -636,16 +636,15 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
   return LoadIC::Load(global, name);
 }
 
-static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
+static bool AddOneReceiverMapIfMissing(MapHandles* receiver_maps,
                                        Handle<Map> new_receiver_map) {
   DCHECK(!new_receiver_map.is_null());
-  for (int current = 0; current < receiver_maps->length(); ++current) {
-    if (!receiver_maps->at(current).is_null() &&
-        receiver_maps->at(current).is_identical_to(new_receiver_map)) {
+  for (Handle<Map> map : *receiver_maps) {
+    if (!map.is_null() && map.is_identical_to(new_receiver_map)) {
       return false;
     }
   }
-  receiver_maps->Add(new_receiver_map);
+  receiver_maps->push_back(new_receiver_map);
   return true;
 }
 
@@ -653,11 +652,11 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
   DCHECK(IsHandler(*handler));
   if (is_keyed() && state() != RECOMPUTE_HANDLER) return false;
   Handle<Map> map = receiver_map();
-  MapHandleList maps;
+  MapHandles maps;
   List<Handle<Object>> handlers;
 
   TargetMaps(&maps);
-  int number_of_maps = maps.length();
+  int number_of_maps = static_cast<int>(maps.size());
   int deprecated_maps = 0;
   int handler_to_overwrite = -1;
 
@@ -684,7 +683,9 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
   if (number_of_maps == 0 && state() != MONOMORPHIC && state() != POLYMORPHIC) {
     return false;
   }
-  if (!nexus()->FindHandlers(&handlers, maps.length())) return false;
+  if (!nexus()->FindHandlers(&handlers, static_cast<int>(maps.size()))) {
+    return false;
+  }
 
   number_of_valid_maps++;
   if (number_of_valid_maps > 1 && is_keyed()) return false;
@@ -694,14 +695,14 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
     if (handler_to_overwrite >= 0) {
       handlers.Set(handler_to_overwrite, handler);
       if (!map.is_identical_to(maps.at(handler_to_overwrite))) {
-        maps.Set(handler_to_overwrite, map);
+        maps[handler_to_overwrite] = map;
       }
     } else {
-      maps.Add(map);
+      maps.push_back(map);
       handlers.Add(handler);
     }
 
-    ConfigureVectorState(name, &maps, &handlers);
+    ConfigureVectorState(name, maps, &handlers);
   }
 
   return true;
@@ -714,11 +715,11 @@ void IC::UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name) {
 
 
 void IC::CopyICToMegamorphicCache(Handle<Name> name) {
-  MapHandleList maps;
+  MapHandles maps;
   List<Handle<Object>> handlers;
   TargetMaps(&maps);
-  if (!nexus()->FindHandlers(&handlers, maps.length())) return;
-  for (int i = 0; i < maps.length(); i++) {
+  if (!nexus()->FindHandlers(&handlers, static_cast<int>(maps.size()))) return;
+  for (int i = 0; i < static_cast<int>(maps.size()); i++) {
     UpdateMegamorphicCache(*maps.at(i), *name, *handlers.at(i));
   }
 }
@@ -732,9 +733,9 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
       source_map->elements_kind(), target_elements_kind);
   Map* transitioned_map = nullptr;
   if (more_general_transition) {
-    MapHandleList map_list;
-    map_list.Add(handle(target_map));
-    transitioned_map = source_map->FindElementsKindTransitionedMap(&map_list);
+    MapHandles map_list;
+    map_list.push_back(handle(target_map));
+    transitioned_map = source_map->FindElementsKindTransitionedMap(map_list);
   }
   return transitioned_map == target_map;
 }
@@ -1229,6 +1230,13 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       if (lookup->is_dictionary_holder()) {
         smi_handler = LoadHandler::LoadNormal(isolate());
         if (receiver_is_holder) {
+          if (holder->IsJSGlobalObject()) {
+            // TODO(verwaest): This is a workaround for code that leaks the
+            // global object.
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobalDH);
+            smi_handler = LoadHandler::LoadGlobal(isolate());
+            return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
+          }
           DCHECK(!holder->IsJSGlobalObject());
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
           return smi_handler;
@@ -1316,17 +1324,15 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
   Handle<Map> receiver_map(receiver->map(), isolate());
   DCHECK(receiver_map->instance_type() != JS_VALUE_TYPE &&
          receiver_map->instance_type() != JS_PROXY_TYPE);  // Checked by caller.
-  MapHandleList target_receiver_maps;
+  MapHandles target_receiver_maps;
   TargetMaps(&target_receiver_maps);
 
-  if (target_receiver_maps.length() == 0) {
-    Handle<Object> handler =
-        ElementHandlerCompiler::GetKeyedLoadHandler(receiver_map, isolate());
+  if (target_receiver_maps.empty()) {
+    Handle<Object> handler = LoadElementHandler(receiver_map);
     return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
 
-  for (int i = 0; i < target_receiver_maps.length(); i++) {
-    Handle<Map> map = target_receiver_maps.at(i);
+  for (Handle<Map> map : target_receiver_maps) {
     if (map.is_null()) continue;
     if (map->instance_type() == JS_VALUE_TYPE) {
       TRACE_GENERIC_IC("JSValue");
@@ -1349,8 +1355,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
       IsMoreGeneralElementsKindTransition(
           target_receiver_maps.at(0)->elements_kind(),
           Handle<JSObject>::cast(receiver)->GetElementsKind())) {
-    Handle<Object> handler =
-        ElementHandlerCompiler::GetKeyedLoadHandler(receiver_map, isolate());
+    Handle<Object> handler = LoadElementHandler(receiver_map);
     return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
 
@@ -1367,17 +1372,84 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
-  if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
+  if (target_receiver_maps.size() > kMaxKeyedPolymorphism) {
     TRACE_GENERIC_IC("max polymorph exceeded");
     return;
   }
 
-  List<Handle<Object>> handlers(target_receiver_maps.length());
-  ElementHandlerCompiler compiler(isolate());
-  compiler.CompileElementHandlers(&target_receiver_maps, &handlers);
-  ConfigureVectorState(Handle<Name>(), &target_receiver_maps, &handlers);
+  List<Handle<Object>> handlers(static_cast<int>(target_receiver_maps.size()));
+  LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers);
+  DCHECK_LE(1, target_receiver_maps.size());
+  if (target_receiver_maps.size() == 1) {
+    ConfigureVectorState(Handle<Name>(), target_receiver_maps[0],
+                         handlers.at(0));
+  } else {
+    ConfigureVectorState(Handle<Name>(), target_receiver_maps, &handlers);
+  }
 }
 
+Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map) {
+  if (receiver_map->has_indexed_interceptor() &&
+      !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined(
+          isolate()) &&
+      !receiver_map->GetIndexedInterceptor()->non_masking()) {
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
+    return LoadIndexedInterceptorStub(isolate()).GetCode();
+  }
+  if (receiver_map->IsStringMap()) {
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedStringStub);
+    return isolate()->builtins()->KeyedLoadIC_IndexedString();
+  }
+  InstanceType instance_type = receiver_map->instance_type();
+  if (instance_type < FIRST_JS_RECEIVER_TYPE) {
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
+    return isolate()->builtins()->KeyedLoadIC_Slow();
+  }
+
+  ElementsKind elements_kind = receiver_map->elements_kind();
+  if (IsSloppyArgumentsElementsKind(elements_kind)) {
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
+    return KeyedLoadSloppyArgumentsStub(isolate()).GetCode();
+  }
+  bool is_js_array = instance_type == JS_ARRAY_TYPE;
+  if (elements_kind == DICTIONARY_ELEMENTS) {
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
+    return LoadHandler::LoadElement(isolate(), elements_kind, false,
+                                    is_js_array);
+  }
+  DCHECK(IsFastElementsKind(elements_kind) ||
+         IsFixedTypedArrayElementsKind(elements_kind));
+  // TODO(jkummerow): Use IsHoleyElementsKind(elements_kind).
+  bool convert_hole_to_undefined =
+      is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
+      *receiver_map == isolate()->get_initial_js_array_map(elements_kind);
+  TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
+  return LoadHandler::LoadElement(isolate(), elements_kind,
+                                  convert_hole_to_undefined, is_js_array);
+}
+
+void KeyedLoadIC::LoadElementPolymorphicHandlers(
+    MapHandles* receiver_maps, List<Handle<Object>>* handlers) {
+  // Filter out deprecated maps to ensure their instances get migrated.
+  receiver_maps->erase(
+      std::remove_if(
+          receiver_maps->begin(), receiver_maps->end(),
+          [](const Handle<Map>& map) { return map->is_deprecated(); }),
+      receiver_maps->end());
+
+  for (Handle<Map> receiver_map : *receiver_maps) {
+    // Mark all stable receiver maps that have elements kind transition map
+    // among receiver_maps as unstable because the optimizing compilers may
+    // generate an elements kind transition for this kind of receivers.
+    if (receiver_map->is_stable()) {
+      Map* tmap = receiver_map->FindElementsKindTransitionedMap(*receiver_maps);
+      if (tmap != nullptr) {
+        receiver_map->NotifyLeafMapLayoutChange();
+      }
+    }
+    handlers->Add(LoadElementHandler(receiver_map));
+  }
+}
 
 MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                       Handle<Object> key) {
@@ -1853,9 +1925,9 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup) {
 
 void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
                                       KeyedAccessStoreMode store_mode) {
-  MapHandleList target_receiver_maps;
+  MapHandles target_receiver_maps;
   TargetMaps(&target_receiver_maps);
-  if (target_receiver_maps.length() == 0) {
+  if (target_receiver_maps.empty()) {
     Handle<Map> monomorphic_map =
         ComputeTransitionedMap(receiver_map, store_mode);
     store_mode = GetNonTransitioningStoreMode(store_mode);
@@ -1863,9 +1935,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     return ConfigureVectorState(Handle<Name>(), monomorphic_map, handler);
   }
 
-  for (int i = 0; i < target_receiver_maps.length(); i++) {
-    if (!target_receiver_maps.at(i).is_null() &&
-        target_receiver_maps.at(i)->instance_type() == JS_VALUE_TYPE) {
+  for (Handle<Map> map : target_receiver_maps) {
+    if (!map.is_null() && map->instance_type() == JS_VALUE_TYPE) {
       TRACE_GENERIC_IC("JSValue");
       return;
     }
@@ -1930,7 +2001,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   // If the maximum number of receiver maps has been exceeded, use the
   // megamorphic version of the IC.
-  if (target_receiver_maps.length() > kMaxKeyedPolymorphism) return;
+  if (target_receiver_maps.size() > kMaxKeyedPolymorphism) return;
 
   // Make sure all polymorphic handlers have the same store mode, otherwise the
   // megamorphic stub must be used.
@@ -1948,22 +2019,28 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   // receivers are either external arrays, or all "normal" arrays. Otherwise,
   // use the megamorphic stub.
   if (store_mode != STANDARD_STORE) {
-    int external_arrays = 0;
-    for (int i = 0; i < target_receiver_maps.length(); ++i) {
-      if (target_receiver_maps[i]->has_fixed_typed_array_elements()) {
+    size_t external_arrays = 0;
+    for (Handle<Map> map : target_receiver_maps) {
+      if (map->has_fixed_typed_array_elements()) {
         external_arrays++;
       }
     }
     if (external_arrays != 0 &&
-        external_arrays != target_receiver_maps.length()) {
+        external_arrays != target_receiver_maps.size()) {
       TRACE_GENERIC_IC("unsupported combination of external and normal arrays");
       return;
     }
   }
 
-  List<Handle<Object>> handlers(target_receiver_maps.length());
+  List<Handle<Object>> handlers(static_cast<int>(target_receiver_maps.size()));
   StoreElementPolymorphicHandlers(&target_receiver_maps, &handlers, store_mode);
-  ConfigureVectorState(Handle<Name>(), &target_receiver_maps, &handlers);
+  DCHECK_LE(1, target_receiver_maps.size());
+  if (target_receiver_maps.size() == 1) {
+    ConfigureVectorState(Handle<Name>(), target_receiver_maps[0],
+                         handlers.at(0));
+  } else {
+    ConfigureVectorState(Handle<Name>(), target_receiver_maps, &handlers);
+  }
 }
 
 
@@ -2028,15 +2105,21 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
 }
 
 void KeyedStoreIC::StoreElementPolymorphicHandlers(
-    MapHandleList* receiver_maps, List<Handle<Object>>* handlers,
+    MapHandles* receiver_maps, List<Handle<Object>>* handlers,
     KeyedAccessStoreMode store_mode) {
   DCHECK(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
 
-  for (int i = 0; i < receiver_maps->length(); ++i) {
-    Handle<Map> receiver_map(receiver_maps->at(i));
+  // Filter out deprecated maps to ensure their instances get migrated.
+  receiver_maps->erase(
+      std::remove_if(
+          receiver_maps->begin(), receiver_maps->end(),
+          [](const Handle<Map>& map) { return map->is_deprecated(); }),
+      receiver_maps->end());
+
+  for (Handle<Map> receiver_map : *receiver_maps) {
     Handle<Object> handler;
     Handle<Map> transitioned_map;
 
@@ -2050,8 +2133,13 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     } else {
       {
         Map* tmap =
-            receiver_map->FindElementsKindTransitionedMap(receiver_maps);
-        if (tmap != nullptr) transitioned_map = handle(tmap);
+            receiver_map->FindElementsKindTransitionedMap(*receiver_maps);
+        if (tmap != nullptr) {
+          if (receiver_map->is_stable()) {
+            receiver_map->NotifyLeafMapLayoutChange();
+          }
+          transitioned_map = handle(tmap);
+        }
       }
 
       // TODO(mvstanton): The code below is doing pessimistic elements

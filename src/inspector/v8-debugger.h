@@ -23,6 +23,7 @@ namespace v8_inspector {
 
 class AsyncStackTrace;
 struct ScriptBreakpoint;
+class StackFrame;
 class V8Debugger;
 class V8DebuggerAgentImpl;
 class V8InspectorImpl;
@@ -49,8 +50,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::debug::ExceptionBreakState getPauseOnExceptionsState();
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
   bool canBreakProgram();
-  void breakProgram();
-  void continueProgram();
+  bool breakProgram(int targetContextGroupId);
+  void continueProgram(int targetContextGroupId);
 
   void setPauseOnNextStatement(bool, int targetContextGroupId);
   void stepIntoStatement(int targetContextGroupId);
@@ -76,7 +77,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void enable();
   void disable();
 
-  bool isPaused() const { return m_runningNestedMessageLoop; }
+  bool isPaused() const { return m_pausedContextGroupId; }
   v8::Local<v8::Context> pausedContext() { return m_pausedContext; }
 
   int maxAsyncCallChainDepth() { return m_maxAsyncCallStackDepth; }
@@ -84,6 +85,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   std::shared_ptr<AsyncStackTrace> currentAsyncParent();
   std::shared_ptr<AsyncStackTrace> currentAsyncCreation();
+
+  std::shared_ptr<StackFrame> symbolize(v8::Local<v8::StackFrame> v8Frame);
 
   std::unique_ptr<V8StackTraceImpl> createStackTrace(v8::Local<v8::StackTrace>);
   std::unique_ptr<V8StackTraceImpl> captureStackTrace(bool fullStack);
@@ -106,6 +109,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   WasmTranslation* wasmTranslation() { return &m_wasmTranslation; }
 
   void setMaxAsyncTaskStacksForTest(int limit);
+  void dumpAsyncTaskStacksStateForTest();
 
  private:
   void compileDebuggerScript();
@@ -176,10 +180,10 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::Global<v8::Context> m_debuggerContext;
   v8::Local<v8::Object> m_executionState;
   v8::Local<v8::Context> m_pausedContext;
-  bool m_runningNestedMessageLoop;
   int m_ignoreScriptParsedEventsCounter;
   bool m_scheduledOOMBreak = false;
   int m_targetContextGroupId = 0;
+  int m_pausedContextGroupId = 0;
 
   using AsyncTaskToStackTrace =
       protocol::HashMap<void*, std::weak_ptr<AsyncStackTrace>>;
@@ -196,11 +200,11 @@ class V8Debugger : public v8::debug::DebugDelegate {
   std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncCreation;
 
   void collectOldAsyncStacksIfNeeded();
-  void removeOldAsyncTasks(AsyncTaskToStackTrace& map);
   int m_asyncStacksCount = 0;
   // V8Debugger owns all the async stacks, while most of the other references
   // are weak, which allows to collect some stacks when there are too many.
   std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;
+  std::map<int, std::weak_ptr<StackFrame>> m_framesCache;
 
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   void* m_taskWithScheduledBreak = nullptr;

@@ -144,8 +144,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   CHECK(fun->IsConstructor());
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              Accessors::FunctionSetPrototype(fun, value));
+  JSFunction::SetPrototype(fun, value);
   return args[0];  // return TOS
 }
 

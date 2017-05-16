@@ -747,16 +747,6 @@ break at:
 
 Running test: testClasses
 break at:
-function testClasses() {
-  #class Cat {
-    constructor(name) {
-
-break at:
-  }
-  #class Lion extends Cat {
-    constructor(name) {
-
-break at:
   }
   #new Lion().speak();
 }

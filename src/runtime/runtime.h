@@ -118,12 +118,19 @@ namespace internal {
   F(WeakCollectionHas, 3, 1)              \
   F(WeakCollectionDelete, 3, 1)           \
   F(WeakCollectionSet, 4, 1)              \
-  F(GetWeakSetValues, 2, 1)
+  F(GetWeakSetValues, 2, 1)               \
+  F(IsJSMap, 1, 1)                        \
+  F(IsJSSet, 1, 1)                        \
+  F(IsJSMapIterator, 1, 1)                \
+  F(IsJSSetIterator, 1, 1)                \
+  F(IsJSWeakMap, 1, 1)                    \
+  F(IsJSWeakSet, 1, 1)
 
 #define FOR_EACH_INTRINSIC_COMPILER(F)    \
   F(CompileLazy, 1, 1)                    \
   F(CompileOptimized_Concurrent, 1, 1)    \
   F(CompileOptimized_NotConcurrent, 1, 1) \
+  F(EvictOptimizedCodeSlot, 1, 1)         \
   F(NotifyStubFailure, 0, 1)              \
   F(NotifyDeoptimized, 1, 1)              \
   F(CompileForOnStackReplacement, 1, 1)   \
@@ -251,8 +258,8 @@ namespace internal {
   F(GeneratorGetSourcePosition, 1, 1)            \
   F(GeneratorGetResumeMode, 1, 1)
 
-#ifdef V8_I18N_SUPPORT
-#define FOR_EACH_INTRINSIC_I18N(F)           \
+#ifdef V8_INTL_SUPPORT
+#define FOR_EACH_INTRINSIC_INTL(F)           \
   F(CanonicalizeLanguageTag, 1, 1)           \
   F(AvailableLocalesOf, 1, 1)                \
   F(GetDefaultICULocale, 0, 1)               \
@@ -274,12 +281,12 @@ namespace internal {
   F(BreakIteratorNext, 1, 1)                 \
   F(BreakIteratorCurrent, 1, 1)              \
   F(BreakIteratorBreakType, 1, 1)            \
-  F(StringToLowerCaseI18N, 1, 1)             \
-  F(StringToUpperCaseI18N, 1, 1)             \
+  F(StringToLowerCaseIntl, 1, 1)             \
+  F(StringToUpperCaseIntl, 1, 1)             \
   F(StringLocaleConvertCase, 3, 1)           \
   F(DateCacheVersion, 0, 1)
 #else
-#define FOR_EACH_INTRINSIC_I18N(F)
+#define FOR_EACH_INTRINSIC_INTL(F)
 #endif
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F)             \
@@ -465,9 +472,7 @@ namespace internal {
   F(PromiseRevokeReject, 1, 1)              \
   F(PromiseResult, 1, 1)                    \
   F(PromiseStatus, 1, 1)                    \
-  F(ReportPromiseReject, 2, 1)              \
-  F(IncrementWaitCount, 0, 1)               \
-  F(DecrementWaitCount, 0, 1)
+  F(ReportPromiseReject, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F)     \
   F(IsJSProxy, 1, 1)                    \
@@ -580,7 +585,6 @@ namespace internal {
   F(Abort, 1, 1)                              \
   F(AbortJS, 1, 1)                            \
   F(NativeScriptsCount, 0, 1)                 \
-  F(GetV8Version, 0, 1)                       \
   F(DisassembleFunction, 1, 1)                \
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
@@ -628,6 +632,7 @@ namespace internal {
   F(TypedArrayCopyElements, 3, 1)        \
   F(ArrayBufferViewGetByteLength, 1, 1)  \
   F(ArrayBufferViewGetByteOffset, 1, 1)  \
+  F(ArrayBufferViewWasNeutered, 1, 1)    \
   F(TypedArrayGetLength, 1, 1)           \
   F(TypedArrayGetBuffer, 1, 1)           \
   F(TypedArraySetFastCases, 3, 1)        \
@@ -694,7 +699,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_INTERPRETER(F)         \
   FOR_EACH_INTRINSIC_FUNCTION(F)            \
   FOR_EACH_INTRINSIC_GENERATOR(F)           \
-  FOR_EACH_INTRINSIC_I18N(F)                \
+  FOR_EACH_INTRINSIC_INTL(F)                \
   FOR_EACH_INTRINSIC_INTERNAL(F)            \
   FOR_EACH_INTRINSIC_LITERALS(F)            \
   FOR_EACH_INTRINSIC_LIVEEDIT(F)            \

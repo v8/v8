@@ -667,6 +667,28 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     case 'v': {
       return FormatVFPinstruction(instr, format);
     }
+    case 'A': {
+      // Print pc-relative address.
+      int offset = instr->Offset12Value();
+      byte* pc = reinterpret_cast<byte*>(instr) + Instruction::kPCReadOffset;
+      byte* addr;
+      switch (instr->PUField()) {
+        case db_x: {
+          addr = pc - offset;
+          break;
+        }
+        case ib_x: {
+          addr = pc + offset;
+          break;
+        }
+        default: {
+          UNREACHABLE();
+          return -1;
+        }
+      }
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%p", addr);
+      return 1;
+    }
     case 'S':
     case 'D': {
       return FormatVFPRegister(instr, format);
@@ -1033,11 +1055,19 @@ void Decoder::DecodeType2(Instruction* instr) {
       break;
     }
     case db_x: {
-      Format(instr, "'memop'cond'b 'rd, ['rn, #-'off12]'w");
+      if (instr->HasL() && (instr->RnValue() == kPCRegister)) {
+        Format(instr, "'memop'cond'b 'rd, [pc, #-'off12]'w (addr 'A)");
+      } else {
+        Format(instr, "'memop'cond'b 'rd, ['rn, #-'off12]'w");
+      }
       break;
     }
     case ib_x: {
-      Format(instr, "'memop'cond'b 'rd, ['rn, #+'off12]'w");
+      if (instr->HasL() && (instr->RnValue() == kPCRegister)) {
+        Format(instr, "'memop'cond'b 'rd, [pc, #+'off12]'w (addr 'A)");
+      } else {
+        Format(instr, "'memop'cond'b 'rd, ['rn, #+'off12]'w");
+      }
       break;
     }
     default: {
@@ -1950,6 +1980,13 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
                        op, size, Vd, Vn, Vm);
           break;
         }
+        case 0xb: {
+          // vpadd.i<size> Dd, Dm, Dn.
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vpadd.i%d d%d, d%d, d%d",
+                       size, Vd, Vn, Vm);
+          break;
+        }
         case 0xd: {
           if (instr->Bit(4) == 0) {
             const char* op = (instr->Bits(21, 20) == 0) ? "vadd" : "vsub";
@@ -2130,10 +2167,16 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           break;
         }
         case 0xd: {
-          if (instr->Bit(21) == 0 && instr->Bit(6) == 1 && instr->Bit(4) == 1) {
-            // vmul.f32 Qd, Qn, Qm
+          if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
+              instr->Bit(4) == 1) {
+            // vmul.f32 Qd, Qm, Qn
             out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                         "vmul.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 0 &&
+                     instr->Bit(4) == 0) {
+            // vpadd.f32 Dd, Dm, Dn.
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vpadd.f32 d%d, d%d, d%d", Vd, Vn, Vm);
           } else {
             Unknown(instr);
           }

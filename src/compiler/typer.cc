@@ -607,19 +607,6 @@ Type* Typer::Visitor::TypeParameter(Node* node) {
 
 Type* Typer::Visitor::TypeOsrValue(Node* node) { return Type::Any(); }
 
-Type* Typer::Visitor::TypeOsrGuard(Node* node) {
-  switch (OsrGuardTypeOf(node->op())) {
-    case OsrGuardType::kUninitialized:
-      return Type::None();
-    case OsrGuardType::kSignedSmall:
-      return Type::SignedSmall();
-    case OsrGuardType::kAny:
-      return Type::Any();
-  }
-  UNREACHABLE();
-  return nullptr;
-}
-
 Type* Typer::Visitor::TypeRetain(Node* node) {
   UNREACHABLE();
   return nullptr;
@@ -1128,6 +1115,10 @@ Type* Typer::Visitor::TypeJSCreateArguments(Node* node) {
 }
 
 Type* Typer::Visitor::TypeJSCreateArray(Node* node) { return Type::Array(); }
+
+Type* Typer::Visitor::TypeJSCreateGeneratorObject(Node* node) {
+  return Type::OtherObject();
+}
 
 Type* Typer::Visitor::TypeJSCreateClosure(Node* node) {
   return Type::Function();

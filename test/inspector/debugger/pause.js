@@ -43,7 +43,11 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Runtime.evaluate({expression: 'var a = 239;'}, contextGroupId);
     Protocol.Runtime.evaluate({expression: 'var a = 1;'});
     await waitPauseAndDumpLocation();
-    await Protocol.Debugger.resume();
+    // should not resume pause from different context group id.
+    Protocol.Debugger.resume();
+    Protocol.Debugger.stepOver({}, contextGroupId);
+    await waitPauseAndDumpLocation();
+    await Protocol.Debugger.resume({}, contextGroupId);
     await Protocol.Debugger.disable({}, contextGroupId);
   },
 

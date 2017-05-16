@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(kozyatinskiy): fix this test.
 InspectorTest.log('Checks created frame for async call chain');
 
 InspectorTest.addScript(

@@ -33,36 +33,6 @@ Protocol = new Proxy({}, {
 
 InspectorTest.logProtocolCommandCalls = (command) => InspectorTest._commandsForLogging.add(command);
 
-var utils = {};
-(function setupUtils() {
-  utils.load = load;
-  this.load = null;
-  utils.read = read;
-  this.read = null;
-  utils.compileAndRunWithOrigin = compileAndRunWithOrigin;
-  this.compileAndRunWithOrigin = null;
-  utils.quit = quit;
-  this.quit = null;
-  utils.print = print;
-  this.print = null;
-  utils.setlocale = setlocale;
-  this.setlocale = null;
-  utils.setCurrentTimeMSForTest = setCurrentTimeMSForTest;
-  this.setCurrentTimeMSForTest = null;
-  utils.setMemoryInfoForTest = setMemoryInfoForTest;
-  this.setMemoryInfoForTest = null;
-  utils.schedulePauseOnNextStatement = schedulePauseOnNextStatement;
-  this.schedulePauseOnNextStatement = null;
-  utils.cancelPauseOnNextStatement = cancelPauseOnNextStatement;
-  this.cancelPauseOnNextStatement = null;
-  utils.reconnect = reconnect;
-  this.reconnect = null;
-  utils.setLogConsoleApiMessageCalls = setLogConsoleApiMessageCalls;
-  this.setLogConsoleApiMessageCalls = null;
-  utils.createContextGroup = createContextGroup;
-  this.createContextGroup = null;
-})();
-
 InspectorTest.log = utils.print.bind(null);
 
 InspectorTest.logMessage = function(originalMessage)

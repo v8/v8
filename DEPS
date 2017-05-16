@@ -8,23 +8,23 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "98f2769027214c848094d0d58156474eada3bc1b",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "7571a8a7310ab694f4f3fb4e398d571d830b0fb8",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "eb296f67da078ec01f5e3a9ea9cdc6d26d680161",
   "v8/third_party/icu":
-    Var("chromium_url") + "/chromium/deps/icu.git" + "@" + "b34251f8b762f8e2112a89c587855ca4297fed96",
+    Var("chromium_url") + "/chromium/deps/icu.git" + "@" + "87232d8d763692d4b8303f0194472a82c829a6a9",
   "v8/third_party/instrumented_libraries":
-    Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "05d5695a73e78b9cae55b8579fd8bf22b85eb283",
+    Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "644afd349826cb68204226a16c38bde13abe9c3c",
   "v8/buildtools":
     Var("chromium_url") + "/chromium/buildtools.git" + "@" + "98f00fa10dbad2cdbb2e297a66c3d6d5bc3994f3",
   "v8/base/trace_event/common":
-    Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "06294c8a4a6f744ef284cd63cfe54dbf61eea290",
+    Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "39a3450531fc73432e963db8668695d2e8f13053",
   "v8/third_party/jinja2":
     Var("chromium_url") + "/chromium/src/third_party/jinja2.git" + "@" + "d34383206fa42d52faa10bb9931d6d538f3a57e0",
   "v8/third_party/markupsafe":
     Var("chromium_url") + "/chromium/src/third_party/markupsafe.git" + "@" + "8f45f5cfa0009d2a70589bcda0349b8cb2b72783",
   "v8/tools/swarming_client":
-    Var('chromium_url') + '/external/swarming.client.git' + '@' + "11e31afa5d330756ff87aa12064bb5d032896cb5",
+    Var('chromium_url') + '/external/swarming.client.git' + '@' + "a941a089ff1000403078b74cb628eb430f07d271",
   "v8/testing/gtest":
     Var("chromium_url") + "/external/github.com/google/googletest.git" + "@" + "6f8a66431cb592dad629028a50b3dd418a408c87",
   "v8/testing/gmock":
@@ -38,7 +38,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "a38e11d4572e3a77bc430e11c5e476d92a70b63d",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "162cac4aa6b7bc1142108000268e3df2544bce96",
   "v8/test/wasm-js":
     Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "07fd6430f879d36928d179a62d9bdeed82286065",
 }
@@ -46,9 +46,9 @@ deps = {
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("chromium_url") + "/android_tools.git" + "@" + "b65c4776dac2cf1b80e969b3b2d4e081b9c84f29",
+      Var("chromium_url") + "/android_tools.git" + "@" + "cb6bc21107001e2f2eeee2707b482b2b755baf51",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "6939b1db033bf35f4adf1ee55824b6edb3e324d6",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "37015fb470d81b7a96a091127590e6e461705059",
   },
 }
 
@@ -202,6 +202,28 @@ hooks = [
     ],
   },
   {
+    "name": "wasm_spec_tests",
+    "pattern": ".",
+    "action": [ "download_from_google_storage",
+                "--no_resume",
+                "--no_auth",
+                "-u",
+                "--bucket", "v8-wasm-spec-tests",
+                "-s", "v8/test/wasm-spec-tests/tests.tar.gz.sha1",
+    ],
+  },
+  {
+    "name": "wasm_fuzzer_new",
+    "pattern": ".",
+    "action": [ "download_from_google_storage",
+                "--no_resume",
+                "--no_auth",
+                "-u",
+                "--bucket", "v8-wasm-fuzzer",
+                "-s", "v8/test/fuzzer/wasm_corpus.tar.gz.sha1",
+    ],
+  },
+  {
     "name": "wasm_fuzzer",
     "pattern": ".",
     "action": [ "download_from_google_storage",
@@ -210,6 +232,17 @@ hooks = [
                 "-u",
                 "--bucket", "v8-wasm-fuzzer",
                 "-s", "v8/test/fuzzer/wasm.tar.gz.sha1",
+    ],
+  },
+  {
+    "name": "wasm_asmjs_fuzzer_new",
+    "pattern": ".",
+    "action": [ "download_from_google_storage",
+                "--no_resume",
+                "--no_auth",
+                "-u",
+                "--bucket", "v8-wasm-asmjs-fuzzer",
+                "-s", "v8/test/fuzzer/wasm_asmjs_corpus.tar.gz.sha1",
     ],
   },
   {

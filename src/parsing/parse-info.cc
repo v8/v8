@@ -165,6 +165,38 @@ void ParseInfo::InitFromIsolate(Isolate* isolate) {
   set_ast_string_constants(isolate->ast_string_constants());
 }
 
+void ParseInfo::UpdateStatisticsAfterBackgroundParse(Isolate* isolate) {
+  // Copy over the counters from the background thread to the main counters on
+  // the isolate.
+  RuntimeCallStats* main_call_stats = isolate->counters()->runtime_call_stats();
+  if (FLAG_runtime_stats ==
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE) {
+    DCHECK_NE(main_call_stats, runtime_call_stats());
+    DCHECK_NOT_NULL(main_call_stats);
+    DCHECK_NOT_NULL(runtime_call_stats());
+    main_call_stats->Add(runtime_call_stats());
+  }
+  set_runtime_call_stats(main_call_stats);
+}
+
+void ParseInfo::ParseFinished(std::unique_ptr<ParseInfo> info) {
+  if (info->literal()) {
+    base::LockGuard<base::Mutex> access_child_infos(&child_infos_mutex_);
+    child_infos_.emplace_back(std::move(info));
+  }
+}
+
+std::map<int, ParseInfo*> ParseInfo::child_infos() const {
+  base::LockGuard<base::Mutex> access_child_infos(&child_infos_mutex_);
+  std::map<int, ParseInfo*> rv;
+  for (const auto& child_info : child_infos_) {
+    DCHECK_NOT_NULL(child_info->literal());
+    int start_position = child_info->literal()->start_position();
+    rv.insert(std::make_pair(start_position, child_info.get()));
+  }
+  return rv;
+}
+
 #ifdef DEBUG
 bool ParseInfo::script_is_native() const {
   return script_->type() == Script::TYPE_NATIVE;

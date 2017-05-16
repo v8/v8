@@ -99,6 +99,22 @@ consts_misc = [
         'value': 'kAccessor' },
     { 'name': 'prop_kind_mask',
         'value': 'PropertyDetails::KindField::kMask' },
+    { 'name': 'prop_location_Descriptor',
+        'value': 'kDescriptor' },
+    { 'name': 'prop_location_Field',
+        'value': 'kField' },
+    { 'name': 'prop_location_mask',
+        'value': 'PropertyDetails::LocationField::kMask' },
+    { 'name': 'prop_location_shift',
+        'value': 'PropertyDetails::LocationField::kShift' },
+    { 'name': 'prop_attributes_NONE', 'value': 'NONE' },
+    { 'name': 'prop_attributes_READ_ONLY', 'value': 'READ_ONLY' },
+    { 'name': 'prop_attributes_DONT_ENUM', 'value': 'DONT_ENUM' },
+    { 'name': 'prop_attributes_DONT_DELETE', 'value': 'DONT_DELETE' },
+    { 'name': 'prop_attributes_mask',
+        'value': 'PropertyDetails::AttributesField::kMask' },
+    { 'name': 'prop_attributes_shift',
+        'value': 'PropertyDetails::AttributesField::kShift' },
     { 'name': 'prop_index_mask',
         'value': 'PropertyDetails::FieldIndexField::kMask' },
     { 'name': 'prop_index_shift',
@@ -493,7 +509,7 @@ def parse_field(call):
         if (kind == 'ACCESSORS' or kind == 'ACCESSORS_GCSAFE'):
                 klass = args[0];
                 field = args[1];
-                dtype = args[2];
+                dtype = args[2].replace('<', '_').replace('>', '_')
                 offset = args[3];
 
                 return ({

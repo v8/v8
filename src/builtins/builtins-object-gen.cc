@@ -412,5 +412,51 @@ TF_BUILTIN(GetSuperConstructor, ObjectBuiltinsAssembler) {
   Return(GetSuperConstructor(object, context));
 }
 
+TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
+  Node* closure = Parameter(Descriptor::kClosure);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* context = Parameter(Descriptor::kContext);
+
+  // Get the initial map from the function, jumping to the runtime if we don't
+  // have one.
+  Node* maybe_map =
+      LoadObjectField(closure, JSFunction::kPrototypeOrInitialMapOffset);
+  Label runtime(this);
+  GotoIf(DoesntHaveInstanceType(maybe_map, MAP_TYPE), &runtime);
+
+  Node* shared =
+      LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
+  Node* bytecode_array =
+      LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
+  Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
+      bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
+  Node* size = WordSar(frame_size, IntPtrConstant(kPointerSizeLog2));
+  Node* register_file = AllocateFixedArray(FAST_HOLEY_ELEMENTS, size);
+  FillFixedArrayWithValue(FAST_HOLEY_ELEMENTS, register_file, IntPtrConstant(0),
+                          size, Heap::kUndefinedValueRootIndex);
+
+  Node* const result = AllocateJSObjectFromMap(maybe_map);
+
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
+                                 closure);
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContextOffset,
+                                 context);
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kReceiverOffset,
+                                 receiver);
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kRegisterFileOffset,
+                                 register_file);
+  Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
+                                 executing);
+  HandleSlackTracking(context, result, maybe_map, JSGeneratorObject::kSize);
+  Return(result);
+
+  BIND(&runtime);
+  {
+    Return(CallRuntime(Runtime::kCreateJSGeneratorObject, context, closure,
+                       receiver));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

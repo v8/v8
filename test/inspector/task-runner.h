@@ -36,8 +36,17 @@ class TaskRunner : public v8::base::Thread {
                      const v8::Global<v8::Context>& context) = 0;
   };
 
-  TaskRunner(v8::ExtensionConfiguration* extensions, bool catch_exceptions,
-             v8::base::Semaphore* ready_semaphore);
+  class SetupGlobalTask {
+   public:
+    virtual ~SetupGlobalTask() = default;
+    virtual void Run(v8::Isolate* isolate,
+                     v8::Local<v8::ObjectTemplate> global) = 0;
+  };
+  using SetupGlobalTasks = std::vector<std::unique_ptr<SetupGlobalTask>>;
+
+  TaskRunner(SetupGlobalTasks setup_global_tasks, bool catch_exceptions,
+             v8::base::Semaphore* ready_semaphore,
+             v8::StartupData* startup_data);
   virtual ~TaskRunner();
 
   // Thread implementation.
@@ -52,7 +61,8 @@ class TaskRunner : public v8::base::Thread {
 
   static TaskRunner* FromContext(v8::Local<v8::Context>);
 
-  v8::Local<v8::Context> NewContextGroup();
+  v8::Local<v8::Context> NewContextGroup(
+      const SetupGlobalTasks& setup_global_tasks);
   v8::Local<v8::Context> GetContext(int context_group_id);
   static int GetContextGroupId(v8::Local<v8::Context> context);
 
@@ -68,7 +78,8 @@ class TaskRunner : public v8::base::Thread {
   void InitializeIsolate();
   Task* GetNext(bool only_protocol);
 
-  v8::ExtensionConfiguration* extensions_;
+  SetupGlobalTasks setup_global_tasks_;
+  v8::StartupData* startup_data_;
   bool catch_exceptions_;
   v8::base::Semaphore* ready_semaphore_;
 

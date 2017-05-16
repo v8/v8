@@ -1371,6 +1371,9 @@ class Assembler : public AssemblerBase {
   void vmax(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vmax(NeonDataType dt, QwNeonRegister dst,
             QwNeonRegister src1, QwNeonRegister src2);
+  void vpadd(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2);
+  void vpadd(NeonSize size, DwVfpRegister dst, DwVfpRegister src1,
+             DwVfpRegister src2);
   void vpmin(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
              DwVfpRegister src2);
   void vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
@@ -1720,6 +1723,9 @@ class Assembler : public AssemblerBase {
   std::vector<ConstantPoolEntry> pending_64_bit_constants_;
 
  private:
+  // Avoid overflows for displacements etc.
+  static const int kMaximalBufferSize = 512 * MB;
+
   int next_buffer_check_;  // pc offset of next buffer check
 
   // Constant pool generation

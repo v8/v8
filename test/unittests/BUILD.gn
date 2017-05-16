@@ -8,6 +8,7 @@ v8_executable("unittests") {
   testonly = true
 
   sources = [
+    "../../test/common/wasm/wasm-macro-gen.h",
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
     "api/access-check-unittest.cc",
@@ -17,6 +18,8 @@ v8_executable("unittests") {
     "api/remote-object-unittest.cc",
     "api/v8-object-unittest.cc",
     "asmjs/asm-scanner-unittest.cc",
+    "asmjs/asm-types-unittest.cc",
+    "asmjs/switch-logic-unittest.cc",
     "base/atomic-utils-unittest.cc",
     "base/bits-unittest.cc",
     "base/cpu-unittest.cc",
@@ -99,6 +102,7 @@ v8_executable("unittests") {
     "eh-frame-iterator-unittest.cc",
     "eh-frame-writer-unittest.cc",
     "heap/bitmap-unittest.cc",
+    "heap/concurrent-marking-deque-unittest.cc",
     "heap/embedder-tracing-unittest.cc",
     "heap/gc-idle-time-handler-unittest.cc",
     "heap/gc-tracer-unittest.cc",
@@ -139,14 +143,13 @@ v8_executable("unittests") {
     "test-utils.h",
     "unicode-unittest.cc",
     "value-serializer-unittest.cc",
-    "wasm/asm-types-unittest.cc",
     "wasm/control-transfer-unittest.cc",
     "wasm/decoder-unittest.cc",
     "wasm/function-body-decoder-unittest.cc",
     "wasm/leb-helper-unittest.cc",
     "wasm/loop-assignment-analysis-unittest.cc",
     "wasm/module-decoder-unittest.cc",
-    "wasm/switch-logic-unittest.cc",
+    "wasm/streaming-decoder-unittest.cc",
     "wasm/wasm-macro-gen-unittest.cc",
     "wasm/wasm-module-builder-unittest.cc",
     "wasm/wasm-opcodes-unittest.cc",
@@ -185,7 +188,7 @@ v8_executable("unittests") {
   #}],
 
   deps = [
-    "../..:v8_builtins_generators",
+    "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "//build/config/sanitizers:deps",
@@ -193,21 +196,6 @@ v8_executable("unittests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-
-  if (v8_enable_i18n_support) {
-    deps += [ "//third_party/icu" ]
-  }
-
-  defines = []
-
-  if (is_component_build) {
-    # unittests can't be built against a shared library, so we
-    # need to depend on the underlying static target in that case.
-    deps += [ "../..:v8_maybe_snapshot" ]
-    defines += [ "BUILDING_V8_SHARED" ]
-  } else {
-    deps += [ "../..:v8" ]
-  }
 
   if (is_win) {
     # This warning is benignly triggered by the U16 and U32 macros in

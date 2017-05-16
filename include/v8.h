@@ -1793,8 +1793,6 @@ class V8_EXPORT ValueSerializer {
     virtual void FreeBufferMemory(void* buffer);
   };
 
-  static uint32_t GetCurrentDataFormatVersion();
-
   explicit ValueSerializer(Isolate* isolate);
   ValueSerializer(Isolate* isolate, Delegate* delegate);
   ~ValueSerializer();
@@ -3599,16 +3597,34 @@ class ReturnValue {
 template<typename T>
 class FunctionCallbackInfo {
  public:
+  /** The number of available arguments. */
   V8_INLINE int Length() const;
+  /** Accessor for the available arguments. */
   V8_INLINE Local<Value> operator[](int i) const;
   V8_INLINE V8_DEPRECATED("Use Data() to explicitly pass Callee instead",
                           Local<Function> Callee() const);
+  /** Returns the receiver. This corresponds to the "this" value. */
   V8_INLINE Local<Object> This() const;
+  /**
+   * If the callback was created without a Signature, this is the same
+   * value as This(). If there is a signature, and the signature didn't match
+   * This() but one of its hidden prototypes, this will be the respective
+   * hidden prototype.
+   *
+   * Note that this is not the prototype of This() on which the accessor
+   * referencing this callback was found (which in V8 internally is often
+   * referred to as holder [sic]).
+   */
   V8_INLINE Local<Object> Holder() const;
+  /** For construct calls, this returns the "new.target" value. */
   V8_INLINE Local<Value> NewTarget() const;
+  /** Indicates whether this is a regular call or a construct call. */
   V8_INLINE bool IsConstructCall() const;
+  /** The data argument specified when creating the callback. */
   V8_INLINE Local<Value> Data() const;
+  /** The current Isolate. */
   V8_INLINE Isolate* GetIsolate() const;
+  /** The ReturnValue for the call. */
   V8_INLINE ReturnValue<T> GetReturnValue() const;
   // This shouldn't be public, but the arm compiler needs it.
   static const int kArgsLength = 8;
@@ -5757,9 +5773,13 @@ class V8_EXPORT ObjectTemplate : public Template {
   friend class FunctionTemplate;
 };
 
-
 /**
  * A Signature specifies which receiver is valid for a function.
+ *
+ * A receiver matches a given signature if the receiver (or any of its
+ * hidden prototypes) was created from the signature's FunctionTemplate, or
+ * from a FunctionTemplate that inherits directly or indirectly from the
+ * signature's FunctionTemplate.
  */
 class V8_EXPORT Signature : public Data {
  public:
@@ -6166,6 +6186,8 @@ enum GCType {
  *   - kGCCallbackFlagCollectAllAvailableGarbage: The GC callback is called
  *     in a phase where V8 is trying to collect all available garbage
  *     (e.g., handling a low memory notification).
+ *   - kGCCallbackScheduleIdleGarbageCollection: The GC callback is called to
+ *     trigger an idle garbage collection.
  */
 enum GCCallbackFlags {
   kNoGCCallbackFlags = 0,
@@ -6174,6 +6196,7 @@ enum GCCallbackFlags {
   kGCCallbackFlagSynchronousPhantomCallbackProcessing = 1 << 3,
   kGCCallbackFlagCollectAllAvailableGarbage = 1 << 4,
   kGCCallbackFlagCollectAllExternalMemory = 1 << 5,
+  kGCCallbackScheduleIdleGarbageCollection = 1 << 6,
 };
 
 typedef void (*GCCallback)(GCType type, GCCallbackFlags flags);
@@ -6200,9 +6223,8 @@ class V8_EXPORT HeapStatistics {
   size_t peak_malloced_memory() { return peak_malloced_memory_; }
 
   /**
-   * Returns a 0/1 boolean, which signifies whether the |--zap_code_space|
-   * option is enabled or not, which makes V8 overwrite heap garbage with a bit
-   * pattern.
+   * Returns a 0/1 boolean, which signifies whether the V8 overwrite heap
+   * garbage with a bit pattern.
    */
   size_t does_zap_garbage() { return does_zap_garbage_; }
 
@@ -6619,7 +6641,7 @@ class V8_EXPORT Isolate {
 
     /**
      * Whether calling Atomics.wait (a function that may block) is allowed in
-     * this isolate.
+     * this isolate. This can also be configured via SetAllowAtomicsWait.
      */
     bool allow_atomics_wait;
 
@@ -7479,6 +7501,13 @@ class V8_EXPORT Isolate {
    */
   bool IsInUse();
 
+  /**
+   * Set whether calling Atomics.wait (a function that may block) is allowed in
+   * this isolate. This can also be configured via
+   * CreateParams::allow_atomics_wait.
+   */
+  void SetAllowAtomicsWait(bool allow);
+
   Isolate() = delete;
   ~Isolate() = delete;
   Isolate(const Isolate&) = delete;
@@ -8179,6 +8208,11 @@ class V8_EXPORT TryCatch {
    * handler reported as if they were not caught.
    */
   void SetVerbose(bool value);
+
+  /**
+   * Returns true if verbosity is enabled.
+   */
+  bool IsVerbose() const;
 
   /**
    * Set whether or not this TryCatch should capture a Message object

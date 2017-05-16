@@ -563,6 +563,7 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   IncrementNodeCount();
   DisableFullCodegenAndCrankshaft(kClassLiteral);
   node->set_base_id(ReserveIdRange(ClassLiteral::num_ids()));
+  LanguageModeScope language_mode_scope(this, STRICT);
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());
   if (node->class_variable_proxy()) {
@@ -632,6 +633,7 @@ void AstNumberingVisitor::VisitStatements(ZoneList<Statement*>* statements) {
   if (statements == NULL) return;
   for (int i = 0; i < statements->length(); i++) {
     Visit(statements->at(i));
+    if (statements->at(i)->IsJump()) break;
   }
 }
 

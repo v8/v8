@@ -803,6 +803,8 @@ void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
 void* Simulator::RedirectExternalReference(Isolate* isolate,
                                            void* external_function,
                                            ExternalReference::Type type) {
+  base::LockGuard<base::Mutex> lock_guard(
+      isolate->simulator_redirection_mutex());
   Redirection* redirection = Redirection::Get(isolate, external_function, type);
   return redirection->address_of_swi_instruction();
 }
@@ -1706,12 +1708,11 @@ void Simulator::HandleVList(Instruction* instr) {
 // 64-bit value. With the code below we assume that all runtime calls return
 // 64 bits of result. If they don't, the r1 result register contains a bogus
 // value, which is fine because it is caller-saved.
-typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
-                                        int32_t arg1,
-                                        int32_t arg2,
-                                        int32_t arg3,
-                                        int32_t arg4,
-                                        int32_t arg5);
+typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0, int32_t arg1,
+                                        int32_t arg2, int32_t arg3,
+                                        int32_t arg4, int32_t arg5,
+                                        int32_t arg6, int32_t arg7,
+                                        int32_t arg8);
 
 typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int32_t arg0, int32_t arg1,
                                                    int32_t arg2, int32_t arg3,
@@ -1752,6 +1753,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       int32_t* stack_pointer = reinterpret_cast<int32_t*>(get_register(sp));
       int32_t arg4 = stack_pointer[0];
       int32_t arg5 = stack_pointer[1];
+      int32_t arg6 = stack_pointer[2];
+      int32_t arg7 = stack_pointer[3];
+      int32_t arg8 = stack_pointer[4];
+      STATIC_ASSERT(kMaxCParameters == 9);
+
       bool fp_call =
          (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
          (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
@@ -1939,16 +1945,17 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF(
               "Call to host function at %p "
-              "args %08x, %08x, %08x, %08x, %08x, %08x",
+              "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x",
               static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
-              arg4, arg5);
+              arg4, arg5, arg6, arg7, arg8);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
+        int64_t result =
+            target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
         if (::v8::internal::FLAG_trace_sim) {
@@ -4273,6 +4280,20 @@ void PairwiseMinMax(Simulator* simulator, int Vd, int Vm, int Vn, bool min) {
   simulator->set_neon_register<T, kDoubleSize>(Vd, dst);
 }
 
+template <typename T>
+void PairwiseAdd(Simulator* simulator, int Vd, int Vm, int Vn) {
+  static const int kElems = kDoubleSize / sizeof(T);
+  static const int kPairs = kElems / 2;
+  T dst[kElems], src1[kElems], src2[kElems];
+  simulator->get_neon_register<T, kDoubleSize>(Vn, src1);
+  simulator->get_neon_register<T, kDoubleSize>(Vm, src2);
+  for (int i = 0; i < kPairs; i++) {
+    dst[i] = src1[i * 2] + src1[i * 2 + 1];
+    dst[i + kPairs] = src2[i * 2] + src2[i * 2 + 1];
+  }
+  simulator->set_neon_register<T, kDoubleSize>(Vd, dst);
+}
+
 void Simulator::DecodeSpecialCondition(Instruction* instr) {
   switch (instr->SpecialValue()) {
     case 4: {
@@ -4477,6 +4498,25 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               break;
             case Neon32:
               PairwiseMinMax<int32_t>(this, Vd, Vm, Vn, min);
+              break;
+            default:
+              UNREACHABLE();
+              break;
+          }
+          break;
+        }
+        case 0xb: {
+          // vpadd.i<size> Dd, Dm, Dn.
+          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+          switch (size) {
+            case Neon8:
+              PairwiseAdd<int8_t>(this, Vd, Vm, Vn);
+              break;
+            case Neon16:
+              PairwiseAdd<int16_t>(this, Vd, Vm, Vn);
+              break;
+            case Neon32:
+              PairwiseAdd<int32_t>(this, Vd, Vm, Vn);
               break;
             default:
               UNREACHABLE();
@@ -4832,7 +4872,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           break;
         }
         case 0xd: {
-          if (instr->Bit(21) == 0 && instr->Bit(6) == 1 && instr->Bit(4) == 1) {
+          if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
+              instr->Bit(4) == 1) {
             // vmul.f32 Qd, Qn, Qm
             float src1[4], src2[4];
             get_neon_register(Vn, src1);
@@ -4841,6 +4882,10 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               src1[i] = src1[i] * src2[i];
             }
             set_neon_register(Vd, src1);
+          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 0 &&
+                     instr->Bit(4) == 0) {
+            // vpadd.f32 Dd, Dn, Dm
+            PairwiseAdd<float>(this, Vd, Vm, Vn);
           } else {
             UNIMPLEMENTED();
           }

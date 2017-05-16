@@ -192,9 +192,7 @@ namespace compiler {
   V(Mips64F32x4Abs)                 \
   V(Mips64F32x4Neg)                 \
   V(Mips64F32x4RecipApprox)         \
-  V(Mips64F32x4RecipRefine)         \
   V(Mips64F32x4RecipSqrtApprox)     \
-  V(Mips64F32x4RecipSqrtRefine)     \
   V(Mips64F32x4Add)                 \
   V(Mips64F32x4Sub)                 \
   V(Mips64F32x4Mul)                 \
@@ -205,7 +203,44 @@ namespace compiler {
   V(Mips64F32x4Lt)                  \
   V(Mips64F32x4Le)                  \
   V(Mips64I32x4SConvertF32x4)       \
-  V(Mips64I32x4UConvertF32x4)
+  V(Mips64I32x4UConvertF32x4)       \
+  V(Mips64I32x4Neg)                 \
+  V(Mips64I32x4LtS)                 \
+  V(Mips64I32x4LeS)                 \
+  V(Mips64I32x4LtU)                 \
+  V(Mips64I32x4LeU)                 \
+  V(Mips64I16x8Splat)               \
+  V(Mips64I16x8ExtractLane)         \
+  V(Mips64I16x8ReplaceLane)         \
+  V(Mips64I16x8Neg)                 \
+  V(Mips64I16x8Shl)                 \
+  V(Mips64I16x8ShrS)                \
+  V(Mips64I16x8ShrU)                \
+  V(Mips64I16x8Add)                 \
+  V(Mips64I16x8AddSaturateS)        \
+  V(Mips64I16x8Sub)                 \
+  V(Mips64I16x8SubSaturateS)        \
+  V(Mips64I16x8Mul)                 \
+  V(Mips64I16x8MaxS)                \
+  V(Mips64I16x8MinS)                \
+  V(Mips64I16x8Eq)                  \
+  V(Mips64I16x8Ne)                  \
+  V(Mips64I16x8LtS)                 \
+  V(Mips64I16x8LeS)                 \
+  V(Mips64I16x8AddSaturateU)        \
+  V(Mips64I16x8SubSaturateU)        \
+  V(Mips64I16x8MaxU)                \
+  V(Mips64I16x8MinU)                \
+  V(Mips64I16x8LtU)                 \
+  V(Mips64I16x8LeU)                 \
+  V(Mips64I8x16Splat)               \
+  V(Mips64I8x16ExtractLane)         \
+  V(Mips64I8x16ReplaceLane)         \
+  V(Mips64I8x16Neg)                 \
+  V(Mips64I8x16Shl)                 \
+  V(Mips64I8x16ShrS)                \
+  V(Mips64S16x8Select)              \
+  V(Mips64S8x16Select)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

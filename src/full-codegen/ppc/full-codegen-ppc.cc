@@ -987,7 +987,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ beq(&no_descriptors);
 
   __ LoadInstanceDescriptors(r3, r5);
-  __ LoadP(r5, FieldMemOperand(r5, DescriptorArray::kEnumCacheOffset));
+  __ LoadP(r5, FieldMemOperand(r5, DescriptorArray::kEnumCacheBridgeOffset));
   __ LoadP(r5,
            FieldMemOperand(r5, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
@@ -1774,12 +1774,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     // Assignment to var or initializing assignment to let/const in harmony
     // mode.
     MemOperand location = VarOperand(var, r4);
-    if (FLAG_debug_code && var->mode() == LET && op == Token::INIT) {
-      // Check for an uninitialized let binding.
-      __ LoadP(r5, location);
-      __ CompareRoot(r5, Heap::kTheHoleValueRootIndex);
-      __ Check(eq, kLetBindingReInitialization);
-    }
     EmitStoreToStackLocalOrContextSlot(var, location);
   }
 }

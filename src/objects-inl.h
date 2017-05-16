@@ -37,6 +37,7 @@
 #include "src/objects/scope-info.h"
 #include "src/property.h"
 #include "src/prototype.h"
+#include "src/string-hasher-inl.h"
 #include "src/transitions-inl.h"
 #include "src/v8memory.h"
 
@@ -1121,9 +1122,10 @@ bool Object::ToUint32(uint32_t* value) {
 
 // static
 MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
-                                         Handle<Object> object) {
+                                         Handle<Object> object,
+                                         const char* method_name) {
   if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
-  return ToObject(isolate, object, isolate->native_context());
+  return ToObject(isolate, object, isolate->native_context(), method_name);
 }
 
 
@@ -1301,8 +1303,15 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   reinterpret_cast<Object*>(base::NoBarrier_Load( \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
 
+#if V8_CONCURRENT_MARKING
+#define WRITE_FIELD(p, offset, value)                             \
+  base::NoBarrier_Store(                                          \
+      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
+      reinterpret_cast<base::AtomicWord>(value));
+#else
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
+#endif
 
 #define RELEASE_WRITE_FIELD(p, offset, value)                     \
   base::Release_Store(                                            \
@@ -1523,6 +1532,9 @@ void HeapObject::set_map_no_write_barrier(Map* value) {
   set_map_word(MapWord::FromMap(value));
 }
 
+HeapObject** HeapObject::map_slot() {
+  return reinterpret_cast<HeapObject**>(FIELD_ADDR(this, kMapOffset));
+}
 
 MapWord HeapObject::map_word() const {
   return MapWord(
@@ -2749,25 +2761,25 @@ inline int DescriptorArray::number_of_entries() {
 
 
 bool DescriptorArray::HasEnumCache() {
-  return !IsEmpty() && !get(kEnumCacheIndex)->IsSmi();
+  return !IsEmpty() && !get(kEnumCacheBridgeIndex)->IsSmi();
 }
 
 
 void DescriptorArray::CopyEnumCacheFrom(DescriptorArray* array) {
-  set(kEnumCacheIndex, array->get(kEnumCacheIndex));
+  set(kEnumCacheBridgeIndex, array->get(kEnumCacheBridgeIndex));
 }
 
 
 FixedArray* DescriptorArray::GetEnumCache() {
   DCHECK(HasEnumCache());
-  FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
+  FixedArray* bridge = FixedArray::cast(get(kEnumCacheBridgeIndex));
   return FixedArray::cast(bridge->get(kEnumCacheBridgeCacheIndex));
 }
 
 
 bool DescriptorArray::HasEnumIndicesCache() {
   if (IsEmpty()) return false;
-  Object* object = get(kEnumCacheIndex);
+  Object* object = get(kEnumCacheBridgeIndex);
   if (object->IsSmi()) return false;
   FixedArray* bridge = FixedArray::cast(object);
   return !bridge->get(kEnumCacheBridgeIndicesCacheIndex)->IsSmi();
@@ -2776,16 +2788,10 @@ bool DescriptorArray::HasEnumIndicesCache() {
 
 FixedArray* DescriptorArray::GetEnumIndicesCache() {
   DCHECK(HasEnumIndicesCache());
-  FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
+  FixedArray* bridge = FixedArray::cast(get(kEnumCacheBridgeIndex));
   return FixedArray::cast(bridge->get(kEnumCacheBridgeIndicesCacheIndex));
 }
 
-
-Object** DescriptorArray::GetEnumCacheSlot() {
-  DCHECK(HasEnumCache());
-  return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
-                              kEnumCacheOffset);
-}
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
@@ -3123,7 +3129,11 @@ void HashTableBase::ElementsRemoved(int n) {
 
 // static
 int HashTableBase::ComputeCapacity(int at_least_space_for) {
-  int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for * 2);
+  // Add 50% slack to make slot collisions sufficiently unlikely.
+  // See matching computation in HashTable::HasSufficientCapacityToAdd().
+  // Must be kept in sync with CodeStubAssembler::HashTableComputeCapacity().
+  int raw_cap = at_least_space_for + (at_least_space_for >> 1);
+  int capacity = base::bits::RoundUpToPowerOfTwo32(raw_cap);
   return Max(capacity, kMinCapacity);
 }
 
@@ -5824,7 +5834,7 @@ ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
 ACCESSORS_CHECKED(Script, wasm_compiled_module, Object, kEvalFromSharedOffset,
                   this->type() == TYPE_WASM)
-ACCESSORS(Script, preparsed_scope_data, FixedTypedArrayBase,
+ACCESSORS(Script, preparsed_scope_data, PodArray<uint32_t>,
           kPreParsedScopeDataOffset)
 
 Script::CompilationType Script::compilation_type() {
@@ -5899,6 +5909,7 @@ SMI_ACCESSORS(StackFrameInfo, flag, kFlagIndex)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, kIsWasmBit)
+SMI_ACCESSORS(StackFrameInfo, id, kIdIndex)
 
 ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
           kSourcePositionTableIndex)
@@ -5906,8 +5917,6 @@ ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
           UnseededNumberDictionary, kStackFrameCacheIndex)
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
-ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,
-          kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
           kFeedbackMetadataOffset)
@@ -6438,10 +6447,6 @@ bool SharedFunctionInfo::IsSubjectToDebugging() {
   return IsUserJavaScript() && !HasAsmWasmData();
 }
 
-bool SharedFunctionInfo::OptimizedCodeMapIsCleared() const {
-  return optimized_code_map() == GetHeap()->empty_fixed_array();
-}
-
 FeedbackVector* JSFunction::feedback_vector() const {
   DCHECK(feedback_vector_cell()->value()->IsFeedbackVector());
   return FeedbackVector::cast(feedback_vector_cell()->value());
@@ -6525,14 +6530,24 @@ void JSFunction::set_code_no_write_barrier(Code* value) {
   WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
 }
 
+void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
+  if (has_feedback_vector() && feedback_vector()->has_optimized_code()) {
+    if (FLAG_trace_opt) {
+      PrintF("[evicting entry from optimizing code feedback slot (%s) for ",
+             reason);
+      shared()->ShortPrint();
+      PrintF("]\n");
+    }
+    feedback_vector()->ClearOptimizedCode();
+  }
+}
 
 void JSFunction::ReplaceCode(Code* code) {
   bool was_optimized = IsOptimized();
   bool is_optimized = code->kind() == Code::OPTIMIZED_FUNCTION;
 
   if (was_optimized && is_optimized) {
-    shared()->EvictFromOptimizedCodeMap(this->code(),
-        "Replacing with another optimized code");
+    ClearOptimizedCodeSlot("Replacing with another optimized code");
   }
 
   set_code(code);
@@ -6980,6 +6995,14 @@ void JSArrayBuffer::set_has_guard_region(bool value) {
   set_bit_field(HasGuardRegion::update(bit_field(), value));
 }
 
+bool JSArrayBuffer::is_wasm_buffer() {
+  return IsWasmBuffer::decode(bit_field());
+}
+
+void JSArrayBuffer::set_is_wasm_buffer(bool value) {
+  set_bit_field(IsWasmBuffer::update(bit_field(), value));
+}
+
 Object* JSArrayBufferView::byte_offset() const {
   if (WasNeutered()) return Smi::kZero;
   return Object::cast(READ_FIELD(this, kByteOffsetOffset));
@@ -7044,8 +7067,18 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
   }
 
-  // TODO(caitp): throw if array.[[ViewedArrayBuffer]] is neutered (per v8:4648)
-  return Handle<JSTypedArray>::cast(receiver);
+  Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
+  if (V8_UNLIKELY(array->WasNeutered())) {
+    const MessageTemplate::Template message =
+        MessageTemplate::kDetachedOperation;
+    Handle<String> operation =
+        isolate->factory()->NewStringFromAsciiChecked(method_name);
+    THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
+  }
+
+  // spec describes to return `buffer`, but it may disrupt current
+  // implementations, and it's much useful to return array for now.
+  return array;
 }
 
 #ifdef VERIFY_HEAP
@@ -7295,152 +7328,6 @@ uint32_t Name::Hash() {
 bool Name::IsPrivate() {
   return this->IsSymbol() && Symbol::cast(this)->is_private();
 }
-
-
-StringHasher::StringHasher(int length, uint32_t seed)
-  : length_(length),
-    raw_running_hash_(seed),
-    array_index_(0),
-    is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
-    is_first_char_(true) {
-  DCHECK(FLAG_randomize_hashes || raw_running_hash_ == 0);
-}
-
-
-bool StringHasher::has_trivial_hash() {
-  return length_ > String::kMaxHashCalcLength;
-}
-
-
-uint32_t StringHasher::AddCharacterCore(uint32_t running_hash, uint16_t c) {
-  running_hash += c;
-  running_hash += (running_hash << 10);
-  running_hash ^= (running_hash >> 6);
-  return running_hash;
-}
-
-
-uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
-  running_hash += (running_hash << 3);
-  running_hash ^= (running_hash >> 11);
-  running_hash += (running_hash << 15);
-  if ((running_hash & String::kHashBitMask) == 0) {
-    return kZeroHash;
-  }
-  return running_hash;
-}
-
-
-uint32_t StringHasher::ComputeRunningHash(uint32_t running_hash,
-                                          const uc16* chars, int length) {
-  DCHECK_NOT_NULL(chars);
-  DCHECK(length >= 0);
-  for (int i = 0; i < length; ++i) {
-    running_hash = AddCharacterCore(running_hash, *chars++);
-  }
-  return running_hash;
-}
-
-
-uint32_t StringHasher::ComputeRunningHashOneByte(uint32_t running_hash,
-                                                 const char* chars,
-                                                 int length) {
-  DCHECK_NOT_NULL(chars);
-  DCHECK(length >= 0);
-  for (int i = 0; i < length; ++i) {
-    uint16_t c = static_cast<uint16_t>(*chars++);
-    running_hash = AddCharacterCore(running_hash, c);
-  }
-  return running_hash;
-}
-
-
-void StringHasher::AddCharacter(uint16_t c) {
-  // Use the Jenkins one-at-a-time hash function to update the hash
-  // for the given character.
-  raw_running_hash_ = AddCharacterCore(raw_running_hash_, c);
-}
-
-
-bool StringHasher::UpdateIndex(uint16_t c) {
-  DCHECK(is_array_index_);
-  if (c < '0' || c > '9') {
-    is_array_index_ = false;
-    return false;
-  }
-  int d = c - '0';
-  if (is_first_char_) {
-    is_first_char_ = false;
-    if (c == '0' && length_ > 1) {
-      is_array_index_ = false;
-      return false;
-    }
-  }
-  if (array_index_ > 429496729U - ((d + 3) >> 3)) {
-    is_array_index_ = false;
-    return false;
-  }
-  array_index_ = array_index_ * 10 + d;
-  return true;
-}
-
-
-template<typename Char>
-inline void StringHasher::AddCharacters(const Char* chars, int length) {
-  DCHECK(sizeof(Char) == 1 || sizeof(Char) == 2);
-  int i = 0;
-  if (is_array_index_) {
-    for (; i < length; i++) {
-      AddCharacter(chars[i]);
-      if (!UpdateIndex(chars[i])) {
-        i++;
-        break;
-      }
-    }
-  }
-  for (; i < length; i++) {
-    DCHECK(!is_array_index_);
-    AddCharacter(chars[i]);
-  }
-}
-
-
-template <typename schar>
-uint32_t StringHasher::HashSequentialString(const schar* chars,
-                                            int length,
-                                            uint32_t seed) {
-  StringHasher hasher(length, seed);
-  if (!hasher.has_trivial_hash()) hasher.AddCharacters(chars, length);
-  return hasher.GetHashField();
-}
-
-
-IteratingStringHasher::IteratingStringHasher(int len, uint32_t seed)
-    : StringHasher(len, seed) {}
-
-
-uint32_t IteratingStringHasher::Hash(String* string, uint32_t seed) {
-  IteratingStringHasher hasher(string->length(), seed);
-  // Nothing to do.
-  if (hasher.has_trivial_hash()) return hasher.GetHashField();
-  ConsString* cons_string = String::VisitFlat(&hasher, string);
-  if (cons_string == nullptr) return hasher.GetHashField();
-  hasher.VisitConsString(cons_string);
-  return hasher.GetHashField();
-}
-
-
-void IteratingStringHasher::VisitOneByteString(const uint8_t* chars,
-                                               int length) {
-  AddCharacters(chars, length);
-}
-
-
-void IteratingStringHasher::VisitTwoByteString(const uint16_t* chars,
-                                               int length) {
-  AddCharacters(chars, length);
-}
-
 
 bool Name::AsArrayIndex(uint32_t* index) {
   return IsString() && String::cast(this)->AsArrayIndex(index);

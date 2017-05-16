@@ -91,6 +91,10 @@
 #endif  // Target architecture.
 #endif  // V8_INTERPRETED_REGEXP
 
+#ifdef V8_INTL_SUPPORT
+#include "src/intl.h"
+#endif  // V8_INTL_SUPPORT
+
 namespace v8 {
 namespace internal {
 
@@ -140,11 +144,8 @@ const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 // Implementation of AssemblerBase
 
 AssemblerBase::IsolateData::IsolateData(Isolate* isolate)
-    : serializer_enabled_(isolate->serializer_enabled())
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-      ,
+    : serializer_enabled_(isolate->serializer_enabled()),
       max_old_generation_size_(isolate->heap()->MaxOldGenerationSize())
-#endif
 #if V8_TARGET_ARCH_X64
       ,
       code_range_start_(
@@ -1574,6 +1575,20 @@ ExternalReference ExternalReference::try_internalize_string_function(
   return ExternalReference(Redirect(
       isolate, FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
 }
+
+#ifdef V8_INTL_SUPPORT
+ExternalReference ExternalReference::intl_convert_one_byte_to_lower(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(ConvertOneByteToLower)));
+}
+
+ExternalReference ExternalReference::intl_to_latin1_lower_table(
+    Isolate* isolate) {
+  uint8_t* ptr = const_cast<uint8_t*>(ToLatin1LowerTable());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+#endif  // V8_INTL_SUPPORT
 
 // Explicit instantiations for all combinations of 1- and 2-byte strings.
 template ExternalReference

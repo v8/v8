@@ -6057,4 +6057,63 @@ TEST(maddf_msubf_d) {
   });
 }
 
+uint64_t run_Dins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(v0, imm);
+  __ li(t0, source);
+  __ Dins(v0, t0, pos, size);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Dins) {
+  CcTest::InitializeVM();
+
+  // Test Dins macro-instruction.
+
+  struct TestCaseDins {
+    uint64_t imm;
+    uint64_t source;
+    uint16_t pos;
+    uint16_t size;
+    uint64_t expected_res;
+  };
+
+  // We load imm to v0 and source to t0 and then call
+  // Dins(v0, t0, pos, size) to test cases listed below.
+  struct TestCaseDins tc[] = {
+      // imm, source, pos, size, expected_res
+      {0x5555555555555555, 0x1ABCDEF01, 31, 1, 0x55555555D5555555},
+      {0x5555555555555555, 0x1ABCDEF02, 30, 2, 0x5555555595555555},
+      {0x201234567, 0x1FABCDEFF, 0, 32, 0x2FABCDEFF},
+      {0x201234567, 0x7FABCDEFF, 31, 2, 0x381234567},
+      {0x800000000, 0x7FABCDEFF, 0, 33, 0x9FABCDEFF},
+      {0x1234, 0xABCDABCDABCDABCD, 0, 64, 0xABCDABCDABCDABCD},
+      {0xABCD, 0xABCEABCF, 32, 1, 0x10000ABCD},
+      {0xABCD, 0xABCEABCF, 63, 1, 0x800000000000ABCD},
+      {0xABCD, 0xABC1ABC2ABC3ABC4, 32, 32, 0xABC3ABC40000ABCD},
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseDins);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res,
+             run_Dins(tc[i].imm, tc[i].source, tc[i].pos, tc[i].size));
+  }
+}
+
 #undef __

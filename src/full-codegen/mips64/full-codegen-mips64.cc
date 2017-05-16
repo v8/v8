@@ -1024,7 +1024,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Branch(&no_descriptors, eq, a1, Operand(Smi::kZero));
 
   __ LoadInstanceDescriptors(v0, a2);
-  __ Ld(a2, FieldMemOperand(a2, DescriptorArray::kEnumCacheOffset));
+  __ Ld(a2, FieldMemOperand(a2, DescriptorArray::kEnumCacheBridgeOffset));
   __ Ld(a2, FieldMemOperand(a2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
@@ -1777,12 +1777,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     // Assignment to var or initializing assignment to let/const in harmony
     // mode.
     MemOperand location = VarOperand(var, a1);
-    if (FLAG_debug_code && var->mode() == LET && op == Token::INIT) {
-      // Check for an uninitialized let binding.
-      __ Ld(a2, location);
-      __ LoadRoot(a4, Heap::kTheHoleValueRootIndex);
-      __ Check(eq, kLetBindingReInitialization, a2, Operand(a4));
-    }
     EmitStoreToStackLocalOrContextSlot(var, location);
   }
 }

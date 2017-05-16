@@ -200,41 +200,41 @@ DEFINE_IMPLICATION(use_types, harmony_types)
 DEFINE_IMPLICATION(use_types, use_strict)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                           \
-  V(harmony_array_prototype_values, "harmony Array.prototype.values")   \
-  V(harmony_function_sent, "harmony function.sent")                     \
-  V(harmony_tailcalls, "harmony tail calls")                            \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
-  V(harmony_do_expressions, "harmony do-expressions")                   \
-  V(harmony_class_fields, "harmony public fields in class literals")    \
-  V(harmony_async_iteration, "harmony async iteration")                 \
-  V(harmony_dynamic_import, "harmony dynamic import")                   \
-  V(harmony_promise_finally, "harmony Promise.prototype.finally")       \
+#define HARMONY_INPROGRESS(V)                                         \
+  V(harmony_array_prototype_values, "harmony Array.prototype.values") \
+  V(harmony_function_sent, "harmony function.sent")                   \
+  V(harmony_tailcalls, "harmony tail calls")                          \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
+  V(harmony_do_expressions, "harmony do-expressions")                 \
+  V(harmony_class_fields, "harmony public fields in class literals")  \
+  V(harmony_async_iteration, "harmony async iteration")               \
+  V(harmony_dynamic_import, "harmony dynamic import")                 \
+  V(harmony_promise_finally, "harmony Promise.prototype.finally")
+
+// Features that are complete (but still behind --harmony/es-staging flag).
+#define HARMONY_STAGED(V)                                               \
+  V(harmony_function_tostring, "harmony Function.prototype.toString")   \
+  V(harmony_regexp_dotall, "harmony regexp dotall flag")                \
+  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")             \
+  V(harmony_regexp_named_captures, "harmony regexp named captures")     \
+  V(harmony_regexp_property, "harmony unicode regexp property classes") \
   V(harmony_strict_legacy_accessor_builtins,                            \
     "treat __defineGetter__ and related functions as strict")           \
+  V(harmony_template_escapes,                                           \
+    "harmony invalid escapes in tagged template literals")              \
   V(harmony_restrict_constructor_return,                                \
     "harmony disallow non undefined primitive return value from class " \
     "constructor")
 
-// Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                                                \
-  V(harmony_function_tostring, "harmony Function.prototype.toString")    \
-  V(harmony_regexp_dotall, "harmony regexp dotall flag")                 \
-  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")              \
-  V(harmony_regexp_named_captures, "harmony regexp named captures")      \
-  V(harmony_regexp_property, "harmony unicode regexp property classes")  \
-  V(harmony_object_rest_spread, "harmony object rest spread properties") \
-  V(harmony_template_escapes,                                            \
-    "harmony invalid escapes in tagged template literals")
-
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                      \
-  V(harmony_restrictive_generators,                   \
-    "harmony restrictions on generator declarations") \
-  V(harmony_trailing_commas,                          \
-    "harmony trailing commas in function parameter lists")
+#define HARMONY_SHIPPING_BASE(V)                           \
+  V(harmony_restrictive_generators,                        \
+    "harmony restrictions on generator declarations")      \
+  V(harmony_trailing_commas,                               \
+    "harmony trailing commas in function parameter lists") \
+  V(harmony_object_rest_spread, "harmony object rest spread properties")
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)                                        \
   HARMONY_SHIPPING_BASE(V)                                         \
   V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
@@ -265,7 +265,7 @@ HARMONY_STAGED(FLAG_STAGED_FEATURES)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 DEFINE_BOOL(icu_timezone_data, false,
             "get information about timezones from ICU")
 #endif
@@ -350,7 +350,6 @@ DEFINE_STRING(trace_ignition_dispatches_output_file, nullptr,
               "written (by default, the table is not written to a file)")
 
 // Flags for Crankshaft.
-DEFINE_BOOL(crankshaft, true, "use crankshaft")
 DEFINE_STRING(hydrogen_filter, "*", "optimization filter")
 DEFINE_BOOL(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_INT(gvn_iterations, 3, "maximum number of GVN fix-point iterations")
@@ -368,10 +367,11 @@ DEFINE_INT(max_inlined_nodes, 200,
            "maximum number of AST nodes considered for a single inlining")
 DEFINE_INT(max_inlined_nodes_cumulative, 400,
            "maximum cumulative number of AST nodes considered for inlining")
+DEFINE_INT(max_inlined_nodes_small, 10,
+           "maximum number of AST nodes considered for small function inlining")
+DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
 DEFINE_BOOL(loop_invariant_code_motion, true, "loop invariant code motion")
 DEFINE_BOOL(fast_math, true, "faster (but maybe less accurate) math functions")
-DEFINE_BOOL(collect_megamorphic_maps_from_stub_cache, false,
-            "crankshaft harvests type feedback from stub cache")
 DEFINE_BOOL(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_BOOL(trace_check_elimination, false, "trace check elimination phase")
 DEFINE_BOOL(trace_environment_liveness, false,
@@ -531,7 +531,7 @@ DEFINE_BOOL(minimal, false,
             "simplifies execution model to make porting "
             "easier (e.g. always use Ignition, never use Crankshaft")
 DEFINE_IMPLICATION(minimal, ignition)
-DEFINE_NEG_IMPLICATION(minimal, crankshaft)
+DEFINE_NEG_IMPLICATION(minimal, opt)
 DEFINE_NEG_IMPLICATION(minimal, use_ic)
 
 // Flags for native WebAssembly.
@@ -563,8 +563,6 @@ DEFINE_BOOL(wasm_break_on_decoder_error, false,
             "debug break when wasm decoder encounters an error")
 
 DEFINE_BOOL(validate_asm, false, "validate asm.js modules before compiling")
-DEFINE_BOOL(fast_validate_asm, false,
-            "validate asm.js modules before compiling")
 DEFINE_BOOL(suppress_asm_messages, false,
             "don't emit asm.js related messages (for golden file testing)")
 DEFINE_BOOL(trace_asm_time, false, "log asm.js timing info to the console")
@@ -611,6 +609,9 @@ DEFINE_BOOL(asm_wasm_lazy_compilation, false,
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
 DEFINE_BOOL(wasm_lazy_compilation, false,
             "enable lazy compilation for all wasm modules")
+// wasm-interpret-all resets {asm-,}wasm-lazy-compilation.
+DEFINE_NEG_IMPLICATION(wasm_interpret_all, asm_wasm_lazy_compilation)
+DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_lazy_compilation)
 
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
@@ -673,7 +674,7 @@ DEFINE_BOOL(age_code, true,
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_wrappers, true,
             "use incremental marking for marking wrappers")
-DEFINE_BOOL(concurrent_marking, false, "use concurrent marking")
+DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING, "use concurrent marking")
 DEFINE_BOOL(trace_concurrent_marking, false, "trace concurrent marking")
 DEFINE_INT(min_progress_during_incremental_marking_finalization, 32,
            "keep finalizing incremental marking as long as we discover at "
@@ -681,7 +682,6 @@ DEFINE_INT(min_progress_during_incremental_marking_finalization, 32,
 DEFINE_INT(max_incremental_marking_finalization_rounds, 3,
            "at most try this many times to finalize incremental marking")
 DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
-DEFINE_NEG_IMPLICATION(minor_mc, page_promotion)
 DEFINE_NEG_IMPLICATION(minor_mc, flush_code)
 DEFINE_BOOL(black_allocation, true, "use black allocation")
 DEFINE_BOOL(concurrent_store_buffer, true,
@@ -708,6 +708,8 @@ DEFINE_BOOL(trace_detached_contexts, false,
 DEFINE_IMPLICATION(trace_detached_contexts, track_detached_contexts)
 #ifdef VERIFY_HEAP
 DEFINE_BOOL(verify_heap, false, "verify heap pointers before and after GC")
+DEFINE_BOOL(verify_heap_skip_remembered_set, false,
+            "disable remembered set verification")
 #endif
 DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")
@@ -723,8 +725,6 @@ DEFINE_BOOL(cleanup_code_caches_at_gc, true,
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
-DEFINE_BOOL(zap_code_space, DEBUG_BOOL,
-            "Zap free memory in code space with 0xCC while sweeping.")
 DEFINE_BOOL(force_marking_deque_overflows, false,
             "force overflows of marking deque by reducing it's size "
             "to 64 words")
@@ -919,7 +919,8 @@ DEFINE_BOOL(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
 // ic.cc
 DEFINE_BOOL(use_ic, true, "use inline caching")
-DEFINE_BOOL(trace_ic, false, "trace inline cache state transitions")
+DEFINE_BOOL(trace_ic, false,
+            "trace inline cache state transitions for tools/ic-processor")
 DEFINE_IMPLICATION(trace_ic, log_code)
 DEFINE_INT(ic_stats, 0, "inline cache state transitions statistics")
 DEFINE_VALUE_IMPLICATION(trace_ic, ic_stats, 1)

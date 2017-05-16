@@ -1,5 +1,3 @@
-# Keep in sync with test/cctest/asmjs/OWNERS.
-
 set noparent
 
 ahaas@chromium.org

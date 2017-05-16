@@ -165,7 +165,7 @@ function dumpAsyncChainLength(message) {
 }
 
 async function setMaxAsyncTaskStacks(max) {
-  let expression = `setMaxAsyncTaskStacks(${max})`;
+  let expression = `inspector.setMaxAsyncTaskStacks(${max})`;
   InspectorTest.log(expression);
   await Protocol.Runtime.evaluate({expression});
 }

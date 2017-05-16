@@ -73,7 +73,6 @@ enum ContextLookupFlags {
     typed_array_construct_by_array_like)                                    \
   V(TYPED_ARRAY_CONSTRUCT_BY_LENGTH_INDEX, JSFunction,                      \
     typed_array_construct_by_length)                                        \
-  V(TYPED_ARRAY_INITIALIZE_INDEX, JSFunction, typed_array_initialize)       \
   V(MATH_FLOOR_INDEX, JSFunction, math_floor)                               \
   V(MATH_POW_INDEX, JSFunction, math_pow)                                   \
   V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)       \
@@ -86,9 +85,7 @@ enum ContextLookupFlags {
   V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                       \
   V(PROMISE_HANDLE_REJECT_INDEX, JSFunction, promise_handle_reject)         \
   V(ASYNC_GENERATOR_AWAIT_CAUGHT, JSFunction, async_generator_await_caught) \
-  V(ASYNC_GENERATOR_AWAIT_UNCAUGHT, JSFunction,                             \
-    async_generator_await_uncaught)                                         \
-  V(ASYNC_GENERATOR_YIELD, JSFunction, async_generator_yield)
+  V(ASYNC_GENERATOR_AWAIT_UNCAUGHT, JSFunction, async_generator_await_uncaught)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \
   V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                             \
@@ -346,6 +343,8 @@ enum ContextLookupFlags {
   V(SLOW_ALIASED_ARGUMENTS_MAP_INDEX, Map, slow_aliased_arguments_map)         \
   V(SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP, Map,                                  \
     slow_object_with_null_prototype_map)                                       \
+  V(SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP, Map,                                \
+    slow_object_with_object_prototype_map)                                     \
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, UnseededNumberDictionary,        \
     slow_template_instantiations_cache)                                        \
   V(STRICT_ARGUMENTS_MAP_INDEX, Map, strict_arguments_map)                     \
@@ -594,22 +593,22 @@ class Context: public FixedArray {
   // Removes a specific optimized code object from the optimized code map.
   // In case of non-OSR the code reference is cleared from the cache entry but
   // the entry itself is left in the map in order to proceed sharing literals.
-  void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
+  void EvictFromOSROptimizedCodeCache(Code* optimized_code, const char* reason);
 
   // Clear optimized code map.
-  void ClearOptimizedCodeMap();
+  void ClearOSROptimizedCodeCache();
 
   // A native context keeps track of all osrd optimized functions.
-  inline bool OptimizedCodeMapIsCleared();
-  Code* SearchOptimizedCodeMap(SharedFunctionInfo* shared,
-                               BailoutId osr_ast_id);
-  int SearchOptimizedCodeMapEntry(SharedFunctionInfo* shared,
-                                  BailoutId osr_ast_id);
-
-  static void AddToOptimizedCodeMap(Handle<Context> native_context,
-                                    Handle<SharedFunctionInfo> shared,
-                                    Handle<Code> code,
+  inline bool OSROptimizedCodeCacheIsCleared();
+  Code* SearchOSROptimizedCodeCache(SharedFunctionInfo* shared,
                                     BailoutId osr_ast_id);
+  int SearchOSROptimizedCodeCacheEntry(SharedFunctionInfo* shared,
+                                       BailoutId osr_ast_id);
+
+  static void AddToOSROptimizedCodeCache(Handle<Context> native_context,
+                                         Handle<SharedFunctionInfo> shared,
+                                         Handle<Code> code,
+                                         BailoutId osr_ast_id);
 
   // A native context holds a list of all functions with optimized code.
   void AddOptimizedFunction(JSFunction* function);

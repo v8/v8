@@ -108,4 +108,4 @@
   V(kUnsigned, -3, "{unsigned value}")   \
   V(kDouble, -4, "{double value}")
 
-#endif
+#endif  // V8_ASMJS_ASM_NAMES_H_

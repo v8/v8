@@ -279,7 +279,7 @@ void V8Console::Count(const v8::debug::ConsoleCallArguments& info) {
 
 void V8Console::Assert(const v8::debug::ConsoleCallArguments& info) {
   ConsoleHelper helper(info, m_inspector);
-  if (helper.firstArgToBoolean(false)) return;
+  DCHECK(!helper.firstArgToBoolean(false));
 
   std::vector<v8::Local<v8::Value>> arguments;
   for (int i = 1; i < info.Length(); ++i) arguments.push_back(info[i]);

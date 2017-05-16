@@ -129,6 +129,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I32x4Shl:
     case kX64I32x4ShrS:
     case kX64I32x4Add:
+    case kX64I32x4AddHoriz:
     case kX64I32x4Sub:
     case kX64I32x4Mul:
     case kX64I32x4MinS:
@@ -145,6 +146,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I16x8ShrS:
     case kX64I16x8Add:
     case kX64I16x8AddSaturateS:
+    case kX64I16x8AddHoriz:
     case kX64I16x8Sub:
     case kX64I16x8SubSaturateS:
     case kX64I16x8Mul:
@@ -172,6 +174,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I8x16SubSaturateU:
     case kX64I8x16MinU:
     case kX64I8x16MaxU:
+    case kX64S128And:
+    case kX64S128Or:
+    case kX64S128Xor:
+    case kX64S128Not:
     case kX64S128Select:
     case kX64S128Zero:
       return (instr->addressing_mode() == kMode_None)
@@ -215,6 +221,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Movq:
     case kX64Movsd:
     case kX64Movss:
+    case kX64Movdqu:
       return instr->HasOutput() ? kIsLoadOperation : kHasSideEffect;
 
     case kX64StackCheck:

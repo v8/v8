@@ -129,6 +129,7 @@ class V8_EXPORT_PRIVATE Script {
 
   ScriptOriginOptions OriginOptions() const;
   bool WasCompiled() const;
+  bool IsEmbedded() const;
   int Id() const;
   int LineOffset() const;
   int ColumnOffset() const;
@@ -136,7 +137,7 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> Name() const;
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;
-  MaybeLocal<Value> ContextData() const;
+  Maybe<int> ContextId() const;
   MaybeLocal<String> Source() const;
   bool IsWasm() const;
   bool IsModule() const;
@@ -209,7 +210,10 @@ enum Builtin {
 
 Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 
-void SetConsoleDelegate(Isolate* isolate, ConsoleDelegate* delegate);
+V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
+                                          ConsoleDelegate* delegate);
+
+int GetStackFrameId(v8::Local<v8::StackFrame> frame);
 
 /**
  * Native wrapper around v8::internal::JSGeneratorObject object.

@@ -105,9 +105,12 @@ class InterpreterHandle {
  public:
   // Initialize in the right order, using helper methods to make this possible.
   // WasmInterpreter has to be allocated in place, since it is not movable.
-  InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
+  InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info,
+                    WasmInstance* external_instance = nullptr)
       : instance_(debug_info->wasm_instance()->compiled_module()->module()),
-        interpreter_(isolate, GetBytesEnv(&instance_, debug_info)),
+        interpreter_(isolate, GetBytesEnv(external_instance ? external_instance
+                                                            : &instance_,
+                                          debug_info)),
         isolate_(isolate) {
     DisallowHeapAllocation no_gc;
 
@@ -401,8 +404,10 @@ class InterpreterHandle {
   }
 
   void UpdateMemory(JSArrayBuffer* new_memory) {
-    instance_.mem_start = reinterpret_cast<byte*>(new_memory->backing_store());
-    CHECK(new_memory->byte_length()->ToUint32(&instance_.mem_size));
+    byte* mem_start = reinterpret_cast<byte*>(new_memory->backing_store());
+    uint32_t mem_size;
+    CHECK(new_memory->byte_length()->ToUint32(&mem_size));
+    interpreter()->UpdateMemory(mem_start, mem_size);
   }
 
   Handle<JSArray> GetScopeDetails(Address frame_pointer, int frame_index,
@@ -570,12 +575,25 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
 }  // namespace
 
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  Factory* factory = isolate->factory();
+  DCHECK(!instance->has_debug_info());
+  Factory* factory = instance->GetIsolate()->factory();
   Handle<FixedArray> arr = factory->NewFixedArray(kFieldCount, TENURED);
   arr->set(kWrapperTracerHeader, Smi::kZero);
   arr->set(kInstance, *instance);
-  return Handle<WasmDebugInfo>::cast(arr);
+  Handle<WasmDebugInfo> debug_info = Handle<WasmDebugInfo>::cast(arr);
+  instance->set_debug_info(*debug_info);
+  return debug_info;
+}
+
+WasmInterpreter* WasmDebugInfo::SetupForTesting(
+    Handle<WasmInstanceObject> instance_obj, WasmInstance* instance) {
+  Handle<WasmDebugInfo> debug_info = WasmDebugInfo::New(instance_obj);
+  Isolate* isolate = instance_obj->GetIsolate();
+  InterpreterHandle* cpp_handle =
+      new InterpreterHandle(isolate, *debug_info, instance);
+  Handle<Object> handle = Managed<InterpreterHandle>::New(isolate, cpp_handle);
+  debug_info->set(kInterpreterHandle, *handle);
+  return cpp_handle->interpreter();
 }
 
 bool WasmDebugInfo::IsDebugInfo(Object* object) {

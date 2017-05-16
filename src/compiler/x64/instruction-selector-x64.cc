@@ -26,7 +26,8 @@ class X64OperandGenerator final : public OperandGenerator {
         return true;
       case IrOpcode::kInt64Constant: {
         const int64_t value = OpParameter<int64_t>(node);
-        return value == static_cast<int64_t>(static_cast<int32_t>(value));
+        return std::numeric_limits<int32_t>::min() < value &&
+               value <= std::numeric_limits<int32_t>::max();
       }
       case IrOpcode::kNumberConstant: {
         const double value = OpParameter<double>(node);
@@ -230,6 +231,8 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       opcode = kX64Movq;
       break;
     case MachineRepresentation::kSimd128:  // Fall through.
+      opcode = kX64Movdqu;
+      break;
     case MachineRepresentation::kSimd1x4:  // Fall through.
     case MachineRepresentation::kSimd1x8:  // Fall through.
     case MachineRepresentation::kSimd1x16:  // Fall through.
@@ -265,6 +268,8 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64Movq;
       break;
     case MachineRepresentation::kSimd128:  // Fall through.
+      return kX64Movdqu;
+      break;
     case MachineRepresentation::kSimd1x4:  // Fall through.
     case MachineRepresentation::kSimd1x8:  // Fall through.
     case MachineRepresentation::kSimd1x16:  // Fall through.
@@ -2456,6 +2461,7 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_BINOP_LIST(V) \
   V(I32x4Add)              \
+  V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
   V(I32x4MinS)             \
@@ -2466,6 +2472,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MaxU)             \
   V(I16x8Add)              \
   V(I16x8AddSaturateS)     \
+  V(I16x8AddHoriz)         \
   V(I16x8Sub)              \
   V(I16x8SubSaturateS)     \
   V(I16x8Mul)              \
@@ -2488,7 +2495,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
   V(I8x16MinU)             \
-  V(I8x16MaxU)
+  V(I8x16MaxU)             \
+  V(S128And)               \
+  V(S128Or)                \
+  V(S128Xor)
+
+#define SIMD_UNOP_LIST(V) V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \
   V(I32x4Shl)                 \
@@ -2545,6 +2557,15 @@ SIMD_ZERO_OP_LIST(SIMD_VISIT_ZERO_OP)
   }
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
+
+#define VISIT_SIMD_UNOP(Opcode)                         \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    X64OperandGenerator g(this);                        \
+    Emit(kX64##Opcode, g.DefineAsRegister(node),        \
+         g.UseRegister(node->InputAt(0)));              \
+  }
+SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
+#undef VISIT_SIMD_UNOP
 
 #define VISIT_SIMD_BINOP(Opcode)                                            \
   void InstructionSelector::Visit##Opcode(Node* node) {                     \

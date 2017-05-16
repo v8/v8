@@ -47,5 +47,12 @@ InspectorTest.runAsyncTestSuite([
     let message = await Protocol.Runtime.evaluate({
       expression: 'console.toString()', returnByValue: true})
     InspectorTest.log(message.result.result.value);
+  },
+
+  async function consoleMethodPropertyDescriptor() {
+    let message = await Protocol.Runtime.evaluate({
+      expression: 'Object.getOwnPropertyDescriptor(console, \'log\')',
+      returnByValue: true});
+    InspectorTest.logObject(message.result.result.value);
   }
 ]);

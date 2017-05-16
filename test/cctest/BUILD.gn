@@ -12,7 +12,7 @@ v8_executable("cctest") {
 
     ### gcmole(all) ###
     "../common/wasm/test-signatures.h",
-    "asmjs/test-asm-typer.cc",
+    "../common/wasm/wasm-macro-gen.h",
     "ast-types-fuzz.h",
     "cctest.cc",
     "cctest.h",

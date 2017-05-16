@@ -30,7 +30,7 @@ function debuggerStatement() {
 }
 
 function syncDOMBreakpoint() {
-  breakProgram('', '');
+  inspector.breakProgram('', '');
 }
 
 function asyncDOMBreakpoint() {

@@ -365,7 +365,7 @@ class Debug {
   char* RestoreDebug(char* from);
   static int ArchiveSpacePerThread();
   void FreeThreadResources() { }
-  void Iterate(ObjectVisitor* v);
+  void Iterate(RootVisitor* v);
 
   bool CheckExecutionState(int id) {
     return CheckExecutionState() && break_id() == id;

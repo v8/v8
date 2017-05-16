@@ -153,6 +153,29 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
     BIND(&cell_done);
   }
+  {
+    // If the feedback vector has optimized code, check whether it is marked
+    // for deopt and, if so, clear it.
+    Label optimized_code_ok(this);
+    Node* literals = LoadObjectField(literals_cell, Cell::kValueOffset);
+    GotoIfNot(IsFeedbackVector(literals), &optimized_code_ok);
+    Node* optimized_code_cell =
+        LoadFixedArrayElement(literals, FeedbackVector::kOptimizedCodeIndex);
+    Node* optimized_code =
+        LoadWeakCellValue(optimized_code_cell, &optimized_code_ok);
+    Node* code_flags = LoadObjectField(
+        optimized_code, Code::kKindSpecificFlags1Offset, MachineType::Uint32());
+    Node* marked_for_deopt =
+        DecodeWord32<Code::MarkedForDeoptimizationField>(code_flags);
+    GotoIf(Word32Equal(marked_for_deopt, Int32Constant(0)), &optimized_code_ok);
+
+    // Code is marked for deopt, clear the optimized code slot.
+    StoreFixedArrayElement(literals, FeedbackVector::kOptimizedCodeIndex,
+                           EmptyWeakCellConstant(), SKIP_WRITE_BARRIER);
+    Goto(&optimized_code_ok);
+
+    BIND(&optimized_code_ok);
+  }
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackVectorOffset,
                                  literals_cell);
   StoreObjectFieldNoWriteBarrier(
@@ -259,76 +282,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
 
   Node* object = AllocateJSObjectFromMap(initial_map, properties.value());
 
-  Node* instance_size_words = ChangeUint32ToWord(LoadObjectField(
-      initial_map, Map::kInstanceSizeOffset, MachineType::Uint8()));
-  Node* instance_size =
-      WordShl(instance_size_words, IntPtrConstant(kPointerSizeLog2));
-
   // Perform in-object slack tracking if requested.
-  Node* bit_field3 = LoadMapBitField3(initial_map);
-  Label slack_tracking(this), finalize(this, Label::kDeferred), done(this);
-  GotoIf(IsSetWord32<Map::ConstructionCounter>(bit_field3), &slack_tracking);
-
-  // Initialize remaining fields.
-  {
-    Comment("no slack tracking");
-    InitializeFieldsWithRoot(object, IntPtrConstant(JSObject::kHeaderSize),
-                             instance_size, Heap::kUndefinedValueRootIndex);
-    Goto(&end);
-  }
-
-  {
-    BIND(&slack_tracking);
-
-    // Decrease generous allocation count.
-    STATIC_ASSERT(Map::ConstructionCounter::kNext == 32);
-    Comment("update allocation count");
-    Node* new_bit_field3 = Int32Sub(
-        bit_field3, Int32Constant(1 << Map::ConstructionCounter::kShift));
-    StoreObjectFieldNoWriteBarrier(initial_map, Map::kBitField3Offset,
-                                   new_bit_field3,
-                                   MachineRepresentation::kWord32);
-    GotoIf(IsClearWord32<Map::ConstructionCounter>(new_bit_field3), &finalize);
-
-    Node* unused_fields = LoadObjectField(
-        initial_map, Map::kUnusedPropertyFieldsOffset, MachineType::Uint8());
-    Node* used_size =
-        IntPtrSub(instance_size, WordShl(ChangeUint32ToWord(unused_fields),
-                                         IntPtrConstant(kPointerSizeLog2)));
-
-    Comment("initialize filler fields (no finalize)");
-    InitializeFieldsWithRoot(object, used_size, instance_size,
-                             Heap::kOnePointerFillerMapRootIndex);
-
-    Comment("initialize undefined fields (no finalize)");
-    InitializeFieldsWithRoot(object, IntPtrConstant(JSObject::kHeaderSize),
-                             used_size, Heap::kUndefinedValueRootIndex);
-    Goto(&end);
-  }
-
-  {
-    // Finalize the instance size.
-    BIND(&finalize);
-
-    Node* unused_fields = LoadObjectField(
-        initial_map, Map::kUnusedPropertyFieldsOffset, MachineType::Uint8());
-    Node* used_size =
-        IntPtrSub(instance_size, WordShl(ChangeUint32ToWord(unused_fields),
-                                         IntPtrConstant(kPointerSizeLog2)));
-
-    Comment("initialize filler fields (finalize)");
-    InitializeFieldsWithRoot(object, used_size, instance_size,
-                             Heap::kOnePointerFillerMapRootIndex);
-
-    Comment("initialize undefined fields (finalize)");
-    InitializeFieldsWithRoot(object, IntPtrConstant(JSObject::kHeaderSize),
-                             used_size, Heap::kUndefinedValueRootIndex);
-
-    CallRuntime(Runtime::kFinalizeInstanceSize, context, initial_map);
-    Goto(&end);
-  }
-
-  BIND(&end);
+  HandleSlackTracking(context, object, initial_map, JSObject::kHeaderSize);
   return object;
 }
 
@@ -617,30 +572,48 @@ TF_BUILTIN(FastCloneShallowArrayDontTrack, ConstructorBuiltinsAssembler) {
 
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     Label* call_runtime, Node* closure, Node* literals_index,
-    Node* properties_count) {
+    Node* fast_properties_count) {
   Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
   Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
   Node* allocation_site = LoadFixedArrayElement(
       feedback_vector, literals_index, 0, CodeStubAssembler::SMI_PARAMETERS);
   GotoIf(IsUndefined(allocation_site), call_runtime);
 
+  Node* boilerplate =
+      LoadObjectField(allocation_site, AllocationSite::kTransitionInfoOffset);
+  Node* boilerplate_map = LoadMap(boilerplate);
+  Variable properties(this, MachineRepresentation::kTagged,
+                      EmptyFixedArrayConstant());
+  // TODO(cbruni): directly use the property count from the boilerplate map.
+  Variable in_object_property_count(this, MachineType::PointerRepresentation(),
+                                    fast_properties_count);
+  // Directly copy over the property store for dict-mode boilerplates.
+  Label dict_properties(this), allocate_object(this);
+  Branch(IsDictionaryMap(boilerplate_map), &dict_properties, &allocate_object);
+  Bind(&dict_properties);
+  {
+    properties.Bind(
+        CopyNameDictionary(LoadProperties(boilerplate), call_runtime));
+    in_object_property_count.Bind(IntPtrConstant(0));
+    Goto(&allocate_object);
+  }
+  Bind(&allocate_object);
+
   // Calculate the object and allocation size based on the properties count.
-  Node* object_size = IntPtrAdd(WordShl(properties_count, kPointerSizeLog2),
-                                IntPtrConstant(JSObject::kHeaderSize));
+  Node* object_size =
+      IntPtrAdd(WordShl(in_object_property_count.value(), kPointerSizeLog2),
+                IntPtrConstant(JSObject::kHeaderSize));
   Node* allocation_size = object_size;
   if (FLAG_allocation_site_pretenuring) {
     allocation_size =
         IntPtrAdd(object_size, IntPtrConstant(AllocationMemento::kSize));
   }
-  Node* boilerplate =
-      LoadObjectField(allocation_site, AllocationSite::kTransitionInfoOffset);
-  Node* boilerplate_map = LoadMap(boilerplate);
+
   Node* instance_size = LoadMapInstanceSize(boilerplate_map);
   Node* size_in_words = WordShr(object_size, kPointerSizeLog2);
   GotoIfNot(WordEqual(instance_size, size_in_words), call_runtime);
 
   Node* copy = AllocateInNewSpace(allocation_size);
-
   // Copy boilerplate elements.
   VARIABLE(offset, MachineType::PointerRepresentation());
   offset.Bind(IntPtrConstant(-kHeapObjectTag));
@@ -663,6 +636,9 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
     GotoIfNot(IntPtrGreaterThanOrEqual(offset.value(), end_offset), &loop_body);
   }
+
+  StoreObjectFieldNoWriteBarrier(copy, JSObject::kPropertiesOffset,
+                                 properties.value());
 
   if (FLAG_allocation_site_pretenuring) {
     Node* memento = InnerAllocate(copy, object_size);

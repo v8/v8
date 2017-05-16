@@ -21,15 +21,6 @@ void MarkCompactCollector::PushBlack(HeapObject* obj) {
   }
 }
 
-void MinorMarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(
-      obj, MarkingState::External(obj))));
-  if (!marking_deque()->Push(obj)) {
-    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC>(
-        obj, MarkingState::External(obj));
-  }
-}
-
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   DCHECK(ObjectMarking::IsBlack(obj, MarkingState::Internal(obj)));
   if (!marking_deque()->Unshift(obj)) {
@@ -38,19 +29,8 @@ void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
 }
 
 void MarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
+  if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
           obj, MarkingState::Internal(obj))) {
-    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
-        obj, MarkingState::Internal(obj));
-    PushBlack(obj);
-  }
-}
-
-void MinorMarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
-          obj, MarkingState::External(obj))) {
-    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
-        obj, MarkingState::External(obj));
     PushBlack(obj);
   }
 }
@@ -127,6 +107,28 @@ void CodeFlusher::ClearNextCandidate(SharedFunctionInfo* candidate) {
   candidate->code()->set_gc_metadata(NULL, SKIP_WRITE_BARRIER);
 }
 
+void CodeFlusher::VisitListHeads(RootVisitor* visitor) {
+  visitor->VisitRootPointer(
+      Root::kCodeFlusher,
+      reinterpret_cast<Object**>(&jsfunction_candidates_head_));
+  visitor->VisitRootPointer(
+      Root::kCodeFlusher,
+      reinterpret_cast<Object**>(&shared_function_info_candidates_head_));
+}
+
+template <typename StaticVisitor>
+void CodeFlusher::IteratePointersToFromSpace() {
+  Heap* heap = isolate_->heap();
+  JSFunction* candidate = jsfunction_candidates_head_;
+  while (candidate != nullptr) {
+    JSFunction** slot = GetNextCandidateSlot(candidate);
+    if (heap->InFromSpace(*slot)) {
+      StaticVisitor::VisitPointer(heap, candidate,
+                                  reinterpret_cast<Object**>(slot));
+    }
+    candidate = GetNextCandidate(candidate);
+  }
+}
 
 template <LiveObjectIterationMode T>
 HeapObject* LiveObjectIterator<T>::Next() {
@@ -152,16 +154,13 @@ HeapObject* LiveObjectIterator<T>::Next() {
         // However, if there is a black area at the end of the page, and the
         // last word is a one word filler, we are not allowed to advance. In
         // that case we can return immediately.
-        if (it_.Done()) {
+        if (!it_.Advance()) {
           DCHECK(HeapObject::FromAddress(addr)->map() ==
                  HeapObject::FromAddress(addr)
                      ->GetHeap()
                      ->one_pointer_filler_map());
           return nullptr;
         }
-        bool not_done = it_.Advance();
-        USE(not_done);
-        DCHECK(not_done);
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }
@@ -223,7 +222,7 @@ HeapObject* LiveObjectIterator<T>::Next() {
     }
 
     if (current_cell_ == 0) {
-      if (!it_.Done() && it_.Advance()) {
+      if (it_.Advance()) {
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }

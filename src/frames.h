@@ -36,6 +36,7 @@ int JSCallerSavedCode(int n);
 // Forward declarations.
 class ExternalCallbackScope;
 class Isolate;
+class RootVisitor;
 class StackFrameIteratorBase;
 class ThreadLocalTop;
 class WasmInstanceObject;
@@ -352,8 +353,10 @@ class ConstructFrameConstants : public TypedFrameConstants {
   // FP-relative.
   static const int kContextOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static const int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  static const int kImplicitReceiverOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
-  DEFINE_TYPED_FRAME_SIZES(3);
+  static const int kConstructorOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  static const int kNewTargetOrImplicitReceiverOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
+  DEFINE_TYPED_FRAME_SIZES(4);
 };
 
 class StubFailureTrampolineFrameConstants : public InternalFrameConstants {
@@ -595,8 +598,8 @@ class StackFrame BASE_EMBEDDED {
                                 SafepointEntry* safepoint_entry,
                                 unsigned* stack_slots);
 
-  virtual void Iterate(ObjectVisitor* v) const = 0;
-  static void IteratePc(ObjectVisitor* v, Address* pc_address,
+  virtual void Iterate(RootVisitor* v) const = 0;
+  static void IteratePc(RootVisitor* v, Address* pc_address,
                         Address* constant_pool_address, Code* holder);
 
   // Sets a callback function for return-address rewriting profilers
@@ -667,7 +670,7 @@ class EntryFrame: public StackFrame {
   Code* unchecked_code() const override;
 
   // Garbage collection support.
-  void Iterate(ObjectVisitor* v) const override;
+  void Iterate(RootVisitor* v) const override;
 
   static EntryFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_entry());
@@ -720,7 +723,7 @@ class ExitFrame: public StackFrame {
   Object*& code_slot() const;
 
   // Garbage collection support.
-  void Iterate(ObjectVisitor* v) const override;
+  void Iterate(RootVisitor* v) const override;
 
   void SetCallerFp(Address caller_fp) override;
 
@@ -999,7 +1002,7 @@ class StandardFrame : public StackFrame {
 
   // Iterate over expression stack including stack handlers, locals,
   // and parts of the fixed part including context and code fields.
-  void IterateExpressions(ObjectVisitor* v) const;
+  void IterateExpressions(RootVisitor* v) const;
 
   // Returns the address of the n'th expression stack element.
   virtual Address GetExpressionAddress(int n) const;
@@ -1013,7 +1016,7 @@ class StandardFrame : public StackFrame {
   static inline bool IsConstructFrame(Address fp);
 
   // Used by OptimizedFrames and StubFrames.
-  void IterateCompiledFrame(ObjectVisitor* v) const;
+  void IterateCompiledFrame(RootVisitor* v) const;
 
  private:
   friend class StackFrame;
@@ -1063,7 +1066,7 @@ class JavaScriptFrame : public StandardFrame {
   int GetArgumentsLength() const;
 
   // Garbage collection support.
-  void Iterate(ObjectVisitor* v) const override;
+  void Iterate(RootVisitor* v) const override;
 
   // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
@@ -1115,7 +1118,7 @@ class JavaScriptFrame : public StandardFrame {
 
   // Garbage collection support. Iterates over incoming arguments,
   // receiver, and any callee-saved registers.
-  void IterateArguments(ObjectVisitor* v) const;
+  void IterateArguments(RootVisitor* v) const;
 
   virtual void PrintFrameKind(StringStream* accumulator) const {}
 
@@ -1131,7 +1134,7 @@ class StubFrame : public StandardFrame {
   Type type() const override { return STUB; }
 
   // GC support.
-  void Iterate(ObjectVisitor* v) const override;
+  void Iterate(RootVisitor* v) const override;
 
   // Determine the code for the frame.
   Code* unchecked_code() const override;
@@ -1158,7 +1161,7 @@ class OptimizedFrame : public JavaScriptFrame {
   Type type() const override { return OPTIMIZED; }
 
   // GC support.
-  void Iterate(ObjectVisitor* v) const override;
+  void Iterate(RootVisitor* v) const override;
 
   // Return a list with {SharedFunctionInfo} objects of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
@@ -1291,7 +1294,7 @@ class WasmCompiledFrame final : public StandardFrame {
   Type type() const override { return WASM_COMPILED; }
 
   // GC support.
-  void Iterate(ObjectVisitor* v) const override;
+  void Iterate(RootVisitor* v) const override;
 
   // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
@@ -1333,7 +1336,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   Type type() const override { return WASM_INTERPRETER_ENTRY; }
 
   // GC support.
-  void Iterate(ObjectVisitor* v) const override;
+  void Iterate(RootVisitor* v) const override;
 
   // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
@@ -1393,7 +1396,7 @@ class InternalFrame: public StandardFrame {
   Type type() const override { return INTERNAL; }
 
   // Garbage collection support.
-  void Iterate(ObjectVisitor* v) const override;
+  void Iterate(RootVisitor* v) const override;
 
   // Determine the code for the frame.
   Code* unchecked_code() const override;
@@ -1421,7 +1424,7 @@ class StubFailureTrampolineFrame: public StandardFrame {
   // This method could be called during marking phase of GC.
   Code* unchecked_code() const override;
 
-  void Iterate(ObjectVisitor* v) const override;
+  void Iterate(RootVisitor* v) const override;
 
   // Architecture-specific register description.
   static Register fp_register();

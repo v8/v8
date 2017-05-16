@@ -229,19 +229,14 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                 \
   V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                           \
   V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                           \
-  V(F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                          \
   V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                   \
   V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)               \
   V(F32x4Add, Operator::kCommutative, 2, 0, 1)                            \
+  V(F32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
   V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                            \
-  V(F32x4Div, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x4Min, Operator::kCommutative, 2, 0, 1)                            \
   V(F32x4Max, Operator::kCommutative, 2, 0, 1)                            \
-  V(F32x4MinNum, Operator::kCommutative, 2, 0, 1)                         \
-  V(F32x4MaxNum, Operator::kCommutative, 2, 0, 1)                         \
-  V(F32x4RecipRefine, Operator::kNoProperties, 2, 0, 1)                   \
-  V(F32x4RecipSqrtRefine, Operator::kNoProperties, 2, 0, 1)               \
   V(F32x4Eq, Operator::kCommutative, 2, 0, 1)                             \
   V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                             \
   V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                            \
@@ -252,6 +247,7 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)             \
   V(I32x4Neg, Operator::kNoProperties, 1, 0, 1)                           \
   V(I32x4Add, Operator::kCommutative, 2, 0, 1)                            \
+  V(I32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
   V(I32x4Sub, Operator::kNoProperties, 2, 0, 1)                           \
   V(I32x4Mul, Operator::kCommutative, 2, 0, 1)                            \
   V(I32x4MinS, Operator::kCommutative, 2, 0, 1)                           \
@@ -274,6 +270,7 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                 \
   V(I16x8Add, Operator::kCommutative, 2, 0, 1)                            \
   V(I16x8AddSaturateS, Operator::kCommutative, 2, 0, 1)                   \
+  V(I16x8AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
   V(I16x8Sub, Operator::kNoProperties, 2, 0, 1)                           \
   V(I16x8SubSaturateS, Operator::kNoProperties, 2, 0, 1)                  \
   V(I16x8Mul, Operator::kCommutative, 2, 0, 1)                            \
@@ -320,33 +317,9 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(S128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
   V(S128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(S128Not, Operator::kNoProperties, 1, 0, 1)                            \
-  V(S32x4ZipLeft, Operator::kNoProperties, 2, 0, 1)                       \
-  V(S32x4ZipRight, Operator::kNoProperties, 2, 0, 1)                      \
-  V(S32x4UnzipLeft, Operator::kNoProperties, 2, 0, 1)                     \
-  V(S32x4UnzipRight, Operator::kNoProperties, 2, 0, 1)                    \
-  V(S32x4TransposeLeft, Operator::kNoProperties, 2, 0, 1)                 \
-  V(S32x4TransposeRight, Operator::kNoProperties, 2, 0, 1)                \
   V(S32x4Select, Operator::kNoProperties, 3, 0, 1)                        \
-  V(S16x8ZipLeft, Operator::kNoProperties, 2, 0, 1)                       \
-  V(S16x8ZipRight, Operator::kNoProperties, 2, 0, 1)                      \
-  V(S16x8UnzipLeft, Operator::kNoProperties, 2, 0, 1)                     \
-  V(S16x8UnzipRight, Operator::kNoProperties, 2, 0, 1)                    \
-  V(S16x8TransposeLeft, Operator::kNoProperties, 2, 0, 1)                 \
-  V(S16x8TransposeRight, Operator::kNoProperties, 2, 0, 1)                \
   V(S16x8Select, Operator::kNoProperties, 3, 0, 1)                        \
-  V(S8x16ZipLeft, Operator::kNoProperties, 2, 0, 1)                       \
-  V(S8x16ZipRight, Operator::kNoProperties, 2, 0, 1)                      \
-  V(S8x16UnzipLeft, Operator::kNoProperties, 2, 0, 1)                     \
-  V(S8x16UnzipRight, Operator::kNoProperties, 2, 0, 1)                    \
-  V(S8x16TransposeLeft, Operator::kNoProperties, 2, 0, 1)                 \
-  V(S8x16TransposeRight, Operator::kNoProperties, 2, 0, 1)                \
   V(S8x16Select, Operator::kNoProperties, 3, 0, 1)                        \
-  V(S32x2Reverse, Operator::kNoProperties, 1, 0, 1)                       \
-  V(S16x4Reverse, Operator::kNoProperties, 1, 0, 1)                       \
-  V(S16x2Reverse, Operator::kNoProperties, 1, 0, 1)                       \
-  V(S8x8Reverse, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S8x4Reverse, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S8x2Reverse, Operator::kNoProperties, 1, 0, 1)                        \
   V(S1x4Zero, Operator::kNoProperties, 0, 0, 1)                           \
   V(S1x4And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(S1x4Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
@@ -1031,10 +1004,28 @@ SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
 SIMD_FORMAT_LIST(SIMD_SHIFT_OPS)
 #undef SIMD_SHIFT_OPS
 
-const Operator* MachineOperatorBuilder::S8x16Concat(int32_t bytes) {
-  DCHECK(0 <= bytes && bytes < kSimd128Size);
-  return new (zone_) Operator1<int32_t>(IrOpcode::kS8x16Concat, Operator::kPure,
-                                        "Concat", 2, 0, 0, 1, 0, 0, bytes);
+const Operator* MachineOperatorBuilder::S32x4Shuffle(uint8_t shuffle[16]) {
+  uint8_t* array = zone_->NewArray<uint8_t>(4);
+  memcpy(array, shuffle, 4);
+  return new (zone_)
+      Operator1<uint8_t*>(IrOpcode::kS32x4Shuffle, Operator::kPure, "Shuffle",
+                          2, 0, 0, 1, 0, 0, array);
+}
+
+const Operator* MachineOperatorBuilder::S16x8Shuffle(uint8_t shuffle[16]) {
+  uint8_t* array = zone_->NewArray<uint8_t>(8);
+  memcpy(array, shuffle, 8);
+  return new (zone_)
+      Operator1<uint8_t*>(IrOpcode::kS16x8Shuffle, Operator::kPure, "Shuffle",
+                          2, 0, 0, 1, 0, 0, array);
+}
+
+const Operator* MachineOperatorBuilder::S8x16Shuffle(uint8_t shuffle[16]) {
+  uint8_t* array = zone_->NewArray<uint8_t>(16);
+  memcpy(array, shuffle, 16);
+  return new (zone_)
+      Operator1<uint8_t*>(IrOpcode::kS8x16Shuffle, Operator::kPure, "Shuffle",
+                          2, 0, 0, 1, 0, 0, array);
 }
 
 }  // namespace compiler

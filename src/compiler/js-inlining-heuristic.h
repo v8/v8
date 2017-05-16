@@ -43,8 +43,8 @@ class JSInliningHeuristic final : public AdvancedReducer {
     // we use {num_functions == 1 && functions[0].is_null()} as an indicator.
     Handle<SharedFunctionInfo> shared_info;
     int num_functions;
-    Node* node = nullptr;    // The call site at which to inline.
-    float frequency = 0.0f;  // Relative frequency of this call site.
+    Node* node = nullptr;     // The call site at which to inline.
+    CallFrequency frequency;  // Relative frequency of this call site.
   };
 
   // Comparator for candidates.

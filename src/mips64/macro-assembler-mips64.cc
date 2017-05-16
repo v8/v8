@@ -1950,55 +1950,18 @@ void MacroAssembler::Ext(Register rt,
   ext_(rt, rs, pos, size);
 }
 
-void MacroAssembler::ExtractBits(Register rt, Register rs, uint16_t pos,
-                                 uint16_t size) {
-  DCHECK(pos < 64);
-  DCHECK(size > 0 && size <= 64);
-  DCHECK(pos + size <= 64);
-  if (pos < 32) {
-    if (size <= 32) {
-      Dext(rt, rs, pos, size);
-    } else {
-      Dextm(rt, rs, pos, size);
-    }
-  } else if (pos < 64) {
-    DCHECK(size <= 32);
-    Dextu(rt, rs, pos, size);
-  }
-}
 
 void MacroAssembler::Dext(Register rt, Register rs, uint16_t pos,
                           uint16_t size) {
-  DCHECK(pos < 32);
-  DCHECK(size > 0 && size <= 32);
-  dext_(rt, rs, pos, size);
-}
-
-
-void MacroAssembler::Dextm(Register rt, Register rs, uint16_t pos,
-                           uint16_t size) {
-  DCHECK(pos < 32);
-  DCHECK(size > 32 && size <= 64);
-  DCHECK((pos + size) > 32 && (pos + size) <= 64);
-  dextm(rt, rs, pos, size);
-}
-
-
-void MacroAssembler::Dextu(Register rt, Register rs, uint16_t pos,
-                           uint16_t size) {
-  DCHECK(pos >= 32 && pos < 64);
-  DCHECK(size > 0 && size <= 32);
-  DCHECK((pos + size) > 32 && (pos + size) <= 64);
-  dextu(rt, rs, pos, size);
-}
-
-
-void MacroAssembler::Dins(Register rt, Register rs, uint16_t pos,
-                          uint16_t size) {
-  DCHECK(pos < 32);
-  DCHECK(pos + size <= 32);
-  DCHECK(size != 0);
-  dins_(rt, rs, pos, size);
+  DCHECK(pos < 64 && 0 < size && size <= 64 && 0 < pos + size &&
+         pos + size <= 64);
+  if (size > 32) {
+    dextm_(rt, rs, pos, size);
+  } else if (pos >= 32) {
+    dextu_(rt, rs, pos, size);
+  } else {
+    dext_(rt, rs, pos, size);
+  }
 }
 
 
@@ -2010,6 +1973,19 @@ void MacroAssembler::Ins(Register rt,
   DCHECK(pos + size <= 32);
   DCHECK(size != 0);
   ins_(rt, rs, pos, size);
+}
+
+void MacroAssembler::Dins(Register rt, Register rs, uint16_t pos,
+                          uint16_t size) {
+  DCHECK(pos < 64 && 0 < size && size <= 64 && 0 < pos + size &&
+         pos + size <= 64);
+  if (pos + size <= 32) {
+    dins_(rt, rs, pos, size);
+  } else if (pos < 32) {
+    dinsm_(rt, rs, pos, size);
+  } else {
+    dinsu_(rt, rs, pos, size);
+  }
 }
 
 void MacroAssembler::Neg_s(FPURegister fd, FPURegister fs) {
@@ -6598,6 +6574,7 @@ void MacroAssembler::CallCFunction(Register function,
 void MacroAssembler::CallCFunctionHelper(Register function,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
+  DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which

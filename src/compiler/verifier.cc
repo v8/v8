@@ -401,23 +401,6 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is merged from other values in the graph and could be any.
       CheckTypeIs(node, Type::Any());
       break;
-    case IrOpcode::kOsrGuard:
-      // OSR values have a value and a control input.
-      CHECK_EQ(1, value_count);
-      CHECK_EQ(1, effect_count);
-      CHECK_EQ(1, control_count);
-      switch (OsrGuardTypeOf(node->op())) {
-        case OsrGuardType::kUninitialized:
-          CheckTypeIs(node, Type::None());
-          break;
-        case OsrGuardType::kSignedSmall:
-          CheckTypeIs(node, Type::SignedSmall());
-          break;
-        case OsrGuardType::kAny:
-          CheckTypeIs(node, Type::Any());
-          break;
-      }
-      break;
     case IrOpcode::kProjection: {
       // Projection has an input that produces enough values.
       int index = static_cast<int>(ProjectionIndexOf(node->op()));
@@ -509,12 +492,19 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(0, control_count);
       CHECK_EQ(0, effect_count);
       CHECK_EQ(6, input_count);
-      for (int i = 0; i < 3; ++i) {
+      // Check that the parameters and registers are kStateValues or
+      // kTypedStateValues.
+      for (int i = 0; i < 2; ++i) {
         CHECK(NodeProperties::GetValueInput(node, i)->opcode() ==
                   IrOpcode::kStateValues ||
               NodeProperties::GetValueInput(node, i)->opcode() ==
                   IrOpcode::kTypedStateValues);
       }
+      // The accumulator (InputAt(2)) cannot be kStateValues, but it can be
+      // kTypedStateValues (to signal the type). Once AST graph builder
+      // is removed, we should check this here. Until then, AST graph
+      // builder can generate expression stack as InputAt(2), which can
+      // still be kStateValues.
       break;
     }
     case IrOpcode::kStateValues:
@@ -747,6 +737,10 @@ void Verifier::Visitor::Check(Node* node) {
 
     case IrOpcode::kJSGeneratorStore:
       CheckNotTyped(node);
+      break;
+
+    case IrOpcode::kJSCreateGeneratorObject:
+      CheckTypeIs(node, Type::OtherObject());
       break;
 
     case IrOpcode::kJSGeneratorRestoreContinuation:
@@ -1462,6 +1456,7 @@ void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs) {
     for (Node* other : node->uses()) {
       if (all.IsLive(other) && other != proj &&
           other->opcode() == IrOpcode::kProjection &&
+          other->InputAt(0) == node &&
           ProjectionIndexOf(other->op()) == ProjectionIndexOf(proj->op())) {
         V8_Fatal(__FILE__, __LINE__,
                  "Node #%d:%s has duplicate projections #%d and #%d",
@@ -1715,10 +1710,11 @@ void Verifier::VerifyNode(Node* node) {
   CHECK_EQ(OperatorProperties::GetTotalInputCount(node->op()),
            node->InputCount());
   // If this node has no effect or no control outputs,
-  // we check that no its uses are effect or control inputs.
+  // we check that none of its uses are effect or control inputs.
   bool check_no_control = node->op()->ControlOutputCount() == 0;
   bool check_no_effect = node->op()->EffectOutputCount() == 0;
   bool check_no_frame_state = node->opcode() != IrOpcode::kFrameState;
+  int effect_edges = 0;
   if (check_no_effect || check_no_control) {
     for (Edge edge : node->use_edges()) {
       Node* const user = edge.from();
@@ -1727,6 +1723,7 @@ void Verifier::VerifyNode(Node* node) {
         CHECK(!check_no_control);
       } else if (NodeProperties::IsEffectEdge(edge)) {
         CHECK(!check_no_effect);
+        effect_edges++;
       } else if (NodeProperties::IsFrameStateEdge(edge)) {
         CHECK(!check_no_frame_state);
       }

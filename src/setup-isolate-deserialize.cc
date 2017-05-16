@@ -16,7 +16,6 @@ void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate,
                                          bool create_heap_objects) {
   DCHECK(!create_heap_objects);
   // No actual work to be done; builtins will be deserialized from the snapshot.
-  isolate->builtins()->MarkInitialized();
 }
 
 void SetupIsolateDelegate::SetupInterpreter(

@@ -8,9 +8,8 @@
 #include "src/api.h"
 #include "src/asmjs/asm-names.h"
 #include "src/asmjs/asm-parser.h"
-#include "src/asmjs/asm-typer.h"
-#include "src/asmjs/asm-wasm-builder.h"
 #include "src/assert-scope.h"
+#include "src/ast/ast.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compilation-info.h"
 #include "src/execution.h"
@@ -27,113 +26,85 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
-typedef uint8_t byte;
-
-using v8::internal::wasm::ErrorThrower;
-
 namespace v8 {
 namespace internal {
+
+const char* const AsmJs::kSingleFunctionName = "__single_function__";
 
 namespace {
 enum WasmDataEntries {
   kWasmDataCompiledModule,
-  kWasmDataForeignGlobals,
   kWasmDataUsesArray,
-  kWasmDataScript,
-  kWasmDataScriptPosition,
   kWasmDataEntryCount,
 };
 
-Handle<i::Object> StdlibMathMember(i::Isolate* isolate,
-                                   Handle<JSReceiver> stdlib,
-                                   Handle<Name> name) {
-  if (stdlib.is_null()) {
-    return Handle<i::Object>();
-  }
-  Handle<i::Name> math_name(
+Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
+                                Handle<Name> name) {
+  Handle<Name> math_name(
       isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("Math")));
-  MaybeHandle<i::Object> maybe_math = i::Object::GetProperty(stdlib, math_name);
-  if (maybe_math.is_null()) {
-    return Handle<i::Object>();
-  }
-  Handle<i::Object> math = maybe_math.ToHandleChecked();
-  if (!math->IsJSReceiver()) {
-    return Handle<i::Object>();
-  }
-  MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(math, name);
-  if (maybe_value.is_null()) {
-    return Handle<i::Object>();
-  }
-  return maybe_value.ToHandleChecked();
+  Handle<Object> math = JSReceiver::GetDataProperty(stdlib, math_name);
+  if (!math->IsJSReceiver()) return isolate->factory()->undefined_value();
+  Handle<JSReceiver> math_receiver = Handle<JSReceiver>::cast(math);
+  Handle<Object> value = JSReceiver::GetDataProperty(math_receiver, name);
+  return value;
 }
 
-bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
-                         Handle<i::Object> member_id) {
-  int32_t member_kind;
-  if (!member_id->ToInt32(&member_kind)) {
-    UNREACHABLE();
-  }
-  switch (member_kind) {
-    case wasm::AsmTyper::StandardMember::kNone:
-    case wasm::AsmTyper::StandardMember::kModule:
-    case wasm::AsmTyper::StandardMember::kStdlib:
-    case wasm::AsmTyper::StandardMember::kHeap:
-    case wasm::AsmTyper::StandardMember::kFFI: {
-      // Nothing to check for these.
-      return true;
-    }
-    case wasm::AsmTyper::StandardMember::kInfinity: {
-      if (stdlib.is_null()) {
-        return false;
-      }
-      Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("Infinity")));
-      MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(stdlib, name);
-      if (maybe_value.is_null()) {
-        return false;
-      }
-      Handle<i::Object> value = maybe_value.ToHandleChecked();
+bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
+                         wasm::AsmJsParser::StandardMember member,
+                         bool* is_typed_array) {
+  switch (member) {
+    case wasm::AsmJsParser::StandardMember::kInfinity: {
+      Handle<Name> name = isolate->factory()->infinity_string();
+      Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
       return value->IsNumber() && std::isinf(value->Number());
     }
-    case wasm::AsmTyper::StandardMember::kNaN: {
-      if (stdlib.is_null()) {
-        return false;
-      }
-      Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("NaN")));
-      MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(stdlib, name);
-      if (maybe_value.is_null()) {
-        return false;
-      }
-      Handle<i::Object> value = maybe_value.ToHandleChecked();
+    case wasm::AsmJsParser::StandardMember::kNaN: {
+      Handle<Name> name = isolate->factory()->nan_string();
+      Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
       return value->IsNaN();
     }
-#define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)               \
-  case wasm::AsmTyper::StandardMember::kMath##FName: {                 \
-    Handle<i::Name> name(isolate->factory()->InternalizeOneByteString( \
-        STATIC_CHAR_VECTOR(#fname)));                                  \
-    Handle<i::Object> value = StdlibMathMember(isolate, stdlib, name); \
-    if (value.is_null() || !value->IsJSFunction()) {                   \
-      return false;                                                    \
-    }                                                                  \
-    Handle<i::JSFunction> func(i::JSFunction::cast(*value));           \
-    return func->shared()->code() ==                                   \
-           isolate->builtins()->builtin(Builtins::kMath##FName);       \
+#define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)            \
+  case wasm::AsmJsParser::StandardMember::kMath##FName: {           \
+    Handle<Name> name(isolate->factory()->InternalizeOneByteString( \
+        STATIC_CHAR_VECTOR(#fname)));                               \
+    Handle<Object> value = StdlibMathMember(isolate, stdlib, name); \
+    if (!value->IsJSFunction()) return false;                       \
+    Handle<JSFunction> func = Handle<JSFunction>::cast(value);      \
+    return func->shared()->code() ==                                \
+           isolate->builtins()->builtin(Builtins::kMath##FName);    \
   }
       STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
 #undef STDLIB_MATH_FUNC
-#define STDLIB_MATH_CONST(cname, const_value)                             \
-  case wasm::AsmTyper::StandardMember::kMath##cname: {                    \
-    i::Handle<i::Name> name(isolate->factory()->InternalizeOneByteString( \
-        STATIC_CHAR_VECTOR(#cname)));                                     \
-    i::Handle<i::Object> value = StdlibMathMember(isolate, stdlib, name); \
-    return !value.is_null() && value->IsNumber() &&                       \
-           value->Number() == const_value;                                \
+#define STDLIB_MATH_CONST(cname, const_value)                       \
+  case wasm::AsmJsParser::StandardMember::kMath##cname: {           \
+    Handle<Name> name(isolate->factory()->InternalizeOneByteString( \
+        STATIC_CHAR_VECTOR(#cname)));                               \
+    Handle<Object> value = StdlibMathMember(isolate, stdlib, name); \
+    return value->IsNumber() && value->Number() == const_value;     \
   }
       STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
 #undef STDLIB_MATH_CONST
-    default: { UNREACHABLE(); }
+#define STDLIB_ARRAY_TYPE(fname, FName)                               \
+  case wasm::AsmJsParser::StandardMember::k##FName: {                 \
+    *is_typed_array = true;                                           \
+    Handle<Name> name(isolate->factory()->InternalizeOneByteString(   \
+        STATIC_CHAR_VECTOR(#FName)));                                 \
+    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name); \
+    if (!value->IsJSFunction()) return false;                         \
+    Handle<JSFunction> func = Handle<JSFunction>::cast(value);        \
+    return func.is_identical_to(isolate->fname());                    \
   }
+      STDLIB_ARRAY_TYPE(int8_array_fun, Int8Array)
+      STDLIB_ARRAY_TYPE(uint8_array_fun, Uint8Array)
+      STDLIB_ARRAY_TYPE(int16_array_fun, Int16Array)
+      STDLIB_ARRAY_TYPE(uint16_array_fun, Uint16Array)
+      STDLIB_ARRAY_TYPE(int32_array_fun, Int32Array)
+      STDLIB_ARRAY_TYPE(uint32_array_fun, Uint32Array)
+      STDLIB_ARRAY_TYPE(float32_array_fun, Float32Array)
+      STDLIB_ARRAY_TYPE(float64_array_fun, Float64Array)
+#undef STDLIB_ARRAY_TYPE
+  }
+  UNREACHABLE();
   return false;
 }
 
@@ -143,12 +114,13 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   wasm::ZoneBuffer* module = nullptr;
   wasm::ZoneBuffer* asm_offsets = nullptr;
   Handle<FixedArray> uses_array;
-  Handle<FixedArray> foreign_globals;
   base::ElapsedTimer asm_wasm_timer;
   asm_wasm_timer.Start();
-  wasm::AsmWasmBuilder builder(info);
   size_t asm_wasm_zone_start = info->zone()->allocation_size();
-  if (FLAG_fast_validate_asm) {
+  {
+    HistogramTimerScope asm_wasm_time_scope(
+        info->isolate()->counters()->asm_wasm_translation_time());
+
     wasm::AsmJsParser parser(info->isolate(), info->zone(), info->script(),
                              info->literal()->start_position(),
                              info->literal()->end_position());
@@ -177,33 +149,10 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
     parser.module_builder()->WriteTo(*module);
     asm_offsets = new (zone) wasm::ZoneBuffer(zone);
     parser.module_builder()->WriteAsmJsOffsetTable(*asm_offsets);
-    // TODO(bradnelson): Remove foreign_globals plumbing (as we don't need it
-    // for the new parser).
-    foreign_globals = info->isolate()->factory()->NewFixedArray(0);
     uses_array = info->isolate()->factory()->NewFixedArray(
         static_cast<int>(parser.stdlib_uses()->size()));
     int count = 0;
     for (auto i : *parser.stdlib_uses()) {
-      uses_array->set(count++, Smi::FromInt(i));
-    }
-  } else {
-    auto asm_wasm_result = builder.Run(&foreign_globals);
-    if (!asm_wasm_result.success) {
-      DCHECK(!info->isolate()->has_pending_exception());
-      if (!FLAG_suppress_asm_messages) {
-        MessageHandler::ReportMessage(info->isolate(),
-                                      builder.typer()->message_location(),
-                                      builder.typer()->error_message());
-      }
-      return MaybeHandle<FixedArray>();
-    }
-    module = asm_wasm_result.module_bytes;
-    asm_offsets = asm_wasm_result.asm_offset_table;
-    wasm::AsmTyper::StdlibSet uses = builder.typer()->StdlibUses();
-    uses_array = info->isolate()->factory()->NewFixedArray(
-        static_cast<int>(uses.size()));
-    int count = 0;
-    for (auto i : uses) {
       uses_array->set(count++, Smi::FromInt(i));
     }
   }
@@ -220,7 +169,8 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
 
   base::ElapsedTimer compile_timer;
   compile_timer.Start();
-  ErrorThrower thrower(info->isolate(), "Asm.js -> WebAssembly conversion");
+  wasm::ErrorThrower thrower(info->isolate(),
+                             "Asm.js -> WebAssembly conversion");
   MaybeHandle<JSObject> compiled = SyncCompileTranslatedAsmJs(
       info->isolate(), &thrower,
       wasm::ModuleWireBytes(module->begin(), module->end()), info->script(),
@@ -234,11 +184,7 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   Handle<FixedArray> result =
       info->isolate()->factory()->NewFixedArray(kWasmDataEntryCount);
   result->set(kWasmDataCompiledModule, *compiled.ToHandleChecked());
-  result->set(kWasmDataForeignGlobals, *foreign_globals);
   result->set(kWasmDataUsesArray, *uses_array);
-  result->set(kWasmDataScript, *info->script());
-  result->set(kWasmDataScriptPosition,
-              Smi::FromInt(info->literal()->position()));
 
   MessageLocation location(info->script(), info->literal()->position(),
                            info->literal()->position());
@@ -266,29 +212,31 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   return result;
 }
 
-bool AsmJs::IsStdlibValid(i::Isolate* isolate, Handle<FixedArray> wasm_data,
-                          Handle<JSReceiver> stdlib) {
-  i::Handle<i::FixedArray> uses(
-      i::FixedArray::cast(wasm_data->get(kWasmDataUsesArray)));
-  for (int i = 0; i < uses->length(); ++i) {
-    if (!IsStdlibMemberValid(isolate, stdlib,
-                             uses->GetValueChecked<i::Object>(isolate, i))) {
-      return false;
-    }
-  }
-  return true;
-}
-
-MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
+MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
+                                              Handle<SharedFunctionInfo> shared,
                                               Handle<FixedArray> wasm_data,
-                                              Handle<JSArrayBuffer> memory,
-                                              Handle<JSReceiver> foreign) {
+                                              Handle<JSReceiver> stdlib,
+                                              Handle<JSReceiver> foreign,
+                                              Handle<JSArrayBuffer> memory) {
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
-  i::Handle<i::WasmModuleObject> module(
-      i::WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)));
-  i::Handle<i::FixedArray> foreign_globals(
-      i::FixedArray::cast(wasm_data->get(kWasmDataForeignGlobals)));
+  Handle<FixedArray> stdlib_uses(
+      FixedArray::cast(wasm_data->get(kWasmDataUsesArray)));
+  Handle<WasmModuleObject> module(
+      WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)));
+
+  // Check that all used stdlib members are valid.
+  bool stdlib_use_of_typed_array_present = false;
+  for (int i = 0; i < stdlib_uses->length(); ++i) {
+    if (stdlib.is_null()) return MaybeHandle<Object>();
+    int member_id = Smi::cast(stdlib_uses->get(i))->value();
+    wasm::AsmJsParser::StandardMember member =
+        static_cast<wasm::AsmJsParser::StandardMember>(member_id);
+    if (!IsStdlibMemberValid(isolate, stdlib, member,
+                             &stdlib_use_of_typed_array_present)) {
+      return MaybeHandle<Object>();
+    }
+  }
 
   // Create the ffi object for foreign functions {"": foreign}.
   Handle<JSObject> ffi_object;
@@ -300,62 +248,38 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                           foreign, NONE);
   }
 
-  ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
-  i::MaybeHandle<i::Object> maybe_module_object =
-      i::wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
+  // Check that a valid heap buffer is provided if required.
+  if (stdlib_use_of_typed_array_present) {
+    if (memory.is_null()) return MaybeHandle<Object>();
+    size_t size = NumberToSize(memory->byte_length());
+    // TODO(mstarzinger): We currently only limit byte length of the buffer to
+    // be a multiple of 8, we should enforce the stricter spec limits here.
+    if (size % FixedTypedArrayBase::kMaxElementSize != 0) {
+      return MaybeHandle<Object>();
+    }
+  }
+
+  wasm::ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
+  MaybeHandle<Object> maybe_module_object =
+      wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
   if (maybe_module_object.is_null()) {
-    thrower.Reify();  // Ensure exceptions do not propagate.
+    thrower.Reset();  // Ensure exceptions do not propagate.
     return MaybeHandle<Object>();
   }
   DCHECK(!thrower.error());
-  i::Handle<i::Object> module_object = maybe_module_object.ToHandleChecked();
+  Handle<Object> module_object = maybe_module_object.ToHandleChecked();
 
-  if (!FLAG_fast_validate_asm) {
-    i::Handle<i::Name> init_name(isolate->factory()->InternalizeUtf8String(
-        wasm::AsmWasmBuilder::foreign_init_name));
-    i::Handle<i::Object> init =
-        i::Object::GetProperty(module_object, init_name).ToHandleChecked();
-
-    i::Handle<i::Object> undefined(isolate->heap()->undefined_value(), isolate);
-    i::Handle<i::Object>* foreign_args_array =
-        new i::Handle<i::Object>[foreign_globals->length()];
-    for (int j = 0; j < foreign_globals->length(); j++) {
-      if (!foreign.is_null()) {
-        i::MaybeHandle<i::Name> name = i::Object::ToName(
-            isolate, i::Handle<i::Object>(foreign_globals->get(j), isolate));
-        if (!name.is_null()) {
-          i::MaybeHandle<i::Object> val =
-              i::Object::GetProperty(foreign, name.ToHandleChecked());
-          if (!val.is_null()) {
-            foreign_args_array[j] = val.ToHandleChecked();
-            continue;
-          }
-        }
-      }
-      foreign_args_array[j] = undefined;
-    }
-    i::MaybeHandle<i::Object> retval =
-        i::Execution::Call(isolate, init, undefined, foreign_globals->length(),
-                           foreign_args_array);
-    delete[] foreign_args_array;
-    DCHECK(!retval.is_null());
-  }
-
-  i::Handle<i::Name> single_function_name(
-      isolate->factory()->InternalizeUtf8String(
-          wasm::AsmWasmBuilder::single_function_name));
-  i::MaybeHandle<i::Object> single_function =
-      i::Object::GetProperty(module_object, single_function_name);
+  Handle<Name> single_function_name(
+      isolate->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName));
+  MaybeHandle<Object> single_function =
+      Object::GetProperty(module_object, single_function_name);
   if (!single_function.is_null() &&
       !single_function.ToHandleChecked()->IsUndefined(isolate)) {
     return single_function;
   }
 
-  i::Handle<i::Script> script(i::Script::cast(wasm_data->get(kWasmDataScript)));
-  int32_t position = 0;
-  if (!wasm_data->get(kWasmDataScriptPosition)->ToInt32(&position)) {
-    UNREACHABLE();
-  }
+  int position = shared->start_position();
+  Handle<Script> script(Script::cast(shared->script()));
   MessageLocation location(script, position, position);
   char text[50];
   int length;
@@ -378,7 +302,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
 
   Handle<String> exports_name =
       isolate->factory()->InternalizeUtf8String("exports");
-  return i::Object::GetProperty(module_object, exports_name);
+  return Object::GetProperty(module_object, exports_name);
 }
 
 }  // namespace internal

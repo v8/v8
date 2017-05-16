@@ -237,7 +237,7 @@ Response V8DebuggerAgentImpl::disable() {
                       v8::debug::NoBreakOnException);
   m_state->setInteger(DebuggerAgentState::asyncCallStackDepth, 0);
 
-  if (isPaused()) m_debugger->continueProgram();
+  if (isPaused()) m_debugger->continueProgram(m_session->contextGroupId());
   m_debugger->disable();
   JavaScriptCallFrames emptyCallFrames;
   m_pausedCallFrames.swap(emptyCallFrames);
@@ -456,11 +456,15 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   }
   auto it = m_scripts.find(scriptId);
   if (it == m_scripts.end()) return Response::Error("Script not found");
-
   std::vector<v8::debug::BreakLocation> v8Locations;
-  if (!it->second->getPossibleBreakpoints(
-          v8Start, v8End, restrictToFunction.fromMaybe(false), &v8Locations)) {
-    return Response::InternalError();
+  {
+    v8::HandleScope handleScope(m_isolate);
+    v8::Local<v8::Context> debuggerContext =
+        v8::debug::GetDebugContext(m_isolate);
+    v8::Context::Scope contextScope(debuggerContext);
+    v8::TryCatch tryCatch(m_isolate);
+    it->second->getPossibleBreakpoints(
+        v8Start, v8End, restrictToFunction.fromMaybe(false), &v8Locations);
   }
 
   *locations = protocol::Array<protocol::Debugger::BreakLocation>::create();
@@ -715,7 +719,7 @@ Response V8DebuggerAgentImpl::pause() {
 Response V8DebuggerAgentImpl::resume() {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  m_debugger->continueProgram();
+  m_debugger->continueProgram(m_session->contextGroupId());
   return Response::OK();
 }
 
@@ -1250,7 +1254,7 @@ void V8DebuggerAgentImpl::breakProgram(
   std::vector<BreakReason> currentScheduledReason;
   currentScheduledReason.swap(m_breakReason);
   pushBreakDetails(breakReason, std::move(data));
-  m_debugger->breakProgram();
+  if (!m_debugger->breakProgram(m_session->contextGroupId())) return;
   popBreakDetails();
   m_breakReason.swap(currentScheduledReason);
   if (!m_breakReason.empty()) {

@@ -6,6 +6,7 @@
 
 #include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
+#include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
@@ -162,6 +163,12 @@ void BytecodeArrayBuilder::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   bytecode_array_writer_.WriteJump(node, label);
 }
 
+void BytecodeArrayBuilder::WriteSwitch(BytecodeNode* node,
+                                       BytecodeJumpTable* jump_table) {
+  AttachOrEmitDeferredSourceInfo(node);
+  bytecode_array_writer_.WriteSwitch(node, jump_table);
+}
+
 void BytecodeArrayBuilder::OutputLdarRaw(Register reg) {
   uint32_t operand = static_cast<uint32_t>(reg.ToOperand());
   BytecodeNode node(BytecodeNode::Ldar(BytecodeSourceInfo(), operand));
@@ -295,8 +302,9 @@ class BytecodeNodeBuilder {
  public:
   template <typename... Operands>
   INLINE(static BytecodeNode Make(BytecodeArrayBuilder* builder,
-                                  BytecodeSourceInfo source_info,
                                   Operands... operands)) {
+    static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,
+                  "too many operands for bytecode");
     builder->PrepareToOutputBytecode<bytecode, accumulator_use>();
     // The "OperandHelper<operand_types>::Convert(builder, operands)..." will
     // expand both the OperandType... and Operands... parameter packs e.g. for:
@@ -306,36 +314,44 @@ class BytecodeNodeBuilder {
     //    OperandHelper<OperandType::kReg>::Convert(builder, reg),
     //    OperandHelper<OperandType::kImm>::Convert(builder, immediate),
     return BytecodeNode::Create<bytecode, accumulator_use, operand_types...>(
-        source_info,
+        builder->CurrentSourcePosition(bytecode),
         OperandHelper<operand_types>::Convert(builder, operands)...);
   }
 };
 
-#define DEFINE_BYTECODE_OUTPUT(name, ...)                                \
-  template <typename... Operands>                                        \
-  void BytecodeArrayBuilder::Output##name(Operands... operands) {        \
-    static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,        \
-                  "too many operands for bytecode");                     \
-    BytecodeNode node(                                                   \
-        BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make<       \
-            Operands...>(this, CurrentSourcePosition(Bytecode::k##name), \
-                         operands...));                                  \
-    Write(&node);                                                        \
-  }                                                                      \
-                                                                         \
-  template <typename... Operands>                                        \
-  void BytecodeArrayBuilder::Output##name(BytecodeLabel* label,          \
-                                          Operands... operands) {        \
-    DCHECK(Bytecodes::IsJump(Bytecode::k##name));                        \
-    BytecodeNode node(                                                   \
-        BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make<       \
-            Operands...>(this, CurrentSourcePosition(Bytecode::k##name), \
-                         operands...));                                  \
-    WriteJump(&node, label);                                             \
-    LeaveBasicBlock();                                                   \
+#define DEFINE_BYTECODE_OUTPUT(name, ...)                             \
+  template <typename... Operands>                                     \
+  BytecodeNode BytecodeArrayBuilder::Create##name##Node(              \
+      Operands... operands) {                                         \
+    return BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make( \
+        this, operands...);                                           \
+  }                                                                   \
+                                                                      \
+  template <typename... Operands>                                     \
+  void BytecodeArrayBuilder::Output##name(Operands... operands) {     \
+    BytecodeNode node(Create##name##Node(operands...));               \
+    Write(&node);                                                     \
+  }                                                                   \
+                                                                      \
+  template <typename... Operands>                                     \
+  void BytecodeArrayBuilder::Output##name(BytecodeLabel* label,       \
+                                          Operands... operands) {     \
+    DCHECK(Bytecodes::IsJump(Bytecode::k##name));                     \
+    BytecodeNode node(Create##name##Node(operands...));               \
+    WriteJump(&node, label);                                          \
+    LeaveBasicBlock();                                                \
   }
 BYTECODE_LIST(DEFINE_BYTECODE_OUTPUT)
 #undef DEFINE_BYTECODE_OUTPUT
+
+void BytecodeArrayBuilder::OutputSwitchOnSmiNoFeedback(
+    BytecodeJumpTable* jump_table) {
+  BytecodeNode node(CreateSwitchOnSmiNoFeedbackNode(
+      jump_table->constant_pool_index(), jump_table->size(),
+      jump_table->case_value_base()));
+  WriteSwitch(&node, jump_table);
+  LeaveBasicBlock();
+}
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
                                                             Register reg,
@@ -1008,6 +1024,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeJumpTable* jump_table,
+                                                 int case_value) {
+  // Flush the register optimizer when binding a jump table entry to ensure
+  // all expected registers are valid when jumping to this location.
+  if (register_optimizer_) register_optimizer_->Flush();
+  bytecode_array_writer_.BindJumpTableEntry(jump_table, case_value);
+  LeaveBasicBlock();
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Jump(BytecodeLabel* label) {
   DCHECK(!label->is_bound());
   OutputJump(label, 0);
@@ -1119,6 +1145,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(BytecodeLabel* label,
                                                      int loop_depth) {
   DCHECK(label->is_bound());
   OutputJumpLoop(label, 0, loop_depth);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::SwitchOnSmiNoFeedback(
+    BytecodeJumpTable* jump_table) {
+  OutputSwitchOnSmiNoFeedback(jump_table);
   return *this;
 }
 
@@ -1386,6 +1418,16 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(const Scope* scope) {
   }
 SINGLETON_CONSTANT_ENTRY_TYPES(ENTRY_GETTER)
 #undef ENTRY_GETTER
+
+BytecodeJumpTable* BytecodeArrayBuilder::AllocateJumpTable(
+    int size, int case_value_base) {
+  DCHECK_GT(size, 0);
+
+  size_t constant_pool_index = constant_array_builder()->InsertJumpTable(size);
+
+  return new (zone())
+      BytecodeJumpTable(constant_pool_index, size, case_value_base, zone());
+}
 
 size_t BytecodeArrayBuilder::AllocateDeferredConstantPoolEntry() {
   return constant_array_builder()->InsertDeferred();

@@ -4,9 +4,6 @@
 
 #include "src/api-natives.h"
 #include "src/api.h"
-#include "src/asmjs/asm-js.h"
-#include "src/asmjs/asm-typer.h"
-#include "src/asmjs/asm-wasm-builder.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
 #include "src/execution.h"
@@ -177,11 +174,10 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   if (!thrower.error() &&
-      i::wasm::SyncValidate(reinterpret_cast<i::Isolate*>(isolate), &thrower,
-                            bytes)) {
+      i::wasm::SyncValidate(reinterpret_cast<i::Isolate*>(isolate), bytes)) {
     return_value.Set(v8::True(isolate));
   } else {
-    if (thrower.wasm_error()) thrower.Reify();  // Clear error.
+    if (thrower.wasm_error()) thrower.Reset();  // Clear error.
     return_value.Set(v8::False(isolate));
   }
 }
@@ -610,8 +606,7 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   int new_size = static_cast<int>(new_size64);
-  i::WasmTableObject::Grow(i_isolate, receiver,
-                           static_cast<uint32_t>(new_size - old_size));
+  receiver->grow(i_isolate, static_cast<uint32_t>(new_size - old_size));
 
   if (new_size != old_size) {
     i::Handle<i::FixedArray> new_array =
@@ -745,7 +740,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.RangeError("Unable to grow instance memory.");
     return;
   }
-  i::wasm::DetachWebAssemblyMemoryBuffer(i_isolate, old_buffer);
+  bool free_memory = (delta_size != 0);
+  i::wasm::DetachWebAssemblyMemoryBuffer(i_isolate, old_buffer, free_memory);
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(ret);
 }
@@ -865,8 +861,7 @@ void WasmJs::Install(Isolate* isolate) {
   // Setup WebAssembly
   Handle<String> name = v8_str(isolate, "WebAssembly");
   Handle<JSFunction> cons = factory->NewFunction(name);
-  JSFunction::SetInstancePrototype(
-      cons, Handle<Object>(context->initial_object_prototype(), isolate));
+  JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
   cons->shared()->set_instance_class_name(*name);
   Handle<JSObject> webassembly = factory->NewJSObject(cons, TENURED);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);

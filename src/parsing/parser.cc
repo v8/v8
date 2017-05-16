@@ -4,6 +4,7 @@
 
 #include "src/parsing/parser.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "src/api.h"
@@ -14,6 +15,7 @@
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/char-predicates-inl.h"
+#include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/parsing/duplicate-finder.h"
@@ -250,60 +252,56 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
       y->AsLiteral() && y->AsLiteral()->raw_value()->IsNumber()) {
     double x_val = (*x)->AsLiteral()->raw_value()->AsNumber();
     double y_val = y->AsLiteral()->raw_value()->AsNumber();
-    bool x_has_dot = (*x)->AsLiteral()->raw_value()->ContainsDot();
-    bool y_has_dot = y->AsLiteral()->raw_value()->ContainsDot();
-    bool has_dot = x_has_dot || y_has_dot;
     switch (op) {
       case Token::ADD:
-        *x = factory()->NewNumberLiteral(x_val + y_val, pos, has_dot);
+        *x = factory()->NewNumberLiteral(x_val + y_val, pos);
         return true;
       case Token::SUB:
-        *x = factory()->NewNumberLiteral(x_val - y_val, pos, has_dot);
+        *x = factory()->NewNumberLiteral(x_val - y_val, pos);
         return true;
       case Token::MUL:
-        *x = factory()->NewNumberLiteral(x_val * y_val, pos, has_dot);
+        *x = factory()->NewNumberLiteral(x_val * y_val, pos);
         return true;
       case Token::DIV:
-        *x = factory()->NewNumberLiteral(x_val / y_val, pos, has_dot);
+        *x = factory()->NewNumberLiteral(x_val / y_val, pos);
         return true;
       case Token::BIT_OR: {
         int value = DoubleToInt32(x_val) | DoubleToInt32(y_val);
-        *x = factory()->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos);
         return true;
       }
       case Token::BIT_AND: {
         int value = DoubleToInt32(x_val) & DoubleToInt32(y_val);
-        *x = factory()->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos);
         return true;
       }
       case Token::BIT_XOR: {
         int value = DoubleToInt32(x_val) ^ DoubleToInt32(y_val);
-        *x = factory()->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos);
         return true;
       }
       case Token::SHL: {
         int value = DoubleToInt32(x_val) << (DoubleToInt32(y_val) & 0x1f);
-        *x = factory()->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos);
         return true;
       }
       case Token::SHR: {
         uint32_t shift = DoubleToInt32(y_val) & 0x1f;
         uint32_t value = DoubleToUint32(x_val) >> shift;
-        *x = factory()->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos);
         return true;
       }
       case Token::SAR: {
         uint32_t shift = DoubleToInt32(y_val) & 0x1f;
         int value = ArithmeticShiftRight(DoubleToInt32(x_val), shift);
-        *x = factory()->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos);
         return true;
       }
       case Token::EXP: {
         double value = Pow(x_val, y_val);
         int int_value = static_cast<int>(value);
         *x = factory()->NewNumberLiteral(
-            int_value == value && value != -0.0 ? int_value : value, pos,
-            has_dot);
+            int_value == value && value != -0.0 ? int_value : value, pos);
         return true;
       }
       default:
@@ -325,15 +323,13 @@ Expression* Parser::BuildUnaryExpression(Expression* expression,
     } else if (literal->IsNumber()) {
       // Compute some expressions involving only number literals.
       double value = literal->AsNumber();
-      bool has_dot = literal->ContainsDot();
       switch (op) {
         case Token::ADD:
           return expression;
         case Token::SUB:
-          return factory()->NewNumberLiteral(-value, pos, has_dot);
+          return factory()->NewNumberLiteral(-value, pos);
         case Token::BIT_NOT:
-          return factory()->NewNumberLiteral(~DoubleToInt32(value), pos,
-                                             has_dot);
+          return factory()->NewNumberLiteral(~DoubleToInt32(value), pos);
         default:
           break;
       }
@@ -342,7 +338,7 @@ Expression* Parser::BuildUnaryExpression(Expression* expression,
   // Desugar '+foo' => 'foo*1'
   if (op == Token::ADD) {
     return factory()->NewBinaryOperation(
-        Token::MUL, expression, factory()->NewNumberLiteral(1, pos, true), pos);
+        Token::MUL, expression, factory()->NewNumberLiteral(1, pos), pos);
   }
   // The same idea for '-foo' => 'foo*(-1)'.
   if (op == Token::SUB) {
@@ -431,9 +427,8 @@ Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
       return factory()->NewSmiLiteral(value, pos);
     }
     case Token::NUMBER: {
-      bool has_dot = scanner()->ContainsDot();
       double value = scanner()->DoubleValue();
-      return factory()->NewNumberLiteral(value, pos, has_dot);
+      return factory()->NewNumberLiteral(value, pos);
     }
     default:
       DCHECK(false);
@@ -622,31 +617,29 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   source = String::Flatten(source);
   FunctionLiteral* result;
 
+  if (FLAG_use_parse_tasks) {
+    source_ = source;
+    compiler_dispatcher_ = isolate->compiler_dispatcher();
+    main_parse_info_ = info;
+  }
+
   {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(source));
-    if (FLAG_use_parse_tasks) {
-      // FIXME(wiktorg) make it useful for something
-      // TODO(wiktorg) make preparser work also with modules
-      if (!info->is_module()) {
-        scanner_.Initialize(stream.get());
-        // NOTE: Some features will be double counted - once here and one more
-        //  time while being fully parsed by a parse task.
-        PreParser::PreParseResult result =
-            reusable_preparser()->PreParseProgram(false, use_counts_);
-        if (result == PreParser::kPreParseStackOverflow) {
-          set_stack_overflow();
-          return nullptr;
-        }
-        stream->Seek(0);
-      }
-    }
-    scanner_.Initialize(stream.get());
+    scanner_.Initialize(stream.get(), info->is_module());
     result = DoParseProgram(info);
   }
   if (result != NULL) {
     DCHECK_EQ(scanner_.peek_location().beg_pos, source->length());
   }
   HandleSourceURLComments(isolate, info->script());
+
+  if (FLAG_use_parse_tasks) {
+    compiler_dispatcher_->FinishAllNow();
+    StitchAst(info, isolate);
+    source_ = Handle<String>();
+    compiler_dispatcher_ = nullptr;
+    main_parse_info_ = nullptr;
+  }
 
   if (FLAG_trace_parse && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -807,7 +800,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
         source, shared_info->start_position(), shared_info->end_position()));
     Handle<String> name(String::cast(shared_info->name()));
-    scanner_.Initialize(stream.get());
+    scanner_.Initialize(stream.get(), info->is_module());
     info->set_function_name(ast_value_factory()->GetString(name));
     result = DoParseFunction(info);
     if (result != nullptr) {
@@ -2641,6 +2634,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Setter ::
   //   '(' PropertySetParameterList ')' '{' FunctionBody '}'
 
+  // Parse optional type parameters.
+  typename TypeSystem::TypeParameters type_parameters = NullTypeParameters();
+  if (typed() && !(type_flags & typesystem::kDisallowTypeParameters) &&
+      peek() == Token::LT) {  // Braces required here.
+    type_parameters = ParseTypeParameters(CHECK_OK);
+  }
+  USE(type_parameters);  // TODO(nikolaos): really use them!
+
   int pos = function_token_pos == kNoSourcePosition ? peek_position()
                                                     : function_token_pos;
 
@@ -2695,11 +2696,17 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   DCHECK_IMPLIES(parse_lazily(), allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension_ == nullptr);
 
-  bool can_preparse = parse_lazily() &&
-                      eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
-
-  bool is_lazy_top_level_function =
-      can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
+  const bool source_is_external =
+      !source_.is_null() && (source_->IsExternalTwoByteString() ||
+                             source_->IsExternalOneByteString());
+  const bool is_lazy =
+      eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
+  const bool is_top_level =
+      impl()->AllowsLazyParsingWithoutUnresolvedVariables();
+  const bool is_lazy_top_level_function = is_lazy && is_top_level;
+  const bool is_lazy_inner_function = is_lazy && !is_top_level;
+  const bool is_eager_top_level_function = !is_lazy && is_top_level;
+  const bool is_declaration = function_type == FunctionLiteral::kDeclaration;
 
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
@@ -2723,22 +2730,19 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // Inner functions will be parsed using a temporary Zone. After parsing, we
   // will migrate unresolved variable into a Scope in the main Zone.
-  // TODO(marja): Refactor parsing modes: simplify this.
-  bool use_temp_zone =
-      (FLAG_aggressive_lazy_inner_functions
-           ? can_preparse
-           : (is_lazy_top_level_function ||
-              (parse_lazily() &&
-               function_type == FunctionLiteral::kDeclaration &&
-               eager_compile_hint == FunctionLiteral::kShouldLazyCompile)));
 
-  DCHECK_IMPLIES(
-      (is_lazy_top_level_function ||
-       (parse_lazily() && function_type == FunctionLiteral::kDeclaration &&
-        eager_compile_hint == FunctionLiteral::kShouldLazyCompile)),
-      can_preparse);
-  bool is_lazy_inner_function =
-      use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
+  const bool should_preparse_inner =
+      parse_lazily() && FLAG_lazy_inner_functions && is_lazy_inner_function &&
+      (is_declaration || FLAG_aggressive_lazy_inner_functions);
+
+  bool should_use_parse_task =
+      FLAG_use_parse_tasks && parse_lazily() && compiler_dispatcher_ &&
+      is_eager_top_level_function && source_is_external;
+
+  // This may be modified later to reflect preparsing decision taken
+  bool should_preparse = (parse_lazily() && (is_lazy_top_level_function ||
+                                             should_use_parse_task)) ||
+                         should_preparse_inner;
 
   ZoneList<Statement*>* body = nullptr;
   int expected_property_count = -1;
@@ -2747,6 +2751,33 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int function_length = -1;
   bool has_duplicate_parameters = false;
   int function_literal_id = GetNextFunctionLiteralId();
+
+  Expect(Token::LPAREN, CHECK_OK);
+
+  if (should_use_parse_task) {
+    int start_pos = scanner()->location().beg_pos;
+    if (function_name_location.IsValid()) {
+      start_pos = function_name_location.beg_pos;
+    }
+    // Warning!
+    // Only sets fields in compiler_hints that are currently used.
+    int compiler_hints = SharedFunctionInfo::FunctionKindBits::encode(kind);
+    if (function_type == FunctionLiteral::kDeclaration) {
+      compiler_hints |= 1 << SharedFunctionInfo::kIsDeclaration;
+    }
+    should_use_parse_task = compiler_dispatcher_->Enqueue(
+        source_, start_pos, source_->length(), language_mode,
+        function_literal_id, allow_natives(), parsing_module_,
+        function_type == FunctionLiteral::kNamedExpression, compiler_hints,
+        main_parse_info_, nullptr);
+    if (V8_UNLIKELY(FLAG_trace_parse_tasks)) {
+      PrintF("Spining off task for function at %d: %s\n", start_pos,
+             should_use_parse_task ? "SUCCESS" : "FAILED");
+    }
+    if (!should_use_parse_task) {
+      should_preparse = false;
+    }
+  }
 
   Zone* outer_zone = zone();
   DeclarationScope* scope;
@@ -2763,7 +2794,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // to do scope analysis correctly after full parsing, we migrate needed
     // information when the function is parsed.
     Zone temp_zone(zone()->allocator(), ZONE_NAME);
-    DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
+    DiscardableZoneScope zone_scope(this, &temp_zone, should_preparse);
 
     // This Scope lives in the main zone. We'll migrate data into that zone
     // later.
@@ -2772,18 +2803,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_typed) scope->SetTyped();
 #ifdef DEBUG
     scope->SetScopeName(function_name);
-    if (use_temp_zone) scope->set_needs_migration();
+    if (should_preparse) scope->set_needs_migration();
 #endif
 
-    // Parse optional type parameters.
-    typename TypeSystem::TypeParameters type_parameters = NullTypeParameters();
-    if (typed() && !(type_flags & typesystem::kDisallowTypeParameters) &&
-        peek() == Token::LT) {  // Braces required here.
-      type_parameters = ParseTypeParameters(CHECK_OK);
-    }
-    USE(type_parameters);  // TODO(nikolaos): really use them!
-
-    Expect(Token::LPAREN, CHECK_OK);
     scope->set_start_position(scanner()->location().beg_pos);
 
     // Eager or lazy parse? If is_lazy_top_level_function, we'll parse
@@ -2791,7 +2813,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // abort lazy parsing if it suspects that wasn't a good idea. If so (in
     // which case the parser is expected to have backtracked), or if we didn't
     // try to lazy parse in the first place, we'll have to parse eagerly.
-    if (is_lazy_top_level_function || is_lazy_inner_function) {
+    if (should_preparse) {
+      DCHECK(parse_lazily());
+      DCHECK(is_lazy_top_level_function || is_lazy_inner_function ||
+             should_use_parse_task);
       Scanner::BookmarkScope bookmark(scanner());
       bookmark.Set();
       LazyParsingResult result =
@@ -2808,9 +2833,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       if (result == kLazyParsingAborted) {
         DCHECK(is_lazy_top_level_function);
         bookmark.Apply();
-        // Trigger eager (re-)parsing, just below this block.
-        is_lazy_top_level_function = false;
-
         // This is probably an initialization function. Inform the compiler it
         // should also eager-compile this function, and that we expect it to be
         // used once.
@@ -2818,11 +2840,16 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         should_be_used_once_hint = true;
         scope->ResetAfterPreparsing(ast_value_factory(), true);
         zone_scope.Reset();
-        use_temp_zone = false;
+        // Trigger eager (re-)parsing, just below this block.
+        should_preparse = false;
+        should_use_parse_task = false;
       }
     }
 
-    if (!is_lazy_top_level_function && !is_lazy_inner_function) {
+    if (should_preparse) {
+      scope->AnalyzePartially(&previous_zone_ast_node_factory,
+                              preparsed_scope_data_);
+    } else {
       body = ParseFunction(function_name, pos, kind, function_type, scope,
                            &num_parameters, &function_length,
                            &has_duplicate_parameters, &expected_property_count,
@@ -2832,37 +2859,29 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       if (body == nullptr) return nullptr;
     }
 
-    DCHECK(use_temp_zone || !is_lazy_top_level_function);
-    if (use_temp_zone) {
-      // If the preconditions are correct the function body should never be
-      // accessed, but do this anyway for better behaviour if they're wrong.
-      body = nullptr;
-      scope->AnalyzePartially(&previous_zone_ast_node_factory,
-                              preparsed_scope_data_);
-    }
-
-    DCHECK_IMPLIES(use_temp_zone, temp_zoned_);
-    if (FLAG_trace_preparse) {
+    DCHECK_EQ(should_preparse, temp_zoned_);
+    if (V8_UNLIKELY(FLAG_trace_preparse)) {
       PrintF("  [%s]: %i-%i %.*s\n",
-             is_lazy_top_level_function
-                 ? "Preparse no-resolution"
-                 : (temp_zoned_ ? "Preparse resolution" : "Full parse"),
+             should_preparse ? (is_top_level ? "Preparse no-resolution"
+                                             : "Preparse resolution")
+                             : "Full parse",
              scope->start_position(), scope->end_position(),
              function_name->byte_length(), function_name->raw_data());
     }
     if (V8_UNLIKELY(FLAG_runtime_stats)) {
-      if (is_lazy_top_level_function) {
-        RuntimeCallStats::CorrectCurrentCounterId(
-            runtime_call_stats_,
-            parsing_on_main_thread_
-                ? &RuntimeCallStats::PreParseNoVariableResolution
-                : &RuntimeCallStats::PreParseBackgroundNoVariableResolution);
-      } else if (temp_zoned_) {
-        RuntimeCallStats::CorrectCurrentCounterId(
-            runtime_call_stats_,
+      if (should_preparse) {
+        RuntimeCallStats::CounterId counter_id =
             parsing_on_main_thread_
                 ? &RuntimeCallStats::PreParseWithVariableResolution
-                : &RuntimeCallStats::PreParseBackgroundWithVariableResolution);
+                : &RuntimeCallStats::PreParseBackgroundWithVariableResolution;
+        if (is_top_level) {
+          counter_id =
+              parsing_on_main_thread_
+                  ? &RuntimeCallStats::PreParseNoVariableResolution
+                  : &RuntimeCallStats::PreParseBackgroundNoVariableResolution;
+        }
+        RuntimeCallStats::CorrectCurrentCounterId(runtime_call_stats_,
+                                                  counter_id);
       }
     }
 
@@ -2888,6 +2907,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       function_name, scope, body, expected_property_count, num_parameters,
       function_length, duplicate_parameters, function_type, eager_compile_hint,
       pos, true, function_literal_id);
+  if (should_use_parse_task) {
+    literals_to_stitch_.emplace_back(function_literal);
+  }
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();
@@ -2905,6 +2927,8 @@ Parser::LazyParsingResult Parser::SkipFunction(FunctionKind kind,
                                                bool is_inner_function,
                                                typesystem::TypeFlags type_flags,
                                                bool may_abort, bool* ok) {
+  FunctionState function_state(&function_state_, &scope_, function_scope);
+
   DCHECK_NE(kNoSourcePosition, function_scope->start_position());
   DCHECK_EQ(kNoSourcePosition, parameters_end_pos_);
   if (produce_cached_parse_data()) CHECK(log_);
@@ -2938,37 +2962,12 @@ Parser::LazyParsingResult Parser::SkipFunction(FunctionKind kind,
     cached_parse_data_->Reject();
   }
 
-  if (FLAG_use_parse_tasks && !is_inner_function &&
-      reusable_preparser()->preparse_data()) {
-    // All top-level functions are already preparsed and parser tasks for eager
-    // functions are already created. Use data gathered during the preparse step
-    // to skip the function.
-    PreParseData::FunctionData data =
-        reusable_preparser()->preparse_data()->GetFunctionData(
-            function_scope->start_position());
-    if (data.is_valid()) {
-      if (FLAG_trace_parse_tasks) {
-        PrintF("Skipping top level func @ %d : %d using preparse data\n",
-               function_scope->start_position(), data.end);
-      }
-      function_scope->set_end_position(data.end);
-      scanner()->SeekForward(data.end - 1);
-      Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
-      *num_parameters = data.num_parameters;
-      SetLanguageMode(function_scope, data.language_mode);
-      if (data.uses_super_property) {
-        function_scope->RecordSuperPropertyUsage();
-      }
-      SkipFunctionLiterals(data.num_inner_functions);
-      return kLazyParsingComplete;
-    }
-  }
-
   // FIXME(marja): There are 3 ways to skip functions now. Unify them.
   if (preparsed_scope_data_->Consuming()) {
     DCHECK(FLAG_experimental_preparser_scope_analysis);
     const PreParseData::FunctionData& data =
-        preparsed_scope_data_->FindFunction(function_scope->start_position());
+        preparsed_scope_data_->FindSkippableFunction(
+            function_scope->start_position());
     if (data.is_valid()) {
       function_scope->set_is_skipped_function(true);
       function_scope->outer_scope()->SetMustUsePreParsedScopeData();
@@ -3230,22 +3229,6 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
   return result;
 }
 
-Assignment* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
-  // .generator = %CreateJSGeneratorObject(...);
-  DCHECK_NOT_NULL(function_state_->generator_object_variable());
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
-  args->Add(factory()->NewThisFunction(pos), zone());
-  args->Add(IsArrowFunction(kind) ? GetLiteralUndefined(pos)
-                                  : ThisExpression(kNoSourcePosition),
-            zone());
-  Expression* allocation =
-      factory()->NewCallRuntime(Runtime::kCreateJSGeneratorObject, args, pos);
-  VariableProxy* proxy =
-      factory()->NewVariableProxy(function_state_->generator_object_variable());
-  return factory()->NewAssignment(Token::INIT, proxy, allocation,
-                                  kNoSourcePosition);
-}
-
 Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
   // %ResolvePromise(.promise, value), .promise
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
@@ -3295,13 +3278,17 @@ Variable* Parser::AsyncGeneratorAwaitVariable() {
 }
 
 Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
-  Assignment* assignment = BuildCreateJSGeneratorObject(pos, kind);
-  VariableProxy* generator =
+  // We access the generator object twice: once for the {generator}
+  // member of the Suspend AST node, and once for the result of
+  // the initial yield.
+  Expression* yield_result =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  Expression* generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
   // The position of the yield is important for reporting the exception
   // caused by calling the .throw method on a generator suspended at the
   // initial yield (i.e. right after generator instantiation).
-  return BuildSuspend(generator, assignment, scope()->start_position(),
+  return BuildSuspend(generator_object, yield_result, scope()->start_position(),
                       Suspend::kOnExceptionThrow, SuspendFlags::kYield);
 }
 
@@ -3440,7 +3427,7 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
   class_info->properties->Add(property, zone());
 }
 
-// This method rewrites a class literal into a do-expression.
+// This method generates a ClassLiteral AST node.
 // It uses the following fields of class_info:
 //   - constructor (if missing, it updates it with a default constructor)
 //   - proxy
@@ -3448,13 +3435,13 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
 //   - properties
 //   - has_name_static_property
 //   - has_static_computed_names
-Expression* Parser::RewriteClassLiteral(const AstRawString* name,
+Expression* Parser::RewriteClassLiteral(Scope* block_scope,
+                                        const AstRawString* name,
                                         ClassInfo* class_info, int pos,
-                                        bool* ok) {
-  int end_pos = scanner()->location().end_pos;
-  Block* do_block = factory()->NewBlock(nullptr, 1, false, pos);
-  Variable* result_var = NewTemporary(ast_value_factory()->empty_string());
-  DoExpression* do_expr = factory()->NewDoExpression(do_block, result_var, pos);
+                                        int end_pos, bool* ok) {
+  DCHECK_NOT_NULL(block_scope);
+  DCHECK_EQ(block_scope->scope_type(), BLOCK_SCOPE);
+  DCHECK_EQ(block_scope->language_mode(), STRICT);
 
   bool has_extends = class_info->extends != nullptr;
   bool has_default_constructor = class_info->constructor == nullptr;
@@ -3463,31 +3450,20 @@ Expression* Parser::RewriteClassLiteral(const AstRawString* name,
         DefaultConstructor(name, has_extends, pos, end_pos);
   }
 
-  scope()->set_end_position(end_pos);
-
   if (name != nullptr) {
     DCHECK_NOT_NULL(class_info->proxy);
     class_info->proxy->var()->set_initializer_position(end_pos);
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
-      class_info->proxy, class_info->extends, class_info->constructor,
-      class_info->properties, pos, end_pos,
+      block_scope, class_info->proxy, class_info->extends,
+      class_info->constructor, class_info->properties, pos, end_pos,
       class_info->has_name_static_property,
-      class_info->has_static_computed_names);
+      class_info->has_static_computed_names, class_info->is_anonymous);
 
-  do_block->statements()->Add(
-      factory()->NewExpressionStatement(
-          factory()->NewAssignment(Token::ASSIGN,
-                                   factory()->NewVariableProxy(result_var),
-                                   class_literal, kNoSourcePosition),
-          pos),
-      zone());
-  do_block->set_scope(scope()->FinalizeBlockScope());
-  do_expr->set_represented_function(class_info->constructor);
   AddFunctionForNameInference(class_info->constructor);
 
-  return do_expr;
+  return class_literal;
 }
 
 Literal* Parser::GetLiteralUndefined(int position) {
@@ -3626,13 +3602,6 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
   }
   isolate->counters()->total_preparse_skipped()->Increment(
       total_preparse_skipped_);
-  if (!parsing_on_main_thread_ &&
-      FLAG_runtime_stats ==
-          v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE) {
-    // Copy over the counters from the background thread to the main counters on
-    // the isolate.
-    isolate->counters()->runtime_call_stats()->Add(runtime_call_stats_);
-  }
 }
 
 void Parser::ParseOnBackground(ParseInfo* info) {
@@ -3649,10 +3618,6 @@ void Parser::ParseOnBackground(ParseInfo* info) {
       compile_options_ = ScriptCompiler::kNoCompileOptions;
     }
   }
-  if (FLAG_runtime_stats) {
-    // Create separate runtime stats for background parsing.
-    runtime_call_stats_ = new (zone()) RuntimeCallStats();
-  }
 
   std::unique_ptr<Utf16CharacterStream> stream;
   Utf16CharacterStream* stream_ptr;
@@ -3666,7 +3631,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
                                     runtime_call_stats_));
     stream_ptr = stream.get();
   }
-  scanner_.Initialize(stream_ptr);
+  scanner_.Initialize(stream_ptr, info->is_module());
   DCHECK(info->maybe_outer_scope_info().is_null());
 
   DCHECK(original_scope_);
@@ -4005,9 +3970,6 @@ void Parser::PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
   if (function_state_->generator_object_variable() == nullptr) {
     PrepareGeneratorVariables();
   }
-  body->Add(factory()->NewExpressionStatement(
-                BuildCreateJSGeneratorObject(pos, kind), kNoSourcePosition),
-            zone());
 }
 
 // This method completes the desugaring of the body of async_function.
@@ -4369,7 +4331,7 @@ void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
 
   // Ignore "__proto__" as a name when it's being used to set the [[Prototype]]
   // of an object literal.
-  if (property->kind() == ObjectLiteralProperty::PROTOTYPE) return;
+  if (property->IsPrototype()) return;
 
   Expression* value = property->value();
 
@@ -4388,12 +4350,11 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
   DCHECK_NOT_NULL(name);
   if (!value->IsAnonymousFunctionDefinition()) return;
   auto function = value->AsFunctionLiteral();
+  if (value->IsClassLiteral()) {
+    function = value->AsClassLiteral()->constructor();
+  }
   if (function != nullptr) {
     function->set_raw_name(ast_value_factory()->NewConsString(name));
-  } else {
-    DCHECK(value->IsDoExpression());
-    value->AsDoExpression()->represented_function()->set_raw_name(
-        ast_value_factory()->NewConsString(name));
   }
 }
 
@@ -5323,6 +5284,41 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
   }
 
   return final_loop;
+}
+
+void Parser::StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate) {
+  if (literals_to_stitch_.empty()) return;
+  std::map<int, ParseInfo*> child_infos = top_level_parse_info->child_infos();
+  DCHECK(std::is_sorted(literals_to_stitch_.begin(), literals_to_stitch_.end(),
+                        [](FunctionLiteral* a, FunctionLiteral* b) {
+                          return a->start_position() < b->start_position();
+                        }));
+  auto it = literals_to_stitch_.begin();
+  for (auto& child_info : child_infos) {
+    ParseInfo* result = child_info.second;
+    // If the parse task failed the function will be treated as lazy function
+    // and reparsed before it gets called
+    if (!result) continue;
+    result->UpdateStatisticsAfterBackgroundParse(isolate);
+    if (!result->literal()) continue;
+    while ((*it)->start_position() != child_info.first) {
+      if (++it == literals_to_stitch_.end()) {
+        return;
+      }
+    }
+    FunctionLiteral* literal = *it;
+    // FIXME(wiktorg) better handling of default params for arrow functions
+    Scope* outer_scope = literal->scope()->outer_scope();
+    if (outer_scope->is_declaration_scope() &&
+        outer_scope->AsDeclarationScope()->was_lazily_parsed()) {
+      continue;
+    }
+    // TODO(wiktorg) in the future internalize somewhere else (stitching may be
+    // done on streamer thread)
+    result->ast_value_factory()->Internalize(isolate);
+    literal->ReplaceBodyAndScope(result->literal());
+    literal->SetShouldEagerCompile();
+  }
 }
 
 #undef CHECK_OK

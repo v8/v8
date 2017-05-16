@@ -26,10 +26,10 @@
 #include "src/string-search.h"
 #include "src/unicode-decoder.h"
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"
 #include "unicode/utypes.h"
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
@@ -5113,7 +5113,7 @@ RegExpNode* UnanchoredAdvance(RegExpCompiler* compiler,
 }
 
 void AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges, Zone* zone) {
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
   // Use ICU to compute the case fold closure over the ranges.
   icu::UnicodeSet set;
   for (int i = 0; i < ranges->length(); i++) {
@@ -5131,7 +5131,7 @@ void AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges, Zone* zone) {
   }
   // No errors and everything we collected have been ranges.
   CharacterRange::Canonicalize(ranges);
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 }
 
 

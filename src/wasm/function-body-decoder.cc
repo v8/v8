@@ -146,6 +146,22 @@ struct Control {
   }
 };
 
+namespace {
+inline unsigned GetShuffleMaskSize(WasmOpcode opcode) {
+  switch (opcode) {
+    case kExprS32x4Shuffle:
+      return 4;
+    case kExprS16x8Shuffle:
+      return 8;
+    case kExprS8x16Shuffle:
+      return 16;
+    default:
+      UNREACHABLE();
+      return 0;
+  }
+}
+}  // namespace
+
 // Macros that build nodes only if there is a graph and the current SSA
 // environment is reachable from start. This avoids problems with malformed
 // TF graphs when decoding inputs that have unreachable code.
@@ -412,10 +428,13 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, WasmOpcode opcode,
-                       SimdConcatOperand<true>& operand) {
-    DCHECK_EQ(wasm::kExprS8x16Concat, opcode);
-    if (operand.bytes <= 0 || operand.bytes >= kSimd128Size) {
-      error(pc_ + 2, "invalid byte amount");
+                       SimdShuffleOperand<true>& operand) {
+    unsigned lanes = GetShuffleMaskSize(opcode);
+    uint8_t max_lane = 0;
+    for (unsigned i = 0; i < lanes; i++)
+      max_lane = std::max(max_lane, operand.shuffle[i]);
+    if (operand.lanes != lanes || max_lane > 2 * lanes) {
+      error(pc_ + 2, "invalid shuffle mask");
       return false;
     } else {
       return true;
@@ -423,7 +442,8 @@ class WasmDecoder : public Decoder {
   }
 
   static unsigned OpcodeLength(Decoder* decoder, const byte* pc) {
-    switch (static_cast<byte>(*pc)) {
+    WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
+    switch (opcode) {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
@@ -506,6 +526,11 @@ class WasmDecoder : public Decoder {
           {
             return 3;
           }
+          // Shuffles contain a byte array to determine the shuffle.
+          case kExprS32x4Shuffle:
+          case kExprS16x8Shuffle:
+          case kExprS8x16Shuffle:
+            return 2 + GetShuffleMaskSize(opcode);
           default:
             decoder->error(pc, "invalid SIMD opcode");
             return 2;
@@ -514,6 +539,68 @@ class WasmDecoder : public Decoder {
       default:
         return 1;
     }
+  }
+
+  std::pair<uint32_t, uint32_t> StackEffect(const byte* pc) {
+    WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
+    // Handle "simple" opcodes with a fixed signature first.
+    FunctionSig* sig = WasmOpcodes::Signature(opcode);
+    if (!sig) sig = WasmOpcodes::AsmjsSignature(opcode);
+    if (sig) return {sig->parameter_count(), sig->return_count()};
+
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+    // clang-format off
+    switch (opcode) {
+      case kExprSelect:
+        return {3, 1};
+      FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
+        return {2, 0};
+      FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
+      case kExprTeeLocal:
+      case kExprGrowMemory:
+        return {1, 1};
+      case kExprSetLocal:
+      case kExprSetGlobal:
+      case kExprDrop:
+      case kExprBrIf:
+      case kExprBrTable:
+      case kExprIf:
+        return {1, 0};
+      case kExprGetLocal:
+      case kExprGetGlobal:
+      case kExprI32Const:
+      case kExprI64Const:
+      case kExprF32Const:
+      case kExprF64Const:
+      case kExprMemorySize:
+        return {0, 1};
+      case kExprCallFunction: {
+        CallFunctionOperand<true> operand(this, pc);
+        CHECK(Complete(pc, operand));
+        return {operand.sig->parameter_count(), operand.sig->return_count()};
+      }
+      case kExprCallIndirect: {
+        CallIndirectOperand<true> operand(this, pc);
+        CHECK(Complete(pc, operand));
+        // Indirect calls pop an additional argument for the table index.
+        return {operand.sig->parameter_count() + 1,
+                operand.sig->return_count()};
+      }
+      case kExprBr:
+      case kExprBlock:
+      case kExprLoop:
+      case kExprEnd:
+      case kExprElse:
+      case kExprNop:
+      case kExprReturn:
+      case kExprUnreachable:
+        return {0, 0};
+      default:
+        V8_Fatal(__FILE__, __LINE__, "unimplemented opcode: %x", opcode);
+        return {0, 0};
+    }
+#undef DECLARE_OPCODE_CASE
+    // clang-format on
   }
 };
 
@@ -583,8 +670,8 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   bool TraceFailed() {
-    TRACE("wasm-error module+%-6d func+%d: %s\n\n", baserel(error_pc_),
-          startrel(error_pc_), error_msg_.c_str());
+    TRACE("wasm-error module+%-6d func+%d: %s\n\n",
+          baserel(start_ + error_offset_), error_offset_, error_msg_.c_str());
     return false;
   }
 
@@ -1486,17 +1573,17 @@ class WasmFullDecoder : public WasmDecoder {
     return operand.length;
   }
 
-  unsigned SimdConcatOp(WasmOpcode opcode) {
-    DCHECK_EQ(wasm::kExprS8x16Concat, opcode);
-    SimdConcatOperand<true> operand(this, pc_);
+  unsigned SimdShuffleOp(WasmOpcode opcode) {
+    SimdShuffleOperand<true> operand(this, pc_, GetShuffleMaskSize(opcode));
     if (Validate(pc_, opcode, operand)) {
       compiler::NodeVector inputs(2, zone_);
       inputs[1] = Pop(1, ValueType::kSimd128).node;
       inputs[0] = Pop(0, ValueType::kSimd128).node;
-      TFNode* node = BUILD(SimdConcatOp, operand.bytes, inputs);
+      TFNode* node =
+          BUILD(SimdShuffleOp, operand.shuffle, operand.lanes, inputs);
       Push(ValueType::kSimd128, node);
     }
-    return operand.length;
+    return operand.lanes;
   }
 
   unsigned DecodeSimdOpcode(WasmOpcode opcode) {
@@ -1534,8 +1621,10 @@ class WasmFullDecoder : public WasmDecoder {
         len = SimdShiftOp(opcode);
         break;
       }
-      case kExprS8x16Concat: {
-        len = SimdConcatOp(opcode);
+      case kExprS32x4Shuffle:
+      case kExprS16x8Shuffle:
+      case kExprS8x16Shuffle: {
+        len = SimdShuffleOp(opcode);
         break;
       }
       default: {
@@ -2053,6 +2142,13 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
 unsigned OpcodeLength(const byte* pc, const byte* end) {
   Decoder decoder(pc, end);
   return WasmDecoder::OpcodeLength(&decoder, pc);
+}
+
+std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
+                                          FunctionSig* sig, const byte* pc,
+                                          const byte* end) {
+  WasmDecoder decoder(module, sig, pc, end);
+  return decoder.StackEffect(pc);
 }
 
 void PrintRawWasmCode(const byte* start, const byte* end) {

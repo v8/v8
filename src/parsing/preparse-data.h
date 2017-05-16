@@ -102,7 +102,7 @@ class PreParseData final {
     LanguageMode language_mode;
     bool uses_super_property : 1;
 
-    FunctionData() : end(-1) {}
+    FunctionData() : end(kNoSourcePosition) {}
 
     FunctionData(int end, int num_parameters, int num_inner_functions,
                  LanguageMode language_mode, bool uses_super_property)
@@ -112,7 +112,10 @@ class PreParseData final {
           language_mode(language_mode),
           uses_super_property(uses_super_property) {}
 
-    bool is_valid() const { return end > 0; }
+    bool is_valid() const {
+      DCHECK_IMPLIES(end < 0, end == kNoSourcePosition);
+      return end != kNoSourcePosition;
+    }
   };
 
   FunctionData GetFunctionData(int start) const;

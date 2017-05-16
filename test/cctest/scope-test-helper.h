@@ -59,6 +59,20 @@ class ScopeTestHelper {
       CompareScopes(baseline_inner, scope_inner, precise_maybe_assigned);
     }
   }
+
+  // Finds a scope given a start point and directions to it (which inner scope
+  // to pick).
+  static Scope* FindScope(Scope* scope, const std::vector<unsigned>& location) {
+    for (auto n : location) {
+      scope = scope->inner_scope();
+      CHECK_NOT_NULL(scope);
+      while (n-- > 0) {
+        scope = scope->sibling();
+        CHECK_NOT_NULL(scope);
+      }
+    }
+    return scope;
+  }
 };
 }  // namespace internal
 }  // namespace v8
