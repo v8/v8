@@ -105,7 +105,7 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     v8::Isolate::Scope isolate_scope(isolate_);
     if (catch_exceptions_) {
       v8::TryCatch try_catch(isolate_);
-      task->Run(isolate_, contexts_.begin()->second);
+      task->RunOnTaskRunner(this);
       delete task;
       if (try_catch.HasCaught()) {
         ReportUncaughtException(isolate_, try_catch);
@@ -114,7 +114,7 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
         _exit(0);
       }
     } else {
-      task->Run(isolate_, contexts_.begin()->second);
+      task->RunOnTaskRunner(this);
       delete task;
     }
   }
@@ -183,10 +183,9 @@ AsyncTask::AsyncTask(const char* task_name,
   }
 }
 
-void AsyncTask::Run(v8::Isolate* isolate,
-                    const v8::Global<v8::Context>& context) {
+void AsyncTask::Run() {
   if (inspector_) inspector_->asyncTaskStarted(this);
-  AsyncRun(isolate, context);
+  AsyncRun();
   if (inspector_) inspector_->asyncTaskFinished(this);
 }
 
@@ -206,21 +205,21 @@ ExecuteStringTask::ExecuteStringTask(
     const v8::internal::Vector<const char>& expression)
     : AsyncTask(nullptr, nullptr), expression_utf8_(expression) {}
 
-void ExecuteStringTask::AsyncRun(v8::Isolate* isolate,
-                                 const v8::Global<v8::Context>& context) {
-  v8::MicrotasksScope microtasks_scope(isolate,
+void ExecuteStringTask::AsyncRun() {
+  v8::MicrotasksScope microtasks_scope(isolate(),
                                        v8::MicrotasksScope::kRunMicrotasks);
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> local_context = context.Get(isolate);
-  v8::Context::Scope context_scope(local_context);
+  v8::HandleScope handle_scope(isolate());
+  v8::Local<v8::Context> context = default_context();
+  v8::Context::Scope context_scope(context);
 
   v8::Local<v8::String> name =
-      v8::String::NewFromTwoByte(isolate, name_.start(),
+      v8::String::NewFromTwoByte(isolate(), name_.start(),
                                  v8::NewStringType::kNormal, name_.length())
           .ToLocalChecked();
-  v8::Local<v8::Integer> line_offset = v8::Integer::New(isolate, line_offset_);
+  v8::Local<v8::Integer> line_offset =
+      v8::Integer::New(isolate(), line_offset_);
   v8::Local<v8::Integer> column_offset =
-      v8::Integer::New(isolate, column_offset_);
+      v8::Integer::New(isolate(), column_offset_);
 
   v8::ScriptOrigin origin(
       name, line_offset, column_offset,
@@ -229,15 +228,15 @@ void ExecuteStringTask::AsyncRun(v8::Isolate* isolate,
       /* source_map_url */ v8::Local<v8::Value>(),
       /* resource_is_opaque */ v8::Local<v8::Boolean>(),
       /* is_wasm */ v8::Local<v8::Boolean>(),
-      v8::Boolean::New(isolate, is_module_));
+      v8::Boolean::New(isolate(), is_module_));
   v8::Local<v8::String> source;
   if (expression_.length()) {
-    source = v8::String::NewFromTwoByte(isolate, expression_.start(),
+    source = v8::String::NewFromTwoByte(isolate(), expression_.start(),
                                         v8::NewStringType::kNormal,
                                         expression_.length())
                  .ToLocalChecked();
   } else {
-    source = v8::String::NewFromUtf8(isolate, expression_utf8_.start(),
+    source = v8::String::NewFromUtf8(isolate(), expression_utf8_.start(),
                                      v8::NewStringType::kNormal,
                                      expression_utf8_.length())
                  .ToLocalChecked();
@@ -246,22 +245,21 @@ void ExecuteStringTask::AsyncRun(v8::Isolate* isolate,
   v8::ScriptCompiler::Source scriptSource(source, origin);
   if (!is_module_) {
     v8::Local<v8::Script> script;
-    if (!v8::ScriptCompiler::Compile(local_context, &scriptSource)
-             .ToLocal(&script))
+    if (!v8::ScriptCompiler::Compile(context, &scriptSource).ToLocal(&script))
       return;
     v8::MaybeLocal<v8::Value> result;
-    result = script->Run(local_context);
+    result = script->Run(context);
   } else {
     v8::Local<v8::Module> module;
-    if (!v8::ScriptCompiler::CompileModule(isolate, &scriptSource)
+    if (!v8::ScriptCompiler::CompileModule(isolate(), &scriptSource)
              .ToLocal(&module)) {
       return;
     }
-    if (!module->Instantiate(local_context, &TaskRunner::ModuleResolveCallback))
+    if (!module->Instantiate(context, &TaskRunner::ModuleResolveCallback))
       return;
     v8::Local<v8::Value> result;
-    if (!module->Evaluate(local_context).ToLocal(&result)) return;
-    TaskRunner* runner = TaskRunner::FromContext(local_context);
+    if (!module->Evaluate(context).ToLocal(&result)) return;
+    TaskRunner* runner = TaskRunner::FromContext(context);
     runner->RegisterModule(name_, module);
   }
 }

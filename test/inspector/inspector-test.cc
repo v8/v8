@@ -190,9 +190,8 @@ class UtilsExtension : public TaskRunner::SetupGlobalTask {
     v8::internal::Vector<const char> chars;
     v8::Isolate* isolate = args.GetIsolate();
     if (ReadFile(isolate, args[0], &chars)) {
-      ExecuteStringTask task(chars);
-      v8::Global<v8::Context> context(isolate, isolate->GetCurrentContext());
-      task.Run(isolate, context);
+      ExecuteStringTask(chars).RunOnTaskRunner(
+          TaskRunner::FromContext(isolate->GetCurrentContext()));
     }
   }
 
@@ -302,20 +301,19 @@ class SetTimeoutTask : public AsyncTask {
 
   bool is_inspector_task() final { return false; }
 
-  void AsyncRun(v8::Isolate* isolate,
-                const v8::Global<v8::Context>& global_context) override {
-    v8::MicrotasksScope microtasks_scope(isolate,
+ private:
+  void AsyncRun() override {
+    v8::MicrotasksScope microtasks_scope(isolate(),
                                          v8::MicrotasksScope::kRunMicrotasks);
-    v8::HandleScope handle_scope(isolate);
-    v8::Local<v8::Context> context = global_context.Get(isolate);
+    v8::HandleScope handle_scope(isolate());
+    v8::Local<v8::Context> context = default_context();
     v8::Context::Scope context_scope(context);
 
-    v8::Local<v8::Function> function = function_.Get(isolate);
+    v8::Local<v8::Function> function = function_.Get(isolate());
     v8::MaybeLocal<v8::Value> result;
     result = function->Call(context, context->Global(), 0, nullptr);
   }
 
- private:
   v8::Global<v8::Function> function_;
 };
 

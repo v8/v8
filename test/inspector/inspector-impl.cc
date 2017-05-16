@@ -114,15 +114,13 @@ class ConnectTask : public TaskRunner::Task {
 
   bool is_inspector_task() final { return true; }
 
-  void Run(v8::Isolate* isolate,
-           const v8::Global<v8::Context>& global_context) {
-    v8::HandleScope handle_scope(isolate);
-    v8::Local<v8::Context> context = global_context.Get(isolate);
-    client_->connect(context);
+ private:
+  void Run() override {
+    v8::HandleScope handle_scope(isolate());
+    client_->connect(default_context());
     if (ready_semaphore_) ready_semaphore_->Signal();
   }
 
- private:
   InspectorClientImpl* client_;
   v8::base::Semaphore* ready_semaphore_;
 };
@@ -138,13 +136,12 @@ class DisconnectTask : public TaskRunner::Task {
 
   bool is_inspector_task() final { return true; }
 
-  void Run(v8::Isolate* isolate,
-           const v8::Global<v8::Context>& global_context) {
+ private:
+  void Run() override {
     client_->disconnect(reset_inspector_);
     if (ready_semaphore_) ready_semaphore_->Signal();
   }
 
- private:
   InspectorClientImpl* client_;
   bool reset_inspector_;
   v8::base::Semaphore* ready_semaphore_;
@@ -164,13 +161,12 @@ class CreateContextGroupTask : public TaskRunner::Task {
 
   bool is_inspector_task() final { return true; }
 
-  void Run(v8::Isolate* isolate,
-           const v8::Global<v8::Context>& global_context) {
+ private:
+  void Run() override {
     *context_group_id_ = client_->createContextGroup(setup_global_tasks_);
     if (ready_semaphore_) ready_semaphore_->Signal();
   }
 
- private:
   InspectorClientImpl* client_;
   TaskRunner::SetupGlobalTasks setup_global_tasks_;
   v8::base::Semaphore* ready_semaphore_;
@@ -360,16 +356,15 @@ class SendMessageToBackendTask : public TaskRunner::Task {
 
   bool is_inspector_task() final { return true; }
 
-  void Run(v8::Isolate* isolate,
-           const v8::Global<v8::Context>& global_context) override {
+ private:
+  void Run() override {
     v8_inspector::V8InspectorSession* session = nullptr;
     {
-      v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context = global_context.Get(isolate);
+      v8::HandleScope handle_scope(isolate());
       if (!context_group_id_) {
-        session = InspectorClientImpl::SessionFromContext(context);
+        session = InspectorClientImpl::SessionFromContext(default_context());
       } else {
-        session = InspectorClientFromContext(context)
+        session = InspectorClientFromContext(default_context())
                       ->sessions_[context_group_id_]
                       .get();
       }
@@ -379,7 +374,6 @@ class SendMessageToBackendTask : public TaskRunner::Task {
     session->dispatchProtocolMessage(message_view);
   }
 
- private:
   v8::internal::Vector<uint16_t> message_;
   int context_group_id_;
 };

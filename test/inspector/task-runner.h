@@ -32,8 +32,21 @@ class TaskRunner : public v8::base::Thread {
    public:
     virtual ~Task() {}
     virtual bool is_inspector_task() = 0;
-    virtual void Run(v8::Isolate* isolate,
-                     const v8::Global<v8::Context>& context) = 0;
+    void RunOnTaskRunner(TaskRunner* task_runner) {
+      task_runner_ = task_runner;
+      Run();
+      task_runner_ = nullptr;
+    }
+
+   protected:
+    virtual void Run() = 0;
+    v8::Isolate* isolate() const { return task_runner_->isolate_; }
+    v8::Local<v8::Context> default_context() const {
+      return task_runner_->contexts_.begin()->second.Get(isolate());
+    }
+
+   private:
+    TaskRunner* task_runner_ = nullptr;
   };
 
   class SetupGlobalTask {
@@ -110,12 +123,10 @@ class AsyncTask : public TaskRunner::Task {
   AsyncTask(const char* task_name, v8_inspector::V8Inspector* inspector);
   virtual ~AsyncTask() = default;
 
-  void Run(v8::Isolate* isolate,
-           const v8::Global<v8::Context>& context) override;
-  virtual void AsyncRun(v8::Isolate* isolate,
-                        const v8::Global<v8::Context>& context) = 0;
-
  protected:
+  virtual void AsyncRun() = 0;
+  void Run() override;
+
   v8_inspector::V8Inspector* inspector_;
 };
 
@@ -131,10 +142,9 @@ class ExecuteStringTask : public AsyncTask {
       const v8::internal::Vector<const char>& expression);
   bool is_inspector_task() override { return false; }
 
-  void AsyncRun(v8::Isolate* isolate,
-                const v8::Global<v8::Context>& context) override;
-
  private:
+  void AsyncRun() override;
+
   v8::internal::Vector<uint16_t> expression_;
   v8::internal::Vector<const char> expression_utf8_;
   v8::internal::Vector<uint16_t> name_;
