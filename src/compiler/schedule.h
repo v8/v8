@@ -97,6 +97,8 @@ class V8_EXPORT_PRIVATE BasicBlock final
   iterator begin() { return nodes_.begin(); }
   iterator end() { return nodes_.end(); }
 
+  void RemoveNode(iterator it) { nodes_.erase(it); }
+
   typedef NodeVector::const_iterator const_iterator;
   const_iterator begin() const { return nodes_.begin(); }
   const_iterator end() const { return nodes_.end(); }
@@ -276,6 +278,8 @@ class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
   void EnsureSplitEdgeForm(BasicBlock* block);
   // Ensure entry into a deferred block happens from a single hot block.
   void EnsureDeferredCodeSingleEntryPoint(BasicBlock* block);
+  // Move Phi operands to newly created merger blocks
+  void MovePhis(BasicBlock* from, BasicBlock* to);
   // Copy deferred block markers down as far as possible
   void PropagateDeferredMark();
 
