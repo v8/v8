@@ -671,6 +671,10 @@ DEFINE_BOOL(incremental_marking_wrappers, true,
             "use incremental marking for marking wrappers")
 DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING, "use concurrent marking")
 DEFINE_BOOL(trace_concurrent_marking, false, "trace concurrent marking")
+DEFINE_BOOL(minor_mc_parallel_marking, true,
+            "use parallel marking for the young generation")
+DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
+            "trace parallel marking for the young generation")
 DEFINE_INT(min_progress_during_incremental_marking_finalization, 32,
            "keep finalizing incremental marking as long as we discover at "
            "least this many unmarked objects")
@@ -1300,6 +1304,7 @@ DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_marking)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sweeping)
+DEFINE_NEG_IMPLICATION(single_threaded, minor_mc_parallel_marking)
 DEFINE_NEG_IMPLICATION(single_threaded, parallel_compaction)
 DEFINE_NEG_IMPLICATION(single_threaded, parallel_pointer_update)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_store_buffer)

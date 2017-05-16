@@ -360,14 +360,29 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void CleanupSweepToIteratePages();
 
  private:
+  class RootMarkingVisitorSeedOnly;
   class RootMarkingVisitor;
 
-  inline MarkingDeque* marking_deque() { return &marking_deque_; }
+  static const int kNumMarkers = 4;
+  static const int kMainMarker = 0;
+
+  inline MarkingDeque* marking_deque(int index) {
+    DCHECK_LT(index, kNumMarkers);
+    return marking_deque_[index];
+  }
+
+  inline YoungGenerationMarkingVisitor* marking_visitor(int index) {
+    DCHECK_LT(index, kNumMarkers);
+    return marking_visitor_[index];
+  }
 
   SlotCallbackResult CheckAndMarkObject(Heap* heap, Address slot_address);
   void MarkLiveObjects() override;
+  void MarkRootSetInParallel();
   void ProcessMarkingDeque() override;
   void EmptyMarkingDeque() override;
+  void EmptySpecificMarkingDeque(MarkingDeque* marking_deque,
+                                 YoungGenerationMarkingVisitor* visitor);
   void ClearNonLiveReferences() override;
 
   void EvacuatePrologue() override;
@@ -376,12 +391,16 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void EvacuatePagesInParallel() override;
   void UpdatePointersAfterEvacuation() override;
 
-  MarkingDeque marking_deque_;
-  YoungGenerationMarkingVisitor* marking_visitor_;
+  int NumberOfMarkingTasks();
+
+  MarkingDeque* marking_deque_[kNumMarkers];
+  YoungGenerationMarkingVisitor* marking_visitor_[kNumMarkers];
   base::Semaphore page_parallel_job_semaphore_;
   List<Page*> new_space_evacuation_pages_;
   std::vector<Page*> sweep_to_iterate_pages_;
 
+  friend class MarkYoungGenerationJobTraits;
+  friend class YoungGenerationMarkingTask;
   friend class YoungGenerationMarkingVisitor;
 };
 

@@ -101,7 +101,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MINOR_MC_MARK)                                    \
   F(MINOR_MC_MARK_GLOBAL_HANDLES)                     \
   F(MINOR_MC_MARK_IDENTIFY_GLOBAL_HANDLES)            \
-  F(MINOR_MC_MARK_OLD_TO_NEW_POINTERS)                \
+  F(MINOR_MC_MARK_SEED)                               \
   F(MINOR_MC_MARK_ROOTS)                              \
   F(MINOR_MC_MARK_WEAK)                               \
   F(MINOR_MC_MARKING_DEQUE)                           \
