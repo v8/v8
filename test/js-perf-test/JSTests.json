@@ -34,30 +34,6 @@
       "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
     },
     {
-      "name": "GeneratorsIgnition",
-      "path": ["Generators"],
-      "main": "run.js",
-      "resources": ["generators.js"],
-      "flags": [
-        "--harmony-function-sent",
-        "--ignition"
-      ],
-      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
-    },
-    {
-      "name": "GeneratorsIgnitionTurbofan",
-      "path": ["Generators"],
-      "main": "run.js",
-      "resources": ["generators.js"],
-      "flags": [
-        "--harmony-function-sent",
-        "--ignition",
-        "--turbo",
-        "--turbo-from-bytecode"
-      ],
-      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
-    },
-    {
       "name": "RestParameters",
       "path": ["RestParameters"],
       "main": "run.js",
