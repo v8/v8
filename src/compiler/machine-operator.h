@@ -93,7 +93,29 @@ typedef MachineRepresentation CheckedStoreRepresentation;
 
 CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
 
-int StackSlotSizeOf(Operator const* op);
+class StackSlotRepresentation final {
+ public:
+  StackSlotRepresentation(int size, int alignment)
+      : size_(size), alignment_(alignment) {}
+
+  int size() const { return size_; }
+  int alignment() const { return alignment_; }
+
+ private:
+  int size_;
+  int alignment_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(StackSlotRepresentation,
+                                  StackSlotRepresentation);
+bool operator!=(StackSlotRepresentation, StackSlotRepresentation);
+
+size_t hash_value(StackSlotRepresentation);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           StackSlotRepresentation);
+
+StackSlotRepresentation const& StackSlotRepresentationOf(Operator const* op);
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
 
@@ -599,8 +621,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // unaligned store [base + index], value
   const Operator* UnalignedStore(UnalignedStoreRepresentation rep);
 
-  const Operator* StackSlot(int size);
-  const Operator* StackSlot(MachineRepresentation rep);
+  const Operator* StackSlot(int size, int alignment = 0);
+  const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
 
   // Access to the machine stack.
   const Operator* LoadStackPointer();

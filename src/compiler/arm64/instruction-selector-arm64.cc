@@ -527,6 +527,15 @@ int32_t LeftShiftForReducedMultiply(Matcher* m) {
 
 }  // namespace
 
+void InstructionSelector::VisitStackSlot(Node* node) {
+  StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
+  int slot = frame_->AllocateSpillSlot(rep.size());
+  OperandGenerator g(this);
+
+  Emit(kArchStackSlot, g.DefineAsRegister(node),
+       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+}
+
 void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
               ImmediateMode immediate_mode, MachineRepresentation rep,
               Node* output = nullptr) {
