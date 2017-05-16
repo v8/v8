@@ -276,9 +276,14 @@ class V8Suppression(Suppression):
 
   def ignore_by_content(self, testcase):
     # Strip off test case preamble.
-    lines = testcase.splitlines()
-    lines = lines[lines.index('print("js-mutation: start generated test case");'):]
-    content = '\n'.join(lines)
+    try:
+      lines = testcase.splitlines()
+      lines = lines[lines.index('print("js-mutation: start generated test case");'):]
+      content = '\n'.join(lines)
+    except ValueError:
+      # Search the whole test case if preamble can't be found. E.g. older
+      # already minimized test cases might have dropped the delimiter line.
+      content = testcase
     for bug, exp in IGNORE_TEST_CASES.iteritems():
       if exp.search(content):
         return bug
