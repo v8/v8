@@ -1014,7 +1014,7 @@ JSObject* CollectTypeProfileNexus::GetTypeProfile() const {
   Object* const feedback = GetFeedback();
 
   if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
-    return *isolate->factory()->NewJSMap();
+    return *isolate->factory()->NewJSObject(isolate->object_function());
   }
 
   return *ConvertToJSObject(
