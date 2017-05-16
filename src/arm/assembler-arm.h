@@ -426,9 +426,10 @@ constexpr LowDwVfpRegister kLastCalleeSavedDoubleReg = d15;
 constexpr LowDwVfpRegister kDoubleRegZero  = d13;
 constexpr LowDwVfpRegister kScratchDoubleReg = d14;
 // This scratch q-register aliases d14 (kScratchDoubleReg) and d15, but is only
-// used when NEON is supported. d15 is still allocatable if there are only 16
-// VFP registers.
+// used if NEON is supported, which implies VFP32DREGS. When there are only 16
+// d-registers, d15 is still allocatable.
 constexpr QwNeonRegister kScratchQuadReg = q7;
+constexpr LowDwVfpRegister kScratchDoubleReg2 = d15;
 
 // Coprocessor register
 struct CRegister {
@@ -1331,7 +1332,8 @@ class Assembler : public AssemblerBase {
 
   void vmov(QwNeonRegister dst, QwNeonRegister src);
   void vdup(NeonSize size, QwNeonRegister dst, Register src);
-  void vdup(QwNeonRegister dst, SwVfpRegister src);
+  void vdup(NeonSize size, QwNeonRegister dst, DwVfpRegister src, int index);
+  void vdup(NeonSize size, DwVfpRegister dst, DwVfpRegister src, int index);
 
   void vcvt_f32_s32(QwNeonRegister dst, QwNeonRegister src);
   void vcvt_f32_u32(QwNeonRegister dst, QwNeonRegister src);
@@ -1380,6 +1382,8 @@ class Assembler : public AssemblerBase {
              DwVfpRegister src2);
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   void vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
+  void vsli(NeonSize size, DwVfpRegister dst, DwVfpRegister src, int shift);
+  void vsri(NeonSize size, DwVfpRegister dst, DwVfpRegister src, int shift);
   // vrecpe and vrsqrte only support floating point lanes.
   void vrecpe(QwNeonRegister dst, QwNeonRegister src);
   void vrsqrte(QwNeonRegister dst, QwNeonRegister src);

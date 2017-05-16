@@ -1079,47 +1079,90 @@ void MacroAssembler::VmovExtended(int dst_code, Register src) {
   }
 }
 
-void MacroAssembler::VmovExtended(int dst_code, int src_code,
-                                  Register scratch) {
+void MacroAssembler::VmovExtended(int dst_code, int src_code) {
+  if (src_code == dst_code) return;
+
   if (src_code < SwVfpRegister::kMaxNumRegisters &&
       dst_code < SwVfpRegister::kMaxNumRegisters) {
     // src and dst are both s-registers.
     vmov(SwVfpRegister::from_code(dst_code),
          SwVfpRegister::from_code(src_code));
-  } else if (src_code < SwVfpRegister::kMaxNumRegisters) {
-    // src is an s-register.
-    vmov(scratch, SwVfpRegister::from_code(src_code));
-    VmovExtended(dst_code, scratch);
+    return;
+  }
+  DwVfpRegister dst_d_reg = DwVfpRegister::from_code(dst_code / 2);
+  DwVfpRegister src_d_reg = DwVfpRegister::from_code(src_code / 2);
+  int dst_offset = dst_code & 1;
+  int src_offset = src_code & 1;
+  if (CpuFeatures::IsSupported(NEON)) {
+    // On Neon we can shift and insert from d-registers.
+    if (src_offset == dst_offset) {
+      // Offsets are the same, use vdup to copy the source to the opposite lane.
+      vdup(Neon32, kScratchDoubleReg, src_d_reg, src_offset);
+      src_d_reg = kScratchDoubleReg;
+      src_offset = dst_offset ^ 1;
+    }
+    if (dst_offset) {
+      if (dst_d_reg.is(src_d_reg)) {
+        vdup(Neon32, dst_d_reg, src_d_reg, 0);
+      } else {
+        vsli(Neon64, dst_d_reg, src_d_reg, 32);
+      }
+    } else {
+      if (dst_d_reg.is(src_d_reg)) {
+        vdup(Neon32, dst_d_reg, src_d_reg, 1);
+      } else {
+        vsri(Neon64, dst_d_reg, src_d_reg, 32);
+      }
+    }
+    return;
+  }
+
+  // Without Neon, use the scratch registers to move src and/or dst into
+  // s-registers.
+  int scratchSCode = kScratchDoubleReg.low().code();
+  int scratchSCode2 = kScratchDoubleReg2.low().code();
+  if (src_code < SwVfpRegister::kMaxNumRegisters) {
+    // src is an s-register, dst is not.
+    vmov(kScratchDoubleReg, dst_d_reg);
+    vmov(SwVfpRegister::from_code(scratchSCode + dst_offset),
+         SwVfpRegister::from_code(src_code));
+    vmov(dst_d_reg, kScratchDoubleReg);
   } else if (dst_code < SwVfpRegister::kMaxNumRegisters) {
-    // dst is an s-register.
-    VmovExtended(scratch, src_code);
-    vmov(SwVfpRegister::from_code(dst_code), scratch);
+    // dst is an s-register, src is not.
+    vmov(kScratchDoubleReg, src_d_reg);
+    vmov(SwVfpRegister::from_code(dst_code),
+         SwVfpRegister::from_code(scratchSCode + src_offset));
   } else {
-    // Neither src or dst are s-registers.
-    DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, src_code);
-    DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, dst_code);
-    VmovExtended(scratch, src_code);
-    VmovExtended(dst_code, scratch);
+    // Neither src or dst are s-registers. Both scratch double registers are
+    // available when there are 32 VFP registers.
+    vmov(kScratchDoubleReg, src_d_reg);
+    vmov(kScratchDoubleReg2, dst_d_reg);
+    vmov(SwVfpRegister::from_code(scratchSCode + dst_offset),
+         SwVfpRegister::from_code(scratchSCode2 + src_offset));
+    vmov(dst_d_reg, kScratchQuadReg.high());
   }
 }
 
-void MacroAssembler::VmovExtended(int dst_code, const MemOperand& src,
-                                  Register scratch) {
-  if (dst_code >= SwVfpRegister::kMaxNumRegisters) {
-    ldr(scratch, src);
-    VmovExtended(dst_code, scratch);
-  } else {
+void MacroAssembler::VmovExtended(int dst_code, const MemOperand& src) {
+  if (dst_code < SwVfpRegister::kMaxNumRegisters) {
     vldr(SwVfpRegister::from_code(dst_code), src);
+  } else {
+    // TODO(bbudge) If Neon supported, use load single lane form of vld1.
+    int dst_s_code = kScratchDoubleReg.low().code() + (dst_code & 1);
+    vmov(kScratchDoubleReg, DwVfpRegister::from_code(dst_code / 2));
+    vldr(SwVfpRegister::from_code(dst_s_code), src);
+    vmov(DwVfpRegister::from_code(dst_code / 2), kScratchDoubleReg);
   }
 }
 
-void MacroAssembler::VmovExtended(const MemOperand& dst, int src_code,
-                                  Register scratch) {
-  if (src_code >= SwVfpRegister::kMaxNumRegisters) {
-    VmovExtended(scratch, src_code);
-    str(scratch, dst);
-  } else {
+void MacroAssembler::VmovExtended(const MemOperand& dst, int src_code) {
+  if (src_code < SwVfpRegister::kMaxNumRegisters) {
     vstr(SwVfpRegister::from_code(src_code), dst);
+  } else {
+    // TODO(bbudge) If Neon supported, use store single lane form of vst1.
+    int src_s_code = kScratchDoubleReg.low().code() + (src_code & 1);
+    vmov(kScratchDoubleReg, DwVfpRegister::from_code(src_code / 2));
+    vstr(SwVfpRegister::from_code(src_s_code), dst);
   }
 }
 
@@ -1145,9 +1188,9 @@ void MacroAssembler::ExtractLane(Register dst, DwVfpRegister src,
 }
 
 void MacroAssembler::ExtractLane(SwVfpRegister dst, QwNeonRegister src,
-                                 Register scratch, int lane) {
+                                 int lane) {
   int s_code = src.code() * 4 + lane;
-  VmovExtended(dst.code(), s_code, scratch);
+  VmovExtended(dst.code(), s_code);
 }
 
 void MacroAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
@@ -1164,11 +1207,10 @@ void MacroAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
 }
 
 void MacroAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
-                                 SwVfpRegister src_lane, Register scratch,
-                                 int lane) {
+                                 SwVfpRegister src_lane, int lane) {
   Move(dst, src);
   int s_code = dst.code() * 4 + lane;
-  VmovExtended(s_code, src_lane.code(), scratch);
+  VmovExtended(s_code, src_lane.code());
 }
 
 void MacroAssembler::LslPair(Register dst_low, Register dst_high,

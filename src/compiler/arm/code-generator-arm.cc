@@ -1612,17 +1612,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmF32x4Splat: {
-      __ vdup(i.OutputSimd128Register(), i.InputFloatRegister(0));
+      int src_code = i.InputFloatRegister(0).code();
+      __ vdup(Neon32, i.OutputSimd128Register(),
+              DwVfpRegister::from_code(src_code / 2), src_code & 0x1);
       break;
     }
     case kArmF32x4ExtractLane: {
       __ ExtractLane(i.OutputFloatRegister(), i.InputSimd128Register(0),
-                     kScratchReg, i.InputInt8(1));
+                     i.InputInt8(1));
       break;
     }
     case kArmF32x4ReplaceLane: {
       __ ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                     i.InputFloatRegister(2), kScratchReg, i.InputInt8(1));
+                     i.InputFloatRegister(2), i.InputInt8(1));
       break;
     }
     case kArmF32x4SConvertI32x4: {
@@ -2219,7 +2221,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           src_code = src1_code;
           lane &= 0x3;
         }
-        __ VmovExtended(dst_code + i, src_code + lane, kScratchReg);
+        __ VmovExtended(dst_code + i, src_code + lane);
         shuffle >>= 8;
       }
       break;
@@ -3038,10 +3040,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       int src_code = LocationOperand::cast(source)->register_code();
       if (destination->IsFloatRegister()) {
         int dst_code = LocationOperand::cast(destination)->register_code();
-        __ VmovExtended(dst_code, src_code, kScratchReg);
+        __ VmovExtended(dst_code, src_code);
       } else {
         DCHECK(destination->IsFloatStackSlot());
-        __ VmovExtended(g.ToMemOperand(destination), src_code, kScratchReg);
+        __ VmovExtended(g.ToMemOperand(destination), src_code);
       }
     } else {
       DCHECK_EQ(MachineRepresentation::kSimd128, rep);
@@ -3068,7 +3070,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         // GapResolver may give us reg codes that don't map to actual
         // s-registers. Generate code to work around those cases.
         int dst_code = LocationOperand::cast(destination)->register_code();
-        __ VmovExtended(dst_code, src, kScratchReg);
+        __ VmovExtended(dst_code, src);
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, rep);
         QwNeonRegister dst = g.ToSimd128Register(destination);
@@ -3152,14 +3154,14 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       int src_code = LocationOperand::cast(source)->register_code();
       if (destination->IsFPRegister()) {
         int dst_code = LocationOperand::cast(destination)->register_code();
-        __ VmovExtended(temp.low().code(), src_code, kScratchReg);
-        __ VmovExtended(src_code, dst_code, kScratchReg);
-        __ VmovExtended(dst_code, temp.low().code(), kScratchReg);
+        __ VmovExtended(temp.low().code(), src_code);
+        __ VmovExtended(src_code, dst_code);
+        __ VmovExtended(dst_code, temp.low().code());
       } else {
         DCHECK(destination->IsFPStackSlot());
         MemOperand dst = g.ToMemOperand(destination);
-        __ VmovExtended(temp.low().code(), src_code, kScratchReg);
-        __ VmovExtended(src_code, dst, kScratchReg);
+        __ VmovExtended(temp.low().code(), src_code);
+        __ VmovExtended(src_code, dst);
         __ vstr(temp.low(), dst);
       }
     } else {

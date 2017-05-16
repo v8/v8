@@ -3910,19 +3910,47 @@ void Assembler::vdup(NeonSize size, QwNeonRegister dst, Register src) {
        0xB * B8 | d * B7 | E * B5 | B4);
 }
 
-void Assembler::vdup(QwNeonRegister dst, SwVfpRegister src) {
+enum NeonRegType { NEON_D, NEON_Q };
+
+void NeonSplitCode(NeonRegType type, int code, int* vm, int* m, int* encoding) {
+  if (type == NEON_D) {
+    DwVfpRegister::split_code(code, vm, m);
+  } else {
+    DCHECK_EQ(type, NEON_Q);
+    QwNeonRegister::split_code(code, vm, m);
+    *encoding |= B6;
+  }
+}
+
+static Instr EncodeNeonDupOp(NeonSize size, NeonRegType reg_type, int dst_code,
+                             DwVfpRegister src, int index) {
+  DCHECK_NE(Neon64, size);
+  int sz = static_cast<int>(size);
+  DCHECK_LE(0, index);
+  DCHECK_GT(kSimd128Size / (1 << sz), index);
+  int imm4 = (1 << sz) | ((index << (sz + 1)) & 0xF);
+  int qbit = 0;
+  int vd, d;
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &qbit);
+  int vm, m;
+  src.split_code(&vm, &m);
+
+  return 0x1E7U * B23 | d * B22 | 0x3 * B20 | imm4 * B16 | vd * B12 |
+         0x18 * B7 | qbit | m * B5 | vm;
+}
+
+void Assembler::vdup(NeonSize size, DwVfpRegister dst, DwVfpRegister src,
+                     int index) {
   DCHECK(IsEnabled(NEON));
   // Instruction details available in ARM DDI 0406C.b, A8-884.
-  int index = src.code() & 1;
-  int d_reg = src.code() / 2;
-  int imm4 = 4 | index << 3;  // esize = 32, index in bit 3.
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  DwVfpRegister::from_code(d_reg).split_code(&vm, &m);
+  emit(EncodeNeonDupOp(size, NEON_D, dst.code(), src, index));
+}
 
-  emit(0x1E7U * B23 | d * B22 | 0x3 * B20 | imm4 * B16 | vd * B12 | 0x18 * B7 |
-       B6 | m * B5 | vm);
+void Assembler::vdup(NeonSize size, QwNeonRegister dst, DwVfpRegister src,
+                     int index) {
+  // Instruction details available in ARM DDI 0406C.b, A8-884.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonDupOp(size, NEON_Q, dst.code(), src, index));
 }
 
 // Encode NEON vcvt.src_type.dst_type instruction.
@@ -3975,18 +4003,6 @@ void Assembler::vcvt_u32_f32(QwNeonRegister dst, QwNeonRegister src) {
   DCHECK(VfpRegisterIsAvailable(dst));
   DCHECK(VfpRegisterIsAvailable(src));
   emit(EncodeNeonVCVT(U32, dst, F32, src));
-}
-
-enum NeonRegType { NEON_D, NEON_Q };
-
-void NeonSplitCode(NeonRegType type, int code, int* vm, int* m, int* encoding) {
-  if (type == NEON_D) {
-    DwVfpRegister::split_code(code, vm, m);
-  } else {
-    DCHECK_EQ(type, NEON_Q);
-    QwNeonRegister::split_code(code, vm, m);
-    *encoding |= B6;
-  }
 }
 
 enum UnaryOp { VMVN, VSWP, VABS, VABSF, VNEG, VNEGF };
@@ -4403,30 +4419,55 @@ void Assembler::vmax(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VMAX, dt, dst, src1, src2));
 }
 
-enum NeonShiftOp { VSHL, VSHR };
+enum NeonShiftOp { VSHL, VSHR, VSLI, VSRI };
 
-static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonDataType dt,
-                               QwNeonRegister dst, QwNeonRegister src,
+static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
+                               NeonRegType reg_type, int dst_code, int src_code,
                                int shift) {
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  int size_in_bits = kBitsPerByte << NeonSz(dt);
-  int op_encoding = 0;
   int imm6 = 0;
-  if (op == VSHL) {
-    DCHECK(shift >= 0 && size_in_bits > shift);
-    imm6 = size_in_bits + shift;
-    op_encoding = 0x5 * B8;
-  } else {
-    DCHECK_EQ(VSHR, op);
-    DCHECK(shift > 0 && size_in_bits >= shift);
-    imm6 = 2 * size_in_bits - shift;
-    op_encoding = NeonU(dt) * B24;
+  int size_in_bits = kBitsPerByte << static_cast<int>(size);
+  int op_encoding = 0;
+  switch (op) {
+    case VSHL: {
+      DCHECK(shift >= 0 && size_in_bits > shift);
+      imm6 = size_in_bits + shift;
+      op_encoding = 0x5 * B8;
+      break;
+    }
+    case VSHR: {
+      DCHECK(shift > 0 && size_in_bits >= shift);
+      imm6 = 2 * size_in_bits - shift;
+      if (is_unsigned) op_encoding |= B24;
+      break;
+    }
+    case VSLI: {
+      DCHECK(shift >= 0 && size_in_bits > shift);
+      imm6 = size_in_bits + shift;
+      int L = imm6 >> 6;
+      imm6 &= 0x3F;
+      op_encoding = B24 | 0x5 * B8 | L * B7;
+      break;
+    }
+    case VSRI: {
+      DCHECK(shift > 0 && size_in_bits >= shift);
+      imm6 = 2 * size_in_bits - shift;
+      int L = imm6 >> 6;
+      imm6 &= 0x3F;
+      op_encoding = B24 | 0x4 * B8 | L * B7;
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
-  return 0x1E5U * B23 | d * B22 | imm6 * B16 | vd * B12 | B6 | m * B5 | B4 |
-         vm | op_encoding;
+
+  int vd, d;
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
+  int vm, m;
+  NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
+
+  return 0x1E5U * B23 | d * B22 | imm6 * B16 | vd * B12 | m * B5 | B4 | vm |
+         op_encoding;
 }
 
 void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
@@ -4434,7 +4475,8 @@ void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
   DCHECK(IsEnabled(NEON));
   // Qd = vshl(Qm, bits) SIMD shift left immediate.
   // Instruction details available in ARM DDI 0406C.b, A8-1046.
-  emit(EncodeNeonShiftOp(VSHL, dt, dst, src, shift));
+  emit(EncodeNeonShiftOp(VSHL, NeonDataTypeToSize(dt), false, NEON_Q,
+                         dst.code(), src.code(), shift));
 }
 
 void Assembler::vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
@@ -4442,7 +4484,26 @@ void Assembler::vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
   DCHECK(IsEnabled(NEON));
   // Qd = vshl(Qm, bits) SIMD shift right immediate.
   // Instruction details available in ARM DDI 0406C.b, A8-1052.
-  emit(EncodeNeonShiftOp(VSHR, dt, dst, src, shift));
+  emit(EncodeNeonShiftOp(VSHR, NeonDataTypeToSize(dt), NeonU(dt), NEON_Q,
+                         dst.code(), src.code(), shift));
+}
+
+void Assembler::vsli(NeonSize size, DwVfpRegister dst, DwVfpRegister src,
+                     int shift) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vsli(Dm, bits) SIMD shift left and insert.
+  // Instruction details available in ARM DDI 0406C.b, A8-1056.
+  emit(EncodeNeonShiftOp(VSLI, size, false, NEON_D, dst.code(), src.code(),
+                         shift));
+}
+
+void Assembler::vsri(NeonSize size, DwVfpRegister dst, DwVfpRegister src,
+                     int shift) {
+  DCHECK(IsEnabled(NEON));
+  // Dd = vsri(Dm, bits) SIMD shift right and insert.
+  // Instruction details available in ARM DDI 0406C.b, A8-1062.
+  emit(EncodeNeonShiftOp(VSRI, size, false, NEON_D, dst.code(), src.code(),
+                         shift));
 }
 
 static Instr EncodeNeonEstimateOp(bool is_rsqrt, QwNeonRegister dst,
@@ -4539,7 +4600,7 @@ void Assembler::vpadd(NeonSize size, DwVfpRegister dst, DwVfpRegister src1,
   DCHECK(IsEnabled(NEON));
   // Dd = vpadd(Dn, Dm) SIMD integer pairwise ADD.
   // Instruction details available in ARM DDI 0406C.b, A8-980.
-  emit(EncodeNeonPairwiseOp(VPADD, NeonSizeToDatatype(size), dst, src1, src2));
+  emit(EncodeNeonPairwiseOp(VPADD, NeonSizeToDataType(size), dst, src1, src2));
 }
 
 void Assembler::vpmin(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,

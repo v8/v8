@@ -2211,11 +2211,30 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
                                     "vmovl.u%d q%d, d%d", imm3 * 8, Vd, Vm);
       } else if (instr->Opc1Value() == 7 && instr->Bit(4) == 0) {
         if (instr->Bits(11, 7) == 0x18) {
-          int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kDoublePrecision);
-          int index = instr->Bit(19);
-          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "vdup q%d, d%d[%d]", Vd, Vm, index);
+          int imm4 = instr->Bits(19, 16);
+          int size = 0, index = 0;
+          if ((imm4 & 0x1) != 0) {
+            size = 8;
+            index = imm4 >> 1;
+          } else if ((imm4 & 0x2) != 0) {
+            size = 16;
+            index = imm4 >> 2;
+          } else {
+            size = 32;
+            index = imm4 >> 3;
+          }
+          if (instr->Bit(6) == 0) {
+            int Vd = instr->VFPDRegValue(kDoublePrecision);
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_, "vdup.%i d%d, d%d[%d]",
+                         size, Vd, Vm, index);
+          } else {
+            int Vd = instr->VFPDRegValue(kSimd128Precision);
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_, "vdup.%i q%d, d%d[%d]",
+                         size, Vd, Vm, index);
+          }
         } else if (instr->Bits(11, 10) == 0x2) {
           int Vd = instr->VFPDRegValue(kDoublePrecision);
           int Vn = instr->VFPNRegValue(kDoublePrecision);
@@ -2346,6 +2365,27 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         out_buffer_pos_ +=
             SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.u%d q%d, q%d, #%d",
                      size, Vd, Vm, shift);
+      } else if (instr->Bit(10) == 1 && instr->Bit(6) == 0 &&
+                 instr->Bit(4) == 1) {
+        // vsli.<size> Dd, Dm, shift
+        // vsri.<size> Dd, Dm, shift
+        int imm7 = instr->Bits(21, 16);
+        if (instr->Bit(7) != 0) imm7 += 64;
+        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int shift;
+        char direction;
+        if (instr->Bit(8) == 1) {
+          shift = imm7 - size;
+          direction = 'l';  // vsli
+        } else {
+          shift = 2 * size - imm7;
+          direction = 'r';  // vsri
+        }
+        int Vd = instr->VFPDRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vs%ci.%d d%d, d%d, #%d",
+                     direction, size, Vd, Vm, shift);
       } else {
         Unknown(instr);
       }

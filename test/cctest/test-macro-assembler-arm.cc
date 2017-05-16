@@ -169,7 +169,7 @@ TEST(ExtractLane) {
     __ ExtractLane(r5, q1, NeonS32, i);
     __ str(r5, MemOperand(r0, offsetof(T, i32x4_low) + 4 * i));
     SwVfpRegister si = SwVfpRegister::from_code(i);
-    __ ExtractLane(si, q1, r4, i);
+    __ ExtractLane(si, q1, i);
     __ vstr(si, r0, offsetof(T, f32x4_low) + 4 * i);
   }
 
@@ -203,7 +203,7 @@ TEST(ExtractLane) {
       __ ExtractLane(r5, q15, NeonS32, i);
       __ str(r5, MemOperand(r0, offsetof(T, i32x4_high) + 4 * i));
       SwVfpRegister si = SwVfpRegister::from_code(i);
-      __ ExtractLane(si, q15, r4, i);
+      __ ExtractLane(si, q15, i);
       __ vstr(si, r0, offsetof(T, f32x4_high) + 4 * i);
     }
 
@@ -304,8 +304,6 @@ TEST(ReplaceLane) {
 
   __ stm(db_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | lr.bit());
 
-  const Register kScratch = r5;
-
   __ veor(q0, q0, q0);  // Zero
   __ veor(q1, q1, q1);  // Zero
   for (int i = 0; i < 4; i++) {
@@ -313,7 +311,7 @@ TEST(ReplaceLane) {
     __ ReplaceLane(q0, q0, r4, NeonS32, i);
     SwVfpRegister si = SwVfpRegister::from_code(i);
     __ vmov(si, r4);
-    __ ReplaceLane(q1, q1, si, kScratch, i);
+    __ ReplaceLane(q1, q1, si, i);
   }
   __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, i32x4_low))));
   __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
@@ -344,7 +342,7 @@ TEST(ReplaceLane) {
       __ ReplaceLane(q14, q14, r4, NeonS32, i);
       SwVfpRegister si = SwVfpRegister::from_code(i);
       __ vmov(si, r4);
-      __ ReplaceLane(q15, q15, si, kScratch, i);
+      __ ReplaceLane(q15, q15, si, i);
     }
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, i32x4_high))));
     __ vst1(Neon8, NeonListOperand(q14), NeonMemOperand(r4));
