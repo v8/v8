@@ -28,7 +28,7 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   void scheduleReconnect(v8::base::Semaphore* ready_semaphore);
   void scheduleDisconnect(v8::base::Semaphore* ready_semaphore);
   void scheduleCreateContextGroup(
-      TaskRunner::SetupGlobalTasks setup_global_tasks,
+      IsolateData::SetupGlobalTasks setup_global_tasks,
       v8::base::Semaphore* ready_semaphore, int* context_group_id);
 
   static v8_inspector::V8Inspector* InspectorFromContext(
@@ -62,12 +62,14 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   friend class SendMessageToBackendTask;
 
   friend class ConnectTask;
-  void connect(v8::Local<v8::Context> context);
+  void connect();
+  void ConnectToContextGroup(int context_group_id,
+                             v8_inspector::StringView state);
   friend class DisconnectTask;
   void disconnect(bool reset_inspector);
   friend class CreateContextGroupTask;
   int createContextGroup(
-      const TaskRunner::SetupGlobalTasks& setup_global_tasks);
+      const IsolateData::SetupGlobalTasks& setup_global_tasks);
 
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
   std::unique_ptr<v8_inspector::V8Inspector::Channel> channel_;
@@ -88,7 +90,7 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   DISALLOW_COPY_AND_ASSIGN(InspectorClientImpl);
 };
 
-class SendMessageToBackendExtension : public TaskRunner::SetupGlobalTask {
+class SendMessageToBackendExtension : public IsolateData::SetupGlobalTask {
  public:
   void Run(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> global) override;
 

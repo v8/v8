@@ -16,14 +16,52 @@
 #include "src/locked-queue-inl.h"
 #include "src/vector.h"
 
-struct VectorCompare {
-  bool operator()(const v8::internal::Vector<uint16_t>& lhs,
-                  const v8::internal::Vector<uint16_t>& rhs) const {
-    for (int i = 0; i < lhs.length() && i < rhs.length(); ++i) {
-      if (lhs[i] != rhs[i]) return lhs[i] < rhs[i];
+class TaskRunner;
+
+class IsolateData {
+ public:
+  class SetupGlobalTask {
+   public:
+    virtual ~SetupGlobalTask() = default;
+    virtual void Run(v8::Isolate* isolate,
+                     v8::Local<v8::ObjectTemplate> global) = 0;
+  };
+  using SetupGlobalTasks = std::vector<std::unique_ptr<SetupGlobalTask>>;
+
+  IsolateData(TaskRunner* task_runner, SetupGlobalTasks setup_global_tasks,
+              v8::StartupData* startup_data);
+  static IsolateData* FromContext(v8::Local<v8::Context> context);
+
+  v8::Isolate* isolate() const { return isolate_; }
+  TaskRunner* task_runner() const { return task_runner_; }
+  int CreateContextGroup();
+  v8::Local<v8::Context> GetContext(int context_group_id);
+  void RegisterModule(v8::Local<v8::Context> context,
+                      v8::internal::Vector<uint16_t> name,
+                      v8::ScriptCompiler::Source* source);
+
+ private:
+  struct VectorCompare {
+    bool operator()(const v8::internal::Vector<uint16_t>& lhs,
+                    const v8::internal::Vector<uint16_t>& rhs) const {
+      for (int i = 0; i < lhs.length() && i < rhs.length(); ++i) {
+        if (lhs[i] != rhs[i]) return lhs[i] < rhs[i];
+      }
+      return false;
     }
-    return false;
-  }
+  };
+  static v8::MaybeLocal<v8::Module> ModuleResolveCallback(
+      v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
+      v8::Local<v8::Module> referrer);
+
+  TaskRunner* task_runner_;
+  SetupGlobalTasks setup_global_tasks_;
+  v8::Isolate* isolate_;
+  int last_context_group_id_ = 0;
+  std::map<int, v8::Global<v8::Context>> contexts_;
+  std::map<v8::internal::Vector<uint16_t>, v8::Global<v8::Module>,
+           VectorCompare>
+      modules_;
 };
 
 class TaskRunner : public v8::base::Thread {
@@ -40,27 +78,22 @@ class TaskRunner : public v8::base::Thread {
 
    protected:
     virtual void Run() = 0;
-    v8::Isolate* isolate() const { return task_runner_->isolate_; }
+    v8::Isolate* isolate() const { return task_runner_->data_->isolate(); }
     v8::Local<v8::Context> default_context() const {
-      return task_runner_->contexts_.begin()->second.Get(isolate());
+      return task_runner_->data_->GetContext(
+          task_runner_->default_context_group_id_);
     }
 
    private:
     TaskRunner* task_runner_ = nullptr;
   };
 
-  class SetupGlobalTask {
-   public:
-    virtual ~SetupGlobalTask() = default;
-    virtual void Run(v8::Isolate* isolate,
-                     v8::Local<v8::ObjectTemplate> global) = 0;
-  };
-  using SetupGlobalTasks = std::vector<std::unique_ptr<SetupGlobalTask>>;
-
-  TaskRunner(SetupGlobalTasks setup_global_tasks, bool catch_exceptions,
-             v8::base::Semaphore* ready_semaphore,
+  TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
+             bool catch_exceptions, v8::base::Semaphore* ready_semaphore,
              v8::StartupData* startup_data);
   virtual ~TaskRunner();
+  IsolateData* data() const { return data_.get(); }
+  int default_context_group_id() const { return default_context_group_id_; }
 
   // Thread implementation.
   void Run() override;
@@ -72,33 +105,18 @@ class TaskRunner : public v8::base::Thread {
   // TaskRunner takes ownership.
   void Append(Task* task);
 
-  static TaskRunner* FromContext(v8::Local<v8::Context>);
-
-  v8::Local<v8::Context> NewContextGroup(
-      const SetupGlobalTasks& setup_global_tasks);
-  v8::Local<v8::Context> GetContext(int context_group_id);
-  static int GetContextGroupId(v8::Local<v8::Context> context);
-
   void Terminate();
 
-  void RegisterModule(v8::internal::Vector<uint16_t> name,
-                      v8::Local<v8::Module> module);
-  static v8::MaybeLocal<v8::Module> ModuleResolveCallback(
-      v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
-      v8::Local<v8::Module> referrer);
-
  private:
-  void InitializeIsolate();
   Task* GetNext(bool only_protocol);
+  v8::Isolate* isolate() const { return data_->isolate(); }
 
-  SetupGlobalTasks setup_global_tasks_;
+  IsolateData::SetupGlobalTasks setup_global_tasks_;
   v8::StartupData* startup_data_;
   bool catch_exceptions_;
   v8::base::Semaphore* ready_semaphore_;
-
-  v8::Isolate* isolate_;
-  intptr_t last_context_group_id_ = 0;
-  std::map<intptr_t, v8::Global<v8::Context>> contexts_;
+  std::unique_ptr<IsolateData> data_;
+  int default_context_group_id_;
 
   // deferred_queue_ combined with queue_ (in this order) have all tasks in the
   // correct order. Sometimes we skip non-protocol tasks by moving them from
@@ -106,10 +124,6 @@ class TaskRunner : public v8::base::Thread {
   v8::internal::LockedQueue<Task*> queue_;
   v8::internal::LockedQueue<Task*> deffered_queue_;
   v8::base::Semaphore process_queue_semaphore_;
-
-  std::map<v8::internal::Vector<uint16_t>, v8::Global<v8::Module>,
-           VectorCompare>
-      modules_;
 
   int nested_loop_count_;
 

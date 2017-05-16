@@ -12,8 +12,7 @@
 
 namespace {
 
-const int kTaskRunnerIndex = 2;
-const int kContextGroupIdIndex = 3;
+const int kIsolateDataIndex = 2;
 
 void ReportUncaughtException(v8::Isolate* isolate,
                              const v8::TryCatch& try_catch) {
@@ -32,7 +31,65 @@ v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
 
 }  //  namespace
 
-TaskRunner::TaskRunner(TaskRunner::SetupGlobalTasks setup_global_tasks,
+IsolateData::IsolateData(TaskRunner* task_runner,
+                         IsolateData::SetupGlobalTasks setup_global_tasks,
+                         v8::StartupData* startup_data)
+    : task_runner_(task_runner),
+      setup_global_tasks_(std::move(setup_global_tasks)) {
+  v8::Isolate::CreateParams params;
+  params.array_buffer_allocator =
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+  params.snapshot_blob = startup_data;
+  isolate_ = v8::Isolate::New(params);
+  isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
+}
+
+IsolateData* IsolateData::FromContext(v8::Local<v8::Context> context) {
+  return static_cast<IsolateData*>(
+      context->GetAlignedPointerFromEmbedderData(kIsolateDataIndex));
+}
+
+int IsolateData::CreateContextGroup() {
+  v8::Local<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate_);
+  for (auto it = setup_global_tasks_.begin(); it != setup_global_tasks_.end();
+       ++it) {
+    (*it)->Run(isolate_, global_template);
+  }
+  v8::Local<v8::Context> context =
+      v8::Context::New(isolate_, nullptr, global_template);
+  context->SetAlignedPointerInEmbedderData(kIsolateDataIndex, this);
+  int context_group_id = ++last_context_group_id_;
+  contexts_[context_group_id].Reset(isolate_, context);
+  return context_group_id;
+}
+
+v8::Local<v8::Context> IsolateData::GetContext(int context_group_id) {
+  return contexts_[context_group_id].Get(isolate_);
+}
+
+void IsolateData::RegisterModule(v8::Local<v8::Context> context,
+                                 v8::internal::Vector<uint16_t> name,
+                                 v8::ScriptCompiler::Source* source) {
+  v8::Local<v8::Module> module;
+  if (!v8::ScriptCompiler::CompileModule(isolate(), source).ToLocal(&module))
+    return;
+  if (!module->Instantiate(context, &IsolateData::ModuleResolveCallback))
+    return;
+  v8::Local<v8::Value> result;
+  if (!module->Evaluate(context).ToLocal(&result)) return;
+  modules_[name] = v8::Global<v8::Module>(isolate_, module);
+}
+
+v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
+    v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
+    v8::Local<v8::Module> referrer) {
+  std::string str = *v8::String::Utf8Value(specifier);
+  IsolateData* data = IsolateData::FromContext(context);
+  return data->modules_[ToVector(specifier)].Get(data->isolate_);
+}
+
+TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
                        bool catch_exceptions,
                        v8::base::Semaphore* ready_semaphore,
                        v8::StartupData* startup_data)
@@ -41,7 +98,7 @@ TaskRunner::TaskRunner(TaskRunner::SetupGlobalTasks setup_global_tasks,
       startup_data_(startup_data),
       catch_exceptions_(catch_exceptions),
       ready_semaphore_(ready_semaphore),
-      isolate_(nullptr),
+      data_(nullptr),
       process_queue_semaphore_(0),
       nested_loop_count_(0) {
   Start();
@@ -49,51 +106,15 @@ TaskRunner::TaskRunner(TaskRunner::SetupGlobalTasks setup_global_tasks,
 
 TaskRunner::~TaskRunner() { Join(); }
 
-void TaskRunner::InitializeIsolate() {
-  v8::Isolate::CreateParams params;
-  params.array_buffer_allocator =
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-  params.snapshot_blob = startup_data_;
-  isolate_ = v8::Isolate::New(params);
-  isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
-  v8::Isolate::Scope isolate_scope(isolate_);
-  v8::HandleScope handle_scope(isolate_);
-  NewContextGroup(setup_global_tasks_);
-  if (ready_semaphore_) ready_semaphore_->Signal();
-}
-
-v8::Local<v8::Context> TaskRunner::NewContextGroup(
-    const TaskRunner::SetupGlobalTasks& setup_global_tasks) {
-  v8::Local<v8::ObjectTemplate> global_template =
-      v8::ObjectTemplate::New(isolate_);
-  for (auto it = setup_global_tasks.begin(); it != setup_global_tasks.end();
-       ++it) {
-    (*it)->Run(isolate_, global_template);
-  }
-  v8::Local<v8::Context> context =
-      v8::Context::New(isolate_, nullptr, global_template);
-  context->SetAlignedPointerInEmbedderData(kTaskRunnerIndex, this);
-  intptr_t context_group_id = ++last_context_group_id_;
-  // Should be 2-byte aligned.
-  context->SetAlignedPointerInEmbedderData(
-      kContextGroupIdIndex, reinterpret_cast<void*>(context_group_id * 2));
-  contexts_[context_group_id].Reset(isolate_, context);
-  return context;
-}
-
-v8::Local<v8::Context> TaskRunner::GetContext(int context_group_id) {
-  return contexts_[context_group_id].Get(isolate_);
-}
-
-int TaskRunner::GetContextGroupId(v8::Local<v8::Context> context) {
-  return static_cast<int>(
-      reinterpret_cast<intptr_t>(
-          context->GetAlignedPointerFromEmbedderData(kContextGroupIdIndex)) /
-      2);
-}
-
 void TaskRunner::Run() {
-  InitializeIsolate();
+  data_.reset(
+      new IsolateData(this, std::move(setup_global_tasks_), startup_data_));
+
+  v8::Isolate::Scope isolate_scope(isolate());
+  v8::HandleScope handle_scope(isolate());
+  default_context_group_id_ = data_->CreateContextGroup();
+
+  if (ready_semaphore_) ready_semaphore_->Signal();
   RunMessageLoop(false);
 }
 
@@ -102,13 +123,13 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
   while (nested_loop_count_ == loop_number && !is_terminated_.Value()) {
     TaskRunner::Task* task = GetNext(only_protocol);
     if (!task) return;
-    v8::Isolate::Scope isolate_scope(isolate_);
+    v8::Isolate::Scope isolate_scope(isolate());
     if (catch_exceptions_) {
-      v8::TryCatch try_catch(isolate_);
+      v8::TryCatch try_catch(isolate());
       task->RunOnTaskRunner(this);
       delete task;
       if (try_catch.HasCaught()) {
-        ReportUncaughtException(isolate_, try_catch);
+        ReportUncaughtException(isolate(), try_catch);
         fflush(stdout);
         fflush(stderr);
         _exit(0);
@@ -135,19 +156,6 @@ void TaskRunner::Terminate() {
   process_queue_semaphore_.Signal();
 }
 
-void TaskRunner::RegisterModule(v8::internal::Vector<uint16_t> name,
-                                v8::Local<v8::Module> module) {
-  modules_[name] = v8::Global<v8::Module>(isolate_, module);
-}
-
-v8::MaybeLocal<v8::Module> TaskRunner::ModuleResolveCallback(
-    v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
-    v8::Local<v8::Module> referrer) {
-  std::string str = *v8::String::Utf8Value(specifier);
-  TaskRunner* runner = TaskRunner::FromContext(context);
-  return runner->modules_[ToVector(specifier)].Get(runner->isolate_);
-}
-
 TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
   for (;;) {
     if (is_terminated_.Value()) return nullptr;
@@ -165,11 +173,6 @@ TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
     process_queue_semaphore_.Wait();
   }
   return nullptr;
-}
-
-TaskRunner* TaskRunner::FromContext(v8::Local<v8::Context> context) {
-  return static_cast<TaskRunner*>(
-      context->GetAlignedPointerFromEmbedderData(kTaskRunnerIndex));
 }
 
 AsyncTask::AsyncTask(const char* task_name,
@@ -250,16 +253,7 @@ void ExecuteStringTask::AsyncRun() {
     v8::MaybeLocal<v8::Value> result;
     result = script->Run(context);
   } else {
-    v8::Local<v8::Module> module;
-    if (!v8::ScriptCompiler::CompileModule(isolate(), &scriptSource)
-             .ToLocal(&module)) {
-      return;
-    }
-    if (!module->Instantiate(context, &TaskRunner::ModuleResolveCallback))
-      return;
-    v8::Local<v8::Value> result;
-    if (!module->Evaluate(context).ToLocal(&result)) return;
-    TaskRunner* runner = TaskRunner::FromContext(context);
-    runner->RegisterModule(name_, module);
+    IsolateData::FromContext(context)->RegisterModule(context, name_,
+                                                      &scriptSource);
   }
 }
