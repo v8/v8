@@ -2419,6 +2419,10 @@ class YoungGenerationMarkingVisitor final
       : heap_(heap), marking_deque_(marking_deque) {}
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) final {
+    const int kMinRangeForMarkingRecursion = 64;
+    if (end - start >= kMinRangeForMarkingRecursion) {
+      if (MarkRecursively(host, start, end)) return;
+    }
     for (Object** p = start; p < end; p++) {
       VisitPointer(host, p);
     }
@@ -2428,7 +2432,6 @@ class YoungGenerationMarkingVisitor final
     Object* target = *slot;
     if (heap_->InNewSpace(target)) {
       HeapObject* target_object = HeapObject::cast(target);
-      if (MarkRecursively(target_object)) return;
       MarkObjectViaMarkingDeque(target_object);
     }
   }
@@ -2481,13 +2484,18 @@ class YoungGenerationMarkingVisitor final
     }
   }
 
-  inline bool MarkRecursively(HeapObject* object) {
-    StackLimitCheck check(heap_->isolate());
-    if (check.HasOverflowed()) return false;
-
-    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
-            object, marking_state(object))) {
-      Visit(object);
+  inline bool MarkRecursively(HeapObject* host, Object** start, Object** end) {
+    // TODO(mlippautz): Stack check on background tasks. We cannot do a reliable
+    // stack check on background tasks yet.
+    for (Object** p = start; p < end; p++) {
+      Object* target = *p;
+      if (heap_->InNewSpace(target)) {
+        HeapObject* target_object = HeapObject::cast(target);
+        if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+                target_object, marking_state(target_object))) {
+          Visit(target_object);
+        }
+      }
     }
     return true;
   }
