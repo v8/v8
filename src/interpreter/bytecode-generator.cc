@@ -152,7 +152,10 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
       : generator_(generator),
         deferred_(generator->zone()),
         token_register_(token_register),
-        result_register_(result_register) {}
+        result_register_(result_register),
+        return_token_(-1),
+        async_return_token_(-1),
+        rethrow_token_(-1) {}
 
   // One recorded control-flow command.
   struct Entry {
@@ -165,8 +168,12 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
   // generates a new dispatch token that identifies one particular path. This
   // expects the result to be in the accumulator.
   void RecordCommand(Command command, Statement* statement) {
-    int token = static_cast<int>(deferred_.size());
-    deferred_.push_back({command, statement, token});
+    int token = GetTokenForCommand(command, statement);
+
+    DCHECK_LT(token, deferred_.size());
+    DCHECK_EQ(deferred_[token].command, command);
+    DCHECK_EQ(deferred_[token].statement, statement);
+    DCHECK_EQ(deferred_[token].token, token);
 
     builder()->StoreAccumulatorInRegister(result_register_);
     builder()->LoadLiteral(Smi::FromInt(token));
@@ -211,10 +218,57 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
   ControlScope* execution_control() { return generator_->execution_control(); }
 
  private:
+  int GetTokenForCommand(Command command, Statement* statement) {
+    switch (command) {
+      case CMD_RETURN:
+        return GetReturnToken();
+      case CMD_ASYNC_RETURN:
+        return GetAsyncReturnToken();
+      case CMD_RETHROW:
+        return GetRethrowToken();
+      default:
+        // TODO(leszeks): We could also search for entries with the same
+        // command and statement.
+        return GetNewTokenForCommand(command, statement);
+    }
+  }
+
+  int GetReturnToken() {
+    if (return_token_ == -1) {
+      return_token_ = GetNewTokenForCommand(CMD_RETURN, nullptr);
+    }
+    return return_token_;
+  }
+
+  int GetAsyncReturnToken() {
+    if (async_return_token_ == -1) {
+      async_return_token_ = GetNewTokenForCommand(CMD_ASYNC_RETURN, nullptr);
+    }
+    return async_return_token_;
+  }
+
+  int GetRethrowToken() {
+    if (rethrow_token_ == -1) {
+      rethrow_token_ = GetNewTokenForCommand(CMD_RETHROW, nullptr);
+    }
+    return rethrow_token_;
+  }
+
+  int GetNewTokenForCommand(Command command, Statement* statement) {
+    int token = static_cast<int>(deferred_.size());
+    deferred_.push_back({command, statement, token});
+    return token;
+  }
+
   BytecodeGenerator* generator_;
   ZoneVector<Entry> deferred_;
   Register token_register_;
   Register result_register_;
+
+  // Tokens for commands that don't need a statement.
+  int return_token_;
+  int async_return_token_;
+  int rethrow_token_;
 };
 
 // Scoped class for dealing with control flow reaching the function level.
