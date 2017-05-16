@@ -109,7 +109,6 @@ bool ParseBoolean(const char* string) {
     return false;
   } else {
     UNREACHABLE();
-    return false;
   }
 }
 

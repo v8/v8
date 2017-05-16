@@ -40,7 +40,6 @@ class ArmOperandConverter final : public InstructionOperandConverter {
         return LeaveCC;
     }
     UNREACHABLE();
-    return LeaveCC;
   }
 
   Operand InputImmediate(size_t index) {
@@ -61,7 +60,6 @@ class ArmOperandConverter final : public InstructionOperandConverter {
         break;
     }
     UNREACHABLE();
-    return Operand::Zero();
   }
 
   Operand InputOperand2(size_t first_index) {
@@ -93,7 +91,6 @@ class ArmOperandConverter final : public InstructionOperandConverter {
         return Operand(InputRegister(index + 0), ROR, InputRegister(index + 1));
     }
     UNREACHABLE();
-    return Operand::Zero();
   }
 
   MemOperand InputOffset(size_t* first_index) {
@@ -122,7 +119,6 @@ class ArmOperandConverter final : public InstructionOperandConverter {
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1));
     }
     UNREACHABLE();
-    return MemOperand(r0);
   }
 
   MemOperand InputOffset(size_t first_index = 0) {
@@ -344,7 +340,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
       break;
   }
   UNREACHABLE();
-  return kNoCondition;
 }
 
 int GetVtblTableSize(const Simd128Register& src0, const Simd128Register& src1) {

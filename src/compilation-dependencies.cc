@@ -22,7 +22,6 @@ DependentCode* CompilationDependencies::Get(Handle<Object> object) const {
     return Handle<AllocationSite>::cast(object)->dependent_code();
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 

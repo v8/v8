@@ -1300,7 +1300,6 @@ int DisassemblingDecoder::SubstituteField(Instruction* instr,
     case 'M': return SubstituteBarrierField(instr, format);
     default: {
       UNREACHABLE();
-      return 1;
     }
   }
 }
@@ -1479,7 +1478,6 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
     }
     default: {
       UNREACHABLE();
-      return 0;
     }
   }
 }
@@ -1515,7 +1513,6 @@ int DisassemblingDecoder::SubstituteBitfieldImmediateField(Instruction* instr,
     }
     default: {
       UNREACHABLE();
-      return 0;
     }
   }
 }
@@ -1559,7 +1556,6 @@ int DisassemblingDecoder::SubstituteShiftField(Instruction* instr,
     }
     default:
       UNREACHABLE();
-      return 0;
   }
 }
 

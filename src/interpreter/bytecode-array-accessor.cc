@@ -191,7 +191,6 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
     return GetAbsoluteOffset(smi->value());
   } else {
     UNREACHABLE();
-    return kMinInt;
   }
 }
 

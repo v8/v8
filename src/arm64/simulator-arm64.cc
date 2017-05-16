@@ -94,7 +94,6 @@ SimSystemRegister SimSystemRegister::DefaultValueFor(SystemRegister id) {
       return SimSystemRegister(0x00000000, FPCRWriteIgnoreMask);
     default:
       UNREACHABLE();
-      return SimSystemRegister();
   }
 }
 
@@ -3005,7 +3004,6 @@ double Simulator::FPToDouble(float value) {
   }
 
   UNREACHABLE();
-  return static_cast<double>(value);
 }
 
 
@@ -3060,7 +3058,6 @@ float Simulator::FPToFloat(double value, FPRounding round_mode) {
   }
 
   UNREACHABLE();
-  return value;
 }
 
 

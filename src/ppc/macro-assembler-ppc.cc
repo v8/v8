@@ -4167,7 +4167,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
     return candidate;
   }
   UNREACHABLE();
-  return no_reg;
 }
 
 #ifdef DEBUG

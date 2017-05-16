@@ -223,7 +223,6 @@ static DiyFp AdjustmentPowerOfTen(int exponent) {
     case 7: return DiyFp(V8_2PART_UINT64_C(0x98968000, 00000000), -40);
     default:
       UNREACHABLE();
-      return DiyFp(0, 0);
   }
 }
 

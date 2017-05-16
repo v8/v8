@@ -668,7 +668,6 @@ class ElementsAccessorBase : public ElementsAccessor {
   static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
                            uint32_t push_sized) {
     UNREACHABLE();
-    return 0;
   }
 
   uint32_t Unshift(Handle<JSArray> receiver, Arguments* args,
@@ -679,7 +678,6 @@ class ElementsAccessorBase : public ElementsAccessor {
   static uint32_t UnshiftImpl(Handle<JSArray> receiver, Arguments* args,
                               uint32_t unshift_size) {
     UNREACHABLE();
-    return 0;
   }
 
   Handle<JSObject> Slice(Handle<JSObject> receiver, uint32_t start,
@@ -695,14 +693,12 @@ class ElementsAccessorBase : public ElementsAccessor {
   static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
                                     uint32_t end) {
     UNREACHABLE();
-    return Handle<JSObject>();
   }
 
   static Handle<JSObject> SliceWithResultImpl(Handle<JSObject> receiver,
                                               uint32_t start, uint32_t end,
                                               Handle<JSObject> result) {
     UNREACHABLE();
-    return Handle<JSObject>();
   }
 
   Handle<JSArray> Splice(Handle<JSArray> receiver, uint32_t start,
@@ -715,7 +711,6 @@ class ElementsAccessorBase : public ElementsAccessor {
                                     uint32_t start, uint32_t delete_count,
                                     Arguments* args, uint32_t add_count) {
     UNREACHABLE();
-    return Handle<JSArray>();
   }
 
   Handle<Object> Pop(Handle<JSArray> receiver) final {
@@ -724,7 +719,6 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   static Handle<Object> PopImpl(Handle<JSArray> receiver) {
     UNREACHABLE();
-    return Handle<Object>();
   }
 
   Handle<Object> Shift(Handle<JSArray> receiver) final {
@@ -733,7 +727,6 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   static Handle<Object> ShiftImpl(Handle<JSArray> receiver) {
     UNREACHABLE();
-    return Handle<Object>();
   }
 
   void SetLength(Handle<JSArray> array, uint32_t length) final {
@@ -1017,7 +1010,6 @@ class ElementsAccessorBase : public ElementsAccessor {
                                         Handle<JSObject> destination,
                                         size_t length) {
     UNREACHABLE();
-    return *source;
   }
 
   Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) final {
@@ -1027,7 +1019,6 @@ class ElementsAccessorBase : public ElementsAccessor {
   static Handle<SeededNumberDictionary> NormalizeImpl(
       Handle<JSObject> object, Handle<FixedArrayBase> elements) {
     UNREACHABLE();
-    return Handle<SeededNumberDictionary>();
   }
 
   Maybe<bool> CollectValuesOrEntries(Isolate* isolate, Handle<JSObject> object,
@@ -1225,7 +1216,6 @@ class ElementsAccessorBase : public ElementsAccessor {
                           Handle<Object> obj_value, uint32_t start,
                           uint32_t end) {
     UNREACHABLE();
-    return *receiver;
   }
 
   Object* Fill(Isolate* isolate, Handle<JSObject> receiver,
@@ -1266,7 +1256,6 @@ class ElementsAccessorBase : public ElementsAccessor {
                                              Handle<Object> value,
                                              uint32_t start_from) {
     UNREACHABLE();
-    return Just<int64_t>(-1);
   }
 
   Maybe<int64_t> LastIndexOfValue(Isolate* isolate, Handle<JSObject> receiver,
@@ -1327,7 +1316,6 @@ class ElementsAccessorBase : public ElementsAccessor {
   static Handle<FixedArray> CreateListFromArrayImpl(Isolate* isolate,
                                                     Handle<JSArray> array) {
     UNREACHABLE();
-    return Handle<FixedArray>();
   }
 
  private:
@@ -3972,7 +3960,6 @@ class StringWrapperElementsAccessor
   static Handle<Object> GetImpl(Isolate* isolate, FixedArrayBase* elements,
                                 uint32_t entry) {
     UNREACHABLE();
-    return Handle<Object>();
   }
 
   static PropertyDetails GetDetailsImpl(JSObject* holder, uint32_t entry) {

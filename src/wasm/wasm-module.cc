@@ -1003,7 +1003,6 @@ static Handle<Code> UnwrapImportWrapper(Handle<Object> import_wrapper) {
     return handle(target);
   }
   UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 Handle<Code> CompileImportWrapper(Isolate* isolate, int index, FunctionSig* sig,
@@ -1556,7 +1555,6 @@ class InstantiationHelper {
       }
       default:
         UNREACHABLE();
-        return 0;
     }
   }
 

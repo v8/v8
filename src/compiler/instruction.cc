@@ -64,7 +64,6 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
       return condition;
   }
   UNREACHABLE();
-  return condition;
 }
 
 bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
@@ -235,7 +234,6 @@ std::ostream& operator<<(std::ostream& os,
       return os << "(x)";
   }
   UNREACHABLE();
-  return os;
 }
 
 void MoveOperands::Print(const RegisterConfiguration* config) const {
@@ -415,7 +413,6 @@ std::ostream& operator<<(std::ostream& os, const ArchOpcode& ao) {
 #undef CASE
   }
   UNREACHABLE();
-  return os;
 }
 
 
@@ -430,7 +427,6 @@ std::ostream& operator<<(std::ostream& os, const AddressingMode& am) {
 #undef CASE
   }
   UNREACHABLE();
-  return os;
 }
 
 
@@ -448,7 +444,6 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "trap";
   }
   UNREACHABLE();
-  return os;
 }
 
 
@@ -504,7 +499,6 @@ std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
       return os << "negative";
   }
   UNREACHABLE();
-  return os;
 }
 
 
@@ -595,7 +589,6 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
       return os << "RPO" << constant.ToRpoNumber().ToInt();
   }
   UNREACHABLE();
-  return os;
 }
 
 
@@ -910,7 +903,6 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
       break;
   }
   UNREACHABLE();
-  return MachineRepresentation::kNone;
 }
 
 

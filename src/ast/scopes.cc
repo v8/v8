@@ -1592,7 +1592,6 @@ const char* Header(ScopeType scope_type, FunctionKind function_kind,
     case WITH_SCOPE: return "with";
   }
   UNREACHABLE();
-  return NULL;
 }
 
 void Indent(int n, const char* str) { PrintF("%*s%s", n, "", str); }

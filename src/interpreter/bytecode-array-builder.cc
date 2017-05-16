@@ -215,7 +215,6 @@ class UnsignedOperandHelper {
         return value <= kMaxUInt32;
       default:
         UNREACHABLE();
-        return false;
     }
   }
 };
@@ -1537,7 +1536,6 @@ std::ostream& operator<<(std::ostream& os,
       return os << "ConvertToBoolean";
   }
   UNREACHABLE();
-  return os;
 }
 
 }  // namespace interpreter

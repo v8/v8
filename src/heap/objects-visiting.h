@@ -183,7 +183,6 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
  private:
   inline static int UnreachableVisitor(Map* map, HeapObject* object) {
     UNREACHABLE();
-    return 0;
   }
 
   INLINE(static int VisitByteArray(Map* map, HeapObject* object)) {

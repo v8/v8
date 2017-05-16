@@ -787,7 +787,6 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
     ScopeTargetKind kind) {
   if (!enabled()) {
     UNREACHABLE();
-    return v8::Local<v8::Value>::New(m_isolate, v8::Undefined(m_isolate));
   }
   v8::Local<v8::Value> argv[] = {value};
   v8::Local<v8::Value> scopesValue;

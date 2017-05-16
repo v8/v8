@@ -36,7 +36,6 @@ Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode,
       break;
   }
   UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 Handle<Code> Builtins::Call(ConvertReceiverMode mode,
@@ -64,7 +63,6 @@ Handle<Code> Builtins::Call(ConvertReceiverMode mode,
       break;
   }
   UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 Handle<Code> Builtins::CallBoundFunction(TailCallMode tail_call_mode) {
@@ -75,7 +73,6 @@ Handle<Code> Builtins::CallBoundFunction(TailCallMode tail_call_mode) {
       return TailCallBoundFunction();
   }
   UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 }  // namespace internal

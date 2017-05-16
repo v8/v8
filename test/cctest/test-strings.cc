@@ -791,7 +791,6 @@ static Handle<String> BuildEdgeCaseConsString(
       }
   }
   UNREACHABLE();
-  return Handle<String>();
 }
 
 

@@ -336,7 +336,6 @@ class JSBinopReduction final {
         break;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   const Operator* NumberOpFromSpeculativeNumberOp() {
@@ -361,7 +360,6 @@ class JSBinopReduction final {
         break;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   bool LeftInputIs(Type* t) { return left_type()->Is(t); }

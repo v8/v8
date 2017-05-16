@@ -3623,7 +3623,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
     return candidate;
   }
   UNREACHABLE();
-  return no_reg;
 }
 
 #ifdef DEBUG

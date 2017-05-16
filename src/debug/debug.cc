@@ -1234,7 +1234,6 @@ static Address ComputeNewPcForRedirect(Code* new_code, Code* old_code,
   }
 
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -1440,7 +1439,6 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     return true;
   }
   UNREACHABLE();
-  return false;
 }
 
 void Debug::RecordGenerator(Handle<JSGeneratorObject> generator_object) {

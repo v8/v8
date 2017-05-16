@@ -207,7 +207,6 @@ class Typer::Visitor : public Reducer {
       break;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   Type* TypeConstant(Handle<Object> value);
@@ -609,37 +608,30 @@ Type* Typer::Visitor::TypeOsrValue(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeRetain(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeInt32Constant(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeInt64Constant(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeRelocatableInt32Constant(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeRelocatableInt64Constant(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeFloat32Constant(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeFloat64Constant(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeNumberConstant(Node* node) {
@@ -784,19 +776,16 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
 
 Type* Typer::Visitor::TypeEffectPhi(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeLoopExit(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeLoopExitValue(Node* node) { return Operand(node, 0); }
 
 Type* Typer::Visitor::TypeLoopExitEffect(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeEnsureWritableFastElements(Node* node) {
@@ -809,17 +798,14 @@ Type* Typer::Visitor::TypeMaybeGrowFastElements(Node* node) {
 
 Type* Typer::Visitor::TypeTransitionElementsKind(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeCheckpoint(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeBeginRegion(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 
@@ -1111,7 +1097,6 @@ Type* Typer::Visitor::TypeJSCreateArguments(Node* node) {
       return Type::OtherObject();
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeJSCreateArray(Node* node) { return Type::Array(); }
@@ -1244,29 +1229,24 @@ Type* Typer::Visitor::Weaken(Node* node, Type* current_type,
 
 Type* Typer::Visitor::TypeJSStoreProperty(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 
 Type* Typer::Visitor::TypeJSStoreNamed(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 
 Type* Typer::Visitor::TypeJSStoreGlobal(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeJSStoreNamedOwn(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeJSStoreDataPropertyInLiteral(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeJSDeleteProperty(Node* node) {
@@ -1309,7 +1289,6 @@ Type* Typer::Visitor::TypeJSLoadContext(Node* node) {
 
 Type* Typer::Visitor::TypeJSStoreContext(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 
@@ -1675,19 +1654,16 @@ Type* Typer::Visitor::TypeJSLoadMessage(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeJSStoreMessage(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeJSLoadModule(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeJSStoreModule(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeJSGeneratorStore(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeJSGeneratorRestoreContinuation(Node* node) {
@@ -1828,7 +1804,6 @@ Type* Typer::Visitor::TypeCheckHeapObject(Node* node) {
 
 Type* Typer::Visitor::TypeCheckIf(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeCheckInternalizedString(Node* node) {
@@ -1838,7 +1813,6 @@ Type* Typer::Visitor::TypeCheckInternalizedString(Node* node) {
 
 Type* Typer::Visitor::TypeCheckMaps(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeCheckNumber(Node* node) {
@@ -1902,7 +1876,6 @@ Type* Typer::Visitor::TypeLoadBuffer(Node* node) {
 #undef TYPED_ARRAY_CASE
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 
@@ -1919,29 +1892,24 @@ Type* Typer::Visitor::TypeLoadTypedElement(Node* node) {
 #undef TYPED_ARRAY_CASE
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeStoreField(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 
 Type* Typer::Visitor::TypeStoreBuffer(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 
 Type* Typer::Visitor::TypeStoreElement(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeObjectIsDetectableCallable(Node* node) {

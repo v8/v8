@@ -265,7 +265,6 @@ class UnseededNumberDictionaryShape : public NumberDictionaryShape {
   template <typename Dictionary>
   static inline PropertyDetails DetailsAt(Dictionary* dict, int entry) {
     UNREACHABLE();
-    return PropertyDetails::Empty();
   }
 
   template <typename Dictionary>

@@ -74,7 +74,6 @@ int IdentityMapBase::InsertKey(Object* address) {
     Resize(capacity_ * kResizeFactor);
   }
   UNREACHABLE();
-  return -1;
 }
 
 void* IdentityMapBase::DeleteIndex(int index) {

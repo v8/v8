@@ -297,7 +297,6 @@ inline Condition CommuteCondition(Condition cond) {
       // invalid as it doesn't necessary make sense to reverse it (consider
       // 'mi' for instance).
       UNREACHABLE();
-      return nv;
   }
 }
 

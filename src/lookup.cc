@@ -857,7 +857,6 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       UNREACHABLE();
   }
   UNREACHABLE();
-  return NOT_FOUND;
 }
 
 template <bool is_element>
@@ -900,7 +899,6 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   }
 
   UNREACHABLE();
-  return state_;
 }
 
 Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()

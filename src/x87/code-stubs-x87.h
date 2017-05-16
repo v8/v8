@@ -290,7 +290,6 @@ class RecordWriteStub: public PlatformCodeStub {
         }
       }
       UNREACHABLE();
-      return no_reg;
     }
     friend class RecordWriteStub;
   };

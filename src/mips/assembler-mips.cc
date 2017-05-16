@@ -3539,7 +3539,6 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
       return 2;  // Number of instructions patched.
     } else {
       UNREACHABLE();
-      return 0;
     }
   }
 }
@@ -3769,7 +3768,6 @@ Address Assembler::target_address_at(Address pc) {
 
   // We should never get here, force a bad address if we do.
   UNREACHABLE();
-  return (Address)0x0;
 }
 
 

@@ -687,7 +687,6 @@ RUNTIME_FUNCTION(Runtime_Abort) {
   isolate->PrintStack(stderr);
   base::OS::Abort();
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -699,7 +698,6 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   isolate->PrintStack(stderr);
   base::OS::Abort();
   UNREACHABLE();
-  return NULL;
 }
 
 

@@ -84,7 +84,6 @@ bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
       break;
   }
   UNREACHABLE();
-  return false;
 }
 
 void CallOptimization::Initialize(

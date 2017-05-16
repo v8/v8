@@ -330,7 +330,6 @@ Callable CodeFactory::StringCompare(Isolate* isolate, Token::Value token) {
       break;
   }
   UNREACHABLE();
-  return StringEqual(isolate);
 }
 
 // static

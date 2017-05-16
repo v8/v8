@@ -215,7 +215,6 @@ wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
     return &local_var_info_[index];
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 uint32_t AsmJsParser::VarIndex(VarInfo* info) {
@@ -1404,7 +1403,6 @@ AsmType* AsmJsParser::Identifier() {
     return info->type;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 // 6.8.4 CallExpression

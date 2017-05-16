@@ -80,7 +80,6 @@ const char* NameForRuntimeId(uint32_t idx) {
 #undef CASE
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 }  // anonymous namespace

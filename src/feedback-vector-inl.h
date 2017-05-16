@@ -155,7 +155,6 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
       return BinaryOperationHint::kAny;
   }
   UNREACHABLE();
-  return BinaryOperationHint::kNone;
 }
 
 // Helper function to transform the feedback to CompareOperationHint.
@@ -181,7 +180,6 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
       return CompareOperationHint::kAny;
   }
   UNREACHABLE();
-  return CompareOperationHint::kNone;
 }
 
 void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,

@@ -373,7 +373,6 @@ class Deoptimizer : public Malloced {
         return "TOS_REGISTER";
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   struct DeoptInfo {

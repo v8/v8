@@ -84,7 +84,6 @@ double AstType::Min() {
   if (this->IsRange()) return this->AsRange()->Min();
   if (this->IsConstant()) return this->AsConstant()->Value()->Number();
   UNREACHABLE();
-  return 0;
 }
 
 double AstType::Max() {
@@ -100,7 +99,6 @@ double AstType::Max() {
   if (this->IsRange()) return this->AsRange()->Max();
   if (this->IsConstant()) return this->AsConstant()->Value()->Number();
   UNREACHABLE();
-  return 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -147,7 +145,6 @@ AstType::bitset AstBitsetType::Lub(AstType* type) {
   if (type->IsFunction()) return kFunction;
   if (type->IsTuple()) return kOtherInternal;
   UNREACHABLE();
-  return kNone;
 }
 
 AstType::bitset AstBitsetType::Lub(i::Map* map) {
@@ -321,10 +318,8 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case PADDING_TYPE_3:
     case PADDING_TYPE_4:
       UNREACHABLE();
-      return kNone;
   }
   UNREACHABLE();
-  return kNone;
 }
 
 AstType::bitset AstBitsetType::Lub(i::Object* value) {
@@ -493,7 +488,6 @@ bool AstType::SimplyEquals(AstType* that) {
     return true;
   }
   UNREACHABLE();
-  return false;
 }
 
 AstType::bitset AstType::Representation() {

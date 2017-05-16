@@ -2214,7 +2214,6 @@ void SemiSpace::set_age_mark(Address mark) {
 std::unique_ptr<ObjectIterator> SemiSpace::GetObjectIterator() {
   // Use the NewSpace::NewObjectIterator to iterate the ToSpace.
   UNREACHABLE();
-  return std::unique_ptr<ObjectIterator>();
 }
 
 #ifdef DEBUG

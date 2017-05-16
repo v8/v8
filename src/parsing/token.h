@@ -239,7 +239,6 @@ class Token {
         return false;
     }
     UNREACHABLE();
-    return false;
   }
 
   static bool IsAssignmentOp(Value tok) {
@@ -286,7 +285,6 @@ class Token {
       case GTE: return LT;
       default:
         UNREACHABLE();
-        return op;
     }
   }
 
@@ -303,7 +301,6 @@ class Token {
       case GTE: return LTE;
       default:
         UNREACHABLE();
-        return op;
     }
   }
 
@@ -319,7 +316,6 @@ class Token {
       case Token::GTE: return (op1 >= op2);
       default:
         UNREACHABLE();
-        return false;
     }
   }
 

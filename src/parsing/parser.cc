@@ -4090,7 +4090,6 @@ Expression* Parser::RewriteAssignExponentiation(Expression* left,
         pos);
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {

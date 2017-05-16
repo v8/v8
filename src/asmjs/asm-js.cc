@@ -105,7 +105,6 @@ bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
 #undef STDLIB_ARRAY_TYPE
   }
   UNREACHABLE();
-  return false;
 }
 
 void Report(Handle<Script> script, int position, Vector<const char> text,

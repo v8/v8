@@ -1383,7 +1383,6 @@ bool get_compare_result(Token::Value opcode, Handle<Object> lhs_value,
       return Object::GreaterThanOrEqual(lhs_value, rhs_value).FromJust();
     default:
       UNREACHABLE();
-      return false;
   }
 }
 
@@ -1408,7 +1407,6 @@ const char* get_code_snippet(Token::Value opcode) {
       return "return p1 >= p2;";
     default:
       UNREACHABLE();
-      return "";
   }
 }
 

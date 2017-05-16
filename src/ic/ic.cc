@@ -50,7 +50,6 @@ char IC::TransitionMarkFromState(IC::State state) {
       return 'G';
   }
   UNREACHABLE();
-  return 0;
 }
 
 
@@ -277,7 +276,6 @@ InlineCacheState IC::StateFromCode(Code* code) {
     default:
       if (code->is_debug_stub()) return UNINITIALIZED;
       UNREACHABLE();
-      return UNINITIALIZED;
   }
 }
 
@@ -2070,7 +2068,6 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
       return map;
   }
   UNREACHABLE();
-  return MaybeHandle<Map>().ToHandleChecked();
 }
 
 Handle<Object> KeyedStoreIC::StoreElementHandler(

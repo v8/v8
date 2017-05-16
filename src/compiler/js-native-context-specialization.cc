@@ -1895,7 +1895,6 @@ ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
       break;
   }
   UNREACHABLE();
-  return kExternalInt8Array;
 }
 
 }  // namespace

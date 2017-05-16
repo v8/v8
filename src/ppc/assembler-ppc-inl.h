@@ -125,7 +125,6 @@ Address RelocInfo::constant_pool_entry_address() {
           pc_, constant_pool, access, ConstantPoolEntry::INTPTR);
   }
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -466,7 +465,6 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
   }
 
   UNREACHABLE();
-  return NULL;
 }
 
 

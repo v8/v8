@@ -465,7 +465,6 @@ int LCodeGen::X87Stack::ArrayIndex(X87Register reg) {
     if (stack_[i].is(reg)) return i;
   }
   UNREACHABLE();
-  return -1;
 }
 
 
@@ -2423,7 +2422,6 @@ static Condition ComputeCompareCondition(Token::Value op) {
       return greater_equal;
     default:
       UNREACHABLE();
-      return no_condition;
   }
 }
 
@@ -2456,7 +2454,6 @@ static Condition BranchCondition(HHasInstanceTypeAndBranch* instr) {
   if (to == LAST_TYPE) return above_equal;
   if (from == FIRST_TYPE) return below_equal;
   UNREACHABLE();
-  return equal;
 }
 
 

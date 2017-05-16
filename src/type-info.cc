@@ -199,7 +199,6 @@ AstType* CompareOpHintToType(CompareOperationHint hint) {
       return AstType::Any();
   }
   UNREACHABLE();
-  return AstType::None();
 }
 
 AstType* BinaryOpFeedbackToType(int hint) {
@@ -219,7 +218,6 @@ AstType* BinaryOpFeedbackToType(int hint) {
       return AstType::Any();
   }
   UNREACHABLE();
-  return AstType::None();
 }
 
 }  // end anonymous namespace

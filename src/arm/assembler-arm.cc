@@ -2898,7 +2898,6 @@ static bool IsSignedVFPType(VFPType type) {
       return false;
     default:
       UNREACHABLE();
-      return false;
   }
 }
 
@@ -2913,7 +2912,6 @@ static bool IsIntegerVFPType(VFPType type) {
       return false;
     default:
       UNREACHABLE();
-      return false;
   }
 }
 
@@ -2926,7 +2924,6 @@ static bool IsDoubleVFPType(VFPType type) {
       return true;
     default:
       UNREACHABLE();
-      return false;
   }
 }
 

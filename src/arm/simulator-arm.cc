@@ -3749,7 +3749,6 @@ bool get_inv_op_vfp_flag(VFPRoundingMode mode,
                           (val <= (min_int - 1.0));
     default:
       UNREACHABLE();
-      return true;
   }
 }
 

@@ -2685,7 +2685,6 @@ class FunctionLiteral final : public Expression {
       return raw_inferred_name_->string();
     }
     UNREACHABLE();
-    return Handle<String>();
   }
 
   // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
@@ -3298,7 +3297,6 @@ class AstNodeFactory final BASE_EMBEDDED {
       }
     }
     UNREACHABLE();
-    return NULL;
   }
 
   ForOfStatement* NewForOfStatement(ZoneList<const AstRawString*>* labels,

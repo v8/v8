@@ -5734,7 +5734,6 @@ class Utf8LengthHelper : public i::AllStatic {
       }
     }
     UNREACHABLE();
-    return 0;
   }
 
   static inline int Calculate(i::ConsString* current) {

@@ -107,7 +107,6 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
       return index + 2 * kEntriesPerOperandScale;
   }
   UNREACHABLE();
-  return 0;
 }
 
 void Interpreter::IterateDispatchTable(RootVisitor* v) {

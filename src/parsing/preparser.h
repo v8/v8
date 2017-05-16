@@ -954,7 +954,6 @@ class PreParser : public ParserBase<PreParser> {
                                            bool is_inner_function,
                                            bool may_abort, bool* ok) {
     UNREACHABLE();
-    return kLazyParsingComplete;
   }
   Expression ParseFunctionLiteral(
       Identifier name, Scanner::Location function_name_location,

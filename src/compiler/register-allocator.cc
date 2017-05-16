@@ -96,7 +96,6 @@ int GetByteWidth(MachineRepresentation rep) {
       break;
   }
   UNREACHABLE();
-  return 0;
 }
 
 }  // namespace
@@ -320,7 +319,6 @@ bool UsePosition::HintRegister(int* register_code) const {
     }
   }
   UNREACHABLE();
-  return false;
 }
 
 
@@ -344,7 +342,6 @@ UsePositionHintType UsePosition::HintTypeForOperand(
       break;
   }
   UNREACHABLE();
-  return UsePositionHintType::kNone;
 }
 
 void UsePosition::SetHint(UsePosition* use_pos) {

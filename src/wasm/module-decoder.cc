@@ -86,7 +86,6 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
       return kWasmF64;
     default:
       UNREACHABLE();
-      return kWasmStmt;
   }
 }
 

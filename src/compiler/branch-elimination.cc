@@ -306,7 +306,6 @@ bool BranchElimination::ControlPathConditions::operator==(
     other_condition = other_condition->next;
   }
   UNREACHABLE();
-  return false;
 }
 
 Graph* BranchElimination::graph() const { return jsgraph()->graph(); }

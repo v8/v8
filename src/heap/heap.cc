@@ -3009,7 +3009,6 @@ Heap::RootListIndex Heap::RootIndexForFixedTypedArray(
 
     default:
       UNREACHABLE();
-      return kUndefinedValueRootIndex;
   }
 }
 
@@ -3025,7 +3024,6 @@ Heap::RootListIndex Heap::RootIndexForEmptyFixedTypedArray(
 #undef ELEMENT_KIND_TO_ROOT_INDEX
     default:
       UNREACHABLE();
-      return kUndefinedValueRootIndex;
   }
 }
 
@@ -4082,7 +4080,6 @@ AllocationResult Heap::AllocateStruct(InstanceType type) {
 #undef MAKE_CASE
     default:
       UNREACHABLE();
-      return exception();
   }
   int size = map->instance_size();
   Struct* result = nullptr;
@@ -4688,7 +4685,6 @@ const char* Heap::GarbageCollectionReasonToString(
       return "unknown";
   }
   UNREACHABLE();
-  return "";
 }
 
 bool Heap::Contains(HeapObject* value) {
@@ -4730,7 +4726,6 @@ bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
       return lo_space_->Contains(value);
   }
   UNREACHABLE();
-  return false;
 }
 
 bool Heap::InSpaceSlow(Address addr, AllocationSpace space) {
@@ -4752,7 +4747,6 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) {
       return lo_space_->ContainsSlow(addr);
   }
   UNREACHABLE();
-  return false;
 }
 
 

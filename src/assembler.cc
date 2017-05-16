@@ -772,7 +772,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
-      return "number_of_modes";
   }
   return "unknown relocation type";
 }
@@ -895,7 +894,6 @@ static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
       return ExternalReference::BUILTIN_CALL_TRIPLE;
   }
   UNREACHABLE();
-  return ExternalReference::BUILTIN_CALL;
 }
 
 

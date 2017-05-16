@@ -2084,7 +2084,6 @@ class Instruction {
     }
 
     UNREACHABLE();
-    return static_cast<Opcode>(-1);
   }
 
   // Fields used in Software interrupt instructions

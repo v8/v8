@@ -84,7 +84,6 @@ MachineRepresentation MachineRepresentationFromArrayType(
       return MachineRepresentation::kFloat64;
   }
   UNREACHABLE();
-  return MachineRepresentation::kNone;
 }
 
 UseInfo CheckedUseInfoAsWord32FromHint(
@@ -101,7 +100,6 @@ UseInfo CheckedUseInfoAsWord32FromHint(
       return UseInfo::CheckedNumberOrOddballAsWord32();
   }
   UNREACHABLE();
-  return UseInfo::None();
 }
 
 UseInfo CheckedUseInfoAsFloat64FromHint(NumberOperationHint hint) {
@@ -117,7 +115,6 @@ UseInfo CheckedUseInfoAsFloat64FromHint(NumberOperationHint hint) {
       return UseInfo::CheckedNumberOrOddballAsFloat64();
   }
   UNREACHABLE();
-  return UseInfo::None();
 }
 
 UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
@@ -146,7 +143,6 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
       break;
   }
   UNREACHABLE();
-  return UseInfo::None();
 }
 
 

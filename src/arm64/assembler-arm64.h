@@ -484,7 +484,6 @@ class CPURegList {
         return list_ == 0;
       default:
         UNREACHABLE();
-        return false;
     }
   }
 };

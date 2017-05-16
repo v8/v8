@@ -1349,7 +1349,6 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
       return AllocateHeapNumberWithValue(value);
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 
@@ -6263,7 +6262,6 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
       return MachineRepresentation::kFloat64;
     default:
       UNREACHABLE();
-      return MachineRepresentation::kNone;
   }
 }
 
@@ -6346,7 +6344,6 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
       break;
     default:
       UNREACHABLE();
-      return nullptr;
   }
 
   VARIABLE(var_result, rep);

@@ -40,7 +40,6 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         return LeaveRC;
     }
     UNREACHABLE();
-    return LeaveRC;
   }
 
   bool CompareLogical() const {
@@ -54,7 +53,6 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         return false;
     }
     UNREACHABLE();
-    return false;
   }
 
   Operand InputImmediate(size_t index) {
@@ -78,7 +76,6 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         break;
     }
     UNREACHABLE();
-    return Operand::Zero();
   }
 
   MemOperand MemoryOperand(AddressingMode* mode, size_t* first_index) {
@@ -95,7 +92,6 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1));
     }
     UNREACHABLE();
-    return MemOperand(r0);
   }
 
   MemOperand MemoryOperand(AddressingMode* mode, size_t first_index = 0) {
@@ -293,7 +289,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
       break;
   }
   UNREACHABLE();
-  return kNoCondition;
 }
 
 }  // namespace

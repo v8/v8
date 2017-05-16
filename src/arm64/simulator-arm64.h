@@ -436,7 +436,6 @@ class Simulator : public DecoderVisitor {
       case kDRegSizeInBits: return dreg(code);
       default:
         UNREACHABLE();
-        return 0.0;
     }
   }
 
@@ -639,7 +638,6 @@ class Simulator : public DecoderVisitor {
         return true;
       default:
         UNREACHABLE();
-        return false;
     }
   }
 

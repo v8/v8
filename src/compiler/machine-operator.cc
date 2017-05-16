@@ -710,7 +710,6 @@ const Operator* MachineOperatorBuilder::UnalignedLoad(
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::UnalignedStore(
@@ -729,7 +728,6 @@ const Operator* MachineOperatorBuilder::UnalignedStore(
       break;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 #define PURE(Name, properties, value_input_count, control_input_count, \
@@ -759,7 +757,6 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
     MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::ProtectedLoad(LoadRepresentation rep) {
@@ -770,7 +767,6 @@ const Operator* MachineOperatorBuilder::ProtectedLoad(LoadRepresentation rep) {
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::StackSlot(int size, int alignment) {
@@ -817,7 +813,6 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
       break;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::ProtectedStore(
@@ -837,7 +832,6 @@ const Operator* MachineOperatorBuilder::ProtectedStore(
       break;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
@@ -865,7 +859,6 @@ const Operator* MachineOperatorBuilder::CheckedLoad(
     MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
   UNREACHABLE();
-  return nullptr;
 }
 
 
@@ -885,7 +878,6 @@ const Operator* MachineOperatorBuilder::CheckedStore(
       break;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::AtomicLoad(LoadRepresentation rep) {
@@ -896,7 +888,6 @@ const Operator* MachineOperatorBuilder::AtomicLoad(LoadRepresentation rep) {
   ATOMIC_TYPE_LIST(LOAD)
 #undef LOAD
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::AtomicStore(MachineRepresentation rep) {
@@ -907,7 +898,6 @@ const Operator* MachineOperatorBuilder::AtomicStore(MachineRepresentation rep) {
   ATOMIC_REPRESENTATION_LIST(STORE)
 #undef STORE
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::AtomicExchange(MachineType rep) {
@@ -918,7 +908,6 @@ const Operator* MachineOperatorBuilder::AtomicExchange(MachineType rep) {
   ATOMIC_TYPE_LIST(EXCHANGE)
 #undef EXCHANGE
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::AtomicCompareExchange(MachineType rep) {
@@ -929,7 +918,6 @@ const Operator* MachineOperatorBuilder::AtomicCompareExchange(MachineType rep) {
   ATOMIC_TYPE_LIST(COMPARE_EXCHANGE)
 #undef COMPARE_EXCHANGE
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::AtomicAdd(MachineType rep) {
@@ -940,7 +928,6 @@ const Operator* MachineOperatorBuilder::AtomicAdd(MachineType rep) {
   ATOMIC_TYPE_LIST(ADD)
 #undef ADD
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::AtomicSub(MachineType rep) {
@@ -951,7 +938,6 @@ const Operator* MachineOperatorBuilder::AtomicSub(MachineType rep) {
   ATOMIC_TYPE_LIST(SUB)
 #undef SUB
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::AtomicAnd(MachineType rep) {
@@ -962,7 +948,6 @@ const Operator* MachineOperatorBuilder::AtomicAnd(MachineType rep) {
   ATOMIC_TYPE_LIST(AND)
 #undef AND
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::AtomicOr(MachineType rep) {
@@ -973,7 +958,6 @@ const Operator* MachineOperatorBuilder::AtomicOr(MachineType rep) {
   ATOMIC_TYPE_LIST(OR)
 #undef OR
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* MachineOperatorBuilder::AtomicXor(MachineType rep) {
@@ -984,7 +968,6 @@ const Operator* MachineOperatorBuilder::AtomicXor(MachineType rep) {
   ATOMIC_TYPE_LIST(XOR)
 #undef XOR
   UNREACHABLE();
-  return nullptr;
 }
 
 #define SIMD_LANE_OPS(Type, lane_count)                                     \

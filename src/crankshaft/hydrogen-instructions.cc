@@ -903,7 +903,6 @@ bool HInstruction::CanDeoptimize() {
       return true;
   }
   UNREACHABLE();
-  return true;
 }
 
 
@@ -1151,7 +1150,6 @@ const char* HUnaryMathOperation::OpName() const {
       return "clz32";
     default:
       UNREACHABLE();
-      return NULL;
   }
 }
 
@@ -1650,7 +1648,6 @@ const char* HCheckInstanceType::GetCheckName() const {
     case IS_INTERNALIZED_STRING: return "internalized_string";
   }
   UNREACHABLE();
-  return "";
 }
 
 

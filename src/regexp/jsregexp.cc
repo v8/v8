@@ -201,7 +201,6 @@ MaybeHandle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
     }
     default:
       UNREACHABLE();
-      return MaybeHandle<Object>();
   }
 }
 
@@ -526,7 +525,6 @@ int RegExpImpl::IrregexpExecRaw(Handle<JSRegExp> regexp,
     is_one_byte = subject->IsOneByteRepresentationUnderneath();
   } while (true);
   UNREACHABLE();
-  return RE_EXCEPTION;
 #else  // V8_INTERPRETED_REGEXP
 
   DCHECK(output_size >= IrregexpNumberOfRegisters(*irregexp));
@@ -903,7 +901,6 @@ int TextElement::length() const {
       return 1;
   }
   UNREACHABLE();
-  return 0;
 }
 
 

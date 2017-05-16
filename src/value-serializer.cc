@@ -1451,7 +1451,6 @@ MaybeHandle<JSValue> ValueDeserializer::ReadJSValue(SerializationTag tag) {
     }
     default:
       UNREACHABLE();
-      return MaybeHandle<JSValue>();
   }
   AddObjectWithID(id, value);
   return value;

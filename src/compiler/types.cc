@@ -80,7 +80,6 @@ double Type::Min() {
   if (this->IsOtherNumberConstant())
     return this->AsOtherNumberConstant()->Value();
   UNREACHABLE();
-  return 0;
 }
 
 double Type::Max() {
@@ -97,7 +96,6 @@ double Type::Max() {
   if (this->IsOtherNumberConstant())
     return this->AsOtherNumberConstant()->Value();
   UNREACHABLE();
-  return 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -142,7 +140,6 @@ Type::bitset BitsetType::Lub(Type* type) {
   if (type->IsRange()) return type->AsRange()->Lub();
   if (type->IsTuple()) return kOtherInternal;
   UNREACHABLE();
-  return kNone;
 }
 
 Type::bitset BitsetType::Lub(i::Map* map) {
@@ -331,10 +328,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case PADDING_TYPE_3:
     case PADDING_TYPE_4:
       UNREACHABLE();
-      return kNone;
   }
   UNREACHABLE();
-  return kNone;
 }
 
 Type::bitset BitsetType::Lub(i::Object* value) {
@@ -499,7 +494,6 @@ bool Type::SimplyEquals(Type* that) {
     return true;
   }
   UNREACHABLE();
-  return false;
 }
 
 // Check if [this] <= [that].

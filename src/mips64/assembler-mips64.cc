@@ -4005,7 +4005,6 @@ Address Assembler::target_address_at(Address pc) {
   }
   // We should never get here, force a bad address if we do.
   UNREACHABLE();
-  return (Address)0x0;
 }
 
 

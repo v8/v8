@@ -157,7 +157,6 @@ inline unsigned GetShuffleMaskSize(WasmOpcode opcode) {
       return 16;
     default:
       UNREACHABLE();
-      return 0;
   }
 }
 }  // namespace
@@ -769,7 +768,6 @@ class WasmFullDecoder : public WasmDecoder {
         return builder_->S1x16Zero();
       default:
         UNREACHABLE();
-        return nullptr;
     }
   }
 

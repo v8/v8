@@ -269,7 +269,6 @@ static double BinaryOpC(Token::Value op, double lhs, double rhs) {
     }
     default:
       UNREACHABLE();
-      return std::numeric_limits<double>::min();
   }
 }
 
@@ -1710,7 +1709,6 @@ bool CompareC(Token::Value op, T lhs, T rhs, bool types_differed = false) {
       return lhs >= rhs;
     default:
       UNREACHABLE();
-      return false;
   }
 }
 

@@ -201,7 +201,6 @@ VisitorId StaticVisitorBase::GetVisitorId(int instance_type, int instance_size,
 
     default:
       UNREACHABLE();
-      return kVisitorIdCount;
   }
 }
 

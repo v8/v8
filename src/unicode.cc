@@ -273,7 +273,6 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   }
 
   UNREACHABLE();
-  return kBadChar;
 }
 
 uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {

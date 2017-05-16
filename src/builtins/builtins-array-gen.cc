@@ -592,7 +592,6 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
       default:
         UNREACHABLE();
-        return static_cast<ElementsKind>(-1);
     }
   }
 

@@ -211,7 +211,6 @@ const char* CodeStub::MajorName(CodeStub::Major major_key) {
       return "<NoCache>Stub";
     case NUMBER_OF_IDS:
       UNREACHABLE();
-      return NULL;
   }
   return NULL;
 }
@@ -385,7 +384,6 @@ InlineCacheState CompareICStub::GetICState() const {
       return ::v8::internal::GENERIC;
   }
   UNREACHABLE();
-  return ::v8::internal::UNINITIALIZED;
 }
 
 

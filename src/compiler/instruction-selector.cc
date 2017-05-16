@@ -471,7 +471,6 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
       }
   }
   UNREACHABLE();
-  return InstructionOperand();
 }
 
 }  // namespace
@@ -526,7 +525,6 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
     }
     case IrOpcode::kObjectState: {
       UNREACHABLE();
-      return 0;
     }
     case IrOpcode::kTypedObjectState: {
       size_t id = deduplicator->GetObjectId(input);

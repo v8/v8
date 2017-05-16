@@ -370,7 +370,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
   }
 
   UNREACHABLE();
-  return kNoOpcodeFlags;
 }
 
 

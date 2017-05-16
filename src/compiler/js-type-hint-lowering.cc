@@ -118,7 +118,6 @@ class JSSpeculativeBinopBuilder final {
         break;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   const Operator* SpeculativeCompareOp(NumberOperationHint hint) {
@@ -139,7 +138,6 @@ class JSSpeculativeBinopBuilder final {
         break;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   Node* BuildSpeculativeOperation(const Operator* op) {

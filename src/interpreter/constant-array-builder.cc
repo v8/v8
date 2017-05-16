@@ -130,7 +130,6 @@ ConstantArrayBuilder::ConstantArraySlice* ConstantArrayBuilder::IndexToSlice(
     }
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
@@ -238,7 +237,6 @@ ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateIndexArray(
     }
   }
   UNREACHABLE();
-  return kMaxUInt32;
 }
 
 ConstantArrayBuilder::ConstantArraySlice*
@@ -292,7 +290,6 @@ OperandSize ConstantArrayBuilder::CreateReservedEntry() {
     }
   }
   UNREACHABLE();
-  return OperandSize::kNone;
 }
 
 ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateReservedEntry(
@@ -332,7 +329,6 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
     case Tag::kDeferred:
       // We shouldn't have any deferred entries by now.
       UNREACHABLE();
-      return Handle<Object>::null();
     case Tag::kHandle:
       return handle_;
     case Tag::kSmi:
@@ -355,7 +351,6 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
 #undef ENTRY_LOOKUP
   }
   UNREACHABLE();
-  return Handle<Object>::null();
 }
 
 }  // namespace interpreter

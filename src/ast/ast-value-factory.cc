@@ -205,7 +205,6 @@ bool AstValue::BooleanValue() const {
       return false;
   }
   UNREACHABLE();
-  return false;
 }
 
 

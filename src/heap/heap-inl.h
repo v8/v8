@@ -554,7 +554,6 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
       return false;
   }
   UNREACHABLE();
-  return false;
 }
 
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
@@ -621,7 +620,6 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
       UNREACHABLE();
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 template <Heap::UpdateAllocationSiteMode mode>

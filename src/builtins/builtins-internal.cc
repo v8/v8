@@ -13,7 +13,6 @@ namespace internal {
 
 BUILTIN(Illegal) {
   UNREACHABLE();
-  return isolate->heap()->undefined_value();  // Make compiler happy.
 }
 
 BUILTIN(EmptyFunction) { return isolate->heap()->undefined_value(); }

@@ -49,7 +49,6 @@ struct HCheckTableEntry {
       case UNCHECKED_STABLE: return "unchecked stable";
     }
     UNREACHABLE();
-    return NULL;
   }
 
   static State StateMerge(State state1, State state2) {

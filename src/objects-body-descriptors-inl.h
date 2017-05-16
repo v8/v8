@@ -555,7 +555,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
         }
     }
     UNREACHABLE();
-    return ReturnType();
   }
 
   switch (type) {
@@ -686,7 +685,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     default:
       PrintF("Unknown type: %d\n", type);
       UNREACHABLE();
-      return ReturnType();
   }
 }
 

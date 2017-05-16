@@ -467,7 +467,6 @@ CodeEventListener::DeoptKind DeoptKindOfBailoutType(
       return CodeEventListener::kLazy;
   }
   UNREACHABLE();
-  return CodeEventListener::kEager;
 }
 
 }  // namespace
@@ -2626,7 +2625,6 @@ const char* Translation::StringFor(Opcode opcode) {
   }
 #undef TRANSLATION_OPCODE_CASE
   UNREACHABLE();
-  return "";
 }
 
 #endif
@@ -3252,7 +3250,6 @@ int TranslatedFrame::GetValueCount() {
       break;
   }
   UNREACHABLE();
-  return -1;
 }
 
 
@@ -4229,7 +4226,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       break;
   }
   UNREACHABLE();
-  return Handle<Object>::null();
 }
 
 Handle<Object> TranslatedState::MaterializeAt(int frame_index,

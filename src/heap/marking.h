@@ -457,7 +457,6 @@ class Marking : public AllStatic {
     if (IsWhite(mark_bit)) return WHITE_OBJECT;
     if (IsGrey(mark_bit)) return GREY_OBJECT;
     UNREACHABLE();
-    return IMPOSSIBLE_COLOR;
   }
 
  private:

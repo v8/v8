@@ -46,7 +46,6 @@ Handle<Code> Builtins::InterpreterPushArgsThenCall(
       }
   }
   UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 Handle<Code> Builtins::InterpreterPushArgsThenConstruct(
@@ -60,7 +59,6 @@ Handle<Code> Builtins::InterpreterPushArgsThenConstruct(
       return InterpreterPushArgsThenConstruct();
   }
   UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 }  // namespace internal

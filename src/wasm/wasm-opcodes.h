@@ -614,7 +614,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return kLocalVoid;
       default:
         UNREACHABLE();
-        return kLocalVoid;
     }
   }
 
@@ -640,7 +639,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return MachineType::None();
       default:
         UNREACHABLE();
-        return MachineType::None();
     }
   }
 
@@ -666,7 +664,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return kWasmS1x16;
       default:
         UNREACHABLE();
-        return kWasmI32;
     }
   }
 

@@ -99,8 +99,6 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorResolve) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
-
-  return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorReject) {
@@ -110,8 +108,6 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorReject) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
-
-  return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {

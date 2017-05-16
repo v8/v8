@@ -79,7 +79,6 @@ Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
       return NonPrimitiveToPrimitive_String();
   }
   UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
@@ -90,7 +89,6 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
       return OrdinaryToPrimitive_String();
   }
   UNREACHABLE();
-  return Handle<Code>::null();
 }
 
 // static
@@ -105,7 +103,6 @@ int Builtins::GetBuiltinParameterCount(Name name) {
 #undef TFJ_CASE
     default:
       UNREACHABLE();
-      return 0;
   }
 }
 
@@ -130,7 +127,6 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     }
     default:
       UNREACHABLE();
-      return Callable(Handle<Code>::null(), VoidDescriptor(isolate));
   }
   CallInterfaceDescriptor descriptor(isolate, key);
   return Callable(code, descriptor);

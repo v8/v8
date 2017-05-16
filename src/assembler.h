@@ -108,7 +108,6 @@ class AssemblerBase: public Malloced {
     } else {
       // Embedded constant pool not supported on this architecture.
       UNREACHABLE();
-      return false;
     }
   }
 

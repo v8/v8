@@ -428,7 +428,6 @@ class StackTraceHelper {
         return !skip_next_frame_;
     }
     UNREACHABLE();
-    return false;
   }
 
   bool IsNotHidden(JSFunction* fun) {
@@ -658,7 +657,6 @@ class CaptureStackTraceHelper {
     if (summ.IsJavaScript()) return NewStackFrameObject(summ.AsJavaScript());
     if (summ.IsWasm()) return NewStackFrameObject(summ.AsWasm());
     UNREACHABLE();
-    return factory()->NewStackFrameInfo();
   }
 
   Handle<StackFrameInfo> NewStackFrameObject(

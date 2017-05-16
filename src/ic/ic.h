@@ -122,11 +122,9 @@ class IC {
   Handle<Object> ComputeHandler(LookupIterator* lookup);
   virtual Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) {
     UNREACHABLE();
-    return Handle<Code>::null();
   }
   virtual Handle<Code> CompileHandler(LookupIterator* lookup) {
     UNREACHABLE();
-    return Handle<Code>::null();
   }
 
   void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);

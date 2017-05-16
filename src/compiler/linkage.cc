@@ -121,7 +121,6 @@ int CallDescriptor::CalculateFixedFrameSize() const {
       return TypedFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();
-  return 0;
 }
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {

@@ -2154,7 +2154,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
         return JSArrayIterator::kSize;
       }
       UNREACHABLE();
-      return 0;
   }
 }
 
@@ -3550,7 +3549,6 @@ uint16_t String::Get(int index) {
   }
 
   UNREACHABLE();
-  return 0;
 }
 
 
@@ -3635,7 +3633,6 @@ ConsString* String::VisitFlat(Visitor* visitor,
 
       default:
         UNREACHABLE();
-        return NULL;
     }
   }
 }
@@ -4109,7 +4106,6 @@ int FixedTypedArrayBase::ElementSize(InstanceType type) {
 #undef TYPED_ARRAY_CASE
     default:
       UNREACHABLE();
-      return 0;
   }
   return element_size;
 }
@@ -7103,7 +7099,6 @@ int JSRegExp::CaptureCount() {
       return Smi::cast(DataAt(kIrregexpCaptureCountIndex))->value();
     default:
       UNREACHABLE();
-      return -1;
   }
 }
 

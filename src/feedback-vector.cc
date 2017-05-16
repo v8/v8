@@ -170,7 +170,6 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       break;
   }
   UNREACHABLE();
-  return "?";
 }
 
 bool FeedbackMetadata::HasTypeProfileSlot() const {

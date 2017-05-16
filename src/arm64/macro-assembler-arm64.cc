@@ -3696,7 +3696,6 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   } else {
     // This register has no safepoint register slot.
     UNREACHABLE();
-    return -1;
   }
 }
 

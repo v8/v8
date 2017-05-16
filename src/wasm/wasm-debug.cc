@@ -277,7 +277,6 @@ class InterpreterHandle {
       }
       default:
         UNREACHABLE();
-        return WasmInterpreter::STOPPED;
     }
   }
 

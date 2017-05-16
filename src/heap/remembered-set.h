@@ -341,7 +341,6 @@ class UpdateTypedSlotHelper {
         break;
     }
     UNREACHABLE();
-    return REMOVE_SLOT;
   }
 };
 
@@ -356,7 +355,6 @@ inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
     return DEBUG_TARGET_SLOT;
   }
   UNREACHABLE();
-  return CLEARED_SLOT;
 }
 
 }  // namespace internal

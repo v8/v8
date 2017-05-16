@@ -634,7 +634,6 @@ int HBasicBlock::PredecessorIndexOf(HBasicBlock* predecessor) const {
     if (predecessors_[i] == predecessor) return i;
   }
   UNREACHABLE();
-  return -1;
 }
 
 
@@ -3168,7 +3167,6 @@ class PostorderProcessor : public ZoneObject {
         return father_;
     }
     UNREACHABLE();
-    return NULL;
   }
 
   // Walks up the stack.
@@ -4929,7 +4927,6 @@ bool HOptimizedGraphBuilder::CanInlineGlobalPropertyAccess(
       UNREACHABLE();
   }
   UNREACHABLE();
-  return false;
 }
 
 

@@ -498,7 +498,6 @@ class LocationOperand : public InstructionOperand {
         return false;
     }
     UNREACHABLE();
-    return false;
   }
 
   static LocationOperand* cast(InstructionOperand* op) {
@@ -1599,7 +1598,6 @@ class V8_EXPORT_PRIVATE InstructionSequence final
       }
     }
     UNREACHABLE();
-    return Constant(static_cast<int32_t>(0));
   }
 
   int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,

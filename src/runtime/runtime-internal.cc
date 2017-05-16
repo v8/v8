@@ -133,7 +133,6 @@ const char* ElementsKindToType(ElementsKind fixed_elements_kind) {
 
     default:
       UNREACHABLE();
-      return "";
   }
 }
 

@@ -1728,7 +1728,6 @@ FlagsCondition MapForFlagSettingBinop(FlagsCondition cond) {
       return kNotEqual;
     default:
       UNREACHABLE();
-      return cond;
   }
 }
 

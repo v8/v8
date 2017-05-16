@@ -2445,7 +2445,6 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       UNREACHABLE();
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 
@@ -2474,7 +2473,6 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
       UNREACHABLE();
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 Node* AstGraphBuilder::BuildVariableAssignment(
@@ -2588,7 +2586,6 @@ Node* AstGraphBuilder::BuildVariableAssignment(
       UNREACHABLE();
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 

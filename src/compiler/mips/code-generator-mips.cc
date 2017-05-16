@@ -96,7 +96,6 @@ class MipsOperandConverter final : public InstructionOperandConverter {
         break;
     }
     UNREACHABLE();
-    return Operand(zero_reg);
   }
 
   Operand InputOperand(size_t index) {
@@ -120,7 +119,6 @@ class MipsOperandConverter final : public InstructionOperandConverter {
         UNREACHABLE();
     }
     UNREACHABLE();
-    return MemOperand(no_reg);
   }
 
   MemOperand MemoryOperand(size_t index = 0) { return MemoryOperand(&index); }
@@ -320,7 +318,6 @@ Condition FlagsConditionToConditionCmp(FlagsCondition condition) {
       break;
   }
   UNREACHABLE();
-  return kNoCondition;
 }
 
 
@@ -334,7 +331,6 @@ Condition FlagsConditionToConditionTst(FlagsCondition condition) {
       break;
   }
   UNREACHABLE();
-  return kNoCondition;
 }
 
 
@@ -368,7 +364,6 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
       break;
   }
   UNREACHABLE();
-  return kNoFPUCondition;
 }
 
 }  // namespace

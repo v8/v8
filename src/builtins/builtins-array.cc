@@ -639,7 +639,6 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
       UNREACHABLE();
-      return 0;
   }
   // As an estimate, we assume that the prototype doesn't contain any
   // inherited elements.

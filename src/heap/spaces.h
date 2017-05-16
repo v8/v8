@@ -2336,14 +2336,12 @@ class SemiSpace : public Space {
 
   size_t Size() override {
     UNREACHABLE();
-    return 0;
   }
 
   size_t SizeOfObjects() override { return Size(); }
 
   size_t Available() override {
     UNREACHABLE();
-    return 0;
   }
 
   iterator begin() { return iterator(anchor_.next_page()); }
@@ -2780,7 +2778,6 @@ class CompactionSpaceCollection : public Malloced {
         UNREACHABLE();
     }
     UNREACHABLE();
-    return nullptr;
   }
 
  private:

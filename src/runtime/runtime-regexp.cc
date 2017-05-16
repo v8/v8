@@ -1423,7 +1423,6 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
   }
 
   UNREACHABLE();
-  return MaybeHandle<String>();
 }
 
 }  // namespace

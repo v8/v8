@@ -945,7 +945,6 @@ Instr Assembler::Flags(FlagsUpdate S) {
     return 0 << FlagsUpdate_offset;
   }
   UNREACHABLE();
-  return 0;
 }
 
 

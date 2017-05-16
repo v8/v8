@@ -300,7 +300,6 @@ class Instruction {
         return ImmTestBranch_width;
       default:
         UNREACHABLE();
-        return 0;
     }
   }
 

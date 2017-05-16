@@ -911,7 +911,6 @@ Builtins::Name GetBuiltinIdForTrap(bool in_cctest, wasm::TrapReason reason) {
 #undef TRAPREASON_TO_MESSAGE
     default:
       UNREACHABLE();
-      return Builtins::builtin_count;
   }
 }
 }  // namespace
@@ -2408,7 +2407,6 @@ Node* WasmGraphBuilder::ToJS(Node* node, wasm::ValueType type) {
       return jsgraph()->UndefinedConstant();
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 
@@ -2509,7 +2507,6 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
       break;
     default:
       UNREACHABLE();
-      return nullptr;
   }
   return num;
 }
@@ -3643,7 +3640,6 @@ Node* WasmGraphBuilder::SimdShuffleOp(uint8_t shuffle[16], unsigned lanes,
                               inputs[0], inputs[1]);
     default:
       UNREACHABLE();
-      return nullptr;
   }
 }
 

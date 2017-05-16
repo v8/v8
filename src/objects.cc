@@ -91,7 +91,6 @@ std::ostream& operator<<(std::ostream& os, InstanceType instance_type) {
 #undef WRITE_TYPE
   }
   UNREACHABLE();
-  return os << "UNKNOWN";  // Keep the compiler happy.
 }
 
 Handle<FieldType> Object::OptimalType(Isolate* isolate,
@@ -3341,7 +3340,6 @@ const char* Representation::Mnemonic() const {
     case kExternal: return "x";
     default:
       UNREACHABLE();
-      return NULL;
   }
 }
 
@@ -8238,7 +8236,6 @@ bool JSObject::HasEnumerableElements() {
       return false;
   }
   UNREACHABLE();
-  return true;
 }
 
 
@@ -9204,7 +9201,6 @@ bool CanHoldValue(DescriptorArray* descriptors, int descriptor,
     }
   }
   UNREACHABLE();
-  return false;
 }
 
 Handle<Map> UpdateDescriptorForValue(Handle<Map> map, int descriptor,
@@ -10650,10 +10646,8 @@ const uc16* String::GetTwoByteData(unsigned start) {
     case kConsStringTag:
     case kThinStringTag:
       UNREACHABLE();
-      return NULL;
   }
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -10830,7 +10824,6 @@ String* ConsStringIterator::Search(int* offset_out) {
     return string;
   }
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -10878,7 +10871,6 @@ String* ConsStringIterator::NextLeaf(bool* blew_stack) {
     }
   }
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -10909,7 +10901,6 @@ uint16_t ConsString::ConsStringGet(int index) {
   }
 
   UNREACHABLE();
-  return 0;
 }
 
 uint16_t ThinString::ThinStringGet(int index) { return actual()->Get(index); }
@@ -11638,7 +11629,6 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
   }
 
   UNREACHABLE();
-  return MaybeHandle<String>();
 }
 
 namespace {  // for String.Prototype.lastIndexOf
@@ -14173,7 +14163,6 @@ Code::Age Code::GetAgeOfCodeAgeStub(Code* code) {
     return kToBeExecutedOnceCodeAge;
   }
   UNREACHABLE();
-  return kNoAgeCodeAge;
 }
 
 Code* Code::GetCodeAgeStub(Isolate* isolate, Age age) {
@@ -14243,7 +14232,6 @@ const char* Code::Kind2String(Kind kind) {
     case NUMBER_OF_KINDS: break;
   }
   UNREACHABLE();
-  return NULL;
 }
 
 // Identify kind of code.
@@ -14252,7 +14240,6 @@ const char* AbstractCode::Kind2String(Kind kind) {
     return Code::Kind2String((Code::Kind)kind);
   if (kind == AbstractCode::INTERPRETED_FUNCTION) return "INTERPRETED_FUNCTION";
   UNREACHABLE();
-  return NULL;
 }
 
 Handle<WeakCell> Code::WeakCellFor(Handle<Code> code) {
@@ -14297,7 +14284,6 @@ const char* Code::ICState2String(InlineCacheState state) {
       return "GENERIC";
   }
   UNREACHABLE();
-  return NULL;
 }
 
 void Code::PrintExtraICState(std::ostream& os,  // NOLINT
@@ -15156,7 +15142,6 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-transition-changed";
   }
   UNREACHABLE();
-  return "?";
 }
 
 
@@ -16062,7 +16047,6 @@ const char* JSPromise::Status(int status) {
       return "rejected";
   }
   UNREACHABLE();
-  return NULL;
 }
 
 namespace {
@@ -16275,7 +16259,6 @@ class RegExpKey : public HashTableKey {
     // Plain hash maps, which is where regexp keys are used, don't
     // use this function.
     UNREACHABLE();
-    return MaybeHandle<Object>().ToHandleChecked();
   }
 
   uint32_t HashForObject(Object* obj) override {
@@ -17181,7 +17164,6 @@ ExternalArrayType JSTypedArray::type() {
 
     default:
       UNREACHABLE();
-      return static_cast<ExternalArrayType>(-1);
   }
 }
 
@@ -17197,7 +17179,6 @@ size_t JSTypedArray::element_size() {
 
     default:
       UNREACHABLE();
-      return 0;
   }
 }
 
@@ -17363,7 +17344,6 @@ class TwoCharHashTableKey : public HashTableKey {
     // The TwoCharHashTableKey is only used for looking in the string
     // table, not for adding to it.
     UNREACHABLE();
-    return MaybeHandle<Object>().ToHandleChecked();
   }
 
  private:
@@ -17657,7 +17637,6 @@ class StringTableNoAllocateKey : public HashTableKey {
 
   MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) override {
     UNREACHABLE();
-    return Handle<String>();
   }
 
  private:
@@ -19479,7 +19458,6 @@ Object* JSDate::GetUTCField(FieldIndex index,
   }
 
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -19823,7 +19801,6 @@ PropertyCellType PropertyCell::UpdatedType(Handle<PropertyCell> cell,
         return PropertyCellType::kMutable;
       default:
         UNREACHABLE();
-        return PropertyCellType::kMutable;
     }
   }
   switch (type) {
@@ -19841,7 +19818,6 @@ PropertyCellType PropertyCell::UpdatedType(Handle<PropertyCell> cell,
       return PropertyCellType::kMutable;
   }
   UNREACHABLE();
-  return PropertyCellType::kMutable;
 }
 
 Handle<PropertyCell> PropertyCell::PrepareForValue(

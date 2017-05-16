@@ -2402,7 +2402,6 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       return impl()->EmptyClassLiteralProperty();
   }
   UNREACHABLE();
-  return impl()->EmptyClassLiteralProperty();
 }
 
 template <typename Impl>
@@ -2628,7 +2627,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
       return impl()->EmptyObjectLiteralProperty();
   }
   UNREACHABLE();
-  return impl()->EmptyObjectLiteralProperty();
 }
 
 template <typename Impl>
@@ -4980,7 +4978,6 @@ ParserBase<Impl>::ParseStatementAsUnlabelled(
       return ParseTryStatement(ok);
     default:
       UNREACHABLE();
-      return impl()->NullStatement();
   }
 }
 

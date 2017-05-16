@@ -56,7 +56,6 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
       return os << "StoreInLiteral";
   }
   UNREACHABLE();
-  return os;
 }
 
 ElementAccessInfo::ElementAccessInfo() {}
@@ -213,7 +212,6 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
   }
 
   UNREACHABLE();
-  return false;
 }
 
 AccessInfoFactory::AccessInfoFactory(CompilationDependencies* dependencies,
@@ -433,7 +431,6 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
         }
       }
       UNREACHABLE();
-      return false;
     }
 
     // Don't search on the prototype chain for special indices in case of

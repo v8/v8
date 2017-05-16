@@ -327,7 +327,6 @@ MaybeHandle<JSObject> ScopeIterator::ScopeObject() {
       return MaterializeModuleScope();
   }
   UNREACHABLE();
-  return Handle<JSObject>();
 }
 
 

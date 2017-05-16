@@ -23,7 +23,6 @@ std::ostream& operator<<(std::ostream& os, BinaryOperationHint hint) {
       return os << "Any";
   }
   UNREACHABLE();
-  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
@@ -48,7 +47,6 @@ std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
       return os << "Any";
   }
   UNREACHABLE();
-  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
@@ -77,7 +75,6 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
       return os << "NeedsMap";
   }
   UNREACHABLE();
-  return os;
 }
 
 std::string ToString(ToBooleanHint hint) {
@@ -106,7 +103,6 @@ std::string ToString(ToBooleanHint hint) {
       return "NeedsMap";
   }
   UNREACHABLE();
-  return "";
 }
 
 std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
@@ -158,7 +154,6 @@ std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags) {
       break;
   }
   UNREACHABLE();
-  return os;
 }
 
 }  // namespace internal

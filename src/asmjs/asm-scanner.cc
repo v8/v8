@@ -208,7 +208,6 @@ std::string AsmJsScanner::Name(token_t token) const {
       break;
   }
   UNREACHABLE();
-  return "{unreachable}";
 }
 #endif
 

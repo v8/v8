@@ -356,7 +356,6 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
       return os << "Soft";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Mask for the sign bit in a smi.
@@ -535,7 +534,6 @@ inline std::ostream& operator<<(std::ostream& os, Decision decision) {
       return os << "False";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Supported write barrier modes.
@@ -562,7 +560,6 @@ inline std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
       return os << "FullWriteBarrier";
   }
   UNREACHABLE();
-  return os;
 }
 
 // A flag that indicates whether objects should be pretenured when
@@ -579,7 +576,6 @@ inline std::ostream& operator<<(std::ostream& os, const PretenureFlag& flag) {
       return os << "Tenured";
   }
   UNREACHABLE();
-  return os;
 }
 
 enum MinimumCapacity {
@@ -831,7 +827,6 @@ inline std::ostream& operator<<(std::ostream& os, ConvertReceiverMode mode) {
       return os << "ANY";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Defines whether tail call optimization is allowed.
@@ -847,7 +842,6 @@ inline std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
       return os << "DISALLOW_TAIL_CALLS";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Valid hints for the abstract operation OrdinaryToPrimitive,
@@ -879,7 +873,6 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
       return os << "REST_PARAMETER";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Used to specify if a macro instruction must perform a smi check on tagged
@@ -981,7 +974,6 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "TEMPORARY";
   }
   UNREACHABLE();
-  return NULL;
 }
 #endif
 
@@ -1232,7 +1224,6 @@ inline std::ostream& operator<<(std::ostream& os,
       return os << "Other";
   }
   UNREACHABLE();
-  return os;
 }
 
 inline uint32_t ObjectHash(Address address) {
@@ -1314,7 +1305,6 @@ inline std::ostream& operator<<(std::ostream& os, UnicodeEncoding encoding) {
       return os << "UTF32";
   }
   UNREACHABLE();
-  return os;
 }
 
 enum class IterationKind { kKeys, kValues, kEntries };
@@ -1329,7 +1319,6 @@ inline std::ostream& operator<<(std::ostream& os, IterationKind kind) {
       return os << "IterationKind::kEntries";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Flags for the runtime function kDefineDataPropertyInLiteral. A property can
@@ -1409,7 +1398,6 @@ inline const char* SuspendTypeFor(SuspendFlags flags) {
       break;
   }
   UNREACHABLE();
-  return "";
 }
 
 struct AssemblerDebugInfo {

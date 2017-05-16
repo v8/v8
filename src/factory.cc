@@ -2083,7 +2083,6 @@ ExternalArrayType Factory::GetArrayTypeFromElementsKind(ElementsKind kind) {
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
       UNREACHABLE();
-      return kExternalInt8Array;
   }
 #undef TYPED_ARRAY_CASE
 }
@@ -2096,7 +2095,6 @@ size_t Factory::GetExternalArrayElementSize(ExternalArrayType type) {
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
       UNREACHABLE();
-      return 0;
   }
 #undef TYPED_ARRAY_CASE
 }
@@ -2111,7 +2109,6 @@ ElementsKind GetExternalArrayElementsKind(ExternalArrayType type) {
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
   }
   UNREACHABLE();
-  return FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
 #undef TYPED_ARRAY_CASE
 }
 
@@ -2123,7 +2120,6 @@ size_t GetFixedTypedArraysElementSize(ElementsKind kind) {
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
       UNREACHABLE();
-      return 0;
   }
 #undef TYPED_ARRAY_CASE
 }
@@ -2141,7 +2137,6 @@ JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
 
     default:
       UNREACHABLE();
-      return NULL;
   }
 }
 
@@ -2158,7 +2153,6 @@ JSFunction* GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
 
     default:
       UNREACHABLE();
-      return NULL;
   }
 }
 
@@ -2801,7 +2795,6 @@ Handle<String> Factory::ToPrimitiveHintString(ToPrimitiveHint hint) {
       return string_string();
   }
   UNREACHABLE();
-  return Handle<String>::null();
 }
 
 Handle<Map> Factory::CreateSloppyFunctionMap(FunctionMode function_mode) {
