@@ -67,14 +67,14 @@ declare_args() {
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""
 
-  # Sets -dTRACE_MAPS.
+  # Sets -dV8_TRACE_MAPS.
   v8_enable_trace_maps = ""
 
   # Sets -dV8_ENABLE_CHECKS.
   v8_enable_v8_checks = ""
 
-  # Builds the snapshot with --trace-ignition
-  v8_trace_ignition = false
+  # Sets -dV8_TRACE_IGNITION.
+  v8_enable_trace_ignition = false
 
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
@@ -228,7 +228,10 @@ config("features") {
     defines += [ "VERIFY_PREDICTABLE" ]
   }
   if (v8_enable_trace_maps) {
-    defines += [ "TRACE_MAPS" ]
+    defines += [ "V8_TRACE_MAPS" ]
+  }
+  if (v8_enable_trace_ignition) {
+    defines += [ "V8_TRACE_IGNITION" ]
   }
   if (v8_enable_v8_checks) {
     defines += [ "V8_ENABLE_CHECKS" ]
@@ -730,10 +733,6 @@ action("run_mksnapshot") {
       "--v8_os_page_size",
       v8_os_page_size,
     ]
-  }
-
-  if (v8_trace_ignition) {
-    args += [ "--trace-ignition" ]
   }
 
   if (v8_use_external_startup_data) {

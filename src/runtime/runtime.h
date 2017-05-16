@@ -216,10 +216,17 @@ namespace internal {
   F(ForInFilter, 2, 1)              \
   F(ForInHasProperty, 2, 1)
 
+#ifdef V8_TRACE_IGNITION
+#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F) \
+  F(InterpreterTraceBytecodeEntry, 3, 1)        \
+  F(InterpreterTraceBytecodeExit, 3, 1)
+#else
+#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)
+#endif
+
 #define FOR_EACH_INTRINSIC_INTERPRETER(F) \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F) \
   F(InterpreterNewClosure, 4, 1)          \
-  F(InterpreterTraceBytecodeEntry, 3, 1)  \
-  F(InterpreterTraceBytecodeExit, 3, 1)   \
   F(InterpreterAdvanceBytecodeOffset, 2, 1)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \

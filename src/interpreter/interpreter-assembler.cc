@@ -49,9 +49,9 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
   dispatch_table_.Bind(
       Parameter(InterpreterDispatchDescriptor::kDispatchTable));
 
-  if (FLAG_trace_ignition) {
-    TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
-  }
+#ifdef V8_TRACE_IGNITION
+  TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+#endif
   RegisterCallGenerationCallbacks([this] { CallPrologue(); },
                                   [this] { CallEpilogue(); });
 
@@ -1012,9 +1012,9 @@ Node* InterpreterAssembler::Advance(int delta) {
 }
 
 Node* InterpreterAssembler::Advance(Node* delta, bool backward) {
-  if (FLAG_trace_ignition) {
-    TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
-  }
+#ifdef V8_TRACE_IGNITION
+  TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
+#endif
   Node* next_offset = backward ? IntPtrSub(BytecodeOffset(), delta)
                                : IntPtrAdd(BytecodeOffset(), delta);
   bytecode_offset_.Bind(next_offset);
@@ -1088,9 +1088,9 @@ void InterpreterAssembler::InlineStar() {
   bytecode_ = Bytecode::kStar;
   accumulator_use_ = AccumulatorUse::kNone;
 
-  if (FLAG_trace_ignition) {
-    TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
-  }
+#ifdef V8_TRACE_IGNITION
+  TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+#endif
   StoreRegister(GetAccumulator(), BytecodeOperandReg(0));
 
   DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));

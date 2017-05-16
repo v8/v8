@@ -120,6 +120,11 @@ namespace internal {
 
 #define V8_CONCURRENT_MARKING 0
 
+// Some types of tracing require the SFI to store a unique ID.
+#if defined(V8_TRACE_MAPS) || defined(V8_TRACE_IGNITION)
+#define V8_SFI_HAS_UNIQUE_ID 1
+#endif
+
 typedef uint8_t byte;
 typedef byte* Address;
 

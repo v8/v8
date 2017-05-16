@@ -5120,7 +5120,7 @@ class Map: public HeapObject {
   // Returns true if given field is unboxed double.
   inline bool IsUnboxedDoubleField(FieldIndex index);
 
-#if TRACE_MAPS
+#if V8_TRACE_MAPS
   static void TraceTransition(const char* what, Map* from, Map* to, Name* name);
   static void TraceAllTransitions(Map* map);
 #endif
@@ -5931,9 +5931,9 @@ class SharedFunctionInfo: public HeapObject {
   inline int function_literal_id() const;
   inline void set_function_literal_id(int value);
 
-#if TRACE_MAPS
-  // [unique_id] - For --trace-maps purposes, an identifier that's persistent
-  // even if the GC moves this SharedFunctionInfo.
+#if V8_SFI_HAS_UNIQUE_ID
+  // [unique_id] - For tracing purposes, an identifier that's persistent even if
+  // the GC moves this SharedFunctionInfo.
   inline int unique_id() const;
   inline void set_unique_id(int value);
 #endif
@@ -6271,7 +6271,7 @@ class SharedFunctionInfo: public HeapObject {
       kFunctionIdentifierOffset + kPointerSize;
   static const int kFunctionLiteralIdOffset =
       kFeedbackMetadataOffset + kPointerSize;
-#if TRACE_MAPS
+#if V8_SFI_HAS_UNIQUE_ID
   static const int kUniqueIdOffset = kFunctionLiteralIdOffset + kPointerSize;
   static const int kLastPointerFieldOffset = kUniqueIdOffset;
 #else
@@ -7842,7 +7842,7 @@ class Name: public HeapObject {
   DECLARE_CAST(Name)
 
   DECLARE_PRINTER(Name)
-#if TRACE_MAPS
+#if V8_TRACE_MAPS
   void NameShortPrint();
   int NameShortPrint(Vector<char> str);
 #endif
@@ -7961,7 +7961,7 @@ class Symbol: public Name {
  private:
   const char* PrivateSymbolToName() const;
 
-#if TRACE_MAPS
+#if V8_TRACE_MAPS
   friend class Name;  // For PrivateSymbolToName.
 #endif
 

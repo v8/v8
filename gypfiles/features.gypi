@@ -90,7 +90,7 @@
         'defines': ['VERIFY_HEAP',],
       }],
       ['v8_trace_maps==1', {
-        'defines': ['TRACE_MAPS',],
+        'defines': ['V8_TRACE_MAPS',],
       }],
       ['v8_enable_verify_predictable==1', {
         'defines': ['VERIFY_PREDICTABLE',],

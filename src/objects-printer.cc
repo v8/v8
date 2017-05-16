@@ -1523,9 +1523,7 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
 
 #endif  // OBJECT_PRINT
 
-
-#if TRACE_MAPS
-
+#if V8_TRACE_MAPS
 
 void Name::NameShortPrint() {
   if (this->IsString()) {
@@ -1556,9 +1554,7 @@ int Name::NameShortPrint(Vector<char> str) {
   }
 }
 
-
-#endif  // TRACE_MAPS
-
+#endif  // V8_TRACE_MAPS
 
 #if defined(DEBUG) || defined(OBJECT_PRINT)
 // This method is only meant to be called from gdb for debugging purposes.

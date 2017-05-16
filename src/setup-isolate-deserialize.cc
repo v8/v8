@@ -20,14 +20,6 @@ void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate,
 
 void SetupIsolateDelegate::SetupInterpreter(
     interpreter::Interpreter* interpreter, bool create_heap_objects) {
-#ifdef V8_USE_SNAPSHOT
-  if (FLAG_trace_ignition || FLAG_trace_ignition_codegen ||
-      FLAG_trace_ignition_dispatches) {
-    OFStream os(stdout);
-    os << "Warning: --trace-ignition-* flags must be passed at mksnapshot "
-       << "time or used with nosnapshot builds." << std::endl;
-  }
-#endif
   DCHECK(interpreter->IsDispatchTableInitialized());
 }
 
