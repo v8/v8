@@ -18,15 +18,15 @@ namespace interpreter {
 
 class BytecodeArrayAccessor;
 
-struct JumpTableTargetOffset {
+struct V8_EXPORT_PRIVATE JumpTableTargetOffset {
   int case_value;
   int target_offset;
 };
 
-class JumpTableTargetOffsets final {
+class V8_EXPORT_PRIVATE JumpTableTargetOffsets final {
  public:
   // Minimal iterator implementation for use in ranged-for.
-  class iterator final {
+  class V8_EXPORT_PRIVATE iterator final {
    public:
     iterator(int case_value, int table_offset, int table_end,
              const BytecodeArrayAccessor* accessor);
