@@ -626,7 +626,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
     return (IsAccumulatorLoadWithoutEffects(bytecode) ||
             IsRegisterLoadWithoutEffects(bytecode) ||
             IsCompareWithoutEffects(bytecode) || bytecode == Bytecode::kNop ||
-            IsJumpWithoutEffects(bytecode));
+            IsJumpWithoutEffects(bytecode) || IsSwitch(bytecode));
   }
 
   // Returns true if the bytecode is Ldar or Star.
