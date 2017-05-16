@@ -22646,6 +22646,43 @@ THREADED_TEST(JSONParseNumber) {
   ExpectString("JSON.stringify(obj)", "42");
 }
 
+namespace {
+void TestJSONParseArray(Local<Context> context, const char* input_str,
+                        const char* expected_output_str,
+                        i::ElementsKind expected_elements_kind) {
+  Local<Value> obj =
+      v8::JSON::Parse(context, v8_str(input_str)).ToLocalChecked();
+
+  i::Handle<i::JSArray> a =
+      i::Handle<i::JSArray>::cast(v8::Utils::OpenHandle(*obj));
+  CHECK_EQ(expected_elements_kind, a->GetElementsKind());
+
+  Local<Object> global = context->Global();
+  global->Set(context, v8_str("obj"), obj).FromJust();
+  ExpectString("JSON.stringify(obj)", expected_output_str);
+}
+}  // namespace
+
+THREADED_TEST(JSONParseArray) {
+  LocalContext context;
+  HandleScope scope(context->GetIsolate());
+
+  TestJSONParseArray(context.local(), "[0, 1, 2]", "[0,1,2]",
+                     i::FAST_SMI_ELEMENTS);
+  TestJSONParseArray(context.local(), "[0, 1.2, 2]", "[0,1.2,2]",
+                     i::FAST_DOUBLE_ELEMENTS);
+  TestJSONParseArray(context.local(), "[0.2, 1, 2]", "[0.2,1,2]",
+                     i::FAST_DOUBLE_ELEMENTS);
+  TestJSONParseArray(context.local(), "[0, \"a\", 2]", "[0,\"a\",2]",
+                     i::FAST_ELEMENTS);
+  TestJSONParseArray(context.local(), "[\"a\", 1, 2]", "[\"a\",1,2]",
+                     i::FAST_ELEMENTS);
+  TestJSONParseArray(context.local(), "[\"a\", 1.2, 2]", "[\"a\",1.2,2]",
+                     i::FAST_ELEMENTS);
+  TestJSONParseArray(context.local(), "[0, 1.2, \"a\"]", "[0,1.2,\"a\"]",
+                     i::FAST_ELEMENTS);
+}
+
 THREADED_TEST(JSONStringifyObject) {
   LocalContext context;
   HandleScope scope(context->GetIsolate());
