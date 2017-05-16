@@ -100,7 +100,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
   for (CompilationInfo::InlinedFunctionHolder& inlined :
        info->inlined_functions()) {
     if (!inlined.shared_info.equals(info->shared_info())) {
-      int index = DefineDeoptimizationLiteral(inlined.shared_info);
+      int index = DefineDeoptimizationLiteral(
+          DeoptimizationLiteral(inlined.shared_info));
       inlined.RegisterInlinedFunctionId(index);
     }
   }
@@ -111,7 +112,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
   for (const CompilationInfo::InlinedFunctionHolder& inlined :
        info->inlined_functions()) {
     if (!inlined.shared_info.equals(info->shared_info())) {
-      DefineDeoptimizationLiteral(inlined.inlined_code_object_root);
+      DefineDeoptimizationLiteral(
+          DeoptimizationLiteral(inlined.inlined_code_object_root));
     }
   }
 
@@ -575,13 +577,11 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
 
   Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(
       static_cast<int>(deoptimization_literals_.size()), TENURED);
-  {
-    AllowDeferredHandleDereference copy_handles;
-    for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
-      literals->set(i, *deoptimization_literals_[i]);
-    }
-    data->SetLiteralArray(*literals);
+  for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
+    Handle<Object> object = deoptimization_literals_[i].Reify(isolate());
+    literals->set(i, *object);
   }
+  data->SetLiteralArray(*literals);
 
   Handle<PodArray<InliningPosition>> inl_pos = CreateInliningPositions(info);
   data->SetInliningPositions(*inl_pos);
@@ -656,11 +656,10 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
   }
 }
 
-
-int CodeGenerator::DefineDeoptimizationLiteral(Handle<Object> literal) {
+int CodeGenerator::DefineDeoptimizationLiteral(DeoptimizationLiteral literal) {
   int result = static_cast<int>(deoptimization_literals_.size());
   for (unsigned i = 0; i < deoptimization_literals_.size(); ++i) {
-    if (deoptimization_literals_[i].equals(literal)) return i;
+    if (deoptimization_literals_[i] == literal) return i;
   }
   deoptimization_literals_.push_back(literal);
   return result;
@@ -722,8 +721,8 @@ void CodeGenerator::TranslateStateValueDescriptor(
     DCHECK(desc->IsOptimizedOut());
     if (translation != nullptr) {
       if (optimized_out_literal_id_ == -1) {
-        optimized_out_literal_id_ =
-            DefineDeoptimizationLiteral(isolate()->factory()->optimized_out());
+        optimized_out_literal_id_ = DefineDeoptimizationLiteral(
+            DeoptimizationLiteral(isolate()->factory()->optimized_out()));
       }
       translation->StoreLiteral(optimized_out_literal_id_);
     }
@@ -790,7 +789,8 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
     }
     shared_info = info()->shared_info();
   }
-  int shared_info_id = DefineDeoptimizationLiteral(shared_info);
+  int shared_info_id =
+      DefineDeoptimizationLiteral(DeoptimizationLiteral(shared_info));
 
   switch (descriptor->type()) {
     case FrameStateType::kJavaScriptFunction:
@@ -906,22 +906,23 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     CHECK(op->IsImmediate());
     InstructionOperandConverter converter(this, instr);
     Constant constant = converter.ToConstant(op);
-    Handle<Object> constant_object;
+    DeoptimizationLiteral literal;
     switch (constant.type()) {
       case Constant::kInt32:
         if (type.representation() == MachineRepresentation::kTagged) {
           // When pointers are 4 bytes, we can use int32 constants to represent
           // Smis.
           DCHECK_EQ(4, kPointerSize);
-          constant_object =
-              handle(reinterpret_cast<Smi*>(constant.ToInt32()), isolate());
-          DCHECK(constant_object->IsSmi());
+          Smi* smi = reinterpret_cast<Smi*>(constant.ToInt32());
+          DCHECK(smi->IsSmi());
+          literal = DeoptimizationLiteral(smi->value());
         } else if (type.representation() == MachineRepresentation::kBit) {
           if (constant.ToInt32() == 0) {
-            constant_object = isolate()->factory()->false_value();
+            literal =
+                DeoptimizationLiteral(isolate()->factory()->false_value());
           } else {
             DCHECK_EQ(1, constant.ToInt32());
-            constant_object = isolate()->factory()->true_value();
+            literal = DeoptimizationLiteral(isolate()->factory()->true_value());
           }
         } else {
           // TODO(jarin,bmeurer): We currently pass in raw pointers to the
@@ -933,11 +934,10 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
           DCHECK(type.representation() != MachineRepresentation::kNone ||
                  constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
           if (type == MachineType::Uint32()) {
-            constant_object =
-                isolate()->factory()->NewNumberFromUint(constant.ToInt32());
+            literal = DeoptimizationLiteral(
+                static_cast<uint32_t>(constant.ToInt32()));
           } else {
-            constant_object =
-                isolate()->factory()->NewNumberFromInt(constant.ToInt32());
+            literal = DeoptimizationLiteral(constant.ToInt32());
           }
         }
         break;
@@ -949,31 +949,33 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         DCHECK(type.representation() == MachineRepresentation::kWord64 ||
                type.representation() == MachineRepresentation::kTagged);
         DCHECK_EQ(8, kPointerSize);
-        constant_object =
-            handle(reinterpret_cast<Smi*>(constant.ToInt64()), isolate());
-        DCHECK(constant_object->IsSmi());
+        {
+          Smi* smi = reinterpret_cast<Smi*>(constant.ToInt64());
+          DCHECK(smi->IsSmi());
+          literal = DeoptimizationLiteral(smi->value());
+        }
         break;
       case Constant::kFloat32:
         DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
                type.representation() == MachineRepresentation::kTagged);
-        constant_object = isolate()->factory()->NewNumber(constant.ToFloat32());
+        literal = DeoptimizationLiteral(constant.ToFloat32());
         break;
       case Constant::kFloat64:
         DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
                type.representation() == MachineRepresentation::kTagged);
-        constant_object = isolate()->factory()->NewNumber(constant.ToFloat64());
+        literal = DeoptimizationLiteral(constant.ToFloat64());
         break;
       case Constant::kHeapObject:
         DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
-        constant_object = constant.ToHeapObject();
+        literal = DeoptimizationLiteral(constant.ToHeapObject());
         break;
       default:
         UNREACHABLE();
     }
-    if (constant_object.equals(info()->closure())) {
+    if (literal.object().equals(info()->closure())) {
       translation->StoreJSFrameFunction();
     } else {
-      int literal_id = DefineDeoptimizationLiteral(constant_object);
+      int literal_id = DefineDeoptimizationLiteral(literal);
       translation->StoreLiteral(literal_id);
     }
   }
