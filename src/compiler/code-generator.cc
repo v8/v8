@@ -299,12 +299,9 @@ bool CodeGenerator::IsMaterializableFromRoot(
   const CallDescriptor* incoming_descriptor =
       linkage()->GetIncomingDescriptor();
   if (incoming_descriptor->flags() & CallDescriptor::kCanUseRoots) {
-    RootIndexMap map(isolate());
-    int root_index = map.Lookup(*object);
-    if (root_index != RootIndexMap::kInvalidRootIndex) {
-      *index_return = static_cast<Heap::RootListIndex>(root_index);
-      return true;
-    }
+    Heap* heap = isolate()->heap();
+    return heap->IsRootHandle(object, index_return) &&
+           heap->RootCanBeTreatedAsConstant(*index_return);
   }
   return false;
 }
