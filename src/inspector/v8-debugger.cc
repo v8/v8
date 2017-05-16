@@ -194,6 +194,7 @@ void V8Debugger::disable() {
   if (--m_enableCount) return;
   DCHECK(enabled());
   clearBreakpoints();
+  clearContinueToLocation();
   m_debuggerScript.Reset();
   m_debuggerContext.Reset();
   allAsyncTasksCanceled();
@@ -411,6 +412,36 @@ void V8Debugger::scheduleStepIntoAsync(
   m_stepIntoAsyncCallback = std::move(callback);
 }
 
+Response V8Debugger::continueToLocation(
+    int targetContextGroupId,
+    std::unique_ptr<protocol::Debugger::Location> location) {
+  DCHECK(isPaused());
+  DCHECK(!m_executionState.IsEmpty());
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
+  ScriptBreakpoint breakpoint(location->getScriptId(),
+                              location->getLineNumber(),
+                              location->getColumnNumber(0), String16());
+  int lineNumber = 0;
+  int columnNumber = 0;
+  m_continueToLocationBreakpointId =
+      setBreakpoint(breakpoint, &lineNumber, &columnNumber);
+  if (!m_continueToLocationBreakpointId.isEmpty()) {
+    continueProgram(targetContextGroupId);
+    // TODO(kozyatinskiy): Return actual line and column number.
+    return Response::OK();
+  } else {
+    return Response::Error("Cannot continue to specified location");
+  }
+}
+
+void V8Debugger::clearContinueToLocation() {
+  if (m_continueToLocationBreakpointId.length()) {
+    removeBreakpoint(m_continueToLocationBreakpointId);
+    m_continueToLocationBreakpointId = String16();
+  }
+}
+
 Response V8Debugger::setScriptSource(
     const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails,
@@ -567,6 +598,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
           hitBreakpointNumber->Int32Value(debuggerContext()).FromJust()));
     }
   }
+  clearContinueToLocation();
 
   m_pausedContext = pausedContext;
   m_executionState = executionState;

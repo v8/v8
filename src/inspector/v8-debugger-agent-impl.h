@@ -184,7 +184,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   ScriptsMap m_scripts;
   BreakpointIdToDebuggerBreakpointIdsMap m_breakpointIdToDebuggerBreakpointIds;
   DebugServerBreakpointToBreakpointIdAndSourceMap m_serverBreakpoints;
-  String16 m_continueToLocationBreakpointId;
 
   using BreakReason =
       std::pair<String16, std::unique_ptr<protocol::DictionaryValue>>;

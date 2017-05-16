@@ -247,7 +247,6 @@ Response V8DebuggerAgentImpl::disable() {
   m_scripts.clear();
   m_breakpointIdToDebuggerBreakpointIds.clear();
   m_debugger->setAsyncCallStackDepth(this, 0);
-  m_continueToLocationBreakpointId = String16();
   clearBreakDetails();
   m_skipAllPauses = false;
   m_state->setBoolean(DebuggerAgentState::skipAllPauses, false);
@@ -486,19 +485,9 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
 Response V8DebuggerAgentImpl::continueToLocation(
     std::unique_ptr<protocol::Debugger::Location> location) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
-  if (!m_continueToLocationBreakpointId.isEmpty()) {
-    m_debugger->removeBreakpoint(m_continueToLocationBreakpointId);
-    m_continueToLocationBreakpointId = "";
-  }
-
-  ScriptBreakpoint breakpoint(location->getScriptId(),
-                              location->getLineNumber(),
-                              location->getColumnNumber(0), String16());
-
-  m_continueToLocationBreakpointId = m_debugger->setBreakpoint(
-      breakpoint, &breakpoint.line_number, &breakpoint.column_number);
-  // TODO(kozyatinskiy): Return actual line and column number.
-  return resume();
+  if (!isPaused()) return Response::Error(kDebuggerNotPaused);
+  return m_debugger->continueToLocation(m_session->contextGroupId(),
+                                        std::move(location));
 }
 
 bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
@@ -1233,11 +1222,6 @@ void V8DebuggerAgentImpl::didPause(int contextId,
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData), std::move(hitBreakpointIds),
                     currentAsyncStackTrace());
-
-  if (!m_continueToLocationBreakpointId.isEmpty()) {
-    m_debugger->removeBreakpoint(m_continueToLocationBreakpointId);
-    m_continueToLocationBreakpointId = "";
-  }
 }
 
 void V8DebuggerAgentImpl::didContinue() {
