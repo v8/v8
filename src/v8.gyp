@@ -968,6 +968,7 @@
         'heap/incremental-marking-job.h',
         'heap/incremental-marking.cc',
         'heap/incremental-marking.h',
+        'heap/item-parallel-job.h',
         'heap/mark-compact-inl.h',
         'heap/mark-compact.cc',
         'heap/mark-compact.h',

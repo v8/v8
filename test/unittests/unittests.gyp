@@ -103,6 +103,7 @@
       'heap/embedder-tracing-unittest.cc',
       'heap/gc-idle-time-handler-unittest.cc',
       'heap/gc-tracer-unittest.cc',
+      'heap/item-parallel-job-unittest.cc',
       'heap/marking-unittest.cc',
       'heap/memory-reducer-unittest.cc',
       'heap/heap-unittest.cc',
