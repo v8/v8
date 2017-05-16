@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 12
 parameter count: 1
-bytecode array length: 192
+bytecode array length: 181
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(26),
@@ -88,15 +88,8 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorClose), R(6), U8(1),
                 B(Ldar), R(5),
                 B(SetPendingMessage),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(16),
-                B(LdaSmi), I8(1),
-                B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(13),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(10),
+                B(Ldar), R(3),
+                B(SwitchOnSmiNoFeedback), U8(1), U8(3), I8(0),
                 B(Jump), U8(11),
                 B(Ldar), R(4),
   /*   16 S> */ B(Return),
@@ -109,6 +102,9 @@ bytecodes: [
 ]
 constant pool: [
   Smi [52],
+  Smi [6],
+  Smi [9],
+  Smi [12],
 ]
 handlers: [
   [52, 134, 140],
@@ -121,7 +117,7 @@ snippet: "
 "
 frame size: 12
 parameter count: 1
-bytecode array length: 276
+bytecode array length: 259
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(26),
@@ -230,18 +226,8 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorClose), R(6), U8(1),
                 B(Ldar), R(5),
                 B(SetPendingMessage),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(1),
-                B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(19),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(16),
-                B(LdaSmi), I8(3),
-                B(TestEqualStrictNoFeedback), R(3),
-                B(JumpIfTrue), U8(13),
+                B(Ldar), R(3),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(4), I8(0),
                 B(Jump), U8(14),
                 B(Ldar), R(4),
   /*   25 S> */ B(Return),
@@ -257,6 +243,10 @@ bytecodes: [
 constant pool: [
   Smi [52],
   Smi [126],
+  Smi [6],
+  Smi [9],
+  Smi [12],
+  Smi [15],
 ]
 handlers: [
   [52, 209, 215],
@@ -269,7 +259,7 @@ snippet: "
 "
 frame size: 18
 parameter count: 1
-bytecode array length: 736
+bytecode array length: 708
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(26),
@@ -318,7 +308,7 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(Star), R(5),
-                B(JumpConstant), U8(15),
+                B(JumpConstant), U8(17),
                 B(Ldar), R(10),
   /*   11 E> */ B(Throw),
                 B(Ldar), R(closure),
@@ -510,12 +500,8 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
                 B(Ldar), R(10),
                 B(SetPendingMessage),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(8),
-                B(JumpIfTrue), U8(10),
-                B(LdaSmi), I8(1),
-                B(TestEqualStrictNoFeedback), R(8),
-                B(JumpIfTrue), U8(17),
+                B(Ldar), R(8),
+                B(SwitchOnSmiNoFeedback), U8(15), U8(2), I8(0),
                 B(Jump), U8(28),
                 B(PopContext), R(1),
                 B(PopContext), R(1),
@@ -553,21 +539,8 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::k_GeneratorClose), R(8), U8(1),
                 B(Ldar), R(7),
                 B(SetPendingMessage),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(5),
-                B(JumpIfTrue), U8(28),
-                B(LdaSmi), I8(1),
-                B(TestEqualStrictNoFeedback), R(5),
-                B(JumpIfTrue), U8(25),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(5),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(3),
-                B(TestEqualStrictNoFeedback), R(5),
-                B(JumpIfTrue), U8(19),
-                B(LdaSmi), I8(4),
-                B(TestEqualStrictNoFeedback), R(5),
-                B(JumpIfTrue), U8(16),
+                B(Ldar), R(5),
+                B(SwitchOnSmiNoFeedback), U8(18), U8(5), I8(0),
                 B(Jump), U8(17),
                 B(Ldar), R(6),
   /*   44 S> */ B(Return),
@@ -598,10 +571,17 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
   FIXED_ARRAY_TYPE,
-  Smi [561],
+  Smi [6],
+  Smi [19],
+  Smi [556],
+  Smi [6],
+  Smi [9],
+  Smi [12],
+  Smi [15],
+  Smi [18],
 ]
 handlers: [
-  [52, 660, 666],
+  [52, 655, 661],
   [133, 422, 428],
   [136, 378, 380],
   [515, 531, 533],

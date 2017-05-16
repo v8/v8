@@ -191,22 +191,20 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
   // Applies all recorded control-flow commands after the finally-block again.
   // This generates a dynamic dispatch on the token from the entry point.
   void ApplyDeferredCommands() {
-    // The fall-through path is covered by the default case, hence +1 here.
-    SwitchBuilder dispatch(builder(), static_cast<int>(deferred_.size() + 1));
-    for (size_t i = 0; i < deferred_.size(); ++i) {
-      Entry& entry = deferred_[i];
-      builder()->LoadLiteral(Smi::FromInt(entry.token));
-      builder()->CompareOperation(Token::EQ_STRICT, token_register_);
-      dispatch.Case(ToBooleanMode::kAlreadyBoolean, static_cast<int>(i));
-    }
-    dispatch.DefaultAt(static_cast<int>(deferred_.size()));
-    for (size_t i = 0; i < deferred_.size(); ++i) {
-      Entry& entry = deferred_[i];
-      dispatch.SetCaseTarget(static_cast<int>(i));
-      builder()->LoadAccumulatorWithRegister(result_register_);
+    BytecodeJumpTable* jump_table =
+        builder()->AllocateJumpTable(static_cast<int>(deferred_.size()), 0);
+    BytecodeLabel fall_through;
+    builder()
+        ->LoadAccumulatorWithRegister(token_register_)
+        .SwitchOnSmiNoFeedback(jump_table)
+        .Jump(&fall_through);
+    for (const Entry& entry : deferred_) {
+      builder()
+          ->Bind(jump_table, entry.token)
+          .LoadAccumulatorWithRegister(result_register_);
       execution_control()->PerformCommand(entry.command, entry.statement);
     }
-    dispatch.SetCaseTarget(static_cast<int>(deferred_.size()));
+    builder()->Bind(&fall_through);
   }
 
   BytecodeArrayBuilder* builder() { return generator_->builder(); }
