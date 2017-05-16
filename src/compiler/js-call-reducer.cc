@@ -506,10 +506,13 @@ Reduction JSCallReducer::ReduceSpreadCall(Node* node, int arity) {
   // through here.
   if (node->opcode() == IrOpcode::kJSCallWithSpread) {
     NodeProperties::ChangeOp(node, javascript()->Call(arity + 1));
+    Reduction const r = ReduceJSCall(node);
+    return r.Changed() ? r : Changed(node);
   } else {
     NodeProperties::ChangeOp(node, javascript()->Construct(arity + 2));
+    Reduction const r = ReduceJSConstruct(node);
+    return r.Changed() ? r : Changed(node);
   }
-  return Changed(node);
 }
 
 namespace {
