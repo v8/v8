@@ -1521,10 +1521,29 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
+    if (track_unresolved_variables_) {
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->this_function_string(), pos,
+                             NORMAL_VARIABLE);
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->this_string(), pos,
+                             THIS_VARIABLE);
+    }
     return PreParserExpression::Default();
   }
 
   V8_INLINE PreParserExpression NewSuperCallReference(int pos) {
+    if (track_unresolved_variables_) {
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->this_function_string(), pos,
+                             NORMAL_VARIABLE);
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->new_target_string(), pos,
+                             NORMAL_VARIABLE);
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->this_string(), pos,
+                             THIS_VARIABLE);
+    }
     return PreParserExpression::SuperCallReference();
   }
 

@@ -335,8 +335,7 @@ bool PreParsedScopeData::ScopeNeedsData(Scope* scope) {
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
     // Default constructors don't need data (they cannot contain inner functions
     // defined by the user). Other functions do.
-    return (scope->AsDeclarationScope()->function_kind() &
-            kDefaultConstructor) == 0;
+    return !IsDefaultConstructor(scope->AsDeclarationScope()->function_kind());
   }
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {
