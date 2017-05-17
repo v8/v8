@@ -206,6 +206,10 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
     size_t compile_zone_size =
         info->zone()->allocation_size() - compile_zone_start;
     size_t translate_zone_size = translate_zone.allocation_size();
+    info->isolate()
+        ->counters()
+        ->asm_wasm_translation_peak_memory_bytes()
+        ->AddSample(static_cast<int>(translate_zone_size));
     translate_time = translate_timer.Elapsed().InMillisecondsF();
     if (FLAG_trace_asm_parser) {
       PrintF(
