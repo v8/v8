@@ -1555,6 +1555,14 @@ ExternalReference ExternalReference::libc_memcpy_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memcpy)));
 }
 
+void* libc_memmove(void* dest, const void* src, size_t n) {
+  return memmove(dest, src, n);
+}
+
+ExternalReference ExternalReference::libc_memmove_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memmove)));
+}
+
 void* libc_memset(void* dest, int byte, size_t n) {
   DCHECK_EQ(static_cast<char>(byte), byte);
   return memset(dest, byte, n);

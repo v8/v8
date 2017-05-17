@@ -54,7 +54,7 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
 
   InstallBuiltin(isolate, holder, "pop", Builtins::kFastArrayPop);
   InstallBuiltin(isolate, holder, "push", Builtins::kFastArrayPush);
-  InstallBuiltin(isolate, holder, "shift", Builtins::kArrayShift);
+  InstallBuiltin(isolate, holder, "shift", Builtins::kFastArrayShift);
   InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
   InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
   InstallBuiltin(isolate, holder, "splice", Builtins::kArraySplice);

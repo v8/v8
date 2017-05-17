@@ -246,6 +246,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "libc_memchr");
   Add(ExternalReference::libc_memcpy_function(isolate).address(),
       "libc_memcpy");
+  Add(ExternalReference::libc_memmove_function(isolate).address(),
+      "libc_memmove");
   Add(ExternalReference::libc_memset_function(isolate).address(),
       "libc_memset");
   Add(ExternalReference::try_internalize_string_function(isolate).address(),

@@ -776,7 +776,7 @@ TF_BUILTIN(FastArrayPop, CodeStubAssembler) {
     Label return_undefined(this), fast_elements(this);
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
-    // 2) Ensure that the lenght is writable.
+    // 2) Ensure that the length is writable.
     EnsureArrayLengthWritable(LoadMap(receiver), &runtime);
 
     // 3) Check that the elements backing store isn't copy-on-write.
@@ -973,6 +973,154 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
     Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                  MachineType::TaggedPointer());
     TailCallStub(CodeFactory::ArrayPush(isolate()), context, target,
+                 UndefinedConstant(), argc);
+  }
+}
+
+TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
+  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  CSA_ASSERT(this, WordEqual(Parameter(BuiltinDescriptor::kNewTarget),
+                             UndefinedConstant()));
+
+  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  Node* receiver = args.GetReceiver();
+
+  Label runtime(this, Label::kDeferred);
+  Label fast(this);
+
+  // Only shift in this stub if
+  // 1) the array has fast elements
+  // 2) the length is writable,
+  // 3) the elements backing store isn't copy-on-write,
+  // 4) we aren't supposed to shrink the backing store,
+  // 5) we aren't supposed to left-trim the backing store.
+
+  // 1) Check that the array has fast elements.
+  BranchIfFastJSArray(receiver, context, FastJSArrayAccessMode::INBOUNDS_READ,
+                      &fast, &runtime);
+
+  BIND(&fast);
+  {
+    CSA_ASSERT(this, TaggedIsPositiveSmi(
+                         LoadObjectField(receiver, JSArray::kLengthOffset)));
+    Node* length = LoadAndUntagObjectField(receiver, JSArray::kLengthOffset);
+    Label return_undefined(this), fast_elements_tagged(this),
+        fast_elements_untagged(this);
+    GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
+
+    // 2) Ensure that the length is writable.
+    EnsureArrayLengthWritable(LoadMap(receiver), &runtime);
+
+    // 3) Check that the elements backing store isn't copy-on-write.
+    Node* elements = LoadElements(receiver);
+    GotoIf(WordEqual(LoadMap(elements),
+                     LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
+           &runtime);
+
+    Node* new_length = IntPtrSub(length, IntPtrConstant(1));
+
+    // 4) Check that we're not supposed to right-trim the backing store, as
+    //    implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
+    Node* capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
+    GotoIf(IntPtrLessThan(
+               IntPtrAdd(IntPtrAdd(new_length, new_length),
+                         IntPtrConstant(JSObject::kMinAddedElementsCapacity)),
+               capacity),
+           &runtime);
+
+    // 5) Check that we're not supposed to left-trim the backing store, as
+    //    implemented in elements.cc:FastElementsAccessor::MoveElements.
+    GotoIf(IntPtrGreaterThan(new_length,
+                             IntPtrConstant(JSArray::kMaxCopyElements)),
+           &runtime);
+
+    StoreObjectFieldNoWriteBarrier(receiver, JSArray::kLengthOffset,
+                                   SmiTag(new_length));
+
+    Node* elements_kind = LoadMapElementsKind(LoadMap(receiver));
+    GotoIf(Int32LessThanOrEqual(elements_kind,
+                                Int32Constant(FAST_HOLEY_SMI_ELEMENTS)),
+           &fast_elements_untagged);
+    GotoIf(Int32LessThanOrEqual(elements_kind,
+                                Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
+           &fast_elements_tagged);
+    Node* value = LoadFixedDoubleArrayElement(
+        elements, IntPtrConstant(0), MachineType::Float64(), 0,
+        INTPTR_PARAMETERS, &return_undefined);
+
+    int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
+    Node* memmove =
+        ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
+    Node* start = IntPtrAdd(
+        BitcastTaggedToWord(elements),
+        ElementOffsetFromIndex(IntPtrConstant(0), FAST_HOLEY_DOUBLE_ELEMENTS,
+                               INTPTR_PARAMETERS, header_size));
+    CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
+                   MachineType::Pointer(), MachineType::UintPtr(), memmove,
+                   start, IntPtrAdd(start, IntPtrConstant(kDoubleSize)),
+                   IntPtrMul(new_length, IntPtrConstant(kDoubleSize)));
+    Node* offset = ElementOffsetFromIndex(
+        new_length, FAST_HOLEY_DOUBLE_ELEMENTS, INTPTR_PARAMETERS, header_size);
+    if (Is64()) {
+      Node* double_hole = Int64Constant(kHoleNanInt64);
+      StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
+                          double_hole);
+    } else {
+      STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
+      Node* double_hole = Int32Constant(kHoleNanLower32);
+      StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
+                          double_hole);
+      StoreNoWriteBarrier(MachineRepresentation::kWord32, elements,
+                          IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
+                          double_hole);
+    }
+    args.PopAndReturn(AllocateHeapNumberWithValue(value));
+
+    Bind(&fast_elements_tagged);
+    {
+      Node* value = LoadFixedArrayElement(elements, 0);
+      BuildFastLoop(IntPtrConstant(0), new_length,
+                    [&](Node* index) {
+                      StoreFixedArrayElement(
+                          elements, index,
+                          LoadFixedArrayElement(
+                              elements, IntPtrAdd(index, IntPtrConstant(1))));
+                    },
+                    1, ParameterMode::INTPTR_PARAMETERS,
+                    IndexAdvanceMode::kPost);
+      StoreFixedArrayElement(elements, new_length, TheHoleConstant());
+      GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
+      args.PopAndReturn(value);
+    }
+
+    Bind(&fast_elements_untagged);
+    {
+      Node* value = LoadFixedArrayElement(elements, 0);
+      Node* memmove =
+          ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
+      Node* start = IntPtrAdd(
+          BitcastTaggedToWord(elements),
+          ElementOffsetFromIndex(IntPtrConstant(0), FAST_HOLEY_SMI_ELEMENTS,
+                                 INTPTR_PARAMETERS, header_size));
+      CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
+                     MachineType::Pointer(), MachineType::UintPtr(), memmove,
+                     start, IntPtrAdd(start, IntPtrConstant(kPointerSize)),
+                     IntPtrMul(new_length, IntPtrConstant(kPointerSize)));
+      StoreFixedArrayElement(elements, new_length, TheHoleConstant());
+      GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
+      args.PopAndReturn(value);
+    }
+
+    BIND(&return_undefined);
+    { args.PopAndReturn(UndefinedConstant()); }
+  }
+
+  BIND(&runtime);
+  {
+    Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                                 MachineType::TaggedPointer());
+    TailCallStub(CodeFactory::ArrayShift(isolate()), context, target,
                  UndefinedConstant(), argc);
   }
 }
