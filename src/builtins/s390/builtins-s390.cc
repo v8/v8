@@ -442,9 +442,7 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 
 namespace {
 
-void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
-                                    bool create_implicit_receiver,
-                                    bool disallow_non_object_return) {
+void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   Label post_instantiation_deopt_entry;
   // ----------- S t a t e -------------
   //  -- r2     : number of arguments
@@ -455,52 +453,18 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  Isolate* isolate = masm->isolate();
-
   // Enter a construct frame.
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
 
     // Preserve the incoming parameters on the stack.
-
-    if (!create_implicit_receiver) {
-      __ SmiTag(r6, r2);
-      __ LoadAndTestP(r6, r6);
-      __ Push(cp, r6);
-      __ PushRoot(Heap::kTheHoleValueRootIndex);
-    } else {
-      __ SmiTag(r2);
-      __ Push(cp, r2);
-
-      // Allocate the new receiver object.
-      __ Push(r3, r5);
-      __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
-              RelocInfo::CODE_TARGET);
-      __ LoadRR(r6, r2);
-      __ Pop(r3, r5);
-
-      // ----------- S t a t e -------------
-      //  -- r3: constructor function
-      //  -- r5: new target
-      //  -- r6: newly allocated object
-      // -----------------------------------
-
-      // Retrieve smi-tagged arguments count from the stack.
-      __ LoadP(r2, MemOperand(sp));
-      __ SmiUntag(r2);
-      __ LoadAndTestP(r2, r2);
-
-      // Push the allocated receiver to the stack. We need two copies
-      // because we may have to return the original one and the calling
-      // conventions dictate that the called function pops the receiver.
-      __ Push(r6, r6);
-    }
-
-    // Deoptimizer re-enters stub code here.
-    __ bind(&post_instantiation_deopt_entry);
-
+    __ SmiTag(r2);
+    __ Push(cp, r2);
+    __ SmiUntag(r2);
+    // The receiver for the builtin/api call.
+    __ PushRoot(Heap::kTheHoleValueRootIndex);
     // Set up pointer to last argument.
-    __ la(r4, MemOperand(fp, StandardFrameConstants::kCallerSPOffset));
+    __ la(r6, MemOperand(fp, StandardFrameConstants::kCallerSPOffset));
 
     // Copy arguments and receiver to the expression stack.
     // r2: number of arguments
@@ -518,7 +482,7 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     __ LoadRR(r1, r2);
     __ bind(&loop);
     __ lay(ip, MemOperand(ip, -kPointerSize));
-    __ LoadP(r0, MemOperand(ip, r4));
+    __ LoadP(r0, MemOperand(ip, r6));
     __ StoreP(r0, MemOperand(ip, sp));
     __ BranchOnCount(r1, &loop);
     __ bind(&no_args);
@@ -532,148 +496,228 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     __ InvokeFunction(r3, r5, actual, CALL_FUNCTION,
                       CheckDebugStepCallWrapper());
 
-    // Store offset of return address for deoptimizer.
-    if (create_implicit_receiver && !disallow_non_object_return &&
-        !is_api_function) {
-      masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
-          masm->pc_offset());
-    }
-
     // Restore context from the frame.
-    // r2: result
-    // sp[0]: receiver
-    // sp[1]: number of arguments (smi-tagged)
     __ LoadP(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
-
-    if (create_implicit_receiver) {
-      // If the result is an object (in the ECMA sense), we should get rid
-      // of the receiver and use the result; see ECMA-262 section 13.2.2-7
-      // on page 74.
-      Label use_receiver, return_value, do_throw;
-
-      // If the result is a smi, it is *not* an object in the ECMA sense.
-      // r2: result
-      // sp[0]: receiver
-      // sp[1]: new.target
-      // sp[2]: number of arguments (smi-tagged)
-      // If the result is undefined, we jump out to using the implicit
-      // receiver, otherwise we do a smi check and fall through to
-      // check if the return value is a valid receiver.
-      if (disallow_non_object_return) {
-        __ CompareRoot(r2, Heap::kUndefinedValueRootIndex);
-        __ beq(&use_receiver);
-        __ JumpIfSmi(r2, &do_throw);
-      } else {
-        __ JumpIfSmi(r2, &use_receiver);
-      }
-
-      // If the type of the result (stored in its map) is less than
-      // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
-      __ CompareObjectType(r2, r3, r5, FIRST_JS_RECEIVER_TYPE);
-      __ bge(&return_value);
-
-      if (disallow_non_object_return) {
-        __ bind(&do_throw);
-        __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
-      }
-
-      // Throw away the result of the constructor invocation and use the
-      // on-stack receiver as the result.
-      __ bind(&use_receiver);
-      __ LoadP(r2, MemOperand(sp));
-
-      // Remove receiver from the stack, remove caller arguments, and
-      // return.
-      __ bind(&return_value);
-      // r2: result
-      // sp[0]: receiver (newly allocated object)
-      // sp[1]: number of arguments (smi-tagged)
-      __ LoadP(r3, MemOperand(sp, 1 * kPointerSize));
-    } else {
-      __ LoadP(r3, MemOperand(sp));
-    }
+    // Restore smi-tagged arguments count from the frame.
+    __ LoadP(r3, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
 
     // Leave construct frame.
   }
+  // Remove caller arguments from the stack and return.
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
 
-  // ES6 9.2.2. Step 13+
-  // For derived class constructors, throw a TypeError here if the result
-  // is not a JSReceiver. For the base constructor, we've already checked
-  // the result, so we omit the check.
-  if (disallow_non_object_return && !create_implicit_receiver) {
-    Label do_throw, dont_throw;
-    __ JumpIfSmi(r2, &do_throw);
+  __ SmiToPtrArrayOffset(r3, r3);
+  __ AddP(sp, sp, r3);
+  __ AddP(sp, sp, Operand(kPointerSize));
+  __ Ret();
+}
+
+// The construct stub for ES5 constructor functions and ES6 class constructors.
+void Generate_JSConstructStubGeneric(MacroAssembler* masm,
+                                     bool restrict_constructor_return) {
+  // ----------- S t a t e -------------
+  //  --      r2: number of arguments (untagged)
+  //  --      r3: constructor function
+  //  --      r5: new target
+  //  --      cp: context
+  //  --      lr: return address
+  //  -- sp[...]: constructor arguments
+  // -----------------------------------
+
+  // Enter a construct frame.
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
+    Label post_instantiation_deopt_entry, not_create_implicit_receiver;
+
+    // Preserve the incoming parameters on the stack.
+    __ SmiTag(r2);
+    __ Push(cp, r2, r3, r5);
+
+    // ----------- S t a t e -------------
+    //  --        sp[0*kPointerSize]: new target
+    //  -- r3 and sp[1*kPointerSize]: constructor function
+    //  --        sp[2*kPointerSize]: number of arguments (tagged)
+    //  --        sp[3*kPointerSize]: context
+    // -----------------------------------
+
+    __ LoadP(r6, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadlW(r6,
+              FieldMemOperand(r6, SharedFunctionInfo::kCompilerHintsOffset));
+    __ TestBitMask(r6,
+                   FunctionKind::kDerivedConstructor
+                       << SharedFunctionInfo::kFunctionKindShift,
+                   r0);
+    __ bne(&not_create_implicit_receiver);
+
+    // If not derived class constructor: Allocate the new receiver object.
+    __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
+                        r6, r7);
+    __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
+            RelocInfo::CODE_TARGET);
+    __ b(&post_instantiation_deopt_entry);
+
+    // Else: use TheHoleValue as receiver for constructor call
+    __ bind(&not_create_implicit_receiver);
+    __ LoadRoot(r2, Heap::kTheHoleValueRootIndex);
+
+    // ----------- S t a t e -------------
+    //  --                          r2: receiver
+    //  -- Slot 3 / sp[0*kPointerSize]: new target
+    //  -- Slot 2 / sp[1*kPointerSize]: constructor function
+    //  -- Slot 1 / sp[2*kPointerSize]: number of arguments (tagged)
+    //  -- Slot 0 / sp[3*kPointerSize]: context
+    // -----------------------------------
+    // Deoptimizer enters here.
+    masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
+        masm->pc_offset());
+    __ bind(&post_instantiation_deopt_entry);
+
+    // Restore new target.
+    __ Pop(r5);
+    // Push the allocated receiver to the stack. We need two copies
+    // because we may have to return the original one and the calling
+    // conventions dictate that the called function pops the receiver.
+    __ Push(r2, r2);
+
+    // ----------- S t a t e -------------
+    //  --                 r5: new target
+    //  -- sp[0*kPointerSize]: implicit receiver
+    //  -- sp[1*kPointerSize]: implicit receiver
+    //  -- sp[2*kPointerSize]: constructor function
+    //  -- sp[3*kPointerSize]: number of arguments (tagged)
+    //  -- sp[4*kPointerSize]: context
+    // -----------------------------------
+
+    // Restore constructor function and argument count.
+    __ LoadP(r3, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
+    __ LoadP(r2, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ SmiUntag(r2);
+
+    // Set up pointer to last argument.
+    __ la(r6, MemOperand(fp, StandardFrameConstants::kCallerSPOffset));
+
+    // Copy arguments and receiver to the expression stack.
+    Label loop, no_args;
+    // ----------- S t a t e -------------
+    //  --                        r2: number of arguments (untagged)
+    //  --                        r5: new target
+    //  --                        r6: pointer to last argument
+    //  --                        cr0: condition indicating whether r2 is zero
+    //  --        sp[0*kPointerSize]: implicit receiver
+    //  --        sp[1*kPointerSize]: implicit receiver
+    //  -- r3 and sp[2*kPointerSize]: constructor function
+    //  --        sp[3*kPointerSize]: number of arguments (tagged)
+    //  --        sp[4*kPointerSize]: context
+    // -----------------------------------
+
+    __ beq(&no_args);
+    __ ShiftLeftP(ip, r2, Operand(kPointerSizeLog2));
+    __ SubP(sp, sp, ip);
+    __ LoadRR(r1, r2);
+    __ bind(&loop);
+    __ lay(ip, MemOperand(ip, -kPointerSize));
+    __ LoadP(r0, MemOperand(ip, r6));
+    __ StoreP(r0, MemOperand(ip, sp));
+    __ BranchOnCount(r1, &loop);
+    __ bind(&no_args);
+
+    // Call the function.
+    ParameterCount actual(r2);
+    __ InvokeFunction(r3, r5, actual, CALL_FUNCTION,
+                      CheckDebugStepCallWrapper());
+
+    // ----------- S t a t e -------------
+    //  --                 r0: constructor result
+    //  -- sp[0*kPointerSize]: implicit receiver
+    //  -- sp[1*kPointerSize]: constructor function
+    //  -- sp[2*kPointerSize]: number of arguments
+    //  -- sp[3*kPointerSize]: context
+    // -----------------------------------
+
+    // Store offset of return address for deoptimizer.
+    masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
+        masm->pc_offset());
+
+    // Restore the context from the frame.
+    __ LoadP(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
+
+    // If the result is an object (in the ECMA sense), we should get rid
+    // of the receiver and use the result; see ECMA-262 section 13.2.2-7
+    // on page 74.
+    Label use_receiver, do_throw, other_result, leave_frame;
+
+    // If the result is undefined, we jump out to using the implicit receiver.
+    __ JumpIfRoot(r2, Heap::kUndefinedValueRootIndex, &use_receiver);
+
+    // Otherwise we do a smi check and fall through to check if the return value
+    // is a valid receiver.
+
+    // If the result is a smi, it is *not* an object in the ECMA sense.
+    __ JumpIfSmi(r2, &other_result);
+
+    // If the type of the result (stored in its map) is less than
+    // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-    __ CompareObjectType(r2, r5, r5, FIRST_JS_RECEIVER_TYPE);
-    __ bge(&dont_throw);
+    __ CompareObjectType(r2, r6, r6, FIRST_JS_RECEIVER_TYPE);
+    __ bge(&leave_frame);
+
+    __ bind(&other_result);
+    // The result is now neither undefined nor an object.
+    if (restrict_constructor_return) {
+      // Throw if constructor function is a class constructor
+      __ LoadP(r6, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
+      __ LoadP(r6, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
+      __ LoadlW(r6,
+                FieldMemOperand(r6, SharedFunctionInfo::kCompilerHintsOffset));
+      __ TestBitMask(r6,
+                     FunctionKind::kClassConstructor
+                         << SharedFunctionInfo::kFunctionKindShift,
+                     r0);
+      __ beq(&use_receiver);
+    } else {
+      __ b(&use_receiver);
+    }
     __ bind(&do_throw);
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
     }
-    __ bind(&dont_throw);
+
+    // Throw away the result of the constructor invocation and use the
+    // on-stack receiver as the result.
+    __ bind(&use_receiver);
+    __ LoadP(r2, MemOperand(sp));
+    __ JumpIfRoot(r2, Heap::kTheHoleValueRootIndex, &do_throw);
+
+    __ bind(&leave_frame);
+    // Restore smi-tagged arguments count from the frame.
+    __ LoadP(r3, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    // Leave construct frame.
   }
+
+  // Remove caller arguments from the stack and return.
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
 
   __ SmiToPtrArrayOffset(r3, r3);
   __ AddP(sp, sp, r3);
   __ AddP(sp, sp, Operand(kPointerSize));
-  if (create_implicit_receiver) {
-    __ IncrementCounter(isolate->counters()->constructed_objects(), 1, r3, r4);
-  }
   __ Ret();
-
-  // Store offset of trampoline address for deoptimizer. This is the bailout
-  // point after the receiver instantiation but before the function invocation.
-  // We need to restore some registers in order to continue the above code.
-  if (create_implicit_receiver && !disallow_non_object_return &&
-      !is_api_function) {
-    masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
-        masm->pc_offset());
-
-    // ----------- S t a t e -------------
-    //  -- r2    : newly allocated object
-    //  -- sp[0] : constructor function
-    // -----------------------------------
-
-    __ pop(r3);
-    __ Push(r2, r2);
-
-    // Retrieve smi-tagged arguments count from the stack.
-    __ LoadP(r2, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
-    __ SmiUntag(r2);
-
-    // Retrieve the new target value from the stack. This was placed into the
-    // frame description in place of the receiver by the optimizing compiler.
-    __ la(r5, MemOperand(fp, StandardFrameConstants::kCallerSPOffset));
-    __ ShiftLeftP(ip, r2, Operand(kPointerSizeLog2));
-    __ LoadP(r5, MemOperand(r5, ip));
-
-    // Continue with constructor function invocation.
-    __ b(&post_instantiation_deopt_entry);
-  }
 }
-
 }  // namespace
 
-void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, true, false);
-}
-
-void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false, false);
-}
-
-void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, false, false);
-}
-
-void Builtins::Generate_JSBuiltinsConstructStubForBase(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, true, true);
-}
-
-void Builtins::Generate_JSBuiltinsConstructStubForDerived(
+void Builtins::Generate_JSConstructStubGenericRestrictedReturn(
     MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, false, true);
+  Generate_JSConstructStubGeneric(masm, true);
+}
+void Builtins::Generate_JSConstructStubGenericUnrestrictedReturn(
+    MacroAssembler* masm) {
+  Generate_JSConstructStubGeneric(masm, false);
+}
+void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
+  Generate_JSBuiltinsConstructStubHelper(masm);
+}
+void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
+  Generate_JSBuiltinsConstructStubHelper(masm);
 }
 
 // static
