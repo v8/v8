@@ -48,30 +48,6 @@ class InstructionOperandIterator {
   size_t pos_;
 };
 
-// Either a non-null Handle<Object> or a double.
-class DeoptimizationLiteral {
- public:
-  DeoptimizationLiteral() : object_(), number_(0) {}
-  explicit DeoptimizationLiteral(Handle<Object> object)
-      : object_(object), number_(0) {
-    DCHECK(!object_.is_null());
-  }
-  explicit DeoptimizationLiteral(double number) : object_(), number_(number) {}
-
-  Handle<Object> object() const { return object_; }
-
-  bool operator==(const DeoptimizationLiteral& other) const {
-    return object_.equals(other.object_) && number_ == other.number_;
-  }
-
-  Handle<Object> Reify(Isolate* isolate) const {
-    return object_.is_null() ? isolate->factory()->NewNumber(number_) : object_;
-  }
-
- private:
-  Handle<Object> object_;
-  double number_;
-};
 
 // Generates native code for a sequence of instructions.
 class CodeGenerator final : public GapResolver::Assembler {
@@ -232,7 +208,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   void RecordCallPosition(Instruction* instr);
   void PopulateDeoptimizationData(Handle<Code> code);
-  int DefineDeoptimizationLiteral(DeoptimizationLiteral literal);
+  int DefineDeoptimizationLiteral(Handle<Object> literal);
   DeoptimizationEntry const& GetDeoptimizationEntry(Instruction* instr,
                                                     size_t frame_state_offset);
   DeoptimizeKind GetDeoptimizationKind(int deoptimization_id) const;
@@ -307,7 +283,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   ZoneVector<HandlerInfo> handlers_;
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
   ZoneDeque<DeoptimizationState*> deoptimization_states_;
-  ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
+  ZoneDeque<Handle<Object>> deoptimization_literals_;
   size_t inlined_function_count_;
   TranslationBuffer translations_;
   int last_lazy_deopt_pc_;
