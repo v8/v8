@@ -2295,8 +2295,6 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
 }
 
 void BytecodeGraphBuilder::VisitResumeGenerator() {
-  PrepareEagerCheckpoint();
-
   Node* generator = environment()->LookupRegister(
       bytecode_iterator().GetRegisterOperand(0));
 
@@ -2310,7 +2308,7 @@ void BytecodeGraphBuilder::VisitResumeGenerator() {
   Node* state =
       NewNode(javascript()->GeneratorRestoreContinuation(), generator);
 
-  environment()->BindAccumulator(state, Environment::kAttachFrameState);
+  environment()->BindAccumulator(state);
 }
 
 void BytecodeGraphBuilder::VisitWide() {
