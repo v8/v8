@@ -124,12 +124,11 @@ void Report(Handle<Script> script, int position, Vector<const char> text,
 // Hook to report successful execution of {AsmJs::CompileAsmViaWasm} phase.
 void ReportCompilationSuccess(Handle<Script> script, int position,
                               double translate_time, double compile_time,
-                              uintptr_t module_size) {
+                              size_t module_size) {
   if (FLAG_suppress_asm_messages || !FLAG_trace_asm_time) return;
   EmbeddedVector<char, 100> text;
   int length = SNPrintF(
-      text,
-      "success, asm->wasm: %0.3f ms, compile: %0.3f ms, %" PRIuPTR " bytes",
+      text, "success, asm->wasm: %0.3f ms, compile: %0.3f ms, %" PRIuS " bytes",
       translate_time, compile_time, module_size);
   CHECK_NE(-1, length);
   text.Truncate(length);
@@ -164,14 +163,28 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   wasm::ZoneBuffer* module = nullptr;
   wasm::ZoneBuffer* asm_offsets = nullptr;
   Handle<FixedArray> uses_array;
-  base::ElapsedTimer asm_wasm_timer;
-  asm_wasm_timer.Start();
-  size_t asm_wasm_zone_start = info->zone()->allocation_size();
-  {
-    HistogramTimerScope asm_wasm_time_scope(
-        info->isolate()->counters()->asm_wasm_translation_time());
+  Handle<WasmModuleObject> compiled;
 
-    wasm::AsmJsParser parser(info->isolate(), info->zone(), info->script(),
+  // The compilation of asm.js modules is split into two distinct steps:
+  //  [1] The asm.js module source is parsed, validated, and translated to a
+  //      valid WebAssembly module. The result are two vectors representing the
+  //      encoded module as well as encoded source position information.
+  //  [2] The module is handed to WebAssembly which decodes it into an internal
+  //      representation and eventually compiles it to machine code.
+  double translate_time;  // Time (milliseconds) taken to execute step [1].
+  double compile_time;    // Time (milliseconds) taken to execute step [2].
+
+  // Step 1: Translate asm.js module to WebAssembly module.
+  {
+    HistogramTimerScope translate_time_scope(
+        info->isolate()->counters()->asm_wasm_translation_time());
+    size_t compile_zone_start = info->zone()->allocation_size();
+    base::ElapsedTimer translate_timer;
+    translate_timer.Start();
+
+    Zone* compile_zone = info->zone();
+    Zone translate_zone(info->isolate()->allocator(), ZONE_NAME);
+    wasm::AsmJsParser parser(info->isolate(), &translate_zone, info->script(),
                              info->literal()->start_position(),
                              info->literal()->end_position());
     if (!parser.Run()) {
@@ -180,10 +193,9 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
                                parser.failure_message());
       return MaybeHandle<FixedArray>();
     }
-    Zone* zone = info->zone();
-    module = new (zone) wasm::ZoneBuffer(zone);
+    module = new (compile_zone) wasm::ZoneBuffer(compile_zone);
     parser.module_builder()->WriteTo(*module);
-    asm_offsets = new (zone) wasm::ZoneBuffer(zone);
+    asm_offsets = new (compile_zone) wasm::ZoneBuffer(compile_zone);
     parser.module_builder()->WriteAsmJsOffsetTable(*asm_offsets);
     uses_array = info->isolate()->factory()->NewFixedArray(
         static_cast<int>(parser.stdlib_uses()->size()));
@@ -191,38 +203,40 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
     for (auto i : *parser.stdlib_uses()) {
       uses_array->set(count++, Smi::FromInt(i));
     }
+    size_t compile_zone_size =
+        info->zone()->allocation_size() - compile_zone_start;
+    size_t translate_zone_size = translate_zone.allocation_size();
+    translate_time = translate_timer.Elapsed().InMillisecondsF();
+    if (FLAG_trace_asm_parser) {
+      PrintF(
+          "[asm.js translation successful: time=%0.3fms, "
+          "translate_zone=%" PRIuS "KB, compile_zone+=%" PRIuS "KB]\n",
+          translate_time, translate_zone_size / KB, compile_zone_size / KB);
+    }
   }
 
-  double asm_wasm_time = asm_wasm_timer.Elapsed().InMillisecondsF();
-  size_t asm_wasm_zone = info->zone()->allocation_size() - asm_wasm_zone_start;
-  if (FLAG_trace_asm_parser) {
-    PrintF("[asm.js translation successful: time=%0.3fms, zone=%" PRIuS "KB]\n",
-           asm_wasm_time, asm_wasm_zone / KB);
+  // Step 2: Compile and decode the WebAssembly module.
+  {
+    base::ElapsedTimer compile_timer;
+    compile_timer.Start();
+    wasm::ErrorThrower thrower(info->isolate(), "AsmJs::Compile");
+    MaybeHandle<WasmModuleObject> maybe_compiled = SyncCompileTranslatedAsmJs(
+        info->isolate(), &thrower,
+        wasm::ModuleWireBytes(module->begin(), module->end()), info->script(),
+        Vector<const byte>(asm_offsets->begin(), asm_offsets->size()));
+    DCHECK(!maybe_compiled.is_null());
+    DCHECK(!thrower.error());
+    compile_time = compile_timer.Elapsed().InMillisecondsF();
+    compiled = maybe_compiled.ToHandleChecked();
   }
 
-  Vector<const byte> asm_offsets_vec(asm_offsets->begin(),
-                                     static_cast<int>(asm_offsets->size()));
-
-  base::ElapsedTimer compile_timer;
-  compile_timer.Start();
-  wasm::ErrorThrower thrower(info->isolate(), "AsmJs::Compile");
-  MaybeHandle<JSObject> compiled = SyncCompileTranslatedAsmJs(
-      info->isolate(), &thrower,
-      wasm::ModuleWireBytes(module->begin(), module->end()), info->script(),
-      asm_offsets_vec);
-  DCHECK(!compiled.is_null());
-  DCHECK(!thrower.error());
-  double compile_time = compile_timer.Elapsed().InMillisecondsF();
-  DCHECK_GE(module->end(), module->begin());
-  uintptr_t wasm_size = module->end() - module->begin();
-
+  // The result is a compiled module and serialized standard library uses.
   Handle<FixedArray> result =
       info->isolate()->factory()->NewFixedArray(kWasmDataEntryCount);
-  result->set(kWasmDataCompiledModule, *compiled.ToHandleChecked());
+  result->set(kWasmDataCompiledModule, *compiled);
   result->set(kWasmDataUsesArray, *uses_array);
-
   ReportCompilationSuccess(info->script(), info->literal()->position(),
-                           asm_wasm_time, compile_time, wasm_size);
+                           translate_time, compile_time, module->size());
   return result;
 }
 
