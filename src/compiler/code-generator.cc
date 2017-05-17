@@ -60,7 +60,8 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       osr_pc_offset_(-1),
       optimized_out_literal_id_(-1),
       source_position_table_builder_(code->zone(),
-                                     info->SourcePositionRecordingMode()) {
+                                     info->SourcePositionRecordingMode()),
+      result_(kSuccess) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -74,8 +75,7 @@ void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   frame_access_state_ = new (code()->zone()) FrameAccessState(frame);
 }
 
-
-Handle<Code> CodeGenerator::GenerateCode() {
+void CodeGenerator::AssembleCode() {
   CompilationInfo* info = this->info();
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
@@ -175,14 +175,13 @@ Handle<Code> CodeGenerator::GenerateCode() {
         }
       }
 
-      CodeGenResult result;
       if (FLAG_enable_embedded_constant_pool && !block->needs_frame()) {
         ConstantPoolUnavailableScope constant_pool_unavailable(masm());
-        result = AssembleBlock(block);
+        result_ = AssembleBlock(block);
       } else {
-        result = AssembleBlock(block);
+        result_ = AssembleBlock(block);
       }
-      if (result != kSuccess) return Handle<Code>();
+      if (result_ != kSuccess) return;
       unwinding_info_writer_.EndInstructionBlock(block);
     }
   }
@@ -228,9 +227,15 @@ Handle<Code> CodeGenerator::GenerateCode() {
   unwinding_info_writer_.Finish(masm()->pc_offset());
 
   safepoints()->Emit(masm(), frame()->GetTotalFrameSlotCount());
+  result_ = kSuccess;
+}
+
+Handle<Code> CodeGenerator::FinalizeCode() {
+  if (result_ != kSuccess) return Handle<Code>();
 
   Handle<Code> result = v8::internal::CodeGenerator::MakeCodeEpilogue(
-      masm(), unwinding_info_writer_.eh_frame_writer(), info, Handle<Object>());
+      masm(), unwinding_info_writer_.eh_frame_writer(), info(),
+      Handle<Object>());
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
@@ -255,7 +260,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
   PopulateDeoptimizationData(result);
 
   // Ensure there is space for lazy deoptimization in the relocation info.
-  if (info->ShouldEnsureSpaceForLazyDeopt()) {
+  if (info()->ShouldEnsureSpaceForLazyDeopt()) {
     Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(result);
   }
 

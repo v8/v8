@@ -80,8 +80,11 @@ class CodeGenerator final : public GapResolver::Assembler {
   explicit CodeGenerator(Frame* frame, Linkage* linkage,
                          InstructionSequence* code, CompilationInfo* info);
 
-  // Generate native code.
-  Handle<Code> GenerateCode();
+  // Generate native code. After calling AssembleCode, call FinalizeCode to
+  // produce the actual code object. If an error occurs during either phase,
+  // FinalizeCode returns a null handle.
+  void AssembleCode();
+  Handle<Code> FinalizeCode();
 
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
@@ -317,6 +320,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   int osr_pc_offset_;
   int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
+  CodeGenResult result_;
 };
 
 }  // namespace compiler
