@@ -19,6 +19,7 @@
 #include "src/elements.h"
 #include "src/objects-inl.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/map.h"
 #include "src/property-details.h"
 #include "src/property.h"
 #include "src/string-stream.h"
@@ -1029,6 +1030,24 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
     set_to_boolean_types(oracle->ToBooleanTypes(test_id()));
   }
 }
+
+void SmallMapList::AddMapIfMissing(Handle<Map> map, Zone* zone) {
+  if (!Map::TryUpdate(map).ToHandle(&map)) return;
+  for (int i = 0; i < length(); ++i) {
+    if (at(i).is_identical_to(map)) return;
+  }
+  Add(map, zone);
+}
+
+void SmallMapList::FilterForPossibleTransitions(Map* root_map) {
+  for (int i = list_.length() - 1; i >= 0; i--) {
+    if (at(i)->FindRootMap() != root_map) {
+      list_.RemoveElement(list_.at(i));
+    }
+  }
+}
+
+Handle<Map> SmallMapList::at(int i) const { return Handle<Map>(list_.at(i)); }
 
 SmallMapList* Expression::GetReceiverTypes() {
   switch (node_type()) {

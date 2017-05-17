@@ -8,7 +8,7 @@
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/deoptimize-reason.h"
-#include "src/feedback-vector.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -16,6 +16,7 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
+class FeedbackNexus;
 
 namespace compiler {
 

@@ -42,6 +42,7 @@
 // GetRootConstructor
 #include "src/ic/ic-inl.h"
 #include "src/isolate-inl.h"
+#include "src/objects/map.h"
 #include "src/runtime/runtime.h"
 
 #if V8_TARGET_ARCH_IA32
