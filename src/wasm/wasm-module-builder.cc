@@ -18,15 +18,6 @@
 
 #include "src/v8memory.h"
 
-#if DEBUG
-#define TRACE(...)                                    \
-  do {                                                \
-    if (FLAG_trace_wasm_encoder) PrintF(__VA_ARGS__); \
-  } while (false)
-#else
-#define TRACE(...)
-#endif
-
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -320,7 +311,6 @@ uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool exported,
 
 void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   // == Emit magic =============================================================
-  TRACE("emit magic\n");
   buffer.write_u32(kWasmMagic);
   buffer.write_u32(kWasmVersion);
 
