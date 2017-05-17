@@ -127,15 +127,10 @@ void ReportCompilationSuccess(Handle<Script> script, int position,
                               uintptr_t module_size) {
   if (FLAG_suppress_asm_messages || !FLAG_trace_asm_time) return;
   EmbeddedVector<char, 100> text;
-  int length;
-  if (FLAG_predictable) {
-    length = SNPrintF(text, "success");
-  } else {
-    length = SNPrintF(
-        text,
-        "success, asm->wasm: %0.3f ms, compile: %0.3f ms, %" PRIuPTR " bytes",
-        translate_time, compile_time, module_size);
-  }
+  int length = SNPrintF(
+      text,
+      "success, asm->wasm: %0.3f ms, compile: %0.3f ms, %" PRIuPTR " bytes",
+      translate_time, compile_time, module_size);
   CHECK_NE(-1, length);
   text.Truncate(length);
   Report(script, position, text, MessageTemplate::kAsmJsCompiled,
@@ -156,12 +151,7 @@ void ReportInstantiationSuccess(Handle<Script> script, int position,
                                 double instantiate_time) {
   if (FLAG_suppress_asm_messages || !FLAG_trace_asm_time) return;
   EmbeddedVector<char, 50> text;
-  int length;
-  if (FLAG_predictable) {
-    length = SNPrintF(text, "success");
-  } else {
-    length = SNPrintF(text, "success, %0.3f ms", instantiate_time);
-  }
+  int length = SNPrintF(text, "success, %0.3f ms", instantiate_time);
   CHECK_NE(-1, length);
   text.Truncate(length);
   Report(script, position, text, MessageTemplate::kAsmJsInstantiated,
