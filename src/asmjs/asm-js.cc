@@ -108,6 +108,66 @@ bool IsStdlibMemberValid(Isolate* isolate, Handle<JSReceiver> stdlib,
   return false;
 }
 
+void Report(Handle<Script> script, int position, Vector<const char> text,
+            MessageTemplate::Template message_template,
+            v8::Isolate::MessageErrorLevel level) {
+  Isolate* isolate = script->GetIsolate();
+  MessageLocation location(script, position, position);
+  Handle<String> text_object = isolate->factory()->InternalizeUtf8String(text);
+  Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+      isolate, message_template, &location, text_object,
+      Handle<FixedArray>::null());
+  message->set_error_level(level);
+  MessageHandler::ReportMessage(isolate, &location, message);
+}
+
+// Hook to report successful execution of {AsmJs::CompileAsmViaWasm} phase.
+void ReportCompilationSuccess(Handle<Script> script, int position,
+                              double translate_time, double compile_time,
+                              uintptr_t module_size) {
+  if (FLAG_suppress_asm_messages || !FLAG_trace_asm_time) return;
+  EmbeddedVector<char, 100> text;
+  int length;
+  if (FLAG_predictable) {
+    length = SNPrintF(text, "success");
+  } else {
+    length = SNPrintF(
+        text,
+        "success, asm->wasm: %0.3f ms, compile: %0.3f ms, %" PRIuPTR " bytes",
+        translate_time, compile_time, module_size);
+  }
+  CHECK_NE(-1, length);
+  text.Truncate(length);
+  Report(script, position, text, MessageTemplate::kAsmJsCompiled,
+         v8::Isolate::kMessageInfo);
+}
+
+// Hook to report failed execution of {AsmJs::CompileAsmViaWasm} phase.
+void ReportCompilationFailure(Handle<Script> script, int position,
+                              const char* reason) {
+  if (FLAG_suppress_asm_messages) return;
+  Vector<const char> text = CStrVector(reason);
+  Report(script, position, text, MessageTemplate::kAsmJsInvalid,
+         v8::Isolate::kMessageWarning);
+}
+
+// Hook to report successful execution of {AsmJs::InstantiateAsmWasm} phase.
+void ReportInstantiationSuccess(Handle<Script> script, int position,
+                                double instantiate_time) {
+  if (FLAG_suppress_asm_messages || !FLAG_trace_asm_time) return;
+  EmbeddedVector<char, 50> text;
+  int length;
+  if (FLAG_predictable) {
+    length = SNPrintF(text, "success");
+  } else {
+    length = SNPrintF(text, "success, %0.3f ms", instantiate_time);
+  }
+  CHECK_NE(-1, length);
+  text.Truncate(length);
+  Report(script, position, text, MessageTemplate::kAsmJsInstantiated,
+         v8::Isolate::kMessageInfo);
+}
+
 }  // namespace
 
 MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
@@ -126,22 +186,8 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
                              info->literal()->end_position());
     if (!parser.Run()) {
       DCHECK(!info->isolate()->has_pending_exception());
-      if (!FLAG_suppress_asm_messages) {
-        MessageLocation location(info->script(), parser.failure_location(),
-                                 parser.failure_location());
-        Handle<String> message =
-            info->isolate()
-                ->factory()
-                ->NewStringFromUtf8(CStrVector(parser.failure_message()))
-                .ToHandleChecked();
-        Handle<JSMessageObject> error_message =
-            MessageHandler::MakeMessageObject(
-                info->isolate(), MessageTemplate::kAsmJsInvalid, &location,
-                message, Handle<FixedArray>::null());
-        error_message->set_error_level(v8::Isolate::kMessageWarning);
-        MessageHandler::ReportMessage(info->isolate(), &location,
-                                      error_message);
-      }
+      ReportCompilationFailure(info->script(), parser.failure_location(),
+                               parser.failure_message());
       return MaybeHandle<FixedArray>();
     }
     Zone* zone = info->zone();
@@ -169,8 +215,7 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
 
   base::ElapsedTimer compile_timer;
   compile_timer.Start();
-  wasm::ErrorThrower thrower(info->isolate(),
-                             "Asm.js -> WebAssembly conversion");
+  wasm::ErrorThrower thrower(info->isolate(), "AsmJs::Compile");
   MaybeHandle<JSObject> compiled = SyncCompileTranslatedAsmJs(
       info->isolate(), &thrower,
       wasm::ModuleWireBytes(module->begin(), module->end()), info->script(),
@@ -186,29 +231,8 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   result->set(kWasmDataCompiledModule, *compiled.ToHandleChecked());
   result->set(kWasmDataUsesArray, *uses_array);
 
-  MessageLocation location(info->script(), info->literal()->position(),
-                           info->literal()->position());
-  char text[100];
-  int length;
-  if (FLAG_predictable) {
-    length = base::OS::SNPrintF(text, arraysize(text), "success");
-  } else {
-    length = base::OS::SNPrintF(
-        text, arraysize(text),
-        "success, asm->wasm: %0.3f ms, compile: %0.3f ms, %" PRIuPTR " bytes",
-        asm_wasm_time, compile_time, wasm_size);
-  }
-  DCHECK_NE(-1, length);
-  USE(length);
-  Handle<String> stext(info->isolate()->factory()->InternalizeUtf8String(text));
-  Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
-      info->isolate(), MessageTemplate::kAsmJsCompiled, &location, stext,
-      Handle<FixedArray>::null());
-  message->set_error_level(v8::Isolate::kMessageInfo);
-  if (!FLAG_suppress_asm_messages && FLAG_trace_asm_time) {
-    MessageHandler::ReportMessage(info->isolate(), &location, message);
-  }
-
+  ReportCompilationSuccess(info->script(), info->literal()->position(),
+                           asm_wasm_time, compile_time, wasm_size);
   return result;
 }
 
@@ -259,7 +283,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     }
   }
 
-  wasm::ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
+  wasm::ErrorThrower thrower(isolate, "AsmJs::Instantiate");
   MaybeHandle<Object> maybe_module_object =
       wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
   if (maybe_module_object.is_null()) {
@@ -269,6 +293,11 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   DCHECK(!thrower.error());
   Handle<Object> module_object = maybe_module_object.ToHandleChecked();
 
+  Handle<Script> script(Script::cast(shared->script()));
+  int position = shared->start_position();
+  ReportInstantiationSuccess(script, position,
+                             instantiate_timer.Elapsed().InMillisecondsF());
+
   Handle<Name> single_function_name(
       isolate->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName));
   MaybeHandle<Object> single_function =
@@ -276,28 +305,6 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   if (!single_function.is_null() &&
       !single_function.ToHandleChecked()->IsUndefined(isolate)) {
     return single_function;
-  }
-
-  int position = shared->start_position();
-  Handle<Script> script(Script::cast(shared->script()));
-  MessageLocation location(script, position, position);
-  char text[50];
-  int length;
-  if (FLAG_predictable) {
-    length = base::OS::SNPrintF(text, arraysize(text), "success");
-  } else {
-    length = base::OS::SNPrintF(text, arraysize(text), "success, %0.3f ms",
-                                instantiate_timer.Elapsed().InMillisecondsF());
-  }
-  DCHECK_NE(-1, length);
-  USE(length);
-  Handle<String> stext(isolate->factory()->InternalizeUtf8String(text));
-  Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
-      isolate, MessageTemplate::kAsmJsInstantiated, &location, stext,
-      Handle<FixedArray>::null());
-  message->set_error_level(v8::Isolate::kMessageInfo);
-  if (!FLAG_suppress_asm_messages && FLAG_trace_asm_time) {
-    MessageHandler::ReportMessage(isolate, &location, message);
   }
 
   Handle<String> exports_name =
