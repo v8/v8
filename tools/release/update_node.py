@@ -72,7 +72,8 @@ def CommitPatch(options):
   """
   print ">> Comitting patch"
   subprocess.check_call(
-      ["git", "commit", "--allow-empty", "-m", "placeholder-commit"],
+      ["git", "-c", "user.name=fake", "-c", "user.email=fake@chromium.org",
+       "commit", "--allow-empty", "-m", "placeholder-commit"],
       cwd=options.v8_path,
   )
 
