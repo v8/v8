@@ -6940,10 +6940,12 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   // Get transition target for each map (NULL == no transition).
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
+    // Don't generate elements kind transitions from stable maps.
     Map* transitioned_map =
-        map->FindElementsKindTransitionedMap(possible_transitioned_maps);
+        map->is_stable()
+            ? nullptr
+            : map->FindElementsKindTransitionedMap(possible_transitioned_maps);
     if (transitioned_map != nullptr) {
-      DCHECK(!map->is_stable());
       transition_target.push_back(handle(transitioned_map));
     } else {
       transition_target.push_back(Handle<Map>());

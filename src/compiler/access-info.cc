@@ -270,12 +270,14 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   MapTransitionList transitions(maps.size());
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(map).ToHandle(&map)) {
-      Map* transition_target =
-          map->FindElementsKindTransitionedMap(possible_transition_targets);
+      // Don't generate elements kind transitions from stable maps.
+      Map* transition_target = map->is_stable()
+                                   ? nullptr
+                                   : map->FindElementsKindTransitionedMap(
+                                         possible_transition_targets);
       if (transition_target == nullptr) {
         receiver_maps.push_back(map);
       } else {
-        DCHECK(!map->is_stable());
         transitions.push_back(std::make_pair(map, handle(transition_target)));
       }
     }
