@@ -644,7 +644,7 @@ void DeclarationScope::Analyze(ParseInfo* info, Isolate* isolate,
   }
 
   if (scope->is_eval_scope() && is_sloppy(scope->language_mode())) {
-    AstNodeFactory factory(info->ast_value_factory());
+    AstNodeFactory factory(info->ast_value_factory(), info->zone());
     scope->HoistSloppyBlockFunctions(&factory);
   }
 

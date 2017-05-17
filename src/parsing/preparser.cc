@@ -372,13 +372,9 @@ PreParserExpression PreParser::ExpressionFromIdentifier(
     PreParserIdentifier name, int start_position, InferName infer) {
   VariableProxy* proxy = nullptr;
   if (track_unresolved_variables_) {
-    AstNodeFactory factory(ast_value_factory());
-    // Setting the Zone is necessary because zone_ might be the temp Zone, and
-    // AstValueFactory doesn't know about it.
-    factory.set_zone(zone());
     DCHECK_NOT_NULL(name.string_);
-    proxy = scope()->NewUnresolved(&factory, name.string_, start_position,
-                                   NORMAL_VARIABLE);
+    proxy = scope()->NewUnresolved(factory()->ast_node_factory(), name.string_,
+                                   start_position, NORMAL_VARIABLE);
   }
   return PreParserExpression::FromIdentifier(name, proxy, zone());
 }

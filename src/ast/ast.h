@@ -3239,17 +3239,12 @@ class AstVisitor BASE_EMBEDDED {
 
 class AstNodeFactory final BASE_EMBEDDED {
  public:
-  explicit AstNodeFactory(AstValueFactory* ast_value_factory)
-      : zone_(nullptr), ast_value_factory_(ast_value_factory) {
-    if (ast_value_factory != nullptr) {
-      zone_ = ast_value_factory->zone();
-    }
-  }
+  AstNodeFactory(AstValueFactory* ast_value_factory, Zone* zone)
+      : zone_(zone), ast_value_factory_(ast_value_factory) {}
 
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
   void set_ast_value_factory(AstValueFactory* ast_value_factory) {
     ast_value_factory_ = ast_value_factory;
-    zone_ = ast_value_factory->zone();
   }
 
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
@@ -3675,24 +3670,6 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   Zone* zone() const { return zone_; }
   void set_zone(Zone* zone) { zone_ = zone; }
-
-  // Handles use of temporary zones when parsing inner function bodies.
-  class BodyScope {
-   public:
-    BodyScope(AstNodeFactory* factory, Zone* temp_zone, bool use_temp_zone)
-        : factory_(factory), prev_zone_(factory->zone_) {
-      if (use_temp_zone) {
-        factory->zone_ = temp_zone;
-      }
-    }
-
-    void Reset() { factory_->zone_ = prev_zone_; }
-    ~BodyScope() { Reset(); }
-
-   private:
-    AstNodeFactory* factory_;
-    Zone* prev_zone_;
-  };
 
  private:
   // This zone may be deallocated upon returning from parsing a function body

@@ -209,7 +209,7 @@ class ParserBase {
         extension_(extension),
         fni_(nullptr),
         ast_value_factory_(ast_value_factory),
-        ast_node_factory_(ast_value_factory),
+        ast_node_factory_(ast_value_factory, zone),
         runtime_call_stats_(runtime_call_stats),
         parsing_on_main_thread_(parsing_on_main_thread),
         parsing_module_(false),
