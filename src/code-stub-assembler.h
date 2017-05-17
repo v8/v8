@@ -743,6 +743,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsConsStringInstanceType(Node* instance_type);
   Node* IsIndirectStringInstanceType(Node* instance_type);
   Node* IsString(Node* object);
+  Node* IsJSObjectMap(Node* map);
   Node* IsJSObject(Node* object);
   Node* IsJSGlobalProxy(Node* object);
   Node* IsJSReceiverInstanceType(Node* instance_type);

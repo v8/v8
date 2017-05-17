@@ -3176,20 +3176,23 @@ Node* CodeStubAssembler::IsJSReceiverInstanceType(Node* instance_type) {
                                  Int32Constant(FIRST_JS_RECEIVER_TYPE));
 }
 
-Node* CodeStubAssembler::IsJSReceiver(Node* object) {
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  return IsJSReceiverInstanceType(LoadInstanceType(object));
-}
-
 Node* CodeStubAssembler::IsJSReceiverMap(Node* map) {
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   return IsJSReceiverInstanceType(LoadMapInstanceType(map));
 }
 
-Node* CodeStubAssembler::IsJSObject(Node* object) {
+Node* CodeStubAssembler::IsJSReceiver(Node* object) {
+  return IsJSReceiverMap(LoadMap(object));
+}
+
+Node* CodeStubAssembler::IsJSObjectMap(Node* map) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  return Int32GreaterThanOrEqual(LoadInstanceType(object),
-                                 Int32Constant(FIRST_JS_RECEIVER_TYPE));
+  CSA_ASSERT(this, IsMap(map));
+  return Int32GreaterThanOrEqual(LoadMapInstanceType(map),
+                                 Int32Constant(FIRST_JS_OBJECT_TYPE));
+}
+
+Node* CodeStubAssembler::IsJSObject(Node* object) {
+  return IsJSObjectMap(LoadMap(object));
 }
 
 Node* CodeStubAssembler::IsJSGlobalProxy(Node* object) {

@@ -682,7 +682,7 @@ namespace internal {
   CPP(ObjectIsExtensible)                                                      \
   CPP(ObjectIsFrozen)                                                          \
   CPP(ObjectIsSealed)                                                          \
-  CPP(ObjectKeys)                                                              \
+  TFJ(ObjectKeys, 1, kObject)                                                  \
   CPP(ObjectLookupGetter)                                                      \
   CPP(ObjectLookupSetter)                                                      \
   CPP(ObjectPreventExtensions)                                                 \

@@ -437,41 +437,6 @@ BUILTIN(ObjectIsSealed) {
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
-// ES6 section 19.1.2.14 Object.keys ( O )
-BUILTIN(ObjectKeys) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-  Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ToObject(isolate, object));
-
-  Handle<FixedArray> keys;
-  int enum_length = receiver->map()->EnumLength();
-  if (enum_length != kInvalidEnumCacheSentinel &&
-      JSObject::cast(*receiver)->elements() ==
-          isolate->heap()->empty_fixed_array()) {
-    DCHECK(receiver->IsJSObject());
-    DCHECK(!JSObject::cast(*receiver)->HasNamedInterceptor());
-    DCHECK(!JSObject::cast(*receiver)->IsAccessCheckNeeded());
-    DCHECK(!receiver->map()->has_hidden_prototype());
-    DCHECK(JSObject::cast(*receiver)->HasFastProperties());
-    if (enum_length == 0) {
-      keys = isolate->factory()->empty_fixed_array();
-    } else {
-      Handle<FixedArray> cache(
-          receiver->map()->instance_descriptors()->GetEnumCache());
-      keys = isolate->factory()->CopyFixedArrayUpTo(cache, enum_length);
-    }
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, keys,
-        KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly,
-                                ENUMERABLE_STRINGS,
-                                GetKeysConversion::kConvertToString));
-  }
-  return *isolate->factory()->NewJSArrayWithElements(keys, FAST_ELEMENTS);
-}
-
 BUILTIN(ObjectValues) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);

@@ -198,6 +198,26 @@ Maybe<bool> Runtime::DeleteObjectProperty(Isolate* isolate,
   return JSReceiver::DeleteProperty(&it, language_mode);
 }
 
+// ES #sec-object.keys
+RUNTIME_FUNCTION(Runtime_ObjectKeys) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at(0);
+
+  // Convert the {object} to a proper {receiver}.
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ToObject(isolate, object));
+
+  // Collect the own keys for the {receiver}.
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, keys,
+      KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly,
+                              ENUMERABLE_STRINGS,
+                              GetKeysConversion::kConvertToString));
+  return *keys;
+}
+
 // ES6 19.1.3.2
 RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   HandleScope scope(isolate);

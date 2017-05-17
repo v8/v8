@@ -391,6 +391,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_OBJECT(F)                            \
   F(AddDictionaryProperty, 3, 1)                                \
   F(GetPrototype, 1, 1)                                         \
+  F(ObjectKeys, 1, 1)                                           \
   F(ObjectHasOwnProperty, 2, 1)                                 \
   F(ObjectCreate, 2, 1)                                         \
   F(InternalSetPrototype, 2, 1)                                 \
