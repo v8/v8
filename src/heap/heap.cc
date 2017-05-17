@@ -5651,7 +5651,7 @@ bool Heap::SetUp() {
   mark_compact_collector_ = new MarkCompactCollector(this);
   incremental_marking_->set_marking_deque(
       mark_compact_collector_->marking_deque());
-#if V8_CONCURRENT_MARKING
+#ifdef V8_CONCURRENT_MARKING
   concurrent_marking_ =
       new ConcurrentMarking(this, mark_compact_collector_->marking_deque());
 #else

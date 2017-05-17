@@ -33,7 +33,7 @@ class RecordMigratedSlotVisitor;
 class ThreadLocalTop;
 class YoungGenerationMarkingVisitor;
 
-#if V8_CONCURRENT_MARKING
+#ifdef V8_CONCURRENT_MARKING
 using MarkingDeque = ConcurrentMarkingDeque;
 #else
 using MarkingDeque = SequentialMarkingDeque;

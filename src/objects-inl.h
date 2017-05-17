@@ -1284,7 +1284,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   reinterpret_cast<Object*>(base::NoBarrier_Load( \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
 
-#if V8_CONCURRENT_MARKING
+#ifdef V8_CONCURRENT_MARKING
 #define WRITE_FIELD(p, offset, value)                             \
   base::NoBarrier_Store(                                          \
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \

@@ -236,10 +236,10 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, ConcurrentMarkingDeque* deque)
       deque_(deque),
       visitor_(new ConcurrentMarkingVisitor(deque_)),
       is_task_pending_(false) {
-  // Concurrent marking does not work with double unboxing.
-  STATIC_ASSERT(!(V8_CONCURRENT_MARKING && V8_DOUBLE_FIELDS_UNBOXING));
   // The runtime flag should be set only if the compile time flag was set.
-  CHECK(!FLAG_concurrent_marking || V8_CONCURRENT_MARKING);
+#ifndef V8_CONCURRENT_MARKING
+  CHECK(!FLAG_concurrent_marking);
+#endif
 }
 
 ConcurrentMarking::~ConcurrentMarking() { delete visitor_; }

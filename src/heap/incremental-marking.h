@@ -182,7 +182,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   static const intptr_t kActivationThreshold = 0;
 #endif
 
-#if V8_CONCURRENT_MARKING
+#ifdef V8_CONCURRENT_MARKING
   static const MarkBit::AccessMode kAtomicity = MarkBit::AccessMode::ATOMIC;
 #else
   static const MarkBit::AccessMode kAtomicity = MarkBit::AccessMode::NON_ATOMIC;

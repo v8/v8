@@ -141,7 +141,7 @@ void IncrementalMarking::MarkBlackAndPush(HeapObject* obj) {
   // Color the object black and push it into the bailout deque.
   ObjectMarking::WhiteToGrey<kAtomicity>(obj, marking_state(obj));
   if (ObjectMarking::GreyToBlack<kAtomicity>(obj, marking_state(obj))) {
-#if V8_CONCURRENT_MARKING
+#ifdef V8_CONCURRENT_MARKING
     marking_deque()->Push(obj, MarkingThread::kMain, TargetDeque::kBailout);
 #else
     if (!marking_deque()->Push(obj)) {

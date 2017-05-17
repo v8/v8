@@ -76,6 +76,9 @@ declare_args() {
   # Sets -dV8_TRACE_IGNITION.
   v8_enable_trace_ignition = false
 
+  # Sets -dV8_CONCURRENT_MARKING
+  v8_enable_concurrent_marking = false
+
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
   # tools/gen-postmortem-metadata.py for details.
@@ -256,6 +259,9 @@ config("features") {
   }
   if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
+  }
+  if (v8_enable_concurrent_marking) {
+    defines += [ "V8_CONCURRENT_MARKING" ]
   }
 }
 
