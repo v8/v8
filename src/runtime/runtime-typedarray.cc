@@ -281,5 +281,21 @@ RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
                                     obj->type() == kExternalInt32Array);
 }
 
+RUNTIME_FUNCTION(Runtime_TypedArraySpeciesCreateByLength) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  Handle<JSTypedArray> exemplar = args.at<JSTypedArray>(1);
+  Handle<Object> length = args.at(2);
+  int argc = 1;
+  ScopedVector<Handle<Object>> argv(argc);
+  argv[0] = length;
+  Handle<JSTypedArray> result_array;
+  // TODO(tebbi): Pass correct method name.
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result_array,
+      JSTypedArray::SpeciesCreate(isolate, exemplar, argc, argv.start(), ""));
+  return *result_array;
+}
+
 }  // namespace internal
 }  // namespace v8

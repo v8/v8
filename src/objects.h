@@ -8631,6 +8631,16 @@ class JSTypedArray: public JSArrayBufferView {
   static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
                                                    Handle<Object> receiver,
                                                    const char* method_name);
+  // ES7 section 22.2.4.6 Create ( constructor, argumentList )
+  static MaybeHandle<JSTypedArray> Create(Isolate* isolate,
+                                          Handle<JSFunction> default_ctor,
+                                          int argc, Handle<Object>* argv,
+                                          const char* method_name);
+  // ES7 section 22.2.4.7 TypedArraySpeciesCreate ( exemplar, argumentList )
+  static MaybeHandle<JSTypedArray> SpeciesCreate(Isolate* isolate,
+                                                 Handle<JSTypedArray> exemplar,
+                                                 int argc, Handle<Object>* argv,
+                                                 const char* method_name);
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSTypedArray)

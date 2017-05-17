@@ -3899,6 +3899,8 @@ void Genesis::InitializeGlobal_experimental_fast_array_builtins() {
                               Builtins::kTypedArrayPrototypeReduce);
     InstallOneBuiltinFunction(typed_array_prototype, "reduceRight",
                               Builtins::kTypedArrayPrototypeReduceRight);
+    InstallOneBuiltinFunction(typed_array_prototype, "map",
+                              Builtins::kTypedArrayPrototypeMap);
   }
 }
 

@@ -42,81 +42,14 @@ int64_t CapRelativeIndex(Handle<Object> num, int64_t minimum, int64_t maximum) {
                       : std::min<int64_t>(relative, maximum);
 }
 
-// ES7 section 22.2.4.6 TypedArrayCreate ( constructor, argumentList )
-MaybeHandle<JSTypedArray> TypedArrayCreate(Isolate* isolate,
-                                           Handle<JSFunction> default_ctor,
-                                           int argc, Handle<Object>* argv,
-                                           const char* method_name) {
-  // 1. Let newTypedArray be ? Construct(constructor, argumentList).
-  Handle<Object> new_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, new_obj, Execution::New(default_ctor, argc, argv), JSTypedArray);
-
-  // 2. Perform ? ValidateTypedArray(newTypedArray).
-  Handle<JSTypedArray> new_array;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, new_array, JSTypedArray::Validate(isolate, new_obj, method_name),
-      JSTypedArray);
-
-  // 3. If argumentList is a List of a single Number, then
-  // If newTypedArray.[[ArrayLength]] < size, throw a TypeError exception.
-  DCHECK_IMPLIES(argc == 1, argv[0]->IsSmi());
-  if (argc == 1 && new_array->length_value() < argv[0]->Number()) {
-    const MessageTemplate::Template message =
-        MessageTemplate::kTypedArrayTooShort;
-    THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
-  }
-
-  // 4. Return newTypedArray.
-  return new_array;
-}
-
-// ES7 section 22.2.4.7 TypedArraySpeciesCreate ( exemplar, argumentList )
-MaybeHandle<JSTypedArray> TypedArraySpeciesCreate(Isolate* isolate,
-                                                  Handle<JSTypedArray> exemplar,
-                                                  int argc,
-                                                  Handle<Object>* argv,
-                                                  const char* method_name) {
-  // 1. Assert: exemplar is an Object that has a [[TypedArrayName]] internal
-  // slot.
-  DCHECK(exemplar->IsJSTypedArray());
-
-  // 2. Let defaultConstructor be the intrinsic object listed in column one of
-  // Table 51 for exemplar.[[TypedArrayName]].
-  Handle<JSFunction> default_ctor = isolate->uint8_array_fun();
-  switch (exemplar->type()) {
-#define TYPED_ARRAY_CTOR(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array: {                        \
-    default_ctor = isolate->type##_array_fun();         \
-    break;                                              \
-  }
-
-    TYPED_ARRAYS(TYPED_ARRAY_CTOR)
-#undef TYPED_ARRAY_CTOR
-    default:
-      UNREACHABLE();
-  }
-
-  // 3. Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
-  Handle<Object> ctor;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, ctor,
-      Object::SpeciesConstructor(isolate, exemplar, default_ctor),
-      JSTypedArray);
-
-  // 4. Return ? TypedArrayCreate(constructor, argumentList).
-  return TypedArrayCreate(isolate, Handle<JSFunction>::cast(ctor), argc, argv,
-                          method_name);
-}
-
 MaybeHandle<JSTypedArray> TypedArraySpeciesCreateByLength(
     Isolate* isolate, Handle<JSTypedArray> exemplar, const char* method_name,
     int64_t length) {
   const int argc = 1;
   ScopedVector<Handle<Object>> argv(argc);
   argv[0] = isolate->factory()->NewNumberFromInt64(length);
-  return TypedArraySpeciesCreate(isolate, exemplar, argc, argv.start(),
-                                 method_name);
+  return JSTypedArray::SpeciesCreate(isolate, exemplar, argc, argv.start(),
+                                     method_name);
 }
 
 }  // namespace

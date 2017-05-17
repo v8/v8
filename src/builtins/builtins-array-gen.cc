@@ -164,6 +164,20 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
   void MapResultGenerator() { ArraySpeciesCreate(len_); }
 
+  void TypedArrayMapResultGenerator() {
+    // 6. Let A be ? TypedArraySpeciesCreate(O, len).
+    Node* a = TypedArraySpeciesCreateByLength(context(), o(), len_);
+    // In the Spec and our current implementation, the length check is already
+    // performed in TypedArraySpeciesCreate. Repeating the check here to
+    // keep this invariant local.
+    // TODO(tebbi): Change this to a release mode check.
+    CSA_ASSERT(
+        this, WordEqual(len_, LoadObjectField(a, JSTypedArray::kLengthOffset)));
+    fast_typed_array_target_ = Word32Equal(LoadInstanceType(LoadElements(o_)),
+                                           LoadInstanceType(LoadElements(a)));
+    a_.Bind(a);
+  }
+
   Node* SpecCompliantMapProcessor(Node* k_value, Node* k) {
     //  i. Let kValue be ? Get(O, Pk). Performed by the caller of
     //  SpecCompliantMapProcessor.
@@ -235,6 +249,48 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     }
 
     BIND(&finished);
+    return a();
+  }
+
+  // See tc39.github.io/ecma262/#sec-%typedarray%.prototype.map.
+  Node* TypedArrayMapProcessor(Node* k_value, Node* k) {
+    // 8. c. Let mappedValue be ? Call(callbackfn, T, « kValue, k, O »).
+    Node* mappedValue = CallJS(CodeFactory::Call(isolate()), context(),
+                               callbackfn(), this_arg(), k_value, k, o());
+    Label fast(this), slow(this), done(this), detached(this, Label::kDeferred);
+
+    // 8. d. Perform ? Set(A, Pk, mappedValue, true).
+    // Since we know that A is a TypedArray, this always ends up in
+    // #sec-integer-indexed-exotic-objects-set-p-v-receiver and then
+    // tc39.github.io/ecma262/#sec-integerindexedelementset .
+    Branch(fast_typed_array_target_, &fast, &slow);
+
+    BIND(&fast);
+    // #sec-integerindexedelementset 3. Let numValue be ? ToNumber(value).
+    Node* num_value = ToNumber(context(), mappedValue);
+    // The only way how this can bailout is because of a detached buffer.
+    EmitElementStore(
+        a(), k, num_value, false, source_elements_kind_,
+        KeyedAccessStoreMode::STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS,
+        &detached);
+    Goto(&done);
+
+    BIND(&slow);
+    CallRuntime(Runtime::kSetProperty, context(), a(), k, mappedValue,
+                SmiConstant(STRICT));
+    Goto(&done);
+
+    BIND(&detached);
+    {
+      // tc39.github.io/ecma262/#sec-integerindexedelementset
+      // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+      CallRuntime(Runtime::kThrowTypeError, context_,
+                  SmiConstant(MessageTemplate::kDetachedOperation),
+                  name_string_);
+      Unreachable();
+    }
+
+    BIND(&done);
     return a();
   }
 
@@ -376,7 +432,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       const char* name, const BuiltinResultGenerator& generator,
       const CallResultProcessor& processor, const PostLoopAction& action,
       ForEachDirection direction = ForEachDirection::kForward) {
-    Node* name_string =
+    name_string_ =
         HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(name));
 
     // ValidateTypedArray: tc39.github.io/ecma262/#sec-validatetypedarray
@@ -411,7 +467,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     {
       CallRuntime(Runtime::kThrowTypeError, context_,
                   SmiConstant(MessageTemplate::kDetachedOperation),
-                  name_string);
+                  name_string_);
       Unreachable();
     }
 
@@ -448,20 +504,20 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     } else {
       k_.Bind(NumberDec(len()));
     }
-    generator(this);
-    Node* elements_type = LoadInstanceType(LoadElements(o_));
-    Switch(elements_type, &unexpected_instance_type, instance_types.data(),
+    Node* instance_type = LoadInstanceType(LoadElements(o_));
+    Switch(instance_type, &unexpected_instance_type, instance_types.data(),
            label_ptrs.data(), labels.size());
 
     for (size_t i = 0; i < labels.size(); ++i) {
       BIND(&labels[i]);
       Label done(this);
+      source_elements_kind_ = ElementsKindForInstanceType(
+          static_cast<InstanceType>(instance_types[i]));
+      generator(this);
       // TODO(tebbi): Silently cancelling the loop on buffer detachment is a
-      // spec violation. Should go to &detached and throw a TypeError instead.
-      VisitAllTypedArrayElements(
-          ElementsKindForInstanceType(
-              static_cast<InstanceType>(instance_types[i])),
-          array_buffer, processor, &done, direction);
+      // spec violation. Should go to &throw_detached and throw a TypeError
+      // instead.
+      VisitAllTypedArrayElements(array_buffer, processor, &done, direction);
       Goto(&done);
       // No exception, return success
       BIND(&done);
@@ -540,7 +596,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
-  void VisitAllTypedArrayElements(ElementsKind kind, Node* array_buffer,
+  void VisitAllTypedArrayElements(Node* array_buffer,
                                   const CallResultProcessor& processor,
                                   Label* detached, ForEachDirection direction) {
     VariableList list({&a_, &k_, &to_}, zone());
@@ -554,8 +610,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
           LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
                           MachineType::Pointer());
       Node* data_ptr = IntPtrAdd(BitcastTaggedToWord(base_ptr), external_ptr);
-      Node* value = LoadFixedTypedArrayElementAsTagged(data_ptr, index, kind,
-                                                       SMI_PARAMETERS);
+      Node* value = LoadFixedTypedArrayElementAsTagged(
+          data_ptr, index, source_elements_kind_, SMI_PARAMETERS);
       k_.Bind(index);
       a_.Bind(processor(this, value, index));
     };
@@ -740,10 +796,13 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   Node* receiver_ = nullptr;
   Node* new_target_ = nullptr;
   Node* argc_ = nullptr;
+  Node* fast_typed_array_target_ = nullptr;
+  Node* name_string_ = nullptr;
   Variable k_;
   Variable a_;
   Variable to_;
   Label fully_spec_compliant_;
+  ElementsKind source_elements_kind_ = ElementsKind::NO_ELEMENTS;
 };
 
 TF_BUILTIN(FastArrayPop, CodeStubAssembler) {
@@ -1494,6 +1553,26 @@ TF_BUILTIN(ArrayMap, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::FastMapProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
       Builtins::CallableFor(isolate(), Builtins::kArrayMapLoopContinuation));
+}
+
+TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinCodeStubAssembler) {
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* receiver = args.GetReceiver();
+  Node* callbackfn = args.GetOptionalArgumentValue(0, UndefinedConstant());
+  Node* this_arg = args.GetOptionalArgumentValue(1, UndefinedConstant());
+
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
+                                new_target, argc);
+
+  GenerateIteratingTypedArrayBuiltinBody(
+      "%TypedArray%.prototype.map",
+      &ArrayBuiltinCodeStubAssembler::TypedArrayMapResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::TypedArrayMapProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
 TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {

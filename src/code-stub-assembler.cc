@@ -8969,6 +8969,15 @@ Node* CodeStubAssembler::AllocateJSArrayIterator(Node* array, Node* array_map,
   return iterator;
 }
 
+Node* CodeStubAssembler::TypedArraySpeciesCreateByLength(Node* context,
+                                                         Node* originalArray,
+                                                         Node* len) {
+  // TODO(tebbi): Install a fast path as well, which avoids the runtime
+  // call.
+  return CallRuntime(Runtime::kTypedArraySpeciesCreateByLength, context,
+                     UndefinedConstant(), originalArray, len);
+}
+
 Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   CSA_ASSERT(this, HasInstanceType(buffer, JS_ARRAY_BUFFER_TYPE));
 

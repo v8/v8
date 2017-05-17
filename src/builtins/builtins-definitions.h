@@ -950,6 +950,8 @@ namespace internal {
   /* ES6 %TypedArray%.prototype.reduceRight */                                 \
   TFJ(TypedArrayPrototypeReduceRight,                                          \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
+  /* ES6 %TypedArray%.prototype.map */                                         \
+  TFJ(TypedArrayPrototypeMap, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
