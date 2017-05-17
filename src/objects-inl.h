@@ -6904,6 +6904,25 @@ void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
 
 ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
 
+void* JSArrayBuffer::allocation_base() const {
+  intptr_t ptr = READ_INTPTR_FIELD(this, kAllocationBaseOffset);
+  return reinterpret_cast<void*>(ptr);
+}
+
+void JSArrayBuffer::set_allocation_base(void* value, WriteBarrierMode mode) {
+  intptr_t ptr = reinterpret_cast<intptr_t>(value);
+  WRITE_INTPTR_FIELD(this, kAllocationBaseOffset, ptr);
+}
+
+size_t JSArrayBuffer::allocation_length() const {
+  return *reinterpret_cast<const size_t*>(
+      FIELD_ADDR_CONST(this, kAllocationLengthOffset));
+}
+
+void JSArrayBuffer::set_allocation_length(size_t value) {
+  (*reinterpret_cast<size_t*>(FIELD_ADDR(this, kAllocationLengthOffset))) =
+      value;
+}
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
   if (kInt32Size != kPointerSize) {

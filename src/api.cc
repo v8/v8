@@ -441,6 +441,19 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
   i::V8::SetSnapshotBlob(snapshot_blob);
 }
 
+void* v8::ArrayBuffer::Allocator::Reserve(size_t length) { UNIMPLEMENTED(); }
+
+void v8::ArrayBuffer::Allocator::Free(void* data, size_t length,
+                                      AllocationMode mode) {
+  UNIMPLEMENTED();
+}
+
+void v8::ArrayBuffer::Allocator::SetProtection(
+    void* data, size_t length,
+    v8::ArrayBuffer::Allocator::Protection protection) {
+  UNIMPLEMENTED();
+}
+
 namespace {
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
@@ -451,6 +464,39 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   }
   virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
   virtual void Free(void* data, size_t) { free(data); }
+
+  virtual void* Reserve(size_t length) {
+    return base::VirtualMemory::ReserveRegion(length);
+  }
+
+  virtual void Free(void* data, size_t length,
+                    v8::ArrayBuffer::Allocator::AllocationMode mode) {
+    switch (mode) {
+      case v8::ArrayBuffer::Allocator::AllocationMode::kNormal: {
+        return Free(data, length);
+      }
+      case v8::ArrayBuffer::Allocator::AllocationMode::kReservation: {
+        base::VirtualMemory::ReleaseRegion(data, length);
+        return;
+      }
+    }
+  }
+
+  virtual void SetProtection(
+      void* data, size_t length,
+      v8::ArrayBuffer::Allocator::Protection protection) {
+    switch (protection) {
+      case v8::ArrayBuffer::Allocator::Protection::kNoAccess: {
+        base::VirtualMemory::UncommitRegion(data, length);
+        return;
+      }
+      case v8::ArrayBuffer::Allocator::Protection::kReadWrite: {
+        const bool is_executable = false;
+        base::VirtualMemory::CommitRegion(data, length, is_executable);
+        return;
+      }
+    }
+  }
 };
 
 bool RunExtraCode(Isolate* isolate, Local<Context> context,

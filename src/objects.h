@@ -8506,6 +8506,15 @@ class JSArrayBuffer: public JSObject {
   // [byte_length]: length in bytes
   DECL_ACCESSORS(byte_length, Object)
 
+  // [allocation_base]: the start of the memory allocation for this array,
+  // normally equal to backing_store
+  DECL_ACCESSORS(allocation_base, void)
+
+  // [allocation_length]: the size of the memory allocation for this array,
+  // normally equal to byte_length
+  inline size_t allocation_length() const;
+  inline void set_allocation_length(size_t value);
+
   inline uint32_t bit_field() const;
   inline void set_bit_field(uint32_t bits);
 
@@ -8536,10 +8545,17 @@ class JSArrayBuffer: public JSObject {
 
   void Neuter();
 
+  void FreeBackingStore();
+
   V8_EXPORT_PRIVATE static void Setup(
       Handle<JSArrayBuffer> array_buffer, Isolate* isolate, bool is_external,
       void* data, size_t allocated_length,
       SharedFlag shared = SharedFlag::kNotShared);
+
+  V8_EXPORT_PRIVATE static void Setup(
+      Handle<JSArrayBuffer> array_buffer, Isolate* isolate, bool is_external,
+      void* allocation_base, size_t allocation_length, void* data,
+      size_t byte_length, SharedFlag shared = SharedFlag::kNotShared);
 
   // Returns false if array buffer contents could not be allocated.
   // In this case, |array_buffer| will not be set up.
@@ -8553,8 +8569,13 @@ class JSArrayBuffer: public JSObject {
   DECLARE_VERIFIER(JSArrayBuffer)
 
   static const int kByteLengthOffset = JSObject::kHeaderSize;
+  // The rest of the fields are not JSObjects, so they are not iterated over in
+  // objects-body-descriptors-inl.h.
   static const int kBackingStoreOffset = kByteLengthOffset + kPointerSize;
-  static const int kBitFieldSlot = kBackingStoreOffset + kPointerSize;
+  static const int kAllocationBaseOffset = kBackingStoreOffset + kPointerSize;
+  static const int kAllocationLengthOffset =
+      kAllocationBaseOffset + kPointerSize;
+  static const int kBitFieldSlot = kAllocationLengthOffset + kSizetSize;
 #if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
   static const int kBitFieldOffset = kBitFieldSlot;
 #else

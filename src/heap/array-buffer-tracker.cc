@@ -22,8 +22,8 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
     JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
     if (should_free(buffer)) {
       const size_t len = it->second;
-      heap_->isolate()->array_buffer_allocator()->Free(buffer->backing_store(),
-                                                       len);
+      buffer->FreeBackingStore();
+
       freed_memory += len;
       it = array_buffers_.erase(it);
     } else {
@@ -62,8 +62,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       it = array_buffers_.erase(it);
     } else if (result == kRemoveEntry) {
       const size_t len = it->second;
-      heap_->isolate()->array_buffer_allocator()->Free(
-          it->first->backing_store(), len);
+      it->first->FreeBackingStore();
       freed_memory += len;
       it = array_buffers_.erase(it);
     } else {

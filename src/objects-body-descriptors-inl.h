@@ -210,11 +210,11 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
 class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(kByteLengthOffset + kPointerSize == kBackingStoreOffset);
-  STATIC_ASSERT(kBackingStoreOffset + kPointerSize == kBitFieldSlot);
+  STATIC_ASSERT(kAllocationLengthOffset + kPointerSize == kBitFieldSlot);
   STATIC_ASSERT(kBitFieldSlot + kPointerSize == kSize);
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
-    if (offset < kBackingStoreOffset) return true;
+    if (offset < kAllocationLengthOffset) return true;
     if (offset < kSize) return false;
     return IsValidSlotImpl(obj, offset);
   }
@@ -222,6 +222,9 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
+    // Array buffers contain raw pointers that the GC does not know about. These
+    // are stored at kBackStoreOffset and later, so we do not iterate over
+    // those.
     IteratePointers(obj, kPropertiesOffset, kBackingStoreOffset, v);
     IterateBodyImpl(obj, kSize, object_size, v);
   }
@@ -229,6 +232,9 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   template <typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
     Heap* heap = obj->GetHeap();
+    // Array buffers contain raw pointers that the GC does not know about. These
+    // are stored at kBackStoreOffset and later, so we do not iterate over
+    // those.
     IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,
                                    kBackingStoreOffset);
     IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);

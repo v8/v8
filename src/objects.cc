@@ -19584,8 +19584,10 @@ Handle<String> JSMessageObject::GetSourceLine() const {
 void JSArrayBuffer::Neuter() {
   CHECK(is_neuterable());
   CHECK(is_external());
-  set_backing_store(NULL);
+  set_backing_store(nullptr);
   set_byte_length(Smi::kZero);
+  set_allocation_base(nullptr);
+  set_allocation_length(0);
   set_was_neutered(true);
   // Invalidate the neutering protector.
   Isolate* const isolate = GetIsolate();
@@ -19594,10 +19596,25 @@ void JSArrayBuffer::Neuter() {
   }
 }
 
+void JSArrayBuffer::FreeBackingStore() {
+  using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
+  const size_t length = allocation_length();
+  const AllocationMode mode = has_guard_region() ? AllocationMode::kReservation
+                                                 : AllocationMode::kNormal;
+  GetIsolate()->array_buffer_allocator()->Free(allocation_base(), length, mode);
+}
 
 void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
                           bool is_external, void* data, size_t allocated_length,
                           SharedFlag shared) {
+  return Setup(array_buffer, isolate, is_external, data, allocated_length, data,
+               allocated_length, shared);
+}
+
+void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
+                          bool is_external, void* allocation_base,
+                          size_t allocation_length, void* data,
+                          size_t byte_length, SharedFlag shared) {
   DCHECK(array_buffer->GetEmbedderFieldCount() ==
          v8::ArrayBuffer::kEmbedderFieldCount);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
@@ -19608,15 +19625,18 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   array_buffer->set_is_neuterable(shared == SharedFlag::kNotShared);
   array_buffer->set_is_shared(shared == SharedFlag::kShared);
 
-  Handle<Object> byte_length =
-      isolate->factory()->NewNumberFromSize(allocated_length);
-  CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
-  array_buffer->set_byte_length(*byte_length);
+  Handle<Object> heap_byte_length =
+      isolate->factory()->NewNumberFromSize(byte_length);
+  CHECK(heap_byte_length->IsSmi() || heap_byte_length->IsHeapNumber());
+  array_buffer->set_byte_length(*heap_byte_length);
   // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
   // are currently being constructed in the |ArrayBufferTracker|. The
   // registration method below handles the case of registering a buffer that has
   // already been promoted.
   array_buffer->set_backing_store(data);
+
+  array_buffer->set_allocation_base(data);
+  array_buffer->set_allocation_length(allocation_length);
 
   if (data && !is_external) {
     isolate->heap()->RegisterNewArrayBuffer(*array_buffer);
@@ -19658,8 +19678,9 @@ bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
     data = NULL;
   }
 
-  JSArrayBuffer::Setup(array_buffer, isolate, false, data, allocated_length,
-                       shared);
+  const bool is_external = false;
+  JSArrayBuffer::Setup(array_buffer, isolate, is_external, data,
+                       allocated_length, shared);
   return true;
 }
 
@@ -19690,6 +19711,8 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
   // already been promoted.
   buffer->set_backing_store(backing_store);
   isolate->heap()->RegisterNewArrayBuffer(*buffer);
+  buffer->set_allocation_base(backing_store);
+  buffer->set_allocation_length(NumberToSize(buffer->byte_length()));
   memcpy(buffer->backing_store(),
          fixed_typed_array->DataPtr(),
          fixed_typed_array->DataSize());

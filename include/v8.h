@@ -4187,10 +4187,40 @@ class V8_EXPORT ArrayBuffer : public Object {
     virtual void* AllocateUninitialized(size_t length) = 0;
 
     /**
+     * Reserved |length| bytes, but do not commit the memory. Must call
+     * |SetProtection| to make memory accessible.
+     */
+    // TODO(eholk): make this pure virtual once blink implements this.
+    virtual void* Reserve(size_t length);
+
+    /**
      * Free the memory block of size |length|, pointed to by |data|.
      * That memory is guaranteed to be previously allocated by |Allocate|.
      */
     virtual void Free(void* data, size_t length) = 0;
+
+    enum class AllocationMode { kNormal, kReservation };
+
+    /**
+     * Free the memory block of size |length|, pointed to by |data|.
+     * That memory is guaranteed to be previously allocated by |Allocate| or
+     * |Reserve|, depending on |mode|.
+     */
+    // TODO(eholk): make this pure virtual once blink implements this.
+    virtual void Free(void* data, size_t length, AllocationMode mode);
+
+    enum class Protection { kNoAccess, kReadWrite };
+
+    /**
+     * Change the protection on a region of memory.
+     *
+     * On platforms that make a distinction between reserving and committing
+     * memory, changing the protection to kReadWrite must also ensure the memory
+     * is committed.
+     */
+    // TODO(eholk): make this pure virtual once blink implements this.
+    virtual void SetProtection(void* data, size_t length,
+                               Protection protection);
 
     /**
      * malloc/free based convenience allocator.
