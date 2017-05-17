@@ -1419,7 +1419,7 @@ class InstantiationHelper {
     WasmSharedModuleData::SetBreakpointsOnNewInstance(
         compiled_module_->shared(), instance);
 
-    if (FLAG_wasm_interpret_all) {
+    if (FLAG_wasm_interpret_all && module_->is_wasm()) {
       Handle<WasmDebugInfo> debug_info =
           WasmInstanceObject::GetOrCreateDebugInfo(instance);
       std::vector<int> func_indexes;
