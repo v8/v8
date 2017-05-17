@@ -37,10 +37,11 @@ namespace wasm {
 // a buffer of bytes.
 class Decoder {
  public:
-  Decoder(const byte* start, const byte* end)
-      : start_(start), pc_(start), end_(end), error_offset_(0) {}
-  Decoder(const byte* start, const byte* pc, const byte* end)
-      : start_(start), pc_(pc), end_(end), error_offset_(0) {}
+  Decoder(const byte* start, const byte* end, uint32_t buffer_offset = 0)
+      : start_(start), pc_(start), end_(end), buffer_offset_(buffer_offset) {}
+  Decoder(const byte* start, const byte* pc, const byte* end,
+          uint32_t buffer_offset = 0)
+      : start_(start), pc_(pc), end_(end), buffer_offset_(buffer_offset) {}
 
   virtual ~Decoder() {}
 
@@ -183,7 +184,7 @@ class Decoder {
     va_end(arguments);
     error_msg_.assign(buffer.start(), len);
     DCHECK_GE(pc, start_);
-    error_offset_ = static_cast<uint32_t>(pc - start_);
+    error_offset_ = static_cast<uint32_t>(pc - start_) + buffer_offset_;
     onFirstError();
   }
 
@@ -214,12 +215,17 @@ class Decoder {
   }
 
   // Resets the boundaries of this decoder.
-  void Reset(const byte* start, const byte* end) {
+  void Reset(const byte* start, const byte* end, uint32_t buffer_offset = 0) {
     start_ = start;
     pc_ = start;
     end_ = end;
+    buffer_offset_ = buffer_offset;
     error_offset_ = 0;
     error_msg_.clear();
+  }
+
+  void Reset(Vector<const uint8_t> bytes, uint32_t buffer_offset = 0) {
+    Reset(bytes.begin(), bytes.end(), buffer_offset);
   }
 
   bool ok() const { return error_msg_.empty(); }
@@ -228,14 +234,25 @@ class Decoder {
 
   const byte* start() const { return start_; }
   const byte* pc() const { return pc_; }
-  uint32_t pc_offset() const { return static_cast<uint32_t>(pc_ - start_); }
+  uint32_t pc_offset() const {
+    return static_cast<uint32_t>(pc_ - start_) + buffer_offset_;
+  }
+  uint32_t buffer_offset() const { return buffer_offset_; }
+  // Takes an offset relative to the module start and returns an offset relative
+  // to the current buffer of the decoder.
+  uint32_t GetBufferRelativeOffset(uint32_t offset) const {
+    DCHECK_LE(buffer_offset_, offset);
+    return offset - buffer_offset_;
+  }
   const byte* end() const { return end_; }
 
  protected:
   const byte* start_;
   const byte* pc_;
   const byte* end_;
-  uint32_t error_offset_;
+  // The offset of the current buffer in the module. Needed for streaming.
+  uint32_t buffer_offset_;
+  uint32_t error_offset_ = 0;
   std::string error_msg_;
 
  private:

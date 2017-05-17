@@ -960,8 +960,8 @@ WasmInstanceObject* wasm::GetOwningWasmInstance(Code* code) {
   return WasmInstanceObject::cast(cell->value());
 }
 
-WasmModule::WasmModule(Zone* owned)
-    : owned_zone(owned), pending_tasks(new base::Semaphore(0)) {}
+WasmModule::WasmModule(std::unique_ptr<Zone> owned)
+    : signature_zone(std::move(owned)), pending_tasks(new base::Semaphore(0)) {}
 
 namespace {
 
