@@ -57,28 +57,48 @@ class EagerTask : public ItemParallelJob::Task {
   }
 };
 
+class OneShotBarrier {
+ public:
+  explicit OneShotBarrier(size_t counter) : counter_(counter) {
+    DCHECK_GE(counter_, 0);
+  }
+
+  void Wait() {
+    DCHECK_NE(counter_, 0);
+    mutex_.Lock();
+    counter_--;
+    if (counter_ == 0) {
+      condition_.NotifyAll();
+    } else {
+      while (counter_ > 0) {
+        condition_.Wait(&mutex_);
+      }
+    }
+    mutex_.Unlock();
+  }
+
+ private:
+  base::Mutex mutex_;
+  base::ConditionVariable condition_;
+  size_t counter_;
+};
+
 class TaskProcessingOneItem : public ItemParallelJob::Task {
  public:
-  explicit TaskProcessingOneItem(Isolate* isolate,
-                                 base::AtomicNumber<size_t>* count,
-                                 size_t finish)
-      : ItemParallelJob::Task(isolate), count_(count), finish_(finish) {}
+  explicit TaskProcessingOneItem(Isolate* isolate, OneShotBarrier* barrier)
+      : ItemParallelJob::Task(isolate), barrier_(barrier) {}
 
   void RunInParallel() override {
     SimpleItem* item = GetItem<SimpleItem>();
     EXPECT_NE(nullptr, item);
     item->Process();
     item->MarkFinished();
-    // Avoid canceling the remaining task if it has no started by
-    // busy looping.
-    count_->Increment(1);
-    while (count_->Value() != finish_) {
-    }
+    // Avoid canceling the remaining tasks with a simple barrier.
+    barrier_->Wait();
   }
 
  private:
-  base::AtomicNumber<size_t>* count_;
-  size_t finish_;
+  OneShotBarrier* barrier_;
 };
 
 class TaskForDifferentItems;
@@ -155,21 +175,21 @@ TEST_F(ItemParallelJobTest, FinishAllItems) {
   }
 }
 
-TEST_F(ItemParallelJobTest, DistributeItems) {
-  const int kItems = 4;
-  bool was_processed[kItems];
-  base::AtomicNumber<size_t> count;
-  for (int i = 0; i < kItems; i++) {
+TEST_F(ItemParallelJobTest, DistributeItemsMultipleTasks) {
+  const int kItemsAndTasks = 2;  // Main thread + additional task.
+  bool was_processed[kItemsAndTasks];
+  OneShotBarrier barrier(kItemsAndTasks);
+  for (int i = 0; i < kItemsAndTasks; i++) {
     was_processed[i] = false;
   }
   ItemParallelJob job(i_isolate()->cancelable_task_manager(),
                       parallel_job_semaphore());
-  for (int i = 0; i < kItems; i++) {
+  for (int i = 0; i < kItemsAndTasks; i++) {
     job.AddItem(new SimpleItem(&was_processed[i]));
-    job.AddTask(new TaskProcessingOneItem(i_isolate(), &count, kItems));
+    job.AddTask(new TaskProcessingOneItem(i_isolate(), &barrier));
   }
   job.Run();
-  for (int i = 0; i < kItems; i++) {
+  for (int i = 0; i < kItemsAndTasks; i++) {
     EXPECT_TRUE(was_processed[i]);
   }
 }
