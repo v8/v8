@@ -1371,9 +1371,10 @@ bool Scope::AllowsLazyParsingWithoutUnresolvedVariables(
     if (s->is_catch_scope()) continue;
     // With scopes do not introduce variables that need allocation.
     if (s->is_with_scope()) continue;
-    // If everything is guaranteed to be context allocated we can ignore the
-    // scope.
-    if (s->has_forced_context_allocation()) continue;
+    // Module scopes context-allocate all variables, and have no
+    // {this} or {arguments} variables whose existence depends on
+    // references to them.
+    if (s->is_module_scope()) continue;
     // Only block scopes and function scopes should disallow preparsing.
     DCHECK(s->is_block_scope() || s->is_function_scope());
     return false;
