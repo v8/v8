@@ -43,41 +43,45 @@ void CodeStubAssembler::HandleBreakOnNode() {
   BreakOnNode(node_id);
 }
 
-void CodeStubAssembler::Assert(const NodeGenerator& codition_body,
+void CodeStubAssembler::Assert(const NodeGenerator& condition_body,
                                const char* message, const char* file,
                                int line) {
 #if defined(DEBUG)
   if (FLAG_debug_code) {
-    Label ok(this);
-    Label not_ok(this, Label::kDeferred);
-    if (message != nullptr && FLAG_code_comments) {
-      Comment("[ Assert: %s", message);
-    } else {
-      Comment("[ Assert");
-    }
-    Node* condition = codition_body();
-    DCHECK_NOT_NULL(condition);
-    Branch(condition, &ok, &not_ok);
-    BIND(&not_ok);
-    if (message != nullptr) {
-      char chars[1024];
-      Vector<char> buffer(chars);
-      if (file != nullptr) {
-        SNPrintF(buffer, "CSA_ASSERT failed: %s [%s:%d]\n", message, file,
-                 line);
-      } else {
-        SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
-      }
-      CallRuntime(
-          Runtime::kGlobalPrint, SmiConstant(Smi::kZero),
-          HeapConstant(factory()->NewStringFromAsciiChecked(&(buffer[0]))));
-    }
-    DebugBreak();
-    Goto(&ok);
-    BIND(&ok);
-    Comment("] Assert");
+    Check(condition_body, message, file, line);
   }
 #endif
+}
+
+void CodeStubAssembler::Check(const NodeGenerator& condition_body,
+                              const char* message, const char* file, int line) {
+  Label ok(this);
+  Label not_ok(this, Label::kDeferred);
+  if (message != nullptr && FLAG_code_comments) {
+    Comment("[ Assert: %s", message);
+  } else {
+    Comment("[ Assert");
+  }
+  Node* condition = condition_body();
+  DCHECK_NOT_NULL(condition);
+  Branch(condition, &ok, &not_ok);
+  BIND(&not_ok);
+  if (message != nullptr) {
+    char chars[1024];
+    Vector<char> buffer(chars);
+    if (file != nullptr) {
+      SNPrintF(buffer, "CSA_ASSERT failed: %s [%s:%d]\n", message, file, line);
+    } else {
+      SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
+    }
+    CallRuntime(
+        Runtime::kGlobalPrint, SmiConstant(Smi::kZero),
+        HeapConstant(factory()->NewStringFromAsciiChecked(&(buffer[0]))));
+  }
+  DebugBreak();
+  Goto(&ok);
+  BIND(&ok);
+  Comment("] Assert");
 }
 
 Node* CodeStubAssembler::Select(Node* condition, const NodeGenerator& true_body,

@@ -265,6 +265,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void Assert(const NodeGenerator& condition_body, const char* string = nullptr,
               const char* file = nullptr, int line = 0);
+  void Check(const NodeGenerator& condition_body, const char* string = nullptr,
+             const char* file = nullptr, int line = 0);
 
   Node* Select(Node* condition, const NodeGenerator& true_body,
                const NodeGenerator& false_body, MachineRepresentation rep);
@@ -1599,6 +1601,9 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   const Flags flags_;
 };
 
+#define CSA_CHECK(csa, x) \
+  (csa)->Check([&] { return (x); }, #x, __FILE__, __LINE__)
+
 #ifdef DEBUG
 #define CSA_ASSERT(csa, x) \
   (csa)->Assert([&] { return (x); }, #x, __FILE__, __LINE__)
@@ -1626,9 +1631,9 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 #endif  // DEBUG
 
 #ifdef ENABLE_SLOW_DCHECKS
-#define CSA_SLOW_ASSERT(csa, x)                                 \
-  if (FLAG_enable_slow_asserts) {                               \
-    (csa)->Assert([&] { return (x); }, #x, __FILE__, __LINE__); \
+#define CSA_SLOW_ASSERT(csa, x)   \
+  if (FLAG_enable_slow_asserts) { \
+    CSA_ASSERT(csa, x);           \
   }
 #else
 #define CSA_SLOW_ASSERT(csa, x) ((void)0)
