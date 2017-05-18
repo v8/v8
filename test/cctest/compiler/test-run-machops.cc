@@ -6762,7 +6762,7 @@ TEST(StackSlotAlignment) {
   }
 
   r.Return(alignment_counter);
-  CHECK_EQ(0, r.Call(1));
+  CHECK_EQ(0, r.Call());
 }
 
 #endif  // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
