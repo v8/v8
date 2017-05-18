@@ -2416,13 +2416,13 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
-                                           Handle<Code> code) {
+void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
+                                       Handle<Code> code) {
   // ----------- S t a t e -------------
-  //  -- rdi    : the target to call (can be any Object)
-  //  -- rcx    : start index (to support rest parameters)
-  //  -- rsp[0] : return address.
-  //  -- rsp[8] : thisArgument
+  //  -- rax : the number of arguments (not including the receiver)
+  //  -- rdx : the new target (for [[Construct]] calls)
+  //  -- rdi : the target to call (can be any Object)
+  //  -- rcx : start index (to support rest parameters)
   // -----------------------------------
 
   // Check if we have an arguments adaptor frame below the function frame.
@@ -2432,52 +2432,48 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
           Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &arguments_adaptor, Label::kNear);
   {
-    __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ movp(rax, FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset));
+    __ movp(r8, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+    __ movp(r8, FieldOperand(r8, JSFunction::kSharedFunctionInfoOffset));
     __ LoadSharedFunctionInfoSpecialField(
-        rax, rax, SharedFunctionInfo::kFormalParameterCountOffset);
+        r8, r8, SharedFunctionInfo::kFormalParameterCountOffset);
     __ movp(rbx, rbp);
   }
   __ jmp(&arguments_done, Label::kNear);
   __ bind(&arguments_adaptor);
   {
     __ SmiToInteger32(
-        rax, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+        r8, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   }
   __ bind(&arguments_done);
 
-  Label stack_empty, stack_done, stack_overflow;
-  __ subl(rax, rcx);
-  __ j(less_equal, &stack_empty);
+  Label stack_done, stack_overflow;
+  __ subl(r8, rcx);
+  __ j(less_equal, &stack_done);
   {
     // Check for stack overflow.
-    Generate_StackOverflowCheck(masm, rax, rcx, &stack_overflow, Label::kNear);
+    Generate_StackOverflowCheck(masm, r8, rcx, &stack_overflow, Label::kNear);
 
     // Forward the arguments from the caller frame.
     {
       Label loop;
-      __ movl(rcx, rax);
-      __ Pop(r8);
+      __ addl(rax, r8);
+      __ PopReturnAddressTo(rcx);
       __ bind(&loop);
       {
-        StackArgumentsAccessor args(rbx, rcx, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+        StackArgumentsAccessor args(rbx, r8, ARGUMENTS_DONT_CONTAIN_RECEIVER);
         __ Push(args.GetArgumentOperand(0));
-        __ decl(rcx);
+        __ decl(r8);
         __ j(not_zero, &loop);
       }
-      __ Push(r8);
+      __ PushReturnAddressFrom(rcx);
     }
   }
   __ jmp(&stack_done, Label::kNear);
   __ bind(&stack_overflow);
   __ TailCallRuntime(Runtime::kThrowStackOverflow);
-  __ bind(&stack_empty);
-  {
-    // We just pass the receiver, which is already on the stack.
-    __ Set(rax, 0);
-  }
   __ bind(&stack_done);
 
+  // Tail-call to the {code} handler.
   __ Jump(code, RelocInfo::CODE_TARGET);
 }
 

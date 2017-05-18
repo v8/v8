@@ -1703,6 +1703,38 @@ bool NeedsArgumentAdaptorFrame(Handle<SharedFunctionInfo> shared, int arity) {
 
 }  // namespace
 
+Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSConstructForwardVarargs, node->opcode());
+  ConstructForwardVarargsParameters p =
+      ConstructForwardVarargsParametersOf(node->op());
+  DCHECK_LE(2u, p.arity());
+  int const arity = static_cast<int>(p.arity() - 2);
+  int const start_index = static_cast<int>(p.start_index());
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Type* target_type = NodeProperties::GetType(target);
+  Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
+
+  // Check if {target} is a JSFunction.
+  if (target_type->Is(Type::Function())) {
+    // Patch {node} to an indirect call via ConstructFunctionForwardVarargs.
+    Callable callable = CodeFactory::ConstructFunctionForwardVarargs(isolate());
+    node->RemoveInput(arity + 1);
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->HeapConstant(callable.code()));
+    node->InsertInput(graph()->zone(), 2, new_target);
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 4, jsgraph()->Constant(start_index));
+    node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
+    NodeProperties::ChangeOp(
+        node, common()->Call(Linkage::GetStubCallDescriptor(
+                  isolate(), graph()->zone(), callable.descriptor(), arity + 1,
+                  CallDescriptor::kNeedsFrameState)));
+    return Changed(node);
+  }
+
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
@@ -1781,6 +1813,9 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
 Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallForwardVarargs, node->opcode());
   CallForwardVarargsParameters p = CallForwardVarargsParametersOf(node->op());
+  DCHECK_LE(2u, p.arity());
+  int const arity = static_cast<int>(p.arity() - 2);
+  int const start_index = static_cast<int>(p.start_index());
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type* target_type = NodeProperties::GetType(target);
 
@@ -1796,11 +1831,12 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
     Callable callable = CodeFactory::CallFunctionForwardVarargs(isolate());
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(p.start_index()));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(start_index));
     NodeProperties::ChangeOp(
-        node,
-        common()->Call(Linkage::GetStubCallDescriptor(
-            isolate(), graph()->zone(), callable.descriptor(), 1, flags)));
+        node, common()->Call(Linkage::GetStubCallDescriptor(
+                  isolate(), graph()->zone(), callable.descriptor(), arity + 1,
+                  flags)));
     return Changed(node);
   }
 
@@ -2176,6 +2212,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSStoreModule(node);
     case IrOpcode::kJSConvertReceiver:
       return ReduceJSConvertReceiver(node);
+    case IrOpcode::kJSConstructForwardVarargs:
+      return ReduceJSConstructForwardVarargs(node);
     case IrOpcode::kJSConstruct:
       return ReduceJSConstruct(node);
     case IrOpcode::kJSCallForwardVarargs:

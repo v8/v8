@@ -57,6 +57,17 @@ ToBooleanHints ToBooleanHintsOf(Operator const* op) {
   return OpParameter<ToBooleanHints>(op);
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         ConstructForwardVarargsParameters const& p) {
+  return os << p.arity() << ", " << p.start_index();
+}
+
+ConstructForwardVarargsParameters const& ConstructForwardVarargsParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSConstructForwardVarargs, op->opcode());
+  return OpParameter<ConstructForwardVarargsParameters>(op);
+}
+
 bool operator==(ConstructParameters const& lhs,
                 ConstructParameters const& rhs) {
   return lhs.arity() == rhs.arity() && lhs.frequency() == rhs.frequency() &&
@@ -118,7 +129,8 @@ const CallParameters& CallParametersOf(const Operator* op) {
 
 std::ostream& operator<<(std::ostream& os,
                          CallForwardVarargsParameters const& p) {
-  return os << p.start_index() << ", " << p.tail_call_mode();
+  return os << p.arity() << ", " << p.start_index() << ", "
+            << p.tail_call_mode();
 }
 
 CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
@@ -743,12 +755,12 @@ const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
 }
 
 const Operator* JSOperatorBuilder::CallForwardVarargs(
-    uint32_t start_index, TailCallMode tail_call_mode) {
-  CallForwardVarargsParameters parameters(start_index, tail_call_mode);
+    size_t arity, uint32_t start_index, TailCallMode tail_call_mode) {
+  CallForwardVarargsParameters parameters(arity, start_index, tail_call_mode);
   return new (zone()) Operator1<CallForwardVarargsParameters>(   // --
       IrOpcode::kJSCallForwardVarargs, Operator::kNoProperties,  // opcode
       "JSCallForwardVarargs",                                    // name
-      2, 1, 1, 1, 1, 2,                                          // counts
+      parameters.arity(), 1, 1, 1, 1, 2,                         // counts
       parameters);                                               // parameter
 }
 
@@ -796,6 +808,16 @@ const Operator* JSOperatorBuilder::CallRuntime(const Runtime::Function* f,
       "JSCallRuntime",                                    // name
       parameters.arity(), 1, 1, f->result_size, 1, 2,     // inputs/outputs
       parameters);                                        // parameter
+}
+
+const Operator* JSOperatorBuilder::ConstructForwardVarargs(
+    size_t arity, uint32_t start_index) {
+  ConstructForwardVarargsParameters parameters(arity, start_index);
+  return new (zone()) Operator1<ConstructForwardVarargsParameters>(   // --
+      IrOpcode::kJSConstructForwardVarargs, Operator::kNoProperties,  // opcode
+      "JSConstructForwardVarargs",                                    // name
+      parameters.arity(), 1, 1, 1, 1, 2,                              // counts
+      parameters);  // parameter
 }
 
 const Operator* JSOperatorBuilder::Construct(uint32_t arity,

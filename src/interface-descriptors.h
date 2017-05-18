@@ -48,6 +48,7 @@ class PlatformInterfaceDescriptor;
   V(CallConstruct)                         \
   V(CallTrampoline)                        \
   V(ConstructStub)                         \
+  V(ConstructForwardVarargs)               \
   V(ConstructTrampoline)                   \
   V(TransitionElementsKind)                \
   V(AllocateHeapNumber)                    \
@@ -575,9 +576,16 @@ class CallTrampolineDescriptor : public CallInterfaceDescriptor {
 
 class CallForwardVarargsDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kTarget, kStartIndex)
+  DEFINE_PARAMETERS(kTarget, kActualArgumentsCount, kStartIndex)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallForwardVarargsDescriptor,
                                                CallInterfaceDescriptor)
+};
+
+class ConstructForwardVarargsDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kTarget, kNewTarget, kActualArgumentsCount, kStartIndex)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      ConstructForwardVarargsDescriptor, CallInterfaceDescriptor)
 };
 
 class ConstructStubDescriptor : public CallInterfaceDescriptor {

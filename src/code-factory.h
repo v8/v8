@@ -167,6 +167,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable Construct(Isolate* isolate);
   static Callable ConstructWithSpread(Isolate* isolate);
   static Callable ConstructFunction(Isolate* isolate);
+  static Callable ConstructForwardVarargs(Isolate* isolate);
+  static Callable ConstructFunctionForwardVarargs(Isolate* isolate);
   static Callable CreateIterResultObject(Isolate* isolate);
   static Callable HasProperty(Isolate* isolate);
   static Callable ForInFilter(Isolate* isolate);

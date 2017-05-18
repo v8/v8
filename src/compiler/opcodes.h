@@ -159,6 +159,7 @@
   V(JSCreateScriptContext)
 
 #define JS_OTHER_OP_LIST(V)         \
+  V(JSConstructForwardVarargs)      \
   V(JSConstruct)                    \
   V(JSConstructWithSpread)          \
   V(JSCallForwardVarargs)           \

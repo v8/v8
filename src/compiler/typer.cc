@@ -1335,6 +1335,10 @@ Type* Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
 
 // JS other operators.
 
+Type* Typer::Visitor::TypeJSConstructForwardVarargs(Node* node) {
+  return Type::Receiver();
+}
+
 Type* Typer::Visitor::TypeJSConstruct(Node* node) { return Type::Receiver(); }
 
 Type* Typer::Visitor::TypeJSConstructWithSpread(Node* node) {

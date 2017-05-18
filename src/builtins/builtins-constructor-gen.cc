@@ -17,6 +17,15 @@
 namespace v8 {
 namespace internal {
 
+void Builtins::Generate_ConstructForwardVarargs(MacroAssembler* masm) {
+  Generate_ForwardVarargs(masm, masm->isolate()->builtins()->Construct());
+}
+
+void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
+  Generate_ForwardVarargs(masm,
+                          masm->isolate()->builtins()->ConstructFunction());
+}
+
 typedef compiler::Node Node;
 
 Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,

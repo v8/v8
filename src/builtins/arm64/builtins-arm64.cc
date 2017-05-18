@@ -2286,54 +2286,54 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
-                                           Handle<Code> code) {
+void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
+                                       Handle<Code> code) {
   // ----------- S t a t e -------------
-  //  -- x1    : the target to call (can be any Object)
-  //  -- x2    : start index (to support rest parameters)
-  //  -- lr    : return address.
-  //  -- sp[0] : thisArgument
+  //  -- x0 : the number of arguments (not including the receiver)
+  //  -- x3 : the new.target (for [[Construct]] calls)
+  //  -- x1 : the target to call (can be any Object)
+  //  -- x2 : start index (to support rest parameters)
   // -----------------------------------
 
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
-  __ Ldr(x3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ Ldr(x4, MemOperand(x3, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ Ldr(x5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ Ldr(x4, MemOperand(x5, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Cmp(x4, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
   __ B(eq, &arguments_adaptor);
   {
-    __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-    __ Ldr(x0, FieldMemOperand(x0, JSFunction::kSharedFunctionInfoOffset));
-    __ Ldrsw(x0, FieldMemOperand(
-                     x0, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ Mov(x3, fp);
+    __ Ldr(x6, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+    __ Ldr(x6, FieldMemOperand(x6, JSFunction::kSharedFunctionInfoOffset));
+    __ Ldrsw(x6, FieldMemOperand(
+                     x6, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ Mov(x5, fp);
   }
   __ B(&arguments_done);
   __ Bind(&arguments_adaptor);
   {
     // Just load the length from ArgumentsAdaptorFrame.
-    __ Ldrsw(x0, UntagSmiMemOperand(
-                     x3, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ Ldrsw(x6, UntagSmiMemOperand(
+                     x5, ArgumentsAdaptorFrameConstants::kLengthOffset));
   }
   __ Bind(&arguments_done);
 
-  Label stack_empty, stack_done, stack_overflow;
-  __ Subs(x0, x0, x2);
-  __ B(le, &stack_empty);
+  Label stack_done, stack_overflow;
+  __ Subs(x6, x6, x2);
+  __ B(le, &stack_done);
   {
     // Check for stack overflow.
-    Generate_StackOverflowCheck(masm, x0, x2, &stack_overflow);
+    Generate_StackOverflowCheck(masm, x6, x2, &stack_overflow);
 
     // Forward the arguments from the caller frame.
     {
       Label loop;
-      __ Add(x3, x3, kPointerSize);
-      __ Mov(x2, x0);
+      __ Add(x5, x5, kPointerSize);
+      __ Add(x0, x0, x6);
       __ bind(&loop);
       {
-        __ Ldr(x4, MemOperand(x3, x2, LSL, kPointerSizeLog2));
+        __ Ldr(x4, MemOperand(x5, x6, LSL, kPointerSizeLog2));
         __ Push(x4);
-        __ Subs(x2, x2, 1);
+        __ Subs(x6, x6, 1);
         __ B(ne, &loop);
       }
     }
@@ -2341,11 +2341,6 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   __ B(&stack_done);
   __ Bind(&stack_overflow);
   __ TailCallRuntime(Runtime::kThrowStackOverflow);
-  __ Bind(&stack_empty);
-  {
-    // We just pass the receiver, which is already on the stack.
-    __ Mov(x0, 0);
-  }
   __ Bind(&stack_done);
 
   __ Jump(code, RelocInfo::CODE_TARGET);

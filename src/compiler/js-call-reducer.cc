@@ -124,7 +124,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     Node* arg_array = NodeProperties::GetValueInput(node, 3);
     if (arg_array->opcode() != IrOpcode::kJSCreateArguments) return NoChange();
     for (Edge edge : arg_array->use_edges()) {
-      Node* user = edge.from();
+      Node* const user = edge.from();
+      if (user == node) continue;
       // Ignore uses as frame state's locals or parameters.
       if (user->opcode() == IrOpcode::kStateValues) continue;
       // Ignore uses as frame state's accumulator.
@@ -133,7 +134,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
         continue;
       }
       if (!NodeProperties::IsValueEdge(edge)) continue;
-      if (edge.from() == node) continue;
       return NoChange();
     }
     // Check if the arguments can be handled in the fast case (i.e. we don't
@@ -173,7 +173,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
       node->RemoveInput(0);  // Function.prototype.apply
       node->RemoveInput(2);  // arguments
       NodeProperties::ChangeOp(node, javascript()->CallForwardVarargs(
-                                         start_index, p.tail_call_mode()));
+                                         2, start_index, p.tail_call_mode()));
       return Changed(node);
     }
     // Get to the actual frame state from which to extract the arguments;
@@ -454,50 +454,81 @@ Reduction JSCallReducer::ReduceSpreadCall(Node* node, int arity) {
   // of spread (except for value uses in frame states).
   if (spread->opcode() != IrOpcode::kJSCreateArguments) return NoChange();
   for (Edge edge : spread->use_edges()) {
-    if (edge.from()->opcode() == IrOpcode::kStateValues) continue;
+    Node* const user = edge.from();
+    if (user == node) continue;
+    // Ignore uses as frame state's locals or parameters.
+    if (user->opcode() == IrOpcode::kStateValues) continue;
+    // Ignore uses as frame state's accumulator.
+    if (user->opcode() == IrOpcode::kFrameState && user->InputAt(2) == spread) {
+      continue;
+    }
     if (!NodeProperties::IsValueEdge(edge)) continue;
-    if (edge.from() == node) continue;
     return NoChange();
   }
 
   // Get to the actual frame state from which to extract the arguments;
   // we can only optimize this in case the {node} was already inlined into
   // some other function (and same for the {spread}).
-  CreateArgumentsType type = CreateArgumentsTypeOf(spread->op());
+  CreateArgumentsType const type = CreateArgumentsTypeOf(spread->op());
   Node* frame_state = NodeProperties::GetFrameStateInput(spread);
+  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  int start_index = 0;
+  // Determine the formal parameter count;
+  Handle<SharedFunctionInfo> shared;
+  if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+  int formal_parameter_count = shared->internal_formal_parameter_count();
+  if (type == CreateArgumentsType::kMappedArguments) {
+    // Mapped arguments (sloppy mode) that are aliased can only be handled
+    // here if there's no side-effect between the {node} and the {arg_array}.
+    // TODO(turbofan): Further relax this constraint.
+    if (formal_parameter_count != 0) {
+      Node* effect = NodeProperties::GetEffectInput(node);
+      while (effect != spread) {
+        if (effect->op()->EffectInputCount() != 1 ||
+            !(effect->op()->properties() & Operator::kNoWrite)) {
+          return NoChange();
+        }
+        effect = NodeProperties::GetEffectInput(effect);
+      }
+    }
+  } else if (type == CreateArgumentsType::kRestParameter) {
+    start_index = formal_parameter_count;
+
+    // Only check the array iterator protector when we have a rest object.
+    if (!isolate()->IsArrayIteratorLookupChainIntact()) return NoChange();
+  }
+
+  // Install appropriate code dependencies.
+  dependencies()->AssumeMapStable(
+      isolate()->initial_array_iterator_prototype_map());
+  if (type == CreateArgumentsType::kRestParameter) {
+    dependencies()->AssumePropertyCell(factory()->array_iterator_protector());
+  }
+  // Remove the spread input from the {node}.
+  node->RemoveInput(arity--);
+  // Check if are spreading to inlined arguments or to the arguments of
+  // the outermost function.
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
-  if (outer_state->opcode() != IrOpcode::kFrameState) return NoChange();
+  if (outer_state->opcode() != IrOpcode::kFrameState) {
+    Operator const* op =
+        (node->opcode() == IrOpcode::kJSCallWithSpread)
+            ? javascript()->CallForwardVarargs(arity + 1, start_index,
+                                               TailCallMode::kDisallow)
+            : javascript()->ConstructForwardVarargs(arity + 2, start_index);
+    NodeProperties::ChangeOp(node, op);
+    return Changed(node);
+  }
+  // Get to the actual frame state from which to extract the arguments;
+  // we can only optimize this in case the {node} was already inlined into
+  // some other function (and same for the {arg_array}).
   FrameStateInfo outer_info = OpParameter<FrameStateInfo>(outer_state);
   if (outer_info.type() == FrameStateType::kArgumentsAdaptor) {
     // Need to take the parameters from the arguments adaptor.
     frame_state = outer_state;
   }
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
-  int start_index = 0;
-  if (type == CreateArgumentsType::kMappedArguments) {
-    // Mapped arguments (sloppy mode) cannot be handled if they are aliased.
-    Handle<SharedFunctionInfo> shared;
-    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-    if (shared->internal_formal_parameter_count() != 0) return NoChange();
-  } else if (type == CreateArgumentsType::kRestParameter) {
-    Handle<SharedFunctionInfo> shared;
-    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-    start_index = shared->internal_formal_parameter_count();
-
-    // Only check the array iterator protector when we have a rest object.
-    if (!isolate()->IsArrayIteratorLookupChainIntact()) return NoChange();
-    // Add a code dependency on the array iterator protector.
-    dependencies()->AssumePropertyCell(factory()->array_iterator_protector());
-  }
-
-  dependencies()->AssumeMapStable(
-      isolate()->initial_array_iterator_prototype_map());
-
-  node->RemoveInput(arity--);
-
   // Add the actual parameters to the {node}, skipping the receiver.
   Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
-  for (int i = start_index + 1; i < state_info.parameter_count(); ++i) {
+  for (int i = start_index + 1; i < parameters->InputCount(); ++i) {
     node->InsertInput(graph()->zone(), static_cast<int>(++arity),
                       parameters->InputAt(i));
   }

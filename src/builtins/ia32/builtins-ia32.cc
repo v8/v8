@@ -2309,14 +2309,17 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
-                                           Handle<Code> code) {
+void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
+                                       Handle<Code> code) {
   // ----------- S t a t e -------------
-  //  -- edi    : the target to call (can be any Object)
-  //  -- ecx    : start index (to support rest parameters)
-  //  -- esp[0] : return address.
-  //  -- esp[4] : thisArgument
+  //  -- eax : the number of arguments (not including the receiver)
+  //  -- edi : the target to call (can be any Object)
+  //  -- edx : the new target (for [[Construct]] calls)
+  //  -- ecx : start index (to support rest parameters)
   // -----------------------------------
+
+  // Preserve new.target (in case of [[Construct]]).
+  __ movd(xmm0, edx);
 
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
@@ -2325,24 +2328,24 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
          Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &arguments_adaptor, Label::kNear);
   {
-    __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-    __ mov(eax, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
-    __ mov(eax,
-           FieldOperand(eax, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ mov(edx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+    __ mov(edx, FieldOperand(edx, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(edx,
+           FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
     __ mov(ebx, ebp);
   }
   __ jmp(&arguments_done, Label::kNear);
   __ bind(&arguments_adaptor);
   {
     // Just load the length from the ArgumentsAdaptorFrame.
-    __ mov(eax, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ mov(edx, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   }
   __ bind(&arguments_done);
 
-  Label stack_empty, stack_done;
-  __ SmiUntag(eax);
-  __ sub(eax, ecx);
-  __ j(less_equal, &stack_empty);
+  Label stack_done;
+  __ SmiUntag(edx);
+  __ sub(edx, ecx);
+  __ j(less_equal, &stack_done);
   {
     // Check for stack overflow.
     {
@@ -2357,7 +2360,7 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
       __ add(ecx, esp);
       __ sar(ecx, kPointerSizeLog2);
       // Check if the arguments will overflow the stack.
-      __ cmp(ecx, eax);
+      __ cmp(ecx, edx);
       __ j(greater, &done, Label::kNear);  // Signed comparison.
       __ TailCallRuntime(Runtime::kThrowStackOverflow);
       __ bind(&done);
@@ -2366,25 +2369,23 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
     // Forward the arguments from the caller frame.
     {
       Label loop;
-      __ mov(ecx, eax);
-      __ pop(edx);
+      __ add(eax, edx);
+      __ PopReturnAddressTo(ecx);
       __ bind(&loop);
       {
-        __ Push(Operand(ebx, ecx, times_pointer_size, 1 * kPointerSize));
-        __ dec(ecx);
+        __ Push(Operand(ebx, edx, times_pointer_size, 1 * kPointerSize));
+        __ dec(edx);
         __ j(not_zero, &loop);
       }
-      __ push(edx);
+      __ PushReturnAddressFrom(ecx);
     }
-  }
-  __ jmp(&stack_done, Label::kNear);
-  __ bind(&stack_empty);
-  {
-    // We just pass the receiver, which is already on the stack.
-    __ Move(eax, Immediate(0));
   }
   __ bind(&stack_done);
 
+  // Restore new.target (in case of [[Construct]]).
+  __ movd(edx, xmm0);
+
+  // Tail-call to the {code} handler.
   __ Jump(code, RelocInfo::CODE_TARGET);
 }
 

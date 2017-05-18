@@ -124,8 +124,8 @@ class Builtins {
 
   static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
                             TailCallMode tail_call_mode);
-  static void Generate_CallForwardVarargs(MacroAssembler* masm,
-                                          Handle<Code> code);
+
+  static void Generate_ForwardVarargs(MacroAssembler* masm, Handle<Code> code);
 
   static void Generate_InterpreterPushArgsThenCallImpl(
       MacroAssembler* masm, ConvertReceiverMode receiver_mode,
