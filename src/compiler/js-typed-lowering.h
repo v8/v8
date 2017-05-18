@@ -105,6 +105,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   CompilationDependencies* dependencies_;
   Flags flags_;
   JSGraph* jsgraph_;
+  Type* empty_string_type_;
   Type* shifted_int32_ranges_[4];
   Type* pointer_comparable_type_;
   TypeCache const& type_cache_;

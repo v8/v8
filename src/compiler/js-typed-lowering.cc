@@ -488,13 +488,13 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
-      pointer_comparable_type_(Type::Union(
-          Type::Oddball(),
-          Type::Union(
-              Type::SymbolOrReceiver(),
-              Type::HeapConstant(factory()->empty_string(), graph()->zone()),
-              graph()->zone()),
-          graph()->zone())),
+      empty_string_type_(
+          Type::HeapConstant(factory()->empty_string(), graph()->zone())),
+      pointer_comparable_type_(
+          Type::Union(Type::Oddball(),
+                      Type::Union(Type::SymbolOrReceiver(), empty_string_type_,
+                                  graph()->zone()),
+                      graph()->zone())),
       type_cache_(TypeCache::Get()) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
@@ -534,6 +534,23 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   if (r.OneInputIs(Type::String())) {
     if (r.ShouldCreateConsString()) {
       return ReduceCreateConsString(node);
+    }
+    // Eliminate useless concatenation of empty string.
+    if ((flags() & kDeoptimizationEnabled) &&
+        BinaryOperationHintOf(node->op()) == BinaryOperationHint::kString) {
+      Node* effect = NodeProperties::GetEffectInput(node);
+      Node* control = NodeProperties::GetControlInput(node);
+      if (r.LeftInputIs(empty_string_type_)) {
+        Node* value = effect = graph()->NewNode(simplified()->CheckString(),
+                                                r.right(), effect, control);
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      } else if (r.RightInputIs(empty_string_type_)) {
+        Node* value = effect = graph()->NewNode(simplified()->CheckString(),
+                                                r.left(), effect, control);
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
     }
     StringAddFlags flags = STRING_ADD_CHECK_NONE;
     if (!r.LeftInputIs(Type::String())) {
