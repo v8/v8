@@ -348,8 +348,12 @@ int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
 }
 
 int MarkCompactCollectorBase::NumberOfPointerUpdateTasks(int pages) {
-  return FLAG_parallel_pointer_update ? Min(NumberOfAvailableCores(), pages)
-                                      : 1;
+  // Limit the number of update tasks as task creation often dominates the
+  // actual work that is being done.
+  static const int kMaxPointerUpdateTasks = 8;
+  return FLAG_parallel_pointer_update
+             ? Min(kMaxPointerUpdateTasks, Min(NumberOfAvailableCores(), pages))
+             : 1;
 }
 
 int MinorMarkCompactCollector::NumberOfMarkingTasks() {
