@@ -2197,62 +2197,62 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 }
 
 // static
-void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
-                                           Handle<Code> code) {
+void Builtins::Generate_ForwardVarargs(MacroAssembler* masm,
+                                       Handle<Code> code) {
   // ----------- S t a t e -------------
-  //  -- r3    : the target to call (can be any Object)
-  //  -- r4    : start index (to support rest parameters)
-  //  -- lr    : return address.
-  //  -- sp[0] : thisArgument
+  //  -- r2 : the number of arguments (not including the receiver)
+  //  -- r5 : the new.target (for [[Construct]] calls)
+  //  -- r3 : the target to call (can be any Object)
+  //  -- r4 : start index (to support rest parameters)
   // -----------------------------------
 
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
-  __ LoadP(r5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(ip, MemOperand(r5, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ LoadP(r6, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ LoadP(ip, MemOperand(r6, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpP(ip, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ beq(&arguments_adaptor);
   {
-    __ LoadP(r2, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-    __ LoadP(r2, FieldMemOperand(r2, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadW(r2, FieldMemOperand(
-                     r2, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ LoadRR(r5, fp);
+    __ LoadP(r7, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+    __ LoadP(r7, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadW(r7, FieldMemOperand(
+                     r7, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ LoadRR(r6, fp);
   }
   __ b(&arguments_done);
   __ bind(&arguments_adaptor);
   {
     // Load the length from the ArgumentsAdaptorFrame.
-    __ LoadP(r2, MemOperand(r5, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ LoadP(r7, MemOperand(r6, ArgumentsAdaptorFrameConstants::kLengthOffset));
 #if V8_TARGET_ARCH_S390X
-    __ SmiUntag(r2);
+    __ SmiUntag(r7);
 #endif
   }
   __ bind(&arguments_done);
 
-  Label stack_empty, stack_done, stack_overflow;
+  Label stack_done, stack_overflow;
 #if !V8_TARGET_ARCH_S390X
-  __ SmiUntag(r2);
+  __ SmiUntag(r7);
 #endif
-  __ SubP(r2, r2, r4);
-  __ CmpP(r2, Operand::Zero());
-  __ ble(&stack_empty);
+  __ SubP(r7, r7, r4);
+  __ CmpP(r7, Operand::Zero());
+  __ ble(&stack_done);
   {
     // Check for stack overflow.
-    Generate_StackOverflowCheck(masm, r2, r4, &stack_overflow);
+    Generate_StackOverflowCheck(masm, r7, r4, &stack_overflow);
 
     // Forward the arguments from the caller frame.
     {
       Label loop;
-      __ AddP(r5, r5, Operand(kPointerSize));
-      __ LoadRR(r4, r2);
+      __ AddP(r6, r6, Operand(kPointerSize));
+      __ AddP(r2, r2, r7);
       __ bind(&loop);
       {
-        __ ShiftLeftP(ip, r4, Operand(kPointerSizeLog2));
-        __ LoadP(ip, MemOperand(r5, ip));
+        __ ShiftLeftP(ip, r7, Operand(kPointerSizeLog2));
+        __ LoadP(ip, MemOperand(r6, ip));
         __ push(ip);
-        __ SubP(r4, r4, Operand(1));
-        __ CmpP(r4, Operand::Zero());
+        __ SubP(r7, r7, Operand(1));
+        __ CmpP(r7, Operand::Zero());
         __ bne(&loop);
       }
     }
@@ -2260,13 +2260,9 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   __ b(&stack_done);
   __ bind(&stack_overflow);
   __ TailCallRuntime(Runtime::kThrowStackOverflow);
-  __ bind(&stack_empty);
-  {
-    // We just pass the receiver, which is already on the stack.
-    __ mov(r2, Operand::Zero());
-  }
   __ bind(&stack_done);
 
+  // Tail-call to the {code} handler.
   __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
