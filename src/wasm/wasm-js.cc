@@ -137,6 +137,34 @@ i::MaybeHandle<i::JSReceiver> GetValueAsImports(Local<Value> arg,
   return i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
 }
 
+void RejectResponseAPI(const v8::FunctionCallbackInfo<v8::Value>& args,
+                       ErrorThrower* thrower) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  HandleScope scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+
+  ASSIGN(Promise::Resolver, resolver, Promise::Resolver::New(context));
+  Local<Promise> module_promise = resolver->GetPromise();
+  args.GetReturnValue().Set(module_promise);
+  thrower->TypeError(
+      "Argument 0 must be provided and must be a Response or Response promise");
+  auto maybe = resolver->Reject(context, Utils::ToLocal(thrower->Reify()));
+  CHECK_IMPLIES(!maybe.FromMaybe(false), i_isolate->has_scheduled_exception());
+}
+
+void WebAssemblyCompileStreaming(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
+  if (!i_isolate->wasm_compile_callback()(args)) {
+    ErrorThrower thrower(i_isolate, "WebAssembly.compileStreaming()");
+    RejectResponseAPI(args, &thrower);
+  }
+}
+
 // WebAssembly.compile(bytes) -> Promise
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -360,6 +388,33 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (WebAssemblyInstantiateImpl(isolate, args[0], data).ToLocal(&instance)) {
     args.GetReturnValue().Set(instance);
   }
+}
+
+void WebAssemblyInstantiateStreaming(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  // we use i_isolate in DCHECKS in the ASSIGN statements.
+  USE(i_isolate);
+  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
+  HandleScope scope(isolate);
+
+  Local<Context> context = isolate->GetCurrentContext();
+  ASSIGN(Promise::Resolver, resolver, Promise::Resolver::New(context));
+  Local<Value> first_arg_value = args[0];
+
+  ASSIGN(Function, compileStreaming,
+         Function::New(context, WebAssemblyCompileStreaming));
+  ASSIGN(Value, compile_retval,
+         compileStreaming->Call(context, args.Holder(), 1, &first_arg_value));
+  Local<Promise> module_promise = Local<Promise>::Cast(compile_retval);
+
+  DCHECK(!module_promise.IsEmpty());
+  Local<Value> data = args[1];
+  ASSIGN(Function, instantiate_impl,
+         Function::New(context, WebAssemblyInstantiateToPairCallback, data));
+  ASSIGN(Promise, result, module_promise->Then(context, instantiate_impl));
+  args.GetReturnValue().Set(result);
 }
 
 // WebAssembly.instantiate(module, imports) -> WebAssembly.Instance
@@ -871,8 +926,12 @@ void WasmJs::Install(Isolate* isolate) {
   JSObject::AddProperty(webassembly, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly"), ro_attributes);
   InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile, 1);
+  InstallFunc(isolate, webassembly, "compileStreaming",
+              WebAssemblyCompileStreaming, 1);
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
+  InstallFunc(isolate, webassembly, "instantiateStreaming",
+              WebAssemblyInstantiateStreaming, 1);
 
   // Setup Module
   Handle<JSFunction> module_constructor =

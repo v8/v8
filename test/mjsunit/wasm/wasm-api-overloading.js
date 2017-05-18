@@ -20,14 +20,30 @@ var module = new WebAssembly.Module(buffer);
 var wrapper = [module];
 
 assertPromiseResult(
-  WebAssembly.instantiate(wrapper),
+  WebAssembly.instantiateStreaming(wrapper),
+  assertUnreachable,
+  e => assertTrue(e instanceof TypeError));
+
+assertPromiseResult(
+  WebAssembly.compileStreaming(wrapper),
   assertUnreachable,
   e => assertTrue(e instanceof TypeError));
 
 assertPromiseResult(
   (() => {
     %SetWasmCompileFromPromiseOverload();
-    return WebAssembly.instantiate(wrapper);
+    return WebAssembly.compileStreaming(wrapper);
+  })(),
+  module => {
+    assertTrue(module instanceof WebAssembly.Module);
+      %ResetWasmOverloads();
+  },
+  assertUnreachable);
+
+assertPromiseResult(
+  (() => {
+    %SetWasmCompileFromPromiseOverload();
+    return WebAssembly.instantiateStreaming(wrapper);
   })(),
   pair => {
     assertTrue(pair.instance instanceof WebAssembly.Instance);
