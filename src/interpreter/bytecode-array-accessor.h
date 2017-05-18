@@ -51,6 +51,8 @@ class V8_EXPORT_PRIVATE JumpTableTargetOffsets final {
   iterator begin() const;
   iterator end() const;
 
+  int size() const;
+
  private:
   const BytecodeArrayAccessor* accessor_;
   int table_start_;

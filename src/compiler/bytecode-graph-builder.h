@@ -91,10 +91,15 @@ class BytecodeGraphBuilder {
   // Helpers to create new control nodes.
   Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
   Node* NewIfFalse() { return NewNode(common()->IfFalse()); }
+  Node* NewIfValue(int32_t value) { return NewNode(common()->IfValue(value)); }
+  Node* NewIfDefault() { return NewNode(common()->IfDefault()); }
   Node* NewMerge() { return NewNode(common()->Merge(1), true); }
   Node* NewLoop() { return NewNode(common()->Loop(1), true); }
   Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone) {
     return NewNode(common()->Branch(hint), condition);
+  }
+  Node* NewSwitch(Node* condition, int control_output_count) {
+    return NewNode(common()->Switch(control_output_count), condition);
   }
 
   // Creates a new Phi node having {count} input values.
@@ -221,6 +226,8 @@ class BytecodeGraphBuilder {
   void BuildJumpIfToBooleanFalse();
   void BuildJumpIfNotHole();
   void BuildJumpIfJSReceiver();
+
+  void BuildSwitchOnSmi(Node* condition);
 
   // Simulates control flow by forward-propagating environments.
   void MergeIntoSuccessorEnvironment(int target_offset);

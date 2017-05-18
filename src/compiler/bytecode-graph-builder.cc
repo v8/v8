@@ -2165,24 +2165,25 @@ void BytecodeGraphBuilder::VisitJumpIfNotUndefinedConstant() {
 
 void BytecodeGraphBuilder::VisitJumpLoop() { BuildJump(); }
 
+void BytecodeGraphBuilder::BuildSwitchOnSmi(Node* condition) {
+  interpreter::JumpTableTargetOffsets offsets =
+      bytecode_iterator().GetJumpTableTargetOffsets();
+
+  NewSwitch(condition, offsets.size() + 1);
+  for (const auto& entry : offsets) {
+    SubEnvironment sub_environment(this);
+    NewIfValue(entry.case_value);
+    MergeIntoSuccessorEnvironment(entry.target_offset);
+  }
+  NewIfDefault();
+}
+
 void BytecodeGraphBuilder::VisitSwitchOnSmiNoFeedback() {
   PrepareEagerCheckpoint();
 
   Node* acc = environment()->LookupAccumulator();
-
-  for (const auto& entry : bytecode_iterator().GetJumpTableTargetOffsets()) {
-    // TODO(leszeks): This should be a switch, but under OSR we fail to type the
-    // input correctly so we have to do a JS strict equal instead.
-    NewBranch(
-        NewNode(javascript()->StrictEqual(CompareOperationHint::kSignedSmall),
-                acc, jsgraph()->SmiConstant(entry.case_value)));
-    {
-      SubEnvironment sub_environment(this);
-      NewIfTrue();
-      MergeIntoSuccessorEnvironment(entry.target_offset);
-    }
-    NewIfFalse();
-  }
+  Node* acc_smi = NewNode(simplified()->CheckSmi(), acc);
+  BuildSwitchOnSmi(acc_smi);
 }
 
 void BytecodeGraphBuilder::VisitStackCheck() {
