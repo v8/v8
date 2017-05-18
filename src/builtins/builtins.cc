@@ -69,28 +69,6 @@ Handle<Code> Builtins::NewCloneShallowArray(
   return Handle<Code>::null();
 }
 
-Handle<Code> Builtins::NewCloneShallowObject(int length) {
-  switch (length) {
-    case 0:
-      return FastCloneShallowObject0();
-    case 1:
-      return FastCloneShallowObject1();
-    case 2:
-      return FastCloneShallowObject2();
-    case 3:
-      return FastCloneShallowObject3();
-    case 4:
-      return FastCloneShallowObject4();
-    case 5:
-      return FastCloneShallowObject5();
-    case 6:
-      return FastCloneShallowObject6();
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>::null();
-}
-
 Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
     case ToPrimitiveHint::kDefault:

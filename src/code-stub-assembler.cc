@@ -2042,10 +2042,12 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
   CSA_ASSERT(this, UintPtrLessThanOrEqual(
                        at_least_space_for,
                        IntPtrConstant(NameDictionary::kMaxCapacity)));
-
   Node* capacity = HashTableComputeCapacity(at_least_space_for);
-  CSA_ASSERT(this, WordIsPowerOfTwo(capacity));
+  return AllocateNameDictionaryWithCapacity(capacity);
+}
 
+Node* CodeStubAssembler::AllocateNameDictionaryWithCapacity(Node* capacity) {
+  CSA_ASSERT(this, WordIsPowerOfTwo(capacity));
   Node* length = EntryToIndex<NameDictionary>(capacity);
   Node* store_size =
       IntPtrAdd(WordShl(length, IntPtrConstant(kPointerSizeLog2)),
@@ -2088,14 +2090,15 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
 
 Node* CodeStubAssembler::CopyNameDictionary(Node* dictionary,
                                             Label* large_object_fallback) {
+  CSA_ASSERT(this, IsHashTable(dictionary));
   Comment("Copy boilerplate property dict");
-  Label done(this);
+  Node* capacity = SmiUntag(GetCapacity<NameDictionary>(dictionary));
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(capacity, IntPtrConstant(0)));
+  GotoIf(UintPtrGreaterThan(
+             capacity, IntPtrConstant(NameDictionary::kMaxRegularCapacity)),
+         large_object_fallback);
+  Node* properties = AllocateNameDictionaryWithCapacity(capacity);
   Node* length = SmiUntag(LoadFixedArrayBaseLength(dictionary));
-  GotoIf(
-      IntPtrGreaterThan(length, IntPtrConstant(FixedArray::kMaxRegularLength)),
-      large_object_fallback);
-  Node* properties =
-      AllocateNameDictionary(SmiUntag(GetCapacity<NameDictionary>(dictionary)));
   CopyFixedArrayElements(FAST_ELEMENTS, dictionary, properties, length,
                          SKIP_WRITE_BARRIER, INTPTR_PARAMETERS);
   return properties;

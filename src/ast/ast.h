@@ -1472,6 +1472,9 @@ class ObjectLiteral final : public MaterializedLiteral {
 
   void InitFlagsForPendingNullPrototype(int i);
 
+  void set_may_store_doubles(bool may_store_doubles) {
+    bit_field_ = MayStoreDoublesField::update(bit_field_, may_store_doubles);
+  }
   void set_fast_elements(bool fast_elements) {
     bit_field_ = FastElementsField::update(bit_field_, fast_elements);
   }

@@ -601,7 +601,7 @@ void ObjectLiteral::InitDepthAndFlags() {
     // TODO(verwaest): Remove once we can store them inline.
     if (FLAG_track_double_fields &&
         (value->IsNumberLiteral() || !is_compile_time_value)) {
-      bit_field_ = MayStoreDoublesField::update(bit_field_, true);
+      set_may_store_doubles(true);
     }
 
     is_simple = is_simple && is_compile_time_value;

@@ -3085,10 +3085,9 @@ template <SearchMode search_mode, typename T>
 inline int Search(T* array, Name* name, int valid_entries = 0,
                   int* out_insertion_index = NULL);
 
-// HandlerTable is a fixed array containing entries for exception handlers in
-// the code object it is associated with. The tables comes in two flavors:
-// 1) Based on ranges: Used for unoptimized code. Contains one entry per
-//    exception handler and a range representing the try-block covered by that
+// The cache for maps used by normalized (dictionary mode) objects.
+// Such maps do not have property descriptors, so a typical program
+// needs very limited number of distinct normalized maps.
 //    handler. Layout looks as follows:
 //      [ range-start , range-end , handler-offset , handler-data ]
 // 2) Based on return addresses: Used for turbofanned code. Contains one entry
@@ -5124,8 +5123,8 @@ class SharedFunctionInfo: public HeapObject {
   inline void set_function_literal_id(int value);
 
 #if V8_SFI_HAS_UNIQUE_ID
-  // [unique_id] - For tracing purposes, an identifier that's persistent even if
-  // the GC moves this SharedFunctionInfo.
+  // [unique_id] - For --trace-maps purposes, an identifier that's persistent
+  // even if the GC moves this SharedFunctionInfo.
   inline int unique_id() const;
   inline void set_unique_id(int value);
 #endif

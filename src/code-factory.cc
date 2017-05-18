@@ -371,8 +371,8 @@ Callable CodeFactory::FastCloneShallowArray(
 }
 
 // static
-Callable CodeFactory::FastCloneShallowObject(Isolate* isolate, int length) {
-  return Callable(isolate->builtins()->NewCloneShallowObject(length),
+Callable CodeFactory::FastCloneShallowObject(Isolate* isolate) {
+  return Callable(isolate->builtins()->FastCloneShallowObject(),
                   FastCloneShallowObjectDescriptor(isolate));
 }
 

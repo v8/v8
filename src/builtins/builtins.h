@@ -64,7 +64,6 @@ class Builtins {
   Handle<Code> InterpreterPushArgsThenConstruct(InterpreterPushArgsMode mode);
   Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> NewCloneShallowArray(AllocationSiteMode allocation_mode);
-  Handle<Code> NewCloneShallowObject(int length);
   Handle<Code> JSConstructStubGeneric();
 
   Code* builtin(Name name) {

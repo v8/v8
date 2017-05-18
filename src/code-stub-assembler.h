@@ -581,8 +581,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* AllocateRegExpResult(Node* context, Node* length, Node* index,
                              Node* input);
 
-  Node* AllocateNameDictionary(int capacity);
-  Node* AllocateNameDictionary(Node* capacity);
+  Node* AllocateNameDictionary(int at_least_space_for);
+  Node* AllocateNameDictionary(Node* at_least_space_for);
+  Node* AllocateNameDictionaryWithCapacity(Node* capacity);
   Node* CopyNameDictionary(Node* dictionary, Label* large_object_fallback);
 
   Node* AllocateJSObjectFromMap(Node* map, Node* properties = nullptr,

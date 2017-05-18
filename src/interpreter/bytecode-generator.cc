@@ -1738,10 +1738,7 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // Deep-copy the literal boilerplate.
   uint8_t flags = CreateObjectLiteralFlags::Encode(
-      expr->IsFastCloningSupported(),
-      ConstructorBuiltins::FastCloneShallowObjectPropertiesCount(
-          expr->properties_count()),
-      expr->ComputeFlags());
+      expr->ComputeFlags(), expr->IsFastCloningSupported());
 
   Register literal = register_allocator()->NewRegister();
   size_t entry;
@@ -1753,6 +1750,9 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     entry = builder()->AllocateDeferredConstantPoolEntry();
     object_literals_.push_back(std::make_pair(expr, entry));
   }
+  // TODO(cbruni): Directly generate runtime call for literals we cannot
+  // optimize once the FastCloneShallowObject stub is in sync with the TF
+  // optimizations.
   builder()->CreateObjectLiteral(entry, feedback_index(expr->literal_slot()),
                                  flags, literal);
 

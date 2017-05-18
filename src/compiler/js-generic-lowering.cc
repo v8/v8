@@ -471,8 +471,7 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   if ((p.flags() & ObjectLiteral::kShallowProperties) != 0 &&
       p.length() <=
           ConstructorBuiltins::kMaximumClonedShallowObjectProperties) {
-    Callable callable =
-        CodeFactory::FastCloneShallowObject(isolate(), p.length());
+    Callable callable = CodeFactory::FastCloneShallowObject(isolate());
     ReplaceWithStubCall(node, callable, flags);
   } else {
     ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);

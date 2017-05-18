@@ -192,8 +192,11 @@ class HashTable : public HashTableBase {
   static const int kMaxCapacity =
       (FixedArray::kMaxLength - kElementsStartIndex) / kEntrySize;
 
+  // Maximum length to create a regular HashTable (aka. non large object).
+  static const int kMaxRegularCapacity = 16384;
+
   // Returns the index for an entry (of the key)
-  static inline int EntryToIndex(int entry) {
+  static constexpr inline int EntryToIndex(int entry) {
     return (entry * kEntrySize) + kElementsStartIndex;
   }
 
@@ -218,6 +221,15 @@ class HashTable : public HashTableBase {
   // Returns true if this table has sufficient capacity for adding n elements.
   bool HasSufficientCapacityToAdd(int number_of_additional_elements);
 
+ private:
+  // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
+  STATIC_ASSERT(EntryToIndex(kMaxRegularCapacity) < kMaxRegularLength);
+  STATIC_ASSERT(v8::base::bits::IsPowerOfTwo32(kMaxRegularCapacity));
+  static const int kMaxRegularEntry = kMaxRegularCapacity / kEntrySize;
+  static const int kMaxRegularIndex = EntryToIndex(kMaxRegularEntry);
+  STATIC_ASSERT(OffsetOfElementAt(kMaxRegularIndex) <
+                kMaxRegularHeapObjectSize);
+
   // Sets the capacity of the hash table.
   void SetCapacity(int capacity) {
     // To scale a computed hash code to fit within the hash table, we
@@ -228,7 +240,6 @@ class HashTable : public HashTableBase {
     set(kCapacityIndex, Smi::FromInt(capacity));
   }
 
- private:
   // Returns _expected_ if one of entries given by the first _probe_ probes is
   // equal to  _expected_. Otherwise, returns the entry given by the probe
   // number _probe_.

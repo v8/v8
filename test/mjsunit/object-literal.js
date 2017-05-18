@@ -232,6 +232,14 @@ for (var i = 0; i < keywords.length; i++) {
   testKeywordProperty(keywords[i]);
 }
 
+function TestSimpleElements() {
+  var o = { 0:"zero", 1:"one", 2:"two" };
+  assertEquals({0:"zero", 1:"one", 2:"two"}, o);
+  o[0] = 0;
+  assertEquals({0:0, 1:"one", 2:"two"}, o);
+}
+TestSimpleElements();
+TestSimpleElements();
 
 function TestNumericNames() {
   var o = {
@@ -255,6 +263,48 @@ function TestNumericNames() {
 }
 TestNumericNames();
 TestNumericNames();
+
+function TestNonNumberElementValues() {
+  var o = {
+    1: true,
+    2: false,
+    3: undefined,
+    4: ""
+  };
+  assertEquals(['1', '2', '3', '4'], Object.keys(o));
+  var o2 = {
+    1: true,
+    2: false,
+    3: undefined,
+    4: "",
+    a: 'a',
+    b: 'b'
+  };
+  assertEquals(['1', '2', '3', '4', 'a', 'b'], Object.keys(o2));
+  var o3 = {
+    __proto__:null,
+    1: true,
+    2: false,
+    3: undefined,
+    4: ""
+  };
+  assertEquals(['1', '2', '3', '4'], Object.keys(o3));
+  var o4 = {
+    __proto__:null,
+    1: true,
+    2: false,
+    3: undefined,
+    4: "",
+    a: 'a',
+    b: 'b'
+  };
+  assertEquals(['1', '2', '3', '4', 'a', 'b'], Object.keys(o4));
+}
+TestNonNumberElementValues();
+TestNonNumberElementValues();
+%OptimizeFunctionOnNextCall(TestNonNumberElementValues);
+TestNonNumberElementValues();
+
 
 function numericGetters() {
   function TestNumericNamesGetter(expectedKeys, object) {

@@ -2840,9 +2840,8 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
 
   // Check if we can do a fast clone or have to call the runtime.
   Label if_fast_clone(this), if_not_fast_clone(this, Label::kDeferred);
-  Node* fast_clone_properties_count = DecodeWordFromWord32<
-      CreateObjectLiteralFlags::FastClonePropertiesCountBits>(bytecode_flags);
-  Branch(WordNotEqual(fast_clone_properties_count, IntPtrConstant(0)),
+  Branch(IsSetWord32<CreateObjectLiteralFlags::FastCloneSupportedBit>(
+             bytecode_flags),
          &if_fast_clone, &if_not_fast_clone);
 
   Bind(&if_fast_clone);
@@ -2850,8 +2849,7 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
     // If we can do a fast clone do the fast-path in FastCloneShallowObjectStub.
     ConstructorBuiltinsAssembler constructor_assembler(state());
     Node* result = constructor_assembler.EmitFastCloneShallowObject(
-        &if_not_fast_clone, closure, literal_index,
-        fast_clone_properties_count);
+        &if_not_fast_clone, closure, literal_index);
     StoreRegister(result, BytecodeOperandReg(3));
     Dispatch();
   }

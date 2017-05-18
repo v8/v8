@@ -133,7 +133,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable FastCloneRegExp(Isolate* isolate);
   static Callable FastCloneShallowArray(Isolate* isolate,
                                         AllocationSiteMode allocation_mode);
-  static Callable FastCloneShallowObject(Isolate* isolate, int length);
+  static Callable FastCloneShallowObject(Isolate* isolate);
 
   static Callable FastNewFunctionContext(Isolate* isolate,
                                          ScopeType scope_type);
