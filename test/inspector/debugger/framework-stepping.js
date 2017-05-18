@@ -47,7 +47,7 @@ Protocol.Debugger.enable()
 
 var testSuite = [
   function testStepIntoFromUser(next) {
-    utils.schedulePauseOnNextStatement('', '');
+    InspectorTest.contextGroup.schedulePauseOnNextStatement('', '');
     test('testStepFromUser()', [
       'print',                          // before testStepFromUser call
       'stepInto', 'stepInto', 'print',  // userFoo
@@ -57,7 +57,7 @@ var testSuite = [
   },
 
   function testStepOverFromUser(next) {
-    utils.schedulePauseOnNextStatement('', '');
+    InspectorTest.contextGroup.schedulePauseOnNextStatement('', '');
     test('testStepFromUser()', [
       'print',                          // before testStepFromUser call
       'stepInto', 'stepInto', 'print',  // userFoo
@@ -67,7 +67,7 @@ var testSuite = [
   },
 
   function testStepOutFromUser(next) {
-    utils.schedulePauseOnNextStatement('', '');
+    InspectorTest.contextGroup.schedulePauseOnNextStatement('', '');
     test('testStepFromUser()', [
       'print',                          // before testStepFromUser call
       'stepInto', 'stepInto', 'print',  // userFoo

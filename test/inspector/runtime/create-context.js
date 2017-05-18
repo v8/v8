@@ -4,24 +4,20 @@
 
 InspectorTest.log('Checks createContext().');
 
-InspectorTest.setupScriptMap();
-Protocol.Runtime.onExecutionContextCreated(InspectorTest.logMessage);
-Protocol.Debugger.onPaused((message) => {
-  InspectorTest.logSourceLocation(message.params.callFrames[0].location);
-  Protocol.Debugger.stepOut();
-});
 var executionContextIds = new Set();
-Protocol.Debugger.onScriptParsed(message => executionContextIds.add(message.params.executionContextId));
-var contextGroupId;
+var contextGroup = InspectorTest.createContextGroup();
+var session = InspectorTest.createSession(contextGroup);
+setup(InspectorTest.session);
+setup(session);
+
 Protocol.Runtime.enable()
-  .then(() => contextGroupId = utils.createContextGroup())
-  .then(() => Protocol.Runtime.enable({}, contextGroupId))
+  .then(() => session.Protocol.Runtime.enable({}))
   .then(() => Protocol.Debugger.enable())
-  .then(() => Protocol.Debugger.enable({}, contextGroupId))
+  .then(() => session.Protocol.Debugger.enable({}))
   .then(InspectorTest.logMessage)
   .then(() => {
-    Protocol.Runtime.evaluate({ expression: 'debugger;' })
-    Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 2, 0)' }, contextGroupId);
+    Protocol.Runtime.evaluate({ expression: 'debugger;' });
+    session.Protocol.Runtime.evaluate({expression: 'setTimeout(x => x * 2, 0)'});
     Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 3, 0)' });
   })
   .then(() => InspectorTest.waitPendingTasks())
@@ -29,14 +25,25 @@ Protocol.Runtime.enable()
     InspectorTest.log(`Reported script's execution id: ${executionContextIds.size}`);
     executionContextIds.clear();
   })
-  .then(() => utils.reconnect())
+  .then(() => InspectorTest.session.reconnect())
+  .then(() => session.reconnect())
   .then(() => {
     Protocol.Runtime.evaluate({ expression: 'debugger;' })
-    Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 2, 0)' }, contextGroupId);
+    session.Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 2, 0)' });
     Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 3, 0)' });
   })
   .then(() => InspectorTest.waitPendingTasks())
-  .then(() => Protocol.Debugger.disable({}, contextGroupId))
+  .then(() => session.Protocol.Debugger.disable({}))
   .then(() => Protocol.Debugger.disable({}))
   .then(() => InspectorTest.log(`Reported script's execution id: ${executionContextIds.size}`))
   .then(InspectorTest.completeTest);
+
+function setup(session) {
+  session.Protocol.Runtime.onExecutionContextCreated(InspectorTest.logMessage);
+  InspectorTest.setupScriptMap(session);
+  session.Protocol.Debugger.onPaused((message) => {
+    InspectorTest.logSourceLocation(message.params.callFrames[0].location, session);
+    session.Protocol.Debugger.stepOut();
+  });
+  session.Protocol.Debugger.onScriptParsed(message => executionContextIds.add(message.params.executionContextId));
+}

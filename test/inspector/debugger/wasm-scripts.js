@@ -27,8 +27,7 @@ function testFunction(bytes) {
   new WebAssembly.Module(buffer);
 }
 
-InspectorTest.addScriptWithUrl(
-    testFunction.toString(), 'v8://test/testFunction');
+InspectorTest.addScript(testFunction.toString(), 0, 0, 'v8://test/testFunction');
 InspectorTest.addScript('var module_bytes = ' + JSON.stringify(module_bytes));
 
 Protocol.Debugger.enable();

@@ -153,7 +153,7 @@ function foo6() { Promise.resolve().then(() => 42) }`;
 function compileScript(source, origin) {
   var promise = Protocol.Debugger.onceScriptParsed().then(message => message.params.scriptId);
   if (!origin) origin = { name: '', line_offset: 0, column_offset: 0 };
-  utils.compileAndRunWithOrigin(source, origin.name, origin.line_offset, origin.column_offset, false);
+  InspectorTest.addScript(source, origin.line_offset, origin.column_offset, origin.name);
   return promise;
 }
 

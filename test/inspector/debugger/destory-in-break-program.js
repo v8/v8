@@ -8,6 +8,6 @@ InspectorTest.log('Check destroying agent inside of breakProgram');
   await Protocol.Debugger.enable();
   Protocol.Runtime.evaluate({expression: 'inspector.breakProgram(\'\', \'{}\')'});
   await Protocol.Debugger.oncePaused();
-  utils.disconnect();
+  InspectorTest.session.disconnect();
   utils.quit();
 })();

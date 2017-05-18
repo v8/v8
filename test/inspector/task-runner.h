@@ -23,30 +23,27 @@ class TaskRunner : public v8::base::Thread {
    public:
     virtual ~Task() {}
     virtual bool is_inspector_task() = 0;
-    void RunOnTaskRunner(TaskRunner* task_runner) {
-      task_runner_ = task_runner;
+    void RunOnIsolate(IsolateData* data) {
+      data_ = data;
       Run();
-      task_runner_ = nullptr;
+      data_ = nullptr;
     }
 
    protected:
     virtual void Run() = 0;
-    v8::Isolate* isolate() const { return task_runner_->data_->isolate(); }
-    v8::Local<v8::Context> default_context() const {
-      return task_runner_->data_->GetContext(
-          task_runner_->default_context_group_id_);
-    }
+    v8::Isolate* isolate() const { return data_->isolate(); }
+    IsolateData* data() const { return data_; }
 
    private:
-    TaskRunner* task_runner_ = nullptr;
+    IsolateData* data_ = nullptr;
   };
 
   TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
              bool catch_exceptions, v8::base::Semaphore* ready_semaphore,
-             v8::StartupData* startup_data);
+             v8::StartupData* startup_data,
+             InspectorClientImpl::FrontendChannel* channel);
   virtual ~TaskRunner();
   IsolateData* data() const { return data_.get(); }
-  int default_context_group_id() const { return default_context_group_id_; }
 
   // Thread implementation.
   void Run() override;
@@ -66,10 +63,10 @@ class TaskRunner : public v8::base::Thread {
 
   IsolateData::SetupGlobalTasks setup_global_tasks_;
   v8::StartupData* startup_data_;
+  InspectorClientImpl::FrontendChannel* channel_;
   bool catch_exceptions_;
   v8::base::Semaphore* ready_semaphore_;
   std::unique_ptr<IsolateData> data_;
-  int default_context_group_id_;
 
   // deferred_queue_ combined with queue_ (in this order) have all tasks in the
   // correct order. Sometimes we skip non-protocol tasks by moving them from
@@ -87,26 +84,27 @@ class TaskRunner : public v8::base::Thread {
 
 class AsyncTask : public TaskRunner::Task {
  public:
-  AsyncTask(const char* task_name, v8_inspector::V8Inspector* inspector);
+  AsyncTask(IsolateData* data, const char* task_name);
   virtual ~AsyncTask() = default;
 
  protected:
   virtual void AsyncRun() = 0;
   void Run() override;
 
-  v8_inspector::V8Inspector* inspector_;
+  bool instrumenting_;
 };
 
 class ExecuteStringTask : public AsyncTask {
  public:
-  ExecuteStringTask(const v8::internal::Vector<uint16_t>& expression,
+  ExecuteStringTask(IsolateData* data, int context_group_id,
+                    const char* task_name,
+                    const v8::internal::Vector<uint16_t>& expression,
                     v8::Local<v8::String> name,
                     v8::Local<v8::Integer> line_offset,
                     v8::Local<v8::Integer> column_offset,
-                    v8::Local<v8::Boolean> is_module, const char* task_name,
-                    v8_inspector::V8Inspector* inspector);
-  explicit ExecuteStringTask(
-      const v8::internal::Vector<const char>& expression);
+                    v8::Local<v8::Boolean> is_module);
+  ExecuteStringTask(const v8::internal::Vector<const char>& expression,
+                    int context_group_id);
   bool is_inspector_task() override { return false; }
 
  private:
@@ -118,6 +116,7 @@ class ExecuteStringTask : public AsyncTask {
   int32_t line_offset_ = 0;
   int32_t column_offset_ = 0;
   bool is_module_ = false;
+  int context_group_id_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecuteStringTask);
 };

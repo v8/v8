@@ -56,9 +56,9 @@ InspectorTest.runTestSuite([
 
   function testSetCustomObjectFormatterEnabled(next) {
     Protocol.Runtime.onConsoleAPICalled(InspectorTest.logMessage);
-    // cleanup console message storage
-    reconnect();
-    Protocol.Runtime.enable()
+    Protocol.Runtime.discardConsoleEntries()
+      .then(reconnect)
+      .then(() => Protocol.Runtime.enable())
       .then(() => Protocol.Runtime.setCustomObjectFormatterEnabled({ enabled: true }))
       .then(reconnect)
       .then(() => Protocol.Runtime.evaluate({ expression: 'console.log({ name: 42 })'}))
@@ -73,5 +73,5 @@ InspectorTest.runTestSuite([
 
 function reconnect() {
   InspectorTest.logMessage('will reconnect..');
-  utils.reconnect();
+  InspectorTest.session.reconnect();
 }

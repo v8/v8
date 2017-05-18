@@ -11,6 +11,7 @@
 #include "include/v8-platform.h"
 #include "include/v8.h"
 #include "src/vector.h"
+#include "test/inspector/inspector-impl.h"
 
 class TaskRunner;
 
@@ -25,13 +26,16 @@ class IsolateData {
   using SetupGlobalTasks = std::vector<std::unique_ptr<SetupGlobalTask>>;
 
   IsolateData(TaskRunner* task_runner, SetupGlobalTasks setup_global_tasks,
-              v8::StartupData* startup_data);
+              v8::StartupData* startup_data,
+              InspectorClientImpl::FrontendChannel* channel);
   static IsolateData* FromContext(v8::Local<v8::Context> context);
 
   v8::Isolate* isolate() const { return isolate_; }
+  InspectorClientImpl* inspector() const { return inspector_.get(); }
   TaskRunner* task_runner() const { return task_runner_; }
   int CreateContextGroup();
   v8::Local<v8::Context> GetContext(int context_group_id);
+  int GetContextGroupId(v8::Local<v8::Context> context);
   void RegisterModule(v8::Local<v8::Context> context,
                       v8::internal::Vector<uint16_t> name,
                       v8::ScriptCompiler::Source* source);
@@ -53,6 +57,7 @@ class IsolateData {
   TaskRunner* task_runner_;
   SetupGlobalTasks setup_global_tasks_;
   v8::Isolate* isolate_;
+  std::unique_ptr<InspectorClientImpl> inspector_;
   int last_context_group_id_ = 0;
   std::map<int, v8::Global<v8::Context>> contexts_;
   std::map<v8::internal::Vector<uint16_t>, v8::Global<v8::Module>,

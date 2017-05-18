@@ -17,7 +17,15 @@ void ReportUncaughtException(v8::Isolate* isolate,
   CHECK(try_catch.HasCaught());
   v8::HandleScope handle_scope(isolate);
   std::string message = *v8::String::Utf8Value(try_catch.Message()->Get());
-  fprintf(stderr, "Unhandle exception: %s\n", message.data());
+  int line = try_catch.Message()
+                 ->GetLineNumber(isolate->GetCurrentContext())
+                 .FromJust();
+  std::string source_line =
+      *v8::String::Utf8Value(try_catch.Message()
+                                 ->GetSourceLine(isolate->GetCurrentContext())
+                                 .ToLocalChecked());
+  fprintf(stderr, "Unhandle exception: %s @%s[%d]\n", message.data(),
+          source_line.data(), line);
 }
 
 v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
@@ -32,10 +40,12 @@ v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
 TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
                        bool catch_exceptions,
                        v8::base::Semaphore* ready_semaphore,
-                       v8::StartupData* startup_data)
+                       v8::StartupData* startup_data,
+                       InspectorClientImpl::FrontendChannel* channel)
     : Thread(Options("Task Runner")),
       setup_global_tasks_(std::move(setup_global_tasks)),
       startup_data_(startup_data),
+      channel_(channel),
       catch_exceptions_(catch_exceptions),
       ready_semaphore_(ready_semaphore),
       data_(nullptr),
@@ -47,13 +57,8 @@ TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
 TaskRunner::~TaskRunner() { Join(); }
 
 void TaskRunner::Run() {
-  data_.reset(
-      new IsolateData(this, std::move(setup_global_tasks_), startup_data_));
-
-  v8::Isolate::Scope isolate_scope(isolate());
-  v8::HandleScope handle_scope(isolate());
-  default_context_group_id_ = data_->CreateContextGroup();
-
+  data_.reset(new IsolateData(this, std::move(setup_global_tasks_),
+                              startup_data_, channel_));
   if (ready_semaphore_) ready_semaphore_->Signal();
   RunMessageLoop(false);
 }
@@ -66,7 +71,7 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     v8::Isolate::Scope isolate_scope(isolate());
     if (catch_exceptions_) {
       v8::TryCatch try_catch(isolate());
-      task->RunOnTaskRunner(this);
+      task->RunOnIsolate(data_.get());
       delete task;
       if (try_catch.HasCaught()) {
         ReportUncaughtException(isolate(), try_catch);
@@ -75,7 +80,7 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
         _exit(0);
       }
     } else {
-      task->RunOnTaskRunner(this);
+      task->RunOnIsolate(data_.get());
       delete task;
     }
   }
@@ -115,44 +120,45 @@ TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
   return nullptr;
 }
 
-AsyncTask::AsyncTask(const char* task_name,
-                     v8_inspector::V8Inspector* inspector)
-    : inspector_(task_name ? inspector : nullptr) {
-  if (inspector_) {
-    inspector_->asyncTaskScheduled(
-        v8_inspector::StringView(reinterpret_cast<const uint8_t*>(task_name),
-                                 strlen(task_name)),
-        this, false);
-  }
+AsyncTask::AsyncTask(IsolateData* data, const char* task_name)
+    : instrumenting_(data && task_name) {
+  if (!instrumenting_) return;
+  data->inspector()->inspector()->asyncTaskScheduled(
+      v8_inspector::StringView(reinterpret_cast<const uint8_t*>(task_name),
+                               strlen(task_name)),
+      this, false);
 }
 
 void AsyncTask::Run() {
-  if (inspector_) inspector_->asyncTaskStarted(this);
+  if (instrumenting_) data()->inspector()->inspector()->asyncTaskStarted(this);
   AsyncRun();
-  if (inspector_) inspector_->asyncTaskFinished(this);
+  if (instrumenting_) data()->inspector()->inspector()->asyncTaskFinished(this);
 }
 
 ExecuteStringTask::ExecuteStringTask(
+    IsolateData* data, int context_group_id, const char* task_name,
     const v8::internal::Vector<uint16_t>& expression,
     v8::Local<v8::String> name, v8::Local<v8::Integer> line_offset,
-    v8::Local<v8::Integer> column_offset, v8::Local<v8::Boolean> is_module,
-    const char* task_name, v8_inspector::V8Inspector* inspector)
-    : AsyncTask(task_name, inspector),
+    v8::Local<v8::Integer> column_offset, v8::Local<v8::Boolean> is_module)
+    : AsyncTask(data, task_name),
       expression_(expression),
       name_(ToVector(name)),
       line_offset_(line_offset.As<v8::Int32>()->Value()),
       column_offset_(column_offset.As<v8::Int32>()->Value()),
-      is_module_(is_module->Value()) {}
+      is_module_(is_module->Value()),
+      context_group_id_(context_group_id) {}
 
 ExecuteStringTask::ExecuteStringTask(
-    const v8::internal::Vector<const char>& expression)
-    : AsyncTask(nullptr, nullptr), expression_utf8_(expression) {}
+    const v8::internal::Vector<const char>& expression, int context_group_id)
+    : AsyncTask(nullptr, nullptr),
+      expression_utf8_(expression),
+      context_group_id_(context_group_id) {}
 
 void ExecuteStringTask::AsyncRun() {
   v8::MicrotasksScope microtasks_scope(isolate(),
                                        v8::MicrotasksScope::kRunMicrotasks);
   v8::HandleScope handle_scope(isolate());
-  v8::Local<v8::Context> context = default_context();
+  v8::Local<v8::Context> context = data()->GetContext(context_group_id_);
   v8::Context::Scope context_scope(context);
 
   v8::Local<v8::String> name =
@@ -193,7 +199,6 @@ void ExecuteStringTask::AsyncRun() {
     v8::MaybeLocal<v8::Value> result;
     result = script->Run(context);
   } else {
-    IsolateData::FromContext(context)->RegisterModule(context, name_,
-                                                      &scriptSource);
+    data()->RegisterModule(context, name_, &scriptSource);
   }
 }

@@ -4,7 +4,7 @@
 // Flags: --expose-inspector-scripts
 
 Protocol.Debugger.onPaused(message => {
-  let url = InspectorTest._scriptMap.get(message.params.callFrames[0].location.scriptId).url;
+  let url = InspectorTest.session._scriptMap.get(message.params.callFrames[0].location.scriptId).url;
   if (url !== 'test.js') {
     InspectorTest.log('InjectedSciptSource on stack.');
     InspectorTest.completeTest();

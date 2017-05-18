@@ -64,7 +64,7 @@ var testSuite = [
 ];
 
 function testPositions(positions) {
-  utils.schedulePauseOnNextStatement('', '');
+  InspectorTest.contextGroup.schedulePauseOnNextStatement('', '');
   return Protocol.Debugger
       .setBlackboxedRanges({scriptId: scriptId, positions: positions})
       .then(InspectorTest.logMessage)

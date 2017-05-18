@@ -188,16 +188,16 @@ InspectorTest.runTestSuite([
   },
 
   function testAsyncDOMBreakpoint(next) {
-    utils.schedulePauseOnNextStatement('', '');
+    InspectorTest.contextGroup.schedulePauseOnNextStatement('', '');
     InspectorTest.log('> all frames in framework:');
     Protocol.Runtime
         .evaluate(
             {expression: 'asyncDOMBreakpoint()//# sourceURL=framework.js'})
-        .then(() => utils.cancelPauseOnNextStatement())
+        .then(() => InspectorTest.contextGroup.cancelPauseOnNextStatement())
         .then(
             () => Protocol.Runtime.evaluate(
                 {expression: '42//# sourceURL=user.js'}))
-        .then(() => utils.schedulePauseOnNextStatement('', ''))
+        .then(() => InspectorTest.contextGroup.schedulePauseOnNextStatement('', ''))
         .then(
             () => Protocol.Runtime.evaluate(
                 {expression: 'asyncDOMBreakpoint()//# sourceURL=user.js'}))

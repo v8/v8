@@ -10,11 +10,11 @@ const expression = `
       delete Object.prototype.RemoteObject;
       this.RemoteObject = v;
 
-      inspector.detachInspector();
+      inspector.fireContextDestroyed();
       setTimeout(function() {
         // Attach the inspector again for the sake of establishing a
         // communication channel with the frontend test runner.
-        inspector.attachInspector();
+        inspector.fireContextCreated();
         console.log("End of test");
       }, 0);
     },
@@ -23,8 +23,8 @@ const expression = `
   // Before the whole script runs, the inspector is already attached.
   // Re-attach the inspector and trigger the console API to make sure that the
   // injected inspector script runs again (and triggers the above setter).
-  inspector.detachInspector();
-  inspector.attachInspector();
+  inspector.fireContextDestroyed();
+  inspector.fireContextCreated();
   console.log("First inspector activity after attaching inspector");
   console.log("End of test");
 `;

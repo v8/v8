@@ -33,17 +33,17 @@ InspectorTest.runTestSuite([
   },
 
   function testSchedulePauseOnNextStatement(next) {
-    utils.schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
+    InspectorTest.contextGroup.schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
     Protocol.Runtime.evaluate({ expression: 'foo()//# sourceURL=expr1.js'})
       .then(() => Protocol.Runtime.evaluate({
         expression: 'foo()//# sourceURL=expr2.js'}))
-      .then(() => utils.cancelPauseOnNextStatement())
+      .then(() => InspectorTest.contextGroup.cancelPauseOnNextStatement())
       .then(next);
   },
 
   function testCancelPauseOnNextStatement(next) {
-    utils.schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
-    utils.cancelPauseOnNextStatement();
+    InspectorTest.contextGroup.schedulePauseOnNextStatement('reason', JSON.stringify({a: 42}));
+    InspectorTest.contextGroup.cancelPauseOnNextStatement();
     Protocol.Runtime.evaluate({ expression: 'foo()'})
       .then(next);
   }

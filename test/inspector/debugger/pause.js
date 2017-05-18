@@ -24,50 +24,53 @@ InspectorTest.runAsyncTestSuite([
   },
 
   async function testSkipOtherContext1() {
-    let contextGroupId = utils.createContextGroup();
-    Protocol.Debugger.enable({}, contextGroupId);
+    let contextGroup = InspectorTest.createContextGroup();
+    let session = InspectorTest.createSession(contextGroup);
+    session.Protocol.Debugger.enable({});
     Protocol.Debugger.pause();
     Protocol.Runtime.evaluate({expression: 'var a = 42; //# sourceURL=framework.js'});
-    Protocol.Runtime.evaluate({expression: 'var a = 239;'}, contextGroupId);
+    session.Protocol.Runtime.evaluate({expression: 'var a = 239;'});
     Protocol.Runtime.evaluate({expression: 'var a = 1;'});
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
-    await Protocol.Debugger.disable({}, contextGroupId);
+    await session.Protocol.Debugger.disable({});
   },
 
   async function testSkipOtherContext2() {
-    let contextGroupId = utils.createContextGroup();
-    Protocol.Debugger.enable({}, contextGroupId);
-    Protocol.Debugger.pause({}, contextGroupId);
+    let contextGroup = InspectorTest.createContextGroup();
+    let session = InspectorTest.createSession(contextGroup);
+    InspectorTest.setupScriptMap(session);
+    session.Protocol.Debugger.enable({});
+    session.Protocol.Debugger.pause({});
     Protocol.Runtime.evaluate({expression: 'var a = 42; //# sourceURL=framework.js'});
-    Protocol.Runtime.evaluate({expression: 'var a = 239;'}, contextGroupId);
+    session.Protocol.Runtime.evaluate({expression: 'var a = 239;'});
     Protocol.Runtime.evaluate({expression: 'var a = 1;'});
-    await waitPauseAndDumpLocation();
+    await waitPauseAndDumpLocation(session);
     // should not resume pause from different context group id.
     Protocol.Debugger.resume();
-    Protocol.Debugger.stepOver({}, contextGroupId);
-    await waitPauseAndDumpLocation();
-    await Protocol.Debugger.resume({}, contextGroupId);
-    await Protocol.Debugger.disable({}, contextGroupId);
+    session.Protocol.Debugger.stepOver({});
+    await waitPauseAndDumpLocation(session);
+    await session.Protocol.Debugger.resume({});
+    await session.Protocol.Debugger.disable({});
   },
 
   async function testWithNativeBreakpoint() {
-    utils.schedulePauseOnNextStatement('', '');
+    InspectorTest.contextGroup.schedulePauseOnNextStatement('', '');
     await Protocol.Debugger.pause();
-    utils.cancelPauseOnNextStatement();
+    InspectorTest.contextGroup.cancelPauseOnNextStatement();
     Protocol.Runtime.evaluate({expression: 'var a = 42;'});
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
 
     await Protocol.Debugger.pause();
-    utils.schedulePauseOnNextStatement('', '');
-    utils.cancelPauseOnNextStatement();
+    InspectorTest.contextGroup.schedulePauseOnNextStatement('', '');
+    InspectorTest.contextGroup.cancelPauseOnNextStatement();
     Protocol.Runtime.evaluate({expression: 'var a = 42;'});
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
 
-    utils.schedulePauseOnNextStatement('', '');
-    utils.cancelPauseOnNextStatement();
+    InspectorTest.contextGroup.schedulePauseOnNextStatement('', '');
+    InspectorTest.contextGroup.cancelPauseOnNextStatement();
     await Protocol.Debugger.pause();
     Protocol.Runtime.evaluate({expression: 'var a = 42;'});
     await waitPauseAndDumpLocation();
@@ -85,9 +88,10 @@ InspectorTest.runAsyncTestSuite([
   }
 ]);
 
-async function waitPauseAndDumpLocation() {
-  var message = await Protocol.Debugger.oncePaused();
+async function waitPauseAndDumpLocation(session) {
+  session = session || InspectorTest.session;
+  var message = await session.Protocol.Debugger.oncePaused();
   InspectorTest.log('paused at:');
-  await InspectorTest.logSourceLocation(message.params.callFrames[0].location);
+  await InspectorTest.logSourceLocation(message.params.callFrames[0].location, session);
   return message;
 }

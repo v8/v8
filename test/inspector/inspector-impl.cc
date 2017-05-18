@@ -7,40 +7,34 @@
 #include "include/v8.h"
 
 #include "src/vector.h"
+#include "test/inspector/isolate-data.h"
+#include "test/inspector/task-runner.h"
 
 namespace {
 
-const int kInspectorClientIndex = 0;
-
 class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
  public:
-  explicit ChannelImpl(InspectorClientImpl::FrontendChannel* frontend_channel)
-      : frontend_channel_(frontend_channel) {}
+  ChannelImpl(InspectorClientImpl::FrontendChannel* frontend_channel,
+              int session_id)
+      : frontend_channel_(frontend_channel), session_id_(session_id) {}
   virtual ~ChannelImpl() = default;
 
  private:
   void sendResponse(
       int callId,
       std::unique_ptr<v8_inspector::StringBuffer> message) override {
-    frontend_channel_->SendMessageToFrontend(message->string());
+    frontend_channel_->SendMessageToFrontend(session_id_, message->string());
   }
   void sendNotification(
       std::unique_ptr<v8_inspector::StringBuffer> message) override {
-    frontend_channel_->SendMessageToFrontend(message->string());
+    frontend_channel_->SendMessageToFrontend(session_id_, message->string());
   }
   void flushProtocolNotifications() override {}
 
   InspectorClientImpl::FrontendChannel* frontend_channel_;
+  int session_id_;
   DISALLOW_COPY_AND_ASSIGN(ChannelImpl);
 };
-
-InspectorClientImpl* InspectorClientFromContext(
-    v8::Local<v8::Context> context) {
-  InspectorClientImpl* inspector_client = static_cast<InspectorClientImpl*>(
-      context->GetAlignedPointerFromEmbedderData(kInspectorClientIndex));
-  CHECK(inspector_client);
-  return inspector_client;
-}
 
 v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
   v8::internal::Vector<uint16_t> buffer =
@@ -55,7 +49,7 @@ void MessageHandler(v8::Local<v8::Message> message,
   v8::Local<v8::Context> context = isolate->GetEnteredContext();
   if (context.IsEmpty()) return;
   v8_inspector::V8Inspector* inspector =
-      InspectorClientImpl::InspectorFromContext(context);
+      IsolateData::FromContext(context)->inspector()->inspector();
 
   v8::Local<v8::StackTrace> stack = message->GetStackTrace();
   int script_id =
@@ -106,154 +100,90 @@ void Print(v8::Isolate* isolate, const v8_inspector::StringView& string) {
 }
 }  //  namespace
 
-class ConnectTask : public TaskRunner::Task {
- public:
-  ConnectTask(InspectorClientImpl* client, v8::base::Semaphore* ready_semaphore)
-      : client_(client), ready_semaphore_(ready_semaphore) {}
-  virtual ~ConnectTask() = default;
-
-  bool is_inspector_task() final { return true; }
-
- private:
-  void Run() override {
-    v8::HandleScope handle_scope(isolate());
-    client_->connect();
-    if (ready_semaphore_) ready_semaphore_->Signal();
-  }
-
-  InspectorClientImpl* client_;
-  v8::base::Semaphore* ready_semaphore_;
-};
-
-class DisconnectTask : public TaskRunner::Task {
- public:
-  explicit DisconnectTask(InspectorClientImpl* client, bool reset_inspector,
-                          v8::base::Semaphore* ready_semaphore)
-      : client_(client),
-        reset_inspector_(reset_inspector),
-        ready_semaphore_(ready_semaphore) {}
-  virtual ~DisconnectTask() = default;
-
-  bool is_inspector_task() final { return true; }
-
- private:
-  void Run() override {
-    client_->disconnect(reset_inspector_);
-    if (ready_semaphore_) ready_semaphore_->Signal();
-  }
-
-  InspectorClientImpl* client_;
-  bool reset_inspector_;
-  v8::base::Semaphore* ready_semaphore_;
-};
-
-class CreateContextGroupTask : public TaskRunner::Task {
- public:
-  CreateContextGroupTask(InspectorClientImpl* client,
-                         IsolateData::SetupGlobalTasks setup_global_tasks,
-                         v8::base::Semaphore* ready_semaphore,
-                         int* context_group_id)
-      : client_(client),
-        setup_global_tasks_(std::move(setup_global_tasks)),
-        ready_semaphore_(ready_semaphore),
-        context_group_id_(context_group_id) {}
-  virtual ~CreateContextGroupTask() = default;
-
-  bool is_inspector_task() final { return true; }
-
- private:
-  void Run() override {
-    *context_group_id_ = client_->createContextGroup(setup_global_tasks_);
-    if (ready_semaphore_) ready_semaphore_->Signal();
-  }
-
-  InspectorClientImpl* client_;
-  IsolateData::SetupGlobalTasks setup_global_tasks_;
-  v8::base::Semaphore* ready_semaphore_;
-  int* context_group_id_;
-};
-
-InspectorClientImpl::InspectorClientImpl(TaskRunner* task_runner,
-                                         FrontendChannel* frontend_channel,
-                                         v8::base::Semaphore* ready_semaphore)
-    : isolate_(nullptr),
-      task_runner_(task_runner),
+InspectorClientImpl::InspectorClientImpl(v8::Isolate* isolate,
+                                         TaskRunner* task_runner,
+                                         FrontendChannel* frontend_channel)
+    : task_runner_(task_runner),
+      isolate_(isolate),
       frontend_channel_(frontend_channel) {
-  task_runner_->Append(new ConnectTask(this, ready_semaphore));
+  isolate_->AddMessageListener(MessageHandler);
+  inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
 }
 
 InspectorClientImpl::~InspectorClientImpl() {}
 
-void InspectorClientImpl::connect() {
-  isolate_ = task_runner_->data()->isolate();
-  isolate_->AddMessageListener(MessageHandler);
-  channel_.reset(new ChannelImpl(frontend_channel_));
-  inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
-
-  if (states_.empty()) {
-    ConnectToContextGroup(task_runner_->default_context_group_id(),
-                          v8_inspector::StringView());
-  } else {
-    for (const auto& it : states_)
-      ConnectToContextGroup(it.first, it.second->string());
-  }
-  states_.clear();
+int InspectorClientImpl::ConnectSession(int context_group_id,
+                                        const v8_inspector::StringView& state) {
+  int session_id = ++last_session_id_;
+  channels_[session_id].reset(new ChannelImpl(frontend_channel_, session_id));
+  sessions_[session_id] =
+      inspector_->connect(context_group_id, channels_[session_id].get(), state);
+  context_group_by_session_[sessions_[session_id].get()] = context_group_id;
+  return session_id;
 }
 
-void InspectorClientImpl::ConnectToContextGroup(
-    int context_group_id, v8_inspector::StringView state) {
-  v8::Local<v8::Context> context =
-      task_runner_->data()->GetContext(context_group_id);
-  sessions_[context_group_id] =
-      inspector_->connect(context_group_id, channel_.get(), state);
-  context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this);
+std::unique_ptr<v8_inspector::StringBuffer>
+InspectorClientImpl::DisconnectSession(int session_id) {
+  auto it = sessions_.find(session_id);
+  CHECK(it != sessions_.end());
+  context_group_by_session_.erase(it->second.get());
+  std::unique_ptr<v8_inspector::StringBuffer> result = it->second->stateJSON();
+  sessions_.erase(it);
+  channels_.erase(session_id);
+  return result;
+}
+
+void InspectorClientImpl::SendMessage(int session_id,
+                                      const v8_inspector::StringView& message) {
+  auto it = sessions_.find(session_id);
+  if (it != sessions_.end()) it->second->dispatchProtocolMessage(message);
+}
+
+void InspectorClientImpl::BreakProgram(
+    int context_group_id, const v8_inspector::StringView& reason,
+    const v8_inspector::StringView& details) {
+  for (int session_id : GetSessionIds(context_group_id)) {
+    auto it = sessions_.find(session_id);
+    if (it != sessions_.end()) it->second->breakProgram(reason, details);
+  }
+}
+
+void InspectorClientImpl::SchedulePauseOnNextStatement(
+    int context_group_id, const v8_inspector::StringView& reason,
+    const v8_inspector::StringView& details) {
+  for (int session_id : GetSessionIds(context_group_id)) {
+    auto it = sessions_.find(session_id);
+    if (it != sessions_.end())
+      it->second->schedulePauseOnNextStatement(reason, details);
+  }
+}
+
+void InspectorClientImpl::CancelPauseOnNextStatement(int context_group_id) {
+  for (int session_id : GetSessionIds(context_group_id)) {
+    auto it = sessions_.find(session_id);
+    if (it != sessions_.end()) it->second->cancelPauseOnNextStatement();
+  }
+}
+
+void InspectorClientImpl::ContextCreated(v8::Local<v8::Context> context,
+                                         int context_group_id) {
   v8_inspector::V8ContextInfo info(context, context_group_id,
                                    v8_inspector::StringView());
   info.hasMemoryOnConsole = true;
   inspector_->contextCreated(info);
 }
 
-void InspectorClientImpl::scheduleReconnect(
-    v8::base::Semaphore* ready_semaphore) {
-  task_runner_->Append(
-      new DisconnectTask(this, /* reset_inspector */ true, nullptr));
-  task_runner_->Append(new ConnectTask(this, ready_semaphore));
+void InspectorClientImpl::ContextDestroyed(v8::Local<v8::Context> context) {
+  inspector_->contextDestroyed(context);
 }
 
-void InspectorClientImpl::scheduleDisconnect(
-    v8::base::Semaphore* ready_semaphore) {
-  task_runner_->Append(
-      new DisconnectTask(this, /* reset_inspector */ false, ready_semaphore));
-}
-
-void InspectorClientImpl::disconnect(bool reset_inspector) {
-  for (const auto& it : sessions_) {
-    states_[it.first] = it.second->stateJSON();
+std::vector<int> InspectorClientImpl::GetSessionIds(int context_group_id) {
+  std::vector<int> result;
+  for (auto& it : sessions_) {
+    if (context_group_by_session_[it.second.get()] == context_group_id)
+      result.push_back(it.first);
   }
-  sessions_.clear();
-  if (reset_inspector) inspector_.reset();
-}
-
-void InspectorClientImpl::scheduleCreateContextGroup(
-    IsolateData::SetupGlobalTasks setup_global_tasks,
-    v8::base::Semaphore* ready_semaphore, int* context_group_id) {
-  task_runner_->Append(new CreateContextGroupTask(
-      this, std::move(setup_global_tasks), ready_semaphore, context_group_id));
-}
-
-int InspectorClientImpl::createContextGroup(
-    const IsolateData::SetupGlobalTasks& setup_global_tasks) {
-  v8::HandleScope handle_scope(isolate_);
-  int context_group_id = task_runner_->data()->CreateContextGroup();
-  v8::Local<v8::Context> context =
-      task_runner_->data()->GetContext(context_group_id);
-  context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this);
-  v8_inspector::StringView state;
-  sessions_[context_group_id] =
-      inspector_->connect(context_group_id, channel_.get(), state);
-  inspector_->contextCreated(v8_inspector::V8ContextInfo(
-      context, context_group_id, v8_inspector::StringView()));
-  return context_group_id;
+  return result;
 }
 
 bool InspectorClientImpl::formatAccessorsAsProperties(
@@ -276,7 +206,7 @@ v8::Local<v8::Context> InspectorClientImpl::ensureDefaultContextInGroup(
   return task_runner_->data()->GetContext(context_group_id);
 }
 
-void InspectorClientImpl::setCurrentTimeMSForTest(double time) {
+void InspectorClientImpl::SetCurrentTimeMSForTest(double time) {
   current_time_ = time;
   current_time_set_for_test_ = true;
 }
@@ -286,12 +216,12 @@ double InspectorClientImpl::currentTimeMS() {
   return v8::base::OS::TimeCurrentMillis();
 }
 
-void InspectorClientImpl::setMemoryInfoForTest(
+void InspectorClientImpl::SetMemoryInfoForTest(
     v8::Local<v8::Value> memory_info) {
   memory_info_.Reset(isolate_, memory_info);
 }
 
-void InspectorClientImpl::setLogConsoleApiMessageCalls(bool log) {
+void InspectorClientImpl::SetLogConsoleApiMessageCalls(bool log) {
   log_console_api_message_calls_ = log;
 }
 
@@ -321,79 +251,4 @@ void InspectorClientImpl::consoleAPIMessage(
   fprintf(stdout, ":%d:%d)", lineNumber, columnNumber);
   Print(isolate_, stack->toString()->string());
   fprintf(stdout, "\n");
-}
-
-v8_inspector::V8Inspector* InspectorClientImpl::InspectorFromContext(
-    v8::Local<v8::Context> context) {
-  return InspectorClientFromContext(context)->inspector_.get();
-}
-
-v8_inspector::V8InspectorSession* InspectorClientImpl::SessionFromContext(
-    v8::Local<v8::Context> context) {
-  InspectorClientImpl* client = InspectorClientFromContext(context);
-  for (auto& it : client->sessions_) {
-    if (client->task_runner_->data()->GetContext(it.first) == context)
-      return it.second.get();
-  }
-  return nullptr;
-}
-
-v8_inspector::V8InspectorSession* InspectorClientImpl::session(
-    int context_group_id) {
-  if (context_group_id) {
-    return sessions_[context_group_id].get();
-  } else {
-    return sessions_.begin()->second.get();
-  }
-}
-
-class SendMessageToBackendTask : public TaskRunner::Task {
- public:
-  explicit SendMessageToBackendTask(
-      const v8::internal::Vector<uint16_t>& message, int context_group_id)
-      : message_(message), context_group_id_(context_group_id) {}
-
-  bool is_inspector_task() final { return true; }
-
- private:
-  void Run() override {
-    v8_inspector::V8InspectorSession* session = nullptr;
-    {
-      v8::HandleScope handle_scope(isolate());
-      if (!context_group_id_) {
-        session = InspectorClientImpl::SessionFromContext(default_context());
-      } else {
-        session = InspectorClientFromContext(default_context())
-                      ->sessions_[context_group_id_]
-                      .get();
-      }
-      if (!session) return;
-    }
-    v8_inspector::StringView message_view(message_.start(), message_.length());
-    session->dispatchProtocolMessage(message_view);
-  }
-
-  v8::internal::Vector<uint16_t> message_;
-  int context_group_id_;
-};
-
-TaskRunner* SendMessageToBackendExtension::backend_task_runner_ = nullptr;
-
-void SendMessageToBackendExtension::Run(v8::Isolate* isolate,
-                                        v8::Local<v8::ObjectTemplate> global) {
-  global->Set(
-      v8::String::NewFromUtf8(isolate, "sendMessageToBackend",
-                              v8::NewStringType::kNormal)
-          .ToLocalChecked(),
-      v8::FunctionTemplate::New(
-          isolate, &SendMessageToBackendExtension::SendMessageToBackend));
-}
-
-void SendMessageToBackendExtension::SendMessageToBackend(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(backend_task_runner_);
-  CHECK(args.Length() == 2 && args[0]->IsString() && args[1]->IsInt32());
-  v8::Local<v8::String> message = args[0].As<v8::String>();
-  backend_task_runner_->Append(new SendMessageToBackendTask(
-      ToVector(message), args[1].As<v8::Int32>()->Value()));
 }
