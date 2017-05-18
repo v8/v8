@@ -61,19 +61,30 @@ TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
     Node* const to_lower_table_addr = ExternalConstant(
         ExternalReference::intl_to_latin1_lower_table(isolate()));
 
-    VariableList push_vars({&var_cursor}, zone());
+    VARIABLE(var_did_change, MachineRepresentation::kWord32, Int32Constant(0));
+
+    VariableList push_vars({&var_cursor, &var_did_change}, zone());
     BuildFastLoop(
         push_vars, start_address, end_address,
-        [=, &var_cursor](Node* current) {
-          Node* c = ChangeInt32ToIntPtr(Load(MachineType::Uint8(), current));
-          Node* lower = Load(MachineType::Uint8(), to_lower_table_addr, c);
+        [=, &var_cursor, &var_did_change](Node* current) {
+          Node* c = Load(MachineType::Uint8(), current);
+          Node* lower = Load(MachineType::Uint8(), to_lower_table_addr,
+                             ChangeInt32ToIntPtr(c));
           StoreNoWriteBarrier(MachineRepresentation::kWord8, dst_ptr,
                               var_cursor.value(), lower);
+
+          var_did_change.Bind(
+              Word32Or(Word32NotEqual(c, lower), var_did_change.value()));
+
           Increment(var_cursor);
         },
         kCharSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 
-    // All lower-case.
+    // Return the original string if it remained unchanged in order to preserve
+    // e.g. internalization and private symbols (such as the preserved object
+    // hash) on the source string.
+    GotoIfNot(var_did_change.value(), &return_string);
+
     Return(dst);
   }
 
