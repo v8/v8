@@ -193,6 +193,8 @@ class ConcurrentMarkingVisitor final
   };
 
   const SlotSnapshot& MakeSlotSnapshot(Map* map, HeapObject* object, int size) {
+    // TODO(ulan): Iterate only the existing fields and skip slack at the end
+    // of the object.
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
     visitor.VisitPointer(object,
                          reinterpret_cast<Object**>(object->map_slot()));

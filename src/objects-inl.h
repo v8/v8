@@ -1466,21 +1466,22 @@ Isolate* HeapObject::GetIsolate() const {
   return GetHeap()->isolate();
 }
 
-
 Map* HeapObject::map() const {
   return map_word().ToMap();
 }
 
 
 void HeapObject::set_map(Map* value) {
+  if (value != nullptr) {
+#ifdef VERIFY_HEAP
+    value->GetHeap()->VerifyObjectLayoutChange(this, value);
+#endif
+  }
   set_map_word(MapWord::FromMap(value));
   if (value != nullptr) {
     // TODO(1600) We are passing NULL as a slot because maps can never be on
     // evacuation candidate.
     value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
-#ifdef VERIFY_HEAP
-    value->GetHeap()->VerifyObjectLayoutChange(this, value);
-#endif
   }
 }
 
@@ -1491,26 +1492,38 @@ Map* HeapObject::synchronized_map() {
 
 
 void HeapObject::synchronized_set_map(Map* value) {
+  if (value != nullptr) {
+#ifdef VERIFY_HEAP
+    value->GetHeap()->VerifyObjectLayoutChange(this, value);
+#endif
+  }
   synchronized_set_map_word(MapWord::FromMap(value));
   if (value != nullptr) {
     // TODO(1600) We are passing NULL as a slot because maps can never be on
     // evacuation candidate.
     value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
-#ifdef VERIFY_HEAP
-    value->GetHeap()->VerifyObjectLayoutChange(this, value);
-#endif
   }
-}
-
-
-void HeapObject::synchronized_set_map_no_write_barrier(Map* value) {
-  synchronized_set_map_word(MapWord::FromMap(value));
 }
 
 
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Map* value) {
+  if (value != nullptr) {
+#ifdef VERIFY_HEAP
+    value->GetHeap()->VerifyObjectLayoutChange(this, value);
+#endif
+  }
   set_map_word(MapWord::FromMap(value));
+}
+
+void HeapObject::set_map_after_allocation(Map* value, WriteBarrierMode mode) {
+  set_map_word(MapWord::FromMap(value));
+  if (mode != SKIP_WRITE_BARRIER) {
+    DCHECK(value != nullptr);
+    // TODO(1600) We are passing NULL as a slot because maps can never be on
+    // evacuation candidate.
+    value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
+  }
 }
 
 HeapObject** HeapObject::map_slot() {

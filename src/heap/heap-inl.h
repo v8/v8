@@ -235,7 +235,7 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
   }
 
   // String maps are all immortal immovable objects.
-  result->set_map_no_write_barrier(map);
+  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(str.length());
@@ -266,7 +266,7 @@ AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map(map);
+  result->set_map_after_allocation(map);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(str.length());

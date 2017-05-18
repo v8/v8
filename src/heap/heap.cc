@@ -2120,10 +2120,9 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   Object* result = nullptr;
   AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE);
   if (!allocation.To(&result)) return allocation;
-
   // Map::cast cannot be used due to uninitialized map field.
-  reinterpret_cast<Map*>(result)->set_map(
-      reinterpret_cast<Map*>(root(kMetaMapRootIndex)));
+  reinterpret_cast<Map*>(result)->set_map_after_allocation(
+      reinterpret_cast<Map*>(root(kMetaMapRootIndex)), SKIP_WRITE_BARRIER);
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
   // Initialize to only containing tagged fields.
@@ -2156,7 +2155,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   if (!allocation.To(&result)) return allocation;
 
   isolate()->counters()->maps_created()->Increment();
-  result->set_map_no_write_barrier(meta_map());
+  result->set_map_after_allocation(meta_map(), SKIP_WRITE_BARRIER);
   Map* map = Map::cast(result);
   map->set_instance_type(instance_type);
   map->set_prototype(null_value(), SKIP_WRITE_BARRIER);
@@ -2259,7 +2258,7 @@ bool Heap::CreateInitialMaps() {
   // Map::cast cannot be used due to uninitialized map field.
   Map* new_meta_map = reinterpret_cast<Map*>(obj);
   set_meta_map(new_meta_map);
-  new_meta_map->set_map(new_meta_map);
+  new_meta_map->set_map_after_allocation(new_meta_map);
 
   {  // Partial map allocation
 #define ALLOCATE_PARTIAL_MAP(instance_type, size, field_name)                \
@@ -2516,7 +2515,7 @@ AllocationResult Heap::AllocateHeapNumber(MutableMode mode,
   }
 
   Map* map = mode == MUTABLE ? mutable_heap_number_map() : heap_number_map();
-  HeapObject::cast(result)->set_map_no_write_barrier(map);
+  HeapObject::cast(result)->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   return result;
 }
 
@@ -2529,7 +2528,7 @@ AllocationResult Heap::AllocateCell(Object* value) {
     AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
-  result->set_map_no_write_barrier(cell_map());
+  result->set_map_after_allocation(cell_map(), SKIP_WRITE_BARRIER);
   Cell::cast(result)->set_value(value);
   return result;
 }
@@ -2542,7 +2541,8 @@ AllocationResult Heap::AllocatePropertyCell() {
   AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
   if (!allocation.To(&result)) return allocation;
 
-  result->set_map_no_write_barrier(global_property_cell_map());
+  result->set_map_after_allocation(global_property_cell_map(),
+                                   SKIP_WRITE_BARRIER);
   PropertyCell* cell = PropertyCell::cast(result);
   cell->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                            SKIP_WRITE_BARRIER);
@@ -2560,7 +2560,7 @@ AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
     AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
-  result->set_map_no_write_barrier(weak_cell_map());
+  result->set_map_after_allocation(weak_cell_map(), SKIP_WRITE_BARRIER);
   WeakCell::cast(result)->initialize(value);
   WeakCell::cast(result)->clear_next(the_hole_value());
   return result;
@@ -2574,7 +2574,8 @@ AllocationResult Heap::AllocateTransitionArray(int capacity) {
     AllocationResult allocation = AllocateRawFixedArray(capacity, TENURED);
     if (!allocation.To(&raw_array)) return allocation;
   }
-  raw_array->set_map_no_write_barrier(transition_array_map());
+  raw_array->set_map_after_allocation(transition_array_map(),
+                                      SKIP_WRITE_BARRIER);
   TransitionArray* array = TransitionArray::cast(raw_array);
   array->set_length(capacity);
   MemsetPointer(array->data_start(), undefined_value(), capacity);
@@ -2797,7 +2798,8 @@ void Heap::CreateInitialObjects() {
   {
     Handle<FixedArray> empty_sloppy_arguments_elements =
         factory->NewFixedArray(2, TENURED);
-    empty_sloppy_arguments_elements->set_map(sloppy_arguments_elements_map());
+    empty_sloppy_arguments_elements->set_map_after_allocation(
+        sloppy_arguments_elements_map(), SKIP_WRITE_BARRIER);
     set_empty_sloppy_arguments_elements(*empty_sloppy_arguments_elements);
   }
 
@@ -3070,7 +3072,7 @@ AllocationResult Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_no_write_barrier(byte_array_map());
+  result->set_map_after_allocation(byte_array_map(), SKIP_WRITE_BARRIER);
   ByteArray::cast(result)->set_length(length);
   return result;
 }
@@ -3094,7 +3096,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_no_write_barrier(bytecode_array_map());
+  result->set_map_after_allocation(bytecode_array_map(), SKIP_WRITE_BARRIER);
   BytecodeArray* instance = BytecodeArray::cast(result);
   instance->set_length(length);
   instance->set_frame_size(frame_size);
@@ -3115,15 +3117,18 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
   if (size == 0) return nullptr;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
-    filler->set_map_no_write_barrier(
-        reinterpret_cast<Map*>(root(kOnePointerFillerMapRootIndex)));
+    filler->set_map_after_allocation(
+        reinterpret_cast<Map*>(root(kOnePointerFillerMapRootIndex)),
+        SKIP_WRITE_BARRIER);
   } else if (size == 2 * kPointerSize) {
-    filler->set_map_no_write_barrier(
-        reinterpret_cast<Map*>(root(kTwoPointerFillerMapRootIndex)));
+    filler->set_map_after_allocation(
+        reinterpret_cast<Map*>(root(kTwoPointerFillerMapRootIndex)),
+        SKIP_WRITE_BARRIER);
   } else {
     DCHECK_GT(size, 2 * kPointerSize);
-    filler->set_map_no_write_barrier(
-        reinterpret_cast<Map*>(root(kFreeSpaceMapRootIndex)));
+    filler->set_map_after_allocation(
+        reinterpret_cast<Map*>(root(kFreeSpaceMapRootIndex)),
+        SKIP_WRITE_BARRIER);
     FreeSpace::cast(filler)->nobarrier_set_size(size);
   }
   if (mode == ClearRecordedSlots::kYes) {
@@ -3324,7 +3329,8 @@ AllocationResult Heap::AllocateFixedTypedArrayWithExternalPointer(
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_no_write_barrier(MapForFixedTypedArray(array_type));
+  result->set_map_after_allocation(MapForFixedTypedArray(array_type),
+                                   SKIP_WRITE_BARRIER);
   FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(result);
   elements->set_base_pointer(Smi::kZero, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(external_pointer, SKIP_WRITE_BARRIER);
@@ -3369,7 +3375,8 @@ AllocationResult Heap::AllocateFixedTypedArray(int length,
       array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned);
   if (!allocation.To(&object)) return allocation;
 
-  object->set_map_no_write_barrier(MapForFixedTypedArray(array_type));
+  object->set_map_after_allocation(MapForFixedTypedArray(array_type),
+                                   SKIP_WRITE_BARRIER);
   FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
   elements->set_base_pointer(elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
@@ -3410,7 +3417,7 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
     }
   }
 
-  result->set_map_no_write_barrier(code_map());
+  result->set_map_after_allocation(code_map(), SKIP_WRITE_BARRIER);
   Code* code = Code::cast(result);
   DCHECK(IsAligned(bit_cast<intptr_t>(code->address()), kCodeAlignment));
   DCHECK(!memory_allocator()->code_range()->valid() ||
@@ -3459,7 +3466,7 @@ AllocationResult Heap::CopyBytecodeArray(BytecodeArray* bytecode_array) {
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_no_write_barrier(bytecode_array_map());
+  result->set_map_after_allocation(bytecode_array_map(), SKIP_WRITE_BARRIER);
   BytecodeArray* copy = BytecodeArray::cast(result);
   copy->set_length(bytecode_array->length());
   copy->set_frame_size(bytecode_array->frame_size());
@@ -3476,7 +3483,8 @@ AllocationResult Heap::CopyBytecodeArray(BytecodeArray* bytecode_array) {
 
 void Heap::InitializeAllocationMemento(AllocationMemento* memento,
                                        AllocationSite* allocation_site) {
-  memento->set_map_no_write_barrier(allocation_memento_map());
+  memento->set_map_after_allocation(allocation_memento_map(),
+                                    SKIP_WRITE_BARRIER);
   DCHECK(allocation_site->map() == allocation_site_map());
   memento->set_allocation_site(allocation_site, SKIP_WRITE_BARRIER);
   if (FLAG_allocation_site_pretenuring) {
@@ -3497,7 +3505,7 @@ AllocationResult Heap::Allocate(Map* map, AllocationSpace space,
   AllocationResult allocation = AllocateRaw(size, space);
   if (!allocation.To(&result)) return allocation;
   // No need for write barrier since object is white and map is in old space.
-  result->set_map_no_write_barrier(map);
+  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   if (allocation_site != NULL) {
     AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
         reinterpret_cast<Address>(result) + map->instance_size());
@@ -3733,7 +3741,7 @@ AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_no_write_barrier(map);
+  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(chars);
@@ -3776,7 +3784,7 @@ AllocationResult Heap::AllocateRawOneByteString(int length,
   }
 
   // Partially initialize the object.
-  result->set_map_no_write_barrier(one_byte_string_map());
+  result->set_map_after_allocation(one_byte_string_map(), SKIP_WRITE_BARRIER);
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, HeapObject::cast(result)->Size());
@@ -3800,7 +3808,7 @@ AllocationResult Heap::AllocateRawTwoByteString(int length,
   }
 
   // Partially initialize the object.
-  result->set_map_no_write_barrier(string_map());
+  result->set_map_after_allocation(string_map(), SKIP_WRITE_BARRIER);
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, HeapObject::cast(result)->Size());
@@ -3816,7 +3824,7 @@ AllocationResult Heap::AllocateEmptyFixedArray() {
     if (!allocation.To(&result)) return allocation;
   }
   // Initialize the object.
-  result->set_map_no_write_barrier(fixed_array_map());
+  result->set_map_after_allocation(fixed_array_map(), SKIP_WRITE_BARRIER);
   FixedArray::cast(result)->set_length(0);
   return result;
 }
@@ -3829,7 +3837,7 @@ AllocationResult Heap::AllocateEmptyScopeInfo() {
     if (!allocation.To(&result)) return allocation;
   }
   // Initialize the object.
-  result->set_map_no_write_barrier(scope_info_map());
+  result->set_map_after_allocation(scope_info_map(), SKIP_WRITE_BARRIER);
   FixedArray::cast(result)->set_length(0);
   return result;
 }
@@ -3845,7 +3853,7 @@ AllocationResult Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
     AllocationResult allocation = AllocateRawFixedArray(len, TENURED);
     if (!allocation.To(&obj)) return allocation;
   }
-  obj->set_map_no_write_barrier(fixed_array_map());
+  obj->set_map_after_allocation(fixed_array_map(), SKIP_WRITE_BARRIER);
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
 
@@ -3857,7 +3865,8 @@ AllocationResult Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
   // TODO(mvstanton): The map is set twice because of protection against calling
   // set() on a COW FixedArray. Issue v8:3221 created to track this, and
   // we might then be able to remove this whole method.
-  HeapObject::cast(obj)->set_map_no_write_barrier(fixed_cow_array_map());
+  HeapObject::cast(obj)->set_map_after_allocation(fixed_cow_array_map(),
+                                                  SKIP_WRITE_BARRIER);
   return result;
 }
 
@@ -3879,7 +3888,7 @@ AllocationResult Heap::CopyFixedArrayAndGrow(FixedArray* src, int grow_by,
     if (!allocation.To(&obj)) return allocation;
   }
 
-  obj->set_map_no_write_barrier(fixed_array_map());
+  obj->set_map_after_allocation(fixed_array_map(), SKIP_WRITE_BARRIER);
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(new_len);
 
@@ -3902,7 +3911,7 @@ AllocationResult Heap::CopyFixedArrayUpTo(FixedArray* src, int new_len,
     AllocationResult allocation = AllocateRawFixedArray(new_len, pretenure);
     if (!allocation.To(&obj)) return allocation;
   }
-  obj->set_map_no_write_barrier(fixed_array_map());
+  obj->set_map_after_allocation(fixed_array_map(), SKIP_WRITE_BARRIER);
 
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(new_len);
@@ -3921,7 +3930,7 @@ AllocationResult Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
     AllocationResult allocation = AllocateRawFixedArray(len, NOT_TENURED);
     if (!allocation.To(&obj)) return allocation;
   }
-  obj->set_map_no_write_barrier(map);
+  obj->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
 
   FixedArray* result = FixedArray::cast(obj);
   DisallowHeapAllocation no_gc;
@@ -3949,7 +3958,7 @@ AllocationResult Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
     AllocationResult allocation = AllocateRawFixedDoubleArray(len, NOT_TENURED);
     if (!allocation.To(&obj)) return allocation;
   }
-  obj->set_map_no_write_barrier(map);
+  obj->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   CopyBlock(obj->address() + FixedDoubleArray::kLengthOffset,
             src->address() + FixedDoubleArray::kLengthOffset,
             FixedDoubleArray::SizeFor(len) - FixedDoubleArray::kLengthOffset);
@@ -3990,7 +3999,7 @@ AllocationResult Heap::AllocateFixedArrayWithFiller(int length,
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_no_write_barrier(fixed_array_map());
+  result->set_map_after_allocation(fixed_array_map(), SKIP_WRITE_BARRIER);
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
   MemsetPointer(array->data_start(), filler, length);
@@ -4012,7 +4021,7 @@ AllocationResult Heap::AllocateUninitializedFixedArray(int length) {
     if (!allocation.To(&obj)) return allocation;
   }
 
-  obj->set_map_no_write_barrier(fixed_array_map());
+  obj->set_map_after_allocation(fixed_array_map(), SKIP_WRITE_BARRIER);
   FixedArray::cast(obj)->set_length(length);
   return obj;
 }
@@ -4026,7 +4035,8 @@ AllocationResult Heap::AllocateUninitializedFixedDoubleArray(
   AllocationResult allocation = AllocateRawFixedDoubleArray(length, pretenure);
   if (!allocation.To(&elements)) return allocation;
 
-  elements->set_map_no_write_barrier(fixed_double_array_map());
+  elements->set_map_after_allocation(fixed_double_array_map(),
+                                     SKIP_WRITE_BARRIER);
   FixedDoubleArray::cast(elements)->set_length(length);
   return elements;
 }
@@ -4058,7 +4068,7 @@ AllocationResult Heap::AllocateSymbol() {
   AllocationResult allocation = AllocateRaw(Symbol::kSize, OLD_SPACE);
   if (!allocation.To(&result)) return allocation;
 
-  result->set_map_no_write_barrier(symbol_map());
+  result->set_map_after_allocation(symbol_map(), SKIP_WRITE_BARRIER);
 
   // Generate a random hash value.
   int hash = isolate()->GenerateIdentityHash(Name::kHashBitMask);
@@ -4284,6 +4294,10 @@ void Heap::NotifyObjectLayoutChange(HeapObject* object,
 
 #ifdef VERIFY_HEAP
 void Heap::VerifyObjectLayoutChange(HeapObject* object, Map* new_map) {
+  // Check that Heap::NotifyObjectLayout was called for object transitions
+  // that are not safe for concurrent marking.
+  // If you see this check triggering for a freshly allocated object,
+  // use object->set_map_after_allocation() to initialize its map.
   if (pending_layout_change_object_ == nullptr) {
     DCHECK(!object->IsJSObject() ||
            !object->map()->TransitionRequiresSynchronizationWithGC(new_map));

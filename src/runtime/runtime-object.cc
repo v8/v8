@@ -130,6 +130,7 @@ namespace {
 
 bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
                               Handle<Object> raw_key) {
+  DisallowHeapAllocation no_allocation;
   // This implements a special case for fast property deletion: when the
   // last property in an object is deleted, then instead of normalizing
   // the properties, we can undo the last map transition, with a few
@@ -160,6 +161,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // Zap the property to avoid keeping objects alive. Zapping is not necessary
   // for properties stored in the descriptor array.
   if (details.location() == kField) {
+    isolate->heap()->NotifyObjectLayoutChange(*receiver, no_allocation);
     Object* filler = isolate->heap()->one_pointer_filler_map();
     FieldIndex index = FieldIndex::ForPropertyIndex(map, details.field_index());
     JSObject::cast(*receiver)->RawFastPropertyAtPut(index, filler);

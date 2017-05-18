@@ -3338,8 +3338,8 @@ const char* Representation::Mnemonic() const {
 }
 
 bool Map::TransitionRemovesTaggedField(Map* target) {
-  int inobject = GetInObjectProperties();
-  int target_inobject = target->GetInObjectProperties();
+  int inobject = NumberOfFields();
+  int target_inobject = target->NumberOfFields();
   for (int i = target_inobject; i < inobject; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(this, i);
     if (!IsUnboxedDoubleField(index)) return true;
@@ -3348,8 +3348,8 @@ bool Map::TransitionRemovesTaggedField(Map* target) {
 }
 
 bool Map::TransitionChangesTaggedFieldToUntaggedField(Map* target) {
-  int inobject = GetInObjectProperties();
-  int target_inobject = target->GetInObjectProperties();
+  int inobject = NumberOfFields();
+  int target_inobject = target->NumberOfFields();
   int limit = Min(inobject, target_inobject);
   for (int i = 0; i < limit; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(target, i);

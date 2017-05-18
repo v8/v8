@@ -1683,8 +1683,12 @@ class HeapObject: public Object {
 
   // Set the map using release store
   inline void synchronized_set_map(Map* value);
-  inline void synchronized_set_map_no_write_barrier(Map* value);
   inline void synchronized_set_map_word(MapWord map_word);
+
+  // Initialize the map immediately after the object is allocated.
+  // Do not use this outside Heap.
+  inline void set_map_after_allocation(
+      Map* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
