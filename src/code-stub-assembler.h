@@ -19,6 +19,44 @@ class CodeStubArguments;
 class StatsCounter;
 class StubCache;
 
+#define CSA_CHECK(csa, x) \
+  (csa)->Check([&] { return (x); }, #x, __FILE__, __LINE__)
+
+#ifdef DEBUG
+#define CSA_ASSERT(csa, x) \
+  (csa)->Assert([&] { return (x); }, #x, __FILE__, __LINE__)
+#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)             \
+  (csa)->Assert(                                                 \
+      [&] {                                                      \
+        compiler::Node* const argc =                             \
+            (csa)->Parameter(Descriptor::kActualArgumentsCount); \
+        return (csa)->Op(argc, (csa)->Int32Constant(expected));  \
+      },                                                         \
+      "argc " #op " " #expected, __FILE__, __LINE__)
+
+#define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \
+  CSA_ASSERT_JS_ARGC_OP(csa, Word32Equal, ==, expected)
+
+#define BIND(label) Bind(label, {#label, __FILE__, __LINE__})
+#define VARIABLE(name, ...) \
+  Variable name(this, {#name, __FILE__, __LINE__}, __VA_ARGS__);
+
+#else  // DEBUG
+#define CSA_ASSERT(csa, x) ((void)0)
+#define CSA_ASSERT_JS_ARGC_EQ(csa, expected) ((void)0)
+#define BIND(label) Bind(label);
+#define VARIABLE(name, ...) Variable name(this, __VA_ARGS__);
+#endif  // DEBUG
+
+#ifdef ENABLE_SLOW_DCHECKS
+#define CSA_SLOW_ASSERT(csa, x)   \
+  if (FLAG_enable_slow_asserts) { \
+    CSA_ASSERT(csa, x);           \
+  }
+#else
+#define CSA_SLOW_ASSERT(csa, x) ((void)0)
+#endif
+
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
 #define HEAP_CONSTANT_LIST(V)                         \
@@ -27,10 +65,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(AllocationSiteMap, AllocationSiteMap)             \
   V(BooleanMap, BooleanMap)                           \
   V(CodeMap, CodeMap)                                 \
-  V(empty_string, EmptyString)                        \
-  V(length_string, LengthString)                      \
-  V(prototype_string, PrototypeString)                \
   V(EmptyFixedArray, EmptyFixedArray)                 \
+  V(empty_string, EmptyString)                        \
   V(EmptyWeakCell, EmptyWeakCell)                     \
   V(FalseValue, False)                                \
   V(FeedbackVectorMap, FeedbackVectorMap)             \
@@ -38,23 +74,27 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \
   V(FixedDoubleArrayMap, FixedDoubleArrayMap)         \
   V(FunctionTemplateInfoMap, FunctionTemplateInfoMap) \
+  V(GlobalPropertyCellMap, PropertyCellMap)           \
   V(has_instance_symbol, HasInstanceSymbol)           \
   V(HeapNumberMap, HeapNumberMap)                     \
-  V(NoClosuresCellMap, NoClosuresCellMap)             \
-  V(OneClosureCellMap, OneClosureCellMap)             \
+  V(length_string, LengthString)                      \
   V(ManyClosuresCellMap, ManyClosuresCellMap)         \
+  V(MetaMap, MetaMap)                                 \
   V(MinusZeroValue, MinusZero)                        \
+  V(MutableHeapNumberMap, MutableHeapNumberMap)       \
   V(NanValue, Nan)                                    \
+  V(NoClosuresCellMap, NoClosuresCellMap)             \
   V(NullValue, Null)                                  \
-  V(GlobalPropertyCellMap, PropertyCellMap)           \
+  V(OneClosureCellMap, OneClosureCellMap)             \
+  V(prototype_string, PrototypeString)                \
+  V(SpeciesProtector, SpeciesProtector)               \
   V(SymbolMap, SymbolMap)                             \
   V(TheHoleValue, TheHole)                            \
   V(TrueValue, True)                                  \
   V(Tuple2Map, Tuple2Map)                             \
   V(Tuple3Map, Tuple3Map)                             \
   V(UndefinedValue, Undefined)                        \
-  V(WeakCellMap, WeakCellMap)                         \
-  V(SpeciesProtector, SpeciesProtector)
+  V(WeakCellMap, WeakCellMap)
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
@@ -116,6 +156,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     if (mode != SMI_PARAMETERS) value = SmiUntag(value);
     return value;
   }
+
+  Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
   Node* OpName(Node* a, Node* b, ParameterMode mode) {   \
@@ -185,6 +227,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Smi operations.
 #define SMI_ARITHMETIC_BINOP(SmiOpName, IntPtrOpName)                  \
   Node* SmiOpName(Node* a, Node* b) {                                  \
+    CSA_SLOW_ASSERT(this, TaggedIsSmi(a));                             \
+    CSA_SLOW_ASSERT(this, TaggedIsSmi(b));                             \
     return BitcastWordToTaggedSigned(                                  \
         IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b))); \
   }
@@ -195,10 +239,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 #undef SMI_ARITHMETIC_BINOP
 
   Node* SmiShl(Node* a, int shift) {
+    CSA_SLOW_ASSERT(this, TaggedIsSmi(a));
     return BitcastWordToTaggedSigned(WordShl(BitcastTaggedToWord(a), shift));
   }
 
   Node* SmiShr(Node* a, int shift) {
+    CSA_SLOW_ASSERT(this, TaggedIsSmi(a));
     return BitcastWordToTaggedSigned(
         WordAnd(WordShr(BitcastTaggedToWord(a), shift),
                 BitcastTaggedToWord(SmiConstant(-1))));
@@ -224,6 +270,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
 #define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName)                       \
   Node* SmiOpName(Node* a, Node* b) {                                    \
+    CSA_SLOW_ASSERT(this, TaggedIsSmi(a));                               \
+    CSA_SLOW_ASSERT(this, TaggedIsSmi(b));                               \
     return IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b)); \
   }
   SMI_COMPARISON_OP(SmiEqual, WordEqual)
@@ -763,6 +811,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsPropertyCell(Node* object);
   Node* IsAccessorInfo(Node* object);
   Node* IsAccessorPair(Node* object);
+  Node* IsAnyHeapNumber(Node* object);
+  Node* IsMutableHeapNumber(Node* object);
   Node* IsHeapNumber(Node* object);
   Node* IsName(Node* object);
   Node* IsSymbol(Node* object);
@@ -773,6 +823,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSArrayInstanceType(Node* instance_type);
   Node* IsJSArray(Node* object);
   Node* IsJSArrayMap(Node* object);
+  Node* IsFixedArray(Node* object);
+  Node* IsFixedArrayWithKindOrEmpty(Node* object, ElementsKind kind);
+  Node* IsFixedArrayWithKind(Node* object, ElementsKind kind);
   Node* IsNativeContext(Node* object);
   Node* IsWeakCell(Node* object);
   Node* IsFixedDoubleArray(Node* object);
@@ -822,16 +875,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Return a new string object produced by concatenating |first| with |second|.
   Node* StringAdd(Node* context, Node* first, Node* second,
                   AllocationFlags flags = kNone);
-
-  // Unpack the external string, returning a pointer that (offset-wise) looks
-  // like a sequential string.
-  // Note that this pointer is not tagged and does not point to a real
-  // sequential string instance, and may only be used to access the string
-  // data. The pointer is GC-safe as long as a reference to the container
-  // ExternalString is live.
-  // |string| must be an external string. Bailout for short external strings.
-  Node* TryDerefExternalString(Node* const string, Node* const instance_type,
-                               Label* if_bailout);
 
   // Check if |var_string| has an indirect (thin or flat cons) string type,
   // and unpack it if so.
@@ -1601,44 +1644,6 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 
   const Flags flags_;
 };
-
-#define CSA_CHECK(csa, x) \
-  (csa)->Check([&] { return (x); }, #x, __FILE__, __LINE__)
-
-#ifdef DEBUG
-#define CSA_ASSERT(csa, x) \
-  (csa)->Assert([&] { return (x); }, #x, __FILE__, __LINE__)
-#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)             \
-  (csa)->Assert(                                                 \
-      [&] {                                                      \
-        compiler::Node* const argc =                             \
-            (csa)->Parameter(Descriptor::kActualArgumentsCount); \
-        return (csa)->Op(argc, (csa)->Int32Constant(expected));  \
-      },                                                         \
-      "argc " #op " " #expected, __FILE__, __LINE__)
-
-#define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \
-  CSA_ASSERT_JS_ARGC_OP(csa, Word32Equal, ==, expected)
-
-#define BIND(label) Bind(label, {#label, __FILE__, __LINE__})
-#define VARIABLE(name, ...) \
-  Variable name(this, {#name, __FILE__, __LINE__}, __VA_ARGS__);
-
-#else  // DEBUG
-#define CSA_ASSERT(csa, x) ((void)0)
-#define CSA_ASSERT_JS_ARGC_EQ(csa, expected) ((void)0)
-#define BIND(label) Bind(label);
-#define VARIABLE(name, ...) Variable name(this, __VA_ARGS__);
-#endif  // DEBUG
-
-#ifdef ENABLE_SLOW_DCHECKS
-#define CSA_SLOW_ASSERT(csa, x)   \
-  if (FLAG_enable_slow_asserts) { \
-    CSA_ASSERT(csa, x);           \
-  }
-#else
-#define CSA_SLOW_ASSERT(csa, x) ((void)0)
-#endif
 
 DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);
 
