@@ -435,18 +435,6 @@ TEST(CharacterStreams) {
   TestCharacterStreams(buffer, arraysize(buffer) - 1, 576, 3298);
 }
 
-TEST(Uft8MultipleBOMChunks) {
-  const char* chunks = "\xef\xbb\xbf\0\xef\xbb\xbf\0\xef\xbb\xbf\0a\0";
-  const uint16_t unicode[] = {0xFEFF, 0xFEFF, 97};
-  ChunkSource chunk_source(chunks);
-  std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
-      &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
-  for (size_t i = 0; i < arraysize(unicode); i++) {
-    CHECK_EQ(unicode[i], stream->Advance());
-  }
-  CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
-}
-
 // Regression test for crbug.com/651333. Read invalid utf-8.
 TEST(Regress651333) {
   const uint8_t bytes[] =
