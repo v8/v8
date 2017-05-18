@@ -445,7 +445,16 @@ void* v8::ArrayBuffer::Allocator::Reserve(size_t length) { UNIMPLEMENTED(); }
 
 void v8::ArrayBuffer::Allocator::Free(void* data, size_t length,
                                       AllocationMode mode) {
-  UNIMPLEMENTED();
+  switch (mode) {
+    case AllocationMode::kNormal: {
+      Free(data, length);
+      return;
+    }
+    case AllocationMode::kReservation: {
+      UNIMPLEMENTED();
+      return;
+    }
+  }
 }
 
 void v8::ArrayBuffer::Allocator::SetProtection(
