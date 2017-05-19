@@ -6924,6 +6924,12 @@ void JSArrayBuffer::set_allocation_length(size_t value) {
       value;
 }
 
+ArrayBuffer::Allocator::AllocationMode JSArrayBuffer::allocation_mode() const {
+  using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
+  return has_guard_region() ? AllocationMode::kReservation
+                            : AllocationMode::kNormal;
+}
+
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
   if (kInt32Size != kPointerSize) {
 #if V8_TARGET_LITTLE_ENDIAN
@@ -6945,7 +6951,6 @@ bool JSArrayBuffer::is_external() { return IsExternal::decode(bit_field()); }
 
 
 void JSArrayBuffer::set_is_external(bool value) {
-  DCHECK(!value || !has_guard_region());
   set_bit_field(IsExternal::update(bit_field(), value));
 }
 
@@ -6975,7 +6980,7 @@ void JSArrayBuffer::set_is_shared(bool value) {
   set_bit_field(IsShared::update(bit_field(), value));
 }
 
-bool JSArrayBuffer::has_guard_region() {
+bool JSArrayBuffer::has_guard_region() const {
   return HasGuardRegion::decode(bit_field());
 }
 

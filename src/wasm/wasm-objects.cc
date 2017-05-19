@@ -479,9 +479,10 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     // Even for pages == 0, we need to attach a new JSArrayBuffer with the same
     // backing store and neuter the old one to be spec compliant.
     if (!old_buffer.is_null() && old_size != 0) {
-      new_buffer = SetupArrayBuffer(isolate, old_buffer->backing_store(),
-                                    old_size, old_buffer->is_external(),
-                                    old_buffer->has_guard_region());
+      new_buffer = SetupArrayBuffer(
+          isolate, old_buffer->allocation_base(),
+          old_buffer->allocation_length(), old_buffer->backing_store(),
+          old_size, old_buffer->is_external(), old_buffer->has_guard_region());
       memory_object->set_buffer(*new_buffer);
     }
     DCHECK_EQ(0, old_size % WasmModule::kPageSize);

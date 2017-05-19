@@ -8533,7 +8533,7 @@ class JSArrayBuffer: public JSObject {
   inline bool is_shared();
   inline void set_is_shared(bool value);
 
-  inline bool has_guard_region();
+  inline bool has_guard_region() const;
   inline void set_has_guard_region(bool value);
 
   // TODO(gdeepti): This flag is introduced to disable asm.js optimizations in
@@ -8544,6 +8544,8 @@ class JSArrayBuffer: public JSObject {
   DECLARE_CAST(JSArrayBuffer)
 
   void Neuter();
+
+  inline ArrayBuffer::Allocator::AllocationMode allocation_mode() const;
 
   void FreeBackingStore();
 

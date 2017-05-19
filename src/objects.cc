@@ -19606,11 +19606,22 @@ void JSArrayBuffer::Neuter() {
 }
 
 void JSArrayBuffer::FreeBackingStore() {
+  if (allocation_base() == nullptr) {
+    return;
+  }
   using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
   const size_t length = allocation_length();
-  const AllocationMode mode = has_guard_region() ? AllocationMode::kReservation
-                                                 : AllocationMode::kNormal;
+  const AllocationMode mode = allocation_mode();
   GetIsolate()->array_buffer_allocator()->Free(allocation_base(), length, mode);
+
+  // Zero out the backing store and allocation base to avoid dangling
+  // pointers.
+  set_backing_store(nullptr);
+  // TODO(eholk): set_byte_length(0) once we aren't using Smis for the
+  // byte_length. We can't do it now because the GC needs to call
+  // FreeBackingStore while it is collecting.
+  set_allocation_base(nullptr);
+  set_allocation_length(0);
 }
 
 void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
