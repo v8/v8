@@ -91,6 +91,22 @@ struct PassType : public std::conditional<
                       std::is_scalar<typename std::decay<T>::type>::value,
                       typename std::decay<T>::type, T const&> {};
 
+template <typename Op>
+void PrintCheckOperand(std::ostream& os, Op op) {
+  os << op;
+}
+
+void PrettyPrintChar(std::ostream& os, int ch);
+
+#define DEFINE_PRINT_CHECK_OPERAND_CHAR(type) \
+  template <>                                 \
+  V8_BASE_EXPORT void PrintCheckOperand<type>(std::ostream & os, type ch);
+
+DEFINE_PRINT_CHECK_OPERAND_CHAR(char)
+DEFINE_PRINT_CHECK_OPERAND_CHAR(signed char)
+DEFINE_PRINT_CHECK_OPERAND_CHAR(unsigned char)
+#undef DEFINE_PRINT_CHECK_OPERAND_CHAR
+
 // Build the error message string.  This is separate from the "Impl"
 // function template because it is not performance critical and so can
 // be out of line, while the "Impl" code should be inline. Caller
@@ -100,7 +116,11 @@ std::string* MakeCheckOpString(typename PassType<Lhs>::type lhs,
                                typename PassType<Rhs>::type rhs,
                                char const* msg) {
   std::ostringstream ss;
-  ss << msg << " (" << lhs << " vs. " << rhs << ")";
+  ss << msg << " (";
+  PrintCheckOperand(ss, lhs);
+  ss << " vs. ";
+  PrintCheckOperand(ss, rhs);
+  ss << ")";
   return new std::string(ss.str());
 }
 
@@ -108,7 +128,9 @@ std::string* MakeCheckOpString(typename PassType<Lhs>::type lhs,
 // in logging.cc.
 #define DEFINE_MAKE_CHECK_OP_STRING(type)                                    \
   extern template V8_BASE_EXPORT std::string* MakeCheckOpString<type, type>( \
-      type, type, char const*);
+      type, type, char const*);                                              \
+  extern template V8_BASE_EXPORT void PrintCheckOperand<type>(std::ostream&, \
+                                                              type);
 DEFINE_MAKE_CHECK_OP_STRING(int)
 DEFINE_MAKE_CHECK_OP_STRING(long)       // NOLINT(runtime/int)
 DEFINE_MAKE_CHECK_OP_STRING(long long)  // NOLINT(runtime/int)
@@ -144,7 +166,7 @@ struct is_unsigned_vs_signed : public is_signed_vs_unsigned<Rhs, Lhs> {};
 #define DEFINE_SIGNED_MISMATCH_COMP(CHECK, NAME, IMPL)                  \
   template <typename Lhs, typename Rhs>                                 \
   V8_INLINE typename std::enable_if<CHECK<Lhs, Rhs>::value, bool>::type \
-      Cmp##NAME##Impl(Lhs const& lhs, Rhs const& rhs) {                 \
+      Cmp##NAME##Impl(Lhs lhs, Rhs rhs) {                               \
     return IMPL;                                                        \
   }
 DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, EQ,
