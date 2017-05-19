@@ -109,14 +109,15 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     if (!shared->force_inline()) {
       force_inline = false;
     }
-    if (CanInlineFunction(shared)) {
+    candidate.can_inline_function[i] = CanInlineFunction(shared);
+    if (candidate.can_inline_function[i]) {
       can_inline = true;
     }
     if (!IsSmallInlineFunction(shared)) {
       small_inline = false;
     }
   }
-  if (force_inline) return InlineCandidate(candidate);
+  if (force_inline) return InlineCandidate(candidate, true);
   if (!can_inline) return NoChange();
 
   // Stop inlining once the maximum allowed level is reached.
@@ -153,7 +154,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     case kRestrictedInlining:
       return NoChange();
     case kStressInlining:
-      return InlineCandidate(candidate);
+      return InlineCandidate(candidate, false);
     case kGeneralInlining:
       break;
   }
@@ -166,11 +167,12 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     return NoChange();
   }
 
-  // Forcibly inline small functions here.
+  // Forcibly inline small functions here. In the case of polymorphic inlining
+  // small_inline is set only when all functions are small.
   if (small_inline && cumulative_count_ <= FLAG_max_inlined_nodes_absolute) {
     TRACE("Inlining small function(s) at call site #%d:%s\n", node->id(),
           node->op()->mnemonic());
-    return InlineCandidate(candidate);
+    return InlineCandidate(candidate, true);
   }
 
   // In the general case we remember the candidate for later.
@@ -193,13 +195,14 @@ void JSInliningHeuristic::Finalize() {
     candidates_.erase(i);
     // Make sure we don't try to inline dead candidate nodes.
     if (!candidate.node->IsDead()) {
-      Reduction const reduction = InlineCandidate(candidate);
+      Reduction const reduction = InlineCandidate(candidate, false);
       if (reduction.Changed()) return;
     }
   }
 }
 
-Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
+Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
+                                               bool force_inline) {
   int const num_calls = candidate.num_functions;
   Node* const node = candidate.node;
   if (num_calls == 1) {
@@ -291,12 +294,16 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
   for (int i = 0; i < num_calls; ++i) {
     Handle<JSFunction> function = candidate.functions[i];
     Node* node = calls[i];
-    Reduction const reduction = inliner_.ReduceJSCall(node);
-    if (reduction.Changed()) {
-      // Killing the call node is not strictly necessary, but it is safer to
-      // make sure we do not resurrect the node.
-      node->Kill();
-      cumulative_count_ += function->shared()->ast_node_count();
+    if (force_inline ||
+        (candidate.can_inline_function[i] &&
+         cumulative_count_ < FLAG_max_inlined_nodes_cumulative)) {
+      Reduction const reduction = inliner_.ReduceJSCall(node);
+      if (reduction.Changed()) {
+        // Killing the call node is not strictly necessary, but it is safer to
+        // make sure we do not resurrect the node.
+        node->Kill();
+        cumulative_count_ += function->shared()->ast_node_count();
+      }
     }
   }
 
