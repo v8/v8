@@ -1374,7 +1374,7 @@ class ObjectLiteral final : public MaterializedLiteral {
   }
   bool has_elements() const { return HasElementsField::decode(bit_field_); }
   bool has_shallow_properties() const {
-    return depth() == 1 && !has_elements() && !may_store_doubles();
+    return depth() == 1 && !may_store_doubles();
   }
   bool has_rest_property() const {
     return HasRestPropertyField::decode(bit_field_);

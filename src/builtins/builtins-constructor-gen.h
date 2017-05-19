@@ -41,6 +41,7 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   Node* NonEmptyShallowClone(Node* boilerplate, Node* boilerplate_map,
                              Node* boilerplate_elements, Node* allocation_site,
                              Node* capacity, ElementsKind kind);
+  Node* CopyFixedArrayBase(Node* elements);
 };
 
 }  // namespace internal

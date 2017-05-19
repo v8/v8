@@ -28,6 +28,36 @@ void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
 
 typedef compiler::Node Node;
 
+Node* ConstructorBuiltinsAssembler::CopyFixedArrayBase(Node* fixed_array) {
+  Label if_fixed_array(this), if_fixed_double_array(this), done(this);
+  VARIABLE(result, MachineRepresentation::kTagged);
+  Node* capacity = LoadAndUntagFixedArrayBaseLength(fixed_array);
+  Branch(IsFixedDoubleArrayMap(LoadMap(fixed_array)), &if_fixed_double_array,
+         &if_fixed_array);
+  BIND(&if_fixed_double_array);
+  {
+    ElementsKind kind = FAST_DOUBLE_ELEMENTS;
+    Node* copy = AllocateFixedArray(kind, capacity);
+    CopyFixedArrayElements(kind, fixed_array, kind, copy, capacity, capacity,
+                           SKIP_WRITE_BARRIER);
+    result.Bind(copy);
+    Goto(&done);
+  }
+
+  BIND(&if_fixed_array);
+  {
+    ElementsKind kind = FAST_ELEMENTS;
+    Node* copy = AllocateFixedArray(kind, capacity);
+    CopyFixedArrayElements(kind, fixed_array, kind, copy, capacity, capacity,
+                           UPDATE_WRITE_BARRIER);
+    result.Bind(copy);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return result.value();
+}
+
 Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
                                                        Node* feedback_vector,
                                                        Node* slot,
@@ -598,14 +628,14 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
   VARIABLE(var_properties, MachineRepresentation::kTagged);
   {
     // Directly copy over the property store for dict-mode boilerplates.
-    Label if_dictionary(this), if_fast(this), allocate_object(this);
+    Label if_dictionary(this), if_fast(this), done(this);
     Branch(IsDictionaryMap(boilerplate_map), &if_dictionary, &if_fast);
     BIND(&if_dictionary);
     {
       var_properties.Bind(
           CopyNameDictionary(LoadProperties(boilerplate), call_runtime));
       // Slow objects have no in-object properties.
-      Goto(&allocate_object);
+      Goto(&done);
     }
     BIND(&if_fast);
     {
@@ -613,9 +643,29 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
       Node* boilerplate_properties = LoadProperties(boilerplate);
       GotoIfNot(IsEmptyFixedArray(boilerplate_properties), call_runtime);
       var_properties.Bind(EmptyFixedArrayConstant());
-      Goto(&allocate_object);
+      Goto(&done);
     }
-    BIND(&allocate_object);
+    BIND(&done);
+  }
+
+  VARIABLE(var_elements, MachineRepresentation::kTagged);
+  {
+    // Copy the elements backing store, assuming that it's flat.
+    Label if_empty_fixed_array(this), if_copy_elements(this), done(this);
+    Node* boilerplate_elements = LoadElements(boilerplate);
+    Branch(IsEmptyFixedArray(boilerplate_elements), &if_empty_fixed_array,
+           &if_copy_elements);
+
+    BIND(&if_empty_fixed_array);
+    var_elements.Bind(boilerplate_elements);
+    Goto(&done);
+
+    BIND(&if_copy_elements);
+    CSA_ASSERT(this,
+               Word32Not(IsFixedCOWArrayMap(LoadMap(boilerplate_elements))));
+    var_elements.Bind(CopyFixedArrayBase(boilerplate_elements));
+    Goto(&done);
+    BIND(&done);
   }
 
   Node* instance_size = TimesPointerSize(LoadMapInstanceSize(boilerplate_map));
@@ -632,10 +682,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     StoreMapNoWriteBarrier(copy, boilerplate_map);
     StoreObjectFieldNoWriteBarrier(copy, JSObject::kPropertiesOffset,
                                    var_properties.value());
-    // TODO(cbruni): support elements cloning for object literals.
-    CSA_ASSERT(this, IsEmptyFixedArray(LoadElements(boilerplate)));
     StoreObjectFieldNoWriteBarrier(copy, JSObject::kElementsOffset,
-                                   EmptyFixedArrayConstant());
+                                   var_elements.value());
   }
 
   // Copy over in-object properties.

@@ -2276,6 +2276,7 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
                                           IntPtrOrSmiConstant(0, mode), mode));
   Node* total_size = GetFixedArrayAllocationSize(capacity_node, kind, mode);
 
+  if (IsFastDoubleElementsKind(kind)) flags |= kDoubleAlignment;
   // Allocate both array and elements object, and initialize the JSArray.
   Node* array = Allocate(total_size, flags);
   Heap::RootListIndex map_index = IsFastDoubleElementsKind(kind)

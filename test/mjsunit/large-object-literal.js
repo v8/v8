@@ -26,6 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Test that we can create object literals of various sizes.
+
+// Flags: --allow-natives-syntax
+
 function testLiteral(size) {
 
   // Build object-literal string.
@@ -45,6 +48,25 @@ function testLiteral(size) {
     assertEquals(i, o["a"+i]);
   }
 }
+function testElementLiteral(size) {
+
+  // Build object-literal string.
+  var literal = "var o = { ";
+
+  for (var i = 0; i < size; i++) {
+    if (i > 0) literal += ",";
+    literal += (i + ":'" + i+"'");
+  }
+  literal += "}";
+
+  // Create the object literal.
+  eval(literal);
+
+  // Check that the properties have the expected values.
+  for (var i = 0; i < size; i++) {
+    assertEquals(i+"", o[i]);
+  }
+}
 
 // The sizes to test.
 var sizes = [0, 1, 2, 100, 200, 400, 1000];
@@ -52,4 +74,91 @@ var sizes = [0, 1, 2, 100, 200, 400, 1000];
 // Run the test.
 for (var i = 0; i < sizes.length; i++) {
   testLiteral(sizes[i]);
+  testElementLiteral(sizes[i]);
 }
+
+
+// Larg Object dictionary mode literal.
+
+
+function TestSlowLiteralOptimized() {
+  function f() {
+    return {__proto__:null, bar:"barValue"};
+  }
+  let obj = f();
+  assertFalse(%HasFastProperties(obj));
+  assertEquals(Object.getPrototypeOf(obj), null);
+  assertEquals(["bar"], Object.keys(obj));
+  assertEquals("barValue", obj.bar);
+  obj.bar = "barValue2";
+  assertEquals("barValue2", obj.bar);
+
+  %OptimizeFunctionOnNextCall(f);
+  obj = f();
+  assertFalse(%HasFastProperties(obj));
+  assertEquals(Object.getPrototypeOf(obj), null);
+  assertEquals(["bar"], Object.keys(obj));
+  assertEquals("barValue", obj.bar);
+  obj.bar = "barValue2";
+  assertEquals("barValue2", obj.bar);
+};
+TestSlowLiteralOptimized();
+TestSlowLiteralOptimized();
+
+(function TestLargeObjectDictionaryLiteral() {
+  // Create potential large-space object literal.
+  let properties = [];
+  // Constant chosen so the dictionary properties store lies in large object
+  // space.
+  const max = 0x1ef3e / 3;
+  for (let i = 0; i < max; i++) {
+    properties.push("p"+i);
+  }
+  let source = "return { __proto__:null, " + properties.join(":'',") + ":''}"
+  let createObject = new Function(source);
+  let object = createObject();
+  %HeapObjectVerify(object);
+  assertFalse(%HasFastProperties(object));
+  assertEquals(Object.getPrototypeOf(object ), null);
+  let keys = Object.keys(object);
+  // modify original object
+  object['new_property'] = {};
+  object[1] = 12;
+  %HeapObjectVerify(object);
+
+  let object2  = createObject();
+  %HeapObjectVerify(object2);
+  assertFalse(object2 === object);
+  assertFalse(%HasFastProperties(object2));
+  assertEquals(Object.getPrototypeOf(object2), null);
+  assertEquals(keys, Object.keys(object2));
+})();
+
+// Test Object literal with large-object elements.
+let indices = [];
+const max = 0x1ef3e + 100;
+for (let i = 0; i < max; i++) {
+  indices.push(""+i);
+}
+let source = "return {" + indices.join(":0,") + ":0};"
+let largeElementsLiteral = new Function(source);
+
+function TestLargeObjectElements() {
+  // Corresponds to FixedArray::kMaxRegularLength.
+  let object = largeElementsLiteral();
+  %HeapObjectVerify(object);
+  for (let i = 0; i < max; i++) {
+    assertEquals(0, object[i]);
+  }
+  object[0] = 0xFF;
+  assertEquals(0xFF, object[0]);
+  object[1] = 1.23;
+  assertEquals(1.23, object[1]);
+  %HeapObjectVerify(object);
+}
+
+TestLargeObjectElements();
+TestLargeObjectElements();
+TestLargeObjectElements();
+%OptimizeFunctionOnNextCall(TestLargeObjectElements);
+TestLargeObjectElements();
