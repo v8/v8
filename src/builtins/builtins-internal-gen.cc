@@ -136,8 +136,7 @@ TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
 
         // Load the parameter at the given {index}.
         Node* value = Load(MachineType::AnyTagged(), frame,
-                           WordShl(IntPtrSub(offset, index),
-                                   IntPtrConstant(kPointerSizeLog2)));
+                           TimesPointerSize(IntPtrSub(offset, index)));
 
         // Store the {value} into the {result}.
         StoreFixedArrayElement(result, index, value, SKIP_WRITE_BARRIER);

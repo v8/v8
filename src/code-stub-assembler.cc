@@ -658,7 +658,7 @@ Node* CodeStubAssembler::TaggedIsPositiveSmi(Node* a) {
 
 Node* CodeStubAssembler::WordIsWordAligned(Node* word) {
   return WordEqual(IntPtrConstant(0),
-                   WordAnd(word, IntPtrConstant((1 << kPointerSizeLog2) - 1)));
+                   WordAnd(word, IntPtrConstant(kPointerSize - 1)));
 }
 
 void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
@@ -1407,7 +1407,7 @@ Node* CodeStubAssembler::LoadContextElement(Node* context, int slot_index) {
 
 Node* CodeStubAssembler::LoadContextElement(Node* context, Node* slot_index) {
   Node* offset =
-      IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),
+      IntPtrAdd(TimesPointerSize(slot_index),
                 IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
   return Load(MachineType::AnyTagged(), context, offset);
 }
@@ -1421,7 +1421,7 @@ Node* CodeStubAssembler::StoreContextElement(Node* context, int slot_index,
 Node* CodeStubAssembler::StoreContextElement(Node* context, Node* slot_index,
                                              Node* value) {
   Node* offset =
-      IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),
+      IntPtrAdd(TimesPointerSize(slot_index),
                 IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
   return Store(context, offset, value);
 }
@@ -2049,9 +2049,8 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
 Node* CodeStubAssembler::AllocateNameDictionaryWithCapacity(Node* capacity) {
   CSA_ASSERT(this, WordIsPowerOfTwo(capacity));
   Node* length = EntryToIndex<NameDictionary>(capacity);
-  Node* store_size =
-      IntPtrAdd(WordShl(length, IntPtrConstant(kPointerSizeLog2)),
-                IntPtrConstant(NameDictionary::kHeaderSize));
+  Node* store_size = IntPtrAdd(TimesPointerSize(length),
+                               IntPtrConstant(NameDictionary::kHeaderSize));
 
   Node* result = AllocateInNewSpace(store_size);
   Comment("Initialize NameDictionary");
@@ -2108,8 +2107,7 @@ Node* CodeStubAssembler::AllocateJSObjectFromMap(Node* map, Node* properties,
                                                  Node* elements,
                                                  AllocationFlags flags) {
   CSA_ASSERT(this, IsMap(map));
-  Node* size =
-      IntPtrMul(LoadMapInstanceSize(map), IntPtrConstant(kPointerSize));
+  Node* size = TimesPointerSize(LoadMapInstanceSize(map));
   Node* object = AllocateInNewSpace(size, flags);
   StoreMapNoWriteBarrier(object, map);
   InitializeJSObjectFromMap(object, map, size, properties, elements);
@@ -2958,6 +2956,10 @@ Node* CodeStubAssembler::ChangeNumberToIntPtr(Node* value) {
 
   BIND(&done);
   return result.value();
+}
+
+Node* CodeStubAssembler::TimesPointerSize(Node* value) {
+  return WordShl(value, IntPtrConstant(kPointerSizeLog2));
 }
 
 Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
@@ -5365,10 +5367,9 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
     BIND(&if_inobject);
     {
       Comment("if_inobject");
-      Node* field_offset =
-          IntPtrMul(IntPtrSub(LoadMapInstanceSize(map),
-                              IntPtrSub(inobject_properties, field_index)),
-                    IntPtrConstant(kPointerSize));
+      Node* field_offset = TimesPointerSize(
+          IntPtrAdd(IntPtrSub(LoadMapInstanceSize(map), inobject_properties),
+                    field_index));
 
       Label if_double(this), if_tagged(this);
       Branch(Word32NotEqual(representation,
@@ -6697,8 +6698,7 @@ void CodeStubAssembler::HandleSlackTracking(Node* context, Node* object,
                                             int start_offset) {
   Node* instance_size_words = ChangeUint32ToWord(LoadObjectField(
       initial_map, Map::kInstanceSizeOffset, MachineType::Uint8()));
-  Node* instance_size =
-      WordShl(instance_size_words, IntPtrConstant(kPointerSizeLog2));
+  Node* instance_size = TimesPointerSize(instance_size_words);
 
   // Perform in-object slack tracking if requested.
   Node* bit_field3 = LoadMapBitField3(initial_map);
@@ -6728,9 +6728,8 @@ void CodeStubAssembler::HandleSlackTracking(Node* context, Node* object,
 
     Node* unused_fields = LoadObjectField(
         initial_map, Map::kUnusedPropertyFieldsOffset, MachineType::Uint8());
-    Node* used_size =
-        IntPtrSub(instance_size, WordShl(ChangeUint32ToWord(unused_fields),
-                                         IntPtrConstant(kPointerSizeLog2)));
+    Node* used_size = IntPtrSub(
+        instance_size, TimesPointerSize(ChangeUint32ToWord(unused_fields)));
 
     Comment("initialize filler fields (no finalize)");
     InitializeFieldsWithRoot(object, used_size, instance_size,
@@ -6748,9 +6747,8 @@ void CodeStubAssembler::HandleSlackTracking(Node* context, Node* object,
 
     Node* unused_fields = LoadObjectField(
         initial_map, Map::kUnusedPropertyFieldsOffset, MachineType::Uint8());
-    Node* used_size =
-        IntPtrSub(instance_size, WordShl(ChangeUint32ToWord(unused_fields),
-                                         IntPtrConstant(kPointerSizeLog2)));
+    Node* used_size = IntPtrSub(
+        instance_size, TimesPointerSize(ChangeUint32ToWord(unused_fields)));
 
     Comment("initialize filler fields (finalize)");
     InitializeFieldsWithRoot(object, used_size, instance_size,

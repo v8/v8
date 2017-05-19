@@ -204,7 +204,7 @@ Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
 }
 
 Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
-  return WordShl(index, kPointerSizeLog2);
+  return TimesPointerSize(index);
 }
 
 Node* InterpreterAssembler::LoadRegister(Register reg) {
@@ -1120,7 +1120,7 @@ Node* InterpreterAssembler::DispatchToBytecode(Node* target_bytecode,
 
   Node* target_code_entry =
       Load(MachineType::Pointer(), DispatchTableRawPointer(),
-           WordShl(target_bytecode, IntPtrConstant(kPointerSizeLog2)));
+           TimesPointerSize(target_bytecode));
 
   return DispatchToBytecodeHandlerEntry(target_code_entry, new_bytecode_offset);
 }
@@ -1173,7 +1173,7 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   Node* target_index = IntPtrAdd(base_index, next_bytecode);
   Node* target_code_entry =
       Load(MachineType::Pointer(), DispatchTableRawPointer(),
-           WordShl(target_index, kPointerSizeLog2));
+           TimesPointerSize(target_index));
 
   DispatchToBytecodeHandlerEntry(target_code_entry, next_bytecode_offset);
 }
@@ -1354,8 +1354,7 @@ void InterpreterAssembler::TraceBytecodeDispatch(Node* target_bytecode) {
       static_cast<int>(bytecode_) * (static_cast<int>(Bytecode::kLast) + 1));
 
   Node* counter_offset =
-      WordShl(IntPtrAdd(source_bytecode_table_index, target_bytecode),
-              IntPtrConstant(kPointerSizeLog2));
+      TimesPointerSize(IntPtrAdd(source_bytecode_table_index, target_bytecode));
   Node* old_counter =
       Load(MachineType::IntPtr(), counters_table, counter_offset);
 

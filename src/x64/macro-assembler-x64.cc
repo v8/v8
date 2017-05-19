@@ -292,7 +292,7 @@ void MacroAssembler::RecordWriteField(
   leap(dst, FieldOperand(object, offset));
   if (emit_debug_code()) {
     Label ok;
-    testb(dst, Immediate((1 << kPointerSizeLog2) - 1));
+    testb(dst, Immediate(kPointerSize - 1));
     j(zero, &ok, Label::kNear);
     int3();
     bind(&ok);

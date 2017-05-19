@@ -3758,7 +3758,7 @@ void MacroAssembler::RecordWriteField(
   Add(scratch, object, offset - kHeapObjectTag);
   if (emit_debug_code()) {
     Label ok;
-    Tst(scratch, (1 << kPointerSizeLog2) - 1);
+    Tst(scratch, kPointerSize - 1);
     B(eq, &ok);
     Abort(kUnalignedCellInWriteBarrier);
     Bind(&ok);

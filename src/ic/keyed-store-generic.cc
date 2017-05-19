@@ -697,10 +697,9 @@ void KeyedStoreGenericAssembler::OverwriteExistingFastProperty(
 
   BIND(&inobject);
   {
-    Node* field_offset =
-        IntPtrMul(IntPtrSub(LoadMapInstanceSize(object_map),
-                            IntPtrSub(inobject_properties, field_index)),
-                  IntPtrConstant(kPointerSize));
+    Node* field_offset = TimesPointerSize(IntPtrAdd(
+        IntPtrSub(LoadMapInstanceSize(object_map), inobject_properties),
+        field_index));
     Label tagged_rep(this), double_rep(this);
     Branch(Word32Equal(representation, Int32Constant(Representation::kDouble)),
            &double_rep, &tagged_rep);

@@ -719,6 +719,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ChangeNumberToFloat64(Node* value);
   Node* ChangeNumberToIntPtr(Node* value);
 
+  Node* TimesPointerSize(Node* value);
+
   // Type conversions.
   // Throws a TypeError for {method_name} if {value} is not coercible to Object,
   // or returns the {value} converted to a String otherwise.

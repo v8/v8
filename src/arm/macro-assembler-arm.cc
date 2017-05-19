@@ -497,7 +497,7 @@ void MacroAssembler::RecordWriteField(
   add(dst, object, Operand(offset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    tst(dst, Operand((1 << kPointerSizeLog2) - 1));
+    tst(dst, Operand(kPointerSize - 1));
     b(eq, &ok);
     stop("Unaligned cell in write barrier");
     bind(&ok);
@@ -561,7 +561,7 @@ void MacroAssembler::RecordWriteForMap(Register object,
   add(dst, object, Operand(HeapObject::kMapOffset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    tst(dst, Operand((1 << kPointerSizeLog2) - 1));
+    tst(dst, Operand(kPointerSize - 1));
     b(eq, &ok);
     stop("Unaligned cell in write barrier");
     bind(&ok);

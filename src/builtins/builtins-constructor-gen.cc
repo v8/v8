@@ -618,8 +618,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     BIND(&allocate_object);
   }
 
-  Node* instance_size =
-      WordShl(LoadMapInstanceSize(boilerplate_map), kPointerSizeLog2);
+  Node* instance_size = TimesPointerSize(LoadMapInstanceSize(boilerplate_map));
   Node* allocation_size = instance_size;
   if (FLAG_allocation_site_pretenuring) {
     // Prepare for inner-allocating the AllocationMemento.
