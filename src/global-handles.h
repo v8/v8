@@ -145,10 +145,6 @@ class GlobalHandles {
   // Iterates over strong and dependent handles. See the node above.
   void IterateNewSpaceStrongAndDependentRoots(RootVisitor* v);
 
-  // Iterates over weak independent or partially independent handles.
-  // See the note above.
-  void IterateNewSpaceWeakIndependentRoots(RootVisitor* v);
-
   // Finds weak independent or unmodified handles satisfying
   // the callback predicate and marks them as pending. See the note above.
   void MarkNewSpaceWeakUnmodifiedObjectsPending(
