@@ -306,6 +306,12 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
 bool JSInliningHeuristic::CandidateCompare::operator()(
     const Candidate& left, const Candidate& right) const {
   if (right.frequency.IsUnknown()) {
+    if (left.frequency.IsUnknown()) {
+      // If left and right are both unknown then the ordering is indeterminate,
+      // which breaks strict weak ordering requirements, so we fall back to the
+      // node id as a tie breaker.
+      return left.node->id() > right.node->id();
+    }
     return true;
   } else if (left.frequency.IsUnknown()) {
     return false;
