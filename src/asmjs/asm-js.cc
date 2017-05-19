@@ -157,6 +157,15 @@ void ReportInstantiationSuccess(Handle<Script> script, int position,
          v8::Isolate::kMessageInfo);
 }
 
+// Hook to report failed execution of {AsmJs::InstantiateAsmWasm} phase.
+void ReportInstantiationFailure(Handle<Script> script, int position,
+                                const char* reason) {
+  if (FLAG_suppress_asm_messages) return;
+  Vector<const char> text = CStrVector(reason);
+  Report(script, position, text, MessageTemplate::kAsmJsLinkingFailed,
+         v8::Isolate::kMessageWarning);
+}
+
 }  // namespace
 
 MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
@@ -256,16 +265,24 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       FixedArray::cast(wasm_data->get(kWasmDataUsesArray)));
   Handle<WasmModuleObject> module(
       WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)));
+  Handle<Script> script(Script::cast(shared->script()));
+  // TODO(mstarzinger): The position currently points to the module definition
+  // but should instead point to the instantiation site (more intuitive).
+  int position = shared->start_position();
 
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;
   for (int i = 0; i < stdlib_uses->length(); ++i) {
-    if (stdlib.is_null()) return MaybeHandle<Object>();
+    if (stdlib.is_null()) {
+      ReportInstantiationFailure(script, position, "Requires standard library");
+      return MaybeHandle<Object>();
+    }
     int member_id = Smi::cast(stdlib_uses->get(i))->value();
     wasm::AsmJsParser::StandardMember member =
         static_cast<wasm::AsmJsParser::StandardMember>(member_id);
     if (!IsStdlibMemberValid(isolate, stdlib, member,
                              &stdlib_use_of_typed_array_present)) {
+      ReportInstantiationFailure(script, position, "Unexpected stdlib member");
       return MaybeHandle<Object>();
     }
   }
@@ -282,11 +299,15 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   // Check that a valid heap buffer is provided if required.
   if (stdlib_use_of_typed_array_present) {
-    if (memory.is_null()) return MaybeHandle<Object>();
+    if (memory.is_null()) {
+      ReportInstantiationFailure(script, position, "Requires heap buffer");
+      return MaybeHandle<Object>();
+    }
     size_t size = NumberToSize(memory->byte_length());
     // TODO(mstarzinger): We currently only limit byte length of the buffer to
     // be a multiple of 8, we should enforce the stricter spec limits here.
     if (size % FixedTypedArrayBase::kMaxElementSize != 0) {
+      ReportInstantiationFailure(script, position, "Unexpected heap size");
       return MaybeHandle<Object>();
     }
   }
@@ -296,13 +317,12 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
   if (maybe_module_object.is_null()) {
     thrower.Reset();  // Ensure exceptions do not propagate.
+    ReportInstantiationFailure(script, position, "Internal wasm failure");
     return MaybeHandle<Object>();
   }
   DCHECK(!thrower.error());
   Handle<Object> module_object = maybe_module_object.ToHandleChecked();
 
-  Handle<Script> script(Script::cast(shared->script()));
-  int position = shared->start_position();
   ReportInstantiationSuccess(script, position,
                              instantiate_timer.Elapsed().InMillisecondsF());
 

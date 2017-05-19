@@ -694,6 +694,7 @@ class ErrorUtils : public AllStatic {
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \
   T(AsmJsCompiled, "Converted asm.js to WebAssembly: %")                       \
   T(AsmJsInstantiated, "Instantiated asm.js: %")                               \
+  T(AsmJsLinkingFailed, "Linking failure in asm.js: %")                        \
   /* DataCloneError messages */                                                \
   T(DataCloneError, "% could not be cloned.")                                  \
   T(DataCloneErrorOutOfMemory, "Data cannot be cloned, out of memory.")        \
