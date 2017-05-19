@@ -4293,14 +4293,47 @@ void Heap::NotifyObjectLayoutChange(HeapObject* object,
 }
 
 #ifdef VERIFY_HEAP
+// Helper class for collecting slot addresses.
+class SlotCollectingVisitor final : public ObjectVisitor {
+ public:
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override {
+    for (Object** p = start; p < end; p++) {
+      slots_.push_back(p);
+    }
+  }
+
+  int number_of_slots() { return static_cast<int>(slots_.size()); }
+
+  Object** slot(int i) { return slots_[i]; }
+
+ private:
+  std::vector<Object**> slots_;
+};
+
 void Heap::VerifyObjectLayoutChange(HeapObject* object, Map* new_map) {
   // Check that Heap::NotifyObjectLayout was called for object transitions
   // that are not safe for concurrent marking.
   // If you see this check triggering for a freshly allocated object,
   // use object->set_map_after_allocation() to initialize its map.
   if (pending_layout_change_object_ == nullptr) {
-    DCHECK(!object->IsJSObject() ||
-           !object->map()->TransitionRequiresSynchronizationWithGC(new_map));
+    if (object->IsJSObject()) {
+      DCHECK(!object->map()->TransitionRequiresSynchronizationWithGC(new_map));
+    } else {
+      // Check that the set of slots before and after the transition match.
+      SlotCollectingVisitor old_visitor;
+      object->IterateFast(&old_visitor);
+      MapWord old_map_word = object->map_word();
+      // Temporarily set the new map to iterate new slots.
+      object->set_map_word(MapWord::FromMap(new_map));
+      SlotCollectingVisitor new_visitor;
+      object->IterateFast(&new_visitor);
+      // Restore the old map.
+      object->set_map_word(old_map_word);
+      DCHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
+      for (int i = 0; i < new_visitor.number_of_slots(); i++) {
+        DCHECK_EQ(new_visitor.slot(i), old_visitor.slot(i));
+      }
+    }
   } else {
     DCHECK_EQ(pending_layout_change_object_, object);
     pending_layout_change_object_ = nullptr;

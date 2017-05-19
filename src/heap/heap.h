@@ -1248,11 +1248,9 @@ class Heap {
 
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
-  // A layout change is unsafe if
-  // - it removes a tagged in-object field.
-  // - it replaces a tagged in-objects field with an untagged in-object field.
   void NotifyObjectLayoutChange(HeapObject* object,
                                 const DisallowHeapAllocation&);
+
 #ifdef VERIFY_HEAP
   // This function checks that either
   // - the map transition is safe,
