@@ -958,8 +958,7 @@ void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
   if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
     types = UnseededNumberDictionary::NewEmpty(isolate);
   } else {
-    types = Handle<UnseededNumberDictionary>(
-        UnseededNumberDictionary::cast(feedback), isolate);
+    types = handle(UnseededNumberDictionary::cast(feedback));
   }
 
   Handle<ArrayList> position_specific_types;
@@ -967,8 +966,7 @@ void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
   if (types->Has(position)) {
     int entry = types->FindEntry(position);
     DCHECK(types->ValueAt(entry)->IsArrayList());
-    position_specific_types =
-        Handle<ArrayList>(ArrayList::cast(types->ValueAt(entry)));
+    position_specific_types = handle(ArrayList::cast(types->ValueAt(entry)));
   } else {
     position_specific_types = ArrayList::New(isolate, 1);
   }
@@ -993,8 +991,8 @@ Handle<JSObject> ConvertToJSObject(Isolate* isolate,
     if (key->IsSmi()) {
       int value_index = index + UnseededNumberDictionary::kEntryValueIndex;
 
-      Handle<ArrayList> position_specific_types = Handle<ArrayList>(
-          ArrayList::cast(feedback->get(value_index)), isolate);
+      Handle<ArrayList> position_specific_types(
+          ArrayList::cast(feedback->get(value_index)));
 
       int position = Smi::cast(key)->value();
       JSObject::AddDataElement(type_profile, position,
@@ -1017,9 +1015,8 @@ JSObject* CollectTypeProfileNexus::GetTypeProfile() const {
     return *isolate->factory()->NewJSObject(isolate->object_function());
   }
 
-  return *ConvertToJSObject(
-      isolate, Handle<UnseededNumberDictionary>(
-                   UnseededNumberDictionary::cast(feedback), isolate));
+  return *ConvertToJSObject(isolate,
+                            handle(UnseededNumberDictionary::cast(feedback)));
 }
 
 }  // namespace internal
