@@ -119,7 +119,7 @@ Node* InterpreterAssembler::GetContextAtDepth(Node* context, Node* depth) {
   Branch(Word32Equal(depth, Int32Constant(0)), &context_found, &context_search);
 
   // Loop until the depth is 0.
-  Bind(&context_search);
+  BIND(&context_search);
   {
     cur_depth.Bind(Int32Sub(cur_depth.value(), Int32Constant(1)));
     cur_context.Bind(
@@ -129,7 +129,7 @@ Node* InterpreterAssembler::GetContextAtDepth(Node* context, Node* depth) {
            &context_search);
   }
 
-  Bind(&context_found);
+  BIND(&context_found);
   return cur_context.value();
 }
 
@@ -147,7 +147,7 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(Node* context,
 
   // Loop until the depth is 0.
   Goto(&context_search);
-  Bind(&context_search);
+  BIND(&context_search);
   {
     // TODO(leszeks): We only need to do this check if the context had a sloppy
     // eval, we could pass in a context chain bitmask to figure out which
@@ -598,7 +598,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
   Node* is_smi = TaggedIsSmi(function);
   Branch(is_smi, &extra_checks, &call_function);
 
-  Bind(&call_function);
+  BIND(&call_function);
   {
     // Increment the call count.
     IncrementCallCount(feedback_vector, slot_id);
@@ -614,7 +614,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
     Goto(&end);
   }
 
-  Bind(&extra_checks);
+  BIND(&extra_checks);
   {
     Label check_initialized(this), mark_megamorphic(this),
         create_allocation_site(this);
@@ -658,7 +658,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
       Goto(&mark_megamorphic);
     }
 
-    Bind(&check_initialized);
+    BIND(&check_initialized);
     {
       Comment("check if uninitialized");
       // Check if it is uninitialized target first.
@@ -698,7 +698,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
       Goto(&call_function);
     }
 
-    Bind(&create_allocation_site);
+    BIND(&create_allocation_site);
     {
       CreateAllocationSiteInFeedbackVector(feedback_vector, SmiTag(slot_id));
 
@@ -708,7 +708,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
       Goto(&call_function);
     }
 
-    Bind(&mark_megamorphic);
+    BIND(&mark_megamorphic);
     {
       // Mark it as a megamorphic.
       // MegamorphicSentinel is created as a part of Heap::InitialObjects
@@ -722,7 +722,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
     }
   }
 
-  Bind(&call);
+  BIND(&call);
   {
     Comment("Increment call count and call using Call builtin");
     // Increment the call count.
@@ -739,7 +739,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(
     Goto(&end);
   }
 
-  Bind(&end);
+  BIND(&end);
   return return_value.value();
 }
 
@@ -805,7 +805,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
   allocation_feedback.Bind(UndefinedConstant());
   Branch(is_monomorphic, &call_construct_function, &extra_checks);
 
-  Bind(&call_construct_function);
+  BIND(&call_construct_function);
   {
     Comment("call using ConstructFunction");
     IncrementCallCount(feedback_vector, slot_id);
@@ -818,7 +818,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
     Goto(&end);
   }
 
-  Bind(&extra_checks);
+  BIND(&extra_checks);
   {
     Label check_allocation_site(this), check_initialized(this),
         initialize(this), mark_megamorphic(this);
@@ -841,7 +841,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
     Node* is_smi = TaggedIsSmi(feedback_value);
     Branch(is_smi, &initialize, &mark_megamorphic);
 
-    Bind(&check_allocation_site);
+    BIND(&check_allocation_site);
     {
       Comment("check if it is an allocation site");
       Node* is_allocation_site =
@@ -859,7 +859,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
       Goto(&call_construct_function);
     }
 
-    Bind(&check_initialized);
+    BIND(&check_initialized);
     {
       // Check if it is uninitialized.
       Comment("check if uninitialized");
@@ -868,7 +868,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
       Branch(is_uninitialized, &initialize, &mark_megamorphic);
     }
 
-    Bind(&initialize);
+    BIND(&initialize);
     {
       Label create_allocation_site(this), create_weak_cell(this);
       Comment("initialize the feedback element");
@@ -879,7 +879,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
       Node* is_array_function = WordEqual(context_slot, constructor);
       Branch(is_array_function, &create_allocation_site, &create_weak_cell);
 
-      Bind(&create_allocation_site);
+      BIND(&create_allocation_site);
       {
         Node* site = CreateAllocationSiteInFeedbackVector(feedback_vector,
                                                           SmiTag(slot_id));
@@ -887,7 +887,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
         Goto(&call_construct_function);
       }
 
-      Bind(&create_weak_cell);
+      BIND(&create_weak_cell);
       {
         CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
                                        constructor);
@@ -895,7 +895,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
       }
     }
 
-    Bind(&mark_megamorphic);
+    BIND(&mark_megamorphic);
     {
       // MegamorphicSentinel is an immortal immovable object so
       // write-barrier is not needed.
@@ -909,7 +909,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
     }
   }
 
-  Bind(&call_construct);
+  BIND(&call_construct);
   {
     Comment("call using Construct builtin");
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
@@ -921,7 +921,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
     Goto(&end);
   }
 
-  Bind(&end);
+  BIND(&end);
   return return_value.value();
 }
 
@@ -991,7 +991,7 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   Branch(condition, &ok, &interrupt_check);
 
   // Perform interrupt and reset budget.
-  Bind(&interrupt_check);
+  BIND(&interrupt_check);
   {
     CallRuntime(Runtime::kInterrupt, GetContext());
     new_budget.Bind(Int32Constant(Interpreter::InterruptBudget()));
@@ -999,7 +999,7 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   }
 
   // Update budget.
-  Bind(&ok);
+  BIND(&ok);
   StoreNoWriteBarrier(MachineRepresentation::kWord32,
                       BytecodeArrayTaggedPointer(), budget_offset,
                       new_budget.value());
@@ -1040,9 +1040,9 @@ void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
   Label match(this), no_match(this);
 
   Branch(condition, &match, &no_match);
-  Bind(&match);
+  BIND(&match);
   Jump(delta);
-  Bind(&no_match);
+  BIND(&no_match);
   Dispatch();
 }
 
@@ -1071,13 +1071,13 @@ Node* InterpreterAssembler::StarDispatchLookahead(Node* target_bytecode) {
   Node* is_star = WordEqual(target_bytecode, star_bytecode);
   Branch(is_star, &do_inline_star, &done);
 
-  Bind(&do_inline_star);
+  BIND(&do_inline_star);
   {
     InlineStar();
     var_bytecode.Bind(LoadBytecode(BytecodeOffset()));
     Goto(&done);
   }
-  Bind(&done);
+  BIND(&done);
   return var_bytecode.value();
 }
 
@@ -1188,7 +1188,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
   var_value.Bind(value);
   var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kNone));
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     // Load the current {value}.
     value = var_value.value();
@@ -1197,7 +1197,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
     Label if_valueissmi(this), if_valueisnotsmi(this);
     Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
 
-    Bind(&if_valueissmi);
+    BIND(&if_valueissmi);
     {
       // Convert the Smi {value}.
       var_result.Bind(SmiToWord32(value));
@@ -1207,7 +1207,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
       Goto(&done_loop);
     }
 
-    Bind(&if_valueisnotsmi);
+    BIND(&if_valueisnotsmi);
     {
       // Check if {value} is a HeapNumber.
       Label if_valueisheapnumber(this),
@@ -1216,7 +1216,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
       Branch(IsHeapNumberMap(value_map), &if_valueisheapnumber,
              &if_valueisnotheapnumber);
 
-      Bind(&if_valueisheapnumber);
+      BIND(&if_valueisheapnumber);
       {
         // Truncate the floating point value.
         var_result.Bind(TruncateHeapNumberValueToWord32(value));
@@ -1226,7 +1226,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
         Goto(&done_loop);
       }
 
-      Bind(&if_valueisnotheapnumber);
+      BIND(&if_valueisnotheapnumber);
       {
         // We do not require an Or with earlier feedback here because once we
         // convert the value to a number, we cannot reach this path. We can
@@ -1240,7 +1240,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
                                        Int32Constant(ODDBALL_TYPE));
         Branch(is_oddball, &if_valueisoddball, &if_valueisnotoddball);
 
-        Bind(&if_valueisoddball);
+        BIND(&if_valueisoddball);
         {
           // Convert Oddball to a Number and perform checks again.
           var_value.Bind(LoadObjectField(value, Oddball::kToNumberOffset));
@@ -1249,7 +1249,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
           Goto(&loop);
         }
 
-        Bind(&if_valueisnotoddball);
+        BIND(&if_valueisnotoddball);
         {
           // Convert the {value} to a Number first.
           Callable callable = CodeFactory::NonNumberToNumber(isolate());
@@ -1260,7 +1260,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
       }
     }
   }
-  Bind(&done_loop);
+  BIND(&done_loop);
   return var_result.value();
 }
 
@@ -1315,11 +1315,11 @@ void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
   Label ok(this), abort(this, Label::kDeferred);
   Branch(WordEqual(lhs, rhs), &ok, &abort);
 
-  Bind(&abort);
+  BIND(&abort);
   Abort(bailout_reason);
   Goto(&ok);
 
-  Bind(&ok);
+  BIND(&ok);
 }
 
 void InterpreterAssembler::MaybeDropFrames(Node* context) {
@@ -1332,14 +1332,14 @@ void InterpreterAssembler::MaybeDropFrames(Node* context) {
   Label ok(this), drop_frames(this);
   Branch(IntPtrEqual(restart_fp, null), &ok, &drop_frames);
 
-  Bind(&drop_frames);
+  BIND(&drop_frames);
   // We don't expect this call to return since the frame dropper tears down
   // the stack and jumps into the function on the target frame to restart it.
   CallStub(CodeFactory::FrameDropperTrampoline(isolate()), context, restart_fp);
   Abort(kUnexpectedReturnFromFrameDropper);
   Goto(&ok);
 
-  Bind(&ok);
+  BIND(&ok);
 }
 
 void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
@@ -1364,7 +1364,7 @@ void InterpreterAssembler::TraceBytecodeDispatch(Node* target_bytecode) {
       old_counter, IntPtrConstant(std::numeric_limits<uintptr_t>::max()));
   Branch(counter_reached_max, &counter_saturated, &counter_ok);
 
-  Bind(&counter_ok);
+  BIND(&counter_ok);
   {
     Node* new_counter = IntPtrAdd(old_counter, IntPtrConstant(1));
     StoreNoWriteBarrier(MachineType::PointerRepresentation(), counters_table,
@@ -1372,7 +1372,7 @@ void InterpreterAssembler::TraceBytecodeDispatch(Node* target_bytecode) {
     Goto(&counter_saturated);
   }
 
-  Bind(&counter_saturated);
+  BIND(&counter_saturated);
 }
 
 // static
@@ -1412,7 +1412,7 @@ Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
   // BytecodeGraphBuilder::VisitResumeGenerator.
   Label loop(this, &var_index), done_loop(this);
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     Node* index = var_index.value();
     GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
@@ -1425,7 +1425,7 @@ Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
     var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
     Goto(&loop);
   }
-  Bind(&done_loop);
+  BIND(&done_loop);
 
   return array;
 }
@@ -1445,7 +1445,7 @@ Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
   // array contents to not keep them alive artificially.
   Label loop(this, &var_index), done_loop(this);
   Goto(&loop);
-  Bind(&loop);
+  BIND(&loop);
   {
     Node* index = var_index.value();
     GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
@@ -1460,7 +1460,7 @@ Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
     var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
     Goto(&loop);
   }
-  Bind(&done_loop);
+  BIND(&done_loop);
 
   return array;
 }

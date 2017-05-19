@@ -597,12 +597,12 @@ Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
   Branch(WordEqual(dividend, SmiConstant(0)), &dividend_is_zero,
          &dividend_is_not_zero);
 
-  Bind(&dividend_is_zero);
+  BIND(&dividend_is_zero);
   {
     GotoIf(SmiLessThan(divisor, SmiConstant(0)), bailout);
     Goto(&dividend_is_not_zero);
   }
-  Bind(&dividend_is_not_zero);
+  BIND(&dividend_is_not_zero);
 
   Node* untagged_divisor = SmiToWord32(divisor);
   Node* untagged_dividend = SmiToWord32(dividend);
@@ -613,7 +613,7 @@ Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
   Branch(Word32Equal(untagged_divisor, Int32Constant(-1)),
          &divisor_is_minus_one, &divisor_is_not_minus_one);
 
-  Bind(&divisor_is_minus_one);
+  BIND(&divisor_is_minus_one);
   {
     GotoIf(Word32Equal(
                untagged_dividend,
@@ -621,7 +621,7 @@ Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
            bailout);
     Goto(&divisor_is_not_minus_one);
   }
-  Bind(&divisor_is_not_minus_one);
+  BIND(&divisor_is_not_minus_one);
 
   Node* untagged_result = Int32Div(untagged_dividend, untagged_divisor);
   Node* truncated = Int32Mul(untagged_result, untagged_divisor);
@@ -660,6 +660,14 @@ Node* CodeStubAssembler::WordIsWordAligned(Node* word) {
   return WordEqual(IntPtrConstant(0),
                    WordAnd(word, IntPtrConstant(kPointerSize - 1)));
 }
+
+#if DEBUG
+void CodeStubAssembler::Bind(Label* label, AssemblerDebugInfo debug_info) {
+  CodeAssembler::Bind(label, debug_info);
+}
+#else
+void CodeStubAssembler::Bind(Label* label) { CodeAssembler::Bind(label); }
+#endif  // DEBUG
 
 void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
     Node* receiver_map, Label* definitely_no_elements,
@@ -3503,61 +3511,54 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
   return var_result.value();
 }
 
-namespace {
-
 // A wrapper around CopyStringCharacters which determines the correct string
 // encoding, allocates a corresponding sequential string, and then copies the
 // given character range using CopyStringCharacters.
 // |from_string| must be a sequential string. |from_index| and
 // |character_count| must be Smis s.t.
 // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
-Node* AllocAndCopyStringCharacters(CodeStubAssembler* a, Node* context,
-                                   Node* from, Node* from_instance_type,
-                                   Node* from_index, Node* character_count) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
+Node* CodeStubAssembler::AllocAndCopyStringCharacters(Node* context, Node* from,
+                                                      Node* from_instance_type,
+                                                      Node* from_index,
+                                                      Node* character_count) {
+  Label end(this), one_byte_sequential(this), two_byte_sequential(this);
+  Variable var_result(this, MachineRepresentation::kTagged);
 
-  Label end(a), one_byte_sequential(a), two_byte_sequential(a);
-  Variable var_result(a, MachineRepresentation::kTagged);
+  Node* const smi_zero = SmiConstant(Smi::kZero);
 
-  Node* const smi_zero = a->SmiConstant(Smi::kZero);
-
-  a->Branch(a->IsOneByteStringInstanceType(from_instance_type),
-            &one_byte_sequential, &two_byte_sequential);
+  Branch(IsOneByteStringInstanceType(from_instance_type), &one_byte_sequential,
+         &two_byte_sequential);
 
   // The subject string is a sequential one-byte string.
-  a->BIND(&one_byte_sequential);
+  BIND(&one_byte_sequential);
   {
     Node* result =
-        a->AllocateSeqOneByteString(context, a->SmiToWord(character_count));
-    a->CopyStringCharacters(from, result, from_index, smi_zero, character_count,
-                            String::ONE_BYTE_ENCODING,
-                            String::ONE_BYTE_ENCODING,
-                            CodeStubAssembler::SMI_PARAMETERS);
+        AllocateSeqOneByteString(context, SmiToWord(character_count));
+    CopyStringCharacters(from, result, from_index, smi_zero, character_count,
+                         String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING,
+                         CodeStubAssembler::SMI_PARAMETERS);
     var_result.Bind(result);
 
-    a->Goto(&end);
+    Goto(&end);
   }
 
   // The subject string is a sequential two-byte string.
-  a->BIND(&two_byte_sequential);
+  BIND(&two_byte_sequential);
   {
     Node* result =
-        a->AllocateSeqTwoByteString(context, a->SmiToWord(character_count));
-    a->CopyStringCharacters(from, result, from_index, smi_zero, character_count,
-                            String::TWO_BYTE_ENCODING,
-                            String::TWO_BYTE_ENCODING,
-                            CodeStubAssembler::SMI_PARAMETERS);
+        AllocateSeqTwoByteString(context, SmiToWord(character_count));
+    CopyStringCharacters(from, result, from_index, smi_zero, character_count,
+                         String::TWO_BYTE_ENCODING, String::TWO_BYTE_ENCODING,
+                         CodeStubAssembler::SMI_PARAMETERS);
     var_result.Bind(result);
 
-    a->Goto(&end);
+    Goto(&end);
   }
 
-  a->BIND(&end);
+  BIND(&end);
   return var_result.value();
 }
 
-}  // namespace
 
 Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
                                    Node* to, SubStringFlags flags) {
@@ -3647,7 +3648,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
     GotoIf(to_direct.is_external(), &external_string);
 
     var_result.Bind(AllocAndCopyStringCharacters(
-        this, context, direct_string, instance_type, offset, substr_length));
+        context, direct_string, instance_type, offset, substr_length));
 
     Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
@@ -3660,9 +3661,8 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   {
     Node* const fake_sequential_string = to_direct.PointerToString(&runtime);
 
-    var_result.Bind(
-        AllocAndCopyStringCharacters(this, context, fake_sequential_string,
-                                     instance_type, offset, substr_length));
+    var_result.Bind(AllocAndCopyStringCharacters(
+        context, fake_sequential_string, instance_type, offset, substr_length));
 
     Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
@@ -7385,103 +7385,87 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
   return result.value();
 }
 
-namespace {
-
-Node* CollectFeedbackForString(CodeStubAssembler* assembler,
-                               Node* instance_type) {
-  Node* feedback = assembler->SelectSmiConstant(
-      assembler->Word32Equal(
-          assembler->Word32And(
-              instance_type, assembler->Int32Constant(kIsNotInternalizedMask)),
-          assembler->Int32Constant(kInternalizedTag)),
+Node* CodeStubAssembler::CollectFeedbackForString(Node* instance_type) {
+  Node* feedback = SelectSmiConstant(
+      Word32Equal(
+          Word32And(instance_type, Int32Constant(kIsNotInternalizedMask)),
+          Int32Constant(kInternalizedTag)),
       CompareOperationFeedback::kInternalizedString,
       CompareOperationFeedback::kString);
   return feedback;
 }
 
-void GenerateEqual_Same(
-    CodeStubAssembler* assembler, Node* value,
-    CodeStubAssembler::Label* if_equal, CodeStubAssembler::Label* if_notequal,
-    CodeStubAssembler::Variable* var_type_feedback = nullptr) {
+void CodeStubAssembler::GenerateEqual_Same(Node* value, Label* if_equal,
+                                           Label* if_notequal,
+                                           Variable* var_type_feedback) {
   // In case of abstract or strict equality checks, we need additional checks
   // for NaN values because they are not considered equal, even if both the
   // left and the right hand side reference exactly the same value.
 
-  typedef CodeStubAssembler::Label Label;
-
   // Check if {value} is a Smi or a HeapObject.
-  Label if_valueissmi(assembler), if_valueisnotsmi(assembler);
-  assembler->Branch(assembler->TaggedIsSmi(value), &if_valueissmi,
-                    &if_valueisnotsmi);
+  Label if_valueissmi(this), if_valueisnotsmi(this);
+  Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
 
-  assembler->BIND(&if_valueisnotsmi);
+  BIND(&if_valueisnotsmi);
   {
     // Load the map of {value}.
-    Node* value_map = assembler->LoadMap(value);
+    Node* value_map = LoadMap(value);
 
     // Check if {value} (and therefore {rhs}) is a HeapNumber.
-    Label if_valueisnumber(assembler), if_valueisnotnumber(assembler);
-    assembler->Branch(assembler->IsHeapNumberMap(value_map), &if_valueisnumber,
-                      &if_valueisnotnumber);
+    Label if_valueisnumber(this), if_valueisnotnumber(this);
+    Branch(IsHeapNumberMap(value_map), &if_valueisnumber, &if_valueisnotnumber);
 
-    assembler->BIND(&if_valueisnumber);
+    BIND(&if_valueisnumber);
     {
       if (var_type_feedback != nullptr) {
-        assembler->CombineFeedback(
-            var_type_feedback,
-            assembler->SmiConstant(CompareOperationFeedback::kNumber));
+        CombineFeedback(var_type_feedback,
+                        SmiConstant(CompareOperationFeedback::kNumber));
       }
 
       // Convert {value} (and therefore {rhs}) to floating point value.
-      Node* value_value = assembler->LoadHeapNumberValue(value);
+      Node* value_value = LoadHeapNumberValue(value);
 
       // Check if the HeapNumber value is a NaN.
-      assembler->BranchIfFloat64IsNaN(value_value, if_notequal, if_equal);
+      BranchIfFloat64IsNaN(value_value, if_notequal, if_equal);
     }
 
-    assembler->BIND(&if_valueisnotnumber);
+    BIND(&if_valueisnotnumber);
     if (var_type_feedback != nullptr) {
       // Collect type feedback.
-      Node* instance_type = assembler->LoadMapInstanceType(value_map);
+      Node* instance_type = LoadMapInstanceType(value_map);
 
-      Label if_valueisstring(assembler), if_valueisnotstring(assembler);
-      assembler->Branch(assembler->IsStringInstanceType(instance_type),
-                        &if_valueisstring, &if_valueisnotstring);
+      Label if_valueisstring(this), if_valueisnotstring(this);
+      Branch(IsStringInstanceType(instance_type), &if_valueisstring,
+             &if_valueisnotstring);
 
-      assembler->BIND(&if_valueisstring);
+      BIND(&if_valueisstring);
       {
-        assembler->CombineFeedback(
-            var_type_feedback,
-            CollectFeedbackForString(assembler, instance_type));
-        assembler->Goto(if_equal);
+        CombineFeedback(var_type_feedback,
+                        CollectFeedbackForString(instance_type));
+        Goto(if_equal);
       }
 
-      assembler->Bind(&if_valueisnotstring);
+      BIND(&if_valueisnotstring);
       {
-        var_type_feedback->Bind(
-            assembler->SmiConstant(CompareOperationFeedback::kAny));
-        assembler->GotoIfNot(assembler->IsJSReceiverInstanceType(instance_type),
-                             if_equal);
+        var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kAny));
+        GotoIfNot(IsJSReceiverInstanceType(instance_type), if_equal);
 
-        assembler->CombineFeedback(
-            var_type_feedback,
-            assembler->SmiConstant(CompareOperationFeedback::kReceiver));
-        assembler->Goto(if_equal);
+        CombineFeedback(var_type_feedback,
+                        SmiConstant(CompareOperationFeedback::kReceiver));
+        Goto(if_equal);
       }
     } else {
-      assembler->Goto(if_equal);
+      Goto(if_equal);
     }
   }
 
-  assembler->BIND(&if_valueissmi);
+  BIND(&if_valueissmi);
   if (var_type_feedback != nullptr) {
-    assembler->CombineFeedback(
-        var_type_feedback,
-        assembler->SmiConstant(CompareOperationFeedback::kSignedSmall));
+    CombineFeedback(var_type_feedback,
+                    SmiConstant(CompareOperationFeedback::kSignedSmall));
   }
-  assembler->Goto(if_equal);
+  Goto(if_equal);
 }
-}  // namespace
 
 // ES6 section 7.2.12 Abstract Equality Comparison
 Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
@@ -7527,7 +7511,7 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
     {
       // The {lhs} and {rhs} reference the exact same value, yet we need special
       // treatment for HeapNumber, as NaN is not equal to NaN.
-      GenerateEqual_Same(this, lhs, &if_equal, &if_notequal, var_type_feedback);
+      GenerateEqual_Same(lhs, &if_equal, &if_notequal, var_type_feedback);
     }
 
     BIND(&if_notsame);
@@ -7687,7 +7671,7 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
           Switch(lhs_instance_type, &if_lhsisreceiver, case_values, case_labels,
                  arraysize(case_values));
           for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
-            Bind(case_labels[i]);
+            BIND(case_labels[i]);
             Goto(&if_lhsisstring);
             delete case_labels[i];
           }
@@ -7708,9 +7692,9 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
               result.Bind(CallStub(callable, context, lhs, rhs));
               if (var_type_feedback != nullptr) {
                 Node* lhs_feedback =
-                    CollectFeedbackForString(this, lhs_instance_type);
+                    CollectFeedbackForString(lhs_instance_type);
                 Node* rhs_feedback =
-                    CollectFeedbackForString(this, rhs_instance_type);
+                    CollectFeedbackForString(rhs_instance_type);
                 CombineFeedback(var_type_feedback,
                                 SmiOr(lhs_feedback, rhs_feedback));
               }
@@ -8058,7 +8042,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
     if (var_type_feedback != nullptr) {
       var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kNone));
     }
-    GenerateEqual_Same(this, lhs, &if_equal, &if_notequal, var_type_feedback);
+    GenerateEqual_Same(lhs, &if_equal, &if_notequal, var_type_feedback);
   }
 
   BIND(&if_notsame);
@@ -8168,9 +8152,9 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
               Callable callable = CodeFactory::StringEqual(isolate());
               if (var_type_feedback != nullptr) {
                 Node* lhs_feedback =
-                    CollectFeedbackForString(this, lhs_instance_type);
+                    CollectFeedbackForString(lhs_instance_type);
                 Node* rhs_feedback =
-                    CollectFeedbackForString(this, rhs_instance_type);
+                    CollectFeedbackForString(rhs_instance_type);
                 var_type_feedback->Bind(SmiOr(lhs_feedback, rhs_feedback));
               }
               result.Bind(CallStub(callable, NoContextConstant(), lhs, rhs));
@@ -8998,8 +8982,8 @@ CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
       argc_mode_(mode),
       argc_(argc),
       arguments_(nullptr),
-      fp_(fp != nullptr ? fp : assembler->LoadFramePointer()) {
-  Node* offset = assembler->ElementOffsetFromIndex(
+      fp_(fp != nullptr ? fp : assembler_->LoadFramePointer()) {
+  Node* offset = assembler_->ElementOffsetFromIndex(
       argc_, FAST_ELEMENTS, mode,
       (StandardFrameConstants::kFixedSlotCountAboveFp - 1) * kPointerSize);
   arguments_ = assembler_->IntPtrAdd(fp_, offset);

@@ -469,36 +469,36 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   Switch(instance_type, &other, case_values, case_labels,
          arraysize(case_labels));
 
-  Bind(&i8);
+  BIND(&i8);
   Return(SmiFromWord32((this->*function)(MachineType::Int8(), backing_store,
                                          index_word, value_word32)));
 
-  Bind(&u8);
+  BIND(&u8);
   Return(SmiFromWord32((this->*function)(MachineType::Uint8(), backing_store,
                                          index_word, value_word32)));
 
-  Bind(&i16);
+  BIND(&i16);
   Return(
       SmiFromWord32((this->*function)(MachineType::Int16(), backing_store,
                                       WordShl(index_word, 1), value_word32)));
 
-  Bind(&u16);
+  BIND(&u16);
   Return(
       SmiFromWord32((this->*function)(MachineType::Uint16(), backing_store,
                                       WordShl(index_word, 1), value_word32)));
 
-  Bind(&i32);
+  BIND(&i32);
   Return(ChangeInt32ToTagged(
       (this->*function)(MachineType::Int32(), backing_store,
                         WordShl(index_word, 2), value_word32)));
 
-  Bind(&u32);
+  BIND(&u32);
   Return(ChangeUint32ToTagged(
       (this->*function)(MachineType::Uint32(), backing_store,
                         WordShl(index_word, 2), value_word32)));
 
   // This shouldn't happen, we've already validated the type.
-  Bind(&other);
+  BIND(&other);
   Unreachable();
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
         // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X

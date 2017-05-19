@@ -89,7 +89,7 @@ Node* IntrinsicsGenerator::InvokeIntrinsic(Node* function_id, Node* context,
 
   __ Switch(function_id, &abort, cases, labels, arraysize(cases));
 #define HANDLE_CASE(name, lower_case, expected_arg_count)   \
-  __ Bind(&lower_case);                                     \
+  __ BIND(&lower_case);                                     \
   if (FLAG_debug_code && expected_arg_count >= 0) {         \
     AbortIfArgCountMismatch(expected_arg_count, arg_count); \
   }                                                         \
@@ -98,14 +98,14 @@ Node* IntrinsicsGenerator::InvokeIntrinsic(Node* function_id, Node* context,
   INTRINSICS_LIST(HANDLE_CASE)
 #undef HANDLE_CASE
 
-  __ Bind(&abort);
+  __ BIND(&abort);
   {
     __ Abort(BailoutReason::kUnexpectedFunctionIDForInvokeIntrinsic);
     result.Bind(__ UndefinedConstant());
     __ Goto(&end);
   }
 
-  __ Bind(&end);
+  __ BIND(&end);
   return result.value();
 }
 
@@ -133,19 +133,19 @@ Node* IntrinsicsGenerator::IsInstanceType(Node* input, int type) {
   Node* condition = CompareInstanceType(arg, type, kInstanceTypeEqual);
   __ Branch(condition, &return_true, &return_false);
 
-  __ Bind(&return_true);
+  __ BIND(&return_true);
   {
     return_value.Bind(__ BooleanConstant(true));
     __ Goto(&end);
   }
 
-  __ Bind(&return_false);
+  __ BIND(&return_false);
   {
     return_value.Bind(__ BooleanConstant(false));
     __ Goto(&end);
   }
 
-  __ Bind(&end);
+  __ BIND(&end);
   return return_value.value();
 }
 
@@ -166,19 +166,19 @@ Node* IntrinsicsGenerator::IsJSReceiver(Node* input, Node* arg_count,
                                         kInstanceTypeGreaterThanOrEqual);
   __ Branch(condition, &return_true, &return_false);
 
-  __ Bind(&return_true);
+  __ BIND(&return_true);
   {
     return_value.Bind(__ BooleanConstant(true));
     __ Goto(&end);
   }
 
-  __ Bind(&return_false);
+  __ BIND(&return_false);
   {
     return_value.Bind(__ BooleanConstant(false));
     __ Goto(&end);
   }
 
-  __ Bind(&end);
+  __ BIND(&end);
   return return_value.value();
 }
 
@@ -237,19 +237,19 @@ Node* IntrinsicsGenerator::IsSmi(Node* input, Node* arg_count, Node* context) {
   Node* arg = __ LoadRegister(input);
 
   __ Branch(__ TaggedIsSmi(arg), &if_smi, &if_not_smi);
-  __ Bind(&if_smi);
+  __ BIND(&if_smi);
   {
     return_value.Bind(__ BooleanConstant(true));
     __ Goto(&end);
   }
 
-  __ Bind(&if_not_smi);
+  __ BIND(&if_not_smi);
   {
     return_value.Bind(__ BooleanConstant(false));
     __ Goto(&end);
   }
 
-  __ Bind(&end);
+  __ BIND(&end);
   return return_value.value();
 }
 
@@ -335,7 +335,7 @@ Node* IntrinsicsGenerator::Call(Node* args_reg, Node* arg_count,
     __ GotoIfNot(comparison, &arg_count_positive);
     __ Abort(kWrongArgumentCountForInvokeIntrinsic);
     __ Goto(&arg_count_positive);
-    __ Bind(&arg_count_positive);
+    __ BIND(&arg_count_positive);
   }
 
   Node* result = __ CallJS(function, context, receiver_arg, target_args_count,
@@ -374,7 +374,7 @@ Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(Node* args_reg,
   return_value.Bind(iterator);
   __ Goto(&done);
 
-  __ Bind(&not_receiver);
+  __ BIND(&not_receiver);
   {
     return_value.Bind(
         __ CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context));
@@ -383,7 +383,7 @@ Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(Node* args_reg,
     __ Goto(&done);
   }
 
-  __ Bind(&done);
+  __ BIND(&done);
   return return_value.value();
 }
 
@@ -452,7 +452,7 @@ void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected, Node* actual) {
   __ GotoIf(comparison, &match);
   __ Abort(kWrongArgumentCountForInvokeIntrinsic);
   __ Goto(&match);
-  __ Bind(&match);
+  __ BIND(&match);
 }
 
 }  // namespace interpreter

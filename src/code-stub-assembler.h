@@ -77,7 +77,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   typedef base::Flags<AllocationFlag> AllocationFlags;
 
   enum ParameterMode { SMI_PARAMETERS, INTPTR_PARAMETERS };
-
   // On 32-bit platforms, there is a slight performance advantage to doing all
   // of the array offset/index arithmetic with SMIs, since it's possible
   // to save a few tag/untag operations without paying an extra expense when
@@ -301,6 +300,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Check that a word has a word-aligned address.
   Node* WordIsWordAligned(Node* word);
   Node* WordIsPowerOfTwo(Node* value);
+
+#if DEBUG
+  void Bind(Label* label, AssemblerDebugInfo debug_info);
+#else
+  void Bind(Label* label);
+#endif  // DEBUG
 
   void BranchIfSmiEqual(Node* a, Node* b, Label* if_true, Label* if_false) {
     Branch(SmiEqual(a, b), if_true, if_false);
@@ -1498,6 +1503,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Implements DescriptorArray::GetKey.
   Node* DescriptorArrayGetKey(Node* descriptors, Node* descriptor_number);
 
+  Node* CollectFeedbackForString(Node* instance_type);
+  void GenerateEqual_Same(Node* value, Label* if_equal, Label* if_notequal,
+                          Variable* var_type_feedback = nullptr);
+  Node* AllocAndCopyStringCharacters(Node* context, Node* from,
+                                     Node* from_instance_type, Node* from_index,
+                                     Node* character_count);
+
   static const int kElementLoopUnrollThreshold = 8;
 };
 
@@ -1622,13 +1634,16 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \
   CSA_ASSERT_JS_ARGC_OP(csa, Word32Equal, ==, expected)
 
-#define BIND(label) Bind(label, {#label, __FILE__, __LINE__})
+#define CSA_DEBUG_INFO(name) \
+  , { #name, __FILE__, __LINE__ }
+#define BIND(label) Bind(label CSA_DEBUG_INFO(label))
 #define VARIABLE(name, ...) \
-  Variable name(this, {#name, __FILE__, __LINE__}, __VA_ARGS__);
+  Variable name(this CSA_DEBUG_INFO(name), __VA_ARGS__);
 
 #else  // DEBUG
 #define CSA_ASSERT(csa, x) ((void)0)
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) ((void)0)
+#define CSA_DEBUG_INFO(name)
 #define BIND(label) Bind(label);
 #define VARIABLE(name, ...) Variable name(this, __VA_ARGS__);
 #endif  // DEBUG

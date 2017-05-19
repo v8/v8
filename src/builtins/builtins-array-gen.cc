@@ -885,7 +885,7 @@ TF_BUILTIN(FastArrayPop, CodeStubAssembler) {
     }
     args.PopAndReturn(AllocateHeapNumberWithValue(value));
 
-    Bind(&fast_elements);
+    BIND(&fast_elements);
     {
       Node* value = LoadFixedArrayElement(elements, new_length);
       StoreFixedArrayElement(elements, new_length, TheHoleConstant());
@@ -1136,7 +1136,7 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
     }
     args.PopAndReturn(AllocateHeapNumberWithValue(value));
 
-    Bind(&fast_elements_tagged);
+    BIND(&fast_elements_tagged);
     {
       Node* value = LoadFixedArrayElement(elements, 0);
       BuildFastLoop(IntPtrConstant(0), new_length,
@@ -1153,7 +1153,7 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
       args.PopAndReturn(value);
     }
 
-    Bind(&fast_elements_untagged);
+    BIND(&fast_elements_untagged);
     {
       Node* value = LoadFixedArrayElement(elements, 0);
       Node* memmove =
