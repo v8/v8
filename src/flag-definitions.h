@@ -360,6 +360,9 @@ DEFINE_INT(max_inlined_source_size, 600,
            "maximum source size in bytes considered for a single inlining")
 DEFINE_INT(max_inlined_nodes, 200,
            "maximum number of AST nodes considered for a single inlining")
+DEFINE_INT(max_inlined_nodes_absolute, 1600,
+           "maximum absolute number of AST nodes considered for inlining "
+           "(incl. small functions)")
 DEFINE_INT(max_inlined_nodes_cumulative, 400,
            "maximum cumulative number of AST nodes considered for inlining")
 DEFINE_INT(max_inlined_nodes_small, 10,

@@ -167,7 +167,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   }
 
   // Forcibly inline small functions here.
-  if (small_inline) {
+  if (small_inline && cumulative_count_ <= FLAG_max_inlined_nodes_absolute) {
     TRACE("Inlining small function(s) at call site #%d:%s\n", node->id(),
           node->op()->mnemonic());
     return InlineCandidate(candidate);
