@@ -983,10 +983,8 @@ bool Scanner::ScanEscape() {
   // Skip escaped newlines.
   if (!in_template_literal && c0_ != kEndOfInput &&
       unicode_cache_->IsLineTerminator(c)) {
-    // Allow CR+LF newlines in multiline string literals.
+    // Allow escaped CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance<capture_raw>();
-    // Allow LF+CR newlines in multiline string literals.
-    if (IsLineFeed(c) && IsCarriageReturn(c0_)) Advance<capture_raw>();
     return true;
   }
 
