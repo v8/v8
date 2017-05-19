@@ -271,9 +271,13 @@ uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig) {
 }
 
 uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
-  uint32_t ret = static_cast<uint32_t>(indirect_functions_.size());
+  uint32_t index = static_cast<uint32_t>(indirect_functions_.size());
+  DCHECK_GE(FLAG_wasm_max_table_size, index);
+  if (count > FLAG_wasm_max_table_size - index) {
+    return std::numeric_limits<uint32_t>::max();
+  }
   indirect_functions_.resize(indirect_functions_.size() + count);
-  return ret;
+  return index;
 }
 
 void WasmModuleBuilder::SetIndirectFunction(uint32_t indirect,

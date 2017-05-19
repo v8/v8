@@ -79,16 +79,14 @@ class AsmJsParser {
   };
 
   struct VarInfo {
-    AsmType* type;
-    WasmFunctionBuilder* function_builder;
-    FunctionImportInfo* import;
-    int32_t mask;
-    uint32_t index;
-    VarKind kind;
-    bool mutable_variable;
-    bool function_defined;
-
-    VarInfo();
+    AsmType* type = AsmType::None();
+    WasmFunctionBuilder* function_builder = nullptr;
+    FunctionImportInfo* import = nullptr;
+    uint32_t mask = 0;
+    uint32_t index = 0;
+    VarKind kind = VarKind::kUnused;
+    bool mutable_variable = true;
+    bool function_defined = false;
   };
 
   struct GlobalImport {

@@ -195,16 +195,6 @@ class AsmJsParser::TemporaryVariableScope {
   int local_depth_;
 };
 
-AsmJsParser::VarInfo::VarInfo()
-    : type(AsmType::None()),
-      function_builder(nullptr),
-      import(nullptr),
-      mask(-1),
-      index(0),
-      kind(VarKind::kUnused),
-      mutable_variable(true),
-      function_defined(false) {}
-
 wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
     AsmJsScanner::token_t token) {
   if (AsmJsScanner::IsGlobal(token)) {
@@ -680,7 +670,6 @@ void AsmJsParser::ValidateFunctionTable() {
     // Only store the function into a table if we used the table somewhere
     // (i.e. tables are first seen at their use sites and allocated there).
     if (table_info->kind == VarKind::kTable) {
-      DCHECK_GE(table_info->mask, 0);
       if (count >= static_cast<uint64_t>(table_info->mask) + 1) {
         FAIL("Exceeded function table size");
       }
@@ -2034,29 +2023,27 @@ AsmType* AsmJsParser::ValidateCall() {
     if (!CheckForUnsigned(&mask)) {
       FAILn("Expected mask literal");
     }
-    // TODO(mstarzinger): Clarify and explain where this limit is coming from,
-    // as it is not mandated by the spec directly.
-    if (mask > 0x7fffffff) {
+    if (!base::bits::IsPowerOfTwo32(mask + 1)) {
       FAILn("Expected power of 2 mask");
     }
-    if (!base::bits::IsPowerOfTwo32(static_cast<uint32_t>(1 + mask))) {
-      FAILn("Expected power of 2 mask");
-    }
-    current_function_builder_->EmitI32Const(static_cast<uint32_t>(mask));
+    current_function_builder_->EmitI32Const(mask);
     current_function_builder_->Emit(kExprI32And);
     EXPECT_TOKENn(']');
     VarInfo* function_info = GetVarInfo(function_name);
     if (function_info->kind == VarKind::kUnused) {
+      uint32_t index = module_builder_->AllocateIndirectFunctions(mask + 1);
+      if (index == std::numeric_limits<uint32_t>::max()) {
+        FAILn("Exceeded maximum function table size");
+      }
       function_info->kind = VarKind::kTable;
-      function_info->mask = static_cast<int32_t>(mask);
-      function_info->index = module_builder_->AllocateIndirectFunctions(
-          static_cast<uint32_t>(mask + 1));
+      function_info->mask = mask;
+      function_info->index = index;
       function_info->mutable_variable = false;
     } else {
       if (function_info->kind != VarKind::kTable) {
         FAILn("Expected call table");
       }
-      if (function_info->mask != static_cast<int32_t>(mask)) {
+      if (function_info->mask != mask) {
         FAILn("Mask size mismatch");
       }
     }
