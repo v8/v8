@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that double numbers are parsed and serialized correctly on different locales');
+
 (async function() {
   InspectorTest.log('This test verifies that we correctly parse doubles with non-US locale');
   utils.setlocale("fr_CA.UTF-8");

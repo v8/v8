@@ -1,4 +1,5 @@
 Embedding script 'function c(f, ...args) { return f(...args); }'
+Tests that stepping works on snapshotted function
 paused
   }
   #debugger;
@@ -31,3 +32,4 @@ paused
 
 paused
 test(#)
+

@@ -4,9 +4,9 @@
 
 // Flags: --harmony-async-iteration
 
-InspectorTest.log('Checks that async chains for for-await-of are correct.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that async chains for for-await-of are correct.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 
 function Debugger(value) {
   debugger;
@@ -128,10 +128,10 @@ async function CaughtThrowOnBreak() {
 }
 //# sourceURL=test.js`, 9, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
-  InspectorTest.logCallFrames(message.params.callFrames);
-  InspectorTest.logAsyncStackTrace(message.params.asyncStackTrace);
+  session.logCallFrames(message.params.callFrames);
+  session.logAsyncStackTrace(message.params.asyncStackTrace);
   InspectorTest.log('');
   Protocol.Debugger.resume();
 });

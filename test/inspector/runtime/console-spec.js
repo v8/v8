@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.addScript(`
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests console object and it\'s prototype');
+
+contextGroup.addScript(`
 var self = this;
 function checkPrototype() {
   const prototype1 = Object.getPrototypeOf(console);

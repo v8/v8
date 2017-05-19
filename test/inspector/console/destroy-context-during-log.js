@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that destroying context from inside of console.log does not crash');
+
 const expression = `
   Object.defineProperty(Object.prototype, 'RemoteObject', {
     configurable: true,

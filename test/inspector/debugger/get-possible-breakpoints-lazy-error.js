@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('getPossibleBreakpoints should not crash during lazy compilation (crbug.com/715334)');
+let {session, contextGroup, Protocol} = InspectorTest.start('getPossibleBreakpoints should not crash during lazy compilation (crbug.com/715334)');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function test() { continue; }
 //# sourceURL=test.js`);
 

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Check that continue-to-location works with different strategies.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Check that continue-to-location works with different strategies.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 async function asyncFact(n) {
   if (n == 0) return 1;
   let r = n * await asyncFact(n - 1);
@@ -30,7 +30,7 @@ function topLevel() {
 
 //# sourceURL=test.js`, 7, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 InspectorTest.runAsyncTestSuite([
   async function testAwaitAny() {
     Protocol.Debugger.enable();
@@ -132,8 +132,8 @@ InspectorTest.runAsyncTestSuite([
 
 async function pausedAndDumpStack() {
   let message = await Protocol.Debugger.oncePaused();
-  InspectorTest.logCallFrames(message.params.callFrames);
-  InspectorTest.logAsyncStackTrace(message.params.asyncStackTrace);
+  session.logCallFrames(message.params.callFrames);
+  session.logAsyncStackTrace(message.params.asyncStackTrace);
   InspectorTest.log('');
   return message;
 }

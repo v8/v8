@@ -5,107 +5,34 @@
 InspectorTest = {};
 InspectorTest._dumpInspectorProtocolMessages = false;
 InspectorTest._commandsForLogging = new Set();
+InspectorTest._sessions = new Set();
 
-InspectorTest.createContextGroup = function() {
-  var contextGroup = {};
-  contextGroup.id = utils.createContextGroup();
-  contextGroup.schedulePauseOnNextStatement = (reason, details) => utils.schedulePauseOnNextStatement(contextGroup.id, reason, details);
-  contextGroup.cancelPauseOnNextStatement = () => utils.cancelPauseOnNextStatement(contextGroup.id);
-  contextGroup.addScript = (string, lineOffset, columnOffset, url) => utils.compileAndRunWithOrigin(contextGroup.id, string, url || '', lineOffset || 0, columnOffset || 0, false);
-  contextGroup.addModule = (string, url, lineOffset, columnOffset) => utils.compileAndRunWithOrigin(contextGroup.id, string, url, lineOffset || 0, columnOffset || 0, true);
-  return contextGroup;
+InspectorTest.log = utils.print.bind(utils);
+InspectorTest.quitImmediately = utils.quit.bind(utils);
+
+InspectorTest.logProtocolCommandCalls = function(command) {
+  InspectorTest._commandsForLogging.add(command);
 }
 
-InspectorTest._sessions = new Map();
-InspectorTest.createSession = function(contextGroup) {
-  var session = {
-    contextGroup: contextGroup,
-    _dispatchTable: new Map(),
-    _eventHandler: {},
-    _requestId: 0,
-  };
-  session.Protocol = new Proxy({}, {
-    get: function(target, agentName, receiver) {
-      return new Proxy({}, {
-        get: function(target, methodName, receiver) {
-          const eventPattern = /^on(ce)?([A-Z][A-Za-z0-9]+)/;
-          var match = eventPattern.exec(methodName);
-          if (!match) {
-            return args => session._sendCommandPromise(`${agentName}.${methodName}`, args || {});
-          } else {
-            var eventName = match[2];
-            eventName = eventName.charAt(0).toLowerCase() + eventName.slice(1);
-            if (match[1])
-              return () => InspectorTest._waitForEventPromise(session, `${agentName}.${eventName}`);
-            else
-              return (listener) => { session._eventHandler[`${agentName}.${eventName}`] = listener };
-          }
-        }
-      });
-    }
-  });
-  session._dispatchMessage = messageString => {
-    let messageObject = JSON.parse(messageString);
-    if (InspectorTest._dumpInspectorProtocolMessages)
-      utils.print("backend: " + JSON.stringify(messageObject));
-    try {
-      var messageId = messageObject["id"];
-      if (typeof messageId === "number") {
-        var handler = session._dispatchTable.get(messageId);
-        if (handler) {
-          handler(messageObject);
-          session._dispatchTable.delete(messageId);
-        }
-      } else {
-        var eventName = messageObject["method"];
-        var eventHandler = session._eventHandler[eventName];
-        if (session._scriptMap && eventName === "Debugger.scriptParsed")
-          session._scriptMap.set(messageObject.params.scriptId, JSON.parse(JSON.stringify(messageObject.params)));
-        if (eventName === "Debugger.scriptParsed" && messageObject.params.url === "wait-pending-tasks.js")
-          return;
-        if (eventHandler)
-          eventHandler(messageObject);
-      }
-    } catch (e) {
-      InspectorTest.log("Exception when dispatching message: " + e + "\n" + e.stack + "\n message = " + JSON.stringify(messageObject, null, 2));
-      InspectorTest.completeTest();
-    }
-  };
-  session.id = utils.connectSession(contextGroup.id, '', session._dispatchMessage.bind(session));
-  InspectorTest._sessions.set(session.id, session);
-  session.disconnect = () => utils.disconnectSession(session.id);
-  session.reconnect = () => {
-    InspectorTest._sessions.delete(session.id);
-    var state = utils.disconnectSession(session.id);
-    session.id = utils.connectSession(contextGroup.id, state, session._dispatchMessage.bind(session));
-    InspectorTest._sessions.set(session.id, session);
-  };
-  session.sendRawCommand = (requestId, command, handler) => {
-    if (InspectorTest._dumpInspectorProtocolMessages)
-      utils.print("frontend: " + command);
-    session._dispatchTable.set(requestId, handler);
-    utils.sendMessageToBackend(session.id, command);
-  }
-  session._sendCommandPromise = (method, params) => {
-    var requestId = ++session._requestId;
-    var messageObject = { "id": requestId, "method": method, "params": params };
-    var fulfillCallback;
-    var promise = new Promise(fulfill => fulfillCallback = fulfill);
-    if (InspectorTest._commandsForLogging.has(method)) {
-      utils.print(method + ' called');
-    }
-    session.sendRawCommand(requestId, JSON.stringify(messageObject), fulfillCallback);
-    return promise;
-  }
-  return session;
+InspectorTest.completeTest = function() {
+  var promises = [];
+  for (var session of InspectorTest._sessions)
+    promises.push(session.Protocol.Debugger.disable());
+  Promise.all(promises).then(() => utils.quit());
 }
 
-InspectorTest.logProtocolCommandCalls = (command) => InspectorTest._commandsForLogging.add(command);
+InspectorTest.waitForPendingTasks = function() {
+  var promises = [];
+  for (var session of InspectorTest._sessions)
+    promises.push(session.Protocol.Runtime.evaluate({ expression: "new Promise(r => setTimeout(r, 0))//# sourceURL=wait-for-pending-tasks.js", awaitPromise: true }));
+  return Promise.all(promises);
+}
 
-InspectorTest.log = utils.print.bind(null);
+InspectorTest.startDumpingProtocolMessages = function() {
+  InspectorTest._dumpInspectorProtocolMessages = true;
+}
 
-InspectorTest.logMessage = function(originalMessage)
-{
+InspectorTest.logMessage = function(originalMessage) {
   var message = JSON.parse(JSON.stringify(originalMessage));
   if (message.id)
     message.id = "<messageId>";
@@ -129,12 +56,10 @@ InspectorTest.logMessage = function(originalMessage)
   return originalMessage;
 }
 
-InspectorTest.logObject = function(object, title)
-{
+InspectorTest.logObject = function(object, title) {
   var lines = [];
 
-  function dumpValue(value, prefix, prefixWithName)
-  {
+  function dumpValue(value, prefix, prefixWithName) {
     if (typeof value === "object" && value !== null) {
       if (value instanceof Array)
         dumpItems(value, prefix, prefixWithName);
@@ -145,8 +70,7 @@ InspectorTest.logObject = function(object, title)
     }
   }
 
-  function dumpProperties(object, prefix, firstLinePrefix)
-  {
+  function dumpProperties(object, prefix, firstLinePrefix) {
     prefix = prefix || "";
     firstLinePrefix = firstLinePrefix || prefix;
     lines.push(firstLinePrefix + "{");
@@ -163,8 +87,7 @@ InspectorTest.logObject = function(object, title)
     lines.push(prefix + "}");
   }
 
-  function dumpItems(object, prefix, firstLinePrefix)
-  {
+  function dumpItems(object, prefix, firstLinePrefix) {
     prefix = prefix || "";
     firstLinePrefix = firstLinePrefix || prefix;
     lines.push(firstLinePrefix + "[");
@@ -177,112 +100,222 @@ InspectorTest.logObject = function(object, title)
   InspectorTest.log(lines.join("\n"));
 }
 
-InspectorTest.logCallFrames = function(callFrames, session)
-{
-  session = session || InspectorTest.session;
-  for (var frame of callFrames) {
-    var functionName = frame.functionName || '(anonymous)';
-    var url = frame.url ? frame.url : session._scriptMap.get(frame.location.scriptId).url;
-    var lineNumber = frame.location ? frame.location.lineNumber : frame.lineNumber;
-    var columnNumber = frame.location ? frame.location.columnNumber : frame.columnNumber;
-    InspectorTest.log(`${functionName} (${url}:${lineNumber}:${columnNumber})`);
+InspectorTest.ContextGroup = class {
+  constructor() {
+    this.id = utils.createContextGroup();
   }
-}
 
-InspectorTest.logSourceLocation = function(location, session)
-{
-  session = session || InspectorTest.session;
-  var scriptId = location.scriptId;
-  if (!session._scriptMap || !session._scriptMap.has(scriptId)) {
-    InspectorTest.log("InspectorTest.setupScriptMap should be called before Protocol.Debugger.enable.");
-    InspectorTest.completeTest();
+  schedulePauseOnNextStatement(reason, details) {
+    utils.schedulePauseOnNextStatement(this.id, reason, details);
   }
-  var script = session._scriptMap.get(scriptId);
-  if (!script.scriptSource) {
-    return session.Protocol.Debugger.getScriptSource({ scriptId })
-      .then(message => script.scriptSource = message.result.scriptSource)
-      .then(dumpSourceWithLocation);
+
+  cancelPauseOnNextStatement() {
+    utils.cancelPauseOnNextStatement(this.id);
   }
-  return Promise.resolve().then(dumpSourceWithLocation);
 
-  function dumpSourceWithLocation() {
-    var lines = script.scriptSource.split('\n');
-    var line = lines[location.lineNumber];
-    line = line.slice(0, location.columnNumber) + '#' + (line.slice(location.columnNumber) || '');
-    lines[location.lineNumber] = line;
-    lines = lines.filter(line => line.indexOf('//# sourceURL=') === -1);
-    InspectorTest.log(lines.slice(Math.max(location.lineNumber - 1, 0), location.lineNumber + 2).join('\n'));
-    InspectorTest.log('');
+  addScript(string, lineOffset, columnOffset, url) {
+    utils.compileAndRunWithOrigin(this.id, string, url || '', lineOffset || 0, columnOffset || 0, false);
   }
-}
 
-InspectorTest.logSourceLocations = function(locations, session) {
-  if (locations.length == 0) return Promise.resolve();
-  return InspectorTest.logSourceLocation(locations[0], session)
-      .then(() => InspectorTest.logSourceLocations(locations.splice(1), session));
-}
+  addModule(string, url, lineOffset, columnOffset) {
+    utils.compileAndRunWithOrigin(this.id, string, url, lineOffset || 0, columnOffset || 0, true);
+  }
 
-InspectorTest.logAsyncStackTrace = function(asyncStackTrace, session)
-{
-  session = InspectorTest.session || session;
-  while (asyncStackTrace) {
-    if (asyncStackTrace.promiseCreationFrame) {
-      var frame = asyncStackTrace.promiseCreationFrame;
-      InspectorTest.log(`-- ${asyncStackTrace.description} (${frame.url
-                        }:${frame.lineNumber}:${frame.columnNumber})--`);
-    } else {
-      InspectorTest.log(`-- ${asyncStackTrace.description} --`);
+  loadScript(fileName) {
+    this.addScript(utils.read(fileName));
+  }
+
+  connect() {
+    return new InspectorTest.Session(this);
+  }
+
+  setupInjectedScriptEnvironment(debug) {
+    let scriptSource = '';
+    // First define all getters on Object.prototype.
+    let injectedScriptSource = utils.read('src/inspector/injected-script-source.js');
+    let getterRegex = /\.[a-zA-Z0-9]+/g;
+    let match;
+    let getters = new Set();
+    while (match = getterRegex.exec(injectedScriptSource)) {
+      getters.add(match[0].substr(1));
     }
-    InspectorTest.logCallFrames(asyncStackTrace.callFrames, session);
-    asyncStackTrace = asyncStackTrace.parent;
+    scriptSource += `(function installSettersAndGetters() {
+        let defineProperty = Object.defineProperty;
+        let ObjectPrototype = Object.prototype;\n`;
+    scriptSource += Array.from(getters).map(getter => `
+        defineProperty(ObjectPrototype, '${getter}', {
+          set() { debugger; throw 42; }, get() { debugger; throw 42; },
+          __proto__: null
+        });
+        `).join('\n') + '})();';
+    this.addScript(scriptSource);
+
+    if (debug) {
+      InspectorTest.log('WARNING: setupInjectedScriptEnvironment with debug flag for debugging only and should not be landed.');
+      InspectorTest.log('WARNING: run test with --expose-inspector-scripts flag to get more details.');
+      InspectorTest.log('WARNING: you can additionally comment rjsmin in xxd.py to get unminified injected-script-source.js.');
+      var session = InspectorTest._sessions.next().vale;
+      session.setupScriptMap();
+      sesison.Protocol.Debugger.enable();
+      session.Protocol.Debugger.onPaused(message => {
+        let callFrames = message.params.callFrames;
+        session.logSourceLocations(callFrames.map(frame => frame.location));
+      })
+    }
   }
-}
+};
 
-InspectorTest.completeTest = () => Protocol.Debugger.disable().then(() => utils.quit());
-
-InspectorTest.completeTestAfterPendingTimeouts = function()
-{
-  InspectorTest.waitPendingTasks().then(InspectorTest.completeTest);
-}
-
-InspectorTest.waitPendingTasks = function()
-{
-  var promises = [];
-  for (var session of InspectorTest._sessions.values())
-    promises.push(session.Protocol.Runtime.evaluate({ expression: "new Promise(r => setTimeout(r, 0))//# sourceURL=wait-pending-tasks.js", awaitPromise: true }));
-  return Promise.all(promises);
-}
-
-InspectorTest.startDumpingProtocolMessages = function()
-{
-  InspectorTest._dumpInspectorProtocolMessages = true;
-}
-
-InspectorTest.checkExpectation = function(fail, name, messageObject)
-{
-  if (fail === !!messageObject.error) {
-    InspectorTest.log("PASS: " + name);
-    return true;
+InspectorTest.Session = class {
+  constructor(contextGroup) {
+    this.contextGroup = contextGroup;
+    this._dispatchTable = new Map();
+    this._eventHandlers = new Map();
+    this._requestId = 0;
+    this.Protocol = this._setupProtocol();
+    InspectorTest._sessions.add(this);
+    this.id = utils.connectSession(contextGroup.id, '', this._dispatchMessage.bind(this));
   }
 
-  InspectorTest.log("FAIL: " + name + ": " + JSON.stringify(messageObject));
-  InspectorTest.completeTest();
-  return false;
-}
-InspectorTest.expectedSuccess = InspectorTest.checkExpectation.bind(null, false);
-InspectorTest.expectedError = InspectorTest.checkExpectation.bind(null, true);
+  disconnect() {
+    InspectorTest._sessions.delete(this);
+    utils.disconnectSession(this.id);
+  }
 
-InspectorTest.setupScriptMap = function(session) {
-  session = session || InspectorTest.session;
-  if (session._scriptMap)
-    return;
-  session._scriptMap = new Map();
-}
+  reconnect() {
+    var state = utils.disconnectSession(this.id);
+    this.id = utils.connectSession(this.contextGroup.id, state, this._dispatchMessage.bind(this));
+  }
 
-InspectorTest.runTestSuite = function(testSuite)
-{
-  function nextTest()
-  {
+  sendRawCommand(requestId, command, handler) {
+    if (InspectorTest._dumpInspectorProtocolMessages)
+      utils.print("frontend: " + command);
+    this._dispatchTable.set(requestId, handler);
+    utils.sendMessageToBackend(this.id, command);
+  }
+
+  setupScriptMap() {
+    if (this._scriptMap)
+      return;
+    this._scriptMap = new Map();
+  }
+
+  logCallFrames(callFrames) {
+    for (var frame of callFrames) {
+      var functionName = frame.functionName || '(anonymous)';
+      var url = frame.url ? frame.url : this._scriptMap.get(frame.location.scriptId).url;
+      var lineNumber = frame.location ? frame.location.lineNumber : frame.lineNumber;
+      var columnNumber = frame.location ? frame.location.columnNumber : frame.columnNumber;
+      InspectorTest.log(`${functionName} (${url}:${lineNumber}:${columnNumber})`);
+    }
+  }
+
+  logSourceLocation(location) {
+    var scriptId = location.scriptId;
+    if (!this._scriptMap || !this._scriptMap.has(scriptId)) {
+      InspectorTest.log("setupScriptMap should be called before Protocol.Debugger.enable.");
+      InspectorTest.completeTest();
+    }
+    var script = this._scriptMap.get(scriptId);
+    if (!script.scriptSource) {
+      return this.Protocol.Debugger.getScriptSource({ scriptId })
+          .then(message => script.scriptSource = message.result.scriptSource)
+          .then(dumpSourceWithLocation);
+    }
+    return Promise.resolve().then(dumpSourceWithLocation);
+
+    function dumpSourceWithLocation() {
+      var lines = script.scriptSource.split('\n');
+      var line = lines[location.lineNumber];
+      line = line.slice(0, location.columnNumber) + '#' + (line.slice(location.columnNumber) || '');
+      lines[location.lineNumber] = line;
+      lines = lines.filter(line => line.indexOf('//# sourceURL=') === -1);
+      InspectorTest.log(lines.slice(Math.max(location.lineNumber - 1, 0), location.lineNumber + 2).join('\n'));
+      InspectorTest.log('');
+    }
+  }
+
+  logSourceLocations(locations) {
+    if (locations.length == 0) return Promise.resolve();
+    return this.logSourceLocation(locations[0]).then(() => this.logSourceLocations(locations.splice(1)));
+  }
+
+  logAsyncStackTrace(asyncStackTrace) {
+    while (asyncStackTrace) {
+      if (asyncStackTrace.promiseCreationFrame) {
+        var frame = asyncStackTrace.promiseCreationFrame;
+        InspectorTest.log(`-- ${asyncStackTrace.description} (${frame.url}:${frame.lineNumber}:${frame.columnNumber})--`);
+      } else {
+        InspectorTest.log(`-- ${asyncStackTrace.description} --`);
+      }
+      this.logCallFrames(asyncStackTrace.callFrames);
+      asyncStackTrace = asyncStackTrace.parent;
+    }
+  }
+
+  _sendCommandPromise(method, params) {
+    if (InspectorTest._commandsForLogging.has(method))
+      utils.print(method + ' called');
+    var requestId = ++this._requestId;
+    var messageObject = { "id": requestId, "method": method, "params": params };
+    return new Promise(fulfill => this.sendRawCommand(requestId, JSON.stringify(messageObject), fulfill));
+  }
+
+  _setupProtocol() {
+    return new Proxy({}, { get: (target, agentName, receiver) => new Proxy({}, {
+      get: (target, methodName, receiver) => {
+        const eventPattern = /^on(ce)?([A-Z][A-Za-z0-9]+)/;
+        var match = eventPattern.exec(methodName);
+        if (!match)
+          return args => this._sendCommandPromise(`${agentName}.${methodName}`, args || {});
+        var eventName = match[2];
+        eventName = eventName.charAt(0).toLowerCase() + eventName.slice(1);
+        if (match[1])
+          return () => this._waitForEventPromise(`${agentName}.${eventName}`);
+        return listener => this._eventHandlers.set(`${agentName}.${eventName}`, listener);
+      }
+    })});
+  }
+
+  _dispatchMessage(messageString) {
+    var messageObject = JSON.parse(messageString);
+    if (InspectorTest._dumpInspectorProtocolMessages)
+      utils.print("backend: " + JSON.stringify(messageObject));
+    try {
+      var messageId = messageObject["id"];
+      if (typeof messageId === "number") {
+        var handler = this._dispatchTable.get(messageId);
+        if (handler) {
+          handler(messageObject);
+          this._dispatchTable.delete(messageId);
+        }
+      } else {
+        var eventName = messageObject["method"];
+        var eventHandler = this._eventHandlers.get(eventName);
+        if (this._scriptMap && eventName === "Debugger.scriptParsed")
+          this._scriptMap.set(messageObject.params.scriptId, JSON.parse(JSON.stringify(messageObject.params)));
+        if (eventName === "Debugger.scriptParsed" && messageObject.params.url === "wait-for-pending-tasks.js")
+          return;
+        if (eventHandler)
+          eventHandler(messageObject);
+      }
+    } catch (e) {
+      InspectorTest.log("Exception when dispatching message: " + e + "\n" + e.stack + "\n message = " + JSON.stringify(messageObject, null, 2));
+      InspectorTest.completeTest();
+    }
+  };
+
+  _waitForEventPromise(eventName) {
+    return new Promise(fulfill => {
+      this._eventHandlers.set(eventName, result => {
+        delete this._eventHandlers.delete(eventName);
+        fulfill(result);
+      });
+    });
+  }
+};
+
+InspectorTest.runTestSuite = function(testSuite) {
+  function nextTest() {
     if (!testSuite.length) {
       InspectorTest.completeTest();
       return;
@@ -306,59 +339,13 @@ InspectorTest.runAsyncTestSuite = async function(testSuite) {
   InspectorTest.completeTest();
 }
 
-InspectorTest._waitForEventPromise = function(session, eventName)
-{
-  return new Promise(fulfill => session._eventHandler[eventName] = fullfillAndClearListener.bind(null, fulfill));
-
-  function fullfillAndClearListener(fulfill, result)
-  {
-    delete session._eventHandler[eventName];
-    fulfill(result);
+InspectorTest.start = function(description) {
+  try {
+    InspectorTest.log(description);
+    var contextGroup = new InspectorTest.ContextGroup();
+    var session = contextGroup.connect();
+    return { session: session, contextGroup: contextGroup, Protocol: session.Protocol };
+  } catch (e) {
+    utils.print(e.stack);
   }
-}
-
-InspectorTest.setupInjectedScriptEnvironment = function(debug, session) {
-  session = session || InspectorTest.session;
-  let scriptSource = '';
-  // First define all getters on Object.prototype.
-  let injectedScriptSource = utils.read('src/inspector/injected-script-source.js');
-  let getterRegex = /\.[a-zA-Z0-9]+/g;
-  let match;
-  let getters = new Set();
-  while (match = getterRegex.exec(injectedScriptSource)) {
-    getters.add(match[0].substr(1));
-  }
-  scriptSource += `(function installSettersAndGetters() {
-    let defineProperty = Object.defineProperty;
-    let ObjectPrototype = Object.prototype;\n`;
-  scriptSource += Array.from(getters).map(getter => `
-    defineProperty(ObjectPrototype, '${getter}', {
-      set() { debugger; throw 42; }, get() { debugger; throw 42; },
-      __proto__: null
-    });
-  `).join('\n') + '})();';
-  session.contextGroup.addScript(scriptSource);
-
-  if (debug) {
-    InspectorTest.log('WARNING: InspectorTest.setupInjectedScriptEnvironment with debug flag for debugging only and should not be landed.');
-    InspectorTest.log('WARNING: run test with --expose-inspector-scripts flag to get more details.');
-    InspectorTest.log('WARNING: you can additionally comment rjsmin in xxd.py to get unminified injected-script-source.js.');
-    InspectorTest.setupScriptMap(session);
-    sesison.Protocol.Debugger.enable();
-    session.Protocol.Debugger.onPaused(message => {
-      let callFrames = message.params.callFrames;
-      InspectorTest.logSourceLocations(callFrames.map(frame => frame.location), session);
-    })
-  }
-}
-
-try {
-  InspectorTest.contextGroup = InspectorTest.createContextGroup();
-  InspectorTest.session = InspectorTest.createSession(InspectorTest.contextGroup);
-  this.Protocol = InspectorTest.session.Protocol;
-  InspectorTest.addScript = InspectorTest.contextGroup.addScript.bind(InspectorTest.contextGroup);
-  InspectorTest.addModule = InspectorTest.contextGroup.addModule.bind(InspectorTest.contextGroup);
-  InspectorTest.loadScript = fileName => InspectorTest.addScript(utils.read(fileName));
-} catch (e) {
-  utils.print(e.stack);
 }

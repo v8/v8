@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks nested scheduled break in framework code.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks nested scheduled break in framework code.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function frameworkCall(callback) {
   inspector.callWithScheduledBreak(doFrameworkWork.bind(null, callback),
     'top-framework-scheduled-break',
@@ -22,7 +22,7 @@ function doFrameworkBreak() {
 
 //# sourceURL=framework.js`, 7, 26);
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function testFunction() {
   inspector.callWithScheduledBreak(frameworkCall.bind(null, callback),
     'top-scheduled-break', '');
@@ -35,11 +35,11 @@ function callback() {
 
 //# sourceURL=user.js`, 25, 26);
 
-InspectorTest.setupScriptMap();
+session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
   InspectorTest.log('break reason: ' + message.params.reason);
   InspectorTest.log('break aux data: ' + JSON.stringify(message.params.data || {}, null, '  '));
-  InspectorTest.logCallFrames(message.params.callFrames);
+  session.logCallFrames(message.params.callFrames);
   InspectorTest.log('');
   Protocol.Debugger.resume();
 });

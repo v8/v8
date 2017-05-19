@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.v8
 
-InspectorTest.log('Checks that Runtime agent correctly restore its state.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that Runtime agent correctly restore its state.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 var formatter = {
     header: function(x)
     {
@@ -73,5 +73,5 @@ InspectorTest.runTestSuite([
 
 function reconnect() {
   InspectorTest.logMessage('will reconnect..');
-  InspectorTest.session.reconnect();
+  session.reconnect();
 }

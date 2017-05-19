@@ -1,3 +1,4 @@
+Tests console object and it's prototype
 
 Running test: consoleExistsOnGlobal
 true

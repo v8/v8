@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log('Checks that we collect obsolete async tasks with async stacks.');
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks that we collect obsolete async tasks with async stacks.');
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
 function test() {
   inspector.setMaxAsyncTaskStacks(128);
   var p = Promise.resolve();

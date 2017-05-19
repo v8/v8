@@ -5,44 +5,46 @@
 InspectorTest.log('Checks createContext().');
 
 var executionContextIds = new Set();
-var contextGroup = InspectorTest.createContextGroup();
-var session = InspectorTest.createSession(contextGroup);
-setup(InspectorTest.session);
-setup(session);
+var contextGroup1 = new InspectorTest.ContextGroup();
+var session1 = contextGroup1.connect();
+setup(session1);
+var contextGroup2 = new InspectorTest.ContextGroup();
+var session2 = contextGroup2.connect();
+setup(session2);
 
-Protocol.Runtime.enable()
-  .then(() => session.Protocol.Runtime.enable({}))
-  .then(() => Protocol.Debugger.enable())
-  .then(() => session.Protocol.Debugger.enable({}))
+session1.Protocol.Runtime.enable()
+  .then(() => session2.Protocol.Runtime.enable({}))
+  .then(() => session1.Protocol.Debugger.enable())
+  .then(() => session2.Protocol.Debugger.enable({}))
   .then(InspectorTest.logMessage)
   .then(() => {
-    Protocol.Runtime.evaluate({ expression: 'debugger;' });
-    session.Protocol.Runtime.evaluate({expression: 'setTimeout(x => x * 2, 0)'});
-    Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 3, 0)' });
+    session1.Protocol.Runtime.evaluate({ expression: 'debugger;' });
+    session2.Protocol.Runtime.evaluate({expression: 'setTimeout(x => x * 2, 0)'});
+    session1.Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 3, 0)' });
   })
-  .then(() => InspectorTest.waitPendingTasks())
+  .then(() => InspectorTest.waitForPendingTasks())
   .then(() => {
     InspectorTest.log(`Reported script's execution id: ${executionContextIds.size}`);
     executionContextIds.clear();
   })
-  .then(() => InspectorTest.session.reconnect())
-  .then(() => session.reconnect())
+  .then(() => session1.reconnect())
+  .then(() => session2.reconnect())
   .then(() => {
-    Protocol.Runtime.evaluate({ expression: 'debugger;' })
-    session.Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 2, 0)' });
-    Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 3, 0)' });
+    session1.Protocol.Runtime.evaluate({ expression: 'debugger;' })
+    session2.Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 2, 0)' });
+    session1.Protocol.Runtime.evaluate({ expression: 'setTimeout(x => x * 3, 0)' });
   })
-  .then(() => InspectorTest.waitPendingTasks())
-  .then(() => session.Protocol.Debugger.disable({}))
-  .then(() => Protocol.Debugger.disable({}))
+  .then(() => InspectorTest.waitForPendingTasks())
+  .then(() => session2.Protocol.Debugger.disable({}))
+  .then(() => session1.Protocol.Debugger.disable({}))
   .then(() => InspectorTest.log(`Reported script's execution id: ${executionContextIds.size}`))
   .then(InspectorTest.completeTest);
 
 function setup(session) {
   session.Protocol.Runtime.onExecutionContextCreated(InspectorTest.logMessage);
-  InspectorTest.setupScriptMap(session);
+  session.setupScriptMap();
   session.Protocol.Debugger.onPaused((message) => {
-    InspectorTest.logSourceLocation(message.params.callFrames[0].location, session);
+    session.logSourceLocation(message.params.callFrames[0].location);
     session.Protocol.Debugger.stepOut();
   });
   session.Protocol.Debugger.onScriptParsed(message => executionContextIds.add(message.params.executionContextId));
