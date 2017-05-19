@@ -273,7 +273,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 332
+bytecode array length: 331
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(25),
@@ -414,7 +414,7 @@ bytecodes: [
                 B(Star), R(8),
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(9),
-                B(CallRuntime), U16(Runtime::k_GeneratorClose), R(9), U8(1),
+                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(9), U8(1),
                 B(Ldar), R(8),
                 B(SetPendingMessage),
                 B(Ldar), R(6),
@@ -448,7 +448,7 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 439
+bytecode array length: 438
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(25),
@@ -635,7 +635,7 @@ bytecodes: [
                 B(Star), R(7),
                 B(LdaImmutableCurrentContextSlot), U8(4),
                 B(Star), R(8),
-                B(CallRuntime), U16(Runtime::k_GeneratorClose), R(8), U8(1),
+                B(InvokeIntrinsic), U8(Runtime::k_GeneratorClose), R(8), U8(1),
                 B(Ldar), R(7),
                 B(SetPendingMessage),
                 B(Ldar), R(5),

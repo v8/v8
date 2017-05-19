@@ -434,6 +434,18 @@ Node* IntrinsicsGenerator::GeneratorGetResumeMode(Node* args_reg,
   return value;
 }
 
+Node* IntrinsicsGenerator::GeneratorClose(Node* args_reg, Node* arg_count,
+                                          Node* context) {
+  Node* generator = __ LoadRegister(args_reg);
+  Node* const value =
+      __ LoadObjectField(generator, JSGeneratorObject::kResumeModeOffset);
+  __ StoreObjectFieldNoWriteBarrier(
+      generator, JSGeneratorObject::kContinuationOffset,
+      __ SmiConstant(JSGeneratorObject::kGeneratorClosed));
+
+  return value;
+}
+
 Node* IntrinsicsGenerator::AsyncGeneratorReject(Node* input, Node* arg_count,
                                                 Node* context) {
   return IntrinsicAsBuiltinCall(input, context,
