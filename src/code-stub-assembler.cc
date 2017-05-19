@@ -8982,7 +8982,7 @@ Node* CodeStubAssembler::TypedArraySpeciesCreateByLength(Node* context,
   // TODO(tebbi): Install a fast path as well, which avoids the runtime
   // call.
   return CallRuntime(Runtime::kTypedArraySpeciesCreateByLength, context,
-                     UndefinedConstant(), originalArray, len);
+                     originalArray, len);
 }
 
 Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {

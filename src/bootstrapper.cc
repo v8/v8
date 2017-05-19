@@ -178,7 +178,6 @@ class Genesis BASE_EMBEDDED {
 
   void InstallOneBuiltinFunction(Handle<Object> prototype, const char* method,
                                  Builtins::Name name);
-  void InitializeGlobal_experimental_fast_array_builtins();
 
   Handle<JSFunction> InstallArrayBuffer(Handle<JSObject> target,
                                         const char* name,
@@ -2780,6 +2779,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // TODO(caitp): alphasort accessors/methods
     SimpleInstallFunction(prototype, "copyWithin",
                           Builtins::kTypedArrayPrototypeCopyWithin, 2, false);
+    SimpleInstallFunction(prototype, "every",
+                          Builtins::kTypedArrayPrototypeEvery, 1, false);
     SimpleInstallFunction(prototype, "fill",
                           Builtins::kTypedArrayPrototypeFill, 1, false);
     SimpleInstallFunction(prototype, "includes",
@@ -2788,10 +2789,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kTypedArrayPrototypeIndexOf, 1, false);
     SimpleInstallFunction(prototype, "lastIndexOf",
                           Builtins::kTypedArrayPrototypeLastIndexOf, 1, false);
+    SimpleInstallFunction(prototype, "map", Builtins::kTypedArrayPrototypeMap,
+                          1, false);
     SimpleInstallFunction(prototype, "reverse",
                           Builtins::kTypedArrayPrototypeReverse, 0, false);
+    SimpleInstallFunction(prototype, "reduce",
+                          Builtins::kTypedArrayPrototypeReduce, 1, false);
+    SimpleInstallFunction(prototype, "reduceRight",
+                          Builtins::kTypedArrayPrototypeReduceRight, 1, false);
     SimpleInstallFunction(prototype, "slice",
                           Builtins::kTypedArrayPrototypeSlice, 2, false);
+    SimpleInstallFunction(prototype, "some", Builtins::kTypedArrayPrototypeSome,
+                          1, false);
   }
 
   {  // -- T y p e d A r r a y s
@@ -3245,8 +3254,6 @@ void Genesis::InitializeExperimentalGlobal() {
   HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
-
-  InitializeGlobal_experimental_fast_array_builtins();
 }
 
 bool Bootstrapper::CompileBuiltin(Isolate* isolate, int index) {
@@ -3883,25 +3890,6 @@ void Genesis::InstallOneBuiltinFunction(Handle<Object> prototype,
   info->set_code(isolate()->builtins()->builtin(builtin_name));
   info->set_internal_formal_parameter_count(
       Builtins::GetBuiltinParameterCount(builtin_name));
-}
-
-void Genesis::InitializeGlobal_experimental_fast_array_builtins() {
-  if (!FLAG_experimental_fast_array_builtins) return;
-  {
-    Handle<Object> typed_array_prototype(
-        native_context()->typed_array_prototype(), isolate());
-    // Insert experimental fast TypedArray builtins here.
-    InstallOneBuiltinFunction(typed_array_prototype, "every",
-                              Builtins::kTypedArrayPrototypeEvery);
-    InstallOneBuiltinFunction(typed_array_prototype, "some",
-                              Builtins::kTypedArrayPrototypeSome);
-    InstallOneBuiltinFunction(typed_array_prototype, "reduce",
-                              Builtins::kTypedArrayPrototypeReduce);
-    InstallOneBuiltinFunction(typed_array_prototype, "reduceRight",
-                              Builtins::kTypedArrayPrototypeReduceRight);
-    InstallOneBuiltinFunction(typed_array_prototype, "map",
-                              Builtins::kTypedArrayPrototypeMap);
-  }
 }
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {

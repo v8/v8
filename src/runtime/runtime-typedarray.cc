@@ -284,8 +284,8 @@ RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
 RUNTIME_FUNCTION(Runtime_TypedArraySpeciesCreateByLength) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  Handle<JSTypedArray> exemplar = args.at<JSTypedArray>(1);
-  Handle<Object> length = args.at(2);
+  Handle<JSTypedArray> exemplar = args.at<JSTypedArray>(0);
+  Handle<Object> length = args.at(1);
   int argc = 1;
   ScopedVector<Handle<Object>> argv(argc);
   argv[0] = length;

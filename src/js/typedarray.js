@@ -366,28 +366,6 @@ function TypedArrayGetToStringTag() {
   return name;
 }
 
-function InnerTypedArrayEvery(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      if (!%_Call(f, receiver, element, i, array)) return false;
-    }
-  }
-  return true;
-}
-
-// ES6 draft 05-05-15, section 22.2.3.7
-function TypedArrayEvery(f, receiver) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.every");
-
-  var length = %_TypedArrayGetLength(this);
-
-  return InnerTypedArrayEvery(f, receiver, this, length);
-}
-%FunctionSetLength(TypedArrayEvery, 1);
-
 function InnerTypedArrayForEach(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
 
@@ -490,44 +468,6 @@ function TypedArraySort(comparefn) {
 }
 
 
-// ES6 draft 07-15-13, section 22.2.3.18
-function TypedArrayMap(f, thisArg) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.map");
-
-  var length = %_TypedArrayGetLength(this);
-  var result = TypedArraySpeciesCreate(this, length);
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-  for (var i = 0; i < length; i++) {
-    var element = this[i];
-    result[i] = %_Call(f, thisArg, element, i, this);
-  }
-  return result;
-}
-%FunctionSetLength(TypedArrayMap, 1);
-
-function InnerTypedArraySome(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      if (%_Call(f, receiver, element, i, array)) return true;
-    }
-  }
-  return false;
-}
-
-// ES6 draft 05-05-15, section 22.2.3.24
-function TypedArraySome(f, receiver) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.some");
-
-  var length = %_TypedArrayGetLength(this);
-
-  return InnerTypedArraySome(f, receiver, this, length);
-}
-%FunctionSetLength(TypedArraySome, 1);
-
-
 // ES6 section 22.2.3.27
 function TypedArrayToLocaleString() {
   ValidateTypedArray(this, "%TypedArray%.prototype.toLocaleString");
@@ -546,78 +486,6 @@ function TypedArrayJoin(separator) {
 
   return InnerArrayJoin(separator, this, length);
 }
-
-function InnerTypedArrayReduce(
-    callback, current, array, length, argumentsLength) {
-  if (!IS_CALLABLE(callback)) {
-    throw %make_type_error(kCalledNonCallable, callback);
-  }
-
-  var i = 0;
-  find_initial: if (argumentsLength < 2) {
-    for (; i < length; i++) {
-      if (i in array) {
-        current = array[i++];
-        break find_initial;
-      }
-    }
-    throw %make_type_error(kReduceNoInitial);
-  }
-
-  for (; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      current = callback(current, element, i, array);
-    }
-  }
-  return current;
-}
-
-// ES6 draft 07-15-13, section 22.2.3.19
-function TypedArrayReduce(callback, current) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.reduce");
-
-  var length = %_TypedArrayGetLength(this);
-  return InnerTypedArrayReduce(
-      callback, current, this, length, arguments.length);
-}
-%FunctionSetLength(TypedArrayReduce, 1);
-
-function InnerArrayReduceRight(callback, current, array, length,
-                               argumentsLength) {
-  if (!IS_CALLABLE(callback)) {
-    throw %make_type_error(kCalledNonCallable, callback);
-  }
-
-  var i = length - 1;
-  find_initial: if (argumentsLength < 2) {
-    for (; i >= 0; i--) {
-      if (i in array) {
-        current = array[i--];
-        break find_initial;
-      }
-    }
-    throw %make_type_error(kReduceNoInitial);
-  }
-
-  for (; i >= 0; i--) {
-    if (i in array) {
-      var element = array[i];
-      current = callback(current, element, i, array);
-    }
-  }
-  return current;
-}
-
-// ES6 draft 07-15-13, section 22.2.3.19
-function TypedArrayReduceRight(callback, current) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.reduceRight");
-
-  var length = %_TypedArrayGetLength(this);
-  return InnerArrayReduceRight(callback, current, this, length,
-                               arguments.length);
-}
-%FunctionSetLength(TypedArrayReduceRight, 1);
 
 
 // ES6 draft 08-24-14, section 22.2.2.2
@@ -695,16 +563,11 @@ utils.InstallGetter(GlobalTypedArray.prototype, toStringTagSymbol,
 utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
   "subarray", TypedArraySubArray,
   "set", TypedArraySet,
-  "every", TypedArrayEvery,
   "filter", TypedArrayFilter,
   "find", TypedArrayFind,
   "findIndex", TypedArrayFindIndex,
   "join", TypedArrayJoin,
   "forEach", TypedArrayForEach,
-  "map", TypedArrayMap,
-  "reduce", TypedArrayReduce,
-  "reduceRight", TypedArrayReduceRight,
-  "some", TypedArraySome,
   "sort", TypedArraySort,
   "toLocaleString", TypedArrayToLocaleString
 ]);
