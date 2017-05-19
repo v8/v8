@@ -47,7 +47,7 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       locals_(builder->zone()),
       signature_index_(0),
       func_index_(static_cast<uint32_t>(builder->functions_.size())),
-      body_(builder->zone()),
+      body_(builder->zone(), 256),
       i32_temps_(builder->zone()),
       i64_temps_(builder->zone()),
       f32_temps_(builder->zone()),
