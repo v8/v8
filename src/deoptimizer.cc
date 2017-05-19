@@ -2337,6 +2337,12 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   data->deopt_entry_code_entries_[type] = entry_count;
 }
 
+void Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate) {
+  EnsureCodeForDeoptimizationEntry(isolate, EAGER, kMaxNumberOfEntries - 1);
+  EnsureCodeForDeoptimizationEntry(isolate, LAZY, kMaxNumberOfEntries - 1);
+  EnsureCodeForDeoptimizationEntry(isolate, SOFT, kMaxNumberOfEntries - 1);
+}
+
 FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)
     : frame_size_(frame_size),
       parameter_count_(parameter_count),

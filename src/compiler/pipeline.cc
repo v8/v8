@@ -627,6 +627,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     return AbortOptimization(kGraphBuildingFailed);
   }
 
+  // Make sure that we have generated the maximal number of deopt entries.
+  // This is in order to avoid triggering the generation of deopt entries later
+  // during code assembly.
+  Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(isolate());
+
   return SUCCEEDED;
 }
 
