@@ -111,6 +111,7 @@
       'heap/slot-set-unittest.cc',
       'heap/spaces-unittest.cc',
       'heap/unmapper-unittest.cc',
+      'heap/workstealing-marking-deque-unittest.cc',
       'interpreter/bytecodes-unittest.cc',
       'interpreter/bytecode-array-builder-unittest.cc',
       'interpreter/bytecode-array-iterator-unittest.cc',

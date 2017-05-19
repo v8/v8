@@ -993,6 +993,7 @@
         'heap/spaces.h',
         'heap/store-buffer.cc',
         'heap/store-buffer.h',
+        'heap/workstealing-marking-deque.h',
         'intl.cc',
         'intl.h',
         'icu_util.cc',

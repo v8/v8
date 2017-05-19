@@ -23,6 +23,7 @@ namespace internal {
 class CodeFlusher;
 class EvacuationJobTraits;
 class HeapObjectVisitor;
+class LocalWorkStealingMarkingDeque;
 class MarkCompactCollector;
 class MinorMarkCompactCollector;
 class MarkingVisitor;
@@ -31,6 +32,7 @@ template <typename JobTraits>
 class PageParallelJob;
 class RecordMigratedSlotVisitor;
 class ThreadLocalTop;
+class WorkStealingMarkingDeque;
 class YoungGenerationMarkingVisitor;
 
 #ifdef V8_CONCURRENT_MARKING
@@ -366,10 +368,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   static const int kNumMarkers = 4;
   static const int kMainMarker = 0;
 
-  inline MarkingDeque* marking_deque(int index) {
-    DCHECK_LT(index, kNumMarkers);
-    return marking_deque_[index];
-  }
+  inline WorkStealingMarkingDeque* marking_deque() { return marking_deque_; }
 
   inline YoungGenerationMarkingVisitor* marking_visitor(int index) {
     DCHECK_LT(index, kNumMarkers);
@@ -381,8 +380,6 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void MarkRootSetInParallel();
   void ProcessMarkingDeque() override;
   void EmptyMarkingDeque() override;
-  void EmptySpecificMarkingDeque(MarkingDeque* marking_deque,
-                                 YoungGenerationMarkingVisitor* visitor);
   void ClearNonLiveReferences() override;
 
   void EvacuatePrologue() override;
@@ -393,7 +390,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 
   int NumberOfMarkingTasks();
 
-  MarkingDeque* marking_deque_[kNumMarkers];
+  WorkStealingMarkingDeque* marking_deque_;
   YoungGenerationMarkingVisitor* marking_visitor_[kNumMarkers];
   base::Semaphore page_parallel_job_semaphore_;
   List<Page*> new_space_evacuation_pages_;
