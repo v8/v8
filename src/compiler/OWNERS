@@ -14,3 +14,5 @@ per-file wasm-*=bradnelson@chromium.org
 per-file wasm-*=clemensh@chromium.org
 
 per-file int64-lowering.*=ahaas@chromium.org
+
+# COMPONENT: Blink>JavaScript>Compiler
