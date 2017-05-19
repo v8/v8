@@ -405,6 +405,35 @@ Node* IntrinsicsGenerator::CreateJSGeneratorObject(Node* input, Node* arg_count,
                                 Builtins::kCreateGeneratorObject);
 }
 
+Node* IntrinsicsGenerator::GeneratorGetContext(Node* args_reg, Node* arg_count,
+                                               Node* context) {
+  Node* generator = __ LoadRegister(args_reg);
+  Node* const value =
+      __ LoadObjectField(generator, JSGeneratorObject::kContextOffset);
+
+  return value;
+}
+
+Node* IntrinsicsGenerator::GeneratorGetInputOrDebugPos(Node* args_reg,
+                                                       Node* arg_count,
+                                                       Node* context) {
+  Node* generator = __ LoadRegister(args_reg);
+  Node* const value =
+      __ LoadObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset);
+
+  return value;
+}
+
+Node* IntrinsicsGenerator::GeneratorGetResumeMode(Node* args_reg,
+                                                  Node* arg_count,
+                                                  Node* context) {
+  Node* generator = __ LoadRegister(args_reg);
+  Node* const value =
+      __ LoadObjectField(generator, JSGeneratorObject::kResumeModeOffset);
+
+  return value;
+}
+
 Node* IntrinsicsGenerator::AsyncGeneratorReject(Node* input, Node* arg_count,
                                                 Node* context) {
   return IntrinsicAsBuiltinCall(input, context,
