@@ -193,7 +193,7 @@ v8_executable("unittests") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "//build/config/sanitizers:deps",
+    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
     "//testing/gmock",
     "//testing/gtest",

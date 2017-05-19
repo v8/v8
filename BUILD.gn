@@ -2662,7 +2662,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_libbase",
       ":v8_libplatform",
       ":v8_nosnapshot",
-      "//build/config/sanitizers:deps",
+      "//build/config:exe_and_shlib_deps",
       "//build/win:default_exe_manifest",
     ]
   }
@@ -2835,7 +2835,7 @@ v8_executable("d8") {
     ":v8",
     ":v8_libbase",
     ":v8_libplatform",
-    "//build/config/sanitizers:deps",
+    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 
@@ -2880,7 +2880,7 @@ v8_executable("v8_hello_world") {
     ":v8",
     ":v8_libbase",
     ":v8_libplatform",
-    "//build/config/sanitizers:deps",
+    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 }
@@ -2901,7 +2901,7 @@ v8_executable("v8_sample_process") {
     ":v8",
     ":v8_libbase",
     ":v8_libplatform",
-    "//build/config/sanitizers:deps",
+    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 }
@@ -2921,7 +2921,7 @@ v8_executable("v8_parser_shell") {
     ":v8",
     ":v8_libbase",
     ":v8_libplatform",
-    "//build/config/sanitizers:deps",
+    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
 }
@@ -2943,7 +2943,7 @@ if (want_v8_shell) {
       ":v8",
       ":v8_libbase",
       ":v8_libplatform",
-      "//build/config/sanitizers:deps",
+      "//build/config:exe_and_shlib_deps",
       "//build/win:default_exe_manifest",
     ]
   }
@@ -2955,7 +2955,7 @@ template("v8_fuzzer") {
   v8_executable("v8_simple_" + name) {
     deps = [
       ":" + name,
-      "//build/config/sanitizers:deps",
+      "//build/config:exe_and_shlib_deps",
       "//build/win:default_exe_manifest",
     ]
 
