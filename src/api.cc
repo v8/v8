@@ -6276,12 +6276,16 @@ bool v8::V8::Initialize() {
   return true;
 }
 
-#if V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
+#if V8_OS_POSIX
 bool V8::TryHandleSignal(int signum, void* info, void* context) {
+#if V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
   return v8::internal::trap_handler::TryHandleSignal(
       signum, static_cast<siginfo_t*>(info), static_cast<ucontext_t*>(context));
+#else  // V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
+  return false;
+#endif
 }
-#endif  // V8_OS_LINUX
+#endif
 
 bool V8::RegisterDefaultSignalHandler() {
   return v8::internal::trap_handler::RegisterDefaultSignalHandler();

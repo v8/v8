@@ -7913,7 +7913,7 @@ class V8_EXPORT V8 {
    */
   static void ShutdownPlatform();
 
-#if V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
+#if V8_OS_POSIX
   /**
    * Give the V8 signal handler a chance to handle a fault.
    *
@@ -7934,7 +7934,7 @@ class V8_EXPORT V8 {
    * points to a ucontext_t structure.
    */
   static bool TryHandleSignal(int signal_number, void* info, void* context);
-#endif  // V8_OS_LINUX
+#endif  // V8_OS_POSIX
 
   /**
    * Enable the default signal handler rather than using one provided by the
