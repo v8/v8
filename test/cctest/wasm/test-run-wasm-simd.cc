@@ -1506,7 +1506,10 @@ WASM_EXEC_COMPILED_TEST(I8x16Ne) {
 
 #if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(I8x16Mul) { RunI8x16BinOpTest(kExprI8x16Mul, Mul); }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
+// TODO(gdeepti): Remove special case for ARM64 after v8:6421 is fixed
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET && !V8_TARGET_ARCH_ARM64
 WASM_EXEC_COMPILED_TEST(I8x16GtS) {
   RunI8x16CompareOpTest(kExprI8x16GtS, Greater);
 }
@@ -1538,7 +1541,7 @@ WASM_EXEC_COMPILED_TEST(I8x16LtU) {
 WASM_EXEC_COMPILED_TEST(I8x16LeU) {
   RunI8x16CompareOpTest(kExprI8x16LeU, UnsignedLessEqual);
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET && !V8_TARGET_ARCH_ARM64
 
 void RunI8x16ShiftOpTest(WasmOpcode simd_op, Int8ShiftOp expected_op,
                          int shift) {

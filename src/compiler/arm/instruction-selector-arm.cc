@@ -2462,12 +2462,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MaxS, kArmI32x4MaxS)                   \
   V(I32x4Eq, kArmI32x4Eq)                       \
   V(I32x4Ne, kArmI32x4Ne)                       \
-  V(I32x4LtS, kArmI32x4LtS)                     \
-  V(I32x4LeS, kArmI32x4LeS)                     \
+  V(I32x4GtS, kArmI32x4GtS)                     \
+  V(I32x4GeS, kArmI32x4GeS)                     \
   V(I32x4MinU, kArmI32x4MinU)                   \
   V(I32x4MaxU, kArmI32x4MaxU)                   \
-  V(I32x4LtU, kArmI32x4LtU)                     \
-  V(I32x4LeU, kArmI32x4LeU)                     \
+  V(I32x4GtU, kArmI32x4GtU)                     \
+  V(I32x4GeU, kArmI32x4GeU)                     \
   V(I16x8SConvertI32x4, kArmI16x8SConvertI32x4) \
   V(I16x8Add, kArmI16x8Add)                     \
   V(I16x8AddSaturateS, kArmI16x8AddSaturateS)   \
@@ -2479,15 +2479,15 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MaxS, kArmI16x8MaxS)                   \
   V(I16x8Eq, kArmI16x8Eq)                       \
   V(I16x8Ne, kArmI16x8Ne)                       \
-  V(I16x8LtS, kArmI16x8LtS)                     \
-  V(I16x8LeS, kArmI16x8LeS)                     \
+  V(I16x8GtS, kArmI16x8GtS)                     \
+  V(I16x8GeS, kArmI16x8GeS)                     \
   V(I16x8UConvertI32x4, kArmI16x8UConvertI32x4) \
   V(I16x8AddSaturateU, kArmI16x8AddSaturateU)   \
   V(I16x8SubSaturateU, kArmI16x8SubSaturateU)   \
   V(I16x8MinU, kArmI16x8MinU)                   \
   V(I16x8MaxU, kArmI16x8MaxU)                   \
-  V(I16x8LtU, kArmI16x8LtU)                     \
-  V(I16x8LeU, kArmI16x8LeU)                     \
+  V(I16x8GtU, kArmI16x8GtU)                     \
+  V(I16x8GeU, kArmI16x8GeU)                     \
   V(I8x16SConvertI16x8, kArmI8x16SConvertI16x8) \
   V(I8x16Add, kArmI8x16Add)                     \
   V(I8x16AddSaturateS, kArmI8x16AddSaturateS)   \
@@ -2498,15 +2498,15 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16MaxS, kArmI8x16MaxS)                   \
   V(I8x16Eq, kArmI8x16Eq)                       \
   V(I8x16Ne, kArmI8x16Ne)                       \
-  V(I8x16LtS, kArmI8x16LtS)                     \
-  V(I8x16LeS, kArmI8x16LeS)                     \
+  V(I8x16GtS, kArmI8x16GtS)                     \
+  V(I8x16GeS, kArmI8x16GeS)                     \
   V(I8x16UConvertI16x8, kArmI8x16UConvertI16x8) \
   V(I8x16AddSaturateU, kArmI8x16AddSaturateU)   \
   V(I8x16SubSaturateU, kArmI8x16SubSaturateU)   \
   V(I8x16MinU, kArmI8x16MinU)                   \
   V(I8x16MaxU, kArmI8x16MaxU)                   \
-  V(I8x16LtU, kArmI8x16LtU)                     \
-  V(I8x16LeU, kArmI8x16LeU)                     \
+  V(I8x16GtU, kArmI8x16GtU)                     \
+  V(I8x16GeU, kArmI8x16GeU)                     \
   V(S128And, kArmS128And)                       \
   V(S128Or, kArmS128Or)                         \
   V(S128Xor, kArmS128Xor)                       \

@@ -2109,20 +2109,20 @@ void InstructionSelector::VisitI32x4Neg(Node* node) {
   VisitRR(this, kMipsI32x4Neg, node);
 }
 
-void InstructionSelector::VisitI32x4LtS(Node* node) {
-  VisitRRR(this, kMipsI32x4LtS, node);
+void InstructionSelector::VisitI32x4GtS(Node* node) {
+  VisitRRR(this, kMipsI32x4GtS, node);
 }
 
-void InstructionSelector::VisitI32x4LeS(Node* node) {
-  VisitRRR(this, kMipsI32x4LeS, node);
+void InstructionSelector::VisitI32x4GeS(Node* node) {
+  VisitRRR(this, kMipsI32x4GeS, node);
 }
 
-void InstructionSelector::VisitI32x4LtU(Node* node) {
-  VisitRRR(this, kMipsI32x4LtU, node);
+void InstructionSelector::VisitI32x4GtU(Node* node) {
+  VisitRRR(this, kMipsI32x4GtU, node);
 }
 
-void InstructionSelector::VisitI32x4LeU(Node* node) {
-  VisitRRR(this, kMipsI32x4LeU, node);
+void InstructionSelector::VisitI32x4GeU(Node* node) {
+  VisitRRR(this, kMipsI32x4GeU, node);
 }
 
 void InstructionSelector::VisitI16x8Splat(Node* node) {
@@ -2189,12 +2189,12 @@ void InstructionSelector::VisitI16x8Ne(Node* node) {
   VisitRRR(this, kMipsI16x8Ne, node);
 }
 
-void InstructionSelector::VisitI16x8LtS(Node* node) {
-  VisitRRR(this, kMipsI16x8LtS, node);
+void InstructionSelector::VisitI16x8GtS(Node* node) {
+  VisitRRR(this, kMipsI16x8GtS, node);
 }
 
-void InstructionSelector::VisitI16x8LeS(Node* node) {
-  VisitRRR(this, kMipsI16x8LeS, node);
+void InstructionSelector::VisitI16x8GeS(Node* node) {
+  VisitRRR(this, kMipsI16x8GeS, node);
 }
 
 void InstructionSelector::VisitI16x8AddSaturateU(Node* node) {
@@ -2213,12 +2213,12 @@ void InstructionSelector::VisitI16x8MinU(Node* node) {
   VisitRRR(this, kMipsI16x8MinU, node);
 }
 
-void InstructionSelector::VisitI16x8LtU(Node* node) {
-  VisitRRR(this, kMipsI16x8LtU, node);
+void InstructionSelector::VisitI16x8GtU(Node* node) {
+  VisitRRR(this, kMipsI16x8GtU, node);
 }
 
-void InstructionSelector::VisitI16x8LeU(Node* node) {
-  VisitRRR(this, kMipsI16x8LeU, node);
+void InstructionSelector::VisitI16x8GeU(Node* node) {
+  VisitRRR(this, kMipsI16x8GeU, node);
 }
 
 void InstructionSelector::VisitI8x16Splat(Node* node) {

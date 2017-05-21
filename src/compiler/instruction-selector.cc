@@ -1566,10 +1566,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd1x4(node), VisitI32x4Eq(node);
     case IrOpcode::kI32x4Ne:
       return MarkAsSimd1x4(node), VisitI32x4Ne(node);
-    case IrOpcode::kI32x4LtS:
-      return MarkAsSimd1x4(node), VisitI32x4LtS(node);
-    case IrOpcode::kI32x4LeS:
-      return MarkAsSimd1x4(node), VisitI32x4LeS(node);
+    case IrOpcode::kI32x4GtS:
+      return MarkAsSimd1x4(node), VisitI32x4GtS(node);
+    case IrOpcode::kI32x4GeS:
+      return MarkAsSimd1x4(node), VisitI32x4GeS(node);
     case IrOpcode::kI32x4UConvertF32x4:
       return MarkAsSimd128(node), VisitI32x4UConvertF32x4(node);
     case IrOpcode::kI32x4UConvertI16x8Low:
@@ -1582,10 +1582,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4MinU(node);
     case IrOpcode::kI32x4MaxU:
       return MarkAsSimd128(node), VisitI32x4MaxU(node);
-    case IrOpcode::kI32x4LtU:
-      return MarkAsSimd1x4(node), VisitI32x4LtU(node);
-    case IrOpcode::kI32x4LeU:
-      return MarkAsSimd1x4(node), VisitI32x4LeU(node);
+    case IrOpcode::kI32x4GtU:
+      return MarkAsSimd1x4(node), VisitI32x4GtU(node);
+    case IrOpcode::kI32x4GeU:
+      return MarkAsSimd1x4(node), VisitI32x4GeU(node);
     case IrOpcode::kI16x8Splat:
       return MarkAsSimd128(node), VisitI16x8Splat(node);
     case IrOpcode::kI16x8ExtractLane:
@@ -1624,10 +1624,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd1x8(node), VisitI16x8Eq(node);
     case IrOpcode::kI16x8Ne:
       return MarkAsSimd1x8(node), VisitI16x8Ne(node);
-    case IrOpcode::kI16x8LtS:
-      return MarkAsSimd1x8(node), VisitI16x8LtS(node);
-    case IrOpcode::kI16x8LeS:
-      return MarkAsSimd1x8(node), VisitI16x8LeS(node);
+    case IrOpcode::kI16x8GtS:
+      return MarkAsSimd1x8(node), VisitI16x8GtS(node);
+    case IrOpcode::kI16x8GeS:
+      return MarkAsSimd1x8(node), VisitI16x8GeS(node);
     case IrOpcode::kI16x8UConvertI8x16Low:
       return MarkAsSimd128(node), VisitI16x8UConvertI8x16Low(node);
     case IrOpcode::kI16x8UConvertI8x16High:
@@ -1644,10 +1644,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8MinU(node);
     case IrOpcode::kI16x8MaxU:
       return MarkAsSimd128(node), VisitI16x8MaxU(node);
-    case IrOpcode::kI16x8LtU:
-      return MarkAsSimd1x8(node), VisitI16x8LtU(node);
-    case IrOpcode::kI16x8LeU:
-      return MarkAsSimd1x8(node), VisitI16x8LeU(node);
+    case IrOpcode::kI16x8GtU:
+      return MarkAsSimd1x8(node), VisitI16x8GtU(node);
+    case IrOpcode::kI16x8GeU:
+      return MarkAsSimd1x8(node), VisitI16x8GeU(node);
     case IrOpcode::kI8x16Splat:
       return MarkAsSimd128(node), VisitI8x16Splat(node);
     case IrOpcode::kI8x16ExtractLane:
@@ -1680,10 +1680,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd1x16(node), VisitI8x16Eq(node);
     case IrOpcode::kI8x16Ne:
       return MarkAsSimd1x16(node), VisitI8x16Ne(node);
-    case IrOpcode::kI8x16LtS:
-      return MarkAsSimd1x16(node), VisitI8x16LtS(node);
-    case IrOpcode::kI8x16LeS:
-      return MarkAsSimd1x16(node), VisitI8x16LeS(node);
+    case IrOpcode::kI8x16GtS:
+      return MarkAsSimd1x16(node), VisitI8x16GtS(node);
+    case IrOpcode::kI8x16GeS:
+      return MarkAsSimd1x16(node), VisitI8x16GeS(node);
     case IrOpcode::kI8x16ShrU:
       return MarkAsSimd128(node), VisitI8x16ShrU(node);
     case IrOpcode::kI8x16UConvertI16x8:
@@ -1696,10 +1696,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16MinU(node);
     case IrOpcode::kI8x16MaxU:
       return MarkAsSimd128(node), VisitI8x16MaxU(node);
-    case IrOpcode::kI8x16LtU:
-      return MarkAsSimd1x16(node), VisitI8x16LtU(node);
-    case IrOpcode::kI8x16LeU:
-      return MarkAsSimd1x16(node), VisitI16x8LeU(node);
+    case IrOpcode::kI8x16GtU:
+      return MarkAsSimd1x16(node), VisitI8x16GtU(node);
+    case IrOpcode::kI8x16GeU:
+      return MarkAsSimd1x16(node), VisitI16x8GeU(node);
     case IrOpcode::kS128Zero:
       return MarkAsSimd128(node), VisitS128Zero(node);
     case IrOpcode::kS128And:
@@ -2219,13 +2219,13 @@ void InstructionSelector::VisitI16x8SConvertI32x4(Node* node) {
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI32x4Neg(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI32x4LtS(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI32x4GtS(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI32x4LeS(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI32x4GeS(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI32x4LtU(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI32x4GtU(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI32x4LeU(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI32x4GeU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && \
@@ -2305,13 +2305,13 @@ void InstructionSelector::VisitI16x8UConvertI8x16High(Node* node) {
 #endif  // !V8_TARGET_ARCH_ARM
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
-void InstructionSelector::VisitI16x8LtS(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI16x8GtS(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI16x8LeS(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI16x8GeS(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI16x8LtU(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI16x8GtU(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI16x8LeU(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI16x8GeU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
 
@@ -2363,9 +2363,9 @@ void InstructionSelector::VisitI8x16Ne(Node* node) { UNIMPLEMENTED(); }
 #if !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI8x16LtS(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI8x16GtS(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI8x16LeS(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI8x16GeS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
 
@@ -2389,9 +2389,9 @@ void InstructionSelector::VisitI8x16MaxU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
 
 #if !V8_TARGET_ARCH_ARM
-void InstructionSelector::VisitI8x16LtU(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI8x16GtU(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI8x16LeU(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI8x16GeU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM
