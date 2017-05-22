@@ -1278,6 +1278,7 @@ class BinaryOperationFeedback {
 // to a more generic type when we combine feedback.
 // kSignedSmall        -> kNumber   -> kAny
 // kInternalizedString -> kString   -> kAny
+//                        kSymbol   -> kAny
 //                        kReceiver -> kAny
 // TODO(epertoso): consider unifying this with BinaryOperationFeedback.
 class CompareOperationFeedback {
@@ -1289,8 +1290,9 @@ class CompareOperationFeedback {
     kNumberOrOddball = 0x7,
     kInternalizedString = 0x8,
     kString = 0x18,
-    kReceiver = 0x20,
-    kAny = 0x7F
+    kSymbol = 0x20,
+    kReceiver = 0x40,
+    kAny = 0xff
   };
 };
 

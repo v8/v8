@@ -777,6 +777,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsAccessorPair(Node* object);
   Node* IsHeapNumber(Node* object);
   Node* IsName(Node* object);
+  Node* IsSymbolInstanceType(Node* instance_type);
   Node* IsSymbol(Node* object);
   Node* IsPrivateSymbol(Node* object);
   Node* IsJSValueInstanceType(Node* instance_type);

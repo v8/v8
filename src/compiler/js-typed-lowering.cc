@@ -47,6 +47,7 @@ class JSBinopReduction final {
         case CompareOperationHint::kAny:
         case CompareOperationHint::kNone:
         case CompareOperationHint::kString:
+        case CompareOperationHint::kSymbol:
         case CompareOperationHint::kReceiver:
         case CompareOperationHint::kInternalizedString:
           break;
@@ -81,6 +82,16 @@ class JSBinopReduction final {
       return (CompareOperationHintOf(node_->op()) ==
               CompareOperationHint::kString) &&
              BothInputsMaybe(Type::String());
+    }
+    return false;
+  }
+
+  bool IsSymbolCompareOperation() {
+    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
+      DCHECK_EQ(1, node_->op()->EffectOutputCount());
+      return (CompareOperationHintOf(node_->op()) ==
+              CompareOperationHint::kSymbol) &&
+             BothInputsMaybe(Type::Symbol());
     }
     return false;
   }
@@ -132,6 +143,24 @@ class JSBinopReduction final {
     if (!right_type()->Is(Type::Receiver())) {
       Node* right_input = graph()->NewNode(simplified()->CheckReceiver(),
                                            right(), effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
+  }
+
+  // Checks that both inputs are Symbol, and if we don't know
+  // statically that one side is already a Symbol, insert a
+  // CheckSymbol node.
+  void CheckInputsToSymbol() {
+    if (!left_type()->Is(Type::Symbol())) {
+      Node* left_input = graph()->NewNode(simplified()->CheckSymbol(), left(),
+                                          effect(), control());
+      node_->ReplaceInput(0, left_input);
+      update_effect(left_input);
+    }
+    if (!right_type()->Is(Type::Symbol())) {
+      Node* right_input = graph()->NewNode(simplified()->CheckSymbol(), right(),
+                                           effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
     }
@@ -896,6 +925,9 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
   } else if (r.IsStringCompareOperation()) {
     r.CheckInputsToString();
     return r.ChangeToPureOperator(simplified()->StringEqual());
+  } else if (r.IsSymbolCompareOperation()) {
+    r.CheckInputsToSymbol();
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   return NoChange();
 }
@@ -953,6 +985,9 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   } else if (r.IsStringCompareOperation()) {
     r.CheckInputsToString();
     return r.ChangeToPureOperator(simplified()->StringEqual());
+  } else if (r.IsSymbolCompareOperation()) {
+    r.CheckInputsToSymbol();
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   return NoChange();
 }

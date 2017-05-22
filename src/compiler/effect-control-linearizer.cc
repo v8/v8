@@ -641,6 +641,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckReceiver:
       result = LowerCheckReceiver(node, frame_state);
       break;
+    case IrOpcode::kCheckSymbol:
+      result = LowerCheckSymbol(node, frame_state);
+      break;
     case IrOpcode::kCheckString:
       result = LowerCheckString(node, frame_state);
       break;
@@ -1297,6 +1300,17 @@ Node* EffectControlLinearizer::LowerCheckReceiver(Node* node,
       __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
   __ DeoptimizeUnless(DeoptimizeReason::kNotAJavaScriptObject, check,
                       frame_state);
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckSymbol(Node* node, Node* frame_state) {
+  Node* value = node->InputAt(0);
+
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+
+  Node* check =
+      __ WordEqual(value_map, __ HeapConstant(factory()->symbol_map()));
+  __ DeoptimizeUnless(DeoptimizeReason::kNotASymbol, check, frame_state);
   return value;
 }
 

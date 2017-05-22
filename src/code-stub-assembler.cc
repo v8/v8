@@ -3284,6 +3284,10 @@ Node* CodeStubAssembler::IsString(Node* object) {
                        Int32Constant(FIRST_NONSTRING_TYPE));
 }
 
+Node* CodeStubAssembler::IsSymbolInstanceType(Node* instance_type) {
+  return Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE));
+}
+
 Node* CodeStubAssembler::IsSymbol(Node* object) {
   return IsSymbolMap(LoadMap(object));
 }
@@ -7462,9 +7466,12 @@ void CodeStubAssembler::GenerateEqual_Same(Node* value, Label* if_equal,
       // Collect type feedback.
       Node* instance_type = LoadMapInstanceType(value_map);
 
-      Label if_valueisstring(this), if_valueisnotstring(this);
-      Branch(IsStringInstanceType(instance_type), &if_valueisstring,
-             &if_valueisnotstring);
+      Label if_valueisstring(this), if_valueisreceiver(this),
+          if_valueissymbol(this), if_valueisother(this, Label::kDeferred);
+      GotoIf(IsStringInstanceType(instance_type), &if_valueisstring);
+      GotoIf(IsJSReceiverInstanceType(instance_type), &if_valueisreceiver);
+      Branch(IsSymbolInstanceType(instance_type), &if_valueissymbol,
+             &if_valueisother);
 
       BIND(&if_valueisstring);
       {
@@ -7473,13 +7480,24 @@ void CodeStubAssembler::GenerateEqual_Same(Node* value, Label* if_equal,
         Goto(if_equal);
       }
 
-      BIND(&if_valueisnotstring);
+      BIND(&if_valueissymbol);
       {
-        var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kAny));
-        GotoIfNot(IsJSReceiverInstanceType(instance_type), if_equal);
+        CombineFeedback(var_type_feedback,
+                        SmiConstant(CompareOperationFeedback::kSymbol));
+        Goto(if_equal);
+      }
 
+      BIND(&if_valueisreceiver);
+      {
         CombineFeedback(var_type_feedback,
                         SmiConstant(CompareOperationFeedback::kReceiver));
+        Goto(if_equal);
+      }
+
+      BIND(&if_valueisother);
+      {
+        CombineFeedback(var_type_feedback,
+                        SmiConstant(CompareOperationFeedback::kAny));
         Goto(if_equal);
       }
     } else {
@@ -7879,14 +7897,8 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
 
           BIND(&if_lhsissymbol);
           {
-            if (var_type_feedback != nullptr) {
-              var_type_feedback->Bind(
-                  SmiConstant(CompareOperationFeedback::kAny));
-            }
-
             // Check if the {rhs} is a JSReceiver.
             Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
-            STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
             Branch(IsJSReceiverInstanceType(rhs_instance_type),
                    &if_rhsisreceiver, &if_rhsisnotreceiver);
 
@@ -7896,6 +7908,10 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
               // Swapping {lhs} and {rhs} is not observable and doesn't
               // matter for the result, so we can just swap them and use
               // the JSReceiver handling below (for {lhs} being a JSReceiver).
+              if (var_type_feedback != nullptr) {
+                var_type_feedback->Bind(
+                    SmiConstant(CompareOperationFeedback::kAny));
+              }
               var_lhs.Bind(rhs);
               var_rhs.Bind(lhs);
               Goto(&loop);
@@ -7905,7 +7921,27 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
             {
               // The {rhs} is not a JSReceiver and also not the same Symbol
               // as the {lhs}, so this is equality check is considered false.
-              Goto(&if_notequal);
+              if (var_type_feedback != nullptr) {
+                Label if_rhsissymbol(this), if_rhsisnotsymbol(this);
+                Branch(IsSymbolInstanceType(rhs_instance_type), &if_rhsissymbol,
+                       &if_rhsisnotsymbol);
+
+                BIND(&if_rhsissymbol);
+                {
+                  var_type_feedback->Bind(
+                      SmiConstant(CompareOperationFeedback::kSymbol));
+                  Goto(&if_notequal);
+                }
+
+                BIND(&if_rhsisnotsymbol);
+                {
+                  var_type_feedback->Bind(
+                      SmiConstant(CompareOperationFeedback::kAny));
+                  Goto(&if_notequal);
+                }
+              } else {
+                Goto(&if_notequal);
+              }
             }
           }
 
@@ -8195,14 +8231,31 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
 
           BIND(&if_lhsisnotstring);
           if (var_type_feedback != nullptr) {
-            GotoIfNot(IsJSReceiverInstanceType(lhs_instance_type),
-                      &if_notequal);
-            GotoIfNot(IsJSReceiverInstanceType(rhs_instance_type),
-                      &if_notequal);
-            var_type_feedback->Bind(
-                SmiConstant(CompareOperationFeedback::kReceiver));
+            Label if_lhsissymbol(this), if_lhsisreceiver(this);
+            GotoIf(IsJSReceiverInstanceType(lhs_instance_type),
+                   &if_lhsisreceiver);
+            Branch(IsSymbolInstanceType(lhs_instance_type), &if_lhsissymbol,
+                   &if_notequal);
+
+            BIND(&if_lhsisreceiver);
+            {
+              GotoIfNot(IsJSReceiverInstanceType(rhs_instance_type),
+                        &if_notequal);
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kReceiver));
+              Goto(&if_notequal);
+            }
+
+            BIND(&if_lhsissymbol);
+            {
+              GotoIfNot(IsSymbolInstanceType(rhs_instance_type), &if_notequal);
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kSymbol));
+              Goto(&if_notequal);
+            }
+          } else {
+            Goto(&if_notequal);
           }
-          Goto(&if_notequal);
         }
       }
     }

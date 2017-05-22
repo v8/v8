@@ -58,6 +58,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerCheckNumber(Node* node, Node* frame_state);
   Node* LowerCheckReceiver(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
+  Node* LowerCheckSymbol(Node* node, Node* frame_state);
   Node* LowerCheckIf(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Sub(Node* node, Node* frame_state);

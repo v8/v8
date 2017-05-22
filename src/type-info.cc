@@ -191,6 +191,8 @@ AstType* CompareOpHintToType(CompareOperationHint hint) {
       return AstType::InternalizedString();
     case CompareOperationHint::kString:
       return AstType::String();
+    case CompareOperationHint::kSymbol:
+      UNREACHABLE();
     case CompareOperationHint::kReceiver:
       return AstType::Receiver();
     case CompareOperationHint::kAny:

@@ -321,6 +321,7 @@
   V(CheckInternalizedString)        \
   V(CheckReceiver)                  \
   V(CheckString)                    \
+  V(CheckSymbol)                    \
   V(CheckSmi)                       \
   V(CheckHeapObject)                \
   V(CheckFloat64Hole)               \
