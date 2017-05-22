@@ -42,13 +42,11 @@ static inline FunctionBody FunctionBodyForTesting(const byte* start,
   return {nullptr, start, start, end};
 }
 
-struct DecodeStruct {
-  int unused;
-};
-typedef Result<DecodeStruct*> DecodeResult;
-inline std::ostream& operator<<(std::ostream& os, const DecodeStruct& tree) {
-  return os;
-}
+// A {DecodeResult} only stores the failure / success status, but no data. Thus
+// we use {nullptr_t} as data value, such that the only valid data stored in
+// this type is a nullptr.
+// Storing {void} would require template specialization.
+using DecodeResult = Result<std::nullptr_t>;
 
 V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               const wasm::WasmModule* module,

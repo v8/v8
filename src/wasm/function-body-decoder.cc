@@ -2130,7 +2130,7 @@ DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder decoder(&zone, module, body);
   decoder.Decode();
-  return decoder.toResult<DecodeStruct*>(nullptr);
+  return decoder.toResult(nullptr);
 }
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
@@ -2138,7 +2138,7 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder decoder(&zone, builder, body);
   decoder.Decode();
-  return decoder.toResult<DecodeStruct*>(nullptr);
+  return decoder.toResult(nullptr);
 }
 
 unsigned OpcodeLength(const byte* pc, const byte* end) {
