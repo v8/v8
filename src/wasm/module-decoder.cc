@@ -100,7 +100,7 @@ uint32_t consume_string(Decoder& decoder, uint32_t* length, bool validate_utf8,
   if (*length > 0) {
     decoder.consume_bytes(*length, name);
     if (decoder.ok() && validate_utf8 &&
-        !unibrow::Utf8::Validate(string_start, *length)) {
+        !unibrow::Utf8::ValidateEncoding(string_start, *length)) {
       decoder.errorf(string_start, "%s: no valid UTF-8 string", name);
     }
   }
@@ -741,7 +741,7 @@ class ModuleDecoder : public Decoder {
           // or out-of-order indexes and non-UTF8 names. You can even assign
           // to the same function multiple times (last valid one wins).
           if (inner.ok() && function_index < module_->functions.size() &&
-              unibrow::Utf8::Validate(
+              unibrow::Utf8::ValidateEncoding(
                   inner.start() + inner.GetBufferRelativeOffset(name_offset),
                   name_length)) {
             module_->functions[function_index].name_offset = name_offset;

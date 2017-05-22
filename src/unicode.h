@@ -166,7 +166,15 @@ class Utf8 {
   // Excludes non-characters from the set of valid code points.
   static inline bool IsValidCharacter(uchar c);
 
-  static bool Validate(const byte* str, size_t length);
+  // Validate if the input has a valid utf-8 encoding. Unlike JS source code
+  // this validation function will accept any unicode code point, including
+  // kBadChar and BOMs.
+  //
+  // This method checks for:
+  // - valid utf-8 endcoding (e.g. no over-long encodings),
+  // - absence of surrogates,
+  // - valid code point range.
+  static bool ValidateEncoding(const byte* str, size_t length);
 };
 
 struct Uppercase {

@@ -1137,7 +1137,7 @@ MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
   DCHECK_GE(module_bytes->length(), offset);
   DCHECK_GE(module_bytes->length() - offset, size);
   // UTF8 validation happens at decode time.
-  DCHECK(unibrow::Utf8::Validate(
+  DCHECK(unibrow::Utf8::ValidateEncoding(
       reinterpret_cast<const byte*>(module_bytes->GetCharsAddress() + offset),
       size));
   DCHECK_GE(kMaxInt, offset);
