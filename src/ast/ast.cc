@@ -102,11 +102,6 @@ bool Expression::IsStringLiteral() const {
   return IsLiteral() && AsLiteral()->raw_value()->IsString();
 }
 
-bool Expression::IsBooleanLiteral() const {
-  return IsLiteral() && (AsLiteral()->raw_value()->IsTrue() ||
-                         AsLiteral()->raw_value()->IsFalse());
-}
-
 bool Expression::IsPropertyName() const {
   return IsLiteral() && AsLiteral()->IsPropertyName();
 }
@@ -1000,6 +995,7 @@ bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
          MatchLiteralCompareUndefined(right_, op(), left_, expr);
 }
 
+
 // Check for the pattern: null equals <expression>
 static bool MatchLiteralCompareNull(Expression* left,
                                     Token::Value op,
@@ -1012,28 +1008,12 @@ static bool MatchLiteralCompareNull(Expression* left,
   return false;
 }
 
+
 bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
   return MatchLiteralCompareNull(left_, op(), right_, expr) ||
          MatchLiteralCompareNull(right_, op(), left_, expr);
 }
 
-// Check for the pattern: true/false equals <expression>
-static bool MatchLiteralStrictEqualBoolean(Expression* left, Token::Value op,
-                                           Expression* right, Expression** expr,
-                                           Literal** literal) {
-  if (left->IsBooleanLiteral() && op == Token::EQ_STRICT) {
-    *expr = right;
-    *literal = left->AsLiteral();
-    return true;
-  }
-  return false;
-}
-
-bool CompareOperation::IsLiteralStrictEqualBoolean(Expression** expr,
-                                                   Literal** literal) {
-  return MatchLiteralStrictEqualBoolean(right_, op(), left_, expr, literal) ||
-         MatchLiteralStrictEqualBoolean(left_, op(), right_, expr, literal);
-}
 
 // ----------------------------------------------------------------------------
 // Recording of type feedback

@@ -115,7 +115,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                FeedbackSlot slot,
                                HoleCheckMode hole_check_mode);
   void BuildLiteralCompareNil(Token::Value compare_op, NilValue nil);
-  void BuildLiteralBooleanStrictEquals(Literal* literal);
   void BuildReturn();
   void BuildAsyncReturn();
   void BuildAsyncGeneratorReturn();

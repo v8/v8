@@ -2739,6 +2739,8 @@ IGNITION_HANDLER(JumpIfTrue, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* relative_jump = BytecodeOperandUImmWord(0);
   Node* true_value = BooleanConstant(true);
+  CSA_ASSERT(this, TaggedIsNotSmi(accumulator));
+  CSA_ASSERT(this, IsBoolean(accumulator));
   JumpIfWordEqual(accumulator, true_value, relative_jump);
 }
 
@@ -2752,6 +2754,8 @@ IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
   Node* index = BytecodeOperandIdx(0);
   Node* relative_jump = LoadAndUntagConstantPoolEntry(index);
   Node* true_value = BooleanConstant(true);
+  CSA_ASSERT(this, TaggedIsNotSmi(accumulator));
+  CSA_ASSERT(this, IsBoolean(accumulator));
   JumpIfWordEqual(accumulator, true_value, relative_jump);
 }
 
@@ -2764,6 +2768,8 @@ IGNITION_HANDLER(JumpIfFalse, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* relative_jump = BytecodeOperandUImmWord(0);
   Node* false_value = BooleanConstant(false);
+  CSA_ASSERT(this, TaggedIsNotSmi(accumulator));
+  CSA_ASSERT(this, IsBoolean(accumulator));
   JumpIfWordEqual(accumulator, false_value, relative_jump);
 }
 
@@ -2777,6 +2783,8 @@ IGNITION_HANDLER(JumpIfFalseConstant, InterpreterAssembler) {
   Node* index = BytecodeOperandIdx(0);
   Node* relative_jump = LoadAndUntagConstantPoolEntry(index);
   Node* false_value = BooleanConstant(false);
+  CSA_ASSERT(this, TaggedIsNotSmi(accumulator));
+  CSA_ASSERT(this, IsBoolean(accumulator));
   JumpIfWordEqual(accumulator, false_value, relative_jump);
 }
 
