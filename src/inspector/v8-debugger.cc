@@ -349,7 +349,7 @@ bool V8Debugger::canBreakProgram() {
 }
 
 bool V8Debugger::breakProgram(int targetContextGroupId) {
-   // Don't allow nested breaks.
+  // Don't allow nested breaks.
   if (isPaused()) return true;
   if (!canBreakProgram()) return true;
   DCHECK(targetContextGroupId);
