@@ -686,7 +686,8 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
           return -1;
         }
       }
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%p", addr);
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%p",
+                                  static_cast<void*>(addr));
       return 1;
     }
     case 'S':
