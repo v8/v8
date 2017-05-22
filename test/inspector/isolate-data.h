@@ -26,19 +26,11 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   };
   using SetupGlobalTasks = std::vector<std::unique_ptr<SetupGlobalTask>>;
 
-  class FrontendChannel {
-   public:
-    virtual ~FrontendChannel() = default;
-    virtual void SendMessageToFrontend(
-        int session_id, const v8_inspector::StringView& message) = 0;
-  };
-
   IsolateData(TaskRunner* task_runner, SetupGlobalTasks setup_global_tasks,
-              v8::StartupData* startup_data, FrontendChannel* channel);
+              v8::StartupData* startup_data, bool with_inspector);
   static IsolateData* FromContext(v8::Local<v8::Context> context);
 
   v8::Isolate* isolate() const { return isolate_; }
-  v8_inspector::V8Inspector* inspector() const { return inspector_.get(); }
   TaskRunner* task_runner() const { return task_runner_; }
 
   // Setting things up.
@@ -51,7 +43,8 @@ class IsolateData : public v8_inspector::V8InspectorClient {
 
   // Working with V8Inspector api.
   int ConnectSession(int context_group_id,
-                     const v8_inspector::StringView& state);
+                     const v8_inspector::StringView& state,
+                     v8_inspector::V8Inspector::Channel* channel);
   std::unique_ptr<v8_inspector::StringBuffer> DisconnectSession(int session_id);
   void SendMessage(int session_id, const v8_inspector::StringView& message);
   void BreakProgram(int context_group_id,
@@ -61,11 +54,17 @@ class IsolateData : public v8_inspector::V8InspectorClient {
                                     const v8_inspector::StringView& reason,
                                     const v8_inspector::StringView& details);
   void CancelPauseOnNextStatement(int context_group_id);
+  void AsyncTaskScheduled(const v8_inspector::StringView& name, void* task,
+                          bool recurring);
+  void AsyncTaskStarted(void* task);
+  void AsyncTaskFinished(void* task);
 
   // Test utilities.
   void SetCurrentTimeMS(double time);
   void SetMemoryInfo(v8::Local<v8::Value> memory_info);
   void SetLogConsoleApiMessageCalls(bool log);
+  void SetMaxAsyncTaskStacksForTest(int limit);
+  void DumpAsyncTaskStacksStateForTest();
   void FireContextCreated(v8::Local<v8::Context> context, int context_group_id);
   void FireContextDestroyed(v8::Local<v8::Context> context);
 
@@ -114,9 +113,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   int last_session_id_ = 0;
   std::map<int, std::unique_ptr<v8_inspector::V8InspectorSession>> sessions_;
   std::map<v8_inspector::V8InspectorSession*, int> context_group_by_session_;
-  std::map<int, std::unique_ptr<v8_inspector::V8Inspector::Channel>> channels_;
   v8::Global<v8::Value> memory_info_;
-  FrontendChannel* frontend_channel_;
   bool current_time_set_ = false;
   double current_time_ = 0.0;
   bool log_console_api_message_calls_ = false;

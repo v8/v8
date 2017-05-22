@@ -4,6 +4,7 @@
 
 #include "test/inspector/isolate-data.h"
 
+#include "src/inspector/test-interface.h"
 #include "test/inspector/task-runner.h"
 
 namespace {
@@ -38,45 +39,20 @@ void Print(v8::Isolate* isolate, const v8_inspector::StringView& string) {
   fwrite(*utf8_string, sizeof(**utf8_string), utf8_string.length(), stdout);
 }
 
-class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
- public:
-  ChannelImpl(IsolateData::FrontendChannel* frontend_channel, int session_id)
-      : frontend_channel_(frontend_channel), session_id_(session_id) {}
-  virtual ~ChannelImpl() = default;
-
- private:
-  void sendResponse(
-      int callId,
-      std::unique_ptr<v8_inspector::StringBuffer> message) override {
-    frontend_channel_->SendMessageToFrontend(session_id_, message->string());
-  }
-  void sendNotification(
-      std::unique_ptr<v8_inspector::StringBuffer> message) override {
-    frontend_channel_->SendMessageToFrontend(session_id_, message->string());
-  }
-  void flushProtocolNotifications() override {}
-
-  IsolateData::FrontendChannel* frontend_channel_;
-  int session_id_;
-  DISALLOW_COPY_AND_ASSIGN(ChannelImpl);
-};
-
 }  //  namespace
 
 IsolateData::IsolateData(TaskRunner* task_runner,
                          IsolateData::SetupGlobalTasks setup_global_tasks,
-                         v8::StartupData* startup_data,
-                         FrontendChannel* channel)
+                         v8::StartupData* startup_data, bool with_inspector)
     : task_runner_(task_runner),
-      setup_global_tasks_(std::move(setup_global_tasks)),
-      frontend_channel_(channel) {
+      setup_global_tasks_(std::move(setup_global_tasks)) {
   v8::Isolate::CreateParams params;
   params.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   params.snapshot_blob = startup_data;
   isolate_ = v8::Isolate::New(params);
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
-  if (frontend_channel_) {
+  if (with_inspector) {
     isolate_->AddMessageListener(&IsolateData::MessageHandler);
     inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
   }
@@ -141,11 +117,10 @@ v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
 }
 
 int IsolateData::ConnectSession(int context_group_id,
-                                const v8_inspector::StringView& state) {
+                                const v8_inspector::StringView& state,
+                                v8_inspector::V8Inspector::Channel* channel) {
   int session_id = ++last_session_id_;
-  channels_[session_id].reset(new ChannelImpl(frontend_channel_, session_id));
-  sessions_[session_id] =
-      inspector_->connect(context_group_id, channels_[session_id].get(), state);
+  sessions_[session_id] = inspector_->connect(context_group_id, channel, state);
   context_group_by_session_[sessions_[session_id].get()] = context_group_id;
   return session_id;
 }
@@ -157,7 +132,6 @@ std::unique_ptr<v8_inspector::StringBuffer> IsolateData::DisconnectSession(
   context_group_by_session_.erase(it->second.get());
   std::unique_ptr<v8_inspector::StringBuffer> result = it->second->stateJSON();
   sessions_.erase(it);
-  channels_.erase(session_id);
   return result;
 }
 
@@ -191,6 +165,27 @@ void IsolateData::CancelPauseOnNextStatement(int context_group_id) {
     auto it = sessions_.find(session_id);
     if (it != sessions_.end()) it->second->cancelPauseOnNextStatement();
   }
+}
+
+void IsolateData::AsyncTaskScheduled(const v8_inspector::StringView& name,
+                                     void* task, bool recurring) {
+  inspector_->asyncTaskScheduled(name, task, recurring);
+}
+
+void IsolateData::AsyncTaskStarted(void* task) {
+  inspector_->asyncTaskStarted(task);
+}
+
+void IsolateData::AsyncTaskFinished(void* task) {
+  inspector_->asyncTaskFinished(task);
+}
+
+void IsolateData::SetMaxAsyncTaskStacksForTest(int limit) {
+  v8_inspector::SetMaxAsyncTaskStacksForTest(inspector_.get(), limit);
+}
+
+void IsolateData::DumpAsyncTaskStacksStateForTest() {
+  v8_inspector::DumpAsyncTaskStacksStateForTest(inspector_.get());
 }
 
 // static
