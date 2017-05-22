@@ -348,9 +348,15 @@ void AsmJsParser::ValidateModule() {
     if (info.kind == VarKind::kTable && !info.function_defined) {
       FAIL("Undefined function table");
     }
+    if (info.kind == VarKind::kImportedFunction && !info.function_defined) {
+      // For imported functions without a single call site, we insert a dummy
+      // import here to preserve the fact that there actually was an import.
+      FunctionSig* void_void_sig = FunctionSig::Builder(zone(), 0, 0).Build();
+      module_builder_->AddImport(info.import->function_name, void_void_sig);
+    }
   }
 
-  // Add start function to init things.
+  // Add start function to initialize things.
   WasmFunctionBuilder* start = module_builder_->AddFunction();
   module_builder_->MarkStartFunction(start);
   for (auto& global_import : global_imports_) {
@@ -2149,10 +2155,12 @@ AsmType* AsmJsParser::ValidateCall() {
     auto it = function_info->import->cache.find(sig);
     if (it != function_info->import->cache.end()) {
       index = it->second;
+      DCHECK(function_info->function_defined);
     } else {
       index =
           module_builder_->AddImport(function_info->import->function_name, sig);
       function_info->import->cache[sig] = index;
+      function_info->function_defined = true;
     }
     current_function_builder_->AddAsmWasmOffset(call_pos, to_number_pos);
     current_function_builder_->EmitWithU32V(kExprCallFunction, index);
