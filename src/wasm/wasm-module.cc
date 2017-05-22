@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <functional>
 #include <memory>
 
 #include "src/asmjs/asm-js.h"
@@ -323,9 +324,15 @@ class CompilationHelper {
   base::Mutex result_mutex_;
   base::AtomicNumber<size_t> next_unit_;
   size_t num_background_tasks_ = 0;
+  // This flag should only be set while holding result_mutex_.
+  bool finisher_is_running_ = false;
 
-  // Run by each compilation task and by the main thread.
-  bool FetchAndExecuteCompilationUnit() {
+  // Run by each compilation task and by the main thread. The
+  // no_finisher_callback is called within the result_mutex_ lock when no
+  // finishing task is running, i.e. when the finisher_is_running_ flag is not
+  // set.
+  bool FetchAndExecuteCompilationUnit(
+      std::function<void()> no_finisher_callback = [] {}) {
     DisallowHeapAllocation no_allocation;
     DisallowHandleAllocation no_handles;
     DisallowHandleDereference no_deref;
@@ -340,8 +347,15 @@ class CompilationHelper {
     std::unique_ptr<compiler::WasmCompilationUnit> unit =
         std::move(compilation_units_.at(index));
     unit->ExecuteCompilation();
-    base::LockGuard<base::Mutex> guard(&result_mutex_);
-    executed_units_.push(std::move(unit));
+    {
+      base::LockGuard<base::Mutex> guard(&result_mutex_);
+      executed_units_.push(std::move(unit));
+      if (!finisher_is_running_) {
+        no_finisher_callback();
+        // We set the flag here so that not more than one finisher is started.
+        finisher_is_running_ = true;
+      }
+    }
     return true;
   }
 
@@ -396,12 +410,19 @@ class CompilationHelper {
 
   void FinishCompilationUnits(std::vector<Handle<Code>>& results,
                               ErrorThrower* thrower) {
+    SetFinisherIsRunning(true);
     while (true) {
       int func_index = -1;
       Handle<Code> result = FinishCompilationUnit(thrower, &func_index);
       if (func_index < 0) break;
       results[func_index] = result;
     }
+    SetFinisherIsRunning(false);
+  }
+
+  void SetFinisherIsRunning(bool value) {
+    base::LockGuard<base::Mutex> guard(&result_mutex_);
+    finisher_is_running_ = value;
   }
 
   Handle<Code> FinishCompilationUnit(ErrorThrower* thrower, int* func_index) {
@@ -2566,6 +2587,11 @@ void ResolvePromise(Isolate* isolate, Handle<Context> context,
   CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
 }
 
+double MonotonicallyIncreasingTimeInMs() {
+  return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
+         base::Time::kMillisecondsPerSecond;
+}
+
 }  // namespace
 
 void wasm::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
@@ -2852,18 +2878,18 @@ class AsyncCompileJob {
   //==========================================================================
   class ExecuteCompilationUnits : public CompileTask<ASYNC> {
     void Run() override {
+      std::function<void()> StartFinishCompilationUnit = [this]() {
+        job_->DoSync<FinishCompilationUnits>();
+      };
+
       TRACE_COMPILE("(3) Compiling...\n");
       for (;;) {
-        {
-          DisallowHandleAllocation no_handle;
-          DisallowHeapAllocation no_allocation;
-          if (!job_->helper_->FetchAndExecuteCompilationUnit()) break;
+        DisallowHandleAllocation no_handle;
+        DisallowHeapAllocation no_allocation;
+        if (!job_->helper_->FetchAndExecuteCompilationUnit(
+                StartFinishCompilationUnit)) {
+          break;
         }
-        // TODO(ahaas): Create one FinishCompilationUnit job for all compilation
-        // units.
-        job_->DoSync<FinishCompilationUnit>();
-        // TODO(ahaas): Limit the number of outstanding compilation units to be
-        // finished to reduce memory overhead.
       }
       // Special handling for predictable mode, see above.
       if (!FLAG_verify_predictable)
@@ -2872,25 +2898,56 @@ class AsyncCompileJob {
   };
 
   //==========================================================================
-  // Step 4 (sync x each function): Finish a single compilation unit.
+  // Step 4 (sync): Finish compilation units.
   //==========================================================================
-  class FinishCompilationUnit : public SyncCompileTask {
+  class FinishCompilationUnits : public SyncCompileTask {
     void RunImpl() override {
-      TRACE_COMPILE("(4a) Finishing compilation unit...\n");
-      HandleScope scope(job_->isolate_);
-      if (job_->failed_) return;  // already failed
-
-      int func_index = -1;
-      ErrorThrower thrower(job_->isolate_, "AsyncCompile");
-      Handle<Code> result =
-          job_->helper_->FinishCompilationUnit(&thrower, &func_index);
-      if (thrower.error()) {
-        job_->failed_ = true;
-      } else {
-        DCHECK(func_index >= 0);
-        job_->code_table_->set(func_index, *(result));
+      TRACE_COMPILE("(4a) Finishing compilation units...\n");
+      if (job_->failed_) {
+        // The job failed already, no need to do more work.
+        job_->helper_->SetFinisherIsRunning(false);
+        return;
       }
-      if (thrower.error() || --job_->outstanding_units_ == 0) {
+      HandleScope scope(job_->isolate_);
+      ErrorThrower thrower(job_->isolate_, "AsyncCompile");
+
+      // We execute for 1 ms and then reschedule the task, same as the GC.
+      double deadline = MonotonicallyIncreasingTimeInMs() + 1.0;
+
+      while (true) {
+        int func_index = -1;
+
+        Handle<Code> result =
+            job_->helper_->FinishCompilationUnit(&thrower, &func_index);
+
+        if (thrower.error()) {
+          // An error was detected, we stop compiling and wait for the
+          // background tasks to finish.
+          job_->failed_ = true;
+          break;
+        } else if (result.is_null()) {
+          // The working queue was empty, we break the loop. If new work units
+          // are enqueued, the background task will start this
+          // FinishCompilationUnits task again.
+          break;
+        } else {
+          DCHECK(func_index >= 0);
+          job_->code_table_->set(func_index, *result);
+          --job_->outstanding_units_;
+        }
+
+        if (deadline < MonotonicallyIncreasingTimeInMs()) {
+          // We reached the deadline. We reschedule this task and return
+          // immediately. Since we rescheduled this task already, we do not set
+          // the FinisherIsRunning flat to false.
+          job_->DoSync<FinishCompilationUnits>();
+          return;
+        }
+      }
+      // This task finishes without being rescheduled. Therefore we set the
+      // FinisherIsRunning flag to false.
+      job_->helper_->SetFinisherIsRunning(false);
+      if (thrower.error() || job_->outstanding_units_ == 0) {
         // All compilation units are done. We still need to wait for the
         // background tasks to shut down and only then is it safe to finish the
         // compile and delete this job. We can wait for that to happen also
