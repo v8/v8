@@ -27,8 +27,10 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(AllocationSiteMap, AllocationSiteMap)             \
   V(BooleanMap, BooleanMap)                           \
   V(CodeMap, CodeMap)                                 \
-  V(EmptyFixedArray, EmptyFixedArray)                 \
   V(empty_string, EmptyString)                        \
+  V(length_string, LengthString)                      \
+  V(prototype_string, PrototypeString)                \
+  V(EmptyFixedArray, EmptyFixedArray)                 \
   V(EmptyWeakCell, EmptyWeakCell)                     \
   V(FalseValue, False)                                \
   V(FeedbackVectorMap, FeedbackVectorMap)             \
@@ -36,27 +38,23 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \
   V(FixedDoubleArrayMap, FixedDoubleArrayMap)         \
   V(FunctionTemplateInfoMap, FunctionTemplateInfoMap) \
-  V(GlobalPropertyCellMap, PropertyCellMap)           \
   V(has_instance_symbol, HasInstanceSymbol)           \
   V(HeapNumberMap, HeapNumberMap)                     \
-  V(length_string, LengthString)                      \
-  V(ManyClosuresCellMap, ManyClosuresCellMap)         \
-  V(MetaMap, MetaMap)                                 \
-  V(MinusZeroValue, MinusZero)                        \
-  V(MutableHeapNumberMap, MutableHeapNumberMap)       \
-  V(NanValue, Nan)                                    \
   V(NoClosuresCellMap, NoClosuresCellMap)             \
-  V(NullValue, Null)                                  \
   V(OneClosureCellMap, OneClosureCellMap)             \
-  V(prototype_string, PrototypeString)                \
-  V(SpeciesProtector, SpeciesProtector)               \
+  V(ManyClosuresCellMap, ManyClosuresCellMap)         \
+  V(MinusZeroValue, MinusZero)                        \
+  V(NanValue, Nan)                                    \
+  V(NullValue, Null)                                  \
+  V(GlobalPropertyCellMap, PropertyCellMap)           \
   V(SymbolMap, SymbolMap)                             \
   V(TheHoleValue, TheHole)                            \
   V(TrueValue, True)                                  \
   V(Tuple2Map, Tuple2Map)                             \
   V(Tuple3Map, Tuple3Map)                             \
   V(UndefinedValue, Undefined)                        \
-  V(WeakCellMap, WeakCellMap)
+  V(WeakCellMap, WeakCellMap)                         \
+  V(SpeciesProtector, SpeciesProtector)
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
@@ -117,8 +115,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     if (mode != SMI_PARAMETERS) value = SmiUntag(value);
     return value;
   }
-
-  Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
   Node* OpName(Node* a, Node* b, ParameterMode mode) {   \
@@ -774,8 +770,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsPropertyCell(Node* object);
   Node* IsAccessorInfo(Node* object);
   Node* IsAccessorPair(Node* object);
-  Node* IsAnyHeapNumber(Node* object);
-  Node* IsMutableHeapNumber(Node* object);
   Node* IsHeapNumber(Node* object);
   Node* IsName(Node* object);
   Node* IsSymbol(Node* object);
@@ -786,9 +780,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSArrayInstanceType(Node* instance_type);
   Node* IsJSArray(Node* object);
   Node* IsJSArrayMap(Node* object);
-  Node* IsFixedArray(Node* object);
-  Node* IsFixedArrayWithKindOrEmpty(Node* object, ElementsKind kind);
-  Node* IsFixedArrayWithKind(Node* object, ElementsKind kind);
   Node* IsNativeContext(Node* object);
   Node* IsWeakCell(Node* object);
   Node* IsFixedDoubleArray(Node* object);
@@ -838,6 +829,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Return a new string object produced by concatenating |first| with |second|.
   Node* StringAdd(Node* context, Node* first, Node* second,
                   AllocationFlags flags = kNone);
+
+  // Unpack the external string, returning a pointer that (offset-wise) looks
+  // like a sequential string.
+  // Note that this pointer is not tagged and does not point to a real
+  // sequential string instance, and may only be used to access the string
+  // data. The pointer is GC-safe as long as a reference to the container
+  // ExternalString is live.
+  // |string| must be an external string. Bailout for short external strings.
+  Node* TryDerefExternalString(Node* const string, Node* const instance_type,
+                               Label* if_bailout);
 
   // Check if |var_string| has an indirect (thin or flat cons) string type,
   // and unpack it if so.
