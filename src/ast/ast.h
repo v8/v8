@@ -315,6 +315,9 @@ class Expression : public AstNode {
   // True iff the expression is a string literal.
   bool IsStringLiteral() const;
 
+  // True iff the expression is a boolean literal.
+  bool IsBooleanLiteral() const;
+
   // True iff the expression is the null literal.
   bool IsNullLiteral() const;
 
@@ -1182,6 +1185,11 @@ class Literal final : public Expression {
   Smi* AsSmiLiteral() {
     DCHECK(IsSmiLiteral());
     return raw_value()->AsSmi();
+  }
+
+  bool AsBooleanLiteral() {
+    DCHECK(IsBooleanLiteral());
+    return raw_value()->IsTrue();
   }
 
   bool ToBooleanIsTrue() const { return raw_value()->BooleanValue(); }
@@ -2294,6 +2302,7 @@ class CompareOperation final : public Expression {
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Literal** literal);
+  bool IsLiteralStrictEqualBoolean(Expression** expr, Literal** literal);
   bool IsLiteralCompareUndefined(Expression** expr);
   bool IsLiteralCompareNull(Expression** expr);
 

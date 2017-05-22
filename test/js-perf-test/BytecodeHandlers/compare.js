@@ -16,6 +16,8 @@ addBenchmark('Number-StrictEquals-False', NumberStrictEqualsFalse);
 addBenchmark('String-StrictEquals-True', StringStrictEqualsTrue);
 addBenchmark('String-StrictEquals-False', StringStrictEqualsFalse);
 addBenchmark('SmiString-StrictEquals', MixedStrictEquals);
+addBenchmark('Boolean-StrictEquals-True', BooleanStrictEqualsTrue);
+addBenchmark('Boolean-StrictEquals-False', BooleanStrictEqualsTrue);
 addBenchmark('Smi-Equals-True', SmiEqualsTrue);
 addBenchmark('Smi-Equals-False', SmiEqualsFalse);
 addBenchmark('Number-Equals-True', NumberEqualsTrue);
@@ -59,6 +61,61 @@ function equals(a, b) {
     a == b; a == b; a == b; a == b; a == b; a == b; a == b; a == b; a == b; a == b;
     a == b; a == b; a == b; a == b; a == b; a == b; a == b; a == b; a == b; a == b;
   }
+}
+
+function testStrictEqualsBool(a) {
+  var ret;
+  for (var i = 0; i < 1000; ++i) {
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+    if (a === true || a === false) ret = true;
+  }
+  return ret;
 }
 
 // Relational comparison handlers are similar, so use one benchmark to measure
@@ -130,6 +187,14 @@ function StringEqualsFalse() {
 
 function StringEqualsTrue() {
  equals("abc", "abc");
+}
+
+function BooleanStrictEqualsTrue() {
+ testStrictEqualsBool(true);
+}
+
+function BooleanStrictEqualsFalse() {
+ testStrictEqualsBool("10");
 }
 
 function MixedEquals() {

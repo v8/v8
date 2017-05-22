@@ -1064,6 +1064,15 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfFalse(ToBooleanMode mode,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfBoolean(
+    bool boolean_comparison, ToBooleanMode mode, BytecodeLabel* label) {
+  if (boolean_comparison) {
+    return JumpIfTrue(mode, label);
+  } else {
+    return JumpIfFalse(mode, label);
+  }
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNull(BytecodeLabel* label) {
   DCHECK(!label->is_bound());
   OutputJumpIfNull(label, 0);

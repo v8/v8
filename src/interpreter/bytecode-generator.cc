@@ -3182,6 +3182,25 @@ void BytecodeGenerator::BuildLiteralCompareNil(Token::Value op, NilValue nil) {
   }
 }
 
+void BytecodeGenerator::BuildLiteralBooleanStrictEquals(Literal* literal) {
+  TestResultScope* test_result = execution_result()->AsTest();
+  switch (test_result->fallthrough()) {
+    case TestFallthrough::kElse:
+      builder()->JumpIfBoolean(literal->AsBooleanLiteral(),
+                               ToBooleanMode::kAlreadyBoolean,
+                               test_result->NewThenLabel());
+      break;
+    case TestFallthrough::kNone:
+    case TestFallthrough::kThen:
+      builder()
+          ->JumpIfBoolean(literal->AsBooleanLiteral(),
+                          ToBooleanMode::kAlreadyBoolean,
+                          test_result->NewThenLabel())
+          .Jump(test_result->NewElseLabel());
+  }
+  test_result->SetResultConsumedByTest();
+}
+
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;
@@ -3197,6 +3216,11 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     } else {
       builder()->CompareTypeOf(literal_flag);
     }
+  } else if (execution_result()->IsTest() &&
+             expr->IsLiteralStrictEqualBoolean(&sub_expr, &literal)) {
+    VisitForAccumulatorValue(sub_expr);
+    builder()->SetExpressionPosition(expr);
+    BuildLiteralBooleanStrictEquals(literal);
   } else if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     VisitForAccumulatorValue(sub_expr);
     builder()->SetExpressionPosition(expr);

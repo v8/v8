@@ -1029,6 +1029,26 @@ TEST(Typeof) {
                      LoadGolden("Typeof.golden")));
 }
 
+TEST(CompareBoolean) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "return (1 === true) ? 1 : 2;\n",
+
+      "return (false === 1) ? 1 : 2;\n",
+
+      "return (1 === true || 0 === false) ? 1 : 2;\n",
+
+      "if (1 === true || 1 === false) return 1;\n",
+
+      "if (!('false' === false)) return 1;\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CompareBoolean.golden")));
+}
+
 TEST(CompareTypeOf) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
