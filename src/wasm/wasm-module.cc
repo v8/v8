@@ -858,6 +858,7 @@ Handle<JSArrayBuffer> wasm::SetupArrayBuffer(Isolate* isolate,
                                              bool is_external,
                                              bool enable_guard_regions) {
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+  DCHECK_GE(kMaxInt, size);
   JSArrayBuffer::Setup(buffer, isolate, is_external, allocation_base,
                        allocation_length, backing_store,
                        static_cast<int>(size));
@@ -869,7 +870,11 @@ Handle<JSArrayBuffer> wasm::SetupArrayBuffer(Isolate* isolate,
 
 Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
                                            bool enable_guard_regions) {
-  if (size > (FLAG_wasm_max_mem_pages * WasmModule::kPageSize)) {
+  // Check against kMaxInt, since the byte length is stored as int in the
+  // JSArrayBuffer. Note that wasm_max_mem_pages can be raised from the command
+  // line, and we don't want to fail a CHECK then.
+  if (size > FLAG_wasm_max_mem_pages * WasmModule::kPageSize ||
+      size > kMaxInt) {
     // TODO(titzer): lift restriction on maximum memory allocated here.
     return Handle<JSArrayBuffer>::null();
   }
@@ -1302,8 +1307,8 @@ class InstantiationHelper {
     //--------------------------------------------------------------------------
     if (!memory_.is_null()) {
       Address mem_start = static_cast<Address>(memory_->backing_store());
-      uint32_t mem_size =
-          static_cast<uint32_t>(memory_->byte_length()->Number());
+      uint32_t mem_size;
+      CHECK(memory_->byte_length()->ToUint32(&mem_size));
       LoadDataSegments(mem_start, mem_size);
 
       uint32_t old_mem_size = compiled_module_->mem_size();
