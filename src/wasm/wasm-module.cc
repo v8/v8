@@ -559,6 +559,29 @@ class CompilationHelper {
     }
   }
 
+  void ValidateSequentially(ModuleBytesEnv* module_env, ErrorThrower* thrower) {
+    DCHECK(!thrower->error());
+
+    const WasmModule* module = module_env->module_env.module;
+    for (uint32_t i = 0; i < module->functions.size(); ++i) {
+      const WasmFunction& func = module->functions[i];
+      if (func.imported) continue;
+
+      const byte* base = module_env->wire_bytes.start();
+      FunctionBody body{func.sig, base, base + func.code_start_offset,
+                        base + func.code_end_offset};
+      DecodeResult result = VerifyWasmCode(isolate_->allocator(),
+                                           module_env->module_env.module, body);
+      if (result.failed()) {
+        WasmName str = module_env->wire_bytes.GetName(&func);
+        thrower->CompileError(
+            "Compiling function #%d:%.*s failed: %s @+%u", i, str.length(),
+            str.start(), result.error_msg().c_str(), result.error_offset());
+        break;
+      }
+    }
+  }
+
   MaybeHandle<WasmModuleObject> CompileToModuleObject(
       ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
       Handle<Script> asm_js_script,
@@ -651,8 +674,16 @@ class CompilationHelper {
       } else {
         CompileSequentially(&module_env, temp_instance->function_code, thrower);
       }
-      if (thrower->error()) return {};
+    } else if (module_->is_wasm()) {
+      // Validate wasm modules for lazy compilation. Don't validate asm.js
+      // modules, they are valid by construction (otherwise a CHECK will fail
+      // during lazy compilation).
+      // TODO(clemensh): According to the spec, we can actually skip validation
+      // at module creation time, and return a function that always traps at
+      // (lazy) compilation time.
+      ValidateSequentially(&module_env, thrower);
     }
+    if (thrower->error()) return {};
 
     // At this point, compilation has completed. Update the code table.
     for (size_t i = FLAG_skip_compiling_wasm_funcs;
@@ -3311,6 +3342,8 @@ void LazyCompilationOrchestrator::CompileFunction(
   // If there is a pending error, something really went wrong. The module was
   // verified before starting execution with lazy compilation.
   // This might be OOM, but then we cannot continue execution anyway.
+  // TODO(clemensh): According to the spec, we can actually skip validation at
+  // module creation time, and return a function that always traps here.
   CHECK(!thrower.error());
 
   Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
