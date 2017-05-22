@@ -1397,17 +1397,16 @@ class ParserBase {
     return factory()->NewReturnStatement(expr, pos);
   }
 
-  inline SuspendExpressionT BuildSuspend(ExpressionT generator,
-                                         ExpressionT expr, int pos,
-                                         Suspend::OnException on_exception,
-                                         SuspendFlags suspend_type) {
+  inline SuspendExpressionT BuildSuspend(
+      ExpressionT generator, ExpressionT expr, int pos,
+      Suspend::OnAbruptResume on_abrupt_resume, SuspendFlags suspend_type) {
     DCHECK_EQ(0,
               static_cast<int>(suspend_type & ~SuspendFlags::kSuspendTypeMask));
     if (V8_UNLIKELY(is_async_generator())) {
       suspend_type = static_cast<SuspendFlags>(suspend_type |
                                                SuspendFlags::kAsyncGenerator);
     }
-    return factory()->NewSuspend(generator, expr, pos, on_exception,
+    return factory()->NewSuspend(generator, expr, pos, on_abrupt_resume,
                                  suspend_type);
   }
 

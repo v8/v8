@@ -4237,7 +4237,6 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
   }
 }
 
-
 // Desugaring of yield*
 // ====================
 //
@@ -4282,17 +4281,9 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
 //
 //       // From the generator to its user:
 //       // Forward output, receive new input, and determine resume mode.
-//       mode = kReturn;
-//       try {
-//         try {
-//           RawYield(output);  // See explanation above.
-//           mode = kNext;
-//         } catch (error) {
-//           mode = kThrow;
-//         }
-//       } finally {
-//         input = function.sent;
-//         continue;
+//       RawYield(output);  // See explanation above.
+//       mode = %GeneratorGetResumeMode();
+//       input = function.sent;
 //       }
 //     }
 //
@@ -4509,48 +4500,31 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
         property, break_loop, factory()->NewEmptyStatement(nopos), nopos);
   }
 
-
-  // mode = kReturn;
-  Statement* set_mode_return;
-  {
-    Expression* mode_proxy = factory()->NewVariableProxy(var_mode);
-    Expression* kreturn =
-        factory()->NewSmiLiteral(JSGeneratorObject::kReturn, nopos);
-    Expression* assignment =
-        factory()->NewAssignment(Token::ASSIGN, mode_proxy, kreturn, nopos);
-    set_mode_return = factory()->NewExpressionStatement(assignment, nopos);
-  }
-
   // Yield(output);
   Statement* yield_output;
   {
     Expression* output_proxy = factory()->NewVariableProxy(var_output);
     Suspend* yield =
-        BuildSuspend(generator, output_proxy, nopos, Suspend::kOnExceptionThrow,
+        BuildSuspend(generator, output_proxy, nopos, Suspend::kNoControl,
                      SuspendFlags::kYieldStar);
     yield_output = factory()->NewExpressionStatement(yield, nopos);
   }
 
-  // mode = kNext;
-  Statement* set_mode_next;
+  // mode = %GeneratorGetResumeMode();
+  Statement* get_mode;
   {
     Expression* mode_proxy = factory()->NewVariableProxy(var_mode);
-    Expression* knext =
-        factory()->NewSmiLiteral(JSGeneratorObject::kNext, nopos);
-    Expression* assignment =
-        factory()->NewAssignment(Token::ASSIGN, mode_proxy, knext, nopos);
-    set_mode_next = factory()->NewExpressionStatement(assignment, nopos);
-  }
 
-  // mode = kThrow;
-  Statement* set_mode_throw;
-  {
-    Expression* mode_proxy = factory()->NewVariableProxy(var_mode);
-    Expression* kthrow =
-        factory()->NewSmiLiteral(JSGeneratorObject::kThrow, nopos);
+    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+    VariableProxy* generator = factory()->NewVariableProxy(
+        function_state_->generator_object_variable());
+    args->Add(generator, zone());
+    Expression* mode = factory()->NewCallRuntime(
+        Runtime::kInlineGeneratorGetResumeMode, args, pos);
+
     Expression* assignment =
-        factory()->NewAssignment(Token::ASSIGN, mode_proxy, kthrow, nopos);
-    set_mode_throw = factory()->NewExpressionStatement(assignment, nopos);
+        factory()->NewAssignment(Token::ASSIGN, mode_proxy, mode, nopos);
+    get_mode = factory()->NewExpressionStatement(assignment, nopos);
   }
 
   // input = function.sent;
@@ -4596,36 +4570,6 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
 
   // Now put things together.
 
-  // try { ... } catch(e) { ... }
-  Statement* try_catch;
-  {
-    Block* try_block = factory()->NewBlock(nullptr, 2, false, nopos);
-    try_block->statements()->Add(yield_output, zone());
-    try_block->statements()->Add(set_mode_next, zone());
-
-    Block* catch_block = factory()->NewBlock(nullptr, 1, false, nopos);
-    catch_block->statements()->Add(set_mode_throw, zone());
-
-    Scope* catch_scope = NewHiddenCatchScopeWithParent(scope());
-
-    try_catch = factory()->NewTryCatchStatementForDesugaring(
-        try_block, catch_scope, catch_block, nopos);
-  }
-
-  // try { ... } finally { ... }
-  Statement* try_finally;
-  {
-    Block* try_block = factory()->NewBlock(nullptr, 1, false, nopos);
-    try_block->statements()->Add(try_catch, zone());
-
-    Block* finally = factory()->NewBlock(nullptr, 2, false, nopos);
-    finally->statements()->Add(get_input, zone());
-    finally->statements()->Add(factory()->NewContinueStatement(loop, nopos),
-                               zone());
-
-    try_finally = factory()->NewTryFinallyStatement(try_block, finally, nopos);
-  }
-
   // switch (mode) { ... }
   SwitchStatement* switch_mode = factory()->NewSwitchStatement(nullptr, nopos);
   {
@@ -4665,7 +4609,6 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
     Block* loop_body = factory()->NewBlock(nullptr, 5, false, nopos);
     loop_body->statements()->Add(switch_mode, zone());
     loop_body->statements()->Add(if_done, zone());
-    loop_body->statements()->Add(set_mode_return, zone());
 
     if (is_async_generator()) {
       // AsyncGeneratorYield does not yield the original iterator result,
@@ -4682,7 +4625,9 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
           factory()->NewExpressionStatement(assign, nopos), zone());
     }
 
-    loop_body->statements()->Add(try_finally, zone());
+    loop_body->statements()->Add(yield_output, zone());
+    loop_body->statements()->Add(get_input, zone());
+    loop_body->statements()->Add(get_mode, zone());
 
     loop->Initialize(factory()->NewBooleanLiteral(true, nopos), loop_body);
   }

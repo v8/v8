@@ -2348,6 +2348,10 @@ TEST(Generators) {
 
       "function* f() { for (let x of [42]) yield x }\n"
       "f();\n",
+
+      "function* g() { yield 42 }\n"
+      "function* f() { yield* g() }\n"
+      "f();\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
