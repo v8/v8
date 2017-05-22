@@ -31,6 +31,7 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details about the presubmit API built into gcl.
 """
 
+import json
 import re
 import sys
 
@@ -277,6 +278,7 @@ def _CommonChecks(input_api, output_api):
   results.extend(
       _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api))
   results.extend(_CheckMissingFiles(input_api, output_api))
+  results.extend(_CheckJSONFiles(input_api, output_api))
   return results
 
 
@@ -313,6 +315,25 @@ def _CheckCommitMessageBugEntry(input_api, output_api):
         results.append(bogus_bug_msg % bug)
     elif not re.match(r'\w+:\d+', bug):
       results.append(bogus_bug_msg % bug)
+  return [output_api.PresubmitError(r) for r in results]
+
+
+def _CheckJSONFiles(input_api, output_api):
+  def FilterFile(affected_file):
+    return input_api.FilterSourceFile(
+        affected_file,
+        white_list=(r'.+\.json',))
+
+  results = []
+  for f in input_api.AffectedFiles(
+      file_filter=FilterFile, include_deletes=False):
+    with open(f.LocalPath()) as j:
+      try:
+        json.load(j)
+      except Exception as e:
+        results.append(
+            'JSON validation failed for %s. Error:\n%s' % (f.LocalPath(), e))
+
   return [output_api.PresubmitError(r) for r in results]
 
 
