@@ -4,8 +4,6 @@
 
 #include "test/inspector/task-runner.h"
 
-#include "test/inspector/inspector-impl.h"
-
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #endif               // !defined(_WIN32) && !defined(_WIN64)
@@ -41,7 +39,7 @@ TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
                        bool catch_exceptions,
                        v8::base::Semaphore* ready_semaphore,
                        v8::StartupData* startup_data,
-                       InspectorClientImpl::FrontendChannel* channel)
+                       IsolateData::FrontendChannel* channel)
     : Thread(Options("Task Runner")),
       setup_global_tasks_(std::move(setup_global_tasks)),
       startup_data_(startup_data),
@@ -123,16 +121,16 @@ TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
 AsyncTask::AsyncTask(IsolateData* data, const char* task_name)
     : instrumenting_(data && task_name) {
   if (!instrumenting_) return;
-  data->inspector()->inspector()->asyncTaskScheduled(
+  data->inspector()->asyncTaskScheduled(
       v8_inspector::StringView(reinterpret_cast<const uint8_t*>(task_name),
                                strlen(task_name)),
       this, false);
 }
 
 void AsyncTask::Run() {
-  if (instrumenting_) data()->inspector()->inspector()->asyncTaskStarted(this);
+  if (instrumenting_) data()->inspector()->asyncTaskStarted(this);
   AsyncRun();
-  if (instrumenting_) data()->inspector()->inspector()->asyncTaskFinished(this);
+  if (instrumenting_) data()->inspector()->asyncTaskFinished(this);
 }
 
 ExecuteStringTask::ExecuteStringTask(

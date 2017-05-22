@@ -17,7 +17,7 @@
 #include "src/utils.h"
 #include "src/vector.h"
 
-#include "test/inspector/inspector-impl.h"
+#include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"
 
 namespace {
@@ -98,8 +98,7 @@ class ConnectSessionTask : public TaskRunner::Task {
  private:
   void Run() override {
     v8_inspector::StringView state(state_.start(), state_.length());
-    *session_id_ =
-        data()->inspector()->ConnectSession(context_group_id_, state);
+    *session_id_ = data()->ConnectSession(context_group_id_, state);
     if (ready_semaphore_) ready_semaphore_->Signal();
   }
 
@@ -122,7 +121,7 @@ class DisconnectSessionTask : public TaskRunner::Task {
  private:
   void Run() override {
     std::unique_ptr<v8_inspector::StringBuffer> state =
-        data()->inspector()->DisconnectSession(session_id_);
+        data()->DisconnectSession(session_id_);
     *state_ = ToVector(state->string());
     if (ready_semaphore_) ready_semaphore_->Signal();
   }
@@ -142,7 +141,7 @@ class SendMessageToBackendTask : public TaskRunner::Task {
  private:
   void Run() override {
     v8_inspector::StringView message_view(message_.start(), message_.length());
-    data()->inspector()->SendMessage(session_id_, message_view);
+    data()->SendMessage(session_id_, message_view);
   }
 
   int session_id_;
@@ -166,8 +165,7 @@ class SchedulePauseOnNextStatementTask : public TaskRunner::Task {
   void Run() override {
     v8_inspector::StringView reason(reason_.start(), reason_.length());
     v8_inspector::StringView details(details_.start(), details_.length());
-    data()->inspector()->SchedulePauseOnNextStatement(context_group_id_, reason,
-                                                      details);
+    data()->SchedulePauseOnNextStatement(context_group_id_, reason, details);
     if (ready_semaphore_) ready_semaphore_->Signal();
   }
 
@@ -188,7 +186,7 @@ class CancelPauseOnNextStatementTask : public TaskRunner::Task {
 
  private:
   void Run() override {
-    data()->inspector()->CancelPauseOnNextStatement(context_group_id_);
+    data()->CancelPauseOnNextStatement(context_group_id_);
     if (ready_semaphore_) ready_semaphore_->Signal();
   }
 
@@ -412,7 +410,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       fprintf(stderr, "Internal error: setCurrentTimeMSForTest(time).");
       Exit();
     }
-    backend_runner_->data()->inspector()->SetCurrentTimeMSForTest(
+    backend_runner_->data()->SetCurrentTimeMS(
         args[0].As<v8::Number>()->Value());
   }
 
@@ -422,7 +420,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       fprintf(stderr, "Internal error: setMemoryInfoForTest(value).");
       Exit();
     }
-    backend_runner_->data()->inspector()->SetMemoryInfoForTest(args[0]);
+    backend_runner_->data()->SetMemoryInfo(args[0]);
   }
 
   static void SchedulePauseOnNextStatement(
@@ -461,7 +459,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       fprintf(stderr, "Internal error: setLogConsoleApiMessageCalls(bool).");
       Exit();
     }
-    backend_runner_->data()->inspector()->SetLogConsoleApiMessageCalls(
+    backend_runner_->data()->SetLogConsoleApiMessageCalls(
         args[0].As<v8::Boolean>()->Value());
   }
 
@@ -647,15 +645,14 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
       const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
-    data->inspector()->ContextCreated(context,
-                                      data->GetContextGroupId(context));
+    data->FireContextCreated(context, data->GetContextGroupId(context));
   }
 
   static void FireContextDestroyed(
       const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
-    data->inspector()->ContextDestroyed(context);
+    data->FireContextDestroyed(context);
   }
 
   static void SetMaxAsyncTaskStacks(
@@ -666,7 +663,6 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     }
     v8_inspector::SetMaxAsyncTaskStacksForTest(
         IsolateData::FromContext(args.GetIsolate()->GetCurrentContext())
-            ->inspector()
             ->inspector(),
         args[0].As<v8::Int32>()->Value());
   }
@@ -679,7 +675,6 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     }
     v8_inspector::DumpAsyncTaskStacksStateForTest(
         IsolateData::FromContext(args.GetIsolate()->GetCurrentContext())
-            ->inspector()
             ->inspector());
   }
 
@@ -694,8 +689,8 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     v8_inspector::StringView reason_view(reason.start(), reason.length());
     v8::internal::Vector<uint16_t> details = ToVector(args[1].As<v8::String>());
     v8_inspector::StringView details_view(details.start(), details.length());
-    data->inspector()->BreakProgram(data->GetContextGroupId(context),
-                                    reason_view, details_view);
+    data->BreakProgram(data->GetContextGroupId(context), reason_view,
+                       details_view);
   }
 
   static void CreateObjectWithStrictCheck(
@@ -727,12 +722,12 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
     int context_group_id = data->GetContextGroupId(context);
-    data->inspector()->SchedulePauseOnNextStatement(context_group_id,
-                                                    reason_view, details_view);
+    data->SchedulePauseOnNextStatement(context_group_id, reason_view,
+                                       details_view);
     v8::MaybeLocal<v8::Value> result;
     result = args[0].As<v8::Function>()->Call(context, context->Global(), 0,
                                               nullptr);
-    data->inspector()->CancelPauseOnNextStatement(context_group_id);
+    data->CancelPauseOnNextStatement(context_group_id);
   }
 
   static void AllowAccessorFormatting(
@@ -754,7 +749,7 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
   }
 };
 
-class FrontendChannelImpl : public InspectorClientImpl::FrontendChannel {
+class FrontendChannelImpl : public IsolateData::FrontendChannel {
  public:
   FrontendChannelImpl(TaskRunner* frontend_task_runner, int context_group_id)
       : frontend_task_runner_(frontend_task_runner),

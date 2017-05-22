@@ -41,7 +41,7 @@ class TaskRunner : public v8::base::Thread {
   TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
              bool catch_exceptions, v8::base::Semaphore* ready_semaphore,
              v8::StartupData* startup_data,
-             InspectorClientImpl::FrontendChannel* channel);
+             IsolateData::FrontendChannel* channel);
   virtual ~TaskRunner();
   IsolateData* data() const { return data_.get(); }
 
@@ -63,7 +63,7 @@ class TaskRunner : public v8::base::Thread {
 
   IsolateData::SetupGlobalTasks setup_global_tasks_;
   v8::StartupData* startup_data_;
-  InspectorClientImpl::FrontendChannel* channel_;
+  IsolateData::FrontendChannel* channel_;
   bool catch_exceptions_;
   v8::base::Semaphore* ready_semaphore_;
   std::unique_ptr<IsolateData> data_;
