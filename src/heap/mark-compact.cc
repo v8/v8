@@ -2297,6 +2297,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
 };
 
 class MarkingItem;
+class GlobalHandlesMarkingItem;
 class PageMarkingItem;
 class RootMarkingItem;
 class YoungGenerationMarkingTask;
@@ -2435,6 +2436,47 @@ class PageMarkingItem : public MarkingItem {
   MemoryChunk* chunk_;
 };
 
+class GlobalHandlesMarkingItem : public MarkingItem {
+ public:
+  GlobalHandlesMarkingItem(GlobalHandles* global_handles, size_t start,
+                           size_t end)
+      : global_handles_(global_handles), start_(start), end_(end) {}
+  virtual ~GlobalHandlesMarkingItem() {}
+
+  void Process(YoungGenerationMarkingTask* task) override {
+    GlobalHandlesRootMarkingVisitor visitor(task);
+    global_handles_
+        ->IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
+            &visitor, start_, end_);
+  }
+
+ private:
+  class GlobalHandlesRootMarkingVisitor : public RootVisitor {
+   public:
+    explicit GlobalHandlesRootMarkingVisitor(YoungGenerationMarkingTask* task)
+        : task_(task) {}
+
+    void VisitRootPointer(Root root, Object** p) override {
+      DCHECK(Root::kGlobalHandles == root);
+      task_->MarkObject(*p);
+    }
+
+    void VisitRootPointers(Root root, Object** start, Object** end) override {
+      DCHECK(Root::kGlobalHandles == root);
+      for (Object** p = start; p < end; p++) {
+        task_->MarkObject(*p);
+      }
+    }
+
+   private:
+    YoungGenerationMarkingTask* task_;
+  };
+
+  GlobalHandles* global_handles_;
+  size_t start_;
+  size_t end_;
+};
+
 // This root visitor walks all roots and creates items bundling objects that
 // are then processed later on. Slots have to be dereferenced as they could
 // live on the native (C++) stack, which requires filtering out the indirection.
@@ -2524,21 +2566,36 @@ static bool IsUnmarkedObjectForYoungGeneration(Heap* heap, Object** p) {
 }
 
 void MinorMarkCompactCollector::MarkRootSetInParallel() {
-  // Seed the root set (roots + old->new set).
   ItemParallelJob job(isolate()->cancelable_task_manager(),
                       &page_parallel_job_semaphore_);
 
+  // Seed the root set (roots + old->new set).
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_SEED);
+    // Create batches of roots.
     RootMarkingVisitorSeedOnly root_seed_visitor(&job);
-    heap()->IterateRoots(&root_seed_visitor, VISIT_ALL_IN_SCAVENGE);
+    heap()->IterateRoots(&root_seed_visitor, VISIT_ALL_IN_MINOR_MC_MARK);
+    // Create batches of global handles.
+    const size_t kGlobalHandlesBufferSize = 1000;
+    const size_t new_space_nodes =
+        isolate()->global_handles()->NumberOfNewSpaceNodes();
+    for (size_t start = 0; start < new_space_nodes;
+         start += kGlobalHandlesBufferSize) {
+      size_t end = start + kGlobalHandlesBufferSize;
+      if (end > new_space_nodes) end = new_space_nodes;
+      job.AddItem(new GlobalHandlesMarkingItem(isolate()->global_handles(),
+                                               start, end));
+    }
+    // Create items for each page.
     RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
         heap(), [&job](MemoryChunk* chunk) {
           job.AddItem(new PageMarkingItem(chunk));
         });
+    // Flush any remaining objects in the seeding visitor.
     root_seed_visitor.FlushObjects();
   }
 
+  // Add tasks and run in parallel.
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
     const int num_tasks = NumberOfMarkingTasks();
@@ -2556,13 +2613,6 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   PostponeInterruptsScope postpone(isolate());
 
   RootMarkingVisitor root_visitor(this);
-
-  {
-    TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MINOR_MC_MARK_IDENTIFY_GLOBAL_HANDLES);
-    isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
-        &Heap::IsUnmodifiedHeapObject);
-  }
 
   MarkRootSetInParallel();
 

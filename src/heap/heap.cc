@@ -1727,7 +1727,7 @@ void Heap::Scavenge() {
   RootScavengeVisitor root_scavenge_visitor(this);
 
   isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
-      &IsUnmodifiedHeapObject);
+      &JSObject::IsUnmodifiedApiObject);
 
   {
     // Copy roots.
@@ -2952,21 +2952,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
 bool Heap::RootCanBeTreatedAsConstant(RootListIndex root_index) {
   return !RootCanBeWrittenAfterInitialization(root_index) &&
          !InNewSpace(root(root_index));
-}
-
-bool Heap::IsUnmodifiedHeapObject(Object** p) {
-  Object* object = *p;
-  if (object->IsSmi()) return false;
-  HeapObject* heap_object = HeapObject::cast(object);
-  if (!object->IsJSObject()) return false;
-  JSObject* js_object = JSObject::cast(object);
-  if (!js_object->WasConstructedFromApiFunction()) return false;
-  Object* maybe_constructor = js_object->map()->GetConstructor();
-  if (!maybe_constructor->IsJSFunction()) return false;
-  JSFunction* constructor = JSFunction::cast(maybe_constructor);
-  if (js_object->elements()->length() != 0) return false;
-
-  return constructor->initial_map() == heap_object->map();
 }
 
 int Heap::FullSizeNumberStringCacheLength() {
@@ -5036,10 +5021,13 @@ void Heap::IterateRoots(RootVisitor* v, VisitMode mode) {
 }
 
 void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
+  const bool isMinorGC = mode == VISIT_ALL_IN_SCAVENGE ||
+                         mode == VISIT_ALL_IN_MINOR_MC_MARK ||
+                         mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
   v->VisitRootPointer(Root::kStringTable, reinterpret_cast<Object**>(
                                               &roots_[kStringTableRootIndex]));
   v->Synchronize(VisitorSynchronization::kStringTable);
-  if (mode != VISIT_ALL_IN_SCAVENGE && mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
+  if (!isMinorGC && mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     // Scavenge collections have special processing for this.
     external_string_table_.IterateAll(v);
   }
@@ -5104,6 +5092,9 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
 };
 
 void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
+  const bool isMinorGC = mode == VISIT_ALL_IN_SCAVENGE ||
+                         mode == VISIT_ALL_IN_MINOR_MC_MARK ||
+                         mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
   v->VisitRootPointers(Root::kStrongRootList, &roots_[0],
                        &roots_[kStrongRootListLength]);
   v->Synchronize(VisitorSynchronization::kStrongRootList);
@@ -5134,7 +5125,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   // Iterate over the builtin code objects and code stubs in the
   // heap. Note that it is not necessary to iterate over code objects
   // on scavenge collections.
-  if (mode != VISIT_ALL_IN_SCAVENGE && mode != VISIT_ALL_IN_MINOR_MC_UPDATE) {
+  if (!isMinorGC) {
     isolate_->builtins()->IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
     isolate_->interpreter()->IterateDispatchTable(v);
@@ -5154,6 +5145,9 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
     case VISIT_ALL_IN_SCAVENGE:
       isolate_->global_handles()->IterateNewSpaceStrongAndDependentRoots(v);
       break;
+    case VISIT_ALL_IN_MINOR_MC_MARK:
+      // Global handles are processed manually be the minor MC.
+      break;
     case VISIT_ALL_IN_MINOR_MC_UPDATE:
       isolate_->global_handles()->IterateAllNewSpaceRoots(v);
       break;
@@ -5165,7 +5159,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
   // Iterate over eternal handles.
-  if (mode == VISIT_ALL_IN_SCAVENGE || mode == VISIT_ALL_IN_MINOR_MC_UPDATE) {
+  if (isMinorGC) {
     isolate_->eternal_handles()->IterateNewSpaceRoots(v);
   } else {
     isolate_->eternal_handles()->IterateAllRoots(v);

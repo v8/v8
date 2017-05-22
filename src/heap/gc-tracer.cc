@@ -528,7 +528,6 @@ void GCTracer::PrintNVP() const {
           "minor_mc=%.2f "
           "finish_sweeping=%.2f "
           "mark=%.2f "
-          "mark.identify_global_handles=%.2f "
           "mark.seed=%.2f "
           "mark.roots=%.2f "
           "mark.weak=%.2f "
@@ -549,7 +548,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MINOR_MC],
           current_.scopes[Scope::MINOR_MC_SWEEPING],
           current_.scopes[Scope::MINOR_MC_MARK],
-          current_.scopes[Scope::MINOR_MC_MARK_IDENTIFY_GLOBAL_HANDLES],
           current_.scopes[Scope::MINOR_MC_MARK_SEED],
           current_.scopes[Scope::MINOR_MC_MARK_ROOTS],
           current_.scopes[Scope::MINOR_MC_MARK_WEAK],

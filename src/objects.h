@@ -2113,6 +2113,8 @@ class JSReceiver: public HeapObject {
 // caching.
 class JSObject: public JSReceiver {
  public:
+  static bool IsUnmodifiedApiObject(Object** o);
+
   static MUST_USE_RESULT MaybeHandle<JSObject> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
       Handle<AllocationSite> site = Handle<AllocationSite>::null());

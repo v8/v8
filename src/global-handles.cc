@@ -647,6 +647,21 @@ void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(RootVisitor* v) {
   }
 }
 
+void GlobalHandles::IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
+    RootVisitor* v, size_t start, size_t end) {
+  for (size_t i = start; i < end; ++i) {
+    Node* node = new_space_nodes_[static_cast<int>(i)];
+    if (node->IsWeak() && !JSObject::IsUnmodifiedApiObject(node->location())) {
+      node->set_active(true);
+    }
+    if (node->IsStrongRetainer() ||
+        (node->IsWeakRetainer() && !node->is_independent() &&
+         node->is_active())) {
+      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+    }
+  }
+}
+
 void GlobalHandles::IdentifyWeakUnmodifiedObjects(
     WeakSlotCallback is_unmodified) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {

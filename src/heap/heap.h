@@ -683,8 +683,6 @@ class Heap {
   // they are in new space.
   static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
 
-  static bool IsUnmodifiedHeapObject(Object** p);
-
   // Zapping is needed for verify heap, and always done in debug builds.
   static inline bool ShouldZapGarbage() {
 #ifdef DEBUG
