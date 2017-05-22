@@ -43,7 +43,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)                \
   F(HEAP_PROLOGUE)                                    \
   F(MC_CLEAR)                                         \
-  F(MC_CLEAR_CODE_FLUSH)                              \
   F(MC_CLEAR_DEPENDENT_CODE)                          \
   F(MC_CLEAR_MAPS)                                    \
   F(MC_CLEAR_SLOTS_BUFFER)                            \
@@ -67,7 +66,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_FINISH)                                        \
   F(MC_MARK)                                          \
   F(MC_MARK_FINISH_INCREMENTAL)                       \
-  F(MC_MARK_PREPARE_CODE_FLUSH)                       \
   F(MC_MARK_ROOTS)                                    \
   F(MC_MARK_WEAK_CLOSURE)                             \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)                   \
@@ -107,7 +105,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MINOR_MC_MARKING_DEQUE)                           \
   F(MINOR_MC_RESET_LIVENESS)                          \
   F(MINOR_MC_SWEEPING)                                \
-  F(SCAVENGER_CODE_FLUSH_CANDIDATES)                  \
   F(SCAVENGER_EVACUATE)                               \
   F(SCAVENGER_OLD_TO_NEW_POINTERS)                    \
   F(SCAVENGER_ROOTS)                                  \

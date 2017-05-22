@@ -292,17 +292,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // Mark pointers in a Map treating some elements of the descriptor array weak.
   static void MarkMapContents(Heap* heap, Map* map);
 
-  // Code flushing support.
-  INLINE(static bool IsFlushable(Heap* heap, JSFunction* function));
-  INLINE(static bool IsFlushable(Heap* heap, SharedFunctionInfo* shared_info));
-
-  // Helpers used by code flushing support that visit pointer fields and treat
-  // references to code objects either strongly or weakly.
-  static void VisitSharedFunctionInfoStrongCode(Map* map, HeapObject* object);
-  static void VisitSharedFunctionInfoWeakCode(Map* map, HeapObject* object);
-  static void VisitJSFunctionStrongCode(Map* map, HeapObject* object);
-  static void VisitJSFunctionWeakCode(Map* map, HeapObject* object);
-
   class DataObjectVisitor {
    public:
     template <int size>

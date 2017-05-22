@@ -6043,7 +6043,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline, kForceInline)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, must_use_ignition_turbo,
                kMustUseIgnitionTurbo)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
                kIsAsmWasmBroken)
 
@@ -6147,14 +6146,6 @@ void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
 
 
 void SharedFunctionInfo::ReplaceCode(Code* value) {
-  // If the GC metadata field is already used then the function was
-  // enqueued as a code flushing candidate and we remove it now.
-  if (code()->gc_metadata() != NULL) {
-    CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
-    flusher->EvictCandidate(this);
-  }
-
-  DCHECK(code()->gc_metadata() == NULL && value->gc_metadata() == NULL);
 #ifdef DEBUG
   Code::VerifyRecompiledCode(code(), value);
 #endif  // DEBUG
@@ -6755,7 +6746,6 @@ void Code::WipeOutHeader() {
     WRITE_FIELD(this, kTypeFeedbackInfoOffset, NULL);
   }
   WRITE_FIELD(this, kNextCodeLinkOffset, NULL);
-  WRITE_FIELD(this, kGCMetadataOffset, NULL);
 }
 
 
@@ -6793,7 +6783,6 @@ void Code::set_stub_key(uint32_t key) {
 }
 
 
-ACCESSORS(Code, gc_metadata, Object, kGCMetadataOffset)
 INT_ACCESSORS(Code, ic_age, kICAgeOffset)
 
 

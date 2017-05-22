@@ -3751,11 +3751,6 @@ class Code: public HeapObject {
   // Note that storage for this field is overlapped with typefeedback_info.
   DECL_ACCESSORS(next_code_link, Object)
 
-  // [gc_metadata]: Field used to hold GC related metadata. The contents of this
-  // field does not have to be traced during garbage collection since
-  // it is only used by the garbage collector itself.
-  DECL_ACCESSORS(gc_metadata, Object)
-
   // [ic_age]: Inline caching age: the value of the Heap::global_ic_age
   // at the moment when this object was created.
   inline void set_ic_age(int count);
@@ -4065,9 +4060,8 @@ class Code: public HeapObject {
 #undef DECLARE_CODE_AGE_ENUM
 
   // Code aging.  Indicates how many full GCs this code has survived without
-  // being entered through the prologue.  Used to determine when it is
-  // relatively safe to flush this code object and replace it with the lazy
-  // compilation stub.
+  // being entered through the prologue.  Used to determine when to flush code
+  // held in the compilation cache.
   static void MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate);
   static void MarkCodeAsExecuted(byte* sequence, Isolate* isolate);
   void MakeYoung(Isolate* isolate);
@@ -4117,8 +4111,7 @@ class Code: public HeapObject {
   static const int kTypeFeedbackInfoOffset =
       kSourcePositionTableOffset + kPointerSize;
   static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset + kPointerSize;
-  static const int kGCMetadataOffset = kNextCodeLinkOffset + kPointerSize;
-  static const int kInstructionSizeOffset = kGCMetadataOffset + kPointerSize;
+  static const int kInstructionSizeOffset = kNextCodeLinkOffset + kPointerSize;
   static const int kICAgeOffset = kInstructionSizeOffset + kIntSize;
   static const int kFlagsOffset = kICAgeOffset + kIntSize;
   static const int kKindSpecificFlags1Offset = kFlagsOffset + kIntSize;
@@ -5273,8 +5266,6 @@ class SharedFunctionInfo: public HeapObject {
   inline void set_ic_age(int age);
 
   // Indicates if this function can be lazy compiled.
-  // This is used to determine if we can safely flush code from a function
-  // when doing GC if we expect that the function will no longer be used.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
 
   // Indicates whether optimizations have been disabled for this
@@ -5311,9 +5302,6 @@ class SharedFunctionInfo: public HeapObject {
   // Ignition / TurboFan pipeline, and is unsupported by
   // FullCodegen / Crankshaft.
   DECL_BOOLEAN_ACCESSORS(must_use_ignition_turbo)
-
-  // Indicates that code for this function cannot be flushed.
-  DECL_BOOLEAN_ACCESSORS(dont_flush)
 
   // Indicates that this function is an asm function.
   DECL_BOOLEAN_ACCESSORS(asm_function)
@@ -5608,12 +5596,12 @@ class SharedFunctionInfo: public HeapObject {
     kForceInline,
     kIsAsmFunction,
     kMustUseIgnitionTurbo,
-    kDontFlush,
     kIsDeclaration,
     kIsAsmWasmBroken,
     kHasConcurrentOptimizationJob,
 
     kUnused1,  // Unused fields.
+    kUnused2,
 
     // byte 2
     kFunctionKind,
@@ -6146,8 +6134,7 @@ class JSFunction: public JSObject {
   inline bool is_compiled();
 
   // [next_function_link]: Links functions into various lists, e.g. the list
-  // of optimized functions hanging off the native_context. The CodeFlusher
-  // uses this link to chain together flushing candidates. Treated weakly
+  // of optimized functions hanging off the native_context. Treated weakly
   // by the garbage collector.
   DECL_ACCESSORS(next_function_link, Object)
 
@@ -6587,9 +6574,9 @@ class JSPromise : public JSObject {
 // - a reference to a literal string to search for
 // If it is an irregexp regexp:
 // - a reference to code for Latin1 inputs (bytecode or compiled), or a smi
-// used for tracking the last usage (used for code flushing).
+// used for tracking the last usage (used for regexp code flushing).
 // - a reference to code for UC16 inputs (bytecode or compiled), or a smi
-// used for tracking the last usage (used for code flushing)..
+// used for tracking the last usage (used for regexp code flushing).
 // - max number of registers used by irregexp implementations.
 // - number of capture registers (output values) of the regexp.
 class JSRegExp: public JSObject {

@@ -573,8 +573,8 @@ void Context::ClearOSROptimizedCodeCache() {
 
 void Context::AddOptimizedFunction(JSFunction* function) {
   DCHECK(IsNativeContext());
-  Isolate* isolate = GetIsolate();
 #ifdef ENABLE_SLOW_DCHECKS
+  Isolate* isolate = GetIsolate();
   if (FLAG_enable_slow_asserts) {
     Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
     while (!element->IsUndefined(isolate)) {
@@ -596,15 +596,7 @@ void Context::AddOptimizedFunction(JSFunction* function) {
   CHECK(found);
 #endif
 
-  // If the function link field is already used then the function was
-  // enqueued as a code flushing candidate and we remove it now.
-  if (!function->next_function_link()->IsUndefined(isolate)) {
-    CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
-    flusher->EvictCandidate(function);
-  }
-
-  DCHECK(function->next_function_link()->IsUndefined(isolate));
-
+  DCHECK(function->next_function_link()->IsUndefined(GetIsolate()));
   function->set_next_function_link(get(OPTIMIZED_FUNCTIONS_LIST),
                                    UPDATE_WEAK_WRITE_BARRIER);
   set(OPTIMIZED_FUNCTIONS_LIST, function, UPDATE_WEAK_WRITE_BARRIER);

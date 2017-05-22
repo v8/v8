@@ -172,13 +172,6 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
     return isolate->heap()->exception();
   }
 
-  // Mark both, the source and the target, as un-flushable because the
-  // shared unoptimized code makes them impossible to enqueue in a list.
-  DCHECK(target_shared->code()->gc_metadata() == NULL);
-  DCHECK(source_shared->code()->gc_metadata() == NULL);
-  target_shared->set_dont_flush(true);
-  source_shared->set_dont_flush(true);
-
   // Set the code, scope info, formal parameter count, and the length
   // of the target shared function info.
   target_shared->ReplaceCode(source_shared->code());

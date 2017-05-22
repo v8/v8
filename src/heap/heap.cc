@@ -1763,17 +1763,6 @@ void Heap::Scavenge() {
   }
 
   {
-    // Copy objects reachable from the code flushing candidates list.
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_CODE_FLUSH_CANDIDATES);
-    MarkCompactCollector* collector = mark_compact_collector();
-    if (collector->is_code_flushing_enabled()) {
-      collector->code_flusher()->VisitListHeads(&root_scavenge_visitor);
-      collector->code_flusher()
-          ->IteratePointersToFromSpace<StaticScavengeVisitor>();
-    }
-  }
-
-  {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SEMISPACE);
     new_space_front = DoScavenge(new_space_front);
   }
@@ -3423,7 +3412,6 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
   DCHECK(!memory_allocator()->code_range()->valid() ||
          memory_allocator()->code_range()->contains(code->address()) ||
          object_size <= code_space()->AreaSize());
-  code->set_gc_metadata(Smi::kZero);
   code->set_ic_age(global_ic_age_);
   return code;
 }
