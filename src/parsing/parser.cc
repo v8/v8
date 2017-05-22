@@ -3532,7 +3532,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   info->set_literal(result);
 
   // We cannot internalize on a background thread; a foreground task will take
-  // care of calling Parser::Internalize just before compilation.
+  // care of calling AstValueFactory::Internalize just before compilation.
 
   if (produce_cached_parse_data()) {
     if (result != NULL) *info->cached_data() = logger.GetScriptData();
