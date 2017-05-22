@@ -366,36 +366,6 @@ function TypedArrayGetToStringTag() {
   return name;
 }
 
-function InnerTypedArrayForEach(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-
-  if (IS_UNDEFINED(receiver)) {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        f(element, i, array);
-      }
-    }
-  } else {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        %_Call(f, receiver, element, i, array);
-      }
-    }
-  }
-}
-
-// ES6 draft 08-24-14, section 22.2.3.12
-function TypedArrayForEach(f, receiver) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.forEach");
-
-  var length = %_TypedArrayGetLength(this);
-
-  InnerTypedArrayForEach(f, receiver, this, length);
-}
-%FunctionSetLength(TypedArrayForEach, 1);
-
 // The following functions cannot be made efficient on sparse arrays while
 // preserving the semantics, since the calls to the receiver function can add
 // or delete elements from the array.
@@ -567,7 +537,6 @@ utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
   "find", TypedArrayFind,
   "findIndex", TypedArrayFindIndex,
   "join", TypedArrayJoin,
-  "forEach", TypedArrayForEach,
   "sort", TypedArraySort,
   "toLocaleString", TypedArrayToLocaleString
 ]);
