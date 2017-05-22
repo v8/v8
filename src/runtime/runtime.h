@@ -224,9 +224,10 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)
 #endif
 
-#define FOR_EACH_INTRINSIC_INTERPRETER(F) \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F) \
-  F(InterpreterNewClosure, 4, 1)          \
+#define FOR_EACH_INTRINSIC_INTERPRETER(F)      \
+  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)      \
+  F(InterpreterNewClosure, 4, 1)               \
+  F(InterpreterStringConcat, -1 /* >= 2 */, 1) \
   F(InterpreterAdvanceBytecodeOffset, 2, 1)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \

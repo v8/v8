@@ -15,6 +15,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
 #include "src/ostreams.h"
+#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {
@@ -32,6 +33,23 @@ RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
   return *isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared, context, vector_cell,
       static_cast<PretenureFlag>(pretenured_flag));
+}
+
+RUNTIME_FUNCTION(Runtime_InterpreterStringConcat) {
+  HandleScope scope(isolate);
+  DCHECK_LE(2, args.length());
+  int const argc = args.length();
+  ScopedVector<Handle<Object>> argv(argc);
+
+  isolate->counters()->string_add_runtime()->Increment();
+  IncrementalStringBuilder builder(isolate);
+  for (int i = 0; i < argc; ++i) {
+    Handle<String> str = Handle<String>::cast(args.at(i));
+    if (str->length() != 0) {
+      builder.AppendString(str);
+    }
+  }
+  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
 }
 
 #ifdef V8_TRACE_IGNITION

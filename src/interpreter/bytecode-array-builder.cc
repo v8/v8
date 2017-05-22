@@ -990,21 +990,31 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::PopContext(Register context) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToObject(
-    Register out) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToObject(Register out) {
   OutputToObject(out);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToName(
-    Register out) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToName(Register out) {
   OutputToName(out);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToNumber(
-    Register out, int feedback_slot) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToNumber(Register out,
+                                                     int feedback_slot) {
   OutputToNumber(out, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToPrimitiveToString(
+    Register out, int feedback_slot) {
+  OutputToPrimitiveToString(out, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StringConcat(
+    RegisterList operand_registers) {
+  OutputStringConcat(operand_registers, operand_registers.register_count());
   return *this;
 }
 

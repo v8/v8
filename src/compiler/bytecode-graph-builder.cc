@@ -2091,6 +2091,14 @@ void BytecodeGraphBuilder::VisitToNumber() {
                               Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitToPrimitiveToString() {
+  UNREACHABLE();  // TODO(rmcilroy): Implement this.
+}
+
+void BytecodeGraphBuilder::VisitStringConcat() {
+  UNREACHABLE();  // TODO(rmcilroy): Implement this.
+}
+
 void BytecodeGraphBuilder::VisitJump() { BuildJump(); }
 
 void BytecodeGraphBuilder::VisitJumpConstant() { BuildJump(); }

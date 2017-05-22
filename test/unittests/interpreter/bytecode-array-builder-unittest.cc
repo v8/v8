@@ -190,6 +190,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperationSmiLiteral(Token::Value::SAR, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::SHR, Smi::FromInt(42), 2);
 
+  // Emit StringConcat operations.
+  builder.ToPrimitiveToString(reg, 1).StringConcat(pair);
+
   // Emit count operatior invocations
   builder.CountOperation(Token::Value::ADD, 1)
       .CountOperation(Token::Value::SUB, 1);
@@ -221,9 +224,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareNull();
 
   // Emit conversion operator invocations.
-  builder.ConvertAccumulatorToNumber(reg, 1)
-      .ConvertAccumulatorToObject(reg)
-      .ConvertAccumulatorToName(reg);
+  builder.ToNumber(reg, 1).ToObject(reg).ToName(reg);
 
   // Emit GetSuperConstructor.
   builder.GetSuperConstructor(reg);
@@ -448,7 +449,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
           builder.StoreAccumulatorInRegister(temp);
           // Ensure temporaries are used so not optimized away by the
           // register optimizer.
-          builder.ConvertAccumulatorToName(temp);
+          builder.ToName(temp);
         }
         builder.Return();
 

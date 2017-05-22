@@ -3878,23 +3878,48 @@ Node* CodeStubAssembler::TryDerefExternalString(Node* const string,
   return fake_sequential_string;
 }
 
+void CodeStubAssembler::BranchIfCanDerefIndirectString(Node* string,
+                                                       Node* instance_type,
+                                                       Label* can_deref,
+                                                       Label* cannot_deref) {
+  CSA_ASSERT(this, IsString(string));
+  Node* representation =
+      Word32And(instance_type, Int32Constant(kStringRepresentationMask));
+  GotoIf(Word32Equal(representation, Int32Constant(kThinStringTag)), can_deref);
+  GotoIf(Word32NotEqual(representation, Int32Constant(kConsStringTag)),
+         cannot_deref);
+  // Cons string.
+  Node* rhs = LoadObjectField(string, ConsString::kSecondOffset);
+  GotoIf(IsEmptyString(rhs), can_deref);
+  Goto(cannot_deref);
+}
+
+void CodeStubAssembler::DerefIndirectString(Variable* var_string,
+                                            Node* instance_type) {
+#ifdef DEBUG
+  Label can_deref(this), cannot_deref(this);
+  BranchIfCanDerefIndirectString(var_string->value(), instance_type, &can_deref,
+                                 &cannot_deref);
+  BIND(&cannot_deref);
+  DebugBreak();  // Should be able to dereference string.
+  Goto(&can_deref);
+  BIND(&can_deref);
+#endif  // DEBUG
+
+  STATIC_ASSERT(ThinString::kActualOffset == ConsString::kFirstOffset);
+  var_string->Bind(
+      LoadObjectField(var_string->value(), ThinString::kActualOffset));
+}
+
 void CodeStubAssembler::MaybeDerefIndirectString(Variable* var_string,
                                                  Node* instance_type,
                                                  Variable* var_did_something) {
   Label deref(this), done(this, var_did_something);
-  Node* representation =
-      Word32And(instance_type, Int32Constant(kStringRepresentationMask));
-  GotoIf(Word32Equal(representation, Int32Constant(kThinStringTag)), &deref);
-  GotoIf(Word32NotEqual(representation, Int32Constant(kConsStringTag)), &done);
-  // Cons string.
-  Node* rhs = LoadObjectField(var_string->value(), ConsString::kSecondOffset);
-  GotoIf(WordEqual(rhs, EmptyStringConstant()), &deref);
-  Goto(&done);
+  BranchIfCanDerefIndirectString(var_string->value(), instance_type, &deref,
+                                 &done);
 
   BIND(&deref);
-  STATIC_ASSERT(ThinString::kActualOffset == ConsString::kFirstOffset);
-  var_string->Bind(
-      LoadObjectField(var_string->value(), ThinString::kActualOffset));
+  DerefIndirectString(var_string, instance_type);
   var_did_something->Bind(IntPtrConstant(1));
   Goto(&done);
 
@@ -3939,6 +3964,10 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
     CSA_ASSERT(this, TaggedIsSmi(left_length));
     CSA_ASSERT(this, TaggedIsSmi(right_length));
     Node* new_length = SmiAdd(left_length, right_length);
+
+    // If new length is greater than String::kMaxLength, goto runtime to
+    // throw. Note: we also need to invalidate the string length protector, so
+    // can't just throw here directly.
     GotoIf(SmiAboveOrEqual(new_length, SmiConstant(String::kMaxLength)),
            &runtime);
 
@@ -4456,10 +4485,8 @@ Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
 
 Node* CodeStubAssembler::ToString(Node* context, Node* input) {
   Label is_number(this);
-  Label runtime(this, Label::kDeferred);
+  Label runtime(this, Label::kDeferred), done(this);
   VARIABLE(result, MachineRepresentation::kTagged);
-  Label done(this, &result);
-
   GotoIf(TaggedIsSmi(input), &is_number);
 
   Node* input_map = LoadMap(input);

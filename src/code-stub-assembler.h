@@ -435,6 +435,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadWeakCellValueUnchecked(Node* weak_cell);
   Node* LoadWeakCellValue(Node* weak_cell, Label* if_cleared = nullptr);
 
+  // Get the offset of an element in a fixed array.
+  Node* GetFixedArrayElementOffset(
+      Node* index_node, int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+
   // Load an array element from a FixedArray.
   Node* LoadFixedArrayElement(Node* object, Node* index,
                               int additional_offset = 0,
@@ -840,6 +845,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* TryDerefExternalString(Node* const string, Node* const instance_type,
                                Label* if_bailout);
 
+  // Check if |string| is an indirect (thin or flat cons) string type that can
+  // be dereferenced by DerefIndirectString.
+  void BranchIfCanDerefIndirectString(Node* string, Node* instance_type,
+                                      Label* can_deref, Label* cannot_deref);
+  // Unpack an indirect (thin or flat cons) string type.
+  void DerefIndirectString(Variable* var_string, Node* instance_type);
   // Check if |var_string| has an indirect (thin or flat cons) string type,
   // and unpack it if so.
   void MaybeDerefIndirectString(Variable* var_string, Node* instance_type,

@@ -39,6 +39,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitStatements(ZoneList<Statement*>* statments);
 
  private:
+  class AdditionResultScope;
   class ContextScope;
   class ControlScope;
   class ControlScopeForBreakable;
@@ -57,7 +58,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
   enum class TestFallthrough { kThen, kElse, kNone };
-  enum class TypeHint { kAny, kBoolean };
+  enum class TypeHint { kAny, kString, kBoolean };
 
   void GenerateBytecodeBody();
   void AllocateDeferredConstants(Isolate* isolate);
@@ -159,6 +160,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitForInAssignment(Expression* expr, FeedbackSlot slot);
   void VisitModuleNamespaceImports();
 
+  // Builds an addition expression. If the result is a known string addition,
+  // then rather than emitting the add, the operands will converted to
+  // primitive, then to string and stored in registers in the
+  // |operand_registers| list for later concatenation.
+  void BuildAddExpression(BinaryOperation* expr,
+                          RegisterList* operand_registers);
+
   // Visit the header/body of a loop iteration.
   void VisitIterationHeader(IterationStatement* stmt,
                             LoopBuilder* loop_builder);
@@ -182,13 +190,18 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitForEffect(Expression* expr);
   void VisitForTest(Expression* expr, BytecodeLabels* then_labels,
                     BytecodeLabels* else_labels, TestFallthrough fallthrough);
+  TypeHint VisitForAddOperand(Expression* expr, RegisterList* operand_registers,
+                              Register* out_register);
 
   // Returns the runtime function id for a store to super for the function's
   // language mode.
   inline Runtime::FunctionId StoreToSuperRuntimeId();
   inline Runtime::FunctionId StoreKeyedToSuperRuntimeId();
 
-  ToBooleanMode ToBooleanModeFromTypeHint(TypeHint type_hint);
+  static constexpr ToBooleanMode ToBooleanModeFromTypeHint(TypeHint type_hint) {
+    return type_hint == TypeHint::kBoolean ? ToBooleanMode::kAlreadyBoolean
+                                           : ToBooleanMode::kConvertToBoolean;
+  }
 
   inline BytecodeArrayBuilder* builder() const { return builder_; }
   inline Zone* zone() const { return zone_; }
