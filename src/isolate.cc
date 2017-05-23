@@ -3268,8 +3268,9 @@ Handle<Symbol> Isolate::SymbolFor(Heap::RootListIndex dictionary_index,
   int entry = dictionary->FindEntry(key);
   Handle<Symbol> symbol;
   if (entry == NameDictionary::kNotFound) {
-    symbol = private_symbol ? factory()->NewPrivateSymbol(key).ToHandleChecked()
-                            : factory()->NewSymbol(key).ToHandleChecked();
+    symbol =
+        private_symbol ? factory()->NewPrivateSymbol() : factory()->NewSymbol();
+    symbol->set_name(*key);
     dictionary = NameDictionary::Add(dictionary, key, symbol,
                                      PropertyDetails::Empty(), &entry);
     switch (dictionary_index) {

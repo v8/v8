@@ -2009,8 +2009,13 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
 
   // 3b. Convert symbol in eax to a string.
   __ bind(&symbol_descriptive_string);
-  __ mov(eax, FieldOperand(eax, Symbol::kDescriptiveStringOffset));
-  // Fall through.
+  {
+    __ PopReturnAddressTo(ecx);
+    __ lea(esp, Operand(esp, ebx, times_pointer_size, kPointerSize));
+    __ Push(eax);
+    __ PushReturnAddressFrom(ecx);
+    __ TailCallRuntime(Runtime::kSymbolDescriptiveString);
+  }
 
   __ bind(&drop_frame_and_ret);
   {
