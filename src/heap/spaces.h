@@ -236,6 +236,13 @@ class FreeListCategory {
 // any heap object.
 class MemoryChunk {
  public:
+  // Use with std data structures.
+  struct Hasher {
+    size_t operator()(Page* const p) const {
+      return reinterpret_cast<size_t>(p) >> kPageSizeBits;
+    }
+  };
+
   enum Flag {
     NO_FLAGS = 0u,
     IS_EXECUTABLE = 1u << 0,

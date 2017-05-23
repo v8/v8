@@ -2330,7 +2330,12 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
       : ItemParallelJob::Task(isolate),
         collector_(collector),
         marking_deque_(marking_deque, task_id),
-        visitor_(isolate->heap(), marking_deque, task_id) {}
+        visitor_(isolate->heap(), marking_deque, task_id) {
+    local_live_bytes_.reserve(isolate->heap()->new_space()->Capacity() /
+                              Page::kPageSize);
+  }
+
+  ~YoungGenerationMarkingTask() { FlushLiveBytes(); }
 
   void RunInParallel() override {
     double marking_time = 0.0;
@@ -2357,7 +2362,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
     if (ObjectMarking::WhiteToGrey<MarkBit::ATOMIC>(
             heap_object, collector_->marking_state(heap_object))) {
       const int size = visitor_.Visit(heap_object);
-      marking_state(heap_object).IncrementLiveBytes<MarkBit::ATOMIC>(size);
+      IncrementLiveBytes(heap_object, size);
     }
   }
 
@@ -2370,7 +2375,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
     HeapObject* object = nullptr;
     while (marking_deque_.Pop(&object)) {
       const int size = visitor_.Visit(object);
-      marking_state(object).IncrementLiveBytes<MarkBit::ATOMIC>(size);
+      IncrementLiveBytes(object, size);
     }
   }
 
@@ -2379,14 +2384,27 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
     while (marking_deque_.WaitForMoreObjects()) {
       while (marking_deque_.Pop(&object)) {
         const int size = visitor_.Visit(object);
-        marking_state(object).IncrementLiveBytes<MarkBit::ATOMIC>(size);
+        IncrementLiveBytes(object, size);
       }
+    }
+  }
+
+  void IncrementLiveBytes(HeapObject* object, intptr_t bytes) {
+    local_live_bytes_[Page::FromAddress(reinterpret_cast<Address>(object))] +=
+        bytes;
+  }
+
+  void FlushLiveBytes() {
+    for (auto pair : local_live_bytes_) {
+      collector_->marking_state(pair.first)
+          .IncrementLiveBytes<MarkBit::ATOMIC>(pair.second);
     }
   }
 
   MinorMarkCompactCollector* collector_;
   LocalWorkStealingMarkingDeque marking_deque_;
   YoungGenerationMarkingVisitor visitor_;
+  std::unordered_map<Page*, intptr_t, Page::Hasher> local_live_bytes_;
 };
 
 class BatchedRootMarkingItem : public MarkingItem {
