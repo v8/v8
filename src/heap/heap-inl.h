@@ -367,7 +367,7 @@ void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
     UpdateAllocationsHash(size_in_bytes);
 
     if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
-      PrintAlloctionsHash();
+      PrintAllocationsHash();
     }
   }
 
@@ -402,7 +402,7 @@ void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
     UpdateAllocationsHash(size_in_bytes);
 
     if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
-      PrintAlloctionsHash();
+      PrintAllocationsHash();
     }
   }
 }

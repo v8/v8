@@ -5746,7 +5746,7 @@ void Heap::ClearStackLimits() {
   roots_[kRealStackLimitRootIndex] = Smi::kZero;
 }
 
-void Heap::PrintAlloctionsHash() {
+void Heap::PrintAllocationsHash() {
   uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);
   PrintF("\n### Allocations = %u, hash = 0x%08x\n", allocations_count(), hash);
 }
@@ -5810,7 +5810,7 @@ void Heap::TearDown() {
   UpdateMaximumCommitted();
 
   if (FLAG_verify_predictable) {
-    PrintAlloctionsHash();
+    PrintAllocationsHash();
   }
 
   new_space()->RemoveAllocationObserver(idle_scavenge_observer_);

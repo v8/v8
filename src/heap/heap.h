@@ -1773,7 +1773,7 @@ class Heap {
 
   inline void UpdateAllocationsHash(HeapObject* object);
   inline void UpdateAllocationsHash(uint32_t value);
-  void PrintAlloctionsHash();
+  void PrintAllocationsHash();
 
   void AddToRingBuffer(const char* string);
   void GetFromRingBuffer(char* buffer);
