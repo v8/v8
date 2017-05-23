@@ -8,6 +8,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/code-stubs.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/interface-types.h"
@@ -290,6 +291,42 @@ bool compile_lazy(const WasmModule* module) {
          (FLAG_asm_wasm_lazy_compilation && module->is_asm_js());
 }
 
+class CodeGenerationSchedule {
+ public:
+  explicit CodeGenerationSchedule(
+      base::RandomNumberGenerator* random_number_generator)
+      : random_number_generator_(random_number_generator) {
+    DCHECK_NOT_NULL(random_number_generator_);
+  }
+
+  void Schedule(std::unique_ptr<compiler::WasmCompilationUnit>&& item) {
+    schedule_.push_back(std::move(item));
+  }
+
+  bool IsEmpty() const { return schedule_.empty(); }
+
+  std::unique_ptr<compiler::WasmCompilationUnit> GetNext() {
+    DCHECK(!IsEmpty());
+    size_t index = GetRandomIndexInSchedule();
+    auto ret = std::move(schedule_[index]);
+    std::swap(schedule_[schedule_.size() - 1], schedule_[index]);
+    schedule_.pop_back();
+    return ret;
+  }
+
+ private:
+  size_t GetRandomIndexInSchedule() {
+    double factor = random_number_generator_->NextDouble();
+    size_t index = (size_t)(factor * schedule_.size());
+    DCHECK_GE(index, 0);
+    DCHECK_LT(index, schedule_.size());
+    return index;
+  }
+
+  base::RandomNumberGenerator* random_number_generator_ = nullptr;
+  std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> schedule_;
+};
+
 // A helper for compiling an entire module.
 class CompilationHelper {
  public:
@@ -299,7 +336,10 @@ class CompilationHelper {
   // reclaimed by explicitely releasing the {module_} field.
   CompilationHelper(Isolate* isolate, std::unique_ptr<WasmModule> module,
                     bool is_sync)
-      : isolate_(isolate), module_(std::move(module)), is_sync_(is_sync) {}
+      : isolate_(isolate),
+        module_(std::move(module)),
+        is_sync_(is_sync),
+        executed_units_(isolate->random_number_generator()) {}
 
   // The actual runnable task that performs compilations in the background.
   class CompilationTask : public CancelableTask {
@@ -320,7 +360,7 @@ class CompilationHelper {
   bool is_sync_;
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
-  std::queue<std::unique_ptr<compiler::WasmCompilationUnit>> executed_units_;
+  CodeGenerationSchedule executed_units_;
   base::Mutex result_mutex_;
   base::AtomicNumber<size_t> next_unit_;
   size_t num_background_tasks_ = 0;
@@ -349,7 +389,7 @@ class CompilationHelper {
     unit->ExecuteCompilation();
     {
       base::LockGuard<base::Mutex> guard(&result_mutex_);
-      executed_units_.push(std::move(unit));
+      executed_units_.Schedule(std::move(unit));
       if (!finisher_is_running_) {
         no_finisher_callback();
         // We set the flag here so that not more than one finisher is started.
@@ -429,9 +469,8 @@ class CompilationHelper {
     std::unique_ptr<compiler::WasmCompilationUnit> unit;
     {
       base::LockGuard<base::Mutex> guard(&result_mutex_);
-      if (executed_units_.empty()) return Handle<Code>::null();
-      unit = std::move(executed_units_.front());
-      executed_units_.pop();
+      if (executed_units_.IsEmpty()) return Handle<Code>::null();
+      unit = executed_units_.GetNext();
     }
     *func_index = unit->func_index();
     Handle<Code> result = unit->FinishCompilation(thrower);
