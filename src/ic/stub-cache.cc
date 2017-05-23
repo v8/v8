@@ -41,12 +41,10 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
   if (handler) {
     DCHECK(IC::IsHandler(handler));
     if (handler->IsCode()) {
-      Code* code = Code::cast(handler);
-      Code::Flags expected_flags =
-          Code::ComputeHandlerFlags(stub_cache->ic_kind());
-      Code::Flags flags = code->flags();
-      DCHECK_EQ(expected_flags, flags);
-      DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(code->flags()));
+      Code::Flags code_flags = Code::cast(handler)->flags();
+      Code::Kind ic_code_kind = stub_cache->ic_kind();
+      DCHECK_EQ(ic_code_kind, Code::ExtractExtraICStateFromFlags(code_flags));
+      DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(code_flags));
     }
   }
   return true;
