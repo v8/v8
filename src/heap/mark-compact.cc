@@ -2548,7 +2548,7 @@ class MinorMarkCompactCollector::RootMarkingVisitorSeedOnly
   // Bundling several objects together in items avoids issues with allocating
   // and deallocating items; both are operations that are performed on the main
   // thread.
-  static const int kBufferSize = 32;
+  static const int kBufferSize = 128;
 
   void AddObject(Object* object) {
     buffered_objects_.push_back(object);
@@ -3827,6 +3827,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   for (Page* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = MarkingState::Internal(page).live_bytes();
+    if (live_bytes_on_page == 0 && !page->contains_array_buffers()) continue;
     live_bytes += live_bytes_on_page;
     if (ShouldMovePage(page, live_bytes_on_page)) {
       if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
@@ -3837,7 +3838,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     }
     job.AddPage(page, {marking_state(page)});
   }
-  DCHECK_GE(job.NumberOfPages(), 1);
+  if (job.NumberOfPages() == 0) return;
 
   RecordMigratedSlotVisitor record_visitor(this);
   CreateAndExecuteEvacuationTasks<FullEvacuator>(this, &job, &record_visitor,
@@ -3853,6 +3854,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
 
   for (Page* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = marking_state(page).live_bytes();
+    if (live_bytes_on_page == 0 && !page->contains_array_buffers()) continue;
     live_bytes += live_bytes_on_page;
     if (ShouldMovePage(page, live_bytes_on_page)) {
       if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
@@ -3863,7 +3865,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
     }
     job.AddPage(page, {marking_state(page)});
   }
-  DCHECK_GE(job.NumberOfPages(), 1);
+  if (job.NumberOfPages() == 0) return;
 
   YoungGenerationMigrationObserver observer(heap(),
                                             heap()->mark_compact_collector());

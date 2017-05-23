@@ -455,6 +455,7 @@ class MemoryChunk {
   }
 
   inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
+  bool contains_array_buffers();
 
   template <RememberedSetType type>
   SlotSet* AllocateSlotSet();

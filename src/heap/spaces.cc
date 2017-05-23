@@ -1111,6 +1111,10 @@ bool MemoryAllocator::CommitExecutableMemory(base::VirtualMemory* vm,
 // -----------------------------------------------------------------------------
 // MemoryChunk implementation
 
+bool MemoryChunk::contains_array_buffers() {
+  return local_tracker() != nullptr && !local_tracker()->IsEmpty();
+}
+
 void MemoryChunk::ReleaseAllocatedMemory() {
   if (skip_list_ != nullptr) {
     delete skip_list_;
