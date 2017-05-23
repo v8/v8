@@ -219,6 +219,11 @@ uint32_t SafepointTableBuilder::EncodeExceptPC(const DeoptimizationInfo& info,
 }
 
 void SafepointTableBuilder::RemoveDuplicates() {
+  // If the table contains more than one entry, and all entries are identical
+  // (except for the pc), replace the whole table by a single entry with pc =
+  // kMaxUInt32. This especially compacts the table for wasm code without tagged
+  // pointers and without deoptimization info.
+
   int length = deoptimization_info_.length();
   DCHECK_EQ(length, deopt_index_list_.length());
   DCHECK_EQ(length, indexes_.length());
@@ -226,6 +231,7 @@ void SafepointTableBuilder::RemoveDuplicates() {
 
   if (length < 2) return;
 
+  // Check that all entries (1, length] are identical to entry 0.
   for (int i = 1; i < length; ++i) {
     if (!IsIdenticalExceptForPc(0, i)) return;
   }
@@ -258,6 +264,7 @@ bool SafepointTableBuilder::IsIdenticalExceptForPc(int index1,
   ZoneList<int>* registers1 = registers_[index1];
   ZoneList<int>* registers2 = registers_[index2];
   if (registers1) {
+    if (!registers2) return false;
     if (registers1->length() != registers2->length()) return false;
     for (int i = 0; i < registers1->length(); ++i) {
       if (registers1->at(i) != registers2->at(i)) return false;
