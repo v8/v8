@@ -78,18 +78,19 @@ enum BranchDelaySlot {
 enum LiFlags {
   // If the constant value can be represented in just 16 bits, then
   // optimize the li to use a single instruction, rather than lui/ori/dsll
-  // sequence.
+  // sequence. A number of other optimizations that emits less than
+  // maximum number of instructions exists.
   OPTIMIZE_SIZE = 0,
-  // Always use 6 instructions (lui/ori/dsll sequence), even if the constant
+  // Always use 6 instructions (lui/ori/dsll sequence) for release 2 or 4
+  // instructions for release 6 (lui/ori/dahi/dati), even if the constant
   // could be loaded with just one, so that this value is patchable later.
   CONSTANT_SIZE = 1,
   // For address loads only 4 instruction are required. Used to mark
   // constant load that will be used as address without relocation
   // information. It ensures predictable code size, so specific sites
   // in code are patchable.
-  ADDRESS_LOAD  = 2
+  ADDRESS_LOAD = 2
 };
-
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
@@ -739,7 +740,7 @@ class MacroAssembler: public Assembler {
 
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
-  inline bool LiLower32BitHelper(Register rd, Operand j);
+  inline void LiLower32BitHelper(Register rd, Operand j);
   inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(j), mode);
   }

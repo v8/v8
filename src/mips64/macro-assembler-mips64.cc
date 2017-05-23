@@ -653,9 +653,16 @@ void MacroAssembler::Subu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     subu(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
-      addiu(rd, rs, static_cast<int32_t>(
-                        -rt.imm64_));  // No subiu instr, use addiu(x, y, -imm).
+    DCHECK(is_int32(rt.imm64_));
+    if (is_int16(-rt.imm64_) && !MustUseReg(rt.rmode_)) {
+      addiu(rd, rs,
+            static_cast<int32_t>(
+                -rt.imm64_));  // No subiu instr, use addiu(x, y, -imm).
+    } else if (-rt.imm64_ >> 16 == 0 && !MustUseReg(rt.rmode_)) {
+      // Use load -imm and addu when loading -imm generates one instruction.
+      DCHECK(!rs.is(at));
+      li(at, -rt.imm64_);
+      addu(rd, rs, at);
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -670,10 +677,15 @@ void MacroAssembler::Dsubu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     dsubu(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
+    if (is_int16(-rt.imm64_) && !MustUseReg(rt.rmode_)) {
       daddiu(rd, rs,
              static_cast<int32_t>(
-                 -rt.imm64_));  // No subiu instr, use addiu(x, y, -imm).
+                 -rt.imm64_));  // No dsubiu instr, use daddiu(x, y, -imm).
+    } else if (-rt.imm64_ >> 16 == 0 && !MustUseReg(rt.rmode_)) {
+      // Use load -imm and daddu when loading -imm generates one instruction.
+      DCHECK(!rs.is(at));
+      li(at, -rt.imm64_);
+      daddu(rd, rs, at);
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1698,34 +1710,28 @@ void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
   li(dst, Operand(value), mode);
 }
 
-static inline int64_t ShiftAndFixSignExtension(int64_t imm, int bitnum) {
-  if ((imm >> (bitnum - 1)) & 0x1) {
-    imm = (imm >> bitnum) + 1;
+void MacroAssembler::LiLower32BitHelper(Register rd, Operand j) {
+  if (is_int16(static_cast<int32_t>(j.imm64_))) {
+    daddiu(rd, zero_reg, (j.imm64_ & kImm16Mask));
+  } else if (!(j.imm64_ & kUpper16MaskOf64)) {
+    ori(rd, zero_reg, j.imm64_ & kImm16Mask);
   } else {
-    imm = imm >> bitnum;
+    lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
+    if (j.imm64_ & kImm16Mask) {
+      ori(rd, rd, j.imm64_ & kImm16Mask);
+    }
   }
-  return imm;
 }
 
-bool MacroAssembler::LiLower32BitHelper(Register rd, Operand j) {
-  bool higher_bits_sign_extended = false;
-  if (is_int16(j.imm64_)) {
-    daddiu(rd, zero_reg, (j.imm64_ & kImm16Mask));
-  } else if (!(j.imm64_ & kHiMask)) {
-    ori(rd, zero_reg, (j.imm64_ & kImm16Mask));
-  } else if (!(j.imm64_ & kImm16Mask)) {
-    lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
-    if ((j.imm64_ >> (kLuiShift + 15)) & 0x1) {
-      higher_bits_sign_extended = true;
-    }
-  } else {
-    lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
-    ori(rd, rd, (j.imm64_ & kImm16Mask));
-    if ((j.imm64_ >> (kLuiShift + 15)) & 0x1) {
-      higher_bits_sign_extended = true;
-    }
+static inline int InstrCountForLoadReplicatedConst32(int64_t value) {
+  uint32_t x = static_cast<uint32_t>(value);
+  uint32_t y = static_cast<uint32_t>(value >> 32);
+
+  if (x == y) {
+    return (is_uint16(x) || is_int16(x) || (x & kImm16Mask) == 0) ? 2 : 3;
   }
-  return higher_bits_sign_extended;
+
+  return INT_MAX;
 }
 
 void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
@@ -1736,54 +1742,167 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     if (is_int32(j.imm64_)) {
       LiLower32BitHelper(rd, j);
     } else {
-      if (kArchVariant == kMips64r6) {
-        int64_t imm = j.imm64_;
-        bool higher_bits_sign_extended = LiLower32BitHelper(rd, j);
-        imm = ShiftAndFixSignExtension(imm, 32);
-        // If LUI writes 1s to higher bits, we need both DAHI/DATI.
-        if ((imm & kImm16Mask) ||
-            (higher_bits_sign_extended && (j.imm64_ > 0))) {
-          dahi(rd, imm & kImm16Mask);
-        }
-        imm = ShiftAndFixSignExtension(imm, 16);
-        if ((!is_int48(j.imm64_) && (imm & kImm16Mask)) ||
-            (higher_bits_sign_extended && (j.imm64_ > 0))) {
-          dati(rd, imm & kImm16Mask);
+      int bit31 = j.imm64_ >> 31 & 0x1;
+      int rep32_count = InstrCountForLoadReplicatedConst32(j.imm64_);
+      if ((j.imm64_ & kUpper16MaskOf64) == 0 && is_int16(j.imm64_ >> 32) &&
+          kArchVariant == kMips64r6) {
+        // 64-bit value which consists of an unsigned 16-bit value in its
+        // least significant 32-bits, and a signed 16-bit value in its
+        // most significant 32-bits.
+        ori(rd, zero_reg, j.imm64_ & kImm16Mask);
+        dahi(rd, j.imm64_ >> 32 & kImm16Mask);
+      } else if ((j.imm64_ & (kHigher16MaskOf64 | kUpper16MaskOf64)) == 0 &&
+                 kArchVariant == kMips64r6) {
+        // 64-bit value which consists of an unsigned 16-bit value in its
+        // least significant 48-bits, and a signed 16-bit value in its
+        // most significant 16-bits.
+        ori(rd, zero_reg, j.imm64_ & kImm16Mask);
+        dati(rd, j.imm64_ >> 48 & kImm16Mask);
+      } else if ((j.imm64_ & kImm16Mask) == 0 &&
+                 is_int16((j.imm64_ >> 32) + bit31) &&
+                 kArchVariant == kMips64r6) {
+        // 16 LSBs (Least Significant Bits) all set to zero.
+        // 48 MSBs (Most Significant Bits) hold a signed 32-bit value.
+        lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
+        dahi(rd, (j.imm64_ >> 32) + bit31 & kImm16Mask);
+      } else if ((j.imm64_ & kImm16Mask) == 0 &&
+                 ((j.imm64_ >> 31) & 0x1ffff) ==
+                     ((0x20000 - bit31) & 0x1ffff) &&
+                 kArchVariant == kMips64r6) {
+        // 16 LSBs all set to zero.
+        // 48 MSBs hold a signed value which can't be represented by signed
+        // 32-bit number, and the middle 16 bits are all zero, or all one.
+        lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
+        dati(rd, (j.imm64_ >> 48) + bit31 & kImm16Mask);
+      } else if (is_int16(static_cast<int32_t>(j.imm64_)) &&
+                 is_int16((j.imm64_ >> 32) + bit31) &&
+                 kArchVariant == kMips64r6) {
+        // 32 LSBs contain a signed 16-bit number.
+        // 32 MSBs contain a signed 16-bit number.
+        daddiu(rd, zero_reg, j.imm64_ & kImm16Mask);
+        dahi(rd, (j.imm64_ >> 32) + bit31 & kImm16Mask);
+      } else if (is_int16(static_cast<int32_t>(j.imm64_)) &&
+                 ((j.imm64_ >> 31) & 0x1ffff) ==
+                     ((0x20000 - bit31) & 0x1ffff) &&
+                 kArchVariant == kMips64r6) {
+        // 48 LSBs contain an unsigned 16-bit number.
+        // 16 MSBs contain a signed 16-bit number.
+        daddiu(rd, zero_reg, j.imm64_ & kImm16Mask);
+        dati(rd, (j.imm64_ >> 48) + bit31 & kImm16Mask);
+      } else if (base::bits::IsPowerOfTwo64(j.imm64_ + 1)) {
+        // 64-bit values which have their "n" MSBs set to one, and their
+        // "64-n" LSBs set to zero. "n" must meet the restrictions 0 < n < 64.
+        int shift_cnt = 64 - base::bits::CountTrailingZeros64(j.imm64_ + 1);
+        daddiu(rd, zero_reg, -1);
+        if (shift_cnt < 32) {
+          dsrl(rd, rd, shift_cnt);
+        } else {
+          dsrl32(rd, rd, shift_cnt & 31);
         }
       } else {
-        if (is_int48(j.imm64_)) {
-          if ((j.imm64_ >> 32) & kImm16Mask) {
-            lui(rd, (j.imm64_ >> 32) & kImm16Mask);
-            if ((j.imm64_ >> 16) & kImm16Mask) {
-              ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
-            }
+        int shift_cnt = base::bits::CountTrailingZeros64(j.imm64_);
+        int64_t tmp = j.imm64_ >> shift_cnt;
+        if (is_uint16(tmp)) {
+          // Value can be computed by loading a 16-bit unsigned value, and
+          // then shifting left.
+          ori(rd, zero_reg, tmp & kImm16Mask);
+          if (shift_cnt < 32) {
+            dsll(rd, rd, shift_cnt);
           } else {
-            ori(rd, zero_reg, (j.imm64_ >> 16) & kImm16Mask);
+            dsll32(rd, rd, shift_cnt & 31);
           }
-          dsll(rd, rd, 16);
-          if (j.imm64_ & kImm16Mask) {
-            ori(rd, rd, j.imm64_ & kImm16Mask);
+        } else if (is_int16(tmp)) {
+          // Value can be computed by loading a 16-bit signed value, and
+          // then shifting left.
+          daddiu(rd, zero_reg, static_cast<int32_t>(tmp));
+          if (shift_cnt < 32) {
+            dsll(rd, rd, shift_cnt);
+          } else {
+            dsll32(rd, rd, shift_cnt & 31);
+          }
+        } else if (rep32_count < 3) {
+          // Value being loaded has 32 LSBs equal to the 32 MSBs, and the
+          // value loaded into the 32 LSBs can be loaded with a single
+          // MIPS instruction.
+          LiLower32BitHelper(rd, j);
+          Dins(rd, rd, 32, 32);
+        } else if (is_int32(tmp)) {
+          // Loads with 3 instructions.
+          // Value can be computed by loading a 32-bit signed value, and
+          // then shifting left.
+          lui(rd, tmp >> kLuiShift & kImm16Mask);
+          ori(rd, rd, tmp & kImm16Mask);
+          if (shift_cnt < 32) {
+            dsll(rd, rd, shift_cnt);
+          } else {
+            dsll32(rd, rd, shift_cnt & 31);
           }
         } else {
-          lui(rd, (j.imm64_ >> 48) & kImm16Mask);
-          if ((j.imm64_ >> 32) & kImm16Mask) {
-            ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
-          }
-          if ((j.imm64_ >> 16) & kImm16Mask) {
-            dsll(rd, rd, 16);
-            ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
-            if (j.imm64_ & kImm16Mask) {
-              dsll(rd, rd, 16);
-              ori(rd, rd, j.imm64_ & kImm16Mask);
+          shift_cnt = 16 + base::bits::CountTrailingZeros64(j.imm64_ >> 16);
+          tmp = j.imm64_ >> shift_cnt;
+          if (is_uint16(tmp)) {
+            // Value can be computed by loading a 16-bit unsigned value,
+            // shifting left, and "or"ing in another 16-bit unsigned value.
+            ori(rd, zero_reg, tmp & kImm16Mask);
+            if (shift_cnt < 32) {
+              dsll(rd, rd, shift_cnt);
             } else {
-              dsll(rd, rd, 16);
+              dsll32(rd, rd, shift_cnt & 31);
+            }
+            ori(rd, rd, j.imm64_ & kImm16Mask);
+          } else if (is_int16(tmp)) {
+            // Value can be computed by loading a 16-bit signed value,
+            // shifting left, and "or"ing in a 16-bit unsigned value.
+            daddiu(rd, zero_reg, static_cast<int32_t>(tmp));
+            if (shift_cnt < 32) {
+              dsll(rd, rd, shift_cnt);
+            } else {
+              dsll32(rd, rd, shift_cnt & 31);
+            }
+            ori(rd, rd, j.imm64_ & kImm16Mask);
+          } else if (rep32_count < 4) {
+            // Value being loaded has 32 LSBs equal to the 32 MSBs, and the
+            // value in the 32 LSBs requires 2 MIPS instructions to load.
+            LiLower32BitHelper(rd, j);
+            Dins(rd, rd, 32, 32);
+          } else if (kArchVariant == kMips64r6) {
+            // Loads with 3-4 instructions.
+            // Catch-all case to get any other 64-bit values which aren't
+            // handled by special cases above.
+            int64_t imm = j.imm64_;
+            LiLower32BitHelper(rd, j);
+            imm = (imm >> 32) + bit31;
+            if (imm & kImm16Mask) {
+              dahi(rd, imm & kImm16Mask);
+            }
+            imm = (imm >> 16) + (imm >> 15 & 0x1);
+            if (imm & kImm16Mask) {
+              dati(rd, imm & kImm16Mask);
             }
           } else {
-            if (j.imm64_ & kImm16Mask) {
-              dsll32(rd, rd, 0);
-              ori(rd, rd, j.imm64_ & kImm16Mask);
+            if (is_int48(j.imm64_)) {
+              Operand k = Operand(j.imm64_ >> 16);
+              LiLower32BitHelper(rd, k);
+              dsll(rd, rd, 16);
+              if (j.imm64_ & kImm16Mask) {
+                ori(rd, rd, j.imm64_ & kImm16Mask);
+              }
             } else {
-              dsll32(rd, rd, 0);
+              Operand k = Operand(j.imm64_ >> 32);
+              LiLower32BitHelper(rd, k);
+              if ((j.imm64_ >> 16) & kImm16Mask) {
+                dsll(rd, rd, 16);
+                ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+                dsll(rd, rd, 16);
+                if (j.imm64_ & kImm16Mask) {
+                  ori(rd, rd, j.imm64_ & kImm16Mask);
+                }
+              } else {
+                dsll32(rd, rd, 0);
+                if (j.imm64_ & kImm16Mask) {
+                  ori(rd, rd, j.imm64_ & kImm16Mask);
+                }
+              }
             }
           }
         }
@@ -1802,25 +1921,16 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
     dsll(rd, rd, 16);
     ori(rd, rd, j.imm64_ & kImm16Mask);
-  } else {
+  } else {  // mode == CONSTANT_SIZE - always emit the same instruction
+            // sequence.
     if (kArchVariant == kMips64r6) {
       int64_t imm = j.imm64_;
-      lui(rd, (imm >> kLuiShift) & kImm16Mask);
-      if (imm & kImm16Mask) {
-        ori(rd, rd, (imm & kImm16Mask));
-      }
-      if ((imm >> 31) & 0x1) {
-        imm = (imm >> 32) + 1;
-      } else {
-        imm = imm >> 32;
-      }
-      dahi(rd, imm & kImm16Mask);
-      if ((imm >> 15) & 0x1) {
-        imm = (imm >> 16) + 1;
-      } else {
-        imm = imm >> 16;
-      }
-      dati(rd, imm & kImm16Mask);
+      lui(rd, imm >> kLuiShift & kImm16Mask);
+      ori(rd, rd, (imm & kImm16Mask));
+      imm = (imm >> 32) + ((imm >> 31) & 0x1);
+      dahi(rd, imm & kImm16Mask & kImm16Mask);
+      imm = (imm >> 16) + ((imm >> 15) & 0x1);
+      dati(rd, imm & kImm16Mask & kImm16Mask);
     } else {
       lui(rd, (j.imm64_ >> 48) & kImm16Mask);
       ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
@@ -2653,34 +2763,16 @@ void MacroAssembler::Move(FPURegister dst, double imm) {
     // Move the low part of the double into the lower bits of the corresponding
     // FPU register.
     if (lo != 0) {
-      if (!(lo & kImm16Mask)) {
-        lui(at, (lo >> kLuiShift) & kImm16Mask);
-        mtc1(at, dst);
-      } else if (!(lo & kHiMask)) {
-        ori(at, zero_reg, lo & kImm16Mask);
-        mtc1(at, dst);
-      } else {
-        lui(at, (lo >> kLuiShift) & kImm16Mask);
-        ori(at, at, lo & kImm16Mask);
-        mtc1(at, dst);
-      }
+      li(at, lo);
+      mtc1(at, dst);
     } else {
       mtc1(zero_reg, dst);
     }
     // Move the high part of the double into the high bits of the corresponding
     // FPU register.
     if (hi != 0) {
-      if (!(hi & kImm16Mask)) {
-        lui(at, (hi >> kLuiShift) & kImm16Mask);
-        mthc1(at, dst);
-      } else if (!(hi & kHiMask)) {
-        ori(at, zero_reg, hi & kImm16Mask);
-        mthc1(at, dst);
-      } else {
-        lui(at, (hi >> kLuiShift) & kImm16Mask);
-        ori(at, at, hi & kImm16Mask);
-        mthc1(at, dst);
-      }
+      li(at, hi);
+      mthc1(at, dst);
     } else {
       mthc1(zero_reg, dst);
     }

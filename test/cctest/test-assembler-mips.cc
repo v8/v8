@@ -5555,7 +5555,7 @@ TEST(Subu) {
   // 0 - imm = expected_res
   struct TestCaseSubu tc[] = {
       //    imm, expected_res, num_instr
-      {0xffff8000, 0x00008000, 2},  // min_int16
+      {0xffff8000, 0x8000, 2},  // min_int16
       // Generates ori + addu
       // We can't have just addiu because -min_int16 > max_int16 so use
       // register. We can load min_int16 to at register with addiu and then

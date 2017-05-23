@@ -1406,11 +1406,11 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       addiu(rd, zero_reg, j.imm32_);
     } else if (!(j.imm32_ & kHiMask)) {
       ori(rd, zero_reg, j.imm32_);
-    } else if (!(j.imm32_ & kImm16Mask)) {
-      lui(rd, (j.imm32_ >> kLuiShift) & kImm16Mask);
     } else {
       lui(rd, (j.imm32_ >> kLuiShift) & kImm16Mask);
-      ori(rd, rd, (j.imm32_ & kImm16Mask));
+      if (j.imm32_ & kImm16Mask) {
+        ori(rd, rd, (j.imm32_ & kImm16Mask));
+      }
     }
   } else {
     if (MustUseReg(j.rmode_)) {

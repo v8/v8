@@ -5053,14 +5053,17 @@ TEST(r6_aui_family) {
   }
 }
 
-
-uint64_t run_li_macro(uint64_t rs, LiFlags mode) {
+uint64_t run_li_macro(uint64_t imm, LiFlags mode, int32_t num_instr = 0) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
-  __ li(a0, rs, mode);
-  __ mov(v0, a0);
+  Label code_start;
+  __ bind(&code_start);
+  __ li(v0, imm, mode);
+  if (num_instr > 0) {
+    CHECK_EQ(assm.InstructionsGeneratedSince(&code_start), num_instr);
+  }
   __ jr(ra);
   __ nop();
 
@@ -5068,7 +5071,6 @@ uint64_t run_li_macro(uint64_t rs, LiFlags mode) {
   assm.GetCode(&desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
   uint64_t res = reinterpret_cast<uint64_t>(
@@ -5081,23 +5083,146 @@ uint64_t run_li_macro(uint64_t rs, LiFlags mode) {
 TEST(li_macro) {
   CcTest::InitializeVM();
 
-  uint64_t inputs[] = {
-      0x0000000000000000, 0x000000000000ffff, 0x00000000ffffffff,
-      0x0000ffffffffffff, 0xffffffffffffffff, 0xffff000000000000,
-      0xffffffff00000000, 0xffffffffffff0000, 0xffff0000ffff0000,
-      0x0000ffffffff0000, 0x0000ffff0000ffff, 0x00007fffffffffff,
-      0x7fffffffffffffff, 0x000000007fffffff, 0x00007fff7fffffff,
+  // Test li macro-instruction for border cases.
+
+  struct TestCase_li {
+    uint64_t imm;
+    int32_t r2_num_instr;
+    int32_t r6_num_instr;
   };
 
-  size_t nr_test_cases = sizeof(inputs) / sizeof(inputs[0]);
+  // We call li(v0, imm) to test cases listed below.
+  struct TestCase_li tc[] = {
+      //              imm, r2_num_instr, r6_num_instr
+      {0xffffffffffff8000, 1, 1},  // min_int16
+      // The test case above generates daddiu instruction.
+      // This is int16 value and we can load it using just daddiu.
+      {0x8000, 1, 1},  // max_int16 + 1
+      // Generates ori
+      // max_int16 + 1 is not int16 but is uint16, just use ori.
+      {0xffffffffffff7fff, 2, 2},  // min_int16 - 1
+      // Generates lui + ori
+      // We load int32 value using lui + ori.
+      {0x8001, 1, 1},  // max_int16 + 2
+      // Generates ori
+      // Also an uint16 value, use ori.
+      {0x00010000, 1, 1},  // max_uint16 + 1
+      // Generates lui
+      // Low 16 bits are 0, load value using lui.
+      {0x00010001, 2, 2},  // max_uint16 + 2
+      // Generates lui + ori
+      // We have to generate two instructions in this case.
+      {0x00000000ffffffff, 2, 2},  // max_uint32
+      // r2 - daddiu + dsrl32
+      // r6 - daddiu + dahi
+      {0x00000000fffffffe, 3, 2},  // max_uint32 - 1
+      // r2 - lui + ori + dsll
+      // r6 - daddiu + dahi
+      {0x00ffff000000fffe, 3, 3},
+      // ori + dsll32 + ori
+      {0x00000001fffffffe, 4, 2},  // max_uint32 << 1
+      // r2 - lui + ori + dsll + ori
+      // r6 - daddiu + dahi
+      {0x0000fffffffffffe, 5, 2},  // max_uint48 - 1
+      // r2 - ori + dsll + ori + dsll + ori
+      // r6 - daddiu + dati
+      {0xffffffff00000000, 2, 2},  // max_uint32 << 32
+      // r2 - daddiu + dsll32
+      // r6 - ori + dahi
+      // We need ori to clear register before loading value using dahi.
+      {0xffffffff80000000, 1, 1},  // min_int32
+      // The test case above generates lui instruction.
+      {0x0000000080000000, 2, 2},  // max_int32 + 1
+      // r2 - ori + dsll
+      // r6 - lui + dahi
+      {0x0000800000000000, 2, 2},
+      // ori + dsll32
+      {0xffff800000000000, 2, 2},
+      // r2 - daddiu + dsll32
+      // r6 - ori + dahi
+      {0xffff80000000ffff, 3, 2},
+      // r2 - daddiu + dsll32 + ori
+      // r6 - ori + dahi
+      {0xffffff123000ffff, 3, 3},
+      // daddiu + dsll + ori
+      {0xffff00000000ffff, 3, 2},
+      // r2 - daddiu + dsll32 + ori
+      // r6 - ori + dati
+      {0xffff8000ffff0000, 3, 2},
+      // r2 - lui + ori + dsll
+      // r6 - lui + dahi
+      {0x1234ffff80000000, 3, 2},
+      // r2 - lui + ori + dsll
+      // r6 - lui + dati
+      {0x1234ffff80010000, 5, 2},
+      // r2 - lui + ori + dsll + ori + dsll
+      // r6 - lui + dati
+      {0xffff8000ffff8000, 2, 2},
+      // r2 - daddiu + dinsu
+      // r6 - daddiu + dahi
+      {0xffff0000ffff8000, 5, 3},
+      // r2 - lui + dsll + ori + dsll + ori
+      // r6 - daddiu + dahi + dati
+      {0x8000000080000000, 2, 2},
+      // lui + dinsu
+      {0xabcd0000abcd0000, 2, 2},
+      // lui + dinsu
+      {0x8000800080008000, 3, 3},
+      // lui + ori + dinsu
+      {0xabcd1234abcd1234, 3, 3},
+      // The test case above generates lui + ori + dinsu instruction sequence.
+      {0xffff800080008000, 4, 3},
+      // r2 - lui + ori + dsll + ori
+      // r6 - lui + ori + dahi
+      {0xffffabcd, 3, 2},
+      // r2 - ori + dsll + ori
+      // r6 - daddiu + dahi
+      {0x1ffffabcd, 4, 2},
+      // r2 - lui + ori + dsll + ori
+      // r6 - daddiu + dahi
+      {0xffffffffabcd, 5, 2},
+      // r2 - ori + dsll + ori + dsll + ori
+      // r6 - daddiu + dati
+      {0x1ffffffffabcd, 6, 2},
+      // r2 - lui + ori + dsll + ori + dsll + ori
+      // r6 - daddiu + dati
+      {0xffff7fff80010000, 5, 2},
+      // r2 - lui + ori + dsll + ori + dsll
+      // r6 - lui + dahi
+      // Here lui sets high 32 bits to 1 so dahi can be used to get target
+      // value.
+      {0x00007fff7fff0000, 3, 2},
+      // r2 - lui + ori + dsll
+      // r6 - lui + dahi
+      // High 32 bits are not set so dahi can be used to get target value.
+      {0xffff7fff7fff0000, 5, 3},
+      // r2 - lui + ori + dsll + ori + dsll
+      // r6 - lui + dahi + dati
+      // High 32 bits are not set so just dahi can't be used to get target
+      // value.
+      {0x00007fff80010000, 3, 3},
+      // r2 - lui + ori + dsll
+      // r6 - lui + ori + dsll
+      // High 32 bits are set so can't just use lui + dahi to get target value.
+      {0x1234abcd87654321, 6, 4},
+      // The test case above generates:
+      // r2 - lui + ori + dsll + ori + dsll + ori instruction sequence,
+      // r6 - lui + ori + dahi + dati.
+      // Load using full instruction sequence.
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCase_li);
   for (size_t i = 0; i < nr_test_cases; ++i) {
-    uint64_t res = run_li_macro(inputs[i], OPTIMIZE_SIZE);
-    CHECK_EQ(inputs[i], res);
-    res = run_li_macro(inputs[i], CONSTANT_SIZE);
-    CHECK_EQ(inputs[i], res);
-    if (is_int48(inputs[i])) {
-      res = run_li_macro(inputs[i], ADDRESS_LOAD);
-      CHECK_EQ(inputs[i], res);
+    if (kArchVariant == kMips64r2) {
+      CHECK_EQ(tc[i].imm,
+               run_li_macro(tc[i].imm, OPTIMIZE_SIZE, tc[i].r2_num_instr));
+    } else {
+      CHECK_EQ(tc[i].imm,
+               run_li_macro(tc[i].imm, OPTIMIZE_SIZE, tc[i].r6_num_instr));
+    }
+    CHECK_EQ(tc[i].imm, run_li_macro(tc[i].imm, CONSTANT_SIZE));
+    if (is_int48(tc[i].imm)) {
+      CHECK_EQ(tc[i].imm, run_li_macro(tc[i].imm, ADDRESS_LOAD));
     }
   }
 }
@@ -6057,6 +6182,173 @@ TEST(maddf_msubf_d) {
   });
 }
 
+uint64_t run_Subu(uint64_t imm, int32_t num_instr) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  Label code_start;
+  __ bind(&code_start);
+  __ Subu(v0, zero_reg, Operand(imm));
+  CHECK_EQ(assm.InstructionsGeneratedSince(&code_start), num_instr);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Subu) {
+  CcTest::InitializeVM();
+
+  // Test Subu macro-instruction for min_int16 and max_int16 border cases.
+  // For subtracting int16 immediate values we use addiu.
+
+  struct TestCaseSubu {
+    uint64_t imm;
+    uint64_t expected_res;
+    int32_t num_instr;
+  };
+
+  // We call Subu(v0, zero_reg, imm) to test cases listed below.
+  // 0 - imm = expected_res
+  struct TestCaseSubu tc[] = {
+      //        imm, expected_res, num_instr
+      {0xffffffffffff8000, 0x8000, 2},  // min_int16
+      // The test case above generates ori + addu instruction sequence.
+      // We can't have just addiu because -min_int16 > max_int16 so use
+      // register. We can load min_int16 to at register with addiu and then
+      // subtract at with subu, but now we use ori + addu because -min_int16 can
+      // be loaded using ori.
+      {0x8000, 0xffffffffffff8000, 1},  // max_int16 + 1
+      // Generates addiu
+      // max_int16 + 1 is not int16 but -(max_int16 + 1) is, just use addiu.
+      {0xffffffffffff7fff, 0x8001, 2},  // min_int16 - 1
+      // Generates ori + addu
+      // To load this value to at we need two instructions and another one to
+      // subtract, lui + ori + subu. But we can load -value to at using just
+      // ori and then add at register with addu.
+      {0x8001, 0xffffffffffff7fff, 2},  // max_int16 + 2
+      // Generates ori + subu
+      // Not int16 but is uint16, load value to at with ori and subtract with
+      // subu.
+      {0x00010000, 0xffffffffffff0000, 2},
+      // Generates lui + subu
+      // Load value using lui to at and subtract with subu.
+      {0x00010001, 0xfffffffffffeffff, 3},
+      // Generates lui + ori + subu
+      // We have to generate three instructions in this case.
+      {0x7fffffff, 0xffffffff80000001, 3},  // max_int32
+      // Generates lui + ori + subu
+      {0xffffffff80000000, 0xffffffff80000000, 2},  // min_int32
+      // The test case above generates lui + subu intruction sequence.
+      // The result of 0 - min_int32 eqauls max_int32 + 1, which wraps around to
+      // min_int32 again.
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseSubu);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res, run_Subu(tc[i].imm, tc[i].num_instr));
+  }
+}
+
+uint64_t run_Dsubu(uint64_t imm, int32_t num_instr) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  Label code_start;
+  __ bind(&code_start);
+  __ Dsubu(v0, zero_reg, Operand(imm));
+  CHECK_EQ(assm.InstructionsGeneratedSince(&code_start), num_instr);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+TEST(Dsubu) {
+  CcTest::InitializeVM();
+
+  // Test Dsubu macro-instruction for min_int16 and max_int16 border cases.
+  // For subtracting int16 immediate values we use daddiu.
+
+  struct TestCaseDsubu {
+    uint64_t imm;
+    uint64_t expected_res;
+    int32_t num_instr;
+  };
+
+  // We call Dsubu(v0, zero_reg, imm) to test cases listed below.
+  // 0 - imm = expected_res
+  struct TestCaseDsubu tc[] = {
+      //        imm, expected_res, num_instr
+      {0xffffffffffff8000, 0x8000, 2},  // min_int16
+      // The test case above generates ori + daddu instruction sequence.
+      // We can't have just daddiu because -min_int16 > max_int16 so use
+      // register. We can load min_int16 to at register with daddiu and then
+      // subtract at with dsubu, but now we use ori + daddu because -min_int16
+      // can be loaded using ori.
+      {0x8000, 0xffffffffffff8000, 1},  // max_int16 + 1
+      // Generates daddiu
+      // max_int16 + 1 is not int16 but -(max_int16 + 1) is, just use daddiu.
+      {0xffffffffffff7fff, 0x8001, 2},  // min_int16 - 1
+      // Generates ori + daddu
+      // To load this value to at we need two instructions and another one to
+      // subtract, lui + ori + dsubu. But we can load -value to at using just
+      // ori and then dadd at register with daddu.
+      {0x8001, 0xffffffffffff7fff, 2},  // max_int16 + 2
+      // Generates ori + dsubu
+      // Not int16 but is uint16, load value to at with ori and subtract with
+      // dsubu.
+      {0x00010000, 0xffffffffffff0000, 2},
+      // Generates lui + dsubu
+      // Load value using lui to at and subtract with dsubu.
+      {0x00010001, 0xfffffffffffeffff, 3},
+      // Generates lui + ori + dsubu
+      // We have to generate three instructions in this case.
+      {0x7fffffff, 0xffffffff80000001, 3},  // max_int32
+      // Generates lui + ori + dsubu
+      {0xffffffff80000000, 0x0000000080000000, 2},  // min_int32
+      // Generates lui + dsubu
+      // The result of 0 - min_int32 eqauls max_int32 + 1, which fits into a 64
+      // bit register, Dsubu gives a different result here.
+      {0x7fffffffffffffff, 0x8000000000000001, 3},  // max_int64
+      // r2 - Generates daddiu + dsrl + dsubu
+      // r6 - Generates daddiu + dati + dsubu
+      {0x8000000000000000, 0x8000000000000000, 3},  // min_int64
+      // The test case above generates:
+      // r2 - daddiu + dsrl32 + dsubu instruction sequence,
+      // r6 - ori + dati + dsubu.
+      // The result of 0 - min_int64 eqauls max_int64 + 1, which wraps around to
+      // min_int64 again.
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseDsubu);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res, run_Dsubu(tc[i].imm, tc[i].num_instr));
+  }
+}
+
 uint64_t run_Dins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -6098,15 +6390,15 @@ TEST(Dins) {
   // Dins(v0, t0, pos, size) to test cases listed below.
   struct TestCaseDins tc[] = {
       // imm, source, pos, size, expected_res
-      {0x5555555555555555, 0x1ABCDEF01, 31, 1, 0x55555555D5555555},
-      {0x5555555555555555, 0x1ABCDEF02, 30, 2, 0x5555555595555555},
-      {0x201234567, 0x1FABCDEFF, 0, 32, 0x2FABCDEFF},
-      {0x201234567, 0x7FABCDEFF, 31, 2, 0x381234567},
-      {0x800000000, 0x7FABCDEFF, 0, 33, 0x9FABCDEFF},
-      {0x1234, 0xABCDABCDABCDABCD, 0, 64, 0xABCDABCDABCDABCD},
-      {0xABCD, 0xABCEABCF, 32, 1, 0x10000ABCD},
-      {0xABCD, 0xABCEABCF, 63, 1, 0x800000000000ABCD},
-      {0xABCD, 0xABC1ABC2ABC3ABC4, 32, 32, 0xABC3ABC40000ABCD},
+      {0x5555555555555555, 0x1abcdef01, 31, 1, 0x55555555d5555555},
+      {0x5555555555555555, 0x1abcdef02, 30, 2, 0x5555555595555555},
+      {0x201234567, 0x1fabcdeff, 0, 32, 0x2fabcdeff},
+      {0x201234567, 0x7fabcdeff, 31, 2, 0x381234567},
+      {0x800000000, 0x7fabcdeff, 0, 33, 0x9fabcdeff},
+      {0x1234, 0xabcdabcdabcdabcd, 0, 64, 0xabcdabcdabcdabcd},
+      {0xabcd, 0xabceabcf, 32, 1, 0x10000abcd},
+      {0xabcd, 0xabceabcf, 63, 1, 0x800000000000abcd},
+      {0x10000abcd, 0xabc1abc2abc3abc4, 32, 32, 0xabc3abc40000abcd},
   };
 
   size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseDins);
