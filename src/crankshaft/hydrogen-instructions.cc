@@ -3714,7 +3714,13 @@ void HPhi::SimplifyConstantInputs() {
       SetOperandAt(i, operand->BooleanValue() ? graph->GetConstant1()
                                               : graph->GetConstant0());
     } else if (operand->ImmortalImmovable()) {
-      SetOperandAt(i, graph->GetConstant0());
+      if (operand->HasStringValue() &&
+          operand->EqualsUnique(
+              Unique<String>(isolate()->factory()->one_string()))) {
+        SetOperandAt(i, graph->GetConstant1());
+      } else {
+        SetOperandAt(i, graph->GetConstant0());
+      }
     }
   }
   // Overwrite observed input representations because they are likely Tagged.

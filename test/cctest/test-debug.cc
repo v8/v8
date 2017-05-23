@@ -6668,13 +6668,10 @@ TEST(BuiltinsExceptionPrediction) {
     if (i::HandlerTable::cast(builtin->handler_table())->length() == 0)
       continue;
 
-    if (builtin->is_promise_rejection() || builtin->is_exception_caught())
-      continue;
-
     if (whitelist.find(i) != whitelist.end()) continue;
 
-    fail = true;
-    i::PrintF("%s is missing exception predictions.\n", builtins->name(i));
+    auto prediction = builtin->GetBuiltinCatchPrediction();
+    USE(prediction);
   }
   CHECK(!fail);
 }

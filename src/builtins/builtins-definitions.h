@@ -538,6 +538,9 @@ namespace internal {
   TFH(LoadGlobalICInsideTypeofTrampoline, LOAD_GLOBAL_IC, kNoExtraICState,     \
       LoadGlobal)                                                              \
                                                                                \
+  /* Map */                                                                    \
+  TFJ(MapConstructor, 1, kIterable)                                            \
+                                                                               \
   /* Math */                                                                   \
   /* ES6 #sec-math.abs */                                                      \
   TFJ(MathAbs, 1, kX)                                                          \
@@ -1040,6 +1043,8 @@ namespace internal {
   V(ResolvePromise)
 
 #define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseHandleReject)
+
+#define BUILTIN_EXCEPTION_UNCAUGHT_PREDICTION_LIST(V) V(MapConstructor)
 
 #define IGNORE_BUILTIN(...)
 

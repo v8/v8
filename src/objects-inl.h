@@ -4794,6 +4794,26 @@ inline void Code::set_is_exception_caught(bool value) {
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
+inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
+  // An exception is uncaught if both is_promise_rejection and
+  // is_exception_caught bits are set.
+  if (is_promise_rejection() && is_exception_caught()) {
+    return HandlerTable::UNCAUGHT;
+  }
+
+  if (is_promise_rejection()) {
+    return HandlerTable::PROMISE;
+  }
+
+  // This the exception throw in PromiseHandle which doesn't
+  // cause a promise rejection.
+  if (is_exception_caught()) {
+    return HandlerTable::CAUGHT;
+  }
+
+  UNREACHABLE();
+}
+
 bool Code::has_deoptimization_support() {
   DCHECK_EQ(FUNCTION, kind());
   unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);

@@ -341,6 +341,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ForInPrepare)                    \
   V(Call)                            \
   V(MaxSmi)                          \
+  V(NewObject)                       \
+  V(FinalizeInstanceSize)            \
   V(HasInPrototypeChain)
 
 #define CASE(Name)       \
@@ -525,6 +527,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kDatePrototypeToJson:
     case Builtins::kDatePrototypeToPrimitive:
     case Builtins::kDatePrototypeValueOf:
+    // Map builtins.
+    case Builtins::kMapConstructor:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:

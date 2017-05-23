@@ -3892,14 +3892,16 @@ class Code: public HeapObject {
   inline bool deopt_already_counted();
   inline void set_deopt_already_counted(bool flag);
 
-  // [is_promise_rejection]: For kind BUILTIN tells whether the exception
-  // thrown by the code will lead to promise rejection.
-  inline bool is_promise_rejection();
+  // [is_promise_rejection]: For kind BUILTIN tells whether the
+  // exception thrown by the code will lead to promise rejection or
+  // uncaught if both this and is_exception_caught is set.
+  // Use GetBuiltinCatchPrediction to access this.
   inline void set_is_promise_rejection(bool flag);
 
-  // [is_exception_caught]: For kind BUILTIN tells whether the exception
-  // thrown by the code will be caught internally.
-  inline bool is_exception_caught();
+  // [is_exception_caught]: For kind BUILTIN tells whether the
+  // exception thrown by the code will be caught internally or
+  // uncaught if both this and is_promise_rejection is set.
+  // Use GetBuiltinCatchPrediction to access this.
   inline void set_is_exception_caught(bool flag);
 
   // [constant_pool]: The constant pool for this function.
@@ -4080,6 +4082,7 @@ class Code: public HeapObject {
   void PrintDeoptLocation(FILE* out, Address pc);
   bool CanDeoptAt(Address pc);
 
+  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction();
 #ifdef VERIFY_HEAP
   void VerifyEmbeddedObjectsDependency();
 #endif
@@ -4230,6 +4233,9 @@ class Code: public HeapObject {
 
   // Code aging -- platform-specific
   static void PatchPlatformCodeAge(Isolate* isolate, byte* sequence, Age age);
+
+  bool is_promise_rejection();
+  bool is_exception_caught();
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
 };

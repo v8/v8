@@ -125,6 +125,7 @@
   V(object_string, "object")                                       \
   V(Object_string, "Object")                                       \
   V(ok, "ok")                                                      \
+  V(one_string, "1")                                               \
   V(ownKeys_string, "ownKeys")                                     \
   V(position_string, "position")                                   \
   V(preventExtensions_string, "preventExtensions")                 \
@@ -190,7 +191,8 @@
   V(weekday_string, "weekday")                                     \
   V(will_handle_string, "willHandle")                              \
   V(writable_string, "writable")                                   \
-  V(year_string, "year")
+  V(year_string, "year")                                           \
+  V(zero_string, "0")
 
 #define PRIVATE_SYMBOL_LIST(V)              \
   V(array_iteration_kind_symbol)            \

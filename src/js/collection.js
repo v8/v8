@@ -275,29 +275,6 @@ utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
 // -------------------------------------------------------------------
 // Harmony Map
 
-function MapConstructor(iterable) {
-  if (IS_UNDEFINED(new.target)) {
-    throw %make_type_error(kConstructorNotFunction, "Map");
-  }
-
-  %_MapInitialize(this);
-
-  if (!IS_NULL_OR_UNDEFINED(iterable)) {
-    var adder = this.set;
-    if (!IS_CALLABLE(adder)) {
-      throw %make_type_error(kPropertyNotFunction, adder, 'set', this);
-    }
-
-    for (var nextItem of iterable) {
-      if (!IS_RECEIVER(nextItem)) {
-        throw %make_type_error(kIteratorValueNotAnObject, nextItem);
-      }
-      %_Call(adder, this, nextItem[0], nextItem[1]);
-    }
-  }
-}
-
-
 function MapGet(key) {
   if (!IS_MAP(this)) {
     throw %make_type_error(kIncompatibleMethodReceiver,
@@ -431,13 +408,6 @@ function MapForEach(f, receiver) {
 }
 
 // -------------------------------------------------------------------
-
-%SetCode(GlobalMap, MapConstructor);
-%FunctionSetLength(GlobalMap, 0);
-%FunctionSetPrototype(GlobalMap, new GlobalObject());
-%AddNamedProperty(GlobalMap.prototype, "constructor", GlobalMap, DONT_ENUM);
-%AddNamedProperty(
-    GlobalMap.prototype, toStringTagSymbol, "Map", DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(MapForEach, 1);
 
