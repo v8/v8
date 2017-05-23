@@ -88,9 +88,9 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   if (args[1]->IsJSReceiver()) {
     stdlib = args.at<JSReceiver>(1);
   }
-  Handle<JSObject> foreign;
-  if (args[2]->IsJSObject()) {
-    foreign = args.at<JSObject>(2);
+  Handle<JSReceiver> foreign;
+  if (args[2]->IsJSReceiver()) {
+    foreign = args.at<JSReceiver>(2);
   }
   Handle<JSArrayBuffer> memory;
   if (args[3]->IsJSArrayBuffer()) {

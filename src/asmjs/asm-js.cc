@@ -286,16 +286,6 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     }
   }
 
-  // Create the ffi object for foreign functions {"": foreign}.
-  Handle<JSObject> ffi_object;
-  if (!foreign.is_null()) {
-    Handle<JSFunction> object_function = Handle<JSFunction>(
-        isolate->native_context()->object_function(), isolate);
-    ffi_object = isolate->factory()->NewJSObject(object_function);
-    JSObject::AddProperty(ffi_object, isolate->factory()->empty_string(),
-                          foreign, NONE);
-  }
-
   // Check that a valid heap buffer is provided if required.
   if (stdlib_use_of_typed_array_present) {
     if (memory.is_null()) {
@@ -313,8 +303,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   wasm::ErrorThrower thrower(isolate, "AsmJs::Instantiate");
   MaybeHandle<Object> maybe_module_object =
-      wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
+      wasm::SyncInstantiate(isolate, &thrower, module, foreign, memory);
   if (maybe_module_object.is_null()) {
+    DCHECK(!isolate->has_pending_exception());
     thrower.Reset();  // Ensure exceptions do not propagate.
     ReportInstantiationFailure(script, position, "Internal wasm failure");
     return MaybeHandle<Object>();

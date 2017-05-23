@@ -1620,6 +1620,44 @@ class InstantiationHelper {
     return result;
   }
 
+  // Look up an import value in the {ffi_} object specifically for linking an
+  // asm.js module. This only performs non-observable lookups, which allows
+  // falling back to JavaScript proper (and hence re-executing all lookups) if
+  // module instantiation fails.
+  MaybeHandle<Object> LookupImportAsm(uint32_t index,
+                                      Handle<String> import_name) {
+    // Check that a foreign function interface object was provided.
+    if (ffi_.is_null()) {
+      return ReportLinkError("missing imports object", index, import_name);
+    }
+
+    // Perform lookup of the given {import_name} without causing any observable
+    // side-effect. We only accept accesses that resolve to data properties,
+    // which is indicated by the asm.js spec in section 7 ("Linking") as well.
+    Handle<Object> result;
+    LookupIterator it =
+        LookupIterator::PropertyOrElement(isolate_, ffi_, import_name);
+    switch (it.state()) {
+      case LookupIterator::ACCESS_CHECK:
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::JSPROXY:
+      case LookupIterator::ACCESSOR:
+      case LookupIterator::TRANSITION:
+        return ReportLinkError("not a data property", index, import_name);
+      case LookupIterator::NOT_FOUND:
+        // Accepting missing properties as undefined does not cause any
+        // observable difference from JavaScript semantics, we are lenient.
+        result = isolate_->factory()->undefined_value();
+        break;
+      case LookupIterator::DATA:
+        result = it.GetDataValue();
+        break;
+    }
+
+    return result;
+  }
+
   uint32_t EvalUint32InitExpr(const WasmInitExpr& expr) {
     switch (expr.kind) {
       case WasmInitExpr::kI32Const:
@@ -1704,7 +1742,8 @@ class InstantiationHelper {
       if (!maybe_import_name.ToHandle(&import_name)) return -1;
 
       MaybeHandle<Object> result =
-          LookupImport(index, module_name, import_name);
+          module_->is_asm_js() ? LookupImportAsm(index, import_name)
+                               : LookupImport(index, module_name, import_name);
       if (thrower_->error()) return -1;
       Handle<Object> value = result.ToHandleChecked();
 
