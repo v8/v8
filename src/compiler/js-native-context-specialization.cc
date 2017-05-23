@@ -745,17 +745,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     return NoChange();
   }
 
-  // TODO(turbofan): Add support for inlining into try blocks.
-  bool is_exceptional = NodeProperties::IsExceptionalCall(node);
-  for (const auto& access_info : access_infos) {
-    if (access_info.IsAccessorConstant()) {
-      // Accessor in try-blocks are not supported yet.
-      if (is_exceptional || !(flags() & kAccessorInliningEnabled)) {
-        return NoChange();
-      }
-    }
-  }
-
   // Nothing to do if we have no non-deprecated maps.
   if (access_infos.empty()) {
     return ReduceSoftDeoptimize(
@@ -767,6 +756,14 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), index,
                                    jsgraph()->HeapConstant(name));
     effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+  }
+
+  // Collect call nodes to rewire exception edges.
+  ZoneVector<Node*> if_exception_nodes(zone());
+  ZoneVector<Node*>* if_exceptions = nullptr;
+  Node* if_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
+    if_exceptions = &if_exception_nodes;
   }
 
   // Check for the monomorphic cases.
@@ -791,7 +788,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Generate the actual property access.
     ValueEffectControl continuation = BuildPropertyAccess(
         receiver, value, context, frame_state, effect, control, name,
-        access_info, access_mode, language_mode);
+        if_exceptions, access_info, access_mode, language_mode);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -894,9 +891,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       }
 
       // Generate the actual property access.
-      ValueEffectControl continuation = BuildPropertyAccess(
-          this_receiver, this_value, context, frame_state, this_effect,
-          this_control, name, access_info, access_mode, language_mode);
+      ValueEffectControl continuation =
+          BuildPropertyAccess(this_receiver, this_value, context, frame_state,
+                              this_effect, this_control, name, if_exceptions,
+                              access_info, access_mode, language_mode);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -924,6 +922,24 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                 control_count + 1, &effects.front());
     }
   }
+
+  // Properly rewire IfException edges if {node} is inside a try-block.
+  if (!if_exception_nodes.empty()) {
+    DCHECK_NOT_NULL(if_exception);
+    DCHECK_EQ(if_exceptions, &if_exception_nodes);
+    int const if_exception_count = static_cast<int>(if_exceptions->size());
+    Node* merge = graph()->NewNode(common()->Merge(if_exception_count),
+                                   if_exception_count, &if_exceptions->front());
+    if_exceptions->push_back(merge);
+    Node* ephi =
+        graph()->NewNode(common()->EffectPhi(if_exception_count),
+                         if_exception_count + 1, &if_exceptions->front());
+    Node* phi = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, if_exception_count),
+        if_exception_count + 1, &if_exceptions->front());
+    ReplaceWithValue(if_exception, phi, ephi, merge);
+  }
+
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
@@ -1453,8 +1469,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyAccess(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
-    Node* control, Handle<Name> name, PropertyAccessInfo const& access_info,
-    AccessMode access_mode, LanguageMode language_mode) {
+    Node* control, Handle<Name> name, ZoneVector<Node*>* if_exceptions,
+    PropertyAccessInfo const& access_info, AccessMode access_mode,
+    LanguageMode language_mode) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
@@ -1477,7 +1494,6 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     }
     value = constant_value;
   } else if (access_info.IsAccessorConstant()) {
-    // TODO(bmeurer): Properly rewire the IfException edge here if there's any.
     Node* target = jsgraph()->Constant(access_info.constant());
     FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
     Handle<SharedFunctionInfo> shared_info =
@@ -1518,7 +1534,6 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         }
         break;
       }
-      case AccessMode::kStoreInLiteral:
       case AccessMode::kStore: {
         // We need a FrameState for the setter stub to restore the correct
         // context and return the appropriate value to fullcodegen.
@@ -1554,6 +1569,19 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         }
         break;
       }
+      case AccessMode::kStoreInLiteral: {
+        UNREACHABLE();
+        break;
+      }
+    }
+    // Remember to rewire the IfException edge if this is inside a try-block.
+    if (if_exceptions != nullptr) {
+      // Create the appropriate IfException/IfSuccess projections.
+      Node* const if_exception =
+          graph()->NewNode(common()->IfException(), control, effect);
+      Node* const if_success = graph()->NewNode(common()->IfSuccess(), control);
+      if_exceptions->push_back(if_exception);
+      control = if_success;
     }
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
@@ -1873,7 +1901,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   // Generate the actual property access.
   ValueEffectControl continuation = BuildPropertyAccess(
       receiver, value, context, frame_state_lazy, effect, control, cached_name,
-      access_info, AccessMode::kStoreInLiteral, LanguageMode::SLOPPY);
+      nullptr, access_info, AccessMode::kStoreInLiteral, LanguageMode::SLOPPY);
   value = continuation.value();
   effect = continuation.effect();
   control = continuation.control();
