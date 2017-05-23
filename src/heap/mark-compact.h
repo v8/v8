@@ -313,12 +313,10 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 
   inline WorkStealingMarkingDeque* marking_deque() { return marking_deque_; }
 
-  inline YoungGenerationMarkingVisitor* marking_visitor(int index) {
-    DCHECK_LT(index, kNumMarkers);
-    return marking_visitor_[index];
+  inline YoungGenerationMarkingVisitor* main_marking_visitor() {
+    return main_marking_visitor_;
   }
 
-  SlotCallbackResult CheckAndMarkObject(Heap* heap, Address slot_address);
   void MarkLiveObjects() override;
   void MarkRootSetInParallel();
   void ProcessMarkingDeque() override;
@@ -334,7 +332,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   int NumberOfMarkingTasks();
 
   WorkStealingMarkingDeque* marking_deque_;
-  YoungGenerationMarkingVisitor* marking_visitor_[kNumMarkers];
+  YoungGenerationMarkingVisitor* main_marking_visitor_;
   base::Semaphore page_parallel_job_semaphore_;
   List<Page*> new_space_evacuation_pages_;
   std::vector<Page*> sweep_to_iterate_pages_;
