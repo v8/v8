@@ -874,38 +874,11 @@ ResourceConstraints::ResourceConstraints()
 
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit) {
-#if V8_OS_ANDROID
-  // Android has higher physical memory requirements before raising the maximum
-  // heap size limits since it has no swap space.
-  const uint64_t low_limit = 512ul * i::MB;
-  const uint64_t medium_limit = 1ul * i::GB;
-  const uint64_t high_limit = 2ul * i::GB;
-#else
-  const uint64_t low_limit = 512ul * i::MB;
-  const uint64_t medium_limit = 768ul * i::MB;
-  const uint64_t high_limit = 1ul  * i::GB;
-#endif
-
-  if (physical_memory <= low_limit) {
-    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeLowMemoryDevice);
-    set_max_old_space_size(i::Heap::kMaxOldSpaceSizeLowMemoryDevice);
-    set_max_zone_pool_size(i::AccountingAllocator::kMaxPoolSizeLowMemoryDevice);
-  } else if (physical_memory <= medium_limit) {
-    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeMediumMemoryDevice);
-    set_max_old_space_size(i::Heap::kMaxOldSpaceSizeMediumMemoryDevice);
-    set_max_zone_pool_size(
-        i::AccountingAllocator::kMaxPoolSizeMediumMemoryDevice);
-  } else if (physical_memory <= high_limit) {
-    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeHighMemoryDevice);
-    set_max_old_space_size(i::Heap::kMaxOldSpaceSizeHighMemoryDevice);
-    set_max_zone_pool_size(
-        i::AccountingAllocator::kMaxPoolSizeHighMemoryDevice);
-  } else {
-    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeHugeMemoryDevice);
-    set_max_old_space_size(i::Heap::kMaxOldSpaceSizeHugeMemoryDevice);
-    set_max_zone_pool_size(
-        i::AccountingAllocator::kMaxPoolSizeHugeMemoryDevice);
-  }
+  set_max_semi_space_size(
+      static_cast<int>(i::Heap::ComputeMaxSemiSpaceSize(physical_memory)));
+  set_max_old_space_size(
+      static_cast<int>(i::Heap::ComputeMaxOldGenerationSize(physical_memory)));
+  set_max_zone_pool_size(i::AccountingAllocator::kMaxPoolSize);
 
   if (virtual_memory_limit > 0 && i::kRequiresCodeRange) {
     // Reserve no more than 1/8 of the memory for the code range, but at most
@@ -915,7 +888,6 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                static_cast<size_t>((virtual_memory_limit >> 3) / i::MB)));
   }
 }
-
 
 void SetResourceConstraints(i::Isolate* isolate,
                             const ResourceConstraints& constraints) {

@@ -620,18 +620,13 @@ class Heap {
 #endif
 
   // The new space size has to be a power of 2. Sizes are in MB.
-  static const int kMaxSemiSpaceSizeLowMemoryDevice = 1 * kPointerMultiplier;
-  static const int kMaxSemiSpaceSizeMediumMemoryDevice = 4 * kPointerMultiplier;
-  static const int kMaxSemiSpaceSizeHighMemoryDevice = 8 * kPointerMultiplier;
-  static const int kMaxSemiSpaceSizeHugeMemoryDevice = 8 * kPointerMultiplier;
+  static const int kMinSemiSpaceSize = 1 * kPointerMultiplier;
+  static const int kMaxSemiSpaceSize = 8 * kPointerMultiplier;
 
   // The old space size has to be a multiple of Page::kPageSize.
   // Sizes are in MB.
-  static const int kMaxOldSpaceSizeLowMemoryDevice = 128 * kPointerMultiplier;
-  static const int kMaxOldSpaceSizeMediumMemoryDevice =
-      256 * kPointerMultiplier;
-  static const int kMaxOldSpaceSizeHighMemoryDevice = 512 * kPointerMultiplier;
-  static const int kMaxOldSpaceSizeHugeMemoryDevice = 1024 * kPointerMultiplier;
+  static const int kMinOldSpaceSize = 128 * kPointerMultiplier;
+  static const int kMaxOldSpaceSize = 1024 * kPointerMultiplier;
 
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
@@ -955,10 +950,12 @@ class Heap {
   bool ShouldOptimizeForMemoryUsage();
 
   bool IsLowMemoryDevice() {
+    const int kMaxOldSpaceSizeLowMemoryDevice = 128 * kPointerMultiplier;
     return max_old_generation_size_ <= kMaxOldSpaceSizeLowMemoryDevice;
   }
 
   bool IsMemoryConstrainedDevice() {
+    const int kMaxOldSpaceSizeMediumMemoryDevice = 256 * kPointerMultiplier;
     return max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice;
   }
 
@@ -1348,6 +1345,27 @@ class Heap {
   size_t MaxSemiSpaceSize() { return max_semi_space_size_; }
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   size_t MaxOldGenerationSize() { return max_old_generation_size_; }
+
+  static size_t ComputeMaxOldGenerationSize(uint64_t physical_memory) {
+    const int old_space_physical_memory_factor = 4;
+    int computed_size =
+        static_cast<int>(physical_memory / i::MB /
+                         old_space_physical_memory_factor * kPointerMultiplier);
+    return Max(Min(computed_size, kMaxOldSpaceSize), kMinOldSpaceSize);
+  }
+
+  static size_t ComputeMaxSemiSpaceSize(uint64_t physical_memory) {
+    const uint64_t min_physical_memory = 512 * MB;
+    const uint64_t max_physical_memory = 2 * static_cast<uint64_t>(GB);
+
+    uint64_t capped_physical_memory =
+        Max(Min(physical_memory, max_physical_memory), min_physical_memory);
+    // linearly scale max semi-space size: (X-A)/(B-A)*(D-C)+C
+    return static_cast<int>(((capped_physical_memory - min_physical_memory) *
+                             (kMaxSemiSpaceSize - kMinSemiSpaceSize)) /
+                                (max_physical_memory - min_physical_memory) +
+                            kMinSemiSpaceSize);
+  }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
