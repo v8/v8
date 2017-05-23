@@ -338,6 +338,12 @@ using v8::MemoryPressureLevel;
   V(WithContextMap)                     \
   PRIVATE_SYMBOL_LIST(V)
 
+#define FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(heap, array, start, length) \
+  do {                                                                 \
+    heap->RecordFixedArrayElements(array, start, length);              \
+    heap->incremental_marking()->IterateBlackObject(array);            \
+  } while (false)
+
 // Forward declarations.
 class AllocationObserver;
 class ArrayBufferTracker;

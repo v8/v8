@@ -17,6 +17,7 @@
 #include "src/flags.h"
 #include "src/frames.h"
 #include "src/globals.h"
+#include "src/objects/debug-objects.h"
 #include "src/runtime/runtime.h"
 #include "src/source-position-table.h"
 #include "src/string-stream.h"
@@ -177,10 +178,7 @@ class CodeBreakIterator : public BreakIterator {
 
   void SkipToPosition(int position, BreakPositionAlignment alignment);
 
-  int code_offset() override {
-    return static_cast<int>(rinfo()->pc() -
-                            debug_info_->DebugCode()->instruction_start());
-  }
+  int code_offset() override;
 
  private:
   int GetModeMask();

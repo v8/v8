@@ -5181,7 +5181,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // The function is subject to debugging if a debug info is attached.
   inline bool HasDebugInfo() const;
-  inline DebugInfo* GetDebugInfo() const;
+  DebugInfo* GetDebugInfo() const;
 
   // A function has debug code if the compiled code has debug break slots.
   inline bool HasDebugCode() const;
@@ -5192,8 +5192,8 @@ class SharedFunctionInfo: public HeapObject {
   // Bit field containing various information collected for debugging.
   // This field is either stored on the kDebugInfo slot or inside the
   // debug info struct.
-  inline int debugger_hints() const;
-  inline void set_debugger_hints(int value);
+  int debugger_hints() const;
+  void set_debugger_hints(int value);
 
   // Indicates that the function was created by the Function function.
   // Though it's anonymous, toString should treat it as if it had the name
@@ -9202,102 +9202,6 @@ class ObjectTemplateInfo: public TemplateInfo {
   class IsImmutablePrototype : public BitField<bool, 0, 1> {};
   class EmbedderFieldCount
       : public BitField<int, IsImmutablePrototype::kNext, 29> {};
-};
-
-
-// The DebugInfo class holds additional information for a function being
-// debugged.
-class DebugInfo: public Struct {
- public:
-  // The shared function info for the source being debugged.
-  DECL_ACCESSORS(shared, SharedFunctionInfo)
-
-  // Bit field containing various information collected for debugging.
-  DECL_INT_ACCESSORS(debugger_hints)
-
-  DECL_ACCESSORS(debug_bytecode_array, Object)
-  // Fixed array holding status information for each active break point.
-  DECL_ACCESSORS(break_points, FixedArray)
-
-  // Check if there is a break point at a source position.
-  bool HasBreakPoint(int source_position);
-  // Attempt to clear a break point. Return true if successful.
-  static bool ClearBreakPoint(Handle<DebugInfo> debug_info,
-                              Handle<Object> break_point_object);
-  // Set a break point.
-  static void SetBreakPoint(Handle<DebugInfo> debug_info, int source_position,
-                            Handle<Object> break_point_object);
-  // Get the break point objects for a source position.
-  Handle<Object> GetBreakPointObjects(int source_position);
-  // Find the break point info holding this break point object.
-  static Handle<Object> FindBreakPointInfo(Handle<DebugInfo> debug_info,
-                                           Handle<Object> break_point_object);
-  // Get the number of break points for this function.
-  int GetBreakPointCount();
-
-  inline bool HasDebugBytecodeArray();
-  inline bool HasDebugCode();
-
-  inline BytecodeArray* OriginalBytecodeArray();
-  inline BytecodeArray* DebugBytecodeArray();
-  inline Code* DebugCode();
-
-  DECLARE_CAST(DebugInfo)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(DebugInfo)
-  DECLARE_VERIFIER(DebugInfo)
-
-  static const int kSharedFunctionInfoIndex = Struct::kHeaderSize;
-  static const int kDebuggerHintsIndex =
-      kSharedFunctionInfoIndex + kPointerSize;
-  static const int kDebugBytecodeArrayIndex =
-      kDebuggerHintsIndex + kPointerSize;
-  static const int kBreakPointsStateIndex =
-      kDebugBytecodeArrayIndex + kPointerSize;
-  static const int kSize = kBreakPointsStateIndex + kPointerSize;
-
-  static const int kEstimatedNofBreakPointsInFunction = 4;
-
- private:
-  // Get the break point info object for a source position.
-  Object* GetBreakPointInfo(int source_position);
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(DebugInfo);
-};
-
-
-// The BreakPointInfo class holds information for break points set in a
-// function. The DebugInfo object holds a BreakPointInfo object for each code
-// position with one or more break points.
-class BreakPointInfo : public Tuple2 {
- public:
-  // The position in the source for the break position.
-  DECL_INT_ACCESSORS(source_position)
-  // List of related JavaScript break points.
-  DECL_ACCESSORS(break_point_objects, Object)
-
-  // Removes a break point.
-  static void ClearBreakPoint(Handle<BreakPointInfo> info,
-                              Handle<Object> break_point_object);
-  // Set a break point.
-  static void SetBreakPoint(Handle<BreakPointInfo> info,
-                            Handle<Object> break_point_object);
-  // Check if break point info has this break point object.
-  static bool HasBreakPointObject(Handle<BreakPointInfo> info,
-                                  Handle<Object> break_point_object);
-  // Get the number of break points for this code offset.
-  int GetBreakPointCount();
-
-  int GetStatementPosition(Handle<DebugInfo> debug_info);
-
-  DECLARE_CAST(BreakPointInfo)
-
-  static const int kSourcePositionIndex = kValue1Offset;
-  static const int kBreakPointObjectsIndex = kValue2Offset;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPointInfo);
 };
 
 class StackFrameInfo : public Struct {

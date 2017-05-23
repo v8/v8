@@ -17,8 +17,10 @@
 namespace v8 {
 namespace internal {
 
+class BreakPointInfo;
 class BoilerplateDescription;
 class ConstantElementsPair;
+class DebugInfo;
 
 enum FunctionMode {
   // With prototype.
