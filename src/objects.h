@@ -145,6 +145,7 @@
 //       - DebugInfo
 //       - BreakPointInfo
 //       - StackFrameInfo
+//       - SourcePositionTableWithFrameCache
 //       - CodeCache
 //       - PrototypeInfo
 //       - Module
@@ -712,8 +713,8 @@ enum InstanceType {
   WEAK_CELL_TYPE,
   PROPERTY_CELL_TYPE,
 
-  // All the following types are subtypes of JSReceiver, which corresponds to
-  // objects in the JS sense. The first and the last type in this range are
+  // TODO(yangguo): these padding types are for ABI stability. Remove after
+  // version 6.0 branch, or replace them when there is demand for new types.
   PADDING_TYPE_1,
   PADDING_TYPE_2,
   PADDING_TYPE_3,
@@ -2943,7 +2944,6 @@ class FixedDoubleArray: public FixedArrayBase {
 // JSArgumentsObject:
 // - FAST_SLOPPY_ARGUMENTS_ELEMENTS: FAST_HOLEY_ELEMENTS
 // - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
-// - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
 class SloppyArgumentsElements : public FixedArray {
  public:
   static const int kContextIndex = 0;
@@ -3313,7 +3313,7 @@ class BytecodeArray : public FixedArrayBase {
   DECL_ACCESSORS(handler_table, FixedArray)
 
   // Accessors for source position table containing mappings between byte code
-  // offset and source position.
+  // offset and source position or SourcePositionTableWithFrameCache.
   DECL_ACCESSORS(source_position_table, Object)
 
   inline ByteArray* SourcePositionTable();
@@ -3728,7 +3728,7 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [source_position_table]: ByteArray for the source positions table.
+  // [source_position_table]: ByteArray for the source positions table or
   // SourcePositionTableWithFrameCache.
   DECL_ACCESSORS(source_position_table, Object)
 
@@ -3887,8 +3887,8 @@ class Code: public HeapObject {
   inline bool marked_for_deoptimization();
   inline void set_marked_for_deoptimization(bool flag);
 
-  // [is_promise_rejection]: For kind BUILTIN tells whether the exception
-  // thrown by the code will lead to promise rejection.
+  // [deopt_already_counted]: For kind OPTIMIZED_FUNCTION tells whether
+  // the code was already deoptimized.
   inline bool deopt_already_counted();
   inline void set_deopt_already_counted(bool flag);
 
@@ -5095,7 +5095,7 @@ class SharedFunctionInfo: public HeapObject {
   inline bool is_compiled() const;
 
   // [length]: The function length - usually the number of declared parameters.
-  // Use up to 2^30 parameters.
+  // Use up to 2^30 parameters. The value is only reliable when the function has
   // been compiled.
   inline int GetLength() const;
   inline bool HasLength() const;
