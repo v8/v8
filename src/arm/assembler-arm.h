@@ -1726,6 +1726,9 @@ class Assembler : public AssemblerBase {
   std::vector<ConstantPoolEntry> pending_32_bit_constants_;
   std::vector<ConstantPoolEntry> pending_64_bit_constants_;
 
+  // Map of address of handle to index in pending_32_bit_constants_.
+  std::map<Address, int> handle_to_index_map_;
+
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
@@ -1784,10 +1787,9 @@ class Assembler : public AssemblerBase {
 
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
-  ConstantPoolEntry::Access ConstantPoolAddEntry(int position,
-                                                 RelocInfo::Mode rmode,
-                                                 intptr_t value);
-  ConstantPoolEntry::Access ConstantPoolAddEntry(int position, double value);
+  void ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
+                            intptr_t value);
+  void ConstantPoolAddEntry(int position, double value);
 
   friend class RelocInfo;
   friend class CodePatcher;

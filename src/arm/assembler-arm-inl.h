@@ -400,11 +400,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
 
 
 bool Assembler::is_constant_pool_load(Address pc) {
-  if (CpuFeatures::IsSupported(ARMv7)) {
-    return !Assembler::IsMovW(Memory::int32_at(pc));
-  } else {
-    return !Assembler::IsMovImmed(Memory::int32_at(pc));
-  }
+  return IsLdrPcImmediateOffset(Memory::int32_at(pc));
 }
 
 

@@ -1093,24 +1093,23 @@ static bool fits_shifter(uint32_t imm32,
   return false;
 }
 
+namespace {
 
 // We have to use the temporary register for things that can be relocated even
 // if they can be encoded in the ARM's 12 bits of immediate-offset instruction
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
-bool Operand::must_output_reloc_info(const Assembler* assembler) const {
-  if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
+bool must_output_reloc_info(RelocInfo::Mode rmode, const Assembler* assembler) {
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
     if (assembler != NULL && assembler->predictable_code_size()) return true;
     return assembler->serializer_enabled();
-  } else if (RelocInfo::IsNone(rmode_)) {
+  } else if (RelocInfo::IsNone(rmode)) {
     return false;
   }
   return true;
 }
 
-
-static bool use_mov_immediate_load(const Operand& x,
-                                   const Assembler* assembler) {
+bool use_mov_immediate_load(const Operand& x, const Assembler* assembler) {
   DCHECK(assembler != nullptr);
   if (x.must_output_reloc_info(assembler)) {
     // Prefer constant pool if data is likely to be patched.
@@ -1121,6 +1120,11 @@ static bool use_mov_immediate_load(const Operand& x,
   }
 }
 
+}  // namespace
+
+bool Operand::must_output_reloc_info(const Assembler* assembler) const {
+  return v8::internal::must_output_reloc_info(rmode_, assembler);
+}
 
 int Operand::instructions_required(const Assembler* assembler,
                                    Instr instr) const {
@@ -1134,8 +1138,9 @@ int Operand::instructions_required(const Assembler* assembler,
     // for the constant pool or immediate load
     int instructions;
     if (use_mov_immediate_load(*this, assembler)) {
-      // A movw / movt or mov / orr immediate load.
-      instructions = CpuFeatures::IsSupported(ARMv7) ? 2 : 4;
+      DCHECK(CpuFeatures::IsSupported(ARMv7));
+      // A movw / movt immediate load.
+      instructions = 2;
     } else {
       // A small constant pool load.
       instructions = 1;
@@ -1158,11 +1163,6 @@ int Operand::instructions_required(const Assembler* assembler,
 void Assembler::move_32_bit_immediate(Register rd,
                                       const Operand& x,
                                       Condition cond) {
-  uint32_t imm32 = static_cast<uint32_t>(x.imm32_);
-  if (x.must_output_reloc_info(this)) {
-    RecordRelocInfo(x.rmode_);
-  }
-
   if (use_mov_immediate_load(x, this)) {
     // use_mov_immediate_load should return false when we need to output
     // relocation info, since we prefer the constant pool for values that
@@ -1170,6 +1170,7 @@ void Assembler::move_32_bit_immediate(Register rd,
     DCHECK(!x.must_output_reloc_info(this));
     Register target = rd.code() == pc.code() ? ip : rd;
     if (CpuFeatures::IsSupported(ARMv7)) {
+      uint32_t imm32 = static_cast<uint32_t>(x.imm32_);
       CpuFeatureScope scope(this, ARMv7);
       movw(target, imm32 & 0xffff, cond);
       movt(target, imm32 >> 16, cond);
@@ -1178,10 +1179,7 @@ void Assembler::move_32_bit_immediate(Register rd,
       mov(rd, target, LeaveCC, cond);
     }
   } else {
-    ConstantPoolEntry::Access access =
-        ConstantPoolAddEntry(pc_offset(), x.rmode_, x.imm32_);
-    DCHECK(access == ConstantPoolEntry::REGULAR);
-    USE(access);
+    ConstantPoolAddEntry(pc_offset(), x.rmode_, x.imm32_);
     ldr(rd, MemOperand(pc, 0), cond);
   }
 }
@@ -2725,9 +2723,7 @@ void Assembler::vmov(const DwVfpRegister dst,
     //           The code could also randomize the order of values, though
     //           that's tricky because vldr has a limited reach. Furthermore
     //           it breaks load locality.
-    ConstantPoolEntry::Access access = ConstantPoolAddEntry(pc_offset(), imm);
-    DCHECK(access == ConstantPoolEntry::REGULAR);
-    USE(access);
+    ConstantPoolAddEntry(pc_offset(), imm);
     vldr(dst, MemOperand(pc, 0));
   } else {
     // Synthesise the double from ARM immediates.
@@ -5016,7 +5012,6 @@ void Assembler::emit_code_stub_address(Code* stub) {
   pc_ += sizeof(uint32_t);
 }
 
-
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (RelocInfo::IsNone(rmode) ||
       // Don't record external references unless the heap will be serialized.
@@ -5033,41 +5028,86 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   reloc_info_writer.Write(&rinfo);
 }
 
-
-ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
-                                                          RelocInfo::Mode rmode,
-                                                          intptr_t value) {
+void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
+                                     intptr_t value) {
   DCHECK(rmode != RelocInfo::COMMENT && rmode != RelocInfo::CONST_POOL &&
          rmode != RelocInfo::NONE64);
   bool sharing_ok = RelocInfo::IsNone(rmode) ||
-                    !(serializer_enabled() || rmode < RelocInfo::CELL);
+                    (rmode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE);
   DCHECK(pending_32_bit_constants_.size() < kMaxNumPending32Constants);
   if (pending_32_bit_constants_.empty()) {
     first_const_pool_32_use_ = position;
   }
-  ConstantPoolEntry entry(position, value, sharing_ok);
+  ConstantPoolEntry entry(
+      position, value,
+      sharing_ok || (rmode == RelocInfo::CODE_TARGET && serializer_enabled()));
+
+  bool shared = false;
+  if (sharing_ok) {
+    // Merge the constant, if possible.
+    for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
+      ConstantPoolEntry& current_entry = pending_32_bit_constants_[i];
+      if (!current_entry.sharing_ok()) continue;
+      if (entry.value() == current_entry.value()) {
+        entry.set_merged_index(i);
+        shared = true;
+        break;
+      }
+    }
+  }
+
+  if (rmode == RelocInfo::CODE_TARGET && serializer_enabled()) {
+    // TODO(all): We only do this in the serializer, for now, because
+    // full-codegen relies on RelocInfo for translating PCs between full-codegen
+    // normal and debug code.
+    // Sharing entries here relies on canonicalized handles - without them, we
+    // will miss the optimisation opportunity.
+    Address handle_address = reinterpret_cast<Address>(value);
+    auto existing = handle_to_index_map_.find(handle_address);
+    if (existing != handle_to_index_map_.end()) {
+      int index = existing->second;
+      entry.set_merged_index(index);
+      shared = true;
+    } else {
+      // Keep track of this code handle.
+      handle_to_index_map_[handle_address] =
+          static_cast<int>(pending_32_bit_constants_.size());
+    }
+  }
+
   pending_32_bit_constants_.push_back(entry);
 
   // Make sure the constant pool is not emitted in place of the next
   // instruction for which we just recorded relocation info.
   BlockConstPoolFor(1);
-  return ConstantPoolEntry::REGULAR;
+
+  // Emit relocation info.
+  if (must_output_reloc_info(rmode, this) && !shared) {
+    RecordRelocInfo(rmode);
+  }
 }
 
-
-ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
-                                                          double value) {
+void Assembler::ConstantPoolAddEntry(int position, double value) {
   DCHECK(pending_64_bit_constants_.size() < kMaxNumPending64Constants);
   if (pending_64_bit_constants_.empty()) {
     first_const_pool_64_use_ = position;
   }
   ConstantPoolEntry entry(position, value);
+
+  // Merge the constant, if possible.
+  for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
+    ConstantPoolEntry& current_entry = pending_64_bit_constants_[i];
+    DCHECK(current_entry.sharing_ok());
+    if (entry.value() == current_entry.value()) {
+      entry.set_merged_index(i);
+      break;
+    }
+  }
   pending_64_bit_constants_.push_back(entry);
 
   // Make sure the constant pool is not emitted in place of the next
   // instruction for which we just recorded relocation info.
   BlockConstPoolFor(1);
-  return ConstantPoolEntry::REGULAR;
 }
 
 
@@ -5168,29 +5208,12 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   int size_after_marker = estimated_size_after_marker;
   for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
     ConstantPoolEntry& entry = pending_64_bit_constants_[i];
-    DCHECK(!entry.is_merged());
-    for (size_t j = 0; j < i; j++) {
-      if (entry.value64() == pending_64_bit_constants_[j].value64()) {
-        DCHECK(!pending_64_bit_constants_[j].is_merged());
-        entry.set_merged_index(j);
-        size_after_marker -= kDoubleSize;
-        break;
-      }
-    }
+    if (entry.is_merged()) size_after_marker -= kDoubleSize;
   }
 
   for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
     ConstantPoolEntry& entry = pending_32_bit_constants_[i];
-    DCHECK(!entry.is_merged());
-    if (!entry.sharing_ok()) continue;
-    for (size_t j = 0; j < i; j++) {
-      if (entry.value() == pending_32_bit_constants_[j].value()) {
-        DCHECK(!pending_32_bit_constants_[j].is_merged());
-        entry.set_merged_index(j);
-        size_after_marker -= kPointerSize;
-        break;
-      }
-    }
+    if (entry.is_merged()) size_after_marker -= kPointerSize;
   }
 
   int size = size_up_to_marker + size_after_marker;
@@ -5289,6 +5312,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
     pending_32_bit_constants_.clear();
     pending_64_bit_constants_.clear();
+    handle_to_index_map_.clear();
+
     first_const_pool_32_use_ = -1;
     first_const_pool_64_use_ = -1;
 
