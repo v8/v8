@@ -64,6 +64,8 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
 
   virtual void VerifyPointers(Object** start, Object** end) = 0;
 
+  virtual bool IsMarked(HeapObject* object) = 0;
+
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     VerifyPointers(start, end);
   }
@@ -95,7 +97,7 @@ void MarkingVerifier::VerifyMarkingOnPage(const Page& page,
     // One word fillers at the end of a black area can be grey.
     if (ObjectMarking::IsBlackOrGrey(object, state) &&
         object->map() != heap_->one_pointer_filler_map()) {
-      CHECK(ObjectMarking::IsBlack(object, state));
+      CHECK(IsMarked(object));
       CHECK(current >= next_object_must_be_here_or_later);
       object->Iterate(this);
       next_object_must_be_here_or_later = current + object->Size();
@@ -164,6 +166,10 @@ class FullMarkingVerifier : public MarkingVerifier {
     return MarkingState::Internal(object);
   }
 
+  bool IsMarked(HeapObject* object) override {
+    return ObjectMarking::IsBlack(object, marking_state(object));
+  }
+
   void VerifyPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
@@ -201,6 +207,10 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     return MarkingState::External(object);
   }
 
+  bool IsMarked(HeapObject* object) override {
+    return ObjectMarking::IsGrey(object, marking_state(object));
+  }
+
   void Run() override {
     VerifyRoots(VISIT_ALL_IN_SCAVENGE);
     VerifyMarking(heap_->new_space());
@@ -211,7 +221,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
         if (!heap_->InNewSpace(object)) return;
-        CHECK(ObjectMarking::IsBlackOrGrey(object, marking_state(object)));
+        CHECK(IsMarked(object));
       }
     }
   }
@@ -1340,10 +1350,11 @@ class MinorMarkCompactWeakObjectRetainer : public WeakObjectRetainer {
     HeapObject* heap_object = HeapObject::cast(object);
     if (!collector_.heap()->InNewSpace(heap_object)) return object;
 
-    DCHECK(!ObjectMarking::IsGrey(heap_object,
-                                  collector_.marking_state(heap_object)));
-    if (ObjectMarking::IsBlack(heap_object,
-                               collector_.marking_state(heap_object))) {
+    // Young generation marking only marks to grey instead of black.
+    DCHECK(!ObjectMarking::IsBlack(heap_object,
+                                   collector_.marking_state(heap_object)));
+    if (ObjectMarking::IsGrey(heap_object,
+                              collector_.marking_state(heap_object))) {
       return object;
     }
     return nullptr;
@@ -2164,7 +2175,7 @@ void MarkCompactCollector::RecordObjectStats() {
 }
 
 class YoungGenerationMarkingVisitor final
-    : public HeapVisitor<void, YoungGenerationMarkingVisitor> {
+    : public HeapVisitor<int, YoungGenerationMarkingVisitor> {
  public:
   using BaseClass = HeapVisitor<int, YoungGenerationMarkingVisitor>;
 
@@ -2193,34 +2204,34 @@ class YoungGenerationMarkingVisitor final
 
   // Special cases for young generation. Also see StaticNewSpaceVisitor.
 
-  void VisitJSFunction(Map* map, JSFunction* object) final {
-    if (!ShouldVisit(object)) return;
+  int VisitJSFunction(Map* map, JSFunction* object) final {
+    if (!ShouldVisit(object)) return 0;
     int size = JSFunction::BodyDescriptorWeakCode::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
     JSFunction::BodyDescriptorWeakCode::IterateBody(object, size, this);
-    return;
+    return size;
   }
 
-  void VisitNativeContext(Map* map, Context* object) final {
-    if (!ShouldVisit(object)) return;
+  int VisitNativeContext(Map* map, Context* object) final {
+    if (!ShouldVisit(object)) return 0;
     int size = Context::ScavengeBodyDescriptor::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
     Context::ScavengeBodyDescriptor::IterateBody(object, size, this);
-    return;
+    return size;
   }
 
-  void VisitJSApiObject(Map* map, JSObject* object) final {
+  int VisitJSApiObject(Map* map, JSObject* object) final {
     return VisitJSObject(map, object);
   }
 
-  void VisitBytecodeArray(Map* map, BytecodeArray* object) final {
+  int VisitBytecodeArray(Map* map, BytecodeArray* object) final {
     UNREACHABLE();
-    return;
+    return 0;
   }
 
-  void VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) final {
+  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) final {
     UNREACHABLE();
-    return;
+    return 0;
   }
 
  private:
@@ -2232,8 +2243,8 @@ class YoungGenerationMarkingVisitor final
   }
 
   inline void MarkObjectViaMarkingDeque(HeapObject* object) {
-    if (ObjectMarking::WhiteToBlack<MarkBit::ATOMIC>(object,
-                                                     marking_state(object))) {
+    if (ObjectMarking::WhiteToGrey<MarkBit::ATOMIC>(object,
+                                                    marking_state(object))) {
       // Marking deque overflow is unsupported for the young generation.
       CHECK(marking_deque_.Push(object));
     }
@@ -2246,9 +2257,11 @@ class YoungGenerationMarkingVisitor final
       Object* target = *p;
       if (heap_->InNewSpace(target)) {
         HeapObject* target_object = HeapObject::cast(target);
-        if (ObjectMarking::WhiteToBlack<MarkBit::ATOMIC>(
+        if (ObjectMarking::WhiteToGrey<MarkBit::ATOMIC>(
                 target_object, marking_state(target_object))) {
-          Visit(target_object);
+          const int size = Visit(target_object);
+          marking_state(target_object)
+              .IncrementLiveBytes<MarkBit::ATOMIC>(size);
         }
       }
     }
@@ -2286,7 +2299,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
 
     if (!collector_->heap()->InNewSpace(object)) return;
 
-    if (ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+    if (ObjectMarking::WhiteToGrey<MarkBit::NON_ATOMIC>(
             object, marking_state(object))) {
       collector_->main_marking_visitor()->Visit(object);
       collector_->EmptyMarkingDeque();
@@ -2341,17 +2354,23 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   void MarkObject(Object* object) {
     if (!collector_->heap()->InNewSpace(object)) return;
     HeapObject* heap_object = HeapObject::cast(object);
-    if (ObjectMarking::WhiteToBlack<MarkBit::ATOMIC>(
+    if (ObjectMarking::WhiteToGrey<MarkBit::ATOMIC>(
             heap_object, collector_->marking_state(heap_object))) {
-      visitor_.Visit(heap_object);
+      const int size = visitor_.Visit(heap_object);
+      marking_state(heap_object).IncrementLiveBytes<MarkBit::ATOMIC>(size);
     }
   }
 
  private:
+  MarkingState marking_state(HeapObject* object) {
+    return MarkingState::External(object);
+  }
+
   void EmptyLocalMarkingDeque() {
     HeapObject* object = nullptr;
     while (marking_deque_.Pop(&object)) {
-      visitor_.Visit(object);
+      const int size = visitor_.Visit(object);
+      marking_state(object).IncrementLiveBytes<MarkBit::ATOMIC>(size);
     }
   }
 
@@ -2359,7 +2378,8 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
     HeapObject* object = nullptr;
     while (marking_deque_.WaitForMoreObjects()) {
       while (marking_deque_.Pop(&object)) {
-        visitor_.Visit(object);
+        const int size = visitor_.Visit(object);
+        marking_state(object).IncrementLiveBytes<MarkBit::ATOMIC>(size);
       }
     }
   }
@@ -2536,8 +2556,8 @@ MinorMarkCompactCollector::~MinorMarkCompactCollector() {
 static bool IsUnmarkedObjectForYoungGeneration(Heap* heap, Object** p) {
   DCHECK_IMPLIES(heap->InNewSpace(*p), heap->InToSpace(*p));
   return heap->InNewSpace(*p) &&
-         !ObjectMarking::IsBlack(HeapObject::cast(*p),
-                                 MarkingState::External(HeapObject::cast(*p)));
+         !ObjectMarking::IsGrey(HeapObject::cast(*p),
+                                MarkingState::External(HeapObject::cast(*p)));
 }
 
 void MinorMarkCompactCollector::MarkRootSetInParallel() {
@@ -2622,8 +2642,8 @@ void MinorMarkCompactCollector::EmptyMarkingDeque() {
     DCHECK(heap()->Contains(object));
     DCHECK(!(ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
         object, marking_state(object))));
-    DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(
-        object, marking_state(object))));
+    DCHECK((ObjectMarking::IsGrey<MarkBit::NON_ATOMIC>(object,
+                                                       marking_state(object))));
     main_marking_visitor()->Visit(object);
   }
   DCHECK(local_marking_deque.IsEmpty());
@@ -2678,11 +2698,11 @@ void MinorMarkCompactCollector::MakeIterable(
   MarkCompactCollector* full_collector = heap()->mark_compact_collector();
   Address free_start = p->area_start();
   DCHECK(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
-  LiveObjectIterator<kBlackObjects> it(p, marking_state(p));
+  LiveObjectIterator<kGreyObjects> it(p, marking_state(p));
   HeapObject* object = nullptr;
 
   while ((object = it.Next()) != nullptr) {
-    DCHECK(ObjectMarking::IsBlack(object, marking_state(object)));
+    DCHECK(ObjectMarking::IsGrey(object, marking_state(object)));
     Address free_end = object->address();
     if (free_end != free_start) {
       CHECK_GT(free_end, free_start);
@@ -3660,14 +3680,14 @@ bool YoungGenerationEvacuator::RawEvacuatePage(Page* page,
   *live_bytes = state.live_bytes();
   switch (ComputeEvacuationMode(page)) {
     case kObjectsNewToOld:
-      success = object_visitor.VisitBlackObjects(
+      success = object_visitor.VisitGreyObjectsNoFail(
           page, state, &new_space_visitor_, LiveObjectVisitor::kClearMarkbits);
       DCHECK(success);
       ArrayBufferTracker::ProcessBuffers(
           page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
       break;
     case kPageNewToOld:
-      success = object_visitor.VisitBlackObjects(
+      success = object_visitor.VisitGreyObjectsNoFail(
           page, state, &new_to_old_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
       DCHECK(success);
@@ -3680,7 +3700,7 @@ bool YoungGenerationEvacuator::RawEvacuatePage(Page* page,
                                  ZAP_FREE_SPACE);
       break;
     case kPageNewToNew:
-      success = object_visitor.VisitBlackObjects(
+      success = object_visitor.VisitGreyObjectsNoFail(
           page, state, &new_to_new_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
       DCHECK(success);
@@ -4053,9 +4073,28 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
   return true;
 }
 
+template <class Visitor>
+bool LiveObjectVisitor::VisitGreyObjectsNoFail(MemoryChunk* chunk,
+                                               const MarkingState& state,
+                                               Visitor* visitor,
+                                               IterationMode iteration_mode) {
+  LiveObjectIterator<kGreyObjects> it(chunk, state);
+  HeapObject* object = nullptr;
+  while ((object = it.Next()) != nullptr) {
+    DCHECK(ObjectMarking::IsGrey(object, state));
+    if (!visitor->Visit(object)) {
+      UNREACHABLE();
+    }
+  }
+  if (iteration_mode == kClearMarkbits) {
+    state.ClearLiveness();
+  }
+  return true;
+}
+
 void LiveObjectVisitor::RecomputeLiveBytes(MemoryChunk* chunk,
                                            const MarkingState& state) {
-  LiveObjectIterator<kBlackObjects> it(chunk, state);
+  LiveObjectIterator<kAllLiveObjects> it(chunk, state);
   int new_live_size = 0;
   HeapObject* object = nullptr;
   while ((object = it.Next()) != nullptr) {
@@ -4235,8 +4274,10 @@ class PointerUpdateJobTraits {
       // there is no forwarding information present we need to check the
       // markbits to determine liveness.
       HeapObject* heap_object = reinterpret_cast<HeapObject*>(slot_reference);
-      if (ObjectMarking::IsBlack(heap_object,
-                                 collector->marking_state(heap_object)))
+      // IsBlackOrGrey is required because objects are marked as grey for
+      // the young generation collector while they are black for the full MC.
+      if (ObjectMarking::IsBlackOrGrey(heap_object,
+                                       collector->marking_state(heap_object)))
         return KEEP_SLOT;
     } else {
       DCHECK(!heap->InNewSpace(slot_reference));
@@ -4296,7 +4337,9 @@ class ToSpacePointerUpdateJobTraits {
   static void ProcessPageInParallelVisitLive(Heap* heap, PerTaskData visitor,
                                              MemoryChunk* chunk,
                                              PerPageData page_data) {
-    LiveObjectIterator<kBlackObjects> it(chunk, page_data.marking_state);
+    // For young generation evacuations we want to visit grey objects, for
+    // full MC, we need to visit black objects.
+    LiveObjectIterator<kAllLiveObjects> it(chunk, page_data.marking_state);
     HeapObject* object = NULL;
     while ((object = it.Next()) != NULL) {
       Map* map = object->map();

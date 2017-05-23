@@ -218,6 +218,12 @@ class LiveObjectVisitor BASE_EMBEDDED {
   bool VisitBlackObjects(MemoryChunk* chunk, const MarkingState& state,
                          Visitor* visitor, IterationMode iteration_mode);
 
+  // Visits grey objects on a Memorychunk. Is not allowed to fail visitation
+  // for an object.
+  template <class Visitor>
+  bool VisitGreyObjectsNoFail(MemoryChunk* chunk, const MarkingState& state,
+                              Visitor* visitor, IterationMode iteration_mode);
+
  private:
   void RecomputeLiveBytes(MemoryChunk* chunk, const MarkingState& state);
 };
