@@ -16,14 +16,12 @@ namespace internal {
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Call]] case.
 BUILTIN(SymbolConstructor) {
   HandleScope scope(isolate);
-  Handle<Symbol> result = isolate->factory()->NewSymbol();
   Handle<Object> description = args.atOrUndefined(isolate, 1);
   if (!description->IsUndefined(isolate)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, description,
                                        Object::ToString(isolate, description));
-    result->set_name(*description);
   }
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewSymbol(description));
 }
 
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Construct]] case.

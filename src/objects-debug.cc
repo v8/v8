@@ -275,6 +275,7 @@ void Symbol::SymbolVerify() {
   CHECK(HasHashCode());
   CHECK(Hash() > 0u);
   CHECK(name()->IsUndefined(GetIsolate()) || name()->IsString());
+  CHECK(descriptive_string()->IsString());
 }
 
 

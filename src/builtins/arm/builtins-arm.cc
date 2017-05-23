@@ -294,12 +294,8 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
 
   // 3b. Convert symbol in r0 to a string.
   __ bind(&symbol_descriptive_string);
-  {
-    __ Drop(r2);
-    __ Drop(1);
-    __ Push(r0);
-    __ TailCallRuntime(Runtime::kSymbolDescriptiveString);
-  }
+  __ ldr(r0, FieldMemOperand(r0, Symbol::kDescriptiveStringOffset));
+  // Fall through.
 
   __ bind(&drop_frame_and_ret);
   {

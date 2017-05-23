@@ -16,6 +16,7 @@
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/module-info.h"
 #include "src/objects/scope-info.h"
+#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {
@@ -909,9 +910,38 @@ Handle<Symbol> Factory::NewSymbol() {
       Symbol);
 }
 
+MaybeHandle<Symbol> Factory::NewSymbol(Handle<Object> name) {
+  DCHECK(name->IsString() || name->IsUndefined(isolate()));
+  Handle<Symbol> symbol = NewSymbol();
+  if (name->IsString()) {
+    // Compute the descriptive string for the {symbol}.
+    Handle<String> descriptive_string;
+    IncrementalStringBuilder builder(isolate());
+    builder.AppendCString("Symbol(");
+    builder.AppendString(Handle<String>::cast(name));
+    builder.AppendCharacter(')');
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), descriptive_string, builder.Finish(),
+                               Symbol);
+
+    // Make sure those strings are flattened.
+    name = String::Flatten(Handle<String>::cast(name), TENURED);
+    descriptive_string = String::Flatten(descriptive_string, TENURED);
+
+    symbol->set_name(String::cast(*name));
+    symbol->set_descriptive_string(*descriptive_string);
+  }
+  return symbol;
+}
 
 Handle<Symbol> Factory::NewPrivateSymbol() {
   Handle<Symbol> symbol = NewSymbol();
+  symbol->set_is_private(true);
+  return symbol;
+}
+
+MaybeHandle<Symbol> Factory::NewPrivateSymbol(Handle<Object> name) {
+  Handle<Symbol> symbol;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate(), symbol, NewSymbol(name), Symbol);
   symbol->set_is_private(true);
   return symbol;
 }

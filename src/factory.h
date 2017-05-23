@@ -267,7 +267,9 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Create a symbol.
   Handle<Symbol> NewSymbol();
+  MaybeHandle<Symbol> NewSymbol(Handle<Object> name);
   Handle<Symbol> NewPrivateSymbol();
+  MaybeHandle<Symbol> NewPrivateSymbol(Handle<Object> name);
 
   // Create a promise.
   Handle<JSPromise> NewJSPromise();

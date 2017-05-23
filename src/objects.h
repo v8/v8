@@ -7107,6 +7107,10 @@ class Symbol: public Name {
   // [name]: The print name of a symbol, or undefined if none.
   DECL_ACCESSORS(name, Object)
 
+  // [descriptive_string]: The descriptive string of a symbol.  This is the
+  // value returned from the Symbol.prototype.toString method.
+  DECL_ACCESSORS(descriptive_string, String)
+
   DECL_INT_ACCESSORS(flags)
 
   // [is_private]: Whether this is a private symbol.  Private symbols can only
@@ -7130,7 +7134,8 @@ class Symbol: public Name {
 
   // Layout description.
   static const int kNameOffset = Name::kSize;
-  static const int kFlagsOffset = kNameOffset + kPointerSize;
+  static const int kDescriptiveStringOffset = kNameOffset + kPointerSize;
+  static const int kFlagsOffset = kDescriptiveStringOffset + kPointerSize;
   static const int kSize = kFlagsOffset + kPointerSize;
 
   // Flags layout.

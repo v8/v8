@@ -2728,12 +2728,12 @@ void Heap::CreateInitialObjects() {
 
   {
     HandleScope scope(isolate());
-#define SYMBOL_INIT(name)                                              \
-  {                                                                    \
-    Handle<String> name##d = factory->NewStringFromStaticChars(#name); \
-    Handle<Symbol> symbol(isolate()->factory()->NewPrivateSymbol());   \
-    symbol->set_name(*name##d);                                        \
-    roots_[k##name##RootIndex] = *symbol;                              \
+#define SYMBOL_INIT(name)                                                  \
+  {                                                                        \
+    Handle<String> name##d = factory->NewStringFromStaticChars(#name);     \
+    Handle<Symbol> name =                                                  \
+        isolate()->factory()->NewPrivateSymbol(name##d).ToHandleChecked(); \
+    roots_[k##name##RootIndex] = *name;                                    \
   }
     PRIVATE_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
@@ -2742,18 +2742,16 @@ void Heap::CreateInitialObjects() {
   {
     HandleScope scope(isolate());
 #define SYMBOL_INIT(name, description)                                      \
-  Handle<Symbol> name = factory->NewSymbol();                               \
   Handle<String> name##d = factory->NewStringFromStaticChars(#description); \
-  name->set_name(*name##d);                                                 \
+  Handle<Symbol> name = factory->NewSymbol(name##d).ToHandleChecked();      \
   roots_[k##name##RootIndex] = *name;
     PUBLIC_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
 
 #define SYMBOL_INIT(name, description)                                      \
-  Handle<Symbol> name = factory->NewSymbol();                               \
   Handle<String> name##d = factory->NewStringFromStaticChars(#description); \
+  Handle<Symbol> name = factory->NewSymbol(name##d).ToHandleChecked();      \
   name->set_is_well_known_symbol(true);                                     \
-  name->set_name(*name##d);                                                 \
   roots_[k##name##RootIndex] = *name;
     WELL_KNOWN_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
@@ -4050,6 +4048,7 @@ AllocationResult Heap::AllocateSymbol() {
   Symbol::cast(result)
       ->set_hash_field(Name::kIsNotArrayIndexMask | (hash << Name::kHashShift));
   Symbol::cast(result)->set_name(undefined_value());
+  Symbol::cast(result)->set_descriptive_string(Symbol_parens_string());
   Symbol::cast(result)->set_flags(0);
 
   DCHECK(!Symbol::cast(result)->is_private());

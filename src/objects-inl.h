@@ -3484,6 +3484,7 @@ bool Name::Equals(Handle<Name> one, Handle<Name> two) {
 
 
 ACCESSORS(Symbol, name, Object, kNameOffset)
+ACCESSORS(Symbol, descriptive_string, String, kDescriptiveStringOffset)
 SMI_ACCESSORS(Symbol, flags, kFlagsOffset)
 BOOL_ACCESSORS(Symbol, flags, is_private, kPrivateBit)
 BOOL_ACCESSORS(Symbol, flags, is_well_known_symbol, kWellKnownSymbolBit)

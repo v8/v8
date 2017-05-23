@@ -1987,14 +1987,8 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
 
   // 3b. Convert symbol in rax to a string.
   __ bind(&symbol_descriptive_string);
-  {
-    __ PopReturnAddressTo(rcx);
-    __ SmiToInteger32(r8, r8);
-    __ leap(rsp, Operand(rsp, r8, times_pointer_size, kPointerSize));
-    __ Push(rax);
-    __ PushReturnAddressFrom(rcx);
-    __ TailCallRuntime(Runtime::kSymbolDescriptiveString);
-  }
+  __ movp(rax, FieldOperand(rax, Symbol::kDescriptiveStringOffset));
+  // Fall through.
 
   __ bind(&drop_frame_and_ret);
   {

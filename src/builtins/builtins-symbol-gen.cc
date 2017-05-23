@@ -29,7 +29,7 @@ TF_BUILTIN(SymbolPrototypeToString, CodeStubAssembler) {
 
   Node* value = ToThisValue(context, receiver, PrimitiveType::kSymbol,
                             "Symbol.prototype.toString");
-  Node* result = CallRuntime(Runtime::kSymbolDescriptiveString, context, value);
+  Node* result = LoadObjectField(value, Symbol::kDescriptiveStringOffset);
   Return(result);
 }
 

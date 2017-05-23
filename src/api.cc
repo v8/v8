@@ -8052,8 +8052,14 @@ Local<Symbol> v8::Symbol::New(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, Symbol, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Symbol> result = i_isolate->factory()->NewSymbol();
-  if (!name.IsEmpty()) result->set_name(*Utils::OpenHandle(*name));
+  i::Handle<i::Symbol> result;
+  i::Handle<i::Object> i_name =
+      name.IsEmpty()
+          ? i::Handle<i::Object>::cast(i_isolate->factory()->undefined_value())
+          : i::Handle<i::Object>::cast(Utils::OpenHandle(*name));
+  if (!i_isolate->factory()->NewSymbol(i_name).ToHandle(&result)) {
+    i::FatalProcessOutOfMemory("v8::Symbol::New");
+  }
   return Utils::ToLocal(result);
 }
 
@@ -8100,10 +8106,16 @@ Local<Private> v8::Private::New(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, Private, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewPrivateSymbol();
-  if (!name.IsEmpty()) symbol->set_name(*Utils::OpenHandle(*name));
-  Local<Symbol> result = Utils::ToLocal(symbol);
-  return v8::Local<Private>(reinterpret_cast<Private*>(*result));
+  i::Handle<i::Symbol> result;
+  i::Handle<i::Object> i_name =
+      name.IsEmpty()
+          ? i::Handle<i::Object>::cast(i_isolate->factory()->undefined_value())
+          : i::Handle<i::Object>::cast(Utils::OpenHandle(*name));
+  if (!i_isolate->factory()->NewPrivateSymbol(i_name).ToHandle(&result)) {
+    i::FatalProcessOutOfMemory("v8::Private::New");
+  }
+  return v8::Local<Private>(
+      reinterpret_cast<Private*>(*Utils::ToLocal(result)));
 }
 
 
