@@ -1184,10 +1184,13 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::String());
       break;
+    case IrOpcode::kCheckSeqString:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::SeqString());
+      break;
     case IrOpcode::kCheckSymbol:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Symbol());
-      break;
 
     case IrOpcode::kCheckedInt32Add:
     case IrOpcode::kCheckedInt32Sub:

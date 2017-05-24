@@ -523,6 +523,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(CheckReceiver, 1, 1)                \
   V(CheckSmi, 1, 1)                     \
   V(CheckString, 1, 1)                  \
+  V(CheckSeqString, 1, 1)               \
   V(CheckSymbol, 1, 1)                  \
   V(CheckTaggedHole, 1, 1)              \
   V(CheckedInt32Add, 2, 1)              \

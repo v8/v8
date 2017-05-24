@@ -1838,6 +1838,11 @@ Type* Typer::Visitor::TypeCheckString(Node* node) {
   return Type::Intersect(arg, Type::String(), zone());
 }
 
+Type* Typer::Visitor::TypeCheckSeqString(Node* node) {
+  Type* arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::SeqString(), zone());
+}
+
 Type* Typer::Visitor::TypeCheckSymbol(Node* node) {
   Type* arg = Operand(node, 0);
   return Type::Intersect(arg, Type::Symbol(), zone());

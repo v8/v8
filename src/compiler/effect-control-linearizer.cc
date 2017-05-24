@@ -647,6 +647,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckString:
       result = LowerCheckString(node, frame_state);
       break;
+    case IrOpcode::kCheckSeqString:
+      result = LowerCheckSeqString(node, frame_state);
+      break;
     case IrOpcode::kCheckInternalizedString:
       result = LowerCheckInternalizedString(node, frame_state);
       break;
@@ -1327,6 +1330,27 @@ Node* EffectControlLinearizer::LowerCheckString(Node* node, Node* frame_state) {
   Node* check = __ Uint32LessThan(value_instance_type,
                                   __ Uint32Constant(FIRST_NONSTRING_TYPE));
   __ DeoptimizeUnless(DeoptimizeReason::kWrongInstanceType, check, frame_state);
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckSeqString(Node* node,
+                                                   Node* frame_state) {
+  Node* value = node->InputAt(0);
+
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+
+  Node* is_string = __ Uint32LessThan(value_instance_type,
+                                      __ Uint32Constant(FIRST_NONSTRING_TYPE));
+  Node* is_sequential =
+      __ Word32Equal(__ Word32And(value_instance_type,
+                                  __ Int32Constant(kStringRepresentationMask)),
+                     __ Int32Constant(kSeqStringTag));
+  Node* is_sequential_string = __ Word32And(is_string, is_sequential);
+
+  __ DeoptimizeUnless(DeoptimizeReason::kWrongInstanceType,
+                      is_sequential_string, frame_state);
   return value;
 }
 

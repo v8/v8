@@ -322,6 +322,7 @@
   V(CheckInternalizedString)        \
   V(CheckReceiver)                  \
   V(CheckString)                    \
+  V(CheckSeqString)                 \
   V(CheckSymbol)                    \
   V(CheckSmi)                       \
   V(CheckHeapObject)                \

@@ -2443,6 +2443,17 @@ class RepresentationSelector {
         VisitCheck(node, Type::Symbol(), lowering);
         return;
       }
+      case IrOpcode::kCheckSeqString: {
+        if (InputIs(node, Type::SeqString())) {
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::CheckedHeapObjectAsTaggedPointer(),
+                    MachineRepresentation::kTaggedPointer);
+        }
+        return;
+      }
 
       case IrOpcode::kAllocate: {
         ProcessInput(node, 0, UseInfo::TruncatingWord32());

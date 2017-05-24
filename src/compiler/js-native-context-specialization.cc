@@ -45,10 +45,19 @@ bool HasOnlyNumberMaps(MapHandles const& maps) {
   return true;
 }
 
-template <typename T>
-bool HasOnlyStringMaps(T const& maps) {
+bool HasOnlyStringMaps(MapHandles const& maps) {
   for (auto map : maps) {
     if (!map->IsStringMap()) return false;
+  }
+  return true;
+}
+
+bool HasOnlySequentialStringMaps(MapHandles const& maps) {
+  for (auto map : maps) {
+    if (!map->IsStringMap()) return false;
+    if (!StringShape(map->instance_type()).IsSequential()) {
+      return false;
+    }
   }
   return true;
 }
@@ -770,10 +779,16 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   if (access_infos.size() == 1) {
     PropertyAccessInfo access_info = access_infos.front();
     if (HasOnlyStringMaps(access_info.receiver_maps())) {
-      // Monormorphic string access (ignoring the fact that there are multiple
-      // String maps).
-      receiver = effect = graph()->NewNode(simplified()->CheckString(),
-                                           receiver, effect, control);
+      if (HasOnlySequentialStringMaps(access_info.receiver_maps())) {
+        receiver = effect = graph()->NewNode(simplified()->CheckSeqString(),
+                                             receiver, effect, control);
+      } else {
+        // Monormorphic string access (ignoring the fact that there are multiple
+        // String maps).
+        receiver = effect = graph()->NewNode(simplified()->CheckString(),
+                                             receiver, effect, control);
+      }
+
     } else if (HasOnlyNumberMaps(access_info.receiver_maps())) {
       // Monomorphic number access (we also deal with Smis here).
       receiver = effect = graph()->NewNode(simplified()->CheckNumber(),

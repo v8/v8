@@ -1899,7 +1899,9 @@ Node* GetStringWitness(Node* node) {
   // it's {receiver}, and if so use that renaming as {receiver} for
   // the lowering below.
   for (Node* dominator = effect;;) {
-    if (dominator->opcode() == IrOpcode::kCheckString &&
+    if ((dominator->opcode() == IrOpcode::kCheckString ||
+         dominator->opcode() == IrOpcode::kCheckInternalizedString ||
+         dominator->opcode() == IrOpcode::kCheckSeqString) &&
         NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       return dominator;
     }
