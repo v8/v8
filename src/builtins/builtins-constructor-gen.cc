@@ -53,8 +53,10 @@ Node* ConstructorBuiltinsAssembler::CopyFixedArrayBase(Node* fixed_array) {
     result.Bind(copy);
     Goto(&done);
   }
-
   BIND(&done);
+  // Manually copy over the map of the incoming array to preserve the elements
+  // kind.
+  StoreMap(result.value(), LoadMap(fixed_array));
   return result.value();
 }
 
