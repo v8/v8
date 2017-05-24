@@ -84,7 +84,6 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
   }
 
   Register reg() const { return register_; }
-  bool ShouldPopContext() { return should_pop_context_; }
 
  private:
   const BytecodeArrayBuilder* builder() const { return generator_->builder(); }
@@ -128,6 +127,11 @@ class BytecodeGenerator::ControlScope BASE_EMBEDDED {
   };
   void PerformCommand(Command command, Statement* statement);
   virtual bool Execute(Command command, Statement* statement) = 0;
+
+  // Helper to pop the context chain to a depth expected by this control scope.
+  // Note that it is the responsibility of each individual {Execute} method to
+  // trigger this when commands are handled and control-flow continues locally.
+  void PopContextToExpectedDepth();
 
   BytecodeGenerator* generator() const { return generator_; }
   ControlScope* outer() const { return outer_; }
@@ -306,12 +310,15 @@ class BytecodeGenerator::ControlScopeForTopLevel final
       case CMD_CONTINUE:
         UNREACHABLE();
       case CMD_RETURN:
+        // No need to pop contexts, execution leaves the method body.
         generator()->BuildReturn();
         return true;
       case CMD_ASYNC_RETURN:
+        // No need to pop contexts, execution leaves the method body.
         generator()->BuildAsyncReturn();
         return true;
       case CMD_RETHROW:
+        // No need to pop contexts, execution leaves the method body.
         generator()->BuildReThrow();
         return true;
     }
@@ -335,6 +342,7 @@ class BytecodeGenerator::ControlScopeForBreakable final
     if (statement != statement_) return false;
     switch (command) {
       case CMD_BREAK:
+        PopContextToExpectedDepth();
         control_builder_->Break();
         return true;
       case CMD_CONTINUE:
@@ -371,9 +379,11 @@ class BytecodeGenerator::ControlScopeForIteration final
     if (statement != statement_) return false;
     switch (command) {
       case CMD_BREAK:
+        PopContextToExpectedDepth();
         loop_builder_->Break();
         return true;
       case CMD_CONTINUE:
+        PopContextToExpectedDepth();
         loop_builder_->Continue();
         return true;
       case CMD_RETURN:
@@ -406,6 +416,8 @@ class BytecodeGenerator::ControlScopeForTryCatch final
       case CMD_ASYNC_RETURN:
         break;
       case CMD_RETHROW:
+        // No need to pop contexts, execution re-enters the method body via the
+        // stack unwinding mechanism which itself restores contexts correctly.
         generator()->BuildReThrow();
         return true;
     }
@@ -432,6 +444,7 @@ class BytecodeGenerator::ControlScopeForTryFinally final
       case CMD_RETURN:
       case CMD_ASYNC_RETURN:
       case CMD_RETHROW:
+        PopContextToExpectedDepth();
         commands_->RecordCommand(command, statement);
         try_finally_builder_->LeaveTry();
         return true;
@@ -447,23 +460,21 @@ class BytecodeGenerator::ControlScopeForTryFinally final
 void BytecodeGenerator::ControlScope::PerformCommand(Command command,
                                                      Statement* statement) {
   ControlScope* current = this;
-  ContextScope* context = generator()->execution_context();
-  // Pop context to the expected depth but do not pop the outermost context.
-  if (context != current->context() && context->ShouldPopContext()) {
-    generator()->builder()->PopContext(current->context()->reg());
-  }
   do {
     if (current->Execute(command, statement)) {
       return;
     }
     current = current->outer();
-    if (current->context() != context && context->ShouldPopContext()) {
-      // Pop context to the expected depth.
-      // TODO(rmcilroy): Only emit a single context pop.
-      generator()->builder()->PopContext(current->context()->reg());
-    }
   } while (current != nullptr);
   UNREACHABLE();
+}
+
+void BytecodeGenerator::ControlScope::PopContextToExpectedDepth() {
+  // Pop context to the expected depth. Note that this can in fact pop multiple
+  // contexts at once because the {PopContext} bytecode takes a saved register.
+  if (generator()->execution_context() != context()) {
+    generator()->builder()->PopContext(context()->reg());
+  }
 }
 
 class BytecodeGenerator::RegisterAllocationScope final {

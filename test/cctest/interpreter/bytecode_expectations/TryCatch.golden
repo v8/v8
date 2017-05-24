@@ -11,13 +11,13 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 30
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(1),
   /*   40 S> */ B(LdaSmi), I8(1),
   /*   75 S> */ B(Return),
-                B(Jump), U8(23),
+                B(Jump), U8(21),
                 B(Star), R(2),
                 B(Ldar), R(closure),
                 B(CreateCatchContext), R(2), U8(0), U8(1),
@@ -27,7 +27,6 @@ bytecodes: [
                 B(Ldar), R(1),
                 B(PushContext), R(0),
   /*   63 S> */ B(LdaSmi), I8(2),
-                B(PopContext), R(0),
   /*   75 S> */ B(Return),
                 B(LdaUndefined),
   /*   75 S> */ B(Return),

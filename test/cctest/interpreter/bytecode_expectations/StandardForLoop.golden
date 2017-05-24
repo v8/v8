@@ -448,7 +448,7 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 438
+bytecode array length: 432
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(25),
@@ -547,7 +547,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(6),
                 B(PopContext), R(2),
-                B(Jump), U8(155),
+                B(Jump), U8(149),
                 B(Ldar), R(3),
                 B(SwitchOnSmiNoFeedback), U8(5), U8(1), I8(1),
                 B(LdaSmi), I8(-2),
@@ -560,7 +560,7 @@ bytecodes: [
                 B(Star), R(8),
                 B(LdaSmi), I8(1),
                 B(TestEqual), R(8), U8(6),
-                B(JumpIfFalse), U8(99),
+                B(JumpIfFalse), U8(93),
   /*   18 E> */ B(StackCheck),
   /*   47 S> */ B(LdaImmutableContextSlot), R(1), U8(4), U8(0),
                 B(Star), R(8),
@@ -582,17 +582,14 @@ bytecodes: [
                 B(Star), R(10),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(10),
-                B(JumpIfTrue), U8(36),
+                B(JumpIfTrue), U8(30),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(10),
-                B(JumpIfTrue), U8(27),
+                B(JumpIfTrue), U8(21),
                 B(LdaTrue),
                 B(Star), R(12),
                 B(Mov), R(9), R(11),
                 B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(11), U8(2),
-                B(PopContext), R(2),
-                B(PopContext), R(2),
-                B(PopContext), R(1),
                 B(PopContext), R(1),
                 B(Star), R(6),
                 B(LdaZero),
@@ -604,7 +601,7 @@ bytecodes: [
                 B(StaContextSlot), R(1), U8(7), U8(0),
                 B(LdaCurrentContextSlot), U8(4),
   /*   54 E> */ B(StaContextSlot), R(1), U8(5), U8(0),
-                B(JumpLoop), U8(128), I8(1),
+                B(JumpLoop), U8(122), I8(1),
                 B(LdaContextSlot), R(1), U8(7), U8(0),
                 B(Star), R(8),
                 B(LdaSmi), I8(1),
@@ -613,7 +610,7 @@ bytecodes: [
                 B(PopContext), R(2),
                 B(Jump), U8(7),
                 B(PopContext), R(2),
-                B(JumpLoop), U8(236), I8(0),
+                B(JumpLoop), U8(230), I8(0),
                 B(PopContext), R(1),
                 B(LdaUndefined),
                 B(Star), R(8),
@@ -655,12 +652,12 @@ constant pool: [
   Smi [84],
   FIXED_ARRAY_TYPE,
   Smi [60],
-  Smi [299],
+  Smi [293],
   Smi [6],
   Smi [9],
 ]
 handlers: [
-  [51, 395, 401],
+  [51, 389, 395],
 ]
 
 ---
@@ -672,7 +669,7 @@ snippet: "
 "
 frame size: 12
 parameter count: 1
-bytecode array length: 300
+bytecode array length: 298
 bytecodes: [
                 B(CreateFunctionContext), U8(5),
                 B(PushContext), R(0),
@@ -763,8 +760,8 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaZero),
                 B(Star), R(4),
-                B(Jump), U8(67),
-                B(Jump), U8(53),
+                B(Jump), U8(65),
+                B(Jump), U8(51),
                 B(Star), R(8),
                 B(Ldar), R(closure),
                 B(CreateCatchContext), R(8), U8(3), U8(4),
@@ -783,7 +780,6 @@ bytecodes: [
                 B(Star), R(11),
                 B(CallJSRuntime), U8(%promise_internal_reject), R(8), U8(4),
                 B(LdaContextSlot), R(1), U8(8), U8(0),
-                B(PopContext), R(1),
                 B(PopContext), R(1),
                 B(Star), R(5),
                 B(LdaZero),
@@ -825,7 +821,7 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [17, 254, 260],
+  [17, 252, 258],
   [20, 201, 203],
 ]
 
@@ -838,7 +834,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 480
+bytecode array length: 465
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(25),
@@ -912,7 +908,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(6),
                 B(PopContext), R(2),
-                B(Jump), U8(185),
+                B(Jump), U8(172),
                 B(Ldar), R(3),
                 B(SwitchOnSmiNoFeedback), U8(4), U8(1), I8(0),
                 B(LdaSmi), I8(-2),
@@ -925,7 +921,7 @@ bytecodes: [
                 B(Star), R(9),
                 B(LdaSmi), I8(1),
                 B(TestEqual), R(9), U8(6),
-                B(JumpIfFalse), U8(126),
+                B(JumpIfFalse), U8(116),
   /*   23 E> */ B(StackCheck),
   /*   52 S> */ B(LdaImmutableContextSlot), R(1), U8(4), U8(0),
                 B(Star), R(9),
@@ -954,40 +950,35 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrictNoFeedback), R(11),
-                B(JumpIfTrue), U8(40),
+                B(JumpIfTrue), U8(30),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrictNoFeedback), R(11),
-                B(JumpIfTrue), U8(31),
+                B(JumpIfTrue), U8(21),
                 B(LdaTrue),
                 B(Star), R(13),
                 B(Mov), R(10), R(12),
                 B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(12), U8(2),
-                B(PopContext), R(2),
-                B(PopContext), R(2),
-                B(PopContext), R(1),
-                B(PopContext), R(1),
-                B(PopContext), R(1),
                 B(PopContext), R(1),
                 B(Star), R(6),
                 B(LdaZero),
                 B(Star), R(5),
-                B(Jump), U8(134),
+                B(Jump), U8(129),
                 B(Ldar), R(10),
                 B(ReThrow),
                 B(LdaZero),
                 B(StaContextSlot), R(1), U8(9), U8(0),
                 B(LdaCurrentContextSlot), U8(4),
   /*   59 E> */ B(StaContextSlot), R(1), U8(7), U8(0),
-                B(JumpLoop), U8(155), I8(1),
+                B(JumpLoop), U8(145), I8(1),
                 B(LdaContextSlot), R(1), U8(9), U8(0),
                 B(Star), R(9),
                 B(LdaSmi), I8(1),
                 B(TestEqual), R(9), U8(7),
                 B(JumpIfFalse), U8(6),
                 B(PopContext), R(2),
-                B(Jump), U8(10),
+                B(Jump), U8(7),
                 B(PopContext), R(2),
-                B(Wide), B(JumpLoop), U16(264), I16(0),
+                B(JumpLoop), U8(253), I8(0),
                 B(PopContext), R(1),
                 B(LdaUndefined),
                 B(Star), R(9),
@@ -1000,8 +991,8 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(Star), R(5),
-                B(Jump), U8(67),
-                B(Jump), U8(53),
+                B(Jump), U8(65),
+                B(Jump), U8(51),
                 B(Star), R(9),
                 B(Ldar), R(closure),
                 B(CreateCatchContext), R(9), U8(5), U8(6),
@@ -1020,7 +1011,6 @@ bytecodes: [
                 B(Star), R(12),
                 B(CallJSRuntime), U8(%promise_internal_reject), R(9), U8(4),
                 B(LdaContextSlot), R(1), U8(6), U8(0),
-                B(PopContext), R(1),
                 B(PopContext), R(1),
                 B(Star), R(6),
                 B(LdaZero),
@@ -1064,7 +1054,7 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [60, 434, 440],
-  [63, 381, 383],
+  [60, 419, 425],
+  [63, 368, 370],
 ]
 
