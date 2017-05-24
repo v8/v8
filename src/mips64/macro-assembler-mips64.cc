@@ -1764,7 +1764,7 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
         // 16 LSBs (Least Significant Bits) all set to zero.
         // 48 MSBs (Most Significant Bits) hold a signed 32-bit value.
         lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
-        dahi(rd, (j.imm64_ >> 32) + bit31 & kImm16Mask);
+        dahi(rd, ((j.imm64_ >> 32) + bit31) & kImm16Mask);
       } else if ((j.imm64_ & kImm16Mask) == 0 &&
                  ((j.imm64_ >> 31) & 0x1ffff) ==
                      ((0x20000 - bit31) & 0x1ffff) &&
@@ -1773,14 +1773,14 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
         // 48 MSBs hold a signed value which can't be represented by signed
         // 32-bit number, and the middle 16 bits are all zero, or all one.
         lui(rd, j.imm64_ >> kLuiShift & kImm16Mask);
-        dati(rd, (j.imm64_ >> 48) + bit31 & kImm16Mask);
+        dati(rd, ((j.imm64_ >> 48) + bit31) & kImm16Mask);
       } else if (is_int16(static_cast<int32_t>(j.imm64_)) &&
                  is_int16((j.imm64_ >> 32) + bit31) &&
                  kArchVariant == kMips64r6) {
         // 32 LSBs contain a signed 16-bit number.
         // 32 MSBs contain a signed 16-bit number.
         daddiu(rd, zero_reg, j.imm64_ & kImm16Mask);
-        dahi(rd, (j.imm64_ >> 32) + bit31 & kImm16Mask);
+        dahi(rd, ((j.imm64_ >> 32) + bit31) & kImm16Mask);
       } else if (is_int16(static_cast<int32_t>(j.imm64_)) &&
                  ((j.imm64_ >> 31) & 0x1ffff) ==
                      ((0x20000 - bit31) & 0x1ffff) &&
@@ -1788,7 +1788,7 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
         // 48 LSBs contain an unsigned 16-bit number.
         // 16 MSBs contain a signed 16-bit number.
         daddiu(rd, zero_reg, j.imm64_ & kImm16Mask);
-        dati(rd, (j.imm64_ >> 48) + bit31 & kImm16Mask);
+        dati(rd, ((j.imm64_ >> 48) + bit31) & kImm16Mask);
       } else if (base::bits::IsPowerOfTwo64(j.imm64_ + 1)) {
         // 64-bit values which have their "n" MSBs set to one, and their
         // "64-n" LSBs set to zero. "n" must meet the restrictions 0 < n < 64.
