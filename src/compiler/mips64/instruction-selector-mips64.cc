@@ -3005,6 +3005,94 @@ void InstructionSelector::VisitS8x16Select(Node* node) {
   VisitRRRR(this, kMips64S8x16Select, node);
 }
 
+void InstructionSelector::VisitI8x16Add(Node* node) {
+  VisitRRR(this, kMips64I8x16Add, node);
+}
+
+void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
+  VisitRRR(this, kMips64I8x16AddSaturateS, node);
+}
+
+void InstructionSelector::VisitI8x16Sub(Node* node) {
+  VisitRRR(this, kMips64I8x16Sub, node);
+}
+
+void InstructionSelector::VisitI8x16SubSaturateS(Node* node) {
+  VisitRRR(this, kMips64I8x16SubSaturateS, node);
+}
+
+void InstructionSelector::VisitI8x16Mul(Node* node) {
+  VisitRRR(this, kMips64I8x16Mul, node);
+}
+
+void InstructionSelector::VisitI8x16MaxS(Node* node) {
+  VisitRRR(this, kMips64I8x16MaxS, node);
+}
+
+void InstructionSelector::VisitI8x16MinS(Node* node) {
+  VisitRRR(this, kMips64I8x16MinS, node);
+}
+
+void InstructionSelector::VisitI8x16Eq(Node* node) {
+  VisitRRR(this, kMips64I8x16Eq, node);
+}
+
+void InstructionSelector::VisitI8x16Ne(Node* node) {
+  VisitRRR(this, kMips64I8x16Ne, node);
+}
+
+void InstructionSelector::VisitI8x16GtS(Node* node) {
+  VisitRRR(this, kMips64I8x16GtS, node);
+}
+
+void InstructionSelector::VisitI8x16GeS(Node* node) {
+  VisitRRR(this, kMips64I8x16GeS, node);
+}
+
+void InstructionSelector::VisitI8x16ShrU(Node* node) {
+  VisitRRI(this, kMips64I8x16ShrU, node);
+}
+
+void InstructionSelector::VisitI8x16AddSaturateU(Node* node) {
+  VisitRRR(this, kMips64I8x16AddSaturateU, node);
+}
+
+void InstructionSelector::VisitI8x16SubSaturateU(Node* node) {
+  VisitRRR(this, kMips64I8x16SubSaturateU, node);
+}
+
+void InstructionSelector::VisitI8x16MaxU(Node* node) {
+  VisitRRR(this, kMips64I8x16MaxU, node);
+}
+
+void InstructionSelector::VisitI8x16MinU(Node* node) {
+  VisitRRR(this, kMips64I8x16MinU, node);
+}
+
+void InstructionSelector::VisitI8x16GtU(Node* node) {
+  VisitRRR(this, kMips64I8x16GtU, node);
+}
+
+void InstructionSelector::VisitI8x16GeU(Node* node) {
+  VisitRRR(this, kMips64I8x16GeU, node);
+}
+
+void InstructionSelector::VisitS128And(Node* node) {
+  VisitRRR(this, kMips64S128And, node);
+}
+
+void InstructionSelector::VisitS128Or(Node* node) {
+  VisitRRR(this, kMips64S128Or, node);
+}
+
+void InstructionSelector::VisitS128Xor(Node* node) {
+  VisitRRR(this, kMips64S128Xor, node);
+}
+
+void InstructionSelector::VisitS128Not(Node* node) {
+  VisitRR(this, kMips64S128Not, node);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

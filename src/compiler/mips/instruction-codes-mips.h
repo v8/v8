@@ -206,7 +206,29 @@ namespace compiler {
   V(MipsI8x16Shl)                  \
   V(MipsI8x16ShrS)                 \
   V(MipsS16x8Select)               \
-  V(MipsS8x16Select)
+  V(MipsS8x16Select)               \
+  V(MipsI8x16Add)                  \
+  V(MipsI8x16AddSaturateS)         \
+  V(MipsI8x16Sub)                  \
+  V(MipsI8x16SubSaturateS)         \
+  V(MipsI8x16Mul)                  \
+  V(MipsI8x16MaxS)                 \
+  V(MipsI8x16MinS)                 \
+  V(MipsI8x16Eq)                   \
+  V(MipsI8x16Ne)                   \
+  V(MipsI8x16GtS)                  \
+  V(MipsI8x16GeS)                  \
+  V(MipsI8x16ShrU)                 \
+  V(MipsI8x16AddSaturateU)         \
+  V(MipsI8x16SubSaturateU)         \
+  V(MipsI8x16MaxU)                 \
+  V(MipsI8x16MinU)                 \
+  V(MipsI8x16GtU)                  \
+  V(MipsI8x16GeU)                  \
+  V(MipsS128And)                   \
+  V(MipsS128Or)                    \
+  V(MipsS128Xor)                   \
+  V(MipsS128Not)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
