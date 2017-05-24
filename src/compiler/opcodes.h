@@ -311,6 +311,7 @@
   V(BooleanNot)                     \
   V(StringCharAt)                   \
   V(StringCharCodeAt)               \
+  V(SeqStringCharCodeAt)            \
   V(StringFromCharCode)             \
   V(StringFromCodePoint)            \
   V(StringIndexOf)                  \

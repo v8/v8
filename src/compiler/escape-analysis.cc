@@ -836,6 +836,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kPlainPrimitiveToFloat64:
       case IrOpcode::kStringCharAt:
       case IrOpcode::kStringCharCodeAt:
+      case IrOpcode::kSeqStringCharCodeAt:
       case IrOpcode::kStringIndexOf:
       case IrOpcode::kObjectIsDetectableCallable:
       case IrOpcode::kObjectIsNaN:

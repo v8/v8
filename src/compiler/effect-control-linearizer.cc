@@ -766,6 +766,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringCharCodeAt:
       result = LowerStringCharCodeAt(node);
       break;
+    case IrOpcode::kSeqStringCharCodeAt:
+      result = LowerSeqStringCharCodeAt(node);
+      break;
     case IrOpcode::kStringEqual:
       result = LowerStringEqual(node);
       break;
@@ -2124,6 +2127,33 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
       MachineType::TaggedSigned());
   return __ Call(desc, __ HeapConstant(callable.code()), receiver, position,
                  __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerSeqStringCharCodeAt(Node* node) {
+  Node* receiver = node->InputAt(0);
+  Node* position = node->InputAt(1);
+
+  auto one_byte_load = __ MakeLabel<1>();
+  auto done = __ MakeLabel<2>(MachineRepresentation::kTagged);
+
+  Node* map = __ LoadField(AccessBuilder::ForMap(), receiver);
+  Node* instance_type = __ LoadField(AccessBuilder::ForMapInstanceType(), map);
+  Node* is_one_byte = __ Word32Equal(
+      __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask)),
+      __ Int32Constant(kOneByteStringTag));
+
+  __ GotoIf(is_one_byte, &one_byte_load);
+  Node* two_byte_result = __ LoadElement(
+      AccessBuilder::ForSeqTwoByteStringCharacter(), receiver, position);
+  __ Goto(&done, two_byte_result);
+
+  __ Bind(&one_byte_load);
+  Node* one_byte_element = __ LoadElement(
+      AccessBuilder::ForSeqOneByteStringCharacter(), receiver, position);
+  __ Goto(&done, one_byte_element);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerStringFromCharCode(Node* node) {

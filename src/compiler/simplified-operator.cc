@@ -472,6 +472,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)             \
   V(StringCharAt, Operator::kNoProperties, 2, 1)                 \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)             \
+  V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1)          \
   V(StringFromCharCode, Operator::kNoProperties, 1, 0)           \
   V(StringIndexOf, Operator::kNoProperties, 3, 0)                \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)       \
