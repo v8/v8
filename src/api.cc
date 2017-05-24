@@ -8690,9 +8690,7 @@ void Isolate::SetUseCounterCallback(UseCounterCallback callback) {
 
 void Isolate::SetCounterFunction(CounterLookupCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->stats_table()->SetCounterFunction(callback);
-  isolate->InitializeLoggingAndCounters();
-  isolate->counters()->ResetCounters();
+  isolate->stats_table()->SetCounterFunction(callback, isolate);
 }
 
 

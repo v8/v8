@@ -28,10 +28,9 @@ namespace internal {
 class StatsTable {
  public:
   // Register an application-defined function where
-  // counters can be looked up.
-  void SetCounterFunction(CounterLookupCallback f) {
-    lookup_function_ = f;
-  }
+  // counters can be looked up. Note: Must be called on main thread,
+  // so that threaded stats counters can be created now.
+  void SetCounterFunction(CounterLookupCallback f, Isolate* isolate);
 
   // Register an application-defined function to create
   // a histogram for passing to the AddHistogramSample function
@@ -92,6 +91,27 @@ class StatsTable {
   DISALLOW_COPY_AND_ASSIGN(StatsTable);
 };
 
+// Base class for stats counters.
+class StatsCounterBase {
+ public:
+  StatsCounterBase() {}
+  StatsCounterBase(Isolate* isolate, const char* name)
+      : isolate_(isolate), name_(name), ptr_(nullptr) {}
+
+ protected:
+  Isolate* isolate_;
+  const char* name_;
+  int* ptr_;
+
+  void SetLoc(int* loc, int value) { *loc = value; }
+  void IncrementLoc(int* loc) { (*loc)++; }
+  void IncrementLoc(int* loc, int value) { (*loc) += value; }
+  void DecrementLoc(int* loc) { (*loc)--; }
+  void DecrementLoc(int* loc, int value) { (*loc) -= value; }
+
+  int* FindLocationInStatsTable() const;
+};
+
 // StatsCounters are dynamically created values which can be tracked in
 // the StatsTable.  They are designed to be lightweight to create and
 // easy to use.
@@ -100,39 +120,33 @@ class StatsTable {
 // The row has a 32bit value for each process/thread in the table and also
 // a name (stored in the table metadata).  Since the storage location can be
 // thread-specific, this class cannot be shared across threads.
-class StatsCounter {
+class StatsCounter : public StatsCounterBase {
  public:
   StatsCounter() { }
-  explicit StatsCounter(Isolate* isolate, const char* name)
-      : isolate_(isolate), name_(name), ptr_(NULL), lookup_done_(false) { }
+  StatsCounter(Isolate* isolate, const char* name)
+      : StatsCounterBase(isolate, name), lookup_done_(false) {}
 
   // Sets the counter to a specific value.
   void Set(int value) {
-    int* loc = GetPtr();
-    if (loc) *loc = value;
+    if (int* loc = GetPtr()) SetLoc(loc, value);
   }
 
   // Increments the counter.
   void Increment() {
-    int* loc = GetPtr();
-    if (loc) (*loc)++;
+    if (int* loc = GetPtr()) IncrementLoc(loc);
   }
 
   void Increment(int value) {
-    int* loc = GetPtr();
-    if (loc)
-      (*loc) += value;
+    if (int* loc = GetPtr()) IncrementLoc(loc, value);
   }
 
   // Decrements the counter.
   void Decrement() {
-    int* loc = GetPtr();
-    if (loc) (*loc)--;
+    if (int* loc = GetPtr()) DecrementLoc(loc);
   }
 
   void Decrement(int value) {
-    int* loc = GetPtr();
-    if (loc) (*loc) -= value;
+    if (int* loc = GetPtr()) DecrementLoc(loc, value);
   }
 
   // Is this counter enabled?
@@ -153,7 +167,7 @@ class StatsCounter {
   // Reset the cached internal pointer.
   void Reset() { lookup_done_ = false; }
 
- protected:
+ private:
   // Returns the cached address of this counter location.
   int* GetPtr() {
     if (lookup_done_) return ptr_;
@@ -162,13 +176,36 @@ class StatsCounter {
     return ptr_;
   }
 
- private:
-  int* FindLocationInStatsTable() const;
-
-  Isolate* isolate_;
-  const char* name_;
-  int* ptr_;
   bool lookup_done_;
+};
+
+// Thread safe version of StatsCounter. WARNING: Unlike StatsCounter,
+// StatsCounterThreadSafe's constructor and method Reset() actually do
+// the table lookup, and should be called from the main thread
+// (i.e. not workers).
+class StatsCounterThreadSafe : public StatsCounterBase {
+ public:
+  StatsCounterThreadSafe(Isolate* isolate, const char* name);
+
+  void Set(int Value);
+  void Increment();
+  void Increment(int value);
+  void Decrement();
+  void Decrement(int value);
+  bool Enabled() { return ptr_ != NULL; }
+  int* GetInternalPointer() {
+    DCHECK(ptr_ != NULL);
+    return ptr_;
+  }
+  void Reset() { GetPtr(); }
+
+ private:
+  int* GetPtr();
+
+  base::Mutex mutex_;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StatsCounterThreadSafe);
 };
 
 // A Histogram represents a dynamically created histogram in the StatsTable.
@@ -1167,14 +1204,18 @@ class RuntimeCallTimerScope {
   /* Total code size (including metadata) of baseline code or bytecode. */     \
   SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
   /* Total count of functions compiled using the baseline compiler. */         \
-  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)               \
-  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)                                       \
+  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
+
+#define STATS_COUNTER_TS_LIST(SC)                         \
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes) \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                  \
   SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
 
 // This file contains all the v8 counters that are in use.
-class Counters {
+class Counters : public std::enable_shared_from_this<Counters> {
  public:
+  explicit Counters(Isolate* isolate);
+
 #define HR(name, caption, min, max, num_buckets) \
   Histogram* name() { return &name##_; }
   HISTOGRAM_RANGE_LIST(HR)
@@ -1214,6 +1255,11 @@ class Counters {
   STATS_COUNTER_LIST_2(SC)
 #undef SC
 
+#define SC(name, caption) \
+  StatsCounterThreadSafe* name() { return &name##_; }
+  STATS_COUNTER_TS_LIST(SC)
+#undef SC
+
 #define SC(name) \
   StatsCounter* count_of_##name() { return &count_of_##name##_; } \
   StatsCounter* size_of_##name() { return &size_of_##name##_; }
@@ -1244,6 +1290,7 @@ class Counters {
   CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
 
+  // clang-format off
   enum Id {
 #define RATE_ID(name, caption, max, res) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
@@ -1261,6 +1308,7 @@ class Counters {
 #define COUNTER_ID(name, caption) k_##name,
     STATS_COUNTER_LIST_1(COUNTER_ID)
     STATS_COUNTER_LIST_2(COUNTER_ID)
+    STATS_COUNTER_TS_LIST(COUNTER_ID)
 #undef COUNTER_ID
 #define COUNTER_ID(name) kCountOf##name, kSizeOf##name,
     INSTANCE_TYPE_LIST(COUNTER_ID)
@@ -1279,6 +1327,7 @@ class Counters {
 #undef COUNTER_ID
     stats_counter_count
   };
+  // clang-format on
 
   void ResetCounters();
   void ResetHistograms();
@@ -1322,6 +1371,10 @@ class Counters {
   STATS_COUNTER_LIST_2(SC)
 #undef SC
 
+#define SC(name, caption) StatsCounterThreadSafe name##_;
+  STATS_COUNTER_TS_LIST(SC)
+#undef SC
+
 #define SC(name) \
   StatsCounter size_of_##name##_; \
   StatsCounter count_of_##name##_;
@@ -1349,8 +1402,6 @@ class Counters {
   RuntimeCallStats runtime_call_stats_;
 
   friend class Isolate;
-
-  explicit Counters(Isolate* isolate);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };

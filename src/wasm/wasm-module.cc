@@ -56,22 +56,15 @@ byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
   return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
 }
 
-static void RecordStats(Isolate* isolate, Code* code, bool is_sync) {
-  if (is_sync) {
-    // TODO(karlschimpf): Make this work when asynchronous.
-    // https://bugs.chromium.org/p/v8/issues/detail?id=6361
-    isolate->counters()->wasm_generated_code_size()->Increment(
-        code->body_size());
-    isolate->counters()->wasm_reloc_size()->Increment(
-        code->relocation_info()->length());
-  }
+static void RecordStats(Code* code, Counters* counters) {
+  counters->wasm_generated_code_size()->Increment(code->body_size());
+  counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
 }
 
-static void RecordStats(Isolate* isolate, Handle<FixedArray> functions,
-                        bool is_sync) {
+static void RecordStats(Handle<FixedArray> functions, Counters* counters) {
   DisallowHeapAllocation no_gc;
   for (int i = 0; i < functions->length(); ++i) {
-    RecordStats(isolate, Code::cast(functions->get(i)), is_sync);
+    RecordStats(Code::cast(functions->get(i)), counters);
   }
 }
 
@@ -338,8 +331,11 @@ class CompilationHelper {
                     bool is_sync)
       : isolate_(isolate),
         module_(std::move(module)),
+        counters_shared_(isolate->counters_shared()),
         is_sync_(is_sync),
-        executed_units_(isolate->random_number_generator()) {}
+        executed_units_(isolate->random_number_generator()) {
+    counters_ = counters_shared_.get();
+  }
 
   // The actual runnable task that performs compilations in the background.
   class CompilationTask : public CancelableTask {
@@ -357,6 +353,8 @@ class CompilationHelper {
 
   Isolate* isolate_;
   std::unique_ptr<WasmModule> module_;
+  std::shared_ptr<Counters> counters_shared_;
+  Counters* counters_;
   bool is_sync_;
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
@@ -690,7 +688,7 @@ class CompilationHelper {
          i < temp_instance->function_code.size(); ++i) {
       Code* code = *temp_instance->function_code[i];
       code_table->set(static_cast<int>(i), code);
-      RecordStats(isolate_, code, is_sync_);
+      RecordStats(code, counters_);
     }
 
     // Create heap objects for script, module bytes and asm.js offset table to
@@ -758,7 +756,7 @@ class CompilationHelper {
       int export_index =
           static_cast<int>(module->functions.size() + func_index);
       code_table->set(export_index, *wrapper_code);
-      RecordStats(isolate_, *wrapper_code, is_sync_);
+      RecordStats(*wrapper_code, counters_);
       func_index++;
     }
 
@@ -912,11 +910,10 @@ int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
   return static_cast<int>(call_idx);
 }
 
-void RecordLazyCodeStats(Isolate* isolate, Code* code) {
-  isolate->counters()->wasm_lazily_compiled_functions()->Increment();
-  isolate->counters()->wasm_generated_code_size()->Increment(code->body_size());
-  isolate->counters()->wasm_reloc_size()->Increment(
-      code->relocation_info()->length());
+void RecordLazyCodeStats(Code* code, Counters* counters) {
+  counters->wasm_lazily_compiled_functions()->Increment();
+  counters->wasm_generated_code_size()->Increment(code->body_size());
+  counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
 }
 
 }  // namespace
@@ -1151,12 +1148,15 @@ class InstantiationHelper {
                       MaybeHandle<JSArrayBuffer> memory)
       : isolate_(isolate),
         module_(module_object->compiled_module()->module()),
+        counters_shared_(isolate->counters_shared()),
         thrower_(thrower),
         module_object_(module_object),
         ffi_(ffi.is_null() ? Handle<JSReceiver>::null()
                            : ffi.ToHandleChecked()),
         memory_(memory.is_null() ? Handle<JSArrayBuffer>::null()
-                                 : memory.ToHandleChecked()) {}
+                                 : memory.ToHandleChecked()) {
+    counters_ = counters_shared_.get();
+  }
 
   // Build an instance, in all of its glory.
   MaybeHandle<WasmInstanceObject> Build() {
@@ -1246,7 +1246,7 @@ class InstantiationHelper {
               UNREACHABLE();
           }
         }
-        RecordStats(isolate_, code_table, is_sync_);
+        RecordStats(code_table, counters_);
       } else {
         // There was no owner, so we can reuse the original.
         compiled_module_ = original;
@@ -1523,7 +1523,7 @@ class InstantiationHelper {
       Handle<WasmExportedFunction> startup_fct = WasmExportedFunction::New(
           isolate_, instance, MaybeHandle<String>(), start_index,
           static_cast<int>(sig->parameter_count()), wrapper_code);
-      RecordStats(isolate_, *startup_code, is_sync_);
+      RecordStats(*startup_code, counters_);
       // Call the JS function.
       Handle<Object> undefined = factory->undefined_value();
       MaybeHandle<Object> retval =
@@ -1557,7 +1557,8 @@ class InstantiationHelper {
 
   Isolate* isolate_;
   WasmModule* const module_;
-  constexpr static bool is_sync_ = true;
+  std::shared_ptr<Counters> counters_shared_;
+  Counters* counters_;
   ErrorThrower* thrower_;
   Handle<WasmModuleObject> module_object_;
   Handle<JSReceiver> ffi_;        // TODO(titzer): Use MaybeHandle
@@ -1767,7 +1768,7 @@ class InstantiationHelper {
             return -1;
           }
           code_table->set(num_imported_functions, *import_wrapper);
-          RecordStats(isolate_, *import_wrapper, is_sync_);
+          RecordStats(*import_wrapper, counters_);
           num_imported_functions++;
           break;
         }
@@ -2740,6 +2741,7 @@ class AsyncCompileJob {
                            size_t length, Handle<Context> context,
                            Handle<JSPromise> promise)
       : isolate_(isolate),
+        counters_shared_(isolate->counters_shared()),
         bytes_copy_(std::move(bytes_copy)),
         wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length) {
     // The handles for the context and promise must be deferred.
@@ -2747,6 +2749,7 @@ class AsyncCompileJob {
     context_ = Handle<Context>(*context);
     module_promise_ = Handle<JSPromise>(*promise);
     deferred_handles_.push_back(deferred.Detach());
+    counters_ = counters_shared_.get();
   }
 
   void Start() {
@@ -2759,6 +2762,8 @@ class AsyncCompileJob {
 
  private:
   Isolate* isolate_;
+  std::shared_ptr<Counters> counters_shared_;
+  Counters* counters_;
   std::unique_ptr<byte[]> bytes_copy_;
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
@@ -3125,11 +3130,10 @@ class AsyncCompileJob {
       TRACE_COMPILE("(5b) Finish compile...\n");
       HandleScope scope(job_->isolate_);
       // At this point, compilation has completed. Update the code table.
-      constexpr bool is_sync = true;
       for (size_t i = FLAG_skip_compiling_wasm_funcs;
            i < job_->temp_instance_->function_code.size(); ++i) {
         Code* code = Code::cast(job_->code_table_->get(static_cast<int>(i)));
-        RecordStats(job_->isolate_, code, !is_sync);
+        RecordStats(code, job_->counters_);
       }
 
       // Create heap objects for script and module bytes to be stored in the
@@ -3195,7 +3199,6 @@ class AsyncCompileJob {
       HandleScope scope(job_->isolate_);
       JSToWasmWrapperCache js_to_wasm_cache;
       int func_index = 0;
-      constexpr bool is_sync = true;
       WasmModule* module = job_->compiled_module_->module();
       for (auto exp : module->export_table) {
         if (exp.kind != kExternalFunction) continue;
@@ -3207,7 +3210,7 @@ class AsyncCompileJob {
         int export_index =
             static_cast<int>(module->functions.size() + func_index);
         job_->code_table_->set(export_index, *wrapper_code);
-        RecordStats(job_->isolate_, *wrapper_code, !is_sync);
+        RecordStats(*wrapper_code, job_->counters_);
         func_index++;
       }
 
@@ -3331,7 +3334,8 @@ Handle<Code> wasm::CompileLazy(Isolate* isolate) {
 }
 
 void LazyCompilationOrchestrator::CompileFunction(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index) {
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
+    Counters* counters) {
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
                                              isolate);
   if (Code::cast(compiled_module->code_table()->get(func_index))->kind() ==
@@ -3419,7 +3423,7 @@ void LazyCompilationOrchestrator::CompileFunction(
   code_specialization.ApplyToWasmCode(*code, SKIP_ICACHE_FLUSH);
   Assembler::FlushICache(isolate, code->instruction_start(),
                          code->instruction_size());
-  RecordLazyCodeStats(isolate, *code);
+  RecordLazyCodeStats(*code, counters);
 }
 
 Handle<Code> LazyCompilationOrchestrator::CompileLazy(
@@ -3429,6 +3433,8 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
     int offset;
     int func_index;
   };
+  std::shared_ptr<Counters> counters_shared = isolate->counters_shared();
+  Counters* counters = counters_shared.get();
   std::vector<NonCompiledFunction> non_compiled_functions;
   int func_to_return_idx = exported_func_index;
   wasm::Decoder decoder(nullptr, nullptr);
@@ -3473,7 +3479,7 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
 
   // TODO(clemensh): compile all functions in non_compiled_functions in
   // background, wait for func_to_return_idx.
-  CompileFunction(isolate, instance, func_to_return_idx);
+  CompileFunction(isolate, instance, func_to_return_idx, counters);
 
   if (is_js_to_wasm || patch_caller) {
     DisallowHeapAllocation no_gc;

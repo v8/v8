@@ -20,11 +20,61 @@ StatsTable::StatsTable()
       create_histogram_function_(NULL),
       add_histogram_sample_function_(NULL) {}
 
+void StatsTable::SetCounterFunction(CounterLookupCallback f, Isolate* isolate) {
+  lookup_function_ = f;
+  if (!isolate->InitializeCounters()) isolate->counters()->ResetCounters();
+}
 
-int* StatsCounter::FindLocationInStatsTable() const {
+int* StatsCounterBase::FindLocationInStatsTable() const {
   return isolate_->stats_table()->FindLocation(name_);
 }
 
+StatsCounterThreadSafe::StatsCounterThreadSafe(Isolate* isolate,
+                                               const char* name)
+    : StatsCounterBase(isolate, name) {
+  GetPtr();
+}
+
+void StatsCounterThreadSafe::Set(int Value) {
+  if (ptr_) {
+    base::LockGuard<base::Mutex> Guard(&mutex_);
+    SetLoc(ptr_, Value);
+  }
+}
+
+void StatsCounterThreadSafe::Increment() {
+  if (ptr_) {
+    base::LockGuard<base::Mutex> Guard(&mutex_);
+    IncrementLoc(ptr_);
+  }
+}
+
+void StatsCounterThreadSafe::Increment(int value) {
+  if (ptr_) {
+    base::LockGuard<base::Mutex> Guard(&mutex_);
+    IncrementLoc(ptr_, value);
+  }
+}
+
+void StatsCounterThreadSafe::Decrement() {
+  if (ptr_) {
+    base::LockGuard<base::Mutex> Guard(&mutex_);
+    DecrementLoc(ptr_);
+  }
+}
+
+void StatsCounterThreadSafe::Decrement(int value) {
+  if (ptr_) {
+    base::LockGuard<base::Mutex> Guard(&mutex_);
+    DecrementLoc(ptr_, value);
+  }
+}
+
+int* StatsCounterThreadSafe::GetPtr() {
+  base::LockGuard<base::Mutex> Guard(&mutex_);
+  ptr_ = FindLocationInStatsTable();
+  return ptr_;
+}
 
 void Histogram::AddSample(int sample) {
   if (Enabled()) {
@@ -60,8 +110,14 @@ void HistogramTimer::Stop() {
   Logger::CallEventLogger(isolate(), name(), Logger::END, true);
 }
 
-
-Counters::Counters(Isolate* isolate) {
+Counters::Counters(Isolate* isolate)
+    :
+// clang format off
+#define SC(name, caption) name##_(isolate, "c:" #caption),
+      STATS_COUNTER_TS_LIST(SC)
+#undef SC
+      // clang format on
+      runtime_call_stats_() {
   static const struct {
     Histogram Counters::*member;
     const char* caption;
@@ -200,11 +256,14 @@ Counters::Counters(Isolate* isolate) {
   }
 }
 
-
 void Counters::ResetCounters() {
 #define SC(name, caption) name##_.Reset();
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
+#undef SC
+
+#define SC(name, caption) name##_.Reset();
+  STATS_COUNTER_TS_LIST(SC)
 #undef SC
 
 #define SC(name)              \

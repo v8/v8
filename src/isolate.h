@@ -536,6 +536,7 @@ class Isolate {
   //
   // Safe to call more than once.
   void InitializeLoggingAndCounters();
+  bool InitializeCounters();  // Returns false if already initialized.
 
   bool Init(Deserializer* des);
 
@@ -872,6 +873,7 @@ class Isolate {
     DCHECK(counters_ != NULL);
     return counters_;
   }
+  std::shared_ptr<Counters> counters_shared() { return counters_shared_; }
   RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
   Logger* logger() {
@@ -1427,6 +1429,7 @@ class Isolate {
   Bootstrapper* bootstrapper_;
   RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
+  std::shared_ptr<Counters> counters_shared_;
   Counters* counters_;
   base::RecursiveMutex break_access_;
   Logger* logger_;

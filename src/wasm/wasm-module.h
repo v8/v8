@@ -501,7 +501,8 @@ Handle<Code> CompileLazy(Isolate* isolate);
 // logic to actually orchestrate parallel execution of wasm compilation jobs.
 // TODO(clemensh): Implement concurrent lazy compilation.
 class LazyCompilationOrchestrator {
-  void CompileFunction(Isolate*, Handle<WasmInstanceObject>, int func_index);
+  void CompileFunction(Isolate*, Handle<WasmInstanceObject>, int func_index,
+                       Counters* counters);
 
  public:
   Handle<Code> CompileLazy(Isolate*, Handle<WasmInstanceObject>,

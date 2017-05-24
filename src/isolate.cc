@@ -2549,7 +2549,6 @@ Isolate::~Isolate() {
   delete logger_;
   logger_ = NULL;
 
-  delete counters_;
   counters_ = NULL;
 
   delete handle_scope_implementer_;
@@ -2635,14 +2634,22 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
   return true;
 }
 
+static base::LazyMutex initialize_counters_mutex = LAZY_MUTEX_INITIALIZER;
+
+bool Isolate::InitializeCounters() {
+  if (counters_ != nullptr) return false;
+  base::LockGuard<base::Mutex> guard(initialize_counters_mutex.Pointer());
+  if (counters_ != nullptr) return false;
+  counters_shared_ = std::make_shared<Counters>(this);
+  counters_ = counters_shared_.get();
+  return true;
+}
 
 void Isolate::InitializeLoggingAndCounters() {
   if (logger_ == NULL) {
     logger_ = new Logger(this);
   }
-  if (counters_ == NULL) {
-    counters_ = new Counters(this);
-  }
+  InitializeCounters();
 }
 
 
