@@ -656,13 +656,7 @@ TF_BUILTIN(StringPrototypeCharAt, CodeStubAssembler) {
            &if_positioninbounds);
 
     BIND(&return_emptystring);
-    {
-      // Invalidate the "String Bounds Check" protector.
-      Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
-      Node* cell = LoadRoot(Heap::kStringBoundsCheckProtectorRootIndex);
-      StoreObjectFieldNoWriteBarrier(cell, Cell::kValueOffset, invalid);
-      Return(EmptyStringConstant());
-    }
+    Return(EmptyStringConstant());
 
     BIND(&if_positioninbounds);
   }
@@ -701,13 +695,7 @@ TF_BUILTIN(StringPrototypeCharCodeAt, CodeStubAssembler) {
            &if_positioninbounds);
 
     BIND(&return_nan);
-    {
-      // Invalidate the "String Bounds Check" protector.
-      Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
-      Node* cell = LoadRoot(Heap::kStringBoundsCheckProtectorRootIndex);
-      StoreObjectFieldNoWriteBarrier(cell, Cell::kValueOffset, invalid);
-      Return(NaNConstant());
-    }
+    Return(NaNConstant());
 
     BIND(&if_positioninbounds);
   }

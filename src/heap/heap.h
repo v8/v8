@@ -172,7 +172,6 @@ using v8::MemoryPressureLevel;
   V(PropertyCell, array_protector, ArrayProtector)                             \
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
   V(Cell, species_protector, SpeciesProtector)                                 \
-  V(Cell, string_bounds_check_protector, StringBoundsCheckProtector)           \
   V(PropertyCell, string_length_protector, StringLengthProtector)              \
   V(Cell, fast_array_iteration_protector, FastArrayIterationProtector)         \
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \

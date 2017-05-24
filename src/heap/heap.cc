@@ -2855,10 +2855,6 @@ void Heap::CreateInitialObjects() {
       handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
   set_species_protector(*species_cell);
 
-  Handle<Cell> string_bounds_check_cell = factory->NewCell(
-      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
-  set_string_bounds_check_protector(*string_bounds_check_cell);
-
   cell = factory->NewPropertyCell();
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_string_length_protector(*cell);

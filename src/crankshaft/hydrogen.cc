@@ -8351,7 +8351,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     }
     case kStringCharCodeAt:
     case kStringCharAt:
-      if (argument_count == 2 && isolate()->IsStringBoundsCheckIntact()) {
+      if (argument_count == 2) {
         HValue* index = Pop();
         HValue* string = Pop();
         Drop(1);  // Function.
