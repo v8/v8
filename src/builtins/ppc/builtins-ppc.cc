@@ -1212,7 +1212,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Label gotta_call_runtime;
 
   // Check if the optimized code is marked for deopt.
-  __ lbz(r8, FieldMemOperand(optimized_code_entry,
+  __ lwz(r8, FieldMemOperand(optimized_code_entry,
                              Code::kKindSpecificFlags1Offset));
   __ TestBit(r8, Code::kMarkedForDeoptimizationBit, r0);
   __ bne(&gotta_call_runtime, cr0);
@@ -1489,7 +1489,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
 
   // Found code, check if it is marked for deopt, if so call into runtime to
   // clear the optimized code slot.
-  __ lbz(r8, FieldMemOperand(entry, Code::kKindSpecificFlags1Offset));
+  __ lwz(r8, FieldMemOperand(entry, Code::kKindSpecificFlags1Offset));
   __ TestBit(r8, Code::kMarkedForDeoptimizationBit, r0);
   __ bne(&gotta_call_runtime, cr0);
 
