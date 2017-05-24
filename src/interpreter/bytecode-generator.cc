@@ -28,14 +28,12 @@ namespace interpreter {
 // popping of the current {context_register} during visitation.
 class BytecodeGenerator::ContextScope BASE_EMBEDDED {
  public:
-  ContextScope(BytecodeGenerator* generator, Scope* scope,
-               bool should_pop_context = true)
+  ContextScope(BytecodeGenerator* generator, Scope* scope)
       : generator_(generator),
         scope_(scope),
         outer_(generator_->execution_context()),
         register_(Register::current_context()),
-        depth_(0),
-        should_pop_context_(should_pop_context) {
+        depth_(0) {
     DCHECK(scope->NeedsContext() || outer_ == nullptr);
     if (outer_) {
       depth_ = outer_->depth_ + 1;
@@ -56,7 +54,7 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
   }
 
   ~ContextScope() {
-    if (outer_ && should_pop_context_) {
+    if (outer_) {
       DCHECK_EQ(register_.index(), Register::current_context().index());
       generator_->builder()->PopContext(outer_->reg());
       outer_->set_register(register_);
@@ -95,7 +93,6 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
   ContextScope* outer_;
   Register register_;
   int depth_;
-  bool should_pop_context_;
 };
 
 // Scoped class for tracking control statements entered by the
@@ -858,7 +855,7 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   InitializeAstVisitor(stack_limit);
 
   // Initialize the incoming context.
-  ContextScope incoming_context(this, closure_scope(), false);
+  ContextScope incoming_context(this, closure_scope());
 
   // Initialize control scope.
   ControlScopeForTopLevel control(this);
@@ -872,19 +869,14 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   if (closure_scope()->NeedsContext()) {
     // Push a new inner context scope for the function.
     BuildNewLocalActivationContext();
-    ContextScope local_function_context(this, closure_scope(), false);
+    ContextScope local_function_context(this, closure_scope());
     BuildLocalActivationContextInitialization();
     GenerateBytecodeBody();
   } else {
     GenerateBytecodeBody();
   }
 
-  // Emit an implicit return instruction in case control flow can fall off the
-  // end of the function without an explicit return being present on all paths.
-  if (builder()->RequiresImplicitReturn()) {
-    builder()->LoadUndefined();
-    BuildReturn();
-  }
+  // Check that we are not falling off the end.
   DCHECK(!builder()->RequiresImplicitReturn());
 }
 
@@ -932,6 +924,13 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // Visit statements in the function body.
   VisitStatements(info()->literal()->body());
+
+  // Emit an implicit return instruction in case control flow can fall off the
+  // end of the function without an explicit return being present on all paths.
+  if (builder()->RequiresImplicitReturn()) {
+    builder()->LoadUndefined();
+    BuildReturn();
+  }
 }
 
 void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
