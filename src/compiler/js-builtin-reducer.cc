@@ -1922,8 +1922,26 @@ Reduction JSBuiltinReducer::ReduceStringCharAt(Node* node) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
 
-    if (index_type->Is(Type::Integral32OrMinusZeroOrNaN())) {
-      if (Node* receiver = GetStringWitness(node)) {
+    if (Node* receiver = GetStringWitness(node)) {
+      if (isolate()->IsStringBoundsCheckIntact()) {
+        // Determine the {receiver} length.
+        Node* receiver_length = effect = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
+            effect, control);
+
+        // Check that the {index} is within the range of {receiver}.
+        index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                          receiver_length, effect, control);
+
+        // Return the character from the {receiver} as single character string.
+        Node* value = graph()->NewNode(simplified()->StringCharAt(), receiver,
+                                       index, control);
+
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
+
+      if (index_type->Is(Type::Integral32OrMinusZeroOrNaN())) {
         if (!index_type->Is(Type::Unsigned32())) {
           // Map -0 and NaN to 0 (as per ToInteger), and the values in
           // the [-2^31,-1] range to the [2^31,2^32-1] range, which will
@@ -1976,8 +1994,26 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
 
-    if (index_type->Is(Type::Integral32OrMinusZeroOrNaN())) {
-      if (Node* receiver = GetStringWitness(node)) {
+    if (Node* receiver = GetStringWitness(node)) {
+      if (isolate()->IsStringBoundsCheckIntact()) {
+        // Determine the {receiver} length.
+        Node* receiver_length = effect = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
+            effect, control);
+
+        // Check that the {index} is within the range of {receiver}.
+        index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                          receiver_length, effect, control);
+
+        // Return the character from the {receiver} as character code.
+        Node* value = graph()->NewNode(simplified()->StringCharCodeAt(),
+                                       receiver, index, control);
+
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
+
+      if (index_type->Is(Type::Integral32OrMinusZeroOrNaN())) {
         if (!index_type->Is(Type::Unsigned32())) {
           // Map -0 and NaN to 0 (as per ToInteger), and the values in
           // the [-2^31,-1] range to the [2^31,2^32-1] range, which will

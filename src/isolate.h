@@ -1041,6 +1041,7 @@ class Isolate {
   inline bool IsArraySpeciesLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
+  inline bool IsStringBoundsCheckIntact();
   inline bool IsStringLengthOverflowIntact();
   inline bool IsArrayIteratorLookupChainIntact();
 

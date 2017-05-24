@@ -133,6 +133,11 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
          Smi::cast(species_cell->value())->value() == kProtectorValid;
 }
 
+bool Isolate::IsStringBoundsCheckIntact() {
+  Cell* string_bounds_check_cell = heap()->string_bounds_check_protector();
+  return string_bounds_check_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
 bool Isolate::IsStringLengthOverflowIntact() {
   PropertyCell* string_length_cell = heap()->string_length_protector();
   return string_length_cell->value() == Smi::FromInt(kProtectorValid);
