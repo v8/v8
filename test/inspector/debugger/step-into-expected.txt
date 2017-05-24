@@ -338,7 +338,7 @@ function testForOfLoop() {
 
 break at:
 function testForOfLoop() {
-  for (var k #of []) {}
+  for (var #k of []) {}
   for (var k of [1]) k;
 
 break at:
@@ -348,7 +348,7 @@ break at:
 
 break at:
   for (var k of []) {}
-  for (var k #of [1]) k;
+  for (var #k of [1]) k;
   var a = [];
 
 break at:
@@ -358,7 +358,7 @@ break at:
 
 break at:
   for (var k of []) {}
-  for (var k #of [1]) k;
+  for (var #k of [1]) k;
   var a = [];
 
 break at:
@@ -373,7 +373,7 @@ break at:
 
 break at:
   var a = [];
-  for (var k #of a) {}
+  for (var #k of a) {}
 }
 
 break at:

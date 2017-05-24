@@ -1899,7 +1899,7 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
   ZoneList<Expression*>* next_arguments =
       new (zone()) ZoneList<Expression*>(0, zone());
   Expression* next_call =
-      factory()->NewCall(next_property, next_arguments, pos);
+      factory()->NewCall(next_property, next_arguments, kNoSourcePosition);
   if (type == IteratorType::kAsync) {
     next_call = RewriteAwaitExpression(next_call, pos);
   }
@@ -1931,13 +1931,12 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
 Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
                                               Expression* each,
                                               Expression* subject,
-                                              Statement* body,
-                                              int each_keyword_pos) {
+                                              Statement* body) {
   ForOfStatement* for_of = stmt->AsForOfStatement();
   if (for_of != NULL) {
     const bool finalize = true;
     return InitializeForOfStatement(for_of, each, subject, body, finalize,
-                                    IteratorType::kNormal, each_keyword_pos);
+                                    IteratorType::kNormal, each->position());
   } else {
     if (each->IsArrayLiteral() || each->IsObjectLiteral()) {
       Variable* temp = NewTemporary(ast_value_factory()->empty_string());

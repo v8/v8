@@ -481,7 +481,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Initialize the components of a for-in / for-of statement.
   Statement* InitializeForEachStatement(ForEachStatement* stmt,
                                         Expression* each, Expression* subject,
-                                        Statement* body, int each_keyword_pos);
+                                        Statement* body);
   Statement* InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
                                       Expression* iterable, Statement* body,
                                       bool finalize, IteratorType type,
