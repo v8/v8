@@ -2335,8 +2335,6 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
                               Page::kPageSize);
   }
 
-  ~YoungGenerationMarkingTask() { FlushLiveBytes(); }
-
   void RunInParallel() override {
     double marking_time = 0.0;
     {
@@ -2349,6 +2347,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
       }
       EmptyMarkingDeque();
       DCHECK(marking_deque_.IsEmpty());
+      FlushLiveBytes();
     }
     if (FLAG_trace_minor_mc_parallel_marking) {
       PrintIsolate(collector_->isolate(), "marking[%p]: time=%f\n",
