@@ -115,7 +115,7 @@ class SegmentedStack {
 // TODO(mlippautz): Implement actual work stealing.
 class WorkStealingMarkingDeque {
  public:
-  static const int kMaxNumTasks = 4;
+  static const int kMaxNumTasks = 8;
 
   bool Push(int task_id, HeapObject* object) {
     DCHECK_LT(task_id, kMaxNumTasks);

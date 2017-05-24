@@ -250,7 +250,8 @@ class MarkCompactCollectorBase {
   inline Isolate* isolate() { return heap()->isolate(); }
 
  protected:
-  explicit MarkCompactCollectorBase(Heap* heap) : heap_(heap) {}
+  explicit MarkCompactCollectorBase(Heap* heap)
+      : heap_(heap), old_to_new_slots_(0) {}
 
   // Marking operations for objects reachable from roots.
   virtual void MarkLiveObjects() = 0;
@@ -266,9 +267,6 @@ class MarkCompactCollectorBase {
   virtual void EvacuatePagesInParallel() = 0;
   virtual void UpdatePointersAfterEvacuation() = 0;
 
-  // The number of parallel compaction tasks, including the main thread.
-  int NumberOfParallelCompactionTasks(int pages, intptr_t live_bytes);
-
   template <class Evacuator, class Collector>
   void CreateAndExecuteEvacuationTasks(
       Collector* collector, PageParallelJob<EvacuationJobTraits>* job,
@@ -279,13 +277,17 @@ class MarkCompactCollectorBase {
   bool ShouldMovePage(Page* p, intptr_t live_bytes);
 
   template <RememberedSetType type>
-  void UpdatePointersInParallel(Heap* heap, base::Semaphore* semaphore,
-                                const MarkCompactCollectorBase* collector);
+  void UpdatePointersInParallel(base::Semaphore* semaphore);
+  void UpdateToSpacePointersInParallel(base::Semaphore* semaphore);
 
   int NumberOfParallelCompactionTasks(int pages);
-  int NumberOfPointerUpdateTasks(int pages);
+  int NumberOfParallelPointerUpdateTasks(int pages, int slots);
+  int NumberOfParallelToSpacePointerUpdateTasks(int pages);
 
   Heap* heap_;
+  // Number of old to new slots. Should be computed during MarkLiveObjects.
+  // -1 indicates that the value couldn't be computed.
+  int old_to_new_slots_;
 };
 
 // Collector for young-generation only.
@@ -314,7 +316,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   class RootMarkingVisitorSeedOnly;
   class RootMarkingVisitor;
 
-  static const int kNumMarkers = 4;
+  static const int kNumMarkers = 8;
   static const int kMainMarker = 0;
 
   inline WorkStealingMarkingDeque* marking_deque() { return marking_deque_; }
@@ -335,7 +337,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void EvacuatePagesInParallel() override;
   void UpdatePointersAfterEvacuation() override;
 
-  int NumberOfMarkingTasks();
+  int NumberOfParallelMarkingTasks(int pages);
 
   WorkStealingMarkingDeque* marking_deque_;
   YoungGenerationMarkingVisitor* main_marking_visitor_;

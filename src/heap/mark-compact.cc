@@ -354,22 +354,42 @@ static int NumberOfAvailableCores() {
 }
 
 int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
+  DCHECK_GT(pages, 0);
   return FLAG_parallel_compaction ? Min(NumberOfAvailableCores(), pages) : 1;
 }
 
-int MarkCompactCollectorBase::NumberOfPointerUpdateTasks(int pages) {
+int MarkCompactCollectorBase::NumberOfParallelPointerUpdateTasks(int pages,
+                                                                 int slots) {
+  DCHECK_GT(pages, 0);
   // Limit the number of update tasks as task creation often dominates the
   // actual work that is being done.
-  static const int kMaxPointerUpdateTasks = 8;
+  const int kMaxPointerUpdateTasks = 8;
+  const int kSlotsPerTask = 600;
+  const int wanted_tasks =
+      (slots >= 0) ? Max(1, Min(pages, slots / kSlotsPerTask)) : pages;
   return FLAG_parallel_pointer_update
-             ? Min(kMaxPointerUpdateTasks, Min(NumberOfAvailableCores(), pages))
+             ? Min(kMaxPointerUpdateTasks,
+                   Min(NumberOfAvailableCores(), wanted_tasks))
              : 1;
 }
 
-int MinorMarkCompactCollector::NumberOfMarkingTasks() {
-  return FLAG_minor_mc_parallel_marking
-             ? Min(NumberOfAvailableCores(), kNumMarkers)
-             : 1;
+int MarkCompactCollectorBase::NumberOfParallelToSpacePointerUpdateTasks(
+    int pages) {
+  DCHECK_GT(pages, 0);
+  // No cap needed because all pages we need to process are fully filled with
+  // interesting objects.
+  return FLAG_parallel_pointer_update ? Min(NumberOfAvailableCores(), pages)
+                                      : 1;
+}
+
+int MinorMarkCompactCollector::NumberOfParallelMarkingTasks(int pages) {
+  DCHECK_GT(pages, 0);
+  if (!FLAG_minor_mc_parallel_marking) return 1;
+  // Pages are not private to markers but we can still use them to estimate the
+  // amount of marking that is required.
+  const int kPagesPerTask = 2;
+  const int wanted_tasks = Max(1, pages / kPagesPerTask);
+  return Min(NumberOfAvailableCores(), Min(wanted_tasks, kNumMarkers));
 }
 
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
@@ -385,6 +405,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       have_code_to_deoptimize_(false),
       marking_deque_(heap),
       sweeper_(heap) {
+  old_to_new_slots_ = -1;
 }
 
 void MarkCompactCollector::SetUp() {
@@ -2424,8 +2445,10 @@ class BatchedRootMarkingItem : public MarkingItem {
 
 class PageMarkingItem : public MarkingItem {
  public:
-  explicit PageMarkingItem(MemoryChunk* chunk) : chunk_(chunk) {}
-  virtual ~PageMarkingItem() {}
+  explicit PageMarkingItem(MemoryChunk* chunk,
+                           base::AtomicNumber<intptr_t>* global_slots)
+      : chunk_(chunk), global_slots_(global_slots), slots_(0) {}
+  virtual ~PageMarkingItem() { global_slots_->Increment(slots_); }
 
   void Process(YoungGenerationMarkingTask* task) override {
     base::LockGuard<base::RecursiveMutex> guard(chunk_->mutex());
@@ -2464,12 +2487,15 @@ class PageMarkingItem : public MarkingItem {
       DCHECK(heap()->InToSpace(object));
       HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
       task->MarkObject(heap_object);
+      slots_++;
       return KEEP_SLOT;
     }
     return REMOVE_SLOT;
   }
 
   MemoryChunk* chunk_;
+  base::AtomicNumber<intptr_t>* global_slots_;
+  intptr_t slots_;
 };
 
 class GlobalHandlesMarkingItem : public MarkingItem {
@@ -2563,7 +2589,10 @@ MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
       marking_deque_(new WorkStealingMarkingDeque()),
       main_marking_visitor_(
           new YoungGenerationMarkingVisitor(heap, marking_deque_, kMainMarker)),
-      page_parallel_job_semaphore_(0) {}
+      page_parallel_job_semaphore_(0) {
+  static_assert(kNumMarkers <= WorkStealingMarkingDeque::kMaxNumTasks,
+                "more marker tasks than marking deque can handle");
+}
 
 MinorMarkCompactCollector::~MinorMarkCompactCollector() {
   delete marking_deque_;
@@ -2578,45 +2607,51 @@ static bool IsUnmarkedObjectForYoungGeneration(Heap* heap, Object** p) {
 }
 
 void MinorMarkCompactCollector::MarkRootSetInParallel() {
-  ItemParallelJob job(isolate()->cancelable_task_manager(),
-                      &page_parallel_job_semaphore_);
-
-  // Seed the root set (roots + old->new set).
+  base::AtomicNumber<intptr_t> slots;
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_SEED);
-    // Create batches of roots.
-    RootMarkingVisitorSeedOnly root_seed_visitor(&job);
-    heap()->IterateRoots(&root_seed_visitor, VISIT_ALL_IN_MINOR_MC_MARK);
-    // Create batches of global handles.
-    const size_t kGlobalHandlesBufferSize = 1000;
-    const size_t new_space_nodes =
-        isolate()->global_handles()->NumberOfNewSpaceNodes();
-    for (size_t start = 0; start < new_space_nodes;
-         start += kGlobalHandlesBufferSize) {
-      size_t end = start + kGlobalHandlesBufferSize;
-      if (end > new_space_nodes) end = new_space_nodes;
-      job.AddItem(new GlobalHandlesMarkingItem(isolate()->global_handles(),
-                                               start, end));
-    }
-    // Create items for each page.
-    RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
-        heap(), [&job](MemoryChunk* chunk) {
-          job.AddItem(new PageMarkingItem(chunk));
-        });
-    // Flush any remaining objects in the seeding visitor.
-    root_seed_visitor.FlushObjects();
-  }
+    ItemParallelJob job(isolate()->cancelable_task_manager(),
+                        &page_parallel_job_semaphore_);
 
-  // Add tasks and run in parallel.
-  {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
-    const int num_tasks = NumberOfMarkingTasks();
-    for (int i = 0; i < num_tasks; i++) {
-      job.AddTask(
-          new YoungGenerationMarkingTask(isolate(), this, marking_deque(), i));
+    // Seed the root set (roots + old->new set).
+    {
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_SEED);
+      // Create batches of roots.
+      RootMarkingVisitorSeedOnly root_seed_visitor(&job);
+      heap()->IterateRoots(&root_seed_visitor, VISIT_ALL_IN_MINOR_MC_MARK);
+      // Create batches of global handles.
+      const size_t kGlobalHandlesBufferSize = 1000;
+      const size_t new_space_nodes =
+          isolate()->global_handles()->NumberOfNewSpaceNodes();
+      for (size_t start = 0; start < new_space_nodes;
+           start += kGlobalHandlesBufferSize) {
+        size_t end = start + kGlobalHandlesBufferSize;
+        if (end > new_space_nodes) end = new_space_nodes;
+        job.AddItem(new GlobalHandlesMarkingItem(isolate()->global_handles(),
+                                                 start, end));
+      }
+      // Create items for each page.
+      RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+          heap(), [&job, &slots](MemoryChunk* chunk) {
+            job.AddItem(new PageMarkingItem(chunk, &slots));
+          });
+      // Flush any remaining objects in the seeding visitor.
+      root_seed_visitor.FlushObjects();
     }
-    job.Run();
+
+    // Add tasks and run in parallel.
+    {
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
+      const int new_space_pages =
+          static_cast<int>(heap()->new_space()->Capacity()) / Page::kPageSize;
+      const int num_tasks = NumberOfParallelMarkingTasks(new_space_pages);
+      for (int i = 0; i < num_tasks; i++) {
+        job.AddTask(new YoungGenerationMarkingTask(isolate(), this,
+                                                   marking_deque(), i));
+      }
+      job.Run();
+    }
   }
+  old_to_new_slots_ = static_cast<int>(slots.Value());
 }
 
 void MinorMarkCompactCollector::MarkLiveObjects() {
@@ -4292,15 +4327,16 @@ class PointerUpdateJobTraits {
 
 template <RememberedSetType type>
 void MarkCompactCollectorBase::UpdatePointersInParallel(
-    Heap* heap, base::Semaphore* semaphore,
-    const MarkCompactCollectorBase* collector) {
+    base::Semaphore* semaphore) {
   PageParallelJob<PointerUpdateJobTraits<type> > job(
-      heap, heap->isolate()->cancelable_task_manager(), semaphore);
+      heap(), heap()->isolate()->cancelable_task_manager(), semaphore);
   RememberedSet<type>::IterateMemoryChunks(
-      heap, [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
-  int num_pages = job.NumberOfPages();
-  int num_tasks = NumberOfPointerUpdateTasks(num_pages);
-  job.Run(num_tasks, [collector](int i) { return collector; });
+      heap(), [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
+  const int num_pages = job.NumberOfPages();
+  if (num_pages == 0) return;
+  const int num_tasks =
+      NumberOfParallelPointerUpdateTasks(num_pages, old_to_new_slots_);
+  job.Run(num_tasks, [this](int i) { return this; });
 }
 
 class ToSpacePointerUpdateJobTraits {
@@ -4353,22 +4389,21 @@ class ToSpacePointerUpdateJobTraits {
   }
 };
 
-template <class MarkingStateProvider>
-void UpdateToSpacePointersInParallel(
-    Heap* heap, base::Semaphore* semaphore,
-    const MarkingStateProvider& marking_state_provider) {
+void MarkCompactCollectorBase::UpdateToSpacePointersInParallel(
+    base::Semaphore* semaphore) {
   PageParallelJob<ToSpacePointerUpdateJobTraits> job(
-      heap, heap->isolate()->cancelable_task_manager(), semaphore);
-  Address space_start = heap->new_space()->bottom();
-  Address space_end = heap->new_space()->top();
+      heap(), isolate()->cancelable_task_manager(), semaphore);
+  const Address space_start = heap()->new_space()->bottom();
+  const Address space_end = heap()->new_space()->top();
   for (Page* page : PageRange(space_start, space_end)) {
     Address start =
         page->Contains(space_start) ? space_start : page->area_start();
     Address end = page->Contains(space_end) ? space_end : page->area_end();
-    job.AddPage(page, {start, end, marking_state_provider.marking_state(page)});
+    job.AddPage(page, {start, end, marking_state(page)});
   }
   PointersUpdatingVisitor visitor;
-  int num_tasks = FLAG_parallel_pointer_update ? job.NumberOfPages() : 1;
+  const int num_tasks =
+      NumberOfParallelToSpacePointerUpdateTasks(job.NumberOfPages());
   job.Run(num_tasks, [&visitor](int i) { return &visitor; });
 }
 
@@ -4379,21 +4414,18 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW);
-    UpdateToSpacePointersInParallel(heap_, &page_parallel_job_semaphore_,
-                                    *this);
+    UpdateToSpacePointersInParallel(&page_parallel_job_semaphore_);
     // Update roots.
     PointersUpdatingVisitor updating_visitor;
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
-    UpdatePointersInParallel<OLD_TO_NEW>(heap_, &page_parallel_job_semaphore_,
-                                         this);
+    UpdatePointersInParallel<OLD_TO_NEW>(&page_parallel_job_semaphore_);
   }
 
   {
     Heap* heap = this->heap();
     TRACE_GC(heap->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED);
-    UpdatePointersInParallel<OLD_TO_OLD>(heap_, &page_parallel_job_semaphore_,
-                                         this);
+    UpdatePointersInParallel<OLD_TO_OLD>(&page_parallel_job_semaphore_);
   }
 
   {
@@ -4421,8 +4453,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
       TRACE_GC(
           heap()->tracer(),
           GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_TOSPACE);
-      UpdateToSpacePointersInParallel(heap_, &page_parallel_job_semaphore_,
-                                      *this);
+      UpdateToSpacePointersInParallel(&page_parallel_job_semaphore_);
     }
     {
       TRACE_GC(heap()->tracer(),
@@ -4432,8 +4463,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
     {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_OLD);
-      UpdatePointersInParallel<OLD_TO_NEW>(heap_, &page_parallel_job_semaphore_,
-                                           this);
+      UpdatePointersInParallel<OLD_TO_NEW>(&page_parallel_job_semaphore_);
     }
   }
 
