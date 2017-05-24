@@ -921,6 +921,11 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
   // Check arguments.
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
 
+  // Only inspect suspended generator scopes.
+  if (!gen->is_suspended()) {
+    return Smi::kZero;
+  }
+
   // Count the visible scopes.
   int n = 0;
   for (ScopeIterator it(isolate, gen); !it.Done(); it.Next()) {
@@ -941,6 +946,11 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
   // Check arguments.
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
+
+  // Only inspect suspended generator scopes.
+  if (!gen->is_suspended()) {
+    return isolate->heap()->undefined_value();
+  }
 
   // Find the requested scope.
   int n = 0;

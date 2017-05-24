@@ -348,6 +348,7 @@ void Scope::SetDefaults() {
 
   inner_scope_calls_eval_ = false;
   force_context_allocation_ = false;
+  force_context_allocation_for_parameters_ = false;
 
   is_declaration_scope_ = false;
 
@@ -2193,7 +2194,8 @@ void DeclarationScope::AllocateParameterLocals() {
 
 void DeclarationScope::AllocateParameter(Variable* var, int index) {
   if (MustAllocate(var)) {
-    if (MustAllocateInContext(var)) {
+    if (has_forced_context_allocation_for_parameters() ||
+        MustAllocateInContext(var)) {
       DCHECK(var->IsUnallocated() || var->IsContextSlot());
       if (var->IsUnallocated()) {
         AllocateHeapSlot(var);

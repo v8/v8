@@ -706,6 +706,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       var->AllocateTo(VariableLocation::PARAMETER, 0);
 
       PrepareGeneratorVariables();
+      scope->ForceContextAllocation();
       Expression* initial_yield =
           BuildInitialYield(kNoSourcePosition, kGeneratorFunction);
       body->Add(
@@ -2531,11 +2532,9 @@ void Parser::DeclareArrowFunctionFormalParameters(
 }
 
 void Parser::PrepareGeneratorVariables() {
-  // For generators, allocating variables in contexts is currently a win because
-  // it minimizes the work needed to suspend and resume an activation.  The
-  // code produced for generators relies on this forced context allocation (it
-  // does not restore the frame's parameters upon resume).
-  function_state_->scope()->ForceContextAllocation();
+  // The code produced for generators relies on forced context allocation of
+  // parameters (it does not restore the frame's parameters upon resume).
+  function_state_->scope()->ForceContextAllocationForParameters();
 
   // Calling a generator returns a generator object.  That object is stored
   // in a temporary variable, a definition that is used by "yield"
