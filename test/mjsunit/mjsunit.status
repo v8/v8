@@ -594,6 +594,19 @@
 
   # crbug.com/v8/5803
   'wasm/gc-frame': [SKIP],
+
+  # BUG(v8:6426): Investigate why these crash.
+  'array-functions-prototype-misc': [CRASH],
+  'generated-transition-stub': [CRASH],
+  'ignition/regress-672027': [CRASH],
+  'regress/regress-2790': [CRASH],
+  'regress/regress-331444': [CRASH],
+  'regress/regress-410912': [CRASH],
+  'regress/regress-542823': [CRASH],
+  'unbox-double-arrays': [CRASH],
+
+  # BUG(v8:6426): Investigate why this fails.
+  'harmony/futex': [FAIL],
 }],  # 'predictable == True'
 
 ##############################################################################

@@ -294,19 +294,25 @@ class Runner(object):
 
     # Always pass the test duration for the database update.
     test.duration = result[2]
-    if test.run == 1 and result[1].HasTimedOut():
-      # If we get a timeout in the first run, we are already in an
-      # unpredictable state. Just report it as a failure and don't rerun.
-      test.output = result[1]
+    previous_output = test.output
+    test.output = result[1]
+    if test.run == 1 and test.suite.HasUnexpectedOutput(test):
+      # TODO(machenbach): Rerunning failures is not supported in predictable
+      # mode.
       self.remaining -= 1
       self.failed.append(test)
       self.indicator.HasRun(test, True)
-    if test.run > 1 and HasDifferentAllocations(test.output, result[1]):
+    elif test.run > 1 and HasDifferentAllocations(previous_output, result[1]):
       # From the second run on, check for different allocations. If a
       # difference is found, call the indicator twice to report both tests.
       # All runs of each test are counted as one for the statistic.
       self.remaining -= 1
       self.failed.append(test)
+
+      # TODO(machenbach): The indicator needs a makeover. We should
+      # differentiate between a test and a particular run (including
+      # output/duration) of that test.
+      test.output = previous_output
       self.indicator.HasRun(test, True)
       test.output = result[1]
       self.indicator.HasRun(test, True)
@@ -314,13 +320,11 @@ class Runner(object):
       # No difference on the third run -> report a success.
       self.remaining -= 1
       self.succeeded += 1
-      test.output = result[1]
       self.indicator.HasRun(test, False)
     else:
       # No difference yet and less than three runs -> add another run and
       # remember the output for comparison.
       test.run += 1
-      test.output = result[1]
       pool.add([TestJob(test)])
     # Always update the perf database.
     return True
