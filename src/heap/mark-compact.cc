@@ -4208,6 +4208,7 @@ class PointerUpdateJobTraits {
 
   static void ProcessPageInParallel(Heap* heap, PerTaskData task_data,
                                     MemoryChunk* chunk, PerPageData) {
+    base::LockGuard<base::RecursiveMutex> guard(chunk->mutex());
     UpdateUntypedPointers(heap, chunk, task_data);
     UpdateTypedPointers(heap, chunk, task_data);
   }
@@ -4215,7 +4216,6 @@ class PointerUpdateJobTraits {
  private:
   static void UpdateUntypedPointers(Heap* heap, MemoryChunk* chunk,
                                     const MarkCompactCollectorBase* collector) {
-    base::LockGuard<base::RecursiveMutex> guard(chunk->mutex());
     if (type == OLD_TO_NEW) {
       RememberedSet<OLD_TO_NEW>::Iterate(
           chunk, [heap, collector](Address slot) {
@@ -4255,51 +4255,36 @@ class PointerUpdateJobTraits {
   static SlotCallbackResult CheckAndUpdateOldToNewSlot(
       Heap* heap, Address slot_address,
       const MarkCompactCollectorBase* collector) {
-    // There may be concurrent action on slots in dead objects. Concurrent
-    // sweeper threads may overwrite the slot content with a free space object.
-    // Moreover, the pointed-to object may also get concurrently overwritten
-    // with a free space object. The sweeper always gets priority performing
-    // these writes.
-    base::NoBarrierAtomicValue<Object*>* slot =
-        base::NoBarrierAtomicValue<Object*>::FromAddress(slot_address);
-    Object* slot_reference = slot->Value();
-    if (heap->InFromSpace(slot_reference)) {
-      HeapObject* heap_object = reinterpret_cast<HeapObject*>(slot_reference);
+    Object** slot = reinterpret_cast<Object**>(slot_address);
+    if (heap->InFromSpace(*slot)) {
+      HeapObject* heap_object = reinterpret_cast<HeapObject*>(*slot);
       DCHECK(heap_object->IsHeapObject());
       MapWord map_word = heap_object->map_word();
       // There could still be stale pointers in large object space, map space,
       // and old space for pages that have been promoted.
       if (map_word.IsForwardingAddress()) {
-        // A sweeper thread may concurrently write a size value which looks like
-        // a forwarding pointer. We have to ignore these values.
-        if (map_word.ToRawValue() < Page::kPageSize) {
-          return REMOVE_SLOT;
-        }
-        // Update the corresponding slot only if the slot content did not
-        // change in the meantime. This may happen when a concurrent sweeper
-        // thread stored a free space object at that memory location.
-        slot->TrySetValue(slot_reference, map_word.ToForwardingAddress());
+        *slot = map_word.ToForwardingAddress();
       }
       // If the object was in from space before and is after executing the
       // callback in to space, the object is still live.
       // Unfortunately, we do not know about the slot. It could be in a
       // just freed free space object.
-      if (heap->InToSpace(slot->Value())) {
+      if (heap->InToSpace(*slot)) {
         return KEEP_SLOT;
       }
-    } else if (heap->InToSpace(slot_reference)) {
+    } else if (heap->InToSpace(*slot)) {
       // Slots can point to "to" space if the page has been moved, or if the
       // slot has been recorded multiple times in the remembered set. Since
       // there is no forwarding information present we need to check the
       // markbits to determine liveness.
-      HeapObject* heap_object = reinterpret_cast<HeapObject*>(slot_reference);
+      HeapObject* heap_object = reinterpret_cast<HeapObject*>(*slot);
       // IsBlackOrGrey is required because objects are marked as grey for
       // the young generation collector while they are black for the full MC.
       if (ObjectMarking::IsBlackOrGrey(heap_object,
                                        collector->marking_state(heap_object)))
         return KEEP_SLOT;
     } else {
-      DCHECK(!heap->InNewSpace(slot_reference));
+      DCHECK(!heap->InNewSpace(*slot));
     }
     return REMOVE_SLOT;
   }
