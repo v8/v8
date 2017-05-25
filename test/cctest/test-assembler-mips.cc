@@ -46,7 +46,7 @@ using namespace v8::internal;
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
-
+typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 
@@ -5585,6 +5585,194 @@ TEST(Subu) {
   for (size_t i = 0; i < nr_test_cases; ++i) {
     CHECK_EQ(tc[i].expected_res, run_Subu(tc[i].imm, tc[i].num_instr));
   }
+}
+
+TEST(MSA_fill_copy) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t u8;
+    uint32_t u16;
+    uint32_t u32;
+    uint32_t s8;
+    uint32_t s16;
+    uint32_t s32;
+  } T;
+  T t;
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  {
+    CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+    __ li(t0, 0xa512b683);
+
+    __ fill_b(w0, t0);
+    __ fill_h(w2, t0);
+    __ fill_w(w4, t0);
+    __ copy_u_b(t1, w0, 11);
+    __ sw(t1, MemOperand(a0, offsetof(T, u8)));
+    __ copy_u_h(t1, w2, 6);
+    __ sw(t1, MemOperand(a0, offsetof(T, u16)));
+    __ copy_u_w(t1, w4, 3);
+    __ sw(t1, MemOperand(a0, offsetof(T, u32)));
+
+    __ copy_s_b(t1, w0, 8);
+    __ sw(t1, MemOperand(a0, offsetof(T, s8)));
+    __ copy_s_h(t1, w2, 5);
+    __ sw(t1, MemOperand(a0, offsetof(T, s16)));
+    __ copy_s_w(t1, w4, 1);
+    __ sw(t1, MemOperand(a0, offsetof(T, s32)));
+
+    __ jr(ra);
+    __ nop();
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0x83u, t.u8);
+  CHECK_EQ(0xb683u, t.u16);
+  CHECK_EQ(0xa512b683u, t.u32);
+  CHECK_EQ(0xffffff83u, t.s8);
+  CHECK_EQ(0xffffb683u, t.s16);
+  CHECK_EQ(0xa512b683u, t.s32);
+}
+
+TEST(MSA_fill_copy_2) {
+  // Similar to MSA_fill_copy test, but also check overlaping between MSA and
+  // FPU registers with same numbers
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t w0;
+    uint32_t w1;
+    uint32_t w2;
+    uint32_t w3;
+  } T;
+  T t[2];
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  {
+    CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+    __ li(t0, 0xaaaaaaaa);
+    __ li(t1, 0x55555555);
+
+    __ fill_w(w0, t0);
+    __ fill_w(w2, t0);
+
+    __ FmoveLow(f0, t1);
+    __ FmoveHigh(f2, t1);
+
+#define STORE_MSA_REG(w_reg, base, scratch)          \
+  __ copy_u_w(scratch, w_reg, 0);                    \
+  __ sw(scratch, MemOperand(base, offsetof(T, w0))); \
+  __ copy_u_w(scratch, w_reg, 1);                    \
+  __ sw(scratch, MemOperand(base, offsetof(T, w1))); \
+  __ copy_u_w(scratch, w_reg, 2);                    \
+  __ sw(scratch, MemOperand(base, offsetof(T, w2))); \
+  __ copy_u_w(scratch, w_reg, 3);                    \
+  __ sw(scratch, MemOperand(base, offsetof(T, w3)));
+
+    STORE_MSA_REG(w0, a0, t2)
+    STORE_MSA_REG(w2, a1, t2)
+#undef STORE_MSA_REG
+
+    __ jr(ra);
+    __ nop();
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t[0], &t[1], 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0x55555555, t[0].w0);
+  CHECK_EQ(0xaaaaaaaa, t[0].w1);
+  CHECK_EQ(0xaaaaaaaa, t[0].w2);
+  CHECK_EQ(0xaaaaaaaa, t[0].w3);
+  CHECK_EQ(0xaaaaaaaa, t[1].w0);
+  CHECK_EQ(0x55555555, t[1].w1);
+  CHECK_EQ(0xaaaaaaaa, t[1].w2);
+  CHECK_EQ(0xaaaaaaaa, t[1].w3);
+}
+
+TEST(MSA_fill_copy_3) {
+  // Similar to MSA_fill_copy test, but also check overlaping between MSA and
+  // FPU registers with same numbers
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint64_t d0;
+    uint64_t d1;
+  } T;
+  T t[2];
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  {
+    CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+    __ li(t0, 0xaaaaaaaa);
+    __ li(t1, 0x55555555);
+
+    __ Move(f0, t0, t0);
+    __ Move(f2, t0, t0);
+
+    __ fill_w(w0, t1);
+    __ fill_w(w2, t1);
+
+    __ Sdc1(f0, MemOperand(a0, offsetof(T, d0)));
+    __ Sdc1(f2, MemOperand(a1, offsetof(T, d0)));
+
+    __ jr(ra);
+    __ nop();
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t[0], &t[1], 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0x5555555555555555, t[0].d0);
+  CHECK_EQ(0x5555555555555555, t[1].d0);
 }
 
 #undef __
