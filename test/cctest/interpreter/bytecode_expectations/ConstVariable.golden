@@ -54,7 +54,7 @@ bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   48 S> */ B(LdaSmi), I8(20),
+  /*   44 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
                 B(Ldar), R(0),
                 B(JumpIfNotHole), U8(11),

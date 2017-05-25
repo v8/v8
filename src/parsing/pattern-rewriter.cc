@@ -26,6 +26,7 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
   rewriter.context_ = BINDING;
   rewriter.pattern_ = declaration->pattern;
   rewriter.initializer_position_ = declaration->initializer_position;
+  rewriter.value_beg_position_ = declaration->value_beg_position;
   rewriter.block_ = block;
   rewriter.descriptor_ = declaration_descriptor;
   rewriter.names_ = names;
@@ -236,7 +237,10 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
       DCHECK_NOT_NULL(proxy->var());
     }
     // Add break location for destructured sub-pattern.
-    int pos = IsSubPattern() ? pattern->position() : value->position();
+    int pos = value_beg_position_;
+    if (pos == kNoSourcePosition) {
+      pos = IsSubPattern() ? pattern->position() : value->position();
+    }
     Assignment* assignment =
         factory()->NewAssignment(Token::INIT, proxy, value, pos);
     block_->statements()->Add(
