@@ -167,7 +167,7 @@ std::ostream& operator<<(std::ostream& os,
     return *static_cast<const OperandType*>(&op);                \
   }
 
-class UnallocatedOperand : public InstructionOperand {
+class UnallocatedOperand final : public InstructionOperand {
  public:
   enum BasicPolicy { FIXED_SLOT, EXTENDED_POLICY };
 
@@ -183,15 +183,14 @@ class UnallocatedOperand : public InstructionOperand {
 
   // Lifetime of operand inside the instruction.
   enum Lifetime {
-    // USED_AT_START operand is guaranteed to be live only at
-    // instruction start. Register allocator is free to assign the same register
-    // to some other operand used inside instruction (i.e. temporary or
-    // output).
+    // USED_AT_START operand is guaranteed to be live only at instruction start.
+    // The register allocator is free to assign the same register to some other
+    // operand used inside instruction (i.e. temporary or output).
     USED_AT_START,
 
-    // USED_AT_END operand is treated as live until the end of
-    // instruction. This means that register allocator will not reuse it's
-    // register for any other operand inside instruction.
+    // USED_AT_END operand is treated as live until the end of instruction.
+    // This means that register allocator will not reuse its register for any
+    // other operand inside instruction.
     USED_AT_END
   };
 
@@ -231,6 +230,12 @@ class UnallocatedOperand : public InstructionOperand {
       : UnallocatedOperand(FIXED_REGISTER, reg_id, virtual_register) {
     value_ |= HasSecondaryStorageField::encode(true);
     value_ |= SecondaryStorageField::encode(slot_id);
+  }
+
+  UnallocatedOperand(const UnallocatedOperand& other, int virtual_register) {
+    DCHECK_NE(kInvalidVirtualRegister, virtual_register);
+    value_ = VirtualRegisterField::update(
+        other.value_, static_cast<uint32_t>(virtual_register));
   }
 
   // Predicates for the operand policy.
@@ -275,7 +280,6 @@ class UnallocatedOperand : public InstructionOperand {
 
   // [basic_policy]: Distinguish between FIXED_SLOT and all other policies.
   BasicPolicy basic_policy() const {
-    DCHECK_EQ(UNALLOCATED, kind());
     return BasicPolicyField::decode(value_);
   }
 
@@ -300,14 +304,7 @@ class UnallocatedOperand : public InstructionOperand {
 
   // [virtual_register]: The virtual register ID for this operand.
   int32_t virtual_register() const {
-    DCHECK_EQ(UNALLOCATED, kind());
     return static_cast<int32_t>(VirtualRegisterField::decode(value_));
-  }
-
-  // TODO(dcarney): remove this.
-  void set_virtual_register(int32_t id) {
-    DCHECK_EQ(UNALLOCATED, kind());
-    value_ = VirtualRegisterField::update(value_, static_cast<uint32_t>(id));
   }
 
   // [lifetime]: Only for non-FIXED_SLOT.

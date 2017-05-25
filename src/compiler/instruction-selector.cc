@@ -302,10 +302,11 @@ int InstructionSelector::GetRename(int virtual_register) {
 
 void InstructionSelector::TryRename(InstructionOperand* op) {
   if (!op->IsUnallocated()) return;
-  int vreg = UnallocatedOperand::cast(op)->virtual_register();
+  UnallocatedOperand* unalloc = UnallocatedOperand::cast(op);
+  int vreg = unalloc->virtual_register();
   int rename = GetRename(vreg);
   if (rename != vreg) {
-    UnallocatedOperand::cast(op)->set_virtual_register(rename);
+    *unalloc = UnallocatedOperand(*unalloc, rename);
   }
 }
 
