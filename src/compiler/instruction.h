@@ -34,8 +34,6 @@ class V8_EXPORT_PRIVATE InstructionOperand {
  public:
   static const int kInvalidVirtualRegister = -1;
 
-  // TODO(dcarney): recover bit. INVALID can be represented as UNALLOCATED with
-  // kInvalidVirtualRegister and some DCHECKS.
   enum Kind {
     INVALID,
     UNALLOCATED,
