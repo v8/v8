@@ -265,15 +265,15 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
       if (dummy_rinfo.IsInConstantPool()) {
         byte* constant_pool_entry_address =
             dummy_rinfo.constant_pool_entry_address();
-        RelocIterator* it = new RelocIterator(converter.code());
-        while (!it->done()) {
-          if (it->rinfo()->IsInConstantPool() &&
-              (it->rinfo()->constant_pool_entry_address() ==
+        RelocIterator reloc_it(converter.code());
+        while (!reloc_it.done()) {
+          if (reloc_it.rinfo()->IsInConstantPool() &&
+              (reloc_it.rinfo()->constant_pool_entry_address() ==
                constant_pool_entry_address)) {
-            PrintRelocInfo(&out, isolate, ref_encoder, os, it->rinfo());
+            PrintRelocInfo(&out, isolate, ref_encoder, os, reloc_it.rinfo());
             break;
           }
-          it->next();
+          reloc_it.next();
         }
       }
     }
