@@ -7886,11 +7886,9 @@ Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
 template <class ContextObject>
 class JSObjectWalkVisitor {
  public:
-  JSObjectWalkVisitor(ContextObject* site_context, bool copying,
+  JSObjectWalkVisitor(ContextObject* site_context,
                       JSObject::DeepCopyHints hints)
-    : site_context_(site_context),
-      copying_(copying),
-      hints_(hints) {}
+      : site_context_(site_context), hints_(hints) {}
 
   MUST_USE_RESULT MaybeHandle<JSObject> StructureWalk(Handle<JSObject> object);
 
@@ -7907,11 +7905,8 @@ class JSObjectWalkVisitor {
   inline ContextObject* site_context() { return site_context_; }
   inline Isolate* isolate() { return site_context()->isolate(); }
 
-  inline bool copying() const { return copying_; }
-
  private:
   ContextObject* site_context_;
-  const bool copying_;
   const JSObject::DeepCopyHints hints_;
 };
 
@@ -7919,7 +7914,7 @@ template <class ContextObject>
 MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     Handle<JSObject> object) {
   Isolate* isolate = this->isolate();
-  bool copying = this->copying();
+  bool copying = ContextObject::kCopying;
   bool shallow = hints_ == JSObject::kObjectIsShallow;
 
   if (!shallow) {
@@ -7958,33 +7953,32 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     isolate->counters()->cow_arrays_created_runtime()->Increment();
   }
 
-  if (!shallow) {
-    HandleScope scope(isolate);
+  if (shallow) return copy;
 
-    // Deep copy own properties.
+  HandleScope scope(isolate);
+
+  // Deep copy own properties. Arrays only have 1 property "length".
+  if (!copy->IsJSArray()) {
     if (copy->HasFastProperties()) {
       Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors());
-      // Skip the length field of JSArrays.
-      int i = copy->IsJSArray() ? 1 : 0;
       int limit = copy->map()->NumberOfOwnDescriptors();
-      for (; i < limit; i++) {
+      for (int i = 0; i < limit; i++) {
         DCHECK_EQ(kField, descriptors->GetDetails(i).location());
         DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
         FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
         if (copy->IsUnboxedDoubleField(index)) continue;
         Object* raw = copy->RawFastPropertyAt(index);
-        if (raw->IsMutableHeapNumber()) {
-          if (!copying) continue;
+        if (raw->IsJSObject()) {
+          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          if (copying) copy->FastPropertyAtPut(index, *value);
+        } else if (copying && raw->IsMutableHeapNumber()) {
           DCHECK(descriptors->GetDetails(i).representation().IsDouble());
           uint64_t double_value = HeapNumber::cast(raw)->value_as_bits();
           Handle<HeapNumber> value = isolate->factory()->NewHeapNumber(MUTABLE);
           value->set_value_as_bits(double_value);
           copy->FastPropertyAtPut(index, *value);
-        } else if (raw->IsJSObject()) {
-          Handle<JSObject> value(JSObject::cast(raw), isolate);
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, value, VisitElementOrProperty(copy, value), JSObject);
-          if (copying) copy->FastPropertyAtPut(index, *value);
         }
       }
     } else {
@@ -8000,54 +7994,57 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       }
     }
 
-    // Deep copy own elements.
-    switch (kind) {
-      case FAST_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS: {
-        Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
-        if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
+    // Assume non-arrays don't end up having elements.
+    if (copy->elements()->length() == 0) return copy;
+  }
+
+  // Deep copy own elements.
+  switch (kind) {
+    case FAST_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS: {
+      Handle<FixedArray> elements(FixedArray::cast(copy->elements()));
+      if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
 #ifdef DEBUG
-          for (int i = 0; i < elements->length(); i++) {
-            DCHECK(!elements->get(i)->IsJSObject());
-          }
-#endif
-        } else {
-          for (int i = 0; i < elements->length(); i++) {
-            Object* raw = elements->get(i);
-            if (!raw->IsJSObject()) continue;
-            Handle<JSObject> value(JSObject::cast(raw), isolate);
-            ASSIGN_RETURN_ON_EXCEPTION(
-                isolate, value, VisitElementOrProperty(copy, value), JSObject);
-            if (copying) elements->set(i, *value);
-          }
+        for (int i = 0; i < elements->length(); i++) {
+          DCHECK(!elements->get(i)->IsJSObject());
         }
-        break;
-      }
-      case DICTIONARY_ELEMENTS: {
-        Handle<SeededNumberDictionary> element_dictionary(
-            copy->element_dictionary());
-        int capacity = element_dictionary->Capacity();
-        for (int i = 0; i < capacity; i++) {
-          Object* raw = element_dictionary->ValueAt(i);
+#endif
+      } else {
+        for (int i = 0; i < elements->length(); i++) {
+          Object* raw = elements->get(i);
           if (!raw->IsJSObject()) continue;
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
               isolate, value, VisitElementOrProperty(copy, value), JSObject);
-          if (copying) element_dictionary->ValueAtPut(i, *value);
+          if (copying) elements->set(i, *value);
         }
-        break;
       }
-      case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-      case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
-        UNIMPLEMENTED();
-        break;
-      case FAST_STRING_WRAPPER_ELEMENTS:
-      case SLOW_STRING_WRAPPER_ELEMENTS:
-        UNREACHABLE();
-        break;
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      Handle<SeededNumberDictionary> element_dictionary(
+          copy->element_dictionary());
+      int capacity = element_dictionary->Capacity();
+      for (int i = 0; i < capacity; i++) {
+        Object* raw = element_dictionary->ValueAt(i);
+        if (!raw->IsJSObject()) continue;
+        Handle<JSObject> value(JSObject::cast(raw), isolate);
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, value, VisitElementOrProperty(copy, value), JSObject);
+        if (copying) element_dictionary->ValueAtPut(i, *value);
+      }
+      break;
+    }
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
+      break;
+    case FAST_STRING_WRAPPER_ELEMENTS:
+    case SLOW_STRING_WRAPPER_ELEMENTS:
+      UNREACHABLE();
+      break;
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
-      case TYPE##_ELEMENTS:                                                    \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -8055,14 +8052,13 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       UNREACHABLE();
       break;
 
-      case FAST_SMI_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-      case NO_ELEMENTS:
-        // No contained objects, nothing to do.
-        break;
-    }
+    case FAST_SMI_ELEMENTS:
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case NO_ELEMENTS:
+      // No contained objects, nothing to do.
+      break;
   }
 
   return copy;
@@ -8072,8 +8068,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 MaybeHandle<JSObject> JSObject::DeepWalk(
     Handle<JSObject> object,
     AllocationSiteCreationContext* site_context) {
-  JSObjectWalkVisitor<AllocationSiteCreationContext> v(site_context, false,
-                                                       kNoHints);
+  JSObjectWalkVisitor<AllocationSiteCreationContext> v(site_context, kNoHints);
   MaybeHandle<JSObject> result = v.StructureWalk(object);
   Handle<JSObject> for_assert;
   DCHECK(!result.ToHandle(&for_assert) || for_assert.is_identical_to(object));
@@ -8085,7 +8080,7 @@ MaybeHandle<JSObject> JSObject::DeepCopy(
     Handle<JSObject> object,
     AllocationSiteUsageContext* site_context,
     DeepCopyHints hints) {
-  JSObjectWalkVisitor<AllocationSiteUsageContext> v(site_context, true, hints);
+  JSObjectWalkVisitor<AllocationSiteUsageContext> v(site_context, hints);
   MaybeHandle<JSObject> copy = v.StructureWalk(object);
   Handle<JSObject> for_assert;
   DCHECK(!copy.ToHandle(&for_assert) || !for_assert.is_identical_to(object));
