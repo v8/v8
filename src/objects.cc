@@ -7961,17 +7961,18 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     // Deep copy own properties.
     if (copy->HasFastProperties()) {
       Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors());
+      // Skip the length field of JSArrays.
+      int i = copy->IsJSArray() ? 1 : 0;
       int limit = copy->map()->NumberOfOwnDescriptors();
-      for (int i = 0; i < limit; i++) {
-        PropertyDetails details = descriptors->GetDetails(i);
-        if (details.location() != kField) continue;
-        DCHECK_EQ(kData, details.kind());
+      for (; i < limit; i++) {
+        DCHECK_EQ(kField, descriptors->GetDetails(i).location());
+        DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
         FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
         if (copy->IsUnboxedDoubleField(index)) continue;
         Object* raw = copy->RawFastPropertyAt(index);
         if (raw->IsMutableHeapNumber()) {
           if (!copying) continue;
-          DCHECK(details.representation().IsDouble());
+          DCHECK(descriptors->GetDetails(i).representation().IsDouble());
           uint64_t double_value = HeapNumber::cast(raw)->value_as_bits();
           Handle<HeapNumber> value = isolate->factory()->NewHeapNumber(MUTABLE);
           value->set_value_as_bits(double_value);
