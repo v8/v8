@@ -144,8 +144,8 @@ void AsmJsParser::InitializeStdlibTypes() {
   stdlib_fround_ = AsmType::FroundType(zone());
 }
 
-FunctionSig* AsmJsParser::ConvertSignature(
-    AsmType* return_type, const std::vector<AsmType*>& params) {
+FunctionSig* AsmJsParser::ConvertSignature(AsmType* return_type,
+                                           const ZoneVector<AsmType*>& params) {
   FunctionSig::Builder sig_builder(
       zone(), !return_type->IsA(AsmType::Void()) ? 1 : 0, params.size());
   for (auto param : params) {
@@ -730,9 +730,9 @@ void AsmJsParser::ValidateFunction() {
   int start_position = static_cast<int>(scanner_.Position());
   current_function_builder_->SetAsmFunctionStartPosition(start_position);
 
-  std::vector<AsmType*> params;
+  CachedVector<AsmType*> params(cached_asm_type_p_vectors_);
   ValidateFunctionParams(&params);
-  std::vector<ValueType> locals;
+  CachedVector<ValueType> locals(cached_valuetype_vectors_);
   ValidateFunctionLocals(params.size(), &locals);
 
   function_temp_locals_offset_ = static_cast<uint32_t>(
@@ -792,13 +792,14 @@ void AsmJsParser::ValidateFunction() {
 }
 
 // 6.4 ValidateFunction
-void AsmJsParser::ValidateFunctionParams(std::vector<AsmType*>* params) {
+void AsmJsParser::ValidateFunctionParams(ZoneVector<AsmType*>* params) {
   // TODO(bradnelson): Do this differently so that the scanner doesn't need to
   // have a state transition that needs knowledge of how the scanner works
   // inside.
   scanner_.EnterLocalScope();
   EXPECT_TOKEN('(');
-  std::vector<AsmJsScanner::token_t> function_parameters;
+  CachedVector<AsmJsScanner::token_t> function_parameters(
+      cached_token_t_vectors_);
   while (!failed_ && !Peek(')')) {
     if (!scanner_.IsLocal()) {
       FAIL("Expected parameter name");
@@ -852,8 +853,8 @@ void AsmJsParser::ValidateFunctionParams(std::vector<AsmType*>* params) {
 }
 
 // 6.4 ValidateFunction - locals
-void AsmJsParser::ValidateFunctionLocals(
-    size_t param_count, std::vector<ValueType>* locals) {
+void AsmJsParser::ValidateFunctionLocals(size_t param_count,
+                                         ZoneVector<ValueType>* locals) {
   // Local Variables.
   while (Peek(TOK(var))) {
     scanner_.EnterLocalScope();
@@ -1267,7 +1268,7 @@ void AsmJsParser::SwitchStatement() {
   Begin(pending_label_);
   pending_label_ = 0;
   // TODO(bradnelson): Make less weird.
-  std::vector<int32_t> cases;
+  CachedVector<int32_t> cases(cached_int_vectors_);
   GatherCases(&cases);
   EXPECT_TOKEN('{');
   size_t count = cases.size() + 1;
@@ -2074,8 +2075,8 @@ AsmType* AsmJsParser::ValidateCall() {
   }
 
   // Parse argument list and gather types.
-  std::vector<AsmType*> param_types;
-  ZoneVector<AsmType*> param_specific_types(zone());
+  CachedVector<AsmType*> param_types(cached_asm_type_p_vectors_);
+  CachedVector<AsmType*> param_specific_types(cached_asm_type_p_vectors_);
   EXPECT_TOKENn('(');
   while (!failed_ && !Peek(')')) {
     AsmType* t;
@@ -2426,7 +2427,7 @@ void AsmJsParser::ScanToClosingParenthesis() {
   }
 }
 
-void AsmJsParser::GatherCases(std::vector<int32_t>* cases) {
+void AsmJsParser::GatherCases(ZoneVector<int32_t>* cases) {
   size_t start = scanner_.Position();
   int depth = 0;
   for (;;) {
