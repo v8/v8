@@ -735,10 +735,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Store input value into generator object.
   Label async_await, done_store_input;
 
-  __ AndP(r5, r5,
-          Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
-  __ CmpP(r5, Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
-  __ beq(&async_await);
+  __ tmll(r5, Operand(static_cast<int>(SuspendFlags::kAsyncGeneratorAwait)));
+  __ b(Condition(1), &async_await);
 
   __ StoreP(r2, FieldMemOperand(r3, JSGeneratorObject::kInputOrDebugPosOffset),
             r0);
@@ -1205,9 +1203,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Label gotta_call_runtime;
 
   // Check if the optimized code is marked for deopt.
-  __ LoadlB(r7, FieldMemOperand(optimized_code_entry,
+  __ LoadlW(r7, FieldMemOperand(optimized_code_entry,
                                 Code::kKindSpecificFlags1Offset));
-  __ tmll(r7, Operand(Code::kMarkedForDeoptimizationBit));
+  __ And(r0, r7, Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ bne(&gotta_call_runtime);
 
   // Optimized code is good, get it into the closure and link the closure into
@@ -1481,8 +1479,8 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
 
   // Found code, check if it is marked for deopt, if so call into runtime to
   // clear the optimized code slot.
-  __ LoadlB(r7, FieldMemOperand(entry, Code::kKindSpecificFlags1Offset));
-  __ tmll(r7, Operand(Code::kMarkedForDeoptimizationBit));
+  __ LoadlW(r7, FieldMemOperand(entry, Code::kKindSpecificFlags1Offset));
+  __ And(r0, r7, Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ bne(&gotta_call_runtime);
 
   // Code is good, get it into the closure and tail call.
