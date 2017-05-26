@@ -17180,13 +17180,14 @@ size_t JSTypedArray::element_size() {
 
 // static
 MaybeHandle<JSTypedArray> JSTypedArray::Create(Isolate* isolate,
-                                               Handle<JSFunction> default_ctor,
+                                               Handle<Object> default_ctor,
                                                int argc, Handle<Object>* argv,
                                                const char* method_name) {
   // 1. Let newTypedArray be ? Construct(constructor, argumentList).
   Handle<Object> new_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, new_obj, Execution::New(default_ctor, argc, argv), JSTypedArray);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, new_obj,
+                             Execution::New(isolate, default_ctor, argc, argv),
+                             JSTypedArray);
 
   // 2. Perform ? ValidateTypedArray(newTypedArray).
   Handle<JSTypedArray> new_array;
@@ -17239,8 +17240,7 @@ MaybeHandle<JSTypedArray> JSTypedArray::SpeciesCreate(
       JSTypedArray);
 
   // 4. Return ? TypedArrayCreate(constructor, argumentList).
-  return Create(isolate, Handle<JSFunction>::cast(ctor), argc, argv,
-                method_name);
+  return Create(isolate, ctor, argc, argv, method_name);
 }
 
 void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
