@@ -168,11 +168,10 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     // 6. Let A be ? TypedArraySpeciesCreate(O, len).
     Node* a = TypedArraySpeciesCreateByLength(context(), o(), len_);
     // In the Spec and our current implementation, the length check is already
-    // performed in TypedArraySpeciesCreate. Repeating the check here to
-    // keep this invariant local.
-    // TODO(tebbi): Change this to a release mode check.
-    CSA_ASSERT(
-        this, WordEqual(len_, LoadObjectField(a, JSTypedArray::kLengthOffset)));
+    // performed in TypedArraySpeciesCreate.
+    CSA_ASSERT(this,
+               SmiLessThanOrEqual(
+                   len_, LoadObjectField(a, JSTypedArray::kLengthOffset)));
     fast_typed_array_target_ = Word32Equal(LoadInstanceType(LoadElements(o_)),
                                            LoadInstanceType(LoadElements(a)));
     a_.Bind(a);
@@ -269,10 +268,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     // #sec-integerindexedelementset 3. Let numValue be ? ToNumber(value).
     Node* num_value = ToNumber(context(), mappedValue);
     // The only way how this can bailout is because of a detached buffer.
-    EmitElementStore(
-        a(), k, num_value, false, source_elements_kind_,
-        KeyedAccessStoreMode::STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS,
-        &detached);
+    EmitElementStore(a(), k, num_value, false, source_elements_kind_,
+                     KeyedAccessStoreMode::STANDARD_STORE, &detached);
     Goto(&done);
 
     BIND(&slow);
