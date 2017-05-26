@@ -6,6 +6,7 @@
 load('../base.js');
 
 load('compare.js');
+load('string-concat.js');
 
 var success = true;
 

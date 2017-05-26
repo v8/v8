@@ -394,7 +394,7 @@
       "name": "BytecodeHandlers",
       "path": ["BytecodeHandlers"],
       "main": "run.js",
-      "resources": [ "compare.js" ],
+      "resources": [ "compare.js", "string-concat.js" ],
       "flags": [ "--no-opt" ],
       "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
       "tests": [
@@ -416,7 +416,19 @@
         {"name": "Smi-RelationalCompare"},
         {"name": "Number-RelationalCompare"},
         {"name": "String-RelationalCompare"},
-        {"name": "SmiString-RelationalCompare"}
+        {"name": "SmiString-RelationalCompare"},
+        {"name": "ShortString-StringConcat-2"},
+        {"name": "ShortString-StringConcat-3"},
+        {"name": "ShortString-StringConcat-5"},
+        {"name": "ShortString-StringConcat-10"},
+        {"name": "LongString-StringConcat-2"},
+        {"name": "LongString-StringConcat-3"},
+        {"name": "LongString-StringConcat-5"},
+        {"name": "LongString-StringConcat-10"},
+        {"name": "NumberString-StringConcat-2"},
+        {"name": "NumberString-StringConcat-3"},
+        {"name": "NumberString-StringConcat-5"},
+        {"name": "NumberString-StringConcat-10"}
       ]
     }
   ]
