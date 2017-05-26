@@ -503,7 +503,7 @@ class GlobalHandles::PendingPhantomCallbacksSecondPassTask
   // the same state it would be after a call to Clear().
   PendingPhantomCallbacksSecondPassTask(
       List<PendingPhantomCallback>* pending_phantom_callbacks, Isolate* isolate)
-      : CancelableTask(isolate) {
+      : CancelableTask(isolate), isolate_(isolate) {
     pending_phantom_callbacks_.Swap(pending_phantom_callbacks);
   }
 
@@ -516,7 +516,10 @@ class GlobalHandles::PendingPhantomCallbacksSecondPassTask
         GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
   }
 
+  Isolate* isolate() { return isolate_; }
+
  private:
+  Isolate* isolate_;
   List<PendingPhantomCallback> pending_phantom_callbacks_;
 
   DISALLOW_COPY_AND_ASSIGN(PendingPhantomCallbacksSecondPassTask);
