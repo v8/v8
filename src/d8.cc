@@ -481,9 +481,9 @@ ScriptCompiler::CachedData* CompileForCachedData(
   }
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-  create_params.host_import_module_dynamically_callback_ =
-      Shell::HostImportModuleDynamically;
   Isolate* temp_isolate = Isolate::New(create_params);
+  temp_isolate->SetHostImportModuleDynamicallyCallback(
+      Shell::HostImportModuleDynamically);
   ScriptCompiler::CachedData* result = NULL;
   {
     Isolate::Scope isolate_scope(temp_isolate);
@@ -2313,9 +2313,9 @@ base::Thread::Options SourceGroup::GetThreadOptions() {
 void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-  create_params.host_import_module_dynamically_callback_ =
-      Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
+  isolate->SetHostImportModuleDynamicallyCallback(
+      Shell::HostImportModuleDynamically);
 
   Shell::EnsureEventLoopInitialized(isolate);
   D8Console console(isolate);
@@ -2458,9 +2458,9 @@ void Worker::WaitForThread() {
 void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-  create_params.host_import_module_dynamically_callback_ =
-      Shell::HostImportModuleDynamically;
   Isolate* isolate = Isolate::New(create_params);
+  isolate->SetHostImportModuleDynamicallyCallback(
+      Shell::HostImportModuleDynamically);
   D8Console console(isolate);
   debug::SetConsoleDelegate(isolate, &console);
   {
@@ -3107,9 +3107,6 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
 
-  create_params.host_import_module_dynamically_callback_ =
-      Shell::HostImportModuleDynamically;
-
   if (i::trap_handler::UseTrapHandler()) {
     if (!v8::V8::RegisterDefaultSignalHandler()) {
       fprintf(stderr, "Could not register signal handler");
@@ -3118,6 +3115,8 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   Isolate* isolate = Isolate::New(create_params);
+  isolate->SetHostImportModuleDynamicallyCallback(
+      Shell::HostImportModuleDynamically);
 
   D8Console console(isolate);
   {

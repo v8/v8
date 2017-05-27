@@ -6620,8 +6620,7 @@ class V8_EXPORT Isolate {
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
           external_references(nullptr),
-          allow_atomics_wait(true),
-          host_import_module_dynamically_callback_(nullptr) {}
+          allow_atomics_wait(true) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -6684,16 +6683,6 @@ class V8_EXPORT Isolate {
      * this isolate. This can also be configured via SetAllowAtomicsWait.
      */
     bool allow_atomics_wait;
-
-    /**
-     * This is an unfinished experimental feature, and is only exposed
-     * here for internal testing purposes. DO NOT USE.
-     *
-     * This specifies the callback called by the upcoming dynamic
-     * import() language feature to load modules.
-     */
-    HostImportModuleDynamicallyCallback
-        host_import_module_dynamically_callback_;
   };
 
 
@@ -6883,6 +6872,16 @@ class V8_EXPORT Isolate {
   typedef bool (*AbortOnUncaughtExceptionCallback)(Isolate*);
   void SetAbortOnUncaughtExceptionCallback(
       AbortOnUncaughtExceptionCallback callback);
+
+  /**
+   * This is an unfinished experimental feature, and is only exposed
+   * here for internal testing purposes. DO NOT USE.
+   *
+   * This specifies the callback called by the upcoming dynamic
+   * import() language feature to load modules.
+   */
+  void SetHostImportModuleDynamicallyCallback(
+      HostImportModuleDynamicallyCallback callback);
 
   /**
    * Optional notification that the system is running low on memory.
