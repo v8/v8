@@ -1035,8 +1035,8 @@ Variable* DeclarationScope::DeclareParameter(
 }
 
 Variable* DeclarationScope::DeclareParameterName(
-    const AstRawString* name, bool is_rest,
-    AstValueFactory* ast_value_factory) {
+    const AstRawString* name, bool is_rest, AstValueFactory* ast_value_factory,
+    bool declare_as_local, bool add_parameter) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
   DCHECK(!has_rest_ || is_rest);
@@ -1046,8 +1046,16 @@ Variable* DeclarationScope::DeclareParameterName(
     has_arguments_parameter_ = true;
   }
   if (FLAG_experimental_preparser_scope_analysis) {
-    Variable* var = Declare(zone(), name, VAR);
-    params_.Add(var, zone());
+    Variable* var;
+    if (declare_as_local) {
+      var = Declare(zone(), name, VAR);
+    } else {
+      var = new (zone())
+          Variable(this, name, TEMPORARY, NORMAL_VARIABLE, kCreatedInitialized);
+    }
+    if (add_parameter) {
+      params_.Add(var, zone());
+    }
     return var;
   }
   DeclareVariableName(name, VAR);

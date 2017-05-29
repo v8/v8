@@ -137,7 +137,7 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
         function_index_.GetFunctionData(scope->start_position());
     DCHECK(data.is_valid());
     DCHECK_EQ(data.end, scope->end_position());
-    // FIXME(marja): unify num_parameters too and DCHECK here.
+    DCHECK_EQ(data.num_parameters, scope->num_parameters());
     DCHECK_EQ(data.language_mode, scope->language_mode());
     DCHECK_EQ(data.uses_super_property,
               scope->AsDeclarationScope()->uses_super_property());

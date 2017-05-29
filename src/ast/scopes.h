@@ -733,7 +733,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Declares that a parameter with the name exists. Creates a Variable and
   // returns it if FLAG_preparser_scope_analysis is on.
   Variable* DeclareParameterName(const AstRawString* name, bool is_rest,
-                                 AstValueFactory* ast_value_factory);
+                                 AstValueFactory* ast_value_factory,
+                                 bool declare_local, bool add_parameter);
 
   // Declare an implicit global variable in this scope which must be a
   // script scope.  The variable was introduced (possibly from an inner
