@@ -22,7 +22,6 @@ namespace internal {
 // Forward declarations.
 class EvacuationJobTraits;
 class HeapObjectVisitor;
-class ItemParallelJob;
 class LocalWorkStealingMarkingDeque;
 class MarkCompactCollector;
 class MinorMarkCompactCollector;
@@ -277,9 +276,9 @@ class MarkCompactCollectorBase {
   // Returns whether this page should be moved according to heuristics.
   bool ShouldMovePage(Page* p, intptr_t live_bytes);
 
-  int CollectToSpaceUpdatingItems(ItemParallelJob* job);
   template <RememberedSetType type>
-  int CollectRememberedSetUpdatingItems(ItemParallelJob* job);
+  void UpdatePointersInParallel(base::Semaphore* semaphore);
+  void UpdateToSpacePointersInParallel(base::Semaphore* semaphore);
 
   int NumberOfParallelCompactionTasks(int pages);
   int NumberOfParallelPointerUpdateTasks(int pages, int slots);
