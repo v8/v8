@@ -3950,7 +3950,7 @@ typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
 
 template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
-  DCHECK((index >= 0) && (index < this->length()));
+  CHECK((index >= 0) && (index < this->length()));
   ElementType* ptr = reinterpret_cast<ElementType*>(DataPtr());
   ptr[index] = value;
 }

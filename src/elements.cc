@@ -3103,7 +3103,7 @@ class TypedElementsAccessor
     ElementsAccessor* result_accessor = result_array->GetElementsAccessor();
     for (uint32_t i = start; i < end; i++) {
       Handle<Object> elem = AccessorClass::GetImpl(isolate, *from, i);
-      result_accessor->Set(result_array, i, *elem);
+      result_accessor->Set(result_array, i - start, *elem);
     }
     return result_array;
   }
