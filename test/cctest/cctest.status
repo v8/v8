@@ -36,9 +36,6 @@
   # maintain it until the CL is done.
   'test-heap-profiler/AllocationSitesAreVisible': [FAIL],
 
-  # BUG(382): Weird test. Can't guarantee that it never times out.
-  'test-api/ApplyInterruption': [PASS, TIMEOUT],
-
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
   'test-serialize/TestThatAlwaysFails': [FAIL],
@@ -147,7 +144,7 @@
 ['arch == arm64 and simulator_run == True', {
 
   # Pass but take too long with the simulator.
-  'test-api/ExternalArrays': [PASS, TIMEOUT],
+  'test-api/ExternalArrays': [PASS, SLOW],
   'test-api/Threading*': [PASS, SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
 
