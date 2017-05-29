@@ -27,10 +27,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(AllocationSiteMap, AllocationSiteMap)             \
   V(BooleanMap, BooleanMap)                           \
   V(CodeMap, CodeMap)                                 \
-  V(empty_string, EmptyString)                        \
-  V(length_string, LengthString)                      \
-  V(prototype_string, PrototypeString)                \
   V(EmptyFixedArray, EmptyFixedArray)                 \
+  V(empty_string, EmptyString)                        \
   V(EmptyWeakCell, EmptyWeakCell)                     \
   V(FalseValue, False)                                \
   V(FeedbackVectorMap, FeedbackVectorMap)             \
@@ -38,23 +36,26 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \
   V(FixedDoubleArrayMap, FixedDoubleArrayMap)         \
   V(FunctionTemplateInfoMap, FunctionTemplateInfoMap) \
+  V(GlobalPropertyCellMap, PropertyCellMap)           \
   V(has_instance_symbol, HasInstanceSymbol)           \
   V(HeapNumberMap, HeapNumberMap)                     \
-  V(NoClosuresCellMap, NoClosuresCellMap)             \
-  V(OneClosureCellMap, OneClosureCellMap)             \
+  V(length_string, LengthString)                      \
   V(ManyClosuresCellMap, ManyClosuresCellMap)         \
   V(MinusZeroValue, MinusZero)                        \
+  V(MutableHeapNumberMap, MutableHeapNumberMap)       \
   V(NanValue, Nan)                                    \
+  V(NoClosuresCellMap, NoClosuresCellMap)             \
   V(NullValue, Null)                                  \
-  V(GlobalPropertyCellMap, PropertyCellMap)           \
+  V(OneClosureCellMap, OneClosureCellMap)             \
+  V(prototype_string, PrototypeString)                \
+  V(SpeciesProtector, SpeciesProtector)               \
   V(SymbolMap, SymbolMap)                             \
   V(TheHoleValue, TheHole)                            \
   V(TrueValue, True)                                  \
   V(Tuple2Map, Tuple2Map)                             \
   V(Tuple3Map, Tuple3Map)                             \
   V(UndefinedValue, Undefined)                        \
-  V(WeakCellMap, WeakCellMap)                         \
-  V(SpeciesProtector, SpeciesProtector)
+  V(WeakCellMap, WeakCellMap)
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
@@ -776,6 +777,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsAccessorInfo(Node* object);
   Node* IsAccessorPair(Node* object);
   Node* IsHeapNumber(Node* object);
+  Node* IsMutableHeapNumber(Node* object);
   Node* IsName(Node* object);
   Node* IsSymbolInstanceType(Node* instance_type);
   Node* IsSymbol(Node* object);

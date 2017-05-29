@@ -1122,7 +1122,7 @@ bytecodes: [
                 B(Star), R(8),
                 B(Mov), R(context), R(11),
                 B(Mov), R(context), R(12),
-  /*   31 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(13),
+  /*   31 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(19), R(13),
                 B(Mov), R(13), R(1),
                 B(LdaZero),
                 B(Star), R(4),

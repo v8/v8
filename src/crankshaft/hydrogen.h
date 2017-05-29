@@ -2100,8 +2100,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   // performance of using object literals is not worse than using constructor
   // functions, see crbug.com/v8/6211 for details.
   static const int kMaxFastLiteralDepth = 3;
-  static const int kMaxFastLiteralProperties =
-      (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kPointerSizeLog2;
+  static const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 
   // Simple accessors.
   void set_function_state(FunctionState* state) { function_state_ = state; }

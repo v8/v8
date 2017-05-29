@@ -2582,6 +2582,7 @@ class JSObject: public JSReceiver {
   static const int kInitialGlobalObjectUnusedPropertiesCount = 4;
 
   static const int kMaxInstanceSize = 255 * kPointerSize;
+
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields
   // to the same object requires fewer allocations and copies.
@@ -2592,6 +2593,8 @@ class JSObject: public JSReceiver {
   static const int kHeaderSize = kElementsOffset + kPointerSize;
 
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
+  static const int kMaxInObjectProperties =
+      (kMaxInstanceSize - kHeaderSize) >> kPointerSizeLog2;
 
   class BodyDescriptor;
   class FastBodyDescriptor;

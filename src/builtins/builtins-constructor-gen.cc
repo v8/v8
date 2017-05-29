@@ -510,22 +510,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
   GotoIf(IsFixedArrayMap(elements_map), &fast_elements);
   {
     Comment("fast double elements path");
-    if (FLAG_debug_code) {
-      Label correct_elements_map(this), abort(this, Label::kDeferred);
-      Branch(IsFixedDoubleArrayMap(elements_map), &correct_elements_map,
-             &abort);
-
-      BIND(&abort);
-      {
-        Node* abort_id = SmiConstant(
-            Smi::FromInt(BailoutReason::kExpectedFixedDoubleArrayMap));
-        CallRuntime(Runtime::kAbort, context, abort_id);
-        result.Bind(UndefinedConstant());
-        Goto(&return_result);
-      }
-      BIND(&correct_elements_map);
-    }
-
+    if (FLAG_debug_code) CSA_CHECK(this, IsFixedDoubleArrayMap(elements_map));
     Node* array =
         NonEmptyShallowClone(boilerplate, boilerplate_map, boilerplate_elements,
                              allocation_site, capacity, FAST_DOUBLE_ELEMENTS);
@@ -634,6 +619,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     Branch(IsDictionaryMap(boilerplate_map), &if_dictionary, &if_fast);
     BIND(&if_dictionary);
     {
+      Comment("Copy dictionary properties");
       var_properties.Bind(
           CopyNameDictionary(LoadProperties(boilerplate), call_runtime));
       // Slow objects have no in-object properties.
@@ -670,6 +656,9 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     BIND(&done);
   }
 
+  // Ensure new-space allocation for a fresh JSObject so we can skip write
+  // barriers when copying all object fields.
+  STATIC_ASSERT(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
   Node* instance_size = TimesPointerSize(LoadMapInstanceSize(boilerplate_map));
   Node* allocation_size = instance_size;
   if (FLAG_allocation_site_pretenuring) {
@@ -680,6 +669,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
 
   Node* copy = AllocateInNewSpace(allocation_size);
   {
+    Comment("Initialize Literal Copy");
     // Initialize Object fields.
     StoreMapNoWriteBarrier(copy, boilerplate_map);
     StoreObjectFieldNoWriteBarrier(copy, JSObject::kPropertiesOffset,
@@ -688,22 +678,10 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
                                    var_elements.value());
   }
 
-  // Copy over in-object properties.
-  Node* start_offset = IntPtrConstant(JSObject::kHeaderSize);
-  BuildFastLoop(start_offset, instance_size,
-                [=](Node* offset) {
-                  // The Allocate above guarantees that the copy lies in new
-                  // space. This allows us to skip write barriers. This is
-                  // necessary since we may also be copying unboxed doubles.
-                  // TODO(verwaest): Allocate and fill in double boxes.
-                  // TODO(cbruni): decode map information and support mutable
-                  // heap numbers.
-                  Node* field = LoadObjectField(boilerplate, offset);
-                  StoreObjectFieldNoWriteBarrier(copy, offset, field);
-                },
-                kPointerSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
-
+  // Initialize the AllocationMemento before potential GCs due to heap number
+  // allocation when copying the in-object properties.
   if (FLAG_allocation_site_pretenuring) {
+    Comment("Initialize AllocationMemento");
     Node* memento = InnerAllocate(copy, instance_size);
     StoreMapNoWriteBarrier(memento, Heap::kAllocationMementoMapRootIndex);
     StoreObjectFieldNoWriteBarrier(
@@ -715,6 +693,77 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     StoreObjectFieldNoWriteBarrier(allocation_site,
                                    AllocationSite::kPretenureCreateCountOffset,
                                    memento_create_count);
+  }
+
+  {
+    // Copy over in-object properties.
+    Label continue_with_write_barrier(this), done_init(this);
+    VARIABLE(offset, MachineType::PointerRepresentation(),
+             IntPtrConstant(JSObject::kHeaderSize));
+    // Mutable heap numbers only occur on 32-bit platforms.
+    bool may_use_mutable_heap_numbers =
+        FLAG_track_double_fields && !FLAG_unbox_double_fields;
+    {
+      Comment("Copy in-object properties fast");
+      Label continue_fast(this, &offset);
+      Branch(WordEqual(offset.value(), instance_size), &done_init,
+             &continue_fast);
+      BIND(&continue_fast);
+      Node* field = LoadObjectField(boilerplate, offset.value());
+      if (may_use_mutable_heap_numbers) {
+        Label store_field(this);
+        GotoIf(TaggedIsSmi(field), &store_field);
+        GotoIf(IsMutableHeapNumber(field), &continue_with_write_barrier);
+        Goto(&store_field);
+        BIND(&store_field);
+      }
+      StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
+      offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
+      Branch(WordNotEqual(offset.value(), instance_size), &continue_fast,
+             &done_init);
+    }
+
+    if (!may_use_mutable_heap_numbers) {
+      BIND(&done_init);
+      return copy;
+    }
+    // Continue initializing the literal after seeing the first sub-object
+    // potentially causing allocation. In this case we prepare the new literal
+    // by copying all pending fields over from the boilerplate and emit full
+    // write barriers from here on.
+    BIND(&continue_with_write_barrier);
+    {
+      Comment("Copy in-object properties slow");
+      BuildFastLoop(offset.value(), instance_size,
+                    [=](Node* offset) {
+                      Node* field = LoadObjectField(boilerplate, offset);
+                      StoreObjectFieldNoWriteBarrier(copy, offset, field);
+                    },
+                    kPointerSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      Comment("Copy mutable HeapNumber values");
+      BuildFastLoop(offset.value(), instance_size,
+                    [=](Node* offset) {
+                      Node* field = LoadObjectField(copy, offset);
+                      Label copy_mutable_heap_number(this, Label::kDeferred),
+                          continue_loop(this);
+                      // We only have to clone complex field values.
+                      GotoIf(TaggedIsSmi(field), &continue_loop);
+                      Branch(IsMutableHeapNumber(field),
+                             &copy_mutable_heap_number, &continue_loop);
+                      BIND(&copy_mutable_heap_number);
+                      {
+                        Node* double_value = LoadHeapNumberValue(field);
+                        Node* mutable_heap_number =
+                            AllocateHeapNumberWithValue(double_value, MUTABLE);
+                        StoreObjectField(copy, offset, mutable_heap_number);
+                        Goto(&continue_loop);
+                      }
+                      BIND(&continue_loop);
+                    },
+                    kPointerSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      Goto(&done_init);
+    }
+    BIND(&done_init);
   }
   return copy;
 }

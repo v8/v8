@@ -594,16 +594,6 @@ void ObjectLiteral::InitDepthAndFlags() {
     Expression* value = property->value();
 
     bool is_compile_time_value = CompileTimeValue::IsCompileTimeValue(value);
-
-    // Ensure objects that may, at any point in time, contain fields with double
-    // representation are always treated as nested objects. This is true for
-    // computed fields, and smi and double literals.
-    // TODO(verwaest): Remove once we can store them inline.
-    if (FLAG_track_double_fields &&
-        (value->IsNumberLiteral() || !is_compile_time_value)) {
-      set_may_store_doubles(true);
-    }
-
     is_simple = is_simple && is_compile_time_value;
 
     // Keep track of the number of elements in the object literal and

@@ -3269,6 +3269,10 @@ Node* CodeStubAssembler::IsHeapNumber(Node* object) {
   return IsHeapNumberMap(LoadMap(object));
 }
 
+Node* CodeStubAssembler::IsMutableHeapNumber(Node* object) {
+  return IsMutableHeapNumberMap(LoadMap(object));
+}
+
 Node* CodeStubAssembler::IsFeedbackVector(Node* object) {
   return IsFeedbackVectorMap(LoadMap(object));
 }

@@ -266,6 +266,60 @@ function TestNumericNames() {
 TestNumericNames();
 TestNumericNames();
 
+function TestDictionaryElements() {
+  let o = {1024: true};
+  assertTrue(%HasDictionaryElements(o));
+  assertEquals(true, o[1024]);
+  assertEquals(["1024"], Object.keys(o));
+  assertEquals([true], Object.values(o));
+  %HeapObjectVerify(o);
+  o[1024] = "test";
+  assertEquals(["test"], Object.values(o));
+
+  let o2 = {1024: 1024};
+  assertTrue(%HasDictionaryElements(o2));
+  assertEquals(1024, o2[1024]);
+  assertEquals(["1024"], Object.keys(o2));
+  assertEquals([1024], Object.values(o2));
+  %HeapObjectVerify(o2);
+  o2[1024] = "test";
+  assertEquals(["test"], Object.values(o2));
+}
+TestDictionaryElements();
+TestDictionaryElements();
+%OptimizeFunctionOnNextCall(TestDictionaryElements);
+TestDictionaryElements();
+
+function TestLiteralElementsKind() {
+  let o = {0:0, 1:1, 2:2};
+  assertTrue(%HasFastObjectElements(o));
+  assertTrue(%HasFastHoleyElements(o));
+  o = {0:0, 2:2};
+  assertTrue(%HasFastObjectElements(o));
+  assertTrue(%HasFastHoleyElements(o));
+
+  o = {0:0.1, 1:1, 2:2};
+  assertTrue(%HasFastObjectElements(o));
+  assertTrue(%HasFastHoleyElements(o));
+  o = {0:0.1, 2:2};
+  assertTrue(%HasFastObjectElements(o));
+  assertTrue(%HasFastHoleyElements(o));
+
+  o = {0:0.1, 1:1, 2:true};
+  assertTrue(%HasFastObjectElements(o));
+  assertTrue(%HasFastHoleyElements(o));
+  o = {0:0.1, 2:true};
+  assertTrue(%HasFastObjectElements(o));
+  assertTrue(%HasFastHoleyElements(o));
+
+  assertTrue(%HasDictionaryElements({0xFFFFFF:true}));
+}
+TestLiteralElementsKind();
+TestLiteralElementsKind();
+%OptimizeFunctionOnNextCall(TestLiteralElementsKind);
+TestLiteralElementsKind();
+
+
 function TestNonNumberElementValues() {
   var o = {
     1: true,
