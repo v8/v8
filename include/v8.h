@@ -1032,7 +1032,6 @@ class ScriptOrigin {
   Local<Value> source_map_url_;
 };
 
-
 /**
  * A compiled JavaScript script, not yet tied to a Context.
  */
@@ -1095,11 +1094,15 @@ class V8_EXPORT Module {
   /**
    * ModuleDeclarationInstantiation
    *
-   * Returns false if an exception occurred during instantiation. (In the case
-   * where the callback throws an exception, that exception is propagated.)
+   * Returns an empty Maybe<bool> if an exception occurred during
+   * instantiation. (In the case where the callback throws an exception, that
+   * exception is propagated.)
    */
-  V8_WARN_UNUSED_RESULT bool Instantiate(Local<Context> context,
-                                         ResolveCallback callback);
+  V8_DEPRECATE_SOON("Use Maybe<bool> version",
+                    bool Instantiate(Local<Context> context,
+                                     ResolveCallback callback));
+  V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(Local<Context> context,
+                                                      ResolveCallback callback);
 
   /**
    * ModuleEvaluation
@@ -1121,14 +1124,14 @@ class V8_EXPORT DynamicImportResult {
    * Resolves the promise with the namespace object of the given
    * module.
    */
-  V8_WARN_UNUSED_RESULT bool FinishDynamicImportSuccess(Local<Context> context,
-                                                        Local<Module> module);
+  V8_WARN_UNUSED_RESULT Maybe<bool> FinishDynamicImportSuccess(
+      Local<Context> context, Local<Module> module);
 
   /**
    * Rejects the promise with the given exception.
    */
-  V8_WARN_UNUSED_RESULT bool FinishDynamicImportFailure(Local<Context> context,
-                                                        Local<Value> exception);
+  V8_WARN_UNUSED_RESULT Maybe<bool> FinishDynamicImportFailure(
+      Local<Context> context, Local<Value> exception);
 };
 
 /**

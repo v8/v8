@@ -621,7 +621,7 @@ class RuntimeCallTimer final {
   V(Module_FinishDynamicImportSuccess)                     \
   V(Module_FinishDynamicImportFailure)                     \
   V(Module_Evaluate)                                       \
-  V(Module_Instantiate)                                    \
+  V(Module_InstantiateModule)                              \
   V(NumberObject_New)                                      \
   V(NumberObject_NumberValue)                              \
   V(Object_CallAsConstructor)                              \

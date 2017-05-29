@@ -148,10 +148,6 @@ namespace v8 {
   PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name,       \
                                      Nothing<T>(), i::HandleScope, false)
 
-#define PREPARE_FOR_EXECUTION_BOOL(context, class_name, function_name)   \
-  PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name, \
-                                     false, i::HandleScope, false)
-
 #ifdef DEBUG
 #define ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate)                    \
   i::VMState<v8::OTHER> __state__((isolate));                       \
@@ -184,9 +180,6 @@ namespace v8 {
 
 #define RETURN_ON_FAILED_EXECUTION_PRIMITIVE(T) \
   EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, Nothing<T>())
-
-#define RETURN_ON_FAILED_EXECUTION_BOOL() \
-  EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, false)
 
 #define RETURN_TO_LOCAL_UNCHECKED(maybe_local, T) \
   return maybe_local.FromMaybe(Local<T>());
@@ -2059,9 +2052,10 @@ Local<UnboundScript> Script::GetUnboundScript() {
       i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared()));
 }
 
-bool DynamicImportResult::FinishDynamicImportSuccess(Local<Context> context,
-                                                     Local<Module> module) {
-  PREPARE_FOR_EXECUTION_BOOL(context, Module, FinishDynamicImportSuccess);
+Maybe<bool> DynamicImportResult::FinishDynamicImportSuccess(
+    Local<Context> context, Local<Module> module) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, Module, FinishDynamicImportSuccess,
+                                  bool);
   auto promise = Utils::OpenHandle(this);
   i::Handle<i::Module> module_obj = Utils::OpenHandle(*module);
   i::Handle<i::JSModuleNamespace> module_namespace =
@@ -2072,13 +2066,14 @@ bool DynamicImportResult::FinishDynamicImportSuccess(Local<Context> context,
                          isolate->factory()->undefined_value(), arraysize(argv),
                          argv)
           .is_null();
-  RETURN_ON_FAILED_EXECUTION_BOOL();
-  return true;
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
 }
 
-bool DynamicImportResult::FinishDynamicImportFailure(Local<Context> context,
-                                                     Local<Value> exception) {
-  PREPARE_FOR_EXECUTION_BOOL(context, Module, FinishDynamicImportFailure);
+Maybe<bool> DynamicImportResult::FinishDynamicImportFailure(
+    Local<Context> context, Local<Value> exception) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, Module, FinishDynamicImportFailure,
+                                  bool);
   auto promise = Utils::OpenHandle(this);
   // We pass true to trigger the debugger's on exception handler.
   i::Handle<i::Object> argv[] = {promise, Utils::OpenHandle(*exception),
@@ -2088,8 +2083,8 @@ bool DynamicImportResult::FinishDynamicImportFailure(Local<Context> context,
                          isolate->factory()->undefined_value(), arraysize(argv),
                          argv)
           .is_null();
-  RETURN_ON_FAILED_EXECUTION_BOOL();
-  return true;
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
 }
 
 int Module::GetModuleRequestsLength() const {
@@ -2111,11 +2106,16 @@ int Module::GetIdentityHash() const { return Utils::OpenHandle(this)->hash(); }
 
 bool Module::Instantiate(Local<Context> context,
                          Module::ResolveCallback callback) {
-  PREPARE_FOR_EXECUTION_BOOL(context, Module, Instantiate);
+  return InstantiateModule(context, callback).FromMaybe(false);
+}
+
+Maybe<bool> Module::InstantiateModule(Local<Context> context,
+                                      Module::ResolveCallback callback) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, Module, InstantiateModule, bool);
   has_pending_exception =
       !i::Module::Instantiate(Utils::OpenHandle(this), context, callback);
-  RETURN_ON_FAILED_EXECUTION_BOOL();
-  return true;
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
 }
 
 MaybeLocal<Value> Module::Evaluate(Local<Context> context) {

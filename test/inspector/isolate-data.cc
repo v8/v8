@@ -100,8 +100,10 @@ void IsolateData::RegisterModule(v8::Local<v8::Context> context,
   v8::Local<v8::Module> module;
   if (!v8::ScriptCompiler::CompileModule(isolate(), source).ToLocal(&module))
     return;
-  if (!module->Instantiate(context, &IsolateData::ModuleResolveCallback))
+  if (!module->InstantiateModule(context, &IsolateData::ModuleResolveCallback)
+           .FromMaybe(false)) {
     return;
+  }
   v8::Local<v8::Value> result;
   if (!module->Evaluate(context).ToLocal(&result)) return;
   modules_[name] = v8::Global<v8::Module>(isolate_, module);

@@ -3353,9 +3353,11 @@ void Isolate::RunHostImportModuleDynamicallyCallback(
   if (host_import_module_dynamically_callback_ == nullptr) {
     Handle<Object> exception =
         factory()->NewError(error_function(), MessageTemplate::kUnsupported);
-    CHECK(result->FinishDynamicImportFailure(
-        v8::Utils::ToLocal(handle(context(), this)),
-        v8::Utils::ToLocal(exception)));
+    CHECK(result
+              ->FinishDynamicImportFailure(
+                  v8::Utils::ToLocal(handle(context(), this)),
+                  v8::Utils::ToLocal(exception))
+              .FromJust());
     return;
   }
 
