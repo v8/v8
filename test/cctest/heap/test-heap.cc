@@ -6353,5 +6353,38 @@ HEAP_TEST(Regress5831) {
   CHECK(chunk->NeverEvacuate());
 }
 
+HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
+  if (!FLAG_incremental_marking) return;
+  FLAG_black_allocation = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+  CcTest::CollectAllGarbage();
+  heap::SimulateIncrementalMarking(heap, false);
+  Map* map;
+  {
+    AlwaysAllocateScope always_allocate(isolate);
+    map = Map::cast(heap->AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize)
+                        .ToObjectChecked());
+  }
+  heap->incremental_marking()->StartBlackAllocationForTesting();
+  Handle<HeapObject> object;
+  {
+    AlwaysAllocateScope always_allocate(isolate);
+    object = Handle<HeapObject>(
+        heap->Allocate(map, OLD_SPACE).ToObjectChecked(), isolate);
+  }
+  // The object is black. If Heap::Allocate sets the map without write-barrier,
+  // then the map is white and will be freed prematurely.
+  heap::SimulateIncrementalMarking(heap, true);
+  CcTest::CollectAllGarbage();
+  MarkCompactCollector* collector = heap->mark_compact_collector();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+  CHECK(object->map()->IsMap());
+}
+
 }  // namespace internal
 }  // namespace v8

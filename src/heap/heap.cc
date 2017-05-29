@@ -3502,8 +3502,10 @@ AllocationResult Heap::Allocate(Map* map, AllocationSpace space,
   HeapObject* result = nullptr;
   AllocationResult allocation = AllocateRaw(size, space);
   if (!allocation.To(&result)) return allocation;
-  // No need for write barrier since object is white and map is in old space.
-  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  // New space objects are allocated white.
+  WriteBarrierMode write_barrier_mode =
+      space == NEW_SPACE ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
+  result->set_map_after_allocation(map, write_barrier_mode);
   if (allocation_site != NULL) {
     AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
         reinterpret_cast<Address>(result) + map->instance_size());
