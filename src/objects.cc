@@ -19575,6 +19575,9 @@ bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
     if (allocated_length >= MB)
       isolate->counters()->array_buffer_big_allocations()->AddSample(
           ConvertToMb(allocated_length));
+    if (shared == SharedFlag::kShared)
+      isolate->counters()->shared_array_allocations()->AddSample(
+          ConvertToMb(allocated_length));
     if (initialize) {
       data = isolate->array_buffer_allocator()->Allocate(allocated_length);
     } else {

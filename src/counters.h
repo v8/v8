@@ -977,7 +977,9 @@ class RuntimeCallTimerScope {
      100000, 51)                                                              \
   HR(array_buffer_big_allocations, V8.ArrayBufferLargeAllocations, 0, 4096,   \
      13)                                                                      \
-  HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096, 13)
+  HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,  \
+     13)                                                                      \
+  HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
