@@ -742,6 +742,7 @@ TEST(BytecodeArray) {
   static const int kFrameSize = 32;
   static const int kParameterCount = 2;
 
+  FLAG_concurrent_marking = false;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
@@ -3157,6 +3158,7 @@ TEST(ReleaseOverReservedPages) {
   // memory is distributed. Since this is non-deterministic because of
   // concurrent sweeping, we disable it for this test.
   FLAG_parallel_compaction = false;
+  FLAG_concurrent_marking = false;
   // Concurrent sweeping adds non determinism, depending on when memory is
   // available for further reuse.
   FLAG_concurrent_sweeping = false;
@@ -3867,6 +3869,7 @@ TEST(Regress513496) {
 
 TEST(LargeObjectSlotRecording) {
   if (!FLAG_incremental_marking) return;
+  FLAG_concurrent_marking = false;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
@@ -4858,6 +4861,7 @@ static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 HEAP_TEST(Regress538257) {
+  FLAG_concurrent_marking = false;
   FLAG_manual_evacuation_candidates_selection = true;
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
@@ -5656,6 +5660,7 @@ TEST(SharedFunctionInfoIterator) {
 }
 
 HEAP_TEST(Regress587004) {
+  FLAG_concurrent_marking = false;
   FLAG_concurrent_sweeping = false;
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = false;
@@ -5698,6 +5703,7 @@ HEAP_TEST(Regress589413) {
   FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
+  FLAG_concurrent_marking = false;
   FLAG_concurrent_sweeping = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -5945,6 +5951,7 @@ TEST(Regress631969) {
   if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
+  FLAG_concurrent_marking = false;
   FLAG_concurrent_sweeping = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
