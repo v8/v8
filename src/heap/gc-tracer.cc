@@ -538,10 +538,8 @@ void GCTracer::PrintNVP() const {
           "evacuate=%.2f "
           "evacuate.copy=%.2f "
           "evacuate.update_pointers=%.2f "
-          "evacuate.update_pointers.to_new=%.2f "
-          "evacuate.update_pointers.to_new.tospace=%.2f "
-          "evacuate.update_pointers.to_new.roots=%.2f "
-          "evacuate.update_pointers.to_new.old=%.2f "
+          "evacuate.update_pointers.to_new_roots=%.2f "
+          "evacuate.update_pointers.slots=%.2f "
           "update_marking_deque=%.2f "
           "reset_liveness=%.2f\n",
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
@@ -558,12 +556,9 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MINOR_MC_EVACUATE],
           current_.scopes[Scope::MINOR_MC_EVACUATE_COPY],
           current_.scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS],
-          current_.scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW],
-          current_
-              .scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_TOSPACE],
           current_
               .scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS],
-          current_.scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_OLD],
+          current_.scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS],
           current_.scopes[Scope::MINOR_MC_MARKING_DEQUE],
           current_.scopes[Scope::MINOR_MC_RESET_LIVENESS]);
       break;
@@ -598,8 +593,8 @@ void GCTracer::PrintNVP() const {
           "evacuate.epilogue=%.1f "
           "evacuate.rebalance=%.1f "
           "evacuate.update_pointers=%.1f "
-          "evacuate.update_pointers.to_evacuated=%.1f "
-          "evacuate.update_pointers.to_new=%.1f "
+          "evacuate.update_pointers.to_new_roots=%.1f "
+          "evacuate.update_pointers.slots=%.1f "
           "evacuate.update_pointers.weak=%.1f "
           "finish=%.1f "
           "mark=%.1f "
@@ -682,8 +677,8 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_EPILOGUE],
           current_.scopes[Scope::MC_EVACUATE_REBALANCE],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS],
-          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED],
-          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW],
+          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS],
+          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
           current_.scopes[Scope::MC_FINISH], current_.scopes[Scope::MC_MARK],
           current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],
