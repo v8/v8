@@ -1530,8 +1530,10 @@ void DeclarationScope::AnalyzePartially(
     PreParsedScopeData* preparsed_scope_data) {
   DCHECK(!force_eager_compilation_);
   VariableProxy* unresolved = nullptr;
+  bool need_preparsed_scope_data = FLAG_experimental_preparser_scope_analysis &&
+                                   preparsed_scope_data->Producing();
 
-  if (!outer_scope_->is_script_scope()) {
+  if (!outer_scope_->is_script_scope() || need_preparsed_scope_data) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.
@@ -1549,8 +1551,7 @@ void DeclarationScope::AnalyzePartially(
       arguments_ = nullptr;
     }
 
-    if (FLAG_experimental_preparser_scope_analysis &&
-        preparsed_scope_data->Producing()) {
+    if (need_preparsed_scope_data) {
       // Store the information needed for allocating the locals of this scope
       // and its inner scopes.
       preparsed_scope_data->SaveData(this);

@@ -142,7 +142,7 @@ void PreParsedScopeData::RestoreData(Scope* scope, uint32_t* index_ptr) const {
     DCHECK_EQ(data.uses_super_property,
               scope->AsDeclarationScope()->uses_super_property());
     uint32_t index_from_data = 0;
-    FindFunctionData(scope->start_position(), &index_from_data);
+    DCHECK(FindFunctionData(scope->start_position(), &index_from_data));
     DCHECK_EQ(index_from_data, index);
   }
 #endif

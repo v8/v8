@@ -770,8 +770,8 @@ TEST(PreParserScopeAnalysis) {
       CHECK_NULL(unallocated_scope->sibling());
       CHECK(unallocated_scope->is_function_scope());
 
-      uint32_t index = 0;
-      lazy_info.preparsed_scope_data()->RestoreData(unallocated_scope, &index);
+      lazy_info.preparsed_scope_data()->RestoreData(
+          unallocated_scope->AsDeclarationScope());
       i::ScopeTestHelper::AllocateWithoutVariableResolution(unallocated_scope);
 
       i::ScopeTestHelper::CompareScopes(

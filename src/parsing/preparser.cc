@@ -137,7 +137,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   parsing_module_ = parsing_module;
   use_counts_ = use_counts;
   DCHECK(!track_unresolved_variables_);
-  track_unresolved_variables_ = is_inner_function;
+  track_unresolved_variables_ =
+      is_inner_function || FLAG_experimental_preparser_scope_analysis;
 #ifdef DEBUG
   function_scope->set_is_being_lazily_parsed(true);
 #endif
@@ -213,7 +214,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     function_scope->DeclareArguments(ast_value_factory());
 
     if (FLAG_experimental_preparser_scope_analysis &&
-        preparsed_scope_data_ != nullptr) {
+        preparsed_scope_data_ != nullptr && result != kLazyParsingAborted) {
       // We're not going to skip this function, but it might contain skippable
       // functions inside it.
       preparsed_scope_data_->AddFunction(
