@@ -96,7 +96,7 @@ namespace v8 {
   HandleScopeClass handle_scope(isolate);                            \
   CallDepthScope<do_callback> call_depth_scope(isolate, context);    \
   LOG_API(isolate, class_name, function_name);                       \
-  i::VMState<v8::OTHER> __state__((isolate));                        \
+  ENTER_V8_DO_NOT_USE(isolate);                                      \
   bool has_pending_exception = false
 
 #define PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, T)       \
@@ -105,7 +105,7 @@ namespace v8 {
   }                                                                          \
   InternalEscapableScope handle_scope(isolate);                              \
   CallDepthScope<false> call_depth_scope(isolate, v8::Local<v8::Context>()); \
-  i::VMState<v8::OTHER> __state__((isolate));                                \
+  ENTER_V8_DO_NOT_USE(isolate);                                              \
   bool has_pending_exception = false
 
 #define PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name, \
