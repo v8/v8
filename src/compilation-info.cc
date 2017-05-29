@@ -239,8 +239,7 @@ void CompilationInfo::SetOptimizing() {
 int CompilationInfo::AddInlinedFunction(
     Handle<SharedFunctionInfo> inlined_function, SourcePosition pos) {
   int id = static_cast<int>(inlined_functions_.size());
-  inlined_functions_.push_back(InlinedFunctionHolder(
-      inlined_function, handle(inlined_function->code()), pos));
+  inlined_functions_.push_back(InlinedFunctionHolder(inlined_function, pos));
   return id;
 }
 

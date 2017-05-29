@@ -107,16 +107,6 @@ void CodeGenerator::AssembleCode() {
   }
   inlined_function_count_ = deoptimization_literals_.size();
 
-  // Define deoptimization literals for all unoptimized code objects of inlined
-  // functions. This ensures unoptimized code is kept alive by optimized code.
-  for (const CompilationInfo::InlinedFunctionHolder& inlined :
-       info->inlined_functions()) {
-    if (!inlined.shared_info.equals(info->shared_info())) {
-      DefineDeoptimizationLiteral(
-          DeoptimizationLiteral(inlined.inlined_code_object_root));
-    }
-  }
-
   unwinding_info_writer_.SetNumberOfInstructionBlocks(
       code()->InstructionBlockCount());
 

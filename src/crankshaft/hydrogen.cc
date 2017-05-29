@@ -7952,12 +7952,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     return false;
   }
 
-  // Remember that we inlined this function. This needs to be called right
-  // after the EnsureDeoptimizationSupport call so that the code flusher
-  // does not remove the code with the deoptimization support.
-  int inlining_id = top_info()->AddInlinedFunction(target_info.shared_info(),
-                                                   source_position());
-
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function (so
   // TryInline should always return true).
@@ -7975,6 +7969,10 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     TraceInline(target, caller, "stack overflow");
     return false;
   }
+
+  // Remember that we inlined this function.
+  int inlining_id = top_info()->AddInlinedFunction(target_info.shared_info(),
+                                                   source_position());
 
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it

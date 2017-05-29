@@ -552,12 +552,6 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  // Remember that we inlined this function. This needs to be called right
-  // after we ensure deoptimization support so that the code flusher
-  // does not remove the code with the deoptimization support.
-  int inlining_id = info_->AddInlinedFunction(
-      shared_info, source_positions_->GetSourcePosition(node));
-
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.
@@ -570,6 +564,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   Node* context;
   Handle<FeedbackVector> feedback_vector;
   DetermineCallContext(node, context, feedback_vector);
+
+  // Remember that we inlined this function.
+  int inlining_id = info_->AddInlinedFunction(
+      shared_info, source_positions_->GetSourcePosition(node));
 
   // Create the subgraph for the inlinee.
   Node* start;
