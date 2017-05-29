@@ -88,7 +88,8 @@
           'gn_release_x64_tsan_concurrent_marking',
       'V8 Linux - arm64 - sim - MSAN': 'gn_release_simulate_arm64_msan',
       # Clusterfuzz.
-      'V8 Linux64 - release builder': 'gn_release_x64_correctness_fuzzer',
+      'V8 Linux64 - cf release builder': 'gn_release_x64_correctness_fuzzer',
+      'V8 Linux64 - cf debug builder': 'gn_debug_x64',
       'V8 Linux64 ASAN no inline - release builder':
           'gn_release_x64_asan_symbolized_edge_verify_heap',
       'V8 Linux64 ASAN - debug builder': 'gn_debug_x64_asan_edge',
