@@ -659,6 +659,7 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
 }
 
 TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
+  FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);

@@ -7533,6 +7533,7 @@ static void SetFlag(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
 
 
 static void IndependentWeakHandle(bool global_gc, bool interlinked) {
+  i::FLAG_stress_incremental_marking = false;
   v8::Isolate* iso = CcTest::isolate();
   v8::HandleScope scope(iso);
   v8::Local<Context> context = Context::New(iso);
@@ -14558,6 +14559,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
 
 UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::FLAG_stress_compaction = true;
+  // FLAG_stress_incremental_marking = false;
   i::FLAG_incremental_marking = false;
   if (i::FLAG_never_compact) return;
   const char* script =
