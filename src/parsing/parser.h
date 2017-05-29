@@ -458,7 +458,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     PatternContext context_;
     Expression* pattern_;
     int initializer_position_;
-    int value_beg_position_;
     Block* block_;
     const DeclarationDescriptor* descriptor_;
     ZoneList<const AstRawString*>* names_;

@@ -45,7 +45,7 @@ InspectorTest.runAsyncTestSuite([
     let {params:{scriptId}} = await Protocol.Debugger.onceScriptParsed();
     let {result:{locations}} = await Protocol.Debugger.getPossibleBreakpoints({
       start: {lineNumber: 0, columnNumber : 0, scriptId}});
-    session.logBreakLocations(locations);
+    dumpAllLocations(locations);
   },
 
   async function testStepInto() {
@@ -80,3 +80,25 @@ InspectorTest.runAsyncTestSuite([
     }
   }
 ]);
+
+function dumpAllLocations(locations) {
+  var lines = source.split('\n');
+  var locations = locations.sort((loc1, loc2) => {
+    if (loc2.lineNumber !== loc1.lineNumber) return loc2.lineNumber - loc1.lineNumber;
+    return loc2.columnNumber - loc1.columnNumber;
+  });
+  for (var location of locations) {
+    var line = lines[location.lineNumber];
+    line = line.slice(0, location.columnNumber) + locationMark(location.type) + line.slice(location.columnNumber);
+    lines[location.lineNumber] = line;
+  }
+  lines = lines.filter(line => line.indexOf('//# sourceURL=') === -1);
+  InspectorTest.log(lines.join('\n') + '\n');
+}
+
+function locationMark(type) {
+  if (type === 'return') return '|R|';
+  if (type === 'call') return '|C|';
+  if (type === 'debuggerStatement') return '|D|';
+  return '|_|';
+}
