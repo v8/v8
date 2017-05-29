@@ -2032,8 +2032,9 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   List<Handle<Object>> handlers(static_cast<int>(target_receiver_maps.size()));
   StoreElementPolymorphicHandlers(&target_receiver_maps, &handlers, store_mode);
-  DCHECK_LE(1, target_receiver_maps.size());
-  if (target_receiver_maps.size() == 1) {
+  if (target_receiver_maps.size() == 0) {
+    ConfigureVectorState(PREMONOMORPHIC, Handle<Name>());
+  } else if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0],
                          handlers.at(0));
   } else {
