@@ -1416,10 +1416,16 @@ class InstantiationHelper {
         continue;
       }
       DCHECK_EQ(Builtins::kWasmCompileLazy, code->builtin_index());
-      if (code->deoptimization_data()->length() == 0) continue;
-      DCHECK_LE(2, code->deoptimization_data()->length());
+      int deopt_len = code->deoptimization_data()->length();
+      if (deopt_len == 0) continue;
+      DCHECK_LE(2, deopt_len);
       DCHECK_EQ(i, Smi::cast(code->deoptimization_data()->get(1))->value());
       code->deoptimization_data()->set(0, *weak_link);
+      // Entries [2, deopt_len) encode information about table exports of this
+      // function. This is rebuilt in {LoadTableSegments}, so reset it here.
+      for (int i = 2; i < deopt_len; ++i) {
+        code->deoptimization_data()->set_undefined(isolate_, i);
+      }
     }
 
     //--------------------------------------------------------------------------
