@@ -188,14 +188,14 @@ inline bool IsAddressAligned(Address addr,
 
 // Returns the maximum of the two parameters.
 template <typename T>
-T Max(T a, T b) {
+constexpr T Max(T a, T b) {
   return a < b ? b : a;
 }
 
 
 // Returns the minimum of the two parameters.
 template <typename T>
-T Min(T a, T b) {
+constexpr T Min(T a, T b) {
   return a < b ? a : b;
 }
 

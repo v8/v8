@@ -344,7 +344,7 @@ class Decoder {
       }
     }
     constexpr int sign_ext_shift =
-        is_signed && !is_last_byte ? 8 * sizeof(IntType) - shift - 7 : 0;
+        is_signed ? Max(0, int{8 * sizeof(IntType)} - shift - 7) : 0;
     // Perform sign extension.
     result = (result << sign_ext_shift) >> sign_ext_shift;
     if (trace && is_signed) {
