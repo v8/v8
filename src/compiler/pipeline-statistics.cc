@@ -8,6 +8,7 @@
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/zone-stats.h"
 #include "src/isolate.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {

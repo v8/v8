@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/liveness-analyzer.h"
+
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/objects/shared-function-info.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 

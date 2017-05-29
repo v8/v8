@@ -8,6 +8,7 @@
 #include "src/factory.h"
 #include "src/feedback-vector.h"
 #include "src/globals.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {

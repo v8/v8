@@ -1247,6 +1247,8 @@
         'objects/regexp-match-info.h',
         'objects/scope-info.cc',
         'objects/scope-info.h',
+        'objects/shared-function-info-inl.h',
+        'objects/shared-function-info.h',
         'objects/string-table.h',
         'ostreams.cc',
         'ostreams.h',
@@ -2553,6 +2555,8 @@
             'objects-inl.h',
             'objects/map.h',
             'objects/map-inl.h',
+            'objects/shared-function-info.h',
+            'objects/shared-function-info-inl.h',
         ],
       },
       'actions': [

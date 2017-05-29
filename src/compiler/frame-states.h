@@ -6,13 +6,11 @@
 #define V8_COMPILER_FRAME_STATES_H_
 
 #include "src/handles.h"
+#include "src/objects/shared-function-info.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class SharedFunctionInfo;
 
 namespace compiler {
 

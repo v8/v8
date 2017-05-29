@@ -897,9 +897,7 @@ class Heap {
   // disposal. We use it to flush inline caches.
   int global_ic_age() { return global_ic_age_; }
 
-  void AgeInlineCaches() {
-    global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
-  }
+  void AgeInlineCaches();
 
   int64_t external_memory_hard_limit() { return MaxOldGenerationSize() / 2; }
 

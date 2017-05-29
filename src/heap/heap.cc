@@ -41,6 +41,7 @@
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/store-buffer.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects/shared-function-info.h"
 #include "src/regexp/jsregexp.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
@@ -6492,6 +6493,9 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
   remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
 }
 
+void Heap::AgeInlineCaches() {
+  global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
+}
 
 void Heap::RegisterStrongRoots(Object** start, Object** end) {
   StrongRootsList* list = new StrongRootsList();
