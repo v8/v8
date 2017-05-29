@@ -2540,7 +2540,6 @@ Isolate::~Isolate() {
   store_stub_cache_ = NULL;
   delete code_aging_helper_;
   code_aging_helper_ = NULL;
-  delete stats_table_;
   stats_table_ = NULL;
 
   delete materialized_object_store_;
@@ -2844,10 +2843,9 @@ bool Isolate::Init(Deserializer* des) {
 // Initialized lazily to allow early
 // v8::V8::SetAddHistogramSampleFunction calls.
 StatsTable* Isolate::stats_table() {
-  if (stats_table_ == NULL) {
-    stats_table_ = new StatsTable;
-  }
-  return stats_table_;
+  if (stats_table_ != nullptr) return stats_table_;
+  InitializeCounters();
+  return stats_table_ = counters_->stats_table();
 }
 
 

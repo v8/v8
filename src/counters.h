@@ -25,12 +25,14 @@ namespace internal {
 // counters for monitoring.  Counters can be looked up and
 // manipulated by name.
 
+class Counters;
+
 class StatsTable {
  public:
   // Register an application-defined function where
   // counters can be looked up. Note: Must be called on main thread,
   // so that threaded stats counters can be created now.
-  void SetCounterFunction(CounterLookupCallback f, Isolate* isolate);
+  void SetCounterFunction(CounterLookupCallback f);
 
   // Register an application-defined function to create
   // a histogram for passing to the AddHistogramSample function
@@ -80,28 +82,28 @@ class StatsTable {
   }
 
  private:
-  StatsTable();
+  explicit StatsTable(Counters* counters);
 
+  Counters* counters_;
   CounterLookupCallback lookup_function_;
   CreateHistogramCallback create_histogram_function_;
   AddHistogramSampleCallback add_histogram_sample_function_;
 
-  friend class Isolate;
+  friend class Counters;
 
   DISALLOW_COPY_AND_ASSIGN(StatsTable);
 };
 
 // Base class for stats counters.
 class StatsCounterBase {
- public:
-  StatsCounterBase() {}
-  StatsCounterBase(Isolate* isolate, const char* name)
-      : isolate_(isolate), name_(name), ptr_(nullptr) {}
-
  protected:
-  Isolate* isolate_;
+  Counters* counters_;
   const char* name_;
   int* ptr_;
+
+  StatsCounterBase() {}
+  StatsCounterBase(Counters* counters, const char* name)
+      : counters_(counters), name_(name), ptr_(nullptr) {}
 
   void SetLoc(int* loc, int value) { *loc = value; }
   void IncrementLoc(int* loc) { (*loc)++; }
@@ -123,8 +125,8 @@ class StatsCounterBase {
 class StatsCounter : public StatsCounterBase {
  public:
   StatsCounter() { }
-  StatsCounter(Isolate* isolate, const char* name)
-      : StatsCounterBase(isolate, name), lookup_done_(false) {}
+  StatsCounter(Counters* counters, const char* name)
+      : StatsCounterBase(counters, name), lookup_done_(false) {}
 
   // Sets the counter to a specific value.
   void Set(int value) {
@@ -185,7 +187,7 @@ class StatsCounter : public StatsCounterBase {
 // (i.e. not workers).
 class StatsCounterThreadSafe : public StatsCounterBase {
  public:
-  StatsCounterThreadSafe(Isolate* isolate, const char* name);
+  StatsCounterThreadSafe(Counters* counters, const char* name);
 
   void Set(int Value);
   void Increment();
@@ -213,18 +215,15 @@ class StatsCounterThreadSafe : public StatsCounterBase {
 class Histogram {
  public:
   Histogram() { }
-  Histogram(const char* name,
-            int min,
-            int max,
-            int num_buckets,
-            Isolate* isolate)
+  Histogram(const char* name, int min, int max, int num_buckets,
+            Counters* counters)
       : name_(name),
         min_(min),
         max_(max),
         num_buckets_(num_buckets),
         histogram_(NULL),
         lookup_done_(false),
-        isolate_(isolate) { }
+        counters_(counters) {}
 
   // Add a single sample to this histogram.
   void AddSample(int sample);
@@ -251,7 +250,7 @@ class Histogram {
     return histogram_;
   }
 
-  Isolate* isolate() const { return isolate_; }
+  Counters* counters() const { return counters_; }
 
  private:
   void* CreateHistogram() const;
@@ -262,7 +261,7 @@ class Histogram {
   int num_buckets_;
   void* histogram_;
   bool lookup_done_;
-  Isolate* isolate_;
+  Counters* counters_;
 };
 
 // A HistogramTimer allows distributions of results to be created.
@@ -275,8 +274,8 @@ class HistogramTimer : public Histogram {
 
   HistogramTimer() {}
   HistogramTimer(const char* name, int min, int max, Resolution resolution,
-                 int num_buckets, Isolate* isolate)
-      : Histogram(name, min, max, num_buckets, isolate),
+                 int num_buckets, Counters* counters)
+      : Histogram(name, min, max, num_buckets, counters),
         resolution_(resolution) {}
 
   // Start the timer.
@@ -358,8 +357,8 @@ class AggregatableHistogramTimer : public Histogram {
  public:
   AggregatableHistogramTimer() {}
   AggregatableHistogramTimer(const char* name, int min, int max,
-                             int num_buckets, Isolate* isolate)
-      : Histogram(name, min, max, num_buckets, isolate) {}
+                             int num_buckets, Counters* counters)
+      : Histogram(name, min, max, num_buckets, counters) {}
 
   // Start/stop the "outer" scope.
   void Start() { time_ = base::TimeDelta(); }
@@ -1335,7 +1334,14 @@ class Counters : public std::enable_shared_from_this<Counters> {
 
   RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
 
+  StatsTable* stats_table() { return &stats_table_; }
+
+  Isolate* isolate() { return isolate_; }
+
  private:
+  Isolate* isolate_;
+  StatsTable stats_table_;
+
 #define HR(name, caption, min, max, num_buckets) Histogram name##_;
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
@@ -1400,8 +1406,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #undef SC
 
   RuntimeCallStats runtime_call_stats_;
-
-  friend class Isolate;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };

@@ -15,23 +15,24 @@
 namespace v8 {
 namespace internal {
 
-StatsTable::StatsTable()
-    : lookup_function_(NULL),
+StatsTable::StatsTable(Counters* counters)
+    : counters_(counters),
+      lookup_function_(NULL),
       create_histogram_function_(NULL),
       add_histogram_sample_function_(NULL) {}
 
-void StatsTable::SetCounterFunction(CounterLookupCallback f, Isolate* isolate) {
+void StatsTable::SetCounterFunction(CounterLookupCallback f) {
   lookup_function_ = f;
-  if (!isolate->InitializeCounters()) isolate->counters()->ResetCounters();
+  counters_->ResetCounters();
 }
 
 int* StatsCounterBase::FindLocationInStatsTable() const {
-  return isolate_->stats_table()->FindLocation(name_);
+  return counters_->stats_table()->FindLocation(name_);
 }
 
-StatsCounterThreadSafe::StatsCounterThreadSafe(Isolate* isolate,
+StatsCounterThreadSafe::StatsCounterThreadSafe(Counters* counters,
                                                const char* name)
-    : StatsCounterBase(isolate, name) {
+    : StatsCounterBase(counters, name) {
   GetPtr();
 }
 
@@ -78,13 +79,13 @@ int* StatsCounterThreadSafe::GetPtr() {
 
 void Histogram::AddSample(int sample) {
   if (Enabled()) {
-    isolate()->stats_table()->AddHistogramSample(histogram_, sample);
+    counters_->stats_table()->AddHistogramSample(histogram_, sample);
   }
 }
 
 void* Histogram::CreateHistogram() const {
-  return isolate()->stats_table()->
-      CreateHistogram(name_, min_, max_, num_buckets_);
+  return counters_->stats_table()->CreateHistogram(name_, min_, max_,
+                                                   num_buckets_);
 }
 
 
@@ -93,7 +94,7 @@ void HistogramTimer::Start() {
   if (Enabled()) {
     timer_.Start();
   }
-  Logger::CallEventLogger(isolate(), name(), Logger::START, true);
+  Logger::CallEventLogger(counters()->isolate(), name(), Logger::START, true);
 }
 
 
@@ -107,13 +108,14 @@ void HistogramTimer::Stop() {
     AddSample(static_cast<int>(sample));
     timer_.Stop();
   }
-  Logger::CallEventLogger(isolate(), name(), Logger::END, true);
+  Logger::CallEventLogger(counters()->isolate(), name(), Logger::END, true);
 }
 
 Counters::Counters(Isolate* isolate)
-    :
+    : isolate_(isolate),
+      stats_table_(this),
 // clang format off
-#define SC(name, caption) name##_(isolate, "c:" #caption),
+#define SC(name, caption) name##_(this, "c:" #caption),
       STATS_COUNTER_TS_LIST(SC)
 #undef SC
       // clang format on
@@ -133,7 +135,7 @@ Counters::Counters(Isolate* isolate)
   for (const auto& histogram : kHistograms) {
     this->*histogram.member =
         Histogram(histogram.caption, histogram.min, histogram.max,
-                  histogram.num_buckets, isolate);
+                  histogram.num_buckets, this);
   }
 
   static const struct {
@@ -149,7 +151,7 @@ Counters::Counters(Isolate* isolate)
   };
   for (const auto& timer : kHistogramTimers) {
     this->*timer.member =
-        HistogramTimer(timer.caption, 0, timer.max, timer.res, 50, isolate);
+        HistogramTimer(timer.caption, 0, timer.max, timer.res, 50, this);
   }
 
   static const struct {
@@ -162,7 +164,7 @@ Counters::Counters(Isolate* isolate)
   };
   for (const auto& aht : kAggregatableHistogramTimers) {
     this->*aht.member =
-        AggregatableHistogramTimer(aht.caption, 0, 10000000, 50, isolate);
+        AggregatableHistogramTimer(aht.caption, 0, 10000000, 50, this);
   }
 
   static const struct {
@@ -174,8 +176,7 @@ Counters::Counters(Isolate* isolate)
 #undef HP
   };
   for (const auto& percentage : kHistogramPercentages) {
-    this->*percentage.member =
-        Histogram(percentage.caption, 0, 101, 100, isolate);
+    this->*percentage.member = Histogram(percentage.caption, 0, 101, 100, this);
   }
 
   // Exponential histogram assigns bucket limits to points
@@ -194,7 +195,7 @@ Counters::Counters(Isolate* isolate)
   };
   for (const auto& histogram : kLegacyMemoryHistograms) {
     this->*histogram.member =
-        Histogram(histogram.caption, 1000, 500000, 50, isolate);
+        Histogram(histogram.caption, 1000, 500000, 50, this);
   }
 
   // For n = 100, low = 4000, high = 2000000: the factor = 1.06.
@@ -210,7 +211,7 @@ Counters::Counters(Isolate* isolate)
   };
   for (const auto& histogram : kMemoryHistograms) {
     this->*histogram.member =
-        Histogram(histogram.caption, 4000, 2000000, 100, isolate);
+        Histogram(histogram.caption, 4000, 2000000, 100, this);
     this->*histogram.aggregated =
         AggregatedMemoryHistogram<Histogram>(&(this->*histogram.member));
   }
@@ -252,7 +253,7 @@ Counters::Counters(Isolate* isolate)
   };
   // clang-format on
   for (const auto& counter : kStatsCounters) {
-    this->*counter.member = StatsCounter(isolate, counter.caption);
+    this->*counter.member = StatsCounter(this, counter.caption);
   }
 }
 
