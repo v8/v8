@@ -96,7 +96,7 @@ namespace v8 {
   HandleScopeClass handle_scope(isolate);                            \
   CallDepthScope<do_callback> call_depth_scope(isolate, context);    \
   LOG_API(isolate, class_name, function_name);                       \
-  i::VMState<v8::OTHER> __state__((isolate));                        \
+  ENTER_V8_DO_NOT_USE(isolate);                                      \
   bool has_pending_exception = false
 
 #define PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, T)       \
@@ -105,7 +105,7 @@ namespace v8 {
   }                                                                          \
   InternalEscapableScope handle_scope(isolate);                              \
   CallDepthScope<false> call_depth_scope(isolate, v8::Local<v8::Context>()); \
-  i::VMState<v8::OTHER> __state__((isolate));                                \
+  ENTER_V8_DO_NOT_USE(isolate);                                              \
   bool has_pending_exception = false
 
 #define PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name, \
@@ -126,6 +126,12 @@ namespace v8 {
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, category, name);                    \
   PREPARE_FOR_EXECUTION_GENERIC(isolate, context, class_name, function_name, \
                                 bailout_value, HandleScopeClass, do_callback);
+
+#define PREPARE_FOR_EXECUTION_WITH_ISOLATE(isolate, class_name, function_name, \
+                                           T)                                  \
+  PREPARE_FOR_EXECUTION_GENERIC(isolate, Local<Context>(), class_name,         \
+                                function_name, MaybeLocal<T>(),                \
+                                InternalEscapableScope, false);
 
 #define PREPARE_FOR_EXECUTION(context, class_name, function_name, T)          \
   PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name,      \
@@ -2132,10 +2138,10 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
 
 MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     Isolate* v8_isolate, Source* source, CompileOptions options) {
-  PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(
-      "v8", "V8.ScriptCompiler", v8_isolate->GetCurrentContext(),
-      ScriptCompiler, CompileUnbound, MaybeLocal<UnboundScript>(),
-      InternalEscapableScope, false);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  PREPARE_FOR_EXECUTION_WITH_ISOLATE(isolate, ScriptCompiler, CompileUnbound,
+                                     UnboundScript);
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
 
   // Don't try to produce any kind of cache when the debugger is loaded.
   if (isolate->debug()->is_loaded() &&
@@ -3125,8 +3131,8 @@ bool NativeWeakMap::Delete(Local<Value> v8_key) {
 // --- J S O N ---
 
 MaybeLocal<Value> JSON::Parse(Isolate* v8_isolate, Local<String> json_string) {
-  PREPARE_FOR_EXECUTION_WITH_CALLBACK(v8_isolate->GetCurrentContext(), JSON,
-                                      Parse, Value);
+  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  PREPARE_FOR_EXECUTION_WITH_ISOLATE(isolate, JSON, Parse, Value);
   i::Handle<i::String> string = Utils::OpenHandle(*json_string);
   i::Handle<i::String> source = i::String::Flatten(string);
   i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
