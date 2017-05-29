@@ -663,8 +663,11 @@ class CompilationHelper {
     if (!lazy_compile) {
       size_t funcs_to_compile =
           module_->functions.size() - module_->num_imported_functions;
-      if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0 &&
-          funcs_to_compile > 1) {
+      bool compile_parallel =
+          !FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks > 0 &&
+          funcs_to_compile > 1 &&
+          V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads() > 0;
+      if (compile_parallel) {
         // Avoid a race condition by collecting results into a second vector.
         std::vector<Handle<Code>> results(temp_instance->function_code);
         CompileInParallel(&module_env, results, thrower);
