@@ -35,7 +35,7 @@ class BytecodeGraphBuilder {
       JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags);
 
   // Creates a graph by visiting bytecodes.
-  bool CreateGraph(bool stack_check = true);
+  void CreateGraph(bool stack_check = true);
 
  private:
   class Environment;

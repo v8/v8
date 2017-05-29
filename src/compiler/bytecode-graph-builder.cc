@@ -522,7 +522,7 @@ VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
   return VectorSlotPair(feedback_vector(), slot);
 }
 
-bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
+void BytecodeGraphBuilder::CreateGraph(bool stack_check) {
   SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
@@ -544,8 +544,6 @@ bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
   Node** const inputs = &exit_controls_.front();
   Node* end = graph()->NewNode(common()->End(input_count), input_count, inputs);
   graph()->SetEnd(end);
-
-  return true;
 }
 
 void BytecodeGraphBuilder::PrepareEagerCheckpoint() {

@@ -772,8 +772,6 @@ struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    bool succeeded = false;
-
     if (data->info()->is_optimizing_from_bytecode()) {
       // Bytecode graph builder assumes deoptimziation is enabled.
       DCHECK(data->info()->is_deoptimization_enabled());
@@ -786,16 +784,14 @@ struct GraphBuilderPhase {
           handle(data->info()->closure()->feedback_vector()),
           data->info()->osr_ast_id(), data->jsgraph(), CallFrequency(1.0f),
           data->source_positions(), SourcePosition::kNotInlined, flags);
-      succeeded = graph_builder.CreateGraph();
+      graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(
           temp_zone, data->info(), data->jsgraph(), CallFrequency(1.0f),
           data->loop_assignment(), data->source_positions());
-      succeeded = graph_builder.CreateGraph();
-    }
-
-    if (!succeeded) {
-      data->set_compilation_failed();
+      if (!graph_builder.CreateGraph()) {
+        data->set_compilation_failed();
+      }
     }
   }
 };
