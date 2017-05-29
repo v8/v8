@@ -249,6 +249,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_DATA_VIEW_TYPE:
       JSDataView::cast(this)->JSDataViewVerify();
       break;
+    case SMALL_ORDERED_HASH_SET_TYPE:
+      SmallOrderedHashSet::cast(this)->SmallOrderedHashSetVerify();
+      break;
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
@@ -1011,6 +1014,35 @@ void JSPromise::JSPromiseVerify() {
   CHECK(reject_reactions()->IsUndefined(isolate) ||
         reject_reactions()->IsSymbol() || reject_reactions()->IsCallable() ||
         reject_reactions()->IsFixedArray());
+}
+
+void SmallOrderedHashSet::SmallOrderedHashSetVerify() {
+  CHECK(IsSmallOrderedHashSet());
+  Isolate* isolate = GetIsolate();
+
+  for (int entry = 0; entry < NumberOfBuckets(); entry++) {
+    int bucket = GetFirstEntry(entry);
+    if (bucket == kNotFound) continue;
+    Object* val = GetDataEntry(bucket);
+    CHECK(!val->IsTheHole(isolate));
+  }
+
+  for (int entry = 0; entry < NumberOfElements(); entry++) {
+    int chain = GetNextEntry(entry);
+    if (chain == kNotFound) continue;
+    Object* val = GetDataEntry(chain);
+    CHECK(!val->IsTheHole(isolate));
+  }
+
+  for (int entry = 0; entry < NumberOfElements(); entry++) {
+    Object* val = GetDataEntry(entry);
+    VerifyPointer(val);
+  }
+
+  for (int entry = NumberOfElements(); entry < Capacity(); entry++) {
+    Object* val = GetDataEntry(entry);
+    CHECK(val->IsTheHole(isolate));
+  }
 }
 
 void JSRegExp::JSRegExpVerify() {

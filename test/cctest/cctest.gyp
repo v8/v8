@@ -176,6 +176,7 @@
       'test-mementos.cc',
       'test-modules.cc',
       'test-object.cc',
+      'test-orderedhashtable.cc',
       'test-parsing.cc',
       'test-platform.cc',
       'test-profile-generator.cc',

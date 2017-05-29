@@ -240,6 +240,15 @@ Handle<FrameArray> Factory::NewFrameArray(int number_of_frames,
   return Handle<FrameArray>::cast(result);
 }
 
+Handle<SmallOrderedHashSet> Factory::NewSmallOrderedHashSet(
+    int size, PretenureFlag pretenure) {
+  DCHECK_LE(0, size);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateSmallOrderedHashSet(size, pretenure),
+      SmallOrderedHashSet);
+}
+
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
   return OrderedHashSet::Allocate(isolate(), OrderedHashSet::kMinCapacity);
 }

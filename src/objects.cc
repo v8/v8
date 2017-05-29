@@ -59,6 +59,7 @@
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
+#include "src/objects/hash-table.h"
 #include "src/objects/map.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
@@ -3159,6 +3160,8 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
   os << value();
 }
 
+#define FIELD_ADDR(p, offset) \
+  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
 
 #define FIELD_ADDR_CONST(p, offset) \
   (reinterpret_cast<const byte*>(p) + offset - kHeapObjectTag)
@@ -18882,6 +18885,173 @@ template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Clear(
 
 template bool OrderedHashTable<OrderedHashMap, 2>::HasKey(
     Handle<OrderedHashMap> table, Handle<Object> key);
+
+template <>
+Handle<SmallOrderedHashSet>
+SmallOrderedHashTable<SmallOrderedHashSet>::Allocate(Isolate* isolate,
+                                                     int capacity,
+                                                     PretenureFlag pretenure) {
+  return isolate->factory()->NewSmallOrderedHashSet(capacity, pretenure);
+}
+
+template <class Derived>
+void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
+                                                int capacity) {
+  int num_buckets = capacity / kLoadFactor;
+  int num_chains = capacity;
+
+  SetNumberOfBuckets(num_buckets);
+  SetNumberOfElements(0);
+  SetNumberOfDeletedElements(0);
+
+  byte* hashtable_start =
+      FIELD_ADDR(this, kHeaderSize + (kBucketsStartOffset * kOneByteSize));
+  memset(hashtable_start, kNotFound, num_buckets + num_chains);
+
+  if (isolate->heap()->InNewSpace(this)) {
+    MemsetPointer(RawField(this, GetDataTableStartOffset()),
+                  isolate->heap()->the_hole_value(), capacity);
+  } else {
+    for (int i = 0; i < capacity; i++) {
+      SetDataEntry(i, isolate->heap()->the_hole_value());
+    }
+  }
+
+#ifdef DEBUG
+  for (int i = 0; i < num_buckets; ++i) {
+    DCHECK_EQ(kNotFound, GetFirstEntry(i));
+  }
+
+  for (int i = 0; i < num_chains; ++i) {
+    DCHECK_EQ(kNotFound, GetNextEntry(i));
+  }
+#endif  // DEBUG
+}
+
+template <class Derived>
+Handle<Derived> SmallOrderedHashTable<Derived>::Add(Handle<Derived> table,
+                                                    Handle<Object> key) {
+  Isolate* isolate = table->GetIsolate();
+  if (table->HasKey(isolate, key)) return table;
+
+  if (table->UsedCapacity() >= table->Capacity()) {
+    table = Derived::Grow(table);
+  }
+
+  int hash = Object::GetOrCreateHash(table->GetIsolate(), key)->value();
+  int nof = table->NumberOfElements();
+
+  // Read the existing bucket values.
+  int bucket = table->HashToBucket(hash);
+  int previous_entry = table->HashToFirstEntry(hash);
+
+  // Insert a new entry at the end,
+  int new_entry = nof + table->NumberOfDeletedElements();
+
+  // TODO(gsathya): Add support for entrysize > 1.
+  table->SetDataEntry(new_entry, *key);
+  table->SetFirstEntry(bucket, new_entry);
+  table->SetNextEntry(new_entry, previous_entry);
+
+  // and update book keeping.
+  table->SetNumberOfElements(nof + 1);
+
+  return table;
+}
+
+template <class Derived>
+bool SmallOrderedHashTable<Derived>::HasKey(Isolate* isolate,
+                                            Handle<Object> key) {
+  DisallowHeapAllocation no_gc;
+  Object* raw_key = *key;
+  Object* hash = key->GetHash();
+
+  if (hash->IsUndefined(isolate)) return false;
+  int entry = HashToFirstEntry(Smi::cast(hash)->value());
+
+  // Walk the chain in the bucket to find the key.
+  while (entry != kNotFound) {
+    Object* candidate_key = KeyAt(entry);
+    if (candidate_key->SameValueZero(raw_key)) return true;
+    entry = GetNextEntry(entry);
+  }
+  return false;
+}
+
+template <class Derived>
+Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Handle<Derived> table,
+                                                       int new_capacity) {
+  DCHECK_GE(kMaxCapacity, new_capacity);
+  Isolate* isolate = table->GetIsolate();
+
+  Handle<Derived> new_table = SmallOrderedHashTable<Derived>::Allocate(
+      isolate, new_capacity,
+      isolate->heap()->InNewSpace(*table) ? NOT_TENURED : TENURED);
+  int nof = table->NumberOfElements();
+  int nod = table->NumberOfDeletedElements();
+  int new_entry = 0;
+
+  {
+    DisallowHeapAllocation no_gc;
+    for (int old_entry = 0; old_entry < (nof + nod); ++old_entry) {
+      Object* key = table->KeyAt(old_entry);
+      if (key->IsTheHole(isolate)) continue;
+
+      int hash = Smi::cast(key->GetHash())->value();
+      int bucket = new_table->HashToBucket(hash);
+      int chain = new_table->GetFirstEntry(bucket);
+
+      new_table->SetFirstEntry(bucket, new_entry);
+      new_table->SetNextEntry(new_entry, chain);
+
+      for (int i = 0; i < Derived::kEntrySize; ++i) {
+        Object* value = table->GetDataEntry(old_entry + i);
+        new_table->SetDataEntry(new_entry + i, value);
+      }
+
+      ++new_entry;
+    }
+
+    new_table->SetNumberOfElements(nof);
+  }
+  return new_table;
+}
+
+template <class Derived>
+Handle<Derived> SmallOrderedHashTable<Derived>::Grow(Handle<Derived> table) {
+  int capacity = table->Capacity();
+  int new_capacity = capacity;
+
+  // Don't need to grow if we can simply clear out deleted entries instead.
+  // TODO(gsathya): Compact in place, instead of allocating a new table.
+  if (table->NumberOfDeletedElements() < (capacity >> 1)) {
+    new_capacity = capacity << 1;
+
+    // The max capacity of our table is 254. We special case for 256 to
+    // account for our growth strategy, otherwise we would only fill up
+    // to 128 entries in our table.
+    if (new_capacity == kGrowthHack) {
+      new_capacity = kMaxCapacity;
+    }
+
+    // TODO(gsathya): Transition to OrderedHashTable for size > kMaxCapacity.
+  }
+
+  return Rehash(table, new_capacity);
+}
+
+template bool SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(
+    Isolate* isolate, Handle<Object> key);
+template Handle<SmallOrderedHashSet>
+SmallOrderedHashTable<SmallOrderedHashSet>::Add(
+    Handle<SmallOrderedHashSet> table, Handle<Object> key);
+template Handle<SmallOrderedHashSet>
+SmallOrderedHashTable<SmallOrderedHashSet>::Rehash(
+    Handle<SmallOrderedHashSet> table, int new_capacity);
+template Handle<SmallOrderedHashSet> SmallOrderedHashTable<
+    SmallOrderedHashSet>::Grow(Handle<SmallOrderedHashSet> table);
+template void SmallOrderedHashTable<SmallOrderedHashSet>::Initialize(
+    Isolate* isolate, int capacity);
 
 template<class Derived, class TableType>
 void OrderedHashTableIterator<Derived, TableType>::Transition() {

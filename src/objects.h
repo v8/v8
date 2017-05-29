@@ -151,6 +151,7 @@
 //       - Module
 //       - ModuleInfoEntry
 //     - WeakCell
+//     - SmallOrderedHashSet
 //
 // Formats of Object*:
 //  Smi:        [31 bit signed int] 0
@@ -370,6 +371,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(CELL_TYPE)                                                                 \
   V(WEAK_CELL_TYPE)                                                            \
   V(PROPERTY_CELL_TYPE)                                                        \
+  V(SMALL_ORDERED_HASH_SET_TYPE)                                               \
   /* TODO(yangguo): these padding types are for ABI stability. Remove after*/  \
   /* version 6.0 branch, or replace them when there is demand for new types.*/ \
   V(PADDING_TYPE_1)                                                            \
@@ -712,6 +714,7 @@ enum InstanceType {
   CELL_TYPE,
   WEAK_CELL_TYPE,
   PROPERTY_CELL_TYPE,
+  SMALL_ORDERED_HASH_SET_TYPE,
 
   // TODO(yangguo): these padding types are for ABI stability. Remove after
   // version 6.0 branch, or replace them when there is demand for new types.
@@ -1089,6 +1092,7 @@ template <class C> inline bool Is(Object* obj);
   V(SharedFunctionInfo)                \
   V(SlicedString)                      \
   V(SloppyArgumentsElements)           \
+  V(SmallOrderedHashSet)               \
   V(SourcePositionTableWithFrameCache) \
   V(String)                            \
   V(StringSet)                         \

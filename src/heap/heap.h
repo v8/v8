@@ -91,6 +91,7 @@ using v8::MemoryPressureLevel;
   V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
   V(Map, unseeded_number_dictionary_map, UnseededNumberDictionaryMap)          \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
+  V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
@@ -315,6 +316,7 @@ using v8::MemoryPressureLevel;
   V(OnePointerFillerMap)                \
   V(OptimizedOut)                       \
   V(OrderedHashTableMap)                \
+  V(SmallOrderedHashSetMap)             \
   V(ScopeInfoMap)                       \
   V(ScriptContextMap)                   \
   V(SharedFunctionInfoMap)              \
@@ -2010,6 +2012,9 @@ class Heap {
   // Allocates a fixed array initialized with undefined values
   MUST_USE_RESULT AllocationResult
   AllocateFixedArray(int length, PretenureFlag pretenure = NOT_TENURED);
+
+  MUST_USE_RESULT AllocationResult AllocateSmallOrderedHashSet(
+      int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.  This is the single choke-point for allocations

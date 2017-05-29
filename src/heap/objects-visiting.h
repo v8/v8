@@ -25,39 +25,40 @@ namespace v8 {
 namespace internal {
 
 #define VISITOR_ID_LIST(V) \
-  V(SeqOneByteString)      \
-  V(SeqTwoByteString)      \
-  V(ShortcutCandidate)     \
+  V(AllocationSite)        \
   V(ByteArray)             \
   V(BytecodeArray)         \
-  V(FreeSpace)             \
+  V(Cell)                  \
+  V(Code)                  \
+  V(ConsString)            \
+  V(DataObject)            \
   V(FixedArray)            \
   V(FixedDoubleArray)      \
-  V(FixedTypedArrayBase)   \
   V(FixedFloat64Array)     \
-  V(NativeContext)         \
-  V(AllocationSite)        \
-  V(DataObject)            \
-  V(JSObjectFast)          \
-  V(JSObject)              \
+  V(FixedTypedArrayBase)   \
+  V(FreeSpace)             \
   V(JSApiObject)           \
-  V(Struct)                \
-  V(ConsString)            \
-  V(SlicedString)          \
-  V(ThinString)            \
-  V(Symbol)                \
-  V(Oddball)               \
-  V(Code)                  \
-  V(Map)                   \
-  V(Cell)                  \
-  V(PropertyCell)          \
-  V(WeakCell)              \
-  V(TransitionArray)       \
-  V(SharedFunctionInfo)    \
-  V(JSFunction)            \
-  V(JSWeakCollection)      \
   V(JSArrayBuffer)         \
-  V(JSRegExp)
+  V(JSFunction)            \
+  V(JSObject)              \
+  V(JSObjectFast)          \
+  V(JSRegExp)              \
+  V(JSWeakCollection)      \
+  V(Map)                   \
+  V(NativeContext)         \
+  V(Oddball)               \
+  V(PropertyCell)          \
+  V(SeqOneByteString)      \
+  V(SeqTwoByteString)      \
+  V(SharedFunctionInfo)    \
+  V(ShortcutCandidate)     \
+  V(SlicedString)          \
+  V(SmallOrderedHashSet)   \
+  V(Struct)                \
+  V(Symbol)                \
+  V(ThinString)            \
+  V(TransitionArray)       \
+  V(WeakCell)
 
 // For data objects, JS objects and structs along with generic visitor which
 // can visit object of any size we provide visitors specialized by
@@ -359,9 +360,10 @@ VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
   V(SeqTwoByteString)            \
   V(SharedFunctionInfo)          \
   V(SlicedString)                \
+  V(SmallOrderedHashSet)         \
   V(Symbol)                      \
-  V(TransitionArray)             \
   V(ThinString)                  \
+  V(TransitionArray)             \
   V(WeakCell)
 
 // The base class for visitors that need to dispatch on object type.

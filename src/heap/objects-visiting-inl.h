@@ -93,6 +93,11 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
       &FlexibleBodyVisitor<StaticVisitor, JSWeakCollection::BodyDescriptor,
                            int>::Visit);
 
+  table_.Register(
+      kVisitSmallOrderedHashSet,
+      &FlexibleBodyVisitor<StaticVisitor, SmallOrderedHashSet::BodyDescriptor,
+                           int>::Visit);
+
   table_.Register(kVisitJSRegExp, &JSObjectVisitor::Visit);
 
   table_.Register(kVisitDataObject, &DataObjectVisitor::Visit);
@@ -190,6 +195,11 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
   table_.Register(kVisitPropertyCell,
                   &FixedBodyVisitor<StaticVisitor, PropertyCell::BodyDescriptor,
                                     void>::Visit);
+
+  table_.Register(
+      kVisitSmallOrderedHashSet,
+      &FlexibleBodyVisitor<StaticVisitor, SmallOrderedHashSet::BodyDescriptor,
+                           void>::Visit);
 
   table_.Register(kVisitWeakCell, &VisitWeakCell);
 

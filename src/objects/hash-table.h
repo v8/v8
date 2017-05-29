@@ -584,6 +584,201 @@ class WeakHashTable
   }
 };
 
+// This is similar to the OrderedHashTable, except for the memory
+// layout where we use byte instead of Smi. The max capacity of this
+// is only 254, we transition to an OrderedHashTable beyond that
+// limit.
+//
+// Each bucket and chain value is a byte long. The padding exists so
+// that the DataTable entries start aligned. A bucket or chain value
+// of 255 is used to denote an unknown entry.
+//
+// Memory layout: [ Header ] [ HashTable ] [ Chains ] [ Padding ] [ DataTable ]
+//
+// On a 64 bit machine with capacity = 4 and 2 entries,
+//
+// [ Header ]  :
+//    [0  .. 7]  : Number of elements
+//    [8  .. 15] : Number of deleted elements
+//    [16 .. 23] : Number of buckets
+//
+// [ HashTable ] :
+//    [24 .. 31] : First chain-link for bucket 1
+//    [32 .. 40] : First chain-link for bucket 2
+//
+// [ Chains ] :
+//    [40 .. 47] : Next chain link for entry 1
+//    [48 .. 55] : Next chain link for entry 2
+//    [56 .. 63] : Next chain link for entry 3
+//    [64 .. 71] : Next chain link for entry 4
+//
+// [ Padding ] :
+//    [72 .. 127] : Padding
+//
+// [ DataTable ] :
+//    [128 .. 128 + kEntrySize - 1] : Entry 1
+//    [128 + kEntrySize .. 128 + kEntrySize + kEntrySize - 1] : Entry 2
+//
+template <class Derived>
+class SmallOrderedHashTable : public HeapObject {
+ public:
+  void Initialize(Isolate* isolate, int capacity);
+
+  static Handle<Derived> Allocate(Isolate* isolate, int capacity,
+                                  PretenureFlag pretenure = NOT_TENURED);
+
+  // Adds |value| to |table|, if the capacity isn't enough, a new
+  // table is created. The original |table| is returned if there is
+  // capacity to store |value| otherwise the new table is returned.
+  static Handle<Derived> Add(Handle<Derived> table, Handle<Object> value);
+
+  // Returns a true if the OrderedHashTable contains the key
+  bool HasKey(Isolate* isolate, Handle<Object> key);
+
+  // Iterates only fields in the DataTable.
+  class BodyDescriptor;
+
+  // Returns an SmallOrderedHashTable (possibly |table|) with enough
+  // space to add at least one new element.
+  static Handle<Derived> Grow(Handle<Derived> table);
+
+  static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
+
+  void SetDataEntry(int entry, Object* value);
+
+  // TODO(gsathya): There should be a better way to do this.
+  static int GetDataTableStartOffset(int capacity) {
+    int nof_buckets = capacity / kLoadFactor;
+    int nof_chain_entries = capacity;
+
+    int padding_index = kBucketsStartOffset + nof_buckets + nof_chain_entries;
+    int padding_offset = padding_index * kBitsPerByte;
+
+    return ((padding_offset + kPointerSize - 1) / kPointerSize) * kPointerSize;
+  }
+
+  int GetDataTableStartOffset() { return GetDataTableStartOffset(Capacity()); }
+
+  static int Size(int capacity) {
+    int data_table_start = GetDataTableStartOffset(capacity);
+    int data_table_size = capacity * Derived::kEntrySize * kBitsPerPointer;
+    return data_table_start + data_table_size;
+  }
+
+  int Size() { return Size(Capacity()); }
+
+  void SetFirstEntry(int bucket, byte value) {
+    set(kBucketsStartOffset + bucket, value);
+  }
+
+  int GetFirstEntry(int bucket) { return get(kBucketsStartOffset + bucket); }
+
+  void SetNextEntry(int entry, int next_entry) {
+    set(GetChainTableOffset() + entry, next_entry);
+  }
+
+  int GetNextEntry(int entry) { return get(GetChainTableOffset() + entry); }
+
+  Object* GetDataEntry(int entry) {
+    int offset = GetDataEntryOffset(entry);
+    return READ_FIELD(this, offset);
+  }
+
+  // TODO(gsathya): This will be specialized once we support entrysize > 1.
+  Object* KeyAt(int entry) {
+    int offset = GetDataEntryOffset(entry);
+    return READ_FIELD(this, offset);
+  }
+
+  int HashToBucket(int hash) { return hash & (NumberOfBuckets() - 1); }
+
+  int HashToFirstEntry(int hash) {
+    int bucket = HashToBucket(hash);
+    int entry = GetFirstEntry(bucket);
+    return entry;
+  }
+
+  int GetChainTableOffset() { return kBucketsStartOffset + NumberOfBuckets(); }
+
+  void SetNumberOfBuckets(int num) { set(kNumberOfBucketsOffset, num); }
+
+  void SetNumberOfElements(int num) { set(kNumberOfElementsOffset, num); }
+
+  void SetNumberOfDeletedElements(int num) {
+    set(kNumberOfDeletedElementsOffset, num);
+  }
+
+  int NumberOfElements() { return get(kNumberOfElementsOffset); }
+
+  int NumberOfDeletedElements() { return get(kNumberOfDeletedElementsOffset); }
+
+  int NumberOfBuckets() { return get(kNumberOfBucketsOffset); }
+
+  static const byte kNotFound = 0xFF;
+  static const int kMinCapacity = 4;
+
+  // We use the value 255 to indicate kNotFound for chain and bucket
+  // values, which means that this value can't be used a valid
+  // index.
+  static const int kMaxCapacity = 254;
+  STATIC_ASSERT(kMaxCapacity < kNotFound);
+
+  static const int kNumberOfElementsOffset = 0;
+  static const int kNumberOfDeletedElementsOffset = 1;
+  static const int kNumberOfBucketsOffset = 2;
+  static const int kBucketsStartOffset = 3;
+
+  // The load factor is used to derive the number of buckets from
+  // capacity during Allocation. We also depend on this to calaculate
+  // the capacity from number of buckets after allocation. If we
+  // decide to change kLoadFactor to something other than 2, capacity
+  // should be stored as another field of this object.
+  static const int kLoadFactor = 2;
+  static const int kBitsPerPointer = kPointerSize * kBitsPerByte;
+
+  // Our growth strategy involves doubling the capacity until we reach
+  // kMaxCapacity, but since the kMaxCapacity is always less than 256,
+  // we will never fully utilize this table. We special case for 256,
+  // by changing the new capacity to be kMaxCapacity in
+  // SmallOrderedHashTable::Grow.
+  static const int kGrowthHack = 256;
+
+ protected:
+  // This is used for accessing the non |DataTable| part of the
+  // structure.
+  byte get(int index) {
+    return READ_BYTE_FIELD(this, kHeaderSize + (index * kOneByteSize));
+  }
+
+  void set(int index, byte value) {
+    WRITE_BYTE_FIELD(this, kHeaderSize + (index * kOneByteSize), value);
+  }
+
+  int GetDataEntryOffset(int entry) {
+    int datatable_start = GetDataTableStartOffset();
+    int offset_in_datatable = entry * Derived::kEntrySize * kPointerSize;
+    return datatable_start + offset_in_datatable;
+  }
+
+  // Returns the number elements that can fit into the allocated buffer.
+  int Capacity() { return NumberOfBuckets() * kLoadFactor; }
+
+  int UsedCapacity() { return NumberOfElements() + NumberOfDeletedElements(); }
+};
+
+class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
+ public:
+  DECLARE_CAST(SmallOrderedHashSet)
+
+  DECLARE_PRINTER(SmallOrderedHashSet)
+  DECLARE_VERIFIER(SmallOrderedHashSet)
+
+  static const int kEntrySize = 1;
+
+  // Iterates only fields in the DataTable.
+  class BodyDescriptor;
+};
+
 // OrderedHashTableIterator is an iterator that iterates over the keys and
 // values of an OrderedHashTable.
 //
