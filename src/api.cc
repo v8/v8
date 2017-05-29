@@ -4431,24 +4431,6 @@ Maybe<bool> v8::Object::ForceSet(v8::Local<v8::Context> context,
 }
 
 
-bool v8::Object::ForceSet(v8::Local<Value> key, v8::Local<Value> value,
-                          v8::PropertyAttribute attribs) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  PREPARE_FOR_EXECUTION_GENERIC(isolate, Local<Context>(), Object, ForceSet,
-                                false, i::HandleScope, false);
-  i::Handle<i::JSObject> self =
-      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-  has_pending_exception =
-      DefineObjectProperty(self, key_obj, value_obj,
-                           static_cast<i::PropertyAttributes>(attribs))
-          .is_null();
-  EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, false);
-  return true;
-}
-
-
 Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
                                    Local<Value> value) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, Object, SetPrivate, bool);
