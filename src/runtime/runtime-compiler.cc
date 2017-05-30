@@ -33,7 +33,9 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 #endif
 
   StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    return isolate->StackOverflow();
+  }
   if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
@@ -46,7 +48,9 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    return isolate->StackOverflow();
+  }
   if (!Compiler::CompileOptimized(function, Compiler::CONCURRENT)) {
     return isolate->heap()->exception();
   }
@@ -60,7 +64,9 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    return isolate->StackOverflow();
+  }
   if (!Compiler::CompileOptimized(function, Compiler::NOT_CONCURRENT)) {
     return isolate->heap()->exception();
   }

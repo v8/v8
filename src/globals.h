@@ -110,6 +110,8 @@ namespace internal {
 #define V8_DEFAULT_STACK_SIZE_KB 984
 #endif
 
+// Minimum stack size in KB required by compilers.
+const int kStackSpaceRequiredForCompilation = 40;
 
 // Determine whether double field unboxing feature is enabled.
 #if V8_TARGET_ARCH_64_BIT
