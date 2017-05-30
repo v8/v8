@@ -96,11 +96,16 @@ void PrintCheckOperand(std::ostream& os, Op op) {
   os << op;
 }
 
-void PrettyPrintChar(std::ostream& os, int ch);
-
-#define DEFINE_PRINT_CHECK_OPERAND_CHAR(type) \
-  template <>                                 \
-  V8_BASE_EXPORT void PrintCheckOperand<type>(std::ostream & os, type ch);
+// Define specializations for character types, defined in logging.cc.
+#define DEFINE_PRINT_CHECK_OPERAND_CHAR(type)                              \
+  template <>                                                              \
+  V8_BASE_EXPORT void PrintCheckOperand<type>(std::ostream & os, type ch); \
+  template <>                                                              \
+  V8_BASE_EXPORT void PrintCheckOperand<type*>(std::ostream & os,          \
+                                               type * cstr);               \
+  template <>                                                              \
+  V8_BASE_EXPORT void PrintCheckOperand<const type*>(std::ostream & os,    \
+                                                     const type* cstr);
 
 DEFINE_PRINT_CHECK_OPERAND_CHAR(char)
 DEFINE_PRINT_CHECK_OPERAND_CHAR(signed char)
@@ -126,20 +131,20 @@ std::string* MakeCheckOpString(typename PassType<Lhs>::type lhs,
 
 // Commonly used instantiations of MakeCheckOpString<>. Explicitly instantiated
 // in logging.cc.
-#define DEFINE_MAKE_CHECK_OP_STRING(type)                                    \
+#define EXPLICIT_CHECK_OP_INSTANTIATION(type)                                \
   extern template V8_BASE_EXPORT std::string* MakeCheckOpString<type, type>( \
       type, type, char const*);                                              \
   extern template V8_BASE_EXPORT void PrintCheckOperand<type>(std::ostream&, \
                                                               type);
-DEFINE_MAKE_CHECK_OP_STRING(int)
-DEFINE_MAKE_CHECK_OP_STRING(long)       // NOLINT(runtime/int)
-DEFINE_MAKE_CHECK_OP_STRING(long long)  // NOLINT(runtime/int)
-DEFINE_MAKE_CHECK_OP_STRING(unsigned int)
-DEFINE_MAKE_CHECK_OP_STRING(unsigned long)       // NOLINT(runtime/int)
-DEFINE_MAKE_CHECK_OP_STRING(unsigned long long)  // NOLINT(runtime/int)
-DEFINE_MAKE_CHECK_OP_STRING(char const*)
-DEFINE_MAKE_CHECK_OP_STRING(void const*)
-#undef DEFINE_MAKE_CHECK_OP_STRING
+
+EXPLICIT_CHECK_OP_INSTANTIATION(int)
+EXPLICIT_CHECK_OP_INSTANTIATION(long)       // NOLINT(runtime/int)
+EXPLICIT_CHECK_OP_INSTANTIATION(long long)  // NOLINT(runtime/int)
+EXPLICIT_CHECK_OP_INSTANTIATION(unsigned int)
+EXPLICIT_CHECK_OP_INSTANTIATION(unsigned long)       // NOLINT(runtime/int)
+EXPLICIT_CHECK_OP_INSTANTIATION(unsigned long long)  // NOLINT(runtime/int)
+EXPLICIT_CHECK_OP_INSTANTIATION(void const*)
+#undef EXPLICIT_CHECK_OP_INSTANTIATION
 
 // comparison_underlying_type provides the underlying integral type of an enum,
 // or std::decay<T>::type if T is not an enum.

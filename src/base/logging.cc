@@ -19,12 +19,6 @@ namespace {
 
 void (*g_print_stack_trace)() = nullptr;
 
-}  // namespace
-
-void SetPrintStackTrace(void (*print_stack_trace)()) {
-  g_print_stack_trace = print_stack_trace;
-}
-
 void PrettyPrintChar(std::ostream& os, int ch) {
   switch (ch) {
 #define CHAR_PRINT_CASE(ch) \
@@ -54,10 +48,26 @@ void PrettyPrintChar(std::ostream& os, int ch) {
   }
 }
 
-#define DEFINE_PRINT_CHECK_OPERAND_CHAR(type)                \
-  template <>                                                \
-  void PrintCheckOperand<type>(std::ostream & os, type ch) { \
-    PrettyPrintChar(os, ch);                                 \
+}  // namespace
+
+void SetPrintStackTrace(void (*print_stack_trace)()) {
+  g_print_stack_trace = print_stack_trace;
+}
+
+// Define specialization to pretty print characters (escaping non-printable
+// characters) and to print c strings as pointers instead of strings.
+#define DEFINE_PRINT_CHECK_OPERAND_CHAR(type)                                \
+  template <>                                                                \
+  void PrintCheckOperand<type>(std::ostream & os, type ch) {                 \
+    PrettyPrintChar(os, ch);                                                 \
+  }                                                                          \
+  template <>                                                                \
+  void PrintCheckOperand<type*>(std::ostream & os, type * cstr) {            \
+    os << static_cast<void*>(cstr);                                          \
+  }                                                                          \
+  template <>                                                                \
+  void PrintCheckOperand<const type*>(std::ostream & os, const type* cstr) { \
+    os << static_cast<const void*>(cstr);                                    \
   }
 
 DEFINE_PRINT_CHECK_OPERAND_CHAR(char)
@@ -76,7 +86,6 @@ DEFINE_MAKE_CHECK_OP_STRING(long long)  // NOLINT(runtime/int)
 DEFINE_MAKE_CHECK_OP_STRING(unsigned int)
 DEFINE_MAKE_CHECK_OP_STRING(unsigned long)       // NOLINT(runtime/int)
 DEFINE_MAKE_CHECK_OP_STRING(unsigned long long)  // NOLINT(runtime/int)
-DEFINE_MAKE_CHECK_OP_STRING(char const*)
 DEFINE_MAKE_CHECK_OP_STRING(void const*)
 #undef DEFINE_MAKE_CHECK_OP_STRING
 
