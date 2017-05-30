@@ -14,7 +14,7 @@ import re
 def _GetTryMasters(project, change):
   return {
     'master.tryserver.chromium.linux': {
-      'linux_blink_rel': [],
+      'linux_chromium_rel_ng': [],
      },
   }
 
@@ -37,6 +37,6 @@ def PostUploadHook(cl, change, output_api):
   return output_api.EnsureCQIncludeTrybotsAreAdded(
     cl,
     [
-      'master.tryserver.chromium.linux:linux_blink_rel'
+      'master.tryserver.chromium.linux:linux_chromium_rel_ng'
     ],
     'Automatically added layout test trybots to run tests on CQ.')
