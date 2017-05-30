@@ -244,7 +244,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchParentFramePointer:
     case kArchTruncateDoubleToI:
     case kArchStackSlot:
-    case kArchDebugBreak:
     case kArchComment:
     case kIeee754Float64Acos:
     case kIeee754Float64Acosh:
@@ -292,6 +291,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchLookupSwitch:
     case kArchTableSwitch:
     case kArchRet:
+    case kArchDebugBreak:
     case kArchThrowTerminator:
       return kIsBlockTerminator;
 

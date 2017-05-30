@@ -2348,7 +2348,7 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
 #endif
 
   if (params & BREAK) {
-    hlt(kImmExceptionIsDebug);
+    brk(0);
   }
 }
 

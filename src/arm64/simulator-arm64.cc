@@ -3889,7 +3889,9 @@ void Simulator::VisitException(Instruction* instr) {
       }
       break;
     }
-
+    case BRK:
+      base::OS::DebugBreak();
+      break;
     default:
       UNIMPLEMENTED();
   }
