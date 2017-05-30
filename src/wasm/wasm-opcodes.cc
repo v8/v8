@@ -393,14 +393,14 @@ FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
     return const_cast<FunctionSig*>(
         kSimpleExprSigs[kSimdExprSigTable[opcode & 0xff]]);
   } else {
-    DCHECK_GT(kSimpleExprSigTable.size(), static_cast<size_t>(opcode));
+    DCHECK_GT(kSimpleExprSigTable.size(), opcode);
     return const_cast<FunctionSig*>(
         kSimpleExprSigs[kSimpleExprSigTable[opcode]]);
   }
 }
 
 FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
-  DCHECK_GT(kSimpleAsmjsExprSigTable.size(), static_cast<size_t>(opcode));
+  DCHECK_GT(kSimpleAsmjsExprSigTable.size(), opcode);
   return const_cast<FunctionSig*>(
       kSimpleExprSigs[kSimpleAsmjsExprSigTable[opcode]]);
 }
