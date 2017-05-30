@@ -616,7 +616,6 @@ CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(PrototypeInfo)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
-CAST_ACCESSOR(Script)
 CAST_ACCESSOR(SeededNumberDictionary)
 CAST_ACCESSOR(SeqOneByteString)
 CAST_ACCESSOR(SeqString)
@@ -5586,54 +5585,6 @@ ACCESSORS(AllocationSite, dependent_code, DependentCode,
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
-ACCESSORS(Script, source, Object, kSourceOffset)
-ACCESSORS(Script, name, Object, kNameOffset)
-SMI_ACCESSORS(Script, id, kIdOffset)
-SMI_ACCESSORS(Script, line_offset, kLineOffsetOffset)
-SMI_ACCESSORS(Script, column_offset, kColumnOffsetOffset)
-ACCESSORS(Script, context_data, Object, kContextOffset)
-ACCESSORS(Script, wrapper, HeapObject, kWrapperOffset)
-SMI_ACCESSORS(Script, type, kTypeOffset)
-ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
-ACCESSORS_CHECKED(Script, eval_from_shared, Object, kEvalFromSharedOffset,
-                  this->type() != TYPE_WASM)
-SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
-                      this->type() != TYPE_WASM)
-ACCESSORS(Script, shared_function_infos, FixedArray, kSharedFunctionInfosOffset)
-SMI_ACCESSORS(Script, flags, kFlagsOffset)
-ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
-ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
-ACCESSORS_CHECKED(Script, wasm_compiled_module, Object, kEvalFromSharedOffset,
-                  this->type() == TYPE_WASM)
-ACCESSORS(Script, preparsed_scope_data, PodArray<uint32_t>,
-          kPreParsedScopeDataOffset)
-
-Script::CompilationType Script::compilation_type() {
-  return BooleanBit::get(flags(), kCompilationTypeBit) ?
-      COMPILATION_TYPE_EVAL : COMPILATION_TYPE_HOST;
-}
-void Script::set_compilation_type(CompilationType type) {
-  set_flags(BooleanBit::set(flags(), kCompilationTypeBit,
-      type == COMPILATION_TYPE_EVAL));
-}
-Script::CompilationState Script::compilation_state() {
-  return BooleanBit::get(flags(), kCompilationStateBit) ?
-      COMPILATION_STATE_COMPILED : COMPILATION_STATE_INITIAL;
-}
-void Script::set_compilation_state(CompilationState state) {
-  set_flags(BooleanBit::set(flags(), kCompilationStateBit,
-      state == COMPILATION_STATE_COMPILED));
-}
-ScriptOriginOptions Script::origin_options() {
-  return ScriptOriginOptions((flags() & kOriginOptionsMask) >>
-                             kOriginOptionsShift);
-}
-void Script::set_origin_options(ScriptOriginOptions origin_options) {
-  DCHECK(!(origin_options.Flags() & ~((1 << kOriginOptionsSize) - 1)));
-  set_flags((flags() & ~kOriginOptionsMask) |
-            (origin_options.Flags() << kOriginOptionsShift));
-}
-
 SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberIndex)
 SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberIndex)
 SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdIndex)
@@ -5666,19 +5617,6 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache,
                kDoNotCacheBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                kAcceptAnyReceiver)
-
-bool Script::HasValidSource() {
-  Object* src = this->source();
-  if (!src->IsString()) return true;
-  String* src_str = String::cast(src);
-  if (!StringShape(src_str).IsExternal()) return true;
-  if (src_str->IsOneByteRepresentation()) {
-    return ExternalOneByteString::cast(src)->resource() != NULL;
-  } else if (src_str->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(src)->resource() != NULL;
-  }
-  return true;
-}
 
 FeedbackVector* JSFunction::feedback_vector() const {
   DCHECK(feedback_vector_cell()->value()->IsFeedbackVector());

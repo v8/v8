@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
 #include "src/objects.h"
+#include "src/objects/script.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-limits.h"
 

@@ -710,6 +710,8 @@ action("postmortem-metadata") {
     "src/objects-inl.h",
     "src/objects/map.h",
     "src/objects/map-inl.h",
+    "src/objects/script.h",
+    "src/objects/script-inl.h",
     "src/objects/shared-function-info.h",
     "src/objects/shared-function-info-inl.h",
   ]
@@ -1780,6 +1782,8 @@ v8_source_set("v8_base") {
     "src/objects/regexp-match-info.h",
     "src/objects/scope-info.cc",
     "src/objects/scope-info.h",
+    "src/objects/script-inl.h",
+    "src/objects/script.h",
     "src/objects/shared-function-info-inl.h",
     "src/objects/shared-function-info.h",
     "src/objects/string-table.h",

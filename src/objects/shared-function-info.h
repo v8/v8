@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_H_
 
 #include "src/objects.h"
+#include "src/objects/script.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
