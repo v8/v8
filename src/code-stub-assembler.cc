@@ -74,9 +74,8 @@ void CodeStubAssembler::Check(const NodeGenerator& condition_body,
     } else {
       SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
     }
-    CallRuntime(
-        Runtime::kGlobalPrint, SmiConstant(Smi::kZero),
-        HeapConstant(factory()->NewStringFromAsciiChecked(&(buffer[0]))));
+    CallRuntime(Runtime::kGlobalPrint, SmiConstant(0),
+                HeapConstant(factory()->InternalizeUtf8String(&(buffer[0]))));
   }
   DebugBreak();
   Goto(&ok);
@@ -196,6 +195,10 @@ Node* CodeStubAssembler::IntPtrRoundUpToPowerOfTwo32(Node* value) {
     value = WordOr(value, WordShr(value, IntPtrConstant(i)));
   }
   return IntPtrAdd(value, IntPtrConstant(1));
+}
+
+Node* CodeStubAssembler::MatchesParameterMode(Node* value, ParameterMode mode) {
+  return (mode == SMI_PARAMETERS) ? TaggedIsSmi(value) : Int32Constant(1);
 }
 
 Node* CodeStubAssembler::WordIsPowerOfTwo(Node* value) {
@@ -672,6 +675,7 @@ void CodeStubAssembler::Bind(Label* label) { CodeAssembler::Bind(label); }
 void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
     Node* receiver_map, Label* definitely_no_elements,
     Label* possibly_elements) {
+  CSA_SLOW_ASSERT(this, IsMap(receiver_map));
   VARIABLE(var_map, MachineRepresentation::kTagged, receiver_map);
   Label loop_body(this, &var_map);
   Node* empty_elements = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
@@ -1212,6 +1216,7 @@ Node* CodeStubAssembler::LoadMapConstructor(Node* map) {
 
 Node* CodeStubAssembler::LoadSharedFunctionInfoSpecialField(
     Node* shared, int offset, ParameterMode mode) {
+  CSA_SLOW_ASSERT(this, HasInstanceType(shared, SHARED_FUNCTION_INFO_TYPE));
   if (Is64()) {
     Node* result = LoadObjectField(shared, offset, MachineType::Int32());
     if (mode == SMI_PARAMETERS) {
@@ -1355,6 +1360,8 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
 Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
     Node* object, Node* index_node, int additional_offset,
     ParameterMode parameter_mode) {
+  CSA_SLOW_ASSERT(this, IsFixedArray(object));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   int32_t header_size =
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
 #if V8_TARGET_LITTLE_ENDIAN
@@ -1374,6 +1381,8 @@ Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
 Node* CodeStubAssembler::LoadFixedDoubleArrayElement(
     Node* object, Node* index_node, MachineType machine_type,
     int additional_offset, ParameterMode parameter_mode, Label* if_hole) {
+  CSA_SLOW_ASSERT(this, IsFixedDoubleArray(object));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   CSA_ASSERT(this, IsFixedDoubleArray(object));
   int32_t header_size =
       FixedDoubleArray::kHeaderSize + additional_offset - kHeapObjectTag;
@@ -1541,6 +1550,8 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
                                                 WriteBarrierMode barrier_mode,
                                                 int additional_offset,
                                                 ParameterMode parameter_mode) {
+  CSA_SLOW_ASSERT(this, IsFixedArray(object));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
   int header_size =
@@ -1558,6 +1569,7 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
 Node* CodeStubAssembler::StoreFixedDoubleArrayElement(
     Node* object, Node* index_node, Node* value, ParameterMode parameter_mode) {
   CSA_ASSERT(this, IsFixedDoubleArray(object));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   Node* offset =
       ElementOffsetFromIndex(index_node, FAST_DOUBLE_ELEMENTS, parameter_mode,
                              FixedArray::kHeaderSize - kHeapObjectTag);
@@ -1619,6 +1631,7 @@ Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* array,
                                             CodeStubArguments& args,
                                             Variable& arg_index,
                                             Label* bailout) {
+  CSA_SLOW_ASSERT(this, IsJSArray(array));
   Comment("BuildAppendJSArray: %s", ElementsKindToString(kind));
   Label pre_bailout(this);
   Label success(this);
@@ -1689,6 +1702,7 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
 
 void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* array,
                                            Node* value, Label* bailout) {
+  CSA_SLOW_ASSERT(this, IsJSArray(array));
   Comment("BuildAppendJSArray: %s", ElementsKindToString(kind));
   ParameterMode mode = OptimalParameterMode();
   VARIABLE(var_length, OptimalParameterRepresentation(),
@@ -1748,6 +1762,8 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
                                                   ParameterMode mode,
                                                   AllocationFlags flags) {
   Comment("AllocateSeqOneByteString");
+  CSA_SLOW_ASSERT(this, IsFixedArray(context));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(length, mode));
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Compute the SeqOneByteString size and check if it fits into new space.
@@ -1818,6 +1834,8 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length,
 Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length,
                                                   ParameterMode mode,
                                                   AllocationFlags flags) {
+  CSA_SLOW_ASSERT(this, IsFixedArray(context));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(length, mode));
   Comment("AllocateSeqTwoByteString");
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
@@ -1873,7 +1891,9 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length,
 Node* CodeStubAssembler::AllocateSlicedString(
     Heap::RootListIndex map_root_index, Node* length, Node* parent,
     Node* offset) {
+  CSA_ASSERT(this, IsString(parent));
   CSA_ASSERT(this, TaggedIsSmi(length));
+  CSA_ASSERT(this, TaggedIsSmi(offset));
   Node* result = Allocate(SlicedString::kSize);
   DCHECK(Heap::RootIsImmortalImmovable(map_root_index));
   StoreMapNoWriteBarrier(result, map_root_index);
@@ -1906,6 +1926,8 @@ Node* CodeStubAssembler::AllocateConsString(Heap::RootListIndex map_root_index,
                                             Node* length, Node* first,
                                             Node* second,
                                             AllocationFlags flags) {
+  CSA_ASSERT(this, IsString(first));
+  CSA_ASSERT(this, IsString(second));
   CSA_ASSERT(this, TaggedIsSmi(length));
   Node* result = Allocate(ConsString::kSize, flags);
   DCHECK(Heap::RootIsImmortalImmovable(map_root_index));
@@ -1945,6 +1967,9 @@ Node* CodeStubAssembler::AllocateTwoByteConsString(Node* length, Node* first,
 
 Node* CodeStubAssembler::NewConsString(Node* context, Node* length, Node* left,
                                        Node* right, AllocationFlags flags) {
+  CSA_ASSERT(this, IsFixedArray(context));
+  CSA_ASSERT(this, IsString(left));
+  CSA_ASSERT(this, IsString(right));
   CSA_ASSERT(this, TaggedIsSmi(length));
   // Added string can be a cons string.
   Comment("Allocating ConsString");
@@ -2000,10 +2025,16 @@ Node* CodeStubAssembler::NewConsString(Node* context, Node* length, Node* left,
 
 Node* CodeStubAssembler::AllocateRegExpResult(Node* context, Node* length,
                                               Node* index, Node* input) {
+  CSA_ASSERT(this, IsFixedArray(context));
+  CSA_ASSERT(this, TaggedIsSmi(index));
+  CSA_ASSERT(this, TaggedIsSmi(length));
+  CSA_ASSERT(this, IsString(input));
+
+#ifdef DEBUG
   Node* const max_length =
       SmiConstant(Smi::FromInt(JSArray::kInitialMaxFastElementArray));
   CSA_ASSERT(this, SmiLessThanOrEqual(length, max_length));
-  USE(max_length);
+#endif  // DEBUG
 
   // Allocate the JSRegExpResult.
   // TODO(jgruber): Fold JSArray and FixedArray allocations, then remove
@@ -2124,6 +2155,7 @@ Node* CodeStubAssembler::AllocateJSObjectFromMap(Node* map, Node* properties,
 void CodeStubAssembler::InitializeJSObjectFromMap(Node* object, Node* map,
                                                   Node* size, Node* properties,
                                                   Node* elements) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
   // This helper assumes that the object is in new-space, as guarded by the
   // check in AllocatedJSObjectFromMap.
   if (properties == nullptr) {
@@ -2131,6 +2163,7 @@ void CodeStubAssembler::InitializeJSObjectFromMap(Node* object, Node* map,
     StoreObjectFieldRoot(object, JSObject::kPropertiesOffset,
                          Heap::kEmptyFixedArrayRootIndex);
   } else {
+    CSA_ASSERT(this, IsFixedArray(properties));
     StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOffset,
                                    properties);
   }
@@ -2138,6 +2171,7 @@ void CodeStubAssembler::InitializeJSObjectFromMap(Node* object, Node* map,
     StoreObjectFieldRoot(object, JSObject::kElementsOffset,
                          Heap::kEmptyFixedArrayRootIndex);
   } else {
+    CSA_ASSERT(this, IsFixedArray(elements));
     StoreObjectFieldNoWriteBarrier(object, JSObject::kElementsOffset, elements);
   }
   InitializeJSObjectBody(object, map, size, JSObject::kHeaderSize);
@@ -2145,6 +2179,7 @@ void CodeStubAssembler::InitializeJSObjectFromMap(Node* object, Node* map,
 
 void CodeStubAssembler::InitializeJSObjectBody(Node* object, Node* map,
                                                Node* size, int start_offset) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
   // TODO(cbruni): activate in-object slack tracking machinery.
   Comment("InitializeJSObjectBody");
   Node* filler = LoadRoot(Heap::kUndefinedValueRootIndex);
@@ -2174,6 +2209,8 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(Node* start_address,
 Node* CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
     ElementsKind kind, Node* array_map, Node* length, Node* allocation_site) {
   Comment("begin allocation of JSArray without elements");
+  CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
+  CSA_SLOW_ASSERT(this, IsMap(array_map));
   int base_size = JSArray::kSize;
   if (allocation_site != nullptr) {
     base_size += AllocationMemento::kSize;
@@ -2190,6 +2227,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     ElementsKind kind, Node* array_map, Node* length, Node* allocation_site,
     Node* capacity, ParameterMode capacity_mode) {
   Comment("begin allocation of JSArray with elements");
+  CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
+  CSA_SLOW_ASSERT(this, IsMap(array_map));
   int base_size = JSArray::kSize;
 
   if (allocation_site != nullptr) {
@@ -2216,13 +2255,15 @@ Node* CodeStubAssembler::AllocateUninitializedJSArray(ElementsKind kind,
                                                       Node* length,
                                                       Node* allocation_site,
                                                       Node* size_in_bytes) {
+  CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
+  CSA_SLOW_ASSERT(this, IsMap(array_map));
+
   // Allocate space for the JSArray and the elements FixedArray in one go.
   Node* array = AllocateInNewSpace(size_in_bytes);
 
   Comment("write JSArray headers");
   StoreMapNoWriteBarrier(array, array_map);
 
-  CSA_ASSERT(this, TaggedIsSmi(length));
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
 
   StoreObjectFieldRoot(array, JSArray::kPropertiesOffset,
@@ -2238,6 +2279,10 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
                                          Node* capacity, Node* length,
                                          Node* allocation_site,
                                          ParameterMode capacity_mode) {
+  CSA_SLOW_ASSERT(this, IsMap(array_map));
+  CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, capacity_mode));
+
   Node *array = nullptr, *elements = nullptr;
   if (IsIntPtrOrSmiConstantZero(capacity)) {
     // Array is empty. Use the shared empty fixed array instead of allocating a
@@ -2271,6 +2316,7 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
                                             Node* capacity_node,
                                             ParameterMode mode,
                                             AllocationFlags flags) {
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity_node, mode));
   CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity_node,
                                           IntPtrOrSmiConstant(0, mode), mode));
   Node* total_size = GetFixedArrayAllocationSize(capacity_node, kind, mode);
@@ -2291,6 +2337,9 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
 void CodeStubAssembler::FillFixedArrayWithValue(
     ElementsKind kind, Node* array, Node* from_node, Node* to_node,
     Heap::RootListIndex value_root_index, ParameterMode mode) {
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(from_node, mode));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(to_node, mode));
+  CSA_SLOW_ASSERT(this, IsFixedArrayWithKind(array, kind));
   bool is_double = IsFastDoubleElementsKind(kind);
   DCHECK(value_root_index == Heap::kTheHoleValueRootIndex ||
          value_root_index == Heap::kUndefinedValueRootIndex);
@@ -2334,6 +2383,10 @@ void CodeStubAssembler::CopyFixedArrayElements(
     ElementsKind from_kind, Node* from_array, ElementsKind to_kind,
     Node* to_array, Node* element_count, Node* capacity,
     WriteBarrierMode barrier_mode, ParameterMode mode) {
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(element_count, mode));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
+  CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(from_array, from_kind));
+  CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(to_array, to_kind));
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   Comment("[ CopyFixedArrayElements");
@@ -2470,6 +2523,12 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
                                              String::Encoding from_encoding,
                                              String::Encoding to_encoding,
                                              ParameterMode mode) {
+  // Cannot assert IsString(from_string) and IsString(to_string) here because
+  // CSA::SubString can pass in faked sequential strings when handling external
+  // subject strings.
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(character_count, mode));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(from_index, mode));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(to_index, mode));
   bool from_one_byte = from_encoding == String::ONE_BYTE_ENCODING;
   bool to_one_byte = to_encoding == String::ONE_BYTE_ENCODING;
   DCHECK_IMPLIES(to_one_byte, from_one_byte);
@@ -2528,6 +2587,7 @@ Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
                                                        ElementsKind from_kind,
                                                        ElementsKind to_kind,
                                                        Label* if_hole) {
+  CSA_SLOW_ASSERT(this, IsFixedArrayWithKind(array, from_kind));
   if (IsFastDoubleElementsKind(from_kind)) {
     Node* value =
         LoadDoubleWithHoleCheck(array, offset, if_hole, MachineType::Float64());
@@ -2554,6 +2614,7 @@ Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
 
 Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
                                                       ParameterMode mode) {
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(old_capacity, mode));
   Node* half_old_capacity = WordOrSmiShr(old_capacity, 1, mode);
   Node* new_capacity = IntPtrOrSmiAdd(half_old_capacity, old_capacity, mode);
   Node* padding = IntPtrOrSmiConstant(16, mode);
@@ -2563,6 +2624,9 @@ Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
 Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,
                                                  ElementsKind kind, Node* key,
                                                  Label* bailout) {
+  CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
+  CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, kind));
+  CSA_SLOW_ASSERT(this, TaggedIsSmi(key));
   Node* capacity = LoadFixedArrayBaseLength(elements);
 
   ParameterMode mode = OptimalParameterMode();
@@ -2579,6 +2643,10 @@ Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,
                                                  ParameterMode mode,
                                                  Label* bailout) {
   Comment("TryGrowElementsCapacity");
+  CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
+  CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, kind));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(key, mode));
 
   // If the gap growth is too big, fall back to the runtime.
   Node* max_gap = IntPtrOrSmiConstant(JSObject::kMaxGap, mode);
@@ -2596,6 +2664,11 @@ Node* CodeStubAssembler::GrowElementsCapacity(
     Node* object, Node* elements, ElementsKind from_kind, ElementsKind to_kind,
     Node* capacity, Node* new_capacity, ParameterMode mode, Label* bailout) {
   Comment("[ GrowElementsCapacity");
+  CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
+  CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, from_kind));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(new_capacity, mode));
+
   // If size of the allocation for the new capacity doesn't fit in a page
   // that we can bump-pointer allocate from, fall back to the runtime.
   int max_size = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(to_kind);
@@ -2931,6 +3004,7 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
 }
 
 Node* CodeStubAssembler::ChangeNumberToFloat64(Node* value) {
+  CSA_SLOW_ASSERT(this, IsNumber(value));
   VARIABLE(result, MachineRepresentation::kFloat64);
   Label smi(this);
   Label done(this, &result);
@@ -2950,6 +3024,7 @@ Node* CodeStubAssembler::ChangeNumberToFloat64(Node* value) {
 }
 
 Node* CodeStubAssembler::ChangeNumberToIntPtr(Node* value) {
+  CSA_SLOW_ASSERT(this, IsNumber(value));
   VARIABLE(result, MachineType::PointerRepresentation());
   Label smi(this), done(this, &result);
   GotoIf(TaggedIsSmi(value), &smi);
@@ -3091,6 +3166,7 @@ Node* CodeStubAssembler::InstanceTypeEqual(Node* instance_type, int type) {
 }
 
 Node* CodeStubAssembler::IsSpecialReceiverMap(Node* map) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
   Node* is_special = IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
   uint32_t mask =
       1 << Map::kHasNamedInterceptor | 1 << Map::kIsAccessCheckNeeded;
@@ -3217,9 +3293,7 @@ Node* CodeStubAssembler::IsJSGlobalProxy(Node* object) {
                      Int32Constant(JS_GLOBAL_PROXY_TYPE));
 }
 
-Node* CodeStubAssembler::IsMap(Node* map) {
-  return HasInstanceType(map, MAP_TYPE);
-}
+Node* CodeStubAssembler::IsMap(Node* map) { return IsMetaMap(LoadMap(map)); }
 
 Node* CodeStubAssembler::IsJSValueInstanceType(Node* instance_type) {
   return Word32Equal(instance_type, Int32Constant(JS_VALUE_TYPE));
@@ -3245,6 +3319,45 @@ Node* CodeStubAssembler::IsJSArrayMap(Node* map) {
   return IsJSArrayInstanceType(LoadMapInstanceType(map));
 }
 
+Node* CodeStubAssembler::IsFixedArray(Node* object) {
+  return HasInstanceType(object, FIXED_ARRAY_TYPE);
+}
+
+// This complicated check is due to elements oddities. If a smi array is empty
+// after Array.p.shift, it is replaced by the empty array constant. If it is
+// later filled with a double element, we try to grow it but pass in a double
+// elements kind. Usually this would cause a size mismatch (since the source
+// fixed array has FAST_HOLEY_ELEMENTS and destination has
+// FAST_HOLEY_DOUBLE_ELEMENTS), but we don't have to worry about it when the
+// source array is empty.
+// TODO(jgruber): It might we worth creating an empty_double_array constant to
+// simplify this case.
+Node* CodeStubAssembler::IsFixedArrayWithKindOrEmpty(Node* object,
+                                                     ElementsKind kind) {
+  Label out(this);
+  VARIABLE(var_result, MachineRepresentation::kWord32, Int32Constant(1));
+
+  GotoIf(IsFixedArrayWithKind(object, kind), &out);
+
+  Node* const length = LoadFixedArrayBaseLength(object);
+  GotoIf(SmiEqual(length, SmiConstant(0)), &out);
+
+  var_result.Bind(Int32Constant(0));
+  Goto(&out);
+
+  BIND(&out);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::IsFixedArrayWithKind(Node* object, ElementsKind kind) {
+  if (IsFastDoubleElementsKind(kind)) {
+    return IsFixedDoubleArray(object);
+  } else {
+    DCHECK(IsFastSmiOrObjectElementsKind(kind));
+    return IsFixedArray(object);
+  }
+}
+
 Node* CodeStubAssembler::IsWeakCell(Node* object) {
   return IsWeakCellMap(LoadMap(object));
 }
@@ -3263,6 +3376,10 @@ Node* CodeStubAssembler::IsAccessorInfo(Node* object) {
 
 Node* CodeStubAssembler::IsAccessorPair(Node* object) {
   return IsAccessorPairMap(LoadMap(object));
+}
+
+Node* CodeStubAssembler::IsAnyHeapNumber(Node* object) {
+  return Word32Or(IsMutableHeapNumber(object), IsHeapNumber(object));
 }
 
 Node* CodeStubAssembler::IsHeapNumber(Node* object) {
@@ -3404,7 +3521,7 @@ Node* CodeStubAssembler::IsNumberPositive(Node* number) {
 
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,
                                           ParameterMode parameter_mode) {
-  if (parameter_mode == SMI_PARAMETERS) CSA_ASSERT(this, TaggedIsSmi(index));
+  CSA_ASSERT(this, MatchesParameterMode(index, parameter_mode));
   CSA_ASSERT(this, IsString(string));
 
   // Translate the {index} into a Word.
@@ -3516,6 +3633,7 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
   }
 
   BIND(&if_done);
+  CSA_ASSERT(this, IsString(var_result.value()));
   return var_result.value();
 }
 
@@ -3718,6 +3836,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   }
 
   BIND(&end);
+  CSA_ASSERT(this, IsString(var_result.value()));
   return var_result.value();
 }
 
@@ -3863,26 +3982,6 @@ Node* ToDirectStringAssembler::TryToSequential(StringPointerKind ptr_kind,
 
   BIND(&out);
   return var_result.value();
-}
-
-Node* CodeStubAssembler::TryDerefExternalString(Node* const string,
-                                                Node* const instance_type,
-                                                Label* if_bailout) {
-  Label out(this);
-
-  CSA_ASSERT(this, IsExternalStringInstanceType(instance_type));
-  GotoIf(IsShortExternalStringInstanceType(instance_type), if_bailout);
-
-  // Move the pointer so that offset-wise, it looks like a sequential string.
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
-
-  Node* resource_data = LoadObjectField(
-      string, ExternalString::kResourceDataOffset, MachineType::Pointer());
-  Node* const fake_sequential_string =
-      IntPtrSub(resource_data,
-                IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-
-  return fake_sequential_string;
 }
 
 void CodeStubAssembler::BranchIfCanDerefIndirectString(Node* string,
@@ -4119,10 +4218,12 @@ Node* CodeStubAssembler::StringFromCodePoint(Node* codepoint,
   }
 
   BIND(&return_result);
+  CSA_ASSERT(this, IsString(var_result.value()));
   return var_result.value();
 }
 
 Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
+  CSA_SLOW_ASSERT(this, IsString(input));
   Label runtime(this, Label::kDeferred);
   Label end(this);
 
@@ -4177,7 +4278,7 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
   Node* hash = Word32Xor(low, high);
   hash = ChangeInt32ToIntPtr(hash);
   hash = WordShl(hash, one);
-  Node* index = WordAnd(hash, SmiUntag(BitcastWordToTagged(mask)));
+  Node* index = WordAnd(hash, WordSar(mask, SmiShiftBitsConstant()));
 
   // Cache entry's key must be a heap number
   Node* number_key = LoadFixedArrayElement(number_string_cache, index);
@@ -4222,6 +4323,7 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
   }
 
   BIND(&done);
+  CSA_ASSERT(this, IsString(result.value()));
   return result.value();
 }
 
@@ -4268,6 +4370,7 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
   }
 
   BIND(&end);
+  CSA_ASSERT(this, IsName(var_result.value()));
   return var_result.value();
 }
 
@@ -4356,6 +4459,7 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
   }
 
   BIND(&end);
+  CSA_ASSERT(this, IsNumber(var_result.value()));
   return var_result.value();
 }
 
@@ -4385,6 +4489,7 @@ Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
   }
 
   BIND(&end);
+  CSA_ASSERT(this, IsNumber(var_result.value()));
   return var_result.value();
 }
 
@@ -4487,6 +4592,7 @@ Node* CodeStubAssembler::ToUint32(Node* context, Node* input) {
   }
 
   BIND(&out);
+  CSA_ASSERT(this, IsNumber(var_result.value()));
   return var_result.value();
 }
 
@@ -4593,6 +4699,7 @@ Node* CodeStubAssembler::ToSmiIndex(Node* const input, Node* const context,
   Goto(&done);
 
   BIND(&done);
+  CSA_SLOW_ASSERT(this, TaggedIsSmi(result.value()));
   return result.value();
 }
 
@@ -4617,6 +4724,7 @@ Node* CodeStubAssembler::ToSmiLength(Node* input, Node* const context,
   Goto(&done);
 
   BIND(&done);
+  CSA_SLOW_ASSERT(this, TaggedIsSmi(result.value()));
   return result.value();
 }
 
@@ -4686,6 +4794,7 @@ Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
   }
 
   BIND(&out);
+  CSA_SLOW_ASSERT(this, IsNumber(var_arg.value()));
   return var_arg.value();
 }
 
@@ -4802,6 +4911,7 @@ void CodeStubAssembler::TryInternalizeString(
     Variable* var_internalized, Label* if_not_internalized, Label* if_bailout) {
   DCHECK(var_index->rep() == MachineType::PointerRepresentation());
   DCHECK(var_internalized->rep() == MachineRepresentation::kTagged);
+  CSA_SLOW_ASSERT(this, IsString(string));
   Node* function = ExternalConstant(
       ExternalReference::try_internalize_string_function(isolate()));
   Node* result = CallCFunction1(MachineType::AnyTagged(),
@@ -5049,6 +5159,8 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
                                                     Node* name, Node* value,
                                                     Node* index,
                                                     Node* enum_index) {
+  CSA_SLOW_ASSERT(this, IsDictionary(dictionary));
+
   // Store name and value.
   StoreFixedArrayElement(dictionary, index, name);
   StoreValueByKeyIndex<NameDictionary>(dictionary, index, value);
@@ -5090,6 +5202,7 @@ void CodeStubAssembler::InsertEntry<GlobalDictionary>(Node* dictionary,
 template <class Dictionary>
 void CodeStubAssembler::Add(Node* dictionary, Node* key, Node* value,
                             Label* bailout) {
+  CSA_SLOW_ASSERT(this, IsDictionary(dictionary));
   Node* capacity = GetCapacity<Dictionary>(dictionary);
   Node* nof = GetNumberOfElements<Dictionary>(dictionary);
   Node* new_nof = SmiAdd(nof, SmiConstant(1));
@@ -6802,6 +6915,8 @@ Node* CodeStubAssembler::BuildFastLoop(
     const CodeStubAssembler::VariableList& vars, Node* start_index,
     Node* end_index, const FastLoopBody& body, int increment,
     ParameterMode parameter_mode, IndexAdvanceMode advance_mode) {
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(start_index, parameter_mode));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(end_index, parameter_mode));
   MachineRepresentation index_rep = (parameter_mode == INTPTR_PARAMETERS)
                                         ? MachineType::PointerRepresentation()
                                         : MachineRepresentation::kTaggedSigned;
@@ -6839,6 +6954,9 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
     Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
     ParameterMode mode, ForEachDirection direction) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(first_element_inclusive, mode));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(last_element_exclusive, mode));
+  CSA_SLOW_ASSERT(this, IsFixedArrayWithKind(fixed_array, kind));
   int32_t first_val;
   bool constant_first = ToInt32Constant(first_element_inclusive, first_val);
   int32_t last_val;
@@ -6899,6 +7017,7 @@ void CodeStubAssembler::GotoIfFixedArraySizeDoesntFitInNewSpace(
 void CodeStubAssembler::InitializeFieldsWithRoot(
     Node* object, Node* start_offset, Node* end_offset,
     Heap::RootListIndex root_index) {
+  CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
   start_offset = IntPtrAdd(start_offset, IntPtrConstant(-kHeapObjectTag));
   end_offset = IntPtrAdd(end_offset, IntPtrConstant(-kHeapObjectTag));
   Node* root_value = LoadRoot(root_index);
@@ -6914,6 +7033,9 @@ void CodeStubAssembler::InitializeFieldsWithRoot(
 void CodeStubAssembler::BranchIfNumericRelationalComparison(
     RelationalComparisonMode mode, Node* lhs, Node* rhs, Label* if_true,
     Label* if_false) {
+  CSA_SLOW_ASSERT(this, IsNumber(lhs));
+  CSA_SLOW_ASSERT(this, IsNumber(rhs));
+
   Label end(this);
   VARIABLE(result, MachineRepresentation::kTagged);
 
@@ -9194,6 +9316,8 @@ Node* CodeStubAssembler::IsPromiseHookEnabledOrDebugIsActive() {
 Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
                                                            Node* shared_info,
                                                            Node* context) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
+
   Node* const code = BitcastTaggedToWord(
       LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset));
   Node* const code_entry =

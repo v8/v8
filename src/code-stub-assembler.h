@@ -41,6 +41,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(HeapNumberMap, HeapNumberMap)                     \
   V(length_string, LengthString)                      \
   V(ManyClosuresCellMap, ManyClosuresCellMap)         \
+  V(MetaMap, MetaMap)                                 \
   V(MinusZeroValue, MinusZero)                        \
   V(MutableHeapNumberMap, MutableHeapNumberMap)       \
   V(NanValue, Nan)                                    \
@@ -116,6 +117,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     if (mode != SMI_PARAMETERS) value = SmiUntag(value);
     return value;
   }
+
+  Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
   Node* OpName(Node* a, Node* b, ParameterMode mode) {   \
@@ -776,6 +779,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsPropertyCell(Node* object);
   Node* IsAccessorInfo(Node* object);
   Node* IsAccessorPair(Node* object);
+  Node* IsAnyHeapNumber(Node* object);
   Node* IsHeapNumber(Node* object);
   Node* IsMutableHeapNumber(Node* object);
   Node* IsName(Node* object);
@@ -788,6 +792,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSArrayInstanceType(Node* instance_type);
   Node* IsJSArray(Node* object);
   Node* IsJSArrayMap(Node* object);
+  Node* IsFixedArray(Node* object);
+  Node* IsFixedArrayWithKindOrEmpty(Node* object, ElementsKind kind);
+  Node* IsFixedArrayWithKind(Node* object, ElementsKind kind);
   Node* IsNativeContext(Node* object);
   Node* IsWeakCell(Node* object);
   Node* IsFixedDoubleArray(Node* object);
@@ -837,16 +844,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Return a new string object produced by concatenating |first| with |second|.
   Node* StringAdd(Node* context, Node* first, Node* second,
                   AllocationFlags flags = kNone);
-
-  // Unpack the external string, returning a pointer that (offset-wise) looks
-  // like a sequential string.
-  // Note that this pointer is not tagged and does not point to a real
-  // sequential string instance, and may only be used to access the string
-  // data. The pointer is GC-safe as long as a reference to the container
-  // ExternalString is live.
-  // |string| must be an external string. Bailout for short external strings.
-  Node* TryDerefExternalString(Node* const string, Node* const instance_type,
-                               Label* if_bailout);
 
   // Check if |string| is an indirect (thin or flat cons) string type that can
   // be dereferenced by DerefIndirectString.
