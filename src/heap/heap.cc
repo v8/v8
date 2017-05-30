@@ -3172,7 +3172,11 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by) {
              !mark_compact_collector()->sweeping_in_progress() &&
              ObjectMarking::IsBlack(object, MarkingState::Internal(object))) {
     DCHECK(MemoryChunk::FromAddress(object->address())->SweepingDone());
+#ifdef V8_CONCURRENT_MARKING
+    MarkingState::Internal(object).IncrementLiveBytes<MarkBit::ATOMIC>(by);
+#else
     MarkingState::Internal(object).IncrementLiveBytes(by);
+#endif
   }
 }
 
