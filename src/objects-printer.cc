@@ -393,14 +393,21 @@ void PrintFixedArrayElements(std::ostream& os, FixedArray* array) {
 
 void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
                                  SloppyArgumentsElements* elements) {
+  Isolate* isolate = elements->GetIsolate();
   FixedArray* arguments_store = elements->arguments();
   os << "\n    0: context= " << Brief(elements->context())
      << "\n    1: arguments_store= " << Brief(arguments_store)
      << "\n    parameter to context slot map:";
   for (uint32_t i = 0; i < elements->parameter_map_length(); i++) {
     uint32_t raw_index = i + SloppyArgumentsElements::kParameterMapStart;
+    Object* mapped_entry = elements->get_mapped_entry(i);
     os << "\n    " << raw_index << ": param(" << i
-       << ")= " << Brief(elements->get_mapped_entry(i));
+       << ")= " << Brief(mapped_entry);
+    if (mapped_entry->IsTheHole(isolate)) {
+      os << " in the arguements_store[" << i << "]";
+    } else {
+      os << " in the context";
+    }
   }
   if (arguments_store->length() == 0) return;
   os << "\n }"

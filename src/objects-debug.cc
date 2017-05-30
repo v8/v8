@@ -518,16 +518,14 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
     CHECK(arg_elements == isolate->heap()->empty_fixed_array());
     return;
   }
-  int nofMappedParameters =
-      length() - SloppyArgumentsElements::kParameterMapStart;
-  CHECK_LE(nofMappedParameters, context_object->length());
-  CHECK_LE(nofMappedParameters, arg_elements->length());
   ElementsAccessor* accessor;
   if (is_fast) {
     accessor = ElementsAccessor::ForKind(FAST_HOLEY_ELEMENTS);
   } else {
     accessor = ElementsAccessor::ForKind(DICTIONARY_ELEMENTS);
   }
+  int nofMappedParameters = 0;
+  int maxMappedIndex = 0;
   for (int i = 0; i < nofMappedParameters; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
@@ -540,12 +538,20 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
       CHECK(accessor->HasElement(holder, i, arg_elements));
       continue;
     }
-    Object* value = context_object->get(Smi::cast(mapped)->value());
+    int mappedIndex = Smi::cast(mapped)->value();
+    nofMappedParameters++;
+    CHECK_LE(maxMappedIndex, mappedIndex);
+    maxMappedIndex = mappedIndex;
+    Object* value = context_object->get(mappedIndex);
     CHECK(value->IsObject());
     // None of the context-mapped entries should exist in the arguments
     // elements.
     CHECK(!accessor->HasElement(holder, i, arg_elements));
   }
+  CHECK_LE(nofMappedParameters, context_object->length());
+  CHECK_LE(nofMappedParameters, arg_elements->length());
+  CHECK_LE(maxMappedIndex, context_object->length());
+  CHECK_LE(maxMappedIndex, arg_elements->length());
 }
 
 void JSGeneratorObject::JSGeneratorObjectVerify() {
