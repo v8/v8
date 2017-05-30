@@ -41,25 +41,25 @@ CLANG_BUCKET = 'gs://chromium-browser-clang/Linux_x64'
 
 GOLD_PLUGIN_PATH = os.path.join(LLVM_BUILD_PATH, 'lib', 'LLVMgold.so')
 
-sys.path.insert(0, os.path.join(CHROME_SRC, 'tools', 'clang', 'scripts'))
-
-import update
+GOLD_PLUGIN_VERSION_FILE = os.path.join(CHROME_SRC, 'gypfiles', '.gold_plugin')
 
 def main():
   if not re.search(r'cfi_vptr=1', os.environ.get('GYP_DEFINES', '')):
     # Bailout if this is not a cfi build.
     print 'Skipping gold plugin download for non-cfi build.'
     return 0
-  if (os.path.exists(GOLD_PLUGIN_PATH) and
-      update.ReadStampFile().strip() == update.PACKAGE_VERSION):
-    # Bailout if clang is up-to-date. This requires the script to be run before
-    # the clang update step! I.e. afterwards clang would always be up-to-date.
-    print 'Skipping gold plugin download. File present and clang up to date.'
+  previous_version = ''
+  if os.path.exists(GOLD_PLUGIN_VERSION_FILE):
+    with open(GOLD_PLUGIN_VERSION_FILE) as f:
+      previous_version = f.read().strip()
+  if (os.path.exists(GOLD_PLUGIN_PATH) and previous_version == CLANG_REVISION):
+    # Bailout if gold plugin is up-to-date. This requires the script to be run
+    # after the clang update step.
+    print 'Skipping gold plugin download (up to date).'
     return 0
 
-  # Make sure this works on empty checkouts (i.e. clang not downloaded yet).
-  if not os.path.exists(LLVM_BUILD_PATH):
-    os.makedirs(LLVM_BUILD_PATH)
+  # Make sure clang has been downloaded already.
+  assert os.path.exists(LLVM_BUILD_PATH)
 
   targz_name = 'llvmgold-%s.tgz' % CLANG_REVISION
   remote_path = '%s/%s' % (CLANG_BUCKET, targz_name)
@@ -75,6 +75,9 @@ def main():
                         stderr=open('/dev/null', 'w'))
   subprocess.check_call(['tar', 'xzf', targz_name])
   os.remove(targz_name)
+
+  with open(GOLD_PLUGIN_VERSION_FILE, 'w') as f:
+    f.write(CLANG_REVISION)
   return 0
 
 if __name__ == '__main__':

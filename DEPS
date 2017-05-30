@@ -263,18 +263,17 @@ hooks = [
     ],
   },
   {
-    # Pull gold plugin if needed or requested via GYP_DEFINES.
-    # Note: This must run before the clang update.
-    'name': 'gold_plugin',
-    'pattern': '.',
-    'action': ['python', 'v8/gypfiles/download_gold_plugin.py'],
-  },
-  {
     # Pull clang if needed or requested via GYP_DEFINES.
     # Note: On Win, this should run after win_toolchain, as it may use it.
     'name': 'clang',
     'pattern': '.',
     'action': ['python', 'v8/tools/clang/scripts/update.py', '--if-needed'],
+  },
+  {
+    # Pull gold plugin if needed or requested via GYP_DEFINES.
+    'name': 'gold_plugin',
+    'pattern': '.',
+    'action': ['python', 'v8/gypfiles/download_gold_plugin.py'],
   },
   {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
