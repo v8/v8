@@ -2085,14 +2085,6 @@ class ThreadImpl {
 
   sp_t StackHeight() { return sp_ - stack_start_; }
 
-  void TraceStack(const char* phase, pc_t pc) {
-    if (FLAG_trace_wasm_interpreter) {
-      PrintF("%s @%zu", phase, pc);
-      UNIMPLEMENTED();
-      PrintF("\n");
-    }
-  }
-
   void TraceValueStack() {
 #ifdef DEBUG
     if (!FLAG_trace_wasm_interpreter) return;
