@@ -2510,6 +2510,7 @@ v8_component("v8_libbase") {
     "src/base/safe_math_impl.h",
     "src/base/sys-info.cc",
     "src/base/sys-info.h",
+    "src/base/template-utils.h",
     "src/base/timezone-cache.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",

@@ -2021,6 +2021,7 @@
         'base/safe_math_impl.h',
         'base/sys-info.cc',
         'base/sys-info.h',
+        'base/template-utils.h',
         'base/timezone-cache.h',
         'base/utils/random-number-generator.cc',
         'base/utils/random-number-generator.h',
