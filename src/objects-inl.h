@@ -1328,13 +1328,13 @@ HeapObject** HeapObject::map_slot() {
 
 MapWord HeapObject::map_word() const {
   return MapWord(
-      reinterpret_cast<uintptr_t>(NOBARRIER_READ_FIELD(this, kMapOffset)));
+      reinterpret_cast<uintptr_t>(RELAXED_READ_FIELD(this, kMapOffset)));
 }
 
 
 void HeapObject::set_map_word(MapWord map_word) {
-  NOBARRIER_WRITE_FIELD(
-      this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
+  RELAXED_WRITE_FIELD(this, kMapOffset,
+                      reinterpret_cast<Object*>(map_word.value_));
 }
 
 
@@ -2184,7 +2184,7 @@ void Object::VerifyApiCallResultType() {
 
 Object* FixedArray::get(int index) const {
   SLOW_DCHECK(index >= 0 && index < this->length());
-  return NOBARRIER_READ_FIELD(this, kHeaderSize + index * kPointerSize);
+  return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
 
 Handle<Object> FixedArray::get(FixedArray* array, int index, Isolate* isolate) {
@@ -2213,7 +2213,7 @@ void FixedArray::set(int index, Smi* value) {
   DCHECK(index >= 0 && index < this->length());
   DCHECK(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
-  NOBARRIER_WRITE_FIELD(this, offset, value);
+  RELAXED_WRITE_FIELD(this, offset, value);
 }
 
 
@@ -2223,7 +2223,7 @@ void FixedArray::set(int index, Object* value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
-  NOBARRIER_WRITE_FIELD(this, offset, value);
+  RELAXED_WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
@@ -2448,7 +2448,7 @@ void FixedArray::set(int index,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
-  NOBARRIER_WRITE_FIELD(this, offset, value);
+  RELAXED_WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
 }
 
@@ -2460,7 +2460,7 @@ void FixedArray::NoWriteBarrierSet(FixedArray* array,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, array->length());
   DCHECK(!array->GetHeap()->InNewSpace(value));
-  NOBARRIER_WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
+  RELAXED_WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
 }
 
 void FixedArray::set_undefined(int index) {
@@ -3183,7 +3183,7 @@ SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
-NOBARRIER_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
+RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 SMI_ACCESSORS(String, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(String, length, kLengthOffset)
@@ -3195,7 +3195,7 @@ int FreeSpace::Size() { return size(); }
 FreeSpace* FreeSpace::next() {
   DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
          (!GetHeap()->deserialization_complete() && map() == NULL));
-  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
+  DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
   return reinterpret_cast<FreeSpace*>(
       Memory::Address_at(address() + kNextOffset));
 }
@@ -3204,8 +3204,8 @@ FreeSpace* FreeSpace::next() {
 void FreeSpace::set_next(FreeSpace* next) {
   DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
          (!GetHeap()->deserialization_complete() && map() == NULL));
-  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
-  base::NoBarrier_Store(
+  DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
+  base::Relaxed_Store(
       reinterpret_cast<base::AtomicWord*>(address() + kNextOffset),
       reinterpret_cast<base::AtomicWord>(next));
 }
@@ -4086,8 +4086,7 @@ void Map::set_visitor_id(int id) {
 
 
 int Map::instance_size() {
-  return NOBARRIER_READ_BYTE_FIELD(
-      this, kInstanceSizeOffset) << kPointerSizeLog2;
+  return RELAXED_READ_BYTE_FIELD(this, kInstanceSizeOffset) << kPointerSizeLog2;
 }
 
 
@@ -4167,7 +4166,7 @@ int HeapObject::SizeFromMap(Map* map) {
     return reinterpret_cast<BytecodeArray*>(this)->BytecodeArraySize();
   }
   if (instance_type == FREE_SPACE_TYPE) {
-    return reinterpret_cast<FreeSpace*>(this)->nobarrier_size();
+    return reinterpret_cast<FreeSpace*>(this)->relaxed_read_size();
   }
   if (instance_type == STRING_TYPE ||
       instance_type == INTERNALIZED_STRING_TYPE) {
@@ -4197,8 +4196,7 @@ void Map::set_instance_size(int value) {
   DCHECK_EQ(0, value & (kPointerSize - 1));
   value >>= kPointerSizeLog2;
   DCHECK(0 <= value && value < 256);
-  NOBARRIER_WRITE_BYTE_FIELD(
-      this, kInstanceSizeOffset, static_cast<byte>(value));
+  RELAXED_WRITE_BYTE_FIELD(this, kInstanceSizeOffset, static_cast<byte>(value));
 }
 
 
@@ -5936,7 +5934,7 @@ void Foreign::set_foreign_address(Address value) {
 template <class Derived>
 void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, Object* value) {
   int offset = GetDataEntryOffset(entry);
-  NOBARRIER_WRITE_FIELD(this, offset, value);
+  RELAXED_WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 

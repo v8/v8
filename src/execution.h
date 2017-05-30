@@ -199,18 +199,18 @@ class V8_EXPORT_PRIVATE StackGuard final {
     base::AtomicWord climit_;
 
     uintptr_t jslimit() {
-      return bit_cast<uintptr_t>(base::NoBarrier_Load(&jslimit_));
+      return bit_cast<uintptr_t>(base::Relaxed_Load(&jslimit_));
     }
     void set_jslimit(uintptr_t limit) {
-      return base::NoBarrier_Store(&jslimit_,
-                                   static_cast<base::AtomicWord>(limit));
+      return base::Relaxed_Store(&jslimit_,
+                                 static_cast<base::AtomicWord>(limit));
     }
     uintptr_t climit() {
-      return bit_cast<uintptr_t>(base::NoBarrier_Load(&climit_));
+      return bit_cast<uintptr_t>(base::Relaxed_Load(&climit_));
     }
     void set_climit(uintptr_t limit) {
-      return base::NoBarrier_Store(&climit_,
-                                   static_cast<base::AtomicWord>(limit));
+      return base::Relaxed_Store(&climit_,
+                                 static_cast<base::AtomicWord>(limit));
     }
 
     PostponeInterruptsScope* postpone_interrupts_;

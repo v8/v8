@@ -3128,7 +3128,7 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
     filler->set_map_after_allocation(
         reinterpret_cast<Map*>(root(kFreeSpaceMapRootIndex)),
         SKIP_WRITE_BARRIER);
-    FreeSpace::cast(filler)->nobarrier_set_size(size);
+    FreeSpace::cast(filler)->relaxed_write_size(size);
   }
   if (mode == ClearRecordedSlots::kYes) {
     ClearRecordedSlotRange(addr, addr + size);

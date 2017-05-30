@@ -2841,7 +2841,7 @@ size_t FreeListCategory::SumFreeList() {
   FreeSpace* cur = top();
   while (cur != NULL) {
     DCHECK(cur->map() == cur->GetHeap()->root(Heap::kFreeSpaceMapRootIndex));
-    sum += cur->nobarrier_size();
+    sum += cur->relaxed_read_size();
     cur = cur->next();
   }
   return sum;

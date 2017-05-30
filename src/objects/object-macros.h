@@ -8,6 +8,10 @@
 // Note 2: This file is deliberately missing the include guards (the undeffing
 // approach wouldn't work otherwise).
 
+// The accessors with RELAXED_, ACQUIRE_, and RELEASE_ prefixes should be used
+// for fields that can be written to and read from multiple threads at the same
+// time. See comments in src/base/atomicops.h for the memory ordering sematics.
+
 #define DECL_BOOLEAN_ACCESSORS(name) \
   inline bool name() const;          \
   inline void set_##name(bool value);
@@ -80,13 +84,13 @@
     RELEASE_WRITE_FIELD(this, offset, Smi::FromInt(value)); \
   }
 
-#define NOBARRIER_SMI_ACCESSORS(holder, name, offset)         \
-  int holder::nobarrier_##name() const {                      \
-    Object* value = NOBARRIER_READ_FIELD(this, offset);       \
-    return Smi::cast(value)->value();                         \
-  }                                                           \
-  void holder::nobarrier_set_##name(int value) {              \
-    NOBARRIER_WRITE_FIELD(this, offset, Smi::FromInt(value)); \
+#define RELAXED_SMI_ACCESSORS(holder, name, offset)         \
+  int holder::relaxed_read_##name() const {                 \
+    Object* value = RELAXED_READ_FIELD(this, offset);       \
+    return Smi::cast(value)->value();                       \
+  }                                                         \
+  void holder::relaxed_write_##name(int value) {            \
+    RELAXED_WRITE_FIELD(this, offset, Smi::FromInt(value)); \
   }
 
 #define BOOL_GETTER(holder, field, name, offset) \
@@ -116,13 +120,13 @@
   reinterpret_cast<Object*>(base::Acquire_Load( \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
 
-#define NOBARRIER_READ_FIELD(p, offset)           \
-  reinterpret_cast<Object*>(base::NoBarrier_Load( \
+#define RELAXED_READ_FIELD(p, offset)           \
+  reinterpret_cast<Object*>(base::Relaxed_Load( \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
 
 #ifdef V8_CONCURRENT_MARKING
 #define WRITE_FIELD(p, offset, value)                             \
-  base::NoBarrier_Store(                                          \
+  base::Relaxed_Store(                                            \
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
       reinterpret_cast<base::AtomicWord>(value));
 #else
@@ -135,8 +139,8 @@
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
       reinterpret_cast<base::AtomicWord>(value));
 
-#define NOBARRIER_WRITE_FIELD(p, offset, value)                   \
-  base::NoBarrier_Store(                                          \
+#define RELAXED_WRITE_FIELD(p, offset, value)                     \
+  base::Relaxed_Store(                                            \
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
       reinterpret_cast<base::AtomicWord>(value));
 
@@ -229,17 +233,16 @@
 #define READ_BYTE_FIELD(p, offset) \
   (*reinterpret_cast<const byte*>(FIELD_ADDR_CONST(p, offset)))
 
-#define NOBARRIER_READ_BYTE_FIELD(p, offset) \
-  static_cast<byte>(base::NoBarrier_Load(    \
+#define RELAXED_READ_BYTE_FIELD(p, offset) \
+  static_cast<byte>(base::Relaxed_Load(    \
       reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset))))
 
 #define WRITE_BYTE_FIELD(p, offset, value) \
   (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)) = value)
 
-#define NOBARRIER_WRITE_BYTE_FIELD(p, offset, value)           \
-  base::NoBarrier_Store(                                       \
-      reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::Atomic8>(value));
+#define RELAXED_WRITE_BYTE_FIELD(p, offset, value)                             \
+  base::Relaxed_Store(reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
+                      static_cast<base::Atomic8>(value));
 
 #ifdef VERIFY_HEAP
 #define DECLARE_VERIFIER(Name) void Name##Verify();

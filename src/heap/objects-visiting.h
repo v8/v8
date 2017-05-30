@@ -100,7 +100,7 @@ class VisitorDispatchTable {
     // every element of callbacks_ array will remain correct
     // pointer (memcpy might be implemented as a byte copying loop).
     for (int i = 0; i < kVisitorIdCount; i++) {
-      base::NoBarrier_Store(&callbacks_[i], other->callbacks_[i]);
+      base::Relaxed_Store(&callbacks_[i], other->callbacks_[i]);
     }
   }
 

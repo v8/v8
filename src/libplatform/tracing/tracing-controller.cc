@@ -144,7 +144,7 @@ void TracingController::UpdateCategoryGroupEnabledFlag(size_t category_index) {
 }
 
 void TracingController::UpdateCategoryGroupEnabledFlags() {
-  size_t category_index = base::NoBarrier_Load(&g_category_index);
+  size_t category_index = base::Relaxed_Load(&g_category_index);
   for (size_t i = 0; i < category_index; i++) UpdateCategoryGroupEnabledFlag(i);
 }
 

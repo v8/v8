@@ -71,7 +71,7 @@ inline bool MarkBit::Set<MarkBit::ATOMIC>() {
   base::Atomic32 old_value;
   base::Atomic32 new_value;
   do {
-    old_value = base::NoBarrier_Load(cell_);
+    old_value = base::Relaxed_Load(cell_);
     if (old_value & mask_) return false;
     new_value = old_value | mask_;
   } while (base::Release_CompareAndSwap(cell_, old_value, new_value) !=
@@ -81,7 +81,7 @@ inline bool MarkBit::Set<MarkBit::ATOMIC>() {
 
 template <>
 inline bool MarkBit::Get<MarkBit::NON_ATOMIC>() {
-  return (base::NoBarrier_Load(cell_) & mask_) != 0;
+  return (base::Relaxed_Load(cell_) & mask_) != 0;
 }
 
 template <>
@@ -101,7 +101,7 @@ inline bool MarkBit::Clear<MarkBit::ATOMIC>() {
   base::Atomic32 old_value;
   base::Atomic32 new_value;
   do {
-    old_value = base::NoBarrier_Load(cell_);
+    old_value = base::Relaxed_Load(cell_);
     if (!(old_value & mask_)) return false;
     new_value = old_value & ~mask_;
   } while (base::Release_CompareAndSwap(cell_, old_value, new_value) !=

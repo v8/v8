@@ -110,7 +110,7 @@ class CcTest {
 
   static v8::Isolate* isolate() {
     CHECK(isolate_ != NULL);
-    v8::base::NoBarrier_Store(&isolate_used_, 1);
+    v8::base::Relaxed_Store(&isolate_used_, 1);
     return isolate_;
   }
 

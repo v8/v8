@@ -2438,7 +2438,7 @@ std::unique_ptr<SerializationData> Worker::GetMessage() {
   while (!out_queue_.Dequeue(&result)) {
     // If the worker is no longer running, and there are no messages in the
     // queue, don't expect any more messages from it.
-    if (!base::NoBarrier_Load(&running_)) break;
+    if (!base::Relaxed_Load(&running_)) break;
     out_semaphore_.Wait();
   }
   return result;
@@ -2446,7 +2446,7 @@ std::unique_ptr<SerializationData> Worker::GetMessage() {
 
 
 void Worker::Terminate() {
-  base::NoBarrier_Store(&running_, false);
+  base::Relaxed_Store(&running_, false);
   // Post NULL to wake the Worker thread message loop, and tell it to stop
   // running.
   PostMessage(NULL);

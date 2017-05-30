@@ -3392,8 +3392,8 @@ class FreeSpace: public HeapObject {
   inline int size() const;
   inline void set_size(int value);
 
-  inline int nobarrier_size() const;
-  inline void nobarrier_set_size(int value);
+  inline int relaxed_read_size() const;
+  inline void relaxed_write_size(int value);
 
   inline int Size();
 

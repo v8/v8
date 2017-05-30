@@ -68,18 +68,18 @@ class NoBarrierAtomicValue {
   }
 
   V8_INLINE bool TrySetValue(T old_value, T new_value) {
-    return base::NoBarrier_CompareAndSwap(
+    return base::Relaxed_CompareAndSwap(
                &value_, cast_helper<T>::to_storage_type(old_value),
                cast_helper<T>::to_storage_type(new_value)) ==
            cast_helper<T>::to_storage_type(old_value);
   }
 
   V8_INLINE T Value() const {
-    return cast_helper<T>::to_return_type(base::NoBarrier_Load(&value_));
+    return cast_helper<T>::to_return_type(base::Relaxed_Load(&value_));
   }
 
   V8_INLINE void SetValue(T new_value) {
-    base::NoBarrier_Store(&value_, cast_helper<T>::to_storage_type(new_value));
+    base::Relaxed_Store(&value_, cast_helper<T>::to_storage_type(new_value));
   }
 
  private:

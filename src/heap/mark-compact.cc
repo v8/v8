@@ -1687,8 +1687,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
     }
-    base::NoBarrier_Store(reinterpret_cast<base::AtomicWord*>(src_addr),
-                          reinterpret_cast<base::AtomicWord>(dst_addr));
+    base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(src_addr),
+                        reinterpret_cast<base::AtomicWord>(dst_addr));
   }
 
   EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces,
@@ -3414,7 +3414,7 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
 
 static inline SlotCallbackResult UpdateSlot(Object** slot) {
   Object* obj = reinterpret_cast<Object*>(
-      base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
+      base::Relaxed_Load(reinterpret_cast<base::AtomicWord*>(slot)));
 
   if (obj->IsHeapObject()) {
     HeapObject* heap_obj = HeapObject::cast(obj);
@@ -3425,10 +3425,9 @@ static inline SlotCallbackResult UpdateSlot(Object** slot) {
              Page::FromAddress(heap_obj->address())
                  ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
       HeapObject* target = map_word.ToForwardingAddress();
-      base::NoBarrier_CompareAndSwap(
-          reinterpret_cast<base::AtomicWord*>(slot),
-          reinterpret_cast<base::AtomicWord>(obj),
-          reinterpret_cast<base::AtomicWord>(target));
+      base::Relaxed_CompareAndSwap(reinterpret_cast<base::AtomicWord*>(slot),
+                                   reinterpret_cast<base::AtomicWord>(obj),
+                                   reinterpret_cast<base::AtomicWord>(target));
       DCHECK(!heap_obj->GetHeap()->InFromSpace(target));
       DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
     }

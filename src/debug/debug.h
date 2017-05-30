@@ -379,7 +379,7 @@ class Debug {
   // Flags and states.
   DebugScope* debugger_entry() {
     return reinterpret_cast<DebugScope*>(
-        base::NoBarrier_Load(&thread_local_.current_debug_scope_));
+        base::Relaxed_Load(&thread_local_.current_debug_scope_));
   }
   inline Handle<Context> debug_context() { return debug_context_; }
 
@@ -391,7 +391,7 @@ class Debug {
   inline bool is_active() const { return is_active_; }
   inline bool is_loaded() const { return !debug_context_.is_null(); }
   inline bool in_debug_scope() const {
-    return !!base::NoBarrier_Load(&thread_local_.current_debug_scope_);
+    return !!base::Relaxed_Load(&thread_local_.current_debug_scope_);
   }
   void set_break_points_active(bool v) { break_points_active_ = v; }
   bool break_points_active() const { return break_points_active_; }
