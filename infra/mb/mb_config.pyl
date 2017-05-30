@@ -87,18 +87,6 @@
       'V8 Linux64 TSAN - concurrent marking':
           'gn_release_x64_tsan_concurrent_marking',
       'V8 Linux - arm64 - sim - MSAN': 'gn_release_simulate_arm64_msan',
-      # Clusterfuzz.
-      'V8 Linux64 - cf release builder': 'gn_release_x64_correctness_fuzzer',
-      'V8 Linux64 - cf debug builder': 'gn_debug_x64',
-      'V8 Linux64 ASAN no inline - release builder':
-          'gn_release_x64_asan_symbolized_edge_verify_heap',
-      'V8 Linux64 ASAN - debug builder': 'gn_debug_x64_asan_edge',
-      'V8 Linux64 ASAN arm64 - debug builder':
-          'gn_debug_simulate_arm64_asan_edge',
-      'V8 Linux ASAN arm - debug builder':
-          'gn_debug_simulate_arm_asan_edge',
-      'V8 Linux ASAN mipsel - debug builder':
-          'gn_debug_simulate_mipsel_asan_edge',
       # Misc.
       'V8 Linux gcc 4.8': 'gn_release_x86_gcc',
       'V8 Linux64 gcc 4.8 - debug': 'gn_debug_x64_gcc',
@@ -115,7 +103,19 @@
       'V8 Linux - interpreted regexp': 'gn_release_x86_interpreted_regexp',
       'V8 Random Deopt Fuzzer - debug': 'gyp_debug_x86',
     },
-
+    'client.v8.fyi': {
+      'V8 Linux64 - release builder': 'gn_release_x64_correctness_fuzzer',
+      'V8 Linux64 - debug builder': 'gn_debug_x64',
+      'V8 Linux64 ASAN no inline - release builder':
+          'gn_release_x64_asan_symbolized_edge_verify_heap',
+      'V8 Linux64 ASAN - debug builder': 'gn_debug_x64_asan_edge',
+      'V8 Linux64 ASAN arm64 - debug builder':
+          'gn_debug_simulate_arm64_asan_edge',
+      'V8 Linux ASAN arm - debug builder':
+          'gn_debug_simulate_arm_asan_edge',
+      'V8 Linux ASAN mipsel - debug builder':
+          'gn_debug_simulate_mipsel_asan_edge',
+    },
     'client.v8.ports': {
       # Arm.
       'V8 Arm - builder': 'gn_release_arm',
