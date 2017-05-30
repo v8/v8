@@ -19625,9 +19625,10 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
   // registration method below handles the case of registering a buffer that has
   // already been promoted.
   buffer->set_backing_store(backing_store);
-  isolate->heap()->RegisterNewArrayBuffer(*buffer);
   buffer->set_allocation_base(backing_store);
   buffer->set_allocation_length(NumberToSize(buffer->byte_length()));
+  // RegisterNewArrayBuffer expects a valid length for adjusting counters.
+  isolate->heap()->RegisterNewArrayBuffer(*buffer);
   memcpy(buffer->backing_store(),
          fixed_typed_array->DataPtr(),
          fixed_typed_array->DataSize());
