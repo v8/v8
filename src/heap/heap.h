@@ -1175,6 +1175,14 @@ class Heap {
   // completes incremental marking in order to free external resources.
   void ReportExternalMemoryPressure();
 
+  typedef v8::Isolate::GetExternallyAllocatedMemoryInBytesCallback
+      GetExternallyAllocatedMemoryInBytesCallback;
+
+  void SetGetExternallyAllocatedMemoryInBytesCallback(
+      GetExternallyAllocatedMemoryInBytesCallback callback) {
+    external_memory_callback_ = callback;
+  }
+
   // Invoked when GC was requested via the stack guard.
   void HandleGCRequest();
 
@@ -1662,6 +1670,10 @@ class Heap {
   // Selects the proper allocation space based on the pretenuring decision.
   static AllocationSpace SelectSpace(PretenureFlag pretenure) {
     return (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
+  }
+
+  static size_t DefaultGetExternallyAllocatedMemoryInBytesCallback() {
+    return 0;
   }
 
 #define ROOT_ACCESSOR(type, name, camel_name) \
@@ -2281,6 +2293,8 @@ class Heap {
 
   List<GCCallbackPair> gc_epilogue_callbacks_;
   List<GCCallbackPair> gc_prologue_callbacks_;
+
+  GetExternallyAllocatedMemoryInBytesCallback external_memory_callback_;
 
   int deferred_counters_[v8::Isolate::kUseCounterFeatureCount];
 

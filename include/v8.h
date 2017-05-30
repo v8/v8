@@ -7147,6 +7147,17 @@ class V8_EXPORT Isolate {
    */
   void RemoveGCEpilogueCallback(GCCallback callback);
 
+  typedef size_t (*GetExternallyAllocatedMemoryInBytesCallback)();
+
+  /**
+   * Set the callback that tells V8 how much memory is currently allocated
+   * externally of the V8 heap. Ideally this memory is somehow connected to V8
+   * objects and may get freed-up when the corresponding V8 objects get
+   * collected by a V8 garbage collection.
+   */
+  void SetGetExternallyAllocatedMemoryInBytesCallback(
+      GetExternallyAllocatedMemoryInBytesCallback callback);
+
   /**
    * Forcefully terminate the current thread of JavaScript execution
    * in the given isolate.

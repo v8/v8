@@ -381,6 +381,8 @@ void Heap::PrintShortHeapStatistics() {
                this->CommittedMemory() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
                external_memory_ / KB);
+  PrintIsolate(isolate_, "External memory global %zu KB\n",
+               external_memory_callback_() / KB);
   PrintIsolate(isolate_, "Total time spent in GC  : %.1f ms\n",
                total_gc_time_ms_);
 }
@@ -963,7 +965,6 @@ void Heap::ReportExternalMemoryPressure() {
         IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
   }
 }
-
 
 void Heap::EnsureFillerObjectAtTop() {
   // There may be an allocation memento behind objects in new space. Upon
@@ -5742,6 +5743,9 @@ bool Heap::SetUp() {
   idle_scavenge_observer_ = new IdleScavengeObserver(
       *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
   new_space()->AddAllocationObserver(idle_scavenge_observer_);
+
+  SetGetExternallyAllocatedMemoryInBytesCallback(
+      DefaultGetExternallyAllocatedMemoryInBytesCallback);
 
   return true;
 }
