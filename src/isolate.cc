@@ -1741,6 +1741,9 @@ bool Isolate::IsExternalHandlerOnTop(Object* exception) {
 void Isolate::ReportPendingMessages() {
   DCHECK(AllowExceptions::IsAllowed(this));
 
+  // The embedder might run script in response to an exception.
+  AllowJavascriptExecutionDebugOnly allow_script(this);
+
   Object* exception = pending_exception();
 
   // Try to propagate the exception to an external v8::TryCatch handler. If

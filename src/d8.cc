@@ -2128,6 +2128,7 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
   void flushProtocolNotifications() override {}
 
   void Send(const v8_inspector::StringView& string) {
+    v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
     int length = static_cast<int>(string.length());
     DCHECK(length < v8::String::kMaxLength);
     Local<String> message =

@@ -633,6 +633,7 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
 
 MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
                                         Handle<Object> args[]) {
+  AllowJavascriptExecutionDebugOnly allow_script(isolate_);
   PostponeInterruptsScope no_interrupts(isolate_);
   AssertDebugContext();
   Handle<JSReceiver> holder =
@@ -2103,6 +2104,7 @@ void Debug::UpdateHookOnFunctionCall() {
 }
 
 MaybeHandle<Object> Debug::Call(Handle<Object> fun, Handle<Object> data) {
+  AllowJavascriptExecutionDebugOnly allow_script(isolate_);
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return isolate_->factory()->undefined_value();
 
@@ -2373,6 +2375,7 @@ JavaScriptDebugDelegate::~JavaScriptDebugDelegate() {
 void JavaScriptDebugDelegate::ProcessDebugEvent(v8::DebugEvent event,
                                                 Handle<JSObject> event_data,
                                                 Handle<JSObject> exec_state) {
+  AllowJavascriptExecutionDebugOnly allow_script(isolate_);
   Handle<Object> argv[] = {Handle<Object>(Smi::FromInt(event), isolate_),
                            exec_state, event_data, data_};
   Handle<JSReceiver> global = isolate_->global_proxy();

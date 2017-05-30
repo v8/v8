@@ -137,16 +137,6 @@ namespace v8 {
   ENTER_V8_HELPER_DO_NOT_USE(isolate, context, class_name, function_name,      \
                              bailout_value, HandleScopeClass, do_callback);
 
-#define PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(      \
-    category, name, context, class_name, function_name, bailout_value,       \
-    HandleScopeClass, do_callback)                                           \
-  auto isolate = context.IsEmpty()                                           \
-                     ? i::Isolate::Current()                                 \
-                     : reinterpret_cast<i::Isolate*>(context->GetIsolate()); \
-  TRACE_EVENT_CALL_STATS_SCOPED(isolate, category, name);                    \
-  ENTER_V8_HELPER_DO_NOT_USE(isolate, context, class_name, function_name,    \
-                             bailout_value, HandleScopeClass, do_callback);
-
 #define PREPARE_FOR_EXECUTION(context, class_name, function_name, T)          \
   PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name,      \
                                      MaybeLocal<T>(), InternalEscapableScope, \
@@ -2051,9 +2041,10 @@ Local<Value> UnboundScript::GetSourceMappingURL() {
 
 
 MaybeLocal<Value> Script::Run(Local<Context> context) {
-  PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(
-      "v8", "V8.Execute", context, Script, Run, MaybeLocal<Value>(),
-      InternalEscapableScope, true);
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
+  ENTER_V8(isolate, context, Script, Run, MaybeLocal<Value>(),
+           InternalEscapableScope);
   i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
   i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
@@ -2152,9 +2143,10 @@ Maybe<bool> Module::InstantiateModule(Local<Context> context,
 }
 
 MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
-  PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(
-      "v8", "V8.Execute", context, Module, Evaluate, MaybeLocal<Value>(),
-      InternalEscapableScope, true);
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
+  ENTER_V8(isolate, context, Module, Evaluate, MaybeLocal<Value>(),
+           InternalEscapableScope);
   i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
   i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
@@ -2171,10 +2163,11 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
 
 MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     Isolate* v8_isolate, Source* source, CompileOptions options) {
-  PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(
-      "v8", "V8.ScriptCompiler", v8_isolate->GetCurrentContext(),
-      ScriptCompiler, CompileUnbound, MaybeLocal<UnboundScript>(),
-      InternalEscapableScope, false);
+  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
+  ENTER_V8_NO_SCRIPT(isolate, v8_isolate->GetCurrentContext(), ScriptCompiler,
+                     CompileUnbound, MaybeLocal<UnboundScript>(),
+                     InternalEscapableScope);
 
   // Don't try to produce any kind of cache when the debugger is loaded.
   if (isolate->debug()->is_loaded() &&
@@ -5141,9 +5134,10 @@ bool v8::Object::IsConstructor() {
 MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
                                          Local<Value> recv, int argc,
                                          Local<Value> argv[]) {
-  PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(
-      "v8", "V8.Execute", context, Object, CallAsFunction, MaybeLocal<Value>(),
-      InternalEscapableScope, true);
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
+  ENTER_V8(isolate, context, Object, CallAsFunction, MaybeLocal<Value>(),
+           InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto self = Utils::OpenHandle(this);
   auto recv_obj = Utils::OpenHandle(*recv);
@@ -5168,9 +5162,10 @@ Local<v8::Value> Object::CallAsFunction(v8::Local<v8::Value> recv, int argc,
 
 MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
                                             Local<Value> argv[]) {
-  PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(
-      "v8", "V8.Execute", context, Object, CallAsConstructor,
-      MaybeLocal<Value>(), InternalEscapableScope, true);
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
+  ENTER_V8(isolate, context, Object, CallAsConstructor, MaybeLocal<Value>(),
+           InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
@@ -5219,9 +5214,10 @@ Local<v8::Object> Function::NewInstance() const {
 
 MaybeLocal<Object> Function::NewInstance(Local<Context> context, int argc,
                                          v8::Local<v8::Value> argv[]) const {
-  PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(
-      "v8", "V8.Execute", context, Function, NewInstance, MaybeLocal<Object>(),
-      InternalEscapableScope, true);
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
+  ENTER_V8(isolate, context, Function, NewInstance, MaybeLocal<Object>(),
+           InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
@@ -5244,9 +5240,10 @@ Local<v8::Object> Function::NewInstance(int argc,
 MaybeLocal<v8::Value> Function::Call(Local<Context> context,
                                      v8::Local<v8::Value> recv, int argc,
                                      v8::Local<v8::Value> argv[]) {
-  PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(
-      "v8", "V8.Execute", context, Function, Call, MaybeLocal<Value>(),
-      InternalEscapableScope, true);
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
+  ENTER_V8(isolate, context, Function, Call, MaybeLocal<Value>(),
+           InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);

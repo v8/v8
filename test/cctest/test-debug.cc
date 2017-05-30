@@ -611,6 +611,7 @@ static void DebugEventCounterClear() {
 
 static void DebugEventCounter(
     const v8::Debug::EventDetails& event_details) {
+  v8::Isolate::AllowJavascriptExecutionScope allow_script(CcTest::isolate());
   v8::DebugEvent event = event_details.GetEvent();
   v8::Local<v8::Object> exec_state = event_details.GetExecutionState();
   v8::Local<v8::Object> event_data = event_details.GetEventData();
@@ -6372,6 +6373,7 @@ static void NoInterruptsOnDebugEvent(
   // Do not allow nested AfterCompile events.
   CHECK(after_compile_handler_depth <= 1);
   v8::Isolate* isolate = event_details.GetEventContext()->GetIsolate();
+  v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate);
   isolate->RequestInterrupt(&HandleInterrupt, nullptr);
   CompileRun("function foo() {}; foo();");
   --after_compile_handler_depth;
