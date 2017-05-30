@@ -4,8 +4,6 @@
 
 #include "src/heap/mark-compact.h"
 
-#include <unordered_map>
-
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
 #include "src/base/sys-info.h"

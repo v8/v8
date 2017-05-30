@@ -19,9 +19,9 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
   size_t freed_memory = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
-    JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(*it);
+    JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
     if (should_free(buffer)) {
-      const size_t len = buffer->allocation_length();
+      const size_t len = it->second;
       buffer->FreeBackingStore();
 
       freed_memory += len;
@@ -42,7 +42,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
   size_t freed_memory = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
-    const CallbackResult result = callback(*it, &new_buffer);
+    const CallbackResult result = callback(it->first, &new_buffer);
     if (result == kKeepEntry) {
       ++it;
     } else if (result == kUpdateEntry) {
@@ -57,13 +57,12 @@ void LocalArrayBufferTracker::Process(Callback callback) {
         tracker = target_page->local_tracker();
       }
       DCHECK_NOT_NULL(tracker);
-      tracker->Add(new_buffer);
+      tracker->Add(new_buffer, it->second);
       if (target_page->InNewSpace()) target_page->mutex()->Unlock();
       it = array_buffers_.erase(it);
     } else if (result == kRemoveEntry) {
-      JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(*it);
-      const size_t len = buffer->allocation_length();
-      buffer->FreeBackingStore();
+      const size_t len = it->second;
+      it->first->FreeBackingStore();
       freed_memory += len;
       it = array_buffers_.erase(it);
     } else {

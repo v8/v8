@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 #define V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 
-#include <unordered_set>
+#include <unordered_map>
 
 #include "src/allocation.h"
 #include "src/base/platform/mutex.h"
@@ -60,14 +60,17 @@ class ArrayBufferTracker : public AllStatic {
 // Never use directly but instead always call through |ArrayBufferTracker|.
 class LocalArrayBufferTracker {
  public:
+  typedef JSArrayBuffer* Key;
+  typedef size_t Value;
+
   enum CallbackResult { kKeepEntry, kUpdateEntry, kRemoveEntry };
   enum FreeMode { kFreeDead, kFreeAll };
 
   explicit LocalArrayBufferTracker(Heap* heap) : heap_(heap) {}
   ~LocalArrayBufferTracker();
 
-  inline void Add(JSArrayBuffer* buffer);
-  inline void Remove(JSArrayBuffer* buffer);
+  inline void Add(Key key, const Value& value);
+  inline Value Remove(Key key);
 
   // Frees up array buffers.
   //
@@ -89,16 +92,14 @@ class LocalArrayBufferTracker {
 
   bool IsEmpty() { return array_buffers_.empty(); }
 
-  bool IsTracked(JSArrayBuffer* buffer) {
-    return array_buffers_.find(buffer) != array_buffers_.end();
+  bool IsTracked(Key key) {
+    return array_buffers_.find(key) != array_buffers_.end();
   }
 
  private:
-  typedef std::unordered_set<JSArrayBuffer*> TrackingData;
+  typedef std::unordered_map<Key, Value> TrackingData;
 
   Heap* heap_;
-  // The set contains raw heap pointers which are removed by the GC upon
-  // processing the tracker through its owning page.
   TrackingData array_buffers_;
 };
 
