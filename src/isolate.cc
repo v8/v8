@@ -2651,6 +2651,16 @@ void Isolate::InitializeLoggingAndCounters() {
   InitializeCounters();
 }
 
+namespace {
+void PrintBuiltinSizes(Isolate* isolate) {
+  Builtins* builtins = isolate->builtins();
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    const char* name = builtins->name(i);
+    Code* code = builtins->builtin(static_cast<Builtins::Name>(i));
+    PrintF(stdout, "%s: %d\n", name, code->instruction_size());
+  }
+}
+}  // namespace
 
 bool Isolate::Init(Deserializer* des) {
   TRACE_ISOLATE(init);
@@ -2789,6 +2799,8 @@ bool Isolate::Init(Deserializer* des) {
   }
   delete setup_delegate_;
   setup_delegate_ = nullptr;
+
+  if (FLAG_print_builtin_size) PrintBuiltinSizes(this);
 
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();
