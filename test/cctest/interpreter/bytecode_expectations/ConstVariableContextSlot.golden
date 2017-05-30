@@ -72,7 +72,7 @@ bytecodes: [
                 B(CreateClosure), U8(0), U8(3), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   47 S> */ B(LdaSmi), I8(20),
+  /*   44 S> */ B(LdaSmi), I8(20),
                 B(Star), R(2),
                 B(LdaCurrentContextSlot), U8(4),
                 B(JumpIfNotHole), U8(11),
@@ -80,7 +80,7 @@ bytecodes: [
                 B(Star), R(3),
   /*   47 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
                 B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
-  /*   47 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   44 E> */ B(StaCurrentContextSlot), U8(4),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]

@@ -3,36 +3,28 @@
 // found in the LICENSE file.
 
 let {session, contextGroup, Protocol} =
-  InspectorTest.start('Tests breakable locations in for-of loops.');
+  InspectorTest.start('Tests breakable locations in variable initializations.');
 
 let source = `
 function testFunction() {
-  var obj = {a : 1};
-  var arr = [1];
-  var all = [];
-  for (var k in arr) { all.push(k); }
-  for (var k of arr) { all.push(k); }
-  for (var k in obj) { all.push(k); }
-  for (let k in arr) { all.push(k); }
-  for (let k of arr) { all.push(k); }
-  for (let k in obj) { all.push(k); }
-
-  var iterable = {
-    [Symbol.iterator]() {
-      return {
-        i: 0,
-        next() {
-          if (this.i < 1) {
-            return { value: this.i++, done: false };
-          }
-          return { value: undefined, done: true };
-        }
-      };
-    }
-  };
-  for (var k of iterable) { all.push(k); }
-  iterable.i = 0;
-  for (let k of iterable) { all.push(k); }
+  var obj1 = {a : 1};
+  var arr1 = [1];
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  var a = 1;
+  const x = (a = 20);
+  var y = (a = 100);
+  var z = x + (a = 1) + (a = 2) + (a = 3) + f();
+  function f() {
+    for (let { x, y } = { x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
+  }
+  var b = obj1.a;
+  (async function asyncF() {
+    let r = await Promise.resolve(42);
+    return r;
+  })();
+  return promise;
 }
 //# sourceURL=test.js`;
 
@@ -51,7 +43,7 @@ InspectorTest.runAsyncTestSuite([
   async function testStepInto() {
     Protocol.Debugger.pause();
     let fin = Protocol.Runtime.evaluate({
-      expression: 'testFunction()//# sourceURL=expr.js'}).then(() => false);
+      expression: 'testFunction()//# sourceURL=expr.js', awaitPromise: true}).then(() => false);
     let result;
     while (result = await Promise.race([fin, Protocol.Debugger.oncePaused()])) {
       let {params:{callFrames}} = result;
@@ -65,7 +57,7 @@ InspectorTest.runAsyncTestSuite([
   },
 
   async function testStepIntoAfterBreakpoint() {
-    Protocol.Debugger.setBreakpointByUrl({lineNumber: 25, url: 'test.js'});
+    Protocol.Debugger.setBreakpointByUrl({lineNumber: 10, url: 'test.js'});
     Protocol.Runtime.evaluate({
       expression: 'testFunction()//# sourceURL=expr.js'});
     await awaitPausedAndDump();
