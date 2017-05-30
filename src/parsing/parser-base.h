@@ -4290,31 +4290,20 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // FIXME(marja): Arrow function parameters will be parsed even if the
         // body is preparsed; move relevant parts of parameter handling to
         // simulate consistent parameter handling.
-        Scanner::BookmarkScope bookmark(scanner());
-        bookmark.Set();
+
         // For arrow functions, we don't need to retrieve data about function
         // parameters.
         int dummy_num_parameters = -1;
         DCHECK((kind & FunctionKind::kArrowFunction) != 0);
         LazyParsingResult result =
             impl()->SkipFunction(kind, formal_parameters.scope,
-                                 &dummy_num_parameters, false, true, CHECK_OK);
-        formal_parameters.scope->ResetAfterPreparsing(
-            ast_value_factory_, result == kLazyParsingAborted);
+                                 &dummy_num_parameters, false, false, CHECK_OK);
+        DCHECK_NE(result, kLazyParsingAborted);
+        USE(result);
+        formal_parameters.scope->ResetAfterPreparsing(ast_value_factory_,
+                                                      false);
 
-        if (result == kLazyParsingAborted) {
-          bookmark.Apply();
-          // Trigger eager (re-)parsing, just below this block.
-          is_lazy_top_level_function = false;
-
-          // This is probably an initialization function. Inform the compiler it
-          // should also eager-compile this function, and that we expect it to
-          // be used once.
-          eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
-          should_be_used_once_hint = true;
-        }
-      }
-      if (!is_lazy_top_level_function) {
+      } else {
         Consume(Token::LBRACE);
         body = impl()->NewStatementList(8);
         impl()->ParseFunctionBody(body, impl()->EmptyIdentifier(),
