@@ -3872,15 +3872,13 @@ void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
 Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   // In an Async Function:
   //   yield do {
-  //     tmp = <operand>;
-  //     %AsyncFunctionAwait(.generator_object, tmp, .promise);
+  //     %AsyncFunctionAwait(.generator_object, <operand>, .promise);
   //     .promise
   //   }
   //
   // In an Async Generator:
   //   yield do {
-  //     tmp = <operand>;
-  //     %AsyncGeneratorAwait(.generator_object, tmp)
+  //     %AsyncGeneratorAwait(.generator_object, <operand>)
   //     .await_result_var
   //   }
   //
@@ -3894,10 +3892,6 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   // ignored. If we yielded the value of the throwawayPromise that
   // AsyncFunctionAwait creates as an intermediate, it would create a memory
   // leak; we must return .promise instead;
-  // The operand needs to be evaluated on a separate statement in order to get
-  // a break location, and the .promise needs to be read earlier so that it
-  // doesn't insert a false location.
-  // TODO(littledan): investigate why this ordering is needed in more detail.
   //
   // In the case of Async Generators, `.await_result_var` is not actually used
   // for anything, but exists because of the current requirement that
@@ -3909,15 +3903,6 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   const int nopos = kNoSourcePosition;
 
   Block* do_block = factory()->NewBlock(nullptr, 2, false, nopos);
-
-  // Wrap value evaluation to provide a break location.
-  Variable* temp_var = NewTemporary(ast_value_factory()->empty_string());
-  Expression* value_assignment = factory()->NewAssignment(
-      Token::ASSIGN, factory()->NewVariableProxy(temp_var), value, nopos);
-  do_block->statements()->Add(
-      factory()->NewExpressionStatement(value_assignment, value->position()),
-      zone());
-
   Expression* generator_object =
       factory()->NewVariableProxy(generator_object_variable);
 
@@ -3928,18 +3913,16 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
     // ParseAndRewriteGeneratorFunctionBody)
     ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
     args->Add(generator_object, zone());
-    args->Add(factory()->NewVariableProxy(temp_var), zone());
+    args->Add(value, zone());
 
     Expression* await = factory()->NewCallRuntime(
         Context::ASYNC_GENERATOR_AWAIT_CAUGHT, args, nopos);
-    do_block->statements()->Add(
-        factory()->NewExpressionStatement(await, await_pos), zone());
+    do_block->statements()->Add(factory()->NewExpressionStatement(await, nopos),
+                                zone());
 
-    // Wrap await to provide a break location between value evaluation and
-    // yield.
     Expression* do_expr = factory()->NewDoExpression(
         do_block, AsyncGeneratorAwaitVariable(), nopos);
-    return BuildSuspend(generator_object, do_expr, nopos,
+    return BuildSuspend(generator_object, do_expr, await_pos,
                         Suspend::kOnExceptionRethrow, SuspendFlags::kAwait);
   }
 
@@ -3948,19 +3931,18 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   // there is no local enclosing try/catch block.
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(3, zone());
   args->Add(generator_object, zone());
-  args->Add(factory()->NewVariableProxy(temp_var), zone());
+  args->Add(value, zone());
   args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
 
   Expression* await = factory()->NewCallRuntime(
       Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX, args, nopos);
-  do_block->statements()->Add(
-      factory()->NewExpressionStatement(await, await_pos), zone());
+  do_block->statements()->Add(factory()->NewExpressionStatement(await, nopos),
+                              zone());
 
-  // Wrap await to provide a break location between value evaluation and yield.
   Expression* do_expr =
       factory()->NewDoExpression(do_block, PromiseVariable(), nopos);
 
-  return factory()->NewSuspend(generator_object, do_expr, nopos,
+  return factory()->NewSuspend(generator_object, do_expr, await_pos,
                                Suspend::kOnExceptionRethrow,
                                SuspendFlags::kAwait);
 }

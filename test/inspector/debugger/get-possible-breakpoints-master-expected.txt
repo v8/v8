@@ -227,7 +227,7 @@ async function testPromiseAsyncWithCode() {
       var resolveNested;
       var p = |C|new Promise(resolve => resolveNested |_|= resolve|R|);
       |C|setTimeout(resolveNested, 0);
-      |_|await |_|p;
+      |_|await |C|p;
     |R|}
     |C|setTimeout(returnCall, 0);
     |_|await |C|foo();
@@ -252,7 +252,7 @@ async function testPromiseComplex() {
     |R|}
     var x = |_|1;
     var y = |_|2;
-    |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = |_|await |C|foo((a => 2 |_|*a|R|)|C|(5));
+    |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = await |C|foo((a => 2 |_|*a|R|)|C|(5));
     |C|nextTest();
   |R|}
   |C|main();

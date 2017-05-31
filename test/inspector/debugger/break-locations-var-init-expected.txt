@@ -143,20 +143,6 @@ testFunction (test.js:18:4)
     let r = #await Promise.resolve(42);
     return r;
 
-asyncF (test.js:16:26)
-testFunction (test.js:18:4)
-(anonymous) (expr.js:0:0)
-  (async function asyncF() {
-    let r = await Promise.#resolve(42);
-    return r;
-
-asyncF (test.js:16:12)
-testFunction (test.js:18:4)
-(anonymous) (expr.js:0:0)
-  (async function asyncF() {
-    let r = #await Promise.resolve(42);
-    return r;
-
 asyncF (test.js:17:4)
     let r = await Promise.resolve(42);
     #return r;

@@ -35,10 +35,10 @@ async function f() {
   var a = 1;
   debugger;        // B0 StepNext
   a +=             // B1 StepNext
-       await       // B3 StepNext
-             g();  // B2 StepNext
-  return a;        // B4 StepNext
-}                  // B5 Continue
+       await
+             g();
+  return a;        // B2 StepNext
+}                  // B3 Continue
 
 f();
 
@@ -46,4 +46,4 @@ late_resolve(3);
 
 %RunMicrotasks();
 
-assertEquals(6, step_count);
+assertEquals(4, step_count);
