@@ -850,8 +850,9 @@ void Page::CreateBlackArea(Address start, Address end) {
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   MarkingState::Internal(this).bitmap()->SetRange(AddressToMarkbitIndex(start),
                                                   AddressToMarkbitIndex(end));
-  MarkingState::Internal(this).IncrementLiveBytes(
-      static_cast<int>(end - start));
+  MarkingState::Internal(this)
+      .IncrementLiveBytes<IncrementalMarking::kAtomicity>(
+          static_cast<int>(end - start));
 }
 
 void Page::DestroyBlackArea(Address start, Address end) {
@@ -861,8 +862,9 @@ void Page::DestroyBlackArea(Address start, Address end) {
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   MarkingState::Internal(this).bitmap()->ClearRange(
       AddressToMarkbitIndex(start), AddressToMarkbitIndex(end));
-  MarkingState::Internal(this).IncrementLiveBytes(
-      -static_cast<int>(end - start));
+  MarkingState::Internal(this)
+      .IncrementLiveBytes<IncrementalMarking::kAtomicity>(
+          -static_cast<int>(end - start));
 }
 
 void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
@@ -1500,8 +1502,9 @@ void PagedSpace::EmptyAllocationInfo() {
       MarkingState::Internal(page).bitmap()->ClearRange(
           page->AddressToMarkbitIndex(current_top),
           page->AddressToMarkbitIndex(current_limit));
-      MarkingState::Internal(page).IncrementLiveBytes(
-          -static_cast<int>(current_limit - current_top));
+      MarkingState::Internal(page)
+          .IncrementLiveBytes<IncrementalMarking::kAtomicity>(
+              -static_cast<int>(current_limit - current_top));
     }
   }
 
