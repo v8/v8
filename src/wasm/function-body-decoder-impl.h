@@ -100,7 +100,7 @@ struct BlockTypeOperand {
       types = pc + 1;
     } else {
       // Handle multi-value blocks.
-      if (!CHECKED_COND(FLAG_wasm_mv_prototype)) {
+      if (!CHECKED_COND(FLAG_experimental_wasm_mv)) {
         decoder->error(pc + 1, "invalid block arity > 1");
         return;
       }

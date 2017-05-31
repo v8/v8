@@ -336,6 +336,7 @@
         '../..',
       ],
       'sources': [
+        '../common/wasm/flag-utils.h',
         '../common/wasm/test-signatures.h',
         '../common/wasm/wasm-macro-gen.h',
         '../common/wasm/wasm-module-runner.cc',

@@ -15,12 +15,13 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
+#include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+using namespace v8::internal;
+using namespace v8::internal::wasm;
+using namespace v8::internal::wasm::testing;
 
 #define B1(a) WASM_BLOCK(a)
 #define B2(a, b) WASM_BLOCK(a, b)
@@ -82,20 +83,11 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
     Verify(false, sigs.sig(), code, code + sizeof(code)); \
   } while (false)
 
-static bool old_eh_flag;
-
 class FunctionBodyDecoderTest : public TestWithZone {
  public:
   typedef std::pair<uint32_t, ValueType> LocalsDecl;
 
   FunctionBodyDecoderTest() : module(nullptr), local_decls(zone()) {}
-
-  static void SetUpTestCase() { old_eh_flag = FLAG_wasm_eh_prototype; }
-
-  static void TearDownTestCase() {
-    // Reset the wasm_eh_prototype flag
-    FLAG_wasm_eh_prototype = old_eh_flag;
-  }
 
   TestSignatures sigs;
   ModuleEnv* module;
@@ -1446,7 +1438,7 @@ TEST_F(FunctionBodyDecoderTest, CallsWithMismatchedSigs3) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiReturn) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   ValueType storage[] = {kWasmI32, kWasmI32};
   FunctionSig sig_ii_v(2, 0, storage);
   FunctionSig sig_v_ii(0, 2, storage);
@@ -1462,7 +1454,7 @@ TEST_F(FunctionBodyDecoderTest, MultiReturn) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   for (size_t a = 0; a < arraysize(kValueTypes); a++) {
     for (size_t b = 0; b < arraysize(kValueTypes); b++) {
       for (size_t c = 0; c < arraysize(kValueTypes); c++) {
@@ -2247,7 +2239,7 @@ TEST_F(FunctionBodyDecoderTest, Select_TypeCheck) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Throw) {
-  FLAG_wasm_eh_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
   EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow);
 
   EXPECT_FAILURE(i_d, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
@@ -2257,7 +2249,7 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
 
 TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
   // TODO(titzer): unreachable code after throw should validate.
-  // FLAG_wasm_eh_prototype = true;
+  // EXPERIMENTAL_FLAG_SCOPE(eh);
   // EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow, kExprSetLocal, 0);
 }
 
@@ -2266,7 +2258,7 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 #define WASM_CATCH(local) kExprCatch, static_cast<byte>(local)
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
-  FLAG_wasm_eh_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
   EXPECT_VERIFIES(v_i, WASM_TRY_OP, WASM_CATCH(0), kExprEnd);
 
   // Missing catch.
@@ -2280,21 +2272,21 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                                       WASM_GET_LOCAL(1)),
                   kExprI32Add);
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                                       WASM_GET_LOCAL(1)),
                   WASM_I32_ADD(WASM_NOP, WASM_NOP));
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlockBr1) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   EXPECT_FAILURE(
       i_ii, WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0), WASM_BR(0)),
       kExprI32Add);
@@ -2304,7 +2296,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlockBr1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValIf1) {
-  FLAG_wasm_mv_prototype = true;
+  EXPERIMENTAL_FLAG_SCOPE(mv);
   EXPECT_FAILURE(
       i_ii, WASM_IF_ELSE_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                             WASM_SEQ(WASM_GET_LOCAL(0)),
@@ -2826,7 +2818,3 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   iter.next();
   EXPECT_FALSE(iter.has_next());
 }
-
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8

@@ -11,8 +11,9 @@ v8_executable("cctest") {
     "$target_gen_dir/resources.cc",
 
     ### gcmole(all) ###
-    "../common/wasm/test-signatures.h",
-    "../common/wasm/wasm-macro-gen.h",
+    "../../test/common/wasm/flag-utils.h",
+    "../../test/common/wasm/test-signatures.h",
+    "../../test/common/wasm/wasm-macro-gen.h",
     "ast-types-fuzz.h",
     "cctest.cc",
     "cctest.h",

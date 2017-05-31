@@ -13,8 +13,6 @@
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/zone/accounting-allocator.h"
-
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
@@ -32,12 +30,13 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
-
+#include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
+#include "test/common/wasm/flag-utils.h"
 
 static const uint32_t kMaxFunctions = 10;
 
@@ -837,11 +836,6 @@ bool WasmRunnerBase::trap_happened;
     }                                                    \
     RunWasm_##name(kExecuteInterpreted);                 \
   }                                                      \
-  void RunWasm_##name(WasmExecutionMode execution_mode)
-
-#define WASM_EXEC_COMPILED_TEST(name)                                \
-  void RunWasm_##name(WasmExecutionMode execution_mode);             \
-  TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
 }  // namespace

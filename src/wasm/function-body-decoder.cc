@@ -35,13 +35,13 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-#define CHECK_PROTOTYPE_OPCODE(flag)                   \
-  if (module_ != nullptr && module_->is_asm_js()) {    \
-    error("Opcode not supported for asmjs modules");   \
-  }                                                    \
-  if (!FLAG_##flag) {                                  \
-    error("Invalid opcode (enable with --" #flag ")"); \
-    break;                                             \
+#define CHECK_PROTOTYPE_OPCODE(flag)                                     \
+  if (module_ != nullptr && module_->is_asm_js()) {                      \
+    error("Opcode not supported for asmjs modules");                     \
+  }                                                                      \
+  if (!FLAG_experimental_wasm_##flag) {                                  \
+    error("Invalid opcode (enable with --experimental-wasm-" #flag ")"); \
+    break;                                                               \
   }
 
 // An SsaEnv environment carries the current local variable renaming
@@ -599,7 +599,8 @@ class WasmDecoder : public Decoder {
       case kExprUnreachable:
         return {0, 0};
       default:
-        V8_Fatal(__FILE__, __LINE__, "unimplemented opcode: %x", opcode);
+        V8_Fatal(__FILE__, __LINE__, "unimplemented opcode: %x (%s)", opcode,
+                 WasmOpcodes::OpcodeName(opcode));
         return {0, 0};
     }
 #undef DECLARE_OPCODE_CASE
@@ -843,7 +844,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprThrow: {
-            CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
+            CHECK_PROTOTYPE_OPCODE(eh);
             Value value = Pop(0, kWasmI32);
             BUILD(Throw, value.node);
             // TODO(titzer): Throw should end control, but currently we build a
@@ -853,7 +854,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprTry: {
-            CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
+            CHECK_PROTOTYPE_OPCODE(eh);
             BlockTypeOperand<true> operand(this, pc_);
             SsaEnv* outer_env = ssa_env_;
             SsaEnv* try_env = Steal(outer_env);
@@ -865,7 +866,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprCatch: {
-            CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
+            CHECK_PROTOTYPE_OPCODE(eh);
             LocalIndexOperand<true> operand(this, pc_);
             len = 1 + operand.length;
 
@@ -1262,7 +1263,7 @@ class WasmFullDecoder : public WasmDecoder {
             len = DecodeLoadMem(kWasmF64, MachineType::Float64());
             break;
           case kExprS128LoadMem:
-            CHECK_PROTOTYPE_OPCODE(wasm_simd_prototype);
+            CHECK_PROTOTYPE_OPCODE(simd);
             len = DecodeLoadMem(kWasmS128, MachineType::Simd128());
             break;
           case kExprI32StoreMem8:
@@ -1293,7 +1294,7 @@ class WasmFullDecoder : public WasmDecoder {
             len = DecodeStoreMem(kWasmF64, MachineType::Float64());
             break;
           case kExprS128StoreMem:
-            CHECK_PROTOTYPE_OPCODE(wasm_simd_prototype);
+            CHECK_PROTOTYPE_OPCODE(simd);
             len = DecodeStoreMem(kWasmS128, MachineType::Simd128());
             break;
           case kExprGrowMemory: {
@@ -1341,7 +1342,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kSimdPrefix: {
-            CHECK_PROTOTYPE_OPCODE(wasm_simd_prototype);
+            CHECK_PROTOTYPE_OPCODE(simd);
             len++;
             byte simd_index = read_u8<true>(pc_ + 1, "simd index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
@@ -1355,10 +1356,7 @@ class WasmFullDecoder : public WasmDecoder {
               error("Atomics are allowed only in AsmJs modules");
               break;
             }
-            if (!FLAG_wasm_atomics_prototype) {
-              error("Invalid opcode (enable with --wasm_atomics_prototype)");
-              break;
-            }
+            CHECK_PROTOTYPE_OPCODE(atomics);
             len = 2;
             byte atomic_opcode = read_u8<true>(pc_ + 1, "atomic index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_opcode);

@@ -1163,7 +1163,7 @@ class ModuleDecoder : public Decoder {
       case kLocalF64:
         return kWasmF64;
       default:
-        if (origin_ != kAsmJsOrigin && FLAG_wasm_simd_prototype) {
+        if (origin_ != kAsmJsOrigin && FLAG_experimental_wasm_simd) {
           switch (t) {
             case kLocalS128:
               return kWasmS128;
@@ -1196,7 +1196,7 @@ class ModuleDecoder : public Decoder {
     }
 
     // parse return types
-    const size_t max_return_count = FLAG_wasm_mv_prototype
+    const size_t max_return_count = FLAG_experimental_wasm_mv
                                         ? kV8MaxWasmFunctionMultiReturns
                                         : kV8MaxWasmFunctionReturns;
     uint32_t return_count = consume_count("return count", max_return_count);
