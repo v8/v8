@@ -3187,7 +3187,7 @@ class ByteArray: public FixedArrayBase {
   inline int Size();
 
   // Setter and getter.
-  inline byte get(int index);
+  inline byte get(int index) const;
   inline void set(int index, byte value);
 
   // Copy in / copy out whole byte slices.
@@ -3195,8 +3195,11 @@ class ByteArray: public FixedArrayBase {
   inline void copy_in(int index, const byte* buffer, int length);
 
   // Treat contents as an int array.
-  inline int get_int(int index);
+  inline int get_int(int index) const;
   inline void set_int(int index, int value);
+
+  inline uint32_t get_uint32(int index) const;
+  inline void set_uint32(int index, uint32_t value);
 
   static int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
@@ -3213,6 +3216,8 @@ class ByteArray: public FixedArrayBase {
 
   // Returns data start address.
   inline Address GetDataStartAddress();
+
+  inline int DataSize() const;
 
   // Returns a pointer to the ByteArray object for a given data start address.
   static inline ByteArray* FromDataStartAddress(Address address);

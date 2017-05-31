@@ -153,6 +153,7 @@ const int kShortSize = sizeof(short);  // NOLINT
 const int kIntSize = sizeof(int);
 const int kInt32Size = sizeof(int32_t);
 const int kInt64Size = sizeof(int64_t);
+const int kUInt32Size = sizeof(uint32_t);
 const int kSizetSize = sizeof(size_t);
 const int kFloatSize = sizeof(float);
 const int kDoubleSize = sizeof(double);

@@ -310,9 +310,7 @@ bool HeapObject::IsArrayList() const { return IsFixedArray(); }
 
 bool HeapObject::IsRegExpMatchInfo() const { return IsFixedArray(); }
 
-bool Object::IsLayoutDescriptor() const {
-  return IsSmi() || IsFixedTypedArrayBase();
-}
+bool Object::IsLayoutDescriptor() const { return IsSmi() || IsByteArray(); }
 
 bool HeapObject::IsFeedbackVector() const {
   return map() == GetHeap()->feedback_vector_map();
@@ -3694,7 +3692,7 @@ void StringCharacterStream::VisitTwoByteString(
 
 int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kPointerSize); }
 
-byte ByteArray::get(int index) {
+byte ByteArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
 }
@@ -3718,7 +3716,7 @@ void ByteArray::copy_out(int index, byte* buffer, int length) {
   memcpy(buffer, src_addr, length);
 }
 
-int ByteArray::get_int(int index) {
+int ByteArray::get_int(int index) const {
   DCHECK(index >= 0 && index < this->length() / kIntSize);
   return READ_INT_FIELD(this, kHeaderSize + index * kIntSize);
 }
@@ -3728,11 +3726,22 @@ void ByteArray::set_int(int index, int value) {
   WRITE_INT_FIELD(this, kHeaderSize + index * kIntSize, value);
 }
 
+uint32_t ByteArray::get_uint32(int index) const {
+  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  return READ_UINT32_FIELD(this, kHeaderSize + index * kUInt32Size);
+}
+
+void ByteArray::set_uint32(int index, uint32_t value) {
+  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  WRITE_UINT32_FIELD(this, kHeaderSize + index * kUInt32Size, value);
+}
+
 ByteArray* ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
   return reinterpret_cast<ByteArray*>(address - kHeaderSize + kHeapObjectTag);
 }
 
+int ByteArray::DataSize() const { return RoundUp(length(), kPointerSize); }
 
 int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
 

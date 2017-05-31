@@ -1526,10 +1526,10 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
     os << "<uninitialized>";
   } else {
     os << "slow";
-    int len = length();
-    for (int i = 0; i < len; i++) {
+    int num_words = number_of_layout_words();
+    for (int i = 0; i < num_words; i++) {
       if (i > 0) os << " |";
-      PrintBitMask(os, get_scalar(i));
+      PrintBitMask(os, get_layout_word(i));
     }
   }
   os << "\n";
