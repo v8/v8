@@ -92,10 +92,7 @@
       'V8 Linux64 gcc 4.8 - debug': 'gn_debug_x64_gcc',
       # FYI.
       'V8 Linux - swarming staging': 'gn_release_x64',
-      # TODO(machenbach): Figure out if symbolized is still needed. The
-      # original config also specified -O1, which we dropped because chromium
-      # doesn't have it (anymore).
-      'V8 Linux64 - cfi': 'gyp_release_x64_cfi_symbolized',
+      'V8 Linux64 - cfi': 'gyp_release_x64_cfi',
       'V8 Linux - vtunejit': 'gn_debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'gyp_release_x64_gcc_coverage',
       'V8 Linux - predictable': 'gn_release_x86_predictable',
@@ -482,8 +479,8 @@
     'gyp_release_x64_asan_minimal_symbols_coverage': [
       'gyp', 'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan',
       'minimal_symbols', 'swarming'],
-    'gyp_release_x64_cfi_symbolized': [
-      'gyp', 'release_bot', 'x64', 'cfi', 'swarming', 'symbolized'],
+    'gyp_release_x64_cfi': [
+      'gyp', 'release_bot', 'x64', 'cfi', 'swarming'],
     'gyp_release_x64_gcc_coverage': [
       'gyp', 'release_bot', 'x64', 'coverage', 'gcc'],
 
