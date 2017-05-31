@@ -5775,4 +5775,363 @@ TEST(MSA_fill_copy_3) {
   CHECK_EQ(0x5555555555555555, t[1].d0);
 }
 
+typedef union {
+  uint8_t b[16];
+  uint16_t h[8];
+  uint32_t w[4];
+  uint64_t d[2];
+} msa_reg_t;
+
+template <typename T>
+void run_msa_insert(int32_t rs_value, int n, msa_reg_t* w) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+  __ li(t0, -1);
+  __ li(t1, rs_value);
+  __ fill_w(w0, t0);
+
+  if (std::is_same<T, int8_t>::value) {
+    DCHECK(n < 16);
+    __ insert_b(w0, n, t1);
+  } else if (std::is_same<T, int16_t>::value) {
+    DCHECK(n < 8);
+    __ insert_h(w0, n, t1);
+  } else if (std::is_same<T, int32_t>::value) {
+    DCHECK(n < 4);
+    __ insert_w(w0, n, t1);
+  } else {
+    UNREACHABLE();
+  }
+
+  __ copy_u_w(t2, w0, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w0, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w0, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w0, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, w, 0, 0, 0, 0));
+}
+
+TEST(MSA_insert) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseInsert {
+    uint32_t input;
+    int n;
+    uint64_t exp_res_lo;
+    uint64_t exp_res_hi;
+  };
+
+  struct TestCaseInsert tc_b[] = {
+      // input, n,        exp_res_lo,          exp_res_hi
+      {0xa2, 13, 0xffffffffffffffffu, 0xffffa2ffffffffffu},
+      {0x73, 10, 0xffffffffffffffffu, 0xffffffffff73ffffu},
+      {0x3494, 5, 0xffff94ffffffffffu, 0xffffffffffffffffu},
+      {0xa6b8, 1, 0xffffffffffffb8ffu, 0xffffffffffffffffu}};
+
+  for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseInsert); ++i) {
+    msa_reg_t res;
+    run_msa_insert<int8_t>(tc_b[i].input, tc_b[i].n, &res);
+    CHECK_EQ(tc_b[i].exp_res_lo, res.d[0]);
+    CHECK_EQ(tc_b[i].exp_res_hi, res.d[1]);
+  }
+
+  struct TestCaseInsert tc_h[] = {
+      // input, n,         exp_res_lo,          exp_res_hi
+      {0x85a2, 7, 0xffffffffffffffffu, 0x85a2ffffffffffffu},
+      {0xe873, 5, 0xffffffffffffffffu, 0xffffffffe873ffffu},
+      {0x3494, 3, 0x3494ffffffffffffu, 0xffffffffffffffffu},
+      {0xa6b8, 1, 0xffffffffa6b8ffffu, 0xffffffffffffffffu}};
+
+  for (size_t i = 0; i < sizeof(tc_h) / sizeof(TestCaseInsert); ++i) {
+    msa_reg_t res;
+    run_msa_insert<int16_t>(tc_h[i].input, tc_h[i].n, &res);
+    CHECK_EQ(tc_h[i].exp_res_lo, res.d[0]);
+    CHECK_EQ(tc_h[i].exp_res_hi, res.d[1]);
+  }
+
+  struct TestCaseInsert tc_w[] = {
+      // input,     n,          exp_res_lo,          exp_res_hi
+      {0xd2f085a2u, 3, 0xffffffffffffffffu, 0xd2f085a2ffffffffu},
+      {0x4567e873u, 2, 0xffffffffffffffffu, 0xffffffff4567e873u},
+      {0xacdb3494u, 1, 0xacdb3494ffffffffu, 0xffffffffffffffffu},
+      {0x89aba6b8u, 0, 0xffffffff89aba6b8u, 0xffffffffffffffffu}};
+
+  for (size_t i = 0; i < sizeof(tc_w) / sizeof(TestCaseInsert); ++i) {
+    msa_reg_t res;
+    run_msa_insert<int32_t>(tc_w[i].input, tc_w[i].n, &res);
+    CHECK_EQ(tc_w[i].exp_res_lo, res.d[0]);
+    CHECK_EQ(tc_w[i].exp_res_hi, res.d[1]);
+  }
+}
+
+struct ExpResShf {
+  uint8_t i8;
+  uint64_t lo;
+  uint64_t hi;
+};
+
+void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
+                uint8_t i8) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+  uint64_t wd_lo = 0xf35862e13e38f8b0;
+  uint64_t wd_hi = 0x4f41ffdef2bfe636;
+
+#define LOAD_W_REG(lo, hi, w_reg)                            \
+  __ li(t0, static_cast<uint32_t>(lo & 0xffffffff));         \
+  __ li(t1, static_cast<uint32_t>((lo >> 32) & 0xffffffff)); \
+  __ insert_w(w_reg, 0, t0);                                 \
+  __ insert_w(w_reg, 1, t1);                                 \
+  __ li(t0, static_cast<uint32_t>(hi & 0xffffffff));         \
+  __ li(t1, static_cast<uint32_t>((hi >> 32) & 0xffffffff)); \
+  __ insert_w(w_reg, 2, t0);                                 \
+  __ insert_w(w_reg, 3, t1);
+
+  LOAD_W_REG(ws_lo, ws_hi, w0)
+
+  switch (opcode) {
+    case ANDI_B:
+      __ andi_b(w2, w0, i8);
+      break;
+    case ORI_B:
+      __ ori_b(w2, w0, i8);
+      break;
+    case NORI_B:
+      __ nori_b(w2, w0, i8);
+      break;
+    case XORI_B:
+      __ xori_b(w2, w0, i8);
+      break;
+    case BMNZI_B:
+      LOAD_W_REG(wd_lo, wd_hi, w2);
+      __ bmnzi_b(w2, w0, i8);
+      break;
+    case BMZI_B:
+      LOAD_W_REG(wd_lo, wd_hi, w2);
+      __ bmzi_b(w2, w0, i8);
+      break;
+    case BSELI_B:
+      LOAD_W_REG(wd_lo, wd_hi, w2);
+      __ bseli_b(w2, w0, i8);
+      break;
+    case SHF_B:
+      __ shf_b(w2, w0, i8);
+      break;
+    case SHF_H:
+      __ shf_h(w2, w0, i8);
+      break;
+    case SHF_W:
+      __ shf_w(w2, w0, i8);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ copy_u_w(t2, w2, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w2, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w2, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w2, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+#undef LOAD_W_REG
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  uint64_t mask = i8 * 0x0101010101010101ull;
+  switch (opcode) {
+    case ANDI_B:
+      CHECK_EQ(ws_lo & mask, res.d[0]);
+      CHECK_EQ(ws_hi & mask, res.d[1]);
+      break;
+    case ORI_B:
+      CHECK_EQ(ws_lo | mask, res.d[0]);
+      CHECK_EQ(ws_hi | mask, res.d[1]);
+      break;
+    case NORI_B:
+      CHECK_EQ(~(ws_lo | mask), res.d[0]);
+      CHECK_EQ(~(ws_hi | mask), res.d[1]);
+      break;
+    case XORI_B:
+      CHECK_EQ(ws_lo ^ mask, res.d[0]);
+      CHECK_EQ(ws_hi ^ mask, res.d[1]);
+      break;
+    case BMNZI_B:
+      CHECK_EQ((ws_lo & mask) | (wd_lo & ~mask), res.d[0]);
+      CHECK_EQ((ws_hi & mask) | (wd_hi & ~mask), res.d[1]);
+      break;
+    case BMZI_B:
+      CHECK_EQ((ws_lo & ~mask) | (wd_lo & mask), res.d[0]);
+      CHECK_EQ((ws_hi & ~mask) | (wd_hi & mask), res.d[1]);
+      break;
+    case BSELI_B:
+      CHECK_EQ((ws_lo & ~wd_lo) | (mask & wd_lo), res.d[0]);
+      CHECK_EQ((ws_hi & ~wd_hi) | (mask & wd_hi), res.d[1]);
+      break;
+    case SHF_B: {
+      struct ExpResShf exp_b[] = {
+          // i8,              exp_lo,             exp_hi
+          {0xffu, 0x11111111b9b9b9b9, 0xf7f7f7f7c8c8c8c8},
+          {0x0u, 0x62626262dfdfdfdf, 0xd6d6d6d6c8c8c8c8},
+          {0xe4u, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636},
+          {0x1bu, 0x1b756911c3d9a7b9, 0xae94a5f79c8aefc8},
+          {0xb1u, 0x662b6253e8c4df12, 0x0d3ad6803f8bc88b},
+          {0x4eu, 0x62e1f358f8b03e38, 0xffde4f41e636f2bf},
+          {0x27u, 0x1b697511c3a7d9b9, 0xaea594f79cef8ac8}};
+      for (size_t i = 0; i < sizeof(exp_b) / sizeof(ExpResShf); ++i) {
+        if (exp_b[i].i8 == i8) {
+          CHECK_EQ(exp_b[i].lo, res.d[0]);
+          CHECK_EQ(exp_b[i].hi, res.d[1]);
+        }
+      }
+    } break;
+    case SHF_H: {
+      struct ExpResShf exp_h[] = {
+          //  i8,             exp_lo,             exp_hi
+          {0xffu, 0x1169116911691169, 0xf7a5f7a5f7a5f7a5},
+          {0x0u, 0x12df12df12df12df, 0x8bc88bc88bc88bc8},
+          {0xe4u, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636},
+          {0x1bu, 0xd9c3b9a7751b1169, 0x8a9cc8ef94aef7a5},
+          {0xb1u, 0x53622b6612dfc4e8, 0x80d63a0d8bc88b3f},
+          {0x4eu, 0x3e38f8b0f35862e1, 0xf2bfe6364f41ffde},
+          {0x27u, 0xd9c3751bb9a71169, 0x8a9c94aec8eff7a5}};
+      for (size_t i = 0; i < sizeof(exp_h) / sizeof(ExpResShf); ++i) {
+        if (exp_h[i].i8 == i8) {
+          CHECK_EQ(exp_h[i].lo, res.d[0]);
+          CHECK_EQ(exp_h[i].hi, res.d[1]);
+        }
+      }
+    } break;
+    case SHF_W: {
+      struct ExpResShf exp_w[] = {
+          //  i8,             exp_lo,             exp_hi
+          {0xffu, 0xf7a594aef7a594ae, 0xf7a594aef7a594ae},
+          {0x0u, 0xc4e812dfc4e812df, 0xc4e812dfc4e812df},
+          {0xe4u, 0xf35862e13e38f8b0, 0x4f41ffdef2bfe636},
+          {0x1bu, 0xc8ef8a9cf7a594ae, 0xb9a7d9c31169751b},
+          {0xb1u, 0xc4e812df2b665362, 0x8b3f8bc83a0d80d6},
+          {0x4eu, 0x4f41ffdef2bfe636, 0xf35862e13e38f8b0},
+          {0x27u, 0x1169751bf7a594ae, 0xb9a7d9c3c8ef8a9c}};
+      for (size_t i = 0; i < sizeof(exp_w) / sizeof(ExpResShf); ++i) {
+        if (exp_w[i].i8 == i8) {
+          CHECK_EQ(exp_w[i].lo, res.d[0]);
+          CHECK_EQ(exp_w[i].hi, res.d[1]);
+        }
+      }
+    } break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+struct TestCaseMsaI8 {
+  uint64_t input_lo;
+  uint64_t input_hi;
+  uint8_t i8;
+};
+
+TEST(MSA_andi_ori_nori_xori) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI8 tc[] = {// input_lo,         input_hi,           i8
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0xffu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0u},
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x3bu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0xd9u}};
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI8); ++i) {
+    run_msa_i8(ANDI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(ORI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(NORI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(XORI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+  }
+}
+
+TEST(MSA_bmnzi_bmzi_bseli) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI8 tc[] = {//          input_lo,          input_hi,    i8
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0xffu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0u},
+                               {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x3bu},
+                               {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0xd9u}};
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI8); ++i) {
+    run_msa_i8(BMNZI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(BMZI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(BSELI_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+  }
+}
+
+TEST(MSA_shf) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsaI8 tc[] = {
+      //          input_lo,           input_hi,    i8
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0xffu},  // 3333
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x0u},   // 0000
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0xe4u},  // 3210
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x1bu},  // 0123
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0xb1u},  // 2301
+      {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x4eu},  // 1032
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x27u}   // 0213
+  };
+
+  for (size_t i = 0; i < sizeof(tc) / sizeof(TestCaseMsaI8); ++i) {
+    run_msa_i8(SHF_B, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(SHF_H, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+    run_msa_i8(SHF_W, tc[i].input_lo, tc[i].input_hi, tc[i].i8);
+  }
+}
+
 #undef __

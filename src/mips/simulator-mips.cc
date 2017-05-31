@@ -1810,6 +1810,43 @@ void Simulator::TraceMSARegWr(T* value, TraceType t) {
   }
 }
 
+template <typename T>
+void Simulator::TraceMSARegWr(T* value) {
+  if (::v8::internal::FLAG_trace_sim) {
+    union {
+      uint8_t b[kMSALanesByte];
+      uint16_t h[kMSALanesHalf];
+      uint32_t w[kMSALanesWord];
+      uint64_t d[kMSALanesDword];
+      float f[kMSALanesWord];
+      double df[kMSALanesDword];
+    } v;
+    memcpy(v.b, value, kMSALanesByte);
+
+    if (std::is_same<T, int32_t>::value) {
+      SNPrintF(trace_buf_,
+               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+               ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
+               "  %" PRId32,
+               v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
+    } else if (std::is_same<T, float>::value) {
+      SNPrintF(trace_buf_,
+               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+               ")    flt[0..3]:%e  %e  %e  %e",
+               v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
+    } else if (std::is_same<T, double>::value) {
+      SNPrintF(trace_buf_,
+               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+               ")    dbl[0..1]:%e  %e",
+               v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
+    } else {
+      SNPrintF(trace_buf_,
+               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
+               v.d[0], v.d[1], icount_);
+    }
+  }
+}
+
 // TODO(plind): consider making icount_ printing a flag option.
 void Simulator::TraceMemRd(int32_t addr, int32_t value, TraceType t) {
   if (::v8::internal::FLAG_trace_sim) {
@@ -4263,19 +4300,97 @@ void Simulator::DecodeTypeMsaI8() {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaI8Mask;
+  int8_t i8 = instr_.MsaImm8Value();
+  msa_reg_t ws, wd;
 
   switch (opcode) {
     case ANDI_B:
+      get_msa_register(instr_.WsValue(), ws.b);
+      for (int i = 0; i < kMSALanesByte; i++) {
+        wd.b[i] = ws.b[i] & i8;
+      }
+      set_msa_register(instr_.WdValue(), wd.b);
+      TraceMSARegWr(wd.b);
+      break;
     case ORI_B:
+      get_msa_register(instr_.WsValue(), ws.b);
+      for (int i = 0; i < kMSALanesByte; i++) {
+        wd.b[i] = ws.b[i] | i8;
+      }
+      set_msa_register(instr_.WdValue(), wd.b);
+      TraceMSARegWr(wd.b);
+      break;
     case NORI_B:
+      get_msa_register(instr_.WsValue(), ws.b);
+      for (int i = 0; i < kMSALanesByte; i++) {
+        wd.b[i] = ~(ws.b[i] | i8);
+      }
+      set_msa_register(instr_.WdValue(), wd.b);
+      TraceMSARegWr(wd.b);
+      break;
     case XORI_B:
+      get_msa_register(instr_.WsValue(), ws.b);
+      for (int i = 0; i < kMSALanesByte; i++) {
+        wd.b[i] = ws.b[i] ^ i8;
+      }
+      set_msa_register(instr_.WdValue(), wd.b);
+      TraceMSARegWr(wd.b);
+      break;
     case BMNZI_B:
+      get_msa_register(instr_.WsValue(), ws.b);
+      get_msa_register(instr_.WdValue(), wd.b);
+      for (int i = 0; i < kMSALanesByte; i++) {
+        wd.b[i] = (ws.b[i] & i8) | (wd.b[i] & ~i8);
+      }
+      set_msa_register(instr_.WdValue(), wd.b);
+      TraceMSARegWr(wd.b);
+      break;
     case BMZI_B:
+      get_msa_register(instr_.WsValue(), ws.b);
+      get_msa_register(instr_.WdValue(), wd.b);
+      for (int i = 0; i < kMSALanesByte; i++) {
+        wd.b[i] = (ws.b[i] & ~i8) | (wd.b[i] & i8);
+      }
+      set_msa_register(instr_.WdValue(), wd.b);
+      TraceMSARegWr(wd.b);
+      break;
     case BSELI_B:
+      get_msa_register(instr_.WsValue(), ws.b);
+      get_msa_register(instr_.WdValue(), wd.b);
+      for (int i = 0; i < kMSALanesByte; i++) {
+        wd.b[i] = (ws.b[i] & ~wd.b[i]) | (wd.b[i] & i8);
+      }
+      set_msa_register(instr_.WdValue(), wd.b);
+      TraceMSARegWr(wd.b);
+      break;
     case SHF_B:
+      get_msa_register(instr_.WsValue(), ws.b);
+      for (int i = 0; i < kMSALanesByte; i++) {
+        int j = i % 4;
+        int k = (i8 >> (2 * j)) & 0x3;
+        wd.b[i] = ws.b[i - j + k];
+      }
+      set_msa_register(instr_.WdValue(), wd.b);
+      TraceMSARegWr(wd.b);
+      break;
     case SHF_H:
+      get_msa_register(instr_.WsValue(), ws.h);
+      for (int i = 0; i < kMSALanesHalf; i++) {
+        int j = i % 4;
+        int k = (i8 >> (2 * j)) & 0x3;
+        wd.h[i] = ws.h[i - j + k];
+      }
+      set_msa_register(instr_.WdValue(), wd.h);
+      TraceMSARegWr(wd.h);
+      break;
     case SHF_W:
-      UNIMPLEMENTED();
+      get_msa_register(instr_.WsValue(), ws.w);
+      for (int i = 0; i < kMSALanesWord; i++) {
+        int j = (i8 >> (2 * i)) & 0x3;
+        wd.w[i] = ws.w[j];
+      }
+      set_msa_register(instr_.WdValue(), wd.w);
+      TraceMSARegWr(wd.w);
       break;
     default:
       UNREACHABLE();
@@ -4325,39 +4440,70 @@ void Simulator::DecodeTypeMsaELM() {
   int32_t alu_out;
   switch (opcode) {
     case COPY_S:
-    case COPY_U:
+    case COPY_U: {
+      msa_reg_t ws;
       switch (DecodeMsaDataFormat()) {
         case MSA_BYTE: {
-          DCHECK(n < 16);
-          int8_t ws[16];
-          get_msa_register(instr_.WsValue(), ws);
-          alu_out = static_cast<int32_t>(ws[n]);
+          DCHECK(n < kMSALanesByte);
+          get_msa_register(instr_.WsValue(), ws.b);
+          alu_out = static_cast<int32_t>(ws.b[n]);
           SetResult(wd_reg(), (opcode == COPY_U) ? alu_out & 0xFFu : alu_out);
           break;
         }
         case MSA_HALF: {
-          DCHECK(n < 8);
-          int16_t ws[8];
-          get_msa_register(instr_.WsValue(), ws);
-          alu_out = static_cast<int32_t>(ws[n]);
+          DCHECK(n < kMSALanesHalf);
+          get_msa_register(instr_.WsValue(), ws.h);
+          alu_out = static_cast<int32_t>(ws.h[n]);
           SetResult(wd_reg(), (opcode == COPY_U) ? alu_out & 0xFFFFu : alu_out);
           break;
         }
         case MSA_WORD: {
-          DCHECK(n < 4);
-          int32_t ws[4];
-          get_msa_register(instr_.WsValue(), ws);
-          alu_out = static_cast<int32_t>(ws[n]);
+          DCHECK(n < kMSALanesWord);
+          get_msa_register(instr_.WsValue(), ws.w);
+          alu_out = static_cast<int32_t>(ws.w[n]);
           SetResult(wd_reg(), alu_out);
           break;
         }
         default:
           UNREACHABLE();
       }
-      break;
+    } break;
+    case INSERT: {
+      msa_reg_t wd;
+      switch (DecodeMsaDataFormat()) {
+        case MSA_BYTE: {
+          DCHECK(n < kMSALanesByte);
+          int32_t rs = get_register(instr_.WsValue());
+          get_msa_register(instr_.WdValue(), wd.b);
+          wd.b[n] = rs & 0xFFu;
+          set_msa_register(instr_.WdValue(), wd.b);
+          TraceMSARegWr(wd.b);
+          break;
+        }
+        case MSA_HALF: {
+          DCHECK(n < kMSALanesHalf);
+          int32_t rs = get_register(instr_.WsValue());
+          get_msa_register(instr_.WdValue(), wd.h);
+          wd.h[n] = rs & 0xFFFFu;
+          set_msa_register(instr_.WdValue(), wd.h);
+          TraceMSARegWr(wd.h);
+          break;
+        }
+        case MSA_WORD: {
+          DCHECK(n < kMSALanesWord);
+          int32_t rs = get_register(instr_.WsValue());
+          get_msa_register(instr_.WdValue(), wd.w);
+          wd.w[n] = rs;
+          set_msa_register(instr_.WdValue(), wd.w);
+          TraceMSARegWr(wd.w);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+    } break;
     case SLDI:
     case SPLATI:
-    case INSERT:
     case INSVE:
       UNIMPLEMENTED();
       break;
@@ -4555,37 +4701,35 @@ void Simulator::DecodeTypeMsa2R() {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsa2RMask;
+  msa_reg_t wd;
   switch (opcode) {
     case FILL:
       switch (DecodeMsaDataFormat()) {
         case MSA_BYTE: {
-          int8_t wd[16];
           int32_t rs = get_register(instr_.WsValue());
-          for (int i = 0; i < 16; i++) {
-            wd[i] = rs & 0xFFu;
+          for (int i = 0; i < kMSALanesByte; i++) {
+            wd.b[i] = rs & 0xFFu;
           }
-          set_msa_register(instr_.WdValue(), wd);
-          TraceMSARegWr(wd, BYTE);
+          set_msa_register(instr_.WdValue(), wd.b);
+          TraceMSARegWr(wd.b);
           break;
         }
         case MSA_HALF: {
-          int16_t wd[8];
           int32_t rs = get_register(instr_.WsValue());
-          for (int i = 0; i < 8; i++) {
-            wd[i] = rs & 0xFFFFu;
+          for (int i = 0; i < kMSALanesHalf; i++) {
+            wd.h[i] = rs & 0xFFFFu;
           }
-          set_msa_register(instr_.WdValue(), wd);
-          TraceMSARegWr(wd, HALF);
+          set_msa_register(instr_.WdValue(), wd.h);
+          TraceMSARegWr(wd.h);
           break;
         }
         case MSA_WORD: {
-          int32_t wd[4];
           int32_t rs = get_register(instr_.WsValue());
-          for (int i = 0; i < 4; i++) {
-            wd[i] = rs;
+          for (int i = 0; i < kMSALanesWord; i++) {
+            wd.w[i] = rs;
           }
-          set_msa_register(instr_.WdValue(), wd);
-          TraceMSARegWr(wd, WORD);
+          set_msa_register(instr_.WdValue(), wd.w);
+          TraceMSARegWr(wd.w);
           break;
         }
         default:

@@ -122,6 +122,11 @@ const int kInvalidMSARegister = -1;
 const int kInvalidMSAControlRegister = -1;
 const int kMSAIRRegister = 0;
 const int kMSACSRRegister = 1;
+const int kMSARegSize = 128;
+const int kMSALanesByte = kMSARegSize / 8;
+const int kMSALanesHalf = kMSARegSize / 16;
+const int kMSALanesWord = kMSARegSize / 32;
+const int kMSALanesDword = kMSARegSize / 64;
 
 // FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
 const int kFCSRRegister = 31;

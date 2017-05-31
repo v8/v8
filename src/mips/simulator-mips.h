@@ -336,6 +336,12 @@ class Simulator {
 
   // MSA Data Format
   enum MSADataFormat { MSA_VECT = 0, MSA_BYTE, MSA_HALF, MSA_WORD, MSA_DWORD };
+  typedef union {
+    int8_t b[kMSALanesByte];
+    int16_t h[kMSALanesHalf];
+    int32_t w[kMSALanesWord];
+    int64_t d[kMSALanesDword];
+  } msa_reg_t;
 
   // Read and write memory.
   inline uint32_t ReadBU(int32_t addr);
@@ -359,6 +365,8 @@ class Simulator {
   void TraceRegWr(int64_t value, TraceType t = DWORD);
   template <typename T>
   void TraceMSARegWr(T* value, TraceType t);
+  template <typename T>
+  void TraceMSARegWr(T* value);
   void TraceMemWr(int32_t addr, int32_t value, TraceType t = WORD);
   void TraceMemRd(int32_t addr, int32_t value, TraceType t = WORD);
   void TraceMemWr(int32_t addr, int64_t value, TraceType t = DWORD);
