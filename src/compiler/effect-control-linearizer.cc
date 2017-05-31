@@ -2158,7 +2158,7 @@ Node* EffectControlLinearizer::LowerSeqStringCharCodeAt(Node* node) {
   Node* position = node->InputAt(1);
 
   auto one_byte_load = __ MakeLabel<1>();
-  auto done = __ MakeLabel<2>(MachineRepresentation::kTagged);
+  auto done = __ MakeLabel<2>(MachineRepresentation::kWord32);
 
   Node* map = __ LoadField(AccessBuilder::ForMap(), receiver);
   Node* instance_type = __ LoadField(AccessBuilder::ForMapInstanceType(), map);
