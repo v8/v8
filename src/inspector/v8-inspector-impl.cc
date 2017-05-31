@@ -30,6 +30,8 @@
 
 #include "src/inspector/v8-inspector-impl.h"
 
+#include <vector>
+
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console-agent-impl.h"
@@ -72,27 +74,6 @@ int V8InspectorImpl::contextGroupId(int contextId) {
   protocol::HashMap<int, int>::iterator it =
       m_contextIdToGroupIdMap.find(contextId);
   return it != m_contextIdToGroupIdMap.end() ? it->second : 0;
-}
-
-V8DebuggerAgentImpl* V8InspectorImpl::enabledDebuggerAgentForGroup(
-    int contextGroupId) {
-  V8InspectorSessionImpl* session = sessionForContextGroup(contextGroupId);
-  V8DebuggerAgentImpl* agent = session ? session->debuggerAgent() : nullptr;
-  return agent && agent->enabled() ? agent : nullptr;
-}
-
-V8RuntimeAgentImpl* V8InspectorImpl::enabledRuntimeAgentForGroup(
-    int contextGroupId) {
-  V8InspectorSessionImpl* session = sessionForContextGroup(contextGroupId);
-  V8RuntimeAgentImpl* agent = session ? session->runtimeAgent() : nullptr;
-  return agent && agent->enabled() ? agent : nullptr;
-}
-
-V8ProfilerAgentImpl* V8InspectorImpl::enabledProfilerAgentForGroup(
-    int contextGroupId) {
-  V8InspectorSessionImpl* session = sessionForContextGroup(contextGroupId);
-  V8ProfilerAgentImpl* agent = session ? session->profilerAgent() : nullptr;
-  return agent && agent->enabled() ? agent : nullptr;
 }
 
 v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
@@ -171,15 +152,19 @@ std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
     int contextGroupId, V8Inspector::Channel* channel,
     const StringView& state) {
   DCHECK(m_sessions.find(contextGroupId) == m_sessions.cend());
+  int sessionId = ++m_lastSessionId;
   std::unique_ptr<V8InspectorSessionImpl> session =
-      V8InspectorSessionImpl::create(this, contextGroupId, channel, state);
+      V8InspectorSessionImpl::create(this, contextGroupId, sessionId, channel,
+                                     state);
   m_sessions[contextGroupId] = session.get();
+  m_sessionById[sessionId] = session.get();
   return std::move(session);
 }
 
 void V8InspectorImpl::disconnect(V8InspectorSessionImpl* session) {
   DCHECK(m_sessions.find(session->contextGroupId()) != m_sessions.end());
   m_sessions.erase(session->contextGroupId());
+  m_sessionById.erase(session->sessionId());
 }
 
 InspectedContext* V8InspectorImpl::getContext(int groupId,
@@ -327,12 +312,6 @@ void V8InspectorImpl::discardInspectedContext(int contextGroupId,
   if (m_contexts[contextGroupId]->empty()) m_contexts.erase(contextGroupId);
 }
 
-const V8InspectorImpl::ContextByIdMap* V8InspectorImpl::contextGroup(
-    int contextGroupId) {
-  ContextsByGroupMap::iterator iter = m_contexts.find(contextGroupId);
-  return iter == m_contexts.end() ? nullptr : iter->second.get();
-}
-
 V8InspectorSessionImpl* V8InspectorImpl::sessionForContextGroup(
     int contextGroupId) {
   if (!contextGroupId) return nullptr;
@@ -340,9 +319,31 @@ V8InspectorSessionImpl* V8InspectorImpl::sessionForContextGroup(
   return iter == m_sessions.end() ? nullptr : iter->second;
 }
 
+V8InspectorSessionImpl* V8InspectorImpl::sessionById(int sessionId) {
+  auto it = m_sessionById.find(sessionId);
+  return it == m_sessionById.end() ? nullptr : it->second;
+}
+
 V8Console* V8InspectorImpl::console() {
   if (!m_console) m_console.reset(new V8Console(this));
   return m_console.get();
+}
+
+void V8InspectorImpl::forEachContext(
+    int contextGroupId, std::function<void(InspectedContext*)> callback) {
+  auto it = m_contexts.find(contextGroupId);
+  if (it == m_contexts.end()) return;
+  std::vector<int> ids;
+  ids.reserve(it->second->size());
+  for (auto& contextIt : *(it->second)) ids.push_back(contextIt.first);
+
+  // Retrieve by ids each time since |callback| may destroy some contexts.
+  for (auto& contextId : ids) {
+    it = m_contexts.find(contextGroupId);
+    if (it == m_contexts.end()) continue;
+    auto contextIt = it->second->find(contextId);
+    if (contextIt != it->second->end()) callback(contextIt->second.get());
+  }
 }
 
 }  // namespace v8_inspector

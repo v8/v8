@@ -415,22 +415,20 @@ v8::Local<v8::Object> InjectedScript::commandLineAPI() {
   return m_commandLineAPI.Get(m_context->isolate());
 }
 
-InjectedScript::Scope::Scope(V8InspectorImpl* inspector, int contextGroupId)
-    : m_inspector(inspector),
-      m_contextGroupId(contextGroupId),
+InjectedScript::Scope::Scope(V8InspectorSessionImpl* session)
+    : m_inspector(session->inspector()),
       m_injectedScript(nullptr),
-      m_handleScope(inspector->isolate()),
-      m_tryCatch(inspector->isolate()),
+      m_handleScope(m_inspector->isolate()),
+      m_tryCatch(m_inspector->isolate()),
       m_ignoreExceptionsAndMuteConsole(false),
       m_previousPauseOnExceptionsState(v8::debug::NoBreakOnException),
-      m_userGesture(false) {}
+      m_userGesture(false),
+      m_contextGroupId(session->contextGroupId()),
+      m_sessionId(session->sessionId()) {}
 
 Response InjectedScript::Scope::initialize() {
   cleanup();
-  // TODO(dgozman): what if we reattach to the same context group during
-  // evaluate? Introduce a session id?
-  V8InspectorSessionImpl* session =
-      m_inspector->sessionForContextGroup(m_contextGroupId);
+  V8InspectorSessionImpl* session = m_inspector->sessionById(m_sessionId);
   if (!session) return Response::InternalError();
   Response response = findInjectedScript(session);
   if (!response.isSuccess()) return response;
@@ -489,10 +487,9 @@ InjectedScript::Scope::~Scope() {
   cleanup();
 }
 
-InjectedScript::ContextScope::ContextScope(V8InspectorImpl* inspector,
-                                           int contextGroupId,
+InjectedScript::ContextScope::ContextScope(V8InspectorSessionImpl* session,
                                            int executionContextId)
-    : InjectedScript::Scope(inspector, contextGroupId),
+    : InjectedScript::Scope(session),
       m_executionContextId(executionContextId) {}
 
 InjectedScript::ContextScope::~ContextScope() {}
@@ -502,11 +499,9 @@ Response InjectedScript::ContextScope::findInjectedScript(
   return session->findInjectedScript(m_executionContextId, m_injectedScript);
 }
 
-InjectedScript::ObjectScope::ObjectScope(V8InspectorImpl* inspector,
-                                         int contextGroupId,
+InjectedScript::ObjectScope::ObjectScope(V8InspectorSessionImpl* session,
                                          const String16& remoteObjectId)
-    : InjectedScript::Scope(inspector, contextGroupId),
-      m_remoteObjectId(remoteObjectId) {}
+    : InjectedScript::Scope(session), m_remoteObjectId(remoteObjectId) {}
 
 InjectedScript::ObjectScope::~ObjectScope() {}
 
@@ -525,11 +520,9 @@ Response InjectedScript::ObjectScope::findInjectedScript(
   return Response::OK();
 }
 
-InjectedScript::CallFrameScope::CallFrameScope(V8InspectorImpl* inspector,
-                                               int contextGroupId,
+InjectedScript::CallFrameScope::CallFrameScope(V8InspectorSessionImpl* session,
                                                const String16& remoteObjectId)
-    : InjectedScript::Scope(inspector, contextGroupId),
-      m_remoteCallFrameId(remoteObjectId) {}
+    : InjectedScript::Scope(session), m_remoteCallFrameId(remoteObjectId) {}
 
 InjectedScript::CallFrameScope::~CallFrameScope() {}
 

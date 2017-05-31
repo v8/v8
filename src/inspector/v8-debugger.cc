@@ -11,7 +11,9 @@
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
 #include "src/inspector/v8-inspector-impl.h"
+#include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-internal-value-type.h"
+#include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-copier.h"
 
@@ -25,15 +27,6 @@ static const int kMaxAsyncTaskStacks = 128 * 1024;
 
 inline v8::Local<v8::Boolean> v8Boolean(bool value, v8::Isolate* isolate) {
   return value ? v8::True(isolate) : v8::False(isolate);
-}
-
-V8DebuggerAgentImpl* agentForScript(V8InspectorImpl* inspector,
-                                    v8::Local<v8::debug::Script> script) {
-  int contextId;
-  if (!script->ContextId().To(&contextId)) return nullptr;
-  int contextGroupId = inspector->contextGroupId(contextId);
-  if (!contextGroupId) return nullptr;
-  return inspector->enabledDebuggerAgentForGroup(contextGroupId);
 }
 
 v8::MaybeLocal<v8::Array> collectionsEntries(v8::Local<v8::Context> context,
@@ -361,7 +354,9 @@ bool V8Debugger::breakProgram(int targetContextGroupId) {
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
   v8::debug::BreakRightNow(m_isolate);
-  return m_inspector->enabledDebuggerAgentForGroup(targetContextGroupId);
+  V8InspectorSessionImpl* session =
+      m_inspector->sessionForContextGroup(targetContextGroupId);
+  return session && session->debuggerAgent()->enabled();
 }
 
 void V8Debugger::continueProgram(int targetContextGroupId) {
@@ -605,9 +600,10 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
     m_stepIntoAsyncCallback.reset();
   }
   m_breakRequested = false;
-  V8DebuggerAgentImpl* agent = m_inspector->enabledDebuggerAgentForGroup(
-      m_inspector->contextGroupId(pausedContext));
-  if (!agent || (agent->skipAllPauses() && !m_scheduledOOMBreak)) return;
+  V8InspectorSessionImpl* session =
+      m_inspector->sessionForContextGroup(contextGroupId);
+  if (!session || !session->debuggerAgent()->enabled()) return;
+  if (!m_scheduledOOMBreak && session->debuggerAgent()->skipAllPauses()) return;
 
   std::vector<String16> breakpointIds;
   if (!hitBreakpointNumbers.IsEmpty()) {
@@ -627,25 +623,25 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   }
   clearContinueToLocation();
 
+  DCHECK(contextGroupId);
   m_pausedContext = pausedContext;
   m_executionState = executionState;
   m_pausedContextGroupId = contextGroupId;
-  agent->didPause(InspectedContext::contextId(pausedContext), exception,
-                  breakpointIds, isPromiseRejection, isUncaught,
-                  m_scheduledOOMBreak);
-  int groupId = m_inspector->contextGroupId(pausedContext);
-  DCHECK(groupId);
+  session->debuggerAgent()->didPause(
+      InspectedContext::contextId(pausedContext), exception, breakpointIds,
+      isPromiseRejection, isUncaught, m_scheduledOOMBreak);
   {
     v8::Context::Scope scope(pausedContext);
     v8::Local<v8::Context> context = m_isolate->GetCurrentContext();
     CHECK(!context.IsEmpty() &&
           context != v8::debug::GetDebugContext(m_isolate));
-    m_inspector->client()->runMessageLoopOnPause(groupId);
+    m_inspector->client()->runMessageLoopOnPause(contextGroupId);
     m_pausedContextGroupId = 0;
   }
   // The agent may have been removed in the nested loop.
-  agent = m_inspector->enabledDebuggerAgentForGroup(groupId);
-  if (agent) agent->didContinue();
+  session = m_inspector->sessionForContextGroup(contextGroupId);
+  if (session && session->debuggerAgent()->enabled())
+    session->debuggerAgent()->didContinue();
   if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();
   m_scheduledOOMBreak = false;
   m_pausedContext.Clear();
@@ -664,12 +660,16 @@ void V8Debugger::v8OOMCallback(void* data) {
 
 void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
                                 bool has_compile_error) {
-  V8DebuggerAgentImpl* agent = agentForScript(m_inspector, script);
-  if (!agent) return;
+  int contextId;
+  if (!script->ContextId().To(&contextId)) return;
+  V8InspectorSessionImpl* session = m_inspector->sessionForContextGroup(
+      m_inspector->contextGroupId(contextId));
+  if (!session || !session->debuggerAgent()->enabled()) return;
   if (script->IsWasm()) {
-    m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
+    m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(),
+                                session->debuggerAgent());
   } else if (m_ignoreScriptParsedEventsCounter == 0) {
-    agent->didParseSource(
+    session->debuggerAgent()->didParseSource(
         V8DebuggerScript::Create(m_isolate, script, inLiveEditScope),
         !has_compile_error);
   }
@@ -702,10 +702,13 @@ void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
 bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                                       const v8::debug::Location& start,
                                       const v8::debug::Location& end) {
-  V8DebuggerAgentImpl* agent = agentForScript(m_inspector, script);
-  if (!agent) return false;
-  return agent->isFunctionBlackboxed(String16::fromInteger(script->Id()), start,
-                                     end);
+  int contextId;
+  if (!script->ContextId().To(&contextId)) return false;
+  V8InspectorSessionImpl* session = m_inspector->sessionForContextGroup(
+      m_inspector->contextGroupId(contextId));
+  if (!session || !session->debuggerAgent()->enabled()) return false;
+  return session->debuggerAgent()->isFunctionBlackboxed(
+      String16::fromInteger(script->Id()), start, end);
 }
 
 void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
@@ -1081,7 +1084,9 @@ std::unique_ptr<V8StackTraceImpl> V8Debugger::captureStackTrace(
   if (!contextGroupId) return nullptr;
 
   int stackSize = 1;
-  if (fullStack || m_inspector->enabledRuntimeAgentForGroup(contextGroupId)) {
+  V8InspectorSessionImpl* session =
+      m_inspector->sessionForContextGroup(contextGroupId);
+  if (fullStack || (session && session->runtimeAgent()->enabled())) {
     stackSize = V8StackTraceImpl::maxCallStackSizeToCapture;
   }
   return V8StackTraceImpl::capture(this, contextGroupId, stackSize);

@@ -110,12 +110,11 @@ class InjectedScript final {
     const v8::TryCatch& tryCatch() const { return m_tryCatch; }
 
    protected:
-    Scope(V8InspectorImpl*, int contextGroupId);
+    explicit Scope(V8InspectorSessionImpl*);
     virtual ~Scope();
     virtual Response findInjectedScript(V8InspectorSessionImpl*) = 0;
 
     V8InspectorImpl* m_inspector;
-    int m_contextGroupId;
     InjectedScript* m_injectedScript;
 
    private:
@@ -130,11 +129,13 @@ class InjectedScript final {
     bool m_ignoreExceptionsAndMuteConsole;
     v8::debug::ExceptionBreakState m_previousPauseOnExceptionsState;
     bool m_userGesture;
+    int m_contextGroupId;
+    int m_sessionId;
   };
 
   class ContextScope : public Scope {
    public:
-    ContextScope(V8InspectorImpl*, int contextGroupId, int executionContextId);
+    ContextScope(V8InspectorSessionImpl*, int executionContextId);
     ~ContextScope();
 
    private:
@@ -146,8 +147,7 @@ class InjectedScript final {
 
   class ObjectScope : public Scope {
    public:
-    ObjectScope(V8InspectorImpl*, int contextGroupId,
-                const String16& remoteObjectId);
+    ObjectScope(V8InspectorSessionImpl*, const String16& remoteObjectId);
     ~ObjectScope();
     const String16& objectGroupName() const { return m_objectGroupName; }
     v8::Local<v8::Value> object() const { return m_object; }
@@ -163,8 +163,7 @@ class InjectedScript final {
 
   class CallFrameScope : public Scope {
    public:
-    CallFrameScope(V8InspectorImpl*, int contextGroupId,
-                   const String16& remoteCallFrameId);
+    CallFrameScope(V8InspectorSessionImpl*, const String16& remoteCallFrameId);
     ~CallFrameScope();
     size_t frameOrdinal() const { return m_frameOrdinal; }
 

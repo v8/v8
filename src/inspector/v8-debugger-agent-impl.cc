@@ -629,8 +629,7 @@ Response V8DebuggerAgentImpl::restartFrame(
     std::unique_ptr<Array<CallFrame>>* newCallFrames,
     Maybe<protocol::Runtime::StackTrace>* asyncStackTrace) {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
-  InjectedScript::CallFrameScope scope(m_inspector, m_session->contextGroupId(),
-                                       callFrameId);
+  InjectedScript::CallFrameScope scope(m_session, callFrameId);
   Response response = scope.initialize();
   if (!response.isSuccess()) return response;
   if (scope.frameOrdinal() >= m_pausedCallFrames.size())
@@ -777,8 +776,7 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
     Maybe<bool> throwOnSideEffect, std::unique_ptr<RemoteObject>* result,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
-  InjectedScript::CallFrameScope scope(m_inspector, m_session->contextGroupId(),
-                                       callFrameId);
+  InjectedScript::CallFrameScope scope(m_session, callFrameId);
   Response response = scope.initialize();
   if (!response.isSuccess()) return response;
   if (scope.frameOrdinal() >= m_pausedCallFrames.size())
@@ -808,8 +806,7 @@ Response V8DebuggerAgentImpl::setVariableValue(
     const String16& callFrameId) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
-  InjectedScript::CallFrameScope scope(m_inspector, m_session->contextGroupId(),
-                                       callFrameId);
+  InjectedScript::CallFrameScope scope(m_session, callFrameId);
   Response response = scope.initialize();
   if (!response.isSuccess()) return response;
   v8::Local<v8::Value> newValue;
