@@ -91,6 +91,10 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   UNREACHABLE();
 }
 
+Handle<Code> Builtins::builtin_handle(Name name) {
+  return Handle<Code>(reinterpret_cast<Code**>(builtin_address(name)));
+}
+
 // static
 int Builtins::GetBuiltinParameterCount(Name name) {
   switch (name) {
