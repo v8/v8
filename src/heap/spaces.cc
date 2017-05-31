@@ -634,22 +634,6 @@ void MemoryChunk::Unlink() {
   set_next_chunk(NULL);
 }
 
-void MemoryAllocator::ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink) {
-  DCHECK_GE(bytes_to_shrink, static_cast<size_t>(GetCommitPageSize()));
-  DCHECK_EQ(0u, bytes_to_shrink % GetCommitPageSize());
-  Address free_start = chunk->area_end_ - bytes_to_shrink;
-  // Don't adjust the size of the page. The area is just uncomitted but not
-  // released.
-  chunk->area_end_ -= bytes_to_shrink;
-  UncommitBlock(free_start, bytes_to_shrink);
-  if (chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-    if (chunk->reservation_.IsReserved())
-      chunk->reservation_.Guard(chunk->area_end_);
-    else
-      base::OS::Guard(chunk->area_end_, GetCommitPageSize());
-  }
-}
-
 MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                                             size_t commit_area_size,
                                             Executability executable,
@@ -797,6 +781,11 @@ size_t Page::AvailableInFreeList() {
 }
 
 size_t Page::ShrinkToHighWaterMark() {
+  // Shrinking only makes sense outside of the CodeRange, where we don't care
+  // about address space fragmentation.
+  base::VirtualMemory* reservation = reserved_memory();
+  if (!reservation->IsReserved()) return 0;
+
   // Shrink pages to high water mark. The water mark points either to a filler
   // or the area_end.
   HeapObject* filler = HeapObject::FromAddress(HighWaterMark());
@@ -826,6 +815,7 @@ size_t Page::ShrinkToHighWaterMark() {
       static_cast<size_t>(area_end() - filler->address() - FreeSpace::kSize),
       MemoryAllocator::GetCommitPageSize());
   if (unused > 0) {
+    DCHECK_EQ(0u, unused % MemoryAllocator::GetCommitPageSize());
     if (FLAG_trace_gc_verbose) {
       PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
                    reinterpret_cast<void*>(this),
@@ -836,7 +826,8 @@ size_t Page::ShrinkToHighWaterMark() {
         filler->address(),
         static_cast<int>(area_end() - filler->address() - unused),
         ClearRecordedSlots::kNo);
-    heap()->memory_allocator()->ShrinkChunk(this, unused);
+    heap()->memory_allocator()->PartialFreeMemory(this,
+                                                  address() + size() - unused);
     CHECK(filler->IsFiller());
     CHECK_EQ(filler->address() + filler->Size(), area_end());
   }
@@ -869,22 +860,23 @@ void Page::DestroyBlackArea(Address start, Address end) {
 
 size_t MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
                                           Address start_free) {
-  // We do not allow partial shrink for code.
-  DCHECK(chunk->executable() == NOT_EXECUTABLE);
-
-  intptr_t size;
   base::VirtualMemory* reservation = chunk->reserved_memory();
   DCHECK(reservation->IsReserved());
-  size = static_cast<intptr_t>(reservation->size());
-
-  size_t to_free_size = size - (start_free - chunk->address());
-
-  DCHECK(size_.Value() >= to_free_size);
+  const size_t to_free_size =
+      reservation->size() - (start_free - chunk->address());
+  DCHECK_GE(size_.Value(), to_free_size);
   size_.Decrement(to_free_size);
   isolate_->counters()->memory_allocated()->Decrement(
       static_cast<int>(to_free_size));
-  chunk->set_size(size - to_free_size);
-
+  chunk->size_ -= to_free_size;
+  chunk->area_end_ -= to_free_size;
+  if (chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(chunk->area_end_) %
+                     static_cast<uintptr_t>(GetCommitPageSize()));
+    DCHECK_EQ(chunk->address() + chunk->size(),
+              chunk->area_end() + CodePageGuardSize());
+    chunk->reservation_.Guard(chunk->area_end_);
+  }
   reservation->ReleasePartial(start_free);
   return to_free_size;
 }
@@ -1410,9 +1402,7 @@ void PagedSpace::ShrinkImmortalImmovablePages() {
     DCHECK(page->IsFlagSet(Page::NEVER_EVACUATE));
     size_t unused = page->ShrinkToHighWaterMark();
     accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
-    // Do not account for the unused space as uncommitted because the counter
-    // is kept in sync with page size which is also not adjusted for those
-    // chunks.
+    AccountUncommitted(unused);
   }
 }
 
