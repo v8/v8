@@ -1960,7 +1960,13 @@ namespace {
 debug::Location GetDebugLocation(Handle<Script> script, int source_position) {
   Script::PositionInfo info;
   Script::GetPositionInfo(script, source_position, &info, Script::WITH_OFFSET);
-  return debug::Location(info.line, info.column);
+  // V8 provides ScriptCompiler::CompileFunctionInContext method which takes
+  // expression and compile it as anonymous function like (function() ..
+  // expression ..). To produce correct locations for stmts inside of this
+  // expression V8 compile this function with negative offset. Instead of stmt
+  // position blackboxing use function start position which is negative in
+  // described case.
+  return debug::Location(std::max(info.line, 0), std::max(info.column, 0));
 }
 }  // namespace
 
