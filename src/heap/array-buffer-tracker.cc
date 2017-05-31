@@ -17,19 +17,21 @@ LocalArrayBufferTracker::~LocalArrayBufferTracker() {
 template <typename Callback>
 void LocalArrayBufferTracker::Free(Callback should_free) {
   size_t freed_memory = 0;
+  size_t retained_size = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
     JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(*it);
+    const size_t length = buffer->allocation_length();
     if (should_free(buffer)) {
-      const size_t len = buffer->allocation_length();
+      freed_memory += length;
       buffer->FreeBackingStore();
-
-      freed_memory += len;
       it = array_buffers_.erase(it);
     } else {
+      retained_size += length;
       ++it;
     }
   }
+  retained_size_ = retained_size;
   if (freed_memory > 0) {
     heap_->update_external_memory_concurrently_freed(
         static_cast<intptr_t>(freed_memory));
@@ -39,11 +41,16 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
 template <typename Callback>
 void LocalArrayBufferTracker::Process(Callback callback) {
   JSArrayBuffer* new_buffer = nullptr;
+  JSArrayBuffer* old_buffer = nullptr;
   size_t freed_memory = 0;
+  size_t retained_size = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
-    const CallbackResult result = callback(*it, &new_buffer);
+    old_buffer = reinterpret_cast<JSArrayBuffer*>(*it);
+    const size_t length = old_buffer->allocation_length();
+    const CallbackResult result = callback(old_buffer, &new_buffer);
     if (result == kKeepEntry) {
+      retained_size += length;
       ++it;
     } else if (result == kUpdateEntry) {
       DCHECK_NOT_NULL(new_buffer);
@@ -57,19 +64,19 @@ void LocalArrayBufferTracker::Process(Callback callback) {
         tracker = target_page->local_tracker();
       }
       DCHECK_NOT_NULL(tracker);
-      tracker->Add(new_buffer);
+      DCHECK_EQ(length, new_buffer->allocation_length());
+      tracker->Add(new_buffer, length);
       if (target_page->InNewSpace()) target_page->mutex()->Unlock();
       it = array_buffers_.erase(it);
     } else if (result == kRemoveEntry) {
-      JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(*it);
-      const size_t len = buffer->allocation_length();
-      buffer->FreeBackingStore();
-      freed_memory += len;
+      freed_memory += length;
+      old_buffer->FreeBackingStore();
       it = array_buffers_.erase(it);
     } else {
       UNREACHABLE();
     }
   }
+  retained_size_ = retained_size;
   if (freed_memory > 0) {
     heap_->update_external_memory_concurrently_freed(
         static_cast<intptr_t>(freed_memory));
@@ -84,6 +91,17 @@ void ArrayBufferTracker::FreeDeadInNewSpace(Heap* heap) {
     CHECK(empty);
   }
   heap->account_external_memory_concurrently_freed();
+}
+
+size_t ArrayBufferTracker::RetainedInNewSpace(Heap* heap) {
+  size_t retained_size = 0;
+  for (Page* page : PageRange(heap->new_space()->ToSpaceStart(),
+                              heap->new_space()->ToSpaceEnd())) {
+    LocalArrayBufferTracker* tracker = page->local_tracker();
+    if (tracker == nullptr) continue;
+    retained_size += tracker->retained_size();
+  }
+  return retained_size;
 }
 
 void ArrayBufferTracker::FreeDead(Page* page,

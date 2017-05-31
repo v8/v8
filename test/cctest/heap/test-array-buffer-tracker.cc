@@ -329,5 +329,40 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
   }
 }
 
+TEST(ArrayBuffer_RetainedSizeIncreases) {
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  const size_t retained_before = ArrayBufferTracker::RetainedInNewSpace(heap);
+  {
+    const size_t kArraybufferSize = 117;
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
+    USE(ab);
+    const size_t retained_after = ArrayBufferTracker::RetainedInNewSpace(heap);
+    CHECK_EQ(kArraybufferSize, retained_after - retained_before);
+  }
+}
+
+TEST(ArrayBuffer_RetainedSizeDecreases) {
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  const size_t retained_before = ArrayBufferTracker::RetainedInNewSpace(heap);
+  {
+    const size_t kArraybufferSize = 117;
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
+    USE(ab);
+  }
+  heap::GcAndSweep(heap, OLD_SPACE);
+  const size_t retained_after = ArrayBufferTracker::RetainedInNewSpace(heap);
+  CHECK_EQ(0, retained_after - retained_before);
+}
+
 }  // namespace internal
 }  // namespace v8

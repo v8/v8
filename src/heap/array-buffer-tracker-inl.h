@@ -24,7 +24,7 @@ void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
       tracker = page->local_tracker();
     }
     DCHECK_NOT_NULL(tracker);
-    tracker->Add(buffer);
+    tracker->Add(buffer, length);
   }
   // We may go over the limit of externally allocated memory here. We call the
   // api function to trigger a GC in this case.
@@ -42,12 +42,14 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
     base::LockGuard<base::RecursiveMutex> guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     DCHECK_NOT_NULL(tracker);
-    tracker->Remove(buffer);
+    tracker->Remove(buffer, length);
   }
   heap->update_external_memory(-static_cast<intptr_t>(length));
 }
 
-void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer) {
+void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
+  DCHECK_GE(retained_size_ + length, retained_size_);
+  retained_size_ += length;
   auto ret = array_buffers_.insert(buffer);
   USE(ret);
   // Check that we indeed inserted a new value and did not overwrite an existing
@@ -55,7 +57,9 @@ void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer) {
   DCHECK(ret.second);
 }
 
-void LocalArrayBufferTracker::Remove(JSArrayBuffer* buffer) {
+void LocalArrayBufferTracker::Remove(JSArrayBuffer* buffer, size_t length) {
+  DCHECK_GE(retained_size_, retained_size_ - length);
+  retained_size_ -= length;
   TrackingData::iterator it = array_buffers_.find(buffer);
   // Check that we indeed find a key to remove.
   DCHECK(it != array_buffers_.end());
