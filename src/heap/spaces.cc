@@ -867,8 +867,8 @@ void Page::DestroyBlackArea(Address start, Address end) {
           -static_cast<int>(end - start));
 }
 
-void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
-                                        Address start_free) {
+size_t MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
+                                          Address start_free) {
   // We do not allow partial shrink for code.
   DCHECK(chunk->executable() == NOT_EXECUTABLE);
 
@@ -886,6 +886,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
   chunk->set_size(size - to_free_size);
 
   reservation->ReleasePartial(start_free);
+  return to_free_size;
 }
 
 void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
@@ -3246,18 +3247,20 @@ void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
 }
 
 void LargeObjectSpace::FreeUnmarkedObjects() {
-  LargePage* previous = NULL;
+  LargePage* previous = nullptr;
   LargePage* current = first_page_;
-  while (current != NULL) {
+  while (current != nullptr) {
     HeapObject* object = current->GetObject();
     DCHECK(!ObjectMarking::IsGrey(object, MarkingState::Internal(object)));
     if (ObjectMarking::IsBlack(object, MarkingState::Internal(object))) {
       Address free_start;
       if ((free_start = current->GetAddressToShrink()) != 0) {
-        // TODO(hpayer): Perform partial free concurrently.
         current->ClearOutOfLiveRangeSlots(free_start);
         RemoveChunkMapEntries(current, free_start);
-        heap()->memory_allocator()->PartialFreeMemory(current, free_start);
+        const size_t freed =
+            heap()->memory_allocator()->PartialFreeMemory(current, free_start);
+        size_ -= freed;
+        AccountUncommitted(freed);
       }
       previous = current;
       current = current->next_page();
@@ -3265,7 +3268,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       LargePage* page = current;
       // Cut the chunk out from the chunk list.
       current = current->next_page();
-      if (previous == NULL) {
+      if (previous == nullptr) {
         first_page_ = current;
       } else {
         previous->set_next_page(current);

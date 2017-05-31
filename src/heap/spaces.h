@@ -1346,8 +1346,10 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   bool CommitMemory(Address addr, size_t size, Executability executable);
 
   void FreeMemory(base::VirtualMemory* reservation, Executability executable);
-  void PartialFreeMemory(MemoryChunk* chunk, Address start_free);
   void FreeMemory(Address addr, size_t size, Executability executable);
+
+  // Returns the size of the freed memory in bytes.
+  size_t PartialFreeMemory(MemoryChunk* chunk, Address start_free);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
   // the address is not NULL, the size is greater than zero, and that the
