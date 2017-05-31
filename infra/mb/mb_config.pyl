@@ -112,6 +112,10 @@
           'gn_debug_simulate_arm_asan_edge',
       'V8 Linux ASAN mipsel - debug builder':
           'gn_debug_simulate_mipsel_asan_edge',
+      'V8 Linux MSAN no origins':
+          'gn_release_simulate_arm64_msan_no_origins_edge',
+      'V8 Linux MSAN chained origins':
+          'gn_release_simulate_arm64_msan_edge',
     },
     'client.v8.ports': {
       # Arm.
@@ -319,6 +323,10 @@
     'gn_release_simulate_arm64_msan_minimal_symbols': [
       'gn', 'release_bot', 'simulate_arm64', 'msan', 'minimal_symbols',
       'swarming'],
+    'gn_release_simulate_arm64_msan_edge': [
+      'gn', 'release_bot', 'simulate_arm64', 'edge', 'msan'],
+    'gn_release_simulate_arm64_msan_no_origins_edge': [
+      'gn', 'release_bot', 'simulate_arm64', 'edge', 'msan_no_origins'],
     'gn_release_simulate_arm64_trybot': [
       'gn', 'release_trybot', 'simulate_arm64', 'swarming'],
     'gn_release_simulate_mipsel': [
@@ -609,8 +617,11 @@
     'msan': {
       'gn_args': ('is_msan=true msan_track_origins=2 '
                   'use_prebuilt_instrumented_libraries=true'),
-      'gyp_defines': ('clang=1 msan=1 msan_track_origins=2 '
-                      'use_prebuilt_instrumented_libraries=1'),
+    },
+
+    'msan_no_origins': {
+      'gn_args': ('is_msan=true msan_track_origins=0 '
+                  'use_prebuilt_instrumented_libraries=true'),
     },
 
     'release': {
