@@ -378,11 +378,11 @@ Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    imm32_ = reinterpret_cast<intptr_t>(handle.location());
+    value_.immediate = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
     // no relocation needed
-    imm32_ = reinterpret_cast<intptr_t>(obj);
+    value_.immediate = reinterpret_cast<intptr_t>(obj);
     rmode_ = RelocInfo::NONE32;
   }
 }
@@ -417,6 +417,14 @@ Operand::Operand(Register rm, ShiftOp shift_op, Register rs) {
   rs_ = rs;
 }
 
+Operand Operand::EmbeddedNumber(double value) {
+  int32_t smi;
+  if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_number_ = true;
+  result.value_.heap_number = value;
+  return result;
+}
 
 MemOperand::MemOperand(Register rn, int32_t offset, AddrMode am) {
   rn_ = rn;
@@ -568,13 +576,15 @@ Assembler::~Assembler() {
   DCHECK(const_pool_blocked_nesting_ == 0);
 }
 
-
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // Emit constant pool if necessary.
   int constant_pool_offset = 0;
   CheckConstPool(true, false);
   DCHECK(pending_32_bit_constants_.empty());
   DCHECK(pending_64_bit_constants_.empty());
+
+  AllocateRequestedHeapNumbers(isolate);
+
   // Set up code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
@@ -1132,7 +1142,7 @@ int Operand::instructions_required(const Assembler* assembler,
   if (rm_.is_valid()) return 1;
   uint32_t dummy1, dummy2;
   if (must_output_reloc_info(assembler) ||
-      !fits_shifter(imm32_, &dummy1, &dummy2, &instr)) {
+      !fits_shifter(immediate(), &dummy1, &dummy2, &instr)) {
     // The immediate operand cannot be encoded as a shifter operand, or use of
     // constant pool is required.  First account for the instructions required
     // for the constant pool or immediate load
@@ -1170,7 +1180,7 @@ void Assembler::move_32_bit_immediate(Register rd,
     DCHECK(!x.must_output_reloc_info(this));
     Register target = rd.code() == pc.code() ? ip : rd;
     if (CpuFeatures::IsSupported(ARMv7)) {
-      uint32_t imm32 = static_cast<uint32_t>(x.imm32_);
+      uint32_t imm32 = static_cast<uint32_t>(x.immediate());
       CpuFeatureScope scope(this, ARMv7);
       movw(target, imm32 & 0xffff, cond);
       movt(target, imm32 >> 16, cond);
@@ -1179,7 +1189,14 @@ void Assembler::move_32_bit_immediate(Register rd,
       mov(rd, target, LeaveCC, cond);
     }
   } else {
-    ConstantPoolAddEntry(pc_offset(), x.rmode_, x.imm32_);
+    int32_t immediate;
+    if (x.is_heap_number()) {
+      RequestHeapNumber(x.heap_number());
+      immediate = 0;
+    } else {
+      immediate = x.immediate();
+    }
+    ConstantPoolAddEntry(pc_offset(), x.rmode_, immediate);
     ldr(rd, MemOperand(pc, 0), cond);
   }
 }
@@ -1196,7 +1213,7 @@ void Assembler::addrmod1(Instr instr,
     uint32_t rotate_imm;
     uint32_t immed_8;
     if (x.must_output_reloc_info(this) ||
-        !fits_shifter(x.imm32_, &rotate_imm, &immed_8, &instr)) {
+        !fits_shifter(x.immediate(), &rotate_imm, &immed_8, &instr)) {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
       // However, if the original instruction is a 'mov rd, x' (not setting the
@@ -2010,7 +2027,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
     uint32_t rotate_imm;
     uint32_t immed_8;
     if (src.must_output_reloc_info(this) ||
-        !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
+        !fits_shifter(src.immediate(), &rotate_imm, &immed_8, NULL)) {
       // Immediate operand cannot be encoded, load it first to register ip.
       move_32_bit_immediate(ip, src);
       msr(fields, Operand(ip), cond);

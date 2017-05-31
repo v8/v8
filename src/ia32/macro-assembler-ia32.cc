@@ -743,13 +743,13 @@ void MacroAssembler::SarPair_cl(Register high, Register low) {
 bool MacroAssembler::IsUnsafeImmediate(const Immediate& x) {
   static const int kMaxImmediateBits = 17;
   if (!RelocInfo::IsNone(x.rmode_)) return false;
-  return !is_intn(x.x_, kMaxImmediateBits);
+  return !is_intn(x.immediate(), kMaxImmediateBits);
 }
 
 
 void MacroAssembler::SafeMove(Register dst, const Immediate& x) {
   if (IsUnsafeImmediate(x) && jit_cookie() != 0) {
-    Move(dst, Immediate(x.x_ ^ jit_cookie()));
+    Move(dst, Immediate(x.immediate() ^ jit_cookie()));
     xor_(dst, jit_cookie());
   } else {
     Move(dst, x);
@@ -759,7 +759,7 @@ void MacroAssembler::SafeMove(Register dst, const Immediate& x) {
 
 void MacroAssembler::SafePush(const Immediate& x) {
   if (IsUnsafeImmediate(x) && jit_cookie() != 0) {
-    push(Immediate(x.x_ ^ jit_cookie()));
+    push(Immediate(x.immediate() ^ jit_cookie()));
     xor_(Operand(esp, 0), Immediate(jit_cookie()));
   } else {
     push(x);
@@ -2052,7 +2052,7 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 
 void MacroAssembler::Move(Register dst, const Immediate& x) {
-  if (x.is_zero() && RelocInfo::IsNone(x.rmode_)) {
+  if (!x.is_heap_number() && x.is_zero() && RelocInfo::IsNone(x.rmode_)) {
     xor_(dst, dst);  // Shorter than mov of 32-bit immediate 0.
   } else {
     mov(dst, x);

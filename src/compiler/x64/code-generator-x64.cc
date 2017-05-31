@@ -3020,12 +3020,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         case Constant::kFloat32:
-          __ Move(dst,
-                  isolate()->factory()->NewNumber(src.ToFloat32(), TENURED));
+          __ MoveNumber(dst, src.ToFloat32());
           break;
         case Constant::kFloat64:
-          __ Move(dst,
-                  isolate()->factory()->NewNumber(src.ToFloat64(), TENURED));
+          __ MoveNumber(dst, src.ToFloat64());
           break;
         case Constant::kExternalReference:
           __ Move(dst, src.ToExternalReference());

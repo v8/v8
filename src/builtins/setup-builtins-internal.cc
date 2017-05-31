@@ -50,7 +50,7 @@ Code* BuildWithMacroAssembler(Isolate* isolate,
   DCHECK(!masm.has_frame());
   generator(&masm);
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code =
       isolate->factory()->NewCode(desc, flags, masm.CodeObject());
   PostBuildProfileAndTracing(isolate, *code, s_name);
@@ -70,7 +70,7 @@ Code* BuildAdaptor(Isolate* isolate, Address builtin_address,
   DCHECK(!masm.has_frame());
   Builtins::Generate_Adaptor(&masm, builtin_address, exit_frame_type);
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code =
       isolate->factory()->NewCode(desc, flags, masm.CodeObject());
   PostBuildProfileAndTracing(isolate, *code, name);

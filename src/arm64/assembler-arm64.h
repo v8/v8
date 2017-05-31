@@ -686,6 +686,20 @@ class Operand {
                  Extend extend,
                  unsigned shift_amount = 0);
 
+  static Operand EmbeddedNumber(double value);  // Smi or HeapNumber.
+
+  bool is_heap_number() const {
+    DCHECK_IMPLIES(is_heap_number_, reg_.Is(NoReg));
+    DCHECK_IMPLIES(is_heap_number_,
+                   immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT);
+    return is_heap_number_;
+  }
+
+  double heap_number() const {
+    DCHECK(is_heap_number());
+    return bit_cast<double>(immediate_.value());
+  }
+
   template<typename T>
   inline explicit Operand(Handle<T> handle);
 
@@ -726,6 +740,7 @@ class Operand {
   Shift shift_;
   Extend extend_;
   unsigned shift_amount_;
+  bool is_heap_number_ = false;
 };
 
 
@@ -876,7 +891,7 @@ class Assembler : public AssemblerBase {
   //
   // The descriptor (desc) can be NULL. In that case, the code is finalized as
   // usual, but the descriptor is not populated.
-  void GetCode(CodeDesc* desc);
+  void GetCode(Isolate* isolate, CodeDesc* desc);
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -1060,6 +1075,10 @@ class Assembler : public AssemblerBase {
   // the marker and branch over the data.
   void RecordConstPool(int size);
 
+  // Patch the dummy heap number that we emitted during code assembly in the
+  // constant pool entry referenced by {pc}. Replace it with the actual heap
+  // object (handle).
+  static void set_heap_number(Handle<HeapObject> number, Address pc);
 
   // Instruction set functions ------------------------------------------------
 
@@ -1588,6 +1607,7 @@ class Assembler : public AssemblerBase {
 
   // Load literal to register.
   void ldr(const CPURegister& rt, const Immediate& imm);
+  void ldr(const CPURegister& rt, const Operand& operand);
 
   // Load-acquire word.
   void ldar(const Register& rt, const Register& rn);

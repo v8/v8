@@ -295,23 +295,23 @@ void RelocInfo::Visit(Heap* heap) {
 
 
 Immediate::Immediate(int x)  {
-  x_ = x;
+  value_.immediate = x;
   rmode_ = RelocInfo::NONE32;
 }
 
 Immediate::Immediate(Address x, RelocInfo::Mode rmode) {
-  x_ = reinterpret_cast<int32_t>(x);
+  value_.immediate = reinterpret_cast<int32_t>(x);
   rmode_ = rmode;
 }
 
 Immediate::Immediate(const ExternalReference& ext) {
-  x_ = reinterpret_cast<int32_t>(ext.address());
+  value_.immediate = reinterpret_cast<int32_t>(ext.address());
   rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 
 Immediate::Immediate(Label* internal_offset) {
-  x_ = reinterpret_cast<int32_t>(internal_offset);
+  value_.immediate = reinterpret_cast<int32_t>(internal_offset);
   rmode_ = RelocInfo::INTERNAL_REFERENCE;
 }
 
@@ -321,24 +321,24 @@ Immediate::Immediate(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    x_ = reinterpret_cast<intptr_t>(handle.location());
+    value_.immediate = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
     // no relocation needed
-    x_ =  reinterpret_cast<intptr_t>(obj);
+    value_.immediate = reinterpret_cast<intptr_t>(obj);
     rmode_ = RelocInfo::NONE32;
   }
 }
 
 
 Immediate::Immediate(Smi* value) {
-  x_ = reinterpret_cast<intptr_t>(value);
+  value_.immediate = reinterpret_cast<intptr_t>(value);
   rmode_ = RelocInfo::NONE32;
 }
 
 
 Immediate::Immediate(Address addr) {
-  x_ = reinterpret_cast<int32_t>(addr);
+  value_.immediate = reinterpret_cast<int32_t>(addr);
   rmode_ = RelocInfo::NONE32;
 }
 
@@ -390,12 +390,17 @@ void Assembler::emit(Handle<Code> code,
 
 void Assembler::emit(const Immediate& x) {
   if (x.rmode_ == RelocInfo::INTERNAL_REFERENCE) {
-    Label* label = reinterpret_cast<Label*>(x.x_);
+    Label* label = reinterpret_cast<Label*>(x.immediate());
     emit_code_relative_offset(label);
     return;
   }
   if (!RelocInfo::IsNone(x.rmode_)) RecordRelocInfo(x.rmode_);
-  emit(x.x_);
+  if (x.is_heap_number()) {
+    RequestHeapNumber(x.heap_number());
+    emit(0);
+  } else {
+    emit(x.immediate());
+  }
 }
 
 
@@ -411,13 +416,13 @@ void Assembler::emit_code_relative_offset(Label* label) {
 
 void Assembler::emit_b(Immediate x) {
   DCHECK(x.is_int8() || x.is_uint8());
-  uint8_t value = static_cast<uint8_t>(x.x_);
+  uint8_t value = static_cast<uint8_t>(x.immediate());
   *pc_++ = value;
 }
 
 void Assembler::emit_w(const Immediate& x) {
   DCHECK(RelocInfo::IsNone(x.rmode_));
-  uint16_t value = static_cast<uint16_t>(x.x_);
+  uint16_t value = static_cast<uint16_t>(x.immediate());
   reinterpret_cast<uint16_t*>(pc_)[0] = value;
   pc_ += sizeof(uint16_t);
 }
@@ -544,7 +549,7 @@ Operand::Operand(int32_t disp, RelocInfo::Mode rmode) {
 Operand::Operand(Immediate imm) {
   // [disp/r]
   set_modrm(0, ebp);
-  set_dispr(imm.x_, imm.rmode_);
+  set_dispr(imm.immediate(), imm.rmode_);
 }
 }  // namespace internal
 }  // namespace v8

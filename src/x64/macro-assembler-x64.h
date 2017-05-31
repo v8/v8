@@ -830,6 +830,9 @@ class MacroAssembler: public Assembler {
   void Cmp(const Operand& dst, Smi* src);
   void Push(Handle<Object> source);
 
+  // Move a Smi or HeapNumber.
+  void MoveNumber(Register dst, double value);
+
   // Load a heap object and handle the case of new-space objects by
   // indirecting via a global cell.
   void MoveHeapObject(Register result, Handle<Object> object);

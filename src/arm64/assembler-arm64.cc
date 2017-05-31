@@ -39,7 +39,6 @@
 namespace v8 {
 namespace internal {
 
-
 // -----------------------------------------------------------------------------
 // CpuFeatures implementation.
 
@@ -619,11 +618,17 @@ void Assembler::Reset() {
   ClearRecordedAstId();
 }
 
+void Assembler::set_heap_number(Handle<HeapObject> number, Address pc) {
+  Memory::Address_at(target_pointer_address_at(pc)) =
+      reinterpret_cast<Address>(number.location());
+}
 
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
   DCHECK(constpool_.IsEmpty());
+
+  AllocateRequestedHeapNumbers(isolate);
 
   // Set up code descriptor.
   if (desc) {
@@ -1713,6 +1718,24 @@ void Assembler::ldr_pcrel(const CPURegister& rt, int imm19) {
   Emit(LoadLiteralOpFor(rt) | ImmLLiteral(imm19) | Rt(rt));
 }
 
+Operand Operand::EmbeddedNumber(double value) {
+  int32_t smi;
+  if (DoubleToSmiInteger(value, &smi)) {
+    return Operand(Immediate(Smi::FromInt(smi)));
+  }
+  Operand result(bit_cast<int64_t>(value), RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_number_ = true;
+  return result;
+}
+
+void Assembler::ldr(const CPURegister& rt, const Operand& operand) {
+  if (operand.is_heap_number()) {
+    RequestHeapNumber(operand.heap_number());
+    ldr(rt, Immediate(0, RelocInfo::EMBEDDED_OBJECT));
+  } else {
+    ldr(rt, operand.immediate());
+  }
+}
 
 void Assembler::ldr(const CPURegister& rt, const Immediate& imm) {
   // Currently we only support 64-bit literals.

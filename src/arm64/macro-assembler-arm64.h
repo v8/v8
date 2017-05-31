@@ -482,7 +482,7 @@ class MacroAssembler : public Assembler {
                    const CPURegister& rt2,
                    const MemOperand& src);
   // Load a literal from the inline constant pool.
-  inline void Ldr(const CPURegister& rt, const Immediate& imm);
+  inline void Ldr(const CPURegister& rt, const Operand& imm);
   // Helper function for double immediate.
   inline void Ldr(const CPURegister& rt, double imm);
   inline void Lsl(const Register& rd, const Register& rn, unsigned shift);

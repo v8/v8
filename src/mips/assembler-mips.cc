@@ -311,8 +311,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   ClearRecordedAstId();
 }
 
-
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   EmitForbiddenSlotInstruction();
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
   // Set up code descriptor.

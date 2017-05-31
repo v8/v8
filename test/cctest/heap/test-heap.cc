@@ -190,7 +190,7 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   masm.Push(value);
 
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -212,7 +212,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
   __ nop();  // supported on all architectures
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   CHECK(code->IsCode());
@@ -4337,7 +4337,7 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   CodeDesc desc;
   masm.Push(isolate->factory()->undefined_value());
   masm.Drop(1);
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::OPTIMIZED_FUNCTION), undefined);

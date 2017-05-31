@@ -56,6 +56,15 @@
 namespace v8 {
 namespace internal {
 
+Immediate Immediate::EmbeddedNumber(double value) {
+  int32_t smi;
+  if (DoubleToSmiInteger(value, &smi)) return Immediate(Smi::FromInt(smi));
+  Immediate result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_number_ = true;
+  result.value_.heap_number = value;
+  return result;
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
 
@@ -320,11 +329,13 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 }
 
-
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // Finalize code (at this point overflow() may be true, but the gap ensures
   // that we are still not overlapping instructions and relocation info).
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
+
+  AllocateRequestedHeapNumbers(isolate);
+
   // Set up code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
@@ -459,7 +470,7 @@ void Assembler::push(const Immediate& x) {
   EnsureSpace ensure_space(this);
   if (x.is_int8()) {
     EMIT(0x6a);
-    EMIT(x.x_);
+    EMIT(x.immediate());
   } else {
     EMIT(0x68);
     emit(x);
@@ -527,7 +538,7 @@ void Assembler::mov_b(const Operand& dst, const Immediate& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xC6);
   emit_operand(eax, dst);
-  EMIT(static_cast<int8_t>(src.x_));
+  EMIT(static_cast<int8_t>(src.immediate()));
 }
 
 
@@ -560,8 +571,8 @@ void Assembler::mov_w(const Operand& dst, const Immediate& src) {
   EMIT(0x66);
   EMIT(0xC7);
   emit_operand(eax, dst);
-  EMIT(static_cast<int8_t>(src.x_ & 0xff));
-  EMIT(static_cast<int8_t>(src.x_ >> 8));
+  EMIT(static_cast<int8_t>(src.immediate() & 0xff));
+  EMIT(static_cast<int8_t>(src.immediate() >> 8));
 }
 
 
@@ -1304,7 +1315,7 @@ void Assembler::test_b(Register reg, Immediate imm8) {
     EMIT(0xA8);
     emit_b(imm8);
   } else if (reg.is_byte_register()) {
-    emit_arith_b(0xF6, 0xC0, reg, static_cast<uint8_t>(imm8.x_));
+    emit_arith_b(0xF6, 0xC0, reg, static_cast<uint8_t>(imm8.immediate()));
   } else {
     EMIT(0x66);
     EMIT(0xF7);
@@ -3074,7 +3085,7 @@ void Assembler::emit_arith(int sel, Operand dst, const Immediate& x) {
   if (x.is_int8()) {
     EMIT(0x83);  // using a sign-extended 8-bit immediate.
     emit_operand(ireg, dst);
-    EMIT(x.x_ & 0xFF);
+    EMIT(x.immediate() & 0xFF);
   } else if (dst.is_reg(eax)) {
     EMIT((sel << 3) | 0x05);  // short form if the destination is eax.
     emit(x);

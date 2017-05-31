@@ -190,6 +190,19 @@ void AssemblerBase::Print(Isolate* isolate) {
   v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_, nullptr);
 }
 
+AssemblerBase::RequestedHeapNumber::RequestedHeapNumber(double value,
+                                                        int offset)
+    : value(value), offset(offset) {
+  DCHECK(!IsSmiDouble(value));
+}
+
+void AssemblerBase::AllocateRequestedHeapNumbers(Isolate* isolate) {
+  for (auto& heap_number : heap_numbers_) {
+    Handle<HeapObject> object = isolate->factory()->NewHeapNumber(
+        heap_number.value, IMMUTABLE, TENURED);
+    Assembler::set_heap_number(object, buffer_ + heap_number.offset);
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of PredictableCodeSizeScope
@@ -1991,5 +2004,6 @@ void Assembler::DataAlign(int m) {
     db(0);
   }
 }
+
 }  // namespace internal
 }  // namespace v8

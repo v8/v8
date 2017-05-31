@@ -144,7 +144,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 
   // Create the code object.
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
   Code::Flags flags = Code::ComputeFlags(GetCodeKind(), GetExtraICState());
   Handle<Code> new_object = factory->NewCode(

@@ -802,10 +802,9 @@ void MacroAssembler::Isb() {
   isb();
 }
 
-
-void MacroAssembler::Ldr(const CPURegister& rt, const Immediate& imm) {
+void MacroAssembler::Ldr(const CPURegister& rt, const Operand& operand) {
   DCHECK(allow_macro_instructions_);
-  ldr(rt, imm);
+  ldr(rt, operand);
 }
 
 

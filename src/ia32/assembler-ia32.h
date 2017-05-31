@@ -275,28 +275,50 @@ class Immediate BASE_EMBEDDED {
   inline explicit Immediate(Address addr);
   inline explicit Immediate(Address x, RelocInfo::Mode rmode);
 
+  static Immediate EmbeddedNumber(double value);  // Smi or HeapNumber.
+
   static Immediate CodeRelativeOffset(Label* label) {
     return Immediate(label);
   }
 
-  bool is_zero() const { return x_ == 0 && RelocInfo::IsNone(rmode_); }
+  bool is_heap_number() const {
+    DCHECK_IMPLIES(is_heap_number_, rmode_ == RelocInfo::EMBEDDED_OBJECT);
+    return is_heap_number_;
+  }
+
+  double heap_number() const {
+    DCHECK(is_heap_number());
+    return value_.heap_number;
+  }
+
+  int immediate() const {
+    DCHECK(!is_heap_number());
+    return value_.immediate;
+  }
+
+  bool is_zero() const { return RelocInfo::IsNone(rmode_) && immediate() == 0; }
   bool is_int8() const {
-    return -128 <= x_ && x_ < 128 && RelocInfo::IsNone(rmode_);
+    return RelocInfo::IsNone(rmode_) && i::is_int8(immediate());
   }
   bool is_uint8() const {
-    return v8::internal::is_uint8(x_) && RelocInfo::IsNone(rmode_);
+    return RelocInfo::IsNone(rmode_) && i::is_uint8(immediate());
   }
   bool is_int16() const {
-    return -32768 <= x_ && x_ < 32768 && RelocInfo::IsNone(rmode_);
+    return RelocInfo::IsNone(rmode_) && i::is_int16(immediate());
   }
+
   bool is_uint16() const {
-    return v8::internal::is_uint16(x_) && RelocInfo::IsNone(rmode_);
+    return RelocInfo::IsNone(rmode_) && i::is_uint16(immediate());
   }
 
  private:
   inline explicit Immediate(Label* value);
 
-  int x_;
+  union {
+    double heap_number;
+    int immediate;
+  } value_;
+  bool is_heap_number_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Operand;
@@ -375,7 +397,7 @@ class Operand BASE_EMBEDDED {
   }
 
   static Operand ForRegisterPlusImmediate(Register base, Immediate imm) {
-    return Operand(base, imm.x_, imm.rmode_);
+    return Operand(base, imm.value_.immediate, imm.rmode_);
   }
 
   // Returns true if this Operand is a wrapper for the specified register.
@@ -493,7 +515,7 @@ class Assembler : public AssemblerBase {
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(CodeDesc* desc);
+  void GetCode(Isolate* isolate, CodeDesc* desc);
 
   // Read/Modify the code target in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
@@ -1613,6 +1635,12 @@ class Assembler : public AssemblerBase {
                                           ConstantPoolEntry::Type type) {
     // No embedded constant pool support.
     UNREACHABLE();
+  }
+
+  // Patch the dummy heap number that we emitted at {pc} during code assembly
+  // with the actual heap object (handle).
+  static void set_heap_number(Handle<HeapObject> number, Address pc) {
+    Memory::Object_Handle_at(pc) = number;
   }
 
  protected:

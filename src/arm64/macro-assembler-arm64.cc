@@ -252,7 +252,7 @@ void MacroAssembler::Mov(const Register& rd,
   Register dst = (rd.IsSP()) ? temps.AcquireSameSizeAs(rd) : rd;
 
   if (operand.NeedsRelocation(this)) {
-    Ldr(dst, operand.immediate());
+    Ldr(dst, operand);
 
   } else if (operand.IsImmediate()) {
     // Call the macro assembler for generic immediates.

@@ -35,6 +35,8 @@
 #ifndef V8_ASSEMBLER_H_
 #define V8_ASSEMBLER_H_
 
+#include <forward_list>
+
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
 #include "src/deoptimize-reason.h"
@@ -147,6 +149,17 @@ class AssemblerBase: public Malloced {
   // The program counter, which points into the buffer above and moves forward.
   byte* pc_;
 
+  // The following two functions help with avoiding allocations of heap numbers
+  // during the code assembly phase. {RequestHeapNumber} records the need for a
+  // future heap number allocation, together with the current pc offset. After
+  // code assembly, {AllocateRequestedHeapNumbers} will allocate these numbers
+  // and, with the help of {Assembler::set_heap_number}, place them where they
+  // are expected (determined by the recorded pc offset).
+  void RequestHeapNumber(double value) {
+    heap_numbers_.emplace_front(value, pc_offset());
+  }
+  void AllocateRequestedHeapNumbers(Isolate* isolate);
+
  private:
   IsolateData isolate_data_;
   uint64_t enabled_cpu_features_;
@@ -160,6 +173,16 @@ class AssemblerBase: public Malloced {
   // Constant pool.
   friend class FrameAndConstantPoolScope;
   friend class ConstantPoolUnavailableScope;
+
+  // Delayed allocation of heap numbers.
+  struct RequestedHeapNumber {
+    RequestedHeapNumber(double value, int offset);
+    double value;  // The number for which we later need to create a HeapObject.
+    int offset;  // The {buffer_} offset where we emitted a dummy that needs to
+                 // get replaced by the actual HeapObject via
+                 // {Assembler::set_heap_number}.
+  };
+  std::forward_list<RequestedHeapNumber> heap_numbers_;
 };
 
 

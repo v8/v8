@@ -2501,6 +2501,14 @@ void MacroAssembler::Move(Register dst, Register src) {
   }
 }
 
+void MacroAssembler::MoveNumber(Register dst, double value) {
+  int32_t smi;
+  if (DoubleToSmiInteger(value, &smi)) {
+    Move(dst, Smi::FromInt(smi));
+  } else {
+    movp_heap_number(dst, value);
+  }
+}
 
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
   AllowDeferredHandleDereference smi_check;

@@ -83,10 +83,6 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     return InputRegister64(index);
   }
 
-  Operand InputImmediate(size_t index) {
-    return ToImmediate(instr_->InputAt(index));
-  }
-
   Operand InputOperand(size_t index) {
     return ToOperand(instr_->InputAt(index));
   }
@@ -225,11 +221,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
           return Operand(constant.ToInt64());
         }
       case Constant::kFloat32:
-        return Operand(
-            isolate()->factory()->NewNumber(constant.ToFloat32(), TENURED));
+        return Operand(Operand::EmbeddedNumber(constant.ToFloat32()));
       case Constant::kFloat64:
-        return Operand(
-            isolate()->factory()->NewNumber(constant.ToFloat64(), TENURED));
+        return Operand(Operand::EmbeddedNumber(constant.ToFloat64()));
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
       case Constant::kHeapObject:

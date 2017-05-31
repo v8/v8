@@ -71,28 +71,28 @@ using namespace v8::internal;
   DisassemblingDecoder* disasm = new DisassemblingDecoder(); \
   decoder->AppendVisitor(disasm)
 
-#define COMPARE(ASM, EXP)                                                      \
-  assm->Reset();                                                               \
-  assm->ASM;                                                                   \
-  assm->GetCode(NULL);                                                         \
-  decoder->Decode(reinterpret_cast<Instruction*>(buf));                        \
-  encoding = *reinterpret_cast<uint32_t*>(buf);                                \
-  if (strcmp(disasm->GetOutput(), EXP) != 0) {                                 \
-    printf("%u : Encoding: %08" PRIx32 "\nExpected: %s\nFound:    %s\n",       \
-           __LINE__, encoding, EXP, disasm->GetOutput());                      \
-    abort();                                                                   \
+#define COMPARE(ASM, EXP)                                                \
+  assm->Reset();                                                         \
+  assm->ASM;                                                             \
+  assm->GetCode(isolate, NULL);                                          \
+  decoder->Decode(reinterpret_cast<Instruction*>(buf));                  \
+  encoding = *reinterpret_cast<uint32_t*>(buf);                          \
+  if (strcmp(disasm->GetOutput(), EXP) != 0) {                           \
+    printf("%u : Encoding: %08" PRIx32 "\nExpected: %s\nFound:    %s\n", \
+           __LINE__, encoding, EXP, disasm->GetOutput());                \
+    abort();                                                             \
   }
 
-#define COMPARE_PREFIX(ASM, EXP)                                               \
-  assm->Reset();                                                               \
-  assm->ASM;                                                                   \
-  assm->GetCode(NULL);                                                         \
-  decoder->Decode(reinterpret_cast<Instruction*>(buf));                        \
-  encoding = *reinterpret_cast<uint32_t*>(buf);                                \
-  if (strncmp(disasm->GetOutput(), EXP, strlen(EXP)) != 0) {                   \
-    printf("%u : Encoding: %08" PRIx32 "\nExpected: %s\nFound:    %s\n",       \
-           __LINE__, encoding, EXP, disasm->GetOutput());                      \
-    abort();                                                                   \
+#define COMPARE_PREFIX(ASM, EXP)                                         \
+  assm->Reset();                                                         \
+  assm->ASM;                                                             \
+  assm->GetCode(isolate, NULL);                                          \
+  decoder->Decode(reinterpret_cast<Instruction*>(buf));                  \
+  encoding = *reinterpret_cast<uint32_t*>(buf);                          \
+  if (strncmp(disasm->GetOutput(), EXP, strlen(EXP)) != 0) {             \
+    printf("%u : Encoding: %08" PRIx32 "\nExpected: %s\nFound:    %s\n", \
+           __LINE__, encoding, EXP, disasm->GetOutput());                \
+    abort();                                                             \
   }
 
 #define CLEANUP() \

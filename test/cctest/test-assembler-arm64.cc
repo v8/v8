@@ -160,12 +160,12 @@ static void InitializeVM() {
 #define RUN()                                                                  \
   simulator.RunFrom(reinterpret_cast<Instruction*>(buf))
 
-#define END()                                                                  \
-  __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL);                    \
-  core.Dump(&masm);                                                            \
-  __ PopCalleeSavedRegisters();                                                \
-  __ Ret();                                                                    \
-  __ GetCode(NULL);
+#define END()                                               \
+  __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL); \
+  core.Dump(&masm);                                         \
+  __ PopCalleeSavedRegisters();                             \
+  __ Ret();                                                 \
+  __ GetCode(masm.isolate(), NULL);
 
 #define TEARDOWN()                                                             \
   delete pdis;                                                                 \
@@ -207,11 +207,11 @@ static void InitializeVM() {
     test_function();                                                \
   }
 
-#define END()                                                                  \
-  core.Dump(&masm);                                                            \
-  __ PopCalleeSavedRegisters();                                                \
-  __ Ret();                                                                    \
-  __ GetCode(NULL);
+#define END()                   \
+  core.Dump(&masm);             \
+  __ PopCalleeSavedRegisters(); \
+  __ Ret();                     \
+  __ GetCode(masm.isolate(), NULL);
 
 #define TEARDOWN()                                                             \
   v8::base::OS::Free(buf, actual_size);
@@ -15251,7 +15251,7 @@ TEST(pool_size) {
 
   HandleScope handle_scope(isolate);
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(desc, 0, masm.CodeObject());
 
   unsigned pool_count = 0;

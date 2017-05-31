@@ -354,7 +354,6 @@ Immediate::Immediate(T t, RelocInfo::Mode rmode)
   STATIC_ASSERT(ImmediateInitializer<T>::kIsIntType);
 }
 
-
 // Operand.
 template<typename T>
 Operand::Operand(Handle<T> value) : immediate_(value), reg_(NoReg) {}
@@ -368,7 +367,6 @@ template<typename T>
 Operand::Operand(T t, RelocInfo::Mode rmode)
     : immediate_(t, rmode),
       reg_(NoReg) {}
-
 
 Operand::Operand(Register reg, Shift shift, unsigned shift_amount)
     : immediate_(0),
@@ -398,7 +396,7 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
 
 
 bool Operand::IsImmediate() const {
-  return reg_.Is(NoReg);
+  return reg_.Is(NoReg) && !is_heap_number();
 }
 
 
