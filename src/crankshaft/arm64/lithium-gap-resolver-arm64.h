@@ -68,7 +68,7 @@ class LGapResolver BASE_EMBEDDED {
   // These two methods switch from one mode to the other.
   void AcquireSavedValueRegister() { masm_.AcquireScratchRegister(); }
   void ReleaseSavedValueRegister() { masm_.ReleaseScratchRegister(); }
-  const FPRegister& SavedFPValueRegister() {
+  const VRegister& SavedFPValueRegister() {
     // We use the Crankshaft floating-point scratch register to break a cycle
     // involving double values as the MacroAssembler will not need it for the
     // operations performed by the gap resolver.
