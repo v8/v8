@@ -277,7 +277,6 @@ bool SharedFunctionInfo::has_simple_parameters() {
 bool SharedFunctionInfo::HasDebugInfo() const {
   bool has_debug_info = !debug_info()->IsSmi();
   DCHECK_EQ(debug_info()->IsStruct(), has_debug_info);
-  DCHECK(!has_debug_info || HasDebugCode());
   return has_debug_info;
 }
 

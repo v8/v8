@@ -13377,6 +13377,14 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
   shared->set_script(*script_object);
 }
 
+bool SharedFunctionInfo::HasBreakInfo() const {
+  if (!HasDebugInfo()) return false;
+  DebugInfo* info = DebugInfo::cast(debug_info());
+  bool has_break_info = info->HasBreakInfo();
+  DCHECK_IMPLIES(has_break_info, HasDebugCode());
+  return has_break_info;
+}
+
 DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
   DCHECK(HasDebugInfo());
   return DebugInfo::cast(debug_info());

@@ -511,7 +511,7 @@ void Debug::Break(JavaScriptFrame* frame) {
   // Return if we fail to retrieve debug info.
   Handle<JSFunction> function(frame->function());
   Handle<SharedFunctionInfo> shared(function->shared());
-  if (!EnsureDebugInfo(shared)) return;
+  if (!EnsureBreakInfo(shared)) return;
   Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
 
   // Find the break location where execution has stopped.
@@ -612,7 +612,7 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
   FrameSummary summary = FrameSummary::GetTop(frame);
   DCHECK(!summary.IsWasm());
   Handle<JSFunction> function = summary.AsJavaScript().function();
-  if (!function->shared()->HasDebugInfo()) return false;
+  if (!function->shared()->HasBreakInfo()) return false;
   Handle<DebugInfo> debug_info(function->shared()->GetDebugInfo());
   // Enter the debugger.
   DebugScope debug_scope(this);
@@ -679,7 +679,7 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
 
   // Make sure the function is compiled and has set up the debug info.
   Handle<SharedFunctionInfo> shared(function->shared());
-  if (!EnsureDebugInfo(shared)) return true;
+  if (!EnsureBreakInfo(shared)) return true;
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Source positions starts with zero.
   DCHECK(*source_position >= 0);
@@ -719,7 +719,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
 
   // Make sure the function has set up the debug info.
   Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>::cast(result);
-  if (!EnsureDebugInfo(shared)) return false;
+  if (!EnsureBreakInfo(shared)) return false;
 
   // Find position within function. The script position might be before the
   // source position of the first function.
@@ -810,7 +810,7 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
     if (DebugInfo::ClearBreakPoint(debug_info, break_point_object)) {
       ClearBreakPoints(debug_info);
       if (debug_info->GetBreakPointCount() == 0) {
-        RemoveDebugInfoAndClearFromShared(debug_info);
+        RemoveBreakInfoAndMaybeFree(debug_info);
       } else {
         ApplyBreakPoints(debug_info);
       }
@@ -819,17 +819,21 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
   }
 }
 
-// Clear out all the debug break code. This is ONLY supposed to be used when
-// shutting down the debugger as it will leave the break point information in
-// DebugInfo even though the code is patched back to the non break point state.
+// Clear out all the debug break code.
 void Debug::ClearAllBreakPoints() {
-  for (DebugInfoListNode* node = debug_info_list_; node != NULL;
-       node = node->next()) {
-    ClearBreakPoints(node->debug_info());
-  }
-  // Remove all debug info.
-  while (debug_info_list_ != NULL) {
-    RemoveDebugInfoAndClearFromShared(debug_info_list_->debug_info());
+  DebugInfoListNode* prev = nullptr;
+  DebugInfoListNode* current = debug_info_list_;
+  while (current != nullptr) {
+    DebugInfoListNode* next = current->next();
+    Handle<DebugInfo> debug_info = current->debug_info();
+    ClearBreakPoints(debug_info);
+    if (debug_info->ClearBreakInfo()) {
+      FreeDebugInfoListNode(prev, current);
+      current = next;
+    } else {
+      prev = current;
+      current = next;
+    }
   }
 }
 
@@ -837,7 +841,7 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
                              bool returns_only) {
   if (IsBlackboxed(shared)) return;
   // Make sure the function is compiled and has set up the debug info.
-  if (!EnsureDebugInfo(shared)) return;
+  if (!EnsureBreakInfo(shared)) return;
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Flood the function with break points.
   if (debug_info->HasDebugCode()) {
@@ -1032,7 +1036,7 @@ void Debug::PrepareStep(StepAction step_action) {
   auto summary = FrameSummary::GetTop(frame).AsJavaScript();
   Handle<JSFunction> function(summary.function());
   Handle<SharedFunctionInfo> shared(function->shared());
-  if (!EnsureDebugInfo(shared)) return;
+  if (!EnsureBreakInfo(shared)) return;
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
 
   BreakLocation location = BreakLocation::FromFrame(debug_info, js_frame);
@@ -1122,7 +1126,7 @@ Handle<Object> Debug::GetSourceBreakLocations(
     Handle<SharedFunctionInfo> shared,
     BreakPositionAlignment position_alignment) {
   Isolate* isolate = shared->GetIsolate();
-  if (!shared->HasDebugInfo()) {
+  if (!shared->HasBreakInfo()) {
     return isolate->factory()->undefined_value();
   }
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
@@ -1400,7 +1404,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     // Make sure the function has set up the debug info.
     Handle<SharedFunctionInfo> shared =
         Handle<SharedFunctionInfo>::cast(result);
-    if (!EnsureDebugInfo(shared)) return false;
+    if (!EnsureBreakInfo(shared)) return false;
 
     Handle<DebugInfo> debug_info(shared->GetDebugInfo());
     FindBreakablePositions(debug_info, start_position, end_position, locations);
@@ -1433,12 +1437,12 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
           was_compiled = true;
         }
       }
-      if (!EnsureDebugInfo(candidates[i])) return false;
+      if (!EnsureBreakInfo(candidates[i])) return false;
     }
     if (was_compiled) continue;
 
     for (int i = 0; i < candidates.length(); ++i) {
-      CHECK(candidates[i]->HasDebugInfo());
+      CHECK(candidates[i]->HasBreakInfo());
       Handle<DebugInfo> debug_info(candidates[i]->GetDebugInfo());
       FindBreakablePositions(debug_info, start_position, end_position,
                              locations);
@@ -1545,7 +1549,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
         // info while bypassing PrepareFunctionForBreakpoints.
         if (iteration > 1) {
           AllowHeapAllocation allow_before_return;
-          CreateDebugInfo(shared_handle);
+          CreateBreakInfo(shared_handle);
         }
         return shared_handle;
       }
@@ -1561,9 +1565,9 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
 
 
 // Ensures the debug information is present for shared.
-bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
-  // Return if we already have the debug info for shared.
-  if (shared->HasDebugInfo()) return true;
+bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
+  // Return if we already have the break info for shared.
+  if (shared->HasBreakInfo()) return true;
   if (!shared->IsSubjectToDebugging()) return false;
   if (!shared->is_compiled() && !Compiler::CompileDebugCode(shared)) {
     return false;
@@ -1572,49 +1576,89 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
   // To prepare bytecode for debugging, we already need to have the debug
   // info (containing the debug copy) upfront, but since we do not recompile,
   // preparing for break points cannot fail.
-  CreateDebugInfo(shared);
+  CreateBreakInfo(shared);
   CHECK(PrepareFunctionForBreakPoints(shared));
   return true;
 }
 
+void Debug::CreateBreakInfo(Handle<SharedFunctionInfo> shared) {
+  HandleScope scope(isolate_);
+  Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
 
-void Debug::CreateDebugInfo(Handle<SharedFunctionInfo> shared) {
-  // Create the debug info object.
+  // Initialize with break information.
+
+  DCHECK(!debug_info->HasBreakInfo());
+
+  Factory* factory = isolate_->factory();
+  Handle<FixedArray> break_points(
+      factory->NewFixedArray(DebugInfo::kEstimatedNofBreakPointsInFunction));
+
+  // Make a copy of the bytecode array if available.
+  Handle<Object> maybe_debug_bytecode_array = factory->undefined_value();
+  if (shared->HasBytecodeArray()) {
+    Handle<BytecodeArray> original(shared->bytecode_array());
+    maybe_debug_bytecode_array = factory->CopyBytecodeArray(original);
+  }
+
+  debug_info->set_flags(debug_info->flags() | DebugInfo::kHasBreakInfo);
+  debug_info->set_debug_bytecode_array(*maybe_debug_bytecode_array);
+  debug_info->set_break_points(*break_points);
+}
+
+Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
+    Handle<SharedFunctionInfo> shared) {
+  if (shared->HasDebugInfo()) return handle(shared->GetDebugInfo());
+
+  // Create debug info and add it to the list.
   Handle<DebugInfo> debug_info = isolate_->factory()->NewDebugInfo(shared);
-
-  // Add debug info to the list.
   DebugInfoListNode* node = new DebugInfoListNode(*debug_info);
   node->set_next(debug_info_list_);
   debug_info_list_ = node;
+
+  return debug_info;
 }
 
-
-void Debug::RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info) {
+void Debug::FindDebugInfo(Handle<DebugInfo> debug_info,
+                          DebugInfoListNode** prev, DebugInfoListNode** curr) {
   HandleScope scope(isolate_);
-  Handle<SharedFunctionInfo> shared(debug_info->shared());
-
-  DCHECK_NOT_NULL(debug_info_list_);
-  // Run through the debug info objects to find this one and remove it.
-  DebugInfoListNode* prev = NULL;
-  DebugInfoListNode* current = debug_info_list_;
-  while (current != NULL) {
-    if (current->debug_info().is_identical_to(debug_info)) {
-      // Unlink from list. If prev is NULL we are looking at the first element.
-      if (prev == NULL) {
-        debug_info_list_ = current->next();
-      } else {
-        prev->set_next(current->next());
-      }
-      shared->set_debug_info(Smi::FromInt(debug_info->debugger_hints()));
-      delete current;
-      return;
-    }
-    // Move to next in list.
-    prev = current;
-    current = current->next();
+  *prev = nullptr;
+  *curr = debug_info_list_;
+  while (*curr != nullptr) {
+    if ((*curr)->debug_info().is_identical_to(debug_info)) return;
+    *prev = *curr;
+    *curr = (*curr)->next();
   }
 
   UNREACHABLE();
+}
+
+void Debug::RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info) {
+  bool should_unlink = debug_info->ClearBreakInfo();
+  if (should_unlink) {
+    DebugInfoListNode* prev;
+    DebugInfoListNode* node;
+    FindDebugInfo(debug_info, &prev, &node);
+    FreeDebugInfoListNode(prev, node);
+  }
+}
+
+void Debug::FreeDebugInfoListNode(DebugInfoListNode* prev,
+                                  DebugInfoListNode* node) {
+  DCHECK(node->debug_info()->IsEmpty());
+
+  // Unlink from list. If prev is NULL we are looking at the first element.
+  if (prev == nullptr) {
+    debug_info_list_ = node->next();
+  } else {
+    prev->set_next(node->next());
+  }
+
+  // Pack debugger hints back into the SFI::debug_info field.
+  Handle<DebugInfo> debug_info(node->debug_info());
+  debug_info->shared()->set_debug_info(
+      Smi::FromInt(debug_info->debugger_hints()));
+
+  delete node;
 }
 
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
@@ -1624,7 +1668,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   Handle<SharedFunctionInfo> shared(frame->function()->shared());
 
   // With no debug info there are no break points, so we can't be at a return.
-  if (!shared->HasDebugInfo()) return false;
+  if (!shared->HasBreakInfo()) return false;
 
   DCHECK(!frame->is_optimized());
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());

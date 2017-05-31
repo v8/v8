@@ -332,9 +332,9 @@ class Debug {
   void SetDebugDelegate(debug::DebugDelegate* delegate, bool pass_ownership);
 
   // Returns whether the operation succeeded.
-  bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
-  void CreateDebugInfo(Handle<SharedFunctionInfo> shared);
-  static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
+  bool EnsureBreakInfo(Handle<SharedFunctionInfo> shared);
+  void CreateBreakInfo(Handle<SharedFunctionInfo> shared);
+  Handle<DebugInfo> GetOrCreateDebugInfo(Handle<SharedFunctionInfo> shared);
 
   template <typename C>
   bool CompileToRevealInnerFunctions(C* compilable);
@@ -496,7 +496,6 @@ class Debug {
   bool IsFrameBlackboxed(JavaScriptFrame* frame);
 
   void ActivateStepOut(StackFrame* frame);
-  void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
                                            BreakLocation* location,
                                            bool* has_break_points = nullptr);
@@ -513,6 +512,11 @@ class Debug {
   void ThreadInit();
 
   void PrintBreakLocation();
+
+  void RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info);
+  void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,
+                     DebugInfoListNode** curr);
+  void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
 
   // Global handles.
   Handle<Context> debug_context_;

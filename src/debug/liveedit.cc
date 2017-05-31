@@ -910,9 +910,9 @@ void LiveEdit::ReplaceFunctionCode(
       }
     }
 
-    if (shared_info->HasDebugInfo()) {
+    if (shared_info->HasBreakInfo()) {
       // Existing break points will be re-applied. Reset the debug info here.
-      isolate->debug()->RemoveDebugInfoAndClearFromShared(
+      isolate->debug()->RemoveBreakInfoAndMaybeFree(
           handle(shared_info->GetDebugInfo()));
     }
     shared_info->set_scope_info(new_shared_info->scope_info());
@@ -1073,9 +1073,9 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
         Handle<AbstractCode>(AbstractCode::cast(info->code())),
         position_change_array);
   }
-  if (info->HasDebugInfo()) {
+  if (info->HasBreakInfo()) {
     // Existing break points will be re-applied. Reset the debug info here.
-    info->GetIsolate()->debug()->RemoveDebugInfoAndClearFromShared(
+    info->GetIsolate()->debug()->RemoveBreakInfoAndMaybeFree(
         handle(info->GetDebugInfo()));
   }
 }

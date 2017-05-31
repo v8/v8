@@ -173,6 +173,10 @@ class SharedFunctionInfo : public HeapObject {
   inline bool HasDebugInfo() const;
   DebugInfo* GetDebugInfo() const;
 
+  // Break infos are contained in DebugInfo, this is a convenience method
+  // to simplify access.
+  bool HasBreakInfo() const;
+
   // A function has debug code if the compiled code has debug break slots.
   inline bool HasDebugCode() const;
 

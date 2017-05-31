@@ -17,13 +17,37 @@ namespace internal {
 // debugged.
 class DebugInfo : public Struct {
  public:
+  enum Flag {
+    kNone = 0,
+    kHasBreakInfo = 1 << 0,
+    kHasCoverageInfo = 1 << 1,
+  };
+  typedef base::Flags<Flag> Flags;
+
+  // A bitfield that lists uses of the current instance.
+  DECL_INT_ACCESSORS(flags)
+
   // The shared function info for the source being debugged.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
 
   // Bit field containing various information collected for debugging.
   DECL_INT_ACCESSORS(debugger_hints)
 
+  // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
+  bool IsEmpty() const;
+
+  // --- Break points ---
+  // --------------------
+
+  bool HasBreakInfo() const;
+
+  // Clears all fields related to break points. Returns true iff the
+  // DebugInfo is now empty.
+  bool ClearBreakInfo();
+
+  // The instrumented bytecode array for functions with break points.
   DECL_ACCESSORS(debug_bytecode_array, Object)
+
   // Fixed array holding status information for each active break point.
   DECL_ACCESSORS(break_points, FixedArray)
 
@@ -56,14 +80,15 @@ class DebugInfo : public Struct {
   DECLARE_PRINTER(DebugInfo)
   DECLARE_VERIFIER(DebugInfo)
 
-  static const int kSharedFunctionInfoIndex = Struct::kHeaderSize;
-  static const int kDebuggerHintsIndex =
-      kSharedFunctionInfoIndex + kPointerSize;
-  static const int kDebugBytecodeArrayIndex =
-      kDebuggerHintsIndex + kPointerSize;
-  static const int kBreakPointsStateIndex =
-      kDebugBytecodeArrayIndex + kPointerSize;
-  static const int kSize = kBreakPointsStateIndex + kPointerSize;
+  static const int kSharedFunctionInfoOffset = Struct::kHeaderSize;
+  static const int kDebuggerHintsOffset =
+      kSharedFunctionInfoOffset + kPointerSize;
+  static const int kDebugBytecodeArrayOffset =
+      kDebuggerHintsOffset + kPointerSize;
+  static const int kBreakPointsStateOffset =
+      kDebugBytecodeArrayOffset + kPointerSize;
+  static const int kFlagsOffset = kBreakPointsStateOffset + kPointerSize;
+  static const int kSize = kFlagsOffset + kPointerSize;
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
@@ -100,8 +125,8 @@ class BreakPointInfo : public Tuple2 {
 
   DECLARE_CAST(BreakPointInfo)
 
-  static const int kSourcePositionIndex = kValue1Offset;
-  static const int kBreakPointObjectsIndex = kValue2Offset;
+  static const int kSourcePositionOffset = kValue1Offset;
+  static const int kBreakPointObjectsOffset = kValue2Offset;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPointInfo);

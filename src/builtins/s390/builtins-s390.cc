@@ -1090,7 +1090,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ TestIfSmi(debug_info);
   __ beq(&array_done);
   __ LoadP(kInterpreterBytecodeArrayRegister,
-           FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayIndex));
+           FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayOffset));
   __ bind(&array_done);
 
   // Check whether we should continue to use the interpreter.

@@ -7876,7 +7876,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     return false;
   }
 
-  if (target_shared->HasDebugInfo()) {
+  if (target_shared->HasBreakInfo()) {
     TraceInline(target, caller, "target is being debugged");
     return false;
   }

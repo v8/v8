@@ -18,13 +18,14 @@ namespace internal {
 CAST_ACCESSOR(BreakPointInfo)
 CAST_ACCESSOR(DebugInfo)
 
-ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
-SMI_ACCESSORS(DebugInfo, debugger_hints, kDebuggerHintsIndex)
-ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayIndex)
-ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateIndex)
+SMI_ACCESSORS(DebugInfo, flags, kFlagsOffset)
+ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
+SMI_ACCESSORS(DebugInfo, debugger_hints, kDebuggerHintsOffset)
+ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayOffset)
+ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateOffset)
 
-SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionIndex)
-ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
+SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionOffset)
+ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsOffset)
 
 bool DebugInfo::HasDebugBytecodeArray() {
   return debug_bytecode_array()->IsBytecodeArray();

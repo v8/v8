@@ -498,7 +498,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   }
 
   // Function contains break points.
-  if (shared_info->HasDebugInfo()) {
+  if (shared_info->HasBreakInfo()) {
     TRACE("Not inlining %s into %s because callee may contain break points\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());

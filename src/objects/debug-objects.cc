@@ -8,8 +8,25 @@
 namespace v8 {
 namespace internal {
 
+bool DebugInfo::IsEmpty() const { return flags() == kNone; }
+
+bool DebugInfo::HasBreakInfo() const { return (flags() & kHasBreakInfo) != 0; }
+
+bool DebugInfo::ClearBreakInfo() {
+  Isolate* isolate = GetIsolate();
+
+  set_debug_bytecode_array(isolate->heap()->undefined_value());
+  set_break_points(isolate->heap()->empty_fixed_array());
+
+  int new_flags = flags() & ~kHasBreakInfo;
+  set_flags(new_flags);
+
+  return new_flags == kNone;
+}
+
 // Check if there is a break point at this source position.
 bool DebugInfo::HasBreakPoint(int source_position) {
+  DCHECK(HasBreakInfo());
   // Get the break point info object for this code offset.
   Object* break_point_info = GetBreakPointInfo(source_position);
 
@@ -21,6 +38,7 @@ bool DebugInfo::HasBreakPoint(int source_position) {
 
 // Get the break point info object for this source position.
 Object* DebugInfo::GetBreakPointInfo(int source_position) {
+  DCHECK(HasBreakInfo());
   Isolate* isolate = GetIsolate();
   if (!break_points()->IsUndefined(isolate)) {
     for (int i = 0; i < break_points()->length(); i++) {
@@ -38,6 +56,7 @@ Object* DebugInfo::GetBreakPointInfo(int source_position) {
 
 bool DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info,
                                 Handle<Object> break_point_object) {
+  DCHECK(debug_info->HasBreakInfo());
   Isolate* isolate = debug_info->GetIsolate();
   if (debug_info->break_points()->IsUndefined(isolate)) return false;
 
@@ -56,6 +75,7 @@ bool DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info,
 
 void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info, int source_position,
                               Handle<Object> break_point_object) {
+  DCHECK(debug_info->HasBreakInfo());
   Isolate* isolate = debug_info->GetIsolate();
   Handle<Object> break_point_info(
       debug_info->GetBreakPointInfo(source_position), isolate);
@@ -100,6 +120,7 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info, int source_position,
 
 // Get the break point objects for a source position.
 Handle<Object> DebugInfo::GetBreakPointObjects(int source_position) {
+  DCHECK(HasBreakInfo());
   Object* break_point_info = GetBreakPointInfo(source_position);
   Isolate* isolate = GetIsolate();
   if (break_point_info->IsUndefined(isolate)) {
@@ -111,6 +132,7 @@ Handle<Object> DebugInfo::GetBreakPointObjects(int source_position) {
 
 // Get the total number of break points.
 int DebugInfo::GetBreakPointCount() {
+  DCHECK(HasBreakInfo());
   Isolate* isolate = GetIsolate();
   if (break_points()->IsUndefined(isolate)) return 0;
   int count = 0;
@@ -126,6 +148,7 @@ int DebugInfo::GetBreakPointCount() {
 
 Handle<Object> DebugInfo::FindBreakPointInfo(
     Handle<DebugInfo> debug_info, Handle<Object> break_point_object) {
+  DCHECK(debug_info->HasBreakInfo());
   Isolate* isolate = debug_info->GetIsolate();
   if (!debug_info->break_points()->IsUndefined(isolate)) {
     for (int i = 0; i < debug_info->break_points()->length(); i++) {

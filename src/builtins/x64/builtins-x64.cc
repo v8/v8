@@ -788,12 +788,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
+  Label maybe_load_debug_bytecode_array, bytecode_array_loaded;
   __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  Label load_debug_bytecode_array, bytecode_array_loaded;
-  __ JumpIfNotSmi(FieldOperand(rax, SharedFunctionInfo::kDebugInfoOffset),
-                  &load_debug_bytecode_array);
   __ movp(kInterpreterBytecodeArrayRegister,
           FieldOperand(rax, SharedFunctionInfo::kFunctionDataOffset));
+  __ JumpIfNotSmi(FieldOperand(rax, SharedFunctionInfo::kDebugInfoOffset),
+                  &maybe_load_debug_bytecode_array);
   __ bind(&bytecode_array_loaded);
 
   // Check whether we should continue to use the interpreter.
@@ -881,12 +881,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   LeaveInterpreterFrame(masm, rbx, rcx);
   __ ret(0);
 
-  // Load debug copy of the bytecode array.
-  __ bind(&load_debug_bytecode_array);
-  Register debug_info = kInterpreterBytecodeArrayRegister;
-  __ movp(debug_info, FieldOperand(rax, SharedFunctionInfo::kDebugInfoOffset));
+  // Load debug copy of the bytecode array if it exists.
+  // kInterpreterBytecodeArrayRegister is already loaded with
+  // SharedFunctionInfo::kFunctionDataOffset.
+  __ bind(&maybe_load_debug_bytecode_array);
+  __ movp(rcx, FieldOperand(rax, SharedFunctionInfo::kDebugInfoOffset));
+  __ SmiToInteger32(kScratchRegister,
+                    FieldOperand(rcx, DebugInfo::kFlagsOffset));
+  __ testl(kScratchRegister, Immediate(DebugInfo::kHasBreakInfo));
+  __ j(zero, &bytecode_array_loaded);
   __ movp(kInterpreterBytecodeArrayRegister,
-          FieldOperand(debug_info, DebugInfo::kDebugBytecodeArrayIndex));
+          FieldOperand(rcx, DebugInfo::kDebugBytecodeArrayOffset));
   __ jmp(&bytecode_array_loaded);
 
   // If the shared code is no longer this entry trampoline, then the underlying

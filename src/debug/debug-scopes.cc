@@ -58,7 +58,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
   // and include nested scopes into the "fast" iteration case as well.
   bool ignore_nested_scopes = (option == IGNORE_NESTED_SCOPES);
   bool collect_non_locals = (option == COLLECT_NON_LOCALS);
-  if (!ignore_nested_scopes && shared_info->HasDebugInfo() &&
+  if (!ignore_nested_scopes && shared_info->HasBreakInfo() &&
       frame_inspector_ != nullptr) {
     // The source position at return is always the end of the function,
     // which is not consistent with the current scope chain. Therefore all

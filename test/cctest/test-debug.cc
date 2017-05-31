@@ -158,11 +158,11 @@ static void SetDebugEventListener(
 }
 
 // Is there any debug info for the function?
-static bool HasDebugInfo(v8::Local<v8::Function> fun) {
+static bool HasBreakInfo(v8::Local<v8::Function> fun) {
   Handle<v8::internal::JSFunction> f =
       Handle<v8::internal::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
   Handle<v8::internal::SharedFunctionInfo> shared(f->shared());
-  return shared->HasDebugInfo();
+  return shared->HasBreakInfo();
 }
 
 // Set a break point in a function with a position relative to function start,
@@ -907,30 +907,30 @@ TEST(DebugInfo) {
       CompileFunction(&env, "function bar(){}", "bar");
   // Initially no functions are debugged.
   CHECK_EQ(0, v8::internal::GetDebuggedFunctions()->length());
-  CHECK(!HasDebugInfo(foo));
-  CHECK(!HasDebugInfo(bar));
+  CHECK(!HasBreakInfo(foo));
+  CHECK(!HasBreakInfo(bar));
   EnableDebugger(env->GetIsolate());
   // One function (foo) is debugged.
   int bp1 = SetBreakPoint(foo, 0);
   CHECK_EQ(1, v8::internal::GetDebuggedFunctions()->length());
-  CHECK(HasDebugInfo(foo));
-  CHECK(!HasDebugInfo(bar));
+  CHECK(HasBreakInfo(foo));
+  CHECK(!HasBreakInfo(bar));
   // Two functions are debugged.
   int bp2 = SetBreakPoint(bar, 0);
   CHECK_EQ(2, v8::internal::GetDebuggedFunctions()->length());
-  CHECK(HasDebugInfo(foo));
-  CHECK(HasDebugInfo(bar));
+  CHECK(HasBreakInfo(foo));
+  CHECK(HasBreakInfo(bar));
   // One function (bar) is debugged.
   ClearBreakPoint(bp1);
   CHECK_EQ(1, v8::internal::GetDebuggedFunctions()->length());
-  CHECK(!HasDebugInfo(foo));
-  CHECK(HasDebugInfo(bar));
+  CHECK(!HasBreakInfo(foo));
+  CHECK(HasBreakInfo(bar));
   // No functions are debugged.
   ClearBreakPoint(bp2);
   DisableDebugger(env->GetIsolate());
   CHECK_EQ(0, v8::internal::GetDebuggedFunctions()->length());
-  CHECK(!HasDebugInfo(foo));
-  CHECK(!HasDebugInfo(bar));
+  CHECK(!HasBreakInfo(foo));
+  CHECK(!HasBreakInfo(bar));
 }
 
 
@@ -6403,7 +6403,7 @@ TEST(BreakLocationIterator) {
   Handle<i::SharedFunctionInfo> shared(function->shared());
 
   EnableDebugger(isolate);
-  CHECK(i_isolate->debug()->EnsureDebugInfo(shared));
+  CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
 
   Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
   Handle<i::AbstractCode> abstract_code(shared->abstract_code());

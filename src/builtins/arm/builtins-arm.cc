@@ -1051,16 +1051,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
+  Label maybe_load_debug_bytecode_array, bytecode_array_loaded;
   __ ldr(r0, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  Register debug_info = kInterpreterBytecodeArrayRegister;
-  DCHECK(!debug_info.is(r0));
-  __ ldr(debug_info, FieldMemOperand(r0, SharedFunctionInfo::kDebugInfoOffset));
-  __ SmiTst(debug_info);
-  // Load original bytecode array or the debug copy.
   __ ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset), eq);
-  __ ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayIndex), ne);
+         FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset));
+  __ ldr(r2, FieldMemOperand(r0, SharedFunctionInfo::kDebugInfoOffset));
+  __ SmiTst(r2);
+  __ b(ne, &maybe_load_debug_bytecode_array);
+  __ bind(&bytecode_array_loaded);
 
   // Check whether we should continue to use the interpreter.
   // TODO(rmcilroy) Remove self healing once liveedit only has to deal with
@@ -1149,6 +1147,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in r0.
   LeaveInterpreterFrame(masm, r2);
   __ Jump(lr);
+
+  // Load debug copy of the bytecode array if it exists.
+  // kInterpreterBytecodeArrayRegister is already loaded with
+  // SharedFunctionInfo::kFunctionDataOffset.
+  __ bind(&maybe_load_debug_bytecode_array);
+  __ ldr(r9, FieldMemOperand(r2, DebugInfo::kFlagsOffset));
+  __ SmiUntag(r9);
+  __ tst(r9, Operand(DebugInfo::kHasBreakInfo));
+  __ ldr(kInterpreterBytecodeArrayRegister,
+         FieldMemOperand(r2, DebugInfo::kDebugBytecodeArrayOffset), ne);
+  __ b(&bytecode_array_loaded);
 
   // If the shared code is no longer this entry trampoline, then the underlying
   // function has been switched to a different kind of code and we heal the

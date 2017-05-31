@@ -2592,28 +2592,15 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
 
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   DCHECK(!shared->HasDebugInfo());
-  // Allocate initial fixed array for active break points before allocating the
-  // debug info object to avoid allocation while setting up the debug info
-  // object.
-  Handle<FixedArray> break_points(
-      NewFixedArray(DebugInfo::kEstimatedNofBreakPointsInFunction));
+  Heap* heap = isolate()->heap();
 
-  // Make a copy of the bytecode array if available.
-  Handle<Object> maybe_debug_bytecode_array = undefined_value();
-  if (shared->HasBytecodeArray()) {
-    Handle<BytecodeArray> original(shared->bytecode_array());
-    maybe_debug_bytecode_array = CopyBytecodeArray(original);
-  }
-
-  // Create and set up the debug info object. Debug info contains function, a
-  // copy of the original code, the executing code and initial fixed array for
-  // active break points.
   Handle<DebugInfo> debug_info =
       Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
+  debug_info->set_flags(DebugInfo::kNone);
   debug_info->set_shared(*shared);
   debug_info->set_debugger_hints(shared->debugger_hints());
-  debug_info->set_debug_bytecode_array(*maybe_debug_bytecode_array);
-  debug_info->set_break_points(*break_points);
+  debug_info->set_debug_bytecode_array(heap->undefined_value());
+  debug_info->set_break_points(heap->empty_fixed_array());
 
   // Link debug info to function.
   shared->set_debug_info(*debug_info);
