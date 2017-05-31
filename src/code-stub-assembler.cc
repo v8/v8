@@ -2976,8 +2976,7 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
         BIND(&if_valueisnotnullorundefined);
         {
           // Convert the {value} to a String.
-          Callable callable = CodeFactory::ToString(isolate());
-          var_value.Bind(CallStub(callable, context, value));
+          var_value.Bind(CallBuiltin(Builtins::kToString, context, value));
           Goto(&if_valueisstring);
         }
       }
@@ -7369,26 +7368,23 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
               }
               switch (mode) {
                 case kLessThan:
-                  result.Bind(CallStub(CodeFactory::StringLessThan(isolate()),
-                                       context, lhs, rhs));
+                  result.Bind(CallBuiltin(Builtins::kStringLessThan, context,
+                                          lhs, rhs));
                   Goto(&end);
                   break;
                 case kLessThanOrEqual:
-                  result.Bind(
-                      CallStub(CodeFactory::StringLessThanOrEqual(isolate()),
-                               context, lhs, rhs));
+                  result.Bind(CallBuiltin(Builtins::kStringLessThanOrEqual,
+                                          context, lhs, rhs));
                   Goto(&end);
                   break;
                 case kGreaterThan:
-                  result.Bind(
-                      CallStub(CodeFactory::StringGreaterThan(isolate()),
-                               context, lhs, rhs));
+                  result.Bind(CallBuiltin(Builtins::kStringGreaterThan, context,
+                                          lhs, rhs));
                   Goto(&end);
                   break;
                 case kGreaterThanOrEqual:
-                  result.Bind(
-                      CallStub(CodeFactory::StringGreaterThanOrEqual(isolate()),
-                               context, lhs, rhs));
+                  result.Bind(CallBuiltin(Builtins::kStringGreaterThanOrEqual,
+                                          context, lhs, rhs));
                   Goto(&end);
                   break;
               }
@@ -7857,8 +7853,8 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
             {
               // Both {lhs} and {rhs} are of type String, just do the
               // string comparison then.
-              Callable callable = CodeFactory::StringEqual(isolate());
-              result.Bind(CallStub(callable, context, lhs, rhs));
+              result.Bind(
+                  CallBuiltin(Builtins::kStringEqual, context, lhs, rhs));
               if (var_type_feedback != nullptr) {
                 Node* lhs_feedback =
                     CollectFeedbackForString(lhs_instance_type);
@@ -8336,7 +8332,6 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
 
             BIND(&if_rhsisstring);
             {
-              Callable callable = CodeFactory::StringEqual(isolate());
               if (var_type_feedback != nullptr) {
                 Node* lhs_feedback =
                     CollectFeedbackForString(lhs_instance_type);
@@ -8344,7 +8339,8 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
                     CollectFeedbackForString(rhs_instance_type);
                 var_type_feedback->Bind(SmiOr(lhs_feedback, rhs_feedback));
               }
-              result.Bind(CallStub(callable, NoContextConstant(), lhs, rhs));
+              result.Bind(CallBuiltin(Builtins::kStringEqual,
+                                      NoContextConstant(), lhs, rhs));
               Goto(&end);
             }
 

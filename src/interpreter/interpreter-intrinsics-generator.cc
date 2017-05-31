@@ -293,7 +293,8 @@ Node* IntrinsicsGenerator::SubString(Node* input, Node* arg_count,
 
 Node* IntrinsicsGenerator::ToString(Node* input, Node* arg_count,
                                     Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToString(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kToString));
 }
 
 Node* IntrinsicsGenerator::ToLength(Node* input, Node* arg_count,
@@ -313,7 +314,8 @@ Node* IntrinsicsGenerator::ToNumber(Node* input, Node* arg_count,
 
 Node* IntrinsicsGenerator::ToObject(Node* input, Node* arg_count,
                                     Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToObject(isolate()));
+  return IntrinsicAsStubCall(
+      input, context, Builtins::CallableFor(isolate(), Builtins::kToObject));
 }
 
 Node* IntrinsicsGenerator::Call(Node* args_reg, Node* arg_count,

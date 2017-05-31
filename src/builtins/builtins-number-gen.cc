@@ -252,8 +252,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
         {
           // Need to convert the {input} to String first.
           // TODO(bmeurer): This could be more efficient if necessary.
-          Callable callable = CodeFactory::ToString(isolate());
-          var_input.Bind(CallStub(callable, context, input));
+          var_input.Bind(CallBuiltin(Builtins::kToString, context, input));
           Goto(&loop);
         }
       }

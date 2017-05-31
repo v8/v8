@@ -75,16 +75,11 @@ class V8_EXPORT_PRIVATE CodeFactory final {
 
   static Callable GetProperty(Isolate* isolate);
 
-  static Callable ToBoolean(Isolate* isolate);
-
   static Callable ToNumber(Isolate* isolate);
   static Callable NonNumberToNumber(Isolate* isolate);
   static Callable StringToNumber(Isolate* isolate);
-  static Callable ToString(Isolate* isolate);
-  static Callable ToName(Isolate* isolate);
   static Callable ToInteger(Isolate* isolate);
   static Callable ToLength(Isolate* isolate);
-  static Callable ToObject(Isolate* isolate);
   static Callable NonPrimitiveToPrimitive(
       Isolate* isolate, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   static Callable OrdinaryToPrimitive(Isolate* isolate,
@@ -112,22 +107,11 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable StringAdd(Isolate* isolate,
                             StringAddFlags flags = STRING_ADD_CHECK_NONE,
                             PretenureFlag pretenure_flag = NOT_TENURED);
-  static Callable StringCharAt(Isolate* isolate);
-  static Callable StringCharCodeAt(Isolate* isolate);
   static Callable StringCompare(Isolate* isolate, Token::Value token);
-  static Callable StringEqual(Isolate* isolate);
-  static Callable StringLessThan(Isolate* isolate);
-  static Callable StringLessThanOrEqual(Isolate* isolate);
-  static Callable StringGreaterThan(Isolate* isolate);
-  static Callable StringGreaterThanOrEqual(Isolate* isolate);
   static Callable SubString(Isolate* isolate);
   static Callable StringIndexOf(Isolate* isolate);
 
-  static Callable RegExpReplace(Isolate* isolate);
-  static Callable RegExpSplit(Isolate* isolate);
-
   static Callable ClassOf(Isolate* isolate);
-  static Callable Typeof(Isolate* isolate);
   static Callable GetSuperConstructor(Isolate* isolate);
 
   static Callable FastCloneRegExp(Isolate* isolate);
@@ -188,11 +172,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ArrayPush(Isolate* isolate);
   static Callable ArrayShift(Isolate* isolate);
   static Callable FunctionPrototypeBind(Isolate* isolate);
-  static Callable PromiseHandleReject(Isolate* isolate);
-
-  static Callable AsyncGeneratorResolve(Isolate* isolate);
-  static Callable AsyncGeneratorReject(Isolate* isolate);
-  static Callable AsyncGeneratorResumeNext(Isolate* isolate);
 };
 
 }  // namespace internal

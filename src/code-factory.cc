@@ -243,42 +243,15 @@ Callable CodeFactory::StringFromCharCode(Isolate* isolate) {
     return Callable(code, Builtin_##Name##_InterfaceDescriptor(isolate)); \
   }
 
-TFS_BUILTIN(ToString)
 TFS_BUILTIN(Add)
-TFS_BUILTIN(Subtract)
-TFS_BUILTIN(Multiply)
-TFS_BUILTIN(Divide)
-TFS_BUILTIN(Modulus)
 TFS_BUILTIN(BitwiseAnd)
 TFS_BUILTIN(BitwiseOr)
 TFS_BUILTIN(BitwiseXor)
-TFS_BUILTIN(ShiftLeft)
-TFS_BUILTIN(ShiftRight)
-TFS_BUILTIN(ShiftRightLogical)
-TFS_BUILTIN(LessThan)
-TFS_BUILTIN(LessThanOrEqual)
-TFS_BUILTIN(GreaterThan)
-TFS_BUILTIN(GreaterThanOrEqual)
-TFS_BUILTIN(Equal)
-TFS_BUILTIN(StrictEqual)
-TFS_BUILTIN(CreateIterResultObject)
-TFS_BUILTIN(HasProperty)
-TFS_BUILTIN(NonNumberToNumber)
-TFS_BUILTIN(StringToNumber)
-TFS_BUILTIN(ToBoolean)
-TFS_BUILTIN(ToInteger)
-TFS_BUILTIN(ToLength)
-TFS_BUILTIN(ToName)
-TFS_BUILTIN(ToNumber)
-TFS_BUILTIN(ToObject)
 TFS_BUILTIN(ClassOf)
-TFS_BUILTIN(Typeof)
-TFS_BUILTIN(InstanceOf)
-TFS_BUILTIN(OrdinaryHasInstance)
 TFS_BUILTIN(CopyFastSmiOrObjectElements)
-TFS_BUILTIN(GrowFastDoubleElements)
-TFS_BUILTIN(GrowFastSmiOrObjectElements)
-TFS_BUILTIN(NewUnmappedArgumentsElements)
+TFS_BUILTIN(CreateIterResultObject)
+TFS_BUILTIN(Divide)
+TFS_BUILTIN(Equal)
 TFS_BUILTIN(FastCloneRegExp)
 TFS_BUILTIN(FastNewClosure)
 TFS_BUILTIN(FastNewObject)
@@ -287,21 +260,30 @@ TFS_BUILTIN(FastNewSloppyArguments)
 TFS_BUILTIN(FastNewStrictArguments)
 TFS_BUILTIN(ForInFilter)
 TFS_BUILTIN(GetSuperConstructor)
-TFS_BUILTIN(LoadIC_Uninitialized)
+TFS_BUILTIN(GreaterThan)
+TFS_BUILTIN(GreaterThanOrEqual)
+TFS_BUILTIN(GrowFastDoubleElements)
+TFS_BUILTIN(GrowFastSmiOrObjectElements)
+TFS_BUILTIN(HasProperty)
+TFS_BUILTIN(InstanceOf)
 TFS_BUILTIN(KeyedLoadIC_Megamorphic)
-TFS_BUILTIN(PromiseHandleReject)
-TFS_BUILTIN(RegExpReplace)
-TFS_BUILTIN(RegExpSplit)
-TFS_BUILTIN(StringCharAt)
-TFS_BUILTIN(StringCharCodeAt)
-TFS_BUILTIN(StringEqual)
-TFS_BUILTIN(StringLessThan)
-TFS_BUILTIN(StringLessThanOrEqual)
-TFS_BUILTIN(StringGreaterThan)
-TFS_BUILTIN(StringGreaterThanOrEqual)
-TFS_BUILTIN(AsyncGeneratorResolve)
-TFS_BUILTIN(AsyncGeneratorReject)
-TFS_BUILTIN(AsyncGeneratorResumeNext)
+TFS_BUILTIN(LessThan)
+TFS_BUILTIN(LessThanOrEqual)
+TFS_BUILTIN(LoadIC_Uninitialized)
+TFS_BUILTIN(Modulus)
+TFS_BUILTIN(Multiply)
+TFS_BUILTIN(NewUnmappedArgumentsElements)
+TFS_BUILTIN(NonNumberToNumber)
+TFS_BUILTIN(OrdinaryHasInstance)
+TFS_BUILTIN(ShiftLeft)
+TFS_BUILTIN(ShiftRight)
+TFS_BUILTIN(ShiftRightLogical)
+TFS_BUILTIN(StrictEqual)
+TFS_BUILTIN(StringToNumber)
+TFS_BUILTIN(Subtract)
+TFS_BUILTIN(ToInteger)
+TFS_BUILTIN(ToLength)
+TFS_BUILTIN(ToNumber)
 
 #undef TFS_BUILTIN
 
@@ -317,15 +299,16 @@ Callable CodeFactory::StringCompare(Isolate* isolate, Token::Value token) {
   switch (token) {
     case Token::EQ:
     case Token::EQ_STRICT:
-      return StringEqual(isolate);
+      return Builtins::CallableFor(isolate, Builtins::kStringEqual);
     case Token::LT:
-      return StringLessThan(isolate);
+      return Builtins::CallableFor(isolate, Builtins::kStringLessThan);
     case Token::GT:
-      return StringGreaterThan(isolate);
+      return Builtins::CallableFor(isolate, Builtins::kStringGreaterThan);
     case Token::LTE:
-      return StringLessThanOrEqual(isolate);
+      return Builtins::CallableFor(isolate, Builtins::kStringLessThanOrEqual);
     case Token::GTE:
-      return StringGreaterThanOrEqual(isolate);
+      return Builtins::CallableFor(isolate,
+                                   Builtins::kStringGreaterThanOrEqual);
     default:
       break;
   }

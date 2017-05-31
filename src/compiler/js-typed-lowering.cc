@@ -1205,7 +1205,7 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
   Node* rfalse;
   {
     // Convert {receiver} using the ToObjectStub.
-    Callable callable = CodeFactory::ToObject(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, node->op()->properties());
@@ -1567,7 +1567,7 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
     {
       // Convert {receiver} using the ToObjectStub. The call does not require a
       // frame-state in this case, because neither null nor undefined is passed.
-      Callable callable = CodeFactory::ToObject(isolate());
+      Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
       CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), callable.descriptor(), 0,
           CallDescriptor::kNoFlags, node->op()->properties());
@@ -1625,7 +1625,7 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   {
     // Convert {receiver} using the ToObjectStub. The call does not require a
     // frame-state in this case, because neither null nor undefined is passed.
-    Callable callable = CodeFactory::ToObject(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNoFlags, node->op()->properties());

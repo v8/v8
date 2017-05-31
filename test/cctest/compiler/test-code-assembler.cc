@@ -461,7 +461,7 @@ TEST(GotoIfException) {
   Variable exception(&m, MachineRepresentation::kTagged);
 
   Label exception_handler(&m);
-  Callable to_string = CodeFactory::ToString(isolate);
+  Callable to_string = Builtins::CallableFor(isolate, Builtins::kToString);
   Node* string = m.CallStub(to_string, context, to_string_tag);
   m.GotoIfException(string, &exception_handler, &exception);
   m.Return(string);
@@ -508,7 +508,7 @@ TEST(GotoIfExceptionMultiple) {
   return_value.Bind(m.Int32Constant(0));
 
   // try { return ToString(param1) } catch (e) { ... }
-  Callable to_string = CodeFactory::ToString(isolate);
+  Callable to_string = Builtins::CallableFor(isolate, Builtins::kToString);
   Node* string = m.CallStub(to_string, context, first_value);
   m.GotoIfException(string, &exception_handler1, &error);
   m.Return(string);

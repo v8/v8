@@ -11542,7 +11542,7 @@ void HOptimizedGraphBuilder::GenerateToString(CallRuntime* call) {
   if (input->type().IsString()) {
     return ast_context()->ReturnValue(input);
   } else {
-    Callable callable = CodeFactory::ToString(isolate());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToString);
     HValue* stub = Add<HConstant>(callable.code());
     HValue* values[] = {input};
     HInstruction* result = New<HCallWithDescriptor>(

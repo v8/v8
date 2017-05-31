@@ -5039,7 +5039,7 @@ void LCodeGen::DoTypeof(LTypeof* instr) {
   __ li(v0, Operand(isolate()->factory()->number_string()));
   __ jmp(&end);
   __ bind(&do_call);
-  Callable callable = CodeFactory::Typeof(isolate());
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kTypeof);
   CallCode(callable.code(), RelocInfo::CODE_TARGET, instr);
   __ bind(&end);
 }

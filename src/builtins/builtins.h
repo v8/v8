@@ -80,7 +80,7 @@ class Builtins {
 
   static int GetBuiltinParameterCount(Name name);
 
-  static Callable CallableFor(Isolate* isolate, Name name);
+  V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
 
   static const char* name(int index);
 

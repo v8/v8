@@ -208,8 +208,7 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
 
   GotoIf(WordEqual(receiver, NullConstant()), &return_null);
 
-  Callable to_object = CodeFactory::ToObject(isolate());
-  receiver = CallStub(to_object, context, receiver);
+  receiver = CallBuiltin(Builtins::kToObject, context, receiver);
 
   Node* receiver_instance_type = LoadInstanceType(receiver);
 
@@ -354,10 +353,7 @@ TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* context = Parameter(Descriptor::kContext);
 
-  Callable to_object = CodeFactory::ToObject(isolate());
-  receiver = CallStub(to_object, context, receiver);
-
-  Return(receiver);
+  Return(CallBuiltin(Builtins::kToObject, context, receiver));
 }
 
 // ES #sec-object.create

@@ -203,7 +203,7 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   BIND(&to_boolean);
   {
     Node* const result =
-        CallStub(CodeFactory::ToBoolean(isolate()), context, var_done.value());
+        CallBuiltin(Builtins::kToBoolean, context, var_done.value());
     var_done.Bind(result);
     Goto(&done);
   }

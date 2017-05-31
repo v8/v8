@@ -77,7 +77,7 @@ Node* IteratorBuiltinsAssembler::IteratorStep(Node* context, Node* iterator,
     Branch(IsBoolean(done), &return_result, &to_boolean);
 
     BIND(&to_boolean);
-    var_done.Bind(CallStub(CodeFactory::ToBoolean(isolate()), context, done));
+    var_done.Bind(CallBuiltin(Builtins::kToBoolean, context, done));
     Goto(&return_result);
   }
 

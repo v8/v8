@@ -345,7 +345,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
     // 1. Let O be ToObject(this value).
     // 2. ReturnIfAbrupt(O)
-    o_ = CallStub(CodeFactory::ToObject(isolate()), context(), receiver());
+    o_ = CallBuiltin(Builtins::kToObject, context(), receiver());
 
     // 3. Let len be ToLength(Get(O, "length")).
     // 4. ReturnIfAbrupt(len).
@@ -2012,8 +2012,7 @@ class ArrayPrototypeIterationAssembler : public CodeStubAssembler {
 
     BIND(&if_isnotobject);
     {
-      Callable callable = CodeFactory::ToObject(isolate());
-      Node* result = CallStub(callable, context, receiver);
+      Node* result = CallBuiltin(Builtins::kToObject, context, receiver);
       var_array.Bind(result);
       var_map.Bind(LoadMap(result));
       var_type.Bind(LoadMapInstanceType(var_map.value()));

@@ -1144,9 +1144,8 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
       [=]() {
         Node* const subject_string = ToString_Inline(context, receiver);
 
-        Callable replace_callable = CodeFactory::RegExpReplace(isolate());
-        return CallStub(replace_callable, context, search, subject_string,
-                        replace);
+        return CallBuiltin(Builtins::kRegExpReplace, context, search,
+                           subject_string, replace);
       },
       [=](Node* fn) {
         Callable call_callable = CodeFactory::Call(isolate());
@@ -1305,8 +1304,8 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   RequireObjectCoercible(context, receiver, "String.prototype.slice");
 
   // 2. Let S be ? ToString(O).
-  Callable tostring_callable = CodeFactory::ToString(isolate());
-  Node* const subject_string = CallStub(tostring_callable, context, receiver);
+  Node* const subject_string =
+      CallBuiltin(Builtins::kToString, context, receiver);
 
   // 3. Let len be the number of elements in S.
   Node* const length = LoadStringLength(subject_string);
@@ -1385,9 +1384,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       [=]() {
         Node* const subject_string = ToString_Inline(context, receiver);
 
-        Callable split_callable = CodeFactory::RegExpSplit(isolate());
-        return CallStub(split_callable, context, separator, subject_string,
-                        limit);
+        return CallBuiltin(Builtins::kRegExpSplit, context, separator,
+                           subject_string, limit);
       },
       [=](Node* fn) {
         Callable call_callable = CodeFactory::Call(isolate());

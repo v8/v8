@@ -1334,9 +1334,8 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
   BIND(&if_rejectpromise);
   {
-    Callable promise_handle_reject = CodeFactory::PromiseHandleReject(isolate);
-    CallStub(promise_handle_reject, context, deferred_promise,
-             deferred_on_reject, var_reason.value());
+    CallBuiltin(Builtins::kPromiseHandleReject, context, deferred_promise,
+                deferred_on_reject, var_reason.value());
     Goto(&promisehook_after);
   }
 

@@ -2130,7 +2130,8 @@ Node* EffectControlLinearizer::LowerStringCharAt(Node* node) {
   Node* receiver = node->InputAt(0);
   Node* position = node->InputAt(1);
 
-  Callable const callable = CodeFactory::StringCharAt(isolate());
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtins::kStringCharAt);
   Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -2143,7 +2144,8 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
   Node* receiver = node->InputAt(0);
   Node* position = node->InputAt(1);
 
-  Callable const callable = CodeFactory::StringCharCodeAt(isolate());
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtins::kStringCharCodeAt);
   Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -2382,16 +2384,18 @@ Node* EffectControlLinearizer::LowerStringComparison(Callable const& callable,
 }
 
 Node* EffectControlLinearizer::LowerStringEqual(Node* node) {
-  return LowerStringComparison(CodeFactory::StringEqual(isolate()), node);
+  return LowerStringComparison(
+      Builtins::CallableFor(isolate(), Builtins::kStringEqual), node);
 }
 
 Node* EffectControlLinearizer::LowerStringLessThan(Node* node) {
-  return LowerStringComparison(CodeFactory::StringLessThan(isolate()), node);
+  return LowerStringComparison(
+      Builtins::CallableFor(isolate(), Builtins::kStringLessThan), node);
 }
 
 Node* EffectControlLinearizer::LowerStringLessThanOrEqual(Node* node) {
-  return LowerStringComparison(CodeFactory::StringLessThanOrEqual(isolate()),
-                               node);
+  return LowerStringComparison(
+      Builtins::CallableFor(isolate(), Builtins::kStringLessThanOrEqual), node);
 }
 
 Node* EffectControlLinearizer::LowerCheckFloat64Hole(Node* node,

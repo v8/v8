@@ -210,11 +210,15 @@ Reduction JSIntrinsicLowering::ReduceAsyncGeneratorGetAwaitInputOrDebugPos(
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorReject(Node* node) {
-  return Change(node, CodeFactory::AsyncGeneratorReject(isolate()), 0);
+  return Change(
+      node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorReject),
+      0);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorResolve(Node* node) {
-  return Change(node, CodeFactory::AsyncGeneratorResolve(isolate()), 0);
+  return Change(
+      node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorResolve),
+      0);
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorGetContext(Node* node) {

@@ -1460,7 +1460,7 @@ IGNITION_HANDLER(ToNumber, InterpreterAssembler) {
 //
 // Convert the object referenced by the accumulator to a JSReceiver.
 IGNITION_HANDLER(ToObject, InterpreterAssembler) {
-  Callable callable(CodeFactory::ToObject(isolate()));
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
   Node* target = HeapConstant(callable.code());
   Node* accumulator = GetAccumulator();
   Node* context = GetContext();
