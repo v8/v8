@@ -6207,6 +6207,10 @@ typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context);
 // --- WASM compilation callbacks ---
 typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
 
+// --- Callback for APIs defined on v8-supported objects, but implemented
+// by the embedder. Example: WebAssembly.{compile|instantiate}Streaming ---
+typedef void (*ApiImplementationCallback)(const FunctionCallbackInfo<Value>&);
+
 // --- Garbage Collection Callbacks ---
 
 /**
@@ -7476,6 +7480,8 @@ class V8_EXPORT Isolate {
   void SetWasmCompileCallback(ExtensionCallback callback);
   void SetWasmInstanceCallback(ExtensionCallback callback);
   void SetWasmInstantiateCallback(ExtensionCallback callback);
+
+  void SetWasmCompileStreamingCallback(ApiImplementationCallback callback);
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after

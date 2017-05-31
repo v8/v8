@@ -8877,6 +8877,9 @@ CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback, wasm_instance_callback)
 CALLBACK_SETTER(WasmInstantiateCallback, ExtensionCallback,
                 wasm_instantiate_callback)
 
+CALLBACK_SETTER(WasmCompileStreamingCallback, ApiImplementationCallback,
+                wasm_compile_streaming_callback)
+
 bool Isolate::IsDead() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return isolate->IsDead();

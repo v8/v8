@@ -407,6 +407,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
   V(ExtensionCallback, wasm_compile_callback, &NoExtension)                   \
   V(ExtensionCallback, wasm_instantiate_callback, &NoExtension)               \
+  V(ApiImplementationCallback, wasm_compile_streaming_callback, nullptr)      \
   V(ExternalReferenceRedirectorPointer*, external_reference_redirector,       \
     nullptr)                                                                  \
   /* State for Relocatable. */                                                \

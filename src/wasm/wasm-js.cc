@@ -160,8 +160,12 @@ void WebAssemblyCompileStreaming(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
   if (!i_isolate->wasm_compile_callback()(args)) {
-    ErrorThrower thrower(i_isolate, "WebAssembly.compileStreaming()");
-    RejectResponseAPI(args, &thrower);
+    if (i_isolate->wasm_compile_streaming_callback() != nullptr) {
+      i_isolate->wasm_compile_streaming_callback()(args);
+    } else {
+      ErrorThrower thrower(i_isolate, "WebAssembly.compileStreaming()");
+      RejectResponseAPI(args, &thrower);
+    }
   }
 }
 
