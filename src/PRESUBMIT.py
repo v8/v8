@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Presubmit script for //v8/include
+"""Presubmit script for //v8/src
 
 See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details about the presubmit API built into depot_tools.
@@ -17,9 +17,9 @@ def PostUploadHook(cl, change, output_api):
   This hook adds extra try bots to the CL description in order to run layout
   tests in addition to CQ try bots.
   """
-  def header_filter(f):
-    return '.h' in os.path.split(f.LocalPath())[1]
-  if not change.AffectedFiles(file_filter=header_filter):
+  def is_api_cc(f):
+    return 'api.cc' == os.path.split(f.LocalPath())[1]
+  if not change.AffectedFiles(file_filter=is_api_cc):
     return []
   return output_api.EnsureCQIncludeTrybotsAreAdded(
     cl,
