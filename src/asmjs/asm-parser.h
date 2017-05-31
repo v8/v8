@@ -5,8 +5,8 @@
 #ifndef V8_ASMJS_ASM_PARSER_H_
 #define V8_ASMJS_ASM_PARSER_H_
 
+#include <memory>
 #include <string>
-#include <vector>
 
 #include "src/asmjs/asm-scanner.h"
 #include "src/asmjs/asm-types.h"
@@ -15,6 +15,9 @@
 
 namespace v8 {
 namespace internal {
+
+class Utf16CharacterStream;
+
 namespace wasm {
 
 // A custom parser + validator + wasm converter for asm.js:
@@ -46,8 +49,8 @@ class AsmJsParser {
 
   typedef std::unordered_set<StandardMember, std::hash<int>> StdlibSet;
 
-  explicit AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
-                       int start, int end);
+  explicit AsmJsParser(Zone* zone, uintptr_t stack_limit,
+                       std::unique_ptr<Utf16CharacterStream> stream);
   bool Run();
   const char* failure_message() const { return failure_message_; }
   int failure_location() const { return failure_location_; }

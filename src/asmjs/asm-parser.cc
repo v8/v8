@@ -11,9 +11,7 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
-#include "src/parsing/scanner-character-streams.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker.
 #include "src/parsing/scanner.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -68,16 +66,16 @@ namespace wasm {
 
 #define TOK(name) AsmJsScanner::kToken_##name
 
-AsmJsParser::AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
-                         int start, int end)
+AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
+                         std::unique_ptr<Utf16CharacterStream> stream)
     : zone_(zone),
       module_builder_(new (zone) WasmModuleBuilder(zone)),
       return_type_(nullptr),
-      stack_limit_(isolate->stack_guard()->real_climit()),
+      stack_limit_(stack_limit),
       global_var_info_(zone),
       local_var_info_(zone),
       failed_(false),
-      failure_location_(start),
+      failure_location_(kNoSourcePosition),
       stdlib_name_(kTokenNone),
       foreign_name_(kTokenNone),
       heap_name_(kTokenNone),
@@ -89,9 +87,6 @@ AsmJsParser::AsmJsParser(Isolate* isolate, Zone* zone, Handle<Script> script,
       pending_label_(0),
       global_imports_(zone) {
   InitializeStdlibTypes();
-  Handle<String> source(String::cast(script->source()), isolate);
-  std::unique_ptr<Utf16CharacterStream> stream(
-      ScannerStream::For(source, start, end));
   scanner_.SetStream(std::move(stream));
 }
 

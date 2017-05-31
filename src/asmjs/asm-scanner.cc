@@ -46,6 +46,10 @@ AsmJsScanner::AsmJsScanner()
 #undef V
 }
 
+// Destructor of unique_ptr<T> requires complete declaration of T, we only want
+// to include the necessary declaration here instead of the header file.
+AsmJsScanner::~AsmJsScanner() {}
+
 void AsmJsScanner::SetStream(std::unique_ptr<Utf16CharacterStream> stream) {
   stream_ = std::move(stream);
   Next();

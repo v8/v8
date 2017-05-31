@@ -4,8 +4,6 @@
 
 #include "src/asmjs/asm-js.h"
 
-#include "src/api-natives.h"
-#include "src/api.h"
 #include "src/asmjs/asm-names.h"
 #include "src/asmjs/asm-parser.h"
 #include "src/assert-scope.h"
@@ -17,7 +15,8 @@
 #include "src/handles.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/parsing/scanner-character-streams.h"
+#include "src/parsing/scanner.h"
 
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
@@ -192,9 +191,11 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
 
     Zone* compile_zone = info->zone();
     Zone translate_zone(info->isolate()->allocator(), ZONE_NAME);
-    wasm::AsmJsParser parser(info->isolate(), &translate_zone, info->script(),
-                             info->literal()->start_position(),
-                             info->literal()->end_position());
+    std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
+        handle(String::cast(info->script()->source())),
+        info->literal()->start_position(), info->literal()->end_position()));
+    uintptr_t stack_limit = info->isolate()->stack_guard()->real_climit();
+    wasm::AsmJsParser parser(&translate_zone, stack_limit, std::move(stream));
     if (!parser.Run()) {
       DCHECK(!info->isolate()->has_pending_exception());
       ReportCompilationFailure(info->script(), parser.failure_location(),
