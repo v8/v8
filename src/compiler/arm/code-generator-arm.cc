@@ -2750,7 +2750,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   // actual final call site and just bl'ing to it here, similar to what we do
   // in the lithium backend.
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  if (isolate()->NeedsSourcePositionsForProfiling()) {
+  if (info()->is_source_positions_enabled()) {
     __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   }
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);

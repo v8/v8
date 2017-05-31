@@ -2282,7 +2282,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  if (isolate()->NeedsSourcePositionsForProfiling()) {
+  if (info()->is_source_positions_enabled()) {
     __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   }
   __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
