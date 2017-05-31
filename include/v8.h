@@ -1113,9 +1113,9 @@ class V8_EXPORT Module {
    * instantiation. (In the case where the callback throws an exception, that
    * exception is propagated.)
    */
-  V8_DEPRECATE_SOON("Use Maybe<bool> version",
-                    bool Instantiate(Local<Context> context,
-                                     ResolveCallback callback));
+  V8_DEPRECATED("Use Maybe<bool> version",
+                bool Instantiate(Local<Context> context,
+                                 ResolveCallback callback));
   V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(Local<Context> context,
                                                       ResolveCallback callback);
 
