@@ -40,9 +40,15 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
     if (outer_) {
       depth_ = outer_->depth_ + 1;
 
+      int outer_reg_index =
+          builder()->first_context_register().index() + outer_->depth_;
+
+      // TODO(ignition): ensure overwriting of non-context registers with
+      // a Context can never occurs, and re-enable DCHECK.
+      // DCHECK_LE(outer_reg_index, builder()->last_context_register().index());
+
       // Push the outer context into a new context register.
-      Register outer_context_reg =
-          generator_->register_allocator()->NewRegister();
+      Register outer_context_reg(outer_reg_index);
       outer_->set_register(outer_context_reg);
       generator_->builder()->PushContext(outer_context_reg);
     }
@@ -700,6 +706,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
     : zone_(info->zone()),
       builder_(new (zone()) BytecodeArrayBuilder(
           info->isolate(), info->zone(), info->num_parameters_including_this(),
+          info->scope()->MaxNestedContextChainLength(),
           info->scope()->num_stack_slots(), info->literal(),
           info->SourcePositionRecordingMode())),
       info_(info),
