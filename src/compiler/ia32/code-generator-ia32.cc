@@ -2559,13 +2559,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsStackSlot());
         Operand dst = g.ToOperand(destination);
-        AllowDeferredHandleDereference embedding_raw_address;
-        if (isolate()->heap()->InNewSpace(*src)) {
-          __ PushHeapObject(src);
-          __ pop(dst);
-        } else {
-          __ mov(dst, src);
-        }
+        __ mov(dst, src);
       }
     } else if (destination->IsRegister()) {
       Register dst = g.ToRegister(destination);
