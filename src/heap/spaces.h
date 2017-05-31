@@ -1545,20 +1545,12 @@ class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
 // space.
 class AllocationInfo {
  public:
-  AllocationInfo() : original_top_(nullptr), top_(nullptr), limit_(nullptr) {}
-  AllocationInfo(Address top, Address limit)
-      : original_top_(top), top_(top), limit_(limit) {}
+  AllocationInfo() : top_(nullptr), limit_(nullptr) {}
+  AllocationInfo(Address top, Address limit) : top_(top), limit_(limit) {}
 
   void Reset(Address top, Address limit) {
-    original_top_ = top;
     set_top(top);
     set_limit(limit);
-  }
-
-  Address original_top() {
-    SLOW_DCHECK(top_ == NULL ||
-                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
-    return original_top_;
   }
 
   INLINE(void set_top(Address top)) {
@@ -1594,8 +1586,6 @@ class AllocationInfo {
 #endif
 
  private:
-  // The original top address when the allocation info was initialized.
-  Address original_top_;
   // Current allocation top.
   Address top_;
   // Current allocation limit.
@@ -2443,10 +2433,10 @@ class NewSpace : public Space {
 
   explicit NewSpace(Heap* heap)
       : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
+        top_on_previous_step_(0),
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_(),
-        top_on_previous_step_(0),
         allocated_histogram_(nullptr),
         promoted_histogram_(nullptr) {}
 
@@ -2580,6 +2570,10 @@ class NewSpace : public Space {
     return allocation_info_.limit();
   }
 
+  Address original_top() { return original_top_.Value(); }
+
+  Address original_limit() { return original_limit_.Value(); }
+
   // Return the address of the first object in the active semispace.
   Address bottom() { return to_space_.space_start(); }
 
@@ -2710,16 +2704,20 @@ class NewSpace : public Space {
 
   base::Mutex mutex_;
 
+  // Allocation pointer and limit for normal allocation and allocation during
+  // mark-compact collection.
+  AllocationInfo allocation_info_;
+  Address top_on_previous_step_;
+  // The top and the limit at the time of setting the allocation info.
+  // These values can be accessed by background tasks.
+  base::AtomicValue<Address> original_top_;
+  base::AtomicValue<Address> original_limit_;
+
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
   base::VirtualMemory reservation_;
 
-  // Allocation pointer and limit for normal allocation and allocation during
-  // mark-compact collection.
-  AllocationInfo allocation_info_;
-
-  Address top_on_previous_step_;
 
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;

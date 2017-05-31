@@ -1785,6 +1785,8 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
 void NewSpace::UpdateAllocationInfo() {
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(to_space_.page_low(), to_space_.page_high());
+  original_top_.SetValue(top());
+  original_limit_.SetValue(limit());
   UpdateInlineAllocationLimit(0);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }

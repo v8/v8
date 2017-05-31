@@ -255,7 +255,14 @@ void ConcurrentMarking::Run() {
     HeapObject* object;
     while ((object = deque_->Pop(MarkingThread::kConcurrent)) != nullptr) {
       base::LockGuard<base::Mutex> guard(relocation_mutex);
-      bytes_marked += visitor_->Visit(object);
+      Address new_space_top = heap_->new_space()->original_top();
+      Address new_space_limit = heap_->new_space()->original_limit();
+      Address addr = object->address();
+      if (new_space_top <= addr && addr < new_space_limit) {
+        deque_->Push(object, MarkingThread::kConcurrent, TargetDeque::kBailout);
+      } else {
+        bytes_marked += visitor_->Visit(object);
+      }
     }
   }
   if (FLAG_trace_concurrent_marking) {

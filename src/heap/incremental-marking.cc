@@ -583,6 +583,10 @@ void IncrementalMarking::StartMarking() {
   heap_->CompletelyClearInstanceofCache();
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 
+  if (FLAG_concurrent_marking && !black_allocation_) {
+    StartBlackAllocation();
+  }
+
   // Mark strong roots grey.
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
