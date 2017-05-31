@@ -26,15 +26,14 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 1, 131);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 131);
   Factory* factory = isolate()->factory();
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
   DeclarationScope scope(zone(), &ast_factory);
 
   CHECK_EQ(builder.locals_count(), 131);
-  CHECK_EQ(builder.context_count(), 1);
-  CHECK_EQ(builder.fixed_register_count(), 132);
+  CHECK_EQ(builder.fixed_register_count(), 131);
 
   Register reg(0);
   Register other(reg.index() + 1);
@@ -474,7 +473,7 @@ TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
 
 
 TEST_F(BytecodeArrayBuilderTest, Parameters) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 10, 0, 0);
+  BytecodeArrayBuilder builder(isolate(), zone(), 10, 0);
 
   Register receiver(builder.Receiver());
   Register param8(builder.Parameter(8));
@@ -483,7 +482,7 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
 
 
 TEST_F(BytecodeArrayBuilderTest, Constants) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 0);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
 
@@ -511,7 +510,7 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
 TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   static const int kFarJumpDistance = 256 + 20;
 
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 1);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 1);
 
   Register reg(0);
   BytecodeLabel far0, far1, far2, far3, far4;
@@ -626,7 +625,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
 
 TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 1);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 1);
 
   Register reg(0);
 
@@ -674,7 +673,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
 }
 
 TEST_F(BytecodeArrayBuilderTest, SmallSwitch) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 1);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 1);
 
   // Small jump table that fits into the single-size constant pool
   int small_jump_table_size = 5;
@@ -722,7 +721,7 @@ TEST_F(BytecodeArrayBuilderTest, SmallSwitch) {
 }
 
 TEST_F(BytecodeArrayBuilderTest, WideSwitch) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 1);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 1);
 
   // Large jump table that requires a wide Switch bytecode.
   int large_jump_table_size = 256;
@@ -770,7 +769,7 @@ TEST_F(BytecodeArrayBuilderTest, WideSwitch) {
 }
 
 TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 0);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0);
 
   // Labels can only have 1 forward reference, but
   // can be referred to mulitple times once bound.
@@ -804,7 +803,7 @@ TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
 TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   static const int kRepeats = 3;
 
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0, 0);
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 0);
   for (int i = 0; i < kRepeats; i++) {
     BytecodeLabel label, after_jump0, after_jump1;
     builder.Jump(&label)
