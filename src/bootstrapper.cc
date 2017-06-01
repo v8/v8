@@ -4881,10 +4881,22 @@ bool Genesis::ConfigureGlobalObjects(
 
   native_context()->set_array_buffer_map(
       native_context()->array_buffer_fun()->initial_map());
-  native_context()->set_js_map_map(
-      native_context()->js_map_fun()->initial_map());
-  native_context()->set_js_set_map(
-      native_context()->js_set_fun()->initial_map());
+
+  Handle<JSFunction> js_map_fun(native_context()->js_map_fun());
+  Handle<JSFunction> js_set_fun(native_context()->js_set_fun());
+  // Force the Map/Set constructor to fast properties, so that we can use the
+  // fast paths for various things like
+  //
+  //   x instanceof Map
+  //   x instanceof Set
+  //
+  // etc. We should probably come up with a more principled approach once
+  // the JavaScript builtins are gone.
+  JSObject::MigrateSlowToFast(js_map_fun, 0, "Bootstrapping");
+  JSObject::MigrateSlowToFast(js_set_fun, 0, "Bootstrapping");
+
+  native_context()->set_js_map_map(js_map_fun->initial_map());
+  native_context()->set_js_set_map(js_set_fun->initial_map());
 
   return true;
 }

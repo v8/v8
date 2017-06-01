@@ -57,7 +57,6 @@ assertEquals(
     [
       'Error.prototype',
       'EvalError.prototype', 'RangeError.prototype', 'ReferenceError.prototype',
-      'SyntaxError.prototype', 'TypeError.prototype', 'URIError.prototype',
-      'Map', 'Map.prototype.constructor', 'Set', 'Set.prototype.constructor'
+      'SyntaxError.prototype', 'TypeError.prototype', 'URIError.prototype'
     ],
     log);
