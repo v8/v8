@@ -18757,6 +18757,22 @@ bool OrderedHashTable<Derived, entrysize>::HasKey(Handle<Derived> table,
   return false;
 }
 
+template <class Derived, int entrysize>
+Object* OrderedHashTable<Derived, entrysize>::Get(Isolate* isolate,
+                                                  Derived* table, Object* key) {
+  DCHECK(table->IsOrderedHashTable());
+  DisallowHeapAllocation no_gc;
+  int entry = table->KeyToFirstEntry(isolate, key);
+  // Walk the chain in the bucket to find the key.
+  while (entry != kNotFound) {
+    Object* candidate_key = table->KeyAt(entry);
+    if (candidate_key->SameValueZero(key)) {
+      return table->ValueAt(entry);
+    }
+    entry = table->NextChainEntry(entry);
+  }
+  return isolate->heap()->undefined_value();
+}
 
 Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
                                            Handle<Object> key) {
@@ -18872,6 +18888,10 @@ template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Clear(
 template bool OrderedHashTable<OrderedHashSet, 1>::HasKey(
     Handle<OrderedHashSet> table, Handle<Object> key);
 
+template Object* OrderedHashTable<OrderedHashSet, 1>::Get(Isolate* isolate,
+                                                          OrderedHashSet* table,
+                                                          Object* key);
+
 template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
 
@@ -18887,6 +18907,9 @@ template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Clear(
 template bool OrderedHashTable<OrderedHashMap, 2>::HasKey(
     Handle<OrderedHashMap> table, Handle<Object> key);
 
+template Object* OrderedHashTable<OrderedHashMap, 2>::Get(Isolate* isolate,
+                                                          OrderedHashMap* table,
+                                                          Object* key);
 template <>
 Handle<SmallOrderedHashSet>
 SmallOrderedHashTable<SmallOrderedHashSet>::Allocate(Isolate* isolate,

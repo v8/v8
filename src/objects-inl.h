@@ -7087,12 +7087,6 @@ Handle<ObjectHashTable> ObjectHashTable::Shrink(
   return DerivedHashTable::Shrink(table, key);
 }
 
-
-Object* OrderedHashMap::ValueAt(int entry) {
-  return get(EntryToIndex(entry) + kValueOffset);
-}
-
-
 template <int entrysize>
 bool WeakHashTableShape<entrysize>::IsMatch(Handle<Object> key, Object* other) {
   if (other->IsWeakCell()) other = WeakCell::cast(other)->value();

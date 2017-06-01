@@ -1589,6 +1589,13 @@ ExternalReference ExternalReference::search_string_raw(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
 }
 
+template <typename CollectionType, int entrysize>
+ExternalReference ExternalReference::orderedhashtable_get_raw(
+    Isolate* isolate) {
+  auto f = OrderedHashTable<CollectionType, entrysize>::Get;
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
 ExternalReference ExternalReference::try_internalize_string_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(
@@ -1618,6 +1625,11 @@ template ExternalReference
 ExternalReference::search_string_raw<const uc16, const uint8_t>(Isolate*);
 template ExternalReference
 ExternalReference::search_string_raw<const uc16, const uc16>(Isolate*);
+
+template ExternalReference
+ExternalReference::orderedhashtable_get_raw<OrderedHashMap, 2>(Isolate*);
+template ExternalReference
+ExternalReference::orderedhashtable_get_raw<OrderedHashSet, 1>(Isolate*);
 
 ExternalReference ExternalReference::page_flags(Page* page) {
   return ExternalReference(reinterpret_cast<Address>(page) +

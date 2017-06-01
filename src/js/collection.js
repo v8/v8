@@ -275,20 +275,6 @@ utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
 // -------------------------------------------------------------------
 // Harmony Map
 
-function MapGet(key) {
-  if (!IS_MAP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map.prototype.get', this);
-  }
-  var table = %_JSCollectionGetTable(this);
-  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
-  var hash = GetExistingHash(key);
-  if (IS_UNDEFINED(hash)) return UNDEFINED;
-  var entry = MapFindEntry(table, numBuckets, key, hash);
-  if (entry === NOT_FOUND) return UNDEFINED;
-  return ORDERED_HASH_MAP_VALUE_AT(table, entry, numBuckets);
-}
-
 
 function MapSet(key, value) {
   if (!IS_MAP(this)) {
@@ -414,7 +400,6 @@ function MapForEach(f, receiver) {
 // Set up the non-enumerable functions on the Map prototype object.
 utils.InstallGetter(GlobalMap.prototype, "size", MapGetSize);
 utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
-  "get", MapGet,
   "set", MapSet,
   "has", MapHas,
   "delete", MapDelete,
@@ -426,7 +411,6 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
 // Exports
 
 %InstallToContext([
-  "map_get", MapGet,
   "map_set", MapSet,
   "map_has", MapHas,
   "map_delete", MapDelete,

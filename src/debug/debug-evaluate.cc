@@ -529,6 +529,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kDatePrototypeValueOf:
     // Map builtins.
     case Builtins::kMapConstructor:
+    case Builtins::kMapGet:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:

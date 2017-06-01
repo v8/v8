@@ -2945,6 +2945,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         prototype, factory->to_string_tag_symbol(), factory->Map_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
+    Handle<JSFunction> map_get =
+        SimpleInstallFunction(prototype, "get", Builtins::kMapGet, 1, true);
+    InstallWithIntrinsicDefaultProto(isolate, map_get,
+                                     Context::MAP_GET_METHOD_INDEX);
+
     InstallSpeciesGetter(js_map_fun);
   }
 

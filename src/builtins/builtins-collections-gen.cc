@@ -19,6 +19,9 @@ class CollectionsBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   Node* AllocateJSMap(Node* js_map_function);
+
+  template <typename CollectionType, int entrysize>
+  Node* CallGetRaw(Node* const table, Node* const key);
 };
 
 Node* CollectionsBuiltinsAssembler::AllocateJSMap(Node* js_map_function) {
@@ -152,5 +155,34 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
   Return(var_result.value());
 }
 
+template <typename CollectionType, int entrysize>
+Node* CollectionsBuiltinsAssembler::CallGetRaw(Node* const table,
+                                               Node* const key) {
+  Node* const function_addr = ExternalConstant(
+      ExternalReference::orderedhashtable_get_raw<CollectionType, entrysize>(
+          isolate()));
+  Node* const isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+
+  MachineType type_ptr = MachineType::Pointer();
+  MachineType type_tagged = MachineType::AnyTagged();
+
+  Node* const result =
+      CallCFunction3(type_tagged, type_ptr, type_tagged, type_tagged,
+                     function_addr, isolate_ptr, table, key);
+
+  return result;
+}
+
+TF_BUILTIN(MapGet, CollectionsBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const key = Parameter(Descriptor::kKey);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.get");
+
+  Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
+  Return(CallGetRaw<OrderedHashMap, 2>(table, key));
+}
 }  // namespace internal
 }  // namespace v8
