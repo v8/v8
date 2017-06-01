@@ -354,7 +354,7 @@ class Map : public HeapObject {
   // [layout descriptor]: describes the object layout.
   DECL_ACCESSORS(layout_descriptor, LayoutDescriptor)
   // |layout descriptor| accessor which can be used from GC.
-  inline LayoutDescriptor* layout_descriptor_gc_safe();
+  inline LayoutDescriptor* layout_descriptor_gc_safe() const;
   inline bool HasFastPointerLayout() const;
 
   // |layout descriptor| accessor that is safe to call even when
