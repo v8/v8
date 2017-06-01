@@ -12128,14 +12128,15 @@ static void GetMinInobjectSlack(Map* map, void* data) {
 
 
 static void ShrinkInstanceSize(Map* map, void* data) {
+#ifdef DEBUG
+  int old_visitor_id = Heap::GetStaticVisitorIdForMap(map);
+#endif
   int slack = *reinterpret_cast<int*>(data);
   map->SetInObjectProperties(map->GetInObjectProperties() - slack);
   map->set_unused_property_fields(map->unused_property_fields() - slack);
   map->set_instance_size(map->instance_size() - slack * kPointerSize);
   map->set_construction_counter(Map::kNoSlackTracking);
-
-  // Visitor id might depend on the instance size, recalculate it.
-  map->set_visitor_id(Heap::GetStaticVisitorIdForMap(map));
+  DCHECK_EQ(old_visitor_id, Heap::GetStaticVisitorIdForMap(map));
 }
 
 static void StopSlackTracking(Map* map, void* data) {
