@@ -409,9 +409,12 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   Handle<JSObject> memory_obj =
       isolate->factory()->NewJSObject(memory_ctor, TENURED);
   memory_obj->SetEmbedderField(kWrapperTracerHeader, Smi::kZero);
-  buffer.is_null() ? memory_obj->SetEmbedderField(
-                         kArrayBuffer, isolate->heap()->undefined_value())
-                   : memory_obj->SetEmbedderField(kArrayBuffer, *buffer);
+  if (buffer.is_null()) {
+    const bool enable_guard_regions = EnableGuardRegions();
+    buffer = SetupArrayBuffer(isolate, nullptr, 0, nullptr, 0, false,
+                              enable_guard_regions);
+  }
+  memory_obj->SetEmbedderField(kArrayBuffer, *buffer);
   Handle<Object> max = isolate->factory()->NewNumber(maximum);
   memory_obj->SetEmbedderField(kMaximum, *max);
   Handle<Symbol> memory_sym(isolate->native_context()->wasm_memory_sym());
@@ -419,8 +422,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   return Handle<WasmMemoryObject>::cast(memory_obj);
 }
 
-DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmMemoryObject, buffer, kArrayBuffer,
-                              JSArrayBuffer)
+DEFINE_OBJ_ACCESSORS(WasmMemoryObject, buffer, kArrayBuffer, JSArrayBuffer)
 DEFINE_OPTIONAL_OBJ_ACCESSORS(WasmMemoryObject, instances_link, kInstancesLink,
                               WasmInstanceWrapper)
 
@@ -467,20 +469,15 @@ void WasmMemoryObject::ResetInstancesLink(Isolate* isolate) {
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
                                uint32_t pages) {
-  Handle<JSArrayBuffer> old_buffer;
+  Handle<JSArrayBuffer> old_buffer(memory_object->buffer());
   uint32_t old_size = 0;
-  Address old_mem_start = nullptr;
-  if (memory_object->has_buffer()) {
-    old_buffer = handle(memory_object->buffer());
-    old_size = old_buffer->byte_length()->Number();
-    old_mem_start = static_cast<Address>(old_buffer->backing_store());
-  }
+  CHECK(old_buffer->byte_length()->ToUint32(&old_size));
   Handle<JSArrayBuffer> new_buffer;
   // Return current size if grow by 0.
   if (pages == 0) {
     // Even for pages == 0, we need to attach a new JSArrayBuffer with the same
     // backing store and neuter the old one to be spec compliant.
-    if (!old_buffer.is_null() && old_size != 0) {
+    if (old_size != 0) {
       new_buffer = SetupArrayBuffer(
           isolate, old_buffer->allocation_base(),
           old_buffer->allocation_length(), old_buffer->backing_store(),
@@ -515,6 +512,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     if (new_buffer.is_null()) return -1;
     DCHECK(!instance_wrapper->has_previous());
     SetInstanceMemory(isolate, instance, new_buffer);
+    Address old_mem_start = static_cast<Address>(old_buffer->backing_store());
     UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
     while (instance_wrapper->has_next()) {
       instance_wrapper = instance_wrapper->next_wrapper();
