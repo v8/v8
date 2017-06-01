@@ -1677,7 +1677,7 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
       }
     } else if (Check('/')) {
       AsmType* b;
-      RECURSEn(b = MultiplicativeExpression());
+      RECURSEn(b = UnaryExpression());
       if (a->IsA(AsmType::DoubleQ()) && b->IsA(AsmType::DoubleQ())) {
         current_function_builder_->Emit(kExprF64Div);
         a = AsmType::Double();
@@ -1695,7 +1695,7 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
       }
     } else if (Check('%')) {
       AsmType* b;
-      RECURSEn(b = MultiplicativeExpression());
+      RECURSEn(b = UnaryExpression());
       if (a->IsA(AsmType::DoubleQ()) && b->IsA(AsmType::DoubleQ())) {
         current_function_builder_->Emit(kExprF64Mod);
         a = AsmType::Double();
