@@ -2038,6 +2038,14 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   Run<AssignSpillSlotsPhase>();
 
   Run<CommitAssignmentPhase>();
+
+  // TODO(chromium:725559): remove this check once
+  // we understand the cause of the bug. We keep just the
+  // check at the end of the allocation.
+  if (verifier != nullptr) {
+    verifier->VerifyAssignment();
+  }
+
   Run<PopulateReferenceMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();

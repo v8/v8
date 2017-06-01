@@ -3574,6 +3574,7 @@ void OperandAssigner::CommitAssignment() {
     for (LiveRange* range = top_range; range != nullptr;
          range = range->next()) {
       InstructionOperand assigned = range->GetAssignedOperand();
+      DCHECK(!assigned.IsUnallocated());
       range->ConvertUsesToOperand(assigned, spill_operand);
     }
 
