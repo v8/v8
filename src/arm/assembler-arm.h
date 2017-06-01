@@ -1509,6 +1509,36 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
+  // Class for blocking sharing of code targets in constant pool.
+  class BlockCodeTargetSharingScope {
+   public:
+    explicit BlockCodeTargetSharingScope(Assembler* assem) : assem_(nullptr) {
+      Open(assem);
+    }
+    // This constructor does not initialize the scope. The user needs to
+    // explicitly call Open() before using it.
+    BlockCodeTargetSharingScope() : assem_(nullptr) {}
+    ~BlockCodeTargetSharingScope() {
+      Close();
+    }
+    void Open(Assembler* assem) {
+      DCHECK_NULL(assem_);
+      DCHECK_NOT_NULL(assem);
+      assem_ = assem;
+      assem_->StartBlockCodeTargetSharing();
+    }
+
+   private:
+    void Close() {
+      if (assem_ != nullptr) {
+        assem_->EndBlockCodeTargetSharing();
+      }
+    }
+    Assembler* assem_;
+
+    DISALLOW_COPY_AND_ASSIGN(BlockCodeTargetSharingScope);
+  };
+
   // Debugging
 
   // Mark address of a debug break slot.
@@ -1675,8 +1705,22 @@ class Assembler : public AssemblerBase {
   // Patch branch instruction at pos to branch to given branch target pos
   void target_at_put(int pos, int target_pos);
 
+  // Prevent sharing of code target constant pool entries until
+  // EndBlockCodeTargetSharing is called. Calls to this function can be nested
+  // but must be followed by an equal number of call to
+  // EndBlockCodeTargetSharing.
+  void StartBlockCodeTargetSharing() {
+    ++code_target_sharing_blocked_nesting_;
+  }
+
+  // Resume sharing of constant pool code target entries. Needs to be called
+  // as many times as StartBlockCodeTargetSharing to have an effect.
+  void EndBlockCodeTargetSharing() {
+    --code_target_sharing_blocked_nesting_;
+  }
+
   // Prevent contant pool emission until EndBlockConstPool is called.
-  // Call to this function can be nested but must be followed by an equal
+  // Calls to this function can be nested but must be followed by an equal
   // number of call to EndBlockConstpool.
   void StartBlockConstPool() {
     if (const_pool_blocked_nesting_++ == 0) {
@@ -1686,7 +1730,7 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  // Resume constant pool emission. Need to be called as many time as
+  // Resume constant pool emission. Needs to be called as many times as
   // StartBlockConstPool to have an effect.
   void EndBlockConstPool() {
     if (--const_pool_blocked_nesting_ == 0) {
@@ -1778,6 +1822,11 @@ class Assembler : public AssemblerBase {
   static constexpr int kCheckPoolIntervalInst = 32;
   static constexpr int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
 
+  // Sharing of code target entries may be blocked in some code sequences.
+  int code_target_sharing_blocked_nesting_;
+  bool IsCodeTargetSharingAllowed() const {
+    return code_target_sharing_blocked_nesting_ == 0;
+  }
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
@@ -1820,6 +1869,7 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockConstPoolScope;
+  friend class BlockCodeTargetSharingScope;
   friend class EnsureSpace;
 };
 

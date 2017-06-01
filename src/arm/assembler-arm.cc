@@ -557,6 +557,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   pending_64_bit_constants_.reserve(kMinNumPendingConstants);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   next_buffer_check_ = 0;
+  code_target_sharing_blocked_nesting_ = 0;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   first_const_pool_32_use_ = -1;
@@ -573,7 +574,8 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
 
 
 Assembler::~Assembler() {
-  DCHECK(const_pool_blocked_nesting_ == 0);
+  DCHECK_EQ(const_pool_blocked_nesting_, 0);
+  DCHECK_EQ(code_target_sharing_blocked_nesting_, 0);
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
@@ -5055,9 +5057,9 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
   if (pending_32_bit_constants_.empty()) {
     first_const_pool_32_use_ = position;
   }
-  ConstantPoolEntry entry(
-      position, value,
-      sharing_ok || (rmode == RelocInfo::CODE_TARGET && serializer_enabled()));
+  ConstantPoolEntry entry(position, value,
+                          sharing_ok || (rmode == RelocInfo::CODE_TARGET &&
+                                         IsCodeTargetSharingAllowed()));
 
   bool shared = false;
   if (sharing_ok) {
@@ -5073,10 +5075,7 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
     }
   }
 
-  if (rmode == RelocInfo::CODE_TARGET && serializer_enabled()) {
-    // TODO(all): We only do this in the serializer, for now, because
-    // full-codegen relies on RelocInfo for translating PCs between full-codegen
-    // normal and debug code.
+  if (rmode == RelocInfo::CODE_TARGET && IsCodeTargetSharingAllowed()) {
     // Sharing entries here relies on canonicalized handles - without them, we
     // will miss the optimisation opportunity.
     Address handle_address = reinterpret_cast<Address>(value);
