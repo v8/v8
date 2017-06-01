@@ -1800,7 +1800,9 @@ WASM_SIMD_TEST(S32x4Concat) { RunConcatOpTest<int32_t>(kExprS32x4Shuffle); }
 WASM_SIMD_TEST(S16x8Concat) { RunConcatOpTest<int16_t>(kExprS16x8Shuffle); }
 
 WASM_SIMD_TEST(S8x16Concat) { RunConcatOpTest<int8_t>(kExprS8x16Shuffle); }
+#endif  // V8_TARGET_ARCH_ARM
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 // Boolean unary operations are 'AllTrue' and 'AnyTrue', which return an integer
 // result. Use relational ops on numeric vectors to create the boolean vector
 // test inputs. Test inputs with all true, all false, one true, and one false.
@@ -1970,9 +1972,10 @@ WASM_SIMD_TEST(S1x16And) { RunS1x16BinOpTest(kExprS1x16And, And); }
 WASM_SIMD_TEST(S1x16Or) { RunS1x16BinOpTest(kExprS1x16Or, Or); }
 
 WASM_SIMD_TEST(S1x16Xor) { RunS1x16BinOpTest(kExprS1x16Xor, Xor); }
-#endif  // !V8_TARGET_ARCH_ARM
+#endif  // !V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(SimdI32x4ExtractWithF32x4) {
   WasmRunner<int32_t> r(kExecuteCompiled);
   BUILD(r, WASM_IF_ELSE_I(
@@ -2026,9 +2029,11 @@ WASM_SIMD_TEST(SimdI32x4AddWithF32x4) {
             WASM_I32V(1), WASM_I32V(0)));
   CHECK_EQ(1, r.Call());
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64 || \
+    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(SimdI32x4Local) {
   WasmRunner<int32_t> r(kExecuteCompiled);
   r.AllocateLocal(kWasmS128);
@@ -2082,9 +2087,11 @@ WASM_SIMD_TEST(SimdI32x4For) {
         WASM_GET_LOCAL(0));
   CHECK_EQ(1, r.Call());
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64 ||
+        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(SimdF32x4For) {
   WasmRunner<int32_t> r(kExecuteCompiled);
   r.AllocateLocal(kWasmI32);
@@ -2108,9 +2115,11 @@ WASM_SIMD_TEST(SimdF32x4For) {
         WASM_GET_LOCAL(0));
   CHECK_EQ(1, r.Call());
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64 || \
+    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 template <typename T, int numLanes = 4>
 void SetVectorByLanes(T* v, const std::array<T, numLanes>& arr) {
@@ -2177,9 +2186,11 @@ WASM_SIMD_TEST(SimdI32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 2), 45);
   CHECK_EQ(GetScalar(global, 3), 56);
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64 ||
+        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(SimdF32x4GetGlobal) {
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
   float* global = r.module().AddGlobal<float>(kWasmS128);
@@ -2220,9 +2231,11 @@ WASM_SIMD_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 2), 32.25f);
   CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64 || \
+    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(SimdLoadStoreLoad) {
   WasmRunner<int32_t> r(kExecuteCompiled);
   int32_t* memory = r.module().AddMemoryElems<int32_t>(4);
@@ -2239,4 +2252,5 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
     CHECK_EQ(expected, r.Call());
   }
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET || V8_TARGET_ARCH_X64 ||
+        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64

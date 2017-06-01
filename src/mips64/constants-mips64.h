@@ -1092,6 +1092,36 @@ inline Condition NegateFpuCondition(Condition cc) {
   }
 }
 
+enum MSABranchCondition {
+  all_not_zero = 0,   // Branch If All Elements Are Not Zero
+  one_elem_not_zero,  // Branch If At Least One Element of Any Format Is Not
+                      // Zero
+  one_elem_zero,      // Branch If At Least One Element Is Zero
+  all_zero            // Branch If All Elements of Any Format Are Zero
+};
+
+inline MSABranchCondition NegateMSABranchCondition(MSABranchCondition cond) {
+  switch (cond) {
+    case all_not_zero:
+      return one_elem_zero;
+    case one_elem_not_zero:
+      return all_zero;
+    case one_elem_zero:
+      return all_not_zero;
+    case all_zero:
+      return one_elem_not_zero;
+    default:
+      return cond;
+  }
+}
+
+enum MSABranchDF {
+  MSA_BRANCH_B = 0,
+  MSA_BRANCH_H,
+  MSA_BRANCH_W,
+  MSA_BRANCH_D,
+  MSA_BRANCH_V
+};
 
 // Commute a condition such that {a cond b == b cond' a}.
 inline Condition CommuteCondition(Condition cc) {
@@ -1918,6 +1948,16 @@ bool InstructionGetters<T>::IsForbiddenAfterBranchInstr(Instr instr) {
         case BC1:
         case BC1EQZ:
         case BC1NEZ:
+        case BZ_V:
+        case BZ_B:
+        case BZ_H:
+        case BZ_W:
+        case BZ_D:
+        case BNZ_V:
+        case BNZ_B:
+        case BNZ_H:
+        case BNZ_W:
+        case BNZ_D:
           return true;
           break;
         default:

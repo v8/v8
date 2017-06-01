@@ -2226,6 +2226,63 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0));
       break;
     }
+    case kMipsS1x4AnyTrue:
+    case kMipsS1x8AnyTrue:
+    case kMipsS1x16AnyTrue: {
+      CpuFeatureScope msa_scope(masm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Label all_false;
+
+      __ BranchMSA(&all_false, MSA_BRANCH_V, all_zero,
+                   i.InputSimd128Register(0), USE_DELAY_SLOT);
+      __ li(dst, 0);  // branch delay slot
+      __ li(dst, -1);
+      __ bind(&all_false);
+      break;
+    }
+    case kMipsS1x4AllTrue: {
+      CpuFeatureScope msa_scope(masm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Label all_true;
+      __ BranchMSA(&all_true, MSA_BRANCH_W, all_not_zero,
+                   i.InputSimd128Register(0), USE_DELAY_SLOT);
+      __ li(dst, -1);  // branch delay slot
+      __ li(dst, 0);
+      __ bind(&all_true);
+      break;
+    }
+    case kMipsS1x8AllTrue: {
+      CpuFeatureScope msa_scope(masm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Label all_true;
+      __ BranchMSA(&all_true, MSA_BRANCH_H, all_not_zero,
+                   i.InputSimd128Register(0), USE_DELAY_SLOT);
+      __ li(dst, -1);  // branch delay slot
+      __ li(dst, 0);
+      __ bind(&all_true);
+      break;
+    }
+    case kMipsS1x16AllTrue: {
+      CpuFeatureScope msa_scope(masm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Label all_true;
+      __ BranchMSA(&all_true, MSA_BRANCH_B, all_not_zero,
+                   i.InputSimd128Register(0), USE_DELAY_SLOT);
+      __ li(dst, -1);  // branch delay slot
+      __ li(dst, 0);
+      __ bind(&all_true);
+      break;
+    }
+    case kMipsMsaLd: {
+      CpuFeatureScope msa_scope(masm(), MIPS_SIMD);
+      __ ld_b(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kMipsMsaSt: {
+      CpuFeatureScope msa_scope(masm(), MIPS_SIMD);
+      __ st_b(i.InputSimd128Register(2), i.MemoryOperand());
+      break;
+    }
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)

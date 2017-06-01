@@ -1104,15 +1104,45 @@ class Assembler : public AssemblerBase {
 
   // MSA instructions
   void bz_v(MSARegister wt, int16_t offset);
+  inline void bz_v(MSARegister wt, Label* L) {
+    bz_v(wt, shifted_branch_offset(L));
+  }
   void bz_b(MSARegister wt, int16_t offset);
+  inline void bz_b(MSARegister wt, Label* L) {
+    bz_b(wt, shifted_branch_offset(L));
+  }
   void bz_h(MSARegister wt, int16_t offset);
+  inline void bz_h(MSARegister wt, Label* L) {
+    bz_h(wt, shifted_branch_offset(L));
+  }
   void bz_w(MSARegister wt, int16_t offset);
+  inline void bz_w(MSARegister wt, Label* L) {
+    bz_w(wt, shifted_branch_offset(L));
+  }
   void bz_d(MSARegister wt, int16_t offset);
+  inline void bz_d(MSARegister wt, Label* L) {
+    bz_d(wt, shifted_branch_offset(L));
+  }
   void bnz_v(MSARegister wt, int16_t offset);
+  inline void bnz_v(MSARegister wt, Label* L) {
+    bnz_v(wt, shifted_branch_offset(L));
+  }
   void bnz_b(MSARegister wt, int16_t offset);
+  inline void bnz_b(MSARegister wt, Label* L) {
+    bnz_b(wt, shifted_branch_offset(L));
+  }
   void bnz_h(MSARegister wt, int16_t offset);
+  inline void bnz_h(MSARegister wt, Label* L) {
+    bnz_h(wt, shifted_branch_offset(L));
+  }
   void bnz_w(MSARegister wt, int16_t offset);
+  inline void bnz_w(MSARegister wt, Label* L) {
+    bnz_w(wt, shifted_branch_offset(L));
+  }
   void bnz_d(MSARegister wt, int16_t offset);
+  inline void bnz_d(MSARegister wt, Label* L) {
+    bnz_d(wt, shifted_branch_offset(L));
+  }
 
   void ld_b(MSARegister wd, const MemOperand& rs);
   void ld_h(MSARegister wd, const MemOperand& rs);
@@ -1767,6 +1797,7 @@ class Assembler : public AssemblerBase {
 
   // Check if an instruction is a branch of some kind.
   static bool IsBranch(Instr instr);
+  static bool IsMsaBranch(Instr instr);
   static bool IsBc(Instr instr);
   static bool IsBzc(Instr instr);
   static bool IsBeq(Instr instr);

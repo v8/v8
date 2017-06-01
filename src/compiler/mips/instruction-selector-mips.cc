@@ -294,8 +294,10 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = kMipsLw;
       break;
+    case MachineRepresentation::kSimd128:
+      opcode = kMipsMsaLd;
+      break;
     case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kSimd1x4:  // Fall through.
     case MachineRepresentation::kSimd1x8:  // Fall through.
     case MachineRepresentation::kSimd1x16:  // Fall through.
@@ -382,8 +384,10 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord32:
         opcode = kMipsSw;
         break;
+      case MachineRepresentation::kSimd128:
+        opcode = kMipsMsaSt;
+        break;
       case MachineRepresentation::kWord64:   // Fall through.
-      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kSimd1x4:  // Fall through.
       case MachineRepresentation::kSimd1x8:  // Fall through.
       case MachineRepresentation::kSimd1x16:  // Fall through.
@@ -1234,8 +1238,10 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kFloat64:
       opcode = kMipsUldc1;
       break;
+    case MachineRepresentation::kSimd128:
+      opcode = kMipsMsaLd;
+      break;
     case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kSimd1x4:  // Fall through.
     case MachineRepresentation::kSimd1x8:  // Fall through.
     case MachineRepresentation::kSimd1x16:  // Fall through.
@@ -1287,8 +1293,10 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = kMipsUsw;
       break;
+    case MachineRepresentation::kSimd128:
+      opcode = kMipsMsaSt;
+      break;
     case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kSimd1x4:  // Fall through.
     case MachineRepresentation::kSimd1x8:  // Fall through.
     case MachineRepresentation::kSimd1x16:  // Fall through.
@@ -2339,6 +2347,78 @@ void InstructionSelector::VisitS128Xor(Node* node) {
 
 void InstructionSelector::VisitS128Not(Node* node) {
   VisitRR(this, kMipsS128Not, node);
+}
+
+void InstructionSelector::VisitS1x4And(Node* node) {
+  VisitRRR(this, kMipsS128And, node);
+}
+
+void InstructionSelector::VisitS1x4Or(Node* node) {
+  VisitRRR(this, kMipsS128Or, node);
+}
+
+void InstructionSelector::VisitS1x4Xor(Node* node) {
+  VisitRRR(this, kMipsS128Xor, node);
+}
+
+void InstructionSelector::VisitS1x4Not(Node* node) {
+  VisitRR(this, kMipsS128Not, node);
+}
+
+void InstructionSelector::VisitS1x4AnyTrue(Node* node) {
+  VisitRR(this, kMipsS1x4AnyTrue, node);
+}
+
+void InstructionSelector::VisitS1x4AllTrue(Node* node) {
+  VisitRR(this, kMipsS1x4AllTrue, node);
+}
+
+void InstructionSelector::VisitS1x8And(Node* node) {
+  VisitRRR(this, kMipsS128And, node);
+}
+
+void InstructionSelector::VisitS1x8Or(Node* node) {
+  VisitRRR(this, kMipsS128Or, node);
+}
+
+void InstructionSelector::VisitS1x8Xor(Node* node) {
+  VisitRRR(this, kMipsS128Xor, node);
+}
+
+void InstructionSelector::VisitS1x8Not(Node* node) {
+  VisitRR(this, kMipsS128Not, node);
+}
+
+void InstructionSelector::VisitS1x8AnyTrue(Node* node) {
+  VisitRR(this, kMipsS1x8AnyTrue, node);
+}
+
+void InstructionSelector::VisitS1x8AllTrue(Node* node) {
+  VisitRR(this, kMipsS1x8AllTrue, node);
+}
+
+void InstructionSelector::VisitS1x16And(Node* node) {
+  VisitRRR(this, kMipsS128And, node);
+}
+
+void InstructionSelector::VisitS1x16Or(Node* node) {
+  VisitRRR(this, kMipsS128Or, node);
+}
+
+void InstructionSelector::VisitS1x16Xor(Node* node) {
+  VisitRRR(this, kMipsS128Xor, node);
+}
+
+void InstructionSelector::VisitS1x16Not(Node* node) {
+  VisitRR(this, kMipsS128Not, node);
+}
+
+void InstructionSelector::VisitS1x16AnyTrue(Node* node) {
+  VisitRR(this, kMipsS1x16AnyTrue, node);
+}
+
+void InstructionSelector::VisitS1x16AllTrue(Node* node) {
+  VisitRR(this, kMipsS1x16AllTrue, node);
 }
 
 // static

@@ -2451,7 +2451,7 @@ void InstructionSelector::VisitS8x16Select(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS &&
         // !V8_TARGET_ARCH_MIPS64
 
-#if !V8_TARGET_ARCH_ARM
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitS1x4And(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS1x4Or(Node* node) { UNIMPLEMENTED(); }
@@ -2487,7 +2487,7 @@ void InstructionSelector::VisitS1x16Not(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS1x16AnyTrue(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS1x16AllTrue(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

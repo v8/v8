@@ -913,6 +913,12 @@ class MacroAssembler: public Assembler {
     BranchF64(bd, target, nan, cc, cmp1, cmp2);
   }
 
+  void BranchMSA(Label* target, MSABranchDF df, MSABranchCondition cond,
+                 MSARegister wt, BranchDelaySlot bd = PROTECT);
+
+  void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
+                      MSARegister wt, BranchDelaySlot bd = PROTECT);
+
   // Truncates a double using a specific rounding mode, and writes the value
   // to the result register.
   // The except_flag will contain any exceptions caused by the instruction.

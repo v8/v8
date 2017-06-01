@@ -262,7 +262,15 @@ namespace compiler {
   V(Mips64S128And)                  \
   V(Mips64S128Or)                   \
   V(Mips64S128Xor)                  \
-  V(Mips64S128Not)
+  V(Mips64S128Not)                  \
+  V(Mips64S1x4AnyTrue)              \
+  V(Mips64S1x4AllTrue)              \
+  V(Mips64S1x8AnyTrue)              \
+  V(Mips64S1x8AllTrue)              \
+  V(Mips64S1x16AnyTrue)             \
+  V(Mips64S1x16AllTrue)             \
+  V(Mips64MsaLd)                    \
+  V(Mips64MsaSt)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
