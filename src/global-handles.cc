@@ -922,6 +922,17 @@ void GlobalHandles::IterateAllNewSpaceRoots(RootVisitor* v) {
 }
 
 DISABLE_CFI_PERF
+void GlobalHandles::IterateNewSpaceRoots(RootVisitor* v, size_t start,
+                                         size_t end) {
+  for (size_t i = start; i < end; ++i) {
+    Node* node = new_space_nodes_[static_cast<int>(i)];
+    if (node->IsRetainer()) {
+      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+    }
+  }
+}
+
+DISABLE_CFI_PERF
 void GlobalHandles::ApplyPersistentHandleVisitor(
     v8::PersistentHandleVisitor* visitor, GlobalHandles::Node* node) {
   v8::Value* value = ToApi<v8::Value>(Handle<Object>(node->location()));

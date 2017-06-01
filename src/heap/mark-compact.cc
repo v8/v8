@@ -2608,6 +2608,20 @@ static bool IsUnmarkedObjectForYoungGeneration(Heap* heap, Object** p) {
                                 MarkingState::External(HeapObject::cast(*p)));
 }
 
+template <class ParallelItem>
+static void SeedGlobalHandles(GlobalHandles* global_handles,
+                              ItemParallelJob* job) {
+  // Create batches of global handles.
+  const size_t kGlobalHandlesBufferSize = 1000;
+  const size_t new_space_nodes = global_handles->NumberOfNewSpaceNodes();
+  for (size_t start = 0; start < new_space_nodes;
+       start += kGlobalHandlesBufferSize) {
+    size_t end = start + kGlobalHandlesBufferSize;
+    if (end > new_space_nodes) end = new_space_nodes;
+    job->AddItem(new ParallelItem(global_handles, start, end));
+  }
+}
+
 void MinorMarkCompactCollector::MarkRootSetInParallel() {
   base::AtomicNumber<intptr_t> slots;
   {
@@ -2621,16 +2635,8 @@ void MinorMarkCompactCollector::MarkRootSetInParallel() {
       RootMarkingVisitorSeedOnly root_seed_visitor(&job);
       heap()->IterateRoots(&root_seed_visitor, VISIT_ALL_IN_MINOR_MC_MARK);
       // Create batches of global handles.
-      const size_t kGlobalHandlesBufferSize = 1000;
-      const size_t new_space_nodes =
-          isolate()->global_handles()->NumberOfNewSpaceNodes();
-      for (size_t start = 0; start < new_space_nodes;
-           start += kGlobalHandlesBufferSize) {
-        size_t end = start + kGlobalHandlesBufferSize;
-        if (end > new_space_nodes) end = new_space_nodes;
-        job.AddItem(new GlobalHandlesMarkingItem(isolate()->global_handles(),
-                                                 start, end));
-      }
+      SeedGlobalHandles<GlobalHandlesMarkingItem>(isolate()->global_handles(),
+                                                  &job);
       // Create items for each page.
       RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
           heap(), [&job, &slots](MemoryChunk* chunk) {
@@ -4409,6 +4415,24 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   MemoryChunk* chunk_;
 };
 
+class GlobalHandlesUpdatingItem : public UpdatingItem {
+ public:
+  GlobalHandlesUpdatingItem(GlobalHandles* global_handles, size_t start,
+                            size_t end)
+      : global_handles_(global_handles), start_(start), end_(end) {}
+  virtual ~GlobalHandlesUpdatingItem() {}
+
+  void Process() override {
+    PointersUpdatingVisitor updating_visitor;
+    global_handles_->IterateNewSpaceRoots(&updating_visitor, start_, end_);
+  }
+
+ private:
+  GlobalHandles* global_handles_;
+  size_t start_;
+  size_t end_;
+};
+
 int MarkCompactCollectorBase::CollectToSpaceUpdatingItems(
     ItemParallelJob* job) {
   // Seed to space pages.
@@ -4490,6 +4514,9 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
                                &page_parallel_job_semaphore_);
 
+  // Create batches of global handles.
+  SeedGlobalHandles<GlobalHandlesUpdatingItem>(isolate()->global_handles(),
+                                               &updating_job);
   const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
   const int remembered_set_tasks =
       CollectRememberedSetUpdatingItems<OLD_TO_NEW>(&updating_job);
