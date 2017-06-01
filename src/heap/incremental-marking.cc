@@ -151,24 +151,38 @@ void IncrementalMarking::MarkBlackAndPush(HeapObject* obj) {
   }
 }
 
-void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
-                                      HeapObject* to) {
+void IncrementalMarking::NotifyLeftTrimming(HeapObject* from, HeapObject* to) {
+  DCHECK(IsMarking());
   DCHECK(MemoryChunk::FromAddress(from->address())->SweepingDone());
-  // This is only used when resizing an object.
-  DCHECK(MemoryChunk::FromAddress(from->address()) ==
-         MemoryChunk::FromAddress(to->address()));
+  DCHECK_EQ(MemoryChunk::FromAddress(from->address()),
+            MemoryChunk::FromAddress(to->address()));
+  DCHECK_NE(from, to);
 
-  if (!IsMarking()) return;
-
-  // If the mark doesn't move, we don't check the color of the object.
-  // It doesn't matter whether the object is black, since it hasn't changed
-  // size, so the adjustment to the live data count will be zero anyway.
-  if (from == to) return;
-
-  MarkBit new_mark_bit = ObjectMarking::MarkBitFrom(to, marking_state(to));
   MarkBit old_mark_bit = ObjectMarking::MarkBitFrom(from, marking_state(from));
+  MarkBit new_mark_bit = ObjectMarking::MarkBitFrom(to, marking_state(to));
 
-  if (Marking::IsBlack<kAtomicity>(old_mark_bit)) {
+  if (black_allocation() && Marking::IsBlack(new_mark_bit)) {
+    // Nothing to do if the object is in black area.
+    return;
+  }
+
+  bool marked_black_due_to_left_trimming = false;
+  if (FLAG_concurrent_marking) {
+    // We need to mark the array black before overwriting its map and length
+    // so that the concurrent marker does not observe inconsistent state.
+    Marking::WhiteToGrey<kAtomicity>(old_mark_bit);
+    if (Marking::GreyToBlack<kAtomicity>(old_mark_bit)) {
+      // The concurrent marker will not mark the array. We need to push the
+      // new array start in marking deque to ensure that it will be marked.
+      marked_black_due_to_left_trimming = true;
+    }
+    DCHECK(Marking::IsBlack<kAtomicity>(old_mark_bit));
+  }
+
+  if (Marking::IsBlack<kAtomicity>(old_mark_bit) &&
+      !marked_black_due_to_left_trimming) {
+    // The array was black before left trimming or was marked black by the
+    // concurrent marker. Simply transfer the color.
     if (from->address() + kPointerSize == to->address()) {
       // The old and the new markbits overlap. The |to| object has the
       // grey color. To make it black, we need to set the second bit.
@@ -179,12 +193,13 @@ void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
       DCHECK(success);
       USE(success);
     }
-  } else if (Marking::IsGrey<kAtomicity>(old_mark_bit)) {
+  } else if (Marking::IsGrey<kAtomicity>(old_mark_bit) ||
+             marked_black_due_to_left_trimming) {
+    // The array was already grey or was marked black by this function.
+    // Mark the new array grey and push it to marking deque.
     if (from->address() + kPointerSize == to->address()) {
-      // The old and the new markbits overlap. The |to| object has the
-      // white color. To make it grey, we need to set the first bit.
-      // Note that Marking::WhiteToGrey does not work here because
-      // old_mark_bit.Next() can be set by the concurrent marker at any time.
+      // The old and the new markbits overlap. The |to| object is either white
+      // or grey.  Set the first bit to make sure that it is grey.
       new_mark_bit.Set();
       DCHECK(!new_mark_bit.Next().Get());
     } else {

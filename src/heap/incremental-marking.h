@@ -65,8 +65,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     return MarkingState::Internal(chunk);
   }
 
-  // Transfers mark bits without requiring proper object headers.
-  void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
+  void NotifyLeftTrimming(HeapObject* from, HeapObject* to);
 
   // Transfers color including live byte count, requiring properly set up
   // objects.

@@ -98,8 +98,12 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitFixedArray(Map* map, FixedArray* object) override {
-    // TODO(ulan): implement iteration with prefetched length.
-    return BaseClass::VisitFixedArray(map, object);
+    int length = object->length();
+    int size = FixedArray::SizeFor(length);
+    if (!ShouldVisit(object)) return 0;
+    VisitMapPointer(object, object->map_slot());
+    FixedArray::BodyDescriptor::IterateBody(object, size, this);
+    return size;
   }
 
   // ===========================================================================
