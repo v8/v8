@@ -428,7 +428,8 @@ InjectedScript::Scope::Scope(V8InspectorSessionImpl* session)
 
 Response InjectedScript::Scope::initialize() {
   cleanup();
-  V8InspectorSessionImpl* session = m_inspector->sessionById(m_sessionId);
+  V8InspectorSessionImpl* session =
+      m_inspector->sessionById(m_contextGroupId, m_sessionId);
   if (!session) return Response::InternalError();
   Response response = findInjectedScript(session);
   if (!response.isSuccess()) return response;

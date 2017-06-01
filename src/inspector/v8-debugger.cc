@@ -347,16 +347,13 @@ bool V8Debugger::canBreakProgram() {
   return !v8::debug::AllFramesOnStackAreBlackboxed(m_isolate);
 }
 
-bool V8Debugger::breakProgram(int targetContextGroupId) {
+void V8Debugger::breakProgram(int targetContextGroupId) {
   // Don't allow nested breaks.
-  if (isPaused()) return true;
-  if (!canBreakProgram()) return true;
+  if (isPaused()) return;
+  if (!canBreakProgram()) return;
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
   v8::debug::BreakRightNow(m_isolate);
-  V8InspectorSessionImpl* session =
-      m_inspector->sessionForContextGroup(targetContextGroupId);
-  return session && session->debuggerAgent()->enabled();
 }
 
 void V8Debugger::continueProgram(int targetContextGroupId) {
@@ -600,10 +597,19 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
     m_stepIntoAsyncCallback.reset();
   }
   m_breakRequested = false;
-  V8InspectorSessionImpl* session =
-      m_inspector->sessionForContextGroup(contextGroupId);
-  if (!session || !session->debuggerAgent()->enabled()) return;
-  if (!m_scheduledOOMBreak && session->debuggerAgent()->skipAllPauses()) return;
+
+  bool scheduledOOMBreak = m_scheduledOOMBreak;
+  auto agentCheck = [&scheduledOOMBreak](V8DebuggerAgentImpl* agent) {
+    return agent->enabled() && (scheduledOOMBreak || !agent->skipAllPauses());
+  };
+
+  bool hasAgents = false;
+  m_inspector->forEachSession(
+      contextGroupId,
+      [&agentCheck, &hasAgents](V8InspectorSessionImpl* session) {
+        if (agentCheck(session->debuggerAgent())) hasAgents = true;
+      });
+  if (!hasAgents) return;
 
   std::vector<String16> breakpointIds;
   if (!hitBreakpointNumbers.IsEmpty()) {
@@ -627,9 +633,17 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   m_pausedContext = pausedContext;
   m_executionState = executionState;
   m_pausedContextGroupId = contextGroupId;
-  session->debuggerAgent()->didPause(
-      InspectedContext::contextId(pausedContext), exception, breakpointIds,
-      isPromiseRejection, isUncaught, m_scheduledOOMBreak);
+
+  m_inspector->forEachSession(
+      contextGroupId, [&agentCheck, &pausedContext, &exception, &breakpointIds,
+                       &isPromiseRejection, &isUncaught,
+                       &scheduledOOMBreak](V8InspectorSessionImpl* session) {
+        if (agentCheck(session->debuggerAgent())) {
+          session->debuggerAgent()->didPause(
+              InspectedContext::contextId(pausedContext), exception,
+              breakpointIds, isPromiseRejection, isUncaught, scheduledOOMBreak);
+        }
+      });
   {
     v8::Context::Scope scope(pausedContext);
     v8::Local<v8::Context> context = m_isolate->GetCurrentContext();
@@ -638,10 +652,12 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
     m_inspector->client()->runMessageLoopOnPause(contextGroupId);
     m_pausedContextGroupId = 0;
   }
-  // The agent may have been removed in the nested loop.
-  session = m_inspector->sessionForContextGroup(contextGroupId);
-  if (session && session->debuggerAgent()->enabled())
-    session->debuggerAgent()->didContinue();
+  m_inspector->forEachSession(contextGroupId,
+                              [](V8InspectorSessionImpl* session) {
+                                if (session->debuggerAgent()->enabled())
+                                  session->debuggerAgent()->didContinue();
+                              });
+
   if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();
   m_scheduledOOMBreak = false;
   m_pausedContext.Clear();
@@ -662,16 +678,26 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
                                 bool has_compile_error) {
   int contextId;
   if (!script->ContextId().To(&contextId)) return;
-  V8InspectorSessionImpl* session = m_inspector->sessionForContextGroup(
-      m_inspector->contextGroupId(contextId));
-  if (!session || !session->debuggerAgent()->enabled()) return;
   if (script->IsWasm()) {
-    m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(),
-                                session->debuggerAgent());
+    WasmTranslation* wasmTranslation = &m_wasmTranslation;
+    m_inspector->forEachSession(
+        m_inspector->contextGroupId(contextId),
+        [&script, &wasmTranslation](V8InspectorSessionImpl* session) {
+          if (!session->debuggerAgent()->enabled()) return;
+          wasmTranslation->AddScript(script.As<v8::debug::WasmScript>(),
+                                     session->debuggerAgent());
+        });
   } else if (m_ignoreScriptParsedEventsCounter == 0) {
-    session->debuggerAgent()->didParseSource(
-        V8DebuggerScript::Create(m_isolate, script, inLiveEditScope),
-        !has_compile_error);
+    v8::Isolate* isolate = m_isolate;
+    m_inspector->forEachSession(
+        m_inspector->contextGroupId(contextId),
+        [&isolate, &script,
+         &has_compile_error](V8InspectorSessionImpl* session) {
+          if (!session->debuggerAgent()->enabled()) return;
+          session->debuggerAgent()->didParseSource(
+              V8DebuggerScript::Create(isolate, script, inLiveEditScope),
+              !has_compile_error);
+        });
   }
 }
 
@@ -704,11 +730,19 @@ bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                                       const v8::debug::Location& end) {
   int contextId;
   if (!script->ContextId().To(&contextId)) return false;
-  V8InspectorSessionImpl* session = m_inspector->sessionForContextGroup(
-      m_inspector->contextGroupId(contextId));
-  if (!session || !session->debuggerAgent()->enabled()) return false;
-  return session->debuggerAgent()->isFunctionBlackboxed(
-      String16::fromInteger(script->Id()), start, end);
+  bool hasAgents = false;
+  bool allBlackboxed = true;
+  String16 scriptId = String16::fromInteger(script->Id());
+  m_inspector->forEachSession(
+      m_inspector->contextGroupId(contextId),
+      [&hasAgents, &allBlackboxed, &scriptId, &start,
+       &end](V8InspectorSessionImpl* session) {
+        V8DebuggerAgentImpl* agent = session->debuggerAgent();
+        if (!agent->enabled()) return;
+        hasAgents = true;
+        allBlackboxed &= agent->isFunctionBlackboxed(scriptId, start, end);
+      });
+  return hasAgents && allBlackboxed;
 }
 
 void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
@@ -1084,10 +1118,14 @@ std::unique_ptr<V8StackTraceImpl> V8Debugger::captureStackTrace(
   if (!contextGroupId) return nullptr;
 
   int stackSize = 1;
-  V8InspectorSessionImpl* session =
-      m_inspector->sessionForContextGroup(contextGroupId);
-  if (fullStack || (session && session->runtimeAgent()->enabled())) {
+  if (fullStack) {
     stackSize = V8StackTraceImpl::maxCallStackSizeToCapture;
+  } else {
+    m_inspector->forEachSession(
+        contextGroupId, [&stackSize](V8InspectorSessionImpl* session) {
+          if (session->runtimeAgent()->enabled())
+            stackSize = V8StackTraceImpl::maxCallStackSizeToCapture;
+        });
   }
   return V8StackTraceImpl::capture(this, contextGroupId, stackSize);
 }

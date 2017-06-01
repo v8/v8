@@ -151,20 +151,18 @@ std::unique_ptr<V8StackTrace> V8InspectorImpl::createStackTrace(
 std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
     int contextGroupId, V8Inspector::Channel* channel,
     const StringView& state) {
-  DCHECK(m_sessions.find(contextGroupId) == m_sessions.cend());
   int sessionId = ++m_lastSessionId;
   std::unique_ptr<V8InspectorSessionImpl> session =
       V8InspectorSessionImpl::create(this, contextGroupId, sessionId, channel,
                                      state);
-  m_sessions[contextGroupId] = session.get();
-  m_sessionById[sessionId] = session.get();
+  m_sessions[contextGroupId][sessionId] = session.get();
   return std::move(session);
 }
 
 void V8InspectorImpl::disconnect(V8InspectorSessionImpl* session) {
-  DCHECK(m_sessions.find(session->contextGroupId()) != m_sessions.end());
-  m_sessions.erase(session->contextGroupId());
-  m_sessionById.erase(session->sessionId());
+  auto& map = m_sessions[session->contextGroupId()];
+  map.erase(session->sessionId());
+  if (map.empty()) m_sessions.erase(session->contextGroupId());
 }
 
 InspectedContext* V8InspectorImpl::getContext(int groupId,
@@ -196,9 +194,10 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
 
   DCHECK(contextById->find(contextId) == contextById->cend());
   (*contextById)[contextId].reset(context);
-  SessionMap::iterator sessionIt = m_sessions.find(info.contextGroupId);
-  if (sessionIt != m_sessions.end())
-    sessionIt->second->runtimeAgent()->reportExecutionContextCreated(context);
+  forEachSession(
+      info.contextGroupId, [&context](V8InspectorSessionImpl* session) {
+        session->runtimeAgent()->reportExecutionContextCreated(context);
+      });
 }
 
 void V8InspectorImpl::contextDestroyed(v8::Local<v8::Context> context) {
@@ -213,31 +212,34 @@ void V8InspectorImpl::contextDestroyed(v8::Local<v8::Context> context) {
   InspectedContext* inspectedContext = getContext(groupId, contextId);
   if (!inspectedContext) return;
 
-  SessionMap::iterator iter = m_sessions.find(groupId);
-  if (iter != m_sessions.end())
-    iter->second->runtimeAgent()->reportExecutionContextDestroyed(
-        inspectedContext);
+  forEachSession(groupId, [&inspectedContext](V8InspectorSessionImpl* session) {
+    session->runtimeAgent()->reportExecutionContextDestroyed(inspectedContext);
+  });
   discardInspectedContext(groupId, contextId);
 }
 
 void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   m_consoleStorageMap.erase(contextGroupId);
   m_muteExceptionsMap.erase(contextGroupId);
-  SessionMap::iterator session = m_sessions.find(contextGroupId);
-  if (session != m_sessions.end()) session->second->reset();
+  forEachSession(contextGroupId,
+                 [](V8InspectorSessionImpl* session) { session->reset(); });
   m_contexts.erase(contextGroupId);
   m_debugger->wasmTranslation()->Clear();
 }
 
 void V8InspectorImpl::idleStarted() {
-  for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
-    if (it->second->profilerAgent()->idleStarted()) return;
+  for (auto& it : m_sessions) {
+    for (auto& it2 : it.second) {
+      if (it2.second->profilerAgent()->idleStarted()) return;
+    }
   }
 }
 
 void V8InspectorImpl::idleFinished() {
-  for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
-    if (it->second->profilerAgent()->idleFinished()) return;
+  for (auto& it : m_sessions) {
+    for (auto& it2 : it.second) {
+      if (it2.second->profilerAgent()->idleFinished()) return;
+    }
   }
 }
 
@@ -312,16 +314,12 @@ void V8InspectorImpl::discardInspectedContext(int contextGroupId,
   if (m_contexts[contextGroupId]->empty()) m_contexts.erase(contextGroupId);
 }
 
-V8InspectorSessionImpl* V8InspectorImpl::sessionForContextGroup(
-    int contextGroupId) {
-  if (!contextGroupId) return nullptr;
-  SessionMap::iterator iter = m_sessions.find(contextGroupId);
-  return iter == m_sessions.end() ? nullptr : iter->second;
-}
-
-V8InspectorSessionImpl* V8InspectorImpl::sessionById(int sessionId) {
-  auto it = m_sessionById.find(sessionId);
-  return it == m_sessionById.end() ? nullptr : it->second;
+V8InspectorSessionImpl* V8InspectorImpl::sessionById(int contextGroupId,
+                                                     int sessionId) {
+  auto it = m_sessions.find(contextGroupId);
+  if (it == m_sessions.end()) return nullptr;
+  auto it2 = it->second.find(sessionId);
+  return it2 == it->second.end() ? nullptr : it2->second;
 }
 
 V8Console* V8InspectorImpl::console() {
@@ -343,6 +341,23 @@ void V8InspectorImpl::forEachContext(
     if (it == m_contexts.end()) continue;
     auto contextIt = it->second->find(contextId);
     if (contextIt != it->second->end()) callback(contextIt->second.get());
+  }
+}
+
+void V8InspectorImpl::forEachSession(
+    int contextGroupId, std::function<void(V8InspectorSessionImpl*)> callback) {
+  auto it = m_sessions.find(contextGroupId);
+  if (it == m_sessions.end()) return;
+  std::vector<int> ids;
+  ids.reserve(it->second.size());
+  for (auto& sessionIt : it->second) ids.push_back(sessionIt.first);
+
+  // Retrieve by ids each time since |callback| may destroy some contexts.
+  for (auto& sessionId : ids) {
+    it = m_sessions.find(contextGroupId);
+    if (it == m_sessions.end()) continue;
+    auto sessionIt = it->second.find(sessionId);
+    if (sessionIt != it->second.end()) callback(sessionIt->second);
   }
 }
 

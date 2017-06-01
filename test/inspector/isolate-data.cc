@@ -54,6 +54,7 @@ IsolateData::IsolateData(TaskRunner* task_runner,
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
   if (with_inspector) {
     isolate_->AddMessageListener(&IsolateData::MessageHandler);
+    isolate_->SetPromiseRejectCallback(&IsolateData::PromiseRejectHandler);
     inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
   }
 }
@@ -191,11 +192,11 @@ void IsolateData::DumpAsyncTaskStacksStateForTest() {
 }
 
 // static
-void IsolateData::MessageHandler(v8::Local<v8::Message> message,
-                                 v8::Local<v8::Value> exception) {
+int IsolateData::HandleMessage(v8::Local<v8::Message> message,
+                               v8::Local<v8::Value> exception) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Context> context = isolate->GetEnteredContext();
-  if (context.IsEmpty()) return;
+  if (context.IsEmpty()) return 0;
   v8_inspector::V8Inspector* inspector =
       IsolateData::FromContext(context)->inspector_.get();
 
@@ -222,9 +223,51 @@ void IsolateData::MessageHandler(v8::Local<v8::Message> message,
   }
   v8_inspector::StringView url(url_string.start(), url_string.length());
 
-  inspector->exceptionThrown(context, message_text, exception, detailed_message,
-                             url, line_number, column_number,
-                             inspector->createStackTrace(stack), script_id);
+  return inspector->exceptionThrown(
+      context, message_text, exception, detailed_message, url, line_number,
+      column_number, inspector->createStackTrace(stack), script_id);
+}
+
+// static
+void IsolateData::MessageHandler(v8::Local<v8::Message> message,
+                                 v8::Local<v8::Value> exception) {
+  HandleMessage(message, exception);
+}
+
+// static
+void IsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetEnteredContext();
+  if (context.IsEmpty()) return;
+  v8::Local<v8::Promise> promise = data.GetPromise();
+  v8::Local<v8::Private> id_private = v8::Private::ForApi(
+      isolate,
+      v8::String::NewFromUtf8(isolate, "id", v8::NewStringType::kNormal)
+          .ToLocalChecked());
+
+  if (data.GetEvent() == v8::kPromiseHandlerAddedAfterReject) {
+    v8::Local<v8::Value> id;
+    if (!promise->GetPrivate(context, id_private).ToLocal(&id)) return;
+    if (!id->IsInt32()) return;
+    v8_inspector::V8Inspector* inspector =
+        IsolateData::FromContext(context)->inspector_.get();
+    const char* reason_str = "Handler added to rejected promise";
+    inspector->exceptionRevoked(
+        context, id.As<v8::Int32>()->Value(),
+        v8_inspector::StringView(reinterpret_cast<const uint8_t*>(reason_str),
+                                 strlen(reason_str)));
+    return;
+  }
+
+  v8::Local<v8::Value> exception = data.GetValue();
+  int exception_id = HandleMessage(
+      v8::Exception::CreateMessage(isolate, exception), exception);
+  if (exception_id) {
+    promise
+        ->SetPrivate(isolate->GetCurrentContext(), id_private,
+                     v8::Int32::New(isolate, exception_id))
+        .ToChecked();
+  }
 }
 
 void IsolateData::FireContextCreated(v8::Local<v8::Context> context,

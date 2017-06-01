@@ -83,6 +83,9 @@ class IsolateData : public v8_inspector::V8InspectorClient {
       v8::Local<v8::Module> referrer);
   static void MessageHandler(v8::Local<v8::Message> message,
                              v8::Local<v8::Value> exception);
+  static void PromiseRejectHandler(v8::PromiseRejectMessage data);
+  static int HandleMessage(v8::Local<v8::Message> message,
+                           v8::Local<v8::Value> exception);
   std::vector<int> GetSessionIds(int context_group_id);
 
   // V8InspectorClient implementation.

@@ -23,8 +23,7 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
       m_contextGroupId(info.contextGroupId),
       m_origin(toString16(info.origin)),
       m_humanReadableName(toString16(info.humanReadableName)),
-      m_auxData(toString16(info.auxData)),
-      m_reported(false) {
+      m_auxData(toString16(info.auxData)) {
   v8::debug::SetContextId(info.context, contextId);
   if (!info.hasMemoryOnConsole) return;
   v8::Context::Scope contextScope(info.context);
@@ -52,6 +51,17 @@ v8::Local<v8::Context> InspectedContext::context() const {
 
 v8::Isolate* InspectedContext::isolate() const {
   return m_inspector->isolate();
+}
+
+bool InspectedContext::isReported(int sessionId) const {
+  return m_reportedSessionIds.find(sessionId) != m_reportedSessionIds.cend();
+}
+
+void InspectedContext::setReported(int sessionId, bool reported) {
+  if (reported)
+    m_reportedSessionIds.insert(sessionId);
+  else
+    m_reportedSessionIds.erase(sessionId);
 }
 
 bool InspectedContext::createInjectedScript() {

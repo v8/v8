@@ -1238,7 +1238,15 @@ void V8DebuggerAgentImpl::breakProgram(
   std::vector<BreakReason> currentScheduledReason;
   currentScheduledReason.swap(m_breakReason);
   pushBreakDetails(breakReason, std::move(data));
-  if (!m_debugger->breakProgram(m_session->contextGroupId())) return;
+
+  int contextGroupId = m_session->contextGroupId();
+  int sessionId = m_session->sessionId();
+  V8InspectorImpl* inspector = m_inspector;
+  m_debugger->breakProgram(contextGroupId);
+  // Check that session and |this| are still around.
+  if (!inspector->sessionById(contextGroupId, sessionId)) return;
+  if (!enabled()) return;
+
   popBreakDetails();
   m_breakReason.swap(currentScheduledReason);
   if (!m_breakReason.empty()) {

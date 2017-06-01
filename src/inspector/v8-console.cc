@@ -124,24 +124,8 @@ class ConsoleHelper {
     return func;
   }
 
-  V8ProfilerAgentImpl* profilerAgent() {
-    if (V8InspectorSessionImpl* session = currentSession()) {
-      if (session && session->profilerAgent()->enabled())
-        return session->profilerAgent();
-    }
-    return nullptr;
-  }
-
-  V8DebuggerAgentImpl* debuggerAgent() {
-    if (V8InspectorSessionImpl* session = currentSession()) {
-      if (session && session->debuggerAgent()->enabled())
-        return session->debuggerAgent();
-    }
-    return nullptr;
-  }
-
-  V8InspectorSessionImpl* currentSession() {
-    return m_inspector->sessionForContextGroup(m_groupId);
+  void forEachSession(std::function<void(V8InspectorSessionImpl*)> callback) {
+    m_inspector->forEachSession(m_groupId, callback);
   }
 
  private:
@@ -288,9 +272,12 @@ void V8Console::Assert(const v8::debug::ConsoleCallArguments& info) {
         toV8String(m_inspector->isolate(), String16("console.assert")));
   helper.reportCall(ConsoleAPIType::kAssert, arguments);
 
-  if (V8DebuggerAgentImpl* debuggerAgent = helper.debuggerAgent())
-    debuggerAgent->breakProgramOnException(
-        protocol::Debugger::Paused::ReasonEnum::Assert, nullptr);
+  helper.forEachSession([](V8InspectorSessionImpl* session) {
+    if (session->debuggerAgent()->enabled()) {
+      session->debuggerAgent()->breakProgramOnException(
+          protocol::Debugger::Paused::ReasonEnum::Assert, nullptr);
+    }
+  });
 }
 
 void V8Console::MarkTimeline(const v8::debug::ConsoleCallArguments& info) {
@@ -304,14 +291,18 @@ void V8Console::MarkTimeline(const v8::debug::ConsoleCallArguments& info) {
 
 void V8Console::Profile(const v8::debug::ConsoleCallArguments& info) {
   ConsoleHelper helper(info, m_inspector);
-  if (V8ProfilerAgentImpl* profilerAgent = helper.profilerAgent())
-    profilerAgent->consoleProfile(helper.firstArgToString(String16()));
+  helper.forEachSession([&helper](V8InspectorSessionImpl* session) {
+    session->profilerAgent()->consoleProfile(
+        helper.firstArgToString(String16()));
+  });
 }
 
 void V8Console::ProfileEnd(const v8::debug::ConsoleCallArguments& info) {
   ConsoleHelper helper(info, m_inspector);
-  if (V8ProfilerAgentImpl* profilerAgent = helper.profilerAgent())
-    profilerAgent->consoleProfileEnd(helper.firstArgToString(String16()));
+  helper.forEachSession([&helper](V8InspectorSessionImpl* session) {
+    session->profilerAgent()->consoleProfileEnd(
+        helper.firstArgToString(String16()));
+  });
 }
 
 static void timeFunction(const v8::debug::ConsoleCallArguments& info,
@@ -426,20 +417,24 @@ static void setFunctionBreakpoint(ConsoleHelper& helper,
                                   v8::Local<v8::Function> function,
                                   V8DebuggerAgentImpl::BreakpointSource source,
                                   const String16& condition, bool enable) {
-  V8DebuggerAgentImpl* debuggerAgent = helper.debuggerAgent();
-  if (!debuggerAgent) return;
   String16 scriptId = String16::fromInteger(function->ScriptId());
   int lineNumber = function->GetScriptLineNumber();
   int columnNumber = function->GetScriptColumnNumber();
   if (lineNumber == v8::Function::kLineOffsetNotFound ||
       columnNumber == v8::Function::kLineOffsetNotFound)
     return;
-  if (enable)
-    debuggerAgent->setBreakpointAt(scriptId, lineNumber, columnNumber, source,
-                                   condition);
-  else
-    debuggerAgent->removeBreakpointAt(scriptId, lineNumber, columnNumber,
-                                      source);
+
+  helper.forEachSession([&enable, &scriptId, &lineNumber, &columnNumber,
+                         &source, &condition](V8InspectorSessionImpl* session) {
+    if (!session->debuggerAgent()->enabled()) return;
+    if (enable) {
+      session->debuggerAgent()->setBreakpointAt(
+          scriptId, lineNumber, columnNumber, source, condition);
+    } else {
+      session->debuggerAgent()->removeBreakpointAt(scriptId, lineNumber,
+                                                   columnNumber, source);
+    }
+  });
 }
 
 void V8Console::debugFunctionCallback(
@@ -526,10 +521,11 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
   std::unique_ptr<protocol::DictionaryValue> hints =
       protocol::DictionaryValue::create();
   if (copyToClipboard) hints->setBoolean("copyToClipboard", true);
-  if (V8InspectorSessionImpl* session = helper.currentSession()) {
-    session->runtimeAgent()->inspect(std::move(wrappedObject),
-                                     std::move(hints));
-  }
+  helper.forEachSession(
+      [&wrappedObject, &hints](V8InspectorSessionImpl* session) {
+        session->runtimeAgent()->inspect(std::move(wrappedObject),
+                                         std::move(hints));
+      });
 }
 
 void V8Console::inspectCallback(
@@ -546,14 +542,14 @@ void V8Console::inspectedObject(const v8::FunctionCallbackInfo<v8::Value>& info,
   DCHECK(num < V8InspectorSessionImpl::kInspectedObjectBufferSize);
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, m_inspector);
-  if (V8InspectorSessionImpl* session = helper.currentSession()) {
+  helper.forEachSession([&info, &num](V8InspectorSessionImpl* session) {
     V8InspectorSession::Inspectable* object = session->inspectedObject(num);
     v8::Isolate* isolate = info.GetIsolate();
     if (object)
       info.GetReturnValue().Set(object->get(isolate->GetCurrentContext()));
     else
       info.GetReturnValue().Set(v8::Undefined(isolate));
-  }
+  });
 }
 
 void V8Console::installMemoryGetter(v8::Local<v8::Context> context,

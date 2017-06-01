@@ -104,12 +104,13 @@ class V8InspectorImpl : public V8Inspector {
   bool hasConsoleMessageStorage(int contextGroupId);
   void discardInspectedContext(int contextGroupId, int contextId);
   void disconnect(V8InspectorSessionImpl*);
-  V8InspectorSessionImpl* sessionForContextGroup(int contextGroupId);
-  V8InspectorSessionImpl* sessionById(int sessionId);
+  V8InspectorSessionImpl* sessionById(int contextGroupId, int sessionId);
   InspectedContext* getContext(int groupId, int contextId) const;
   V8Console* console();
   void forEachContext(int contextGroupId,
                       std::function<void(InspectedContext*)> callback);
+  void forEachSession(int contextGroupId,
+                      std::function<void(V8InspectorSessionImpl*)> callback);
 
  private:
   v8::Isolate* m_isolate;
@@ -130,9 +131,9 @@ class V8InspectorImpl : public V8Inspector {
       protocol::HashMap<int, std::unique_ptr<ContextByIdMap>>;
   ContextsByGroupMap m_contexts;
 
-  using SessionMap = protocol::HashMap<int, V8InspectorSessionImpl*>;
-  SessionMap m_sessions;
-  protocol::HashMap<int, V8InspectorSessionImpl*> m_sessionById;
+  // contextGroupId -> sessionId -> session
+  protocol::HashMap<int, protocol::HashMap<int, V8InspectorSessionImpl*>>
+      m_sessions;
 
   using ConsoleStorageMap =
       protocol::HashMap<int, std::unique_ptr<V8ConsoleMessageStorage>>;

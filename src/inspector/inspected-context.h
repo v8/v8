@@ -5,6 +5,9 @@
 #ifndef V8_INSPECTOR_INSPECTEDCONTEXT_H_
 #define V8_INSPECTOR_INSPECTEDCONTEXT_H_
 
+#include <map>
+#include <unordered_set>
+
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
 
@@ -30,8 +33,8 @@ class InspectedContext {
   String16 humanReadableName() const { return m_humanReadableName; }
   String16 auxData() const { return m_auxData; }
 
-  bool isReported() const { return m_reported; }
-  void setReported(bool reported) { m_reported = reported; }
+  bool isReported(int sessionId) const;
+  void setReported(int sessionId, bool reported);
 
   v8::Isolate* isolate() const;
   V8InspectorImpl* inspector() const { return m_inspector; }
@@ -51,7 +54,7 @@ class InspectedContext {
   const String16 m_origin;
   const String16 m_humanReadableName;
   const String16 m_auxData;
-  bool m_reported;
+  std::unordered_set<int> m_reportedSessionIds;
   std::unique_ptr<InjectedScript> m_injectedScript;
 
   DISALLOW_COPY_AND_ASSIGN(InspectedContext);

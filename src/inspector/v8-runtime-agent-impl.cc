@@ -161,6 +161,7 @@ class ProtocolPromiseHandler {
                          std::unique_ptr<Callback> callback)
       : m_inspector(session->inspector()),
         m_sessionId(session->sessionId()),
+        m_contextGroupId(session->contextGroupId()),
         m_executionContextId(executionContextId),
         m_objectGroup(objectGroup),
         m_returnByValue(returnByValue),
@@ -185,7 +186,8 @@ class ProtocolPromiseHandler {
 
   std::unique_ptr<protocol::Runtime::RemoteObject> wrapObject(
       v8::Local<v8::Value> value) {
-    V8InspectorSessionImpl* session = m_inspector->sessionById(m_sessionId);
+    V8InspectorSessionImpl* session =
+        m_inspector->sessionById(m_contextGroupId, m_sessionId);
     if (!session) {
       m_callback->sendFailure(Response::Error("No session"));
       return nullptr;
@@ -209,6 +211,7 @@ class ProtocolPromiseHandler {
 
   V8InspectorImpl* m_inspector;
   int m_sessionId;
+  int m_contextGroupId;
   int m_executionContextId;
   String16 m_objectGroup;
   bool m_returnByValue;
@@ -696,9 +699,11 @@ Response V8RuntimeAgentImpl::disable() {
 void V8RuntimeAgentImpl::reset() {
   m_compiledScripts.clear();
   if (m_enabled) {
-    m_inspector->forEachContext(
-        m_session->contextGroupId(),
-        [](InspectedContext* context) { context->setReported(false); });
+    int sessionId = m_session->sessionId();
+    m_inspector->forEachContext(m_session->contextGroupId(),
+                                [&sessionId](InspectedContext* context) {
+                                  context->setReported(sessionId, false);
+                                });
     m_frontend.executionContextsCleared();
   }
 }
@@ -706,7 +711,7 @@ void V8RuntimeAgentImpl::reset() {
 void V8RuntimeAgentImpl::reportExecutionContextCreated(
     InspectedContext* context) {
   if (!m_enabled) return;
-  context->setReported(true);
+  context->setReported(m_session->sessionId(), true);
   std::unique_ptr<protocol::Runtime::ExecutionContextDescription> description =
       protocol::Runtime::ExecutionContextDescription::create()
           .setId(context->contextId())
@@ -721,8 +726,8 @@ void V8RuntimeAgentImpl::reportExecutionContextCreated(
 
 void V8RuntimeAgentImpl::reportExecutionContextDestroyed(
     InspectedContext* context) {
-  if (m_enabled && context->isReported()) {
-    context->setReported(false);
+  if (m_enabled && context->isReported(m_session->sessionId())) {
+    context->setReported(m_session->sessionId(), false);
     m_frontend.executionContextDestroyed(context->contextId());
   }
 }
