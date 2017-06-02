@@ -15,7 +15,7 @@
 
   foo();
   foo();
-  % OptimizeFunctionOnNextCall(foo);
+  %OptimizeFunctionOnNextCall(foo);
   foo();
   gc();
   assertOptimized(foo);
@@ -32,7 +32,7 @@
   var a = [1, 2, 3];
   print(mapPlus(a, 1));
   print(mapPlus(a, 2));
-  % OptimizeFunctionOnNextCall(hot);
+  %OptimizeFunctionOnNextCall(hot);
   print(mapPlus(a, 3));
   gc();  // BOOOM!
   assertOptimized(hot);

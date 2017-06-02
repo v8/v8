@@ -44,7 +44,7 @@ function listener(event, exec_state, event_data, data) {
 
 Debug.setListener(listener);
 Debug.setBreakOnException();
-% OptimizeFunctionOnNextCall(h);
+%OptimizeFunctionOnNextCall(h);
 h();
 Debug.setListener(null);
 assertNull(exception);
