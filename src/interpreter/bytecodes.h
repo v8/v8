@@ -315,9 +315,11 @@ namespace interpreter {
   V(Return, AccumulatorUse::kRead)                                             \
                                                                                \
   /* Generators */                                                             \
+  V(RestoreGeneratorState, AccumulatorUse::kWrite, OperandType::kReg)          \
   V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg,                \
-    OperandType::kFlag8)                                                       \
-  V(ResumeGenerator, AccumulatorUse::kWrite, OperandType::kReg)                \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kFlag8)        \
+  V(RestoreGeneratorRegisters, AccumulatorUse::kNone, OperandType::kReg,       \
+    OperandType::kRegOutList, OperandType::kRegCount)                          \
                                                                                \
   /* Debugger */                                                               \
   V(Debugger, AccumulatorUse::kNone)                                           \
@@ -821,6 +823,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
       case OperandType::kRegOutTriple:
         return 3;
       case OperandType::kRegList:
+      case OperandType::kRegOutList:
         UNREACHABLE();
       default:
         return 0;

@@ -20,6 +20,7 @@ namespace interpreter {
 
 #define REGISTER_OUTPUT_OPERAND_TYPE_LIST(V)          \
   V(RegOut, OperandTypeInfo::kScalableSignedByte)     \
+  V(RegOutList, OperandTypeInfo::kScalableSignedByte) \
   V(RegOutPair, OperandTypeInfo::kScalableSignedByte) \
   V(RegOutTriple, OperandTypeInfo::kScalableSignedByte)
 

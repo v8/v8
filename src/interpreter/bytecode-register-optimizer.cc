@@ -304,6 +304,7 @@ BytecodeRegisterOptimizer::GetMaterializedEquivalentNotAccumulator(
 void BytecodeRegisterOptimizer::Materialize(RegisterInfo* info) {
   if (!info->materialized()) {
     RegisterInfo* materialized = info->GetMaterializedEquivalent();
+    DCHECK_NOT_NULL(materialized);
     OutputRegisterTransfer(materialized, info);
   }
 }
@@ -410,7 +411,7 @@ void BytecodeRegisterOptimizer::GrowRegisterMap(Register reg) {
     for (size_t i = old_size; i < new_size; ++i) {
       register_info_table_[i] =
           new (zone()) RegisterInfo(RegisterFromRegisterInfoTableIndex(i),
-                                    NextEquivalenceId(), false, false);
+                                    NextEquivalenceId(), true, false);
     }
   }
 }

@@ -770,8 +770,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* GeneratorStore(int register_count,
                                  SuspendFlags suspend_flags);
 
-  // Used to implement Ignition's ResumeGenerator bytecode.
+  // Used to implement Ignition's RestoreGeneratorState bytecode.
   const Operator* GeneratorRestoreContinuation();
+  // Used to implement Ignition's RestoreGeneratorRegisters bytecode.
   const Operator* GeneratorRestoreRegister(int index);
 
   const Operator* StackCheck();

@@ -174,6 +174,7 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
            << reg_list.last_register().ToString(parameter_count);
         break;
       }
+      case interpreter::OperandType::kRegOutList:
       case interpreter::OperandType::kRegList: {
         DCHECK_LT(i, number_of_operands - 1);
         DCHECK_EQ(Bytecodes::GetOperandType(bytecode, i + 1),

@@ -1390,20 +1390,24 @@ bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 #endif
 }
 
-Node* InterpreterAssembler::RegisterCount() {
-  Node* bytecode_array = LoadRegister(Register::bytecode_array());
-  Node* frame_size = LoadObjectField(
-      bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Uint32());
-  return WordShr(ChangeUint32ToWord(frame_size),
-                 IntPtrConstant(kPointerSizeLog2));
+void InterpreterAssembler::AbortIfRegisterCountInvalid(Node* register_file,
+                                                       Node* register_count) {
+  Node* array_size = LoadAndUntagFixedArrayBaseLength(register_file);
+
+  Label ok(this), abort(this, Label::kDeferred);
+  Branch(UintPtrLessThanOrEqual(register_count, array_size), &ok, &abort);
+
+  BIND(&abort);
+  Abort(kInvalidRegisterFileInGenerator);
+  Goto(&ok);
+
+  BIND(&ok);
 }
 
-Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
-  Node* register_count = RegisterCount();
+Node* InterpreterAssembler::ExportRegisterFile(Node* array,
+                                               Node* register_count) {
   if (FLAG_debug_code) {
-    Node* array_size = LoadAndUntagFixedArrayBaseLength(array);
-    AbortIfWordNotEqual(array_size, register_count,
-                        kInvalidRegisterFileInGenerator);
+    AbortIfRegisterCountInvalid(array, register_count);
   }
 
   Variable var_index(this, MachineType::PointerRepresentation());
@@ -1432,12 +1436,10 @@ Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
   return array;
 }
 
-Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
-  Node* register_count = RegisterCount();
+Node* InterpreterAssembler::ImportRegisterFile(Node* array,
+                                               Node* register_count) {
   if (FLAG_debug_code) {
-    Node* array_size = LoadAndUntagFixedArrayBaseLength(array);
-    AbortIfWordNotEqual(array_size, register_count,
-                        kInvalidRegisterFileInGenerator);
+    AbortIfRegisterCountInvalid(array, register_count);
   }
 
   Variable var_index(this, MachineType::PointerRepresentation());

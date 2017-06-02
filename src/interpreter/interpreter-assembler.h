@@ -81,12 +81,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void GotoIfHasContextExtensionUpToDepth(compiler::Node* context,
                                           compiler::Node* depth, Label* target);
 
-  // Number of registers.
-  compiler::Node* RegisterCount();
-
   // Backup/restore register file to/from a fixed array of the correct length.
-  compiler::Node* ExportRegisterFile(compiler::Node* array);
-  compiler::Node* ImportRegisterFile(compiler::Node* array);
+  compiler::Node* ExportRegisterFile(compiler::Node* array,
+                                     compiler::Node* register_count);
+  compiler::Node* ImportRegisterFile(compiler::Node* array,
+                                     compiler::Node* register_count);
 
   // Loads from and stores to the interpreter register file.
   compiler::Node* LoadRegister(Register reg);
@@ -221,6 +220,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void Abort(BailoutReason bailout_reason);
   void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                            BailoutReason bailout_reason);
+  // Abort if |register_count| is invalid for given register file array.
+  void AbortIfRegisterCountInvalid(compiler::Node* register_file,
+                                   compiler::Node* register_count);
 
   // Dispatch to frame dropper trampoline if necessary.
   void MaybeDropFrames(compiler::Node* context);

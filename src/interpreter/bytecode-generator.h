@@ -136,8 +136,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalWithContext(Scope* scope);
 
   void BuildGeneratorPrologue();
-  void BuildGeneratorSuspend(Suspend* expr, Register generator);
-  void BuildGeneratorResume(Suspend* expr, Register generator);
+  void BuildGeneratorSuspend(Suspend* expr, Register generator,
+                             RegisterList registers_to_save);
+  void BuildGeneratorResume(Suspend* expr, Register generator,
+                            RegisterList registers_to_restore);
 
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
@@ -256,6 +258,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ExpressionResultScope* execution_result_;
 
   BytecodeJumpTable* generator_jump_table_;
+  Register generator_object_;
   Register generator_state_;
   int loop_depth_;
 };

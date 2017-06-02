@@ -262,6 +262,15 @@ class OperandHelper<OperandType::kRegOut> {
 };
 
 template <>
+class OperandHelper<OperandType::kRegOutList> {
+ public:
+  INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder,
+                                 RegisterList reg_list)) {
+    return builder->GetOutputRegisterListOperand(reg_list);
+  }
+};
+
+template <>
 class OperandHelper<OperandType::kRegOutPair> {
  public:
   INLINE(static uint32_t Convert(BytecodeArrayBuilder* builder,
@@ -1235,15 +1244,22 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadModuleVariable(int cell_index,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::SuspendGenerator(
-    Register generator, SuspendFlags flags) {
-  OutputSuspendGenerator(generator,
+    Register generator, RegisterList registers, SuspendFlags flags) {
+  OutputSuspendGenerator(generator, registers, registers.register_count(),
                          SuspendGeneratorBytecodeFlags::Encode(flags));
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ResumeGenerator(
+BytecodeArrayBuilder& BytecodeArrayBuilder::RestoreGeneratorState(
     Register generator) {
-  OutputResumeGenerator(generator);
+  OutputRestoreGeneratorState(generator);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::RestoreGeneratorRegisters(
+    Register generator, RegisterList registers) {
+  OutputRestoreGeneratorRegisters(generator, registers,
+                                  registers.register_count());
   return *this;
 }
 

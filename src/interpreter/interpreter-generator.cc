@@ -3612,14 +3612,15 @@ IGNITION_HANDLER(Illegal, InterpreterAssembler) { Abort(kInvalidBytecode); }
 // No operation.
 IGNITION_HANDLER(Nop, InterpreterAssembler) { Dispatch(); }
 
-// SuspendGenerator <generator>
+// SuspendGenerator <generator> <first input register> <register count> <flags>
 //
 // Exports the register file and stores it into the generator.  Also stores the
 // current context, the state given in the accumulator, and the current bytecode
 // offset (for debugging purposes) into the generator.
 IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* generator_reg = BytecodeOperandReg(0);
-  Node* flags = BytecodeOperandFlag(1);
+  Node* flags = BytecodeOperandFlag(3);
+
   Node* generator = LoadRegister(generator_reg);
 
   Label if_stepping(this, Label::kDeferred), ok(this);
@@ -3637,7 +3638,13 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* context = GetContext();
   Node* state = GetAccumulator();
 
-  ExportRegisterFile(array);
+  // Bytecode operand 1 should be always 0 (we are always store registers
+  // from the beginning).
+  CSA_ASSERT(this, WordEqual(BytecodeOperandReg(1),
+                             IntPtrConstant(Register(0).ToOperand())));
+  // Bytecode operand 2 is the number of registers to store to the generator.
+  Node* register_count = ChangeUint32ToWord(BytecodeOperandCount(2));
+  ExportRegisterFile(array, register_count);
   StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
   StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
 
@@ -3686,17 +3693,13 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   }
 }
 
-// ResumeGenerator <generator>
+// RestoreGeneratorState <generator>
 //
-// Imports the register file stored in the generator. Also loads the
-// generator's state and stores it in the accumulator, before overwriting it
-// with kGeneratorExecuting.
-IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
+// Loads the generator's state and stores it in the accumulator,
+// before overwriting it with kGeneratorExecuting.
+IGNITION_HANDLER(RestoreGeneratorState, InterpreterAssembler) {
   Node* generator_reg = BytecodeOperandReg(0);
   Node* generator = LoadRegister(generator_reg);
-
-  ImportRegisterFile(
-      LoadObjectField(generator, JSGeneratorObject::kRegisterFileOffset));
 
   Node* old_state =
       LoadObjectField(generator, JSGeneratorObject::kContinuationOffset);
@@ -3704,6 +3707,28 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
   StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
                    SmiTag(new_state));
   SetAccumulator(old_state);
+
+  Dispatch();
+}
+
+// RestoreGeneratorRegisters <generator> <first output register> <register
+// count>
+//
+// Imports the register file stored in the generator.
+IGNITION_HANDLER(RestoreGeneratorRegisters, InterpreterAssembler) {
+  Node* generator_reg = BytecodeOperandReg(0);
+  // Bytecode operand 1 is the start register. It should always be 0, so let's
+  // ignore it.
+  CSA_ASSERT(this, WordEqual(BytecodeOperandReg(1),
+                             IntPtrConstant(Register(0).ToOperand())));
+  // Bytecode operand 2 is the number of registers to store to the generator.
+  Node* register_count = ChangeUint32ToWord(BytecodeOperandCount(2));
+
+  Node* generator = LoadRegister(generator_reg);
+
+  ImportRegisterFile(
+      LoadObjectField(generator, JSGeneratorObject::kRegisterFileOffset),
+      register_count);
 
   Dispatch();
 }
