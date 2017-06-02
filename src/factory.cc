@@ -927,6 +927,9 @@ Handle<JSPromise> Factory::NewJSPromise() {
   Handle<JSPromise> promise = Handle<JSPromise>::cast(promise_obj);
   promise->set_status(v8::Promise::kPending);
   promise->set_flags(0);
+  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
+    promise->SetEmbedderField(i, Smi::kZero);
+  }
 
   isolate()->RunPromiseHook(PromiseHookType::kInit, promise, undefined_value());
   return promise;

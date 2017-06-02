@@ -2088,9 +2088,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- P r o m i s e
     Handle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
-    Handle<JSFunction> promise_fun =
-        InstallFunction(global, "Promise", JS_PROMISE_TYPE, JSPromise::kSize,
-                        prototype, Builtins::kPromiseConstructor);
+    Handle<JSFunction> promise_fun = InstallFunction(
+        global, "Promise", JS_PROMISE_TYPE, JSPromise::kSizeWithEmbedderFields,
+        prototype, Builtins::kPromiseConstructor);
     InstallWithIntrinsicDefaultProto(isolate, promise_fun,
                                      Context::PROMISE_FUNCTION_INDEX);
 
