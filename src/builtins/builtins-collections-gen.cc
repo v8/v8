@@ -216,5 +216,16 @@ TF_BUILTIN(MapHas, CollectionsBuiltinsAssembler) {
   Return(CallHasRaw<OrderedHashMap, 2>(table, key));
 }
 
+TF_BUILTIN(SetHas, CollectionsBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const key = Parameter(Descriptor::kKey);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE, "Set.prototype.has");
+
+  Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
+  Return(CallHasRaw<OrderedHashSet, 1>(table, key));
+}
+
 }  // namespace internal
 }  // namespace v8
