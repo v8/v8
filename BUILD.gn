@@ -141,7 +141,7 @@ if (v8_enable_v8_checks == "") {
   v8_enable_v8_checks = is_debug
 }
 if (v8_check_microtasks_scopes_consistency == "") {
-  v8_check_microtasks_scopes_consistency = is_debug || v8_enable_v8_checks
+  v8_check_microtasks_scopes_consistency = is_debug || dcheck_always_on
 }
 
 # Specifies if the target build is a simulator build. Comparing target cpu
