@@ -3764,9 +3764,9 @@ bool YoungGenerationEvacuator::RawEvacuatePage(Page* page,
                                  ZAP_FREE_SPACE);
       } else if (heap()->incremental_marking()->IsMarking()) {
         // When incremental marking is on, we need to clear the mark bits of
-        // the full collector. Make the page completely iterable and clear also
-        // the young generation mark bits in the case.
-        collector_->MakeIterable(page, MarkingTreatmentMode::CLEAR,
+        // the full collector. We cannot yet discard the young generation mark
+        // bits as they are still relevant for pointers updating.
+        collector_->MakeIterable(page, MarkingTreatmentMode::KEEP,
                                  IGNORE_FREE_SPACE);
       }
       break;
@@ -3784,9 +3784,9 @@ bool YoungGenerationEvacuator::RawEvacuatePage(Page* page,
                                  ZAP_FREE_SPACE);
       } else if (heap()->incremental_marking()->IsMarking()) {
         // When incremental marking is on, we need to clear the mark bits of
-        // the full collector. Make the page completely iterable and clear also
-        // the young generation mark bits in the case.
-        collector_->MakeIterable(page, MarkingTreatmentMode::CLEAR,
+        // the full collector. We cannot yet discard the young generation mark
+        // bits as they are still relevant for pointers updating.
+        collector_->MakeIterable(page, MarkingTreatmentMode::KEEP,
                                  IGNORE_FREE_SPACE);
       }
       break;
