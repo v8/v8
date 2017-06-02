@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <cmath>
 #include <cstdarg>
+#include <type_traits>
 
 #if V8_TARGET_ARCH_ARM64
 
@@ -1017,7 +1018,7 @@ void Simulator::AddSubWithCarry(Instruction* instr) {
 
 template <typename T>
 T Simulator::ShiftOperand(T value, Shift shift_type, unsigned amount) {
-  typedef typename make_unsigned<T>::type unsignedT;
+  typedef typename std::make_unsigned<T>::type unsignedT;
 
   if (amount == 0) {
     return value;
@@ -2518,7 +2519,7 @@ void Simulator::DataProcessing2Source(Instruction* instr) {
     }
     case UDIV_w:
     case UDIV_x: {
-      typedef typename make_unsigned<T>::type unsignedT;
+      typedef typename std::make_unsigned<T>::type unsignedT;
       unsignedT rn = static_cast<unsignedT>(reg<T>(instr->Rn()));
       unsignedT rm = static_cast<unsignedT>(reg<T>(instr->Rm()));
       if (rm == 0) {
@@ -2623,7 +2624,7 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
 
 template <typename T>
 void Simulator::BitfieldHelper(Instruction* instr) {
-  typedef typename make_unsigned<T>::type unsignedT;
+  typedef typename std::make_unsigned<T>::type unsignedT;
   T reg_size = sizeof(T) * 8;
   T R = instr->ImmR();
   T S = instr->ImmS();
