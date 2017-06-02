@@ -1380,6 +1380,11 @@ int HeapNumber::get_sign() {
   return READ_INT_FIELD(this, kExponentOffset) & kSignMask;
 }
 
+inline Object* OrderedHashMap::ValueAt(int entry) {
+  DCHECK_LT(entry, this->UsedCapacity());
+  return get(EntryToIndex(entry) + kValueOffset);
+}
+
 ACCESSORS(JSReceiver, properties, FixedArray, kPropertiesOffset)
 
 

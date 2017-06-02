@@ -18764,6 +18764,7 @@ template <class Derived, int entrysize>
 Object* OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
                                                      Derived* table,
                                                      Object* key) {
+  DCHECK(table->IsOrderedHashTable());
   DisallowHeapAllocation no_gc;
   int entry = table->KeyToFirstEntry(isolate, key);
   // Walk the chain in the bucket to find the key.
@@ -18773,23 +18774,6 @@ Object* OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
     entry = table->NextChainEntry(entry);
   }
   return isolate->heap()->false_value();
-}
-
-template <class Derived, int entrysize>
-Object* OrderedHashTable<Derived, entrysize>::Get(Isolate* isolate,
-                                                  Derived* table, Object* key) {
-  DCHECK(table->IsOrderedHashTable());
-  DisallowHeapAllocation no_gc;
-  int entry = table->KeyToFirstEntry(isolate, key);
-  // Walk the chain in the bucket to find the key.
-  while (entry != kNotFound) {
-    Object* candidate_key = table->KeyAt(entry);
-    if (candidate_key->SameValueZero(key)) {
-      return table->ValueAt(entry);
-    }
-    entry = table->NextChainEntry(entry);
-  }
-  return isolate->heap()->undefined_value();
 }
 
 Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
@@ -18891,6 +18875,22 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
   return new_table;
 }
 
+Object* OrderedHashMap::Get(Isolate* isolate, OrderedHashMap* table,
+                            Object* key) {
+  DCHECK(table->IsOrderedHashMap());
+  DisallowHeapAllocation no_gc;
+  int entry = table->KeyToFirstEntry(isolate, key);
+  // Walk the chain in the bucket to find the key.
+  while (entry != kNotFound) {
+    Object* candidate_key = table->KeyAt(entry);
+    if (candidate_key->SameValueZero(key)) {
+      return table->ValueAt(entry);
+    }
+    entry = table->NextChainEntry(entry);
+  }
+  return isolate->heap()->undefined_value();
+}
+
 template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
 
@@ -18905,10 +18905,6 @@ template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Clear(
 
 template Object* OrderedHashTable<OrderedHashSet, 1>::HasKey(
     Isolate* isolate, OrderedHashSet* table, Object* key);
-
-template Object* OrderedHashTable<OrderedHashSet, 1>::Get(Isolate* isolate,
-                                                          OrderedHashSet* table,
-                                                          Object* key);
 
 template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
@@ -18925,9 +18921,6 @@ template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Clear(
 template Object* OrderedHashTable<OrderedHashMap, 2>::HasKey(
     Isolate* isolate, OrderedHashMap* table, Object* key);
 
-template Object* OrderedHashTable<OrderedHashMap, 2>::Get(Isolate* isolate,
-                                                          OrderedHashMap* table,
-                                                          Object* key);
 template <>
 Handle<SmallOrderedHashSet>
 SmallOrderedHashTable<SmallOrderedHashSet>::Allocate(Isolate* isolate,

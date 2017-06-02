@@ -19,7 +19,6 @@ class CollectionsBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   Node* AllocateJSMap(Node* js_map_function);
-  template <typename CollectionType, int entrysize>
   Node* CallGetRaw(Node* const table, Node* const key);
   template <typename CollectionType, int entrysize>
   Node* CallHasRaw(Node* const table, Node* const key);
@@ -156,12 +155,10 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
   Return(var_result.value());
 }
 
-template <typename CollectionType, int entrysize>
 Node* CollectionsBuiltinsAssembler::CallGetRaw(Node* const table,
                                                Node* const key) {
-  Node* const function_addr = ExternalConstant(
-      ExternalReference::orderedhashtable_get_raw<CollectionType, entrysize>(
-          isolate()));
+  Node* const function_addr =
+      ExternalConstant(ExternalReference::orderedhashmap_get_raw(isolate()));
   Node* const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 
@@ -202,7 +199,7 @@ TF_BUILTIN(MapGet, CollectionsBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.get");
 
   Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
-  Return(CallGetRaw<OrderedHashMap, 2>(table, key));
+  Return(CallGetRaw(table, key));
 }
 
 TF_BUILTIN(MapHas, CollectionsBuiltinsAssembler) {
