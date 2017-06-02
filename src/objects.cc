@@ -18742,19 +18742,18 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
 }
 
 template <class Derived, int entrysize>
-bool OrderedHashTable<Derived, entrysize>::HasKey(Handle<Derived> table,
-                                                  Handle<Object> key) {
+Object* OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
+                                                     Derived* table,
+                                                     Object* key) {
   DisallowHeapAllocation no_gc;
-  Isolate* isolate = table->GetIsolate();
-  Object* raw_key = *key;
-  int entry = table->KeyToFirstEntry(isolate, raw_key);
+  int entry = table->KeyToFirstEntry(isolate, key);
   // Walk the chain in the bucket to find the key.
   while (entry != kNotFound) {
     Object* candidate_key = table->KeyAt(entry);
-    if (candidate_key->SameValueZero(raw_key)) return true;
+    if (candidate_key->SameValueZero(key)) return isolate->heap()->true_value();
     entry = table->NextChainEntry(entry);
   }
-  return false;
+  return isolate->heap()->false_value();
 }
 
 template <class Derived, int entrysize>
@@ -18885,8 +18884,8 @@ template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Shrink(
 template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Clear(
     Handle<OrderedHashSet> table);
 
-template bool OrderedHashTable<OrderedHashSet, 1>::HasKey(
-    Handle<OrderedHashSet> table, Handle<Object> key);
+template Object* OrderedHashTable<OrderedHashSet, 1>::HasKey(
+    Isolate* isolate, OrderedHashSet* table, Object* key);
 
 template Object* OrderedHashTable<OrderedHashSet, 1>::Get(Isolate* isolate,
                                                           OrderedHashSet* table,
@@ -18904,8 +18903,8 @@ template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Shrink(
 template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Clear(
     Handle<OrderedHashMap> table);
 
-template bool OrderedHashTable<OrderedHashMap, 2>::HasKey(
-    Handle<OrderedHashMap> table, Handle<Object> key);
+template Object* OrderedHashTable<OrderedHashMap, 2>::HasKey(
+    Isolate* isolate, OrderedHashMap* table, Object* key);
 
 template Object* OrderedHashTable<OrderedHashMap, 2>::Get(Isolate* isolate,
                                                           OrderedHashMap* table,

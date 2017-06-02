@@ -399,7 +399,7 @@ class OrderedHashTable : public FixedArray {
   static Handle<Derived> Clear(Handle<Derived> table);
 
   // Returns a true if the OrderedHashTable contains the key
-  static bool HasKey(Handle<Derived> table, Handle<Object> key);
+  static Object* HasKey(Isolate* isolate, Derived* table, Object* key);
 
   // Returns a value if the OrderedHashTable contains the key,
   // otherwise returns undefined.

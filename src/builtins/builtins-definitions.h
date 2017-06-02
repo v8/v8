@@ -541,6 +541,7 @@ namespace internal {
   /* Map */                                                                    \
   TFJ(MapConstructor, 1, kIterable)                                            \
   TFJ(MapGet, 1, kKey)                                                         \
+  TFJ(MapHas, 1, kKey)                                                         \
                                                                                \
   /* Math */                                                                   \
   /* ES6 #sec-math.abs */                                                      \

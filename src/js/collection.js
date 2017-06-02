@@ -324,18 +324,6 @@ function MapSet(key, value) {
 }
 
 
-function MapHas(key) {
-  if (!IS_MAP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'Map.prototype.has', this);
-  }
-  var table = %_JSCollectionGetTable(this);
-  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
-  var hash = GetHash(key);
-  return MapFindEntry(table, numBuckets, key, hash) !== NOT_FOUND;
-}
-
-
 function MapDelete(key) {
   if (!IS_MAP(this)) {
     throw %make_type_error(kIncompatibleMethodReceiver,
@@ -401,7 +389,6 @@ function MapForEach(f, receiver) {
 utils.InstallGetter(GlobalMap.prototype, "size", MapGetSize);
 utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
   "set", MapSet,
-  "has", MapHas,
   "delete", MapDelete,
   "clear", MapClearJS,
   "forEach", MapForEach
@@ -412,7 +399,6 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
 
 %InstallToContext([
   "map_set", MapSet,
-  "map_has", MapHas,
   "map_delete", MapDelete,
   "set_add", SetAdd,
   "set_has", SetHas,
