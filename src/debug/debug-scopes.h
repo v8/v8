@@ -137,6 +137,8 @@ class ScopeIterator {
                               Handle<Object> new_value);
   bool SetCatchVariableValue(Handle<String> variable_name,
                              Handle<Object> new_value);
+  bool SetModuleVariableValue(Handle<String> variable_name,
+                              Handle<Object> new_value);
 
   // Helper functions.
   bool SetParameterValue(Handle<ScopeInfo> scope_info,
