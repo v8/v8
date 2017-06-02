@@ -1252,6 +1252,114 @@ Reduction JSBuiltinReducer::ReduceDateGetTime(Node* node) {
   return NoChange();
 }
 
+// ES6 section 19.2.3.2 Function.prototype.bind ( thisArg, ...args )
+Reduction JSBuiltinReducer::ReduceFunctionBind(Node* node) {
+  // Value inputs to the {node} are as follows:
+  //
+  //  - target, which is Function.prototype.bind JSFunction
+  //  - receiver, which is the [[BoundTargetFunction]]
+  //  - bound_this (optional), which is the [[BoundThis]]
+  //  - and all the remaining value inouts are [[BoundArguments]]
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Type* receiver_type = NodeProperties::GetType(receiver);
+  Node* bound_this = (node->op()->ValueInputCount() < 3)
+                         ? jsgraph()->UndefinedConstant()
+                         : NodeProperties::GetValueInput(node, 2);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (receiver_type->IsHeapConstant() &&
+      receiver_type->AsHeapConstant()->Value()->IsJSFunction()) {
+    Handle<JSFunction> target_function =
+        Handle<JSFunction>::cast(receiver_type->AsHeapConstant()->Value());
+
+    // Check that the "length" property on the {target_function} is the
+    // default JSFunction accessor.
+    LookupIterator length_lookup(target_function, factory()->length_string(),
+                                 target_function, LookupIterator::OWN);
+    if (length_lookup.state() != LookupIterator::ACCESSOR ||
+        !length_lookup.GetAccessors()->IsAccessorInfo()) {
+      return NoChange();
+    }
+
+    // Check that the "name" property on the {target_function} is the
+    // default JSFunction accessor.
+    LookupIterator name_lookup(target_function, factory()->name_string(),
+                               target_function, LookupIterator::OWN);
+    if (name_lookup.state() != LookupIterator::ACCESSOR ||
+        !name_lookup.GetAccessors()->IsAccessorInfo()) {
+      return NoChange();
+    }
+
+    // Determine the prototype of the {target_function}.
+    Handle<Object> prototype(target_function->map()->prototype(), isolate());
+
+    // Setup the map for the JSBoundFunction instance.
+    Handle<Map> map = target_function->IsConstructor()
+                          ? isolate()->bound_function_with_constructor_map()
+                          : isolate()->bound_function_without_constructor_map();
+    if (map->prototype() != *prototype) {
+      map = Map::TransitionToPrototype(map, prototype, REGULAR_PROTOTYPE);
+    }
+    DCHECK_EQ(target_function->IsConstructor(), map->is_constructor());
+
+    // Create the [[BoundArguments]] for the result.
+    Node* bound_arguments = jsgraph()->EmptyFixedArrayConstant();
+    if (node->op()->ValueInputCount() > 3) {
+      int const length = node->op()->ValueInputCount() - 3;
+      effect = graph()->NewNode(
+          common()->BeginRegion(RegionObservability::kNotObservable), effect);
+      bound_arguments = effect = graph()->NewNode(
+          simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
+          jsgraph()->Constant(FixedArray::SizeFor(length)), effect, control);
+      effect = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForMap()), bound_arguments,
+          jsgraph()->FixedArrayMapConstant(), effect, control);
+      effect = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForFixedArrayLength()),
+          bound_arguments, jsgraph()->Constant(length), effect, control);
+      for (int i = 0; i < length; ++i) {
+        effect = graph()->NewNode(
+            simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)),
+            bound_arguments, NodeProperties::GetValueInput(node, 3 + i), effect,
+            control);
+      }
+      bound_arguments = effect =
+          graph()->NewNode(common()->FinishRegion(), bound_arguments, effect);
+    }
+
+    // Create the JSBoundFunction result.
+    effect = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect);
+    Node* value = effect = graph()->NewNode(
+        simplified()->Allocate(Type::BoundFunction(), NOT_TENURED),
+        jsgraph()->Constant(JSBoundFunction::kSize), effect, control);
+    effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                              value, jsgraph()->Constant(map), effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
+        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
+        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(
+            AccessBuilder::ForJSBoundFunctionBoundTargetFunction()),
+        value, receiver, effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSBoundFunctionBoundThis()),
+        value, bound_this, effect, control);
+    effect =
+        graph()->NewNode(simplified()->StoreField(
+                             AccessBuilder::ForJSBoundFunctionBoundArguments()),
+                         value, bound_arguments, effect, control);
+    value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
+
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 18.2.2 isFinite ( number )
 Reduction JSBuiltinReducer::ReduceGlobalIsFinite(Node* node) {
   JSCallReduction r(node);
@@ -2326,6 +2434,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceDateNow(node);
     case kDateGetTime:
       return ReduceDateGetTime(node);
+    case kFunctionBind:
+      return ReduceFunctionBind(node);
     case kGlobalIsFinite:
       reduction = ReduceGlobalIsFinite(node);
       break;

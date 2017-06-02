@@ -1513,6 +1513,8 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
           return Type::String();
 
         // Function functions.
+        case kFunctionBind:
+          return Type::BoundFunction();
         case kFunctionHasInstance:
           return Type::Boolean();
 

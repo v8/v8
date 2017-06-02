@@ -73,6 +73,15 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSFunction::next_function_link() field.
   static FieldAccess ForJSFunctionNextFunctionLink();
 
+  // Provides access to JSBoundFunction::bound_target_function() field.
+  static FieldAccess ForJSBoundFunctionBoundTargetFunction();
+
+  // Provides access to JSBoundFunction::bound_this() field.
+  static FieldAccess ForJSBoundFunctionBoundThis();
+
+  // Provides access to JSBoundFunction::bound_arguments() field.
+  static FieldAccess ForJSBoundFunctionBoundArguments();
+
   // Provides access to JSGeneratorObject::context() field.
   static FieldAccess ForJSGeneratorObjectContext();
 

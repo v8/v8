@@ -4683,6 +4683,7 @@ class ContextExtension : public Struct {
   V(Date.prototype, getSeconds, DateGetSeconds)             \
   V(Date.prototype, getTime, DateGetTime)                   \
   V(Function.prototype, apply, FunctionApply)               \
+  V(Function.prototype, bind, FunctionBind)                 \
   V(Function.prototype, call, FunctionCall)                 \
   V(Object, assign, ObjectAssign)                           \
   V(Object, create, ObjectCreate)                           \

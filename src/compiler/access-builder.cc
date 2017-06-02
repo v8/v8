@@ -171,6 +171,35 @@ FieldAccess AccessBuilder::ForJSFunctionNextFunctionLink() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSBoundFunctionBoundTargetFunction() {
+  FieldAccess access = {
+      kTaggedBase,         JSBoundFunction::kBoundTargetFunctionOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::Callable(),    MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSBoundFunctionBoundThis() {
+  FieldAccess access = {kTaggedBase,         JSBoundFunction::kBoundThisOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::NonInternal(), MachineType::AnyTagged(),
+                        kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSBoundFunctionBoundArguments() {
+  FieldAccess access = {
+      kTaggedBase,         JSBoundFunction::kBoundArgumentsOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::Internal(),    MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSGeneratorObjectContext() {
   FieldAccess access = {kTaggedBase,         JSGeneratorObject::kContextOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
