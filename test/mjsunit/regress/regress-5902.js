@@ -19,7 +19,7 @@ Object.getOwnPropertyNames(global).forEach(function(name) {
   var obj = global[name];
 
   // Skip non-receivers.
-  if (! % IsJSReceiver(obj)) return;
+  if (!%IsJSReceiver(obj)) return;
 
   // Skip non-natives.
   if (!obj.toString().includes('native')) return;
