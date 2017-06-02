@@ -219,8 +219,8 @@ class InternalEscapableScope : public v8::EscapableHandleScope {
       : v8::EscapableHandleScope(reinterpret_cast<v8::Isolate*>(isolate)) {}
 };
 
-
-#ifdef DEBUG
+// TODO(jochen): This should be #ifdef DEBUG
+#ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
 void CheckMicrotasksScopesConsistency(i::Isolate* isolate) {
   auto handle_scope_implementer = isolate->handle_scope_implementer();
   if (handle_scope_implementer->microtasks_policy() ==
@@ -259,7 +259,8 @@ class CallDepthScope {
     }
     if (!escaped_) isolate_->handle_scope_implementer()->DecrementCallDepth();
     if (do_callback) isolate_->FireCallCompletedCallback();
-#ifdef DEBUG
+// TODO(jochen): This should be #ifdef DEBUG
+#ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
     if (do_callback) CheckMicrotasksScopesConsistency(isolate_);
 #endif
   }
