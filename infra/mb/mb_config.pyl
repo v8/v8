@@ -103,8 +103,6 @@
     'client.v8.clusterfuzz': {
       'V8 Linux64 - release builder': 'gn_release_x64_correctness_fuzzer',
       'V8 Linux64 - debug builder': 'gn_debug_x64',
-    },
-    'client.v8.fyi': {
       'V8 Linux64 ASAN no inline - release builder':
           'gn_release_x64_asan_symbolized_edge_verify_heap',
       'V8 Linux64 ASAN - debug builder': 'gn_debug_x64_asan_edge',
