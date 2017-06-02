@@ -189,8 +189,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Udiv:
     case kX64Udiv32:
       return (instr->addressing_mode() == kMode_None)
-                 ? kMayNeedDeoptCheck
-                 : kMayNeedDeoptCheck | kIsLoadOperation | kHasSideEffect;
+                 ? kMayNeedDeoptOrTrapCheck
+                 : kMayNeedDeoptOrTrapCheck | kIsLoadOperation | kHasSideEffect;
 
     case kX64Movsxbl:
     case kX64Movzxbl:

@@ -111,8 +111,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Idiv:
     case kIA32Udiv:
       return (instr->addressing_mode() == kMode_None)
-                 ? kMayNeedDeoptCheck
-                 : kMayNeedDeoptCheck | kIsLoadOperation | kHasSideEffect;
+                 ? kMayNeedDeoptOrTrapCheck
+                 : kMayNeedDeoptOrTrapCheck | kIsLoadOperation | kHasSideEffect;
 
     case kIA32Movsxbl:
     case kIA32Movzxbl:

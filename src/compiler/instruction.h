@@ -897,6 +897,10 @@ class V8_EXPORT_PRIVATE Instruction final {
            FlagsModeField::decode(opcode()) == kFlags_deoptimize;
   }
 
+  bool IsTrap() const {
+    return FlagsModeField::decode(opcode()) == kFlags_trap;
+  }
+
   bool IsJump() const { return arch_opcode() == ArchOpcode::kArchJmp; }
   bool IsRet() const { return arch_opcode() == ArchOpcode::kArchRet; }
   bool IsTailCall() const {
