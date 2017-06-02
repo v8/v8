@@ -31,8 +31,9 @@
 #ifndef V8_INSPECTOR_INJECTEDSCRIPT_H_
 #define V8_INSPECTOR_INJECTEDSCRIPT_H_
 
+#include <unordered_map>
+
 #include "src/base/macros.h"
-#include "src/inspector/injected-script-native.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
@@ -55,6 +56,8 @@ class InjectedScript final {
  public:
   static std::unique_ptr<InjectedScript> create(InspectedContext*);
   ~InjectedScript();
+  static InjectedScript* fromInjectedScriptHost(v8::Isolate* isolate,
+                                                v8::Local<v8::Object>);
 
   InspectedContext* context() const { return m_context; }
 
@@ -98,6 +101,8 @@ class InjectedScript final {
       std::unique_ptr<protocol::Runtime::RemoteObject>* result,
       Maybe<protocol::Runtime::ExceptionDetails>*);
   v8::Local<v8::Value> lastEvaluationResult() const;
+
+  int bindObject(v8::Local<v8::Value>, const String16& groupName);
 
   class Scope {
    public:
@@ -176,19 +181,22 @@ class InjectedScript final {
   };
 
  private:
-  InjectedScript(InspectedContext*, v8::Local<v8::Object>,
-                 std::unique_ptr<InjectedScriptNative>);
+  InjectedScript(InspectedContext*, v8::Local<v8::Object>);
   v8::Local<v8::Value> v8Value() const;
   Response wrapValue(v8::Local<v8::Value>, const String16& groupName,
                      bool forceValueType, bool generatePreview,
                      v8::Local<v8::Value>* result) const;
   v8::Local<v8::Object> commandLineAPI();
+  void unbindObject(int id);
 
   InspectedContext* m_context;
   v8::Global<v8::Value> m_value;
   v8::Global<v8::Value> m_lastEvaluationResult;
-  std::unique_ptr<InjectedScriptNative> m_native;
   v8::Global<v8::Object> m_commandLineAPI;
+  int m_lastBoundObjectId = 1;
+  std::unordered_map<int, v8::Global<v8::Value>> m_idToWrappedObject;
+  std::unordered_map<int, String16> m_idToObjectGroupName;
+  std::unordered_map<String16, std::vector<int>> m_nameToObjectGroup;
 
   DISALLOW_COPY_AND_ASSIGN(InjectedScript);
 };
