@@ -2581,49 +2581,51 @@ void BytecodeGenerator::BuildGeneratorResume(
   if (expr->on_abrupt_resume() != Suspend::kNoControl) {
     builder()->StoreAccumulatorInRegister(input);
 
-    Register resume_mode = register_allocator()->NewRegister();
-    builder()
-        ->CallRuntime(Runtime::kInlineGeneratorGetResumeMode, generator)
-        .StoreAccumulatorInRegister(resume_mode);
+    builder()->CallRuntime(Runtime::kInlineGeneratorGetResumeMode, generator);
 
     // Now dispatch on resume mode.
-    BytecodeLabel resume_with_next;
-    BytecodeLabel resume_with_throw;
+    STATIC_ASSERT(JSGeneratorObject::kNext + 1 == JSGeneratorObject::kReturn);
+    BytecodeJumpTable* jump_table =
+        builder()->AllocateJumpTable(2, JSGeneratorObject::kNext);
 
-    builder()
-        ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kNext))
-        .CompareOperation(Token::EQ_STRICT, resume_mode)
-        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &resume_with_next)
-        .LoadLiteral(Smi::FromInt(JSGeneratorObject::kThrow))
-        .CompareOperation(Token::EQ_STRICT, resume_mode)
-        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &resume_with_throw);
-    // Fall through for resuming with return.
+    builder()->SwitchOnSmiNoFeedback(jump_table);
 
-    if (expr->is_async_generator()) {
-      // Async generator methods will produce the iter result object.
+    {
+      // Resume with throw (switch fallthrough).
+      // TODO(leszeks): Add a debug-only check that the accumulator is
+      // JSGeneratorObject::kThrow.
+      builder()->SetExpressionPosition(expr);
       builder()->LoadAccumulatorWithRegister(input);
-      execution_control()->AsyncReturnAccumulator();
-    } else {
-      RegisterList args = register_allocator()->NewRegisterList(2);
-      builder()
-          ->MoveRegister(input, args[0])
-          .LoadTrue()
-          .StoreAccumulatorInRegister(args[1])
-          .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
-      execution_control()->ReturnAccumulator();
+      if (expr->rethrow_on_exception()) {
+        builder()->ReThrow();
+      } else {
+        builder()->Throw();
+      }
     }
 
-    builder()->Bind(&resume_with_throw);
-    builder()->SetExpressionPosition(expr);
-    builder()->LoadAccumulatorWithRegister(input);
-    if (expr->rethrow_on_exception()) {
-      builder()->ReThrow();
-    } else {
-      builder()->Throw();
+    {
+      // Resume with return.
+      builder()->Bind(jump_table, JSGeneratorObject::kReturn);
+      if (expr->is_async_generator()) {
+        // Async generator methods will produce the iter result object.
+        builder()->LoadAccumulatorWithRegister(input);
+        execution_control()->AsyncReturnAccumulator();
+      } else {
+        RegisterList args = register_allocator()->NewRegisterList(2);
+        builder()
+            ->MoveRegister(input, args[0])
+            .LoadTrue()
+            .StoreAccumulatorInRegister(args[1])
+            .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
+        execution_control()->ReturnAccumulator();
+      }
     }
 
-    builder()->Bind(&resume_with_next);
-    builder()->LoadAccumulatorWithRegister(input);
+    {
+      // Resume with next.
+      builder()->Bind(jump_table, JSGeneratorObject::kNext);
+      builder()->LoadAccumulatorWithRegister(input);
+    }
   }
 }
 

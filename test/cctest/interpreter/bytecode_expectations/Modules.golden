@@ -11,9 +11,9 @@ top level: yes
 snippet: "
   import \"bar\";
 "
-frame size: 9
+frame size: 8
 parameter count: 2
-bytecode array length: 141
+bytecode array length: 132
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -53,20 +53,14 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   13 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   13 S> */ B(Return),
                 B(Ldar), R(5),
                 B(StaCurrentContextSlot), U8(5),
                 B(LdaCurrentContextSlot), U8(5),
@@ -79,6 +73,8 @@ bytecodes: [
 constant pool: [
   Smi [63],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
 ]
 handlers: [
 ]
@@ -87,9 +83,9 @@ handlers: [
 snippet: "
   import {foo} from \"bar\";
 "
-frame size: 9
+frame size: 8
 parameter count: 2
-bytecode array length: 141
+bytecode array length: 132
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -129,20 +125,14 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   24 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   24 S> */ B(Return),
                 B(Ldar), R(5),
                 B(StaCurrentContextSlot), U8(5),
                 B(LdaCurrentContextSlot), U8(5),
@@ -155,6 +145,8 @@ bytecodes: [
 constant pool: [
   Smi [63],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
 ]
 handlers: [
 ]
@@ -165,9 +157,9 @@ snippet: "
   goo(42);
   { let x; { goo(42) } };
 "
-frame size: 9
+frame size: 8
 parameter count: 2
-bytecode array length: 203
+bytecode array length: 194
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -207,23 +199,17 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   64 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   64 S> */ B(Return),
   /*   32 S> */ B(LdaModuleVariable), I8(-1), U8(0),
                 B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(2),
+                B(LdaConstant), U8(4),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(5), U8(1),
                 B(Star), R(4),
@@ -231,7 +217,7 @@ bytecodes: [
                 B(Star), R(5),
   /*   32 E> */ B(CallUndefinedReceiver1), R(4), R(5), U8(3),
                 B(Ldar), R(closure),
-                B(CreateBlockContext), U8(3),
+                B(CreateBlockContext), U8(5),
                 B(PushContext), R(4),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
@@ -239,7 +225,7 @@ bytecodes: [
   /*   47 E> */ B(StaCurrentContextSlot), U8(4),
   /*   52 S> */ B(LdaModuleVariable), I8(-1), U8(1),
                 B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(2),
+                B(LdaConstant), U8(4),
                 B(Star), R(6),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(6), U8(1),
                 B(Star), R(5),
@@ -258,6 +244,8 @@ bytecodes: [
 constant pool: [
   Smi [63],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["goo"],
   FIXED_ARRAY_TYPE,
 ]
@@ -270,9 +258,9 @@ snippet: "
   foo++;
   { let x; { foo++ } };
 "
-frame size: 9
+frame size: 8
 parameter count: 2
-bytecode array length: 183
+bytecode array length: 174
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -312,27 +300,21 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   49 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   49 S> */ B(Return),
   /*   17 S> */ B(LdaSmi), I8(42),
   /*   17 E> */ B(StaModuleVariable), I8(1), U8(0),
   /*   21 S> */ B(LdaModuleVariable), I8(1), U8(0),
                 B(Inc), U8(3),
   /*   24 E> */ B(StaModuleVariable), I8(1), U8(0),
                 B(Ldar), R(closure),
-                B(CreateBlockContext), U8(2),
+                B(CreateBlockContext), U8(4),
                 B(PushContext), R(4),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
@@ -356,6 +338,8 @@ bytecodes: [
 constant pool: [
   Smi [63],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
@@ -367,9 +351,9 @@ snippet: "
   foo++;
   { let x; { foo++ } };
 "
-frame size: 9
+frame size: 8
 parameter count: 2
-bytecode array length: 187
+bytecode array length: 178
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -411,27 +395,21 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   49 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   49 S> */ B(Return),
   /*   17 S> */ B(LdaSmi), I8(42),
   /*   17 E> */ B(StaModuleVariable), I8(1), U8(0),
   /*   21 S> */ B(LdaModuleVariable), I8(1), U8(0),
                 B(Inc), U8(3),
   /*   24 E> */ B(StaModuleVariable), I8(1), U8(0),
                 B(Ldar), R(closure),
-                B(CreateBlockContext), U8(2),
+                B(CreateBlockContext), U8(4),
                 B(PushContext), R(4),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
@@ -455,6 +433,8 @@ bytecodes: [
 constant pool: [
   Smi [67],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
@@ -466,9 +446,9 @@ snippet: "
   foo++;
   { let x; { foo++ } };
 "
-frame size: 9
+frame size: 8
 parameter count: 2
-bytecode array length: 191
+bytecode array length: 182
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -510,27 +490,21 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   51 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   51 S> */ B(Return),
   /*   19 S> */ B(LdaSmi), I8(42),
   /*   19 E> */ B(StaModuleVariable), I8(1), U8(0),
   /*   23 S> */ B(LdaModuleVariable), I8(1), U8(0),
                 B(Inc), U8(3),
   /*   26 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(Ldar), R(closure),
-                B(CreateBlockContext), U8(2),
+                B(CreateBlockContext), U8(4),
                 B(PushContext), R(4),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
@@ -554,6 +528,8 @@ bytecodes: [
 constant pool: [
   Smi [67],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
@@ -563,9 +539,9 @@ handlers: [
 snippet: "
   export default (function () {});
 "
-frame size: 9
+frame size: 8
 parameter count: 2
-bytecode array length: 152
+bytecode array length: 143
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -607,23 +583,17 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   32 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   32 S> */ B(Return),
                 B(Ldar), R(5),
                 B(StaCurrentContextSlot), U8(5),
-                B(CreateClosure), U8(2), U8(3), U8(0),
+                B(CreateClosure), U8(4), U8(3), U8(0),
                 B(StaModuleVariable), I8(1), U8(0),
                 B(LdaCurrentContextSlot), U8(5),
                 B(Star), R(4),
@@ -635,6 +605,8 @@ bytecodes: [
 constant pool: [
   Smi [67],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -646,7 +618,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 185
+bytecode array length: 176
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -688,23 +660,17 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   26 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   26 S> */ B(Return),
                 B(Ldar), R(5),
                 B(StaCurrentContextSlot), U8(5),
-                B(CreateClosure), U8(2), U8(3), U8(0),
+                B(CreateClosure), U8(4), U8(3), U8(0),
                 B(Star), R(4),
                 B(LdaTheHole),
                 B(Star), R(5),
@@ -728,6 +694,8 @@ bytecodes: [
 constant pool: [
   Smi [67],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -737,9 +705,9 @@ handlers: [
 snippet: "
   export {foo as goo} from \"bar\"
 "
-frame size: 9
+frame size: 8
 parameter count: 2
-bytecode array length: 141
+bytecode array length: 132
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -779,20 +747,14 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   30 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   30 S> */ B(Return),
                 B(Ldar), R(5),
                 B(StaCurrentContextSlot), U8(5),
                 B(LdaCurrentContextSlot), U8(5),
@@ -805,6 +767,8 @@ bytecodes: [
 constant pool: [
   Smi [63],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
 ]
 handlers: [
 ]
@@ -813,9 +777,9 @@ handlers: [
 snippet: "
   export * from \"bar\"
 "
-frame size: 9
+frame size: 8
 parameter count: 2
-bytecode array length: 141
+bytecode array length: 132
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -855,20 +819,14 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   19 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   19 S> */ B(Return),
                 B(Ldar), R(5),
                 B(StaCurrentContextSlot), U8(5),
                 B(LdaCurrentContextSlot), U8(5),
@@ -881,6 +839,8 @@ bytecodes: [
 constant pool: [
   Smi [63],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
 ]
 handlers: [
 ]
@@ -890,9 +850,9 @@ snippet: "
   import * as foo from \"bar\"
   foo.f(foo, foo.x);
 "
-frame size: 9
+frame size: 8
 parameter count: 2
-bytecode array length: 179
+bytecode array length: 170
 bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
@@ -936,29 +896,23 @@ bytecodes: [
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetInputOrDebugPos), R(4), U8(1),
                 B(Star), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(4), U8(1),
-                B(Star), R(6),
-                B(LdaZero),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(22),
-                B(LdaSmi), I8(2),
-                B(TestEqualStrictNoFeedback), R(6),
-                B(JumpIfTrue), U8(13),
-                B(LdaTrue),
-                B(Star), R(8),
-                B(Mov), R(5), R(7),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
-  /*   45 S> */ B(Return),
+                B(SwitchOnSmiNoFeedback), U8(2), U8(2), I8(0),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
+                B(LdaTrue),
+                B(Star), R(7),
+                B(Mov), R(5), R(6),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
+  /*   45 S> */ B(Return),
   /*   27 S> */ B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(5),
-  /*   30 E> */ B(LdaNamedProperty), R(5), U8(2), U8(5),
+  /*   30 E> */ B(LdaNamedProperty), R(5), U8(4), U8(5),
                 B(Star), R(4),
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(6),
                 B(LdaImmutableCurrentContextSlot), U8(5),
                 B(Star), R(7),
-  /*   41 E> */ B(LdaNamedProperty), R(7), U8(3), U8(7),
+  /*   41 E> */ B(LdaNamedProperty), R(7), U8(5), U8(7),
                 B(Star), R(7),
   /*   31 E> */ B(CallProperty2), R(4), R(5), R(6), R(7), U8(3),
                 B(StaCurrentContextSlot), U8(6),
@@ -972,6 +926,8 @@ bytecodes: [
 constant pool: [
   Smi [73],
   FIXED_ARRAY_TYPE,
+  Smi [18],
+  Smi [7],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["f"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
