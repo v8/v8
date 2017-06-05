@@ -209,6 +209,15 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=896
   'language/literals/regexp/early-err-pattern': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-properties-with-value': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-binary-properties': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-properties': [FAIL],
+  'built-ins/RegExp/property-escapes/grammar-extensions': [FAIL],
+  'built-ins/RegExp/property-escapes/unsupported-properties': [FAIL],
+  'built-ins/RegExp/property-escapes/character-class': [FAIL],
+  'built-ins/RegExp/property-escapes/non-existent-property-values': [FAIL],
+  'built-ins/RegExp/property-escapes/loose-matching': [FAIL],
+  'built-ins/RegExp/property-escapes/non-binary-properties-without-value': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
@@ -222,32 +231,7 @@
   'built-ins/Simd/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4958
-  'built-ins/Function/prototype/toString/AsyncFunction': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/async-function-declaration': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/async-function-expression': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/async-method': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/Function': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/GeneratorFunction': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/function-declaration': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/function-declaration-non-simple-parameter-list': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/function-expression': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/generator-function-declaration': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/generator-function-expression': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/generator-method': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/getter-class': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/getter-class-static': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/getter-object': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/line-terminator-normalisation-CR': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/line-terminator-normalisation-CR-LF': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/line-terminator-normalisation-LF': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/method-class': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/method-class-static': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/method-computed-property-name': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/method-object': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/setter-class': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/setter-class-static': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/setter-object': ['--harmony-function-tostring'],
-  'built-ins/Function/prototype/toString/unicode': ['--harmony-function-tostring'],
+  'built-ins/Function/prototype/toString/*': ['--harmony-function-tostring'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5116
   'built-ins/Object/internals/DefineOwnProperty/nan-equivalence': [PASS, FAIL],
@@ -328,7 +312,8 @@
   'language/statements/while/tco-body': ['--harmony-tailcalls'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5064
-  'language/expressions/arrow-function/params-dflt-duplicates': [FAIL],
+  'language/expressions/arrow-function/dflt-params-duplicates': [FAIL],
+  'language/expressions/async-arrow-function/dflt-params-duplicates': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5244
   'intl402/NumberFormat/prototype/formatToParts/*': [SKIP],
@@ -375,52 +360,8 @@
   'language/module-code/namespace/internals/set': [FAIL],
   'language/module-code/namespace/internals/define-own-property': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4476
-  'built-ins/String/prototype/toLowerCase/special_casing_conditional': ['--icu-case-mapping'],
-  'built-ins/String/prototype/toLowerCase/supplementary_plane': ['--icu-case-mapping'],
-  'built-ins/String/prototype/toUpperCase/supplementary_plane': ['--icu-case-mapping'],
-  'built-ins/String/prototype/toLocaleLowerCase/Final_Sigma_U180E': ['--icu-case-mapping'],
-  'built-ins/String/prototype/toLowerCase/Final_Sigma_U180E': ['--icu-case-mapping'],
-
-  # https://code.google.com/p/v8/issues/detail?id=4477
-  'built-ins/String/prototype/toLocaleUpperCase/supplementary_plane': ['--icu-case-mapping'],
-  'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': ['--icu-case-mapping'],
-  'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': ['--icu-case-mapping'],
-  'intl402/String/prototype/toLocaleLowerCase/special_casing_Azeri': ['--icu-case-mapping'],
-  'intl402/String/prototype/toLocaleLowerCase/special_casing_Lithuanian': ['--icu-case-mapping'],
-  'intl402/String/prototype/toLocaleLowerCase/special_casing_Turkish': ['--icu-case-mapping'],
-  'intl402/String/prototype/toLocaleUpperCase/special_casing_Azeri': ['--icu-case-mapping'],
-  'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': ['--icu-case-mapping'],
-  'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': ['--icu-case-mapping'],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5601
   'intl402/PluralRules/*': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6242
-  'language/expressions/async-generator/named-yield-star-sync-next': [FAIL],
-  'language/expressions/async-generator/named-yield-star-sync-return': [FAIL],
-  'language/expressions/async-generator/named-yield-star-sync-throw': [FAIL],
-  'language/expressions/async-generator/yield-star-sync-next': [FAIL],
-  'language/expressions/async-generator/yield-star-sync-return': [FAIL],
-  'language/expressions/async-generator/yield-star-sync-throw': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-sync-next': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-sync-return': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-sync-throw': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-sync-next': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-sync-return': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-sync-throw': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-sync-next': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-sync-return': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-sync-throw': [FAIL],
-  'language/statements/async-generator/yield-star-sync-next': [FAIL],
-  'language/statements/async-generator/yield-star-sync-return': [FAIL],
-  'language/statements/async-generator/yield-star-sync-throw': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-sync-next': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-sync-return': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-sync-throw': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-sync-next': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-sync-return': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-sync-throw': [FAIL],
 
   # SharedArrayBuffer tests that require flags
   'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],
@@ -505,6 +446,9 @@
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4743#c28
+  'built-ins/RegExp/property-escapes/generated/Emoji_Component': [FAIL],
+
 ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -527,9 +471,6 @@
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
-  # https://code.google.com/p/v8/issues/detail?id=4693
-  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
-
   # We do not expose Array.prototype.values due to webcompat issues.
   # Most recent incompatability: https://crbug.com/615873
   # https://code.google.com/p/v8/issues/detail?id=4247
@@ -542,6 +483,9 @@
   'built-ins/Array/prototype/values/iteration': [FAIL],
   'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
   'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
+
+  # https://github.com/tc39/ecma262/pull/889
+  'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
   ############################ INVALID TESTS #############################
 
@@ -672,5 +616,10 @@
 ['variant == wasm_traps', {
   '*': [SKIP],
 }],  # variant == wasm_traps
+
+['variant != default or arch == arm or arch == arm64', {
+  # These tests take a long time to run
+  'built-ins/RegExp/property-escapes/generated/*': [SKIP],
+}],  # variant != default or arch == arm or arch == arm64
 
 ]
