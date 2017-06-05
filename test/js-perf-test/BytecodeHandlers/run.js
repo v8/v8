@@ -7,6 +7,8 @@ load('../base.js');
 
 load('compare.js');
 load('string-concat.js');
+load('arithmetic.js');
+load('bitwise.js');
 
 var success = true;
 
