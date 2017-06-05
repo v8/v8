@@ -39,6 +39,19 @@ void Print(v8::Isolate* isolate, const v8_inspector::StringView& string) {
   fwrite(*utf8_string, sizeof(**utf8_string), utf8_string.length(), stdout);
 }
 
+class Inspectable : public v8_inspector::V8InspectorSession::Inspectable {
+ public:
+  Inspectable(v8::Isolate* isolate, v8::Local<v8::Value> object)
+      : object_(isolate, object) {}
+  ~Inspectable() override {}
+  v8::Local<v8::Value> get(v8::Local<v8::Context> context) override {
+    return object_.Get(context->GetIsolate());
+  }
+
+ private:
+  v8::Global<v8::Value> object_;
+};
+
 }  //  namespace
 
 IsolateData::IsolateData(TaskRunner* task_runner,
@@ -181,6 +194,14 @@ void IsolateData::AsyncTaskStarted(void* task) {
 
 void IsolateData::AsyncTaskFinished(void* task) {
   inspector_->asyncTaskFinished(task);
+}
+
+void IsolateData::AddInspectedObject(int session_id,
+                                     v8::Local<v8::Value> object) {
+  auto it = sessions_.find(session_id);
+  if (it == sessions_.end()) return;
+  std::unique_ptr<Inspectable> inspectable(new Inspectable(isolate_, object));
+  it->second->addInspectedObject(std::move(inspectable));
 }
 
 void IsolateData::SetMaxAsyncTaskStacksForTest(int limit) {

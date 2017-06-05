@@ -54,7 +54,8 @@ using protocol::Response;
 
 class InjectedScript final {
  public:
-  static std::unique_ptr<InjectedScript> create(InspectedContext*);
+  static std::unique_ptr<InjectedScript> create(InspectedContext*,
+                                                int sessionId);
   ~InjectedScript();
   static InjectedScript* fromInjectedScriptHost(v8::Isolate* isolate,
                                                 v8::Local<v8::Object>);
@@ -181,7 +182,7 @@ class InjectedScript final {
   };
 
  private:
-  InjectedScript(InspectedContext*, v8::Local<v8::Object>);
+  InjectedScript(InspectedContext*, v8::Local<v8::Object>, int sessionId);
   v8::Local<v8::Value> v8Value() const;
   Response wrapValue(v8::Local<v8::Value>, const String16& groupName,
                      bool forceValueType, bool generatePreview,
@@ -191,6 +192,7 @@ class InjectedScript final {
 
   InspectedContext* m_context;
   v8::Global<v8::Value> m_value;
+  int m_sessionId;
   v8::Global<v8::Value> m_lastEvaluationResult;
   v8::Global<v8::Object> m_commandLineAPI;
   int m_lastBoundObjectId = 1;

@@ -58,7 +58,7 @@ using protocol::Runtime::RemoteObject;
 using protocol::Maybe;
 
 std::unique_ptr<InjectedScript> InjectedScript::create(
-    InspectedContext* inspectedContext) {
+    InspectedContext* inspectedContext, int sessionId) {
   v8::Isolate* isolate = inspectedContext->isolate();
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = inspectedContext->context();
@@ -106,7 +106,7 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
   if (!injectedScriptValue->IsObject()) return nullptr;
 
   std::unique_ptr<InjectedScript> injectedScript(new InjectedScript(
-      inspectedContext, injectedScriptValue.As<v8::Object>()));
+      inspectedContext, injectedScriptValue.As<v8::Object>(), sessionId));
   v8::Local<v8::Private> privateKey = v8::Private::ForApi(
       isolate, v8::String::NewFromUtf8(isolate, privateKeyName,
                                        v8::NewStringType::kInternalized)
@@ -117,8 +117,10 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
 }
 
 InjectedScript::InjectedScript(InspectedContext* context,
-                               v8::Local<v8::Object> object)
-    : m_context(context), m_value(context->isolate(), object) {}
+                               v8::Local<v8::Object> object, int sessionId)
+    : m_context(context),
+      m_value(context->isolate(), object),
+      m_sessionId(sessionId) {}
 
 InjectedScript::~InjectedScript() {}
 
@@ -420,7 +422,7 @@ v8::Local<v8::Object> InjectedScript::commandLineAPI() {
     m_commandLineAPI.Reset(
         m_context->isolate(),
         m_context->inspector()->console()->createCommandLineAPI(
-            m_context->context()));
+            m_context->context(), m_sessionId));
   }
   return m_commandLineAPI.Get(m_context->isolate());
 }

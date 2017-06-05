@@ -642,6 +642,9 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     inspector->Set(ToV8String(isolate, "fireContextDestroyed"),
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::FireContextDestroyed));
+    inspector->Set(ToV8String(isolate, "addInspectedObject"),
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::AddInspectedObject));
     inspector->Set(ToV8String(isolate, "setMaxAsyncTaskStacks"),
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::SetMaxAsyncTaskStacks));
@@ -678,6 +681,18 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
     data->FireContextDestroyed(context);
+  }
+
+  static void AddInspectedObject(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 2 || !args[0]->IsInt32()) {
+      fprintf(stderr,
+              "Internal error: addInspectedObject(session_id, object).");
+      Exit();
+    }
+    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+    IsolateData* data = IsolateData::FromContext(context);
+    data->AddInspectedObject(args[0].As<v8::Int32>()->Value(), args[1]);
   }
 
   static void SetMaxAsyncTaskStacks(

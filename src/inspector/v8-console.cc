@@ -37,10 +37,14 @@ class ConsoleHelper {
   int contextId() const { return m_contextId; }
   int groupId() const { return m_groupId; }
 
-  InjectedScript* injectedScript() {
+  InjectedScript* injectedScript(int sessionId) {
     InspectedContext* context = m_inspector->getContext(m_groupId, m_contextId);
     if (!context) return nullptr;
-    return context->getInjectedScript();
+    return context->getInjectedScript(sessionId);
+  }
+
+  V8InspectorSessionImpl* session(int sessionId) {
+    return m_inspector->sessionById(m_groupId, sessionId);
   }
 
   V8ConsoleMessageStorage* consoleMessageStorage() {
@@ -272,6 +276,7 @@ void V8Console::Assert(const v8::debug::ConsoleCallArguments& info) {
         toV8String(m_inspector->isolate(), String16("console.assert")));
   helper.reportCall(ConsoleAPIType::kAssert, arguments);
 
+  // TODO(dgozman): only break once, not per each session.
   helper.forEachSession([](V8InspectorSessionImpl* session) {
     if (session->debuggerAgent()->enabled()) {
       session->debuggerAgent()->breakProgramOnException(
@@ -376,7 +381,8 @@ void V8Console::memorySetterCallback(
   // setter just ignores the passed value.  http://crbug.com/468611
 }
 
-void V8Console::keysCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+void V8Console::keysCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
+                             int sessionId) {
   v8::Isolate* isolate = info.GetIsolate();
   info.GetReturnValue().Set(v8::Array::New(isolate));
 
@@ -390,8 +396,8 @@ void V8Console::keysCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(names);
 }
 
-void V8Console::valuesCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
+void V8Console::valuesCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
+                               int sessionId) {
   v8::Isolate* isolate = info.GetIsolate();
   info.GetReturnValue().Set(v8::Array::New(isolate));
 
@@ -413,7 +419,7 @@ void V8Console::valuesCallback(
   info.GetReturnValue().Set(values);
 }
 
-static void setFunctionBreakpoint(ConsoleHelper& helper,
+static void setFunctionBreakpoint(ConsoleHelper& helper, int sessionId,
                                   v8::Local<v8::Function> function,
                                   V8DebuggerAgentImpl::BreakpointSource source,
                                   const String16& condition, bool enable) {
@@ -424,8 +430,7 @@ static void setFunctionBreakpoint(ConsoleHelper& helper,
       columnNumber == v8::Function::kLineOffsetNotFound)
     return;
 
-  helper.forEachSession([&enable, &scriptId, &lineNumber, &columnNumber,
-                         &source, &condition](V8InspectorSessionImpl* session) {
+  if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
     if (!session->debuggerAgent()->enabled()) return;
     if (enable) {
       session->debuggerAgent()->setBreakpointAt(
@@ -434,33 +439,33 @@ static void setFunctionBreakpoint(ConsoleHelper& helper,
       session->debuggerAgent()->removeBreakpointAt(scriptId, lineNumber,
                                                    columnNumber, source);
     }
-  });
+  }
 }
 
 void V8Console::debugFunctionCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info, int sessionId) {
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, m_inspector);
   v8::Local<v8::Function> function;
   if (!helper.firstArgAsFunction().ToLocal(&function)) return;
-  setFunctionBreakpoint(helper, function,
+  setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::DebugCommandBreakpointSource,
                         String16(), true);
 }
 
 void V8Console::undebugFunctionCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info, int sessionId) {
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, m_inspector);
   v8::Local<v8::Function> function;
   if (!helper.firstArgAsFunction().ToLocal(&function)) return;
-  setFunctionBreakpoint(helper, function,
+  setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::DebugCommandBreakpointSource,
                         String16(), false);
 }
 
 void V8Console::monitorFunctionCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info, int sessionId) {
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, m_inspector);
   v8::Local<v8::Function> function;
@@ -478,39 +483,40 @@ void V8Console::monitorFunctionCallback(
   builder.append(
       " called\" + (arguments.length > 0 ? \" with arguments: \" + "
       "Array.prototype.join.call(arguments, \", \") : \"\")) && false");
-  setFunctionBreakpoint(helper, function,
+  setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::MonitorCommandBreakpointSource,
                         builder.toString(), true);
 }
 
 void V8Console::unmonitorFunctionCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info, int sessionId) {
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, m_inspector);
   v8::Local<v8::Function> function;
   if (!helper.firstArgAsFunction().ToLocal(&function)) return;
-  setFunctionBreakpoint(helper, function,
+  setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::MonitorCommandBreakpointSource,
                         String16(), false);
 }
 
 void V8Console::lastEvaluationResultCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info, int sessionId) {
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, m_inspector);
-  InjectedScript* injectedScript = helper.injectedScript();
+  InjectedScript* injectedScript = helper.injectedScript(sessionId);
   if (!injectedScript) return;
   info.GetReturnValue().Set(injectedScript->lastEvaluationResult());
 }
 
 static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
-                        bool copyToClipboard, V8InspectorImpl* inspector) {
+                        int sessionId, bool copyToClipboard,
+                        V8InspectorImpl* inspector) {
   if (info.Length() < 1) return;
   if (!copyToClipboard) info.GetReturnValue().Set(info[0]);
 
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, inspector);
-  InjectedScript* injectedScript = helper.injectedScript();
+  InjectedScript* injectedScript = helper.injectedScript(sessionId);
   if (!injectedScript) return;
   std::unique_ptr<protocol::Runtime::RemoteObject> wrappedObject;
   protocol::Response response =
@@ -521,35 +527,35 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
   std::unique_ptr<protocol::DictionaryValue> hints =
       protocol::DictionaryValue::create();
   if (copyToClipboard) hints->setBoolean("copyToClipboard", true);
-  helper.forEachSession(
-      [&wrappedObject, &hints](V8InspectorSessionImpl* session) {
-        session->runtimeAgent()->inspect(std::move(wrappedObject),
-                                         std::move(hints));
-      });
+  if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
+    session->runtimeAgent()->inspect(std::move(wrappedObject),
+                                     std::move(hints));
+  }
 }
 
-void V8Console::inspectCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  inspectImpl(info, false, m_inspector);
+void V8Console::inspectCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
+                                int sessionId) {
+  inspectImpl(info, sessionId, false, m_inspector);
 }
 
-void V8Console::copyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  inspectImpl(info, true, m_inspector);
+void V8Console::copyCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
+                             int sessionId) {
+  inspectImpl(info, sessionId, true, m_inspector);
 }
 
 void V8Console::inspectedObject(const v8::FunctionCallbackInfo<v8::Value>& info,
-                                unsigned num) {
+                                int sessionId, unsigned num) {
   DCHECK(num < V8InspectorSessionImpl::kInspectedObjectBufferSize);
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, m_inspector);
-  helper.forEachSession([&info, &num](V8InspectorSessionImpl* session) {
+  if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
     V8InspectorSession::Inspectable* object = session->inspectedObject(num);
     v8::Isolate* isolate = info.GetIsolate();
     if (object)
       info.GetReturnValue().Set(object->get(isolate->GetCurrentContext()));
     else
       info.GetReturnValue().Set(v8::Undefined(isolate));
-  });
+  }
 }
 
 void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
@@ -570,7 +576,7 @@ void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
 }
 
 v8::Local<v8::Object> V8Console::createCommandLineAPI(
-    v8::Local<v8::Context> context) {
+    v8::Local<v8::Context> context, int sessionId) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::MicrotasksScope microtasksScope(isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
@@ -581,7 +587,9 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   DCHECK(success);
   USE(success);
 
-  v8::Local<v8::External> data = v8::External::New(isolate, this);
+  // TODO(dgozman): this CommandLineAPIData instance leaks. Use PodArray maybe?
+  v8::Local<v8::External> data =
+      v8::External::New(isolate, new CommandLineAPIData(this, sessionId));
   createBoundFunctionProperty(context, commandLineAPI, data, "dir",
                               &V8Console::call<&V8Console::Dir>,
                               "function dir(value) { [Command Line API] }");

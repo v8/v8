@@ -58,6 +58,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
                           bool recurring);
   void AsyncTaskStarted(void* task);
   void AsyncTaskFinished(void* task);
+  void AddInspectedObject(int session_id, v8::Local<v8::Value> object);
 
   // Test utilities.
   void SetCurrentTimeMS(double time);

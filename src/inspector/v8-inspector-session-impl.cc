@@ -183,9 +183,11 @@ void V8InspectorSessionImpl::reset() {
 
 void V8InspectorSessionImpl::discardInjectedScripts() {
   m_inspectedObjects.clear();
-  m_inspector->forEachContext(m_contextGroupId, [](InspectedContext* context) {
-    context->discardInjectedScript();
-  });
+  int sessionId = m_sessionId;
+  m_inspector->forEachContext(m_contextGroupId,
+                              [&sessionId](InspectedContext* context) {
+                                context->discardInjectedScript(sessionId);
+                              });
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
@@ -194,13 +196,14 @@ Response V8InspectorSessionImpl::findInjectedScript(
   InspectedContext* context =
       m_inspector->getContext(m_contextGroupId, contextId);
   if (!context) return Response::Error("Cannot find context with specified id");
-  if (!context->getInjectedScript()) {
-    if (!context->createInjectedScript())
+  injectedScript = context->getInjectedScript(m_sessionId);
+  if (!injectedScript) {
+    if (!context->createInjectedScript(m_sessionId))
       return Response::Error("Cannot access specified execution context");
+    injectedScript = context->getInjectedScript(m_sessionId);
     if (m_customObjectFormatterEnabled)
-      context->getInjectedScript()->setCustomObjectFormatterEnabled(true);
+      injectedScript->setCustomObjectFormatterEnabled(true);
   }
-  injectedScript = context->getInjectedScript();
   return Response::OK();
 }
 
@@ -214,9 +217,10 @@ void V8InspectorSessionImpl::releaseObjectGroup(const StringView& objectGroup) {
 }
 
 void V8InspectorSessionImpl::releaseObjectGroup(const String16& objectGroup) {
+  int sessionId = m_sessionId;
   m_inspector->forEachContext(
-      m_contextGroupId, [&objectGroup](InspectedContext* context) {
-        InjectedScript* injectedScript = context->getInjectedScript();
+      m_contextGroupId, [&objectGroup, &sessionId](InspectedContext* context) {
+        InjectedScript* injectedScript = context->getInjectedScript(sessionId);
         if (injectedScript) injectedScript->releaseObjectGroup(objectGroup);
       });
 }
@@ -288,9 +292,10 @@ V8InspectorSessionImpl::wrapTable(v8::Local<v8::Context> context,
 
 void V8InspectorSessionImpl::setCustomObjectFormatterEnabled(bool enabled) {
   m_customObjectFormatterEnabled = enabled;
+  int sessionId = m_sessionId;
   m_inspector->forEachContext(
-      m_contextGroupId, [&enabled](InspectedContext* context) {
-        InjectedScript* injectedScript = context->getInjectedScript();
+      m_contextGroupId, [&enabled, &sessionId](InspectedContext* context) {
+        InjectedScript* injectedScript = context->getInjectedScript(sessionId);
         if (injectedScript)
           injectedScript->setCustomObjectFormatterEnabled(enabled);
       });

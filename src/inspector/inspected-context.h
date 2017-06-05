@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_INSPECTEDCONTEXT_H_
 #define V8_INSPECTOR_INSPECTEDCONTEXT_H_
 
-#include <map>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "src/base/macros.h"
@@ -39,9 +39,9 @@ class InspectedContext {
   v8::Isolate* isolate() const;
   V8InspectorImpl* inspector() const { return m_inspector; }
 
-  InjectedScript* getInjectedScript() { return m_injectedScript.get(); }
-  bool createInjectedScript();
-  void discardInjectedScript();
+  InjectedScript* getInjectedScript(int sessionId);
+  bool createInjectedScript(int sessionId);
+  void discardInjectedScript(int sessionId);
 
  private:
   friend class V8InspectorImpl;
@@ -55,7 +55,7 @@ class InspectedContext {
   const String16 m_humanReadableName;
   const String16 m_auxData;
   std::unordered_set<int> m_reportedSessionIds;
-  std::unique_ptr<InjectedScript> m_injectedScript;
+  std::unordered_map<int, std::unique_ptr<InjectedScript>> m_injectedScripts;
 
   DISALLOW_COPY_AND_ASSIGN(InspectedContext);
 };

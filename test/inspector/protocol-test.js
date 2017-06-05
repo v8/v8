@@ -186,6 +186,10 @@ InspectorTest.Session = class {
     this.id = utils.connectSession(this.contextGroup.id, state, this._dispatchMessage.bind(this));
   }
 
+  async addInspectedObject(serializable) {
+    return this.Protocol.Runtime.evaluate({expression: `inspector.addInspectedObject(${this.id}, ${JSON.stringify(serializable)})`});
+  }
+
   sendRawCommand(requestId, command, handler) {
     if (InspectorTest._dumpInspectorProtocolMessages)
       utils.print("frontend: " + command);
