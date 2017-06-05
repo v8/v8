@@ -142,7 +142,8 @@ int BytecodeArrayAccessor::GetRegisterOperandRange(int operand_index) const {
       Bytecodes::GetOperandTypes(current_bytecode());
   OperandType operand_type = operand_types[operand_index];
   DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
-  if (operand_type == OperandType::kRegList) {
+  if (operand_type == OperandType::kRegList ||
+      operand_type == OperandType::kRegOutList) {
     return GetRegisterCountOperand(operand_index + 1);
   } else {
     return Bytecodes::GetNumberOfRegistersRepresentedBy(operand_type);
