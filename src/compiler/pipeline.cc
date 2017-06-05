@@ -2043,7 +2043,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   // we understand the cause of the bug. We keep just the
   // check at the end of the allocation.
   if (verifier != nullptr) {
-    verifier->VerifyAssignment();
+    verifier->VerifyAssignment("Immediately after CommitAssignmentPhase.");
   }
 
   Run<PopulateReferenceMapsPhase>();
@@ -2064,7 +2064,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   }
 
   if (verifier != nullptr) {
-    verifier->VerifyAssignment();
+    verifier->VerifyAssignment("End of regalloc pipeline.");
     verifier->VerifyGapMoves();
   }
 
