@@ -960,8 +960,9 @@ class ModuleDecoder : public Decoder {
         allocator, menv == nullptr ? nullptr : menv->module_env.module, body);
     if (result.failed()) {
       // Wrap the error message from the function decoder.
-      std::ostringstream str;
-      str << "in function " << func_name << ": " << result.error_msg();
+      std::ostringstream wrapped;
+      wrapped << "in function " << func_name << ": " << result.error_msg();
+      result.error(result.error_offset(), wrapped.str());
 
       // Set error code and location, if this is the first error.
       if (intermediate_result_.ok()) {
