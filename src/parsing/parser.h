@@ -352,6 +352,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
                                             ZoneList<Statement*>* body,
                                             bool* ok);
+  void ParseAndRewriteAsyncGeneratorFunctionBody(int pos, FunctionKind kind,
+                                                 ZoneList<Statement*>* body,
+                                                 bool* ok);
   void CreateFunctionNameAssignment(const AstRawString* function_name, int pos,
                                     FunctionLiteral::FunctionType function_type,
                                     DeclarationScope* function_scope,
@@ -873,8 +876,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // ~ foo -> foo ^(~0)
   Expression* BuildUnaryExpression(Expression* expression, Token::Value op,
                                    int pos);
-
-  Expression* BuildIteratorResult(Expression* value, bool done);
 
   // Generate AST node that throws a ReferenceError with the given type.
   V8_INLINE Expression* NewThrowReferenceError(

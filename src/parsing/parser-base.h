@@ -1388,10 +1388,6 @@ class ParserBase {
   // Convenience method which determines the type of return statement to emit
   // depending on the current function type.
   inline StatementT BuildReturnStatement(ExpressionT expr, int pos) {
-    if (is_generator() && !is_async_generator()) {
-      expr = impl()->BuildIteratorResult(expr, true);
-    }
-
     if (is_async_function()) {
       return factory()->NewAsyncReturnStatement(expr, pos);
     }
@@ -2999,12 +2995,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
     return impl()->RewriteYieldStar(expression, pos);
   }
 
-  if (!is_async_generator()) {
-    // Async generator yield is rewritten in Ignition, and doesn't require
-    // producing an Iterator Result.
-    expression = impl()->BuildIteratorResult(expression, false);
-  }
-
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
   ExpressionT yield = BuildSuspend(expression, pos, Suspend::kOnExceptionThrow,
@@ -4091,7 +4081,9 @@ void ParserBase<Impl>::ParseFunctionBody(
   {
     BlockState block_state(&scope_, inner_scope);
 
-    if (IsGeneratorFunction(kind)) {
+    if (IsAsyncGeneratorFunction(kind)) {
+      impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind, body, ok);
+    } else if (IsGeneratorFunction(kind)) {
       impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, body, ok);
     } else if (IsAsyncFunction(kind)) {
       const bool accept_IN = true;

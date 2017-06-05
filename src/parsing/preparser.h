@@ -1076,6 +1076,10 @@ class PreParser : public ParserBase<PreParser> {
       int pos, FunctionKind kind, PreParserStatementList body, bool* ok) {
     ParseStatementList(body, Token::RBRACE, ok);
   }
+  V8_INLINE void ParseAndRewriteAsyncGeneratorFunctionBody(
+      int pos, FunctionKind kind, PreParserStatementList body, bool* ok) {
+    ParseStatementList(body, Token::RBRACE, ok);
+  }
   V8_INLINE void CreateFunctionNameAssignment(
       PreParserIdentifier function_name, int pos,
       FunctionLiteral::FunctionType function_type,
@@ -1286,11 +1290,6 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserExpression BuildUnaryExpression(
       PreParserExpression expression, Token::Value op, int pos) {
-    return PreParserExpression::Default();
-  }
-
-  V8_INLINE PreParserExpression BuildIteratorResult(PreParserExpression value,
-                                                    bool done) {
     return PreParserExpression::Default();
   }
 

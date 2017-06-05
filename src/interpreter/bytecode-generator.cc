@@ -981,13 +981,16 @@ void BytecodeGenerator::BuildGeneratorPrologue() {
 
   // This is a resume call. Restore the current context and the registers,
   // then perform state dispatch.
-  Register generator_context = register_allocator()->NewRegister();
-  builder()
-      ->CallRuntime(Runtime::kInlineGeneratorGetContext, generator_object_)
-      .PushContext(generator_context)
-      .RestoreGeneratorState(generator_object_)
-      .StoreAccumulatorInRegister(generator_state_)
-      .SwitchOnSmiNoFeedback(generator_jump_table_);
+  {
+    RegisterAllocationScope register_scope(this);
+    Register generator_context = register_allocator()->NewRegister();
+    builder()
+        ->CallRuntime(Runtime::kInlineGeneratorGetContext, generator_object_)
+        .PushContext(generator_context)
+        .RestoreGeneratorState(generator_object_)
+        .StoreAccumulatorInRegister(generator_state_)
+        .SwitchOnSmiNoFeedback(generator_jump_table_);
+  }
   // We fall through when the generator state is not in the jump table.
   // TODO(leszeks): Only generate this for debug builds.
   BuildAbort(BailoutReason::kInvalidJumpTableIndex);
@@ -2183,6 +2186,15 @@ void BytecodeGenerator::BuildReturn() {
   if (info()->literal()->feedback_vector_spec()->HasTypeProfileSlot()) {
     builder()->CollectTypeProfile(info()->literal()->return_position());
   }
+  if (IsGeneratorFunction(info()->literal()->kind())) {
+    // Mark the generator as closed if returning from a generator function.
+    RegisterAllocationScope register_scope(this);
+    Register result = register_allocator()->NewRegister();
+    builder()
+        ->StoreAccumulatorInRegister(result)
+        .CallRuntime(Runtime::kInlineGeneratorClose, generator_object_)
+        .LoadAccumulatorWithRegister(result);
+  }
   builder()->Return();
 }
 
@@ -2533,7 +2545,15 @@ void BytecodeGenerator::BuildGeneratorSuspend(Suspend* expr,
       ->LoadLiteral(Smi::FromInt(expr->suspend_id()))
       .SuspendGenerator(generator_object_, registers_to_save, expr->flags());
 
-  if (expr->IsNonInitialAsyncGeneratorYield()) {
+  if (expr->IsNonInitialGeneratorYield()) {
+    // GeneratorYield: Wrap the value into IteratorResult.
+    RegisterList args = register_allocator()->NewRegisterList(2);
+    builder()
+        ->MoveRegister(value, args[0])
+        .LoadFalse()
+        .StoreAccumulatorInRegister(args[1])
+        .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
+  } else if (expr->IsNonInitialAsyncGeneratorYield()) {
     // AsyncGenerator yields (with the exception of the initial yield) delegate
     // to AsyncGeneratorResolve(), implemented via the runtime call below.
     RegisterList args = register_allocator()->NewRegisterList(3);
@@ -2606,17 +2626,11 @@ void BytecodeGenerator::BuildGeneratorResume(
     {
       // Resume with return.
       builder()->Bind(jump_table, JSGeneratorObject::kReturn);
+      builder()->LoadAccumulatorWithRegister(input);
       if (expr->is_async_generator()) {
         // Async generator methods will produce the iter result object.
-        builder()->LoadAccumulatorWithRegister(input);
         execution_control()->AsyncReturnAccumulator();
       } else {
-        RegisterList args = register_allocator()->NewRegisterList(2);
-        builder()
-            ->MoveRegister(input, args[0])
-            .LoadTrue()
-            .StoreAccumulatorInRegister(args[1])
-            .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
         execution_control()->ReturnAccumulator();
       }
     }

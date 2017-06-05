@@ -2541,6 +2541,10 @@ class Suspend final : public Expression {
     return suspend_id() > 0 && (flags() & SuspendFlags::kAsyncGeneratorAwait) ==
                                    SuspendFlags::kAsyncGenerator;
   }
+  inline bool IsNonInitialGeneratorYield() const {
+    // Return true if is_generator() && !is_await() && yield_id() > 0
+    return suspend_id() > 0 && (flags() == SuspendFlags::kGeneratorYield);
+  }
 
   void set_expression(Expression* e) { expression_ = e; }
   void set_suspend_id(int id) { suspend_id_ = id; }

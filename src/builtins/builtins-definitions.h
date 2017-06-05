@@ -1049,7 +1049,11 @@ namespace internal {
 
 #define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseHandleReject)
 
-#define BUILTIN_EXCEPTION_UNCAUGHT_PREDICTION_LIST(V) V(MapConstructor)
+#define BUILTIN_EXCEPTION_UNCAUGHT_PREDICTION_LIST(V) \
+  V(MapConstructor)                                   \
+  V(GeneratorPrototypeNext)                           \
+  V(GeneratorPrototypeReturn)                         \
+  V(GeneratorPrototypeThrow)
 
 #define IGNORE_BUILTIN(...)
 

@@ -352,19 +352,6 @@ Expression* Parser::BuildUnaryExpression(Expression* expression,
   return factory()->NewUnaryOperation(op, expression, pos);
 }
 
-Expression* Parser::BuildIteratorResult(Expression* value, bool done) {
-  int pos = kNoSourcePosition;
-
-  if (value == nullptr) value = factory()->NewUndefinedLiteral(pos);
-
-  auto args = new (zone()) ZoneList<Expression*>(2, zone());
-  args->Add(value, zone());
-  args->Add(factory()->NewBooleanLiteral(done, pos), zone());
-
-  return factory()->NewCallRuntime(Runtime::kInlineCreateIterResultObject, args,
-                                   pos);
-}
-
 Expression* Parser::NewThrowError(Runtime::FunctionId id,
                                   MessageTemplate::Template message,
                                   const AstRawString* arg, int pos) {
@@ -1778,11 +1765,15 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
 void Parser::ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
                                                   ZoneList<Statement*>* body,
                                                   bool* ok) {
-  // For ES6 Generators, we produce:
-  //
-  // try { InitialYield; ...body...; return {value: undefined, done: true} }
-  // finally { %_GeneratorClose(generator) }
-  //
+  // For ES6 Generators, we just prepend the initial yield.
+  Expression* initial_yield = BuildInitialYield(pos, kind);
+  body->Add(factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
+            zone());
+  ParseStatementList(body, Token::RBRACE, ok);
+}
+
+void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
+    int pos, FunctionKind kind, ZoneList<Statement*>* body, bool* ok) {
   // For ES2017 Async Generators, we produce:
   //
   // try {
@@ -1803,6 +1794,7 @@ void Parser::ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
   // - BytecodeGenerator performs special handling for ReturnStatements in
   //   async generator functions, resolving the appropriate Promise with an
   //   "done" iterator result object containing a Promise-unwrapped value.
+  DCHECK(IsAsyncGeneratorFunction(kind));
 
   Block* try_block = factory()->NewBlock(nullptr, 3, false, kNoSourcePosition);
   Expression* initial_yield = BuildInitialYield(pos, kind);
@@ -1812,49 +1804,45 @@ void Parser::ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
   ParseStatementList(try_block->statements(), Token::RBRACE, ok);
   if (!*ok) return;
 
-  if (IsAsyncGeneratorFunction(kind)) {
-    // Don't create iterator result for async generators, as the resume methods
-    // will create it.
-    Statement* final_return = BuildReturnStatement(
-        factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
-    try_block->statements()->Add(final_return, zone());
+  // Don't create iterator result for async generators, as the resume methods
+  // will create it.
+  Statement* final_return = BuildReturnStatement(
+      factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
+  try_block->statements()->Add(final_return, zone());
 
-    // For AsyncGenerators, a top-level catch block will reject the Promise.
-    Scope* catch_scope = NewHiddenCatchScopeWithParent(scope());
+  // For AsyncGenerators, a top-level catch block will reject the Promise.
+  Scope* catch_scope = NewHiddenCatchScopeWithParent(scope());
 
-    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
-    args->Add(factory()->NewVariableProxy(
-                  function_state_->generator_object_variable()),
-              zone());
-    args->Add(factory()->NewVariableProxy(catch_scope->catch_variable()),
-              zone());
+  ZoneList<Expression*>* reject_args =
+      new (zone()) ZoneList<Expression*>(2, zone());
+  reject_args->Add(
+      factory()->NewVariableProxy(function_state_->generator_object_variable()),
+      zone());
+  reject_args->Add(factory()->NewVariableProxy(catch_scope->catch_variable()),
+                   zone());
 
-    Expression* call = factory()->NewCallRuntime(
-        Runtime::kInlineAsyncGeneratorReject, args, kNoSourcePosition);
-    Block* catch_block = IgnoreCompletion(
-        factory()->NewReturnStatement(call, kNoSourcePosition));
+  Expression* reject_call = factory()->NewCallRuntime(
+      Runtime::kInlineAsyncGeneratorReject, reject_args, kNoSourcePosition);
+  Block* catch_block = IgnoreCompletion(
+      factory()->NewReturnStatement(reject_call, kNoSourcePosition));
 
-    TryStatement* try_catch = factory()->NewTryCatchStatementForAsyncAwait(
-        try_block, catch_scope, catch_block, kNoSourcePosition);
+  TryStatement* try_catch = factory()->NewTryCatchStatementForAsyncAwait(
+      try_block, catch_scope, catch_block, kNoSourcePosition);
 
-    try_block = factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
-    try_block->statements()->Add(try_catch, zone());
-  } else {
-    Statement* final_return = factory()->NewReturnStatement(
-        BuildIteratorResult(nullptr, true), kNoSourcePosition);
-    try_block->statements()->Add(final_return, zone());
-  }
+  try_block = factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
+  try_block->statements()->Add(try_catch, zone());
 
   Block* finally_block =
       factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+  ZoneList<Expression*>* close_args =
+      new (zone()) ZoneList<Expression*>(1, zone());
   VariableProxy* call_proxy =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
-  args->Add(call_proxy, zone());
-  Expression* call = factory()->NewCallRuntime(Runtime::kInlineGeneratorClose,
-                                               args, kNoSourcePosition);
+  close_args->Add(call_proxy, zone());
+  Expression* close_call = factory()->NewCallRuntime(
+      Runtime::kInlineGeneratorClose, close_args, kNoSourcePosition);
   finally_block->statements()->Add(
-      factory()->NewExpressionStatement(call, kNoSourcePosition), zone());
+      factory()->NewExpressionStatement(close_call, kNoSourcePosition), zone());
 
   body->Add(factory()->NewTryFinallyStatement(try_block, finally_block,
                                               kNoSourcePosition),
