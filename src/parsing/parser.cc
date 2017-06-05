@@ -3177,17 +3177,12 @@ Variable* Parser::AsyncGeneratorAwaitVariable() {
 }
 
 Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
-  // We access the generator object twice: once for the {generator}
-  // member of the Suspend AST node, and once for the result of
-  // the initial yield.
   Expression* yield_result =
-      factory()->NewVariableProxy(function_state_->generator_object_variable());
-  Expression* generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
   // The position of the yield is important for reporting the exception
   // caused by calling the .throw method on a generator suspended at the
   // initial yield (i.e. right after generator instantiation).
-  return BuildSuspend(generator_object, yield_result, scope()->start_position(),
+  return BuildSuspend(yield_result, scope()->start_position(),
                       Suspend::kOnExceptionThrow, SuspendFlags::kYield);
 }
 
@@ -3922,8 +3917,8 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
 
     Expression* do_expr = factory()->NewDoExpression(
         do_block, AsyncGeneratorAwaitVariable(), nopos);
-    return BuildSuspend(generator_object, do_expr, await_pos,
-                        Suspend::kOnExceptionRethrow, SuspendFlags::kAwait);
+    return BuildSuspend(do_expr, await_pos, Suspend::kOnExceptionRethrow,
+                        SuspendFlags::kAwait);
   }
 
   // The parser emits calls to AsyncFunctionAwaitCaught or but the
@@ -3942,8 +3937,7 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   Expression* do_expr =
       factory()->NewDoExpression(do_block, PromiseVariable(), nopos);
 
-  return factory()->NewSuspend(generator_object, do_expr, await_pos,
-                               Suspend::kOnExceptionRethrow,
+  return factory()->NewSuspend(do_expr, await_pos, Suspend::kOnExceptionRethrow,
                                SuspendFlags::kAwait);
 }
 
@@ -4288,8 +4282,7 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
 //   output = %_Call(iteratorReturn, iterator, input);
 //   if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
 
-Expression* Parser::RewriteYieldStar(Expression* generator,
-                                     Expression* iterable, int pos) {
+Expression* Parser::RewriteYieldStar(Expression* iterable, int pos) {
   const int nopos = kNoSourcePosition;
   IteratorType type =
       is_async_generator() ? IteratorType::kAsync : IteratorType::kNormal;
@@ -4484,9 +4477,8 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
   Statement* yield_output;
   {
     Expression* output_proxy = factory()->NewVariableProxy(var_output);
-    Suspend* yield =
-        BuildSuspend(generator, output_proxy, nopos, Suspend::kNoControl,
-                     SuspendFlags::kYieldStar);
+    Suspend* yield = BuildSuspend(output_proxy, nopos, Suspend::kNoControl,
+                                  SuspendFlags::kYieldStar);
     yield_output = factory()->NewExpressionStatement(yield, nopos);
   }
 

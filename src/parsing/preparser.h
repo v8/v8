@@ -642,8 +642,7 @@ class PreParserFactory {
     // default value inside an arrow function parameter list.
     return PreParserExpression::Assignment(left.variables_);
   }
-  PreParserExpression NewSuspend(PreParserExpression generator_object,
-                                 PreParserExpression expression, int pos,
+  PreParserExpression NewSuspend(PreParserExpression expression, int pos,
                                  Suspend::OnAbruptResume on_abrupt_resume,
                                  SuspendFlags flags) {
     return PreParserExpression::Default();
@@ -1014,8 +1013,7 @@ class PreParser : public ParserBase<PreParser> {
                                           PreParserStatement block,
                                           PreParserExpression return_value,
                                           bool* ok) {}
-  V8_INLINE PreParserExpression RewriteYieldStar(PreParserExpression generator,
-                                                 PreParserExpression expression,
+  V8_INLINE PreParserExpression RewriteYieldStar(PreParserExpression expression,
                                                  int pos) {
     return PreParserExpression::Default();
   }

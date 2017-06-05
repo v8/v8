@@ -2512,7 +2512,6 @@ class Suspend final : public Expression {
   // desugar yield*.
   enum OnAbruptResume { kOnExceptionThrow, kOnExceptionRethrow, kNoControl };
 
-  Expression* generator_object() const { return generator_object_; }
   Expression* expression() const { return expression_; }
   OnAbruptResume on_abrupt_resume() const {
     return OnAbruptResumeField::decode(bit_field_);
@@ -2543,7 +2542,6 @@ class Suspend final : public Expression {
                                    SuspendFlags::kAsyncGenerator;
   }
 
-  void set_generator_object(Expression* e) { generator_object_ = e; }
   void set_expression(Expression* e) { expression_ = e; }
   void set_suspend_id(int id) { suspend_id_ = id; }
   void set_suspend_type(SuspendFlags type) {
@@ -2554,18 +2552,14 @@ class Suspend final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Suspend(Expression* generator_object, Expression* expression, int pos,
-          OnAbruptResume on_abrupt_resume, SuspendFlags flags)
-      : Expression(pos, kSuspend),
-        suspend_id_(-1),
-        generator_object_(generator_object),
-        expression_(expression) {
+  Suspend(Expression* expression, int pos, OnAbruptResume on_abrupt_resume,
+          SuspendFlags flags)
+      : Expression(pos, kSuspend), suspend_id_(-1), expression_(expression) {
     bit_field_ |= OnAbruptResumeField::encode(on_abrupt_resume) |
                   FlagsField::encode(flags);
   }
 
   int suspend_id_;
-  Expression* generator_object_;
   Expression* expression_;
 
   class OnAbruptResumeField
@@ -3555,12 +3549,11 @@ class AstNodeFactory final BASE_EMBEDDED {
     return assign;
   }
 
-  Suspend* NewSuspend(Expression* generator_object, Expression* expression,
-                      int pos, Suspend::OnAbruptResume on_abrupt_resume,
+  Suspend* NewSuspend(Expression* expression, int pos,
+                      Suspend::OnAbruptResume on_abrupt_resume,
                       SuspendFlags flags) {
     if (!expression) expression = NewUndefinedLiteral(pos);
-    return new (zone_)
-        Suspend(generator_object, expression, pos, on_abrupt_resume, flags);
+    return new (zone_) Suspend(expression, pos, on_abrupt_resume, flags);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {

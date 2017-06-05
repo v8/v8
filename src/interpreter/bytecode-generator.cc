@@ -2521,7 +2521,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   }
 }
 
-void BytecodeGenerator::BuildGeneratorSuspend(Suspend* expr, Register generator,
+void BytecodeGenerator::BuildGeneratorSuspend(Suspend* expr,
                                               RegisterList registers_to_save) {
   RegisterAllocationScope register_scope(this);
 
@@ -2531,7 +2531,7 @@ void BytecodeGenerator::BuildGeneratorSuspend(Suspend* expr, Register generator,
   // Save context, registers, and state. Then return.
   builder()
       ->LoadLiteral(Smi::FromInt(expr->suspend_id()))
-      .SuspendGenerator(generator, registers_to_save, expr->flags());
+      .SuspendGenerator(generator_object_, registers_to_save, expr->flags());
 
   if (expr->IsNonInitialAsyncGeneratorYield()) {
     // AsyncGenerator yields (with the exception of the initial yield) delegate
@@ -2541,7 +2541,7 @@ void BytecodeGenerator::BuildGeneratorSuspend(Suspend* expr, Register generator,
     // AsyncGeneratorYield:
     // perform AsyncGeneratorResolve(<generator>, <value>, false).
     builder()
-        ->MoveRegister(generator, args[0])
+        ->MoveRegister(generator_object_, args[0])
         .MoveRegister(value, args[1])
         .LoadFalse()
         .StoreAccumulatorInRegister(args[2])
@@ -2553,7 +2553,7 @@ void BytecodeGenerator::BuildGeneratorSuspend(Suspend* expr, Register generator,
 }
 
 void BytecodeGenerator::BuildGeneratorResume(
-    Suspend* expr, Register generator, RegisterList registers_to_restore) {
+    Suspend* expr, RegisterList registers_to_restore) {
   RegisterAllocationScope register_scope(this);
 
   // Clobbers all registers.
@@ -2575,13 +2575,13 @@ void BytecodeGenerator::BuildGeneratorResume(
           ? Runtime::kInlineAsyncGeneratorGetAwaitInputOrDebugPos
           : Runtime::kInlineGeneratorGetInputOrDebugPos;
 
-  DCHECK(generator.is_valid());
-  builder()->CallRuntime(get_generator_input, generator);
+  builder()->CallRuntime(get_generator_input, generator_object_);
 
   if (expr->on_abrupt_resume() != Suspend::kNoControl) {
     builder()->StoreAccumulatorInRegister(input);
 
-    builder()->CallRuntime(Runtime::kInlineGeneratorGetResumeMode, generator);
+    builder()->CallRuntime(Runtime::kInlineGeneratorGetResumeMode,
+                           generator_object_);
 
     // Now dispatch on resume mode.
     STATIC_ASSERT(JSGeneratorObject::kNext + 1 == JSGeneratorObject::kReturn);
@@ -2630,12 +2630,11 @@ void BytecodeGenerator::BuildGeneratorResume(
 }
 
 void BytecodeGenerator::VisitSuspend(Suspend* expr) {
-  Register generator = VisitForRegisterValue(expr->generator_object());
   RegisterList registers(0, register_allocator()->next_register_index());
-  BuildGeneratorSuspend(expr, generator, registers);
+  BuildGeneratorSuspend(expr, registers);
   builder()->Bind(generator_jump_table_, static_cast<int>(expr->suspend_id()));
   // Upon resume, we continue here.
-  BuildGeneratorResume(expr, generator, registers);
+  BuildGeneratorResume(expr, registers);
 }
 
 void BytecodeGenerator::VisitThrow(Throw* expr) {

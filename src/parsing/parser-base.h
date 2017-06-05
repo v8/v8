@@ -1399,16 +1399,15 @@ class ParserBase {
   }
 
   inline SuspendExpressionT BuildSuspend(
-      ExpressionT generator, ExpressionT expr, int pos,
-      Suspend::OnAbruptResume on_abrupt_resume, SuspendFlags suspend_type) {
+      ExpressionT expr, int pos, Suspend::OnAbruptResume on_abrupt_resume,
+      SuspendFlags suspend_type) {
     DCHECK_EQ(0,
               static_cast<int>(suspend_type & ~SuspendFlags::kSuspendTypeMask));
     if (V8_UNLIKELY(is_async_generator())) {
       suspend_type = static_cast<SuspendFlags>(suspend_type |
                                                SuspendFlags::kAsyncGenerator);
     }
-    return factory()->NewSuspend(generator, expr, pos, on_abrupt_resume,
-                                 suspend_type);
+    return factory()->NewSuspend(expr, pos, on_abrupt_resume, suspend_type);
   }
 
   // Validation per ES6 object literals.
@@ -2970,8 +2969,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   classifier()->RecordFormalParameterInitializerError(
       scanner()->peek_location(), MessageTemplate::kYieldInParameter);
   Expect(Token::YIELD, CHECK_OK);
-  ExpressionT generator_object =
-      factory()->NewVariableProxy(function_state_->generator_object_variable());
   // The following initialization is necessary.
   ExpressionT expression = impl()->EmptyExpression();
   bool delegating = false;  // yield*
@@ -2999,7 +2996,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   }
 
   if (delegating) {
-    return impl()->RewriteYieldStar(generator_object, expression, pos);
+    return impl()->RewriteYieldStar(expression, pos);
   }
 
   if (!is_async_generator()) {
@@ -3010,9 +3007,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
 
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
-  ExpressionT yield =
-      BuildSuspend(generator_object, expression, pos,
-                   Suspend::kOnExceptionThrow, SuspendFlags::kYield);
+  ExpressionT yield = BuildSuspend(expression, pos, Suspend::kOnExceptionThrow,
+                                   SuspendFlags::kYield);
   return yield;
 }
 

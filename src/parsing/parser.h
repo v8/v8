@@ -688,8 +688,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                           Block* block,
                                           Expression* return_value, bool* ok);
 
-  Expression* RewriteYieldStar(Expression* generator, Expression* expression,
-                               int pos);
+  Expression* RewriteYieldStar(Expression* expression, int pos);
 
   void AddArrowFunctionFormalParameters(ParserFormalParameters* parameters,
                                         Expression* params, int end_pos,

@@ -246,7 +246,6 @@ void AstNumberingVisitor::VisitSuspend(Suspend* node) {
   suspend_count_++;
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(Suspend::num_ids()));
-  Visit(node->generator_object());
   Visit(node->expression());
 }
 

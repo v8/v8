@@ -150,7 +150,6 @@ void ALAA::VisitObjectLiteral(ObjectLiteral* e) {
 void ALAA::VisitArrayLiteral(ArrayLiteral* e) { VisitExpressions(e->values()); }
 
 void ALAA::VisitSuspend(Suspend* stmt) {
-  Visit(stmt->generator_object());
   Visit(stmt->expression());
 }
 
