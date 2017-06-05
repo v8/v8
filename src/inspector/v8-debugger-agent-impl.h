@@ -122,15 +122,14 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void cancelPauseOnNextStatement();
   void breakProgram(const String16& breakReason,
                     std::unique_ptr<protocol::DictionaryValue> data);
-  void breakProgramOnException(const String16& breakReason,
-                               std::unique_ptr<protocol::DictionaryValue> data);
 
   void reset();
 
   // Interface for V8InspectorImpl
   void didPause(int contextId, v8::Local<v8::Value> exception,
                 const std::vector<String16>& hitBreakpoints,
-                bool isPromiseRejection, bool isUncaught, bool isOOMBreak);
+                bool isPromiseRejection, bool isUncaught, bool isOOMBreak,
+                bool isAssert);
   void didContinue();
   void didParseSource(std::unique_ptr<V8DebuggerScript>, bool success);
 

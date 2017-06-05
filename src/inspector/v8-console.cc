@@ -275,14 +275,7 @@ void V8Console::Assert(const v8::debug::ConsoleCallArguments& info) {
     arguments.push_back(
         toV8String(m_inspector->isolate(), String16("console.assert")));
   helper.reportCall(ConsoleAPIType::kAssert, arguments);
-
-  // TODO(dgozman): only break once, not per each session.
-  helper.forEachSession([](V8InspectorSessionImpl* session) {
-    if (session->debuggerAgent()->enabled()) {
-      session->debuggerAgent()->breakProgramOnException(
-          protocol::Debugger::Paused::ReasonEnum::Assert, nullptr);
-    }
-  });
+  m_inspector->debugger()->breakProgramOnAssert(helper.groupId());
 }
 
 void V8Console::MarkTimeline(const v8::debug::ConsoleCallArguments& info) {

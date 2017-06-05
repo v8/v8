@@ -764,6 +764,8 @@ Response V8DebuggerAgentImpl::setPauseOnExceptions(
 }
 
 void V8DebuggerAgentImpl::setPauseOnExceptionsImpl(int pauseState) {
+  // TODO(dgozman): this changes the global state and forces all context groups
+  // to pause. We should make this flag be per-context-group.
   m_debugger->setPauseOnExceptionsState(
       static_cast<v8::debug::ExceptionBreakState>(pauseState));
   m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState, pauseState);
@@ -1137,7 +1139,7 @@ void V8DebuggerAgentImpl::didPause(int contextId,
                                    v8::Local<v8::Value> exception,
                                    const std::vector<String16>& hitBreakpoints,
                                    bool isPromiseRejection, bool isUncaught,
-                                   bool isOOMBreak) {
+                                   bool isOOMBreak, bool isAssert) {
   JavaScriptCallFrames frames = m_debugger->currentCallFrames();
   m_pausedCallFrames.swap(frames);
   v8::HandleScope handles(m_isolate);
@@ -1147,6 +1149,9 @@ void V8DebuggerAgentImpl::didPause(int contextId,
   if (isOOMBreak) {
     hitReasons.push_back(
         std::make_pair(protocol::Debugger::Paused::ReasonEnum::OOM, nullptr));
+  } else if (isAssert) {
+    hitReasons.push_back(std::make_pair(
+        protocol::Debugger::Paused::ReasonEnum::Assert, nullptr));
   } else if (!exception.IsEmpty()) {
     InjectedScript* injectedScript = nullptr;
     m_session->findInjectedScript(contextId, injectedScript);
@@ -1252,15 +1257,6 @@ void V8DebuggerAgentImpl::breakProgram(
   if (!m_breakReason.empty()) {
     m_debugger->setPauseOnNextStatement(true, m_session->contextGroupId());
   }
-}
-
-void V8DebuggerAgentImpl::breakProgramOnException(
-    const String16& breakReason,
-    std::unique_ptr<protocol::DictionaryValue> data) {
-  if (!enabled() ||
-      m_debugger->getPauseOnExceptionsState() == v8::debug::NoBreakOnException)
-    return;
-  breakProgram(breakReason, std::move(data));
 }
 
 void V8DebuggerAgentImpl::setBreakpointAt(const String16& scriptId,

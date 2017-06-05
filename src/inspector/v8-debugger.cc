@@ -363,6 +363,18 @@ void V8Debugger::continueProgram(int targetContextGroupId) {
   m_executionState.Clear();
 }
 
+void V8Debugger::breakProgramOnAssert(int targetContextGroupId) {
+  if (!enabled()) return;
+  if (m_pauseOnExceptionsState == v8::debug::NoBreakOnException) return;
+  // Don't allow nested breaks.
+  if (isPaused()) return;
+  if (!canBreakProgram()) return;
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
+  m_scheduledAssertBreak = true;
+  v8::debug::BreakRightNow(m_isolate);
+}
+
 void V8Debugger::stepIntoStatement(int targetContextGroupId) {
   DCHECK(isPaused());
   DCHECK(!m_executionState.IsEmpty());
@@ -599,6 +611,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   m_breakRequested = false;
 
   bool scheduledOOMBreak = m_scheduledOOMBreak;
+  bool scheduledAssertBreak = m_scheduledAssertBreak;
   auto agentCheck = [&scheduledOOMBreak](V8DebuggerAgentImpl* agent) {
     return agent->enabled() && (scheduledOOMBreak || !agent->skipAllPauses());
   };
@@ -636,12 +649,13 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
 
   m_inspector->forEachSession(
       contextGroupId, [&agentCheck, &pausedContext, &exception, &breakpointIds,
-                       &isPromiseRejection, &isUncaught,
-                       &scheduledOOMBreak](V8InspectorSessionImpl* session) {
+                       &isPromiseRejection, &isUncaught, &scheduledOOMBreak,
+                       &scheduledAssertBreak](V8InspectorSessionImpl* session) {
         if (agentCheck(session->debuggerAgent())) {
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), exception,
-              breakpointIds, isPromiseRejection, isUncaught, scheduledOOMBreak);
+              breakpointIds, isPromiseRejection, isUncaught, scheduledOOMBreak,
+              scheduledAssertBreak);
         }
       });
   {
@@ -660,6 +674,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
 
   if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();
   m_scheduledOOMBreak = false;
+  m_scheduledAssertBreak = false;
   m_pausedContext.Clear();
   m_executionState.Clear();
 }

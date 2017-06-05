@@ -52,6 +52,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   bool canBreakProgram();
   void breakProgram(int targetContextGroupId);
   void continueProgram(int targetContextGroupId);
+  void breakProgramOnAssert(int targetContextGroupId);
 
   void setPauseOnNextStatement(bool, int targetContextGroupId);
   void stepIntoStatement(int targetContextGroupId);
@@ -188,6 +189,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::Local<v8::Context> m_pausedContext;
   int m_ignoreScriptParsedEventsCounter;
   bool m_scheduledOOMBreak = false;
+  bool m_scheduledAssertBreak = false;
   int m_targetContextGroupId = 0;
   int m_pausedContextGroupId = 0;
   String16 m_continueToLocationBreakpointId;
