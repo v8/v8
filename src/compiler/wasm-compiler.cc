@@ -2803,10 +2803,11 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
       sig->return_count() == 0 ? 0 : 1 << ElementSizeLog2Of(sig->GetReturn(0));
 
   // Get a stack slot for the arguments.
-  Node* arg_buffer = args_size_bytes == 0 && return_size_bytes == 0
-                         ? jsgraph()->IntPtrConstant(0)
-                         : graph()->NewNode(jsgraph()->machine()->StackSlot(
-                               std::max(args_size_bytes, return_size_bytes)));
+  Node* arg_buffer =
+      args_size_bytes == 0 && return_size_bytes == 0
+          ? jsgraph()->IntPtrConstant(0)
+          : graph()->NewNode(jsgraph()->machine()->StackSlot(
+                std::max(args_size_bytes, return_size_bytes), 8));
 
   // Now store all our arguments to the buffer.
   int param_index = 0;
@@ -2816,26 +2817,23 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
     Node* param = Param(param_index++);
     if (Int64Lowering::IsI64AsTwoParameters(jsgraph()->machine(),
                                             sig->GetParam(i))) {
-      StoreRepresentation store_rep(wasm::kWasmI32,
-                                    WriteBarrierKind::kNoWriteBarrier);
-      *effect_ =
-          graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
-                           Int32Constant(offset + kInt64LowerHalfMemoryOffset),
-                           param, *effect_, *control_);
+      int lower_half_offset = offset + kInt64LowerHalfMemoryOffset;
+      int upper_half_offset = offset + kInt64UpperHalfMemoryOffset;
+
+      *effect_ = graph()->NewNode(
+          GetSafeStoreOperator(lower_half_offset, wasm::kWasmI32), arg_buffer,
+          Int32Constant(lower_half_offset), param, *effect_, *control_);
 
       param = Param(param_index++);
-      *effect_ =
-          graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
-                           Int32Constant(offset + kInt64UpperHalfMemoryOffset),
-                           param, *effect_, *control_);
+      *effect_ = graph()->NewNode(
+          GetSafeStoreOperator(upper_half_offset, wasm::kWasmI32), arg_buffer,
+          Int32Constant(upper_half_offset), param, *effect_, *control_);
       offset += 8;
 
     } else {
       MachineRepresentation param_rep = sig->GetParam(i);
-      StoreRepresentation store_rep(param_rep,
-                                    WriteBarrierKind::kNoWriteBarrier);
       *effect_ =
-          graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
+          graph()->NewNode(GetSafeStoreOperator(offset, param_rep), arg_buffer,
                            Int32Constant(offset), param, *effect_, *control_);
       offset += 1 << ElementSizeLog2Of(param_rep);
     }
@@ -3018,6 +3016,18 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
                                     static_cast<uint32_t>(effective_size),
                                     RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
   TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
+}
+
+const Operator* WasmGraphBuilder::GetSafeStoreOperator(int offset,
+                                                       wasm::ValueType type) {
+  int alignment = offset % (1 << ElementSizeLog2Of(type));
+  if (alignment == 0 || jsgraph()->machine()->UnalignedStoreSupported(
+                            MachineType::TypeForRepresentation(type), 0)) {
+    StoreRepresentation rep(type, WriteBarrierKind::kNoWriteBarrier);
+    return jsgraph()->machine()->Store(rep);
+  }
+  UnalignedStoreRepresentation rep(type);
+  return jsgraph()->machine()->UnalignedStore(rep);
 }
 
 Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
@@ -3829,7 +3839,10 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
   Zone zone(isolate->allocator(), ZONE_NAME);
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
-  MachineOperatorBuilder machine(&zone);
+  MachineOperatorBuilder machine(
+      &zone, MachineType::PointerRepresentation(),
+      InstructionSelector::SupportedMachineOperatorFlags(),
+      InstructionSelector::AlignmentRequirements());
   JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
 
   Node* control = nullptr;
