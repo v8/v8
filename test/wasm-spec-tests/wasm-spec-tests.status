@@ -30,4 +30,18 @@
   'tests/br_table': [SKIP],
 }],  # 'arch == arm and not simulator_run'
 
+['arch == ppc or arch == ppc64', {
+  # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
+  'tests/f32': [SKIP],
+  'tests/f64': [SKIP],
+  # This test fails because ppc float to double doesn't convert sNaN to qNaN.
+  'tests/conversions': [SKIP],
+}],  # 'arch == ppc or arch == ppc64'
+
+['arch == s390 or arch == s390x', {
+  # These tests fail because s390 float min and max doesn't convert sNaN to qNaN.
+  'tests/f32': [SKIP],
+  'tests/f64': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
+
 ]
