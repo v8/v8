@@ -286,6 +286,7 @@ void V8DebuggerAgentImpl::restore() {
 
 Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
+  // TODO(dgozman): this state should be per-session, not global per debugger.
   m_debugger->setBreakpointsActivated(active);
   if (!active && !m_breakReason.empty()) {
     clearBreakDetails();
@@ -1033,7 +1034,11 @@ V8DebuggerAgentImpl::currentAsyncStackTrace() {
       m_debugger->maxAsyncCallChainDepth() - 1);
 }
 
-bool V8DebuggerAgentImpl::isPaused() const { return m_debugger->isPaused(); }
+bool V8DebuggerAgentImpl::isPaused() const {
+  // TODO(dgozman): this check allows once context group to resume the other,
+  // since they share debugger.
+  return m_debugger->isPaused();
+}
 
 void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
