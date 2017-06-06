@@ -649,8 +649,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     Goto(&done);
 
     BIND(&if_copy_elements);
-    CSA_ASSERT(this,
-               Word32Not(IsFixedCOWArrayMap(LoadMap(boilerplate_elements))));
+    CSA_ASSERT(this, Word32BinaryNot(
+                         IsFixedCOWArrayMap(LoadMap(boilerplate_elements))));
     var_elements.Bind(CopyFixedArrayBase(boilerplate_elements));
     Goto(&done);
     BIND(&done);

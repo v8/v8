@@ -53,7 +53,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 58
+bytecode array length: 44
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
@@ -71,13 +71,10 @@ bytecodes: [
   /*  140 E> */ B(ConstructWithSpread), R(4), R(5), U8(2),
                 B(Star), R(4),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(4),
-                B(Jump), U8(7),
-  /*  140 E> */ B(CallRuntime), U16(Runtime::kThrowSuperAlreadyCalledError), R(0), U8(0),
+  /*  140 E> */ B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(4), R(this),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSuperNotCalled), R(0), U8(0),
+                B(ThrowSuperNotCalledIfHole),
   /*  159 S> */ B(Return),
 ]
 constant pool: [
@@ -100,7 +97,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 91
+bytecode array length: 77
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
@@ -130,13 +127,10 @@ bytecodes: [
   /*  140 E> */ B(CallJSRuntime), U8(%reflect_construct), R(4), U8(4),
                 B(Star), R(4),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(4),
-                B(Jump), U8(7),
-  /*  140 E> */ B(CallRuntime), U16(Runtime::kThrowSuperAlreadyCalledError), R(0), U8(0),
+  /*  140 E> */ B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(4), R(this),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSuperNotCalled), R(0), U8(0),
+                B(ThrowSuperNotCalledIfHole),
   /*  162 S> */ B(Return),
 ]
 constant pool: [

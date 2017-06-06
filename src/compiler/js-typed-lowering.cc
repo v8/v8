@@ -533,7 +533,8 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
 Reduction JSTypedLowering::ReduceSpeculativeNumberAdd(Node* node) {
   JSBinopReduction r(this, node);
   NumberOperationHint hint = NumberOperationHintOf(node->op());
-  if (hint == NumberOperationHint::kNumberOrOddball &&
+  if ((hint == NumberOperationHint::kNumber ||
+       hint == NumberOperationHint::kNumberOrOddball) &&
       r.BothInputsAre(Type::PlainPrimitive()) &&
       r.NeitherInputCanBe(Type::StringOrReceiver())) {
     // SpeculativeNumberAdd(x:-string, y:-string) =>
@@ -621,7 +622,8 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node) {
 Reduction JSTypedLowering::ReduceSpeculativeNumberBinop(Node* node) {
   JSBinopReduction r(this, node);
   NumberOperationHint hint = NumberOperationHintOf(node->op());
-  if (hint == NumberOperationHint::kNumberOrOddball &&
+  if ((hint == NumberOperationHint::kNumber ||
+       hint == NumberOperationHint::kNumberOrOddball) &&
       r.BothInputsAre(Type::NumberOrOddball())) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(r.NumberOpFromSpeculativeNumberOp(),

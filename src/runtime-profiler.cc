@@ -57,7 +57,7 @@ static const int kMaxSizeEarlyOptIgnition =
 // We aren't using the code size multiplier here because there is no
 // "kMaxSizeOpt" with which we would need to normalize. This constant is
 // only for optimization decisions coming into TurboFan from Ignition.
-static const int kMaxSizeOptIgnition = 80 * KB;
+static const int kMaxSizeOptIgnition = 60 * KB;
 
 #define OPTIMIZATION_REASON_LIST(V)                            \
   V(DoNotOptimize, "do not optimize")                          \

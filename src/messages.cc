@@ -383,19 +383,16 @@ Handle<Object> JSStackFrame::GetMethodName() {
   }
 
   Handle<JSObject> obj = Handle<JSObject>::cast(receiver);
-  Handle<Object> function_name(function_->shared()->name(), isolate_);
-  if (function_name->IsString()) {
-    Handle<String> name = Handle<String>::cast(function_name);
-    // ES2015 gives getters and setters name prefixes which must
-    // be stripped to find the property name.
-    if (name->IsUtf8EqualTo(CStrVector("get "), true) ||
-        name->IsUtf8EqualTo(CStrVector("set "), true)) {
-      name = isolate_->factory()->NewProperSubString(name, 4, name->length());
-    }
-    if (CheckMethodName(isolate_, obj, name, function_,
-                        LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR)) {
-      return name;
-    }
+  Handle<String> name(function_->shared()->name(), isolate_);
+  // ES2015 gives getters and setters name prefixes which must
+  // be stripped to find the property name.
+  if (name->IsUtf8EqualTo(CStrVector("get "), true) ||
+      name->IsUtf8EqualTo(CStrVector("set "), true)) {
+    name = isolate_->factory()->NewProperSubString(name, 4, name->length());
+  }
+  if (CheckMethodName(isolate_, obj, name, function_,
+                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR)) {
+    return name;
   }
 
   HandleScope outer_scope(isolate_);

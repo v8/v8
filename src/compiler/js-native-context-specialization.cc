@@ -1881,6 +1881,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   }
 
   Handle<Map> receiver_map(map, isolate());
+  if (!Map::TryUpdate(receiver_map).ToHandle(&receiver_map)) return NoChange();
+
   Handle<Name> cached_name =
       handle(Name::cast(nexus.GetFeedbackExtra()), isolate());
 
@@ -2181,8 +2183,8 @@ JSNativeContextSpecialization::BuildElementAccess(
                                    value);
         } else {
           // Bailout if we see the hole.
-          value = effect = graph()->NewNode(simplified()->CheckTaggedHole(),
-                                            value, effect, control);
+          effect = graph()->NewNode(simplified()->CheckNotTaggedHole(), value,
+                                    effect, control);
         }
       } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
         // Perform the hole check on the result.

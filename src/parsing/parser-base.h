@@ -83,6 +83,41 @@ struct FormalParametersBase {
   int arity = 0;
 };
 
+// Stack-allocated scope to collect source ranges from the parser.
+class SourceRangeScope final {
+ public:
+  enum PositionKind {
+    POSITION,
+    PEEK_POS,
+  };
+
+  SourceRangeScope(Scanner* scanner, SourceRange* range,
+                   PositionKind pre_kind = PEEK_POS,
+                   PositionKind post_kind = POSITION)
+      : scanner_(scanner), range_(range), post_kind_(post_kind) {
+    range_->start = GetPosition(pre_kind);
+  }
+
+  ~SourceRangeScope() { range_->end = GetPosition(post_kind_); }
+
+ private:
+  int32_t GetPosition(PositionKind kind) {
+    switch (post_kind_) {
+      case POSITION:
+        return scanner_->location().beg_pos;
+      case PEEK_POS:
+        return scanner_->peek_location().beg_pos;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  Scanner* scanner_;
+  SourceRange* range_;
+  PositionKind post_kind_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SourceRangeScope);
+};
 
 namespace typesystem {
 
@@ -926,6 +961,7 @@ class ParserBase {
   void CheckFunctionName(LanguageMode language_mode, IdentifierT function_name,
                          FunctionNameValidity function_name_validity,
                          const Scanner::Location& function_name_loc, bool* ok) {
+    if (impl()->IsEmptyIdentifier(function_name)) return;
     if (function_name_validity == kSkipFunctionNameCheck) return;
     // The function name needs to be checked in strict mode.
     if (is_sloppy(language_mode)) return;
@@ -2730,7 +2766,10 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
       ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
           name_expression, value, *is_computed_name);
 
-      if (!*is_computed_name) {
+      if (*is_computed_name) {
+        impl()->SetFunctionNameFromPropertyName(result,
+                                                impl()->EmptyIdentifier());
+      } else {
         impl()->SetFunctionNameFromPropertyName(result, name);
       }
 
@@ -4680,10 +4719,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // parameters.
         int dummy_num_parameters = -1;
         DCHECK((kind & FunctionKind::kArrowFunction) != 0);
-        LazyParsingResult result =
-            impl()->SkipFunction(kind, formal_parameters.scope,
-                                 &dummy_num_parameters, false,
-                                 typesystem::kNormalTypes, false, CHECK_OK);
+        LazyParsingResult result = impl()->SkipFunction(
+            kind, formal_parameters.scope, &dummy_num_parameters, false,
+            typesystem::kNormalTypes, false, CHECK_OK);
         DCHECK_NE(result, kLazyParsingAborted);
         DCHECK_NE(result, kLazyParsingSignature);
         USE(result);
@@ -5604,15 +5642,23 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
   Expect(Token::LPAREN, CHECK_OK);
   ExpressionT condition = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  StatementT then_statement = ParseScopedStatement(labels, CHECK_OK);
+
+  SourceRange then_range, else_range;
+  StatementT then_statement = impl()->NullStatement();
+  {
+    SourceRangeScope range_scope(scanner(), &then_range);
+    then_statement = ParseScopedStatement(labels, CHECK_OK);
+  }
+
   StatementT else_statement = impl()->NullStatement();
   if (Check(Token::ELSE)) {
+    SourceRangeScope range_scope(scanner(), &else_range);
     else_statement = ParseScopedStatement(labels, CHECK_OK);
   } else {
     else_statement = factory()->NewEmptyStatement(kNoSourcePosition);
   }
   return factory()->NewIfStatement(condition, then_statement, else_statement,
-                                   pos);
+                                   pos, then_range, else_range);
 }
 
 template <typename Impl>

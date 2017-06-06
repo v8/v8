@@ -435,10 +435,11 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode);
   const Operator* CheckedTaggedToTaggedSigned();
   const Operator* CheckedTaggedToTaggedPointer();
-  const Operator* CheckedTruncateTaggedToWord32();
+  const Operator* CheckedTruncateTaggedToWord32(CheckTaggedInputMode);
 
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
   const Operator* CheckTaggedHole();
+  const Operator* CheckNotTaggedHole();
   const Operator* ConvertTaggedHoleToUndefined();
 
   const Operator* ObjectIsDetectableCallable();

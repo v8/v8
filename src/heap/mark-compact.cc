@@ -655,8 +655,10 @@ void MarkCompactCollector::SweepAndRefill(CompactionSpace* space) {
 Page* MarkCompactCollector::Sweeper::GetSweptPageSafe(PagedSpace* space) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   SweptList& list = swept_list_[space->identity()];
-  if (list.length() > 0) {
-    return list.RemoveLast();
+  if (!list.empty()) {
+    auto last_page = list.back();
+    list.pop_back();
+    return last_page;
   }
   return nullptr;
 }
@@ -678,7 +680,7 @@ void MarkCompactCollector::Sweeper::EnsureCompleted() {
 
   ForAllSweepingSpaces([this](AllocationSpace space) {
     if (space == NEW_SPACE) {
-      swept_list_[NEW_SPACE].Clear();
+      swept_list_[NEW_SPACE].clear();
     }
     DCHECK(sweeping_list_[space].empty());
   });
@@ -4186,7 +4188,7 @@ void LiveObjectVisitor::RecomputeLiveBytes(MemoryChunk* chunk,
 void MarkCompactCollector::Sweeper::AddSweptPageSafe(PagedSpace* space,
                                                      Page* page) {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  swept_list_[space->identity()].Add(page);
+  swept_list_[space->identity()].push_back(page);
 }
 
 void MarkCompactCollector::Evacuate() {
@@ -4650,7 +4652,7 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
 
   {
     base::LockGuard<base::Mutex> guard(&mutex_);
-    swept_list_[identity].Add(page);
+    swept_list_[identity].push_back(page);
   }
   return max_freed;
 }

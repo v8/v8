@@ -897,23 +897,26 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // Perform the comparison as if via '==='.
     __ Peek(x1, 0);   // Switch value.
 
-    JumpPatchSite patch_site(masm_);
-    if (ShouldInlineSmiCase(Token::EQ_STRICT)) {
-      Label slow_case;
-      patch_site.EmitJumpIfEitherNotSmi(x0, x1, &slow_case);
-      __ Cmp(x1, x0);
-      __ B(ne, &next_test);
-      __ Drop(1);  // Switch value is no longer needed.
-      __ B(clause->body_target());
-      __ Bind(&slow_case);
-    }
+    {
+      Assembler::BlockPoolsScope scope(masm_);
+      JumpPatchSite patch_site(masm_);
+      if (ShouldInlineSmiCase(Token::EQ_STRICT)) {
+        Label slow_case;
+        patch_site.EmitJumpIfEitherNotSmi(x0, x1, &slow_case);
+        __ Cmp(x1, x0);
+        __ B(ne, &next_test);
+        __ Drop(1);  // Switch value is no longer needed.
+        __ B(clause->body_target());
+        __ Bind(&slow_case);
+      }
 
-    // Record position before stub call for type feedback.
-    SetExpressionPosition(clause);
-    Handle<Code> ic =
-        CodeFactory::CompareIC(isolate(), Token::EQ_STRICT).code();
-    CallIC(ic, clause->CompareId());
-    patch_site.EmitPatchInfo();
+      // Record position before stub call for type feedback.
+      SetExpressionPosition(clause);
+      Handle<Code> ic =
+          CodeFactory::CompareIC(isolate(), Token::EQ_STRICT).code();
+      CallIC(ic, clause->CompareId());
+      patch_site.EmitPatchInfo();
+    }
 
     Label skip;
     __ B(&skip);
@@ -1508,21 +1511,22 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   PopOperand(left);
 
   // Perform combined smi check on both operands.
-  __ Orr(x10, left, right);
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(x10, &both_smis);
-
-  __ Bind(&stub_call);
-
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
   {
     Assembler::BlockPoolsScope scope(masm_);
+    __ Orr(x10, left, right);
+    JumpPatchSite patch_site(masm_);
+    patch_site.EmitJumpIfSmi(x10, &both_smis);
+
+    __ Bind(&stub_call);
+
+    Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
     CallIC(code, expr->BinaryOperationFeedbackId());
     patch_site.EmitPatchInfo();
-  }
-  __ B(&done);
 
-  __ Bind(&both_smis);
+    __ B(&done);
+    __ Bind(&both_smis);
+  }
+
   // Smi case. This code works in the same way as the smi-smi case in the type
   // recording binary operation stub, see
   // BinaryOpStub::GenerateSmiSmiOperation for comments.
@@ -2351,29 +2355,68 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Inline smi case if we are in a loop.
-  Label stub_call, done;
-  JumpPatchSite patch_site(masm_);
+  {
+    Assembler::BlockPoolsScope scope(masm_);
+    Label stub_call, done;
+    JumpPatchSite patch_site(masm_);
 
-  int count_value = expr->op() == Token::INC ? 1 : -1;
-  if (ShouldInlineSmiCase(expr->op())) {
-    Label slow;
-    patch_site.EmitJumpIfNotSmi(x0, &slow);
+    int count_value = expr->op() == Token::INC ? 1 : -1;
+    if (ShouldInlineSmiCase(expr->op())) {
+      Label slow;
+      patch_site.EmitJumpIfNotSmi(x0, &slow);
+
+      // Save result for postfix expressions.
+      if (expr->is_postfix()) {
+        if (!context()->IsEffect()) {
+          // Save the result on the stack. If we have a named or keyed property
+          // we store the result under the receiver that is currently on top of
+          // the stack.
+          switch (assign_type) {
+            case VARIABLE:
+              __ Push(x0);
+              break;
+            case NAMED_PROPERTY:
+              __ Poke(x0, kPointerSize);
+              break;
+            case KEYED_PROPERTY:
+              __ Poke(x0, kPointerSize * 2);
+              break;
+            case NAMED_SUPER_PROPERTY:
+            case KEYED_SUPER_PROPERTY:
+              UNREACHABLE();
+              break;
+          }
+        }
+      }
+
+      __ Adds(x0, x0, Smi::FromInt(count_value));
+      __ B(vc, &done);
+      // Call stub. Undo operation first.
+      __ Sub(x0, x0, Smi::FromInt(count_value));
+      __ B(&stub_call);
+      __ Bind(&slow);
+    }
+
+    // Convert old value into a number.
+    __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+    RestoreContext();
+    PrepareForBailoutForId(expr->ToNumberId(), BailoutState::TOS_REGISTER);
 
     // Save result for postfix expressions.
     if (expr->is_postfix()) {
       if (!context()->IsEffect()) {
-        // Save the result on the stack. If we have a named or keyed property we
-        // store the result under the receiver that is currently on top of the
-        // stack.
+        // Save the result on the stack. If we have a named or keyed property
+        // we store the result under the receiver that is currently on top
+        // of the stack.
         switch (assign_type) {
           case VARIABLE:
-            __ Push(x0);
+            PushOperand(x0);
             break;
           case NAMED_PROPERTY:
-            __ Poke(x0, kPointerSize);
+            __ Poke(x0, kXRegSize);
             break;
           case KEYED_PROPERTY:
-            __ Poke(x0, kPointerSize * 2);
+            __ Poke(x0, 2 * kXRegSize);
             break;
           case NAMED_SUPER_PROPERTY:
           case KEYED_SUPER_PROPERTY:
@@ -2383,56 +2426,18 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
     }
 
-    __ Adds(x0, x0, Smi::FromInt(count_value));
-    __ B(vc, &done);
-    // Call stub. Undo operation first.
-    __ Sub(x0, x0, Smi::FromInt(count_value));
-    __ B(&stub_call);
-    __ Bind(&slow);
-  }
+    __ Bind(&stub_call);
+    __ Mov(x1, x0);
+    __ Mov(x0, Smi::FromInt(count_value));
 
-  // Convert old value into a number.
-  __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
-  RestoreContext();
-  PrepareForBailoutForId(expr->ToNumberId(), BailoutState::TOS_REGISTER);
+    SetExpressionPosition(expr);
 
-  // Save result for postfix expressions.
-  if (expr->is_postfix()) {
-    if (!context()->IsEffect()) {
-      // Save the result on the stack. If we have a named or keyed property
-      // we store the result under the receiver that is currently on top
-      // of the stack.
-      switch (assign_type) {
-        case VARIABLE:
-          PushOperand(x0);
-          break;
-        case NAMED_PROPERTY:
-          __ Poke(x0, kXRegSize);
-          break;
-        case KEYED_PROPERTY:
-          __ Poke(x0, 2 * kXRegSize);
-          break;
-        case NAMED_SUPER_PROPERTY:
-        case KEYED_SUPER_PROPERTY:
-          UNREACHABLE();
-          break;
-      }
-    }
-  }
-
-  __ Bind(&stub_call);
-  __ Mov(x1, x0);
-  __ Mov(x0, Smi::FromInt(count_value));
-
-  SetExpressionPosition(expr);
-
-  {
-    Assembler::BlockPoolsScope scope(masm_);
     Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), Token::ADD).code();
     CallIC(code, expr->CountBinOpFeedbackId());
     patch_site.EmitPatchInfo();
+
+    __ Bind(&done);
   }
-  __ Bind(&done);
 
   // Store the value returned in x0.
   switch (assign_type) {
@@ -2621,20 +2626,23 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       // Pop the stack value.
       PopOperand(x1);
 
-      JumpPatchSite patch_site(masm_);
-      if (ShouldInlineSmiCase(op)) {
-        Label slow_case;
-        patch_site.EmitJumpIfEitherNotSmi(x0, x1, &slow_case);
-        __ Cmp(x1, x0);
-        Split(cond, if_true, if_false, NULL);
-        __ Bind(&slow_case);
-      }
+      {
+        Assembler::BlockPoolsScope scope(masm_);
+        JumpPatchSite patch_site(masm_);
+        if (ShouldInlineSmiCase(op)) {
+          Label slow_case;
+          patch_site.EmitJumpIfEitherNotSmi(x0, x1, &slow_case);
+          __ Cmp(x1, x0);
+          Split(cond, if_true, if_false, NULL);
+          __ Bind(&slow_case);
+        }
 
-      Handle<Code> ic = CodeFactory::CompareIC(isolate(), op).code();
-      CallIC(ic, expr->CompareOperationFeedbackId());
-      patch_site.EmitPatchInfo();
-      PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-      __ CompareAndSplit(x0, 0, cond, if_true, if_false, fall_through);
+        Handle<Code> ic = CodeFactory::CompareIC(isolate(), op).code();
+        CallIC(ic, expr->CompareOperationFeedbackId());
+        patch_site.EmitPatchInfo();
+        PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
+        __ CompareAndSplit(x0, 0, cond, if_true, if_false, fall_through);
+      }
     }
   }
 

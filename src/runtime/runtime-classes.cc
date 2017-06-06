@@ -32,7 +32,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
-  Handle<Object> name(constructor->shared()->name(), isolate);
+  Handle<String> name(constructor->shared()->name(), isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kConstructorNonCallable, name));
 }
@@ -48,6 +48,10 @@ RUNTIME_FUNCTION(Runtime_ThrowStaticPrototypeError) {
 RUNTIME_FUNCTION(Runtime_ThrowSuperAlreadyCalledError) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
+  // Invalidate the hole check protector.
+  if (isolate->IsHoleCheckProtectorIntact()) {
+    isolate->InvalidateHoleCheckProtector();
+  }
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError(MessageTemplate::kSuperAlreadyCalled));
 }
@@ -55,6 +59,10 @@ RUNTIME_FUNCTION(Runtime_ThrowSuperAlreadyCalledError) {
 RUNTIME_FUNCTION(Runtime_ThrowSuperNotCalled) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
+  // Invalidate the hole check protector.
+  if (isolate->IsHoleCheckProtectorIntact()) {
+    isolate->InvalidateHoleCheckProtector();
+  }
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError(MessageTemplate::kSuperNotCalled));
 }
@@ -63,7 +71,7 @@ namespace {
 
 Object* ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
                                  Handle<JSFunction> function) {
-  Handle<Object> super_name;
+  Handle<String> super_name;
   if (constructor->IsJSFunction()) {
     super_name = handle(Handle<JSFunction>::cast(constructor)->shared()->name(),
                         isolate);
@@ -74,12 +82,12 @@ Object* ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
     super_name = Object::NoSideEffectsToString(isolate, constructor);
   }
   // null constructor
-  if (Handle<String>::cast(super_name)->length() == 0) {
+  if (super_name->length() == 0) {
     super_name = isolate->factory()->null_string();
   }
-  Handle<Object> function_name(function->shared()->name(), isolate);
+  Handle<String> function_name(function->shared()->name(), isolate);
   // anonymous class
-  if (Handle<String>::cast(function_name)->length() == 0) {
+  if (function_name->length() == 0) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kNotSuperConstructorAnonymousClass,

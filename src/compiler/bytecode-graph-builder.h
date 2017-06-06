@@ -17,6 +17,9 @@
 
 namespace v8 {
 namespace internal {
+
+class CompilationDependencies;
+
 namespace compiler {
 
 class Reduction;
@@ -30,6 +33,7 @@ class BytecodeGraphBuilder {
       Zone* local_zone, Handle<SharedFunctionInfo> shared,
       Handle<FeedbackVector> feedback_vector, BailoutId osr_ast_id,
       JSGraph* jsgraph, CallFrequency invocation_frequency,
+      CompilationDependencies* dependencies,
       SourcePositionTable* source_positions,
       int inlining_id = SourcePosition::kNotInlined,
       JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags);
@@ -179,6 +183,8 @@ class BytecodeGraphBuilder {
   void BuildTestingOp(const Operator* op);
   void BuildDelete(LanguageMode language_mode);
   void BuildCastOperator(const Operator* op);
+  void BuildHoleCheckAndThrow(Node* condition, Runtime::FunctionId runtime_id,
+                              Node* name = nullptr);
 
   // Optional early lowering to the simplified operator level. Returns the node
   // representing the lowered operation or {nullptr} if no lowering available.
@@ -195,6 +201,7 @@ class BytecodeGraphBuilder {
                                      Node* value, FeedbackSlot slot);
   Node* TryBuildSimplifiedStoreKeyed(const Operator* op, Node* receiver,
                                      Node* key, Node* value, FeedbackSlot slot);
+  Node* TryBuildHoleCheckWithDeopt(const Operator* deopt_operator);
 
   // Applies the given early reduction onto the current environment.
   void ApplyEarlyReduction(Reduction reduction);
@@ -317,6 +324,8 @@ class BytecodeGraphBuilder {
     needs_eager_checkpoint_ = value;
   }
 
+  CompilationDependencies* dependencies() { return dependencies_; }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
@@ -333,6 +342,7 @@ class BytecodeGraphBuilder {
   const BytecodeAnalysis* bytecode_analysis_;
   Environment* environment_;
   BailoutId osr_ast_id_;
+  CompilationDependencies* dependencies_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all

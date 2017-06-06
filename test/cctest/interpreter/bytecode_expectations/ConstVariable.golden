@@ -47,9 +47,9 @@ handlers: [
 snippet: "
   const x = ( x = 20);
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 21
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(0),
@@ -57,10 +57,7 @@ bytecodes: [
   /*   44 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
                 B(Ldar), R(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(2),
-  /*   48 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
+  /*   48 E> */ B(ThrowReferenceErrorIfHole), U8(0),
                 B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(Star), R(0),
                 B(LdaUndefined),

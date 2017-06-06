@@ -25,6 +25,9 @@ bool BinaryOperationHintToNumberOperationHint(
     case BinaryOperationHint::kSigned32:
       *number_hint = NumberOperationHint::kSigned32;
       return true;
+    case BinaryOperationHint::kNumber:
+      *number_hint = NumberOperationHint::kNumber;
+      return true;
     case BinaryOperationHint::kNumberOrOddball:
       *number_hint = NumberOperationHint::kNumberOrOddball;
       return true;

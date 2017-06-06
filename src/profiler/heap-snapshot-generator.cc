@@ -773,7 +773,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
-    const char* name = names_->GetName(String::cast(shared->name()));
+    const char* name = names_->GetName(shared->name());
     return AddEntry(object, HeapEntry::kClosure, name);
   } else if (object->IsJSBoundFunction()) {
     return AddEntry(object, HeapEntry::kClosure, "native_bind");
@@ -813,7 +813,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   } else if (object->IsCode()) {
     return AddEntry(object, HeapEntry::kCode, "");
   } else if (object->IsSharedFunctionInfo()) {
-    String* name = String::cast(SharedFunctionInfo::cast(object)->name());
+    String* name = SharedFunctionInfo::cast(object)->name();
     return AddEntry(object,
                     HeapEntry::kCode,
                     names_->GetName(name));
@@ -1323,8 +1323,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
         Code::Kind2String(shared->code()->kind())));
   }
 
-  SetInternalReference(obj, entry,
-                       "name", shared->name(),
+  SetInternalReference(obj, entry, "raw_name", shared->raw_name(),
                        SharedFunctionInfo::kNameOffset);
   SetInternalReference(obj, entry,
                        "code", shared->code(),

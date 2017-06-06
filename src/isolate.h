@@ -525,7 +525,7 @@ class Isolate {
     DCHECK(base::Relaxed_Load(&isolate_key_created_) == 1);
     Isolate* isolate = reinterpret_cast<Isolate*>(
         base::Thread::GetExistingThreadLocal(isolate_key_));
-    DCHECK(isolate != NULL);
+    DCHECK_NOT_NULL(isolate);
     return isolate;
   }
 
@@ -869,8 +869,8 @@ class Isolate {
   Counters* counters() {
     // Call InitializeLoggingAndCounters() if logging is needed before
     // the isolate is fully initialized.
-    DCHECK(counters_ != NULL);
-    return counters_;
+    DCHECK_NOT_NULL(counters_shared_.get());
+    return counters_shared_.get();
   }
   std::shared_ptr<Counters> counters_shared() { return counters_shared_; }
   RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
@@ -878,7 +878,7 @@ class Isolate {
   Logger* logger() {
     // Call InitializeLoggingAndCounters() if logging is needed before
     // the isolate is fully initialized.
-    DCHECK(logger_ != NULL);
+    DCHECK_NOT_NULL(logger_);
     return logger_;
   }
   StackGuard* stack_guard() { return &stack_guard_; }
@@ -1016,6 +1016,10 @@ class Isolate {
     return code_coverage_mode() == debug::Coverage::kPreciseBinary;
   }
 
+  bool is_block_count_code_coverage() const {
+    return code_coverage_mode() == debug::Coverage::kBlockCount;
+  }
+
   void SetCodeCoverageList(Object* value);
 
   double time_millis_since_init() {
@@ -1044,6 +1048,7 @@ class Isolate {
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
   inline bool IsArrayIteratorLookupChainIntact();
+  inline bool IsHoleCheckProtectorIntact();
 
   // Avoid deopt loops if fast Array Iterators migrate to slow Array Iterators.
   inline bool IsFastArrayIterationIntact();
@@ -1070,6 +1075,7 @@ class Isolate {
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
   void InvalidateArrayBufferNeuteringProtector();
+  void InvalidateHoleCheckProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
@@ -1429,7 +1435,6 @@ class Isolate {
   RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
   std::shared_ptr<Counters> counters_shared_;
-  Counters* counters_;
   base::RecursiveMutex break_access_;
   Logger* logger_;
   StackGuard stack_guard_;

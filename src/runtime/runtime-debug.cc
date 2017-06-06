@@ -17,6 +17,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
+#include "src/objects/debug-objects-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -1920,6 +1921,26 @@ RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   return NULL;
 }
 
+namespace {
+Handle<JSObject> MakeRangeObject(Isolate* isolate, const CoverageBlock& range) {
+  Factory* factory = isolate->factory();
+
+  Handle<String> start_string = factory->InternalizeUtf8String("start");
+  Handle<String> end_string = factory->InternalizeUtf8String("end");
+  Handle<String> count_string = factory->InternalizeUtf8String("count");
+
+  Handle<JSObject> range_obj = factory->NewJSObjectWithNullProto();
+  JSObject::AddProperty(range_obj, start_string,
+                        factory->NewNumberFromInt(range.start), NONE);
+  JSObject::AddProperty(range_obj, end_string,
+                        factory->NewNumberFromInt(range.end), NONE);
+  JSObject::AddProperty(range_obj, count_string,
+                        factory->NewNumberFromUint(range.count), NONE);
+
+  return range_obj;
+}
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
@@ -1937,29 +1958,31 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   // Prepare property keys.
   Handle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
   Handle<String> script_string = factory->NewStringFromStaticChars("script");
-  Handle<String> start_string = factory->NewStringFromStaticChars("start");
-  Handle<String> end_string = factory->NewStringFromStaticChars("end");
-  Handle<String> count_string = factory->NewStringFromStaticChars("count");
   for (int i = 0; i < num_scripts; i++) {
     const auto& script_data = coverage->at(i);
     HandleScope inner_scope(isolate);
+
+    std::vector<CoverageBlock> ranges;
     int num_functions = static_cast<int>(script_data.functions.size());
-    Handle<FixedArray> functions_array = factory->NewFixedArray(num_functions);
     for (int j = 0; j < num_functions; j++) {
       const auto& function_data = script_data.functions[j];
-      Handle<JSObject> range_obj = factory->NewJSObjectWithNullProto();
-      JSObject::AddProperty(range_obj, start_string,
-                            factory->NewNumberFromInt(function_data.start),
-                            NONE);
-      JSObject::AddProperty(range_obj, end_string,
-                            factory->NewNumberFromInt(function_data.end), NONE);
-      JSObject::AddProperty(range_obj, count_string,
-                            factory->NewNumberFromUint(function_data.count),
-                            NONE);
-      functions_array->set(j, *range_obj);
+      ranges.emplace_back(function_data.start, function_data.end,
+                          function_data.count);
+      for (size_t k = 0; k < function_data.blocks.size(); k++) {
+        const auto& block_data = function_data.blocks[k];
+        ranges.emplace_back(block_data.start, block_data.end, block_data.count);
+      }
     }
+
+    int num_ranges = static_cast<int>(ranges.size());
+    Handle<FixedArray> ranges_array = factory->NewFixedArray(num_ranges);
+    for (int j = 0; j < num_ranges; j++) {
+      Handle<JSObject> range_object = MakeRangeObject(isolate, ranges[j]);
+      ranges_array->set(j, *range_object);
+    }
+
     Handle<JSArray> script_obj =
-        factory->NewJSArrayWithElements(functions_array, FAST_ELEMENTS);
+        factory->NewJSArrayWithElements(ranges_array, FAST_ELEMENTS);
     Handle<JSObject> wrapper = Script::GetWrapper(script_data.script);
     JSObject::AddProperty(script_obj, script_string, wrapper, NONE);
     scripts_array->set(i, *script_obj);
@@ -1972,6 +1995,29 @@ RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
   Coverage::SelectMode(isolate, enable ? debug::Coverage::kPreciseCount
                                        : debug::Coverage::kBestEffort);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugToggleBlockCoverage) {
+  SealHandleScope shs(isolate);
+  CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
+  Coverage::SelectMode(isolate, enable ? debug::Coverage::kBlockCount
+                                       : debug::Coverage::kBestEffort);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_SMI_ARG_CHECKED(coverage_array_slot_index, 1);
+
+  DCHECK(FLAG_block_coverage);
+
+  DebugInfo* debug_info = function->shared()->GetDebugInfo();
+  CoverageInfo* coverage_info = CoverageInfo::cast(debug_info->coverage_info());
+  coverage_info->IncrementBlockCount(coverage_array_slot_index);
+
   return isolate->heap()->undefined_value();
 }
 

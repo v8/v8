@@ -451,6 +451,13 @@ void InstallUnoptimizedCode(CompilationInfo* info) {
 
   // Install compilation result on the shared function info
   InstallSharedCompilationResult(info, shared);
+
+  // Install coverage info on the shared function info.
+  if (info->has_coverage_info()) {
+    DCHECK(info->is_block_coverage_enabled());
+    info->isolate()->debug()->InstallCoverageInfo(info->shared_info(),
+                                                  info->coverage_info());
+  }
 }
 
 CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {

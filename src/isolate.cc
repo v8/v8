@@ -2288,7 +2288,6 @@ Isolate::Isolate(bool enable_serializer)
       bootstrapper_(NULL),
       runtime_profiler_(NULL),
       compilation_cache_(NULL),
-      counters_(NULL),
       logger_(NULL),
       stats_table_(NULL),
       load_stub_cache_(NULL),
@@ -2552,8 +2551,6 @@ Isolate::~Isolate() {
   delete logger_;
   logger_ = NULL;
 
-  counters_ = NULL;
-
   delete handle_scope_implementer_;
   handle_scope_implementer_ = NULL;
 
@@ -2637,14 +2634,9 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
   return true;
 }
 
-static base::LazyMutex initialize_counters_mutex = LAZY_MUTEX_INITIALIZER;
-
 bool Isolate::InitializeCounters() {
-  if (counters_ != nullptr) return false;
-  base::LockGuard<base::Mutex> guard(initialize_counters_mutex.Pointer());
-  if (counters_ != nullptr) return false;
+  if (counters_shared_) return false;
   counters_shared_ = std::make_shared<Counters>(this);
-  counters_ = counters_shared_.get();
   return true;
 }
 
@@ -2864,7 +2856,8 @@ bool Isolate::Init(Deserializer* des) {
 StatsTable* Isolate::stats_table() {
   if (stats_table_ != nullptr) return stats_table_;
   InitializeCounters();
-  return stats_table_ = counters_->stats_table();
+  stats_table_ = counters_shared_->stats_table();
+  return stats_table_;
 }
 
 
@@ -3223,6 +3216,15 @@ void Isolate::InvalidateArrayBufferNeuteringProtector() {
       factory()->array_buffer_neutering_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsArrayBufferNeuteringIntact());
+}
+
+void Isolate::InvalidateHoleCheckProtector() {
+  DCHECK(factory()->hole_check_protector()->value()->IsSmi());
+  DCHECK(IsHoleCheckProtectorIntact());
+  PropertyCell::SetValueWithInvalidation(
+      factory()->hole_check_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
+  DCHECK(!IsHoleCheckProtectorIntact());
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {

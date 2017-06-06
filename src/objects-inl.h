@@ -75,6 +75,7 @@ TYPE_CHECKER(CallHandlerInfo, TUPLE2_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(Code, CODE_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
+TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
@@ -1377,6 +1378,11 @@ int HeapNumber::get_exponent() {
 
 int HeapNumber::get_sign() {
   return READ_INT_FIELD(this, kExponentOffset) & kSignMask;
+}
+
+inline Object* OrderedHashMap::ValueAt(int entry) {
+  DCHECK_LT(entry, this->UsedCapacity());
+  return get(EntryToIndex(entry) + kValueOffset);
 }
 
 ACCESSORS(JSReceiver, properties, FixedArray, kPropertiesOffset)

@@ -76,6 +76,11 @@ CompilationInfo::CompilationInfo(Zone* zone, ParseInfo* parse_info,
   if (isolate_->NeedsSourcePositionsForProfiling()) {
     MarkAsSourcePositionsEnabled();
   }
+
+  if (FLAG_block_coverage && isolate->is_block_count_code_coverage() &&
+      parse_info->script()->IsUserJavaScript()) {
+    MarkAsBlockCoverageEnabled();
+  }
 }
 
 CompilationInfo::CompilationInfo(Vector<const char> debug_name,

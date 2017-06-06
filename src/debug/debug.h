@@ -336,6 +336,10 @@ class Debug {
   void CreateBreakInfo(Handle<SharedFunctionInfo> shared);
   Handle<DebugInfo> GetOrCreateDebugInfo(Handle<SharedFunctionInfo> shared);
 
+  void InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
+                           Handle<CoverageInfo> coverage_info);
+  void RemoveAllCoverageInfos();
+
   template <typename C>
   bool CompileToRevealInnerFunctions(C* compilable);
 
@@ -512,6 +516,10 @@ class Debug {
   void ThreadInit();
 
   void PrintBreakLocation();
+
+  // Wraps logic for clearing and maybe freeing all debug infos.
+  typedef std::function<bool(Handle<DebugInfo>)> DebugInfoClearFunction;
+  void ClearAllDebugInfos(DebugInfoClearFunction clear_function);
 
   void RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info);
   void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,

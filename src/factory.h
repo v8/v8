@@ -20,7 +20,9 @@ namespace internal {
 class BreakPointInfo;
 class BoilerplateDescription;
 class ConstantElementsPair;
+class CoverageInfo;
 class DebugInfo;
+struct SourceRange;
 
 enum FunctionMode {
   // With prototype.
@@ -747,9 +749,9 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
-      Handle<String> name, FunctionKind kind, Handle<Code> code,
+      MaybeHandle<String> name, FunctionKind kind, Handle<Code> code,
       Handle<ScopeInfo> scope_info);
-  Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name,
+  Handle<SharedFunctionInfo> NewSharedFunctionInfo(MaybeHandle<String> name,
                                                    MaybeHandle<Code> code,
                                                    bool is_constructor);
 
@@ -777,6 +779,8 @@ class V8_EXPORT_PRIVATE Factory final {
                                              Handle<Object> stack_frames);
 
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
+
+  Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
   // Return a map for given number of properties using the map cache in the
   // native context.

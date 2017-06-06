@@ -1133,13 +1133,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotNil(BytecodeLabel* label,
   }
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
-    BytecodeLabel* label) {
-  DCHECK(!label->is_bound());
-  OutputJumpIfNotHole(label, 0);
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfJSReceiver(
     BytecodeLabel* label) {
   DCHECK(!label->is_bound());
@@ -1200,8 +1193,31 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowReferenceErrorIfHole(
+    const AstRawString* name) {
+  size_t entry = GetConstantPoolEntry(name);
+  OutputThrowReferenceErrorIfHole(entry);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperNotCalledIfHole() {
+  OutputThrowSuperNotCalledIfHole();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperAlreadyCalledIfNotHole() {
+  OutputThrowSuperAlreadyCalledIfNotHole();
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Debugger() {
   OutputDebugger();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::IncBlockCounter(
+    int coverage_array_slot) {
+  OutputIncBlockCounter(coverage_array_slot);
   return *this;
 }
 

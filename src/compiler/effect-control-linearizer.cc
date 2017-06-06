@@ -787,6 +787,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckTaggedHole:
       result = LowerCheckTaggedHole(node, frame_state);
       break;
+    case IrOpcode::kCheckNotTaggedHole:
+      result = LowerCheckNotTaggedHole(node, frame_state);
+      break;
     case IrOpcode::kConvertTaggedHoleToUndefined:
       result = LowerConvertTaggedHoleToUndefined(node);
       break;
@@ -1808,6 +1811,7 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node) {
 
 Node* EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(
     Node* node, Node* frame_state) {
+  CheckTaggedInputMode mode = CheckTaggedInputModeOf(node->op());
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeLabel<1>();
@@ -1821,8 +1825,8 @@ Node* EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(
   // Otherwise, check that it's a heap number or oddball and truncate the value
   // to int32.
   __ Bind(&if_not_smi);
-  Node* number = BuildCheckedHeapNumberOrOddballToFloat64(
-      CheckTaggedInputMode::kNumberOrOddball, value, frame_state);
+  Node* number =
+      BuildCheckedHeapNumberOrOddballToFloat64(mode, value, frame_state);
   number = __ TruncateFloat64ToWord32(number);
   __ Goto(&done, number);
 
@@ -2412,6 +2416,14 @@ Node* EffectControlLinearizer::LowerCheckFloat64Hole(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckTaggedHole(Node* node,
                                                     Node* frame_state) {
+  Node* value = node->InputAt(0);
+  Node* check = __ WordEqual(value, __ TheHoleConstant());
+  __ DeoptimizeUnless(DeoptimizeReason::kHole, check, frame_state);
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckNotTaggedHole(Node* node,
+                                                       Node* frame_state) {
   Node* value = node->InputAt(0);
   Node* check = __ WordEqual(value, __ TheHoleConstant());
   __ DeoptimizeIf(DeoptimizeReason::kHole, check, frame_state);

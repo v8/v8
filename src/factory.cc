@@ -2418,7 +2418,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    Handle<String> name, FunctionKind kind, Handle<Code> code,
+    MaybeHandle<String> name, FunctionKind kind, Handle<Code> code,
     Handle<ScopeInfo> scope_info) {
   DCHECK(IsValidFunctionKind(kind));
   Handle<SharedFunctionInfo> shared =
@@ -2462,18 +2462,24 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
   return message_obj;
 }
 
-
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    Handle<String> name, MaybeHandle<Code> maybe_code, bool is_constructor) {
+    MaybeHandle<String> maybe_name, MaybeHandle<Code> maybe_code,
+    bool is_constructor) {
   // Function names are assumed to be flat elsewhere. Must flatten before
   // allocating SharedFunctionInfo to avoid GC seeing the uninitialized SFI.
-  name = String::Flatten(name, TENURED);
+  Handle<String> shared_name;
+  bool has_shared_name = maybe_name.ToHandle(&shared_name);
+  if (has_shared_name) {
+    shared_name = String::Flatten(shared_name, TENURED);
+  }
 
   Handle<Map> map = shared_function_info_map();
   Handle<SharedFunctionInfo> share = New<SharedFunctionInfo>(map, OLD_SPACE);
 
   // Set pointer fields.
-  share->set_name(*name);
+  share->set_raw_name(has_shared_name
+                          ? *shared_name
+                          : SharedFunctionInfo::kNoSharedNameSentinel);
   share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
@@ -2606,6 +2612,22 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   shared->set_debug_info(*debug_info);
 
   return debug_info;
+}
+
+Handle<CoverageInfo> Factory::NewCoverageInfo(
+    const ZoneVector<SourceRange>& slots) {
+  const int slot_count = static_cast<int>(slots.size());
+
+  const int length = CoverageInfo::FixedArrayLengthForSlotCount(slot_count);
+  Handle<CoverageInfo> info =
+      Handle<CoverageInfo>::cast(NewUninitializedFixedArray(length));
+
+  for (int i = 0; i < slot_count; i++) {
+    SourceRange range = slots[i];
+    info->InitializeSlot(i, range.start, range.end);
+  }
+
+  return info;
 }
 
 Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {

@@ -283,7 +283,7 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   }
   parser_->DeserializeScopeChain(parse_info_.get(), outer_scope_info);
 
-  Handle<String> name(String::cast(shared_->name()));
+  Handle<String> name(shared_->name());
   parse_info_->set_function_name(
       parse_info_->ast_value_factory()->GetString(name));
   status_ = CompileJobStatus::kReadyToParse;

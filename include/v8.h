@@ -1284,6 +1284,11 @@ class V8_EXPORT ScriptCompiler {
      * length of the data returned. When the data ends, GetMoreData should
      * return 0. Caller takes ownership of the data.
      *
+     * When streaming UTF-8 data, V8 handles multi-byte characters split between
+     * two data chunks, but doesn't handle multi-byte characters split between
+     * more than two data chunks. The embedder can avoid this problem by always
+     * returning at least 2 bytes of data.
+     *
      * If the embedder wants to cancel the streaming, they should make the next
      * GetMoreData call return 0. V8 will interpret it as end of data (and most
      * probably, parsing will fail). The streaming task will return as soon as
@@ -10040,7 +10045,7 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
   typedef internal::Internals I;
   int64_t* external_memory = reinterpret_cast<int64_t*>(
       reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryOffset);
-  const int64_t external_memory_limit = *reinterpret_cast<int64_t*>(
+  int64_t* external_memory_limit = reinterpret_cast<int64_t*>(
       reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryLimitOffset);
   int64_t* external_memory_at_last_mc =
       reinterpret_cast<int64_t*>(reinterpret_cast<uint8_t*>(this) +
@@ -10058,7 +10063,11 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     CheckMemoryPressure();
   }
 
-  if (change_in_bytes > 0 && amount > external_memory_limit) {
+  if (change_in_bytes < 0) {
+    *external_memory_limit += change_in_bytes;
+  }
+
+  if (change_in_bytes > 0 && amount > *external_memory_limit) {
     ReportExternalAllocationLimitReached();
   }
   return *external_memory;

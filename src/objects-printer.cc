@@ -1072,7 +1072,12 @@ std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
 
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "SharedFunctionInfo");
-  os << "\n - name = " << Brief(name());
+  os << "\n - name = ";
+  if (has_shared_name()) {
+    os << Brief(raw_name());
+  } else {
+    os << "<no-shared-name>";
+  }
   os << "\n - kind = " << kind();
   os << "\n - formal_parameter_count = " << internal_formal_parameter_count();
   os << "\n - expected_nof_properties = " << expected_nof_properties();
@@ -1476,6 +1481,7 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - debug bytecode array: " << Brief(debug_bytecode_array());
   os << "\n - break_points: ";
   break_points()->Print(os);
+  os << "\n - coverage_info: " << Brief(coverage_info());
 }
 
 

@@ -1002,6 +1002,7 @@ template <class C> inline bool Is(Object* obj);
   V(ConstantElementsPair)              \
   V(Constructor)                       \
   V(Context)                           \
+  V(CoverageInfo)                      \
   V(DeoptimizationInputData)           \
   V(DeoptimizationOutputData)          \
   V(DependentCode)                     \

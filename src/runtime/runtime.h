@@ -207,7 +207,9 @@ namespace internal {
   F(DebugIsActive, 0, 1)                        \
   F(DebugBreakInOptimizedCode, 0, 1)            \
   F(DebugCollectCoverage, 0, 1)                 \
-  F(DebugTogglePreciseCoverage, 1, 1)
+  F(DebugTogglePreciseCoverage, 1, 1)           \
+  F(DebugToggleBlockCoverage, 1, 1)             \
+  F(IncBlockCounter, 2, 1)
 
 #define FOR_EACH_INTRINSIC_ERROR(F) F(ErrorToString, 1, 1)
 
@@ -232,7 +234,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
   F(FunctionGetName, 1, 1)                 \
-  F(FunctionSetName, 2, 1)                 \
+  F(FunctionSetSharedName, 2, 1)           \
   F(FunctionRemovePrototype, 1, 1)         \
   F(FunctionGetScript, 1, 1)               \
   F(FunctionGetScriptId, 1, 1)             \
@@ -339,6 +341,7 @@ namespace internal {
   F(ThrowNotConstructor, 1, 1)                     \
   F(ThrowRangeError, -1 /* >= 1 */, 1)             \
   F(ThrowReferenceError, 1, 1)                     \
+  F(ThrowReferenceErrorOnHole, 1, 1)               \
   F(ThrowStackOverflow, 0, 1)                      \
   F(ThrowSymbolAsyncIteratorInvalid, 0, 1)         \
   F(ThrowTypeError, -1 /* >= 1 */, 1)              \

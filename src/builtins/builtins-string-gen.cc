@@ -1393,13 +1393,10 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       });
 
   // String and integer conversions.
-  // TODO(jgruber): The old implementation used Uint32Max instead of SmiMax -
-  // but AFAIK there should not be a difference since arrays are capped at Smi
-  // lengths.
 
   Node* const subject_string = ToString_Inline(context, receiver);
   Node* const limit_number =
-      Select(IsUndefined(limit), [=]() { return SmiConstant(Smi::kMaxValue); },
+      Select(IsUndefined(limit), [=]() { return NumberConstant(kMaxUInt32); },
              [=]() { return ToUint32(context, limit); },
              MachineRepresentation::kTagged);
   Node* const separator_string = ToString_Inline(context, separator);

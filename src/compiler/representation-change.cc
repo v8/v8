@@ -674,22 +674,11 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord32);
     }
-  } else if (output_rep == MachineRepresentation::kTaggedSigned) {
-    if (output_type->Is(Type::Signed32())) {
+  } else if (IsAnyTagged(output_rep)) {
+    if (output_rep == MachineRepresentation::kTaggedSigned &&
+        output_type->Is(Type::SignedSmall())) {
       op = simplified()->ChangeTaggedSignedToInt32();
-    } else if (use_info.truncation().IsUsedAsWord32()) {
-      if (use_info.type_check() != TypeCheckKind::kNone) {
-        op = simplified()->CheckedTruncateTaggedToWord32();
-      } else {
-        op = simplified()->TruncateTaggedToWord32();
-      }
-    } else {
-      return TypeError(node, output_rep, output_type,
-                       MachineRepresentation::kWord32);
-    }
-  } else if (output_rep == MachineRepresentation::kTagged ||
-             output_rep == MachineRepresentation::kTaggedPointer) {
-    if (output_type->Is(Type::Signed32())) {
+    } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
       op = simplified()->CheckedTaggedSignedToInt32();
@@ -703,8 +692,12 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (use_info.truncation().IsUsedAsWord32()) {
       if (output_type->Is(Type::NumberOrOddball())) {
         op = simplified()->TruncateTaggedToWord32();
-      } else if (use_info.type_check() != TypeCheckKind::kNone) {
-        op = simplified()->CheckedTruncateTaggedToWord32();
+      } else if (use_info.type_check() == TypeCheckKind::kNumber) {
+        op = simplified()->CheckedTruncateTaggedToWord32(
+            CheckTaggedInputMode::kNumber);
+      } else if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
+        op = simplified()->CheckedTruncateTaggedToWord32(
+            CheckTaggedInputMode::kNumberOrOddball);
       } else {
         return TypeError(node, output_rep, output_type,
                          MachineRepresentation::kWord32);
@@ -726,8 +719,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
         return TypeError(node, output_rep, output_type,
                          MachineRepresentation::kWord32);
       }
-    } else {
-      DCHECK_EQ(TypeCheckKind::kNumberOrOddball, use_info.type_check());
+    } else if (use_info.type_check() == TypeCheckKind::kNumber ||
+               use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
       return node;
     }
   } else if (output_rep == MachineRepresentation::kWord8 ||

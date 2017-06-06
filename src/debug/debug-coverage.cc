@@ -8,8 +8,8 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate.h"
-#include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/objects/debug-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -57,6 +57,40 @@ bool CompareSharedFunctionInfo(SharedFunctionInfo* a, SharedFunctionInfo* b) {
   if (a_start == b_start) return a->end_position() > b->end_position();
   return a_start < b_start;
 }
+
+bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
+  DCHECK(a.start != kNoSourcePosition && a.end != kNoSourcePosition);
+  DCHECK(b.start != kNoSourcePosition && b.end != kNoSourcePosition);
+  if (a.start == b.start) return a.end > b.end;
+  return a.start < b.start;
+}
+
+std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
+                                              SharedFunctionInfo* shared) {
+  DCHECK(FLAG_block_coverage);
+  DCHECK(shared->HasCoverageInfo());
+
+  std::vector<CoverageBlock> result;
+
+  CoverageInfo* coverage_info =
+      CoverageInfo::cast(shared->GetDebugInfo()->coverage_info());
+
+  for (int i = 0; i < coverage_info->SlotCount(); i++) {
+    const int start_pos = coverage_info->StartSourcePosition(i);
+    const int until_pos = coverage_info->EndSourcePosition(i);
+    const int count = coverage_info->BlockCount(i);
+
+    DCHECK(start_pos != kNoSourcePosition);
+    DCHECK(until_pos != kNoSourcePosition);
+
+    result.emplace_back(start_pos, until_pos, count);
+  }
+
+  // Sort according to the block nesting structure.
+  std::sort(result.begin(), result.end(), CompareCoverageBlock);
+
+  return result;
+}
 }  // anonymous namespace
 
 Coverage* Coverage::CollectPrecise(Isolate* isolate) {
@@ -79,6 +113,7 @@ Coverage* Coverage::Collect(Isolate* isolate,
   SharedToCounterMap counter_map;
 
   switch (isolate->code_coverage_mode()) {
+    case v8::debug::Coverage::kBlockCount:
     case v8::debug::Coverage::kPreciseBinary:
     case v8::debug::Coverage::kPreciseCount: {
       bool reset_count = collectionMode != v8::debug::Coverage::kBestEffort;
@@ -149,6 +184,7 @@ Coverage* Coverage::Collect(Isolate* isolate,
       }
       if (count != 0) {
         switch (collectionMode) {
+          case v8::debug::Coverage::kBlockCount:
           case v8::debug::Coverage::kPreciseCount:
             break;
           case v8::debug::Coverage::kPreciseBinary:
@@ -167,6 +203,11 @@ Coverage* Coverage::Collect(Isolate* isolate,
         Handle<String> name(info->DebugName(), isolate);
         nesting.push_back(functions->size());
         functions->emplace_back(start, end, count, name);
+
+        if (FLAG_block_coverage && info->HasCoverageInfo()) {
+          CoverageFunction* function = &functions->back();
+          function->blocks = GetSortedBlockData(isolate, info);
+        }
       }
     }
 
@@ -179,8 +220,10 @@ Coverage* Coverage::Collect(Isolate* isolate,
 void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
   switch (mode) {
     case debug::Coverage::kBestEffort:
+      if (FLAG_block_coverage) isolate->debug()->RemoveAllCoverageInfos();
       isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
       break;
+    case debug::Coverage::kBlockCount:
     case debug::Coverage::kPreciseBinary:
     case debug::Coverage::kPreciseCount: {
       HandleScope scope(isolate);

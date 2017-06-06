@@ -74,6 +74,16 @@ class DebugInfo : public Struct {
   inline BytecodeArray* DebugBytecodeArray();
   inline Code* DebugCode();
 
+  // --- Block Coverage ---
+  // ----------------------
+
+  bool HasCoverageInfo() const;
+
+  // Clears all fields related to block coverage. Returns true iff the
+  // DebugInfo is now empty.
+  bool ClearCoverageInfo();
+  DECL_ACCESSORS(coverage_info, Object)
+
   DECLARE_CAST(DebugInfo)
 
   // Dispatched behavior.
@@ -88,7 +98,8 @@ class DebugInfo : public Struct {
   static const int kBreakPointsStateOffset =
       kDebugBytecodeArrayOffset + kPointerSize;
   static const int kFlagsOffset = kBreakPointsStateOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+  static const int kCoverageInfoOffset = kFlagsOffset + kPointerSize;
+  static const int kSize = kCoverageInfoOffset + kPointerSize;
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
@@ -130,6 +141,41 @@ class BreakPointInfo : public Tuple2 {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPointInfo);
+};
+
+// Holds information related to block code coverage.
+class CoverageInfo : public FixedArray {
+ public:
+  int SlotCount() const;
+
+  int StartSourcePosition(int slot_index) const;
+  int EndSourcePosition(int slot_index) const;
+  int BlockCount(int slot_index) const;
+
+  void InitializeSlot(int slot_index, int start_pos, int end_pos);
+  void IncrementBlockCount(int slot_index);
+
+  static int FixedArrayLengthForSlotCount(int slot_count) {
+    return slot_count * kSlotIndexCount + kFirstSlotIndex;
+  }
+
+  DECLARE_CAST(CoverageInfo)
+
+ private:
+  static int FirstIndexForSlot(int slot_index) {
+    return kFirstSlotIndex + slot_index * kSlotIndexCount;
+  }
+
+  static const int kFirstSlotIndex = 0;
+
+  // Each slot is assigned a group of indices starting at kFirstSlotIndex.
+  // Within this group, semantics are as follows:
+  static const int kSlotStartSourcePositionIndex = 0;
+  static const int kSlotEndSourcePositionIndex = 1;
+  static const int kSlotBlockCountIndex = 2;
+  static const int kSlotIndexCount = 3;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CoverageInfo);
 };
 
 }  // namespace internal

@@ -76,6 +76,20 @@ TEST(Marking, SetAndClearRange) {
   free(bitmap);
 }
 
+TEST(Marking, SetAndClearRangeAtomic) {
+  Bitmap* bitmap = reinterpret_cast<Bitmap*>(
+      calloc(Bitmap::kSize / kPointerSize, kPointerSize));
+  for (int i = 0; i < 3; i++) {
+    bitmap->SetRange<MarkBit::ATOMIC>(i, Bitmap::kBitsPerCell + i);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffffffu << i);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], (1u << i) - 1);
+    bitmap->ClearRange<MarkBit::ATOMIC>(i, Bitmap::kBitsPerCell + i);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0x0u);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0x0u);
+  }
+  free(bitmap);
+}
+
 TEST(Marking, ClearMultipleRanges) {
   Bitmap* bitmap = reinterpret_cast<Bitmap*>(
       calloc(Bitmap::kSize / kPointerSize, kPointerSize));
