@@ -1095,9 +1095,9 @@ Handle<Code> CompileImportWrapper(Isolate* isolate, int index, FunctionSig* sig,
                                           module_name, import_name, origin);
 }
 
-void UpdateDispatchTablesInternal(Isolate* isolate,
-                                  Handle<FixedArray> dispatch_tables, int index,
-                                  WasmFunction* function, Handle<Code> code) {
+void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
+                          int index, WasmFunction* function,
+                          Handle<Code> code) {
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   for (int i = 0; i < dispatch_tables->length(); i += 4) {
     int table_index = Smi::cast(dispatch_tables->get(i + 1))->value();
@@ -1123,18 +1123,30 @@ void UpdateDispatchTablesInternal(Isolate* isolate,
 
 }  // namespace
 
-void wasm::UpdateDispatchTables(Isolate* isolate,
-                                Handle<FixedArray> dispatch_tables, int index,
-                                Handle<JSFunction> function) {
-  if (function.is_null()) {
-    UpdateDispatchTablesInternal(isolate, dispatch_tables, index, nullptr,
-                                 Handle<Code>::null());
-  } else {
-    UpdateDispatchTablesInternal(
-        isolate, dispatch_tables, index,
-        GetWasmFunctionForImportWrapper(isolate, function),
-        UnwrapImportWrapper(function));
+void wasm::TableSet(ErrorThrower* thrower, Isolate* isolate,
+                    Handle<WasmTableObject> table, int32_t index,
+                    Handle<JSFunction> function) {
+  Handle<FixedArray> array(table->functions(), isolate);
+
+  if (index < 0 || index >= array->length()) {
+    thrower->RangeError("index out of bounds");
+    return;
   }
+
+  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
+
+  WasmFunction* wasm_function = nullptr;
+  Handle<Code> code = Handle<Code>::null();
+  Handle<Object> value = handle(isolate->heap()->null_value());
+
+  if (!function.is_null()) {
+    wasm_function = GetWasmFunctionForImportWrapper(isolate, function);
+    code = UnwrapImportWrapper(function);
+    value = Handle<Object>::cast(function);
+  }
+
+  UpdateDispatchTables(isolate, dispatch_tables, index, wasm_function, code);
+  array->set(index, *value);
 }
 
 // A helper class to simplify instantiating a module from a compiled module.
@@ -2305,8 +2317,8 @@ class InstantiationHelper {
             table_instance.js_wrappers->set(table_index,
                                             *js_wrappers_[func_index]);
 
-            UpdateDispatchTablesInternal(isolate_, all_dispatch_tables,
-                                         table_index, function, wasm_code);
+            UpdateDispatchTables(isolate_, all_dispatch_tables, table_index,
+                                 function, wasm_code);
           }
         }
       }

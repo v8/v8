@@ -15,6 +15,7 @@
 #include "src/parsing/preparse-data.h"
 
 #include "src/wasm/signature-map.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -440,8 +441,9 @@ void DetachWebAssemblyMemoryBuffer(Isolate* isolate,
                                    Handle<JSArrayBuffer> buffer,
                                    bool free_memory);
 
-void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
-                          int index, Handle<JSFunction> js_function);
+void TableSet(ErrorThrower* thrower, Isolate* isolate,
+              Handle<WasmTableObject> table, int32_t index,
+              Handle<JSFunction> function);
 
 //============================================================================
 //== Compilation and instantiation ===========================================

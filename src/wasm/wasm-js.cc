@@ -702,6 +702,16 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("Argument 1 must be null or a function");
     return;
   }
+
+  // {This} parameter.
+  auto receiver =
+      i::Handle<i::WasmTableObject>::cast(Utils::OpenHandle(*args.This()));
+
+  // Parameter 0.
+  int32_t index;
+  if (!args[0]->Int32Value(context).To(&index)) return;
+
+  // Parameter 1.
   i::Handle<i::Object> value = Utils::OpenHandle(*args[1]);
   if (!value->IsNull(i_isolate) &&
       (!value->IsJSFunction() ||
@@ -711,27 +721,10 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  auto receiver =
-      i::Handle<i::WasmTableObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
-  int i;
-  if (!args[0]->Int32Value(context).To(&i)) return;
-  if (i < 0 || i >= array->length()) {
-    thrower.RangeError("index out of bounds");
-    return;
-  }
-
-  i::Handle<i::FixedArray> dispatch_tables(receiver->dispatch_tables(),
-                                           i_isolate);
-  if (value->IsNull(i_isolate)) {
-    i::wasm::UpdateDispatchTables(i_isolate, dispatch_tables, i,
-                                  i::Handle<i::JSFunction>::null());
-  } else {
-    i::wasm::UpdateDispatchTables(i_isolate, dispatch_tables, i,
-                                  i::Handle<i::JSFunction>::cast(value));
-  }
-
-  i::Handle<i::FixedArray>::cast(array)->set(i, *value);
+  i::wasm::TableSet(&thrower, i_isolate, receiver, index,
+                    value->IsNull(i_isolate)
+                        ? i::Handle<i::JSFunction>::null()
+                        : i::Handle<i::JSFunction>::cast(value));
 }
 
 // WebAssembly.Memory.grow(num) -> num
