@@ -368,7 +368,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     };
 
     typedef std::deque<Page*> SweepingList;
-    typedef List<Page*> SweptList;
+    typedef std::vector<Page*> SweptList;
 
     static int RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                         FreeSpaceTreatmentMode free_space_mode);
