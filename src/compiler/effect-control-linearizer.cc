@@ -1811,6 +1811,7 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node) {
 
 Node* EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(
     Node* node, Node* frame_state) {
+  CheckTaggedInputMode mode = CheckTaggedInputModeOf(node->op());
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeLabel<1>();
@@ -1824,8 +1825,8 @@ Node* EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(
   // Otherwise, check that it's a heap number or oddball and truncate the value
   // to int32.
   __ Bind(&if_not_smi);
-  Node* number = BuildCheckedHeapNumberOrOddballToFloat64(
-      CheckTaggedInputMode::kNumberOrOddball, value, frame_state);
+  Node* number =
+      BuildCheckedHeapNumberOrOddballToFloat64(mode, value, frame_state);
   number = __ TruncateFloat64ToWord32(number);
   __ Goto(&done, number);
 
