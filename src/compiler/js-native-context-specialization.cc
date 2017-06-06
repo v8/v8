@@ -1881,6 +1881,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   }
 
   Handle<Map> receiver_map(map, isolate());
+  if (!Map::TryUpdate(receiver_map).ToHandle(&receiver_map)) return NoChange();
+
   Handle<Name> cached_name =
       handle(Name::cast(nexus.GetFeedbackExtra()), isolate());
 
