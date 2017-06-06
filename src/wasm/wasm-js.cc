@@ -137,36 +137,13 @@ i::MaybeHandle<i::JSReceiver> GetValueAsImports(Local<Value> arg,
   return i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
 }
 
-void RejectResponseAPI(const v8::FunctionCallbackInfo<v8::Value>& args,
-                       ErrorThrower* thrower) {
-  v8::Isolate* isolate = args.GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-
-  HandleScope scope(isolate);
-  Local<Context> context = isolate->GetCurrentContext();
-
-  ASSIGN(Promise::Resolver, resolver, Promise::Resolver::New(context));
-  Local<Promise> module_promise = resolver->GetPromise();
-  args.GetReturnValue().Set(module_promise);
-  thrower->TypeError(
-      "Argument 0 must be provided and must be a Response or Response promise");
-  auto maybe = resolver->Reject(context, Utils::ToLocal(thrower->Reify()));
-  CHECK_IMPLIES(!maybe.FromMaybe(false), i_isolate->has_scheduled_exception());
-}
-
 void WebAssemblyCompileStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
-  if (!i_isolate->wasm_compile_callback()(args)) {
-    if (i_isolate->wasm_compile_streaming_callback() != nullptr) {
-      i_isolate->wasm_compile_streaming_callback()(args);
-    } else {
-      ErrorThrower thrower(i_isolate, "WebAssembly.compileStreaming()");
-      RejectResponseAPI(args, &thrower);
-    }
-  }
+  DCHECK_NOT_NULL(i_isolate->wasm_compile_streaming_callback());
+  i_isolate->wasm_compile_streaming_callback()(args);
 }
 
 // WebAssembly.compile(bytes) -> Promise
@@ -928,12 +905,15 @@ void WasmJs::Install(Isolate* isolate) {
   JSObject::AddProperty(webassembly, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly"), ro_attributes);
   InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile, 1);
-  InstallFunc(isolate, webassembly, "compileStreaming",
-              WebAssemblyCompileStreaming, 1);
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
-  InstallFunc(isolate, webassembly, "instantiateStreaming",
-              WebAssemblyInstantiateStreaming, 1);
+
+  if (isolate->wasm_compile_streaming_callback() != nullptr) {
+    InstallFunc(isolate, webassembly, "compileStreaming",
+                WebAssemblyCompileStreaming, 1);
+    InstallFunc(isolate, webassembly, "instantiateStreaming",
+                WebAssemblyInstantiateStreaming, 1);
+  }
 
   // Setup Module
   Handle<JSFunction> module_constructor =

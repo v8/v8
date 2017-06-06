@@ -71,31 +71,9 @@ void ThrowRangeException(v8::Isolate* isolate, const char* message) {
   isolate->ThrowException(NewRangeException(isolate, message));
 }
 
-void RejectPromiseWithRangeError(
-    const v8::FunctionCallbackInfo<v8::Value>& args, const char* message) {
-  v8::Isolate* isolate = args.GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::Local<v8::Promise::Resolver> resolver;
-  if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) return;
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(resolver->GetPromise());
-
-  auto maybe = resolver->Reject(context, NewRangeException(isolate, message));
-  CHECK(!maybe.IsNothing());
-  return;
-}
-
 bool WasmModuleOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (IsWasmCompileAllowed(args.GetIsolate(), args[0], false)) return false;
   ThrowRangeException(args.GetIsolate(), "Sync compile not allowed");
-  return true;
-}
-
-bool WasmCompileOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (IsWasmCompileAllowed(args.GetIsolate(), args[0], true)) return false;
-  RejectPromiseWithRangeError(args, "Async compile not allowed");
   return true;
 }
 
@@ -104,27 +82,6 @@ bool WasmInstanceOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ThrowRangeException(args.GetIsolate(), "Sync instantiate not allowed");
   return true;
 }
-
-bool WasmInstantiateOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (IsWasmInstantiateAllowed(args.GetIsolate(), args[0], true)) return false;
-  RejectPromiseWithRangeError(args, "Async instantiate not allowed");
-  return true;
-}
-
-bool GetWasmFromArray(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(args.Length() == 1);
-  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
-  v8::Local<v8::Value> module =
-      v8::Local<v8::Object>::Cast(args[0])->Get(context, 0).ToLocalChecked();
-
-  v8::Local<v8::Promise::Resolver> resolver =
-      v8::Promise::Resolver::New(context).ToLocalChecked();
-  args.GetReturnValue().Set(resolver->GetPromise());
-  USE(resolver->Resolve(context, module));
-  return true;
-}
-
-bool NoExtension(const v8::FunctionCallbackInfo<v8::Value>&) { return false; }
 
 }  // namespace
 
@@ -473,16 +430,6 @@ RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_SetWasmCompileFromPromiseOverload) {
-  isolate->set_wasm_compile_callback(GetWasmFromArray);
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_ResetWasmOverloads) {
-  isolate->set_wasm_compile_callback(NoExtension);
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
   // This only supports the case where the function being exported
   // calls an intermediate function, and the intermediate function
@@ -556,7 +503,6 @@ RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
   ctrl.AllowAnySizeForAsync = allow_async;
   ctrl.MaxWasmBufferSize = static_cast<uint32_t>(block_size->value());
   v8_isolate->SetWasmModuleCallback(WasmModuleOverride);
-  v8_isolate->SetWasmCompileCallback(WasmCompileOverride);
   return isolate->heap()->undefined_value();
 }
 
@@ -565,7 +511,6 @@ RUNTIME_FUNCTION(Runtime_SetWasmInstantiateControls) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   CHECK(args.length() == 0);
   v8_isolate->SetWasmInstanceCallback(WasmInstanceOverride);
-  v8_isolate->SetWasmInstantiateCallback(WasmInstantiateOverride);
   return isolate->heap()->undefined_value();
 }
 

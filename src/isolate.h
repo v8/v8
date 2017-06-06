@@ -405,8 +405,6 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
-  V(ExtensionCallback, wasm_compile_callback, &NoExtension)                   \
-  V(ExtensionCallback, wasm_instantiate_callback, &NoExtension)               \
   V(ApiImplementationCallback, wasm_compile_streaming_callback, nullptr)      \
   V(ExternalReferenceRedirectorPointer*, external_reference_redirector,       \
     nullptr)                                                                  \
