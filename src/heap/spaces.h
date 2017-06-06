@@ -1335,6 +1335,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   MemoryChunk* AllocateChunk(size_t reserve_area_size, size_t commit_area_size,
                              Executability executable, Space* space);
 
+  void ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink);
+
   Address ReserveAlignedMemory(size_t requested, size_t alignment,
                                base::VirtualMemory* controller);
   Address AllocateAlignedMemory(size_t reserve_size, size_t commit_size,
