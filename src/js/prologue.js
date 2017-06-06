@@ -43,9 +43,9 @@ function SetFunctionName(f, name, prefix) {
     name = "[" + %SymbolDescription(name) + "]";
   }
   if (IS_UNDEFINED(prefix)) {
-    %FunctionSetName(f, name);
+    %FunctionSetSharedName(f, name);
   } else {
-    %FunctionSetName(f, prefix + " " + name);
+    %FunctionSetSharedName(f, prefix + " " + name);
   }
 }
 

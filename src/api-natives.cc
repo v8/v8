@@ -494,7 +494,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
   Handle<JSFunction> function = ApiNatives::CreateApiFunction(
       isolate, data, prototype, ApiNatives::JavaScriptObjectType);
   if (!name.is_null() && name->IsString()) {
-    function->shared()->set_name(*name);
+    function->shared()->set_raw_name(*name);
   }
   if (serial_number) {
     // Cache the function.

@@ -170,7 +170,6 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
                                             int end_pos) {
   int expected_property_count = -1;
   const int parameter_count = 0;
-  if (name == nullptr) name = ast_value_factory()->empty_string();
 
   FunctionKind kind = call_super ? FunctionKind::kDefaultDerivedConstructor
                                  : FunctionKind::kDefaultBaseConstructor;
@@ -784,7 +783,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info) {
   {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
         source, shared_info->start_position(), shared_info->end_position()));
-    Handle<String> name(String::cast(shared_info->name()));
+    Handle<String> name(shared_info->name());
     scanner_.Initialize(stream.get(), info->is_module());
     info->set_function_name(ast_value_factory()->GetString(name));
     result = DoParseFunction(info);
@@ -2553,11 +2552,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // handle to decide whether to invoke function name inference.
   bool should_infer_name = function_name == NULL;
 
-  // We want a non-null handle as the function name.
-  if (should_infer_name) {
-    function_name = ast_value_factory()->empty_string();
-  }
-
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       function_state_->next_function_is_likely_called()
           ? FunctionLiteral::kShouldEagerCompile
@@ -3192,9 +3186,9 @@ ZoneList<Statement*>* Parser::ParseFunction(
   if (expected_parameters_end_pos != kNoSourcePosition) {
     // This is the first function encountered in a CreateDynamicFunction eval.
     parameters_end_pos_ = kNoSourcePosition;
-    // The function name should have been ignored, giving us the empty string
+    // The function name should have been ignored, giving us the nullptr
     // here.
-    DCHECK_EQ(function_name, ast_value_factory()->empty_string());
+    DCHECK_NULL(function_name);
   }
 
   ParserFormalParameters formals(function_scope);
@@ -3277,7 +3271,7 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     DCHECK_NOT_NULL(class_info->constructor);
     class_info->constructor->set_raw_name(
         class_name != nullptr ? ast_value_factory()->NewConsString(class_name)
-                              : ast_value_factory()->empty_cons_string());
+                              : nullptr);
     return;
   }
 
@@ -4168,7 +4162,7 @@ void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
   DCHECK(property->kind() != ObjectLiteralProperty::SETTER);
 
   // Computed name setting must happen at runtime.
-  DCHECK(!property->is_computed_name());
+  DCHECK_IMPLIES(property->is_computed_name(), name == nullptr);
 
   // Ignore "__proto__" as a name when it's being used to set the [[Prototype]]
   // of an object literal.
@@ -4188,14 +4182,14 @@ void Parser::SetFunctionNameFromIdentifierRef(Expression* value,
 }
 
 void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
-  DCHECK_NOT_NULL(name);
   if (!value->IsAnonymousFunctionDefinition()) return;
   auto function = value->AsFunctionLiteral();
   if (value->IsClassLiteral()) {
     function = value->AsClassLiteral()->constructor();
   }
   if (function != nullptr) {
-    function->set_raw_name(ast_value_factory()->NewConsString(name));
+    function->set_raw_name(
+        name != nullptr ? ast_value_factory()->NewConsString(name) : nullptr);
   }
 }
 

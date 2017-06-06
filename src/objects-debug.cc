@@ -720,11 +720,14 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kScriptOffset);
 
-  CHECK(function_data()->IsUndefined(GetIsolate()) || IsApiFunction() ||
+  CHECK(raw_name() == kNoSharedNameSentinel || raw_name()->IsString());
+
+  Isolate* isolate = GetIsolate();
+  CHECK(function_data()->IsUndefined(isolate) || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData());
 
-  CHECK(function_identifier()->IsUndefined(GetIsolate()) ||
-        HasBuiltinFunctionId() || HasInferredName());
+  CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
+        HasInferredName());
 
   if (scope_info()->length() > 0) {
     CHECK(kind() == scope_info()->function_kind());

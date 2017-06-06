@@ -910,6 +910,7 @@ class ParserBase {
   void CheckFunctionName(LanguageMode language_mode, IdentifierT function_name,
                          FunctionNameValidity function_name_validity,
                          const Scanner::Location& function_name_loc, bool* ok) {
+    if (impl()->IsEmptyIdentifier(function_name)) return;
     if (function_name_validity == kSkipFunctionNameCheck) return;
     // The function name needs to be checked in strict mode.
     if (is_sloppy(language_mode)) return;
@@ -2517,7 +2518,10 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
       ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
           name_expression, value, *is_computed_name);
 
-      if (!*is_computed_name) {
+      if (*is_computed_name) {
+        impl()->SetFunctionNameFromPropertyName(result,
+                                                impl()->EmptyIdentifier());
+      } else {
         impl()->SetFunctionNameFromPropertyName(result, name);
       }
 

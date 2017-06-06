@@ -18,7 +18,7 @@ TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
 CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
-ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
+ACCESSORS(SharedFunctionInfo, raw_name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
           kFeedbackMetadataOffset)
@@ -110,6 +110,16 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, profiler_ticks,
                         kProfilerTicksOffset)
 
 #endif
+
+bool SharedFunctionInfo::has_shared_name() const {
+  return raw_name() != kNoSharedNameSentinel;
+}
+
+String* SharedFunctionInfo::name() const {
+  if (!has_shared_name()) return GetHeap()->empty_string();
+  DCHECK(raw_name()->IsString());
+  return String::cast(raw_name());
+}
 
 AbstractCode* SharedFunctionInfo::abstract_code() {
   if (HasBytecodeArray()) {

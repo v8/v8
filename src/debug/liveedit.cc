@@ -1596,7 +1596,7 @@ void LiveEditFunctionTracker::VisitFunctionLiteral(FunctionLiteral* node) {
 void LiveEditFunctionTracker::FunctionStarted(FunctionLiteral* fun) {
   HandleScope handle_scope(isolate_);
   FunctionInfoWrapper info = FunctionInfoWrapper::Create(isolate_);
-  info.SetInitialProperties(fun->name(), fun->start_position(),
+  info.SetInitialProperties(fun->name(isolate_), fun->start_position(),
                             fun->end_position(), fun->parameter_count(),
                             current_parent_index_, fun->function_literal_id());
   current_parent_index_ = len_;

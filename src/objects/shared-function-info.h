@@ -18,8 +18,13 @@ namespace internal {
 // shared by multiple instances of the function.
 class SharedFunctionInfo : public HeapObject {
  public:
-  // [name]: Function name.
-  DECL_ACCESSORS(name, Object)
+  static constexpr Object* const kNoSharedNameSentinel = Smi::kZero;
+
+  // [raw_name]: Function name string or kNoSharedNameSentinel.
+  DECL_ACCESSORS(raw_name, Object)
+
+  // [name]: Returns shared name if it exists or an empty string otherwise.
+  inline String* name() const;
 
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
@@ -242,6 +247,9 @@ class SharedFunctionInfo : public HeapObject {
   // End position of this function in the script source.
   inline int end_position() const;
   inline void set_end_position(int end_position);
+
+  // Returns true if the function has shared name.
+  inline bool has_shared_name() const;
 
   // Is this function a named function expression in the source code.
   DECL_BOOLEAN_ACCESSORS(is_named_expression)

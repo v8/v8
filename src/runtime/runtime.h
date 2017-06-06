@@ -234,7 +234,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
   F(FunctionGetName, 1, 1)                 \
-  F(FunctionSetName, 2, 1)                 \
+  F(FunctionSetSharedName, 2, 1)           \
   F(FunctionRemovePrototype, 1, 1)         \
   F(FunctionGetScript, 1, 1)               \
   F(FunctionGetScriptId, 1, 1)             \

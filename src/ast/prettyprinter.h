@@ -79,7 +79,7 @@ class AstPrinter final : public AstVisitor<AstPrinter> {
 
   void PrintLabels(ZoneList<const AstRawString*>* labels);
   void PrintLiteral(const AstRawString* value, bool quote);
-  void PrintLiteral(Handle<Object> value, bool quote);
+  void PrintLiteral(MaybeHandle<Object> maybe_value, bool quote);
   void PrintIndented(const char* txt);
   void PrintIndentedVisit(const char* s, AstNode* node);
 
@@ -88,7 +88,8 @@ class AstPrinter final : public AstVisitor<AstPrinter> {
   void PrintParameters(DeclarationScope* scope);
   void PrintArguments(ZoneList<Expression*>* arguments);
   void PrintCaseClause(CaseClause* clause);
-  void PrintLiteralIndented(const char* info, Handle<Object> value, bool quote);
+  void PrintLiteralIndented(const char* info, MaybeHandle<Object> maybe_value,
+                            bool quote);
   void PrintLiteralWithModeIndented(const char* info,
                                     Variable* var,
                                     Handle<Object> value);

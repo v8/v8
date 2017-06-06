@@ -1807,7 +1807,7 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
 void BytecodeGenerator::BuildClassLiteralNameProperty(ClassLiteral* expr,
                                                       Register literal) {
   if (!expr->has_name_static_property() &&
-      !expr->constructor()->raw_name()->IsEmpty()) {
+      expr->constructor()->has_shared_name()) {
     Runtime::FunctionId runtime_id =
         expr->has_static_computed_names()
             ? Runtime::kInstallClassNameAccessorWithCheck

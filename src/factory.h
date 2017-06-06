@@ -749,9 +749,9 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
-      Handle<String> name, FunctionKind kind, Handle<Code> code,
+      MaybeHandle<String> name, FunctionKind kind, Handle<Code> code,
       Handle<ScopeInfo> scope_info);
-  Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name,
+  Handle<SharedFunctionInfo> NewSharedFunctionInfo(MaybeHandle<String> name,
                                                    MaybeHandle<Code> code,
                                                    bool is_constructor);
 

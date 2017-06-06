@@ -1342,9 +1342,9 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   iteratorSymbol, IteratorFunctions.values
 ]);
 
-%FunctionSetName(IteratorFunctions.entries, "entries");
-%FunctionSetName(IteratorFunctions.keys, "keys");
-%FunctionSetName(IteratorFunctions.values, "values");
+%FunctionSetSharedName(IteratorFunctions.entries, "entries");
+%FunctionSetSharedName(IteratorFunctions.keys, "keys");
+%FunctionSetSharedName(IteratorFunctions.values, "values");
 
 // The internal Array prototype doesn't need to be fancy, since it's never
 // exposed to user code.
