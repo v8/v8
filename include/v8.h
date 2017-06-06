@@ -7474,12 +7474,11 @@ class V8_EXPORT Isolate {
       AllowCodeGenerationFromStringsCallback callback);
 
   /**
-   * Embedder over{ride|load} injection points for wasm APIs.
+   * Embedder over{ride|load} injection points for wasm APIs. The expectation
+   * is that the embedder sets them at most once.
    */
   void SetWasmModuleCallback(ExtensionCallback callback);
-  void SetWasmCompileCallback(ExtensionCallback callback);
   void SetWasmInstanceCallback(ExtensionCallback callback);
-  void SetWasmInstantiateCallback(ExtensionCallback callback);
 
   void SetWasmCompileStreamingCallback(ApiImplementationCallback callback);
 

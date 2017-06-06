@@ -8872,10 +8872,7 @@ void Isolate::SetAllowCodeGenerationFromStringsCallback(
   }
 
 CALLBACK_SETTER(WasmModuleCallback, ExtensionCallback, wasm_module_callback)
-CALLBACK_SETTER(WasmCompileCallback, ExtensionCallback, wasm_compile_callback)
 CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback, wasm_instance_callback)
-CALLBACK_SETTER(WasmInstantiateCallback, ExtensionCallback,
-                wasm_instantiate_callback)
 
 CALLBACK_SETTER(WasmCompileStreamingCallback, ApiImplementationCallback,
                 wasm_compile_streaming_callback)
