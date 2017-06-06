@@ -2471,14 +2471,24 @@ class RepresentationSelector {
       }
       case IrOpcode::kStoreField: {
         FieldAccess access = FieldAccessOf(node->op());
-        NodeInfo* input_info = GetInfo(node->InputAt(1));
+        Node* value_node = node->InputAt(1);
+        NodeInfo* input_info = GetInfo(value_node);
+        MachineRepresentation field_representation =
+            access.machine_type.representation();
+
+        // Make sure we convert to Smi if possible. This should help write
+        // barrier elimination.
+        if (field_representation == MachineRepresentation::kTagged &&
+            TypeOf(value_node)->Is(Type::SignedSmall())) {
+          field_representation = MachineRepresentation::kTaggedSigned;
+        }
         WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
-            access.base_is_tagged, access.machine_type.representation(),
-            access.offset, access.type, input_info->representation(),
-            node->InputAt(1));
+            access.base_is_tagged, field_representation, access.offset,
+            access.type, input_info->representation(), value_node);
+
         ProcessInput(node, 0, UseInfoForBasePointer(access));
-        ProcessInput(node, 1, TruncatingUseInfoFromRepresentation(
-                                  access.machine_type.representation()));
+        ProcessInput(node, 1,
+                     TruncatingUseInfoFromRepresentation(field_representation));
         ProcessRemainingInputs(node, 2);
         SetOutput(node, MachineRepresentation::kNone);
         if (lower()) {
@@ -2547,15 +2557,25 @@ class RepresentationSelector {
       }
       case IrOpcode::kStoreElement: {
         ElementAccess access = ElementAccessOf(node->op());
-        NodeInfo* input_info = GetInfo(node->InputAt(2));
+        Node* value_node = node->InputAt(2);
+        NodeInfo* input_info = GetInfo(value_node);
+        MachineRepresentation element_representation =
+            access.machine_type.representation();
+
+        // Make sure we convert to Smi if possible. This should help write
+        // barrier elimination.
+        if (element_representation == MachineRepresentation::kTagged &&
+            TypeOf(value_node)->Is(Type::SignedSmall())) {
+          element_representation = MachineRepresentation::kTaggedSigned;
+        }
         WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
-            access.base_is_tagged, access.machine_type.representation(),
-            access.type, input_info->representation(), node->InputAt(2));
+            access.base_is_tagged, element_representation, access.type,
+            input_info->representation(), value_node);
         ProcessInput(node, 0, UseInfoForBasePointer(access));  // base
         ProcessInput(node, 1, UseInfo::TruncatingWord32());    // index
         ProcessInput(node, 2,
                      TruncatingUseInfoFromRepresentation(
-                         access.machine_type.representation()));  // value
+                         element_representation));  // value
         ProcessRemainingInputs(node, 3);
         SetOutput(node, MachineRepresentation::kNone);
         if (lower()) {
